@@ -1,0 +1,42 @@
+{
+  "persona_id": "complex-07",
+  "name": "Pavel",
+  "age_range": "32-45",
+  "locale": "Seoul, South Korea",
+  "profession": "Security analyst",
+  "expertise": [
+    "incident response",
+    "compliance"
+  ],
+  "background": "Pavel is a security analyst in Seoul, South Korea working on customer support copilot.",
+  "communication_preferences": [
+    "structured outlines",
+    "plain language"
+  ],
+  "work_style_preferences": [
+    "prototype before polish",
+    "tight feedback loops"
+  ],
+  "long_term_goals": [
+    "improve delegation and follow-through"
+  ],
+  "current_projects": [
+    "customer support copilot"
+  ],
+  "growth_path": [
+    "Started by stabilizing customer support copilot.",
+    "Now trying to scale the lessons from customer support copilot into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on customer support copilot.",
+    "Coordinates with a cross-functional peer group in Seoul, South Korea."
+  ],
+  "memory_risks": [
+    "Project details for customer support copilot may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "complex",
+  "scenario_ids": [
+    "scenario-complex-07"
+  ]
+}

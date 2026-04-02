@@ -1,0 +1,28 @@
+Phase 12.4: Hybrid Retrieval and Reranking
+==========================================
+
+[TODO] P12.4-T001 Add semantic candidate retrieval using embeddings
+[TODO] P12.4-T002 Merge lexical, procedural, episodic, and semantic scores
+[TODO] P12.4-T003 Add optional reranking with deterministic fallback
+
+Why this exists
+---------------
+- The current recall engine is query-aware, but still mostly lexical/rule-based.
+- Hybrid retrieval is the first place where `embedding` creates obvious product value.
+
+Write tests first
+-----------------
+- semantic hits appear only when embeddings are enabled
+- lexical exact matches do not get displaced by weak semantic neighbors
+- reranking does not hide provenance
+
+Implementation steps
+--------------------
+1. Add per-memory-type semantic candidate collection
+2. Introduce merge weights and explainable scoring
+3. Keep packet budgeting and verification hints intact
+
+Acceptance
+----------
+- Hybrid retrieval improves selected eval slices
+- Raw recall artifacts still show why each item was included

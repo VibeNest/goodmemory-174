@@ -1,0 +1,42 @@
+{
+  "persona_id": "complex-04",
+  "name": "June",
+  "age_range": "32-45",
+  "locale": "Hangzhou, China",
+  "profession": "Product manager",
+  "expertise": [
+    "product strategy",
+    "user research"
+  ],
+  "background": "June is a product manager in Hangzhou, China working on agent memory evaluation suite.",
+  "communication_preferences": [
+    "short status updates",
+    "decision tables"
+  ],
+  "work_style_preferences": [
+    "evidence-backed recommendations",
+    "traceable rationale"
+  ],
+  "long_term_goals": [
+    "build a dependable AI workflow"
+  ],
+  "current_projects": [
+    "agent memory evaluation suite"
+  ],
+  "growth_path": [
+    "Started by stabilizing agent memory evaluation suite.",
+    "Now trying to scale the lessons from agent memory evaluation suite into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on agent memory evaluation suite.",
+    "Coordinates with a cross-functional peer group in Hangzhou, China."
+  ],
+  "memory_risks": [
+    "Project details for agent memory evaluation suite may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "complex",
+  "scenario_ids": [
+    "scenario-complex-04"
+  ]
+}

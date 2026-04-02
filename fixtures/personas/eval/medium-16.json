@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-16",
+  "name": "Zoe",
+  "age_range": "25-38",
+  "locale": "Berlin, Germany",
+  "profession": "DevOps lead",
+  "expertise": [
+    "kubernetes",
+    "platform tooling"
+  ],
+  "background": "Zoe is a devops lead in Berlin, Germany working on research operations redesign.",
+  "communication_preferences": [
+    "short status updates",
+    "decision tables"
+  ],
+  "work_style_preferences": [
+    "evidence-backed recommendations",
+    "traceable rationale"
+  ],
+  "long_term_goals": [
+    "become a stronger technical leader"
+  ],
+  "current_projects": [
+    "research operations redesign"
+  ],
+  "growth_path": [
+    "Started by stabilizing research operations redesign.",
+    "Now trying to scale the lessons from research operations redesign into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on research operations redesign.",
+    "Coordinates with a cross-functional peer group in Berlin, Germany."
+  ],
+  "memory_risks": [
+    "Project details for research operations redesign may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-16"
+  ]
+}

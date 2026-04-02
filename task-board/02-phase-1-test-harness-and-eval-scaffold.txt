@@ -1,0 +1,152 @@
+Phase 1: Test Harness and Evaluation Scaffold
+=============================================
+
+Phase Goal
+----------
+Build the testing infrastructure before building product logic.
+
+This phase exists because GoodMemory is only useful if its behavior can be repeatedly evaluated.
+
+
+Dependencies
+------------
+- Phase 0 complete
+
+
+Primary Deliverables
+--------------------
+- Shared test utilities
+- deterministic fake adapters
+- scenario replay harness
+- eval runner skeleton
+- report serializer
+- judge prompt template skeleton
+
+
+Definition of Done
+------------------
+- Unit and integration tests can use shared fixtures and fake adapters
+- Scenario tests can replay a structured conversation transcript
+- Eval runner can produce a report file, even with placeholder data
+
+
+Tasks
+-----
+[DONE] P1-T001 Build shared test utilities
+Write tests first:
+- Test that utilities can create a clean temp workspace
+- Test that deterministic clock and id generator behave predictably
+
+Implementation steps:
+1. Create test helper modules for:
+   - deterministic clock
+   - fake UUID or id generation
+   - temp directories
+   - fixture loaders
+2. Keep helpers framework-agnostic
+
+Acceptance:
+- Future tests do not reimplement setup logic
+
+
+[DONE] P1-T002 Build fake adapters for deterministic tests
+Write tests first:
+- Fake LLM returns predefined result
+- Fake embedding returns deterministic vectors
+- Fake storage persists and retrieves predictable records
+
+Implementation steps:
+1. Create fake LLM adapter
+2. Create fake embedding adapter
+3. Create in-memory fake stores
+4. Add strict assertions for unexpected calls
+
+Acceptance:
+- Unit and integration tests can run without live APIs
+
+
+[DONE] P1-T003 Build fixture loading system
+Write tests first:
+- Persona fixture loads correctly
+- Conversation replay fixture loads correctly
+- Invalid fixture shape throws a useful error
+
+Implementation steps:
+1. Define fixture loader APIs
+2. Validate JSON/TXT fixture structure at load time
+3. Make loaders reusable across scenario and eval tests
+
+Acceptance:
+- Fixture format is stable before large data generation begins
+
+
+[DONE] P1-T004 Build scenario replay harness
+Write tests first:
+- A minimal replay can iterate through conversation turns
+- Replay harness can hand current turn and prior turns to the test subject
+
+Implementation steps:
+1. Define replay input contract
+2. Implement turn iterator
+3. Support multi-session replay
+4. Add hook points:
+   - before-model
+   - after-model
+   - end-of-session
+
+Acceptance:
+- One persona with two sessions can be replayed end-to-end
+
+
+[DONE] P1-T005 Build eval report format
+Write tests first:
+- Eval result serializes to disk
+- Report contains score sections and failure case sections
+
+Implementation steps:
+1. Define report JSON format
+2. Define human-readable summary format
+3. Add report writing utilities
+
+Acceptance:
+- Smoke eval can write a valid report into reports/eval/
+
+
+[DONE] P1-T006 Build LLM judge scaffold
+Write tests first:
+- Judge prompt builder produces stable prompt text
+- Judge result parser handles valid and invalid outputs
+
+Implementation steps:
+1. Define judge input type
+2. Define judge result type
+3. Create prompt template for LLM-as-judge
+4. Create parser and validation
+
+Acceptance:
+- Judge interface exists before persona eval data is generated
+
+
+[DONE] P1-T007 Add smoke eval command
+Write tests first:
+- Smoke eval command exits successfully
+- Smoke eval writes report
+
+Implementation steps:
+1. Add scripts/run-eval.ts placeholder
+2. Add smoke mode
+3. Wire package scripts
+
+Acceptance:
+- `bun run eval:smoke` produces a minimal report artifact
+
+
+Exit Checklist
+--------------
+- Shared test utilities exist
+- Fake adapters exist
+- Fixture loaders exist
+- Scenario replay harness exists
+- Eval report serializer exists
+- Judge scaffold exists
+- Smoke eval command exists

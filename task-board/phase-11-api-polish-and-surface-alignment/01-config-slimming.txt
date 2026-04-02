@@ -1,0 +1,9 @@
+Phase 11.1: Config Slimming
+===========================
+
+[DONE] P11.1-T001 Remove unused llm/embedding fields from GoodMemoryConfig
+[DONE] P11.1-T002 Update tests that still rely on the old shape
+
+Definition of Done
+------------------
+- Public config only contains fields that the library core actually uses

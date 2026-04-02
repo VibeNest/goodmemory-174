@@ -1,0 +1,11 @@
+Phase 8.4: Dream Gating
+=======================
+
+[DONE] M8-T010 Define session-count and time-based gates
+[DONE] M8-T011 Implement overlap/lock guard semantics
+[DONE] M8-T012 Keep dream scaffold minimal but extensible
+
+Definition of Done
+------------------
+- Dream-style consolidation has a stable gate model
+- Future cross-session work can be added without redesign

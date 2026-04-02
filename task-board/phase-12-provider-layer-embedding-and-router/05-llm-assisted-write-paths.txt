@@ -1,0 +1,26 @@
+Phase 12.5: LLM-Assisted Write Paths
+====================================
+
+[TODO] P12.5-T001 Add optional LLM-assisted candidate extraction
+[TODO] P12.5-T002 Add optional LLM-assisted consolidation or reranking helpers
+[TODO] P12.5-T003 Keep policy and write gating ahead of model output
+
+Why this exists
+---------------
+- `llm` should first improve extraction quality and consolidation quality, not become the only router.
+
+Write tests first
+-----------------
+- rules-only extraction remains the baseline
+- LLM-assisted extraction can be toggled on per mode
+- candidate-level write trace preserves model influence
+
+Implementation steps
+--------------------
+1. Add a structured extraction schema through Vercel AI SDK `generateObject`
+2. Keep deterministic extractor as fallback and comparison baseline
+3. Log candidate provenance: rules-only vs llm-assisted
+
+Acceptance
+----------
+- LLM-assisted writes are optional, inspectable, and benchmarked

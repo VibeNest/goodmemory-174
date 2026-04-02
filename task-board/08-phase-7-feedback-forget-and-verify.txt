@@ -1,0 +1,93 @@
+Phase 7: Feedback, Forget, and Verify
+=====================================
+
+Phase Goal
+----------
+Implement the features that make GoodMemory trustworthy and behavior-shaping.
+
+
+Dependencies
+------------
+- Phase 6 complete
+
+
+Primary Deliverables
+--------------------
+- feedback() public API
+- forget/correction path
+- verify-before-act decision layer
+- explainability hooks for user-facing trust
+
+
+Definition of Done
+------------------
+- Procedural memory has a first-class public path
+- Deletion and correction are supported
+- Verification logic is represented in code and tests
+
+
+Tasks
+-----
+[DONE] P7-T001 Implement feedback() public API
+Write tests first:
+- explicit correction creates or updates procedural memory
+- explicit validation creates or updates validated pattern memory
+
+Implementation steps:
+1. Build feedback input contract
+2. Route feedback directly into procedural memory layer
+3. Return update metadata
+
+Acceptance:
+- feedback() is usable without passing through remember()
+
+
+[DONE] P7-T002 Implement forget() and correction behavior
+Write tests first:
+- forgetting marks record inactive or deletes as designed
+- superseded record remains auditable if required
+
+Implementation steps:
+1. Decide invalidation vs hard delete semantics for v1
+2. Implement public forget path
+3. Support correction by creating new version and superseding old one
+
+Acceptance:
+- Users and integrators can remove or correct memory
+
+
+[DONE] P7-T003 Implement verification decision layer
+Write tests first:
+- recalled stale memory driving action is flagged for verification
+- fresh high-confidence memory can pass without verification
+
+Implementation steps:
+1. Add verification policy model
+2. Add decision utility used during recall/buildContext
+3. Expose verification hints in metadata
+
+Acceptance:
+- verify-before-act is encoded as a real system behavior
+
+
+[DONE] P7-T004 Strengthen explainability outputs
+Write tests first:
+- recall metadata includes why a memory was selected
+- remember metadata includes why a memory was written or rejected
+
+Implementation steps:
+1. Add reason fields
+2. Add source/provenance exposure
+3. Keep output compact but useful
+
+Acceptance:
+- Key decisions are inspectable
+
+
+Exit Checklist
+--------------
+- feedback() works
+- forget() works
+- correction path works
+- verification decision layer exists
+- explainability metadata is improved

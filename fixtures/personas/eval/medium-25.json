@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-25",
+  "name": "Lena",
+  "age_range": "25-38",
+  "locale": "Seoul, South Korea",
+  "profession": "Security analyst",
+  "expertise": [
+    "incident response",
+    "compliance"
+  ],
+  "background": "Lena is a security analyst in Seoul, South Korea working on customer support copilot.",
+  "communication_preferences": [
+    "concise bullet points",
+    "clear next steps"
+  ],
+  "work_style_preferences": [
+    "incremental delivery",
+    "visible checklists"
+  ],
+  "long_term_goals": [
+    "improve delegation and follow-through"
+  ],
+  "current_projects": [
+    "customer support copilot"
+  ],
+  "growth_path": [
+    "Started by stabilizing customer support copilot.",
+    "Now trying to scale the lessons from customer support copilot into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on customer support copilot.",
+    "Coordinates with a cross-functional peer group in Seoul, South Korea."
+  ],
+  "memory_risks": [
+    "Project details for customer support copilot may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-25"
+  ]
+}

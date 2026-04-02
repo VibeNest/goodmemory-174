@@ -1,0 +1,124 @@
+Phase 5: Remember Pipeline
+==========================
+
+Phase Goal
+----------
+Implement the durable memory write path: candidate extraction, classification, scoring, conflict handling, and persistence.
+
+
+Dependencies
+------------
+- Phase 2 through Phase 4 complete
+
+
+Primary Deliverables
+--------------------
+- candidate extraction pipeline
+- memory classification
+- conservative write policy
+- merge / supersede / reject behavior
+- durable memory persistence
+
+
+Definition of Done
+------------------
+- `remember()` can convert conversation input into durable memory state
+- Tests cover explicit and inferred memory paths
+- Procedural memory can be produced or updated independently
+
+
+Tasks
+-----
+[DONE] P5-T001 Define candidate extraction contract
+Write tests first:
+- extraction output shape validates
+- explicit user facts and feedback can be represented separately
+
+Implementation steps:
+1. Create MemoryCandidate type
+2. Create extraction result type
+3. Separate candidates by target memory class
+
+Acceptance:
+- Downstream pipeline can consume extraction output without ambiguity
+
+
+[DONE] P5-T002 Implement deterministic extraction path for tests
+Write tests first:
+- fixture conversation maps to known candidates
+
+Implementation steps:
+1. Add fake/deterministic extractor for local test mode
+2. Make extractor pluggable
+
+Acceptance:
+- TDD for the pipeline does not require live LLM calls
+
+
+[DONE] P5-T003 Implement candidate classification and routing
+Write tests first:
+- semantic vs episodic vs procedural cases classify correctly
+- ambiguous candidate either rejected or marked clearly
+
+Implementation steps:
+1. Build classifier layer
+2. Add conservative defaults
+3. Ensure feedback/procedural path is not mixed with preference/fact
+
+Acceptance:
+- Candidate classes are stable
+
+
+[DONE] P5-T004 Implement memory scoring and write gating
+Write tests first:
+- low-value noise is rejected
+- future-useful items survive
+- inferred candidates score lower by default
+
+Implementation steps:
+1. Add scoring heuristics
+2. Add write policy hook support
+3. Add threshold behavior
+
+Acceptance:
+- Write path is conservative by default
+
+
+[DONE] P5-T005 Implement dedupe and supersession
+Write tests first:
+- duplicate facts merge
+- newer explicit facts supersede inferred old facts
+- procedural guidance updates safely
+
+Implementation steps:
+1. Add similarity or equivalence checks
+2. Add merge logic
+3. Add superseded state transitions
+
+Acceptance:
+- Write path favors update over append
+
+
+[DONE] P5-T006 Implement remember() public API
+Write tests first:
+- happy path remember writes memory
+- empty/noise conversation writes nothing
+- conflict path yields expected state and events
+
+Implementation steps:
+1. Wire extractor + classifier + scoring + persistence
+2. Return useful metadata
+3. Emit events
+
+Acceptance:
+- Public remember API is functional and testable
+
+
+Exit Checklist
+--------------
+- Candidate extraction contract exists
+- Deterministic extractor exists
+- Classification exists
+- Scoring exists
+- Dedupe/supersede exists
+- remember() works

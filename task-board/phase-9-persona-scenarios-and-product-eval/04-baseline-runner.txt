@@ -1,0 +1,11 @@
+Phase 9.4: Baseline Runner
+==========================
+
+[DONE] P9.4-T001 Define baseline answer package
+[DONE] P9.4-T002 Implement fair no-memory prompt assembly
+[DONE] P9.4-T003 Persist baseline trace artifacts
+
+Definition of Done
+------------------
+- Baseline runner can answer eval prompts without GoodMemory
+- Baseline traces are inspectable

@@ -1,0 +1,11 @@
+Phase 10.1: CLI Inspect, Trace, Export
+======================================
+
+[DONE] P10.1-T001 Add inspect command for eval artifacts
+[DONE] P10.1-T002 Add trace command for raw recall and write events
+[DONE] P10.1-T003 Add export command for case artifacts
+
+Definition of Done
+------------------
+- Developers can inspect memory output without opening raw JSON manually
+- CLI remains read-oriented in v1

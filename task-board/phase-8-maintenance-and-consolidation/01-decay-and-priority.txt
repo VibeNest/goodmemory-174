@@ -1,0 +1,11 @@
+Phase 8.1: Decay and Priority
+=============================
+
+[DONE] M8-T001 Define decay input model
+[DONE] M8-T002 Implement decayed priority calculation
+[DONE] M8-T003 Test stale vs fresh memory priority changes
+
+Definition of Done
+------------------
+- Older memory can be ranked lower than fresh memory
+- High-importance memory decays more slowly

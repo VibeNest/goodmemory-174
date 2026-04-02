@@ -1,0 +1,116 @@
+Phase 8: Maintenance and Consolidation
+======================================
+
+Phase Goal
+----------
+Implement the quality-preserving background systems that stop memory from degrading over time.
+
+
+Dependencies
+------------
+- Phase 7 complete
+
+
+Primary Deliverables
+--------------------
+- decay
+- dedupe cleanup
+- contradiction repair
+- consolidation
+- dream-style maintenance scaffold
+
+
+Definition of Done
+------------------
+- Maintenance exists as executable code, not only a future idea
+- Hot path does not depend on full maintenance completion
+
+
+Tasks
+-----
+[DONE] P8-T001 Implement decay model
+Write tests first:
+- stale memories lose priority over time
+- high-importance memories decay more slowly or remain more resilient
+
+Implementation steps:
+1. Define decay inputs
+2. Implement score recalculation
+3. Decide inactive threshold behavior
+
+Acceptance:
+- Decay influences retrieval quality over time
+
+
+[DONE] P8-T002 Implement dedupe cleanup job
+Write tests first:
+- near-duplicate records are consolidated or flagged
+
+Implementation steps:
+1. Build maintenance job
+2. Make it safe to run repeatedly
+
+Acceptance:
+- Duplicate memory accumulation is bounded
+
+
+[DONE] P8-T003 Implement contradiction repair job
+Write tests first:
+- contradictory memories are surfaced and repaired according to policy
+
+Implementation steps:
+1. Scan for conflicting active records
+2. Apply safe repair behavior
+3. Log outcomes
+
+Acceptance:
+- Contradictions do not silently persist forever
+
+
+[DONE] P8-T004 Implement consolidation job
+Write tests first:
+- multiple related episodes consolidate into more compact durable signal
+
+Implementation steps:
+1. Group episodic memories by topic/time heuristics
+2. Produce consolidated outputs
+3. Keep originals traceable where needed
+
+Acceptance:
+- Episodic memory remains useful without unbounded growth
+
+
+[DONE] P8-T005 Implement maintenance entry point
+Write tests first:
+- maintenance can run selected jobs
+- maintenance can run all jobs in sequence
+
+Implementation steps:
+1. Create internal maintenance runner
+2. Add optional public escape hatch if needed
+
+Acceptance:
+- Maintenance has one callable orchestration point
+
+
+[DONE] P8-T006 Scaffold dream-style consolidation
+Write tests first:
+- session-count gate and time gate calculations behave correctly
+
+Implementation steps:
+1. Implement config and gating only
+2. Implement lock semantics if maintenance can overlap
+3. Keep actual “dream” logic minimal in v1
+
+Acceptance:
+- Future cross-session consolidation can be added without redesign
+
+
+Exit Checklist
+--------------
+- decay exists
+- dedupe cleanup exists
+- contradiction repair exists
+- consolidation exists
+- maintenance entry point exists
+- dream-style scaffold exists

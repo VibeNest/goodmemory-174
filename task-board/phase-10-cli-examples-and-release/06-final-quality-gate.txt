@@ -1,0 +1,10 @@
+Phase 10.6: Final Quality Gate
+==============================
+
+[DONE] P10.6-T001 Run unit and integration coverage
+[DONE] P10.6-T002 Run scenario and eval validation
+[DONE] P10.6-T003 Record the release gate result
+
+Definition of Done
+------------------
+- Release gate is reproducible and documented

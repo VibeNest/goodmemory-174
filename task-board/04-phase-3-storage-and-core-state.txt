@@ -1,0 +1,108 @@
+Phase 3: Storage and Core State
+===============================
+
+Phase Goal
+----------
+Implement storage contracts and the minimum persistence backplane required by the public API and tests.
+
+
+Dependencies
+------------
+- Phase 2 complete
+
+
+Primary Deliverables
+--------------------
+- Storage interfaces
+- In-memory adapter
+- SQLite adapter
+- Postgres adapter contract and skeleton
+- session state persistence contract
+
+
+Definition of Done
+------------------
+- In-memory adapter passes integration tests
+- SQLite adapter passes the same contract tests
+- Postgres adapter contract is defined and partially scaffolded
+
+
+Tasks
+-----
+[DONE] P3-T001 Define storage interfaces
+Write tests first:
+- Interface contract tests for CRUD-like behavior
+- Scope filtering tests
+- lifecycle transition tests
+
+Implementation steps:
+1. Define DocumentStore
+2. Define VectorStore
+3. Define SessionStore
+4. Define optional spill store contract if separate
+
+Acceptance:
+- Contract tests can be reused across adapters
+
+
+[DONE] P3-T002 Implement in-memory adapter
+Write tests first:
+- All contract tests against in-memory adapter
+
+Implementation steps:
+1. Implement document collections
+2. Implement vector search in simple deterministic form
+3. Implement session state store
+
+Acceptance:
+- In-memory mode is the main test substrate for non-live tests
+
+
+[DONE] P3-T003 Implement SQLite adapter
+Write tests first:
+- Run contract tests against sqlite adapter
+- Ensure schema can initialize from empty DB
+
+Implementation steps:
+1. Design sqlite schema
+2. Add migrations or bootstrap schema creation
+3. Implement document persistence
+4. Implement session state persistence
+5. If vector support is deferred, emulate enough behavior for v1 local mode
+
+Acceptance:
+- SQLite is usable as local-first development mode
+
+
+[DONE] P3-T004 Define Postgres adapter contract
+Write tests first:
+- Contract test skeleton marked pending if implementation deferred
+
+Implementation steps:
+1. Freeze schema expectations for postgres + pgvector
+2. Define adapter API surface
+3. Add bootstrap checklist for later implementation
+
+Acceptance:
+- Postgres reference path is defined and implementation-safe
+
+
+[DONE] P3-T005 Implement shared repository layer
+Write tests first:
+- Repositories correctly map public records to storage contracts
+
+Implementation steps:
+1. Create repository modules per memory family
+2. Keep storage-specific SQL out of public-facing code
+
+Acceptance:
+- Higher-level engines do not speak raw storage details directly
+
+
+Exit Checklist
+--------------
+- Storage interfaces exist
+- In-memory adapter passes tests
+- SQLite adapter passes tests
+- Postgres contract exists
+- Repository layer exists

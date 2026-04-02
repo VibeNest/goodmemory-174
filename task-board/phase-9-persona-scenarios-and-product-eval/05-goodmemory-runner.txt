@@ -1,0 +1,11 @@
+Phase 9.5: GoodMemory Runner
+============================
+
+[DONE] P9.5-T001 Replay history through public GoodMemory APIs
+[DONE] P9.5-T002 Build answer package with recalled memory context
+[DONE] P9.5-T003 Persist memory traces for each evaluated case
+
+Definition of Done
+------------------
+- GoodMemory runner exercises remember, recall, buildContext, feedback, and forget as needed
+- Trace artifacts are persisted for each run

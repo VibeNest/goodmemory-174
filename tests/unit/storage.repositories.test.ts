@@ -1,0 +1,209 @@
+import { describe, expect, it } from "bun:test";
+import {
+  createMemoryRepositories,
+} from "../../src/storage/repositories";
+import {
+  createFactMemory,
+  createFeedbackMemory,
+  createEpisodeMemory,
+  createPreferenceMemory,
+  createReferenceMemory,
+  createSessionBuffer,
+  createSessionJournal,
+  createUserProfile,
+  createWorkingMemorySnapshot,
+} from "../../src/domain/records";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+  createInMemoryVectorStore,
+} from "../../src/storage/memory";
+
+describe("memory repositories", () => {
+  it("provides typed accessors over storage contracts", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+
+    const profile = createUserProfile({
+      userId: "u-1",
+      identity: { name: "Lin" },
+    });
+    await repositories.profiles.upsert(profile);
+    expect(await repositories.profiles.get("u-1")).toEqual(profile);
+
+    const fact = createFactMemory({
+      id: "f-1",
+      userId: "u-1",
+      category: "project",
+      content: "Robot workflow remains open.",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+    });
+    await repositories.facts.add(fact);
+
+    expect(await repositories.facts.listByUser("u-1")).toHaveLength(1);
+  });
+
+  it("supports scope-aware retrieval for facts and feedback", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "f-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Workspace A fact.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "f-2",
+        userId: "u-1",
+        workspaceId: "workspace-b",
+        category: "project",
+        content: "Workspace B fact.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.feedback.upsert(
+      createFeedbackMemory({
+        id: "fb-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        rule: "Keep answers concise.",
+        kind: "do",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+
+    expect(
+      await repositories.facts.listByScope({
+        userId: "u-1",
+        workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.feedback.listByScope({
+        userId: "u-1",
+        workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.feedback.listByScope({
+        userId: "u-1",
+        workspaceId: "workspace-b",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("persists preferences, references, episodes, and runtime state through typed accessors", async () => {
+    const scope = {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    };
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+      vectorStore: createInMemoryVectorStore(),
+    });
+
+    await repositories.preferences.upsert(
+      createPreferenceMemory({
+        id: "pref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "response_style",
+        value: "concise bullet points",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Runbook",
+        pointer: "docs/runtime-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        summary: "Conversation covered runtime migration.",
+        keyDecisions: [],
+        unresolvedItems: ["confirm rollout"],
+        topics: ["runtime migration"],
+      }),
+    );
+    await repositories.sessionBuffers.save(
+      scope,
+      createSessionBuffer({
+        sessionId: "s-1",
+        userId: "u-1",
+      }),
+    );
+    await repositories.workingMemory.save(
+      scope,
+      createWorkingMemorySnapshot({
+        sessionId: "s-1",
+        userId: "u-1",
+        currentGoal: "finish runtime migration",
+      }),
+    );
+    await repositories.sessionJournals.save(
+      scope,
+      createSessionJournal({
+        sessionId: "s-1",
+        userId: "u-1",
+        worklog: ["runtime migration started"],
+      }),
+    );
+    await repositories.vectorIndex?.upsertEpisodeEmbedding([
+      {
+        id: "ep-1",
+        embedding: [1, 0, 0],
+        metadata: { userId: "u-1", workspaceId: "workspace-a" },
+        content: "runtime migration",
+      },
+    ]);
+
+    expect(await repositories.preferences.listByUser("u-1")).toHaveLength(1);
+    expect(await repositories.references.listByUser("u-1")).toHaveLength(1);
+    expect(await repositories.episodes.listByUser("u-1")).toHaveLength(1);
+    expect(await repositories.preferences.listByScope(scope)).toHaveLength(1);
+    expect(await repositories.references.listByScope(scope)).toHaveLength(1);
+    expect(await repositories.episodes.listByScope(scope)).toHaveLength(1);
+    expect((await repositories.sessionBuffers.get(scope))?.sessionId).toBe("s-1");
+    expect((await repositories.workingMemory.get(scope))?.currentGoal).toBe(
+      "finish runtime migration",
+    );
+    expect((await repositories.sessionJournals.get(scope))?.worklog).toEqual([
+      "runtime migration started",
+    ]);
+    expect(
+      await repositories.vectorIndex?.searchEpisodeEmbedding([1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-1" },
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("returns a null vector index when no vector store is configured", () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+
+    expect(repositories.vectorIndex).toBeNull();
+  });
+});

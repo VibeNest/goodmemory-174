@@ -1,0 +1,11 @@
+Phase 9.1: Persona Schema and Loaders
+=====================================
+
+[DONE] P9.1-T001 Freeze persona spec schema
+[DONE] P9.1-T002 Implement persona loader and validator
+[DONE] P9.1-T003 Fail fast on invalid persona schema
+
+Definition of Done
+------------------
+- Persona fixtures validate against one stable schema
+- Invalid fixtures fail with useful error messages

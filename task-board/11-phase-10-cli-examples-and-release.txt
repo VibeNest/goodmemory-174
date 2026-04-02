@@ -1,0 +1,130 @@
+Phase 10: CLI, Examples, and Release
+====================================
+
+Phase Goal
+----------
+Make GoodMemory usable by real integrators and shippable as an OSS release.
+
+
+Dependencies
+------------
+- Core API complete
+- Product eval suite operational
+
+
+Primary Deliverables
+--------------------
+- CLI
+- example apps
+- documentation updates
+- packaging
+- release checklist
+
+
+Definition of Done
+------------------
+- New users can install and run the project
+- CLI can inspect and trace memory behavior
+- At least one example demonstrates real integration
+- Release notes and packaging are ready
+
+
+Tasks
+-----
+[DONE] P10-T001 Implement CLI inspect and trace
+Write tests first:
+- CLI inspect returns memory summaries
+- CLI trace returns recall/remember reasons
+
+Implementation steps:
+1. Add inspect command
+2. Add trace command
+3. Add export command
+4. Keep CLI read-oriented in v1
+
+Acceptance:
+- Developers can debug memory behavior without reading storage manually
+
+
+[DONE] P10-T002 Build example: basic chat integration
+Write tests first:
+- Example boots and demonstrates minimal integration path
+
+Implementation steps:
+1. Create minimal chat example
+2. Use createGoodMemory + recall + buildContext + remember
+3. Document exact run steps
+
+Acceptance:
+- Demo integration matches product promise
+
+
+[DONE] P10-T003 Build example: coding-agent flavored integration
+Write tests first:
+- Example demonstrates runtime memory and procedural memory use
+
+Implementation steps:
+1. Add coding-agent flavored example
+2. Show `coding_agent` profile
+
+Acceptance:
+- Dual-scene positioning is demonstrated concretely
+
+
+[DONE] P10-T004 Finalize docs for v1 release
+Write tests first:
+- Documentation link checks if automated, otherwise manual review checklist
+
+Implementation steps:
+1. Ensure README is aligned with PRD and canonical architecture doc
+2. Link:
+   - canonical design doc
+   - v1 architecture
+   - PRD
+   - TDD/eval strategy
+   - task board if useful
+
+Acceptance:
+- Docs tell a coherent story with no contradicting top-level positioning
+
+
+[DONE] P10-T005 Prepare package publishing and release checklist
+Write tests first:
+- package metadata validates
+
+Implementation steps:
+1. Verify exports
+2. Verify package name/versioning strategy
+3. Create release checklist
+
+Acceptance:
+- Project is publish-ready
+
+
+[DONE] P10-T006 Run final quality gate
+Write tests first:
+- This is the gate itself
+
+Implementation steps:
+1. Run all unit tests
+2. Run all integration tests
+3. Run selected scenario tests
+4. Run product eval smoke
+5. Run full product eval if release candidate
+6. Review failure reports manually
+
+Acceptance:
+- No unresolved critical regressions
+- Product eval supports release claim
+
+
+Release Exit Checklist
+----------------------
+- Public API documented
+- CLI works
+- Chat example works
+- Coding-agent example works
+- Smoke eval passes
+- Full eval report exists
+- README and docs are aligned
+- Package is ready to publish

@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-10",
+  "name": "Iris",
+  "age_range": "25-38",
+  "locale": "Sydney, Australia",
+  "profession": "Operations manager",
+  "expertise": [
+    "vendor operations",
+    "process redesign"
+  ],
+  "background": "Iris is a operations manager in Sydney, Australia working on knowledge base overhaul.",
+  "communication_preferences": [
+    "risk-first summaries",
+    "explicit assumptions"
+  ],
+  "work_style_preferences": [
+    "deep work blocks",
+    "written decisions"
+  ],
+  "long_term_goals": [
+    "improve delegation and follow-through"
+  ],
+  "current_projects": [
+    "knowledge base overhaul"
+  ],
+  "growth_path": [
+    "Started by stabilizing knowledge base overhaul.",
+    "Now trying to scale the lessons from knowledge base overhaul into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on knowledge base overhaul.",
+    "Coordinates with a cross-functional peer group in Sydney, Australia."
+  ],
+  "memory_risks": [
+    "Project details for knowledge base overhaul may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-10"
+  ]
+}

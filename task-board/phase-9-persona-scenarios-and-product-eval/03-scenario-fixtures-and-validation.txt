@@ -1,0 +1,11 @@
+Phase 9.3: Scenario Fixtures and Validation
+===========================================
+
+[DONE] P9.3-T001 Freeze replay fixture schema
+[DONE] P9.3-T002 Generate linked replay fixtures for each persona
+[DONE] P9.3-T003 Enforce required memory phenomena coverage
+
+Definition of Done
+------------------
+- Every persona has at least one linked replay fixture
+- Scenario fixtures cover identity, continuation, open loop, correction, confirmation, and stale info

@@ -1,0 +1,165 @@
+Phase 9: Persona Scenarios and Product Evaluation
+=================================================
+
+Phase Goal
+----------
+Build the product-level validation system that proves GoodMemory improves user understanding and history continuation.
+
+
+Dependencies
+------------
+- Phases 1 through 8 complete enough to exercise the full public API
+
+
+Primary Deliverables
+--------------------
+- persona dataset
+- conversation replay dataset
+- judge rubrics
+- baseline runner
+- GoodMemory runner
+- eval reports
+
+
+Definition of Done
+------------------
+- About 40 personas exist
+- A/B eval can run
+- LLM-as-judge produces structured results
+- Failure cases and traces are persisted
+
+
+Tasks
+-----
+[DONE] P9-T001 Define persona spec schema
+Write tests first:
+- valid persona fixture loads
+- invalid persona fixture fails fast
+
+Implementation steps:
+1. Freeze persona schema fields
+2. Add validation
+3. Document fixture authoring rules
+
+Acceptance:
+- Persona generation can scale without schema drift
+
+
+[DONE] P9-T002 Create initial persona set
+Write tests first:
+- Loader can enumerate persona files
+- Persona counts by lifecycle bucket are enforced
+
+Implementation steps:
+1. Create about 40 personas
+2. Use distribution:
+   - majority medium lifecycle
+   - small number long lifecycle
+3. Ensure diversity:
+   - profession
+   - expertise
+   - locale
+   - goals
+   - growth path
+
+Acceptance:
+- Dataset is broad enough to expose memory weaknesses
+
+
+[DONE] P9-T003 Create conversation replay fixtures
+Write tests first:
+- Each persona has linked conversation fixtures
+- Replay files pass structural validation
+
+Implementation steps:
+1. Create multi-session conversation fixtures
+2. Ensure required phenomena appear:
+   - identity reveal
+   - historical task continuation
+   - open loops
+   - correction
+   - confirmation
+   - stale info case
+
+Acceptance:
+- Replay dataset covers main product priorities
+
+
+[DONE] P9-T004 Implement baseline runner
+Write tests first:
+- baseline runner can produce an answer package without GoodMemory
+
+Implementation steps:
+1. Define baseline prompt assembly
+2. Keep it minimal and fair
+
+Acceptance:
+- Baseline is stable enough for A/B comparison
+
+
+[DONE] P9-T005 Implement GoodMemory eval runner
+Write tests first:
+- eval runner can replay history, call public APIs, and produce answer package
+
+Implementation steps:
+1. Use recall/buildContext/remember/feedback
+2. Persist trace artifacts
+
+Acceptance:
+- Full product path is exercised in eval
+
+
+[DONE] P9-T006 Implement judge runner
+Write tests first:
+- judge input package is valid
+- judge result parser handles structured output
+
+Implementation steps:
+1. Build judge prompt
+2. Run live LLM judge
+3. Persist scores and reasoning
+
+Acceptance:
+- LLM-as-judge is operational
+
+
+[DONE] P9-T007 Implement scoring summary and regression comparison
+Write tests first:
+- report aggregator computes totals and per-dimension scores
+
+Implementation steps:
+1. Aggregate:
+   - overall score
+   - identity/background score
+   - history/open-loop score
+   - relevance
+   - factual alignment
+2. Record baseline vs GoodMemory uplift
+
+Acceptance:
+- Regressions are visible at suite level
+
+
+[DONE] P9-T008 Implement failure case capture
+Write tests first:
+- failing cases are persisted with trace references
+
+Implementation steps:
+1. Save failure summaries
+2. Save memory traces
+3. Save answer pairs
+
+Acceptance:
+- Failures are debuggable, not only numerical
+
+
+Exit Checklist
+--------------
+- Persona schema exists
+- About 40 personas exist
+- Replay fixtures exist
+- Baseline runner exists
+- GoodMemory runner exists
+- Judge runner exists
+- Score aggregation exists
+- Failure capture exists

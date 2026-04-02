@@ -1,0 +1,125 @@
+Phase 4: Runtime Context Engine
+===============================
+
+Phase Goal
+----------
+Implement the runtime continuity layer that supports active work without polluting durable memory.
+
+
+Dependencies
+------------
+- Phase 3 complete
+
+
+Primary Deliverables
+--------------------
+- Session buffer behavior
+- Working memory behavior
+- Session journal behavior
+- optional spillover scaffolding
+
+
+Definition of Done
+------------------
+- Runtime state can be created, updated, loaded, and compacted in tests
+- Session journal exists as a first-class runtime asset
+
+
+Tasks
+-----
+[DONE] P4-T001 Implement session lifecycle API
+Write tests first:
+- startSession initializes clean runtime state
+- appendToSession appends messages deterministically
+- endSession finalizes runtime boundaries
+
+Implementation steps:
+1. Add session service
+2. Track timestamps and ids
+3. Support multi-session same user
+
+Acceptance:
+- Session lifecycle is stable for later replay tests
+
+
+[DONE] P4-T002 Implement session buffer
+Write tests first:
+- messages append correctly
+- summaryUpToIndex updates correctly
+- sliding behavior works when limits are hit
+
+Implementation steps:
+1. Implement raw message append
+2. Implement summary placeholder support
+3. Expose read API for runtime recall
+
+Acceptance:
+- Runtime buffer can support long-turn conversations
+
+
+[DONE] P4-T003 Implement working memory
+Write tests first:
+- currentGoal updates
+- openLoops merge/update correctly
+- temporaryDecisions can be replaced or cleared
+
+Implementation steps:
+1. Add updateWorkingMemory internal service
+2. Support partial patches
+3. Keep working memory isolated from durable memory
+
+Acceptance:
+- Working memory supports task continuity and open loops
+
+
+[DONE] P4-T004 Implement session journal
+Write tests first:
+- journal can be created and updated
+- journal sections remain structurally valid
+- journal can point to last summarized message
+
+Implementation steps:
+1. Create journal service
+2. Define update semantics
+3. Support later compaction use
+
+Acceptance:
+- Journal is available before remember/maintenance phases depend on it
+
+
+[DONE] P4-T005 Add runtime recall integration
+Write tests first:
+- runtime recall prefers working memory and journal when appropriate
+
+Implementation steps:
+1. Add hooks from recall planner to runtime state
+2. Keep runtime state separate from durable state ranking
+
+Acceptance:
+- Coding-agent path can lean on runtime context
+Note:
+- Internal runtime recall scaffolding exists.
+- Public `recall()` wiring is completed in Phase 6.
+
+
+[DONE] P4-T006 Scaffold artifact spillover
+Write tests first:
+- oversized content can be previewed and referenced
+- replacement text is stable for same sourceId in same lifecycle
+
+Implementation steps:
+1. Implement minimal ArtifactSpillRecord handling
+2. Add preview generation
+3. Add deterministic replacement text
+
+Acceptance:
+- Spillover exists as optional runtime context control foundation
+
+
+Exit Checklist
+--------------
+- Session lifecycle works
+- Session buffer works
+- Working memory works
+- Session journal works
+- Basic spillover scaffold exists

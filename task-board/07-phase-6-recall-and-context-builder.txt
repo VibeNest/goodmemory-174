@@ -1,0 +1,135 @@
+Phase 6: Recall and Context Builder
+===================================
+
+Phase Goal
+----------
+Implement the read path that makes GoodMemory useful during live model interaction.
+
+
+Dependencies
+------------
+- Phase 5 complete
+
+
+Primary Deliverables
+--------------------
+- recall planning
+- retrieval profiles
+- memory selection
+- context builder
+- token budgeting
+
+
+Definition of Done
+------------------
+- `recall()` and `buildContext()` are usable for both general_chat and coding_agent
+- Recall is explainable
+- Context output is budget-aware
+
+
+Tasks
+-----
+[DONE] P6-T001 Implement retrieval profile model
+Write tests first:
+- `general_chat` and `coding_agent` profiles resolve correctly
+- profile choice changes retrieval planning
+
+Implementation steps:
+1. Define retrieval profile type
+2. Add auto/default resolution behavior
+3. Encode profile-specific weights or source priorities
+
+Acceptance:
+- Profile behavior is explicit and testable
+
+
+[DONE] P6-T002 Implement routing planner
+Write tests first:
+- generic chat prompt prioritizes semantic memory
+- continuation prompt prioritizes episodic/runtime memory
+- coding-agent prompt prioritizes working memory and journal
+
+Implementation steps:
+1. Build routing decision object
+2. Use query + scope + runtime state + profile
+3. Keep router deterministic where possible
+
+Acceptance:
+- Recall intent is explicit in metadata
+
+
+[DONE] P6-T003 Implement semantic retrieval
+Write tests first:
+- profile facts/preferences/reference retrieval works
+
+Implementation steps:
+1. Query semantic repositories
+2. Add relevance and confidence signals
+
+Acceptance:
+- Semantic retrieval has stable output ordering
+
+
+[DONE] P6-T004 Implement episodic retrieval
+Write tests first:
+- “last time / continue” style prompts retrieve relevant episodes
+
+Implementation steps:
+1. Query episode store
+2. Rank by recency + relevance + importance
+
+Acceptance:
+- Episodic retrieval supports task continuation
+
+
+[DONE] P6-T005 Implement procedural retrieval
+Write tests first:
+- confirmed patterns and corrections are recalled separately
+
+Implementation steps:
+1. Query feedback memory
+2. Ensure procedural guidance can influence context builder
+
+Acceptance:
+- Procedural memory actively shapes answer preparation
+
+
+[DONE] P6-T006 Implement context builder
+Write tests first:
+- context object contains correct sections
+- over-budget contexts are compressed
+- different output modes serialize correctly
+
+Implementation steps:
+1. Build MemoryPacket
+2. Add output modes
+3. Add token budgeting logic
+4. Add debug metadata
+
+Acceptance:
+- buildContext turns recall into model-usable output
+
+
+[DONE] P6-T007 Implement recall() public API
+Write tests first:
+- recall returns packet + metadata
+- recall without memory returns safe empty structures
+- recall with conflicting memories behaves deterministically
+
+Implementation steps:
+1. Wire router + retrieval + builder
+2. Return routing metadata and hits
+
+Acceptance:
+- recall() is stable and externally useful
+
+
+Exit Checklist
+--------------
+- retrieval profiles exist
+- router exists
+- semantic retrieval exists
+- episodic retrieval exists
+- procedural retrieval exists
+- context builder exists
+- recall() works

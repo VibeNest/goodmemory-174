@@ -1,0 +1,44 @@
+https://x.com/shao__meng/status/2039153466229088451
+
+Claude Code 7 层分级记忆体系 
+
+来自 
+@evermind
+ 团队 
+@troyhua
+ 对源代码的解读，他发现 Claude Code 的分层记忆管理，从亚毫秒级轻量操作到后台“梦境”式长期巩固，每一层都以“最低成本优先”原则设计，后一层仅在必要时触发，从而最大化效率并保护 prompt cache。
+
+- 核心约束与基础
+Claude Code 通过精确的 tokenCountWithEstimation() 函数实时监控用量（API 返回的精确 input_tokens + 后续消息的 4 字节/ token 或 JSON 2 字节/token 启发式估算），并预留 20K token 作为 compaction 输出缓冲。上下文窗口解析优先级清晰：模型后缀 → 能力查询 → 环境覆盖 → 默认 200K。
+
+- 7 层记忆架构（由廉价到昂贵，层层防御）
+Layer 1: Tool Result Storage（工具结果持久化）
+工具输出（如 grep、cat 大文件）极易膨胀上下文。方案：超阈值结果立即落盘（tool-results/<sessionId>），上下文仅保留 ~2KB 预览 + <persisted-output> 标签；后续可通过 Read 工具按需加载。同时引入 ContentReplacementState 冻结替换决策，确保 prompt 前缀字节级一致，最大化 cache hit。支持远程 GrowthBook 动态调优阈值。
+
+Layer 2: Microcompaction（微压缩）
+每轮 API 调用前轻量清理旧工具结果。包含三种机制：
+  · 时间触发（闲置 >60min，利用 cache TTL 过期窗口清理）；
+  · Cache-Editing API（最精妙：通过 cache_edits 在服务器端删除旧结果，本地消息不变，不破坏 cache）；
+  · 新增 context_management 原生 API。仅针对特定工具生效（FileRead、Grep、Bash 等），避免干扰思考块或用户消息。
+
+Layer 3: Session Memory
+实时维护结构化 Markdown 笔记（~/.claude/projects/.../session-memory/<sessionId>.md）。在 token 增长或工具调用达到阈值时，通过 fork 子智能体提取总结。核心价值：当需要 compaction 时，直接注入现有笔记作为摘要，无需额外 summarizer API 调用，成本极低。
+
+Layer 4: Full Compaction
+上下文逼近阈值时的最后防线。fork 专用 summarizer 智能体生成 9 节结构化摘要（含 <analysis> 草稿区提升质量，后被剥离）。压缩后自动重注入关键上下文（最近文件、技能、计划等），并插入 CompactBoundaryMessage 标记断点。内置电路保护（连续 3 次失败后停止，防止全局浪费）。
+
+Layer 5: Auto Memory Extraction
+每轮完整查询结束时运行，构建跨会话持久知识（存入项目 memory/ 目录）。提取 4 类记忆，明确排除可从代码推导的内容。互斥机制：若主智能体已写入记忆，则跳过后台提取，避免重复。MEMORY.md 作为索引文件，硬限 200 行 / 25KB。
+
+Layer 6: Dreaming
+后台跨会话记忆整合，类比人类睡眠期记忆重塑。采用四阶段流程（Orient → Gather → Consolidate → Prune），严格只读工具限制。使用文件锁（.consolidate-lock，含 PID + mtime）防并发与崩溃恢复。用户可在 UI 中监控/终止，进度通过后台任务 pill 实时展示。
+
+Layer 7: Cross-Agent Communication
+所有后台操作（记忆、压缩、梦境）均基于 forked agent 模式：克隆可变状态 + 共享 prompt cache 前缀，实现隔离与高效并存。支持 Agent 工具多模式 spawning 与 SendMessage 工具实现运行时通信、计划审批等。
+
+- 底层设计哲学（文章最有价值的提炼）
+1. 分层防御 + 最低成本优先：每层都尽量阻止下一层触发，形成高效“瀑布”防御。
+2. Prompt Cache 极致优化：几乎所有决策（ContentReplacementState 冻结、renderedSystemPrompt 透传、cache_edits、fork 前缀字节一致性）都以不破坏 cache 为前提。系统甚至主动监控 cache miss 并区分“已知良性”与异常。
+3. 隔离与共享的平衡：fork 子智能体既防状态污染，又最大化 cache 复用。
+4. 容错与可控：电路断路器、互斥保护、GrowthBook 特征旗（可远程关闭任意模块）、优雅降级（失败时自动切换下一层）。
+5. 可观测性：从 UI 进度 pill 到详细日志，全部后台任务透明可控。

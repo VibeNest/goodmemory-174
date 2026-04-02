@@ -1,0 +1,18 @@
+ADR-002: Public API
+===================
+
+Status
+------
+Draft
+
+Context
+-------
+GoodMemory must keep a minimal public API while hiding advanced internal capabilities.
+
+Decision
+--------
+To be filled during implementation.
+
+Consequences
+------------
+To be filled during implementation.

@@ -1,0 +1,12 @@
+Phase 6.4: Public Recall Wiring and Regression
+==============================================
+
+[DONE] R6-T013 Wire public `recall()` to router + retrievers + packet builder
+[DONE] R6-T014 Add integration tests for recall/buildContext
+[DONE] R6-T015 Reconcile Phase 4 runtime recall checkbox with public API behavior
+[DONE] R6-T016 Run full regression and update top-level boards
+
+Definition of Done
+------------------
+- Public `recall()` and `buildContext()` are no longer placeholders
+- Runtime recall path is externally usable

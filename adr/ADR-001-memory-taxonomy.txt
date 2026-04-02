@@ -1,0 +1,18 @@
+ADR-001: Memory Taxonomy
+========================
+
+Status
+------
+Draft
+
+Context
+-------
+GoodMemory requires a stable taxonomy that separates runtime, semantic, episodic, procedural, and derived memory.
+
+Decision
+--------
+To be filled during implementation.
+
+Consequences
+------------
+To be filled during implementation.

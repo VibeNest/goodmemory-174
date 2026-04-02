@@ -1,0 +1,11 @@
+Phase 8.2: Dedupe and Contradiction
+===================================
+
+[DONE] M8-T004 Implement dedupe cleanup job
+[DONE] M8-T005 Implement contradiction scan
+[DONE] M8-T006 Add safe repeated-run semantics
+
+Definition of Done
+------------------
+- Duplicate growth is bounded
+- Contradictions can be surfaced for repair

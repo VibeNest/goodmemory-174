@@ -1,0 +1,149 @@
+{
+  "scenario_id": "scenario-long-03",
+  "persona_id": "long-03",
+  "lifecycle_bucket": "long",
+  "required_phenomena": [
+    "identity_reveal",
+    "historical_task_continuation",
+    "open_loop",
+    "correction",
+    "confirmation",
+    "stale_info"
+  ],
+  "sessions": [
+    {
+      "session_id": "long-03-s1",
+      "objective": "Reveal identity and initial role.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "My name is Dylan. Remember that I am a climate policy advisor in Austin, USA."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that background in mind."
+        },
+        {
+          "role": "user",
+          "content": "Remember that I am leading incident playbook refresh."
+        },
+        {
+          "role": "assistant",
+          "content": "Captured."
+        }
+      ]
+    },
+    {
+      "session_id": "long-03-s2",
+      "objective": "Record style preference and stale reference.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "I prefer structured outlines and prototype before polish."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will respond in that style."
+        },
+        {
+          "role": "user",
+          "content": "Use docs/incident-playbook-refresh-runbook-v1.md as the source of truth for incident playbook refresh for now."
+        },
+        {
+          "role": "assistant",
+          "content": "Okay. I will use that runbook for now."
+        }
+      ]
+    },
+    {
+      "session_id": "long-03-s3",
+      "objective": "Leave an open loop and state a future goal.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Remember that my long-term goal is to move into platform engineering leadership."
+        },
+        {
+          "role": "assistant",
+          "content": "Captured."
+        },
+        {
+          "role": "user",
+          "content": "Remember that the open loop is final reliability signoff for incident playbook refresh."
+        },
+        {
+          "role": "assistant",
+          "content": "I will continue from there later."
+        }
+      ]
+    },
+    {
+      "session_id": "long-03-s4",
+      "objective": "Introduce a lifecycle change and new current focus.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Remember that I have now moved into a staff platform engineer leading incident playbook refresh."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated."
+        },
+        {
+          "role": "user",
+          "content": "Remember that my current focus is runtime reliability and platform migration for incident playbook refresh, not the old backlog cleanup."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood."
+        }
+      ]
+    },
+    {
+      "session_id": "long-03-s5",
+      "objective": "Correct the stale reference and ask for a memory-dependent answer.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Correction: docs/incident-playbook-refresh-runbook-v2.md is now the source of truth, not docs/incident-playbook-refresh-runbook-v1.md. Please update that."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated. I will use the newer runbook going forward."
+        },
+        {
+          "role": "user",
+          "content": "Please confirm my current role, my current focus, the updated runbook, and the final reliability signoff for incident playbook refresh before proposing the next step for incident playbook refresh."
+        },
+        {
+          "role": "assistant",
+          "content": "I can do that once I have the full remembered context."
+        }
+      ]
+    }
+  ],
+  "feedback_signals": [
+    {
+      "session_id": "long-03-s2",
+      "signal": "The structured outlines style works well for long-running updates. Keep using it."
+    }
+  ],
+  "evaluation": {
+    "prompt": "Please confirm my current role, my current focus, the updated runbook, and the final reliability signoff for incident playbook refresh before proposing the next step for incident playbook refresh.",
+    "rubric_focus": [
+      "identity_background",
+      "history_open_loop"
+    ],
+    "expected_identity_signals": [
+      "staff platform engineer leading incident playbook refresh",
+      "runtime reliability and platform migration for incident playbook refresh",
+      "structured outlines"
+    ],
+    "expected_history_signals": [
+      "docs/incident-playbook-refresh-runbook-v2.md",
+      "final reliability signoff for incident playbook refresh",
+      "incident playbook refresh"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by preferring the user's current role and focus, using the corrected runbook, and resuming the unresolved long-lived open loop."
+  }
+}

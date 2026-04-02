@@ -1,0 +1,12 @@
+Phase 6.3: Context Builder and Budgeting
+========================================
+
+[DONE] R6-T009 Define memory packet shape
+[DONE] R6-T010 Implement budget-aware packet assembly
+[DONE] R6-T011 Implement output modes
+[DONE] R6-T012 Add debug metadata and trace-friendly sections
+
+Definition of Done
+------------------
+- `buildContext()` produces model-usable output
+- Over-budget contexts are compressed deterministically

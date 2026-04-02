@@ -1,0 +1,156 @@
+Phase 2: Domain Taxonomy and Types
+==================================
+
+Phase Goal
+----------
+Implement the canonical product model in code before implementing behavior.
+
+This phase freezes the shared language of the system.
+
+
+Dependencies
+------------
+- Phase 1 complete
+- Source of truth:
+  - docs/GoodMemory-First-Principles-and-Reference-Architecture.md
+  - docs/GoodMemory-PRD.md
+
+
+Primary Deliverables
+--------------------
+- Public types
+- Internal record types
+- Memory taxonomy
+- Scope model
+- Core invariants
+
+
+Definition of Done
+------------------
+- All core data types exist
+- Tests prove taxonomy and invariants
+- Procedural memory is separate from semantic memory in code
+
+
+Tasks
+-----
+[DONE] P2-T001 Implement scope model
+Write tests first:
+- userId is required
+- optional tenant/workspace/agent/session fields behave correctly
+- scope equality and normalization behave predictably
+
+Implementation steps:
+1. Create MemoryScope type
+2. Add normalization helpers
+3. Add utility functions for scope matching and narrowing
+
+Acceptance:
+- Scope behavior is deterministic across all later modules
+
+
+[DONE] P2-T002 Implement memory taxonomy types
+Write tests first:
+- Runtime/Semantic/Episodic/Procedural/Derived categories are distinct
+- Invalid category mapping is rejected
+
+Implementation steps:
+1. Create top-level taxonomy enums or string unions
+2. Add mapping helpers between public taxonomy and internal record kinds
+
+Acceptance:
+- Taxonomy is encoded in types, not only documentation
+
+
+[DONE] P2-T003 Implement semantic memory record types
+Write tests first:
+- Profile shape validates
+- Preference record shape validates
+- Fact record shape validates
+- Reference memory shape validates
+
+Implementation steps:
+1. Create UserProfile type
+2. Create PreferenceMemory type
+3. Create FactMemory type
+4. Decide whether Reference is a separate type or a fact subtype with fixed category
+5. Keep provenance fields consistent
+
+Acceptance:
+- Semantic records all carry source/confidence/update metadata
+
+
+[DONE] P2-T004 Implement episodic memory record types
+Write tests first:
+- Episode shape validates
+- Decision/open-loop shapes validate
+- Episode can link to session and workspace correctly
+
+Implementation steps:
+1. Create EpisodeMemory
+2. Create supporting decision/open-loop types if separated
+3. Add helpers for time-oriented sorting and recency signals
+
+Acceptance:
+- Episodic memory can represent “what happened” independently of facts
+
+
+[DONE] P2-T005 Implement procedural memory record types
+Write tests first:
+- FeedbackMemory exists independently
+- Procedural memory cannot be cast into preference/fact paths by mistake
+- Allowed kinds are constrained
+
+Implementation steps:
+1. Create FeedbackMemory type
+2. Add allowed rule kinds:
+   - do
+   - dont
+   - prefer
+   - validated_pattern
+3. Add source/confidence/evidence fields
+
+Acceptance:
+- Procedural memory is a first-class type, not a tag on another record
+
+
+[DONE] P2-T006 Implement runtime record types
+Write tests first:
+- SessionBuffer shape validates
+- WorkingMemory shape validates
+- SessionJournal shape validates
+- ArtifactSpillRecord shape validates
+
+Implementation steps:
+1. Create SessionBuffer
+2. Create WorkingMemorySnapshot
+3. Create SessionJournal
+4. Create ArtifactSpillRecord
+
+Acceptance:
+- Runtime records are available before runtime engine work starts
+
+
+[DONE] P2-T007 Implement shared provenance and lifecycle helpers
+Write tests first:
+- explicit vs inferred vs import provenance encodes correctly
+- active/superseded/inactive lifecycle state transitions validate
+
+Implementation steps:
+1. Create shared source metadata types
+2. Create shared lifecycle metadata types
+3. Reuse them across memory records
+
+Acceptance:
+- Provenance and lifecycle are uniform across record types
+
+
+Exit Checklist
+--------------
+- Scope model exists
+- Taxonomy exists
+- Semantic record types exist
+- Episodic record types exist
+- Procedural record types exist
+- Runtime record types exist
+- Shared provenance/lifecycle helpers exist

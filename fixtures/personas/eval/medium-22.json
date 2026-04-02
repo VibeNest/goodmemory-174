@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-22",
+  "name": "Miles",
+  "age_range": "25-38",
+  "locale": "Hangzhou, China",
+  "profession": "Product manager",
+  "expertise": [
+    "product strategy",
+    "user research"
+  ],
+  "background": "Miles is a product manager in Hangzhou, China working on agent memory evaluation suite.",
+  "communication_preferences": [
+    "risk-first summaries",
+    "explicit assumptions"
+  ],
+  "work_style_preferences": [
+    "deep work blocks",
+    "written decisions"
+  ],
+  "long_term_goals": [
+    "build a dependable AI workflow"
+  ],
+  "current_projects": [
+    "agent memory evaluation suite"
+  ],
+  "growth_path": [
+    "Started by stabilizing agent memory evaluation suite.",
+    "Now trying to scale the lessons from agent memory evaluation suite into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on agent memory evaluation suite.",
+    "Coordinates with a cross-functional peer group in Hangzhou, China."
+  ],
+  "memory_risks": [
+    "Project details for agent memory evaluation suite may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-22"
+  ]
+}

@@ -1,0 +1,9 @@
+Phase 11.2: Type Guardrails
+===========================
+
+[DONE] P11.2-T001 Add compile-time guardrails for unsupported config keys
+[DONE] P11.2-T002 Keep supported testing seam compiling cleanly
+
+Definition of Done
+------------------
+- Typecheck catches accidental use of removed config keys

@@ -1,0 +1,10 @@
+Phase 10.3: Coding-Agent Example
+================================
+
+[DONE] P10.3-T001 Build coding-agent flavored example
+[DONE] P10.3-T002 Demonstrate runtime memory and procedural memory usage
+[DONE] P10.3-T003 Add regression test for the example
+
+Definition of Done
+------------------
+- The coding-agent positioning is demonstrated concretely

@@ -1,0 +1,9 @@
+Phase 11.3: Doc Surface Alignment
+=================================
+
+[DONE] P11.3-T001 Update README and release-facing docs to reflect the slimmer config
+[DONE] P11.3-T002 Keep architecture docs explicit about planned provider-layer features rather than deleting them
+
+Definition of Done
+------------------
+- Release-facing docs do not suggest unsupported library behavior

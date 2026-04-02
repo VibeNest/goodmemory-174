@@ -1,0 +1,16 @@
+Phase 6.2: Memory Retrievers
+============================
+
+[DONE] R6-T005 Implement semantic retrieval
+[DONE] R6-T017 Implement episodic retrieval
+[DONE] R6-T006 Implement procedural retrieval
+[DONE] R6-T007 Implement runtime retrieval
+[DONE] R6-T008 Add stable ordering and scope filtering
+
+Definition of Done
+------------------
+- Profile, facts, feedback, working memory, and journal retrieval all work
+- Retrieval output is deterministic for the same inputs
+Note:
+- Current semantic retrieval covers profile + facts.
+- preferences/reference retrieval remains pending.

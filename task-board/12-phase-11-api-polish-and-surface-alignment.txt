@@ -1,0 +1,34 @@
+Phase 11: API Polish and Surface Alignment
+=========================================
+
+Phase Goal
+----------
+Align the public OSS surface with the implementation that actually exists today.
+
+
+Dependencies
+------------
+- Phase 10 complete enough for examples, CLI, and release artifacts
+
+
+Primary Deliverables
+--------------------
+- slimmer public config
+- aligned type surface
+- release-facing docs updated where needed
+- architecture docs clarified rather than narrowed
+
+
+Definition of Done
+------------------
+- Public config does not advertise unsupported runtime behavior
+- Type surface passes strict validation
+- README and release-facing docs reflect the narrower public contract
+- architecture docs preserve planned provider-layer direction with explicit layering notes
+
+
+Tasks
+-----
+[DONE] P11-T001 Remove unused llm/embedding fields from GoodMemoryConfig
+[DONE] P11-T002 Add type-level guardrails for public config
+[DONE] P11-T003 Update release-facing docs while preserving architecture-level future planning

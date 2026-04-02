@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-18",
+  "name": "Elena",
+  "age_range": "25-38",
+  "locale": "Toronto, Canada",
+  "profession": "Game designer",
+  "expertise": [
+    "narrative design",
+    "live-ops"
+  ],
+  "background": "Elena is a game designer in Toronto, Canada working on cross-team API cleanup.",
+  "communication_preferences": [
+    "risk-first summaries",
+    "explicit assumptions"
+  ],
+  "work_style_preferences": [
+    "deep work blocks",
+    "written decisions"
+  ],
+  "long_term_goals": [
+    "reduce operational noise across teams"
+  ],
+  "current_projects": [
+    "cross-team API cleanup"
+  ],
+  "growth_path": [
+    "Started by stabilizing cross-team API cleanup.",
+    "Now trying to scale the lessons from cross-team API cleanup into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on cross-team API cleanup.",
+    "Coordinates with a cross-functional peer group in Toronto, Canada."
+  ],
+  "memory_risks": [
+    "Project details for cross-team API cleanup may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-18"
+  ]
+}

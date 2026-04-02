@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-07",
+  "name": "Jonas",
+  "age_range": "25-38",
+  "locale": "London, UK",
+  "profession": "Biomedical researcher",
+  "expertise": [
+    "clinical workflows",
+    "evidence synthesis"
+  ],
+  "background": "Jonas is a biomedical researcher in London, UK working on release quality program.",
+  "communication_preferences": [
+    "structured outlines",
+    "plain language"
+  ],
+  "work_style_preferences": [
+    "prototype before polish",
+    "tight feedback loops"
+  ],
+  "long_term_goals": [
+    "build a dependable AI workflow"
+  ],
+  "current_projects": [
+    "release quality program"
+  ],
+  "growth_path": [
+    "Started by stabilizing release quality program.",
+    "Now trying to scale the lessons from release quality program into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on release quality program.",
+    "Coordinates with a cross-functional peer group in London, UK."
+  ],
+  "memory_risks": [
+    "Project details for release quality program may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-07"
+  ]
+}

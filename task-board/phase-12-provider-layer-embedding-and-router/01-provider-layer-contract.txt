@@ -1,0 +1,27 @@
+Phase 12.1: Provider Layer Contract
+===================================
+
+[TODO] P12.1-T001 Freeze provider-layer goals
+[TODO] P12.1-T002 Define Vercel AI SDK based text/object generation adapters
+[TODO] P12.1-T003 Decide which capabilities stay outside `createGoodMemory()` until behavior lands
+
+Why this exists
+---------------
+- `llm` and `embedding` belong in the architecture, but they should only enter the public runtime contract when they power actual library behavior.
+
+Write tests first
+-----------------
+- provider config parsing works for OpenAI and Anthropic
+- deterministic fallback remains available
+- unsupported providers fail fast
+
+Implementation steps
+--------------------
+1. Keep `src/llm/vercel-ai-sdk.ts` as the only live-model entry point
+2. Split text generation, object generation, and judge generation clearly
+3. Add provider metadata to eval/report artifacts
+
+Acceptance
+----------
+- Provider-backed capabilities have one consistent access layer
+- Live vs fallback mode is explicit everywhere

@@ -1,0 +1,60 @@
+Phase 12: Provider Layer, Embedding, and Router
+==============================================
+
+Phase Goal
+----------
+Turn `llm`, `embedding`, and `router` from architecture-only concepts into staged, testable product capabilities without breaking the current OSS-first simplicity.
+
+
+Dependencies
+------------
+- Phase 9 product eval operational
+- Phase 10 CLI/examples/release artifacts present
+- Phase 11 public surface aligned with current implementation
+
+
+Primary Deliverables
+--------------------
+- provider-layer plan grounded in Vercel AI SDK
+- embedding abstraction and vectorization hooks
+- router strategy framework
+- hybrid retrieval path
+- optional LLM-assisted extraction/reranking
+- eval slices that prove when provider-backed features help
+
+
+Definition of Done
+------------------
+- `llm`, `embedding`, and `router` are no longer only architecture words
+- each new capability has rules-first fallback behavior
+- every provider-backed capability has deterministic tests and live eval coverage
+- public API remains minimal until the behavior is real
+
+
+Tasks
+-----
+[TODO] P12-T001 Define provider-layer contract around Vercel AI SDK
+[TODO] P12-T002 Implement embedding abstraction and vector write/read hooks
+[TODO] P12-T003 Add router strategy framework: rules-only, hybrid, llm-assisted
+[TODO] P12-T004 Implement hybrid retrieval and optional reranking
+[TODO] P12-T005 Add optional LLM-assisted extraction and consolidation paths
+[TODO] P12-T006 Expand eval suite to compare rules-only vs provider-backed modes
+
+
+Key Constraints
+---------------
+- Keep `storage` as the only required runtime config until provider-backed behavior is actually used
+- Do not add `llm-only` as the default router
+- Keep deterministic fallbacks for CI and offline development
+- Route all live model calls through Vercel AI SDK adapters
+- Preserve explainability for both write-path and recall-path decisions
+
+
+Exit Checklist
+--------------
+- Provider abstraction exists
+- Embeddings can be turned on without changing app code shape
+- Router strategies are inspectable
+- Hybrid retrieval has eval evidence
+- LLM-assisted features are optional, not mandatory
+- Docs and examples explain when to stay rules-only

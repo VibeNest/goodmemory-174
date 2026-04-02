@@ -1,0 +1,11 @@
+Phase 9.2: Persona Dataset
+==========================
+
+[DONE] P9.2-T001 Generate about 40 persona fixtures
+[DONE] P9.2-T002 Enforce lifecycle bucket coverage
+[DONE] P9.2-T003 Preserve diversity across profession, locale, and goals
+
+Definition of Done
+------------------
+- Persona dataset contains 40 fixtures
+- Lifecycle bucket coverage matches the v1 target split

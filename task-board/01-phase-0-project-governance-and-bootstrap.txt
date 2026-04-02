@@ -1,0 +1,158 @@
+Phase 0: Project Governance and Bootstrap
+=========================================
+
+Phase Goal
+----------
+Create the engineering foundation so that every subsequent phase can be implemented in a controlled, test-driven, Bun-native way.
+
+Nothing in later phases should begin before this phase is complete.
+
+
+Dependencies
+------------
+- Source documents already written in docs/
+- No code dependencies
+
+
+Primary Deliverables
+--------------------
+- package.json
+- bunfig.toml
+- tsconfig.json
+- project directory layout
+- basic scripts
+- ADR directory and initial ADR placeholders
+- baseline coding conventions
+- CI-ready command list
+
+
+Definition of Done
+------------------
+- `bun install` works
+- `bun test` runs and discovers an empty or seed test suite
+- TypeScript typecheck command exists
+- Repo structure is stable enough for later tasks
+- Initial ADRs exist as files, even if content is draft
+
+
+Tasks
+-----
+[DONE] P0-T001 Create root project metadata
+Write tests first:
+- Add one smoke test proving test discovery works under Bun
+
+Implementation steps:
+1. Create package.json with:
+   - type: module
+   - scripts for test, test:watch, typecheck, eval:smoke, eval:full
+2. Keep dependencies minimal
+3. Add devDependencies only when actually required
+
+Acceptance:
+- `bun run test` can execute
+- `bun run typecheck` is wired, even if codebase is still minimal
+
+
+[DONE] P0-T002 Create runtime configuration files
+Write tests first:
+- None beyond smoke bootstrap
+
+Implementation steps:
+1. Add bunfig.toml
+2. Add tsconfig.json
+3. Decide path alias policy early
+4. Prefer simple aliases:
+   - @/ for src
+   - @tests/ only if truly needed
+
+Acceptance:
+- TS config supports src and tests
+- Bun can execute TS tests without custom hacks
+
+
+[DONE] P0-T003 Create repo directory skeleton
+Write tests first:
+- None
+
+Implementation steps:
+1. Create these directories:
+   - src/
+   - tests/unit/
+   - tests/integration/
+   - tests/scenarios/
+   - tests/eval/
+   - fixtures/personas/
+   - fixtures/conversations/
+   - fixtures/rubrics/
+   - reports/eval/
+   - scripts/
+   - adr/
+2. Add placeholder `.gitkeep` only where necessary
+
+Acceptance:
+- Directory layout matches docs/GoodMemory-TDD-and-Evaluation-Strategy.md
+
+
+[DONE] P0-T004 Establish engineering conventions
+Write tests first:
+- None
+
+Implementation steps:
+1. Create a short engineering notes file or CONTRIBUTING.md
+2. Freeze conventions:
+   - ASCII by default
+   - ESM only unless forced otherwise
+   - Bun-native test runner
+   - public API simplicity over internal abstraction purity
+   - TDD mandatory
+3. Define naming style:
+   - exported types use nouns
+   - behavior modules use verb/noun structure
+
+Acceptance:
+- Team has a stable convention reference
+
+
+[DONE] P0-T005 Create ADR skeletons
+Write tests first:
+- None
+
+Implementation steps:
+1. Create these ADR files:
+   - ADR-001-memory-taxonomy.txt
+   - ADR-002-public-api.txt
+   - ADR-003-runtime-context-controls.txt
+   - ADR-004-maintenance-engine.txt
+2. Fill header template:
+   - status
+   - context
+   - decision
+   - consequences
+
+Acceptance:
+- Later phases can reference ADRs instead of re-deciding concepts
+
+
+[DONE] P0-T006 Add seed smoke tests
+Write tests first:
+- This is the test task itself
+
+Implementation steps:
+1. Add one unit smoke test
+2. Add one integration smoke test
+3. Add one scenario smoke test placeholder
+4. Add one eval smoke test placeholder
+
+Acceptance:
+- All four test layers are recognized by the runner
+
+
+Exit Checklist
+--------------
+- package.json exists
+- bunfig.toml exists
+- tsconfig.json exists
+- test folders exist
+- fixtures folders exist
+- ADR files exist
+- Bun smoke tests pass

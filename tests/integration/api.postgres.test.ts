@@ -1,0 +1,128 @@
+import { SQL } from "bun";
+import { describe, expect, it } from "bun:test";
+import { createGoodMemory } from "../../src";
+
+const POSTGRES_URL = process.env.GOODMEMORY_TEST_POSTGRES_URL;
+
+async function cleanupUserData(url: string, userId: string): Promise<void> {
+  const sql = new SQL(url);
+
+  try {
+    await sql.unsafe(
+      `
+        DELETE FROM "public"."gm_documents"
+        WHERE document @> $1::jsonb
+      `,
+      [JSON.stringify({ userId })],
+    );
+    await sql.unsafe(
+      `
+        DELETE FROM "public"."gm_session_state"
+        WHERE scope_key LIKE $1
+      `,
+      [`${userId}::%`],
+    );
+  } finally {
+    await sql.close();
+  }
+}
+
+if (POSTGRES_URL) {
+  describe("public postgres API", () => {
+    it("runs remember, recall, feedback, forget, and buildContext against postgres", async () => {
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const userId = `pg-e2e-${unique}`;
+      const sessionId = `s-${unique}`;
+      const workspaceId = "workspace-a";
+      const scope = {
+        userId,
+        sessionId,
+        workspaceId,
+      };
+      const memory = createGoodMemory({
+        storage: {
+          provider: "postgres",
+          url: POSTGRES_URL,
+        },
+      });
+
+      try {
+        const rememberResult = await memory.remember({
+          scope,
+          messages: [
+            {
+              role: "user",
+              content: "Remember that the robot workflow is blocked on prod migration.",
+            },
+            {
+              role: "user",
+              content: "Please keep answers concise and action-oriented.",
+            },
+          ],
+        });
+
+        expect(rememberResult.accepted).toBe(2);
+
+        const recallResult = await memory.recall({
+          scope,
+          query: "How should I answer this user?",
+          retrievalProfile: "general_chat",
+        });
+
+        expect(recallResult.facts).toHaveLength(1);
+        expect(recallResult.feedback).toHaveLength(1);
+        expect(recallResult.facts[0]?.content).toContain("prod migration");
+
+        const context = await memory.buildContext({
+          recall: recallResult,
+          output: "markdown",
+        });
+
+        expect(context.content).toContain("## Procedural Memory");
+        expect(context.content).toContain("## Facts");
+
+        const feedbackResult = await memory.feedback({
+          scope,
+          signal: "Please use bullet points when summarizing project status.",
+        });
+
+        expect(feedbackResult.accepted).toBe(true);
+        expect(feedbackResult.outcome).toBe("superseded");
+
+        const factId = rememberResult.events.find(
+          (event) => event.memoryType === "fact" && event.memoryId,
+        )?.memoryId;
+
+        expect(factId).toBeTruthy();
+
+        const forgetResult = await memory.forget({
+          scope,
+          memoryId: factId,
+        });
+
+        expect(forgetResult.forgotten).toBe(true);
+
+        const afterForget = await memory.recall({
+          scope,
+          query: "How should I answer this user?",
+          retrievalProfile: "general_chat",
+        });
+
+        expect(afterForget.facts).toHaveLength(0);
+        expect(
+          afterForget.feedback.some(
+            (item) =>
+              item.lifecycle === "active" &&
+              item.rule.includes("bullet points"),
+          ),
+        ).toBe(true);
+      } finally {
+        await cleanupUserData(POSTGRES_URL, userId);
+      }
+    });
+  });
+} else {
+  describe.skip("public postgres API", () => {
+    it("requires GOODMEMORY_TEST_POSTGRES_URL", () => {});
+  });
+}

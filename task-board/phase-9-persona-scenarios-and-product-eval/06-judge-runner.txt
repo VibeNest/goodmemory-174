@@ -1,0 +1,11 @@
+Phase 9.6: Judge Runner
+=======================
+
+[DONE] P9.6-T001 Build judge input package
+[DONE] P9.6-T002 Run live LLM judge and parse structured output
+[DONE] P9.6-T003 Persist judge reasoning and failure tags
+
+Definition of Done
+------------------
+- LLM-as-judge produces structured results for each case
+- Judge reasoning is preserved for regression analysis

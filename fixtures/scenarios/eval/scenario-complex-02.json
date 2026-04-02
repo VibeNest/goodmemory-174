@@ -1,0 +1,128 @@
+{
+  "scenario_id": "scenario-complex-02",
+  "persona_id": "complex-02",
+  "lifecycle_bucket": "complex",
+  "required_phenomena": [
+    "identity_reveal",
+    "historical_task_continuation",
+    "open_loop",
+    "correction",
+    "confirmation",
+    "stale_info"
+  ],
+  "sessions": [
+    {
+      "session_id": "complex-02-s1",
+      "objective": "Reveal identity, project context, and working style.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "My name is Sana. I'm a operations manager in Sydney, Australia. Remember that I'm leading knowledge base overhaul."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that background in mind."
+        },
+        {
+          "role": "user",
+          "content": "I prefer risk-first summaries and written decisions."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will respond in that style."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-02-s2",
+      "objective": "Introduce a stale reference and an unresolved blocker.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Use docs/knowledge-base-overhaul-runbook-v1.md as the source of truth for knowledge base overhaul until further notice."
+        },
+        {
+          "role": "assistant",
+          "content": "Okay. I will use that runbook for now."
+        },
+        {
+          "role": "user",
+          "content": "Remember that the current blocker is vendor approval for knowledge base overhaul."
+        },
+        {
+          "role": "assistant",
+          "content": "Captured. I will keep that blocker in mind."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-02-s3",
+      "objective": "Track the open loop and confirm the preferred reporting format.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Remember that the open loop is the handoff package for knowledge base overhaul."
+        },
+        {
+          "role": "assistant",
+          "content": "I will continue from that open loop."
+        },
+        {
+          "role": "user",
+          "content": "That risk-first summaries format worked well for the last status update."
+        },
+        {
+          "role": "assistant",
+          "content": "I will keep using it."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-02-s4",
+      "objective": "Correct stale information and request a memory-sensitive answer.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Correction: docs/knowledge-base-overhaul-runbook-v2.md is now the source of truth, not docs/knowledge-base-overhaul-runbook-v1.md. Please update that."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated. I will use the newer runbook going forward."
+        },
+        {
+          "role": "user",
+          "content": "Please confirm the updated runbook, my role, the blocker, and the handoff package for knowledge base overhaul before proposing the next step for knowledge base overhaul."
+        },
+        {
+          "role": "assistant",
+          "content": "I can do that once I have the full remembered context."
+        }
+      ]
+    }
+  ],
+  "feedback_signals": [
+    {
+      "session_id": "complex-02-s3",
+      "signal": "The risk-first summaries format worked well. Keep using that for knowledge base overhaul."
+    }
+  ],
+  "evaluation": {
+    "prompt": "Please confirm the updated runbook, my role, the blocker, and the handoff package for knowledge base overhaul before proposing the next step for knowledge base overhaul.",
+    "rubric_focus": [
+      "identity_background",
+      "history_open_loop"
+    ],
+    "expected_identity_signals": [
+      "Operations manager",
+      "Sydney, Australia",
+      "risk-first summaries"
+    ],
+    "expected_history_signals": [
+      "docs/knowledge-base-overhaul-runbook-v2.md",
+      "vendor approval for knowledge base overhaul",
+      "handoff package for knowledge base overhaul",
+      "knowledge base overhaul"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer."
+  }
+}

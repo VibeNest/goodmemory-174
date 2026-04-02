@@ -1,0 +1,86 @@
+https://docs.google.com/document/d/1EEcxvOKqQAlXq9Usjdx3zXMhXtudKxSLOcemU2AMZ2o/edit?pli=1&tab=t.0
+
+Capability: Memory Management for LLM-Based Agents
+Background
+Why do we need memory management?
+LLM-based agents are stateless by default: if you don't explicitly carry forward state, each turn is effectively "fresh," which breaks any workflow longer than one prompt. Good memory management is what turns "a smart autocomplete" into "an agent that can run a multi-step job."
+It matters because:
+Context windows are limited and expensive
+Long-horizon coherence needs durable state
+Personalization and "don't ask me again" UX
+Accuracy + safety
+Specific in Agent and prompt engineering
+Prompt engineering is all about "how to control the context". Few-shot, ReAct, CoT needs dynamic facts and data.
+In-context learning (ICL) is so powerful, but it has a lost-on-the-middle problem. Context-control will significantly affect the capability of ICL, and it requires short-term & long-term memory.
+In Google SDK, it is called Context Engineering.
+Example: personal library solution — Claude code skill for Obsidian as a long-term memory.
+Industry Evolution
+Solution
+Mechanism & Workflow
+Example
+Short-term "in-context" memory
+buffers + summarization
+pure context; ConversationBufferMemory (langchain)
+Vector Databases & RAG
+When a user asks a question, the question is vectorized, and the database performs a Semantic Search (Cosine Similarity) to feed to the LLM.
+A lot..
+Knowledge Graphs (GraphRAG)
+Ontology. LLMs extract Entities and Relationships from text to build a network graph. GraphRAG allows the AI to traverse nodes and edges, performing multi-hop reasoning.
+Neo4j, Graphiti
+Memory-as-a-Service (MaaS)
+standalone — wrap the patterns (summarize + store + retrieve + policies) into a dedicated memory layer.
+Letta (memGPT), Mem0, Zep, AWS Bedrock AgentCore Memory, LangMem (LangGraph), Vertex AI MemoryService (ADK)
+Prompt meta/Caching
+(In-context learning engineering)
+Claude code skills
+
+LangChain/LangGraph Agent Memory Management Layer — LangMem
+Type of Memory: Semantic, Episodic, Procedural
+Memory Type
+What is Stored
+HumanExample
+Agent Example
+Usage
+Semantic
+Facts, knowledge
+Textbook
+User profile
+RAG
+Episodic
+Experiences
+Things I did, how it worked last time
+Past agent actions; Conversation history
+Few-shot examples for in-context learning
+Procedural
+Instructions
+Rules, how to, skills
+Agent system prompt
+Reflection update prompt
+
+LangChain Memory Pattern Evolution
+Time
+Main Library
+Solution
+Problem
+~2022
+langchain
+Memory was mostly short-term (like ConversationBufferMemory).
+Scales terribly — token counts explode, costs skyrocket, LLM loses focus, AI hallucination
+2024
+langgraph
+Checkpointer Mechanism — State: Every time an Agent executes a node, it updates a global State (usually a TypedDict or Pydantic model containing the message history and intermediate variables). Thread ID: Every unique conversation gets a unique thread_id. Persistence: After a step finishes, the Checkpointer (like MemorySaver, SqliteSaver, or PostgresSaver) saves a snapshot of the current State to a database, keyed by the thread_id.
+Even with checkpointers, appending messages to a list for a year will hit the LLM's context limit. Hence langmem is designed to handle semantic and factual long-term memory.
+2025
+langmem
+A Background Agent (an asynchronous extraction process) that runs periodically. Extraction: It reads the recent conversational State.
+Synthesis: It uses an LLM to extract key facts (e.g., "User is a CS undergrad," "User prefers Python," "User is working on an AI project").
+Storage: It saves these structured facts into a separate Profile database or a Vector Store.
+Injection: When the user sends a new message, the system queries this Profile and injects only the relevant, condensed facts into the main Agent's System Prompt.
+—
+
+DB Integration
+We can use HANA, MySQL, or similar DB, as long as you expose it to LangMem/LangGraph as a LangGraph BaseStore (LangGraph stores long-term memory as JSON documents under a (namespace, key) pattern).
+Demo Example — Email Triage Agent
+How three kinds of memory dynamically update our prompts. Example with semantic query, reflection, few-shot.
+Long-Term Agentic Memory With LangGraph
+https://learn.deeplearning.ai/courses/long-term-agentic-memory-with-langgraph/lesson/ovv0p/introduction

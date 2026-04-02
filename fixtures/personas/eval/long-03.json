@@ -1,0 +1,42 @@
+{
+  "persona_id": "long-03",
+  "name": "Dylan",
+  "age_range": "40-55",
+  "locale": "Austin, USA",
+  "profession": "Climate policy advisor",
+  "expertise": [
+    "energy systems",
+    "policy modeling"
+  ],
+  "background": "Dylan is a climate policy advisor in Austin, USA working on incident playbook refresh.",
+  "communication_preferences": [
+    "structured outlines",
+    "plain language"
+  ],
+  "work_style_preferences": [
+    "prototype before polish",
+    "tight feedback loops"
+  ],
+  "long_term_goals": [
+    "ship a reusable platform capability"
+  ],
+  "current_projects": [
+    "incident playbook refresh"
+  ],
+  "growth_path": [
+    "Started by stabilizing incident playbook refresh.",
+    "Now trying to scale the lessons from incident playbook refresh into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on incident playbook refresh.",
+    "Coordinates with a cross-functional peer group in Austin, USA."
+  ],
+  "memory_risks": [
+    "Project details for incident playbook refresh may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "long",
+  "scenario_ids": [
+    "scenario-long-03"
+  ]
+}

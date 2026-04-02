@@ -1,0 +1,28 @@
+Phase 12.2: Embedding Abstraction
+=================================
+
+[TODO] P12.2-T001 Define embedding adapter contract
+[TODO] P12.2-T002 Add vector write hooks for facts, references, and episodes
+[TODO] P12.2-T003 Add background re-embed and missing-embedding repair hooks
+
+Why this exists
+---------------
+- Without embeddings, `embedding` in the architecture stays decorative.
+- The first real use should be retrieval quality, not marketing.
+
+Write tests first
+-----------------
+- deterministic fake embedding adapter produces stable vectors
+- enabling embeddings does not break rules-only recall
+- vector writes remain scope-aware
+
+Implementation steps
+--------------------
+1. Add embedding adapter interface separate from eval-only generators
+2. Wire embeddings into writes for durable memory types that benefit from semantic recall
+3. Keep vector store optional and degrade gracefully when disabled
+
+Acceptance
+----------
+- Turning embeddings on improves retrieval plumbing without changing app integration shape
+- Turning embeddings off keeps the library usable

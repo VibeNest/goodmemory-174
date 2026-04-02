@@ -1,0 +1,128 @@
+{
+  "scenario_id": "scenario-complex-01",
+  "persona_id": "complex-01",
+  "lifecycle_bucket": "complex",
+  "required_phenomena": [
+    "identity_reveal",
+    "historical_task_continuation",
+    "open_loop",
+    "correction",
+    "confirmation",
+    "stale_info"
+  ],
+  "sessions": [
+    {
+      "session_id": "complex-01-s1",
+      "objective": "Reveal identity, project context, and working style.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "My name is Felix. I'm a climate policy advisor in Austin, USA. Remember that I'm leading incident playbook refresh."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that background in mind."
+        },
+        {
+          "role": "user",
+          "content": "I prefer concise bullet points and visible checklists."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will respond in that style."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-01-s2",
+      "objective": "Introduce a stale reference and an unresolved blocker.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Use docs/incident-playbook-refresh-runbook-v1.md as the source of truth for incident playbook refresh until further notice."
+        },
+        {
+          "role": "assistant",
+          "content": "Okay. I will use that runbook for now."
+        },
+        {
+          "role": "user",
+          "content": "Remember that the current blocker is vendor approval for incident playbook refresh."
+        },
+        {
+          "role": "assistant",
+          "content": "Captured. I will keep that blocker in mind."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-01-s3",
+      "objective": "Track the open loop and confirm the preferred reporting format.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Remember that the open loop is the handoff package for incident playbook refresh."
+        },
+        {
+          "role": "assistant",
+          "content": "I will continue from that open loop."
+        },
+        {
+          "role": "user",
+          "content": "That concise bullet points format worked well for the last status update."
+        },
+        {
+          "role": "assistant",
+          "content": "I will keep using it."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-01-s4",
+      "objective": "Correct stale information and request a memory-sensitive answer.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Correction: docs/incident-playbook-refresh-runbook-v2.md is now the source of truth, not docs/incident-playbook-refresh-runbook-v1.md. Please update that."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated. I will use the newer runbook going forward."
+        },
+        {
+          "role": "user",
+          "content": "Please confirm the updated runbook, my role, the blocker, and the handoff package for incident playbook refresh before proposing the next step for incident playbook refresh."
+        },
+        {
+          "role": "assistant",
+          "content": "I can do that once I have the full remembered context."
+        }
+      ]
+    }
+  ],
+  "feedback_signals": [
+    {
+      "session_id": "complex-01-s3",
+      "signal": "The concise bullet points format worked well. Keep using that for incident playbook refresh."
+    }
+  ],
+  "evaluation": {
+    "prompt": "Please confirm the updated runbook, my role, the blocker, and the handoff package for incident playbook refresh before proposing the next step for incident playbook refresh.",
+    "rubric_focus": [
+      "identity_background",
+      "history_open_loop"
+    ],
+    "expected_identity_signals": [
+      "Climate policy advisor",
+      "Austin, USA",
+      "concise bullet points"
+    ],
+    "expected_history_signals": [
+      "docs/incident-playbook-refresh-runbook-v2.md",
+      "vendor approval for incident playbook refresh",
+      "handoff package for incident playbook refresh",
+      "incident playbook refresh"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer."
+  }
+}

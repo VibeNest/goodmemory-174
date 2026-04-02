@@ -1,0 +1,389 @@
+import type { MemoryScope } from "./scope";
+import type { MemoryLifecycleState, MemorySource } from "./provenance";
+
+export interface UserProfile {
+  userId: string;
+  identity: {
+    name?: string;
+    role?: string;
+    organization?: string;
+    location?: string;
+    timezone?: string;
+    languagePreference?: string;
+  };
+  expertise: {
+    primarySkills: string[];
+    domains: string[];
+    level?: "beginner" | "intermediate" | "senior" | "expert";
+  };
+  activeContext: {
+    goals: string[];
+    currentProjects: string[];
+  };
+  version: number;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface SessionMessage {
+  id?: string;
+  role: string;
+  content: string;
+}
+
+export interface PreferenceMemory {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+  category: string;
+  value: unknown;
+  confidence: number;
+  source: MemorySource;
+  evidenceCount: number;
+  isPinned?: boolean;
+  updatedAt: string;
+}
+
+export interface FactMemory {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+  category: "project" | "technical" | "personal" | "relationship" | "event";
+  content: string;
+  confidence: number;
+  importance: number;
+  source: MemorySource;
+  accessCount: number;
+  lastAccessedAt?: string;
+  supersededBy?: string | null;
+  lifecycle: MemoryLifecycleState;
+  isActive: boolean;
+  embeddingId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReferenceMemory {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+  title: string;
+  pointer: string;
+  description?: string;
+  confidence: number;
+  source: MemorySource;
+  lifecycle: MemoryLifecycleState;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EpisodeMemory {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+  summary: string;
+  keyDecisions: string[];
+  unresolvedItems: string[];
+  topics: string[];
+  entities?: string[];
+  emotionalTone?: string;
+  importance: number;
+  confidence: number;
+  embeddingId?: string;
+  createdAt: string;
+  archivedAt?: string;
+}
+
+export type FeedbackKind = "do" | "dont" | "prefer" | "validated_pattern";
+
+export interface FeedbackMemory {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+  rule: string;
+  kind: FeedbackKind;
+  appliesTo?: string;
+  why?: string;
+  evidence?: string[];
+  confidence: number;
+  source: MemorySource;
+  supersededBy?: string | null;
+  lifecycle: MemoryLifecycleState;
+  lastUsedAt?: string;
+  updatedAt: string;
+}
+
+export interface SessionBuffer {
+  sessionId: string;
+  userId: string;
+  messages: SessionMessage[];
+  summary: string | null;
+  summaryUpToIndex: number;
+  createdAt: string;
+  lastActiveAt: string;
+}
+
+export interface WorkingMemorySnapshot {
+  sessionId: string;
+  userId: string;
+  currentGoal?: string;
+  constraints?: string[];
+  openLoops: string[];
+  temporaryDecisions?: string[];
+  toolState?: Record<string, unknown>;
+  state?: Record<string, unknown>;
+  updatedAt: string;
+}
+
+export interface SessionJournal {
+  sessionId: string;
+  userId: string;
+  title?: string;
+  currentState?: string;
+  taskSpecification?: string;
+  filesAndFunctions?: string[];
+  workflow?: string[];
+  errorsAndCorrections?: string[];
+  systemDocumentation?: string[];
+  learnings?: string[];
+  keyResults?: string[];
+  worklog: string[];
+  lastSummarizedMessageId?: string;
+  updatedAt: string;
+}
+
+export interface ArtifactSpillRecord {
+  id: string;
+  scope: MemoryScope;
+  kind: "tool_result" | "retrieval_result" | "attachment" | "search_result";
+  sourceId: string;
+  preview: string;
+  replacementText: string;
+  storageUri: string;
+  originalBytes: number;
+  createdAt: string;
+}
+
+function resolveTimestamp(source?: MemorySource): string {
+  return source?.extractedAt ?? new Date(0).toISOString();
+}
+
+export function createUserProfile(
+  input: Partial<UserProfile> & Pick<UserProfile, "userId">,
+): UserProfile {
+  const timestamp = input.updatedAt ?? input.createdAt ?? new Date(0).toISOString();
+
+  return {
+    userId: input.userId,
+    identity: input.identity ?? {},
+    expertise: input.expertise ?? {
+      primarySkills: [],
+      domains: [],
+    },
+    activeContext: input.activeContext ?? {
+      goals: [],
+      currentProjects: [],
+    },
+    version: input.version ?? 1,
+    updatedAt: input.updatedAt ?? timestamp,
+    createdAt: input.createdAt ?? timestamp,
+  };
+}
+
+export function createPreferenceMemory(
+  input: Pick<PreferenceMemory, "id" | "userId" | "category" | "value" | "source"> &
+    Partial<Omit<PreferenceMemory, "id" | "userId" | "category" | "value" | "source">>,
+): PreferenceMemory {
+  return {
+    id: input.id,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    category: input.category,
+    value: input.value,
+    confidence: input.confidence ?? 1,
+    source: input.source,
+    evidenceCount: input.evidenceCount ?? 1,
+    isPinned: input.isPinned,
+    updatedAt: input.updatedAt ?? resolveTimestamp(input.source),
+  };
+}
+
+export function createFactMemory(
+  input: Pick<FactMemory, "id" | "userId" | "category" | "content" | "source"> &
+    Partial<Omit<FactMemory, "id" | "userId" | "category" | "content" | "source">>,
+): FactMemory {
+  const timestamp = input.createdAt ?? input.updatedAt ?? resolveTimestamp(input.source);
+
+  return {
+    id: input.id,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    category: input.category,
+    content: input.content,
+    confidence: input.confidence ?? 1,
+    importance: input.importance ?? 1,
+    source: input.source,
+    accessCount: input.accessCount ?? 0,
+    lastAccessedAt: input.lastAccessedAt,
+    supersededBy: input.supersededBy ?? null,
+    lifecycle: input.lifecycle ?? "active",
+    isActive: input.isActive ?? true,
+    embeddingId: input.embeddingId,
+    createdAt: input.createdAt ?? timestamp,
+    updatedAt: input.updatedAt ?? timestamp,
+  };
+}
+
+export function createReferenceMemory(
+  input: Pick<
+    ReferenceMemory,
+    "id" | "userId" | "title" | "pointer" | "source"
+  > &
+    Partial<Omit<ReferenceMemory, "id" | "userId" | "title" | "pointer" | "source">>,
+): ReferenceMemory {
+  const timestamp = input.createdAt ?? input.updatedAt ?? resolveTimestamp(input.source);
+
+  return {
+    id: input.id,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    title: input.title,
+    pointer: input.pointer,
+    description: input.description,
+    confidence: input.confidence ?? 1,
+    source: input.source,
+    lifecycle: input.lifecycle ?? "active",
+    createdAt: input.createdAt ?? timestamp,
+    updatedAt: input.updatedAt ?? timestamp,
+  };
+}
+
+export function createEpisodeMemory(
+  input: Pick<EpisodeMemory, "id" | "userId" | "summary"> &
+    Partial<Omit<EpisodeMemory, "id" | "userId" | "summary">>,
+): EpisodeMemory {
+  return {
+    id: input.id,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    summary: input.summary,
+    keyDecisions: input.keyDecisions ?? [],
+    unresolvedItems: input.unresolvedItems ?? [],
+    topics: input.topics ?? [],
+    entities: input.entities,
+    emotionalTone: input.emotionalTone,
+    importance: input.importance ?? 1,
+    confidence: input.confidence ?? 1,
+    embeddingId: input.embeddingId,
+    createdAt: input.createdAt ?? new Date(0).toISOString(),
+    archivedAt: input.archivedAt,
+  };
+}
+
+export function createFeedbackMemory(
+  input: Pick<FeedbackMemory, "id" | "userId" | "rule" | "kind" | "source"> &
+    Partial<Omit<FeedbackMemory, "id" | "userId" | "rule" | "kind" | "source">>,
+): FeedbackMemory {
+  return {
+    id: input.id,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    rule: input.rule,
+    kind: input.kind,
+    appliesTo: input.appliesTo,
+    why: input.why,
+    evidence: input.evidence ?? [],
+    confidence: input.confidence ?? 1,
+    source: input.source,
+    supersededBy: input.supersededBy ?? null,
+    lifecycle: input.lifecycle ?? "active",
+    lastUsedAt: input.lastUsedAt,
+    updatedAt: input.updatedAt ?? resolveTimestamp(input.source),
+  };
+}
+
+export function createSessionBuffer(
+  input: Pick<SessionBuffer, "sessionId" | "userId"> &
+    Partial<Omit<SessionBuffer, "sessionId" | "userId">>,
+): SessionBuffer {
+  const timestamp = input.createdAt ?? input.lastActiveAt ?? new Date(0).toISOString();
+
+  return {
+    sessionId: input.sessionId,
+    userId: input.userId,
+    messages: input.messages ?? [],
+    summary: input.summary ?? null,
+    summaryUpToIndex: input.summaryUpToIndex ?? 0,
+    createdAt: input.createdAt ?? timestamp,
+    lastActiveAt: input.lastActiveAt ?? timestamp,
+  };
+}
+
+export function createWorkingMemorySnapshot(
+  input: Pick<WorkingMemorySnapshot, "sessionId" | "userId"> &
+    Partial<Omit<WorkingMemorySnapshot, "sessionId" | "userId">>,
+): WorkingMemorySnapshot {
+  return {
+    sessionId: input.sessionId,
+    userId: input.userId,
+    currentGoal: input.currentGoal,
+    constraints: input.constraints,
+    openLoops: input.openLoops ?? [],
+    temporaryDecisions: input.temporaryDecisions,
+    toolState: input.toolState,
+    state: input.state,
+    updatedAt: input.updatedAt ?? new Date(0).toISOString(),
+  };
+}
+
+export function createSessionJournal(
+  input: Pick<SessionJournal, "sessionId" | "userId"> &
+    Partial<Omit<SessionJournal, "sessionId" | "userId">>,
+): SessionJournal {
+  return {
+    sessionId: input.sessionId,
+    userId: input.userId,
+    title: input.title,
+    currentState: input.currentState,
+    taskSpecification: input.taskSpecification,
+    filesAndFunctions: input.filesAndFunctions ?? [],
+    workflow: input.workflow ?? [],
+    errorsAndCorrections: input.errorsAndCorrections ?? [],
+    systemDocumentation: input.systemDocumentation ?? [],
+    learnings: input.learnings ?? [],
+    keyResults: input.keyResults ?? [],
+    worklog: input.worklog ?? [],
+    lastSummarizedMessageId: input.lastSummarizedMessageId,
+    updatedAt: input.updatedAt ?? new Date(0).toISOString(),
+  };
+}

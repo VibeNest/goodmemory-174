@@ -1,0 +1,12 @@
+Phase 6.1: Retrieval Profiles and Router
+========================================
+
+[DONE] R6-T001 Define retrieval profile model
+[DONE] R6-T002 Implement default profile resolution
+[DONE] R6-T003 Implement deterministic router metadata
+[DONE] R6-T004 Test general_chat vs coding_agent routing priorities
+
+Definition of Done
+------------------
+- `general_chat` and `coding_agent` profiles resolve deterministically
+- Routing metadata explains source priorities

@@ -1,0 +1,128 @@
+{
+  "scenario_id": "scenario-complex-04",
+  "persona_id": "complex-04",
+  "lifecycle_bucket": "complex",
+  "required_phenomena": [
+    "identity_reveal",
+    "historical_task_continuation",
+    "open_loop",
+    "correction",
+    "confirmation",
+    "stale_info"
+  ],
+  "sessions": [
+    {
+      "session_id": "complex-04-s1",
+      "objective": "Reveal identity, project context, and working style.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "My name is June. I'm a product manager in Hangzhou, China. Remember that I'm leading agent memory evaluation suite."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that background in mind."
+        },
+        {
+          "role": "user",
+          "content": "I prefer short status updates and traceable rationale."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will respond in that style."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-04-s2",
+      "objective": "Introduce a stale reference and an unresolved blocker.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Use docs/agent-memory-evaluation-suite-runbook-v1.md as the source of truth for agent memory evaluation suite until further notice."
+        },
+        {
+          "role": "assistant",
+          "content": "Okay. I will use that runbook for now."
+        },
+        {
+          "role": "user",
+          "content": "Remember that the current blocker is vendor approval for agent memory evaluation suite."
+        },
+        {
+          "role": "assistant",
+          "content": "Captured. I will keep that blocker in mind."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-04-s3",
+      "objective": "Track the open loop and confirm the preferred reporting format.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Remember that the open loop is the handoff package for agent memory evaluation suite."
+        },
+        {
+          "role": "assistant",
+          "content": "I will continue from that open loop."
+        },
+        {
+          "role": "user",
+          "content": "That short status updates format worked well for the last status update."
+        },
+        {
+          "role": "assistant",
+          "content": "I will keep using it."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-04-s4",
+      "objective": "Correct stale information and request a memory-sensitive answer.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Correction: docs/agent-memory-evaluation-suite-runbook-v2.md is now the source of truth, not docs/agent-memory-evaluation-suite-runbook-v1.md. Please update that."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated. I will use the newer runbook going forward."
+        },
+        {
+          "role": "user",
+          "content": "Please confirm the updated runbook, my role, the blocker, and the handoff package for agent memory evaluation suite before proposing the next step for agent memory evaluation suite."
+        },
+        {
+          "role": "assistant",
+          "content": "I can do that once I have the full remembered context."
+        }
+      ]
+    }
+  ],
+  "feedback_signals": [
+    {
+      "session_id": "complex-04-s3",
+      "signal": "The short status updates format worked well. Keep using that for agent memory evaluation suite."
+    }
+  ],
+  "evaluation": {
+    "prompt": "Please confirm the updated runbook, my role, the blocker, and the handoff package for agent memory evaluation suite before proposing the next step for agent memory evaluation suite.",
+    "rubric_focus": [
+      "identity_background",
+      "history_open_loop"
+    ],
+    "expected_identity_signals": [
+      "Product manager",
+      "Hangzhou, China",
+      "short status updates"
+    ],
+    "expected_history_signals": [
+      "docs/agent-memory-evaluation-suite-runbook-v2.md",
+      "vendor approval for agent memory evaluation suite",
+      "handoff package for agent memory evaluation suite",
+      "agent memory evaluation suite"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer."
+  }
+}

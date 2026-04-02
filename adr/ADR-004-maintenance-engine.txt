@@ -1,0 +1,18 @@
+ADR-004: Maintenance Engine
+===========================
+
+Status
+------
+Draft
+
+Context
+-------
+GoodMemory requires background maintenance capabilities such as decay, consolidation, contradiction repair, and future dream-style jobs.
+
+Decision
+--------
+To be filled during implementation.
+
+Consequences
+------------
+To be filled during implementation.

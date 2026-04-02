@@ -1,0 +1,10 @@
+Phase 10.2: Basic Chat Example
+==============================
+
+[DONE] P10.2-T001 Build minimal chat integration example
+[DONE] P10.2-T002 Document exact run command and expected output
+[DONE] P10.2-T003 Add regression test for the example
+
+Definition of Done
+------------------
+- New users can see a minimal createGoodMemory integration path quickly

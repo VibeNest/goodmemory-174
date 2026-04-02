@@ -1,0 +1,11 @@
+Phase 8.3: Consolidation and Runner
+===================================
+
+[DONE] M8-T007 Implement episode consolidation heuristics
+[DONE] M8-T008 Implement maintenance runner entry point
+[DONE] M8-T009 Support selected-job execution and run-all execution
+
+Definition of Done
+------------------
+- Maintenance can be invoked as executable code
+- Consolidation can be orchestrated by one runner

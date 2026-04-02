@@ -1,0 +1,42 @@
+{
+  "persona_id": "complex-06",
+  "name": "Mei",
+  "age_range": "32-45",
+  "locale": "Tokyo, Japan",
+  "profession": "Frontend engineer",
+  "expertise": [
+    "design systems",
+    "typescript"
+  ],
+  "background": "Mei is a frontend engineer in Tokyo, Japan working on tooling consolidation initiative.",
+  "communication_preferences": [
+    "risk-first summaries",
+    "explicit assumptions"
+  ],
+  "work_style_preferences": [
+    "deep work blocks",
+    "written decisions"
+  ],
+  "long_term_goals": [
+    "ship a reusable platform capability"
+  ],
+  "current_projects": [
+    "tooling consolidation initiative"
+  ],
+  "growth_path": [
+    "Started by stabilizing tooling consolidation initiative.",
+    "Now trying to scale the lessons from tooling consolidation initiative into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on tooling consolidation initiative.",
+    "Coordinates with a cross-functional peer group in Tokyo, Japan."
+  ],
+  "memory_risks": [
+    "Project details for tooling consolidation initiative may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "complex",
+  "scenario_ids": [
+    "scenario-complex-06"
+  ]
+}

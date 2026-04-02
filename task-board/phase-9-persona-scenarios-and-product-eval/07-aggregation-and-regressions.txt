@@ -1,0 +1,11 @@
+Phase 9.7: Aggregation and Regressions
+======================================
+
+[DONE] P9.7-T001 Aggregate per-dimension scores
+[DONE] P9.7-T002 Compare baseline vs GoodMemory uplift
+[DONE] P9.7-T003 Persist suite-level regression summaries
+
+Definition of Done
+------------------
+- Suite report exposes overall and per-dimension scores
+- Regressions are visible at the run level

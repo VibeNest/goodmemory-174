@@ -1,0 +1,105 @@
+{
+  "scenario_id": "scenario-medium-28",
+  "persona_id": "medium-28",
+  "lifecycle_bucket": "medium",
+  "required_phenomena": [
+    "identity_reveal",
+    "historical_task_continuation",
+    "open_loop",
+    "correction",
+    "confirmation",
+    "stale_info"
+  ],
+  "sessions": [
+    {
+      "session_id": "medium-28-s1",
+      "objective": "Reveal identity, project context, and response preferences.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "My name is Mina. I'm a game designer in Toronto, Canada. Remember that I'm leading cross-team API cleanup."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that background in mind."
+        },
+        {
+          "role": "user",
+          "content": "I prefer short status updates and evidence-backed recommendations."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will respond in that style."
+        }
+      ]
+    },
+    {
+      "session_id": "medium-28-s2",
+      "objective": "Introduce a canonical reference and leave an open loop.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Use docs/cross-team-API-cleanup-runbook-v1.md as the source of truth for cross-team API cleanup for now."
+        },
+        {
+          "role": "assistant",
+          "content": "Okay. I will use that runbook as the current reference."
+        },
+        {
+          "role": "user",
+          "content": "We paused after step 2 and still have an open loop on final verification for cross-team API cleanup. Continue from there next time."
+        },
+        {
+          "role": "assistant",
+          "content": "Captured. I will continue from that open loop later."
+        }
+      ]
+    },
+    {
+      "session_id": "medium-28-s3",
+      "objective": "Correct stale information and ask for a memory-dependent answer.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Correction: docs/cross-team-API-cleanup-runbook-v2.md is now the source of truth, not docs/cross-team-API-cleanup-runbook-v1.md. Please update that."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated. I will use the newer runbook going forward."
+        },
+        {
+          "role": "user",
+          "content": "Please confirm the updated runbook, my role, and the open loop before proposing the next step for cross-team API cleanup."
+        },
+        {
+          "role": "assistant",
+          "content": "I can do that once I have the full remembered context."
+        }
+      ]
+    }
+  ],
+  "feedback_signals": [
+    {
+      "session_id": "medium-28-s1",
+      "signal": "The short status updates format worked well. Keep using that style."
+    }
+  ],
+  "evaluation": {
+    "prompt": "Please confirm the updated runbook, my role, and the open loop before proposing the next step for cross-team API cleanup.",
+    "rubric_focus": [
+      "identity_background",
+      "history_open_loop"
+    ],
+    "expected_identity_signals": [
+      "Game designer",
+      "Toronto, Canada",
+      "short status updates"
+    ],
+    "expected_history_signals": [
+      "docs/cross-team-API-cleanup-runbook-v2.md",
+      "final verification for cross-team API cleanup",
+      "cross-team API cleanup"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without asking for repeated context."
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-03",
+  "name": "Ethan",
+  "age_range": "25-38",
+  "locale": "Singapore",
+  "profession": "Data scientist",
+  "expertise": [
+    "forecasting",
+    "experimentation"
+  ],
+  "background": "Ethan is a data scientist in Singapore working on workflow reliability dashboard.",
+  "communication_preferences": [
+    "structured outlines",
+    "plain language"
+  ],
+  "work_style_preferences": [
+    "prototype before polish",
+    "tight feedback loops"
+  ],
+  "long_term_goals": [
+    "reduce operational noise across teams"
+  ],
+  "current_projects": [
+    "workflow reliability dashboard"
+  ],
+  "growth_path": [
+    "Started by stabilizing workflow reliability dashboard.",
+    "Now trying to scale the lessons from workflow reliability dashboard into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on workflow reliability dashboard.",
+    "Coordinates with a cross-functional peer group in Singapore."
+  ],
+  "memory_risks": [
+    "Project details for workflow reliability dashboard may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-03"
+  ]
+}

@@ -1,0 +1,11 @@
+Phase 10.5: Package and Checklist
+=================================
+
+[DONE] P10.5-T001 Add package exports and bin metadata
+[DONE] P10.5-T002 Add release checklist document
+[DONE] P10.5-T003 Add metadata validation test
+
+Definition of Done
+------------------
+- Package metadata is coherent for OSS publishing
+- Release checklist exists and is actionable

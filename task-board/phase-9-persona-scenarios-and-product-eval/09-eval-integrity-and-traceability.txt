@@ -1,0 +1,12 @@
+Phase 9.9: Eval Integrity and Traceability
+==========================================
+
+[DONE] P9.9-T001 Prevent evaluation prompt leakage into pre-recall memory writes
+[DONE] P9.9-T002 Persist candidate-level write trace for each replayed session
+[DONE] P9.9-T003 Report whether eval ran in live or fallback mode
+
+Definition of Done
+------------------
+- The judged prompt is not written to memory before recall
+- Write traces include candidate-level outcomes and reasons
+- Eval reports state whether generation and judging used live models or fallback logic

@@ -1,0 +1,28 @@
+Phase 12.6: Eval Expansion
+==========================
+
+[TODO] P12.6-T001 Add mode labels for rules-only vs hybrid vs llm-assisted
+[TODO] P12.6-T002 Add eval slices that isolate embedding impact
+[TODO] P12.6-T003 Add eval slices that isolate router impact
+[TODO] P12.6-T004 Add regression summary by strategy
+
+Why this exists
+---------------
+- Provider-backed features should ship only if eval proves they help.
+
+Write tests first
+-----------------
+- reports show strategy labels
+- strategy comparisons preserve same persona/scenario set
+- fallback and live paths remain distinguishable
+
+Implementation steps
+--------------------
+1. Extend eval suite inputs with strategy selection
+2. Produce A/B/C summaries when multiple strategies are run
+3. Save per-strategy failures and raw recall artifacts
+
+Acceptance
+----------
+- Strategy changes are measurable, not anecdotal
+- Release decisions can be made from eval evidence

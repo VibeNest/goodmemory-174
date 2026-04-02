@@ -1,0 +1,10 @@
+Phase 10.4: Release Docs
+========================
+
+[DONE] P10.4-T001 Add top-level README aligned with current product story
+[DONE] P10.4-T002 Link canonical docs, PRD, eval strategy, and examples
+[DONE] P10.4-T003 Add CLI usage docs
+
+Definition of Done
+------------------
+- A new integrator can understand the product, examples, and eval flow from docs alone

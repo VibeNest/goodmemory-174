@@ -1,0 +1,27 @@
+Phase 12.3: Router Strategies
+=============================
+
+[TODO] P12.3-T001 Define `rules-only`, `hybrid`, and `llm-assisted` router strategies
+[TODO] P12.3-T002 Add router explanation output to trace artifacts
+[TODO] P12.3-T003 Keep `rules-only` as the default path
+
+Why this exists
+---------------
+- `router` should mean “how recall decisions are made,” not “flip a magic model switch.”
+
+Write tests first
+-----------------
+- rules-only decisions stay deterministic
+- hybrid router can consult semantic scores without changing basic ordering guarantees
+- llm-assisted router is optional and explainable
+
+Implementation steps
+--------------------
+1. Expand current recall planner into a strategy framework
+2. Keep lexical/runtime/procedural priors as the hard floor
+3. Add optional provider-backed tie-breaking or refinement, not full replacement
+
+Acceptance
+----------
+- Router strategies are observable in artifacts and CLI output
+- Switching strategies is measurable in eval

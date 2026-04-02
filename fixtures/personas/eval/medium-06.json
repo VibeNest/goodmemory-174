@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-06",
+  "name": "Amina",
+  "age_range": "25-38",
+  "locale": "Berlin, Germany",
+  "profession": "DevOps lead",
+  "expertise": [
+    "kubernetes",
+    "platform tooling"
+  ],
+  "background": "Amina is a devops lead in Berlin, Germany working on research operations redesign.",
+  "communication_preferences": [
+    "risk-first summaries",
+    "explicit assumptions"
+  ],
+  "work_style_preferences": [
+    "deep work blocks",
+    "written decisions"
+  ],
+  "long_term_goals": [
+    "become a stronger technical leader"
+  ],
+  "current_projects": [
+    "research operations redesign"
+  ],
+  "growth_path": [
+    "Started by stabilizing research operations redesign.",
+    "Now trying to scale the lessons from research operations redesign into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on research operations redesign.",
+    "Coordinates with a cross-functional peer group in Berlin, Germany."
+  ],
+  "memory_risks": [
+    "Project details for research operations redesign may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-06"
+  ]
+}

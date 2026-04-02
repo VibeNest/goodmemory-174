@@ -1,0 +1,42 @@
+{
+  "name": "goodmemory",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "goodmemory": "./scripts/goodmemory-cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./cli": "./src/cli.ts",
+    "./llm/vercel-ai-sdk": "./src/llm/vercel-ai-sdk.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:scenarios": "bun test tests/scenarios",
+    "test:eval": "bun test tests/eval",
+    "test:coverage": "bun test tests/unit tests/integration tests/scenarios tests/eval --coverage --coverage-reporter=lcov --coverage-reporter=text && bun run scripts/check-coverage.ts",
+    "test:ci": "bun run typecheck && bun run test:coverage",
+    "test:watch": "bun test --watch",
+    "typecheck": "bunx tsc --noEmit",
+    "cli": "bun run scripts/goodmemory-cli.ts",
+    "fixtures:generate": "bun run scripts/generate-eval-fixtures.ts",
+    "example:chat": "bun run examples/basic-chat.ts",
+    "example:coding-agent": "bun run examples/coding-agent.ts",
+    "eval:smoke": "bun run scripts/run-eval.ts --smoke",
+    "eval:full": "bun run scripts/run-eval.ts",
+    "eval:summary": "bun run scripts/summarize-eval.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.64",
+    "@ai-sdk/openai": "^3.0.49",
+    "ai": "^6.0.143",
+    "zod": "^4.3.6"
+  }
+}

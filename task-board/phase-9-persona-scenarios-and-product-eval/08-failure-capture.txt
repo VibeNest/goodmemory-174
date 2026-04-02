@@ -1,0 +1,10 @@
+Phase 9.8: Failure Capture
+==========================
+
+[DONE] P9.8-T001 Persist failing case summaries
+[DONE] P9.8-T002 Persist answer pairs and trace references
+[DONE] P9.8-T003 Make failure artifacts easy to inspect
+
+Definition of Done
+------------------
+- Failing cases can be debugged from stored artifacts without rerunning the full suite

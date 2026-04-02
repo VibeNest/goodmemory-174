@@ -1,0 +1,42 @@
+{
+  "persona_id": "medium-11",
+  "name": "Arjun",
+  "age_range": "25-38",
+  "locale": "Shanghai, China",
+  "profession": "Robotics engineer",
+  "expertise": [
+    "distributed systems",
+    "release engineering"
+  ],
+  "background": "Arjun is a robotics engineer in Shanghai, China working on migration rollout.",
+  "communication_preferences": [
+    "structured outlines",
+    "plain language"
+  ],
+  "work_style_preferences": [
+    "prototype before polish",
+    "tight feedback loops"
+  ],
+  "long_term_goals": [
+    "become a stronger technical leader"
+  ],
+  "current_projects": [
+    "migration rollout"
+  ],
+  "growth_path": [
+    "Started by stabilizing migration rollout.",
+    "Now trying to scale the lessons from migration rollout into team-wide practice."
+  ],
+  "known_relationships": [
+    "Works closely with a manager on migration rollout.",
+    "Coordinates with a cross-functional peer group in Shanghai, China."
+  ],
+  "memory_risks": [
+    "Project details for migration rollout may drift across sessions.",
+    "User may correct outdated runbook or status information."
+  ],
+  "lifecycle_bucket": "medium",
+  "scenario_ids": [
+    "scenario-medium-11"
+  ]
+}

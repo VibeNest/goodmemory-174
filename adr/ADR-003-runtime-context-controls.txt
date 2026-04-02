@@ -1,0 +1,18 @@
+ADR-003: Runtime Context Controls
+=================================
+
+Status
+------
+Draft
+
+Context
+-------
+GoodMemory needs an explicit stance on optional runtime context controls such as spillover and compaction.
+
+Decision
+--------
+To be filled during implementation.
+
+Consequences
+------------
+To be filled during implementation.
