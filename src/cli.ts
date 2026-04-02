@@ -50,6 +50,13 @@ function requireFlag(flags: ParsedArgs, name: string): string {
 }
 
 async function inspectCase(runDir: string, caseId: string): Promise<string> {
+  const report = await readJson<{
+    mode?: string;
+    runtime?: {
+      generationMode?: string;
+      judgeMode?: string;
+    };
+  }>(join(runDir, "report.json"));
   const artifact = await readJson<{
     judge: { winner: string };
     goodmemory?: {
@@ -59,6 +66,7 @@ async function inspectCase(runDir: string, caseId: string): Promise<string> {
         facts?: unknown[];
         feedback?: unknown[];
         episodes?: unknown[];
+        policyApplied?: string[];
       };
       trace?: { recallHitCount?: number };
     };
@@ -67,6 +75,8 @@ async function inspectCase(runDir: string, caseId: string): Promise<string> {
   const retrieved = artifact.goodmemory?.retrieved;
 
   return [
+    `Run Mode: ${report.mode ?? "unknown"}`,
+    `Runtime: generation=${report.runtime?.generationMode ?? "unknown"}, judge=${report.runtime?.judgeMode ?? "unknown"}`,
     `Case: ${caseId}`,
     `Winner: ${artifact.judge.winner}`,
     `References: ${retrieved?.references?.length ?? 0}`,
@@ -74,6 +84,11 @@ async function inspectCase(runDir: string, caseId: string): Promise<string> {
     `Feedback: ${retrieved?.feedback?.length ?? 0}`,
     `Episodes: ${retrieved?.episodes?.length ?? 0}`,
     `Recall Hits: ${artifact.goodmemory?.trace?.recallHitCount ?? 0}`,
+    `Policy Applied: ${
+      retrieved?.policyApplied?.length
+        ? retrieved.policyApplied.join(", ")
+        : "none"
+    }`,
   ].join("\n");
 }
 
@@ -94,6 +109,7 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
   const recall = await readJson<{
     hits?: Array<{ type: string; reason?: string }>;
     verificationHints?: Array<{ memoryType: string; reason: string }>;
+    policyApplied?: string[];
   }>(join(runDir, "traces", caseId, "raw-recall.json"));
 
   const writeLines = goodmemory.trace.rememberEvents.flatMap((session) => {
@@ -110,6 +126,7 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
   const verificationLines = (recall.verificationHints ?? []).map(
     (hint) => `- ${hint.memoryType}: ${hint.reason}`,
   );
+  const policyLines = (recall.policyApplied ?? []).map((policy) => `- ${policy}`);
 
   return [
     "Write Trace",
@@ -120,6 +137,9 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
     "",
     "Verification Hints",
     ...(verificationLines.length > 0 ? verificationLines : ["- none"]),
+    "",
+    "Policy Applied",
+    ...(policyLines.length > 0 ? policyLines : ["- none"]),
   ].join("\n");
 }
 

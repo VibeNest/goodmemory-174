@@ -1,20 +1,31 @@
 import type { MemoryScope } from "./domain/scope";
 import type {
+  ArtifactSpillRecord,
   EpisodeMemory,
   FeedbackKind,
   FactMemory,
   FeedbackMemory,
   PreferenceMemory,
   ReferenceMemory,
+  SessionBuffer,
   SessionJournal,
   UserProfile,
   WorkingMemorySnapshot,
 } from "./domain/records";
-import { createFeedbackMemory } from "./domain/records";
+import {
+  createFeedbackMemory,
+} from "./domain/records";
 import {
   createMemorySource,
 } from "./domain/provenance";
 import type { MemorySourceMethod } from "./domain/provenance";
+import type {
+  ConflictResolution,
+  GoodMemoryPolicyHooks,
+  PolicyContext,
+  PolicyMemoryRecord,
+} from "./policy/hooks";
+import { ARTIFACT_SPILL_COLLECTION } from "./runtime/spillover";
 import {
   renderMemoryPacket,
   type MemoryPacket,
@@ -60,7 +71,6 @@ export type {
   PreferenceMemory,
   ReferenceMemory,
   SessionMessage,
-  SessionBuffer,
   SessionJournal,
   UserProfile,
   WorkingMemorySnapshot,
@@ -155,6 +165,16 @@ export type {
   RememberResult as RememberPipelineResult,
 } from "./remember/engine";
 export { createRememberEngine } from "./remember/engine";
+export type {
+  ConflictResolution,
+  GoodMemoryPolicyHooks,
+  PolicyContext,
+  PolicyMemoryRecord,
+} from "./policy/hooks";
+export {
+  passesDefaultScopeGuard,
+  toPolicyMemoryRecord,
+} from "./policy/hooks";
 
 export interface StorageConfig {
   provider: "memory" | "sqlite" | "postgres";
@@ -163,6 +183,7 @@ export interface StorageConfig {
 
 export interface GoodMemoryConfig {
   storage: StorageConfig;
+  policy?: GoodMemoryPolicyHooks;
   adapters?: {
     documentStore?: DocumentStore;
     sessionStore?: SessionStore;
@@ -178,6 +199,7 @@ export interface RecallInput {
   scope: MemoryScope;
   query: string;
   retrievalProfile?: "general_chat" | "coding_agent";
+  ignoreMemory?: boolean;
 }
 
 export interface RecallResult {
@@ -196,6 +218,7 @@ export interface RecallResult {
     latencyMs: number;
     hits: import("./recall/engine").RecallHit[];
     verificationHints: import("./verify/policy").VerificationHint[];
+    policyApplied: string[];
   };
 }
 
@@ -243,6 +266,49 @@ export interface ForgetResult {
   forgotten: boolean;
 }
 
+export interface ExportMemoryInput {
+  scope: MemoryScope;
+  includeRuntime?: boolean;
+}
+
+export interface ExportMemoryResult {
+  scope: MemoryScope;
+  exportedAt: string;
+  durable: {
+    profile: UserProfile | null;
+    preferences: PreferenceMemory[];
+    references: ReferenceMemory[];
+    facts: FactMemory[];
+    feedback: FeedbackMemory[];
+    episodes: EpisodeMemory[];
+  };
+  runtime?: {
+    workingMemory: WorkingMemorySnapshot | null;
+    journal: SessionJournal | null;
+    spills: ArtifactSpillRecord[];
+  };
+}
+
+export interface DeleteAllMemoryInput {
+  scope: MemoryScope;
+  includeRuntime?: boolean;
+}
+
+export interface DeleteAllMemoryResult {
+  scope: MemoryScope;
+  deleted: {
+    profiles: number;
+    preferences: number;
+    references: number;
+    facts: number;
+    feedback: number;
+    episodes: number;
+    workingMemory: number;
+    journal: number;
+    artifactSpills: number;
+  };
+}
+
 export interface FeedbackInput {
   scope: MemoryScope;
   signal: string;
@@ -260,6 +326,8 @@ export interface GoodMemory {
   buildContext(input: BuildContextInput): Promise<BuildContextResult>;
   remember(input: RememberInput): Promise<RememberResult>;
   forget(input: ForgetInput): Promise<ForgetResult>;
+  exportMemory(input: ExportMemoryInput): Promise<ExportMemoryResult>;
+  deleteAllMemory(input: DeleteAllMemoryInput): Promise<DeleteAllMemoryResult>;
   feedback(input: FeedbackInput): Promise<FeedbackResult>;
 }
 
@@ -294,7 +362,15 @@ function deriveFeedbackKind(signal: string): FeedbackKind {
   return "do";
 }
 
-function recordMatchesScope(record: Record<string, unknown>, scope: MemoryScope): boolean {
+type ScopeBoundRecord = {
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+};
+
+function recordMatchesScope(record: ScopeBoundRecord, scope: MemoryScope): boolean {
   if (record.userId !== scope.userId) {
     return false;
   }
@@ -316,8 +392,18 @@ function recordMatchesScope(record: Record<string, unknown>, scope: MemoryScope)
   });
 }
 
+function isPureUserScope(scope: MemoryScope): boolean {
+  return (
+    scope.tenantId === undefined &&
+    scope.workspaceId === undefined &&
+    scope.agentId === undefined &&
+    scope.sessionId === undefined
+  );
+}
+
 class GoodMemoryImpl implements GoodMemory {
   private readonly documentStore;
+  private readonly sessionStore;
   private readonly repositories;
   private readonly recallEngine;
   private readonly rememberEngine;
@@ -365,6 +451,7 @@ class GoodMemoryImpl implements GoodMemory {
     });
 
     this.documentStore = documentStore;
+    this.sessionStore = sessionStore;
     this.repositories = repositories;
     this.recallEngine = createRecallEngine({
       repositories,
@@ -373,12 +460,14 @@ class GoodMemoryImpl implements GoodMemory {
       referenceTime: config.testing?.now
         ? () => config.testing!.now!().toISOString()
         : undefined,
+      policy: config.policy,
     });
     this.rememberEngine = createRememberEngine({
       repositories,
       documentStore,
       extractor:
         config.testing?.extractor ?? createDeterministicMemoryExtractor(),
+      policy: config.policy,
     });
   }
 
@@ -419,7 +508,7 @@ class GoodMemoryImpl implements GoodMemory {
     for (const collection of collections) {
       const existing = await this.documentStore.get(collection, _input.memoryId);
 
-      if (existing && recordMatchesScope(existing as Record<string, unknown>, _input.scope)) {
+      if (existing && recordMatchesScope(existing as ScopeBoundRecord, _input.scope)) {
         await this.documentStore.delete(collection, _input.memoryId);
         return {
           forgotten: true
@@ -429,6 +518,149 @@ class GoodMemoryImpl implements GoodMemory {
 
     return {
       forgotten: false
+    };
+  }
+
+  async exportMemory(input: ExportMemoryInput): Promise<ExportMemoryResult> {
+    const [
+      profile,
+      preferences,
+      references,
+      facts,
+      feedback,
+      episodes,
+      workingMemory,
+      journal,
+      allSpills,
+    ] = await Promise.all([
+      this.repositories.profiles.get(input.scope.userId),
+      this.repositories.preferences.listByScope(input.scope),
+      this.repositories.references.listByScope(input.scope),
+      this.repositories.facts.listByScope(input.scope),
+      this.repositories.feedback.listByScope(input.scope),
+      this.repositories.episodes.listByScope(input.scope),
+      input.includeRuntime && input.scope.sessionId
+        ? this.sessionStore.getWorkingMemory(input.scope)
+        : Promise.resolve(null),
+      input.includeRuntime && input.scope.sessionId
+        ? this.sessionStore.getJournal(input.scope)
+        : Promise.resolve(null),
+      input.includeRuntime
+        ? this.documentStore.query<ArtifactSpillRecord>(ARTIFACT_SPILL_COLLECTION)
+        : Promise.resolve([]),
+    ]);
+
+    const spills = allSpills.filter((record) =>
+      recordMatchesScope(record.scope, input.scope),
+    );
+
+    return {
+      scope: input.scope,
+      exportedAt: new Date().toISOString(),
+      durable: {
+        profile: isPureUserScope(input.scope) ? profile : null,
+        preferences: preferences.filter((record) => recordMatchesScope(record, input.scope)),
+        references: references.filter((record) => recordMatchesScope(record, input.scope)),
+        facts: facts.filter((record) => recordMatchesScope(record, input.scope)),
+        feedback: feedback.filter((record) => recordMatchesScope(record, input.scope)),
+        episodes: episodes.filter((record) => recordMatchesScope(record, input.scope)),
+      },
+      runtime: input.includeRuntime
+        ? {
+            workingMemory,
+            journal,
+            spills,
+          }
+        : undefined,
+    };
+  }
+
+  async deleteAllMemory(input: DeleteAllMemoryInput): Promise<DeleteAllMemoryResult> {
+    const deleted = {
+      profiles: 0,
+      preferences: 0,
+      references: 0,
+      facts: 0,
+      feedback: 0,
+      episodes: 0,
+      workingMemory: 0,
+      journal: 0,
+      artifactSpills: 0,
+    };
+
+    const [
+      profile,
+      allPreferences,
+      allReferences,
+      allFacts,
+      allFeedback,
+      allEpisodes,
+    ] = await Promise.all([
+      this.repositories.profiles.get(input.scope.userId),
+      this.repositories.preferences.listByScope(input.scope),
+      this.repositories.references.listByScope(input.scope),
+      this.repositories.facts.listByScope(input.scope),
+      this.repositories.feedback.listByScope(input.scope),
+      this.repositories.episodes.listByScope(input.scope),
+    ]);
+
+    const preferences = allPreferences.filter((record) => recordMatchesScope(record, input.scope));
+    const references = allReferences.filter((record) => recordMatchesScope(record, input.scope));
+    const facts = allFacts.filter((record) => recordMatchesScope(record, input.scope));
+    const feedback = allFeedback.filter((record) => recordMatchesScope(record, input.scope));
+    const episodes = allEpisodes.filter((record) => recordMatchesScope(record, input.scope));
+
+    if (
+      profile &&
+      isPureUserScope(input.scope)
+    ) {
+      await this.documentStore.delete("profiles", input.scope.userId);
+      deleted.profiles = 1;
+    }
+
+    for (const preference of preferences) {
+      await this.documentStore.delete("preferences", preference.id);
+      deleted.preferences += 1;
+    }
+    for (const reference of references) {
+      await this.documentStore.delete("references", reference.id);
+      deleted.references += 1;
+    }
+    for (const fact of facts) {
+      await this.documentStore.delete("facts", fact.id);
+      deleted.facts += 1;
+    }
+    for (const feedbackItem of feedback) {
+      await this.documentStore.delete("feedback", feedbackItem.id);
+      deleted.feedback += 1;
+    }
+    for (const episode of episodes) {
+      await this.documentStore.delete("episodes", episode.id);
+      deleted.episodes += 1;
+    }
+
+    if (input.includeRuntime !== false) {
+      const allSpills = await this.documentStore.query<ArtifactSpillRecord>(
+        ARTIFACT_SPILL_COLLECTION,
+      );
+      const spills = allSpills.filter((record) =>
+        recordMatchesScope(record.scope, input.scope),
+      );
+
+      deleted.workingMemory = await this.sessionStore.deleteWorkingMemoryByScope(
+        input.scope,
+      );
+      deleted.journal = await this.sessionStore.deleteJournalsByScope(input.scope);
+      await this.sessionStore.deleteBuffersByScope(input.scope);
+      for (const spill of spills) {
+        await this.documentStore.delete(ARTIFACT_SPILL_COLLECTION, spill.id);
+        deleted.artifactSpills += 1;
+      }
+    }
+
+    return {
+      scope: input.scope,
+      deleted,
     };
   }
 

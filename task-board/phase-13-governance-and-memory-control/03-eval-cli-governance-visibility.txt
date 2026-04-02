@@ -1,0 +1,21 @@
+[DONE] Eval and CLI Governance Visibility
+=========================================
+
+Scope
+-----
+- `policyApplied` in eval recall artifacts
+- `ignoreMemory` in eval replay
+- CLI trace/inspect policy visibility
+
+Implemented
+-----------
+- Added `policyApplied` to `EvalAnswerPackage.retrieved`
+- Added `ignoreMemory` support in `runGoodMemoryScenario`
+- `raw-recall.json` now persists policy state through existing artifact flow
+- CLI `inspect` and `trace` render applied policies
+
+Validation
+----------
+- `tests/eval/runners.test.ts`
+- `tests/cli/cli.test.ts`
+- `tests/eval/reporting.test.ts`

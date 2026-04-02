@@ -56,6 +56,7 @@ function buildAnswerPackage(
                 sourceMethod: "explicit",
               },
             ],
+            policyApplied: [],
             verificationHints: [],
             renderedMemoryContext: "## Context",
           }
@@ -152,6 +153,7 @@ describe("eval reporting", () => {
       ]);
 
       const result = await persistEvalArtifacts({
+        mode: "fallback",
         outputDir,
         runId: "run-001",
         cases,
@@ -164,7 +166,7 @@ describe("eval reporting", () => {
 
       const report = JSON.parse(
         await readFile(join(result.runDirectory, "report.json"), "utf8"),
-      ) as { runId: string };
+      ) as { mode: string; runId: string };
       const failure = JSON.parse(
         await readFile(join(result.runDirectory, "failures/case-1.json"), "utf8"),
       ) as { judge: { failure_tags: string[] } };
@@ -193,6 +195,7 @@ describe("eval reporting", () => {
         hits: Array<{ type: string }>;
       };
 
+      expect(report.mode).toBe("fallback");
       expect(report.runId).toBe("run-001");
       expect(failure.judge.failure_tags).toContain("identity_miss");
       expect(caseArtifact.goodmemory.trace.recallHitCount).toBe(4);

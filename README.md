@@ -47,9 +47,9 @@ const context = await memory.buildContext({
 GoodMemory v1 自带一个只读 CLI，用来查看 eval artifact 和 trace。
 
 ```bash
-bun run scripts/goodmemory-cli.ts inspect --run-dir reports/eval/<run-id> --case-id <case-id>
-bun run scripts/goodmemory-cli.ts trace --run-dir reports/eval/<run-id> --case-id <case-id>
-bun run scripts/goodmemory-cli.ts export --run-dir reports/eval/<run-id> --case-id <case-id> --output /tmp/case.json
+bun run scripts/goodmemory-cli.ts inspect --run-dir reports/eval/live/<run-id> --case-id <case-id>
+bun run scripts/goodmemory-cli.ts trace --run-dir reports/eval/live/<run-id> --case-id <case-id>
+bun run scripts/goodmemory-cli.ts export --run-dir reports/eval/live/<run-id> --case-id <case-id> --output /tmp/case.json
 ```
 
 等价脚本：
@@ -84,10 +84,17 @@ Phase 9 评测链路支持：
 
 ```bash
 bun run eval:smoke
-bun run eval:full
+bun run eval:fallback
+bun run eval:live
 ```
 
-如果配置了 Vercel AI SDK 所需环境变量，`eval:full` 会走 live model path：
+含义：
+
+- `eval:smoke`: 最小 harness 自检，不代表产品评测结果
+- `eval:fallback`: deterministic pipeline 验证，不调用真实模型，不可作为产品证据
+- `eval:live`: 真实模型生成 + 真实模型 judge 的产品评测入口
+
+`eval:live` 必须显式配置以下环境变量，否则会直接失败：
 
 - `GOODMEMORY_EVAL_PROVIDER`
 - `GOODMEMORY_EVAL_MODEL`
@@ -96,7 +103,12 @@ bun run eval:full
 - `GOODMEMORY_JUDGE_MODEL`
 - `GOODMEMORY_JUDGE_API_KEY`
 
-未配置时会回退到 deterministic fallback，用于 pipeline 验证。
+产物目录：
+
+- live runs: `reports/eval/live/run-*`
+- fallback runs: `reports/eval/fallback/run-*`
+
+只有 `reports/eval/live/...` 应被视为产品评测证据。
 
 ## Key Docs
 

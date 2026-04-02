@@ -12,6 +12,7 @@ import {
   aggregateJudgedCases,
   persistEvalArtifacts,
   type EvalRuntimeMetadata,
+  type PersistedEvalMode,
   type EvalSuiteSummary,
   type JudgedEvalCase,
 } from "./reporting";
@@ -22,6 +23,7 @@ import {
 } from "./runners";
 
 export interface EvalSuiteInput {
+  mode: PersistedEvalMode;
   personaDir: string;
   scenarioDir: string;
   outputDir: string;
@@ -39,6 +41,7 @@ export interface EvalSuiteInput {
 }
 
 export interface EvalSuiteResult {
+  mode: PersistedEvalMode;
   runId: string;
   runDirectory: string;
   summary: EvalSuiteSummary;
@@ -118,10 +121,11 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   const summary = aggregateJudgedCases(judgedCases);
   const runId = input.runId ?? `run-${Date.now()}`;
   const runtime = input.runtime ?? {
-    generationMode: "fallback",
-    judgeMode: "fallback",
+    generationMode: input.mode,
+    judgeMode: input.mode,
   };
   const artifacts = await persistEvalArtifacts({
+    mode: input.mode,
     outputDir: input.outputDir,
     runId,
     cases: judgedCases,
@@ -130,6 +134,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   });
 
   return {
+    mode: input.mode,
     runId,
     runDirectory: artifacts.runDirectory,
     summary,

@@ -59,13 +59,16 @@ export interface VectorStore {
 export interface SessionStore {
   saveBuffer(scope: MemoryScope, buffer: SessionBuffer): Promise<void>;
   getBuffer(scope: MemoryScope): Promise<SessionBuffer | null>;
+  deleteBuffersByScope(scope: MemoryScope): Promise<number>;
   saveWorkingMemory(
     scope: MemoryScope,
     snapshot: WorkingMemorySnapshot,
   ): Promise<void>;
   getWorkingMemory(scope: MemoryScope): Promise<WorkingMemorySnapshot | null>;
+  deleteWorkingMemoryByScope(scope: MemoryScope): Promise<number>;
   saveJournal(scope: MemoryScope, journal: SessionJournal): Promise<void>;
   getJournal(scope: MemoryScope): Promise<SessionJournal | null>;
+  deleteJournalsByScope(scope: MemoryScope): Promise<number>;
 }
 
 export function matchesFilter(

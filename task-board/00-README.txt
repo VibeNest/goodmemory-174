@@ -37,6 +37,8 @@ Working Rules
    - remember
    - forget
    - feedback
+   - exportMemory
+   - deleteAllMemory
 
 5. Procedural memory is first-class:
    - It is not merged into preference or fact
@@ -71,6 +73,9 @@ Read and execute files in this order:
 9. 09-phase-8-maintenance-and-consolidation.txt
 10. 10-phase-9-persona-scenarios-and-product-eval.txt
 11. 11-phase-10-cli-examples-and-release.txt
+12. 12-phase-11-api-polish-and-surface-alignment.txt
+13. 13-phase-12-provider-layer-embedding-and-router.txt
+14. 14-phase-13-governance-and-memory-control.txt
 
 
 Global Exit Criteria
@@ -86,6 +91,11 @@ GoodMemory v1 is not complete until all of the following are true:
 - Baseline vs GoodMemory A/B exists
 - LLM-as-judge reports are generated and stored
 - CLI inspect/trace/export works
+- Governance controls exist:
+  - exportMemory
+  - deleteAllMemory
+  - ignoreMemory
+  - policy hooks
 - At least one chat example works
 - Release documentation is written
 
@@ -124,3 +134,12 @@ Files in This Folder
 
 - 11-phase-10-cli-examples-and-release.txt
   CLI, examples, docs, packaging, release readiness
+
+- 12-phase-11-api-polish-and-surface-alignment.txt
+  Public surface cleanup, architecture/doc alignment, release-facing API polish
+
+- 13-phase-12-provider-layer-embedding-and-router.txt
+  Future provider-layer planning for llm, embedding, and router capabilities
+
+- 14-phase-13-governance-and-memory-control.txt
+  Export/delete APIs, policy hooks, ignore-memory, scope guards, governance release gate

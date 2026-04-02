@@ -3,7 +3,7 @@ import type { MemoryScope } from "../domain/scope";
 import { scopeToKey } from "../domain/scope";
 import type { DocumentStore } from "../storage/contracts";
 
-const SPILL_COLLECTION = "artifact_spills";
+export const ARTIFACT_SPILL_COLLECTION = "artifact_spills";
 
 export interface SpillInput {
   kind: ArtifactSpillRecord["kind"];
@@ -49,7 +49,7 @@ export function createArtifactSpilloverService(
     async spill(scope: MemoryScope, input: SpillInput): Promise<ArtifactSpillRecord> {
       const recordId = buildRecordId(scope, input.sourceId);
       const existing = await config.documentStore.get<ArtifactSpillRecord>(
-        SPILL_COLLECTION,
+        ARTIFACT_SPILL_COLLECTION,
         recordId,
       );
 
@@ -70,7 +70,7 @@ export function createArtifactSpilloverService(
         createdAt: existing?.createdAt ?? new Date(0).toISOString(),
       };
 
-      await config.documentStore.set(SPILL_COLLECTION, recordId, record);
+      await config.documentStore.set(ARTIFACT_SPILL_COLLECTION, recordId, record);
       return record;
     },
 
@@ -79,7 +79,7 @@ export function createArtifactSpilloverService(
       sourceId: string,
     ): Promise<ArtifactSpillRecord | null> {
       return config.documentStore.get(
-        SPILL_COLLECTION,
+        ARTIFACT_SPILL_COLLECTION,
         buildRecordId(scope, sourceId),
       );
     },

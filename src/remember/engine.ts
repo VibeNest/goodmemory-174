@@ -25,6 +25,11 @@ import type {
   MemoryExtractionInput,
 } from "./candidates";
 import { createDeterministicMemoryExtractor } from "./deterministicExtractor";
+import type {
+  GoodMemoryPolicyHooks,
+  PolicyContext,
+} from "../policy/hooks";
+import { toPolicyMemoryRecord } from "../policy/hooks";
 
 type ScopedIdentity = {
   userId: string;
@@ -69,6 +74,10 @@ export interface RememberEngineConfig {
   now?: () => string;
   createId?: () => string;
   shouldWrite?: (candidate: ClassifiedCandidate) => boolean;
+  policy?: Pick<
+    GoodMemoryPolicyHooks,
+    "shouldRemember" | "redact" | "resolveConflict"
+  >;
 }
 
 const SCORE_THRESHOLD = 0.7;
@@ -109,6 +118,12 @@ function normalizeRule(value: string): string {
   return normalizeText(value);
 }
 
+function toRememberEventMemoryType(
+  memoryType: ClassifiedCandidate["memoryType"],
+): RememberEvent["memoryType"] {
+  return memoryType === "reject" ? "fact" : memoryType;
+}
+
 function scoreCandidate(candidate: MemoryCandidate): number {
   if (candidate.kindHint === "noise") {
     return 0;
@@ -137,6 +152,24 @@ function scoreCandidate(candidate: MemoryCandidate): number {
   return 0.4;
 }
 
+function hasValidCandidatePayload(candidate: MemoryCandidate): boolean {
+  const trimmedContent = candidate.content.trim();
+
+  if (candidate.kindHint === "profile" || candidate.kindHint === "fact" || candidate.kindHint === "feedback") {
+    return trimmedContent.length > 0;
+  }
+
+  if (candidate.kindHint === "preference") {
+    return String(candidate.metadata?.preferenceValue ?? candidate.content).trim().length > 0;
+  }
+
+  if (candidate.kindHint === "reference") {
+    return String(candidate.metadata?.referencePointer ?? candidate.content).trim().length > 0;
+  }
+
+  return true;
+}
+
 function classifyCandidate(candidate: MemoryCandidate): ClassifiedCandidate {
   const score = scoreCandidate(candidate);
 
@@ -163,6 +196,16 @@ function classifyCandidate(candidate: MemoryCandidate): ClassifiedCandidate {
       decision: "reject",
       score,
       reason: "unsupported_kind",
+    };
+  }
+
+  if (!hasValidCandidatePayload(candidate)) {
+    return {
+      ...candidate,
+      memoryType: "reject",
+      decision: "reject",
+      score,
+      reason: "invalid_payload",
     };
   }
 
@@ -357,6 +400,10 @@ export function createRememberEngine(config: RememberEngineConfig) {
       const events: RememberEvent[] = [];
       let accepted = 0;
       let rejected = 0;
+      const policyContext: PolicyContext = {
+        scope: input.scope,
+        phase: "remember",
+      };
 
       for (const candidate of extraction.candidates) {
         const classified = classifyCandidate(candidate);
@@ -369,22 +416,65 @@ export function createRememberEngine(config: RememberEngineConfig) {
           events.push({
             candidateId: candidate.id,
             outcome: "rejected",
-            memoryType:
-              classified.memoryType === "reject" ? "fact" : classified.memoryType,
+            memoryType: toRememberEventMemoryType(classified.memoryType),
             reason: classified.reason ?? "policy_rejected",
             sourceMethod: candidate.explicitness,
           });
           continue;
         }
 
+        let effectiveCandidate: ClassifiedCandidate = classified;
+
+        if (config.policy?.redact) {
+          const redacted = await config.policy.redact(effectiveCandidate, policyContext);
+          const redactedCandidate: MemoryCandidate = {
+            ...effectiveCandidate,
+            kindHint: redacted.kindHint,
+            content: redacted.content,
+            metadata: redacted.metadata,
+            explicitness: redacted.explicitness,
+          };
+          effectiveCandidate = classifyCandidate(redactedCandidate);
+
+          if (effectiveCandidate.decision === "reject") {
+            rejected += 1;
+            events.push({
+              candidateId: candidate.id,
+              outcome: "rejected",
+              memoryType: toRememberEventMemoryType(effectiveCandidate.memoryType),
+              reason:
+                effectiveCandidate.reason === "invalid_payload"
+                  ? "invalid_after_redaction"
+                  : effectiveCandidate.reason ?? "policy_redacted_invalid",
+              sourceMethod: effectiveCandidate.explicitness,
+            });
+            continue;
+          }
+        }
+
+        if (
+          config.policy?.shouldRemember &&
+          !(await config.policy.shouldRemember(effectiveCandidate, policyContext))
+        ) {
+          rejected += 1;
+          events.push({
+            candidateId: candidate.id,
+            outcome: "rejected",
+            memoryType: toRememberEventMemoryType(effectiveCandidate.memoryType),
+            reason: "policy_blocked",
+            sourceMethod: effectiveCandidate.explicitness,
+          });
+          continue;
+        }
+
         const timestamp = now();
 
-        if (classified.memoryType === "profile") {
+        if (effectiveCandidate.memoryType === "profile") {
           const existing = await config.repositories.profiles.get(input.scope.userId);
           const profile = buildProfile(
             input.scope.userId,
             existing,
-            classified,
+            effectiveCandidate,
             timestamp,
           );
           await config.repositories.profiles.upsert(profile);
@@ -395,13 +485,75 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "profile",
             memoryId: profile.userId,
             reason: "explicit_profile",
-            sourceMethod: classified.explicitness,
+            sourceMethod: effectiveCandidate.explicitness,
           });
           continue;
         }
 
-        if (classified.memoryType === "preference") {
-          const preference = buildPreference(input.scope, classified, createId(), timestamp);
+        if (effectiveCandidate.memoryType === "preference") {
+          const scopedPreferences = await config.repositories.preferences.listByScope(
+            input.scope,
+          );
+          const category =
+            effectiveCandidate.metadata?.preferenceCategory ?? "general_preference";
+          const value = String(
+            effectiveCandidate.metadata?.preferenceValue ?? effectiveCandidate.content,
+          ).trim();
+          const duplicate = scopedPreferences.find(
+            (preference) =>
+              preference.category === category &&
+              String(preference.value).trim().toLowerCase() === value.toLowerCase(),
+          );
+
+          if (duplicate) {
+            accepted += 1;
+            events.push({
+              candidateId: candidate.id,
+              outcome: "merged",
+              memoryType: "preference",
+              memoryId: duplicate.id,
+              reason: "duplicate_preference",
+              sourceMethod: effectiveCandidate.explicitness,
+            });
+            continue;
+          }
+
+          const conflictingPreferences = scopedPreferences
+            .filter((preference) => preference.category === category)
+            .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+          if (conflictingPreferences.length > 0) {
+            const current = conflictingPreferences[0]!;
+            const updatedPreference = buildPreference(
+              input.scope,
+              effectiveCandidate,
+              current.id,
+              timestamp,
+            );
+
+            await config.repositories.preferences.upsert(updatedPreference);
+            for (const stale of conflictingPreferences.slice(1)) {
+              await config.documentStore.delete("preferences", stale.id);
+            }
+
+            accepted += 1;
+            events.push({
+              candidateId: candidate.id,
+              outcome: "superseded",
+              memoryType: "preference",
+              memoryId: updatedPreference.id,
+              reason: "superseded_preference",
+              sourceMethod: effectiveCandidate.explicitness,
+            });
+            continue;
+          }
+
+          const preference = buildPreference(
+            input.scope,
+            effectiveCandidate,
+            createId(),
+            timestamp,
+          );
           await config.repositories.preferences.upsert(preference);
           accepted += 1;
           events.push({
@@ -410,16 +562,17 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "preference",
             memoryId: preference.id,
             reason: "explicit_preference",
-            sourceMethod: classified.explicitness,
+            sourceMethod: effectiveCandidate.explicitness,
           });
           continue;
         }
 
-        if (classified.memoryType === "reference") {
+        if (effectiveCandidate.memoryType === "reference") {
           const scopedReferences = await config.repositories.references.listByScope(
             input.scope,
           );
-          const pointer = classified.metadata?.referencePointer ?? classified.content;
+          const pointer =
+            effectiveCandidate.metadata?.referencePointer ?? effectiveCandidate.content;
           const duplicate = scopedReferences.find(
             (reference) =>
               reference.lifecycle === "active" && reference.pointer === pointer,
@@ -433,7 +586,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               memoryType: "reference",
               memoryId: duplicate.id,
               reason: "duplicate_reference",
-              sourceMethod: classified.explicitness,
+              sourceMethod: effectiveCandidate.explicitness,
             });
             continue;
           }
@@ -441,9 +594,34 @@ export function createRememberEngine(config: RememberEngineConfig) {
           const superseded = scopedReferences.find(
             (reference) =>
               reference.lifecycle === "active" &&
-              reference.pointer === classified.metadata?.supersedesPointer,
+              reference.pointer === effectiveCandidate.metadata?.supersedesPointer,
           );
-          const reference = buildReference(input.scope, classified, createId(), timestamp);
+          if (superseded && config.policy?.resolveConflict) {
+            const resolution = await config.policy.resolveConflict(
+              toPolicyMemoryRecord(superseded, "reference"),
+              effectiveCandidate,
+              policyContext,
+            );
+
+            if (resolution.action === "keep_existing") {
+              rejected += 1;
+              events.push({
+                candidateId: candidate.id,
+                outcome: "rejected",
+                memoryType: "reference",
+                memoryId: superseded.id,
+                reason: resolution.reason ?? "policy_keep_existing",
+                sourceMethod: effectiveCandidate.explicitness,
+              });
+              continue;
+            }
+          }
+          const reference = buildReference(
+            input.scope,
+            effectiveCandidate,
+            createId(),
+            timestamp,
+          );
 
           if (superseded) {
             await config.repositories.references.add(
@@ -463,14 +641,14 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "reference",
             memoryId: reference.id,
             reason: superseded ? "superseded_reference" : "explicit_reference",
-            sourceMethod: classified.explicitness,
+            sourceMethod: effectiveCandidate.explicitness,
           });
           continue;
         }
 
-        if (classified.memoryType === "fact") {
+        if (effectiveCandidate.memoryType === "fact") {
           const facts = await config.repositories.facts.listByScope(input.scope);
-          const normalizedContent = normalizeText(classified.content);
+          const normalizedContent = normalizeText(effectiveCandidate.content);
           const duplicate = facts.find(
             (fact) =>
               fact.lifecycle === "active" &&
@@ -485,7 +663,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               memoryType: "fact",
               memoryId: duplicate.id,
               reason: "duplicate_fact",
-              sourceMethod: classified.explicitness,
+              sourceMethod: effectiveCandidate.explicitness,
             });
             continue;
           }
@@ -494,11 +672,32 @@ export function createRememberEngine(config: RememberEngineConfig) {
             (fact) =>
               fact.lifecycle === "active" &&
               fact.source.method !== "explicit" &&
-              classified.explicitness === "explicit" &&
-              tokenOverlap(fact.content, classified.content) >= 0.4,
+              effectiveCandidate.explicitness === "explicit" &&
+              tokenOverlap(fact.content, effectiveCandidate.content) >= 0.4,
           );
 
-          const fact = buildFact(input.scope, classified, createId(), timestamp);
+          if (superseded && config.policy?.resolveConflict) {
+            const resolution = await config.policy.resolveConflict(
+              toPolicyMemoryRecord(superseded, "fact"),
+              effectiveCandidate,
+              policyContext,
+            );
+
+            if (resolution.action === "keep_existing") {
+              rejected += 1;
+              events.push({
+                candidateId: candidate.id,
+                outcome: "rejected",
+                memoryType: "fact",
+                memoryId: superseded.id,
+                reason: resolution.reason ?? "policy_keep_existing",
+                sourceMethod: effectiveCandidate.explicitness,
+              });
+              continue;
+            }
+          }
+
+          const fact = buildFact(input.scope, effectiveCandidate, createId(), timestamp);
 
           if (superseded) {
             await config.repositories.facts.add(
@@ -520,17 +719,17 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "fact",
             memoryId: fact.id,
             reason: superseded ? "superseded_inferred_fact" : "explicit_fact",
-            sourceMethod: classified.explicitness,
+            sourceMethod: effectiveCandidate.explicitness,
           });
           continue;
         }
 
         const scopedFeedback = await config.repositories.feedback.listByScope(input.scope);
-        const normalizedRule = normalizeRule(classified.content);
+        const normalizedRule = normalizeRule(effectiveCandidate.content);
         const duplicate = scopedFeedback.find(
           (feedback) =>
             feedback.lifecycle === "active" &&
-            feedback.kind === (classified.metadata?.feedbackKind ?? "do") &&
+            feedback.kind === (effectiveCandidate.metadata?.feedbackKind ?? "do") &&
             normalizeRule(feedback.rule) === normalizedRule,
         );
 
@@ -542,7 +741,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "feedback",
             memoryId: duplicate.id,
             reason: "duplicate_feedback",
-            sourceMethod: classified.explicitness,
+            sourceMethod: effectiveCandidate.explicitness,
           });
           continue;
         }
@@ -550,10 +749,35 @@ export function createRememberEngine(config: RememberEngineConfig) {
         const superseded = scopedFeedback.find(
           (feedback) =>
             feedback.lifecycle === "active" &&
-            feedback.appliesTo === classified.metadata?.appliesTo &&
-            feedback.kind === (classified.metadata?.feedbackKind ?? "do"),
+            feedback.appliesTo === effectiveCandidate.metadata?.appliesTo &&
+            feedback.kind === (effectiveCandidate.metadata?.feedbackKind ?? "do"),
         );
-        const feedback = buildFeedback(input.scope, classified, createId(), timestamp);
+        if (superseded && config.policy?.resolveConflict) {
+          const resolution = await config.policy.resolveConflict(
+            toPolicyMemoryRecord(superseded, "feedback"),
+            effectiveCandidate,
+            policyContext,
+          );
+
+          if (resolution.action === "keep_existing") {
+            rejected += 1;
+            events.push({
+              candidateId: candidate.id,
+              outcome: "rejected",
+              memoryType: "feedback",
+              memoryId: superseded.id,
+              reason: resolution.reason ?? "policy_keep_existing",
+              sourceMethod: effectiveCandidate.explicitness,
+            });
+            continue;
+          }
+        }
+        const feedback = buildFeedback(
+          input.scope,
+          effectiveCandidate,
+          createId(),
+          timestamp,
+        );
 
         if (superseded) {
           await config.repositories.feedback.upsert(
@@ -574,8 +798,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
           memoryType: "feedback",
           memoryId: feedback.id,
           reason: superseded ? "superseded_feedback" : "explicit_feedback",
-          sourceMethod: classified.explicitness,
-        });
+            sourceMethod: effectiveCandidate.explicitness,
+          });
       }
 
       const episode = maybeBuildEpisode(

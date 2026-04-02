@@ -1,12 +1,15 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { VercelAIModelConfig } from "../src/llm/vercel-ai-sdk";
 import { runEvalSuite, type EvalSuiteResult } from "../src/eval/suite";
 import type { EvalAnswerGeneratorInput } from "../src/eval/runners";
 import {
   createVercelAIJudgeModel,
   createVercelAITextGenerator,
-  parseVercelAIModelConfigFromEnv,
 } from "../src/llm/vercel-ai-sdk";
+
+export type EvalMode = "live" | "fallback";
+export type EvalCLIExecutionMode = EvalMode | "smoke";
 
 export interface SmokeEvalCase {
   caseId: string;
@@ -15,6 +18,7 @@ export interface SmokeEvalCase {
 }
 
 export interface SmokeEvalReport {
+  mode: "smoke";
   runId: string;
   summary: {
     totalCases: number;
@@ -30,21 +34,30 @@ export interface FixtureEvalOptions {
   failuresFrom?: string;
 }
 
-interface CliOptions extends FixtureEvalOptions {
-  smoke: boolean;
-}
-
-interface FixtureEvalDependencies {
-  parseModelConfigFromEnv?: typeof parseVercelAIModelConfigFromEnv;
+export interface LiveEvalDependencies {
   createTextGenerator?: typeof createVercelAITextGenerator;
   createJudgeModel?: typeof createVercelAIJudgeModel;
   runSuite?: typeof runEvalSuite;
 }
 
-export function resolveFlagValue(
-  argv: string[],
-  name: string,
-): string | undefined {
+export interface FallbackEvalDependencies {
+  runSuite?: typeof runEvalSuite;
+}
+
+interface CLIOptions extends FixtureEvalOptions {
+  mode: EvalCLIExecutionMode;
+}
+
+interface PersistedEvalReport {
+  mode?: EvalMode;
+  runId: string;
+}
+
+function isNonEmpty(value: string | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+export function resolveFlagValue(argv: string[], name: string): string | undefined {
   const inline = argv.find((value) => value.startsWith(`${name}=`));
   if (inline) {
     return inline.slice(name.length + 1);
@@ -59,30 +72,102 @@ export function resolveFlagValue(
 }
 
 export function resolveRepeatedFlagValues(argv: string[], name: string): string[] {
-  const values = argv
-    .filter((value) => value.startsWith(`${name}=`))
-    .map((value) => value.slice(name.length + 1));
-  const index = argv.indexOf(name);
-  if (index !== -1 && argv[index + 1]) {
-    values.push(argv[index + 1]!);
+  const values: string[] = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token.startsWith(`${name}=`)) {
+      values.push(token.slice(name.length + 1));
+      continue;
+    }
+
+    if (token !== name) {
+      continue;
+    }
+
+    const next = argv[index + 1];
+    if (!next || next.startsWith("--")) {
+      continue;
+    }
+
+    values.push(next);
+    index += 1;
   }
+
   return values;
 }
 
-export function parseCliOptionsFromArgv(argv: string[]): CliOptions {
+export function parseCliOptionsFromArgv(argv: string[]): CLIOptions {
+  const mode = resolveFlagValue(argv, "--mode");
+  if (mode !== "live" && mode !== "fallback" && mode !== "smoke") {
+    throw new Error("Missing or invalid required flag --mode=smoke|fallback|live");
+  }
+
   const limitValue = resolveFlagValue(argv, "--limit");
-  const scenarioIds = resolveRepeatedFlagValues(argv, "--scenario-id");
 
   return {
-    smoke: argv.includes("--smoke"),
+    mode,
     limit: limitValue ? Number(limitValue) : undefined,
-    scenarioIds,
+    scenarioIds: resolveRepeatedFlagValues(argv, "--scenario-id"),
     outputDir: resolveFlagValue(argv, "--output-dir"),
     failuresFrom: resolveFlagValue(argv, "--failures-from"),
   };
 }
 
-export async function resolveFailedScenarioIds(runDirectory: string): Promise<string[]> {
+export function resolveDefaultOutputDir(root: string, mode: EvalMode): string {
+  return join(root, "reports/eval", mode);
+}
+
+export function resolveLiveModelConfig(prefix: "GOODMEMORY_EVAL" | "GOODMEMORY_JUDGE"): VercelAIModelConfig {
+  const provider = process.env[`${prefix}_PROVIDER`];
+  const model = process.env[`${prefix}_MODEL`];
+  const apiKey = process.env[`${prefix}_API_KEY`];
+  const missingVars = [
+    !isNonEmpty(provider) ? `${prefix}_PROVIDER` : null,
+    !isNonEmpty(model) ? `${prefix}_MODEL` : null,
+    !isNonEmpty(apiKey) ? `${prefix}_API_KEY` : null,
+  ].filter(Boolean) as string[];
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Missing required ${prefix} live eval environment variables: ${missingVars.join(", ")}`,
+    );
+  }
+
+  if (provider !== "openai" && provider !== "anthropic") {
+    throw new Error(`Unsupported Vercel AI SDK provider for ${prefix}: ${provider}`);
+  }
+
+  return {
+    provider,
+    model: model as string,
+    apiKey: apiKey as string,
+  };
+}
+
+async function readPersistedEvalReport(runDirectory: string): Promise<PersistedEvalReport> {
+  return JSON.parse(
+    await readFile(join(runDirectory, "report.json"), "utf8"),
+  ) as PersistedEvalReport;
+}
+
+export async function resolveFailedScenarioIds(
+  runDirectory: string,
+  expectedMode?: EvalMode,
+): Promise<string[]> {
+  const report = await readPersistedEvalReport(runDirectory);
+
+  if (!report.mode) {
+    throw new Error(`Eval report at ${runDirectory} is missing report.mode`);
+  }
+
+  if (expectedMode && report.mode !== expectedMode) {
+    throw new Error(
+      `Eval rerun mode mismatch: requested ${expectedMode}, but ${runDirectory} is ${report.mode}`,
+    );
+  }
+
   const summaryPath = join(runDirectory, "failures", "summary.json");
 
   try {
@@ -96,7 +181,12 @@ export async function resolveFailedScenarioIds(runDirectory: string): Promise<st
     const failuresDir = join(runDirectory, "failures");
     const entries = await readdir(failuresDir, { withFileTypes: true });
     return entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".json") && entry.name !== "summary.json")
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.endsWith(".json") &&
+          entry.name !== "summary.json",
+      )
       .map((entry) => entry.name.replace(/\.json$/, ""))
       .sort();
   }
@@ -106,7 +196,10 @@ export function mergeScenarioIds(
   explicitScenarioIds: string[] | undefined,
   failedScenarioIds: string[],
 ): string[] | undefined {
-  const merged = new Set<string>([...(explicitScenarioIds ?? []), ...failedScenarioIds]);
+  const merged = new Set<string>([
+    ...(explicitScenarioIds ?? []),
+    ...failedScenarioIds,
+  ]);
   return merged.size > 0 ? [...merged] : undefined;
 }
 
@@ -120,6 +213,7 @@ export async function runSmokeEval(): Promise<SmokeEvalReport> {
   ];
 
   return {
+    mode: "smoke",
     runId: `run-${Date.now()}`,
     summary: {
       totalCases: cases.length,
@@ -129,112 +223,138 @@ export async function runSmokeEval(): Promise<SmokeEvalReport> {
   };
 }
 
-export async function runFixtureEval(
+export async function runFallbackEval(
   input?: FixtureEvalOptions,
-  dependencies?: FixtureEvalDependencies,
+  dependencies?: FallbackEvalDependencies,
 ): Promise<EvalSuiteResult> {
   const root = new URL("..", import.meta.url).pathname;
-  const parseModelConfigFromEnv =
-    dependencies?.parseModelConfigFromEnv ?? parseVercelAIModelConfigFromEnv;
+  const runSuite = dependencies?.runSuite ?? runEvalSuite;
+  const failedScenarioIds = input?.failuresFrom
+    ? await resolveFailedScenarioIds(input.failuresFrom, "fallback")
+    : [];
+  const scenarioIds = mergeScenarioIds(input?.scenarioIds, failedScenarioIds);
+
+  return runSuite({
+    mode: "fallback",
+    personaDir: join(root, "fixtures/personas/eval"),
+    scenarioDir: join(root, "fixtures/scenarios/eval"),
+    outputDir: input?.outputDir ?? resolveDefaultOutputDir(root, "fallback"),
+    limit: input?.limit,
+    scenarioIds,
+    baselineGenerator: async () => ({
+      content: "I need more context before I can answer reliably.",
+    }),
+    goodmemoryGenerator: async (payload: EvalAnswerGeneratorInput) => ({
+      content: payload.memoryContext?.includes("runbook-v2")
+        ? "You are a robotics engineer and the updated runbook is v2."
+        : "I may be missing remembered context.",
+    }),
+    judge: {
+      async complete({ prompt }: { prompt: string }) {
+        const goodmemoryWon = prompt.includes("updated runbook is v2");
+
+        return {
+          content: JSON.stringify({
+            winner: goodmemoryWon ? "goodmemory" : "baseline",
+            scores: {
+              identity_understanding: goodmemoryWon ? 9 : 5,
+              history_continuation: goodmemoryWon ? 9 : 4,
+              factual_alignment: goodmemoryWon ? 8 : 5,
+              relevance: goodmemoryWon ? 9 : 5,
+            },
+            baseline_scores: {
+              identity_understanding: 4,
+              history_continuation: 4,
+              factual_alignment: 5,
+              relevance: 5,
+            },
+            goodmemory_scores: {
+              identity_understanding: goodmemoryWon ? 9 : 5,
+              history_continuation: goodmemoryWon ? 9 : 4,
+              factual_alignment: goodmemoryWon ? 8 : 5,
+              relevance: goodmemoryWon ? 9 : 5,
+            },
+            reasoning: goodmemoryWon
+              ? "GoodMemory recovered identity, corrected reference, and open loop."
+              : "Neither answer used enough remembered context.",
+            failure_tags: goodmemoryWon ? [] : ["memory_miss"],
+          }),
+        };
+      },
+    },
+    runtime: {
+      generationMode: "fallback",
+      judgeMode: "fallback",
+    },
+  });
+}
+
+export async function runLiveEval(
+  input?: FixtureEvalOptions,
+  dependencies?: LiveEvalDependencies,
+): Promise<EvalSuiteResult> {
+  const root = new URL("..", import.meta.url).pathname;
   const createTextGenerator =
     dependencies?.createTextGenerator ?? createVercelAITextGenerator;
   const createJudgeModel =
     dependencies?.createJudgeModel ?? createVercelAIJudgeModel;
   const runSuite = dependencies?.runSuite ?? runEvalSuite;
-  const evalModel = parseModelConfigFromEnv("GOODMEMORY_EVAL");
-  const judgeModel =
-    parseModelConfigFromEnv("GOODMEMORY_JUDGE") ?? evalModel;
   const failedScenarioIds = input?.failuresFrom
-    ? await resolveFailedScenarioIds(input.failuresFrom)
+    ? await resolveFailedScenarioIds(input.failuresFrom, "live")
     : [];
   const scenarioIds = mergeScenarioIds(input?.scenarioIds, failedScenarioIds);
-
-  const baselineGenerator = evalModel
-    ? createTextGenerator({
-        model: evalModel,
-        system:
-          "Answer using only the visible transcript. If critical history is missing, say that you need more context.",
-      })
-    : async () => ({
-        content: "I need more context before I can answer reliably.",
-      });
-
-  const goodmemoryGenerator = evalModel
-    ? createTextGenerator({
-        model: evalModel,
-        system:
-          "Answer using the provided memory context when it is relevant. Prefer explicit confirmation of role, corrected references, and open loops.",
-      })
-    : async (payload: EvalAnswerGeneratorInput) => ({
-        content: payload.memoryContext?.includes("runbook-v2")
-          ? "You are a robotics engineer and the updated runbook is v2."
-          : "I may be missing remembered context.",
-      });
-
-  const judge = judgeModel
-    ? createJudgeModel({
-        model: judgeModel,
-      })
-    : {
-        async complete({ prompt }: { prompt: string }) {
-          const goodmemoryWon = prompt.includes("updated runbook is v2");
-
-          return {
-            content: JSON.stringify({
-              winner: goodmemoryWon ? "goodmemory" : "baseline",
-              scores: {
-                identity_understanding: goodmemoryWon ? 9 : 5,
-                history_continuation: goodmemoryWon ? 9 : 4,
-                factual_alignment: goodmemoryWon ? 8 : 5,
-                relevance: goodmemoryWon ? 9 : 5,
-              },
-              baseline_scores: {
-                identity_understanding: 4,
-                history_continuation: 4,
-                factual_alignment: 5,
-                relevance: 5,
-              },
-              goodmemory_scores: {
-                identity_understanding: goodmemoryWon ? 9 : 5,
-                history_continuation: goodmemoryWon ? 9 : 4,
-                factual_alignment: goodmemoryWon ? 8 : 5,
-                relevance: goodmemoryWon ? 9 : 5,
-              },
-              reasoning: goodmemoryWon
-                ? "GoodMemory recovered identity, corrected reference, and open loop."
-                : "Neither answer used enough remembered context.",
-              failure_tags: goodmemoryWon ? [] : ["memory_miss"],
-            }),
-          };
-        },
-      };
+  const evalModel = resolveLiveModelConfig("GOODMEMORY_EVAL");
+  const judgeModel = resolveLiveModelConfig("GOODMEMORY_JUDGE");
 
   return runSuite({
+    mode: "live",
     personaDir: join(root, "fixtures/personas/eval"),
     scenarioDir: join(root, "fixtures/scenarios/eval"),
-    outputDir: input?.outputDir ?? join(root, "reports/eval"),
+    outputDir: input?.outputDir ?? resolveDefaultOutputDir(root, "live"),
     limit: input?.limit,
     scenarioIds,
-    baselineGenerator,
-    goodmemoryGenerator,
-    judge,
+    baselineGenerator: createTextGenerator({
+      model: evalModel,
+      system:
+        "Answer using only the visible transcript. If critical history is missing, say that you need more context.",
+    }),
+    goodmemoryGenerator: createTextGenerator({
+      model: evalModel,
+      system:
+        "Answer using the provided memory context when it is relevant. Prefer explicit confirmation of role, corrected references, and open loops.",
+    }),
+    judge: createJudgeModel({
+      model: judgeModel,
+    }),
     runtime: {
-      generationMode: evalModel ? "live" : "fallback",
-      judgeMode: judgeModel ? "live" : "fallback",
+      generationMode: "live",
+      judgeMode: "live",
     },
   });
 }
 
 async function main(): Promise<void> {
   const options = parseCliOptionsFromArgv(process.argv);
-  const report = options.smoke
-    ? await runSmokeEval()
-    : await runFixtureEval({
+
+  if (options.mode === "smoke") {
+    console.log(JSON.stringify(await runSmokeEval(), null, 2));
+    return;
+  }
+
+  const report = options.mode === "live"
+    ? await runLiveEval({
+        limit: options.limit,
+        scenarioIds: options.scenarioIds,
+        outputDir: options.outputDir,
+        failuresFrom: options.failuresFrom,
+      })
+    : await runFallbackEval({
         limit: options.limit,
         scenarioIds: options.scenarioIds,
         outputDir: options.outputDir,
         failuresFrom: options.failuresFrom,
       });
+
   console.log(JSON.stringify(report, null, 2));
 }
 

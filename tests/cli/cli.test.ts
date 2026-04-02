@@ -52,6 +52,7 @@ function buildAnswerPackage(
                 sourceMethod: "explicit",
               },
             ],
+            policyApplied: ["custom_shouldRecall"],
             verificationHints: [],
             renderedMemoryContext: "## References\n- Runbook",
           }
@@ -137,6 +138,7 @@ describe("goodmemory cli", () => {
       ];
       const summary = aggregateJudgedCases(cases);
       const persisted = await persistEvalArtifacts({
+        mode: "fallback",
         outputDir,
         runId: "run-001",
         cases,
@@ -152,6 +154,8 @@ describe("goodmemory cli", () => {
         "case-1",
       ]);
 
+      expect(result.stdout).toContain("Run Mode: fallback");
+      expect(result.stdout).toContain("Runtime: generation=fallback, judge=fallback");
       expect(result.stdout).toContain("Case: case-1");
       expect(result.stdout).toContain("Winner: goodmemory");
       expect(result.stdout).toContain("References: 1");
@@ -175,6 +179,7 @@ describe("goodmemory cli", () => {
       ];
       const summary = aggregateJudgedCases(cases);
       const persisted = await persistEvalArtifacts({
+        mode: "fallback",
         outputDir,
         runId: "run-001",
         cases,
@@ -194,6 +199,8 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("explicit_reference");
       expect(result.stdout).toContain("Recall Hits");
       expect(result.stdout).toContain("semantic_reference");
+      expect(result.stdout).toContain("Policy Applied");
+      expect(result.stdout).toContain("custom_shouldRecall");
     } finally {
       await workspace.cleanup();
     }
@@ -215,6 +222,7 @@ describe("goodmemory cli", () => {
       ];
       const summary = aggregateJudgedCases(cases);
       const persisted = await persistEvalArtifacts({
+        mode: "fallback",
         outputDir,
         runId: "run-001",
         cases,

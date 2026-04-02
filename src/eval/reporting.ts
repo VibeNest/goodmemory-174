@@ -27,6 +27,8 @@ export interface EvalRuntimeMetadata {
   judgeMode: "live" | "fallback";
 }
 
+export type PersistedEvalMode = "live" | "fallback";
+
 function emptyScores(): JudgeScores {
   return {
     identity_understanding: 0,
@@ -118,6 +120,7 @@ export function aggregateJudgedCases(cases: JudgedEvalCase[]): EvalSuiteSummary 
 }
 
 export async function persistEvalArtifacts(input: {
+  mode: PersistedEvalMode;
   outputDir: string;
   runId: string;
   summary: EvalSuiteSummary;
@@ -137,6 +140,7 @@ export async function persistEvalArtifacts(input: {
     join(runDirectory, "report.json"),
     `${JSON.stringify(
       {
+        mode: input.mode,
         runId: input.runId,
         summary: input.summary,
         runtime: input.runtime,
@@ -232,6 +236,7 @@ export async function persistEvalArtifacts(input: {
     join(failuresDirectory, "summary.json"),
     `${JSON.stringify(
       {
+        mode: input.mode,
         runId: input.runId,
         totalFailures: failedCases.length,
         failedCases,

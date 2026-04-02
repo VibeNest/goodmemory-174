@@ -45,6 +45,20 @@ jobs:
           GOODMEMORY_JUDGE_API_KEY: ${{ secrets.GOODMEMORY_JUDGE_API_KEY }}
         run: |
           set -euo pipefail
+          required_vars=(
+            GOODMEMORY_EVAL_PROVIDER
+            GOODMEMORY_EVAL_MODEL
+            GOODMEMORY_EVAL_API_KEY
+            GOODMEMORY_JUDGE_PROVIDER
+            GOODMEMORY_JUDGE_MODEL
+            GOODMEMORY_JUDGE_API_KEY
+          )
+          for name in "${required_vars[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required secret: $name" >&2
+              exit 1
+            fi
+          done
           ARGS=()
           if [ -n "${{ github.event.inputs.limit }}" ]; then
             ARGS+=("--limit=${{ github.event.inputs.limit }}")
@@ -58,16 +72,20 @@ jobs:
           if [ -n "${{ github.event.inputs.output_dir }}" ]; then
             ARGS+=("--output-dir=${{ github.event.inputs.output_dir }}")
           fi
-          bun run eval:full -- "${ARGS[@]}"
+          bun run eval:live -- "${ARGS[@]}"
 
       - name: Summarize eval run
         run: |
           set -euo pipefail
-          RUN_DIR="$(ls -dt reports/eval/run-* | head -n 1)"
+          OUTPUT_DIR="${{ github.event.inputs.output_dir }}"
+          if [ -z "$OUTPUT_DIR" ]; then
+            OUTPUT_DIR="reports/eval/live"
+          fi
+          RUN_DIR="$(ls -dt "$OUTPUT_DIR"/run-* | head -n 1)"
           bun run eval:summary -- "$RUN_DIR" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload eval artifacts
         uses: actions/upload-artifact@v4
         with:
           name: eval-artifacts
-          path: reports/eval
+          path: ${{ github.event.inputs.output_dir || 'reports/eval/live' }}

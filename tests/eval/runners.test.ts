@@ -83,4 +83,30 @@ describe("eval runners", () => {
     ).toBe(false);
     expect(result.transcript).not.toContain("I can do that once I have the full remembered context.");
   });
+
+  it("can force ignore-memory during eval replay and still produce a valid answer package", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-medium-01.json"),
+    );
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      ignoreMemory: true,
+      answerGenerator: async () => ({
+        content: "answer-without-memory",
+      }),
+    });
+
+    expect(result.answer).toBe("answer-without-memory");
+    expect(result.retrieved?.facts).toHaveLength(0);
+    expect(result.retrieved?.policyApplied).toContain("ignore_memory");
+  });
 });

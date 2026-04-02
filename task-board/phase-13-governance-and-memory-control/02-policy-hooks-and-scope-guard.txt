@@ -1,0 +1,23 @@
+[DONE] Policy Hooks and Scope Guard
+==================================
+
+Scope
+-----
+- `shouldRemember`
+- `redact`
+- `shouldRecall`
+- `resolveConflict`
+- default workspace/agent guard
+- `ignoreMemory`
+
+Implemented
+-----------
+- Added policy hook contracts in `src/policy/hooks.ts`
+- Applied write-side hooks in `src/remember/engine.ts`
+- Applied read-side hooks and default scope guard in `src/recall/engine.ts`
+- Added `ignoreMemory` recall short-circuit with `policyApplied`
+
+Validation
+----------
+- `tests/unit/governance.policy.test.ts`
+- `tests/integration/governance.api.test.ts`

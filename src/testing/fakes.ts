@@ -1,6 +1,7 @@
 import type {
   MemoryScope,
 } from "../index";
+import { scopeToPrefix } from "../domain/scope";
 
 export interface FakeLLMRequest {
   purpose: string;
@@ -94,6 +95,21 @@ export function createFakeSessionStore() {
   const buffers = new Map<string, unknown>();
   const workingMemory = new Map<string, unknown>();
   const journals = new Map<string, unknown>();
+  const deleteByScope = (store: Map<string, unknown>, scope: MemoryScope) => {
+    const prefix = scope.sessionId ? scopeKey(scope) : scopeToPrefix(scope);
+    let deleted = 0;
+
+    for (const key of [...store.keys()]) {
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+
+      store.delete(key);
+      deleted += 1;
+    }
+
+    return deleted;
+  };
 
   return {
     async getBuffer<T>(scope: MemoryScope): Promise<T | null> {
@@ -102,17 +118,26 @@ export function createFakeSessionStore() {
     async saveBuffer<T>(scope: MemoryScope, buffer: T): Promise<void> {
       buffers.set(scopeKey(scope), buffer);
     },
+    async deleteBuffersByScope(scope: MemoryScope): Promise<number> {
+      return deleteByScope(buffers, scope);
+    },
     async getWorkingMemory<T>(scope: MemoryScope): Promise<T | null> {
       return (workingMemory.get(scopeKey(scope)) as T | undefined) ?? null;
     },
     async saveWorkingMemory<T>(scope: MemoryScope, snapshot: T): Promise<void> {
       workingMemory.set(scopeKey(scope), snapshot);
     },
+    async deleteWorkingMemoryByScope(scope: MemoryScope): Promise<number> {
+      return deleteByScope(workingMemory, scope);
+    },
     async getJournal<T>(scope: MemoryScope): Promise<T | null> {
       return (journals.get(scopeKey(scope)) as T | undefined) ?? null;
     },
     async saveJournal<T>(scope: MemoryScope, journal: T): Promise<void> {
       journals.set(scopeKey(scope), journal);
+    },
+    async deleteJournalsByScope(scope: MemoryScope): Promise<number> {
+      return deleteByScope(journals, scope);
     },
   };
 }

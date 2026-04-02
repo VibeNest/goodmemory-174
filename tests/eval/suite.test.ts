@@ -13,6 +13,7 @@ describe("eval suite", () => {
 
     try {
       const result = await runEvalSuite({
+        mode: "fallback",
         personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
         scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
         outputDir: join(workspace.root, "reports"),
@@ -57,12 +58,15 @@ describe("eval suite", () => {
       const report = JSON.parse(
         await readFile(join(result.runDirectory, "report.json"), "utf8"),
       ) as {
+        mode: string;
         summary: { totalCases: number; winnerCounts: { goodmemory: number } };
         runtime: { generationMode: string; judgeMode: string };
       };
 
+      expect(result.mode).toBe("fallback");
       expect(result.summary.totalCases).toBe(1);
       expect(result.summary.winnerCounts.goodmemory).toBe(1);
+      expect(report.mode).toBe("fallback");
       expect(report.summary.totalCases).toBe(1);
       expect(report.runtime.generationMode).toBe("fallback");
       expect(report.runtime.judgeMode).toBe("fallback");

@@ -26,11 +26,20 @@ import {
   type VerificationHint,
 } from "../verify/policy";
 import type { MemorySourceMethod } from "../domain/provenance";
+import type {
+  GoodMemoryPolicyHooks,
+  PolicyContext,
+} from "../policy/hooks";
+import {
+  passesDefaultScopeGuard,
+  toPolicyMemoryRecord,
+} from "../policy/hooks";
 
 export interface RecallInput {
   scope: MemoryScope;
   query: string;
   retrievalProfile?: RetrievalProfile;
+  ignoreMemory?: boolean;
 }
 
 export interface RecallHit {
@@ -65,6 +74,7 @@ export interface RecallResult {
     latencyMs: number;
     hits: RecallHit[];
     verificationHints: VerificationHint[];
+    policyApplied: string[];
   };
 }
 
@@ -73,6 +83,7 @@ export interface RecallEngineConfig {
   sessionStore: SessionStore;
   now?: () => number;
   referenceTime?: () => string;
+  policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
 }
 
 const TOKEN_STOPWORDS = new Set([
@@ -356,6 +367,94 @@ function buildHits(input: {
   return hits;
 }
 
+async function applyRecallPolicyToRecords<TRecord extends {
+  workspaceId?: string;
+  agentId?: string;
+}>(
+  records: TRecord[],
+  memoryType:
+    | "profile"
+    | "preference"
+    | "reference"
+    | "fact"
+    | "feedback"
+    | "episode",
+  input: {
+    scope: MemoryScope;
+    query: string;
+    retrievalProfile: RetrievalProfile;
+    policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
+    policyApplied: Set<string>;
+  },
+): Promise<TRecord[]> {
+  const policyContext: PolicyContext = {
+    scope: input.scope,
+    query: input.query,
+    retrievalProfile: input.retrievalProfile,
+    phase: "recall",
+  };
+
+  const visible: TRecord[] = [];
+
+  for (const record of records) {
+    if (!passesDefaultScopeGuard(input.scope, record)) {
+      input.policyApplied.add("default_scope_guard");
+      continue;
+    }
+
+    if (
+      input.policy?.shouldRecall &&
+      !(await input.policy.shouldRecall(
+        toPolicyMemoryRecord(record as never, memoryType),
+        policyContext,
+      ))
+    ) {
+      input.policyApplied.add("custom_shouldRecall");
+      continue;
+    }
+
+    visible.push(record);
+  }
+
+  return visible;
+}
+
+async function applyRecallPolicyToProfile(
+  profile: UserProfile | null,
+  input: {
+    scope: MemoryScope;
+    query: string;
+    retrievalProfile: RetrievalProfile;
+    policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
+    policyApplied: Set<string>;
+  },
+): Promise<UserProfile | null> {
+  if (!profile) {
+    return null;
+  }
+
+  if (!input.policy?.shouldRecall) {
+    return profile;
+  }
+
+  const allowed = await input.policy.shouldRecall(
+    toPolicyMemoryRecord(profile, "profile"),
+    {
+      scope: input.scope,
+      query: input.query,
+      retrievalProfile: input.retrievalProfile,
+      phase: "recall",
+    },
+  );
+
+  if (!allowed) {
+    input.policyApplied.add("custom_shouldRecall");
+    return null;
+  }
+
+  return profile;
+}
+
 export function createRecallEngine(config: RecallEngineConfig) {
   const now = config.now ?? Date.now;
   const referenceTime = config.referenceTime ?? (() => new Date(now()).toISOString());
@@ -364,6 +463,49 @@ export function createRecallEngine(config: RecallEngineConfig) {
     async recall(input: RecallInput): Promise<RecallResult> {
       const startedAt = now();
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
+      const policyApplied = new Set<string>();
+
+      if (input.ignoreMemory) {
+        const routingDecision = planRecall({
+          retrievalProfile,
+          query: input.query,
+          runtime: {
+            hasWorkingMemory: false,
+            hasJournal: false,
+          },
+        });
+        const packet = buildMemoryPacket({
+          profile: null,
+          preferences: [],
+          references: [],
+          facts: [],
+          feedback: [],
+          episodes: [],
+          workingMemory: null,
+          journal: null,
+        });
+        policyApplied.add("ignore_memory");
+
+        return {
+          profile: null,
+          preferences: [],
+          references: [],
+          facts: [],
+          feedback: [],
+          episodes: [],
+          workingMemory: null,
+          journal: null,
+          packet,
+          metadata: {
+            routingDecision,
+            tokenCount: packet.debug?.estimatedTokens ?? 0,
+            latencyMs: now() - startedAt,
+            hits: [],
+            verificationHints: [],
+            policyApplied: [...policyApplied],
+          },
+        };
+      }
 
       const [
         profile,
@@ -399,16 +541,73 @@ export function createRecallEngine(config: RecallEngineConfig) {
         },
       });
 
-      const preferences = sortPreferences(preferencesRaw);
-      const facts = selectFacts(factsRaw, input.query);
-      const feedback = sortFeedback(feedbackRaw);
-      const episodes = selectEpisodes(episodesRaw, input.query);
-      const references = selectReferences(referencesRaw, input.query);
+      const filteredProfile = await applyRecallPolicyToProfile(profile, {
+        scope: input.scope,
+        query: input.query,
+        retrievalProfile,
+        policy: config.policy,
+        policyApplied,
+      });
+      const preferences = await applyRecallPolicyToRecords(
+        sortPreferences(preferencesRaw),
+        "preference",
+        {
+          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          policy: config.policy,
+          policyApplied,
+        },
+      );
+      const facts = await applyRecallPolicyToRecords(
+        selectFacts(factsRaw, input.query),
+        "fact",
+        {
+          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          policy: config.policy,
+          policyApplied,
+        },
+      );
+      const feedback = await applyRecallPolicyToRecords(
+        sortFeedback(feedbackRaw),
+        "feedback",
+        {
+          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          policy: config.policy,
+          policyApplied,
+        },
+      );
+      const episodes = await applyRecallPolicyToRecords(
+        selectEpisodes(episodesRaw, input.query),
+        "episode",
+        {
+          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          policy: config.policy,
+          policyApplied,
+        },
+      );
+      const references = await applyRecallPolicyToRecords(
+        selectReferences(referencesRaw, input.query),
+        "reference",
+        {
+          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          policy: config.policy,
+          policyApplied,
+        },
+      );
       const workingMemory =
         retrievalProfile === "coding_agent" ? workingMemoryRaw : null;
       const journal = retrievalProfile === "coding_agent" ? journalRaw : null;
       const packet = buildMemoryPacket({
-        profile,
+        profile: filteredProfile,
         preferences,
         references,
         facts,
@@ -419,7 +618,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
       });
 
       return {
-        profile,
+        profile: filteredProfile,
         preferences,
         references,
         facts,
@@ -439,8 +638,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
             references,
             episodes,
           }),
+          policyApplied: [...policyApplied],
           hits: buildHits({
-            profile,
+            profile: filteredProfile,
             preferences,
             references,
             facts,

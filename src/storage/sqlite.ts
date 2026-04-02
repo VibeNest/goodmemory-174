@@ -5,7 +5,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
-import { scopeToKey } from "../domain/scope";
+import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
   DocumentStore,
   SessionStore,
@@ -132,6 +132,7 @@ function createSQLiteScopedStore<TValue>(
 ): {
   set(scope: MemoryScope, value: TValue): Promise<void>;
   get(scope: MemoryScope): Promise<TValue | null>;
+  deleteByScope(scope: MemoryScope): Promise<number>;
 } {
   const upsertStatement = database.query(
     `INSERT INTO ${tableName} (scope_key, json)
@@ -140,6 +141,12 @@ function createSQLiteScopedStore<TValue>(
   );
   const getStatement = database.query<SessionRow, [string]>(
     `SELECT json FROM ${tableName} WHERE scope_key = ?1`,
+  );
+  const deleteExactStatement = database.query(
+    `DELETE FROM ${tableName} WHERE scope_key = ?1`,
+  );
+  const deletePrefixStatement = database.query(
+    `DELETE FROM ${tableName} WHERE scope_key LIKE ?1`,
   );
 
   return {
@@ -150,6 +157,16 @@ function createSQLiteScopedStore<TValue>(
     async get(scope) {
       const row = getStatement.get(scopeToKey(scope));
       return row ? parseJson<TValue>(row.json) : null;
+    },
+
+    async deleteByScope(scope) {
+      if (scope.sessionId !== undefined) {
+        const result = deleteExactStatement.run(scopeToKey(scope));
+        return Number(result.changes ?? 0);
+      }
+
+      const result = deletePrefixStatement.run(`${scopeToPrefix(scope)}%`);
+      return Number(result.changes ?? 0);
     },
   };
 }
@@ -174,6 +191,10 @@ export function createSQLiteSessionStore(path: string): SessionStore {
       return buffers.get(scope);
     },
 
+    deleteBuffersByScope(scope) {
+      return buffers.deleteByScope(scope);
+    },
+
     saveWorkingMemory(scope, snapshot) {
       return workingMemory.set(scope, snapshot);
     },
@@ -182,12 +203,20 @@ export function createSQLiteSessionStore(path: string): SessionStore {
       return workingMemory.get(scope);
     },
 
+    deleteWorkingMemoryByScope(scope) {
+      return workingMemory.deleteByScope(scope);
+    },
+
     saveJournal(scope, journal) {
       return journals.set(scope, journal);
     },
 
     getJournal(scope) {
       return journals.get(scope);
+    },
+
+    deleteJournalsByScope(scope) {
+      return journals.deleteByScope(scope);
     },
   };
 }

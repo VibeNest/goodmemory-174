@@ -94,6 +94,15 @@ export function runSessionStoreContract(
 
         await fixture.store.saveJournal(scope, journal);
         expect(await fixture.store.getJournal(scope)).toEqual(journal);
+
+        expect(await fixture.store.deleteBuffersByScope(scope)).toBe(1);
+        expect(await fixture.store.getBuffer(scope)).toBeNull();
+
+        expect(await fixture.store.deleteWorkingMemoryByScope(scope)).toBe(1);
+        expect(await fixture.store.getWorkingMemory(scope)).toBeNull();
+
+        expect(await fixture.store.deleteJournalsByScope(scope)).toBe(1);
+        expect(await fixture.store.getJournal(scope)).toBeNull();
       } finally {
         await fixture.cleanup?.();
       }

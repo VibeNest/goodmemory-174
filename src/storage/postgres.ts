@@ -5,7 +5,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
-import { scopeToKey } from "../domain/scope";
+import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
   DocumentStore,
   SessionStore,
@@ -245,6 +245,7 @@ function createPostgresSessionStateStore<TValue>(
 ): {
   set(scope: MemoryScope, value: TValue): Promise<void>;
   get(scope: MemoryScope): Promise<TValue | null>;
+  deleteByScope(scope: MemoryScope): Promise<number>;
 } {
   return {
     async set(scope, value) {
@@ -284,6 +285,32 @@ function createPostgresSessionStateStore<TValue>(
       const row = rows[0];
 
       return row ? parseJson<TValue>(row.payload_json) : null;
+    },
+
+    async deleteByScope(scope) {
+      await runtime.ensureSessionStore();
+
+      if (scope.sessionId !== undefined) {
+        const rows = await runtime.sql.unsafe<Array<{ count: number }>>(
+          `
+            DELETE FROM ${runtime.sessionStateTable}
+            WHERE scope_key = $1 AND state_kind = $2
+            RETURNING 1 AS count
+          `,
+          [scopeToKey(scope), stateKind],
+        );
+        return rows.length;
+      }
+
+      const rows = await runtime.sql.unsafe<Array<{ count: number }>>(
+        `
+          DELETE FROM ${runtime.sessionStateTable}
+          WHERE scope_key LIKE $1 AND state_kind = $2
+          RETURNING 1 AS count
+        `,
+        [`${scopeToPrefix(scope)}%`, stateKind],
+      );
+      return rows.length;
     },
   };
 }
@@ -415,6 +442,10 @@ export function createPostgresSessionStore(
       return buffers.get(scope);
     },
 
+    deleteBuffersByScope(scope) {
+      return buffers.deleteByScope(scope);
+    },
+
     saveWorkingMemory(scope, snapshot) {
       return workingMemory.set(scope, snapshot);
     },
@@ -423,12 +454,20 @@ export function createPostgresSessionStore(
       return workingMemory.get(scope);
     },
 
+    deleteWorkingMemoryByScope(scope) {
+      return workingMemory.deleteByScope(scope);
+    },
+
     saveJournal(scope, journal) {
       return journals.set(scope, journal);
     },
 
     getJournal(scope) {
       return journals.get(scope);
+    },
+
+    deleteJournalsByScope(scope) {
+      return journals.deleteByScope(scope);
     },
   };
 }

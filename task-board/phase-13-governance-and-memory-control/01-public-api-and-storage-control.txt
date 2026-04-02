@@ -1,0 +1,22 @@
+[DONE] Public API and Storage Control
+====================================
+
+Scope
+-----
+- `exportMemory()`
+- `deleteAllMemory()`
+- scoped durable export
+- scoped bulk delete
+
+Implemented
+-----------
+- Added export/delete public contracts in `src/index.ts`
+- Added scoped export of profile/preferences/references/facts/feedback/episodes
+- Added optional runtime export via `includeRuntime`
+- Added scoped bulk delete for durable memory
+- Added runtime reset path for working memory and journal
+
+Validation
+----------
+- `tests/integration/governance.api.test.ts`
+- `tests/types/governance.types.ts`

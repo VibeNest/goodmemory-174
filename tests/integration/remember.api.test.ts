@@ -106,6 +106,100 @@ describe("public remember API", () => {
     ).toHaveLength(1);
   });
 
+  it("dedupes identical preferences instead of appending duplicates", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content: "I prefer bullet points in project summaries.",
+        },
+      ],
+    });
+    const second = await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+      messages: [
+        {
+          role: "user",
+          content: "I prefer bullet points in project summaries.",
+        },
+      ],
+    });
+
+    const preferences = await documentStore.query<{ value: unknown }>("preferences", {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+    });
+
+    expect(preferences).toHaveLength(1);
+    expect(second.events.some((event) => event.reason === "duplicate_preference")).toBe(
+      true,
+    );
+  });
+
+  it("supersedes older preferences in the same category so recall only carries the latest guidance", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content: "I prefer bullet points in project summaries.",
+        },
+      ],
+    });
+    const second = await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+      messages: [
+        {
+          role: "user",
+          content: "I prefer short paragraphs in project summaries.",
+        },
+      ],
+    });
+    const recall = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+      query: "How should I answer this user?",
+    });
+    const context = await memory.buildContext({
+      recall,
+      output: "markdown",
+    });
+
+    const preferences = await documentStore.query<{ value: unknown }>("preferences", {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+    });
+
+    expect(preferences).toHaveLength(1);
+    expect(String(preferences[0]?.value)).toContain("short paragraphs");
+    expect(second.events.some((event) => event.reason === "superseded_preference")).toBe(
+      true,
+    );
+    expect(recall.preferences).toHaveLength(1);
+    expect(String(recall.preferences[0]?.value)).toContain("short paragraphs");
+    expect(context.content).toContain("short paragraphs");
+    expect(context.content).not.toContain("bullet points");
+  });
+
   it("does not create episodic memory for ordinary chit-chat with no durable signal", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({

@@ -1,18 +1,28 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createTempWorkspace } from "../../src/testing/utils";
 import {
   mergeScenarioIds,
   parseCliOptionsFromArgv,
+  resolveDefaultOutputDir,
   resolveFailedScenarioIds,
   resolveFlagValue,
+  resolveLiveModelConfig,
   resolveRepeatedFlagValues,
-  runFixtureEval,
+  runFallbackEval,
+  runLiveEval,
+  runSmokeEval,
 } from "../../scripts/run-eval";
 
+const ORIGINAL_ENV = { ...process.env };
+
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+});
+
 describe("run-eval script", () => {
-  it("parses cli flags from argv", () => {
+  it("requires an explicit mode in argv", () => {
     const argv = [
       "bun",
       "scripts/run-eval.ts",
@@ -22,8 +32,8 @@ describe("run-eval script", () => {
       "scenario-medium-02",
       "--output-dir",
       "custom-output",
-      "--failures-from=reports/eval/run-001",
-      "--smoke",
+      "--failures-from=reports/eval/fallback/run-001",
+      "--mode=fallback",
     ];
 
     expect(resolveFlagValue(argv, "--limit")).toBe("3");
@@ -32,12 +42,49 @@ describe("run-eval script", () => {
       "scenario-medium-02",
     ]);
     expect(parseCliOptionsFromArgv(argv)).toEqual({
-      smoke: true,
+      mode: "fallback",
       limit: 3,
       scenarioIds: ["scenario-medium-01", "scenario-medium-02"],
       outputDir: "custom-output",
-      failuresFrom: "reports/eval/run-001",
+      failuresFrom: "reports/eval/fallback/run-001",
     });
+
+    expect(() => parseCliOptionsFromArgv(["bun", "scripts/run-eval.ts"])).toThrow(
+      "Missing or invalid required flag --mode=smoke|fallback|live",
+    );
+  });
+
+  it("collects repeated positional scenario-id flags without dropping later values", () => {
+    const argv = [
+      "bun",
+      "scripts/run-eval.ts",
+      "--mode=fallback",
+      "--scenario-id",
+      "scenario-a",
+      "--scenario-id",
+      "scenario-b",
+      "--scenario-id=scenario-c",
+    ];
+
+    expect(resolveRepeatedFlagValues(argv, "--scenario-id")).toEqual([
+      "scenario-a",
+      "scenario-b",
+      "scenario-c",
+    ]);
+    expect(parseCliOptionsFromArgv(argv).scenarioIds).toEqual([
+      "scenario-a",
+      "scenario-b",
+      "scenario-c",
+    ]);
+  });
+
+  it("resolves mode-specific default output directories", () => {
+    expect(resolveDefaultOutputDir("/tmp/goodmemory", "fallback")).toBe(
+      "/tmp/goodmemory/reports/eval/fallback",
+    );
+    expect(resolveDefaultOutputDir("/tmp/goodmemory", "live")).toBe(
+      "/tmp/goodmemory/reports/eval/live",
+    );
   });
 
   it("merges explicit and failed scenario ids deterministically", () => {
@@ -50,13 +97,21 @@ describe("run-eval script", () => {
     ).toEqual(["scenario-medium-01", "scenario-medium-02"]);
   });
 
-  it("resolves failed scenario ids from summary artifacts", async () => {
+  it("resolves failed scenario ids from summary artifacts and enforces mode", async () => {
     const workspace = await createTempWorkspace("goodmemory-run-eval-summary");
 
     try {
-      const runDirectory = join(workspace.root, "reports/eval/run-001");
+      const runDirectory = join(workspace.root, "reports/eval/fallback/run-001");
       const failuresDir = join(runDirectory, "failures");
       await mkdir(failuresDir, { recursive: true });
+      await writeFile(
+        join(runDirectory, "report.json"),
+        JSON.stringify({
+          mode: "fallback",
+          runId: "run-001",
+        }),
+        "utf8",
+      );
       await writeFile(
         join(failuresDir, "summary.json"),
         JSON.stringify({
@@ -68,10 +123,13 @@ describe("run-eval script", () => {
         "utf8",
       );
 
-      expect(await resolveFailedScenarioIds(runDirectory)).toEqual([
+      expect(await resolveFailedScenarioIds(runDirectory, "fallback")).toEqual([
         "scenario-medium-01",
         "scenario-long-01",
       ]);
+      await expect(resolveFailedScenarioIds(runDirectory, "live")).rejects.toThrow(
+        "Eval rerun mode mismatch",
+      );
     } finally {
       await workspace.cleanup();
     }
@@ -81,13 +139,21 @@ describe("run-eval script", () => {
     const workspace = await createTempWorkspace("goodmemory-run-eval-fallback");
 
     try {
-      const runDirectory = join(workspace.root, "reports/eval/run-002");
+      const runDirectory = join(workspace.root, "reports/eval/fallback/run-002");
       const failuresDir = join(runDirectory, "failures");
       await mkdir(failuresDir, { recursive: true });
+      await writeFile(
+        join(runDirectory, "report.json"),
+        JSON.stringify({
+          mode: "fallback",
+          runId: "run-002",
+        }),
+        "utf8",
+      );
       await writeFile(join(failuresDir, "scenario-medium-02.json"), "{}", "utf8");
       await writeFile(join(failuresDir, "scenario-medium-01.json"), "{}", "utf8");
 
-      expect(await resolveFailedScenarioIds(runDirectory)).toEqual([
+      expect(await resolveFailedScenarioIds(runDirectory, "fallback")).toEqual([
         "scenario-medium-01",
         "scenario-medium-02",
       ]);
@@ -96,18 +162,25 @@ describe("run-eval script", () => {
     }
   });
 
-  it("builds fallback generators, judge, and runtime metadata", async () => {
+  it("reports smoke mode explicitly", async () => {
+    const report = await runSmokeEval();
+
+    expect(report.mode).toBe("smoke");
+    expect(report.summary.totalCases).toBe(1);
+  });
+
+  it("builds fallback generators, judge, and runtime metadata without reading live env", async () => {
     const workspace = await createTempWorkspace("goodmemory-run-eval-suite");
     const calls: Array<Record<string, unknown>> = [];
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
 
     try {
-      const result = await runFixtureEval(
+      const result = await runFallbackEval(
         {
           limit: 2,
           outputDir: join(workspace.root, "reports"),
         },
         {
-          parseModelConfigFromEnv: () => null,
           runSuite: async (input) => {
             const baseline = await input.baselineGenerator({
               persona: {} as never,
@@ -129,6 +202,7 @@ describe("run-eval script", () => {
             calls.push({
               outputDir: input.outputDir,
               limit: input.limit,
+              mode: input.mode,
               runtime: input.runtime,
               baseline: baseline.content,
               goodmemory: goodmemory.content,
@@ -136,6 +210,7 @@ describe("run-eval script", () => {
             });
 
             return {
+              mode: input.mode,
               runId: "run-fallback",
               runDirectory: join(workspace.root, "reports/run-fallback"),
               summary: {
@@ -171,10 +246,10 @@ describe("run-eval script", () => {
         },
       );
 
+      expect(result.mode).toBe("fallback");
       expect(result.runtime.generationMode).toBe("fallback");
       expect(result.runtime.judgeMode).toBe("fallback");
-      expect(calls[0]?.outputDir).toContain("reports");
-      expect(calls[0]?.limit).toBe(2);
+      expect(calls[0]?.mode).toBe("fallback");
       expect(calls[0]?.baseline).toBe("I need more context before I can answer reliably.");
       expect(calls[0]?.goodmemory).toContain("updated runbook is v2");
       expect(String(calls[0]?.judge)).toContain("\"winner\":\"goodmemory\"");
@@ -183,15 +258,40 @@ describe("run-eval script", () => {
     }
   });
 
-  it("builds live generators and merges failed-subset reruns", async () => {
+  it("fails live preflight when required env vars are missing", () => {
+    delete process.env.GOODMEMORY_EVAL_PROVIDER;
+    delete process.env.GOODMEMORY_EVAL_MODEL;
+    delete process.env.GOODMEMORY_EVAL_API_KEY;
+
+    expect(() => resolveLiveModelConfig("GOODMEMORY_EVAL")).toThrow(
+      "Missing required GOODMEMORY_EVAL live eval environment variables",
+    );
+  });
+
+  it("builds live generators only when both eval and judge env vars are present", async () => {
     const workspace = await createTempWorkspace("goodmemory-run-eval-live");
     const createTextCalls: Array<Record<string, unknown>> = [];
     const createJudgeCalls: Array<Record<string, unknown>> = [];
 
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";
+    process.env.GOODMEMORY_EVAL_API_KEY = "eval-key";
+    process.env.GOODMEMORY_JUDGE_PROVIDER = "anthropic";
+    process.env.GOODMEMORY_JUDGE_MODEL = "claude-sonnet";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "judge-key";
+
     try {
-      const runDirectory = join(workspace.root, "reports/eval/run-003");
+      const runDirectory = join(workspace.root, "reports/eval/live/run-003");
       const failuresDir = join(runDirectory, "failures");
       await mkdir(failuresDir, { recursive: true });
+      await writeFile(
+        join(runDirectory, "report.json"),
+        JSON.stringify({
+          mode: "live",
+          runId: "run-003",
+        }),
+        "utf8",
+      );
       await writeFile(
         join(failuresDir, "summary.json"),
         JSON.stringify({
@@ -200,17 +300,13 @@ describe("run-eval script", () => {
         "utf8",
       );
 
-      const result = await runFixtureEval(
+      const result = await runLiveEval(
         {
           scenarioIds: ["scenario-medium-01"],
           failuresFrom: runDirectory,
           outputDir: join(workspace.root, "reports"),
         },
         {
-          parseModelConfigFromEnv: (prefix) => ({
-            provider: "openai",
-            model: `${prefix.toLowerCase()}-model`,
-          }),
           createTextGenerator: (input) => {
             createTextCalls.push(input as unknown as Record<string, unknown>);
             return async () => ({ content: "live-answer" });
@@ -236,6 +332,7 @@ describe("run-eval script", () => {
             };
           },
           runSuite: async (input) => ({
+            mode: input.mode,
             runId: "run-live",
             runDirectory: join(workspace.root, "reports/run-live"),
             summary: {
@@ -270,6 +367,7 @@ describe("run-eval script", () => {
         },
       );
 
+      expect(result.mode).toBe("live");
       expect(result.runtime.generationMode).toBe("live");
       expect(result.runtime.judgeMode).toBe("live");
       expect(createTextCalls).toHaveLength(2);

@@ -1,0 +1,129 @@
+Phase 13: Governance and Memory Control
+=======================================
+
+Phase Goal
+----------
+Close the remaining v1 governance gaps so GoodMemory is not only usable, but controllable, deletable, exportable, and policy-aware.
+
+
+Dependencies
+------------
+- Core API complete
+- Recall/buildContext complete
+- Phase 9 eval artifacts available
+- Phase 10 CLI/docs/release scaffolding available
+
+
+Primary Deliverables
+--------------------
+- `exportMemory()` public API
+- `deleteAllMemory()` public API
+- policy hooks:
+  - `shouldRemember`
+  - `shouldRecall`
+  - `redact`
+  - `resolveConflict`
+- `ignoreMemory` recall flag
+- scope-aware default recall guard
+- governance-aware eval artifacts
+- governance release/docs updates
+
+
+Definition of Done
+------------------
+- Durable memory can be exported by scope
+- Scoped memory can be bulk-deleted without touching adjacent scopes
+- Recall can be explicitly forced to ignore memory
+- Policy hooks can block writes, filter recall, redact values, and keep existing memory during conflict
+- Eval artifacts explain when empty recall is policy-driven
+- Task board and release docs reflect governance support
+
+
+Tasks
+-----
+[DONE] P13-T001 Add governance public APIs
+Write tests first:
+- `exportMemory()` returns scope-bounded durable memory
+- `deleteAllMemory()` deletes only within requested scope
+- `RecallInput.ignoreMemory` is accepted
+
+Implementation steps:
+1. Extend the public `GoodMemory` interface
+2. Add export/delete input and output contracts
+3. Wire export/delete into `GoodMemoryImpl`
+4. Keep `forget()` as single-record delete, separate from bulk delete
+
+Acceptance:
+- Public API closes the PRD governance gap without bloating the core surface
+
+
+[DONE] P13-T002 Add hook-level governance policy
+Write tests first:
+- `shouldRemember` can block writes
+- `redact` mutates content before persist
+- `shouldRecall` filters recalled records
+- `resolveConflict` can keep existing fact/reference state
+
+Implementation steps:
+1. Add policy hook contracts and policy context types
+2. Apply `redact` and `shouldRemember` inside the remember pipeline
+3. Apply `resolveConflict` on the current supersede paths
+4. Apply `shouldRecall` inside recall aggregation
+
+Acceptance:
+- Memory write/read behavior becomes policy-aware without introducing a heavy policy engine
+
+
+[DONE] P13-T003 Add ignore-memory and default scope guard
+Write tests first:
+- `ignoreMemory` yields empty recall packet and empty hits
+- cross-workspace recall is blocked by default when workspace is omitted
+
+Implementation steps:
+1. Add `ignoreMemory?: boolean` to `RecallInput`
+2. Short-circuit recall to an empty packet when enabled
+3. Record `policyApplied: ["ignore_memory"]`
+4. Enforce the default scope guard for workspace/agent visibility
+
+Acceptance:
+- Callers can explicitly request “answer without memory” and understand why recall is empty
+
+
+[DONE] P13-T004 Extend eval and CLI governance visibility
+Write tests first:
+- `raw-recall.json` includes `policyApplied`
+- eval replay can run with `ignoreMemory: true`
+- CLI trace prints applied policy markers
+
+Implementation steps:
+1. Add `policyApplied` to retrieved recall artifacts
+2. Add `ignoreMemory` support to the eval runner
+3. Surface policy info in CLI inspect/trace output
+
+Acceptance:
+- Governance behavior is diagnosable from release artifacts and debug tools
+
+
+[DONE] P13-T005 Update task board and release-facing docs
+Write tests first:
+- Manual review backed by release metadata tests
+
+Implementation steps:
+1. Record Phase 13 in the task board
+2. Update release checklist with governance requirements
+3. Update quality gate notes with governance validation
+
+Acceptance:
+- V1 release docs no longer overstate readiness while omitting governance controls
+
+
+Exit Checklist
+--------------
+- `exportMemory()` exists
+- `deleteAllMemory()` exists
+- `ignoreMemory` exists
+- policy hooks exist
+- governance API tests pass
+- eval artifact shows `policyApplied`
+- CLI trace shows applied policy markers
+- release checklist mentions governance readiness

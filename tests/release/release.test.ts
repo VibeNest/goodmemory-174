@@ -20,6 +20,10 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
       "bun run examples/coding-agent.ts",
     );
+    expect(pkg.scripts?.["eval:smoke"]).toBe("bun run scripts/run-eval.ts --mode=smoke");
+    expect(pkg.scripts?.["eval:fallback"]).toBe("bun run scripts/run-eval.ts --mode=fallback");
+    expect(pkg.scripts?.["eval:live"]).toBe("bun run scripts/run-eval.ts --mode=live");
+    expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
 
   it("readme links the canonical docs, examples, cli, and eval flow", async () => {
@@ -33,6 +37,9 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("GoodMemory-OSS-Architecture-v1.md");
     expect(readme).toContain("GoodMemory-PRD.md");
     expect(readme).toContain("GoodMemory-TDD-and-Evaluation-Strategy.md");
+    expect(readme).toContain("eval:fallback");
+    expect(readme).toContain("eval:live");
+    expect(readme).not.toContain("eval:full");
   });
 
   it("release checklist exists and covers the final gate", async () => {
@@ -45,5 +52,7 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("Examples");
     expect(checklist).toContain("Eval");
     expect(checklist).toContain("Quality Gate");
+    expect(checklist).toContain("eval:live");
+    expect(checklist).not.toContain("eval:full");
   });
 });

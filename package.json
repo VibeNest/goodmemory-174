@@ -25,8 +25,9 @@
     "fixtures:generate": "bun run scripts/generate-eval-fixtures.ts",
     "example:chat": "bun run examples/basic-chat.ts",
     "example:coding-agent": "bun run examples/coding-agent.ts",
-    "eval:smoke": "bun run scripts/run-eval.ts --smoke",
-    "eval:full": "bun run scripts/run-eval.ts",
+    "eval:smoke": "bun run scripts/run-eval.ts --mode=smoke",
+    "eval:fallback": "bun run scripts/run-eval.ts --mode=fallback",
+    "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:summary": "bun run scripts/summarize-eval.ts"
   },
   "devDependencies": {

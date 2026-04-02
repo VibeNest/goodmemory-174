@@ -46,6 +46,7 @@ export interface EvalAnswerPackage {
     journal: RecallResult["journal"];
     hits: RecallResult["metadata"]["hits"];
     verificationHints: RecallResult["metadata"]["verificationHints"];
+    policyApplied: RecallResult["metadata"]["policyApplied"];
     renderedMemoryContext: string;
   };
   trace: {
@@ -196,6 +197,7 @@ export async function runGoodMemoryScenario(input: {
   scenario: ScenarioFixture;
   answerGenerator: EvalAnswerGenerator;
   retrievalProfile?: "general_chat" | "coding_agent";
+  ignoreMemory?: boolean;
 }): Promise<EvalAnswerPackage> {
   const rememberEvents: EvalAnswerPackage["trace"]["rememberEvents"] = [];
   const evaluationPlan = buildEvaluationPlan(input.scenario);
@@ -228,6 +230,7 @@ export async function runGoodMemoryScenario(input: {
     ),
     query: getEvaluationPrompt(input.scenario),
     retrievalProfile: input.retrievalProfile ?? "general_chat",
+    ignoreMemory: input.ignoreMemory,
   });
   const context = await input.memory.buildContext({
     recall,
@@ -263,6 +266,7 @@ export async function runGoodMemoryScenario(input: {
       journal: recall.journal,
       hits: recall.metadata.hits,
       verificationHints: recall.metadata.verificationHints,
+      policyApplied: recall.metadata.policyApplied,
       renderedMemoryContext: context.content,
     },
     trace: buildGoodMemoryTrace(rememberEvents, feedbackEvents, recall, context),

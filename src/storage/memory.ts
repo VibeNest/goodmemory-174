@@ -4,7 +4,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
-import { scopeToKey } from "../domain/scope";
+import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
   DocumentStore,
   SessionStore,
@@ -84,6 +84,7 @@ export function createInMemoryDocumentStore(): DocumentStore {
 interface SessionStateStore<TValue> {
   set(scope: MemoryScope, value: TValue): Promise<void>;
   get(scope: MemoryScope): Promise<TValue | null>;
+  deleteByScope(scope: MemoryScope): Promise<number>;
 }
 
 function createScopedMapStore<TValue>(): SessionStateStore<TValue> {
@@ -97,6 +98,22 @@ function createScopedMapStore<TValue>(): SessionStateStore<TValue> {
     async get(scope) {
       const record = records.get(scopeToKey(scope));
       return record ? clone(record) : null;
+    },
+
+    async deleteByScope(scope) {
+      const normalizedPrefix = scopeToPrefix(scope);
+      let deleted = 0;
+
+      for (const key of [...records.keys()]) {
+        if (!key.startsWith(normalizedPrefix)) {
+          continue;
+        }
+
+        records.delete(key);
+        deleted += 1;
+      }
+
+      return deleted;
     },
   };
 }
@@ -115,6 +132,10 @@ export function createInMemorySessionStore(): SessionStore {
       return buffers.get(scope);
     },
 
+    deleteBuffersByScope(scope) {
+      return buffers.deleteByScope(scope);
+    },
+
     saveWorkingMemory(scope, snapshot) {
       return workingMemory.set(scope, snapshot);
     },
@@ -123,12 +144,20 @@ export function createInMemorySessionStore(): SessionStore {
       return workingMemory.get(scope);
     },
 
+    deleteWorkingMemoryByScope(scope) {
+      return workingMemory.deleteByScope(scope);
+    },
+
     saveJournal(scope, journal) {
       return journals.set(scope, journal);
     },
 
     getJournal(scope) {
       return journals.get(scope);
+    },
+
+    deleteJournalsByScope(scope) {
+      return journals.deleteByScope(scope);
     },
   };
 }

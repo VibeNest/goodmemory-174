@@ -1,0 +1,20 @@
+[DONE] Release Docs and Gate
+===========================
+
+Scope
+-----
+- task board alignment
+- release checklist alignment
+- quality gate alignment
+
+Implemented
+-----------
+- Added Phase 13 to the main task board
+- Updated release checklist to mention governance controls
+- Updated quality gate to record governance validation commands and results
+
+Validation
+----------
+- `tests/release/release.test.ts`
+- manual review of `docs/GoodMemory-v1-Release-Checklist.md`
+- manual review of `docs/GoodMemory-v1-Quality-Gate.md`

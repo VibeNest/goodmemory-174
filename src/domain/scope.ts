@@ -43,6 +43,20 @@ export function scopeToKey(scope: MemoryScope): string {
   ].join("::");
 }
 
+export function scopeToPrefix(scope: MemoryScope): string {
+  const normalized = normalizeScope(scope);
+
+  return [
+    normalized.userId,
+    normalized.tenantId ?? "",
+    normalized.workspaceId ?? "",
+    normalized.agentId ?? "",
+    normalized.sessionId,
+  ]
+    .map((value) => value ?? "")
+    .join("::");
+}
+
 export function isSameScope(left: MemoryScope, right: MemoryScope): boolean {
   return scopeToKey(left) === scopeToKey(right);
 }
