@@ -1,12 +1,12 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { VercelAIModelConfig } from "../src/llm/vercel-ai-sdk";
+import type { AISDKModelConfig } from "../src/llm/ai-sdk";
 import { runEvalSuite, type EvalSuiteResult } from "../src/eval/suite";
 import type { EvalAnswerGeneratorInput } from "../src/eval/runners";
 import {
-  createVercelAIJudgeModel,
-  createVercelAITextGenerator,
-} from "../src/llm/vercel-ai-sdk";
+  createAISDKJudgeModel,
+  createAISDKTextGenerator,
+} from "../src/llm/ai-sdk";
 
 export type EvalMode = "live" | "fallback";
 export type EvalCLIExecutionMode = EvalMode | "smoke";
@@ -35,8 +35,8 @@ export interface FixtureEvalOptions {
 }
 
 export interface LiveEvalDependencies {
-  createTextGenerator?: typeof createVercelAITextGenerator;
-  createJudgeModel?: typeof createVercelAIJudgeModel;
+  createTextGenerator?: typeof createAISDKTextGenerator;
+  createJudgeModel?: typeof createAISDKJudgeModel;
   runSuite?: typeof runEvalSuite;
 }
 
@@ -119,7 +119,7 @@ export function resolveDefaultOutputDir(root: string, mode: EvalMode): string {
   return join(root, "reports/eval", mode);
 }
 
-export function resolveLiveModelConfig(prefix: "GOODMEMORY_EVAL" | "GOODMEMORY_JUDGE"): VercelAIModelConfig {
+export function resolveLiveModelConfig(prefix: "GOODMEMORY_EVAL" | "GOODMEMORY_JUDGE"): AISDKModelConfig {
   const provider = process.env[`${prefix}_PROVIDER`];
   const model = process.env[`${prefix}_MODEL`];
   const apiKey = process.env[`${prefix}_API_KEY`];
@@ -297,9 +297,9 @@ export async function runLiveEval(
 ): Promise<EvalSuiteResult> {
   const root = new URL("..", import.meta.url).pathname;
   const createTextGenerator =
-    dependencies?.createTextGenerator ?? createVercelAITextGenerator;
+    dependencies?.createTextGenerator ?? createAISDKTextGenerator;
   const createJudgeModel =
-    dependencies?.createJudgeModel ?? createVercelAIJudgeModel;
+    dependencies?.createJudgeModel ?? createAISDKJudgeModel;
   const runSuite = dependencies?.runSuite ?? runEvalSuite;
   const failedScenarioIds = input?.failuresFrom
     ? await resolveFailedScenarioIds(input.failuresFrom, "live")

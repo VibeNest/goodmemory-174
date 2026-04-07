@@ -33,6 +33,17 @@ export interface JudgeModel {
   }): Promise<{ content: string }>;
 }
 
+function extractJsonObject(raw: string): Record<string, unknown> {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error("Judge output did not contain a JSON object");
+  }
+
+  return JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
+}
+
 function validateScores(
   value: unknown,
   path: string,
@@ -75,13 +86,49 @@ function validateScores(
   };
 }
 
+function tryValidateScores(
+  value: unknown,
+  path: string,
+): JudgeScores | undefined {
+  try {
+    return validateScores(value, path);
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeFailureTags(value: unknown): string[] {
+  if (Array.isArray(value) && value.every((tag) => typeof tag === "string")) {
+    return value as string[];
+  }
+
+  if (typeof value === "object" && value !== null) {
+    const groups = value as Record<string, unknown>;
+
+    return Object.entries(groups).flatMap(([group, tags]) => {
+      if (!Array.isArray(tags)) {
+        return [];
+      }
+
+      return tags
+        .filter((tag): tag is string => typeof tag === "string")
+        .map((tag) => `${group}:${tag}`);
+    });
+  }
+
+  throw new Error("failure_tags must be a string array");
+}
+
 export function buildJudgePrompt(input: JudgePromptInput): string {
   return [
     "You are judging which answer better serves the user.",
-    "Return strict JSON with fields:",
+    "Return only JSON. No prose, no markdown, no code fences, no <think> tags.",
+    "Use this exact top-level shape:",
     "winner, scores, baseline_scores, goodmemory_scores, reasoning, failure_tags.",
     "Use 0-10 scores for identity_understanding, history_continuation, factual_alignment, relevance, and personalization.",
     "Rubric: identity_understanding, history_continuation, factual_alignment, relevance, personalization.",
+    "failure_tags must be a flat string array.",
+    "scores, baseline_scores, and goodmemory_scores must all use the same per-dimension keys.",
     `expected improvement hypothesis: ${input.improvementHypothesis}`,
     `persona: ${input.personaSummary}`,
     `user prompt: ${input.userPrompt}`,
@@ -91,7 +138,7 @@ export function buildJudgePrompt(input: JudgePromptInput): string {
 }
 
 export function parseJudgeResult(raw: string): JudgeResult {
-  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  const parsed = extractJsonObject(raw);
 
   if (
     parsed.winner !== "baseline" &&
@@ -101,7 +148,22 @@ export function parseJudgeResult(raw: string): JudgeResult {
     throw new Error("Invalid judge result winner");
   }
 
-  const scores = validateScores(parsed.scores, "scores");
+  const baselineScores = tryValidateScores(
+    parsed.baseline_scores,
+    "baseline_scores",
+  );
+  const goodmemoryScores = tryValidateScores(
+    parsed.goodmemory_scores,
+    "goodmemory_scores",
+  );
+  const scores =
+    tryValidateScores(parsed.scores, "scores") ??
+    (parsed.winner === "baseline"
+      ? baselineScores
+      : parsed.winner === "goodmemory"
+        ? goodmemoryScores
+        : goodmemoryScores ?? baselineScores);
+
   if (!scores) {
     throw new Error("scores must be present");
   }
@@ -111,21 +173,13 @@ export function parseJudgeResult(raw: string): JudgeResult {
     throw new Error("reasoning must be a string");
   }
 
-  const failureTags = parsed.failure_tags;
-  if (!Array.isArray(failureTags) || failureTags.some((tag) => typeof tag !== "string")) {
-    throw new Error("failure_tags must be a string array");
-  }
-
   return {
     winner: parsed.winner,
     scores,
-    baseline_scores: validateScores(parsed.baseline_scores, "baseline_scores"),
-    goodmemory_scores: validateScores(
-      parsed.goodmemory_scores,
-      "goodmemory_scores",
-    ),
+    baseline_scores: baselineScores,
+    goodmemory_scores: goodmemoryScores,
     reasoning,
-    failure_tags: failureTags as string[],
+    failure_tags: normalizeFailureTags(parsed.failure_tags),
   };
 }
 

@@ -1,9 +1,11 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI, openai } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
   generateObject,
   generateText,
+  streamText,
 } from "ai";
 import { z } from "zod";
 import type { JudgeModel } from "../eval/judge";
@@ -12,10 +14,10 @@ import type {
   EvalAnswerGeneratorInput,
 } from "../eval/runners";
 
-export type VercelAIProvider = "openai" | "anthropic";
+export type AISDKProvider = "openai" | "anthropic";
 
-export interface VercelAIModelConfig {
-  provider: VercelAIProvider;
+export interface AISDKModelConfig {
+  provider: AISDKProvider;
   model: string;
   apiKey?: string;
   baseURL?: string;
@@ -23,13 +25,15 @@ export interface VercelAIModelConfig {
 
 interface TextGeneratorDependencies {
   generateText?: typeof generateText;
-  resolveModel?: typeof resolveVercelAIModel;
+  streamText?: typeof streamText;
+  resolveModel?: typeof resolveAISDKModel;
 }
 
 interface JudgeModelDependencies {
   generateObject?: typeof generateObject;
   generateText?: typeof generateText;
-  resolveModel?: typeof resolveVercelAIModel;
+  streamText?: typeof streamText;
+  resolveModel?: typeof resolveAISDKModel;
 }
 
 const judgeScoresSchema = z.object({
@@ -51,9 +55,9 @@ const judgeResultSchema = z.object({
   failure_tags: z.array(z.string()),
 });
 
-export function parseVercelAIModelConfigFromEnv(
+export function parseAISDKModelConfigFromEnv(
   prefix: string,
-): VercelAIModelConfig | null {
+): AISDKModelConfig | null {
   const provider = process.env[`${prefix}_PROVIDER`];
   const model = process.env[`${prefix}_MODEL`];
 
@@ -73,18 +77,23 @@ export function parseVercelAIModelConfigFromEnv(
   };
 }
 
-export function resolveVercelAIModel(config: VercelAIModelConfig) {
+export function resolveAISDKModel(config: AISDKModelConfig) {
   if (config.provider === "openai") {
-    if (config.baseURL || config.apiKey) {
-      const provider = createOpenAI({
+    if (config.baseURL) {
+      const provider = createOpenAICompatible({
+        name: "openai-compatible",
         apiKey: config.apiKey,
         baseURL: config.baseURL,
-        name: config.baseURL ? "openai-compatible" : undefined,
       });
 
-      // OpenAI-compatible gateways commonly implement chat completions
-      // without a fully compatible responses API surface.
-      return config.baseURL ? provider.chat(config.model) : provider(config.model);
+      return provider.chatModel(config.model);
+    }
+
+    if (config.apiKey) {
+      const provider = createOpenAI({
+        apiKey: config.apiKey,
+      });
+      return provider(config.model);
     }
 
     return openai(config.model);
@@ -105,7 +114,7 @@ export function resolveVercelAIModel(config: VercelAIModelConfig) {
   throw new Error(`Unsupported Vercel AI SDK provider: ${config.provider}`);
 }
 
-export function buildVercelAITextPrompt(input: EvalAnswerGeneratorInput): string {
+export function buildAISDKTextPrompt(input: EvalAnswerGeneratorInput): string {
   return [
     input.transcript,
     input.memoryContext ? `Memory context:\n${input.memoryContext}` : undefined,
@@ -115,17 +124,34 @@ export function buildVercelAITextPrompt(input: EvalAnswerGeneratorInput): string
     .join("\n\n");
 }
 
-export function createVercelAITextGenerator(input: {
-  model: VercelAIModelConfig;
+export function createAISDKTextGenerator(input: {
+  model: AISDKModelConfig;
   system?: string;
   promptBuilder?: (input: EvalAnswerGeneratorInput) => string;
   dependencies?: TextGeneratorDependencies;
 }): EvalAnswerGenerator {
   return async (payload) => {
+    if (input.model.provider === "openai" && input.model.baseURL) {
+      const result = (input.dependencies?.streamText ?? streamText)({
+        model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
+        system: input.system,
+        prompt: (input.promptBuilder ?? buildAISDKTextPrompt)(payload),
+        providerOptions: {
+          openaiCompatible: {
+            reasoningEffort: "medium",
+          },
+        },
+      });
+
+      return {
+        content: await result.text,
+      };
+    }
+
     const { text } = await (input.dependencies?.generateText ?? generateText)({
-      model: (input.dependencies?.resolveModel ?? resolveVercelAIModel)(input.model),
+      model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
       system: input.system,
-      prompt: (input.promptBuilder ?? buildVercelAITextPrompt)(payload),
+      prompt: (input.promptBuilder ?? buildAISDKTextPrompt)(payload),
     });
 
     return {
@@ -134,8 +160,8 @@ export function createVercelAITextGenerator(input: {
   };
 }
 
-export function createVercelAIJudgeModel(input: {
-  model: VercelAIModelConfig;
+export function createAISDKJudgeModel(input: {
+  model: AISDKModelConfig;
   system?: string;
   dependencies?: JudgeModelDependencies;
 }): JudgeModel {
@@ -146,19 +172,24 @@ export function createVercelAIJudgeModel(input: {
         "You compare two answers and return strict JSON judging which one better understands the user and continues history.";
 
       if (input.model.provider === "openai" && input.model.baseURL) {
-        const { text } = await (input.dependencies?.generateText ?? generateText)({
-          model: (input.dependencies?.resolveModel ?? resolveVercelAIModel)(input.model),
+        const result = (input.dependencies?.streamText ?? streamText)({
+          model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
           system,
           prompt,
+          providerOptions: {
+            openaiCompatible: {
+              reasoningEffort: "medium",
+            },
+          },
         });
 
         return {
-          content: text,
+          content: await result.text,
         };
       }
 
       const { object } = await (input.dependencies?.generateObject ?? generateObject)({
-        model: (input.dependencies?.resolveModel ?? resolveVercelAIModel)(input.model),
+        model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
         schema: judgeResultSchema,
         system,
         prompt,

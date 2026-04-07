@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
-  buildVercelAITextPrompt,
-  createVercelAIJudgeModel,
-  createVercelAITextGenerator,
-  parseVercelAIModelConfigFromEnv,
-  resolveVercelAIModel,
-} from "../../src/llm/vercel-ai-sdk";
+  buildAISDKTextPrompt,
+  createAISDKJudgeModel,
+  createAISDKTextGenerator,
+  parseAISDKModelConfigFromEnv,
+  resolveAISDKModel,
+} from "../../src/llm/ai-sdk";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -20,7 +20,7 @@ describe("vercel ai sdk adapter", () => {
     process.env.GOODMEMORY_EVAL_API_KEY = "test-key";
     process.env.GOODMEMORY_EVAL_BASE_URL = "https://gateway.example/v1";
 
-    expect(parseVercelAIModelConfigFromEnv("GOODMEMORY_EVAL")).toEqual({
+    expect(parseAISDKModelConfigFromEnv("GOODMEMORY_EVAL")).toEqual({
       provider: "openai",
       model: "gpt-5",
       apiKey: "test-key",
@@ -32,12 +32,12 @@ describe("vercel ai sdk adapter", () => {
     delete process.env.GOODMEMORY_EVAL_PROVIDER;
     delete process.env.GOODMEMORY_EVAL_MODEL;
 
-    expect(parseVercelAIModelConfigFromEnv("GOODMEMORY_EVAL")).toBeNull();
+    expect(parseAISDKModelConfigFromEnv("GOODMEMORY_EVAL")).toBeNull();
   });
 
   it("rejects unsupported providers", () => {
     expect(() =>
-      resolveVercelAIModel({
+      resolveAISDKModel({
         provider: "unsupported" as "openai",
         model: "x",
       }),
@@ -48,27 +48,27 @@ describe("vercel ai sdk adapter", () => {
     process.env.GOODMEMORY_JUDGE_PROVIDER = "unsupported";
     process.env.GOODMEMORY_JUDGE_MODEL = "judge-model";
 
-    expect(() => parseVercelAIModelConfigFromEnv("GOODMEMORY_JUDGE")).toThrow(
+    expect(() => parseAISDKModelConfigFromEnv("GOODMEMORY_JUDGE")).toThrow(
       "Unsupported Vercel AI SDK provider",
     );
   });
 
   it("resolves openai and anthropic models with and without explicit api keys", () => {
     expect(
-      resolveVercelAIModel({
+      resolveAISDKModel({
         provider: "openai",
         model: "gpt-5",
       }),
     ).toBeTruthy();
     expect(
-      resolveVercelAIModel({
+      resolveAISDKModel({
         provider: "openai",
         model: "gpt-5",
         apiKey: "openai-key",
       }),
     ).toBeTruthy();
     expect(
-      resolveVercelAIModel({
+      resolveAISDKModel({
         provider: "openai",
         model: "gpt-5",
         apiKey: "gateway-key",
@@ -76,20 +76,20 @@ describe("vercel ai sdk adapter", () => {
       }),
     ).toBeTruthy();
     expect(
-      resolveVercelAIModel({
+      resolveAISDKModel({
         provider: "anthropic",
         model: "claude-sonnet",
       }),
     ).toBeTruthy();
     expect(
-      resolveVercelAIModel({
+      resolveAISDKModel({
         provider: "anthropic",
         model: "claude-sonnet",
         apiKey: "anthropic-key",
       }),
     ).toBeTruthy();
     expect(
-      resolveVercelAIModel({
+      resolveAISDKModel({
         provider: "anthropic",
         model: "claude-sonnet",
         apiKey: "anthropic-key",
@@ -100,7 +100,7 @@ describe("vercel ai sdk adapter", () => {
 
   it("builds prompts with transcript, memory context, and user request", () => {
     expect(
-      buildVercelAITextPrompt({
+      buildAISDKTextPrompt({
         persona: {} as never,
         scenario: {} as never,
         transcript: "user: hi",
@@ -110,7 +110,7 @@ describe("vercel ai sdk adapter", () => {
     ).toContain("Memory context");
 
     expect(
-      buildVercelAITextPrompt({
+      buildAISDKTextPrompt({
         persona: {} as never,
         scenario: {} as never,
         transcript: "user: hi",
@@ -121,7 +121,7 @@ describe("vercel ai sdk adapter", () => {
 
   it("creates a text generator using injected dependencies", async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const generator = createVercelAITextGenerator({
+    const generator = createAISDKTextGenerator({
       model: {
         provider: "openai",
         model: "gpt-5",
@@ -151,7 +151,7 @@ describe("vercel ai sdk adapter", () => {
 
   it("creates a judge model using injected dependencies", async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const judge = createVercelAIJudgeModel({
+    const judge = createAISDKJudgeModel({
       model: {
         provider: "anthropic",
         model: "claude-sonnet",
@@ -189,8 +189,8 @@ describe("vercel ai sdk adapter", () => {
   });
 
   it("uses text-based judge generation for openai-compatible base URLs", async () => {
-    const textCalls: Array<Record<string, unknown>> = [];
-    const judge = createVercelAIJudgeModel({
+    const streamCalls: Array<Record<string, unknown>> = [];
+    const judge = createAISDKJudgeModel({
       model: {
         provider: "openai",
         model: "gpt-5.4",
@@ -200,10 +200,10 @@ describe("vercel ai sdk adapter", () => {
       system: "judge system",
       dependencies: {
         resolveModel: (config) => ({ resolvedFrom: config.model }) as never,
-        generateText: async (input) => {
-          textCalls.push(input as unknown as Record<string, unknown>);
+        streamText: (input) => {
+          streamCalls.push(input as unknown as Record<string, unknown>);
           return {
-            text: "{\"winner\":\"tie\",\"scores\":{\"identity_understanding\":7,\"history_continuation\":7,\"factual_alignment\":7,\"relevance\":7,\"personalization\":7},\"reasoning\":\"ok\",\"failure_tags\":[]}",
+            text: Promise.resolve("{\"winner\":\"tie\",\"scores\":{\"identity_understanding\":7,\"history_continuation\":7,\"factual_alignment\":7,\"relevance\":7,\"personalization\":7},\"reasoning\":\"ok\",\"failure_tags\":[]}"),
           } as never;
         },
         generateObject: async () => {
@@ -218,7 +218,49 @@ describe("vercel ai sdk adapter", () => {
     });
 
     expect(JSON.parse(result.content).winner).toBe("tie");
-    expect(textCalls[0]?.system).toBe("judge system");
-    expect(textCalls[0]?.prompt).toBe("judge this");
+    expect(streamCalls[0]?.system).toBe("judge system");
+    expect(streamCalls[0]?.prompt).toBe("judge this");
+    expect(streamCalls[0]?.providerOptions).toEqual({
+      openaiCompatible: {
+        reasoningEffort: "medium",
+      },
+    });
+  });
+
+  it("uses stream-based text generation for openai-compatible base URLs", async () => {
+    const streamCalls: Array<Record<string, unknown>> = [];
+    const generator = createAISDKTextGenerator({
+      model: {
+        provider: "openai",
+        model: "gpt-5.4",
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+      },
+      system: "system prompt",
+      dependencies: {
+        resolveModel: (config) => ({ resolvedFrom: config.model }) as never,
+        streamText: (input) => {
+          streamCalls.push(input as unknown as Record<string, unknown>);
+          return {
+            text: Promise.resolve("streamed-answer"),
+          } as never;
+        },
+      },
+    });
+
+    const result = await generator({
+      persona: {} as never,
+      scenario: {} as never,
+      transcript: "user: hi",
+      prompt: "continue",
+    });
+
+    expect(result.content).toBe("streamed-answer");
+    expect(streamCalls[0]?.system).toBe("system prompt");
+    expect(streamCalls[0]?.providerOptions).toEqual({
+      openaiCompatible: {
+        reasoningEffort: "medium",
+      },
+    });
   });
 });

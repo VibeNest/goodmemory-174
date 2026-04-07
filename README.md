@@ -142,6 +142,6 @@ bun run eval:live
 - semantic / episodic / procedural / runtime memory taxonomy
 - inspectable recall and eval artifacts
 - Phase 9 product evaluation pipeline
-- Vercel AI SDK based live eval path
+- AI SDK based live eval path
 
 尚未在 v1 完成的内容仍以 task board 为准，入口见 [task-board/00-README.txt](./task-board/00-README.txt)。
