@@ -123,6 +123,7 @@ export function resolveLiveModelConfig(prefix: "GOODMEMORY_EVAL" | "GOODMEMORY_J
   const provider = process.env[`${prefix}_PROVIDER`];
   const model = process.env[`${prefix}_MODEL`];
   const apiKey = process.env[`${prefix}_API_KEY`];
+  const baseURL = process.env[`${prefix}_BASE_URL`];
   const missingVars = [
     !isNonEmpty(provider) ? `${prefix}_PROVIDER` : null,
     !isNonEmpty(model) ? `${prefix}_MODEL` : null,
@@ -143,6 +144,7 @@ export function resolveLiveModelConfig(prefix: "GOODMEMORY_EVAL" | "GOODMEMORY_J
     provider,
     model: model as string,
     apiKey: apiKey as string,
+    baseURL: isNonEmpty(baseURL) ? baseURL : undefined,
   };
 }
 

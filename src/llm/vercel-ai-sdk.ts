@@ -18,6 +18,7 @@ export interface VercelAIModelConfig {
   provider: VercelAIProvider;
   model: string;
   apiKey?: string;
+  baseURL?: string;
 }
 
 interface TextGeneratorDependencies {
@@ -27,6 +28,7 @@ interface TextGeneratorDependencies {
 
 interface JudgeModelDependencies {
   generateObject?: typeof generateObject;
+  generateText?: typeof generateText;
   resolveModel?: typeof resolveVercelAIModel;
 }
 
@@ -35,7 +37,9 @@ const judgeScoresSchema = z.object({
   history_continuation: z.number(),
   factual_alignment: z.number(),
   relevance: z.number(),
-  personalization: z.number().optional(),
+  // Some OpenAI-compatible gateways reject JSON schemas whose optional
+  // properties are omitted from the generated `required` array.
+  personalization: z.number(),
 });
 
 const judgeResultSchema = z.object({
@@ -65,20 +69,37 @@ export function parseVercelAIModelConfigFromEnv(
     provider,
     model,
     apiKey: process.env[`${prefix}_API_KEY`],
+    baseURL: process.env[`${prefix}_BASE_URL`],
   };
 }
 
 export function resolveVercelAIModel(config: VercelAIModelConfig) {
   if (config.provider === "openai") {
-    const provider = config.apiKey ? createOpenAI({ apiKey: config.apiKey }) : openai;
-    return provider(config.model);
+    if (config.baseURL || config.apiKey) {
+      const provider = createOpenAI({
+        apiKey: config.apiKey,
+        baseURL: config.baseURL,
+        name: config.baseURL ? "openai-compatible" : undefined,
+      });
+
+      // OpenAI-compatible gateways commonly implement chat completions
+      // without a fully compatible responses API surface.
+      return config.baseURL ? provider.chat(config.model) : provider(config.model);
+    }
+
+    return openai(config.model);
   }
 
   if (config.provider === "anthropic") {
-    const provider = config.apiKey
-      ? createAnthropic({ apiKey: config.apiKey })
-      : anthropic;
-    return provider(config.model);
+    if (config.baseURL || config.apiKey) {
+      const provider = createAnthropic({
+        apiKey: config.apiKey,
+        baseURL: config.baseURL,
+      });
+      return provider(config.model);
+    }
+
+    return anthropic(config.model);
   }
 
   throw new Error(`Unsupported Vercel AI SDK provider: ${config.provider}`);
@@ -120,12 +141,26 @@ export function createVercelAIJudgeModel(input: {
 }): JudgeModel {
   return {
     async complete({ prompt }) {
+      const system =
+        input.system ??
+        "You compare two answers and return strict JSON judging which one better understands the user and continues history.";
+
+      if (input.model.provider === "openai" && input.model.baseURL) {
+        const { text } = await (input.dependencies?.generateText ?? generateText)({
+          model: (input.dependencies?.resolveModel ?? resolveVercelAIModel)(input.model),
+          system,
+          prompt,
+        });
+
+        return {
+          content: text,
+        };
+      }
+
       const { object } = await (input.dependencies?.generateObject ?? generateObject)({
         model: (input.dependencies?.resolveModel ?? resolveVercelAIModel)(input.model),
         schema: judgeResultSchema,
-        system:
-          input.system ??
-          "You compare two answers and return strict JSON judging which one better understands the user and continues history.",
+        system,
         prompt,
       });
 

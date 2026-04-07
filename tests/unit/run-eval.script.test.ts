@@ -276,9 +276,11 @@ describe("run-eval script", () => {
     process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
     process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";
     process.env.GOODMEMORY_EVAL_API_KEY = "eval-key";
+    process.env.GOODMEMORY_EVAL_BASE_URL = "https://gateway.example/v1";
     process.env.GOODMEMORY_JUDGE_PROVIDER = "anthropic";
     process.env.GOODMEMORY_JUDGE_MODEL = "claude-sonnet";
     process.env.GOODMEMORY_JUDGE_API_KEY = "judge-key";
+    process.env.GOODMEMORY_JUDGE_BASE_URL = "https://messages.example/v1";
 
     try {
       const runDirectory = join(workspace.root, "reports/eval/live/run-003");
@@ -372,6 +374,18 @@ describe("run-eval script", () => {
       expect(result.runtime.judgeMode).toBe("live");
       expect(createTextCalls).toHaveLength(2);
       expect(createJudgeCalls).toHaveLength(1);
+      expect(createTextCalls[0]?.model).toEqual({
+        provider: "openai",
+        model: "gpt-5",
+        apiKey: "eval-key",
+        baseURL: "https://gateway.example/v1",
+      });
+      expect(createJudgeCalls[0]?.model).toEqual({
+        provider: "anthropic",
+        model: "claude-sonnet",
+        apiKey: "judge-key",
+        baseURL: "https://messages.example/v1",
+      });
     } finally {
       await workspace.cleanup();
     }

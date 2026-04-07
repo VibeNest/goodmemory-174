@@ -112,9 +112,11 @@ bun run eval:live
 `eval:live` 必须显式配置以下环境变量，否则会直接失败：
 
 - `GOODMEMORY_EVAL_PROVIDER`
+- `GOODMEMORY_EVAL_BASE_URL` for OpenAI-compatible gateways
 - `GOODMEMORY_EVAL_MODEL`
 - `GOODMEMORY_EVAL_API_KEY`
 - `GOODMEMORY_JUDGE_PROVIDER`
+- `GOODMEMORY_JUDGE_BASE_URL` for OpenAI-compatible gateways
 - `GOODMEMORY_JUDGE_MODEL`
 - `GOODMEMORY_JUDGE_API_KEY`
 
