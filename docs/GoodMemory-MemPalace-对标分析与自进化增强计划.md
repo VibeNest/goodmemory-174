@@ -1,5 +1,9 @@
 # GoodMemory 对标 MemPalace 的分析与自进化增强计划
 
+> Status: Reference analysis.  
+> Canonical execution roadmap has moved to `docs/GoodMemory-Unified-Self-Evolving-Roadmap.md`.  
+> This document remains as MemPalace-focused research input and design rationale.
+
 > 目标：不是把 GoodMemory 改造成另一个 MemPalace，而是吸收它做得好的系统能力，并结合 GoodMemory 已有的可治理、可评测、可插拔优势，把 GoodMemory 推进为一个真正会“越用越强”的 memory layer。
 
 ## 1. 结论先行

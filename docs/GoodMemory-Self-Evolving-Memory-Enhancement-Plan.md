@@ -1,5 +1,9 @@
 # GoodMemory 自进化记忆增强计划
 
+> Status: Reference analysis.  
+> Canonical execution roadmap has moved to `docs/GoodMemory-Unified-Self-Evolving-Roadmap.md`.  
+> This document remains as Hermes/self-evolution-focused research input and design rationale.
+
 Status: Proposed  
 Date: 2026-04-07  
 Scope: GoodMemory OSS Core + Optional Evolution Layer
