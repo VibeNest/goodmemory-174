@@ -70,6 +70,21 @@ bun run example:chat
 bun run example:coding-agent
 ```
 
+## Testing
+
+默认红绿灯：
+
+```bash
+bun test
+bun run test:coverage
+```
+
+说明：
+
+- `bun test`: canonical repository suite，只扫描 `tests/`，与 CI 的 deterministic red/green 对齐
+- `bun run test:coverage`: 在同一套 `tests/` 上跑 coverage gate
+- `bun run test:all`: 额外扫 `tests/` 之外的 vendored / third-party test trees，只在你明确要做更宽的回归时使用
+
 ## Eval
 
 Phase 9 评测链路支持：

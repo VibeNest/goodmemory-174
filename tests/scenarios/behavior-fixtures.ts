@@ -22,21 +22,24 @@ type RecallCollection =
   | "workingMemory"
   | "journal";
 
+type ExpectedScalar = string | number | boolean | null;
+
+export interface PathExpectation {
+  path: string;
+  equals?: ExpectedScalar;
+  hasEntries?: ExpectedScalar[];
+  lacksEntries?: ExpectedScalar[];
+}
+
 export interface StoredExpectation {
   collection: StoredCollection;
-  includes: string;
-  lifecycle?: string;
   scope?: Partial<MemoryScope>;
+  fields: PathExpectation[];
 }
 
 export interface RecallExpectation {
   collection: RecallCollection;
-  includes: string;
-}
-
-export interface AnswerExpectation {
-  includes: string[];
-  excludes?: string[];
+  fields: PathExpectation[];
 }
 
 export interface BehaviorScenarioFixture {
@@ -50,9 +53,8 @@ export interface BehaviorScenarioFixture {
   finalScope?: Partial<MemoryScope>;
   expectedRemembered: StoredExpectation[];
   expectedRecalled: RecallExpectation[];
-  expectedContextSnippets: string[];
-  forbiddenContextSnippets?: string[];
-  expectedAnswer: AnswerExpectation;
+  expectedContext: PathExpectation[];
+  expectedAnswer: PathExpectation[];
 }
 
 export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
@@ -88,45 +90,72 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     expectedRemembered: [
       {
         collection: "profiles",
-        includes: "Lin",
+        fields: [
+          { path: "identity.name", equals: "Lin" },
+        ],
       },
       {
         collection: "facts",
-        includes: "robotics engineer in Shanghai leading the migration rollout",
         scope: { workspaceId: "workspace-identity" },
+        fields: [
+          {
+            path: "content",
+            equals: "I am a robotics engineer in Shanghai leading the migration rollout.",
+          },
+          { path: "workspaceId", equals: "workspace-identity" },
+          { path: "lifecycle", equals: "active" },
+        ],
       },
       {
         collection: "preferences",
-        includes: "concise bullet points",
         scope: { workspaceId: "workspace-identity" },
+        fields: [
+          { path: "category", equals: "response_style" },
+          { path: "value", equals: "concise bullet points" },
+          { path: "workspaceId", equals: "workspace-identity" },
+        ],
       },
     ],
     expectedRecalled: [
       {
         collection: "profile",
-        includes: "Lin",
+        fields: [
+          { path: "identity.name", equals: "Lin" },
+        ],
       },
       {
         collection: "facts",
-        includes: "robotics engineer in Shanghai",
+        fields: [
+          {
+            path: "content",
+            equals: "I am a robotics engineer in Shanghai leading the migration rollout.",
+          },
+          { path: "lifecycle", equals: "active" },
+        ],
       },
       {
         collection: "preferences",
-        includes: "concise bullet points",
+        fields: [
+          { path: "value", equals: "concise bullet points" },
+        ],
       },
     ],
-    expectedContextSnippets: [
-      "Lin",
-      "robotics engineer in Shanghai leading the migration rollout",
-      "concise bullet points",
+    expectedContext: [
+      { path: "Profile", hasEntries: ["Lin"] },
+      { path: "Preferences", hasEntries: ["response_style: concise bullet points"] },
+      {
+        path: "Facts",
+        hasEntries: ["I am a robotics engineer in Shanghai leading the migration rollout."],
+      },
     ],
-    expectedAnswer: {
-      includes: [
-        "Lin",
-        "robotics engineer in Shanghai leading the migration rollout",
-        "concise bullet points",
-      ],
-    },
+    expectedAnswer: [
+      { path: "profileName", equals: "Lin" },
+      { path: "preferences", hasEntries: ["concise bullet points"] },
+      {
+        path: "factEntries",
+        hasEntries: ["I am a robotics engineer in Shanghai leading the migration rollout."],
+      },
+    ],
   },
   openLoopContinuation: {
     id: "open-loop-continuation",
@@ -158,29 +187,65 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     expectedRemembered: [
       {
         collection: "facts",
-        includes: "blocked on step 2 of the migration runbook",
         scope: { workspaceId: "workspace-open-loop" },
+        fields: [
+          {
+            path: "content",
+            equals: "the robot rollout is blocked on step 2 of the migration runbook.",
+          },
+          { path: "workspaceId", equals: "workspace-open-loop" },
+        ],
       },
       {
         collection: "facts",
-        includes: "remaining open loop is final verification for the robot rollout",
         scope: { workspaceId: "workspace-open-loop" },
+        fields: [
+          {
+            path: "content",
+            equals: "the remaining open loop is final verification for the robot rollout.",
+          },
+          { path: "workspaceId", equals: "workspace-open-loop" },
+        ],
       },
     ],
     expectedRecalled: [
       {
         collection: "facts",
-        includes: "final verification for the robot rollout",
+        fields: [
+          {
+            path: "content",
+            equals: "the remaining open loop is final verification for the robot rollout.",
+          },
+        ],
+      },
+      {
+        collection: "facts",
+        fields: [
+          {
+            path: "content",
+            equals: "the robot rollout is blocked on step 2 of the migration runbook.",
+          },
+        ],
       },
     ],
-    expectedContextSnippets: [
-      "final verification for the robot rollout",
+    expectedContext: [
+      {
+        path: "Facts",
+        hasEntries: [
+          "the remaining open loop is final verification for the robot rollout.",
+          "the robot rollout is blocked on step 2 of the migration runbook.",
+        ],
+      },
     ],
-    expectedAnswer: {
-      includes: [
-        "final verification for the robot rollout",
-      ],
-    },
+    expectedAnswer: [
+      {
+        path: "factEntries",
+        hasEntries: [
+          "the remaining open loop is final verification for the robot rollout.",
+          "the robot rollout is blocked on step 2 of the migration runbook.",
+        ],
+      },
+    ],
   },
   staleReferenceCorrection: {
     id: "stale-reference-correction",
@@ -212,37 +277,46 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     expectedRemembered: [
       {
         collection: "references",
-        includes: "docs/migration-runbook-v1.md",
-        lifecycle: "superseded",
         scope: { workspaceId: "workspace-reference" },
+        fields: [
+          { path: "pointer", equals: "docs/migration-runbook-v1.md" },
+          { path: "lifecycle", equals: "superseded" },
+          { path: "workspaceId", equals: "workspace-reference" },
+        ],
       },
       {
         collection: "references",
-        includes: "docs/migration-runbook-v2.md",
-        lifecycle: "active",
         scope: { workspaceId: "workspace-reference" },
+        fields: [
+          { path: "pointer", equals: "docs/migration-runbook-v2.md" },
+          { path: "lifecycle", equals: "active" },
+          { path: "workspaceId", equals: "workspace-reference" },
+        ],
       },
     ],
     expectedRecalled: [
       {
         collection: "references",
-        includes: "docs/migration-runbook-v2.md",
+        fields: [
+          { path: "pointer", equals: "docs/migration-runbook-v2.md" },
+          { path: "lifecycle", equals: "active" },
+        ],
       },
     ],
-    expectedContextSnippets: [
-      "docs/migration-runbook-v2.md",
+    expectedContext: [
+      {
+        path: "References",
+        hasEntries: ["migration-runbook-v2.md (docs/migration-runbook-v2.md)"],
+        lacksEntries: ["migration-runbook-v1.md (docs/migration-runbook-v1.md)"],
+      },
     ],
-    forbiddenContextSnippets: [
-      "docs/migration-runbook-v1.md",
+    expectedAnswer: [
+      {
+        path: "referencePointers",
+        hasEntries: ["docs/migration-runbook-v2.md"],
+        lacksEntries: ["docs/migration-runbook-v1.md"],
+      },
     ],
-    expectedAnswer: {
-      includes: [
-        "docs/migration-runbook-v2.md",
-      ],
-      excludes: [
-        "docs/migration-runbook-v1.md",
-      ],
-    },
   },
   confirmationFeedback: {
     id: "confirmation-feedback",
@@ -280,31 +354,61 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     expectedRemembered: [
       {
         collection: "feedback",
-        includes: "concise and action oriented",
         scope: { workspaceId: "workspace-feedback" },
+        fields: [
+          { path: "rule", equals: "Please keep answers concise and action-oriented." },
+          { path: "workspaceId", equals: "workspace-feedback" },
+          { path: "lifecycle", equals: "active" },
+        ],
       },
       {
         collection: "feedback",
-        includes: "concise bullet point summary worked well",
         scope: { workspaceId: "workspace-feedback" },
+        fields: [
+          {
+            path: "rule",
+            equals: "The concise bullet-point summary worked well. Keep using that format.",
+          },
+          { path: "workspaceId", equals: "workspace-feedback" },
+          { path: "lifecycle", equals: "active" },
+        ],
       },
     ],
     expectedRecalled: [
       {
         collection: "feedback",
-        includes: "concise",
+        fields: [
+          { path: "rule", equals: "Please keep answers concise and action-oriented." },
+        ],
+      },
+      {
+        collection: "feedback",
+        fields: [
+          {
+            path: "rule",
+            equals: "The concise bullet-point summary worked well. Keep using that format.",
+          },
+        ],
       },
     ],
-    expectedContextSnippets: [
-      "concise",
-      "bullet point",
+    expectedContext: [
+      {
+        path: "Procedural Memory",
+        hasEntries: [
+          "Please keep answers concise and action-oriented.",
+          "The concise bullet-point summary worked well. Keep using that format.",
+        ],
+      },
     ],
-    expectedAnswer: {
-      includes: [
-        "concise",
-        "bullet point",
-      ],
-    },
+    expectedAnswer: [
+      {
+        path: "feedbackRules",
+        hasEntries: [
+          "Please keep answers concise and action-oriented.",
+          "The concise bullet-point summary worked well. Keep using that format.",
+        ],
+      },
+    ],
   },
   longLifecycleChange: {
     id: "long-lifecycle-change",
@@ -366,46 +470,75 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     expectedRemembered: [
       {
         collection: "facts",
-        includes: "frontend engineer shipping the design system",
         scope: { workspaceId: "workspace-long" },
+        fields: [
+          { path: "content", equals: "I am a frontend engineer shipping the design system." },
+          { path: "workspaceId", equals: "workspace-long" },
+        ],
       },
       {
         collection: "facts",
-        includes: "staff platform engineer role leading runtime reliability",
         scope: { workspaceId: "workspace-long" },
+        fields: [
+          {
+            path: "content",
+            equals: "I have now moved into a staff platform engineer role leading runtime reliability.",
+          },
+          { path: "workspaceId", equals: "workspace-long" },
+        ],
       },
       {
         collection: "facts",
-        includes: "current focus is runtime reliability and platform migration",
         scope: { workspaceId: "workspace-long" },
+        fields: [
+          {
+            path: "content",
+            equals: "my current focus is runtime reliability and platform migration, not the old component backlog.",
+          },
+          { path: "workspaceId", equals: "workspace-long" },
+        ],
       },
     ],
     expectedRecalled: [
       {
         collection: "facts",
-        includes: "staff platform engineer role leading runtime reliability",
+        fields: [
+          {
+            path: "content",
+            equals: "I have now moved into a staff platform engineer role leading runtime reliability.",
+          },
+        ],
       },
       {
         collection: "facts",
-        includes: "current focus is runtime reliability and platform migration",
+        fields: [
+          {
+            path: "content",
+            equals: "my current focus is runtime reliability and platform migration, not the old component backlog.",
+          },
+        ],
       },
     ],
-    expectedContextSnippets: [
-      "staff platform engineer role leading runtime reliability",
-      "current focus is runtime reliability and platform migration",
+    expectedContext: [
+      {
+        path: "Facts",
+        hasEntries: [
+          "my current focus is runtime reliability and platform migration, not the old component backlog.",
+          "I have now moved into a staff platform engineer role leading runtime reliability.",
+        ],
+        lacksEntries: ["I am a frontend engineer shipping the design system."],
+      },
     ],
-    forbiddenContextSnippets: [
-      "frontend engineer shipping the design system",
+    expectedAnswer: [
+      {
+        path: "factEntries",
+        hasEntries: [
+          "my current focus is runtime reliability and platform migration, not the old component backlog.",
+          "I have now moved into a staff platform engineer role leading runtime reliability.",
+        ],
+        lacksEntries: ["I am a frontend engineer shipping the design system."],
+      },
     ],
-    expectedAnswer: {
-      includes: [
-        "staff platform engineer role leading runtime reliability",
-        "current focus is runtime reliability and platform migration",
-      ],
-      excludes: [
-        "frontend engineer shipping the design system",
-      ],
-    },
   },
   scopeIsolation: {
     id: "scope-isolation",
@@ -442,36 +575,45 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     expectedRemembered: [
       {
         collection: "references",
-        includes: "docs/payments-runbook.md",
-        lifecycle: "active",
         scope: { workspaceId: "workspace-a" },
+        fields: [
+          { path: "pointer", equals: "docs/payments-runbook.md" },
+          { path: "workspaceId", equals: "workspace-a" },
+          { path: "lifecycle", equals: "active" },
+        ],
       },
       {
         collection: "references",
-        includes: "docs/runtime-runbook.md",
-        lifecycle: "active",
         scope: { workspaceId: "workspace-b" },
+        fields: [
+          { path: "pointer", equals: "docs/runtime-runbook.md" },
+          { path: "workspaceId", equals: "workspace-b" },
+          { path: "lifecycle", equals: "active" },
+        ],
       },
     ],
     expectedRecalled: [
       {
         collection: "references",
-        includes: "docs/runtime-runbook.md",
+        fields: [
+          { path: "pointer", equals: "docs/runtime-runbook.md" },
+          { path: "lifecycle", equals: "active" },
+        ],
       },
     ],
-    expectedContextSnippets: [
-      "docs/runtime-runbook.md",
+    expectedContext: [
+      {
+        path: "References",
+        hasEntries: ["runtime-runbook.md (docs/runtime-runbook.md)"],
+        lacksEntries: ["payments-runbook.md (docs/payments-runbook.md)"],
+      },
     ],
-    forbiddenContextSnippets: [
-      "docs/payments-runbook.md",
+    expectedAnswer: [
+      {
+        path: "referencePointers",
+        hasEntries: ["docs/runtime-runbook.md"],
+        lacksEntries: ["docs/payments-runbook.md"],
+      },
     ],
-    expectedAnswer: {
-      includes: [
-        "docs/runtime-runbook.md",
-      ],
-      excludes: [
-        "docs/payments-runbook.md",
-      ],
-    },
   },
 };

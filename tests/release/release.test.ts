@@ -20,6 +20,11 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
       "bun run examples/coding-agent.ts",
     );
+    expect(pkg.scripts?.test).toBe("bun test");
+    expect(pkg.scripts?.["test:all"]).toBe("bun --config=bunfig.all.toml test tests third-party");
+    expect(pkg.scripts?.["test:coverage"]).toBe(
+      "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text && bun run scripts/check-coverage.ts",
+    );
     expect(pkg.scripts?.["eval:smoke"]).toBe("bun run scripts/run-eval.ts --mode=smoke");
     expect(pkg.scripts?.["eval:fallback"]).toBe("bun run scripts/run-eval.ts --mode=fallback");
     expect(pkg.scripts?.["eval:live"]).toBe("bun run scripts/run-eval.ts --mode=live");
@@ -37,6 +42,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("GoodMemory-OSS-Architecture-v1.md");
     expect(readme).toContain("GoodMemory-PRD.md");
     expect(readme).toContain("GoodMemory-TDD-and-Evaluation-Strategy.md");
+    expect(readme).toContain("bun run test:coverage");
+    expect(readme).toContain("bun run test:all");
     expect(readme).toContain("eval:fallback");
     expect(readme).toContain("eval:live");
     expect(readme).not.toContain("eval:full");
@@ -52,7 +59,19 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("Examples");
     expect(checklist).toContain("Eval");
     expect(checklist).toContain("Quality Gate");
+    expect(checklist).toContain("bun test");
+    expect(checklist).toContain("bun run test:coverage");
     expect(checklist).toContain("eval:live");
     expect(checklist).not.toContain("eval:full");
+  });
+
+  it("bun test discovery is pinned to the repository test tree", async () => {
+    const bunfig = await readFile(join(import.meta.dir, "../../bunfig.toml"), "utf8");
+    const allBunfig = await readFile(join(import.meta.dir, "../../bunfig.all.toml"), "utf8");
+
+    expect(bunfig).toContain('[test]');
+    expect(bunfig).toContain('root = "tests"');
+    expect(allBunfig).toContain('[test]');
+    expect(allBunfig).toContain('root = "."');
   });
 });

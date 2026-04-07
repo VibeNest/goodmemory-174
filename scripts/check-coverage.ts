@@ -1,19 +1,36 @@
 import { readFile } from "node:fs/promises";
 import { relative } from "node:path";
 
-interface CoverageRecord {
+export interface CoverageRecord {
   path: string;
   covered: number;
   found: number;
 }
 
-interface ThresholdGroup {
+export interface ThresholdGroup {
   name: string;
   threshold: number;
   matches: (path: string) => boolean;
 }
 
-const GROUPS: ThresholdGroup[] = [
+export interface CoverageResult {
+  overall: {
+    covered: number;
+    found: number;
+    percent: number;
+  };
+  groups: Array<{
+    name: string;
+    threshold: number;
+    covered: number;
+    found: number;
+    percent: number;
+    matchedCount: number;
+  }>;
+  failures: string[];
+}
+
+export const GROUPS: ThresholdGroup[] = [
   {
     name: "src/domain",
     threshold: 90,
@@ -64,14 +81,19 @@ const GROUPS: ThresholdGroup[] = [
     threshold: 80,
     matches: (path) => path === "scripts/run-eval.ts",
   },
+  {
+    name: "scripts/summarize-eval.ts",
+    threshold: 80,
+    matches: (path) => path === "scripts/summarize-eval.ts",
+  },
 ];
 
-function normalizeCoveragePath(value: string): string {
+export function normalizeCoveragePath(value: string): string {
   const path = relative(process.cwd(), value).replaceAll("\\", "/");
   return path.startsWith("../") ? value.replaceAll("\\", "/") : path;
 }
 
-function parseLcov(content: string): CoverageRecord[] {
+export function parseLcov(content: string): CoverageRecord[] {
   const records: CoverageRecord[] = [];
   let currentPath: string | null = null;
   let currentCovered = 0;
@@ -113,7 +135,7 @@ function parseLcov(content: string): CoverageRecord[] {
   return records;
 }
 
-function formatPercent(covered: number, found: number): string {
+export function formatPercent(covered: number, found: number): string {
   if (found === 0) {
     return "0.00";
   }
@@ -121,19 +143,20 @@ function formatPercent(covered: number, found: number): string {
   return ((covered / found) * 100).toFixed(2);
 }
 
-function resolveOverallRecords(records: CoverageRecord[]): CoverageRecord[] {
+export function resolveOverallRecords(records: CoverageRecord[]): CoverageRecord[] {
   return records.filter((record) => {
     if (record.path.startsWith("src/")) {
       return true;
     }
 
-    return record.path === "scripts/run-eval.ts";
+    return (
+      record.path === "scripts/run-eval.ts" ||
+      record.path === "scripts/summarize-eval.ts"
+    );
   });
 }
 
-async function main(): Promise<void> {
-  const raw = await readFile("coverage/lcov.info", "utf8");
-  const records = parseLcov(raw);
+export function evaluateCoverage(records: CoverageRecord[]): CoverageResult {
   const failures: string[] = [];
 
   const overallRecords = resolveOverallRecords(records);
@@ -141,34 +164,71 @@ async function main(): Promise<void> {
   const overallFound = overallRecords.reduce((sum, record) => sum + record.found, 0);
   const overallPercent = Number(formatPercent(overallCovered, overallFound));
 
-  console.log(`Coverage overall: ${overallPercent.toFixed(2)}% (${overallCovered}/${overallFound})`);
   if (overallPercent < 93) {
     failures.push(`overall deterministic line coverage ${overallPercent.toFixed(2)}% < 93.00%`);
   }
 
-  for (const group of GROUPS) {
+  const groups = GROUPS.map((group) => {
     const matched = records.filter((record) => group.matches(record.path));
     const covered = matched.reduce((sum, record) => sum + record.covered, 0);
     const found = matched.reduce((sum, record) => sum + record.found, 0);
     const percent = Number(formatPercent(covered, found));
 
-    console.log(`${group.name}: ${percent.toFixed(2)}% (${covered}/${found})`);
-
     if (matched.length === 0) {
       failures.push(`coverage group ${group.name} did not match any files`);
-      continue;
-    }
-
-    if (percent < group.threshold) {
+    } else if (percent < group.threshold) {
       failures.push(
         `${group.name} line coverage ${percent.toFixed(2)}% < ${group.threshold.toFixed(2)}%`,
       );
     }
-  }
 
-  if (failures.length > 0) {
-    throw new Error(`Coverage gate failed:\n- ${failures.join("\n- ")}`);
+    return {
+      name: group.name,
+      threshold: group.threshold,
+      covered,
+      found,
+      percent,
+      matchedCount: matched.length,
+    };
+  });
+
+  return {
+    overall: {
+      covered: overallCovered,
+      found: overallFound,
+      percent: overallPercent,
+    },
+    groups,
+    failures,
+  };
+}
+
+export async function readCoverageRecords(filePath = "coverage/lcov.info"): Promise<CoverageRecord[]> {
+  const raw = await readFile(filePath, "utf8");
+  return parseLcov(raw);
+}
+
+function logCoverageReport(result: CoverageResult): void {
+  console.log(
+    `Coverage overall: ${result.overall.percent.toFixed(2)}% (${result.overall.covered}/${result.overall.found})`,
+  );
+
+  for (const group of result.groups) {
+    console.log(`${group.name}: ${group.percent.toFixed(2)}% (${group.covered}/${group.found})`);
   }
 }
 
-await main();
+async function main(): Promise<void> {
+  const records = await readCoverageRecords();
+  const result = evaluateCoverage(records);
+
+  logCoverageReport(result);
+
+  if (result.failures.length > 0) {
+    throw new Error(`Coverage gate failed:\n- ${result.failures.join("\n- ")}`);
+  }
+}
+
+if (import.meta.main) {
+  await main();
+}

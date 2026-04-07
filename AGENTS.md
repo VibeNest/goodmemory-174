@@ -4,7 +4,8 @@
 `src/` contains the library code, organized by capability: `domain/` for core types and rules, `remember/` and `recall/` for memory pipelines, `runtime/` and `maintenance/` for context management, `storage/` for providers, `verify/` for policy checks, and `eval/` for scoring/reporting. `src/index.ts` is the public API surface. `tests/` mirrors the runtime layers with `unit/`, `integration/`, `scenarios/`, and `eval/`. `fixtures/` stores persona and scenario JSON, `scripts/` holds developer utilities, and `docs/`, `adr/`, and `task-board/` are the architecture source of truth. `reports/eval/` is generated output; only commit it when you are intentionally updating eval artifacts.
 
 ## Build, Test, and Development Commands
-- `bun test`: run the full test suite.
+- `bun test`: run the canonical repository test suite under `tests/` (same red/green path as CI).
+- `bun run test:all`: sweep `tests/` plus vendored/third-party test trees with the broad-root Bun config when you intentionally want the broader pass.
 - `bun test --watch`: rerun tests during local development.
 - `bun run typecheck`: run strict TypeScript checks with `tsc --noEmit`.
 - `bun run eval:smoke`: verify eval wiring without live model calls.

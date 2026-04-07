@@ -5,8 +5,8 @@ Generated at: `2026-04-02 23:35:11 +0800`
 ## Commands Run
 
 ```bash
-bun test tests/cli tests/examples tests/eval tests/unit/persona.dataset.test.ts tests/unit/scenario.dataset.test.ts tests/scenarios/replay.smoke.test.ts
-bun test tests/integration/governance.api.test.ts tests/unit/governance.policy.test.ts tests/eval/runners.test.ts tests/cli/cli.test.ts
+bun test
+bun run test:coverage
 bun run typecheck
 bun run cli -- inspect --run-dir <latest-fallback-run-dir> --case-id <latest-case-id>
 bun run cli -- trace --run-dir <latest-fallback-run-dir> --case-id <latest-case-id>
@@ -31,6 +31,8 @@ bun run eval:fallback -- --limit=1 --scenario-id=<scenario-id>
 ## Scope Notes
 
 - This quality gate intentionally focused on Phase 9 through Phase 13 deliverables.
+- `bun test` is the canonical local/CI red-green path and is intentionally scoped to `tests/`.
+- `bun run test:all` remains available for broader vendor-tree sweeps, but it is not the default merge gate.
 - Postgres / pgvector environment-dependent validation remains owner-managed and is not part of this gate.
 
 ## Latest Eval Artifacts

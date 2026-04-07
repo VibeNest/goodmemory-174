@@ -13,7 +13,7 @@ interface EvalSummary {
   uplift: Record<string, number | undefined>;
 }
 
-interface EvalReport {
+export interface EvalReport {
   mode: PersistedEvalMode;
   runId: string;
   summary: EvalSummary;
@@ -63,17 +63,31 @@ export async function resolveRunDirectoryFromArgv(argv: string[]): Promise<strin
   return join(outputDir, latest);
 }
 
-async function main(): Promise<void> {
-  const runDirectory = await resolveRunDirectoryFromArgv(process.argv);
-  const report = JSON.parse(
+export async function loadEvalReport(runDirectory: string): Promise<EvalReport> {
+  return JSON.parse(
     await readFile(join(runDirectory, "report.json"), "utf8"),
   ) as EvalReport;
+}
+
+export async function collectTopFailurePaths(
+  runDirectory: string,
+  limit = 5,
+): Promise<string[]> {
   const failuresDir = join(runDirectory, "failures");
   const failureFiles = await readdir(failuresDir).catch(() => []);
-  const topFailures = failureFiles
+
+  return failureFiles
     .filter((name) => name.endsWith(".json") && name !== "summary.json")
     .sort()
-    .slice(0, 5);
+    .slice(0, limit)
+    .map((name) => join(runDirectory, "failures", name));
+}
+
+export function formatEvalSummary(report: EvalReport, topFailures: string[]): string {
+  const overallIdentity = report.summary.uplift.identity_understanding?.toFixed(2) ?? "n/a";
+  const overallHistory = report.summary.uplift.history_continuation?.toFixed(2) ?? "n/a";
+  const overallFactual = report.summary.uplift.factual_alignment?.toFixed(2) ?? "n/a";
+  const overallRelevance = report.summary.uplift.relevance?.toFixed(2) ?? "n/a";
 
   const lines = [
     `# Eval Summary`,
@@ -86,14 +100,28 @@ async function main(): Promise<void> {
     `- Overall uplift: identity ${report.summary.uplift.identity_understanding?.toFixed(2) ?? "n/a"}, history ${report.summary.uplift.history_continuation?.toFixed(2) ?? "n/a"}, factual ${report.summary.uplift.factual_alignment?.toFixed(2) ?? "n/a"}, relevance ${report.summary.uplift.relevance?.toFixed(2) ?? "n/a"}`,
     ``,
     `## Failure Paths`,
-    ...(topFailures.length > 0
-      ? topFailures.map((name) => `- \`${join(runDirectory, "failures", name)}\``)
-      : ["- none"]),
+    ...(topFailures.length > 0 ? topFailures.map((path) => `- \`${path}\``) : ["- none"]),
   ];
 
-  console.log(lines.join("\n"));
+  return lines.join("\n");
+}
+
+export async function summarizeRunDirectory(runDirectory: string): Promise<string> {
+  const report = await loadEvalReport(runDirectory);
+  const topFailures = await collectTopFailurePaths(runDirectory);
+  return formatEvalSummary(report, topFailures);
+}
+
+export async function runSummaryFromArgv(
+  argv: string[],
+  write: (summary: string) => void = console.log,
+): Promise<string> {
+  const runDirectory = await resolveRunDirectoryFromArgv(argv);
+  const summary = await summarizeRunDirectory(runDirectory);
+  write(summary);
+  return summary;
 }
 
 if (import.meta.main) {
-  await main();
+  await runSummaryFromArgv(process.argv);
 }

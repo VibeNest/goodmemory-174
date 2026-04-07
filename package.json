@@ -13,11 +13,12 @@
   },
   "scripts": {
     "test": "bun test",
+    "test:all": "bun --config=bunfig.all.toml test tests third-party",
     "test:unit": "bun test tests/unit",
     "test:integration": "bun test tests/integration",
     "test:scenarios": "bun test tests/scenarios",
     "test:eval": "bun test tests/eval",
-    "test:coverage": "bun test tests/unit tests/integration tests/scenarios tests/eval --coverage --coverage-reporter=lcov --coverage-reporter=text && bun run scripts/check-coverage.ts",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text && bun run scripts/check-coverage.ts",
     "test:ci": "bun run typecheck && bun run test:coverage",
     "test:watch": "bun test --watch",
     "typecheck": "bunx tsc --noEmit",

@@ -35,9 +35,8 @@
 
 ## Quality Gate
 
-- unit tests pass
-- integration tests pass
-- scenario tests pass
+- `bun test` passes on the canonical `tests/` suite
+- `bun run test:coverage` passes and enforces script/source coverage gates
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
