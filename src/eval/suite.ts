@@ -88,6 +88,19 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
 
   const selectedCases = resolveCases(personas, scenarios, input.scenarioIds, input.limit);
   const judgedCases: JudgedEvalCase[] = [];
+  const runId = input.runId ?? `run-${Date.now()}`;
+  const runtime = input.runtime ?? {
+    generationMode: input.mode,
+    judgeMode: input.mode,
+  };
+  const initialArtifacts = await persistEvalArtifacts({
+    mode: input.mode,
+    outputDir: input.outputDir,
+    runId,
+    cases: judgedCases,
+    summary: aggregateJudgedCases(judgedCases),
+    runtime,
+  });
 
   for (const { persona, scenario } of selectedCases) {
     const memory =
@@ -128,27 +141,23 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
       judge,
       assertions,
     });
+
+    await persistEvalArtifacts({
+      mode: input.mode,
+      outputDir: input.outputDir,
+      runId,
+      cases: judgedCases,
+      summary: aggregateJudgedCases(judgedCases),
+      runtime,
+    });
   }
 
   const summary = aggregateJudgedCases(judgedCases);
-  const runId = input.runId ?? `run-${Date.now()}`;
-  const runtime = input.runtime ?? {
-    generationMode: input.mode,
-    judgeMode: input.mode,
-  };
-  const artifacts = await persistEvalArtifacts({
-    mode: input.mode,
-    outputDir: input.outputDir,
-    runId,
-    cases: judgedCases,
-    summary,
-    runtime,
-  });
 
   return {
     mode: input.mode,
     runId,
-    runDirectory: artifacts.runDirectory,
+    runDirectory: initialArtifacts.runDirectory,
     summary,
     runtime,
     cases: judgedCases,

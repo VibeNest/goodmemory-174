@@ -53,6 +53,7 @@ function isNegatedOccurrence(
     /^\s*shouldn['’]?t\b/.test(suffix) ||
     /^\s*mustn['’]?t\b/.test(suffix) ||
     /^\s*is\s+deprecated\b/.test(suffix) ||
+    /^\s*is\s+now\s+outdated\b/.test(suffix) ||
     /^\s*is\s+outdated\b/.test(suffix) ||
     /^\s*is\s+not\s+the\s+source\s+of\s+truth\b/.test(suffix) ||
     /no\s+longer\s+the\s+source\s+of\s+truth\b/.test(suffix) ||

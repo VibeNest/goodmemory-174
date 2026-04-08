@@ -31,4 +31,13 @@ describe("eval signal matching", () => {
       "robotics engineer",
     ]);
   });
+
+  it("treats 'is now outdated' stale-reference phrasing as negated", () => {
+    const text = "docs/runbook-v1.md is now outdated.";
+
+    expect(findAffirmedSignals(["docs/runbook-v1.md"], text)).toEqual([]);
+    expect(findNegatedSignals(["docs/runbook-v1.md"], text)).toEqual([
+      "docs/runbook-v1.md",
+    ]);
+  });
 });

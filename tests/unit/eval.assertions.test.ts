@@ -258,6 +258,24 @@ describe("eval assertions", () => {
     ).toBe(false);
   });
 
+  it("does not fail stale suppression when the stale reference is marked as now outdated", () => {
+    const answer = buildGoodmemoryAnswer();
+    answer.answer = [
+      "Use docs/runbook-v2.md.",
+      "docs/runbook-v1.md is now outdated.",
+      "Vendor approval is still the blocker.",
+    ].join(" ");
+
+    const result = evaluateScenarioAssertions({
+      scenario: buildScenario(),
+      goodmemory: answer,
+    });
+
+    expect(
+      result.checks.find((check) => check.id === "stale_suppression_absent")?.passed,
+    ).toBe(true);
+  });
+
   it("does not count negated required signals as present", () => {
     const answer = buildGoodmemoryAnswer();
     answer.answer = [
