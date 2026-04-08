@@ -39,6 +39,7 @@ export interface EvalSuiteInput {
   }) => GoodMemory;
   runId?: string;
   runtime?: EvalRuntimeMetadata;
+  maxConcurrency?: number;
 }
 
 export interface EvalSuiteResult {
@@ -54,6 +55,75 @@ function defaultCreateMemory(): GoodMemory {
   return createGoodMemory({
     storage: { provider: "memory" },
   });
+}
+
+function resolveMaxConcurrency(
+  mode: PersistedEvalMode,
+  totalCases: number,
+  requested?: number,
+): number {
+  if (totalCases <= 0) {
+    return 1;
+  }
+
+  if (typeof requested === "number" && Number.isFinite(requested)) {
+    return Math.max(1, Math.min(Math.floor(requested), totalCases));
+  }
+
+  if (mode === "live") {
+    return Math.min(4, totalCases);
+  }
+
+  return 1;
+}
+
+async function evaluateCase(input: {
+  persona: PersonaSpec;
+  scenario: ScenarioFixture;
+  createMemory?: EvalSuiteInput["createMemory"];
+  baselineGenerator: EvalAnswerGenerator;
+  goodmemoryGenerator: EvalAnswerGenerator;
+  judge: JudgeModel;
+}): Promise<JudgedEvalCase> {
+  const memory =
+    input.createMemory?.({ persona: input.persona, scenario: input.scenario }) ??
+    defaultCreateMemory();
+  const baseline = await runBaselineScenario({
+    persona: input.persona,
+    scenario: input.scenario,
+    answerGenerator: input.baselineGenerator,
+  });
+  const goodmemory = await runGoodMemoryScenario({
+    memory,
+    persona: input.persona,
+    scenario: input.scenario,
+    answerGenerator: input.goodmemoryGenerator,
+  });
+  const judge = await runJudgeComparison({
+    persona: input.persona,
+    scenario: input.scenario,
+    baseline,
+    goodmemory,
+    judge: input.judge,
+  });
+  const assertions = evaluateScenarioAssertions({
+    scenario: input.scenario,
+    goodmemory,
+  });
+
+  return {
+    caseId: input.scenario.scenario_id,
+    metadata: {
+      taskFamily: input.scenario.task_family,
+      targetDomain: input.scenario.domain,
+      memorySourceDomains: input.scenario.memory_source_domains,
+      evaluationSetting: input.scenario.evaluation_setting,
+    },
+    baseline,
+    goodmemory,
+    judge,
+    assertions,
+  };
 }
 
 function resolveCases(
@@ -87,7 +157,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   validateScenarioDatasetLinks(personas, scenarios);
 
   const selectedCases = resolveCases(personas, scenarios, input.scenarioIds, input.limit);
-  const judgedCases: JudgedEvalCase[] = [];
+  const judgedCases = new Array<JudgedEvalCase | undefined>(selectedCases.length);
   const runId = input.runId ?? `run-${Date.now()}`;
   const runtime = input.runtime ?? {
     generationMode: input.mode,
@@ -97,62 +167,80 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
     mode: input.mode,
     outputDir: input.outputDir,
     runId,
-    cases: judgedCases,
-    summary: aggregateJudgedCases(judgedCases),
+    cases: [],
+    summary: aggregateJudgedCases([]),
     runtime,
   });
+  const maxConcurrency = resolveMaxConcurrency(
+    input.mode,
+    selectedCases.length,
+    input.maxConcurrency,
+  );
+  let nextCaseIndex = 0;
+  let firstError: unknown;
+  let persistQueue = Promise.resolve();
 
-  for (const { persona, scenario } of selectedCases) {
-    const memory =
-      input.createMemory?.({ persona, scenario }) ?? defaultCreateMemory();
-    const baseline = await runBaselineScenario({
-      persona,
-      scenario,
-      answerGenerator: input.baselineGenerator,
-    });
-    const goodmemory = await runGoodMemoryScenario({
-      memory,
-      persona,
-      scenario,
-      answerGenerator: input.goodmemoryGenerator,
-    });
-    const judge = await runJudgeComparison({
-      persona,
-      scenario,
-      baseline,
-      goodmemory,
-      judge: input.judge,
-    });
-    const assertions = evaluateScenarioAssertions({
-      scenario,
-      goodmemory,
-    });
+  const persistCurrentState = () => {
+    const completedCases = judgedCases.filter(
+      (item): item is JudgedEvalCase => item !== undefined,
+    );
 
-    judgedCases.push({
-      caseId: scenario.scenario_id,
-      metadata: {
-        taskFamily: scenario.task_family,
-        targetDomain: scenario.domain,
-        memorySourceDomains: scenario.memory_source_domains,
-        evaluationSetting: scenario.evaluation_setting,
-      },
-      baseline,
-      goodmemory,
-      judge,
-      assertions,
-    });
+    persistQueue = persistQueue.then(() =>
+      persistEvalArtifacts({
+        mode: input.mode,
+        outputDir: input.outputDir,
+        runId,
+        cases: completedCases,
+        summary: aggregateJudgedCases(completedCases),
+        runtime,
+      }).then(() => undefined),
+    );
 
-    await persistEvalArtifacts({
-      mode: input.mode,
-      outputDir: input.outputDir,
-      runId,
-      cases: judgedCases,
-      summary: aggregateJudgedCases(judgedCases),
-      runtime,
-    });
+    return persistQueue;
+  };
+
+  const runWorker = async () => {
+    while (firstError === undefined) {
+      const currentIndex = nextCaseIndex;
+      nextCaseIndex += 1;
+
+      if (currentIndex >= selectedCases.length) {
+        return;
+      }
+
+      const { persona, scenario } = selectedCases[currentIndex]!;
+
+      try {
+        const judgedCase = await evaluateCase({
+          persona,
+          scenario,
+          createMemory: input.createMemory,
+          baselineGenerator: input.baselineGenerator,
+          goodmemoryGenerator: input.goodmemoryGenerator,
+          judge: input.judge,
+        });
+        judgedCases[currentIndex] = judgedCase;
+        persistCurrentState();
+      } catch (error) {
+        firstError = error;
+        return;
+      }
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: maxConcurrency }, () => runWorker()),
+  );
+  await persistQueue;
+
+  if (firstError !== undefined) {
+    throw firstError;
   }
 
-  const summary = aggregateJudgedCases(judgedCases);
+  const completedCases = judgedCases.filter(
+    (item): item is JudgedEvalCase => item !== undefined,
+  );
+  const summary = aggregateJudgedCases(completedCases);
 
   return {
     mode: input.mode,
@@ -160,6 +248,6 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
     runDirectory: initialArtifacts.runDirectory,
     summary,
     runtime,
-    cases: judgedCases,
+    cases: completedCases,
   };
 }

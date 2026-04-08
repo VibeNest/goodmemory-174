@@ -176,4 +176,130 @@ describe("eval suite", () => {
       await workspace.cleanup();
     }
   });
+
+  it("runs live cases concurrently instead of serializing all baseline calls", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-concurrency");
+    let releaseBaseline!: () => void;
+    const baselineGate = new Promise<void>((resolve) => {
+      releaseBaseline = resolve;
+    });
+    let activeBaselines = 0;
+    let maxActiveBaselines = 0;
+
+    try {
+      const runPromise = runEvalSuite({
+        mode: "live",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01", "scenario-complex-02"],
+        baselineGenerator: async () => {
+          activeBaselines += 1;
+          maxActiveBaselines = Math.max(maxActiveBaselines, activeBaselines);
+          await baselineGate;
+          activeBaselines -= 1;
+          return {
+            content: "baseline",
+          };
+        },
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 9,
+                cross_domain_transfer: 8,
+                contamination_penalty: 9,
+                update_correctness: 9,
+                personalization_usefulness: 9,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 4,
+                cross_domain_transfer: 4,
+                contamination_penalty: 5,
+                update_correctness: 4,
+                personalization_usefulness: 4,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 9,
+                cross_domain_transfer: 8,
+                contamination_penalty: 9,
+                update_correctness: 9,
+                personalization_usefulness: 9,
+                provenance_explainability: 8,
+              },
+              reasoning: "First case completed.",
+              failure_tags: [],
+            }),
+          },
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 9,
+                cross_domain_transfer: 8,
+                contamination_penalty: 9,
+                update_correctness: 9,
+                personalization_usefulness: 9,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 4,
+                cross_domain_transfer: 4,
+                contamination_penalty: 5,
+                update_correctness: 4,
+                personalization_usefulness: 4,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 9,
+                cross_domain_transfer: 8,
+                contamination_penalty: 9,
+                update_correctness: 9,
+                personalization_usefulness: 9,
+                provenance_explainability: 8,
+              },
+              reasoning: "Second case completed.",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      const parallelObserved = await Promise.race([
+        new Promise<boolean>((resolve) => {
+          const interval = setInterval(() => {
+            if (maxActiveBaselines >= 2) {
+              clearInterval(interval);
+              resolve(true);
+            }
+          }, 1);
+          setTimeout(() => {
+            clearInterval(interval);
+            resolve(false);
+          }, 100);
+        }),
+      ]);
+
+      releaseBaseline();
+      const result = await runPromise;
+
+      expect(parallelObserved).toBe(true);
+      expect(maxActiveBaselines).toBe(2);
+      expect(result.summary.totalCases).toBe(2);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
 });
