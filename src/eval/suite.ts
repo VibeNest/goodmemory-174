@@ -1,4 +1,5 @@
 import { createGoodMemory, type GoodMemory } from "../index";
+import { evaluateScenarioAssertions } from "./assertions";
 import {
   listPersonaSpecs,
   listScenarioFixtures,
@@ -109,12 +110,23 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
       goodmemory,
       judge: input.judge,
     });
+    const assertions = evaluateScenarioAssertions({
+      scenario,
+      goodmemory,
+    });
 
     judgedCases.push({
       caseId: scenario.scenario_id,
+      metadata: {
+        taskFamily: scenario.task_family,
+        targetDomain: scenario.domain,
+        memorySourceDomains: scenario.memory_source_domains,
+        evaluationSetting: scenario.evaluation_setting,
+      },
       baseline,
       goodmemory,
       judge,
+      assertions,
     });
   }
 

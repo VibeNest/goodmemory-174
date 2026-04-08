@@ -35,6 +35,27 @@
     "Project details for workflow reliability dashboard may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "productivity",
+    "entertainment",
+    "education"
+  ],
+  "stable_preferences": [
+    "structured outlines",
+    "prototype before polish"
+  ],
+  "domain_specific_preferences": [
+    "entertainment: avoid irrelevant carry-over from hobby preferences",
+    "education: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while workflow reliability dashboard progresses.",
+    "Outdated references or priorities may need explicit override for workflow reliability dashboard."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply entertainment: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for workflow reliability dashboard."
+  ],
   "lifecycle_bucket": "medium",
   "scenario_ids": [
     "scenario-medium-23"

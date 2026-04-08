@@ -2,6 +2,12 @@
   "scenario_id": "scenario-long-04",
   "persona_id": "long-04",
   "lifecycle_bucket": "long",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "health",
+  "memory_source_domains": [
+    "health"
+  ],
+  "evaluation_setting": "single_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -144,6 +150,25 @@
       "final reliability signoff for knowledge base overhaul",
       "knowledge base overhaul"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by preferring the user's current role and focus, using the corrected runbook, and resuming the unresolved long-lived open loop."
+    "expected_transfer_signals": [
+      "short status updates"
+    ],
+    "expected_non_transfer_signals": [
+      "home: avoid irrelevant carry-over from hobby preferences"
+    ],
+    "expected_update_wins": [
+      "staff platform engineer leading knowledge base overhaul",
+      "runtime reliability and platform migration for knowledge base overhaul",
+      "docs/knowledge-base-overhaul-runbook-v2.md"
+    ],
+    "expected_stale_suppression": [
+      "Operations manager",
+      "docs/knowledge-base-overhaul-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "Operations manager"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by preferring the user's current role and focus, using the corrected runbook, and resuming the unresolved long-lived open loop.",
+    "user_satisfaction_hypothesis": "The agent should reflect the user's newest role, focus, and corrected source of truth for knowledge base overhaul."
   }
 }

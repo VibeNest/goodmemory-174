@@ -35,6 +35,27 @@
     "Project details for release quality program may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "education",
+    "productivity",
+    "entertainment"
+  ],
+  "stable_preferences": [
+    "structured outlines",
+    "prototype before polish"
+  ],
+  "domain_specific_preferences": [
+    "productivity: avoid irrelevant carry-over from hobby preferences",
+    "entertainment: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while release quality program progresses.",
+    "Outdated references or priorities may need explicit override for release quality program."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply productivity: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for release quality program."
+  ],
   "lifecycle_bucket": "medium",
   "scenario_ids": [
     "scenario-medium-07"

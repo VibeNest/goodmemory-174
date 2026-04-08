@@ -18,6 +18,10 @@ function buildAnswerPackage(
     mode,
     personaId: "medium-01",
     scenarioId: "scenario-medium-01",
+    taskFamily: "preference_continuation",
+    targetDomain: "work_ops",
+    memorySourceDomains: ["work_ops"],
+    evaluationSetting: "single_domain",
     prompt: "Please confirm the updated runbook, my role, and the open loop.",
     transcript: "user: ...",
     memoryContext: mode === "goodmemory" ? "## References\n- runbook" : undefined,
@@ -54,22 +58,31 @@ describe("judge runner", () => {
         content: JSON.stringify({
           winner: "goodmemory",
           scores: {
-            identity_understanding: 9,
-            history_continuation: 9,
-            factual_alignment: 8,
-            relevance: 9,
+            factual_recall: 9,
+            preference_consistency: 9,
+            cross_domain_transfer: 8,
+            contamination_penalty: 9,
+            update_correctness: 9,
+            personalization_usefulness: 9,
+            provenance_explainability: 8,
           },
           baseline_scores: {
-            identity_understanding: 5,
-            history_continuation: 4,
-            factual_alignment: 6,
-            relevance: 6,
+            factual_recall: 6,
+            preference_consistency: 4,
+            cross_domain_transfer: 4,
+            contamination_penalty: 5,
+            update_correctness: 4,
+            personalization_usefulness: 4,
+            provenance_explainability: 5,
           },
           goodmemory_scores: {
-            identity_understanding: 9,
-            history_continuation: 9,
-            factual_alignment: 8,
-            relevance: 9,
+            factual_recall: 9,
+            preference_consistency: 9,
+            cross_domain_transfer: 8,
+            contamination_penalty: 9,
+            update_correctness: 9,
+            personalization_usefulness: 9,
+            provenance_explainability: 8,
           },
           reasoning: "GoodMemory used the corrected runbook and open loop.",
           failure_tags: [],
@@ -89,8 +102,8 @@ describe("judge runner", () => {
     });
 
     expect(result.winner).toBe("goodmemory");
-    expect(result.goodmemory_scores?.history_continuation).toBe(9);
-    expect(result.baseline_scores?.history_continuation).toBe(4);
+    expect(result.goodmemory_scores?.update_correctness).toBe(9);
+    expect(result.baseline_scores?.preference_consistency).toBe(4);
     expect(result.reasoning).toContain("corrected runbook");
   });
 });

@@ -11,6 +11,21 @@ interface EvalSummary {
     tie: number;
   };
   uplift: Record<string, number | undefined>;
+  layers?: {
+    uplift?: {
+      retrieval?: number;
+      personalization?: number;
+      runtime_governance?: number;
+    };
+  };
+  assertions?: {
+    totalCases?: number;
+    passingCases?: number;
+    totalChecks?: number;
+    passingChecks?: number;
+    contaminationFailures?: number;
+    updateFailures?: number;
+  };
 }
 
 export interface EvalReport {
@@ -84,11 +99,6 @@ export async function collectTopFailurePaths(
 }
 
 export function formatEvalSummary(report: EvalReport, topFailures: string[]): string {
-  const overallIdentity = report.summary.uplift.identity_understanding?.toFixed(2) ?? "n/a";
-  const overallHistory = report.summary.uplift.history_continuation?.toFixed(2) ?? "n/a";
-  const overallFactual = report.summary.uplift.factual_alignment?.toFixed(2) ?? "n/a";
-  const overallRelevance = report.summary.uplift.relevance?.toFixed(2) ?? "n/a";
-
   const lines = [
     `# Eval Summary`,
     ``,
@@ -97,7 +107,9 @@ export function formatEvalSummary(report: EvalReport, topFailures: string[]): st
     `- Runtime: generation=${report.runtime?.generationMode ?? "unknown"}, judge=${report.runtime?.judgeMode ?? "unknown"}`,
     `- Total cases: ${report.summary.totalCases}`,
     `- Winner counts: GoodMemory ${report.summary.winnerCounts.goodmemory}, Baseline ${report.summary.winnerCounts.baseline}, Tie ${report.summary.winnerCounts.tie}`,
-    `- Overall uplift: identity ${report.summary.uplift.identity_understanding?.toFixed(2) ?? "n/a"}, history ${report.summary.uplift.history_continuation?.toFixed(2) ?? "n/a"}, factual ${report.summary.uplift.factual_alignment?.toFixed(2) ?? "n/a"}, relevance ${report.summary.uplift.relevance?.toFixed(2) ?? "n/a"}`,
+    `- Overall uplift: factual ${report.summary.uplift.factual_recall?.toFixed(2) ?? "n/a"}, preference ${report.summary.uplift.preference_consistency?.toFixed(2) ?? "n/a"}, transfer ${report.summary.uplift.cross_domain_transfer?.toFixed(2) ?? "n/a"}, contamination ${report.summary.uplift.contamination_penalty?.toFixed(2) ?? "n/a"}, update ${report.summary.uplift.update_correctness?.toFixed(2) ?? "n/a"}, usefulness ${report.summary.uplift.personalization_usefulness?.toFixed(2) ?? "n/a"}`,
+    `- Layer uplift: retrieval ${report.summary.layers?.uplift?.retrieval?.toFixed(2) ?? "n/a"}, personalization ${report.summary.layers?.uplift?.personalization?.toFixed(2) ?? "n/a"}, runtime/governance ${report.summary.layers?.uplift?.runtime_governance?.toFixed(2) ?? "n/a"}`,
+    `- Assertions: cases ${report.summary.assertions?.passingCases ?? 0}/${report.summary.assertions?.totalCases ?? 0}, checks ${report.summary.assertions?.passingChecks ?? 0}/${report.summary.assertions?.totalChecks ?? 0}, contamination failures ${report.summary.assertions?.contaminationFailures ?? 0}, update failures ${report.summary.assertions?.updateFailures ?? 0}`,
     ``,
     `## Failure Paths`,
     ...(topFailures.length > 0 ? topFailures.map((path) => `- \`${path}\``) : ["- none"]),

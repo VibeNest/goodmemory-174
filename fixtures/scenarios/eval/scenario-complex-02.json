@@ -2,6 +2,13 @@
   "scenario_id": "scenario-complex-02",
   "persona_id": "complex-02",
   "lifecycle_bucket": "complex",
+  "task_family": "cross_domain_transfer",
+  "domain": "food",
+  "memory_source_domains": [
+    "finance",
+    "shopping"
+  ],
+  "evaluation_setting": "cross_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -79,6 +86,28 @@
     },
     {
       "session_id": "complex-02-s4",
+      "objective": "Introduce noisy cross-domain context that should not override the current task.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Unrelated note for finance: I still avoid spoiler-heavy recommendations and hobby-specific framing."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that as separate domain context."
+        },
+        {
+          "role": "user",
+          "content": "This is unrelated to the current food request for knowledge base overhaul."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will not let it distort the current task."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-02-s5",
       "objective": "Correct stale information and request a memory-sensitive answer.",
       "turns": [
         {
@@ -123,6 +152,25 @@
       "handoff package for knowledge base overhaul",
       "knowledge base overhaul"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer."
+    "expected_transfer_signals": [
+      "risk-first summaries",
+      "written decisions"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "expected_update_wins": [
+      "docs/knowledge-base-overhaul-runbook-v2.md",
+      "vendor approval for knowledge base overhaul",
+      "handoff package for knowledge base overhaul"
+    ],
+    "expected_stale_suppression": [
+      "docs/knowledge-base-overhaul-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer.",
+    "user_satisfaction_hypothesis": "The agent should transfer durable user preferences into a new domain while still grounding the next step for knowledge base overhaul."
   }
 }

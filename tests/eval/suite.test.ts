@@ -22,31 +22,38 @@ describe("eval suite", () => {
           content: "I need more context before I can answer.",
         }),
         goodmemoryGenerator: async (input) => ({
-          content: input.memoryContext?.includes("runbook-v2")
-            ? "You are a robotics engineer and the updated runbook is v2."
-            : "missing memory context",
+          content: input.memoryContext ?? "missing memory context",
         }),
         judge: createFakeLLMAdapter([
           {
             content: JSON.stringify({
               winner: "goodmemory",
               scores: {
-                identity_understanding: 9,
-                history_continuation: 9,
-                factual_alignment: 8,
-                relevance: 9,
+                factual_recall: 8,
+                preference_consistency: 9,
+                cross_domain_transfer: 8,
+                contamination_penalty: 9,
+                update_correctness: 9,
+                personalization_usefulness: 9,
+                provenance_explainability: 8,
               },
               baseline_scores: {
-                identity_understanding: 4,
-                history_continuation: 4,
-                factual_alignment: 5,
-                relevance: 5,
+                factual_recall: 5,
+                preference_consistency: 4,
+                cross_domain_transfer: 4,
+                contamination_penalty: 5,
+                update_correctness: 4,
+                personalization_usefulness: 4,
+                provenance_explainability: 5,
               },
               goodmemory_scores: {
-                identity_understanding: 9,
-                history_continuation: 9,
-                factual_alignment: 8,
-                relevance: 9,
+                factual_recall: 8,
+                preference_consistency: 9,
+                cross_domain_transfer: 8,
+                contamination_penalty: 9,
+                update_correctness: 9,
+                personalization_usefulness: 9,
+                provenance_explainability: 8,
               },
               reasoning: "GoodMemory used the corrected runbook and prior open loop.",
               failure_tags: [],
@@ -70,6 +77,8 @@ describe("eval suite", () => {
       expect(report.summary.totalCases).toBe(1);
       expect(report.runtime.generationMode).toBe("fallback");
       expect(report.runtime.judgeMode).toBe("fallback");
+      expect(result.cases[0]?.assertions.passed).toBe(true);
+      expect(result.cases[0]?.metadata.taskFamily).toBeDefined();
     } finally {
       await workspace.cleanup();
     }

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { EvalAssertionSummary } from "../../src/eval/assertions";
 import type { JudgeResult } from "../../src/eval/judge";
 import type { EvalAnswerPackage } from "../../src/eval/runners";
 import {
   aggregateJudgedCases,
   persistEvalArtifacts,
+  type JudgedEvalCase,
 } from "../../src/eval/reporting";
 import { createTempWorkspace } from "../../src/testing/utils";
 
@@ -18,6 +20,10 @@ function buildAnswerPackage(
     mode,
     personaId: caseId,
     scenarioId: `scenario-${caseId}`,
+    taskFamily: "preference_continuation",
+    targetDomain: "work_ops",
+    memorySourceDomains: ["work_ops"],
+    evaluationSetting: "single_domain",
     prompt: "Prompt",
     transcript: "Transcript",
     memoryContext: mode === "goodmemory" ? "## Context" : undefined,
@@ -80,6 +86,62 @@ function buildAnswerPackage(
   };
 }
 
+function buildAssertions(
+  contaminationFindings: string[] = [],
+  updateFindings: string[] = [],
+): EvalAssertionSummary {
+  const checks = [
+    {
+      id: "transfer_signals_present" as const,
+      passed: true,
+      details: ["present:concise bullet points"],
+    },
+    {
+      id: "non_transfer_signals_absent" as const,
+      passed: contaminationFindings.length === 0,
+      details:
+        contaminationFindings.length === 0
+          ? ["absent:spoiler-heavy framing"]
+          : contaminationFindings.map((finding) => `unexpected:${finding}`),
+    },
+    {
+      id: "update_wins_present" as const,
+      passed: updateFindings.length === 0,
+      details:
+        updateFindings.length === 0
+          ? ["present:docs/runbook.md"]
+          : updateFindings.map((finding) => `missing:${finding}`),
+    },
+    {
+      id: "stale_suppression_absent" as const,
+      passed: true,
+      details: ["absent:docs/stale-runbook.md"],
+    },
+    {
+      id: "wrong_personalization_absent" as const,
+      passed: contaminationFindings.length === 0,
+      details:
+        contaminationFindings.length === 0
+          ? ["absent:spoiler-heavy framing"]
+          : contaminationFindings.map((finding) => `unexpected:${finding}`),
+    },
+    {
+      id: "provenance_explainable" as const,
+      passed: true,
+      details: ["provenance:complete"],
+    },
+  ];
+
+  return {
+    passed: contaminationFindings.length === 0 && updateFindings.length === 0,
+    totalChecks: checks.length,
+    passedChecks: checks.filter((check) => check.passed).length,
+    checks,
+    contaminationFindings,
+    updateFindings,
+  };
+}
+
 function buildJudgeResult(
   winner: JudgeResult["winner"],
   baselineHistory: number,
@@ -89,50 +151,111 @@ function buildJudgeResult(
   return {
     winner,
     scores: {
-      identity_understanding: Math.max(7, goodmemoryHistory),
-      history_continuation: goodmemoryHistory,
-      factual_alignment: 8,
-      relevance: 8,
+      factual_recall: 8,
+      preference_consistency: Math.max(7, goodmemoryHistory),
+      cross_domain_transfer: goodmemoryHistory,
+      contamination_penalty: 8,
+      update_correctness: 8,
+      personalization_usefulness: 8,
+      provenance_explainability: 7,
     },
     baseline_scores: {
-      identity_understanding: 6,
-      history_continuation: baselineHistory,
-      factual_alignment: 6,
-      relevance: 6,
+      factual_recall: 6,
+      preference_consistency: baselineHistory,
+      cross_domain_transfer: baselineHistory,
+      contamination_penalty: 6,
+      update_correctness: 6,
+      personalization_usefulness: 6,
+      provenance_explainability: 6,
     },
     goodmemory_scores: {
-      identity_understanding: 9,
-      history_continuation: goodmemoryHistory,
-      factual_alignment: 8,
-      relevance: 8,
+      factual_recall: 8,
+      preference_consistency: Math.max(7, goodmemoryHistory),
+      cross_domain_transfer: goodmemoryHistory,
+      contamination_penalty: 8,
+      update_correctness: 8,
+      personalization_usefulness: 8,
+      provenance_explainability: 7,
     },
     reasoning: "comparison complete",
     failure_tags: failureTags,
   };
 }
 
+function buildCase(input: {
+  caseId: string;
+  taskFamily: JudgedEvalCase["metadata"]["taskFamily"];
+  targetDomain: string;
+  memorySourceDomains: string[];
+  evaluationSetting: JudgedEvalCase["metadata"]["evaluationSetting"];
+  winner: JudgeResult["winner"];
+  baselineHistory: number;
+  goodmemoryHistory: number;
+  failureTags?: string[];
+  contaminationFindings?: string[];
+  updateFindings?: string[];
+}): JudgedEvalCase {
+  return {
+    caseId: input.caseId,
+    metadata: {
+      taskFamily: input.taskFamily,
+      targetDomain: input.targetDomain,
+      memorySourceDomains: input.memorySourceDomains,
+      evaluationSetting: input.evaluationSetting,
+    },
+    baseline: buildAnswerPackage(input.caseId, "baseline", `baseline-${input.caseId}`),
+    goodmemory: buildAnswerPackage(
+      input.caseId,
+      "goodmemory",
+      `goodmemory-${input.caseId}`,
+    ),
+    judge: buildJudgeResult(
+      input.winner,
+      input.baselineHistory,
+      input.goodmemoryHistory,
+      input.failureTags,
+    ),
+    assertions: buildAssertions(
+      input.contaminationFindings,
+      input.updateFindings,
+    ),
+  };
+}
+
 describe("eval reporting", () => {
   it("aggregates suite scores and uplift from judged cases", () => {
     const summary = aggregateJudgedCases([
-      {
+      buildCase({
         caseId: "case-1",
-        baseline: buildAnswerPackage("case-1", "baseline", "baseline-1"),
-        goodmemory: buildAnswerPackage("case-1", "goodmemory", "goodmemory-1"),
-        judge: buildJudgeResult("goodmemory", 4, 9),
-      },
-      {
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "goodmemory",
+        baselineHistory: 4,
+        goodmemoryHistory: 9,
+      }),
+      buildCase({
         caseId: "case-2",
-        baseline: buildAnswerPackage("case-2", "baseline", "baseline-2"),
-        goodmemory: buildAnswerPackage("case-2", "goodmemory", "goodmemory-2"),
-        judge: buildJudgeResult("baseline", 7, 6, ["missed_open_loop"]),
-      },
+        taskFamily: "cross_domain_suppression",
+        targetDomain: "shopping",
+        memorySourceDomains: ["work_ops", "gaming"],
+        evaluationSetting: "cross_domain",
+        winner: "baseline",
+        baselineHistory: 7,
+        goodmemoryHistory: 6,
+        failureTags: ["missed_open_loop"],
+        contaminationFindings: ["spoiler-heavy framing"],
+      }),
     ]);
 
     expect(summary.totalCases).toBe(2);
     expect(summary.winnerCounts.goodmemory).toBe(1);
     expect(summary.winnerCounts.baseline).toBe(1);
-    expect(summary.goodmemoryAverage.history_continuation).toBe(7.5);
-    expect(summary.uplift.history_continuation).toBe(2);
+    expect(summary.goodmemoryAverage.cross_domain_transfer).toBe(7.5);
+    expect(summary.uplift.cross_domain_transfer).toBe(2);
+    expect(summary.layers.uplift.personalization).toBeGreaterThan(0);
+    expect(summary.assertions.contaminationFailures).toBe(1);
   });
 
   it("persists suite report and failure artifacts", async () => {
@@ -140,17 +263,21 @@ describe("eval reporting", () => {
 
     try {
       const outputDir = join(workspace.root, "reports");
-      const cases = [
-        {
+      const cases: JudgedEvalCase[] = [
+        buildCase({
           caseId: "case-1",
-          baseline: buildAnswerPackage("case-1", "baseline", "baseline-1"),
-          goodmemory: buildAnswerPackage("case-1", "goodmemory", "goodmemory-1"),
-          judge: buildJudgeResult("baseline", 8, 5, ["identity_miss"]),
-        },
+          taskFamily: "drift_override_lifelong_update",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 5,
+          failureTags: ["identity_miss"],
+          updateFindings: ["docs/runbook.md"],
+        }),
       ];
-      const summary = aggregateJudgedCases([
-        ...cases,
-      ]);
+      const summary = aggregateJudgedCases(cases);
 
       const result = await persistEvalArtifacts({
         mode: "fallback",
@@ -169,10 +296,17 @@ describe("eval reporting", () => {
       ) as { mode: string; runId: string };
       const failure = JSON.parse(
         await readFile(join(result.runDirectory, "failures/case-1.json"), "utf8"),
-      ) as { judge: { failure_tags: string[] } };
+      ) as {
+        judge: { failure_tags: string[] };
+        assertions: { updateFindings: string[] };
+      };
       const caseArtifact = JSON.parse(
         await readFile(join(result.runDirectory, "cases/case-1.json"), "utf8"),
-      ) as { goodmemory: { trace: { recallHitCount: number } } };
+      ) as {
+        metadata: { taskFamily: string };
+        assertions: { passed: boolean };
+        goodmemory: { trace: { recallHitCount: number } };
+      };
       const baselineTrace = JSON.parse(
         await readFile(
           join(result.runDirectory, "traces/case-1/baseline.json"),
@@ -194,10 +328,19 @@ describe("eval reporting", () => {
         references: Array<{ pointer: string }>;
         hits: Array<{ type: string }>;
       };
+      const assertions = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "traces/case-1/assertions.json"),
+          "utf8",
+        ),
+      ) as { updateFindings: string[] };
 
       expect(report.mode).toBe("fallback");
       expect(report.runId).toBe("run-001");
       expect(failure.judge.failure_tags).toContain("identity_miss");
+      expect(failure.assertions.updateFindings).toContain("docs/runbook.md");
+      expect(caseArtifact.metadata.taskFamily).toBe("drift_override_lifelong_update");
+      expect(caseArtifact.assertions.passed).toBe(false);
       expect(caseArtifact.goodmemory.trace.recallHitCount).toBe(4);
       expect(baselineTrace.mode).toBe("baseline");
       expect(baselineTrace.trace.sessionsReplayed).toBe(0);
@@ -205,6 +348,155 @@ describe("eval reporting", () => {
       expect(goodmemoryTrace.trace.recallHitCount).toBe(4);
       expect(rawRecall.references[0]?.pointer).toBe("docs/runbook.md");
       expect(rawRecall.hits[0]?.type).toBe("reference");
+      expect(assertions.updateFindings).toContain("docs/runbook.md");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("does not mark baseline-only judge tags as release failures when GoodMemory wins", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-baseline-tags");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-1",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 3,
+          goodmemoryHistory: 9,
+          failureTags: ["baseline_underused_history"],
+        }),
+      ];
+
+      const summary = aggregateJudgedCases(cases);
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-002",
+        cases,
+        summary,
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+        },
+      });
+      const failureSummary = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "failures/summary.json"),
+          "utf8",
+        ),
+      ) as {
+        totalFailures: number;
+        failedCases: Array<{ failureTags: string[] }>;
+      };
+
+      expect(failureSummary.totalFailures).toBe(0);
+      expect(failureSummary.failedCases).toHaveLength(0);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("treats grouped-parser style goodmemory tags as blocking failures", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-grouped-tags");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-1",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 3,
+          goodmemoryHistory: 9,
+          failureTags: ["goodmemory:limited_personalization"],
+        }),
+      ];
+
+      const summary = aggregateJudgedCases(cases);
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-002b",
+        cases,
+        summary,
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+        },
+      });
+      const failureSummary = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "failures/summary.json"),
+          "utf8",
+        ),
+      ) as {
+        totalFailures: number;
+        failedCases: Array<{ failureTags: string[] }>;
+      };
+
+      expect(failureSummary.totalFailures).toBe(1);
+      expect(failureSummary.failedCases[0]?.failureTags).toContain(
+        "goodmemory:limited_personalization",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("still marks explicit GoodMemory judge defects as failures even when GoodMemory wins", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-goodmemory-tags");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-1",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 3,
+          goodmemoryHistory: 9,
+          failureTags: ["goodmemory_internal_thought_leak"],
+        }),
+      ];
+
+      const summary = aggregateJudgedCases(cases);
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-003",
+        cases,
+        summary,
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+        },
+      });
+      const failureSummary = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "failures/summary.json"),
+          "utf8",
+        ),
+      ) as {
+        totalFailures: number;
+        failedCases: Array<{ failureTags: string[] }>;
+      };
+
+      expect(failureSummary.totalFailures).toBe(1);
+      expect(failureSummary.failedCases[0]?.failureTags).toContain(
+        "goodmemory_internal_thought_leak",
+      );
     } finally {
       await workspace.cleanup();
     }

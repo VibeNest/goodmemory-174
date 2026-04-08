@@ -35,6 +35,27 @@
     "Project details for agent memory evaluation suite may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "home",
+    "gaming",
+    "health"
+  ],
+  "stable_preferences": [
+    "short status updates",
+    "evidence-backed recommendations"
+  ],
+  "domain_specific_preferences": [
+    "gaming: avoid irrelevant carry-over from hobby preferences",
+    "health: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while agent memory evaluation suite progresses.",
+    "Outdated references or priorities may need explicit override for agent memory evaluation suite."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply gaming: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for agent memory evaluation suite."
+  ],
   "lifecycle_bucket": "complex",
   "scenario_ids": [
     "scenario-complex-04"

@@ -35,6 +35,27 @@
     "Project details for customer support copilot may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "travel",
+    "fitness",
+    "work_ops"
+  ],
+  "stable_preferences": [
+    "concise bullet points",
+    "incremental delivery"
+  ],
+  "domain_specific_preferences": [
+    "fitness: avoid irrelevant carry-over from hobby preferences",
+    "work_ops: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while customer support copilot progresses.",
+    "Outdated references or priorities may need explicit override for customer support copilot."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply fitness: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for customer support copilot."
+  ],
   "lifecycle_bucket": "medium",
   "scenario_ids": [
     "scenario-medium-05"

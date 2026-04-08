@@ -35,6 +35,27 @@
     "Project details for knowledge base overhaul may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "health",
+    "home",
+    "gaming"
+  ],
+  "stable_preferences": [
+    "short status updates",
+    "evidence-backed recommendations"
+  ],
+  "domain_specific_preferences": [
+    "home: avoid irrelevant carry-over from hobby preferences",
+    "gaming: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while knowledge base overhaul progresses.",
+    "Outdated references or priorities may need explicit override for knowledge base overhaul."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply home: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for knowledge base overhaul."
+  ],
   "lifecycle_bucket": "long",
   "scenario_ids": [
     "scenario-long-04"

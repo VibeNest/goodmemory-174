@@ -11,14 +11,33 @@ describe("judge scaffold", () => {
       userPrompt: "Can you continue the migration task?",
       baselineAnswer: "I need more context.",
       goodMemoryAnswer: "Last time we left the migration open after step 2.",
+      expectedIdentitySignals: ["Robotics engineer", "Shanghai"],
+      expectedHistorySignals: ["migration open after step 2"],
+      taskFamily: "drift_override_lifelong_update",
+      targetDomain: "work_ops",
+      memorySourceDomains: ["work_ops"],
+      evaluationSetting: "single_domain",
+      expectedTransferSignals: ["concise bullet points"],
+      expectedNonTransferSignals: ["spoiler-free movie picks"],
+      expectedUpdateWins: ["docs/migration-runbook-v2.md"],
+      expectedStaleSuppression: ["docs/migration-runbook-v1.md"],
+      wrongPersonalizationSignals: ["spoiler-heavy framing"],
       improvementHypothesis:
         "GoodMemory should recover the prior open loop and role without extra user repetition.",
+      userSatisfactionHypothesis:
+        "The answer should use the latest role and corrected runbook.",
     });
 
     expect(prompt).toContain("Robotics engineer in Shanghai");
     expect(prompt).toContain("baseline");
     expect(prompt).toContain("goodmemory");
     expect(prompt).toContain("expected improvement hypothesis");
+    expect(prompt).toContain("target domain");
+    expect(prompt).toContain("expected identity signals");
+    expect(prompt).toContain("expected history signals");
+    expect(prompt).toContain("expected transfer signals");
+    expect(prompt).toContain("Prefix every failure tag with baseline_, goodmemory_, or shared_.");
+    expect(prompt).toContain("Do not penalize an answer for refusing to invent unavailable details.");
   });
 
   it("parses valid judge output", () => {
@@ -26,10 +45,13 @@ describe("judge scaffold", () => {
       JSON.stringify({
         winner: "goodmemory",
         scores: {
-          identity_understanding: 9,
-          history_continuation: 10,
-          factual_alignment: 9,
-          relevance: 9,
+          factual_recall: 9,
+          preference_consistency: 8,
+          cross_domain_transfer: 7,
+          contamination_penalty: 9,
+          update_correctness: 10,
+          personalization_usefulness: 9,
+          provenance_explainability: 8,
         },
         reasoning: "GoodMemory better continued prior task context.",
         failure_tags: [],
@@ -37,7 +59,7 @@ describe("judge scaffold", () => {
     );
 
     expect(result.winner).toBe("goodmemory");
-    expect(result.scores.history_continuation).toBe(10);
+    expect(result.scores.update_correctness).toBe(10);
   });
 
   it("extracts the JSON object from model output that includes reasoning wrappers", () => {
@@ -45,11 +67,11 @@ describe("judge scaffold", () => {
       `<think>
 internal reasoning
 </think>
-{"winner":"goodmemory","scores":{"identity_understanding":9,"history_continuation":10,"factual_alignment":9,"relevance":9,"personalization":8},"reasoning":"GoodMemory better continued prior task context.","failure_tags":[]}`,
+{"winner":"goodmemory","scores":{"factual_recall":9,"preference_consistency":8,"cross_domain_transfer":7,"contamination_penalty":9,"update_correctness":10,"personalization_usefulness":8,"provenance_explainability":9},"reasoning":"GoodMemory better continued prior task context.","failure_tags":[]}`,
     );
 
     expect(result.winner).toBe("goodmemory");
-    expect(result.scores.personalization).toBe(8);
+    expect(result.scores.personalization_usefulness).toBe(8);
   });
 
   it("normalizes grouped failure tags and falls back to comparative scores", () => {
@@ -61,18 +83,22 @@ internal reasoning
           goodmemory_overall: 8,
         },
         baseline_scores: {
-          identity_understanding: 0,
-          history_continuation: 0,
-          factual_alignment: 4,
-          relevance: 2,
-          personalization: 0,
+          factual_recall: 4,
+          preference_consistency: 2,
+          cross_domain_transfer: 1,
+          contamination_penalty: 3,
+          update_correctness: 2,
+          personalization_usefulness: 1,
+          provenance_explainability: 3,
         },
         goodmemory_scores: {
-          identity_understanding: 8,
-          history_continuation: 9,
-          factual_alignment: 8,
-          relevance: 9,
-          personalization: 6,
+          factual_recall: 8,
+          preference_consistency: 8,
+          cross_domain_transfer: 9,
+          contamination_penalty: 8,
+          update_correctness: 9,
+          personalization_usefulness: 6,
+          provenance_explainability: 7,
         },
         reasoning: "comparison complete",
         failure_tags: {
@@ -82,7 +108,7 @@ internal reasoning
       }),
     );
 
-    expect(result.scores.history_continuation).toBe(9);
+    expect(result.scores.cross_domain_transfer).toBe(9);
     expect(result.failure_tags).toEqual([
       "baseline:no_memory_use",
       "goodmemory:limited_personalization",
@@ -96,11 +122,14 @@ internal reasoning
         JSON.stringify({
           winner: "tie",
           scores: {
-            identity_understanding: 7,
-            history_continuation: 7,
-            factual_alignment: 7,
+            factual_recall: 7,
+            preference_consistency: 7,
+            cross_domain_transfer: 7,
+            contamination_penalty: 7,
+            update_correctness: 7,
+            personalization_usefulness: 7,
           },
-          reasoning: "missing relevance",
+          reasoning: "missing provenance explainability",
           failure_tags: [],
         }),
       ),

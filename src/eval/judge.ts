@@ -6,15 +6,29 @@ export interface JudgePromptInput {
   userPrompt: string;
   baselineAnswer: string;
   goodMemoryAnswer: string;
+  expectedIdentitySignals: string[];
+  expectedHistorySignals: string[];
+  taskFamily: ScenarioFixture["task_family"];
+  targetDomain: string;
+  memorySourceDomains: string[];
+  evaluationSetting: ScenarioFixture["evaluation_setting"];
+  expectedTransferSignals: string[];
+  expectedNonTransferSignals: string[];
+  expectedUpdateWins: string[];
+  expectedStaleSuppression: string[];
+  wrongPersonalizationSignals: string[];
   improvementHypothesis: string;
+  userSatisfactionHypothesis: string;
 }
 
 export interface JudgeScores {
-  identity_understanding: number;
-  history_continuation: number;
-  factual_alignment: number;
-  relevance: number;
-  personalization?: number;
+  factual_recall: number;
+  preference_consistency: number;
+  cross_domain_transfer: number;
+  contamination_penalty: number;
+  update_correctness: number;
+  personalization_usefulness: number;
+  provenance_explainability: number;
 }
 
 export interface JudgeResult {
@@ -58,10 +72,13 @@ function validateScores(
 
   const record = value as Record<string, unknown>;
   const fields: Array<keyof JudgeScores> = [
-    "identity_understanding",
-    "history_continuation",
-    "factual_alignment",
-    "relevance",
+    "factual_recall",
+    "preference_consistency",
+    "cross_domain_transfer",
+    "contamination_penalty",
+    "update_correctness",
+    "personalization_usefulness",
+    "provenance_explainability",
   ];
 
   for (const field of fields) {
@@ -70,19 +87,14 @@ function validateScores(
     }
   }
 
-  if (
-    record.personalization !== undefined &&
-    typeof record.personalization !== "number"
-  ) {
-    throw new Error(`${path}.personalization must be a number when present`);
-  }
-
   return {
-    identity_understanding: record.identity_understanding as number,
-    history_continuation: record.history_continuation as number,
-    factual_alignment: record.factual_alignment as number,
-    relevance: record.relevance as number,
-    personalization: record.personalization as number | undefined,
+    factual_recall: record.factual_recall as number,
+    preference_consistency: record.preference_consistency as number,
+    cross_domain_transfer: record.cross_domain_transfer as number,
+    contamination_penalty: record.contamination_penalty as number,
+    update_correctness: record.update_correctness as number,
+    personalization_usefulness: record.personalization_usefulness as number,
+    provenance_explainability: record.provenance_explainability as number,
   };
 }
 
@@ -125,11 +137,28 @@ export function buildJudgePrompt(input: JudgePromptInput): string {
     "Return only JSON. No prose, no markdown, no code fences, no <think> tags.",
     "Use this exact top-level shape:",
     "winner, scores, baseline_scores, goodmemory_scores, reasoning, failure_tags.",
-    "Use 0-10 scores for identity_understanding, history_continuation, factual_alignment, relevance, and personalization.",
-    "Rubric: identity_understanding, history_continuation, factual_alignment, relevance, personalization.",
+    "Use 0-10 scores for factual_recall, preference_consistency, cross_domain_transfer, contamination_penalty, update_correctness, personalization_usefulness, and provenance_explainability.",
+    "Higher contamination_penalty means less incorrect personalization or cross-domain contamination.",
+    "Rubric: factual_recall, preference_consistency, cross_domain_transfer, contamination_penalty, update_correctness, personalization_usefulness, provenance_explainability.",
     "failure_tags must be a flat string array.",
+    "Prefix every failure tag with baseline_, goodmemory_, or shared_.",
+    "If GoodMemory wins and baseline made the mistake, use baseline_ tags rather than unscoped tags.",
+    "Only use goodmemory_ tags for defects that still apply to the GoodMemory answer.",
+    "Do not penalize an answer for refusing to invent unavailable details. If remembered context only proves that an item remains an open loop, explicitly saying that finer-grained details are not yet recorded is acceptable and should not be tagged as a defect.",
     "scores, baseline_scores, and goodmemory_scores must all use the same per-dimension keys.",
+    `task family: ${input.taskFamily}`,
+    `evaluation setting: ${input.evaluationSetting}`,
+    `target domain: ${input.targetDomain}`,
+    `memory source domains: ${input.memorySourceDomains.join(", ")}`,
+    `expected identity signals: ${input.expectedIdentitySignals.join(" | ")}`,
+    `expected history signals: ${input.expectedHistorySignals.join(" | ")}`,
+    `expected transfer signals: ${input.expectedTransferSignals.join(" | ")}`,
+    `expected non-transfer signals: ${input.expectedNonTransferSignals.join(" | ")}`,
+    `expected update wins: ${input.expectedUpdateWins.join(" | ")}`,
+    `expected stale suppression: ${input.expectedStaleSuppression.join(" | ")}`,
+    `wrong personalization signals: ${input.wrongPersonalizationSignals.join(" | ")}`,
     `expected improvement hypothesis: ${input.improvementHypothesis}`,
+    `user satisfaction hypothesis: ${input.userSatisfactionHypothesis}`,
     `persona: ${input.personaSummary}`,
     `user prompt: ${input.userPrompt}`,
     `baseline: ${input.baselineAnswer}`,
@@ -204,7 +233,23 @@ export async function runJudgeComparison(input: {
     userPrompt: input.scenario.evaluation.prompt,
     baselineAnswer: input.baseline.answer,
     goodMemoryAnswer: input.goodmemory.answer,
+    expectedIdentitySignals: input.scenario.evaluation.expected_identity_signals,
+    expectedHistorySignals: input.scenario.evaluation.expected_history_signals,
+    taskFamily: input.scenario.task_family,
+    targetDomain: input.scenario.domain,
+    memorySourceDomains: input.scenario.memory_source_domains,
+    evaluationSetting: input.scenario.evaluation_setting,
+    expectedTransferSignals: input.scenario.evaluation.expected_transfer_signals,
+    expectedNonTransferSignals:
+      input.scenario.evaluation.expected_non_transfer_signals,
+    expectedUpdateWins: input.scenario.evaluation.expected_update_wins,
+    expectedStaleSuppression:
+      input.scenario.evaluation.expected_stale_suppression,
+    wrongPersonalizationSignals:
+      input.scenario.evaluation.wrong_personalization_signals,
     improvementHypothesis: input.scenario.evaluation.improvement_hypothesis,
+    userSatisfactionHypothesis:
+      input.scenario.evaluation.user_satisfaction_hypothesis,
   });
   const response = await input.judge.complete({
     purpose: "eval_judge",

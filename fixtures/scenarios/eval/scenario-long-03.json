@@ -2,6 +2,12 @@
   "scenario_id": "scenario-long-03",
   "persona_id": "long-03",
   "lifecycle_bucket": "long",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "entertainment",
+  "memory_source_domains": [
+    "entertainment"
+  ],
+  "evaluation_setting": "single_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -144,6 +150,25 @@
       "final reliability signoff for incident playbook refresh",
       "incident playbook refresh"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by preferring the user's current role and focus, using the corrected runbook, and resuming the unresolved long-lived open loop."
+    "expected_transfer_signals": [
+      "structured outlines"
+    ],
+    "expected_non_transfer_signals": [
+      "education: avoid irrelevant carry-over from hobby preferences"
+    ],
+    "expected_update_wins": [
+      "staff platform engineer leading incident playbook refresh",
+      "runtime reliability and platform migration for incident playbook refresh",
+      "docs/incident-playbook-refresh-runbook-v2.md"
+    ],
+    "expected_stale_suppression": [
+      "Climate policy advisor",
+      "docs/incident-playbook-refresh-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "Climate policy advisor"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by preferring the user's current role and focus, using the corrected runbook, and resuming the unresolved long-lived open loop.",
+    "user_satisfaction_hypothesis": "The agent should reflect the user's newest role, focus, and corrected source of truth for incident playbook refresh."
   }
 }

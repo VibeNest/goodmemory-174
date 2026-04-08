@@ -197,7 +197,18 @@ describe("run-eval script", () => {
             });
             const judge = await input.judge.complete({
               purpose: "eval_judge",
-              prompt: "updated runbook is v2",
+              prompt: [
+                "evaluation setting: single_domain",
+                "expected identity signals: robotics engineer",
+                "expected history signals: docs/runbook-v2.md",
+                "expected transfer signals: concise bullet points",
+                "expected non-transfer signals: spoiler-heavy framing",
+                "expected update wins: docs/runbook-v2.md",
+                "expected stale suppression: docs/runbook-v1.md",
+                "wrong personalization signals: spoiler-heavy framing",
+                "baseline: I need more context before I can answer reliably.",
+                "goodmemory: Confirmed from memory:\n\nconcise bullet points\n\ndocs/runbook-v2.md",
+              ].join("\n"),
             });
             calls.push({
               outputDir: input.outputDir,
@@ -221,22 +232,46 @@ describe("run-eval script", () => {
                   tie: 0,
                 },
                 baselineAverage: {
-                  identity_understanding: 0,
-                  history_continuation: 0,
-                  factual_alignment: 0,
-                  relevance: 0,
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
                 },
                 goodmemoryAverage: {
-                  identity_understanding: 0,
-                  history_continuation: 0,
-                  factual_alignment: 0,
-                  relevance: 0,
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
                 },
                 uplift: {
-                  identity_understanding: 0,
-                  history_continuation: 0,
-                  factual_alignment: 0,
-                  relevance: 0,
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                layers: {
+                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                },
+                assertions: {
+                  totalCases: 0,
+                  passingCases: 0,
+                  passRate: 0,
+                  totalChecks: 0,
+                  passingChecks: 0,
+                  checkPassRate: 0,
+                  contaminationFailures: 0,
+                  updateFailures: 0,
                 },
               },
               runtime: input.runtime!,
@@ -251,8 +286,649 @@ describe("run-eval script", () => {
       expect(result.runtime.judgeMode).toBe("fallback");
       expect(calls[0]?.mode).toBe("fallback");
       expect(calls[0]?.baseline).toBe("I need more context before I can answer reliably.");
-      expect(calls[0]?.goodmemory).toContain("updated runbook is v2");
+      expect(calls[0]?.goodmemory).toContain("Confirmed from memory:");
+      expect(calls[0]?.goodmemory).toContain("docs/runbook-v2.md");
       expect(String(calls[0]?.judge)).toContain("\"winner\":\"goodmemory\"");
+      expect(String(calls[0]?.judge)).toContain("\"failure_tags\":[]");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("fallback judge prefixes GoodMemory defects consistently", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-fallback-tags");
+    const calls: Array<Record<string, unknown>> = [];
+
+    try {
+      await runFallbackEval(
+        {
+          limit: 1,
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          runSuite: async (input) => {
+            const judge = await input.judge.complete({
+              purpose: "eval_judge",
+              prompt: [
+                "evaluation setting: single_domain",
+                "expected identity signals: robotics engineer",
+                "expected history signals: docs/runbook-v2.md",
+                "expected transfer signals: concise bullet points",
+                "expected non-transfer signals: spoiler-heavy framing",
+                "expected update wins: docs/runbook-v2.md",
+                "expected stale suppression: docs/runbook-v1.md",
+                "wrong personalization signals: spoiler-heavy framing",
+                "baseline: I need more context before I can answer reliably.",
+                "goodmemory: Use docs/runbook-v1.md now.",
+              ].join("\n"),
+            });
+            calls.push({
+              judge: judge.content,
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-fallback-tags",
+              runDirectory: join(workspace.root, "reports/run-fallback-tags"),
+              summary: {
+                totalCases: 0,
+                winnerCounts: {
+                  baseline: 0,
+                  goodmemory: 0,
+                  tie: 0,
+                },
+                baselineAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                goodmemoryAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                uplift: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                layers: {
+                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                },
+                assertions: {
+                  totalCases: 0,
+                  passingCases: 0,
+                  passRate: 0,
+                  totalChecks: 0,
+                  passingChecks: 0,
+                  checkPassRate: 0,
+                  contaminationFailures: 0,
+                  updateFailures: 0,
+                },
+              },
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(String(calls[0]?.judge)).toContain("goodmemory_stale_memory_leak");
+      expect(String(calls[0]?.judge)).not.toContain("\"stale_memory_leak\"");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("fallback judge does not count negated required signals as matches", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-fallback-negated");
+    const calls: Array<Record<string, unknown>> = [];
+
+    try {
+      await runFallbackEval(
+        {
+          limit: 1,
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          runSuite: async (input) => {
+            const judge = await input.judge.complete({
+              purpose: "eval_judge",
+              prompt: [
+                "evaluation setting: single_domain",
+                "expected identity signals: robotics engineer",
+                "expected history signals: docs/runbook-v2.md",
+                "expected transfer signals: concise bullet points",
+                "expected non-transfer signals: spoiler-heavy framing",
+                "expected update wins: docs/runbook-v2.md | vendor approval",
+                "expected stale suppression: docs/runbook-v1.md",
+                "wrong personalization signals: spoiler-heavy framing",
+                "baseline: I need more context before I can answer reliably.",
+                "goodmemory: I will not use concise bullet points. Do not use docs/runbook-v2.md. Vendor approval is still the blocker.",
+              ].join("\n"),
+            });
+            calls.push({
+              judge: JSON.parse(String(judge.content)),
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-fallback-negated",
+              runDirectory: join(workspace.root, "reports/run-fallback-negated"),
+              summary: {
+                totalCases: 0,
+                winnerCounts: {
+                  baseline: 0,
+                  goodmemory: 0,
+                  tie: 0,
+                },
+                baselineAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                goodmemoryAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                uplift: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                layers: {
+                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                },
+                assertions: {
+                  totalCases: 0,
+                  passingCases: 0,
+                  passRate: 0,
+                  totalChecks: 0,
+                  passingChecks: 0,
+                  checkPassRate: 0,
+                  contaminationFailures: 0,
+                  updateFailures: 0,
+                },
+              },
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(calls[0]?.judge).toMatchObject({
+        winner: "baseline",
+      });
+      expect(calls[0]?.judge).toMatchObject({
+        failure_tags: expect.arrayContaining([
+          "goodmemory_missed_preference_signal",
+          "goodmemory_missed_update_signal",
+        ]),
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("fallback judge lowers single-domain transfer score for contradictory preference signals", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-fallback-contradiction");
+    const calls: Array<Record<string, unknown>> = [];
+
+    try {
+      await runFallbackEval(
+        {
+          limit: 1,
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          runSuite: async (input) => {
+            const judge = await input.judge.complete({
+              purpose: "eval_judge",
+              prompt: [
+                "evaluation setting: single_domain",
+                "expected identity signals: robotics engineer",
+                "expected history signals: docs/runbook-v2.md",
+                "expected transfer signals: concise bullet points",
+                "expected non-transfer signals: spoiler-heavy framing",
+                "expected update wins: docs/runbook-v2.md",
+                "expected stale suppression: docs/runbook-v1.md",
+                "wrong personalization signals: spoiler-heavy framing",
+                "baseline: I need more context before I can answer reliably.",
+                "goodmemory: Use concise bullet points. Do not use concise bullet points. Use docs/runbook-v2.md.",
+              ].join("\n"),
+            });
+            calls.push({
+              judge: JSON.parse(String(judge.content)),
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-fallback-contradiction",
+              runDirectory: join(
+                workspace.root,
+                "reports/run-fallback-contradiction",
+              ),
+              summary: {
+                totalCases: 0,
+                winnerCounts: {
+                  baseline: 0,
+                  goodmemory: 0,
+                  tie: 0,
+                },
+                baselineAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                goodmemoryAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                uplift: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                layers: {
+                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                },
+                assertions: {
+                  totalCases: 0,
+                  passingCases: 0,
+                  passRate: 0,
+                  totalChecks: 0,
+                  passingChecks: 0,
+                  checkPassRate: 0,
+                  contaminationFailures: 0,
+                  updateFailures: 0,
+                },
+              },
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(calls[0]?.judge).toMatchObject({
+        winner: "baseline",
+      });
+      expect(calls[0]?.judge).toMatchObject({
+        goodmemory_scores: expect.objectContaining({
+          cross_domain_transfer: 0,
+        }),
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("fallback judge keeps contradictory required signals from inflating component scores", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-fallback-conflicted-required");
+    const calls: Array<Record<string, unknown>> = [];
+
+    try {
+      await runFallbackEval(
+        {
+          limit: 1,
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          runSuite: async (input) => {
+            const judge = await input.judge.complete({
+              purpose: "eval_judge",
+              prompt: [
+                "evaluation setting: single_domain",
+                "expected identity signals: robotics engineer",
+                "expected history signals: docs/runbook-v2.md",
+                "expected transfer signals: concise bullet points",
+                "expected non-transfer signals: spoiler-heavy framing",
+                "expected update wins: docs/runbook-v2.md",
+                "expected stale suppression: docs/runbook-v1.md",
+                "wrong personalization signals: spoiler-heavy framing",
+                "baseline: I need more context before I can answer reliably.",
+                "goodmemory: Use concise bullet points. Do not use concise bullet points. Use docs/runbook-v2.md. Do not use docs/runbook-v2.md.",
+              ].join("\n"),
+            });
+            calls.push({
+              judge: JSON.parse(String(judge.content)),
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-fallback-conflicted-required",
+              runDirectory: join(
+                workspace.root,
+                "reports/run-fallback-conflicted-required",
+              ),
+              summary: {
+                totalCases: 0,
+                winnerCounts: {
+                  baseline: 0,
+                  goodmemory: 0,
+                  tie: 0,
+                },
+                baselineAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                goodmemoryAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                uplift: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                layers: {
+                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                },
+                assertions: {
+                  totalCases: 0,
+                  passingCases: 0,
+                  passRate: 0,
+                  totalChecks: 0,
+                  passingChecks: 0,
+                  checkPassRate: 0,
+                  contaminationFailures: 0,
+                  updateFailures: 0,
+                },
+              },
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(calls[0]?.judge).toMatchObject({
+        winner: "baseline",
+      });
+      expect(calls[0]?.judge).toMatchObject({
+        goodmemory_scores: expect.objectContaining({
+          preference_consistency: 0,
+          cross_domain_transfer: 0,
+          update_correctness: 0,
+        }),
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("fallback judge does not treat identity denials as affirmed factual recall", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-fallback-negated-identity");
+    const calls: Array<Record<string, unknown>> = [];
+
+    try {
+      await runFallbackEval(
+        {
+          limit: 1,
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          runSuite: async (input) => {
+            const judge = await input.judge.complete({
+              purpose: "eval_judge",
+              prompt: [
+                "evaluation setting: single_domain",
+                "expected identity signals: robotics engineer",
+                "expected history signals: ",
+                "expected transfer signals: ",
+                "expected non-transfer signals: ",
+                "expected update wins: ",
+                "expected stale suppression: ",
+                "wrong personalization signals: ",
+                "baseline: You are a robotics engineer.",
+                "goodmemory: You are not a robotics engineer.",
+              ].join("\n"),
+            });
+            calls.push({
+              judge: JSON.parse(String(judge.content)),
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-fallback-negated-identity",
+              runDirectory: join(
+                workspace.root,
+                "reports/run-fallback-negated-identity",
+              ),
+              summary: {
+                totalCases: 0,
+                winnerCounts: {
+                  baseline: 0,
+                  goodmemory: 0,
+                  tie: 0,
+                },
+                baselineAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                goodmemoryAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                uplift: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                layers: {
+                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                },
+                assertions: {
+                  totalCases: 0,
+                  passingCases: 0,
+                  passRate: 0,
+                  totalChecks: 0,
+                  passingChecks: 0,
+                  checkPassRate: 0,
+                  contaminationFailures: 0,
+                  updateFailures: 0,
+                },
+              },
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(calls[0]?.judge).toMatchObject({
+        winner: "baseline",
+      });
+      expect(calls[0]?.judge).toMatchObject({
+        goodmemory_scores: expect.objectContaining({
+          factual_recall: 2,
+        }),
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("fallback judge treats contraction lifecycle identity denials as negated", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-fallback-negated-identity-contracted");
+    const calls: Array<Record<string, unknown>> = [];
+
+    try {
+      await runFallbackEval(
+        {
+          limit: 1,
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          runSuite: async (input) => {
+            const judge = await input.judge.complete({
+              purpose: "eval_judge",
+              prompt: [
+                "evaluation setting: single_domain",
+                "expected identity signals: robotics engineer",
+                "expected history signals: ",
+                "expected transfer signals: ",
+                "expected non-transfer signals: ",
+                "expected update wins: ",
+                "expected stale suppression: ",
+                "wrong personalization signals: ",
+                "baseline: You are a robotics engineer.",
+                "goodmemory: You're no longer a robotics engineer.",
+              ].join("\n"),
+            });
+            calls.push({
+              judge: JSON.parse(String(judge.content)),
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-fallback-negated-identity-contracted",
+              runDirectory: join(
+                workspace.root,
+                "reports/run-fallback-negated-identity-contracted",
+              ),
+              summary: {
+                totalCases: 0,
+                winnerCounts: {
+                  baseline: 0,
+                  goodmemory: 0,
+                  tie: 0,
+                },
+                baselineAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                goodmemoryAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                uplift: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                layers: {
+                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                },
+                assertions: {
+                  totalCases: 0,
+                  passingCases: 0,
+                  passRate: 0,
+                  totalChecks: 0,
+                  passingChecks: 0,
+                  checkPassRate: 0,
+                  contaminationFailures: 0,
+                  updateFailures: 0,
+                },
+              },
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(calls[0]?.judge).toMatchObject({
+        winner: "baseline",
+      });
+      expect(calls[0]?.judge).toMatchObject({
+        goodmemory_scores: expect.objectContaining({
+          factual_recall: 2,
+        }),
+      });
     } finally {
       await workspace.cleanup();
     }
@@ -321,10 +997,13 @@ describe("run-eval script", () => {
                   content: JSON.stringify({
                     winner: "tie",
                     scores: {
-                      identity_understanding: 7,
-                      history_continuation: 7,
-                      factual_alignment: 7,
-                      relevance: 7,
+                      factual_recall: 7,
+                      preference_consistency: 7,
+                      cross_domain_transfer: 7,
+                      contamination_penalty: 7,
+                      update_correctness: 7,
+                      personalization_usefulness: 7,
+                      provenance_explainability: 7,
                     },
                     reasoning: "live comparison",
                     failure_tags: [],
@@ -345,22 +1024,46 @@ describe("run-eval script", () => {
                 tie: 0,
               },
               baselineAverage: {
-                identity_understanding: 0,
-                history_continuation: 0,
-                factual_alignment: 0,
-                relevance: 0,
+                factual_recall: 0,
+                preference_consistency: 0,
+                cross_domain_transfer: 0,
+                contamination_penalty: 0,
+                update_correctness: 0,
+                personalization_usefulness: 0,
+                provenance_explainability: 0,
               },
               goodmemoryAverage: {
-                identity_understanding: 0,
-                history_continuation: 0,
-                factual_alignment: 0,
-                relevance: 0,
+                factual_recall: 0,
+                preference_consistency: 0,
+                cross_domain_transfer: 0,
+                contamination_penalty: 0,
+                update_correctness: 0,
+                personalization_usefulness: 0,
+                provenance_explainability: 0,
               },
               uplift: {
-                identity_understanding: 0,
-                history_continuation: 0,
-                factual_alignment: 0,
-                relevance: 0,
+                factual_recall: 0,
+                preference_consistency: 0,
+                cross_domain_transfer: 0,
+                contamination_penalty: 0,
+                update_correctness: 0,
+                personalization_usefulness: 0,
+                provenance_explainability: 0,
+              },
+              layers: {
+                baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+              },
+              assertions: {
+                totalCases: 0,
+                passingCases: 0,
+                passRate: 0,
+                totalChecks: 0,
+                passingChecks: 0,
+                checkPassRate: 0,
+                contaminationFailures: 0,
+                updateFailures: 0,
               },
             },
             runtime: input.runtime!,

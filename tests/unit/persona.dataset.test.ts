@@ -16,6 +16,8 @@ describe("persona dataset", () => {
 
     expect(persona.persona_id).toBe("medium-01");
     expect(persona.scenario_ids).toEqual(["scenario-medium-01"]);
+    expect(persona.domains.length).toBeGreaterThanOrEqual(3);
+    expect(persona.stable_preferences.length).toBeGreaterThan(0);
   });
 
   it("fails fast on invalid persona schema", async () => {
@@ -39,6 +41,7 @@ describe("persona dataset", () => {
       complex: 8,
       long: 4,
     });
+    expect(summary.coveredDomains.length).toBeGreaterThanOrEqual(12);
 
     expect(() =>
       validatePersonaDatasetCoverage(personas, DEFAULT_PERSONA_DATASET_RULES),

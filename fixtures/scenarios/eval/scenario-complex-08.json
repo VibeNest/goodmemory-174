@@ -2,6 +2,12 @@
   "scenario_id": "scenario-complex-08",
   "persona_id": "complex-08",
   "lifecycle_bucket": "complex",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "gaming",
+  "memory_source_domains": [
+    "gaming"
+  ],
+  "evaluation_setting": "single_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -123,6 +129,25 @@
       "handoff package for research operations redesign",
       "research operations redesign"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer."
+    "expected_transfer_signals": [
+      "short status updates",
+      "traceable rationale"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "expected_update_wins": [
+      "docs/research-operations-redesign-runbook-v2.md",
+      "vendor approval for research operations redesign",
+      "handoff package for research operations redesign"
+    ],
+    "expected_stale_suppression": [
+      "docs/research-operations-redesign-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer.",
+    "user_satisfaction_hypothesis": "The agent should reflect the user's newest role, focus, and corrected source of truth for research operations redesign."
   }
 }

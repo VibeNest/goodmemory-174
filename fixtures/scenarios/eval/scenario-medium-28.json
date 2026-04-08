@@ -2,6 +2,12 @@
   "scenario_id": "scenario-medium-28",
   "persona_id": "medium-28",
   "lifecycle_bucket": "medium",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "health",
+  "memory_source_domains": [
+    "health"
+  ],
+  "evaluation_setting": "single_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -100,6 +106,22 @@
       "final verification for cross-team API cleanup",
       "cross-team API cleanup"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without asking for repeated context."
+    "expected_transfer_signals": [
+      "short status updates"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid irrelevant carry-over from hobby preferences"
+    ],
+    "expected_update_wins": [
+      "docs/cross-team-API-cleanup-runbook-v2.md"
+    ],
+    "expected_stale_suppression": [
+      "docs/cross-team-API-cleanup-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid irrelevant carry-over from hobby preferences"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without extra user repetition.",
+    "user_satisfaction_hypothesis": "The agent should reflect the user's newest role, focus, and corrected source of truth for cross-team API cleanup."
   }
 }

@@ -1,8 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { readFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { createTempWorkspace } from "../../src/testing/utils";
-import { persistEvalArtifacts, aggregateJudgedCases } from "../../src/eval/reporting";
+import type { EvalAssertionSummary } from "../../src/eval/assertions";
+import {
+  persistEvalArtifacts,
+  aggregateJudgedCases,
+  type JudgedEvalCase,
+} from "../../src/eval/reporting";
 import type { EvalAnswerPackage } from "../../src/eval/runners";
 import type { JudgeResult } from "../../src/eval/judge";
 import {
@@ -17,6 +22,10 @@ function buildAnswerPackage(
     mode,
     personaId: caseId,
     scenarioId: `scenario-${caseId}`,
+    taskFamily: "cross_domain_transfer",
+    targetDomain: "shopping",
+    memorySourceDomains: ["work_ops", "gaming"],
+    evaluationSetting: "cross_domain",
     prompt: "Prompt",
     transcript: "Transcript",
     answer: mode === "goodmemory" ? "goodmemory-answer" : "baseline-answer",
@@ -108,25 +117,68 @@ function buildJudgeResult(): JudgeResult {
   return {
     winner: "goodmemory",
     scores: {
-      identity_understanding: 9,
-      history_continuation: 9,
-      factual_alignment: 8,
-      relevance: 9,
+      factual_recall: 8,
+      preference_consistency: 9,
+      cross_domain_transfer: 8,
+      contamination_penalty: 9,
+      update_correctness: 8,
+      personalization_usefulness: 9,
+      provenance_explainability: 8,
     },
     baseline_scores: {
-      identity_understanding: 4,
-      history_continuation: 4,
-      factual_alignment: 5,
-      relevance: 5,
+      factual_recall: 5,
+      preference_consistency: 4,
+      cross_domain_transfer: 4,
+      contamination_penalty: 5,
+      update_correctness: 4,
+      personalization_usefulness: 4,
+      provenance_explainability: 5,
     },
     goodmemory_scores: {
-      identity_understanding: 9,
-      history_continuation: 9,
-      factual_alignment: 8,
-      relevance: 9,
+      factual_recall: 8,
+      preference_consistency: 9,
+      cross_domain_transfer: 8,
+      contamination_penalty: 9,
+      update_correctness: 8,
+      personalization_usefulness: 9,
+      provenance_explainability: 8,
     },
     reasoning: "comparison complete",
     failure_tags: [],
+  };
+}
+
+function buildAssertions(): EvalAssertionSummary {
+  return {
+    passed: true,
+    totalChecks: 6,
+    passedChecks: 6,
+    checks: [
+      { id: "transfer_signals_present", passed: true, details: ["present:risk-first summaries"] },
+      { id: "non_transfer_signals_absent", passed: true, details: ["absent:spoiler-heavy framing"] },
+      { id: "update_wins_present", passed: true, details: ["present:docs/runbook.md"] },
+      { id: "stale_suppression_absent", passed: true, details: ["absent:docs/stale-runbook.md"] },
+      { id: "wrong_personalization_absent", passed: true, details: ["absent:spoiler-heavy framing"] },
+      { id: "provenance_explainable", passed: true, details: ["provenance:complete"] },
+    ],
+    contaminationFindings: [],
+    updateFindings: [],
+  };
+}
+
+function buildCase(caseId: string): JudgedEvalCase {
+  return {
+    caseId,
+    metadata: {
+      taskFamily: "cross_domain_transfer",
+      targetDomain: "shopping",
+      memorySourceDomains: ["work_ops", "gaming"],
+      evaluationSetting: "cross_domain",
+    },
+    baseline: buildAnswerPackage(caseId, "baseline"),
+    goodmemory: buildAnswerPackage(caseId, "goodmemory"),
+    judge: buildJudgeResult(),
+    assertions: buildAssertions(),
   };
 }
 
@@ -136,14 +188,7 @@ describe("goodmemory cli", () => {
 
     try {
       const outputDir = join(workspace.root, "reports");
-      const cases = [
-        {
-          caseId: "case-1",
-          baseline: buildAnswerPackage("case-1", "baseline"),
-          goodmemory: buildAnswerPackage("case-1", "goodmemory"),
-          judge: buildJudgeResult(),
-        },
-      ];
+      const cases: JudgedEvalCase[] = [buildCase("case-1")];
       const summary = aggregateJudgedCases(cases);
       const persisted = await persistEvalArtifacts({
         mode: "fallback",
@@ -165,8 +210,11 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("Run Mode: fallback");
       expect(result.stdout).toContain("Runtime: generation=fallback, judge=fallback");
       expect(result.stdout).toContain("Case: case-1");
+      expect(result.stdout).toContain("Task Family: cross_domain_transfer");
+      expect(result.stdout).toContain("Target Domain: shopping");
       expect(result.stdout).toContain("Winner: goodmemory");
       expect(result.stdout).toContain("References: 1");
+      expect(result.stdout).toContain("Assertions: 6/6 passed");
     } finally {
       await workspace.cleanup();
     }
@@ -177,14 +225,7 @@ describe("goodmemory cli", () => {
 
     try {
       const outputDir = join(workspace.root, "reports");
-      const cases = [
-        {
-          caseId: "case-1",
-          baseline: buildAnswerPackage("case-1", "baseline"),
-          goodmemory: buildAnswerPackage("case-1", "goodmemory"),
-          judge: buildJudgeResult(),
-        },
-      ];
+      const cases: JudgedEvalCase[] = [buildCase("case-1")];
       const summary = aggregateJudgedCases(cases);
       const persisted = await persistEvalArtifacts({
         mode: "fallback",
@@ -210,6 +251,41 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("semantic_reference");
       expect(result.stdout).toContain("Policy Applied");
       expect(result.stdout).toContain("custom_shouldRecall");
+      expect(result.stdout).toContain("Assertions");
+      expect(result.stdout).toContain("transfer_signals_present: pass");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("trace tolerates legacy runs without assertions artifacts", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-legacy");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [buildCase("case-1")];
+      const summary = aggregateJudgedCases(cases);
+      const persisted = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-001",
+        cases,
+        summary,
+        runtime: { generationMode: "fallback", judgeMode: "fallback" },
+      });
+      await rm(join(persisted.runDirectory, "traces", "case-1", "assertions.json"));
+
+      const result = await runCLI([
+        "trace",
+        "--run-dir",
+        persisted.runDirectory,
+        "--case-id",
+        "case-1",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Assertions");
+      expect(result.stdout).toContain("unavailable (legacy run)");
     } finally {
       await workspace.cleanup();
     }
@@ -221,14 +297,7 @@ describe("goodmemory cli", () => {
     try {
       const outputDir = join(workspace.root, "reports");
       const exportPath = join(workspace.root, "exported-case.json");
-      const cases = [
-        {
-          caseId: "case-1",
-          baseline: buildAnswerPackage("case-1", "baseline"),
-          goodmemory: buildAnswerPackage("case-1", "goodmemory"),
-          judge: buildJudgeResult(),
-        },
-      ];
+      const cases: JudgedEvalCase[] = [buildCase("case-1")];
       const summary = aggregateJudgedCases(cases);
       const persisted = await persistEvalArtifacts({
         mode: "fallback",

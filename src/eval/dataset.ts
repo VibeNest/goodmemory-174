@@ -3,6 +3,12 @@ import { join } from "node:path";
 import { loadJsonFixture } from "../testing/fixtures";
 
 export type PersonaLifecycleBucket = "medium" | "complex" | "long";
+export type ScenarioEvaluationSetting = "single_domain" | "cross_domain";
+export type PersonalizationTaskFamily =
+  | "preference_continuation"
+  | "cross_domain_transfer"
+  | "cross_domain_suppression"
+  | "drift_override_lifelong_update";
 
 export type ScenarioPhenomenon =
   | "identity_reveal"
@@ -27,6 +33,11 @@ export interface PersonaSpec {
   growth_path: string[];
   known_relationships: string[];
   memory_risks: string[];
+  domains: string[];
+  stable_preferences: string[];
+  domain_specific_preferences: string[];
+  drift_events: string[];
+  negative_personalization_risks: string[];
   lifecycle_bucket: PersonaLifecycleBucket;
   scenario_ids: string[];
 }
@@ -52,13 +63,23 @@ export interface ScenarioEvaluationSpec {
   rubric_focus: Array<"identity_background" | "history_open_loop">;
   expected_identity_signals: string[];
   expected_history_signals: string[];
+  expected_transfer_signals: string[];
+  expected_non_transfer_signals: string[];
+  expected_update_wins: string[];
+  expected_stale_suppression: string[];
+  wrong_personalization_signals: string[];
   improvement_hypothesis: string;
+  user_satisfaction_hypothesis: string;
 }
 
 export interface ScenarioFixture {
   scenario_id: string;
   persona_id: string;
   lifecycle_bucket: PersonaLifecycleBucket;
+  task_family: PersonalizationTaskFamily;
+  domain: string;
+  memory_source_domains: string[];
+  evaluation_setting: ScenarioEvaluationSetting;
   required_phenomena: ScenarioPhenomenon[];
   sessions: ScenarioSession[];
   feedback_signals?: ScenarioFeedbackSignal[];
@@ -188,6 +209,20 @@ export function validatePersonaSpec(input: unknown): PersonaSpec {
       "known_relationships",
     ),
     memory_risks: assertStringArray(input.memory_risks, "memory_risks"),
+    domains: assertStringArray(input.domains, "domains"),
+    stable_preferences: assertStringArray(
+      input.stable_preferences,
+      "stable_preferences",
+    ),
+    domain_specific_preferences: assertStringArray(
+      input.domain_specific_preferences,
+      "domain_specific_preferences",
+    ),
+    drift_events: assertStringArray(input.drift_events, "drift_events"),
+    negative_personalization_risks: assertStringArray(
+      input.negative_personalization_risks,
+      "negative_personalization_risks",
+    ),
     lifecycle_bucket: assertLifecycleBucket(
       input.lifecycle_bucket,
       "lifecycle_bucket",
@@ -258,11 +293,64 @@ function validateScenarioEvaluation(
       input.expected_history_signals,
       `${path}.expected_history_signals`,
     ),
+    expected_transfer_signals: assertStringArray(
+      input.expected_transfer_signals,
+      `${path}.expected_transfer_signals`,
+    ),
+    expected_non_transfer_signals: assertStringArray(
+      input.expected_non_transfer_signals,
+      `${path}.expected_non_transfer_signals`,
+    ),
+    expected_update_wins: assertStringArray(
+      input.expected_update_wins,
+      `${path}.expected_update_wins`,
+    ),
+    expected_stale_suppression: assertStringArray(
+      input.expected_stale_suppression,
+      `${path}.expected_stale_suppression`,
+    ),
+    wrong_personalization_signals: assertStringArray(
+      input.wrong_personalization_signals,
+      `${path}.wrong_personalization_signals`,
+    ),
     improvement_hypothesis: assertString(
       input.improvement_hypothesis,
       `${path}.improvement_hypothesis`,
     ),
+    user_satisfaction_hypothesis: assertString(
+      input.user_satisfaction_hypothesis,
+      `${path}.user_satisfaction_hypothesis`,
+    ),
   };
+}
+
+function assertScenarioEvaluationSetting(
+  value: unknown,
+  path: string,
+): ScenarioEvaluationSetting {
+  if (value === "single_domain" || value === "cross_domain") {
+    return value;
+  }
+
+  throw new Error(`${path} must be single_domain or cross_domain`);
+}
+
+function assertTaskFamily(
+  value: unknown,
+  path: string,
+): PersonalizationTaskFamily {
+  if (
+    value === "preference_continuation" ||
+    value === "cross_domain_transfer" ||
+    value === "cross_domain_suppression" ||
+    value === "drift_override_lifelong_update"
+  ) {
+    return value;
+  }
+
+  throw new Error(
+    `${path} must be one of preference_continuation, cross_domain_transfer, cross_domain_suppression, drift_override_lifelong_update`,
+  );
 }
 
 function validateFeedbackSignals(
@@ -359,6 +447,16 @@ export function validateScenarioFixture(input: unknown): ScenarioFixture {
     scenario_id: assertString(input.scenario_id, "scenario_id"),
     persona_id: assertString(input.persona_id, "persona_id"),
     lifecycle_bucket: lifecycleBucket,
+    task_family: assertTaskFamily(input.task_family, "task_family"),
+    domain: assertString(input.domain, "domain"),
+    memory_source_domains: assertStringArray(
+      input.memory_source_domains,
+      "memory_source_domains",
+    ),
+    evaluation_setting: assertScenarioEvaluationSetting(
+      input.evaluation_setting,
+      "evaluation_setting",
+    ),
     required_phenomena: requiredPhenomena,
     sessions,
     feedback_signals: validateFeedbackSignals(
@@ -414,6 +512,7 @@ export async function listScenarioFixtures(dir: string): Promise<ScenarioFixture
 export function summarizePersonaDataset(personas: PersonaSpec[]) {
   return {
     total: personas.length,
+    coveredDomains: Array.from(new Set(personas.flatMap((persona) => persona.domains))).sort(),
     lifecycleBuckets: personas.reduce<Record<PersonaLifecycleBucket, number>>(
       (counts, persona) => {
         counts[persona.lifecycle_bucket] += 1;
@@ -454,6 +553,15 @@ export function summarizeScenarioDataset(scenarios: ScenarioFixture[]) {
   return {
     total: scenarios.length,
     coveredPhenomena,
+    coveredTaskFamilies: Array.from(
+      new Set(scenarios.map((scenario) => scenario.task_family)),
+    ).sort() as PersonalizationTaskFamily[],
+    coveredEvaluationSettings: Array.from(
+      new Set(scenarios.map((scenario) => scenario.evaluation_setting)),
+    ).sort() as ScenarioEvaluationSetting[],
+    coveredDomains: Array.from(
+      new Set(scenarios.flatMap((scenario) => [scenario.domain, ...scenario.memory_source_domains])),
+    ).sort(),
   };
 }
 
@@ -465,10 +573,25 @@ export function validateScenarioDatasetLinks(
   const scenariosById = new Map(scenarios.map((scenario) => [scenario.scenario_id, scenario]));
 
   for (const scenario of scenarios) {
-    if (!personasById.has(scenario.persona_id)) {
+    const persona = personasById.get(scenario.persona_id);
+    if (!persona) {
       throw new Error(
         `scenario ${scenario.scenario_id} references unknown persona ${scenario.persona_id}`,
       );
+    }
+
+    if (!persona.domains.includes(scenario.domain)) {
+      throw new Error(
+        `scenario ${scenario.scenario_id} domain ${scenario.domain} must exist in persona ${persona.persona_id}.domains`,
+      );
+    }
+
+    for (const sourceDomain of scenario.memory_source_domains) {
+      if (!persona.domains.includes(sourceDomain)) {
+        throw new Error(
+          `scenario ${scenario.scenario_id} memory source domain ${sourceDomain} must exist in persona ${persona.persona_id}.domains`,
+        );
+      }
     }
   }
 

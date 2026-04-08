@@ -2,6 +2,12 @@
   "scenario_id": "scenario-complex-04",
   "persona_id": "complex-04",
   "lifecycle_bucket": "complex",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "home",
+  "memory_source_domains": [
+    "home"
+  ],
+  "evaluation_setting": "single_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -123,6 +129,25 @@
       "handoff package for agent memory evaluation suite",
       "agent memory evaluation suite"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer."
+    "expected_transfer_signals": [
+      "short status updates",
+      "traceable rationale"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "expected_update_wins": [
+      "docs/agent-memory-evaluation-suite-runbook-v2.md",
+      "vendor approval for agent memory evaluation suite",
+      "handoff package for agent memory evaluation suite"
+    ],
+    "expected_stale_suppression": [
+      "docs/agent-memory-evaluation-suite-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer.",
+    "user_satisfaction_hypothesis": "The agent should reflect the user's newest role, focus, and corrected source of truth for agent memory evaluation suite."
   }
 }

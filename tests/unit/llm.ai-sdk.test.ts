@@ -131,7 +131,7 @@ describe("vercel ai sdk adapter", () => {
         resolveModel: (config) => ({ resolvedFrom: config.model }) as never,
         generateText: async (input) => {
           calls.push(input as unknown as Record<string, unknown>);
-          return { text: "generated-answer" } as never;
+          return { text: "<think>hidden</think>\n\ngenerated-answer" } as never;
         },
       },
     });
@@ -242,7 +242,7 @@ describe("vercel ai sdk adapter", () => {
         streamText: (input) => {
           streamCalls.push(input as unknown as Record<string, unknown>);
           return {
-            text: Promise.resolve("streamed-answer"),
+            text: Promise.resolve("<think>hidden</think>\n\nstreamed-answer"),
           } as never;
         },
       },

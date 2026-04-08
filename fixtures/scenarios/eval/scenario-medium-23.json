@@ -2,6 +2,13 @@
   "scenario_id": "scenario-medium-23",
   "persona_id": "medium-23",
   "lifecycle_bucket": "medium",
+  "task_family": "cross_domain_suppression",
+  "domain": "entertainment",
+  "memory_source_domains": [
+    "productivity",
+    "education"
+  ],
+  "evaluation_setting": "cross_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -30,6 +37,14 @@
         {
           "role": "assistant",
           "content": "Understood. I will respond in that style."
+        },
+        {
+          "role": "user",
+          "content": "Remember that for productivity tasks, I avoid irrelevant carry-over from hobby preferences."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that scoped preference separate."
         }
       ]
     },
@@ -100,6 +115,22 @@
       "final verification for workflow reliability dashboard",
       "workflow reliability dashboard"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without asking for repeated context."
+    "expected_transfer_signals": [
+      "structured outlines"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid irrelevant carry-over from hobby preferences"
+    ],
+    "expected_update_wins": [
+      "docs/workflow-reliability-dashboard-runbook-v2.md"
+    ],
+    "expected_stale_suppression": [
+      "docs/workflow-reliability-dashboard-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid irrelevant carry-over from hobby preferences"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without extra user repetition.",
+    "user_satisfaction_hypothesis": "The agent should suppress irrelevant cross-domain memory while staying grounded in workflow reliability dashboard."
   }
 }

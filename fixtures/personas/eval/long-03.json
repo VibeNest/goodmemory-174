@@ -35,6 +35,27 @@
     "Project details for incident playbook refresh may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "entertainment",
+    "education",
+    "productivity"
+  ],
+  "stable_preferences": [
+    "structured outlines",
+    "prototype before polish"
+  ],
+  "domain_specific_preferences": [
+    "education: avoid irrelevant carry-over from hobby preferences",
+    "productivity: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while incident playbook refresh progresses.",
+    "Outdated references or priorities may need explicit override for incident playbook refresh."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply education: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for incident playbook refresh."
+  ],
   "lifecycle_bucket": "long",
   "scenario_ids": [
     "scenario-long-03"

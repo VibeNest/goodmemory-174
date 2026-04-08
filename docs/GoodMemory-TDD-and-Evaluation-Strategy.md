@@ -54,6 +54,15 @@ GoodMemory 的产品价值依赖：
 
 它不是 release 前的附加检查，而是持续开发中的主反馈系统。
 
+GoodMemory 评测不能只停留在“记没记住某条信息”。
+
+它还必须持续回答这些问题：
+
+- memory 是否真的改善了个性化结果
+- memory 是否引入了错误个性化
+- 跨域迁移什么时候有帮助，什么时候造成污染
+- 用户状态变化后，旧记忆是否被正确压制
+
 ### 2.3 核心逻辑与产品效果分开验证
 
 我们需要区分两类正确性：
@@ -223,11 +232,21 @@ GoodMemory v1 采用 4 层测试体系。
 - `growth_path`
 - `known_relationships`
 - `memory_risks`
+- `domains`
+- `stable_preferences`
+- `domain_specific_preferences`
+- `drift_events`
+- `negative_personalization_risks`
 
 其中：
 
 - `growth_path` 用于表达身份/能力/目标如何随时间变化
 - `memory_risks` 用于制造冲突、漂移、遗忘和验证需求
+- `domains` 用于表达用户会跨哪些场景活动
+- `stable_preferences` 用于表达允许跨域迁移的长期偏好
+- `domain_specific_preferences` 用于表达不应跨域污染的偏好
+- `drift_events` 用于显式编码长期变化与 override 场景
+- `negative_personalization_risks` 用于编码错误个性化的高风险模式
 
 ## 5.2 样本结构
 
@@ -276,43 +295,91 @@ GoodMemory v1 采用 4 层测试体系。
 - procedural memory
 - stale verification
 
+另外，eval fixture 还必须显式编码：
+
+- `task_family`
+- `domain`
+- `memory_source_domains`
+- `evaluation_setting`
+- `expected_transfer_signals`
+- `expected_non_transfer_signals`
+- `expected_update_wins`
+- `expected_stale_suppression`
+- `wrong_personalization_signals`
+- `user_satisfaction_hypothesis`
+
+这些字段只服务内部评测，不属于产品 public API。
+
 ---
 
 ## 6. 主评测目标
 
-你已经明确 v1 的主目标是两项：
+GoodMemory 的主评测目标已经从“两项能力题”升级成“三层质量题”。
 
-1. **更好识别用户身份 / 背景**
-2. **更好承接历史任务 / 开放问题**
+原来的两条核心问题仍然保留：
 
-因此产品评测也必须围绕这两项主目标组织。
+1. 是否更好识别用户身份 / 背景
+2. 是否更好承接历史任务 / 开放问题
 
-## 6.1 Identity / Background Understanding
+但它们现在属于更完整矩阵的一部分，而不是全部。
 
-判断重点：
+## 6.1 Layer A: Memory Retrieval
 
-- 模型是否正确识别用户职业、经验、背景
-- 模型是否记住和使用对未来仍然有价值的用户信息
-- 模型是否减少要求用户重复背景信息
-- 模型是否把 stale / 无关信息误当成当前事实
+这一层衡量 memory middleware 的基础能力。
 
-## 6.2 Historical Task / Open Loop Continuation
+关注点：
 
-判断重点：
+- recall usefulness
+- precision / contamination
+- token cost
+- latency
+- hit explanation quality
 
-- 模型是否能承接历史任务上下文
-- 模型是否能识别未解决问题
-- 模型是否能在后续会话中继续推进，而不是重新开始
-- 模型是否遗漏关键历史决策
+这一层回答：
 
-## 6.3 次级评测目标
+- memory 有没有被召回
+- 召回的是不是相关信息
+- recall trace 能不能解释为什么命中
 
-可作为辅助指标：
+## 6.2 Layer B: Personalization
 
-- 是否更稳定地遵循用户偏好
-- 是否正确使用 procedural memory
-- token 成本是否下降
-- recall 噪声是否降低
+这一层是 MemoryCD 启发下的新中心。
+
+关注点：
+
+- preference consistency across sessions
+- long-horizon stability
+- drift / update / reversal correctness
+- cross-domain transfer benefit
+- cross-domain contamination penalty
+- personalization usefulness
+- wrong personalization penalty
+
+这一层回答：
+
+- memory 是否真的改善了个性化结果
+- memory 是否在跨域时正确迁移
+- memory 是否在不该迁移时保持克制
+- 用户状态变化后，旧记忆是否被正确压制
+
+## 6.3 Layer C: Runtime / Governance
+
+这一层关注 memory 的使用安全性和治理质量。
+
+关注点：
+
+- scope isolation
+- delete / export correctness
+- stale-memory correction
+- provenance visibility
+- conflict handling
+- ignore-memory / policy behavior
+
+这一层回答：
+
+- memory 是否泄漏到错误 scope
+- 错的 memory 能否被修正和删除
+- trace 是否足够解释系统行为
 
 ---
 
@@ -334,13 +401,24 @@ GoodMemory v1 采用 4 层测试体系。
 - 规则校验做底线约束
 - LLM-as-judge 做主评分
 
+这里的“规则校验”包含 deterministic hard assertions，而不只是 schema 检查。
+
+例如：
+
+- 允许迁移的信号是否出现
+- 不允许迁移的信号是否未出现
+- correction 后新状态是否压过旧状态
+- stale reference / stale preference 是否没有被 surface 出来
+- provenance 是否能从 trace 中解释
+
 ## 7.2 Judge 输入
 
 每个测试样本的 judge 输入至少包括：
 
 - persona spec
 - 本轮用户输入
-- 历史会话摘要或标准上下文
+- target domain / memory source domains / evaluation setting
+- expected identity / history / transfer / suppression / update signals
 - baseline 回答
 - GoodMemory 回答
 - 评分 rubric
@@ -353,11 +431,13 @@ GoodMemory v1 采用 4 层测试体系。
 interface JudgeResult {
   winner: "baseline" | "goodmemory" | "tie";
   scores: {
-    identity_understanding: number;
-    history_continuation: number;
-    factual_alignment: number;
-    relevance: number;
-    personalization?: number;
+    factual_recall: number;
+    preference_consistency: number;
+    cross_domain_transfer: number;
+    contamination_penalty: number;
+    update_correctness: number;
+    personalization_usefulness: number;
+    provenance_explainability: number;
   };
   reasoning: string;
   failure_tags: string[];
@@ -366,21 +446,22 @@ interface JudgeResult {
 
 ## 7.4 Judge Rubric
 
-核心 rubric 建议固定为：
+核心 rubric 固定为：
 
-- `identity_understanding`
-  是否正确理解并利用用户身份、背景、专业能力与当前处境
-- `history_continuation`
-  是否正确承接历史任务、开放问题与 prior decisions
-- `factual_alignment`
-  是否没有虚构、错用或误读 memory
-- `relevance`
-  是否引用了真正相关的 memory，而不是噪声
-
-附加 rubric：
-
-- `personalization`
-  是否更符合用户偏好的风格和协作方式
+- `factual_recall`
+  是否正确利用用户身份、当前事实、历史任务与 open loop
+- `preference_consistency`
+  是否稳定反映用户长期偏好和协作方式
+- `cross_domain_transfer`
+  是否在允许时正确迁移跨域偏好与习惯
+- `contamination_penalty`
+  是否避免了错误个性化和跨域污染
+- `update_correctness`
+  是否让新信息、纠正信息和 override 压过旧信息
+- `personalization_usefulness`
+  memory 是否真正让回答更贴近这个用户
+- `provenance_explainability`
+  trace 是否足够解释 recall / remember / context 的来源
 
 ---
 
@@ -434,41 +515,74 @@ persist score + trace + failure cases
 
 ## 9. 回归输出格式
 
-每次完整产品评测至少输出 4 类结果。
+每次完整产品评测至少输出 5 类结果。
 
-## 9.1 总分与分项分数
+## 9.1 分项分数
 
-例如：
+必须至少包含：
 
-- overall score
-- identity understanding score
-- history continuation score
-- relevance score
-- factual alignment score
+- factual recall uplift
+- preference consistency uplift
+- cross-domain transfer uplift
+- contamination penalty uplift
+- update correctness uplift
+- personalization usefulness uplift
+- provenance explainability uplift
 
-## 9.2 Persona 失败案例
+## 9.2 Layer 汇总
+
+必须至少包含：
+
+- retrieval layer uplift
+- personalization layer uplift
+- runtime / governance layer uplift
+
+这样评测结论才能回答：
+
+- memory 是否提高了 retrieval
+- memory 是否提高了 personalization
+- memory 是否在 governance 上变差
+
+## 9.3 Assertions 汇总
+
+必须至少包含：
+
+- passing cases / total cases
+- passing checks / total checks
+- contamination failures
+- update failures
+
+这些 deterministic assertions 是 LLM-as-judge 之外的硬门槛。
+
+## 9.4 Persona 失败案例
 
 至少列出：
 
 - 哪个 persona 失败
-- 失败在哪个维度
+- 失败属于哪一层
+- 失败是 judge 失败还是 assertion 失败
 - baseline 和 GoodMemory 的回答差异
 - judge 的 reasoning
 
-## 9.3 Memory traces
+## 9.5 Memory traces
 
 至少列出：
 
 - remember traces
-- recall traces
+- raw recall
+- built context
 - feedback traces
 - context build traces
+- assertion traces
 
-## 9.4 A/B 对比
+## 9.6 A/B 对比
 
 必须能回答：
 
 - GoodMemory 比 baseline 平均提升多少
+- GoodMemory 在 personalization layer 上平均提升多少
+- GoodMemory 是否引入了错误个性化
+- GoodMemory 是否正确压制 stale memory
 - 哪些 persona 提升最大
 - 哪些场景反而变差
 
@@ -494,8 +608,7 @@ tests/
   eval/
 fixtures/
   personas/
-  conversations/
-  rubrics/
+  scenarios/
 reports/
   eval/
 scripts/
@@ -507,13 +620,9 @@ scripts/
 
 存 persona spec。
 
-### `fixtures/conversations/`
+### `fixtures/scenarios/`
 
-存合成对话 replay 数据。
-
-### `fixtures/rubrics/`
-
-存 judge rubric 模板。
+存行为驱动的合成对话 replay 数据和 eval expectations。
 
 ### `reports/eval/`
 
@@ -620,6 +729,8 @@ scripts/
 - GoodMemory prompt package
 - judge rubric
 - expected improvement hypothesis
+- expected transfer / suppression / update signals
+- expected assertion outcomes
 
 ---
 
@@ -650,7 +761,7 @@ scripts/
 
 - unit/integration/scenario 先本地跑
 - eval 独立命令执行
-- 支持 smoke eval 与 full eval
+- 支持 smoke / fallback / live 三种模式
 - 优先回归失败子集
 
 ### 风险 4：只优化 judge 分数，不优化真实产品
@@ -659,7 +770,8 @@ scripts/
 
 - 保留 baseline 对比
 - 保存失败案例人工抽查
-- 把 identity/history 两项主指标锁死，不频繁改 rubric
+- 把 retrieval / personalization / runtime-governance 三层 rubric 锁死，不频繁改 rubric
+- 用 deterministic assertions 约束 cross-domain contamination 和 stale update correctness
 
 ---
 

@@ -37,13 +37,13 @@ interface JudgeModelDependencies {
 }
 
 const judgeScoresSchema = z.object({
-  identity_understanding: z.number(),
-  history_continuation: z.number(),
-  factual_alignment: z.number(),
-  relevance: z.number(),
-  // Some OpenAI-compatible gateways reject JSON schemas whose optional
-  // properties are omitted from the generated `required` array.
-  personalization: z.number(),
+  factual_recall: z.number(),
+  preference_consistency: z.number(),
+  cross_domain_transfer: z.number(),
+  contamination_penalty: z.number(),
+  update_correctness: z.number(),
+  personalization_usefulness: z.number(),
+  provenance_explainability: z.number(),
 });
 
 const judgeResultSchema = z.object({
@@ -54,6 +54,10 @@ const judgeResultSchema = z.object({
   reasoning: z.string(),
   failure_tags: z.array(z.string()),
 });
+
+function stripThinkingBlocks(value: string): string {
+  return value.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
 
 export function parseAISDKModelConfigFromEnv(
   prefix: string,
@@ -144,7 +148,7 @@ export function createAISDKTextGenerator(input: {
       });
 
       return {
-        content: await result.text,
+        content: stripThinkingBlocks(await result.text),
       };
     }
 
@@ -155,7 +159,7 @@ export function createAISDKTextGenerator(input: {
     });
 
     return {
-      content: text,
+      content: stripThinkingBlocks(text),
     };
   };
 }

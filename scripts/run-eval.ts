@@ -1,7 +1,13 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AISDKModelConfig } from "../src/llm/ai-sdk";
+import {
+  countAffirmedSignals,
+  countConflictedSignals,
+  countNegatedSignals,
+} from "../src/eval/signalMatching";
 import { runEvalSuite, type EvalSuiteResult } from "../src/eval/suite";
+import type { JudgeScores } from "../src/eval/judge";
 import type { EvalAnswerGeneratorInput } from "../src/eval/runners";
 import {
   createAISDKJudgeModel,
@@ -55,6 +61,363 @@ interface PersistedEvalReport {
 
 function isNonEmpty(value: string | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function normalize(value: string): string {
+  return value.toLowerCase();
+}
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(10, Math.round(value)));
+}
+
+function ratio(matched: number, total: number): number {
+  if (total <= 0) {
+    return 1;
+  }
+
+  return matched / total;
+}
+
+function scoreFromRatio(matched: number, total: number, base = 2): number {
+  return clampScore(base + ratio(matched, total) * 8);
+}
+
+function parseSignalList(value: string): string[] {
+  if (!isNonEmpty(value)) {
+    return [];
+  }
+
+  return value
+    .split(" | ")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function extractLineField(prompt: string, label: string): string {
+  const markers = [`\n${label}: `, `${label}: `];
+
+  for (const marker of markers) {
+    const start = prompt.indexOf(marker);
+    if (start === -1) {
+      continue;
+    }
+
+    const valueStart = start + marker.length;
+    const valueEnd = prompt.indexOf("\n", valueStart);
+    return prompt.slice(valueStart, valueEnd === -1 ? prompt.length : valueEnd).trim();
+  }
+
+  return "";
+}
+
+function extractBlockField(
+  prompt: string,
+  label: string,
+  nextLabel?: string,
+): string {
+  const marker = `\n${label}: `;
+  const start = prompt.indexOf(marker);
+  if (start === -1) {
+    return "";
+  }
+
+  const valueStart = start + marker.length;
+  const nextMarker = nextLabel ? `\n${nextLabel}: ` : "";
+  const valueEnd = nextLabel ? prompt.indexOf(nextMarker, valueStart) : -1;
+
+  return prompt.slice(valueStart, valueEnd === -1 ? prompt.length : valueEnd).trim();
+}
+
+function buildFallbackGoodMemoryAnswer(
+  input: EvalAnswerGeneratorInput,
+): string {
+  const expectedUpdateWins = input.scenario?.evaluation?.expected_update_wins ?? [];
+  const expectedTransferSignals =
+    input.scenario?.evaluation?.expected_transfer_signals ?? [];
+
+  if (!input.memoryContext) {
+    return "I may be missing remembered context.";
+  }
+
+  const sections = [
+    "Confirmed from memory:",
+    input.memoryContext,
+  ];
+
+  if (expectedUpdateWins.length > 0 || expectedTransferSignals.length > 0) {
+    sections.push(
+      "Next step: continue from the latest remembered state before introducing new changes.",
+    );
+  }
+
+  return sections.join("\n\n");
+}
+
+function buildFallbackScores(input: {
+  answer: string;
+  evaluationSetting: "single_domain" | "cross_domain";
+  expectedIdentitySignals: string[];
+  expectedHistorySignals: string[];
+  expectedTransferSignals: string[];
+  expectedNonTransferSignals: string[];
+  expectedUpdateWins: string[];
+  expectedStaleSuppression: string[];
+  wrongPersonalizationSignals: string[];
+}): JudgeScores {
+  const answer = input.answer.trim();
+  const normalized = normalize(answer);
+  const needsMoreContext =
+    normalized.includes("need more context") ||
+    normalized.includes("missing remembered context");
+
+  const identityMatches = countAffirmedSignals(
+    input.expectedIdentitySignals,
+    answer,
+  );
+  const historyMatches = countAffirmedSignals(input.expectedHistorySignals, answer);
+  const transferMatches = countAffirmedSignals(
+    input.expectedTransferSignals,
+    answer,
+  );
+  const updateMatches = countAffirmedSignals(input.expectedUpdateWins, answer);
+  const staleMatches = countAffirmedSignals(
+    input.expectedStaleSuppression,
+    answer,
+  );
+  const contaminationSignals = [
+    ...input.expectedNonTransferSignals,
+    ...input.wrongPersonalizationSignals,
+  ];
+  const contaminationMatches = countAffirmedSignals(
+    contaminationSignals,
+    answer,
+  );
+  const rejectedTransferMatches = countNegatedSignals(
+    input.expectedTransferSignals,
+    answer,
+  );
+  const rejectedUpdateMatches = countNegatedSignals(
+    input.expectedUpdateWins,
+    answer,
+  );
+  const conflictedTransferMatches = countConflictedSignals(
+    input.expectedTransferSignals,
+    answer,
+  );
+  const conflictedUpdateMatches = countConflictedSignals(
+    input.expectedUpdateWins,
+    answer,
+  );
+  const effectiveTransferMatches = Math.max(
+    0,
+    transferMatches - conflictedTransferMatches,
+  );
+  const effectiveUpdateMatches = Math.max(0, updateMatches - conflictedUpdateMatches);
+  const provenanceBase = answer.includes("## ")
+    ? 8
+    : answer.length > 0 && !needsMoreContext
+      ? 6
+      : 2;
+  const factualRatio = averageRatios([
+    ratio(identityMatches, input.expectedIdentitySignals.length),
+    ratio(historyMatches, input.expectedHistorySignals.length),
+  ]);
+  const personalizationRatio = averageRatios([
+    ratio(effectiveTransferMatches, input.expectedTransferSignals.length),
+    ratio(effectiveUpdateMatches, input.expectedUpdateWins.length),
+  ]);
+  const contaminationRatio = averageRatios([
+    ratio(contaminationMatches, contaminationSignals.length),
+    ratio(staleMatches, input.expectedStaleSuppression.length),
+  ]);
+  const base = needsMoreContext ? 0 : 2;
+
+  return {
+    factual_recall: scoreFromRatio(
+      identityMatches + historyMatches,
+      input.expectedIdentitySignals.length + input.expectedHistorySignals.length,
+      base,
+    ),
+    preference_consistency: clampScore(
+      scoreFromRatio(
+        effectiveTransferMatches,
+        input.expectedTransferSignals.length,
+        base,
+      ) -
+        rejectedTransferMatches * 4 -
+        conflictedTransferMatches * 2,
+    ),
+    cross_domain_transfer: input.evaluationSetting === "cross_domain"
+      ? clampScore(
+          scoreFromRatio(
+            effectiveTransferMatches,
+            input.expectedTransferSignals.length,
+            base,
+          ) -
+            rejectedTransferMatches * 4 -
+            conflictedTransferMatches * 2,
+        )
+      : clampScore(
+          base +
+            personalizationRatio * 6 -
+            rejectedTransferMatches * 4 -
+            conflictedTransferMatches * 2,
+        ),
+    contamination_penalty: clampScore(base + (1 - contaminationRatio) * 8),
+    update_correctness: clampScore(
+      base +
+        Math.max(
+          0,
+          factualRatio +
+            ratio(effectiveUpdateMatches, input.expectedUpdateWins.length) -
+            ratio(staleMatches, input.expectedStaleSuppression.length),
+        ) *
+          5 -
+        rejectedUpdateMatches * 4 -
+        conflictedUpdateMatches * 2,
+    ),
+    personalization_usefulness: clampScore(
+      base +
+        personalizationRatio * 8 -
+        (rejectedTransferMatches + rejectedUpdateMatches) * 3 -
+        (conflictedTransferMatches + conflictedUpdateMatches) * 2,
+    ),
+    provenance_explainability: clampScore(
+      provenanceBase - staleMatches - contaminationMatches,
+    ),
+  };
+}
+
+function averageRatios(values: number[]): number {
+  if (values.length === 0) {
+    return 1;
+  }
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function scoreTotal(scores: JudgeScores): number {
+  return (
+    scores.factual_recall +
+    scores.preference_consistency +
+    scores.cross_domain_transfer +
+    scores.contamination_penalty +
+    scores.update_correctness +
+    scores.personalization_usefulness +
+    scores.provenance_explainability
+  );
+}
+
+function buildFallbackJudgeContent(prompt: string): string {
+  const baselineAnswer = extractBlockField(prompt, "baseline", "goodmemory");
+  const goodmemoryAnswer = extractBlockField(prompt, "goodmemory");
+  const evaluationSetting =
+    extractLineField(prompt, "evaluation setting") === "cross_domain"
+      ? "cross_domain"
+      : "single_domain";
+  const expectedIdentitySignals = parseSignalList(
+    extractLineField(prompt, "expected identity signals"),
+  );
+  const expectedHistorySignals = parseSignalList(
+    extractLineField(prompt, "expected history signals"),
+  );
+  const expectedTransferSignals = parseSignalList(
+    extractLineField(prompt, "expected transfer signals"),
+  );
+  const expectedNonTransferSignals = parseSignalList(
+    extractLineField(prompt, "expected non-transfer signals"),
+  );
+  const expectedUpdateWins = parseSignalList(
+    extractLineField(prompt, "expected update wins"),
+  );
+  const expectedStaleSuppression = parseSignalList(
+    extractLineField(prompt, "expected stale suppression"),
+  );
+  const wrongPersonalizationSignals = parseSignalList(
+    extractLineField(prompt, "wrong personalization signals"),
+  );
+  const baselineScores = buildFallbackScores({
+    answer: baselineAnswer,
+    evaluationSetting,
+    expectedIdentitySignals,
+    expectedHistorySignals,
+    expectedTransferSignals,
+    expectedNonTransferSignals,
+    expectedUpdateWins,
+    expectedStaleSuppression,
+    wrongPersonalizationSignals,
+  });
+  const goodmemoryScores = buildFallbackScores({
+    answer: goodmemoryAnswer,
+    evaluationSetting,
+    expectedIdentitySignals,
+    expectedHistorySignals,
+    expectedTransferSignals,
+    expectedNonTransferSignals,
+    expectedUpdateWins,
+    expectedStaleSuppression,
+    wrongPersonalizationSignals,
+  });
+  const baselineTotal = scoreTotal(baselineScores);
+  const goodmemoryTotal = scoreTotal(goodmemoryScores);
+  const rejectedRequiredSignalCount =
+    countNegatedSignals(expectedUpdateWins, goodmemoryAnswer) +
+    countNegatedSignals(expectedTransferSignals, goodmemoryAnswer);
+  let winner =
+    Math.abs(goodmemoryTotal - baselineTotal) < 1
+      ? "tie"
+      : goodmemoryTotal > baselineTotal
+        ? "goodmemory"
+        : "baseline";
+  if (winner === "goodmemory" && rejectedRequiredSignalCount > 0) {
+    winner = "baseline";
+  }
+  const failureTags: string[] = [];
+
+  if (
+    countAffirmedSignals(goodmemoryAnswer ? expectedUpdateWins : [], goodmemoryAnswer) <
+    expectedUpdateWins.length
+  ) {
+    failureTags.push("goodmemory_missed_update_signal");
+  }
+  if (
+    countAffirmedSignals(expectedTransferSignals, goodmemoryAnswer) <
+    expectedTransferSignals.length
+  ) {
+    failureTags.push("goodmemory_missed_preference_signal");
+  }
+  if (countAffirmedSignals(expectedStaleSuppression, goodmemoryAnswer) > 0) {
+    failureTags.push("goodmemory_stale_memory_leak");
+  }
+  if (
+    countAffirmedSignals(
+      [...expectedNonTransferSignals, ...wrongPersonalizationSignals],
+      goodmemoryAnswer,
+    ) > 0
+  ) {
+    failureTags.push("goodmemory_wrong_personalization");
+  }
+  if (countNegatedSignals(expectedUpdateWins, goodmemoryAnswer) > 0) {
+    failureTags.push("goodmemory_rejected_update_signal");
+  }
+  if (countNegatedSignals(expectedTransferSignals, goodmemoryAnswer) > 0) {
+    failureTags.push("goodmemory_rejected_preference_signal");
+  }
+
+  return JSON.stringify({
+    winner,
+    scores: winner === "baseline" ? baselineScores : goodmemoryScores,
+    baseline_scores: baselineScores,
+    goodmemory_scores: goodmemoryScores,
+    reasoning:
+      winner === "goodmemory"
+        ? "GoodMemory surfaced more of the required user state, personalization cues, and current updates."
+        : winner === "baseline"
+          ? "The baseline answer avoided errors while GoodMemory failed to surface enough current memory."
+          : "Both answers surfaced a similar amount of relevant user state.",
+    failure_tags: failureTags,
+  });
 }
 
 export function resolveFlagValue(argv: string[], name: string): string | undefined {
@@ -247,40 +610,12 @@ export async function runFallbackEval(
       content: "I need more context before I can answer reliably.",
     }),
     goodmemoryGenerator: async (payload: EvalAnswerGeneratorInput) => ({
-      content: payload.memoryContext?.includes("runbook-v2")
-        ? "You are a robotics engineer and the updated runbook is v2."
-        : "I may be missing remembered context.",
+      content: buildFallbackGoodMemoryAnswer(payload),
     }),
     judge: {
       async complete({ prompt }: { prompt: string }) {
-        const goodmemoryWon = prompt.includes("updated runbook is v2");
-
         return {
-          content: JSON.stringify({
-            winner: goodmemoryWon ? "goodmemory" : "baseline",
-            scores: {
-              identity_understanding: goodmemoryWon ? 9 : 5,
-              history_continuation: goodmemoryWon ? 9 : 4,
-              factual_alignment: goodmemoryWon ? 8 : 5,
-              relevance: goodmemoryWon ? 9 : 5,
-            },
-            baseline_scores: {
-              identity_understanding: 4,
-              history_continuation: 4,
-              factual_alignment: 5,
-              relevance: 5,
-            },
-            goodmemory_scores: {
-              identity_understanding: goodmemoryWon ? 9 : 5,
-              history_continuation: goodmemoryWon ? 9 : 4,
-              factual_alignment: goodmemoryWon ? 8 : 5,
-              relevance: goodmemoryWon ? 9 : 5,
-            },
-            reasoning: goodmemoryWon
-              ? "GoodMemory recovered identity, corrected reference, and open loop."
-              : "Neither answer used enough remembered context.",
-            failure_tags: goodmemoryWon ? [] : ["memory_miss"],
-          }),
+          content: buildFallbackJudgeContent(prompt),
         };
       },
     },
@@ -323,7 +658,7 @@ export async function runLiveEval(
     goodmemoryGenerator: createTextGenerator({
       model: evalModel,
       system:
-        "Answer using the provided memory context when it is relevant. Prefer explicit confirmation of role, corrected references, and open loops.",
+        "Answer using the provided memory context when it is relevant. Prefer explicit confirmation of role, corrected references, and open loops. When you rely on remembered context, make provenance explicit with phrases like 'From remembered context' or 'Based on prior sessions', and clearly distinguish corrected or superseded references from the current source of truth.",
     }),
     judge: createJudgeModel({
       model: judgeModel,
@@ -362,4 +697,5 @@ async function main(): Promise<void> {
 
 if (import.meta.main) {
   await main();
+  process.exit(0);
 }

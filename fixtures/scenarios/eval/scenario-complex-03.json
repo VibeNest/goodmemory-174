@@ -2,6 +2,13 @@
   "scenario_id": "scenario-complex-03",
   "persona_id": "complex-03",
   "lifecycle_bucket": "complex",
+  "task_family": "cross_domain_suppression",
+  "domain": "productivity",
+  "memory_source_domains": [
+    "education",
+    "entertainment"
+  ],
+  "evaluation_setting": "cross_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -30,6 +37,14 @@
         {
           "role": "assistant",
           "content": "Understood. I will respond in that style."
+        },
+        {
+          "role": "user",
+          "content": "Remember that for education tasks, I avoid spoiler-heavy recommendations and hobby-specific framing."
+        },
+        {
+          "role": "assistant",
+          "content": "I will avoid carrying that preference into unrelated tasks."
         }
       ]
     },
@@ -79,6 +94,28 @@
     },
     {
       "session_id": "complex-03-s4",
+      "objective": "Introduce noisy cross-domain context that should not override the current task.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Unrelated note for education: I still avoid spoiler-heavy recommendations and hobby-specific framing."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that as separate domain context."
+        },
+        {
+          "role": "user",
+          "content": "This is unrelated to the current productivity request for migration rollout."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will not let it distort the current task."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-03-s5",
       "objective": "Correct stale information and request a memory-sensitive answer.",
       "turns": [
         {
@@ -123,6 +160,25 @@
       "handoff package for migration rollout",
       "migration rollout"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer."
+    "expected_transfer_signals": [
+      "structured outlines",
+      "tight feedback loops"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "expected_update_wins": [
+      "docs/migration-rollout-runbook-v2.md",
+      "vendor approval for migration rollout",
+      "handoff package for migration rollout"
+    ],
+    "expected_stale_suppression": [
+      "docs/migration-rollout-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer.",
+    "user_satisfaction_hypothesis": "The agent should suppress irrelevant cross-domain memory while staying grounded in migration rollout."
   }
 }

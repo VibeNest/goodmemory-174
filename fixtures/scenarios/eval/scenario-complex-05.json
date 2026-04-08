@@ -2,6 +2,12 @@
   "scenario_id": "scenario-complex-05",
   "persona_id": "complex-05",
   "lifecycle_bucket": "complex",
+  "task_family": "preference_continuation",
+  "domain": "fitness",
+  "memory_source_domains": [
+    "fitness"
+  ],
+  "evaluation_setting": "single_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -79,6 +85,28 @@
     },
     {
       "session_id": "complex-05-s4",
+      "objective": "Reconfirm the stable response style across another planning pass.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Keep using concise bullet points and visible checklists when we review workflow reliability dashboard."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will preserve that reporting style."
+        },
+        {
+          "role": "user",
+          "content": "That same planning format still works for workflow reliability dashboard."
+        },
+        {
+          "role": "assistant",
+          "content": "I will keep it consistent."
+        }
+      ]
+    },
+    {
+      "session_id": "complex-05-s5",
       "objective": "Correct stale information and request a memory-sensitive answer.",
       "turns": [
         {
@@ -123,6 +151,25 @@
       "handoff package for workflow reliability dashboard",
       "workflow reliability dashboard"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer."
+    "expected_transfer_signals": [
+      "concise bullet points",
+      "visible checklists"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "expected_update_wins": [
+      "docs/workflow-reliability-dashboard-runbook-v2.md",
+      "vendor approval for workflow reliability dashboard",
+      "handoff package for workflow reliability dashboard"
+    ],
+    "expected_stale_suppression": [
+      "docs/workflow-reliability-dashboard-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid spoiler-heavy recommendations and hobby-specific framing"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer.",
+    "user_satisfaction_hypothesis": "The agent should preserve the user's stable style and planning habits while continuing workflow reliability dashboard."
   }
 }

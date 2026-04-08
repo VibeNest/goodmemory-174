@@ -1,8 +1,10 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
+  PersonalizationTaskFamily,
   PersonaLifecycleBucket,
   PersonaSpec,
+  ScenarioEvaluationSetting,
   ScenarioFixture,
 } from "../src/eval/dataset";
 
@@ -91,12 +93,104 @@ const GOALS = [
   "improve delegation and follow-through",
 ];
 
+const DOMAINS = [
+  "work_ops",
+  "shopping",
+  "entertainment",
+  "health",
+  "travel",
+  "finance",
+  "education",
+  "home",
+  "fitness",
+  "food",
+  "productivity",
+  "gaming",
+];
+
 function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
 function projectSlug(project: string): string {
   return project.replace(/\s+/g, "-");
+}
+
+function resolvePersonaDomains(variationIndex: number): string[] {
+  return [
+    DOMAINS[variationIndex % DOMAINS.length]!,
+    DOMAINS[(variationIndex + 4) % DOMAINS.length]!,
+    DOMAINS[(variationIndex + 8) % DOMAINS.length]!,
+  ];
+}
+
+function resolveTaskFamily(
+  bucket: PersonaLifecycleBucket,
+  variationIndex: number,
+): PersonalizationTaskFamily {
+  if (bucket === "long") {
+    return "drift_override_lifelong_update";
+  }
+
+  const rotation: PersonalizationTaskFamily[] = [
+    "preference_continuation",
+    "cross_domain_transfer",
+    "cross_domain_suppression",
+    "drift_override_lifelong_update",
+  ];
+
+  return rotation[variationIndex % rotation.length]!;
+}
+
+function resolveScenarioSetting(
+  persona: PersonaSpec,
+  taskFamily: PersonalizationTaskFamily,
+): {
+  domain: string;
+  memorySourceDomains: string[];
+  evaluationSetting: ScenarioEvaluationSetting;
+} {
+  const [primaryDomain, secondaryDomain, tertiaryDomain] = persona.domains;
+
+  if (
+    taskFamily === "cross_domain_transfer" ||
+    taskFamily === "cross_domain_suppression"
+  ) {
+    return {
+      domain: secondaryDomain!,
+      memorySourceDomains: [primaryDomain!, tertiaryDomain!],
+      evaluationSetting: "cross_domain",
+    };
+  }
+
+  return {
+    domain: primaryDomain!,
+    memorySourceDomains: [primaryDomain!],
+    evaluationSetting: "single_domain",
+  };
+}
+
+function buildDomainSpecificPreferences(domains: string[]): string[] {
+  return [
+    `${domains[1]}: avoid irrelevant carry-over from hobby preferences`,
+    `${domains[2]}: preserve cost-sensitive advice only within that domain`,
+  ];
+}
+
+function buildUserSatisfactionHypothesis(
+  taskFamily: PersonalizationTaskFamily,
+  project: string,
+): string {
+  switch (taskFamily) {
+    case "preference_continuation":
+      return `The agent should preserve the user's stable style and planning habits while continuing ${project}.`;
+    case "cross_domain_transfer":
+      return `The agent should transfer durable user preferences into a new domain while still grounding the next step for ${project}.`;
+    case "cross_domain_suppression":
+      return `The agent should suppress irrelevant cross-domain memory while staying grounded in ${project}.`;
+    case "drift_override_lifelong_update":
+      return `The agent should reflect the user's newest role, focus, and corrected source of truth for ${project}.`;
+  }
 }
 
 function createPersona(
@@ -114,6 +208,8 @@ function createPersona(
     WORK_STYLE_PREFERENCES[variationIndex % WORK_STYLE_PREFERENCES.length]!;
   const project = PROJECTS[variationIndex % PROJECTS.length]!;
   const goal = GOALS[variationIndex % GOALS.length]!;
+  const domains = resolvePersonaDomains(variationIndex);
+  const domainSpecificPreferences = buildDomainSpecificPreferences(domains);
   const personaId = `${bucket}-${pad(index)}`;
 
   return {
@@ -140,21 +236,45 @@ function createPersona(
       `Project details for ${project} may drift across sessions.`,
       "User may correct outdated runbook or status information.",
     ],
+    domains,
+    stable_preferences: [
+      communicationPreferences[0]!,
+      workStylePreferences[0]!,
+    ],
+    domain_specific_preferences: domainSpecificPreferences,
+    drift_events: [
+      `Role and focus may evolve while ${project} progresses.`,
+      `Outdated references or priorities may need explicit override for ${project}.`,
+    ],
+    negative_personalization_risks: [
+      `Do not over-apply ${domainSpecificPreferences[0]} to unrelated tasks.`,
+      `Do not let stale project assumptions dominate new instructions for ${project}.`,
+    ],
     lifecycle_bucket: bucket,
     scenario_ids: [`scenario-${personaId}`],
   };
 }
 
-function createMediumScenario(persona: PersonaSpec): ScenarioFixture {
+function createMediumScenario(
+  persona: PersonaSpec,
+  variationIndex: number,
+): ScenarioFixture {
   const project = persona.current_projects[0]!;
   const referencePointer = `docs/${projectSlug(project)}-runbook-v2.md`;
   const stalePointer = `docs/${projectSlug(project)}-runbook-v1.md`;
   const openLoop = `final verification for ${project}`;
+  const taskFamily = resolveTaskFamily(persona.lifecycle_bucket, variationIndex);
+  const scenarioSetting = resolveScenarioSetting(persona, taskFamily);
+  const suppressionExpectation = "avoid irrelevant carry-over from hobby preferences";
 
   return {
     scenario_id: `scenario-${persona.persona_id}`,
     persona_id: persona.persona_id,
     lifecycle_bucket: persona.lifecycle_bucket,
+    task_family: taskFamily,
+    domain: scenarioSetting.domain,
+    memory_source_domains: scenarioSetting.memorySourceDomains,
+    evaluation_setting: scenarioSetting.evaluationSetting,
     required_phenomena: [
       "identity_reveal",
       "historical_task_continuation",
@@ -184,6 +304,18 @@ function createMediumScenario(persona: PersonaSpec): ScenarioFixture {
             role: "assistant",
             content: "Understood. I will respond in that style.",
           },
+          ...(taskFamily === "cross_domain_suppression"
+            ? [
+                {
+                  role: "user" as const,
+                  content: `Remember that for ${scenarioSetting.memorySourceDomains[0]} tasks, I ${suppressionExpectation}.`,
+                },
+                {
+                  role: "assistant" as const,
+                  content: "Noted. I will keep that scoped preference separate.",
+                },
+              ]
+            : []),
         ],
       },
       {
@@ -250,23 +382,59 @@ function createMediumScenario(persona: PersonaSpec): ScenarioFixture {
         openLoop,
         project,
       ],
+      expected_transfer_signals: [
+        persona.communication_preferences[0]!,
+      ],
+      expected_non_transfer_signals: [
+        suppressionExpectation,
+      ],
+      expected_update_wins: [
+        referencePointer,
+      ],
+      expected_stale_suppression: [
+        stalePointer,
+      ],
+      wrong_personalization_signals: [
+        suppressionExpectation,
+      ],
       improvement_hypothesis:
-        "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without asking for repeated context.",
+        "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without extra user repetition.",
+      user_satisfaction_hypothesis: buildUserSatisfactionHypothesis(
+        taskFamily,
+        project,
+      ),
     },
   };
 }
 
-function createComplexScenario(persona: PersonaSpec): ScenarioFixture {
+function createComplexScenario(
+  persona: PersonaSpec,
+  variationIndex: number,
+): ScenarioFixture {
   const project = persona.current_projects[0]!;
   const referencePointer = `docs/${projectSlug(project)}-runbook-v2.md`;
   const stalePointer = `docs/${projectSlug(project)}-runbook-v1.md`;
   const openLoop = `handoff package for ${project}`;
   const blocker = `vendor approval for ${project}`;
+  const taskFamily = resolveTaskFamily(persona.lifecycle_bucket, variationIndex);
+  const scenarioSetting = resolveScenarioSetting(persona, taskFamily);
+  const suppressionExpectation =
+    "avoid spoiler-heavy recommendations and hobby-specific framing";
+  const needsExtraPreferenceSession = taskFamily === "preference_continuation";
+  const needsCrossDomainNoise =
+    taskFamily === "cross_domain_transfer" ||
+    taskFamily === "cross_domain_suppression";
+  const finalSessionIndex =
+    needsExtraPreferenceSession || needsCrossDomainNoise ? 5 : 4;
 
   return {
     scenario_id: `scenario-${persona.persona_id}`,
     persona_id: persona.persona_id,
     lifecycle_bucket: persona.lifecycle_bucket,
+    task_family: taskFamily,
+    domain: scenarioSetting.domain,
+    memory_source_domains: scenarioSetting.memorySourceDomains,
+    evaluation_setting: scenarioSetting.evaluationSetting,
     required_phenomena: [
       "identity_reveal",
       "historical_task_continuation",
@@ -296,6 +464,18 @@ function createComplexScenario(persona: PersonaSpec): ScenarioFixture {
             role: "assistant",
             content: "Understood. I will respond in that style.",
           },
+          ...(taskFamily === "cross_domain_suppression"
+            ? [
+                {
+                  role: "user" as const,
+                  content: `Remember that for ${scenarioSetting.memorySourceDomains[0]} tasks, I ${suppressionExpectation}.`,
+                },
+                {
+                  role: "assistant" as const,
+                  content: "I will avoid carrying that preference into unrelated tasks.",
+                },
+              ]
+            : []),
         ],
       },
       {
@@ -342,8 +522,60 @@ function createComplexScenario(persona: PersonaSpec): ScenarioFixture {
           },
         ],
       },
+      ...(needsExtraPreferenceSession
+        ? [
+            {
+              session_id: `${persona.persona_id}-s4`,
+              objective: "Reconfirm the stable response style across another planning pass.",
+              turns: [
+                {
+                  role: "user" as const,
+                  content: `Keep using ${persona.communication_preferences[0]} and ${persona.work_style_preferences[1]} when we review ${project}.`,
+                },
+                {
+                  role: "assistant" as const,
+                  content: "Understood. I will preserve that reporting style.",
+                },
+                {
+                  role: "user" as const,
+                  content: `That same planning format still works for ${project}.`,
+                },
+                {
+                  role: "assistant" as const,
+                  content: "I will keep it consistent.",
+                },
+              ],
+            },
+          ]
+        : []),
+      ...(needsCrossDomainNoise
+        ? [
+            {
+              session_id: `${persona.persona_id}-s4`,
+              objective: "Introduce noisy cross-domain context that should not override the current task.",
+              turns: [
+                {
+                  role: "user" as const,
+                  content: `Unrelated note for ${scenarioSetting.memorySourceDomains[0]}: I still ${suppressionExpectation}.`,
+                },
+                {
+                  role: "assistant" as const,
+                  content: "Noted. I will keep that as separate domain context.",
+                },
+                {
+                  role: "user" as const,
+                  content: `This is unrelated to the current ${scenarioSetting.domain} request for ${project}.`,
+                },
+                {
+                  role: "assistant" as const,
+                  content: "Understood. I will not let it distort the current task.",
+                },
+              ],
+            },
+          ]
+        : []),
       {
-        session_id: `${persona.persona_id}-s4`,
+        session_id: `${persona.persona_id}-s${finalSessionIndex}`,
         objective: "Correct stale information and request a memory-sensitive answer.",
         turns: [
           {
@@ -385,24 +617,55 @@ function createComplexScenario(persona: PersonaSpec): ScenarioFixture {
         openLoop,
         project,
       ],
+      expected_transfer_signals: [
+        persona.communication_preferences[0]!,
+        persona.work_style_preferences[1]!,
+      ],
+      expected_non_transfer_signals: [
+        suppressionExpectation,
+      ],
+      expected_update_wins: [
+        referencePointer,
+        blocker,
+        openLoop,
+      ],
+      expected_stale_suppression: [
+        stalePointer,
+      ],
+      wrong_personalization_signals: [
+        suppressionExpectation,
+      ],
       improvement_hypothesis:
         "GoodMemory should beat baseline by combining the corrected runbook, confirmed response style, active blocker, and unresolved open loop in one answer.",
+      user_satisfaction_hypothesis: buildUserSatisfactionHypothesis(
+        taskFamily,
+        project,
+      ),
     },
   };
 }
 
-function createLongScenario(persona: PersonaSpec): ScenarioFixture {
+function createLongScenario(
+  persona: PersonaSpec,
+  variationIndex: number,
+): ScenarioFixture {
   const project = persona.current_projects[0]!;
   const referencePointer = `docs/${projectSlug(project)}-runbook-v2.md`;
   const stalePointer = `docs/${projectSlug(project)}-runbook-v1.md`;
   const openLoop = `final reliability signoff for ${project}`;
   const updatedRole = `staff platform engineer leading ${project}`;
   const currentFocus = `runtime reliability and platform migration for ${project}`;
+  const taskFamily = resolveTaskFamily(persona.lifecycle_bucket, variationIndex);
+  const scenarioSetting = resolveScenarioSetting(persona, taskFamily);
 
   return {
     scenario_id: `scenario-${persona.persona_id}`,
     persona_id: persona.persona_id,
     lifecycle_bucket: persona.lifecycle_bucket,
+    task_family: taskFamily,
+    domain: scenarioSetting.domain,
+    memory_source_domains: scenarioSetting.memorySourceDomains,
+    evaluation_setting: scenarioSetting.evaluationSetting,
     required_phenomena: [
       "identity_reveal",
       "historical_task_continuation",
@@ -542,22 +805,47 @@ function createLongScenario(persona: PersonaSpec): ScenarioFixture {
         openLoop,
         project,
       ],
+      expected_transfer_signals: [
+        persona.communication_preferences[0]!,
+      ],
+      expected_non_transfer_signals: [
+        persona.domain_specific_preferences[0]!,
+      ],
+      expected_update_wins: [
+        updatedRole,
+        currentFocus,
+        referencePointer,
+      ],
+      expected_stale_suppression: [
+        persona.profession,
+        stalePointer,
+      ],
+      wrong_personalization_signals: [
+        persona.profession,
+      ],
       improvement_hypothesis:
         "GoodMemory should beat baseline by preferring the user's current role and focus, using the corrected runbook, and resuming the unresolved long-lived open loop.",
+      user_satisfaction_hypothesis: buildUserSatisfactionHypothesis(
+        taskFamily,
+        project,
+      ),
     },
   };
 }
 
-function createScenario(persona: PersonaSpec): ScenarioFixture {
+function createScenario(
+  persona: PersonaSpec,
+  variationIndex: number,
+): ScenarioFixture {
   if (persona.lifecycle_bucket === "medium") {
-    return createMediumScenario(persona);
+    return createMediumScenario(persona, variationIndex);
   }
 
   if (persona.lifecycle_bucket === "complex") {
-    return createComplexScenario(persona);
+    return createComplexScenario(persona, variationIndex);
   }
 
-  return createLongScenario(persona);
+  return createLongScenario(persona, variationIndex);
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
@@ -580,8 +868,9 @@ async function main(): Promise<void> {
   for (const [bucket, count] of buckets) {
     for (let index = 1; index <= count; index += 1) {
       globalIndex += 1;
-      const persona = createPersona(bucket, index, globalIndex - 1);
-      const scenario = createScenario(persona);
+      const variationIndex = globalIndex - 1;
+      const persona = createPersona(bucket, index, variationIndex);
+      const scenario = createScenario(persona, variationIndex);
 
       await writeJson(join(PERSONA_DIR, `${persona.persona_id}.json`), persona);
       await writeJson(join(SCENARIO_DIR, `${scenario.scenario_id}.json`), scenario);

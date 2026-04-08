@@ -2,6 +2,12 @@
   "scenario_id": "scenario-medium-24",
   "persona_id": "medium-24",
   "lifecycle_bucket": "medium",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "gaming",
+  "memory_source_domains": [
+    "gaming"
+  ],
+  "evaluation_setting": "single_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -100,6 +106,22 @@
       "final verification for tooling consolidation initiative",
       "tooling consolidation initiative"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without asking for repeated context."
+    "expected_transfer_signals": [
+      "short status updates"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid irrelevant carry-over from hobby preferences"
+    ],
+    "expected_update_wins": [
+      "docs/tooling-consolidation-initiative-runbook-v2.md"
+    ],
+    "expected_stale_suppression": [
+      "docs/tooling-consolidation-initiative-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid irrelevant carry-over from hobby preferences"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without extra user repetition.",
+    "user_satisfaction_hypothesis": "The agent should reflect the user's newest role, focus, and corrected source of truth for tooling consolidation initiative."
   }
 }

@@ -1,13 +1,38 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { EvalAssertionSummary } from "./assertions";
 import type { JudgeResult, JudgeScores } from "./judge";
 import type { EvalAnswerPackage } from "./runners";
 
+export interface EvalLayerScores {
+  retrieval: number;
+  personalization: number;
+  runtime_governance: number;
+}
+
+export interface EvalAssertionsAggregate {
+  totalCases: number;
+  passingCases: number;
+  passRate: number;
+  totalChecks: number;
+  passingChecks: number;
+  checkPassRate: number;
+  contaminationFailures: number;
+  updateFailures: number;
+}
+
 export interface JudgedEvalCase {
   caseId: string;
+  metadata: {
+    taskFamily: EvalAnswerPackage["taskFamily"];
+    targetDomain: string;
+    memorySourceDomains: string[];
+    evaluationSetting: EvalAnswerPackage["evaluationSetting"];
+  };
   baseline: EvalAnswerPackage;
   goodmemory: EvalAnswerPackage;
   judge: JudgeResult;
+  assertions: EvalAssertionSummary;
 }
 
 export interface EvalSuiteSummary {
@@ -20,6 +45,12 @@ export interface EvalSuiteSummary {
   goodmemoryAverage: JudgeScores;
   baselineAverage: JudgeScores;
   uplift: JudgeScores;
+  layers: {
+    baseline: EvalLayerScores;
+    goodmemory: EvalLayerScores;
+    uplift: EvalLayerScores;
+  };
+  assertions: EvalAssertionsAggregate;
 }
 
 export interface EvalRuntimeMetadata {
@@ -31,51 +62,123 @@ export type PersistedEvalMode = "live" | "fallback";
 
 function emptyScores(): JudgeScores {
   return {
-    identity_understanding: 0,
-    history_continuation: 0,
-    factual_alignment: 0,
-    relevance: 0,
+    factual_recall: 0,
+    preference_consistency: 0,
+    cross_domain_transfer: 0,
+    contamination_penalty: 0,
+    update_correctness: 0,
+    personalization_usefulness: 0,
+    provenance_explainability: 0,
   };
 }
 
 function addScores(target: JudgeScores, source: JudgeScores): JudgeScores {
   return {
-    identity_understanding:
-      target.identity_understanding + source.identity_understanding,
-    history_continuation:
-      target.history_continuation + source.history_continuation,
-    factual_alignment: target.factual_alignment + source.factual_alignment,
-    relevance: target.relevance + source.relevance,
-    personalization:
-      (target.personalization ?? 0) + (source.personalization ?? 0),
+    factual_recall: target.factual_recall + source.factual_recall,
+    preference_consistency:
+      target.preference_consistency + source.preference_consistency,
+    cross_domain_transfer:
+      target.cross_domain_transfer + source.cross_domain_transfer,
+    contamination_penalty:
+      target.contamination_penalty + source.contamination_penalty,
+    update_correctness:
+      target.update_correctness + source.update_correctness,
+    personalization_usefulness:
+      target.personalization_usefulness + source.personalization_usefulness,
+    provenance_explainability:
+      target.provenance_explainability + source.provenance_explainability,
   };
 }
 
 function divideScores(scores: JudgeScores, divisor: number): JudgeScores {
   return {
-    identity_understanding: scores.identity_understanding / divisor,
-    history_continuation: scores.history_continuation / divisor,
-    factual_alignment: scores.factual_alignment / divisor,
-    relevance: scores.relevance / divisor,
-    personalization:
-      scores.personalization !== undefined
-        ? scores.personalization / divisor
-        : undefined,
+    factual_recall: scores.factual_recall / divisor,
+    preference_consistency: scores.preference_consistency / divisor,
+    cross_domain_transfer: scores.cross_domain_transfer / divisor,
+    contamination_penalty: scores.contamination_penalty / divisor,
+    update_correctness: scores.update_correctness / divisor,
+    personalization_usefulness:
+      scores.personalization_usefulness / divisor,
+    provenance_explainability:
+      scores.provenance_explainability / divisor,
   };
 }
 
 function subtractScores(left: JudgeScores, right: JudgeScores): JudgeScores {
   return {
-    identity_understanding:
-      left.identity_understanding - right.identity_understanding,
-    history_continuation:
-      left.history_continuation - right.history_continuation,
-    factual_alignment: left.factual_alignment - right.factual_alignment,
-    relevance: left.relevance - right.relevance,
-    personalization:
-      left.personalization !== undefined || right.personalization !== undefined
-        ? (left.personalization ?? 0) - (right.personalization ?? 0)
-        : undefined,
+    factual_recall: left.factual_recall - right.factual_recall,
+    preference_consistency:
+      left.preference_consistency - right.preference_consistency,
+    cross_domain_transfer:
+      left.cross_domain_transfer - right.cross_domain_transfer,
+    contamination_penalty:
+      left.contamination_penalty - right.contamination_penalty,
+    update_correctness:
+      left.update_correctness - right.update_correctness,
+    personalization_usefulness:
+      left.personalization_usefulness - right.personalization_usefulness,
+    provenance_explainability:
+      left.provenance_explainability - right.provenance_explainability,
+  };
+}
+
+function average(values: number[]): number {
+  return values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+}
+
+function toLayerScores(scores: JudgeScores): EvalLayerScores {
+  return {
+    retrieval: average([
+      scores.factual_recall,
+      scores.provenance_explainability,
+    ]),
+    personalization: average([
+      scores.preference_consistency,
+      scores.cross_domain_transfer,
+      scores.contamination_penalty,
+      scores.update_correctness,
+      scores.personalization_usefulness,
+    ]),
+    runtime_governance: average([
+      scores.contamination_penalty,
+      scores.update_correctness,
+      scores.provenance_explainability,
+    ]),
+  };
+}
+
+function subtractLayerScores(
+  left: EvalLayerScores,
+  right: EvalLayerScores,
+): EvalLayerScores {
+  return {
+    retrieval: left.retrieval - right.retrieval,
+    personalization: left.personalization - right.personalization,
+    runtime_governance: left.runtime_governance - right.runtime_governance,
+  };
+}
+
+function aggregateAssertions(cases: JudgedEvalCase[]): EvalAssertionsAggregate {
+  const totalCases = cases.length;
+  const passingCases = cases.filter((item) => item.assertions.passed).length;
+  const totalChecks = cases.reduce((sum, item) => sum + item.assertions.totalChecks, 0);
+  const passingChecks = cases.reduce(
+    (sum, item) => sum + item.assertions.passedChecks,
+    0,
+  );
+
+  return {
+    totalCases,
+    passingCases,
+    passRate: passingCases / Math.max(totalCases, 1),
+    totalChecks,
+    passingChecks,
+    checkPassRate: passingChecks / Math.max(totalChecks, 1),
+    contaminationFailures: cases.filter(
+      (item) => item.assertions.contaminationFindings.length > 0,
+    ).length,
+    updateFailures: cases.filter((item) => item.assertions.updateFindings.length > 0)
+      .length,
   };
 }
 
@@ -87,6 +190,20 @@ function resolveComparativeScores(judge: JudgeResult): {
     baseline: judge.baseline_scores ?? judge.scores,
     goodmemory: judge.goodmemory_scores ?? judge.scores,
   };
+}
+
+function hasFailureTagPrefix(tag: string, prefix: "baseline" | "goodmemory" | "shared"): boolean {
+  return tag.startsWith(`${prefix}_`) || tag.startsWith(`${prefix}:`);
+}
+
+function resolveBlockingFailureTags(judge: JudgeResult): string[] {
+  if (judge.winner !== "goodmemory") {
+    return judge.failure_tags;
+  }
+
+  return judge.failure_tags.filter((tag) => {
+    return hasFailureTagPrefix(tag, "goodmemory") || hasFailureTagPrefix(tag, "shared");
+  });
 }
 
 export function aggregateJudgedCases(cases: JudgedEvalCase[]): EvalSuiteSummary {
@@ -109,6 +226,8 @@ export function aggregateJudgedCases(cases: JudgedEvalCase[]): EvalSuiteSummary 
   const divisor = Math.max(cases.length, 1);
   const baselineAverage = divideScores(baselineTotal, divisor);
   const goodmemoryAverage = divideScores(goodmemoryTotal, divisor);
+  const baselineLayers = toLayerScores(baselineAverage);
+  const goodmemoryLayers = toLayerScores(goodmemoryAverage);
 
   return {
     totalCases: cases.length,
@@ -116,6 +235,12 @@ export function aggregateJudgedCases(cases: JudgedEvalCase[]): EvalSuiteSummary 
     baselineAverage,
     goodmemoryAverage,
     uplift: subtractScores(goodmemoryAverage, baselineAverage),
+    layers: {
+      baseline: baselineLayers,
+      goodmemory: goodmemoryLayers,
+      uplift: subtractLayerScores(goodmemoryLayers, baselineLayers),
+    },
+    assertions: aggregateAssertions(cases),
   };
 }
 
@@ -211,9 +336,17 @@ export async function persistEvalArtifacts(input: {
       `${JSON.stringify(item.judge, null, 2)}\n`,
       "utf8",
     );
+    await writeFile(
+      join(caseTraceDirectory, "assertions.json"),
+      `${JSON.stringify(item.assertions, null, 2)}\n`,
+      "utf8",
+    );
 
+    const blockingFailureTags = resolveBlockingFailureTags(item.judge);
     const failed =
-      item.judge.winner !== "goodmemory" || item.judge.failure_tags.length > 0;
+      item.judge.winner !== "goodmemory" ||
+      blockingFailureTags.length > 0 ||
+      !item.assertions.passed;
 
     if (!failed) {
       continue;
@@ -224,11 +357,16 @@ export async function persistEvalArtifacts(input: {
       `${JSON.stringify(item, null, 2)}\n`,
       "utf8",
     );
-    failedCases.push({
+      failedCases.push({
       caseId: item.caseId,
       path: join(failuresDirectory, `${item.caseId}.json`),
       winner: item.judge.winner,
-      failureTags: item.judge.failure_tags,
+      failureTags: [
+        ...blockingFailureTags,
+        ...item.assertions.checks
+          .filter((check) => !check.passed)
+          .map((check) => `assertion:${check.id}`),
+      ],
     });
   }
 

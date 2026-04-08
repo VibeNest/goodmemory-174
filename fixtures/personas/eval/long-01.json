@@ -35,6 +35,27 @@
     "Project details for release quality program may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "work_ops",
+    "travel",
+    "fitness"
+  ],
+  "stable_preferences": [
+    "concise bullet points",
+    "incremental delivery"
+  ],
+  "domain_specific_preferences": [
+    "travel: avoid irrelevant carry-over from hobby preferences",
+    "fitness: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while release quality program progresses.",
+    "Outdated references or priorities may need explicit override for release quality program."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply travel: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for release quality program."
+  ],
   "lifecycle_bucket": "long",
   "scenario_ids": [
     "scenario-long-01"

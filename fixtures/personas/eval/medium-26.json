@@ -35,6 +35,27 @@
     "Project details for research operations redesign may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "shopping",
+    "finance",
+    "food"
+  ],
+  "stable_preferences": [
+    "risk-first summaries",
+    "deep work blocks"
+  ],
+  "domain_specific_preferences": [
+    "finance: avoid irrelevant carry-over from hobby preferences",
+    "food: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while research operations redesign progresses.",
+    "Outdated references or priorities may need explicit override for research operations redesign."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply finance: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for research operations redesign."
+  ],
   "lifecycle_bucket": "medium",
   "scenario_ids": [
     "scenario-medium-26"

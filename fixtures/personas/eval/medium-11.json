@@ -35,6 +35,27 @@
     "Project details for migration rollout may drift across sessions.",
     "User may correct outdated runbook or status information."
   ],
+  "domains": [
+    "productivity",
+    "entertainment",
+    "education"
+  ],
+  "stable_preferences": [
+    "structured outlines",
+    "prototype before polish"
+  ],
+  "domain_specific_preferences": [
+    "entertainment: avoid irrelevant carry-over from hobby preferences",
+    "education: preserve cost-sensitive advice only within that domain"
+  ],
+  "drift_events": [
+    "Role and focus may evolve while migration rollout progresses.",
+    "Outdated references or priorities may need explicit override for migration rollout."
+  ],
+  "negative_personalization_risks": [
+    "Do not over-apply entertainment: avoid irrelevant carry-over from hobby preferences to unrelated tasks.",
+    "Do not let stale project assumptions dominate new instructions for migration rollout."
+  ],
   "lifecycle_bucket": "medium",
   "scenario_ids": [
     "scenario-medium-11"

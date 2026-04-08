@@ -5,7 +5,9 @@ import type {
   RememberResult as PublicRememberResult,
 } from "../index";
 import type {
+  PersonalizationTaskFamily,
   PersonaSpec,
+  ScenarioEvaluationSetting,
   ScenarioFeedbackSignal,
   ScenarioFixture,
   ScenarioTurn,
@@ -31,6 +33,10 @@ export interface EvalAnswerPackage {
   mode: "baseline" | "goodmemory";
   personaId: string;
   scenarioId: string;
+  taskFamily: PersonalizationTaskFamily;
+  targetDomain: string;
+  memorySourceDomains: string[];
+  evaluationSetting: ScenarioEvaluationSetting;
   prompt: string;
   transcript: string;
   memoryContext?: string;
@@ -144,6 +150,10 @@ export async function runBaselineScenario(input: {
     mode: "baseline",
     personaId: input.persona.persona_id,
     scenarioId: input.scenario.scenario_id,
+    taskFamily: input.scenario.task_family,
+    targetDomain: input.scenario.domain,
+    memorySourceDomains: input.scenario.memory_source_domains,
+    evaluationSetting: input.scenario.evaluation_setting,
     prompt,
     transcript,
     answer: answer.content,
@@ -251,6 +261,10 @@ export async function runGoodMemoryScenario(input: {
     mode: "goodmemory",
     personaId: input.persona.persona_id,
     scenarioId: input.scenario.scenario_id,
+    taskFamily: input.scenario.task_family,
+    targetDomain: input.scenario.domain,
+    memorySourceDomains: input.scenario.memory_source_domains,
+    evaluationSetting: input.scenario.evaluation_setting,
     prompt,
     transcript,
     memoryContext: context.content,

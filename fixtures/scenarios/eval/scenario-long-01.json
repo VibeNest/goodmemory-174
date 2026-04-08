@@ -2,6 +2,12 @@
   "scenario_id": "scenario-long-01",
   "persona_id": "long-01",
   "lifecycle_bucket": "long",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "work_ops",
+  "memory_source_domains": [
+    "work_ops"
+  ],
+  "evaluation_setting": "single_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -144,6 +150,25 @@
       "final reliability signoff for release quality program",
       "release quality program"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by preferring the user's current role and focus, using the corrected runbook, and resuming the unresolved long-lived open loop."
+    "expected_transfer_signals": [
+      "concise bullet points"
+    ],
+    "expected_non_transfer_signals": [
+      "travel: avoid irrelevant carry-over from hobby preferences"
+    ],
+    "expected_update_wins": [
+      "staff platform engineer leading release quality program",
+      "runtime reliability and platform migration for release quality program",
+      "docs/release-quality-program-runbook-v2.md"
+    ],
+    "expected_stale_suppression": [
+      "Biomedical researcher",
+      "docs/release-quality-program-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "Biomedical researcher"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by preferring the user's current role and focus, using the corrected runbook, and resuming the unresolved long-lived open loop.",
+    "user_satisfaction_hypothesis": "The agent should reflect the user's newest role, focus, and corrected source of truth for release quality program."
   }
 }

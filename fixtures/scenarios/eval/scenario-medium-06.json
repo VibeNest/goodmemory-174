@@ -2,6 +2,13 @@
   "scenario_id": "scenario-medium-06",
   "persona_id": "medium-06",
   "lifecycle_bucket": "medium",
+  "task_family": "cross_domain_transfer",
+  "domain": "food",
+  "memory_source_domains": [
+    "finance",
+    "shopping"
+  ],
+  "evaluation_setting": "cross_domain",
   "required_phenomena": [
     "identity_reveal",
     "historical_task_continuation",
@@ -100,6 +107,22 @@
       "final verification for research operations redesign",
       "research operations redesign"
     ],
-    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without asking for repeated context."
+    "expected_transfer_signals": [
+      "risk-first summaries"
+    ],
+    "expected_non_transfer_signals": [
+      "avoid irrelevant carry-over from hobby preferences"
+    ],
+    "expected_update_wins": [
+      "docs/research-operations-redesign-runbook-v2.md"
+    ],
+    "expected_stale_suppression": [
+      "docs/research-operations-redesign-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "avoid irrelevant carry-over from hobby preferences"
+    ],
+    "improvement_hypothesis": "GoodMemory should beat baseline by recovering the user's role, corrected runbook, and open loop without extra user repetition.",
+    "user_satisfaction_hypothesis": "The agent should transfer durable user preferences into a new domain while still grounding the next step for research operations redesign."
   }
 }
