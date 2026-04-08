@@ -1,6 +1,6 @@
 # GoodMemory v1 Quality Gate
 
-Generated at: `2026-04-02 23:35:11 +0800`
+Generated at: `2026-04-08 02:08:17 +0800`
 
 ## Commands Run
 
@@ -37,8 +37,8 @@ bun run eval:fallback -- --limit=1 --scenario-id=<scenario-id>
 
 ## Latest Eval Artifacts
 
-- Latest live eval report directory: `reports/eval/live/<run-id>`
-- Latest fallback eval report directory: `reports/eval/fallback/<run-id>`
+- Latest live eval report directory: `reports/eval/live/run-1775584704903`
+- Latest fallback eval report directory: `reports/eval/fallback/run-1775584727223`
 
 ## Release Readiness
 

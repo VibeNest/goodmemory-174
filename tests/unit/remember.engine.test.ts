@@ -174,6 +174,72 @@ describe("remember engine", () => {
     expect(result.accepted).toBe(1);
   });
 
+  it("merges multi-field profile updates into one durable profile", async () => {
+    const { repositories, engine } = createEngine();
+
+    await engine.remember({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "My name is Felix. I'm a climate policy advisor in Austin, USA. Remember that I'm leading incident playbook refresh.",
+        },
+      ],
+    });
+
+    const profile = await repositories.profiles.get("u-1");
+    const facts = await repositories.facts.listByScope({
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    });
+
+    expect(profile?.identity).toEqual({
+      name: "Felix",
+      role: "climate policy advisor",
+      location: "Austin, USA",
+    });
+    expect(profile?.activeContext.currentProjects).toEqual([
+      "incident playbook refresh",
+    ]);
+    expect(facts).toHaveLength(0);
+  });
+
+  it("writes structured profile fields beyond name and explains them in trace reasons", async () => {
+    const { repositories, engine } = createEngine();
+
+    const result = await engine.remember({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I'm a staff engineer at Acme Labs. My timezone is Asia/Shanghai. My preferred language is Chinese.",
+        },
+      ],
+    });
+
+    const profile = await repositories.profiles.get("u-1");
+
+    expect(profile?.identity).toEqual({
+      role: "staff engineer",
+      organization: "Acme Labs",
+      timezone: "Asia/Shanghai",
+      languagePreference: "Chinese",
+    });
+    expect(result.events.map((event) => event.reason)).toContain("explicit_profile_role");
+    expect(result.events.map((event) => event.reason)).toContain(
+      "explicit_profile_organization",
+    );
+    expect(result.events.map((event) => event.reason)).toContain(
+      "explicit_profile_timezone",
+    );
+    expect(result.events.map((event) => event.reason)).toContain(
+      "explicit_profile_language_preference",
+    );
+  });
+
   it("exposes extraction and rejects unsupported kinds or policy-vetoed writes", async () => {
     const base = createEngine();
     const blocked = createEngine({

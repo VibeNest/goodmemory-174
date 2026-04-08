@@ -11,7 +11,7 @@ describe("context builder output modes", () => {
         userId: "u-1",
         identity: { name: "Lin", role: "Robotics engineer" },
         expertise: { primarySkills: [], domains: [] },
-        activeContext: { goals: [], currentProjects: [] },
+        activeContext: { goals: [], currentProjects: ["Migration rollout"] },
         version: 1,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
@@ -30,6 +30,8 @@ describe("context builder output modes", () => {
     const developerPrompt = renderMemoryPacket(packet, "developer_prompt_fragment");
 
     expect(markdown.content).toContain("## Profile");
+    expect(markdown.content).toContain("## Active Context");
+    expect(markdown.content).toContain("Current projects: Migration rollout");
     expect(systemPrompt.content).not.toBe(markdown.content);
     expect(developerPrompt.content).not.toBe(markdown.content);
     expect(systemPrompt.content).toContain("User memory context");

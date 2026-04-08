@@ -92,6 +92,8 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
         collection: "profiles",
         fields: [
           { path: "identity.name", equals: "Lin" },
+          { path: "identity.role", equals: "robotics engineer" },
+          { path: "identity.location", equals: "Shanghai" },
         ],
       },
       {
@@ -121,6 +123,8 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
         collection: "profile",
         fields: [
           { path: "identity.name", equals: "Lin" },
+          { path: "identity.role", equals: "robotics engineer" },
+          { path: "identity.location", equals: "Shanghai" },
         ],
       },
       {
@@ -141,7 +145,10 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
       },
     ],
     expectedContext: [
-      { path: "Profile", hasEntries: ["Lin"] },
+      {
+        path: "Profile",
+        hasEntries: ["Lin - robotics engineer - Shanghai"],
+      },
       { path: "Preferences", hasEntries: ["response_style: concise bullet points"] },
       {
         path: "Facts",
@@ -150,6 +157,8 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     ],
     expectedAnswer: [
       { path: "profileName", equals: "Lin" },
+      { path: "profileRole", equals: "robotics engineer" },
+      { path: "profileLocation", equals: "Shanghai" },
       { path: "preferences", hasEntries: ["concise bullet points"] },
       {
         path: "factEntries",
@@ -469,11 +478,9 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     prompt: "Confirm my current role and focus before we continue the platform migration.",
     expectedRemembered: [
       {
-        collection: "facts",
-        scope: { workspaceId: "workspace-long" },
+        collection: "profiles",
         fields: [
-          { path: "content", equals: "I am a frontend engineer shipping the design system." },
-          { path: "workspaceId", equals: "workspace-long" },
+          { path: "identity.role", equals: "frontend engineer shipping the design system" },
         ],
       },
       {

@@ -15,6 +15,8 @@ import type {
 type StructuredAnswer = {
   prompt: string;
   profileName: string | null;
+  profileRole: string | null;
+  profileLocation: string | null;
   preferences: string[];
   referencePointers: string[];
   factEntries: string[];
@@ -170,6 +172,8 @@ function buildStructuredAnswer(
   return {
     prompt,
     profileName: recall.profile?.identity.name ?? null,
+    profileRole: recall.profile?.identity.role ?? null,
+    profileLocation: recall.profile?.identity.location ?? null,
     preferences: recall.preferences.map((item) => String(item.value)),
     referencePointers: recall.references.map((item) => item.pointer),
     factEntries: recall.facts.map((item) => item.content),

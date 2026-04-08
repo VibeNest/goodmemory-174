@@ -1,6 +1,15 @@
 import type { FeedbackKind } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 
+export type ProfileField =
+  | "name"
+  | "role"
+  | "organization"
+  | "location"
+  | "timezone"
+  | "languagePreference"
+  | "currentProject";
+
 export type MemoryCandidateKindHint =
   | "profile"
   | "preference"
@@ -23,7 +32,7 @@ export interface MemoryCandidate {
     category?: "project" | "technical" | "personal" | "relationship" | "event";
     feedbackKind?: FeedbackKind;
     appliesTo?: string;
-    profileField?: "name";
+    profileField?: ProfileField;
     preferenceCategory?: string;
     preferenceValue?: string;
     referenceTitle?: string;

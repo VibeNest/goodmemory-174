@@ -57,6 +57,31 @@ describe("public remember API", () => {
     expect(await documentStore.query("facts", { userId: "u-1" })).toHaveLength(0);
   });
 
+  it("counts ignored noise per message instead of per clause", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const noiseOnly = await memory.remember({
+      scope: { userId: "u-1", sessionId: "s-noise" },
+      messages: [{ role: "user", content: "hi" }],
+    });
+    const mixed = await memory.remember({
+      scope: { userId: "u-1", sessionId: "s-mixed" },
+      messages: [{ role: "user", content: "My name is Felix. Thanks" }],
+    });
+
+    expect(noiseOnly.accepted).toBe(0);
+    expect(noiseOnly.rejected).toBe(1);
+    expect(mixed.accepted).toBe(1);
+    expect(mixed.rejected).toBe(0);
+  });
+
   it("compiles preferences, references, and episodes from a multi-turn interaction", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({
@@ -104,6 +129,137 @@ describe("public remember API", () => {
         workspaceId: "workspace-a",
       }),
     ).toHaveLength(1);
+    const episodes = await documentStore.query<{
+      summary: string;
+      keyDecisions: string[];
+    }>("episodes", {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+    });
+    expect(episodes[0]?.summary).toContain(
+      "Assistant follow-through: Understood. I will use concise bullet points.",
+    );
+    expect(episodes[0]?.keyDecisions).toContain(
+      "Understood. I will use concise bullet points.",
+    );
+  });
+
+  it("does not promote assistant-only claims into durable semantic memory", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "assistant",
+          content:
+            "I will use docs/migration-runbook-v2.md and remember that the blocker is vendor approval.",
+        },
+      ],
+    });
+
+    expect(result.accepted).toBe(0);
+    expect(await documentStore.query("profiles", { userId: "u-1" })).toHaveLength(0);
+    expect(await documentStore.query("references", { userId: "u-1" })).toHaveLength(0);
+    expect(await documentStore.query("facts", { userId: "u-1" })).toHaveLength(0);
+    expect(await documentStore.query("preferences", { userId: "u-1" })).toHaveLength(0);
+    expect(await documentStore.query("episodes", { userId: "u-1" })).toHaveLength(0);
+  });
+
+  it("captures assistant follow-through in episodic memory without promoting it to durable facts", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content: "Use docs/migration-runbook-v2.md as the source of truth.",
+        },
+        {
+          role: "assistant",
+          content: "Updated. I will use the newer runbook going forward.",
+        },
+      ],
+    });
+
+    const episodes = await documentStore.query<{
+      summary: string;
+      keyDecisions: string[];
+    }>("episodes", {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+    });
+    const facts = await documentStore.query("facts", {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+    });
+    const references = await documentStore.query("references", {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+    });
+
+    expect(references).toHaveLength(1);
+    expect(facts).toHaveLength(0);
+    expect(episodes).toHaveLength(1);
+    expect(episodes[0]?.summary).toContain(
+      "Assistant follow-through: Updated. I will use the newer runbook going forward.",
+    );
+    expect(episodes[0]?.keyDecisions).toContain(
+      "Updated. I will use the newer runbook going forward.",
+    );
+  });
+
+  it("does not persist duplicate identity facts when remember-that clauses only restate profile", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        { role: "user", content: "Remember that my name is Felix." },
+        {
+          role: "user",
+          content: "Remember that I'm a climate policy advisor in Austin, USA.",
+        },
+      ],
+    });
+
+    const profiles = await documentStore.query<{
+      identity: Record<string, string>;
+    }>("profiles", { userId: "u-1" });
+    const facts = await documentStore.query("facts", {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+    });
+
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0]?.identity).toEqual({
+      name: "Felix",
+      role: "climate policy advisor",
+      location: "Austin, USA",
+    });
+    expect(facts).toHaveLength(0);
   });
 
   it("dedupes identical preferences instead of appending duplicates", async () => {

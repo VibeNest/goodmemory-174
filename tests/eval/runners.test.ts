@@ -109,4 +109,58 @@ describe("eval runners", () => {
     expect(result.retrieved?.facts).toHaveLength(0);
     expect(result.retrieved?.policyApplied).toContain("ignore_memory");
   });
+
+  it("replays complex profile context so role and location survive into retrieved memory", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/complex-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-complex-01.json"),
+    );
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: createInMemoryDocumentStore(),
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(result.retrieved?.profile?.identity.name).toBe("Felix");
+    expect(result.retrieved?.profile?.identity.role).toBe("climate policy advisor");
+    expect(result.retrieved?.profile?.identity.location).toBe("Austin, USA");
+    expect(result.retrieved?.profile?.activeContext.currentProjects).toContain(
+      "incident playbook refresh",
+    );
+    expect(result.retrieved?.renderedMemoryContext).toContain(
+      "Felix - climate policy advisor - Austin, USA",
+    );
+    expect(result.retrieved?.renderedMemoryContext).toContain("## Active Context");
+    expect(result.retrieved?.renderedMemoryContext).toContain(
+      "Current projects: incident playbook refresh",
+    );
+    expect(
+      result.trace.rememberEvents
+        .flatMap((session) => session.events)
+        .some((event) => event.reason === "explicit_profile_role"),
+    ).toBe(true);
+    expect(
+      result.trace.rememberEvents
+        .flatMap((session) => session.events)
+        .some((event) => event.reason === "explicit_profile_location"),
+    ).toBe(true);
+    expect(
+      result.trace.rememberEvents
+        .flatMap((session) => session.events)
+        .some((event) => event.reason === "explicit_profile_current_project"),
+    ).toBe(true);
+  });
 });

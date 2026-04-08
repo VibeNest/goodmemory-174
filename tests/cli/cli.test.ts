@@ -69,6 +69,14 @@ function buildAnswerPackage(
                 rejected: 0,
                 events: [
                   {
+                    candidateId: "candidate-0",
+                    outcome: "written",
+                    memoryType: "profile",
+                    memoryId: caseId,
+                    reason: "explicit_profile_role",
+                    sourceMethod: "explicit",
+                  },
+                  {
                     candidateId: "candidate-1",
                     outcome: "written",
                     memoryType: "reference",
@@ -196,6 +204,7 @@ describe("goodmemory cli", () => {
       ]);
 
       expect(result.stdout).toContain("Write Trace");
+      expect(result.stdout).toContain("explicit_profile_role");
       expect(result.stdout).toContain("explicit_reference");
       expect(result.stdout).toContain("Recall Hits");
       expect(result.stdout).toContain("semantic_reference");

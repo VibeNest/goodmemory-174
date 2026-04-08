@@ -233,24 +233,55 @@ function buildProfile(
   candidate: ClassifiedCandidate,
   timestamp: string,
 ): UserProfile {
+  const profileField = candidate.metadata?.profileField ?? "name";
+  const baseProfile = existing ?? createUserProfile({
+    userId,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  if (profileField === "currentProject") {
+    return {
+      ...baseProfile,
+      activeContext: {
+        ...baseProfile.activeContext,
+        currentProjects: [
+          ...new Set([
+            ...baseProfile.activeContext.currentProjects,
+            candidate.content,
+          ]),
+        ],
+      },
+      version: baseProfile.version + (existing ? 1 : 0),
+      updatedAt: timestamp,
+    };
+  }
+
+  const identity = {
+    ...baseProfile.identity,
+    [profileField]: candidate.content,
+  };
+
   return existing
     ? {
         ...existing,
-        identity: {
-          ...existing.identity,
-          name: candidate.content,
-        },
+        identity,
         version: existing.version + 1,
         updatedAt: timestamp,
       }
-    : createUserProfile({
-        userId,
-        identity: {
-          name: candidate.content,
-        },
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      });
+    : {
+        ...baseProfile,
+        identity,
+      };
+}
+
+function getProfileWriteReason(candidate: ClassifiedCandidate): string {
+  const profileField = candidate.metadata?.profileField ?? "name";
+  const suffix = profileField
+    .replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`)
+    .toLowerCase();
+
+  return `explicit_profile_${suffix}`;
 }
 
 function buildPreference(
@@ -348,20 +379,60 @@ function buildFeedback(
   });
 }
 
+const ASSISTANT_ACK_PATTERN =
+  /^(understood|noted|captured|okay|ok|will do|done|thanks|thank you|updated)\.?$/i;
+const ASSISTANT_CONTINUITY_PATTERN =
+  /\b(will|going forward|use|continue|updated|confirm|propos|next step|resolved|pending|blocked|follow up|keep)\b/i;
+const UNRESOLVED_SIGNAL_PATTERN =
+  /\b(open loop|blocked|pending|remaining|follow up|follow-up|todo|next step)\b/i;
+
+function selectSubstantiveAssistantMessages(
+  messages: MemoryExtractionInput["messages"],
+): string[] {
+  return messages
+    .filter((message) => message.role === "assistant")
+    .map((message) => message.content.trim())
+    .filter((content) => content.length > 0)
+    .filter((content) => {
+      return (
+        !ASSISTANT_ACK_PATTERN.test(content) ||
+        ASSISTANT_CONTINUITY_PATTERN.test(content) ||
+        content.length >= 24
+      );
+    });
+}
+
+function extractEpisodeUnresolvedItems(userMessages: string[]): string[] {
+  return userMessages
+    .filter((message) => UNRESOLVED_SIGNAL_PATTERN.test(message))
+    .slice(0, 2);
+}
+
 function maybeBuildEpisode(
   input: MemoryExtractionInput,
   candidates: MemoryCandidate[],
   id: string,
   timestamp: string,
 ): EpisodeMemory | null {
-  const hasAssistantTurn = input.messages.some((message) => message.role === "assistant");
   const userMessages = input.messages
     .filter((message) => message.role === "user")
     .map((message) => message.content.trim())
     .filter((value) => value.length > 0);
+  const substantiveAssistantMessages = selectSubstantiveAssistantMessages(input.messages);
 
-  if (!hasAssistantTurn || userMessages.length < 2 || candidates.length < 2) {
+  if (
+    candidates.length === 0 ||
+    userMessages.length === 0 ||
+    substantiveAssistantMessages.length === 0
+  ) {
     return null;
+  }
+
+  const summarySegments = userMessages.slice(0, 2);
+  if (substantiveAssistantMessages.length > 0) {
+    summarySegments.push(
+      `Assistant follow-through: ${substantiveAssistantMessages[0]}`,
+    );
   }
 
   return createEpisodeMemory({
@@ -371,9 +442,9 @@ function maybeBuildEpisode(
     workspaceId: input.scope.workspaceId,
     agentId: input.scope.agentId,
     sessionId: input.scope.sessionId,
-    summary: `Conversation covered: ${userMessages.slice(0, 2).join(" / ")}`,
-    keyDecisions: [],
-    unresolvedItems: [],
+    summary: `Conversation covered: ${summarySegments.join(" / ")}`,
+    keyDecisions: substantiveAssistantMessages.slice(0, 2),
+    unresolvedItems: extractEpisodeUnresolvedItems(userMessages),
     topics: userMessages
       .slice(0, 2)
       .map((message) => message.split(" ").slice(0, 3).join(" ")),
@@ -484,7 +555,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             outcome: "written",
             memoryType: "profile",
             memoryId: profile.userId,
-            reason: "explicit_profile",
+            reason: getProfileWriteReason(effectiveCandidate),
             sourceMethod: effectiveCandidate.explicitness,
           });
           continue;

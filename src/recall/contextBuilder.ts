@@ -11,6 +11,7 @@ import type {
 
 export interface MemoryPacket {
   profileSummary?: string;
+  activeContextSummary?: string;
   preferenceSummary?: string;
   referenceSummary?: string;
   factSummary?: string;
@@ -44,8 +45,32 @@ function summarizeProfile(profile: UserProfile | null): string | undefined {
     return undefined;
   }
 
-  const segments = [profile.identity.name, profile.identity.role].filter(Boolean);
+  const segments = [
+    profile.identity.name,
+    profile.identity.role,
+    profile.identity.organization,
+    profile.identity.location,
+    profile.identity.timezone,
+    profile.identity.languagePreference,
+  ].filter(Boolean);
   return segments.length > 0 ? segments.join(" - ") : undefined;
+}
+
+function summarizeActiveContext(profile: UserProfile | null): string | undefined {
+  if (!profile) {
+    return undefined;
+  }
+
+  const segments = [
+    profile.activeContext.currentProjects.length > 0
+      ? `Current projects: ${profile.activeContext.currentProjects.join(", ")}`
+      : undefined,
+    profile.activeContext.goals.length > 0
+      ? `Goals: ${profile.activeContext.goals.join(", ")}`
+      : undefined,
+  ].filter(Boolean);
+
+  return segments.length > 0 ? segments.join("\n") : undefined;
 }
 
 function summarizeFacts(facts: FactMemory[]): string | undefined {
@@ -137,6 +162,7 @@ function summarizeJournal(journal: SessionJournal | null): string | undefined {
 export function buildMemoryPacket(input: MemoryPacketInput): MemoryPacket {
   const packet: MemoryPacket = {
     profileSummary: summarizeProfile(input.profile),
+    activeContextSummary: summarizeActiveContext(input.profile),
     preferenceSummary: summarizePreferences(input.preferences),
     referenceSummary: summarizeReferences(input.references),
     factSummary: summarizeFacts(input.facts),
@@ -196,6 +222,11 @@ function buildRenderableSections(packet: MemoryPacket) {
       body: packet.profileSummary,
     },
     {
+      key: "activeContextSummary" as const,
+      title: "Active Context",
+      body: packet.activeContextSummary,
+    },
+    {
       key: "feedbackSummary" as const,
       title: "Procedural Memory",
       body: packet.feedbackSummary,
@@ -236,6 +267,7 @@ function buildRenderableSections(packet: MemoryPacket) {
     ): section is {
       key:
         | "profileSummary"
+        | "activeContextSummary"
         | "feedbackSummary"
         | "preferenceSummary"
         | "referenceSummary"
