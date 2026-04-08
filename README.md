@@ -115,6 +115,7 @@ bun run eval:live
 - `GOODMEMORY_EVAL_BASE_URL` for OpenAI-compatible gateways
 - `GOODMEMORY_EVAL_MODEL`
 - `GOODMEMORY_EVAL_API_KEY`
+- `GOODMEMORY_EVAL_MAX_CONCURRENCY` optional live eval parallelism cap
 - `GOODMEMORY_JUDGE_PROVIDER`
 - `GOODMEMORY_JUDGE_BASE_URL` for OpenAI-compatible gateways
 - `GOODMEMORY_JUDGE_MODEL`

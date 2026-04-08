@@ -92,71 +92,75 @@ describe("eval suite", () => {
       const runId = "run-partial";
       const outputDir = join(workspace.root, "reports");
 
-      await expect(
-        runEvalSuite({
-          mode: "fallback",
-          personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
-          scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
-          outputDir,
-          runId,
-          scenarioIds: ["scenario-complex-01", "scenario-complex-02"],
-          baselineGenerator: async () => ({
-            content: "I need more context before I can answer.",
-          }),
-          goodmemoryGenerator: async (input) => ({
-            content: input.memoryContext ?? "missing memory context",
-          }),
-          judge: {
-            async complete() {
-              judgeCalls += 1;
-              if (judgeCalls === 1) {
-                return {
-                  content: JSON.stringify({
-                    winner: "goodmemory",
-                    scores: {
-                      factual_recall: 8,
-                      preference_consistency: 9,
-                      cross_domain_transfer: 8,
-                      contamination_penalty: 9,
-                      update_correctness: 9,
-                      personalization_usefulness: 9,
-                      provenance_explainability: 8,
-                    },
-                    baseline_scores: {
-                      factual_recall: 5,
-                      preference_consistency: 4,
-                      cross_domain_transfer: 4,
-                      contamination_penalty: 5,
-                      update_correctness: 4,
-                      personalization_usefulness: 4,
-                      provenance_explainability: 5,
-                    },
-                    goodmemory_scores: {
-                      factual_recall: 8,
-                      preference_consistency: 9,
-                      cross_domain_transfer: 8,
-                      contamination_penalty: 9,
-                      update_correctness: 9,
-                      personalization_usefulness: 9,
-                      provenance_explainability: 8,
-                    },
-                    reasoning: "First case completed.",
-                    failure_tags: [],
-                  }),
-                };
-              }
-
-              throw new Error("simulated second-case judge failure");
-            },
-          },
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir,
+        runId,
+        scenarioIds: ["scenario-complex-01", "scenario-complex-02"],
+        caseRetryLimit: 3,
+        baselineGenerator: async () => ({
+          content: "I need more context before I can answer.",
         }),
-      ).rejects.toThrow("simulated second-case judge failure");
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: {
+          async complete() {
+            judgeCalls += 1;
+            if (judgeCalls === 1) {
+              return {
+                content: JSON.stringify({
+                  winner: "goodmemory",
+                  scores: {
+                    factual_recall: 8,
+                    preference_consistency: 9,
+                    cross_domain_transfer: 8,
+                    contamination_penalty: 9,
+                    update_correctness: 9,
+                    personalization_usefulness: 9,
+                    provenance_explainability: 8,
+                  },
+                  baseline_scores: {
+                    factual_recall: 5,
+                    preference_consistency: 4,
+                    cross_domain_transfer: 4,
+                    contamination_penalty: 5,
+                    update_correctness: 4,
+                    personalization_usefulness: 4,
+                    provenance_explainability: 5,
+                  },
+                  goodmemory_scores: {
+                    factual_recall: 8,
+                    preference_consistency: 9,
+                    cross_domain_transfer: 8,
+                    contamination_penalty: 9,
+                    update_correctness: 9,
+                    personalization_usefulness: 9,
+                    provenance_explainability: 8,
+                  },
+                  reasoning: "First case completed.",
+                  failure_tags: [],
+                }),
+              };
+            }
+
+            throw new Error("simulated second-case judge failure");
+          },
+        },
+      });
 
       const runDirectory = join(outputDir, runId);
       const report = JSON.parse(
         await readFile(join(runDirectory, "report.json"), "utf8"),
       ) as {
-        summary: { totalCases: number; winnerCounts: { goodmemory: number } };
+        summary: {
+          totalCases: number;
+          completedCases?: number;
+          executionFailures?: number;
+          winnerCounts: { goodmemory: number };
+        };
       };
       const firstCase = JSON.parse(
         await readFile(
@@ -167,11 +171,95 @@ describe("eval suite", () => {
       const failuresSummary = JSON.parse(
         await readFile(join(runDirectory, "failures", "summary.json"), "utf8"),
       ) as { totalFailures: number };
+      const executionFailure = JSON.parse(
+        await readFile(
+          join(runDirectory, "failures", "scenario-complex-02.execution.json"),
+          "utf8",
+        ),
+      ) as { retryLimit: number; attempts: Array<{ attempt: number }> };
 
-      expect(report.summary.totalCases).toBe(1);
+      expect(report.summary.totalCases).toBe(2);
+      expect(report.summary.completedCases).toBe(1);
+      expect(report.summary.executionFailures).toBe(1);
       expect(report.summary.winnerCounts.goodmemory).toBe(1);
       expect(firstCase.caseId).toBe("scenario-complex-01");
-      expect(failuresSummary.totalFailures).toBeGreaterThanOrEqual(0);
+      expect(result.failedCases).toHaveLength(1);
+      expect(result.failedCases?.[0]?.caseId).toBe("scenario-complex-02");
+      expect(judgeCalls).toBe(4);
+      expect(failuresSummary.totalFailures).toBe(1);
+      expect(executionFailure.retryLimit).toBe(3);
+      expect(executionFailure.attempts).toHaveLength(3);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("retries a case independently until a later attempt succeeds", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-retry-success");
+    let judgeCalls = 0;
+
+    try {
+      const result = await runEvalSuite({
+        mode: "live",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        caseRetryLimit: 3,
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: {
+          async complete() {
+            judgeCalls += 1;
+            if (judgeCalls < 3) {
+              throw new Error(`transient judge failure ${judgeCalls}`);
+            }
+
+            return {
+              content: JSON.stringify({
+                winner: "goodmemory",
+                scores: {
+                  factual_recall: 8,
+                  preference_consistency: 9,
+                  cross_domain_transfer: 8,
+                  contamination_penalty: 9,
+                  update_correctness: 9,
+                  personalization_usefulness: 9,
+                  provenance_explainability: 8,
+                },
+                baseline_scores: {
+                  factual_recall: 5,
+                  preference_consistency: 4,
+                  cross_domain_transfer: 4,
+                  contamination_penalty: 5,
+                  update_correctness: 4,
+                  personalization_usefulness: 4,
+                  provenance_explainability: 5,
+                },
+                goodmemory_scores: {
+                  factual_recall: 8,
+                  preference_consistency: 9,
+                  cross_domain_transfer: 8,
+                  contamination_penalty: 9,
+                  update_correctness: 9,
+                  personalization_usefulness: 9,
+                  provenance_explainability: 8,
+                },
+                reasoning: "Succeeded after retry.",
+                failure_tags: [],
+              }),
+            };
+          },
+        },
+      });
+
+      expect(judgeCalls).toBe(3);
+      expect(result.summary.totalCases).toBe(1);
+      expect(result.failedCases).toHaveLength(0);
     } finally {
       await workspace.cleanup();
     }
@@ -192,6 +280,7 @@ describe("eval suite", () => {
         personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
         scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
         outputDir: join(workspace.root, "reports"),
+        maxConcurrency: 2,
         scenarioIds: ["scenario-complex-01", "scenario-complex-02"],
         baselineGenerator: async () => {
           activeBaselines += 1;

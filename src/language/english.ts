@@ -17,6 +17,8 @@ const PROFILE_ROLE_WITH_ORGANIZATION_PATTERN =
   /(?:remember that\s+)?i(?:'m| am)\s+(?:an?|the)\s+(.+?)\s+at\s+([A-Z][A-Za-z0-9&.,' -]*?)(?=\.|$)/i;
 const PROFILE_ROLE_WITH_LOCATION_PATTERN =
   /(?:remember that\s+)?i(?:'m| am)\s+(?:an?|the)\s+(.+?)\s+in\s+([A-Z][A-Za-z.-]*(?:\s+[A-Z][A-Za-z.-]*)*(?:,\s*[A-Z][A-Za-z.-]*(?:\s+[A-Z][A-Za-z.-]*)*)?)(?=\.|\s+(?:remember|working|leading|based)\b|,?\s+(?:remember|working|leading|based)\b|$)/i;
+const PROFILE_ROLE_DRIFT_WITH_PROJECT_PATTERN =
+  /(?:remember that\s+)?i(?:\s+have)?\s+now\s+moved\s+into\s+(?:an?|the)\s+(.+?)\s+leading\s+(.+?)(?=\.|$)/i;
 const PROFILE_ROLE_PATTERN =
   /(?:remember that\s+)?i(?:'m| am)\s+(?:an?|the)\s+([a-z][a-z -]*(?:\s+[a-z][a-z -]*)*)(?=[.!?,]|$)/i;
 const PROFILE_LOCATION_PATTERN =
@@ -28,6 +30,8 @@ const PROFILE_LANGUAGE_PATTERN =
 const CURRENT_PROJECT_PATTERN =
   /(?:remember that\s+)?i(?:'m| am)\s+(?:leading|working on|focused on|owning)\s+(.+?)(?=\.|$)/i;
 const EXPLICIT_FACT_PATTERN = /remember (?:that|this)\s+(.+)/i;
+const FOLLOW_UP_OPEN_LOOP_PATTERN =
+  /\bstill\s+have\s+an?\s+open\s+loop\s+on\s+(.+?)(?=\.|$)/i;
 const PREFERENCE_PATTERN = /i prefer\s+(.+?)(?:\.|$)/i;
 const REFERENCE_PATTERN =
   /use\s+([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s+as the source of truth/i;
@@ -144,8 +148,31 @@ function createProfileCandidate(
   };
 }
 
+function createFactCandidate(
+  index: number,
+  nextId: () => string,
+  content: string,
+  category?: "project" | "technical" | "personal" | "relationship" | "event",
+): MemoryCandidate {
+  return {
+    id: nextId(),
+    kindHint: "fact",
+    explicitness: "explicit",
+    content,
+    sourceMessageIndex: index,
+    sourceRole: "user",
+    metadata: {
+      category: category ?? deriveFactCategory(content),
+    },
+  };
+}
+
 function cleanExtractedValue(value: string): string {
   return value.trim().replace(/[.,]+$/, "").trim();
+}
+
+function cleanRoleValue(value: string): string {
+  return cleanExtractedValue(value).replace(/\s+role$/i, "").trim();
 }
 
 function cleanLocationValue(value: string): string {
@@ -205,13 +232,43 @@ function maybeExtractCandidatesFromClause(
   const roleWithOrganizationAndLocationMatch = trimmed.match(
     PROFILE_ROLE_WITH_ORGANIZATION_AND_LOCATION_PATTERN,
   );
-  if (roleWithOrganizationAndLocationMatch) {
+  const roleDriftWithProjectMatch = trimmed.match(
+    PROFILE_ROLE_DRIFT_WITH_PROJECT_PATTERN,
+  );
+  if (roleDriftWithProjectMatch) {
+    const role = cleanRoleValue(roleDriftWithProjectMatch[1]!);
+    const project = cleanExtractedValue(roleDriftWithProjectMatch[2]!);
     candidates.push(
       createProfileCandidate(
         index,
         nextId,
         "role",
-        cleanExtractedValue(roleWithOrganizationAndLocationMatch[1]!),
+        role,
+      ),
+    );
+    candidates.push(
+      createProfileCandidate(
+        index,
+        nextId,
+        "currentProject",
+        project,
+      ),
+    );
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `my current role is ${role} leading ${project}.`,
+        "project",
+      ),
+    );
+  } else if (roleWithOrganizationAndLocationMatch) {
+    candidates.push(
+      createProfileCandidate(
+        index,
+        nextId,
+        "role",
+        cleanRoleValue(roleWithOrganizationAndLocationMatch[1]!),
       ),
     );
     candidates.push(
@@ -238,7 +295,7 @@ function maybeExtractCandidatesFromClause(
           index,
           nextId,
           "role",
-          cleanExtractedValue(roleWithOrganizationMatch[1]!),
+          cleanRoleValue(roleWithOrganizationMatch[1]!),
         ),
       );
       candidates.push(
@@ -257,7 +314,7 @@ function maybeExtractCandidatesFromClause(
             index,
             nextId,
             "role",
-            cleanExtractedValue(roleWithLocationMatch[1]!),
+            cleanRoleValue(roleWithLocationMatch[1]!),
           ),
         );
         candidates.push(
@@ -270,7 +327,7 @@ function maybeExtractCandidatesFromClause(
         );
       } else {
         const roleMatch = trimmed.match(PROFILE_ROLE_PATTERN);
-        const role = roleMatch ? cleanExtractedValue(roleMatch[1]!) : undefined;
+        const role = roleMatch ? cleanRoleValue(roleMatch[1]!) : undefined;
         if (role) {
           candidates.push(createProfileCandidate(index, nextId, "role", role));
         }
@@ -324,18 +381,22 @@ function maybeExtractCandidatesFromClause(
     const factContent = explicitFactMatch[1]!.trim();
 
     if (!shouldSkipExplicitFactForProfileLikeClause(factContent, candidates)) {
-      candidates.push({
-        id: nextId(),
-        kindHint: "fact",
-        explicitness: "explicit",
-        content: factContent,
-        sourceMessageIndex: index,
-        sourceRole: "user",
-        metadata: {
-          category: deriveFactCategory(factContent),
-        },
-      });
+      candidates.push(createFactCandidate(index, nextId, factContent));
     }
+  }
+
+  const followUpOpenLoopMatch = trimmed.match(FOLLOW_UP_OPEN_LOOP_PATTERN);
+  const openLoop = followUpOpenLoopMatch
+    ? cleanExtractedValue(followUpOpenLoopMatch[1]!)
+    : undefined;
+  if (openLoop) {
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `the open loop is ${openLoop}.`,
+      ),
+    );
   }
 
   const preferenceMatch = trimmed.match(PREFERENCE_PATTERN);

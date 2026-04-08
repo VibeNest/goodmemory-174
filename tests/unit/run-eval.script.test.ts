@@ -6,6 +6,7 @@ import {
   mergeScenarioIds,
   parseCliOptionsFromArgv,
   resolveDefaultOutputDir,
+  resolveEvalMaxConcurrency,
   resolveFailedScenarioIds,
   resolveFlagValue,
   resolveLiveModelConfig,
@@ -87,6 +88,16 @@ describe("run-eval script", () => {
     );
   });
 
+  it("parses live eval max concurrency from environment", () => {
+    process.env.GOODMEMORY_EVAL_MAX_CONCURRENCY = "6";
+    expect(resolveEvalMaxConcurrency()).toBe(6);
+
+    process.env.GOODMEMORY_EVAL_MAX_CONCURRENCY = "0";
+    expect(() => resolveEvalMaxConcurrency()).toThrow(
+      "GOODMEMORY_EVAL_MAX_CONCURRENCY must be a positive integer",
+    );
+  });
+
   it("merges explicit and failed scenario ids deterministically", () => {
     expect(mergeScenarioIds(undefined, [])).toBeUndefined();
     expect(
@@ -151,9 +162,15 @@ describe("run-eval script", () => {
         "utf8",
       );
       await writeFile(join(failuresDir, "scenario-medium-02.json"), "{}", "utf8");
+      await writeFile(
+        join(failuresDir, "scenario-long-03.execution.json"),
+        "{}",
+        "utf8",
+      );
       await writeFile(join(failuresDir, "scenario-medium-01.json"), "{}", "utf8");
 
       expect(await resolveFailedScenarioIds(runDirectory, "fallback")).toEqual([
+        "scenario-long-03",
         "scenario-medium-01",
         "scenario-medium-02",
       ]);
@@ -957,6 +974,7 @@ describe("run-eval script", () => {
     process.env.GOODMEMORY_JUDGE_MODEL = "claude-sonnet";
     process.env.GOODMEMORY_JUDGE_API_KEY = "judge-key";
     process.env.GOODMEMORY_JUDGE_BASE_URL = "https://messages.example/v1";
+    process.env.GOODMEMORY_EVAL_MAX_CONCURRENCY = "3";
 
     try {
       const runDirectory = join(workspace.root, "reports/eval/live/run-003");
@@ -1089,6 +1107,122 @@ describe("run-eval script", () => {
         apiKey: "judge-key",
         baseURL: "https://messages.example/v1",
       });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("passes env-configured live max concurrency into the suite", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-live-concurrency");
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";
+    process.env.GOODMEMORY_EVAL_API_KEY = "eval-key";
+    process.env.GOODMEMORY_EVAL_BASE_URL = "https://gateway.example/v1";
+    process.env.GOODMEMORY_JUDGE_PROVIDER = "anthropic";
+    process.env.GOODMEMORY_JUDGE_MODEL = "claude-sonnet";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "judge-key";
+    process.env.GOODMEMORY_JUDGE_BASE_URL = "https://messages.example/v1";
+    process.env.GOODMEMORY_EVAL_MAX_CONCURRENCY = "3";
+
+    try {
+      const calls: Array<Record<string, unknown>> = [];
+
+      await runLiveEval(
+        {
+          scenarioIds: ["scenario-medium-01"],
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          createTextGenerator: () => async () => ({ content: "live-answer" }),
+          createJudgeModel: () => ({
+            async complete() {
+              return {
+                content: JSON.stringify({
+                  winner: "tie",
+                  scores: {
+                    factual_recall: 7,
+                    preference_consistency: 7,
+                    cross_domain_transfer: 7,
+                    contamination_penalty: 7,
+                    update_correctness: 7,
+                    personalization_usefulness: 7,
+                    provenance_explainability: 7,
+                  },
+                  reasoning: "live comparison",
+                  failure_tags: [],
+                }),
+              };
+            },
+          }),
+          runSuite: async (input) => {
+            calls.push({
+              maxConcurrency: input.maxConcurrency,
+              mode: input.mode,
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-live",
+              runDirectory: join(workspace.root, "reports/run-live"),
+              summary: {
+                totalCases: 0,
+                winnerCounts: {
+                  baseline: 0,
+                  goodmemory: 0,
+                  tie: 0,
+                },
+                baselineAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                goodmemoryAverage: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                uplift: {
+                  factual_recall: 0,
+                  preference_consistency: 0,
+                  cross_domain_transfer: 0,
+                  contamination_penalty: 0,
+                  update_correctness: 0,
+                  personalization_usefulness: 0,
+                  provenance_explainability: 0,
+                },
+                layers: {
+                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+                },
+                assertions: {
+                  totalCases: 0,
+                  passingCases: 0,
+                  passRate: 0,
+                  totalChecks: 0,
+                  passingChecks: 0,
+                  checkPassRate: 0,
+                  contaminationFailures: 0,
+                  updateFailures: 0,
+                },
+              },
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(calls[0]?.mode).toBe("live");
+      expect(calls[0]?.maxConcurrency).toBe(3);
     } finally {
       await workspace.cleanup();
     }

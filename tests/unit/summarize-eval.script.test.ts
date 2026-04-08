@@ -89,6 +89,8 @@ describe("summarize-eval script", () => {
           runId: "run-001",
           summary: {
             totalCases: 4,
+            completedCases: 3,
+            executionFailures: 1,
             winnerCounts: {
               baseline: 1,
               goodmemory: 2,
@@ -125,6 +127,8 @@ describe("summarize-eval script", () => {
       expect(formatted).toContain("- Mode: `fallback`");
       expect(formatted).toContain("- Run: `run-001`");
       expect(formatted).toContain("generation=fallback, judge=fallback");
+      expect(formatted).toContain("- Completed cases: 3");
+      expect(formatted).toContain("- Execution failures: 1");
       expect(formatted).toContain("GoodMemory 2, Baseline 1, Tie 1");
       expect(formatted).toContain(join(runDir, "failures", "a-case.json"));
       expect(summary).toBe(formatted);
@@ -147,6 +151,8 @@ describe("summarize-eval script", () => {
           runId: "run-123",
           summary: {
             totalCases: 1,
+            completedCases: 1,
+            executionFailures: 0,
             winnerCounts: {
               baseline: 0,
               goodmemory: 1,

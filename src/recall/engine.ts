@@ -107,7 +107,7 @@ function categoryPriority(
       return 0.4;
     }
     if (category === "personal") {
-      return 0.1;
+      return -0.25;
     }
   }
 
@@ -159,7 +159,9 @@ function selectFacts(
   query: string,
   language: LanguageService,
   queryLocale: string,
+  retrievalProfile: RetrievalProfile,
 ): FactMemory[] {
+  const answerCompositionQuery = language.isAnswerCompositionQuery(query, queryLocale);
   const ranked = sortFacts(facts)
     .map((fact) => ({
       fact,
@@ -175,11 +177,44 @@ function selectFacts(
   );
 
   const withSignal = compatible.filter((entry) => entry.score >= 0.2);
+  const limit = answerCompositionQuery ? 3 : 2;
   if (withSignal.length > 0) {
-    return withSignal.slice(0, 2).map((entry) => entry.fact);
+    return withSignal.slice(0, limit).map((entry) => entry.fact);
   }
 
-  return compatible.slice(0, 1).map((entry) => entry.fact);
+  if (answerCompositionQuery) {
+    const relevantToAnswer = compatible
+      .filter((entry) =>
+        entry.fact.category === "project" || entry.fact.category === "technical",
+      )
+      .slice(0, limit)
+      .map((entry) => entry.fact);
+
+    if (relevantToAnswer.length > 0) {
+      return relevantToAnswer;
+    }
+
+    if (retrievalProfile === "coding_agent") {
+      return compatible.slice(0, 1).map((entry) => entry.fact);
+    }
+
+    return [];
+  }
+
+  const fallback = compatible[0];
+  if (!fallback) {
+    return [];
+  }
+
+  if (
+    fallback.fact.category === "personal" ||
+    fallback.fact.category === "relationship" ||
+    fallback.fact.category === "event"
+  ) {
+    return [];
+  }
+
+  return [fallback.fact];
 }
 
 function selectReferences(
@@ -625,7 +660,13 @@ export function createRecallEngine(config: RecallEngineConfig) {
         },
       );
       const facts = await applyRecallPolicyToRecords(
-        selectFacts(factsRaw, input.query, language, resolvedLanguage.locale),
+        selectFacts(
+          factsRaw,
+          input.query,
+          language,
+          resolvedLanguage.locale,
+          retrievalProfile,
+        ),
         "fact",
         {
           scope: input.scope,

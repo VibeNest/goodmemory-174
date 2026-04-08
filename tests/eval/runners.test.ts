@@ -76,6 +76,7 @@ describe("eval runners", () => {
     expect(result.retrieved?.references.length).toBeGreaterThan(0);
     expect(result.retrieved?.hits.some((hit) => hit.type === "reference")).toBe(true);
     expect(result.retrieved?.renderedMemoryContext).toContain("runbook");
+    expect(result.memoryContext).toContain("final verification for migration rollout");
     expect(
       result.retrieved?.feedback.some((feedback) =>
         feedback.rule.includes("Please confirm the updated runbook"),

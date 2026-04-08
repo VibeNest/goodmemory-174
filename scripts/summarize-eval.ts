@@ -5,6 +5,8 @@ type PersistedEvalMode = "live" | "fallback";
 
 interface EvalSummary {
   totalCases: number;
+  completedCases?: number;
+  executionFailures?: number;
   winnerCounts: {
     baseline: number;
     goodmemory: number;
@@ -106,6 +108,8 @@ export function formatEvalSummary(report: EvalReport, topFailures: string[]): st
     `- Run: \`${report.runId}\``,
     `- Runtime: generation=${report.runtime?.generationMode ?? "unknown"}, judge=${report.runtime?.judgeMode ?? "unknown"}`,
     `- Total cases: ${report.summary.totalCases}`,
+    `- Completed cases: ${report.summary.completedCases ?? report.summary.totalCases}`,
+    `- Execution failures: ${report.summary.executionFailures ?? 0}`,
     `- Winner counts: GoodMemory ${report.summary.winnerCounts.goodmemory}, Baseline ${report.summary.winnerCounts.baseline}, Tie ${report.summary.winnerCounts.tie}`,
     `- Overall uplift: factual ${report.summary.uplift.factual_recall?.toFixed(2) ?? "n/a"}, preference ${report.summary.uplift.preference_consistency?.toFixed(2) ?? "n/a"}, transfer ${report.summary.uplift.cross_domain_transfer?.toFixed(2) ?? "n/a"}, contamination ${report.summary.uplift.contamination_penalty?.toFixed(2) ?? "n/a"}, update ${report.summary.uplift.update_correctness?.toFixed(2) ?? "n/a"}, usefulness ${report.summary.uplift.personalization_usefulness?.toFixed(2) ?? "n/a"}`,
     `- Layer uplift: retrieval ${report.summary.layers?.uplift?.retrieval?.toFixed(2) ?? "n/a"}, personalization ${report.summary.layers?.uplift?.personalization?.toFixed(2) ?? "n/a"}, runtime/governance ${report.summary.layers?.uplift?.runtime_governance?.toFixed(2) ?? "n/a"}`,

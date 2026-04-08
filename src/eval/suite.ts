@@ -12,6 +12,7 @@ import { runJudgeComparison } from "./judge";
 import {
   aggregateJudgedCases,
   persistEvalArtifacts,
+  type EvalCaseExecutionFailure,
   type EvalRuntimeMetadata,
   type PersistedEvalMode,
   type EvalSuiteSummary,
@@ -40,6 +41,7 @@ export interface EvalSuiteInput {
   runId?: string;
   runtime?: EvalRuntimeMetadata;
   maxConcurrency?: number;
+  caseRetryLimit?: number;
 }
 
 export interface EvalSuiteResult {
@@ -49,6 +51,7 @@ export interface EvalSuiteResult {
   summary: EvalSuiteSummary;
   runtime: EvalRuntimeMetadata;
   cases: JudgedEvalCase[];
+  failedCases?: EvalCaseExecutionFailure[];
 }
 
 function defaultCreateMemory(): GoodMemory {
@@ -58,7 +61,6 @@ function defaultCreateMemory(): GoodMemory {
 }
 
 function resolveMaxConcurrency(
-  mode: PersistedEvalMode,
   totalCases: number,
   requested?: number,
 ): number {
@@ -70,11 +72,34 @@ function resolveMaxConcurrency(
     return Math.max(1, Math.min(Math.floor(requested), totalCases));
   }
 
-  if (mode === "live") {
-    return Math.min(4, totalCases);
+  return 1;
+}
+
+function resolveCaseRetryLimit(
+  mode: PersistedEvalMode,
+  requested?: number,
+): number {
+  if (typeof requested === "number" && Number.isFinite(requested)) {
+    return Math.max(1, Math.floor(requested));
   }
 
-  return 1;
+  return mode === "live" ? 3 : 1;
+}
+
+function formatCaseError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack ?? `${error.name}: ${error.message}`;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
 }
 
 async function evaluateCase(input: {
@@ -126,6 +151,56 @@ async function evaluateCase(input: {
   };
 }
 
+async function evaluateCaseWithRetries(input: {
+  persona: PersonaSpec;
+  scenario: ScenarioFixture;
+  createMemory?: EvalSuiteInput["createMemory"];
+  baselineGenerator: EvalAnswerGenerator;
+  goodmemoryGenerator: EvalAnswerGenerator;
+  judge: JudgeModel;
+  retryLimit: number;
+}): Promise<
+  | { judgedCase: JudgedEvalCase; failure?: undefined }
+  | { judgedCase?: undefined; failure: EvalCaseExecutionFailure }
+> {
+  const attempts: EvalCaseExecutionFailure["attempts"] = [];
+
+  for (let attempt = 1; attempt <= input.retryLimit; attempt += 1) {
+    try {
+      const judgedCase = await evaluateCase({
+        persona: input.persona,
+        scenario: input.scenario,
+        createMemory: input.createMemory,
+        baselineGenerator: input.baselineGenerator,
+        goodmemoryGenerator: input.goodmemoryGenerator,
+        judge: input.judge,
+      });
+
+      return { judgedCase };
+    } catch (error) {
+      attempts.push({
+        attempt,
+        error: formatCaseError(error),
+      });
+    }
+  }
+
+  return {
+    failure: {
+      caseId: input.scenario.scenario_id,
+      metadata: {
+        taskFamily: input.scenario.task_family,
+        targetDomain: input.scenario.domain,
+        memorySourceDomains: input.scenario.memory_source_domains,
+        evaluationSetting: input.scenario.evaluation_setting,
+      },
+      retryLimit: input.retryLimit,
+      attempts,
+      lastError: attempts[attempts.length - 1]?.error ?? "Unknown case failure",
+    },
+  };
+}
+
 function resolveCases(
   personas: PersonaSpec[],
   scenarios: ScenarioFixture[],
@@ -158,6 +233,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
 
   const selectedCases = resolveCases(personas, scenarios, input.scenarioIds, input.limit);
   const judgedCases = new Array<JudgedEvalCase | undefined>(selectedCases.length);
+  const failedCases = new Array<EvalCaseExecutionFailure | undefined>(selectedCases.length);
   const runId = input.runId ?? `run-${Date.now()}`;
   const runtime = input.runtime ?? {
     generationMode: input.mode,
@@ -168,21 +244,24 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
     outputDir: input.outputDir,
     runId,
     cases: [],
-    summary: aggregateJudgedCases([]),
+    summary: aggregateJudgedCases([], 0),
     runtime,
+    executionFailures: [],
   });
   const maxConcurrency = resolveMaxConcurrency(
-    input.mode,
     selectedCases.length,
     input.maxConcurrency,
   );
+  const retryLimit = resolveCaseRetryLimit(input.mode, input.caseRetryLimit);
   let nextCaseIndex = 0;
-  let firstError: unknown;
   let persistQueue = Promise.resolve();
 
   const persistCurrentState = () => {
     const completedCases = judgedCases.filter(
       (item): item is JudgedEvalCase => item !== undefined,
+    );
+    const completedFailures = failedCases.filter(
+      (item): item is EvalCaseExecutionFailure => item !== undefined,
     );
 
     persistQueue = persistQueue.then(() =>
@@ -191,8 +270,9 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
         outputDir: input.outputDir,
         runId,
         cases: completedCases,
-        summary: aggregateJudgedCases(completedCases),
+        summary: aggregateJudgedCases(completedCases, completedFailures.length),
         runtime,
+        executionFailures: completedFailures,
       }).then(() => undefined),
     );
 
@@ -200,7 +280,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   };
 
   const runWorker = async () => {
-    while (firstError === undefined) {
+    while (true) {
       const currentIndex = nextCaseIndex;
       nextCaseIndex += 1;
 
@@ -210,21 +290,23 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
 
       const { persona, scenario } = selectedCases[currentIndex]!;
 
-      try {
-        const judgedCase = await evaluateCase({
-          persona,
-          scenario,
-          createMemory: input.createMemory,
-          baselineGenerator: input.baselineGenerator,
-          goodmemoryGenerator: input.goodmemoryGenerator,
-          judge: input.judge,
-        });
-        judgedCases[currentIndex] = judgedCase;
-        persistCurrentState();
-      } catch (error) {
-        firstError = error;
-        return;
+      const outcome = await evaluateCaseWithRetries({
+        persona,
+        scenario,
+        createMemory: input.createMemory,
+        baselineGenerator: input.baselineGenerator,
+        goodmemoryGenerator: input.goodmemoryGenerator,
+        judge: input.judge,
+        retryLimit,
+      });
+
+      if (outcome.judgedCase) {
+        judgedCases[currentIndex] = outcome.judgedCase;
+      } else {
+        failedCases[currentIndex] = outcome.failure;
       }
+
+      persistCurrentState();
     }
   };
 
@@ -233,14 +315,13 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   );
   await persistQueue;
 
-  if (firstError !== undefined) {
-    throw firstError;
-  }
-
   const completedCases = judgedCases.filter(
     (item): item is JudgedEvalCase => item !== undefined,
   );
-  const summary = aggregateJudgedCases(completedCases);
+  const completedFailures = failedCases.filter(
+    (item): item is EvalCaseExecutionFailure => item !== undefined,
+  );
+  const summary = aggregateJudgedCases(completedCases, completedFailures.length);
 
   return {
     mode: input.mode,
@@ -249,5 +330,6 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
     summary,
     runtime,
     cases: completedCases,
+    failedCases: completedFailures,
   };
 }

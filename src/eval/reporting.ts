@@ -37,6 +37,8 @@ export interface JudgedEvalCase {
 
 export interface EvalSuiteSummary {
   totalCases: number;
+  completedCases?: number;
+  executionFailures?: number;
   winnerCounts: {
     baseline: number;
     goodmemory: number;
@@ -60,6 +62,22 @@ export interface EvalRuntimeMetadata {
 
 export type PersistedEvalMode = "live" | "fallback";
 
+export interface EvalCaseExecutionFailure {
+  caseId: string;
+  metadata: {
+    taskFamily: EvalAnswerPackage["taskFamily"];
+    targetDomain: string;
+    memorySourceDomains: string[];
+    evaluationSetting: EvalAnswerPackage["evaluationSetting"];
+  };
+  retryLimit: number;
+  attempts: Array<{
+    attempt: number;
+    error: string;
+  }>;
+  lastError: string;
+}
+
 function emptyScores(): JudgeScores {
   return {
     factual_recall: 0,
@@ -69,6 +87,30 @@ function emptyScores(): JudgeScores {
     update_correctness: 0,
     personalization_usefulness: 0,
     provenance_explainability: 0,
+  };
+}
+
+function roundMetric(value: number): number {
+  return Number(value.toFixed(2));
+}
+
+function roundScores(scores: JudgeScores): JudgeScores {
+  return {
+    factual_recall: roundMetric(scores.factual_recall),
+    preference_consistency: roundMetric(scores.preference_consistency),
+    cross_domain_transfer: roundMetric(scores.cross_domain_transfer),
+    contamination_penalty: roundMetric(scores.contamination_penalty),
+    update_correctness: roundMetric(scores.update_correctness),
+    personalization_usefulness: roundMetric(scores.personalization_usefulness),
+    provenance_explainability: roundMetric(scores.provenance_explainability),
+  };
+}
+
+function roundLayerScores(scores: EvalLayerScores): EvalLayerScores {
+  return {
+    retrieval: roundMetric(scores.retrieval),
+    personalization: roundMetric(scores.personalization),
+    runtime_governance: roundMetric(scores.runtime_governance),
   };
 }
 
@@ -170,10 +212,10 @@ function aggregateAssertions(cases: JudgedEvalCase[]): EvalAssertionsAggregate {
   return {
     totalCases,
     passingCases,
-    passRate: passingCases / Math.max(totalCases, 1),
+    passRate: roundMetric(passingCases / Math.max(totalCases, 1)),
     totalChecks,
     passingChecks,
-    checkPassRate: passingChecks / Math.max(totalChecks, 1),
+    checkPassRate: roundMetric(passingChecks / Math.max(totalChecks, 1)),
     contaminationFailures: cases.filter(
       (item) => item.assertions.contaminationFindings.length > 0,
     ).length,
@@ -206,7 +248,10 @@ function resolveBlockingFailureTags(judge: JudgeResult): string[] {
   });
 }
 
-export function aggregateJudgedCases(cases: JudgedEvalCase[]): EvalSuiteSummary {
+export function aggregateJudgedCases(
+  cases: JudgedEvalCase[],
+  executionFailureCount = 0,
+): EvalSuiteSummary {
   const winnerCounts = {
     baseline: 0,
     goodmemory: 0,
@@ -224,21 +269,27 @@ export function aggregateJudgedCases(cases: JudgedEvalCase[]): EvalSuiteSummary 
   }
 
   const divisor = Math.max(cases.length, 1);
-  const baselineAverage = divideScores(baselineTotal, divisor);
-  const goodmemoryAverage = divideScores(goodmemoryTotal, divisor);
-  const baselineLayers = toLayerScores(baselineAverage);
-  const goodmemoryLayers = toLayerScores(goodmemoryAverage);
+  const baselineAverage = roundScores(divideScores(baselineTotal, divisor));
+  const goodmemoryAverage = roundScores(divideScores(goodmemoryTotal, divisor));
+  const baselineLayers = roundLayerScores(toLayerScores(baselineAverage));
+  const goodmemoryLayers = roundLayerScores(toLayerScores(goodmemoryAverage));
+  const uplift = roundScores(subtractScores(goodmemoryAverage, baselineAverage));
+  const upliftLayers = roundLayerScores(
+    subtractLayerScores(goodmemoryLayers, baselineLayers),
+  );
 
   return {
-    totalCases: cases.length,
+    totalCases: cases.length + executionFailureCount,
+    completedCases: cases.length,
+    executionFailures: executionFailureCount,
     winnerCounts,
     baselineAverage,
     goodmemoryAverage,
-    uplift: subtractScores(goodmemoryAverage, baselineAverage),
+    uplift,
     layers: {
       baseline: baselineLayers,
       goodmemory: goodmemoryLayers,
-      uplift: subtractLayerScores(goodmemoryLayers, baselineLayers),
+      uplift: upliftLayers,
     },
     assertions: aggregateAssertions(cases),
   };
@@ -251,6 +302,7 @@ export async function persistEvalArtifacts(input: {
   summary: EvalSuiteSummary;
   runtime: EvalRuntimeMetadata;
   cases: JudgedEvalCase[];
+  executionFailures?: EvalCaseExecutionFailure[];
 }): Promise<{ runDirectory: string }> {
   const runDirectory = join(input.outputDir, input.runId);
   const casesDirectory = join(runDirectory, "cases");
@@ -279,8 +331,11 @@ export async function persistEvalArtifacts(input: {
   const failedCases: Array<{
     caseId: string;
     path: string;
+    kind: "judged" | "execution";
     winner: JudgeResult["winner"];
     failureTags: string[];
+    lastError?: string;
+    attemptCount?: number;
   }> = [];
 
   for (const item of input.cases) {
@@ -360,6 +415,7 @@ export async function persistEvalArtifacts(input: {
       failedCases.push({
       caseId: item.caseId,
       path: join(failuresDirectory, `${item.caseId}.json`),
+      kind: "judged",
       winner: item.judge.winner,
       failureTags: [
         ...blockingFailureTags,
@@ -367,6 +423,25 @@ export async function persistEvalArtifacts(input: {
           .filter((check) => !check.passed)
           .map((check) => `assertion:${check.id}`),
       ],
+    });
+  }
+
+  for (const failure of input.executionFailures ?? []) {
+    const path = join(failuresDirectory, `${failure.caseId}.execution.json`);
+
+    await writeFile(
+      path,
+      `${JSON.stringify(failure, null, 2)}\n`,
+      "utf8",
+    );
+    failedCases.push({
+      caseId: failure.caseId,
+      path,
+      kind: "execution",
+      winner: "baseline",
+      failureTags: ["execution:retry_exhausted"],
+      lastError: failure.lastError,
+      attemptCount: failure.attempts.length,
     });
   }
 

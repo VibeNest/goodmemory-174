@@ -286,6 +286,41 @@ describe("public recall API", () => {
     expect(result.episodes).toHaveLength(0);
   });
 
+  it("does not surface unrelated personal facts for answer-composition recalls", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "personal",
+        content: "For education tasks, avoid irrelevant carry-over from hobby preferences.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-11",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-11", workspaceId: "workspace-a" },
+      query:
+        "Please confirm the updated runbook, my role, and the open loop before proposing the next step for release quality program.",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.facts).toHaveLength(0);
+    expect(result.packet.factSummary).toBeUndefined();
+  });
+
   it("explains recalled preferences and references even when no profile exists", async () => {
     const { documentStore, sessionStore, repositories, runtime } = seedMemory();
 

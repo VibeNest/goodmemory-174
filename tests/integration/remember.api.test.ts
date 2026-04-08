@@ -448,6 +448,55 @@ describe("public remember API", () => {
     ).toBe(true);
   });
 
+  it("updates the durable profile when the user moves into a new role", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-role", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content: "Remember that I am a biomedical researcher in London, UK.",
+        },
+      ],
+    });
+
+    await memory.remember({
+      scope: { userId: "u-role", workspaceId: "workspace-a", sessionId: "s-2" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that I have now moved into a staff platform engineer leading release quality program.",
+        },
+      ],
+    });
+
+    const profiles = await documentStore.query<{
+      identity: {
+        role?: string;
+        location?: string;
+      };
+      activeContext?: {
+        currentProjects?: string[];
+      };
+    }>("profiles", { userId: "u-role" });
+
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0]?.identity.role).toBe("staff platform engineer");
+    expect(profiles[0]?.identity.location).toBe("London, UK");
+    expect(profiles[0]?.activeContext?.currentProjects).toContain(
+      "release quality program",
+    );
+  });
+
   it("writes Chinese durable memory through the public API", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({

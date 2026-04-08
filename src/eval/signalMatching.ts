@@ -45,7 +45,7 @@ function isNegatedOccurrence(
     /\bwithout\s*$/.test(prefix) ||
     /\bexcept(?: for)?\s*$/.test(prefix) ||
     /\b(?:corrected|superseded)\s+reference:\s*$/.test(prefix) ||
-    /^\s*(?:is\s+)?superseded\b/.test(suffix) ||
+    /^\s*is\s+superseded\b/.test(suffix) ||
     /^\s*is\s+no\s+longer\b/.test(suffix) ||
     /^\s*is\s+not\b/.test(suffix) ||
     /^\s*should\s+not\b/.test(suffix) ||
@@ -56,8 +56,8 @@ function isNegatedOccurrence(
     /^\s*is\s+now\s+outdated\b/.test(suffix) ||
     /^\s*is\s+outdated\b/.test(suffix) ||
     /^\s*is\s+not\s+the\s+source\s+of\s+truth\b/.test(suffix) ||
-    /no\s+longer\s+the\s+source\s+of\s+truth\b/.test(suffix) ||
-    /should\s+not\s+be\s+treated\s+as\s+the\s+current\s+source\s+of\s+truth\b/.test(
+    /^\s*(?:,?\s*)?no\s+longer\s+the\s+source\s+of\s+truth\b/.test(suffix) ||
+    /^\s*should\s+not\s+be\s+treated\s+as\s+the\s+current\s+source\s+of\s+truth\b/.test(
       suffix,
     )
   );

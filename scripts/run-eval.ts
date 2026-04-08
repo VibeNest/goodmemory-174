@@ -511,6 +511,22 @@ export function resolveLiveModelConfig(prefix: "GOODMEMORY_EVAL" | "GOODMEMORY_J
   };
 }
 
+export function resolveEvalMaxConcurrency(
+  envVar = "GOODMEMORY_EVAL_MAX_CONCURRENCY",
+): number | undefined {
+  const raw = process.env[envVar];
+  if (!isNonEmpty(raw)) {
+    return undefined;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${envVar} must be a positive integer`);
+  }
+
+  return parsed;
+}
+
 async function readPersistedEvalReport(runDirectory: string): Promise<PersistedEvalReport> {
   return JSON.parse(
     await readFile(join(runDirectory, "report.json"), "utf8"),
@@ -552,7 +568,7 @@ export async function resolveFailedScenarioIds(
           entry.name.endsWith(".json") &&
           entry.name !== "summary.json",
       )
-      .map((entry) => entry.name.replace(/\.json$/, ""))
+      .map((entry) => entry.name.replace(/(?:\.execution)?\.json$/, ""))
       .sort();
   }
 }
@@ -658,11 +674,12 @@ export async function runLiveEval(
     goodmemoryGenerator: createTextGenerator({
       model: evalModel,
       system:
-        "Answer using the provided memory context when it is relevant. Prefer explicit confirmation of role, corrected references, and open loops. When you rely on remembered context, make provenance explicit with phrases like 'From remembered context' or 'Based on prior sessions', and clearly distinguish corrected or superseded references from the current source of truth.",
+        "Answer using the provided memory context when it is relevant. Prefer explicit confirmation of role, corrected references, and open loops. When you rely on remembered context, make provenance explicit with phrases like 'From remembered context' or 'Based on prior sessions'. Restate open loops and unresolved items as closely as the memory records them; do not generalize them into a broader plan. Do not surface unrelated scoped facts or preferences unless they directly help answer the prompt. If you mention a stale reference, phrase it as '<old> is superseded by <current>' while keeping the current source of truth explicit.",
     }),
     judge: createJudgeModel({
       model: judgeModel,
     }),
+    maxConcurrency: resolveEvalMaxConcurrency(),
     runtime: {
       generationMode: "live",
       judgeMode: "live",

@@ -480,18 +480,8 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
       {
         collection: "profiles",
         fields: [
-          { path: "identity.role", equals: "frontend engineer shipping the design system" },
-        ],
-      },
-      {
-        collection: "facts",
-        scope: { workspaceId: "workspace-long" },
-        fields: [
-          {
-            path: "content",
-            equals: "I have now moved into a staff platform engineer role leading runtime reliability.",
-          },
-          { path: "workspaceId", equals: "workspace-long" },
+          { path: "identity.role", equals: "staff platform engineer" },
+          { path: "activeContext.currentProjects", hasEntries: ["runtime reliability"] },
         ],
       },
       {
@@ -508,11 +498,11 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     ],
     expectedRecalled: [
       {
-        collection: "facts",
+        collection: "profile",
         fields: [
           {
-            path: "content",
-            equals: "I have now moved into a staff platform engineer role leading runtime reliability.",
+            path: "identity.role",
+            equals: "staff platform engineer",
           },
         ],
       },
@@ -528,20 +518,26 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
     ],
     expectedContext: [
       {
+        path: "Active Context",
+        hasEntries: ["Current projects: runtime reliability"],
+      },
+      {
         path: "Facts",
         hasEntries: [
           "my current focus is runtime reliability and platform migration, not the old component backlog.",
-          "I have now moved into a staff platform engineer role leading runtime reliability.",
         ],
         lacksEntries: ["I am a frontend engineer shipping the design system."],
       },
     ],
     expectedAnswer: [
       {
+        path: "profileRole",
+        equals: "staff platform engineer",
+      },
+      {
         path: "factEntries",
         hasEntries: [
           "my current focus is runtime reliability and platform migration, not the old component backlog.",
-          "I have now moved into a staff platform engineer role leading runtime reliability.",
         ],
         lacksEntries: ["I am a frontend engineer shipping the design system."],
       },

@@ -165,6 +165,71 @@ describe("deterministic memory extractor", () => {
     ]);
   });
 
+  it("extracts role drift and current project from moved-into wording", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that I have now moved into a staff platform engineer role leading release quality program.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        kindHint: candidate.kindHint,
+        content: candidate.content,
+        profileField: candidate.metadata?.profileField,
+      })),
+    ).toEqual([
+      {
+        kindHint: "profile",
+        content: "staff platform engineer",
+        profileField: "role",
+      },
+      {
+        kindHint: "profile",
+        content: "release quality program",
+        profileField: "currentProject",
+      },
+      {
+        kindHint: "fact",
+        content: "my current role is staff platform engineer leading release quality program.",
+        profileField: undefined,
+      },
+    ]);
+  });
+
+  it("captures role drift wording as a project fact alongside profile updates", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that I have now moved into a staff platform engineer role leading release quality program.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.some(
+        (candidate) =>
+          candidate.kindHint === "fact" &&
+          candidate.explicitness === "explicit" &&
+          candidate.content ===
+            "my current role is staff platform engineer leading release quality program." &&
+          candidate.metadata?.category === "project",
+      ),
+    ).toBe(true);
+  });
+
   it("classifies blockers and open loops as project facts", async () => {
     const extractor = createDeterministicMemoryExtractor();
 
@@ -187,6 +252,32 @@ describe("deterministic memory extractor", () => {
     expect(result.candidates).toHaveLength(2);
     expect(result.candidates[0]?.metadata?.category).toBe("project");
     expect(result.candidates[1]?.metadata?.category).toBe("project");
+  });
+
+  it("extracts follow-up open-loop phrasing as an explicit project fact", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "We paused after step 2 and still have an open loop on final verification for migration rollout. Continue from there next time.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.some(
+        (candidate) =>
+          candidate.kindHint === "fact" &&
+          candidate.explicitness === "explicit" &&
+          candidate.content ===
+            "the open loop is final verification for migration rollout." &&
+          candidate.metadata?.category === "project",
+      ),
+    ).toBe(true);
   });
 
   it("does not duplicate pure profile remember-that clauses as explicit facts", async () => {
