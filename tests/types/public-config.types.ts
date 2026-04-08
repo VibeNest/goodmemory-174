@@ -11,8 +11,17 @@ const testingConfig: GoodMemoryConfig = {
   },
 };
 
+const languageConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  language: {
+    defaultLocale: "zh-CN",
+    detection: "auto",
+  },
+};
+
 void minimalConfig;
 void testingConfig;
+void languageConfig;
 
 const invalidEmbeddingConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },

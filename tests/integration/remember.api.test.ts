@@ -447,4 +447,161 @@ describe("public remember API", () => {
       ),
     ).toBe(true);
   });
+
+  it("writes Chinese durable memory through the public API", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-zh", sessionId: "s-1", workspaceId: "workspace-zh" },
+      messages: [
+        {
+          role: "user",
+          content: "请记住迁移流程目前仍然被审批阻塞。",
+        },
+        {
+          role: "user",
+          content: "请以后优先使用要点列表回复。",
+        },
+        {
+          role: "user",
+          content: "以docs/migration-runbook.md为准。",
+        },
+      ],
+    });
+
+    expect(result.accepted).toBe(3);
+    expect(result.metadata?.locale).toBe("zh-CN");
+    expect(await documentStore.query("facts", { userId: "u-zh" })).toHaveLength(1);
+    expect(await documentStore.query("feedback", { userId: "u-zh" })).toHaveLength(1);
+    expect(await documentStore.query("references", { userId: "u-zh" })).toHaveLength(1);
+  });
+
+  it("persists Chinese work-location phrasing as location instead of organization", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-zh-profile", sessionId: "s-1", workspaceId: "workspace-zh" },
+      messages: [
+        {
+          role: "user",
+          content: "我在北京工作。我是后端工程师。",
+        },
+      ],
+    });
+
+    const profiles = await documentStore.query<{
+      userId: string;
+      identity: {
+        role?: string;
+        organization?: string;
+        location?: string;
+      };
+    }>("profiles", { userId: "u-zh-profile" });
+
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0]?.identity.location).toBe("北京");
+    expect(profiles[0]?.identity.role).toBe("后端工程师");
+    expect(profiles[0]?.identity.organization).toBeUndefined();
+  });
+
+  it("does not create an episode for trivial Chinese assistant acknowledgements", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-zh-ack", sessionId: "s-1", workspaceId: "workspace-zh" },
+      messages: [
+        {
+          role: "user",
+          content: "请记住迁移流程目前仍然被审批阻塞。",
+        },
+        {
+          role: "assistant",
+          content: "好的。",
+        },
+      ],
+    });
+
+    expect(result.accepted).toBe(1);
+    expect(
+      await documentStore.query("episodes", {
+        userId: "u-zh-ack",
+        workspaceId: "workspace-zh",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("supersedes stale Chinese reference memory when the user corrects the source of truth", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-zh-ref", workspaceId: "workspace-zh", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content: "以docs/old-runbook.md为准。",
+        },
+      ],
+    });
+
+    await memory.remember({
+      scope: { userId: "u-zh-ref", workspaceId: "workspace-zh", sessionId: "s-2" },
+      messages: [
+        {
+          role: "user",
+          content: "现在以docs/new-runbook.md为准，不再以docs/old-runbook.md为准。",
+        },
+      ],
+    });
+
+    const references = await documentStore.query<{
+      pointer: string;
+      lifecycle: string;
+    }>("references", {
+      userId: "u-zh-ref",
+      workspaceId: "workspace-zh",
+    });
+
+    expect(
+      references.some(
+        (reference) =>
+          reference.pointer === "docs/old-runbook.md" &&
+          reference.lifecycle === "superseded",
+      ),
+    ).toBe(true);
+    expect(
+      references.some(
+        (reference) =>
+          reference.pointer === "docs/new-runbook.md" &&
+          reference.lifecycle === "active",
+      ),
+    ).toBe(true);
+  });
 });

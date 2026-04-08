@@ -30,6 +30,10 @@ import type {
   PolicyContext,
 } from "../policy/hooks";
 import { toPolicyMemoryRecord } from "../policy/hooks";
+import {
+  createLanguageService,
+  type LanguageService,
+} from "../language";
 
 type ScopedIdentity = {
   userId: string;
@@ -65,6 +69,12 @@ export interface RememberResult {
   accepted: number;
   rejected: number;
   events: RememberEvent[];
+  metadata?: {
+    locale: string;
+    localeSource: "explicit" | "detected" | "default";
+    adapterId: string;
+    analysisMode: "rules-only";
+  };
 }
 
 export interface RememberEngineConfig {
@@ -74,6 +84,7 @@ export interface RememberEngineConfig {
   now?: () => string;
   createId?: () => string;
   shouldWrite?: (candidate: ClassifiedCandidate) => boolean;
+  language?: LanguageService;
   policy?: Pick<
     GoodMemoryPolicyHooks,
     "shouldRemember" | "redact" | "resolveConflict"
@@ -81,42 +92,6 @@ export interface RememberEngineConfig {
 }
 
 const SCORE_THRESHOLD = 0.7;
-
-function normalizeText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function tokenize(value: string): string[] {
-  return normalizeText(value)
-    .split(" ")
-    .filter((token) => token.length >= 4);
-}
-
-function tokenOverlap(left: string, right: string): number {
-  const leftTokens = new Set(tokenize(left));
-  const rightTokens = new Set(tokenize(right));
-
-  if (leftTokens.size === 0 || rightTokens.size === 0) {
-    return 0;
-  }
-
-  let intersection = 0;
-  for (const token of leftTokens) {
-    if (rightTokens.has(token)) {
-      intersection += 1;
-    }
-  }
-
-  return intersection / Math.max(leftTokens.size, rightTokens.size);
-}
-
-function normalizeRule(value: string): string {
-  return normalizeText(value);
-}
 
 function toRememberEventMemoryType(
   memoryType: ClassifiedCandidate["memoryType"],
@@ -289,6 +264,7 @@ function buildPreference(
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
+  locale: string,
 ): PreferenceMemory {
   return createPreferenceMemory({
     id,
@@ -302,6 +278,7 @@ function buildPreference(
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
+      locale,
     }),
     updatedAt: timestamp,
   });
@@ -312,6 +289,7 @@ function buildReference(
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
+  locale: string,
 ): ReferenceMemory {
   return createReferenceMemory({
     id,
@@ -325,6 +303,7 @@ function buildReference(
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
+      locale,
     }),
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -336,6 +315,7 @@ function buildFact(
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
+  locale: string,
 ): FactMemory {
   return createFactMemory({
     id,
@@ -349,6 +329,7 @@ function buildFact(
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
+      locale,
     }),
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -360,6 +341,7 @@ function buildFeedback(
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
+  locale: string,
 ): FeedbackMemory {
   return createFeedbackMemory({
     id,
@@ -374,37 +356,49 @@ function buildFeedback(
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
+      locale,
     }),
     updatedAt: timestamp,
   });
 }
 
-const ASSISTANT_ACK_PATTERN =
-  /^(understood|noted|captured|okay|ok|will do|done|thanks|thank you|updated)\.?$/i;
-const ASSISTANT_CONTINUITY_PATTERN =
-  /\b(will|going forward|use|continue|updated|confirm|propos|next step|resolved|pending|blocked|follow up|keep)\b/i;
-const UNRESOLVED_SIGNAL_PATTERN =
-  /\b(open loop|blocked|pending|remaining|follow up|follow-up|todo|next step)\b/i;
-
 function selectSubstantiveAssistantMessages(
   messages: MemoryExtractionInput["messages"],
+  language: LanguageService,
+  locale?: string,
 ): string[] {
   return messages
     .filter((message) => message.role === "assistant")
     .map((message) => message.content.trim())
     .filter((content) => content.length > 0)
     .filter((content) => {
+      const resolved = language.resolveFromText({
+        locale,
+        text: content,
+      });
       return (
-        !ASSISTANT_ACK_PATTERN.test(content) ||
-        ASSISTANT_CONTINUITY_PATTERN.test(content) ||
+        !language.isAssistantAcknowledgement(content, resolved) ||
+        language.isAssistantContinuitySignal(content, resolved) ||
         content.length >= 24
       );
     });
 }
 
-function extractEpisodeUnresolvedItems(userMessages: string[]): string[] {
+function extractEpisodeUnresolvedItems(
+  userMessages: string[],
+  language: LanguageService,
+  locale?: string,
+): string[] {
   return userMessages
-    .filter((message) => UNRESOLVED_SIGNAL_PATTERN.test(message))
+    .filter((message) =>
+      language.isUnresolvedSignal(
+        message,
+        language.resolveFromText({
+          locale,
+          text: message,
+        }),
+      ),
+    )
     .slice(0, 2);
 }
 
@@ -413,12 +407,18 @@ function maybeBuildEpisode(
   candidates: MemoryCandidate[],
   id: string,
   timestamp: string,
+  language: LanguageService,
+  locale: string,
 ): EpisodeMemory | null {
   const userMessages = input.messages
     .filter((message) => message.role === "user")
     .map((message) => message.content.trim())
     .filter((value) => value.length > 0);
-  const substantiveAssistantMessages = selectSubstantiveAssistantMessages(input.messages);
+  const substantiveAssistantMessages = selectSubstantiveAssistantMessages(
+    input.messages,
+    language,
+    input.locale,
+  );
 
   if (
     candidates.length === 0 ||
@@ -444,18 +444,28 @@ function maybeBuildEpisode(
     sessionId: input.scope.sessionId,
     summary: `Conversation covered: ${summarySegments.join(" / ")}`,
     keyDecisions: substantiveAssistantMessages.slice(0, 2),
-    unresolvedItems: extractEpisodeUnresolvedItems(userMessages),
+    unresolvedItems: extractEpisodeUnresolvedItems(
+      userMessages,
+      language,
+      input.locale,
+    ),
     topics: userMessages
       .slice(0, 2)
       .map((message) => message.split(" ").slice(0, 3).join(" ")),
     importance: 0.7,
     confidence: 0.8,
+    locale,
     createdAt: timestamp,
   });
 }
 
 export function createRememberEngine(config: RememberEngineConfig) {
-  const extractor = config.extractor ?? createDeterministicMemoryExtractor();
+  const language = config.language ?? createLanguageService();
+  const extractor =
+    config.extractor ??
+    createDeterministicMemoryExtractor({
+      service: language,
+    });
   const now = config.now ?? (() => new Date().toISOString());
   const createId = config.createId ?? (() => crypto.randomUUID());
 
@@ -467,6 +477,10 @@ export function createRememberEngine(config: RememberEngineConfig) {
     },
 
     async remember(input: MemoryExtractionInput): Promise<RememberResult> {
+      const resolvedLanguage = language.resolveFromMessages({
+        locale: input.locale,
+        messages: input.messages,
+      });
       const extraction = await extractor.extract(input);
       const events: RememberEvent[] = [];
       let accepted = 0;
@@ -474,6 +488,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
       const policyContext: PolicyContext = {
         scope: input.scope,
         phase: "remember",
+        locale: resolvedLanguage.locale,
+        localeSource: resolvedLanguage.localeSource,
       };
 
       for (const candidate of extraction.candidates) {
@@ -600,6 +616,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               effectiveCandidate,
               current.id,
               timestamp,
+              resolvedLanguage.locale,
             );
 
             await config.repositories.preferences.upsert(updatedPreference);
@@ -624,6 +641,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             effectiveCandidate,
             createId(),
             timestamp,
+            resolvedLanguage.locale,
           );
           await config.repositories.preferences.upsert(preference);
           accepted += 1;
@@ -692,6 +710,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             effectiveCandidate,
             createId(),
             timestamp,
+            resolvedLanguage.locale,
           );
 
           if (superseded) {
@@ -719,11 +738,14 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
         if (effectiveCandidate.memoryType === "fact") {
           const facts = await config.repositories.facts.listByScope(input.scope);
-          const normalizedContent = normalizeText(effectiveCandidate.content);
+          const normalizedContent = language.normalizeForEquality(
+            effectiveCandidate.content,
+            resolvedLanguage,
+          );
           const duplicate = facts.find(
             (fact) =>
               fact.lifecycle === "active" &&
-              normalizeText(fact.content) === normalizedContent,
+              language.normalizeForEquality(fact.content, resolvedLanguage) === normalizedContent,
           );
 
           if (duplicate) {
@@ -744,7 +766,11 @@ export function createRememberEngine(config: RememberEngineConfig) {
               fact.lifecycle === "active" &&
               fact.source.method !== "explicit" &&
               effectiveCandidate.explicitness === "explicit" &&
-              tokenOverlap(fact.content, effectiveCandidate.content) >= 0.4,
+              language.tokenOverlap(
+                fact.content,
+                effectiveCandidate.content,
+                resolvedLanguage,
+              ) >= 0.4,
           );
 
           if (superseded && config.policy?.resolveConflict) {
@@ -768,7 +794,13 @@ export function createRememberEngine(config: RememberEngineConfig) {
             }
           }
 
-          const fact = buildFact(input.scope, effectiveCandidate, createId(), timestamp);
+          const fact = buildFact(
+            input.scope,
+            effectiveCandidate,
+            createId(),
+            timestamp,
+            resolvedLanguage.locale,
+          );
 
           if (superseded) {
             await config.repositories.facts.add(
@@ -796,12 +828,15 @@ export function createRememberEngine(config: RememberEngineConfig) {
         }
 
         const scopedFeedback = await config.repositories.feedback.listByScope(input.scope);
-        const normalizedRule = normalizeRule(effectiveCandidate.content);
+        const normalizedRule = language.normalizeForEquality(
+          effectiveCandidate.content,
+          resolvedLanguage,
+        );
         const duplicate = scopedFeedback.find(
           (feedback) =>
             feedback.lifecycle === "active" &&
             feedback.kind === (effectiveCandidate.metadata?.feedbackKind ?? "do") &&
-            normalizeRule(feedback.rule) === normalizedRule,
+            language.normalizeForEquality(feedback.rule, resolvedLanguage) === normalizedRule,
         );
 
         if (duplicate) {
@@ -848,6 +883,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
           effectiveCandidate,
           createId(),
           timestamp,
+          resolvedLanguage.locale,
         );
 
         if (superseded) {
@@ -878,6 +914,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
         extraction.candidates,
         createId(),
         now(),
+        language,
+        resolvedLanguage.locale,
       );
       if (episode) {
         await config.repositories.episodes.add(episode);
@@ -898,6 +936,12 @@ export function createRememberEngine(config: RememberEngineConfig) {
         accepted,
         rejected,
         events,
+        metadata: {
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+          adapterId: resolvedLanguage.adapterId,
+          analysisMode: resolvedLanguage.analysisMode,
+        },
       };
     },
   };

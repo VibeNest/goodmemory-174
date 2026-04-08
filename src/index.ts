@@ -33,6 +33,12 @@ import {
 import { createRecallEngine } from "./recall/engine";
 import { createRememberEngine } from "./remember/engine";
 import { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
+import {
+  createLanguageService,
+  type LanguageAdapter,
+  type LanguageConfig,
+  type LocaleDetector,
+} from "./language";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "./storage/memory";
 import {
   createPostgresDocumentStore,
@@ -160,6 +166,14 @@ export type {
 } from "./remember/candidates";
 export { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
 export type {
+  LanguageAdapter,
+  LanguageConfig,
+  LocaleDetector,
+  LocaleDetectorInput,
+  LocaleResolutionSource,
+  ResolvedLanguageContext,
+} from "./language";
+export type {
   ClassifiedCandidate,
   RememberEvent as RememberPipelineEvent,
   RememberResult as RememberPipelineResult,
@@ -184,6 +198,7 @@ export interface StorageConfig {
 export interface GoodMemoryConfig {
   storage: StorageConfig;
   policy?: GoodMemoryPolicyHooks;
+  language?: LanguageConfig;
   adapters?: {
     documentStore?: DocumentStore;
     sessionStore?: SessionStore;
@@ -200,6 +215,7 @@ export interface RecallInput {
   query: string;
   retrievalProfile?: "general_chat" | "coding_agent";
   ignoreMemory?: boolean;
+  locale?: string;
 }
 
 export interface RecallResult {
@@ -219,6 +235,10 @@ export interface RecallResult {
     hits: import("./recall/engine").RecallHit[];
     verificationHints: import("./verify/policy").VerificationHint[];
     policyApplied: string[];
+    locale?: string;
+    localeSource?: "explicit" | "detected" | "default";
+    adapterId?: string;
+    analysisMode?: "rules-only";
   };
 }
 
@@ -236,6 +256,7 @@ export interface BuildContextResult {
 export interface RememberInput {
   scope: MemoryScope;
   messages: Array<{ role: string; content: string }>;
+  locale?: string;
 }
 
 export interface RememberResult {
@@ -255,6 +276,12 @@ export interface RememberResult {
     reason?: string;
     sourceMethod?: MemorySourceMethod;
   }>;
+  metadata?: {
+    locale: string;
+    localeSource: "explicit" | "detected" | "default";
+    adapterId: string;
+    analysisMode: "rules-only";
+  };
 }
 
 export interface ForgetInput {
@@ -312,6 +339,7 @@ export interface DeleteAllMemoryResult {
 export interface FeedbackInput {
   scope: MemoryScope;
   signal: string;
+  locale?: string;
 }
 
 export interface FeedbackResult {
@@ -319,6 +347,12 @@ export interface FeedbackResult {
   outcome?: "written" | "merged" | "superseded";
   memoryId?: string;
   kind?: FeedbackKind;
+  metadata?: {
+    locale: string;
+    localeSource: "explicit" | "detected" | "default";
+    adapterId: string;
+    analysisMode: "rules-only";
+  };
 }
 
 export interface GoodMemory {
@@ -329,37 +363,6 @@ export interface GoodMemory {
   exportMemory(input: ExportMemoryInput): Promise<ExportMemoryResult>;
   deleteAllMemory(input: DeleteAllMemoryInput): Promise<DeleteAllMemoryResult>;
   feedback(input: FeedbackInput): Promise<FeedbackResult>;
-}
-
-function normalizeFeedbackRule(signal: string): string {
-  return signal
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function deriveFeedbackKind(signal: string): FeedbackKind {
-  const normalized = signal.toLowerCase();
-
-  if (
-    normalized.includes("worked well") ||
-    normalized.includes("keep using") ||
-    normalized.includes("effective") ||
-    normalized.includes("successful")
-  ) {
-    return "validated_pattern";
-  }
-
-  if (normalized.includes("don't") || normalized.includes("do not")) {
-    return "dont";
-  }
-
-  if (normalized.includes("prefer")) {
-    return "prefer";
-  }
-
-  return "do";
 }
 
 type ScopeBoundRecord = {
@@ -407,6 +410,7 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly repositories;
   private readonly recallEngine;
   private readonly rememberEngine;
+  private readonly language;
 
   constructor(private readonly config: GoodMemoryConfig) {
     if (config.storage.provider === "postgres" && !config.storage.url) {
@@ -449,10 +453,12 @@ class GoodMemoryImpl implements GoodMemory {
       sessionStore,
       vectorStore,
     });
+    const language = createLanguageService(config.language);
 
     this.documentStore = documentStore;
     this.sessionStore = sessionStore;
     this.repositories = repositories;
+    this.language = language;
     this.recallEngine = createRecallEngine({
       repositories,
       sessionStore,
@@ -460,13 +466,17 @@ class GoodMemoryImpl implements GoodMemory {
       referenceTime: config.testing?.now
         ? () => config.testing!.now!().toISOString()
         : undefined,
+      language,
       policy: config.policy,
     });
     this.rememberEngine = createRememberEngine({
       repositories,
       documentStore,
       extractor:
-        config.testing?.extractor ?? createDeterministicMemoryExtractor(),
+        config.testing?.extractor ?? createDeterministicMemoryExtractor({
+          service: language,
+        }),
+      language,
       policy: config.policy,
     });
   }
@@ -665,14 +675,21 @@ class GoodMemoryImpl implements GoodMemory {
   }
 
   async feedback(input: FeedbackInput): Promise<FeedbackResult> {
+    const resolvedLanguage = this.language.resolveFromText({
+      locale: input.locale,
+      text: input.signal,
+    });
     const existing = await this.repositories.feedback.listByScope(input.scope);
-    const kind = deriveFeedbackKind(input.signal);
-    const normalizedRule = normalizeFeedbackRule(input.signal);
+    const kind = this.language.deriveFeedbackKind(input.signal, resolvedLanguage);
+    const normalizedRule = this.language.normalizeForEquality(
+      input.signal,
+      resolvedLanguage,
+    );
     const duplicate = existing.find(
       (record: FeedbackMemory) =>
         record.lifecycle === "active" &&
         record.kind === kind &&
-        normalizeFeedbackRule(record.rule) === normalizedRule,
+        this.language.normalizeForEquality(record.rule, resolvedLanguage) === normalizedRule,
     );
 
     if (!duplicate) {
@@ -697,6 +714,7 @@ class GoodMemoryImpl implements GoodMemory {
           method: "explicit",
           extractedAt: timestamp,
           sessionId: input.scope.sessionId,
+          locale: resolvedLanguage.locale,
         }),
         updatedAt: timestamp,
       });
@@ -717,6 +735,12 @@ class GoodMemoryImpl implements GoodMemory {
           outcome: "superseded",
           memoryId: nextRecord.id,
           kind,
+          metadata: {
+            locale: resolvedLanguage.locale,
+            localeSource: resolvedLanguage.localeSource,
+            adapterId: resolvedLanguage.adapterId,
+            analysisMode: resolvedLanguage.analysisMode,
+          },
         };
       }
 
@@ -726,6 +750,12 @@ class GoodMemoryImpl implements GoodMemory {
         outcome: "written",
         memoryId: nextRecord.id,
         kind,
+        metadata: {
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+          adapterId: resolvedLanguage.adapterId,
+          analysisMode: resolvedLanguage.analysisMode,
+        },
       };
     }
 
@@ -734,6 +764,12 @@ class GoodMemoryImpl implements GoodMemory {
       outcome: "merged",
       memoryId: duplicate.id,
       kind,
+      metadata: {
+        locale: resolvedLanguage.locale,
+        localeSource: resolvedLanguage.localeSource,
+        adapterId: resolvedLanguage.adapterId,
+        analysisMode: resolvedLanguage.analysisMode,
+      },
     };
   }
 }

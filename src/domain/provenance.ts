@@ -8,6 +8,7 @@ export interface MemorySource {
   method: MemorySourceMethod;
   extractedAt: string;
   sessionId?: string;
+  locale?: string;
 }
 
 export type MemoryLifecycleState = "active" | "superseded" | "inactive";

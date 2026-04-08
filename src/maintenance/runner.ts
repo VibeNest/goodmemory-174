@@ -8,12 +8,17 @@ import type {
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { MemoryRepositories } from "../storage/repositories";
+import {
+  createLanguageService,
+  type LanguageService,
+} from "../language";
 
 export type MaintenanceJobName = "dedupe" | "contradiction" | "consolidation";
 
 export interface MaintenanceRunnerConfig {
   repositories: MemoryRepositories;
   now?: () => string;
+  language?: LanguageService;
 }
 
 export interface MaintenanceJobReport {
@@ -25,52 +30,6 @@ export interface MaintenanceRunReport {
   scope: MemoryScope;
   ranAt: string;
   jobs: MaintenanceJobReport[];
-}
-
-const NEGATIVE_FACT_PATTERNS = [
-  /\bblocked\b/i,
-  /\bfailing\b/i,
-  /\bopen\b/i,
-  /\bunstable\b/i,
-];
-
-const POSITIVE_FACT_PATTERNS = [
-  /\bstable\b/i,
-  /\bresolved\b/i,
-  /\bclosed\b/i,
-  /\bfixed\b/i,
-];
-
-function normalizeText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function tokenize(value: string): string[] {
-  return normalizeText(value)
-    .split(" ")
-    .filter((token) => token.length >= 4);
-}
-
-function tokenOverlap(left: string, right: string): number {
-  const leftTokens = new Set(tokenize(left));
-  const rightTokens = new Set(tokenize(right));
-
-  if (leftTokens.size === 0 || rightTokens.size === 0) {
-    return 0;
-  }
-
-  let intersection = 0;
-  for (const token of leftTokens) {
-    if (rightTokens.has(token)) {
-      intersection += 1;
-    }
-  }
-
-  return intersection / Math.max(leftTokens.size, rightTokens.size);
 }
 
 function sortFactsForMaintenance(facts: FactMemory[]): FactMemory[] {
@@ -85,20 +44,9 @@ function sortEpisodesForMaintenance(episodes: EpisodeMemory[]): EpisodeMemory[] 
   );
 }
 
-function detectPolarity(content: string): "positive" | "negative" | "unknown" {
-  if (NEGATIVE_FACT_PATTERNS.some((pattern) => pattern.test(content))) {
-    return "negative";
-  }
-
-  if (POSITIVE_FACT_PATTERNS.some((pattern) => pattern.test(content))) {
-    return "positive";
-  }
-
-  return "unknown";
-}
-
 async function runDedupeCleanup(
   repositories: MemoryRepositories,
+  language: LanguageService,
   scope: MemoryScope,
   timestamp: string,
 ): Promise<MaintenanceJobReport> {
@@ -109,7 +57,10 @@ async function runDedupeCleanup(
   let applied = 0;
 
   for (const fact of facts) {
-    const key = normalizeText(fact.content);
+    const locale = language.resolveFromText({
+      text: fact.content,
+    }).locale;
+    const key = language.normalizeForEquality(fact.content, locale);
     const winner = seen.get(key);
 
     if (!winner) {
@@ -137,6 +88,7 @@ async function runDedupeCleanup(
 
 async function runContradictionRepair(
   repositories: MemoryRepositories,
+  language: LanguageService,
   scope: MemoryScope,
   timestamp: string,
 ): Promise<MaintenanceJobReport> {
@@ -157,13 +109,25 @@ async function runContradictionRepair(
         continue;
       }
 
-      const overlap = tokenOverlap(left.content, right.content);
+      const leftLocale = language.resolveFromText({
+        text: left.content,
+      }).locale;
+      const rightLocale = language.resolveFromText({
+        text: right.content,
+      }).locale;
+      if (!language.localesCompatible(leftLocale, rightLocale)) {
+        continue;
+      }
+
+      const overlap = language.tokenOverlap(left.content, right.content, leftLocale, {
+        excludeStopwords: true,
+      });
       if (overlap < 0.3) {
         continue;
       }
 
-      const leftPolarity = detectPolarity(left.content);
-      const rightPolarity = detectPolarity(right.content);
+      const leftPolarity = language.detectFactPolarity(left.content, leftLocale);
+      const rightPolarity = language.detectFactPolarity(right.content, rightLocale);
 
       if (
         leftPolarity === "unknown" ||
@@ -200,6 +164,7 @@ async function runContradictionRepair(
 
 async function runEpisodeConsolidation(
   repositories: MemoryRepositories,
+  language: LanguageService,
   scope: MemoryScope,
   timestamp: string,
 ): Promise<MaintenanceJobReport> {
@@ -212,7 +177,24 @@ async function runEpisodeConsolidation(
 
     for (let j = i + 1; j < episodes.length; j += 1) {
       const right = episodes[j]!;
-      const topicScore = tokenOverlap(left.topics.join(" "), right.topics.join(" "));
+      const leftLocale = language.resolveFromText({
+        text: left.topics.join(" "),
+      }).locale;
+      const rightLocale = language.resolveFromText({
+        text: right.topics.join(" "),
+      }).locale;
+      if (!language.localesCompatible(leftLocale, rightLocale)) {
+        continue;
+      }
+
+      const topicScore = language.tokenOverlap(
+        left.topics.join(" "),
+        right.topics.join(" "),
+        leftLocale,
+        {
+          excludeStopwords: true,
+        },
+      );
 
       if (topicScore < 0.3) {
         continue;
@@ -262,6 +244,7 @@ async function runEpisodeConsolidation(
 }
 
 export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
+  const language = config.language ?? createLanguageService();
   const now = config.now ?? (() => new Date().toISOString());
 
   return {
@@ -274,19 +257,31 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
 
       for (const job of jobs) {
         if (job === "dedupe") {
-          reports.push(await runDedupeCleanup(config.repositories, scope, timestamp));
+          reports.push(
+            await runDedupeCleanup(config.repositories, language, scope, timestamp),
+          );
           continue;
         }
 
         if (job === "consolidation") {
           reports.push(
-            await runEpisodeConsolidation(config.repositories, scope, timestamp),
+            await runEpisodeConsolidation(
+              config.repositories,
+              language,
+              scope,
+              timestamp,
+            ),
           );
           continue;
         }
 
         reports.push(
-          await runContradictionRepair(config.repositories, scope, timestamp),
+          await runContradictionRepair(
+            config.repositories,
+            language,
+            scope,
+            timestamp,
+          ),
         );
       }
 

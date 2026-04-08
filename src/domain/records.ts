@@ -101,6 +101,7 @@ export interface EpisodeMemory {
   emotionalTone?: string;
   importance: number;
   confidence: number;
+  locale?: string;
   embeddingId?: string;
   createdAt: string;
   archivedAt?: string;
@@ -301,6 +302,7 @@ export function createEpisodeMemory(
     emotionalTone: input.emotionalTone,
     importance: input.importance ?? 1,
     confidence: input.confidence ?? 1,
+    locale: input.locale,
     embeddingId: input.embeddingId,
     createdAt: input.createdAt ?? new Date(0).toISOString(),
     archivedAt: input.archivedAt,

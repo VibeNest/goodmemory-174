@@ -14,6 +14,8 @@ export interface PolicyContext {
   query?: string;
   retrievalProfile?: "general_chat" | "coding_agent";
   phase: "remember" | "recall";
+  locale: string;
+  localeSource: "explicit" | "detected" | "default";
 }
 
 export type PolicyMemoryRecord =

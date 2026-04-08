@@ -149,4 +149,53 @@ describe("maintenance runner", () => {
       "consolidation",
     ]);
   });
+
+  it("dedupes and repairs Chinese facts", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = { userId: "u-zh", workspaceId: "workspace-a" };
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-zh-1",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "迁移流程目前仍然被审批阻塞。",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-zh-2",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "迁移流程目前仍然被审批阻塞。",
+        source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+        createdAt: "2026-01-02T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-zh-3",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "迁移流程已经稳定。",
+        source: { method: "explicit", extractedAt: "2026-01-03T00:00:00.000Z" },
+        confidence: 0.95,
+        createdAt: "2026-01-03T00:00:00.000Z",
+        updatedAt: "2026-01-03T00:00:00.000Z",
+      }),
+    );
+
+    const dedupe = await runner.run(scope, ["dedupe"]);
+    expect(dedupe.jobs[0]?.applied).toBe(1);
+
+    const contradiction = await runner.run(scope, ["contradiction"]);
+    expect(contradiction.jobs[0]?.applied).toBe(1);
+  });
 });

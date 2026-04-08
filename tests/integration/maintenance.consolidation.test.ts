@@ -67,4 +67,51 @@ describe("maintenance consolidation", () => {
     expect(active[0]?.summary).toContain("Consolidated");
     expect(active[0]?.topics).toContain("recall");
   });
+
+  it("consolidates related Chinese episodes", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const repositories = createMemoryRepositories({
+      documentStore,
+      sessionStore: createInMemorySessionStore(),
+    });
+    const runner = createMaintenanceRunner({
+      repositories,
+      now: () => "2026-04-02T00:00:00.000Z",
+    });
+    const scope = { userId: "u-zh", workspaceId: "workspace-a" };
+
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-zh-1",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        summary: "上次会话聚焦迁移流程和审批阻塞。",
+        topics: ["迁移流程", "审批阻塞"],
+        unresolvedItems: ["等待审批"],
+        keyDecisions: ["继续跟进审批"],
+        importance: 0.8,
+        confidence: 0.9,
+        createdAt: "2026-03-30T00:00:00.000Z",
+      }),
+    );
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-zh-2",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        sessionId: "s-2",
+        summary: "本次会话继续处理迁移流程，确认审批仍未完成。",
+        topics: ["迁移流程", "审批"],
+        unresolvedItems: ["确认审批时间"],
+        keyDecisions: ["维持当前方案"],
+        importance: 0.82,
+        confidence: 0.91,
+        createdAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+
+    const report = await runner.run(scope, ["consolidation"]);
+    expect(report.jobs[0]?.applied).toBe(1);
+  });
 });

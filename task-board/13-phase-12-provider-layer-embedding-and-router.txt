@@ -48,6 +48,7 @@ Key Constraints
 - Keep deterministic fallbacks for CI and offline development
 - Route all live model calls through Vercel AI SDK adapters
 - Preserve explainability for both write-path and recall-path decisions
+- Locale-aware rules-first behavior must stay usable without provider-backed multilingual retrieval
 
 
 Exit Checklist

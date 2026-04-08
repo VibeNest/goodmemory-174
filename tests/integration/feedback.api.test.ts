@@ -54,4 +54,29 @@ describe("public feedback API", () => {
     });
     expect(records[0]?.kind).toBe("validated_pattern");
   });
+
+  it("normalizes and stores Chinese feedback signals", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await memory.feedback({
+      scope: { userId: "u-zh", workspaceId: "workspace-a", sessionId: "s-1" },
+      signal: "请以后优先用要点列表回复。",
+    });
+
+    expect(result.kind).toBe("prefer");
+    expect(result.metadata?.locale).toBe("zh-CN");
+    expect(
+      await documentStore.query("feedback", {
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(1);
+  });
 });

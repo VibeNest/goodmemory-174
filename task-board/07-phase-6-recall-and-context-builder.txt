@@ -16,6 +16,7 @@ Primary Deliverables
 - recall planning
 - retrieval profiles
 - memory selection
+- locale-aware lexical matching baseline
 - context builder
 - token budgeting
 
@@ -122,6 +123,7 @@ Implementation steps:
 
 Acceptance:
 - recall() is stable and externally useful
+- same-language lexical recall remains deterministic across supported locales
 
 
 Exit Checklist

@@ -44,6 +44,7 @@ export interface MemoryCandidate {
 export interface MemoryExtractionInput {
   scope: MemoryScope;
   messages: Array<{ role: string; content: string }>;
+  locale?: string;
 }
 
 export interface MemoryExtractionResult {

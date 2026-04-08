@@ -218,4 +218,167 @@ describe("deterministic memory extractor", () => {
       true,
     );
   });
+
+  it("extracts Chinese profile, fact, preference, reference, and feedback candidates", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "我叫李雷。我在Acme工作。我是后端工程师。我的时区是Asia/Shanghai。我常用语言是中文。",
+        },
+        {
+          role: "user",
+          content: "请记住工作流目前仍然被生产迁移阻塞。",
+        },
+        {
+          role: "user",
+          content: "我偏好用要点回复。",
+        },
+        {
+          role: "user",
+          content: "以docs/runbook.md为准。",
+        },
+        {
+          role: "user",
+          content: "请以后优先给我简洁回答。",
+        },
+      ],
+    });
+
+    expect(result.candidates.map((candidate) => candidate.kindHint)).toEqual([
+      "profile",
+      "profile",
+      "profile",
+      "profile",
+      "profile",
+      "fact",
+      "preference",
+      "reference",
+      "feedback",
+    ]);
+    expect(result.candidates[0]?.content).toBe("李雷");
+    expect(result.candidates[4]?.content).toBe("中文");
+    expect(result.candidates[5]?.content).toContain("生产迁移阻塞");
+    expect(result.candidates[6]?.metadata?.preferenceValue).toBe("用要点回复");
+    expect(result.candidates[7]?.metadata?.referencePointer).toBe("docs/runbook.md");
+    expect(result.candidates[8]?.metadata?.feedbackKind).toBe("prefer");
+  });
+
+  it("treats common Chinese workplace location phrasing as location, not organization", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-location" },
+      messages: [
+        {
+          role: "user",
+          content: "我在北京工作。我是后端工程师。",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        kindHint: candidate.kindHint,
+        content: candidate.content,
+        profileField: candidate.metadata?.profileField,
+      })),
+    ).toEqual([
+      {
+        kindHint: "profile",
+        content: "北京",
+        profileField: "location",
+      },
+      {
+        kindHint: "profile",
+        content: "后端工程师",
+        profileField: "role",
+      },
+    ]);
+  });
+
+  it("does not force ambiguous Chinese work subjects into organization memory", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-ambiguous" },
+      messages: [
+        {
+          role: "user",
+          content: "我在凤凰工作。我是记者。",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        kindHint: candidate.kindHint,
+        content: candidate.content,
+        profileField: candidate.metadata?.profileField,
+      })),
+    ).toEqual([
+      {
+        kindHint: "profile",
+        content: "记者",
+        profileField: "role",
+      },
+    ]);
+  });
+
+  it("extracts mixed-language user batches without dropping one language", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-mixed-lang" },
+      messages: [
+        {
+          role: "user",
+          content: "请记住我喜欢中文回复。",
+        },
+        {
+          role: "user",
+          content: "Use docs/runbook.md as the source of truth.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.some(
+        (candidate) =>
+          candidate.kindHint === "reference" &&
+          candidate.content === "docs/runbook.md",
+      ),
+    ).toBe(true);
+    expect(
+      result.candidates.some(
+        (candidate) =>
+          (candidate.kindHint === "fact" || candidate.kindHint === "preference") &&
+          candidate.content.includes("中文回复"),
+      ),
+    ).toBe(true);
+    expect(result.ignoredMessageCount).toBe(0);
+  });
+
+  it("preserves superseded pointer metadata for corrected Chinese references", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-correction" },
+      messages: [
+        {
+          role: "user",
+          content: "现在以docs/new.md为准，不再以docs/old.md为准。",
+        },
+      ],
+    });
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.kindHint).toBe("reference");
+    expect(result.candidates[0]?.metadata?.referencePointer).toBe("docs/new.md");
+    expect(result.candidates[0]?.metadata?.supersedesPointer).toBe("docs/old.md");
+  });
 });

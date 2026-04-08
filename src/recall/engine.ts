@@ -34,12 +34,17 @@ import {
   passesDefaultScopeGuard,
   toPolicyMemoryRecord,
 } from "../policy/hooks";
+import {
+  createLanguageService,
+  type LanguageService,
+} from "../language";
 
 export interface RecallInput {
   scope: MemoryScope;
   query: string;
   retrievalProfile?: RetrievalProfile;
   ignoreMemory?: boolean;
+  locale?: string;
 }
 
 export interface RecallHit {
@@ -75,6 +80,10 @@ export interface RecallResult {
     hits: RecallHit[];
     verificationHints: VerificationHint[];
     policyApplied: string[];
+    locale?: string;
+    localeSource?: "explicit" | "detected" | "default";
+    adapterId?: string;
+    analysisMode?: "rules-only";
   };
 }
 
@@ -83,70 +92,17 @@ export interface RecallEngineConfig {
   sessionStore: SessionStore;
   now?: () => number;
   referenceTime?: () => string;
+  language?: LanguageService;
   policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
 }
 
-const TOKEN_STOPWORDS = new Set([
-  "this",
-  "that",
-  "with",
-  "from",
-  "should",
-  "answer",
-  "reply",
-  "respond",
-  "user",
-  "using",
-  "current",
-  "please",
-]);
-
-function normalizeText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function tokenize(value: string): string[] {
-  return normalizeText(value)
-    .split(" ")
-    .filter((token) => token.length >= 4 && !TOKEN_STOPWORDS.has(token));
-}
-
-function tokenOverlap(left: string, right: string): number {
-  const leftTokens = new Set(tokenize(left));
-  const rightTokens = new Set(tokenize(right));
-
-  if (leftTokens.size === 0 || rightTokens.size === 0) {
-    return 0;
-  }
-
-  let intersection = 0;
-  for (const token of leftTokens) {
-    if (rightTokens.has(token)) {
-      intersection += 1;
-    }
-  }
-
-  return intersection / Math.max(leftTokens.size, rightTokens.size);
-}
-
-function isAnswerCompositionQuery(query: string): boolean {
-  return /\b(answer|respond|reply|user)\b/i.test(query);
-}
-
-function isReferenceSeekingQuery(query: string): boolean {
-  return /\b(runbook|guide|doc|docs|reference|source of truth|workflow)\b/i.test(query);
-}
-
-function isContinuationQuery(query: string): boolean {
-  return /\b(continue|resume|last time|from last time|carry on|pick up)\b/i.test(query);
-}
-
-function categoryPriority(category: FactMemory["category"], query: string): number {
-  if (isAnswerCompositionQuery(query)) {
+function categoryPriority(
+  category: FactMemory["category"],
+  query: string,
+  language: LanguageService,
+  locale: string,
+): number {
+  if (language.isAnswerCompositionQuery(query, locale)) {
     if (category === "project" || category === "technical") {
       return 0.4;
     }
@@ -158,61 +114,149 @@ function categoryPriority(category: FactMemory["category"], query: string): numb
   return 0;
 }
 
-function selectFacts(facts: FactMemory[], query: string): FactMemory[] {
+function resolveFactLocale(
+  fact: FactMemory,
+  language: LanguageService,
+): string {
+  return (
+    fact.source.locale ??
+    language.resolveFromText({
+      text: fact.content,
+    }).locale
+  );
+}
+
+function resolveReferenceLocale(
+  reference: ReferenceMemory,
+  language: LanguageService,
+): string {
+  return (
+    reference.source.locale ??
+    language.resolveFromText({
+      text: [reference.title, reference.pointer, reference.description ?? ""]
+        .filter(Boolean)
+        .join(" "),
+    }).locale
+  );
+}
+
+function resolveEpisodeLocale(
+  episode: EpisodeMemory,
+  language: LanguageService,
+): string {
+  return (
+    episode.locale ??
+    language.resolveFromText({
+      text: [episode.summary, episode.topics.join(" ")]
+        .filter(Boolean)
+        .join(" "),
+    }).locale
+  );
+}
+
+function selectFacts(
+  facts: FactMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): FactMemory[] {
   const ranked = sortFacts(facts)
     .map((fact) => ({
       fact,
-      score: tokenOverlap(fact.content, query) + categoryPriority(fact.category, query),
+      locale: resolveFactLocale(fact, language),
+      score:
+        language.tokenOverlap(fact.content, query, queryLocale, {
+          excludeStopwords: true,
+        }) + categoryPriority(fact.category, query, language, queryLocale),
     }))
     .sort((left, right) => right.score - left.score);
+  const compatible = ranked.filter((entry) =>
+    language.localesCompatible(queryLocale, entry.locale),
+  );
 
-  const withSignal = ranked.filter((entry) => entry.score >= 0.2);
+  const withSignal = compatible.filter((entry) => entry.score >= 0.2);
   if (withSignal.length > 0) {
     return withSignal.slice(0, 2).map((entry) => entry.fact);
   }
 
-  return ranked.slice(0, 1).map((entry) => entry.fact);
+  return compatible.slice(0, 1).map((entry) => entry.fact);
 }
 
-function selectReferences(references: ReferenceMemory[], query: string): ReferenceMemory[] {
+function selectReferences(
+  references: ReferenceMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): ReferenceMemory[] {
   const ranked = sortReferences(references)
     .map((reference) => ({
       reference,
+      locale: resolveReferenceLocale(reference, language),
       score:
-        tokenOverlap(reference.title, query) +
-        tokenOverlap(reference.pointer, query) +
-        tokenOverlap(reference.description ?? "", query),
+        language.tokenOverlap(reference.title, query, queryLocale, {
+          excludeStopwords: true,
+        }) +
+        language.tokenOverlap(reference.pointer, query, queryLocale, {
+          excludeStopwords: true,
+        }) +
+        language.tokenOverlap(reference.description ?? "", query, queryLocale, {
+          excludeStopwords: true,
+        }),
     }))
     .sort((left, right) => right.score - left.score);
+  const compatible = ranked.filter((entry) =>
+    language.localesCompatible(queryLocale, entry.locale),
+  );
 
-  const withSignal = ranked.filter((entry) => entry.score > 0);
+  const withSignal = compatible.filter((entry) => entry.score > 0);
   if (withSignal.length > 0) {
     return withSignal.slice(0, 1).map((entry) => entry.reference);
   }
 
-  if (isAnswerCompositionQuery(query) || isReferenceSeekingQuery(query)) {
-    return ranked.slice(0, 1).map((entry) => entry.reference);
+  if (
+    language.isAnswerCompositionQuery(query, queryLocale) ||
+    language.isReferenceSeekingQuery(query, queryLocale)
+  ) {
+    return compatible.slice(0, 1).map((entry) => entry.reference);
   }
 
   return [];
 }
 
-function selectEpisodes(episodes: EpisodeMemory[], query: string): EpisodeMemory[] {
+function selectEpisodes(
+  episodes: EpisodeMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): EpisodeMemory[] {
   const ranked = sortEpisodes(episodes)
     .map((episode) => ({
       episode,
+      locale: resolveEpisodeLocale(episode, language),
       lexicalSignal:
-        tokenOverlap(episode.summary, query) +
-        tokenOverlap(episode.topics.join(" "), query),
+        language.tokenOverlap(episode.summary, query, queryLocale, {
+          excludeStopwords: true,
+        }) +
+        language.tokenOverlap(episode.topics.join(" "), query, queryLocale, {
+          excludeStopwords: true,
+        }),
       score:
-        tokenOverlap(episode.summary, query) +
-        tokenOverlap(episode.topics.join(" "), query) +
+        language.tokenOverlap(episode.summary, query, queryLocale, {
+          excludeStopwords: true,
+        }) +
+        language.tokenOverlap(episode.topics.join(" "), query, queryLocale, {
+          excludeStopwords: true,
+        }) +
         episode.importance * 0.1,
     }))
     .sort((left, right) => right.score - left.score);
+  const compatible = ranked.filter((entry) =>
+    language.localesCompatible(queryLocale, entry.locale),
+  );
 
-  const withSignal = ranked.filter(
-    (entry) => entry.lexicalSignal > 0 || isContinuationQuery(query),
+  const withSignal = compatible.filter(
+    (entry) =>
+      entry.lexicalSignal > 0 || language.isContinuationQuery(query, queryLocale),
   );
   if (withSignal.length > 0) {
     return withSignal.slice(0, 2).map((entry) => entry.episode);
@@ -383,6 +427,8 @@ async function applyRecallPolicyToRecords<TRecord extends {
     scope: MemoryScope;
     query: string;
     retrievalProfile: RetrievalProfile;
+    locale: string;
+    localeSource: "explicit" | "detected" | "default";
     policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
     policyApplied: Set<string>;
   },
@@ -392,6 +438,8 @@ async function applyRecallPolicyToRecords<TRecord extends {
     query: input.query,
     retrievalProfile: input.retrievalProfile,
     phase: "recall",
+    locale: input.locale,
+    localeSource: input.localeSource,
   };
 
   const visible: TRecord[] = [];
@@ -425,6 +473,8 @@ async function applyRecallPolicyToProfile(
     scope: MemoryScope;
     query: string;
     retrievalProfile: RetrievalProfile;
+    locale: string;
+    localeSource: "explicit" | "detected" | "default";
     policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
     policyApplied: Set<string>;
   },
@@ -444,6 +494,8 @@ async function applyRecallPolicyToProfile(
       query: input.query,
       retrievalProfile: input.retrievalProfile,
       phase: "recall",
+      locale: input.locale,
+      localeSource: input.localeSource,
     },
   );
 
@@ -456,12 +508,17 @@ async function applyRecallPolicyToProfile(
 }
 
 export function createRecallEngine(config: RecallEngineConfig) {
+  const language = config.language ?? createLanguageService();
   const now = config.now ?? Date.now;
   const referenceTime = config.referenceTime ?? (() => new Date(now()).toISOString());
 
   return {
     async recall(input: RecallInput): Promise<RecallResult> {
       const startedAt = now();
+      const resolvedLanguage = language.resolveFromText({
+        locale: input.locale,
+        text: input.query,
+      });
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
       const policyApplied = new Set<string>();
 
@@ -503,6 +560,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
             hits: [],
             verificationHints: [],
             policyApplied: [...policyApplied],
+            locale: resolvedLanguage.locale,
+            localeSource: resolvedLanguage.localeSource,
+            adapterId: resolvedLanguage.adapterId,
+            analysisMode: resolvedLanguage.analysisMode,
           },
         };
       }
@@ -545,6 +606,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
         scope: input.scope,
         query: input.query,
         retrievalProfile,
+        locale: resolvedLanguage.locale,
+        localeSource: resolvedLanguage.localeSource,
         policy: config.policy,
         policyApplied,
       });
@@ -555,17 +618,21 @@ export function createRecallEngine(config: RecallEngineConfig) {
           scope: input.scope,
           query: input.query,
           retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
           policyApplied,
         },
       );
       const facts = await applyRecallPolicyToRecords(
-        selectFacts(factsRaw, input.query),
+        selectFacts(factsRaw, input.query, language, resolvedLanguage.locale),
         "fact",
         {
           scope: input.scope,
           query: input.query,
           retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
           policyApplied,
         },
@@ -577,28 +644,39 @@ export function createRecallEngine(config: RecallEngineConfig) {
           scope: input.scope,
           query: input.query,
           retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
           policyApplied,
         },
       );
       const episodes = await applyRecallPolicyToRecords(
-        selectEpisodes(episodesRaw, input.query),
+        selectEpisodes(episodesRaw, input.query, language, resolvedLanguage.locale),
         "episode",
         {
           scope: input.scope,
           query: input.query,
           retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
           policyApplied,
         },
       );
       const references = await applyRecallPolicyToRecords(
-        selectReferences(referencesRaw, input.query),
+        selectReferences(
+          referencesRaw,
+          input.query,
+          language,
+          resolvedLanguage.locale,
+        ),
         "reference",
         {
           scope: input.scope,
           query: input.query,
           retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
           policyApplied,
         },
@@ -639,6 +717,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
             episodes,
           }),
           policyApplied: [...policyApplied],
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+          adapterId: resolvedLanguage.adapterId,
+          analysisMode: resolvedLanguage.analysisMode,
           hits: buildHits({
             profile: filteredProfile,
             preferences,

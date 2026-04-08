@@ -28,8 +28,16 @@ describe("provenance and lifecycle", () => {
       createMemorySource({
         method: "confirmed",
         extractedAt: "2026-01-01T00:00:00.000Z",
+        locale: "zh-CN",
       }).method,
     ).toBe("confirmed");
+    expect(
+      createMemorySource({
+        method: "explicit",
+        extractedAt: "2026-01-01T00:00:00.000Z",
+        locale: "zh-CN",
+      }).locale,
+    ).toBe("zh-CN");
   });
 
   it("supports lifecycle transitions", () => {

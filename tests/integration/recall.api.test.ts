@@ -330,4 +330,175 @@ describe("public recall API", () => {
     expect(result.metadata.hits.some((hit) => hit.type === "preference")).toBe(true);
     expect(result.metadata.hits.some((hit) => hit.type === "reference")).toBe(true);
   });
+
+  it("retrieves Chinese facts for Chinese queries without faking English lexical matches", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-zh",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "迁移流程目前仍然被审批阻塞。",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-zh",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const zhResult = await memory.recall({
+      scope: { userId: "u-zh", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "现在项目卡在哪里？",
+    });
+    const enResult = await memory.recall({
+      scope: { userId: "u-zh", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "What is the current project blocker?",
+      locale: "en-US",
+    });
+
+    expect(zhResult.facts).toHaveLength(1);
+    expect(zhResult.metadata.locale).toBe("zh-CN");
+    expect(enResult.facts).toHaveLength(0);
+  });
+
+  it("does not leak English facts into Chinese answer-style queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-en",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The migration is blocked on approval.",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "en-US",
+        },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-zh",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-zh", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "我应该怎么回复这个用户？",
+    });
+
+    expect(result.facts).toHaveLength(0);
+  });
+
+  it("does not fall back to English references for Chinese reference-seeking queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-en",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        title: "Migration runbook",
+        pointer: "docs/migration-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-zh",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-zh", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "应该参考哪份文档？",
+    });
+
+    expect(result.references).toHaveLength(0);
+  });
+
+  it("retrieves Chinese-authored ASCII references for Chinese reference-seeking queries", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-zh-ref", sessionId: "s-1", workspaceId: "workspace-a" },
+      messages: [
+        {
+          role: "user",
+          content: "以docs/migration-runbook.md为准。",
+        },
+      ],
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-zh-ref", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "应该参考哪份文档？",
+    });
+
+    expect(result.references).toHaveLength(1);
+    expect(result.references[0]?.pointer).toBe("docs/migration-runbook.md");
+  });
+
+  it("does not surface English episodes for Chinese continuation queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-en",
+        userId: "u-zh",
+        workspaceId: "workspace-a",
+        sessionId: "s-prev",
+        summary: "Last session continued the rollout cleanup and dependency review.",
+        keyDecisions: ["Continue with the old rollout checklist."],
+        unresolvedItems: ["Review the migration plan."],
+        topics: ["rollout", "checklist"],
+        importance: 0.8,
+        confidence: 0.9,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-zh",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-zh", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "继续上次的工作流修复。",
+    });
+
+    expect(result.episodes).toHaveLength(0);
+  });
 });

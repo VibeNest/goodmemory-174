@@ -50,10 +50,12 @@ describe("memory records", () => {
       id: "ep-1",
       userId: "u-1",
       summary: "The user and assistant debugged a migration issue.",
+      locale: "zh-CN",
     });
 
     expect(episode.keyDecisions).toEqual([]);
     expect(episode.unresolvedItems).toEqual([]);
+    expect(episode.locale).toBe("zh-CN");
   });
 
   it("creates procedural records independently of preference or fact", () => {

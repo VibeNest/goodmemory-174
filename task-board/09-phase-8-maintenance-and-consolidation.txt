@@ -17,6 +17,7 @@ Primary Deliverables
 - dedupe cleanup
 - contradiction repair
 - consolidation
+- locale-aware maintenance heuristics
 - dream-style maintenance scaffold
 
 
@@ -91,6 +92,7 @@ Implementation steps:
 
 Acceptance:
 - Maintenance has one callable orchestration point
+- dedupe and contradiction repair stay safe for supported non-English text
 
 
 [DONE] P8-T006 Scaffold dream-style consolidation
