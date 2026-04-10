@@ -1,8 +1,11 @@
 import type {
   EpisodeMemory,
+  FactKind,
   FactMemory,
   FeedbackMemory,
+  MemoryScopeKind,
   PreferenceMemory,
+  ReferenceKind,
   ReferenceMemory,
   SessionJournal,
   UserProfile,
@@ -18,6 +21,7 @@ import {
 import {
   planRecall,
   resolveRetrievalProfile,
+  type RecallSlot,
   type RetrievalProfile,
   type RoutingDecision,
 } from "./router";
@@ -63,6 +67,20 @@ export interface RecallHit {
   sourceMethod?: MemorySourceMethod;
 }
 
+export interface RecallCandidateTrace {
+  memoryId: string;
+  memoryType: "fact" | "reference" | "episode";
+  slot: RecallSlot | "generic";
+  returned: boolean;
+  whyReturned?: string;
+  whySuppressed?: string;
+  intentScore: number;
+  lexicalScore: number;
+  freshnessScore: number;
+  explicitnessScore: number;
+  fallback: "none" | "same_slot_unique_candidate";
+}
+
 export interface RecallResult {
   profile: UserProfile | null;
   preferences: PreferenceMemory[];
@@ -78,6 +96,7 @@ export interface RecallResult {
     tokenCount: number;
     latencyMs: number;
     hits: RecallHit[];
+    candidateTraces: RecallCandidateTrace[];
     verificationHints: VerificationHint[];
     policyApplied: string[];
     locale?: string;
@@ -195,202 +214,617 @@ function resolveEpisodeLocale(
   );
 }
 
+interface RankedFactCandidate {
+  fact: FactMemory;
+  locale: string;
+  factKind?: FactKind;
+  scopeKind?: MemoryScopeKind;
+  subject: string;
+  lexicalScore: number;
+  subjectScore: number;
+  intentScore: number;
+  freshnessScore: number;
+  explicitnessScore: number;
+  categoryBoost: number;
+  score: number;
+}
+
+interface RankedReferenceCandidate {
+  reference: ReferenceMemory;
+  locale: string;
+  referenceKind?: ReferenceKind;
+  subject: string;
+  lexicalScore: number;
+  subjectScore: number;
+  intentScore: number;
+  freshnessScore: number;
+  explicitnessScore: number;
+  score: number;
+}
+
+interface RankedEpisodeCandidate {
+  episode: EpisodeMemory;
+  locale: string;
+  lexicalScore: number;
+  freshnessScore: number;
+  score: number;
+}
+
+function daysBetween(left: string, right: string): number {
+  const ms = Math.abs(new Date(left).getTime() - new Date(right).getTime());
+  return ms / (1000 * 60 * 60 * 24);
+}
+
+function freshnessScore(timestamp: string, referenceTime: string): number {
+  const ageDays = daysBetween(referenceTime, timestamp);
+  if (ageDays <= 7) {
+    return 0.25;
+  }
+  if (ageDays <= 30) {
+    return 0.15;
+  }
+  if (ageDays <= 90) {
+    return 0.05;
+  }
+
+  return 0;
+}
+
+function explicitnessScore(method: MemorySourceMethod): number {
+  if (method === "explicit" || method === "confirmed") {
+    return 0.15;
+  }
+  if (method === "import") {
+    return 0.05;
+  }
+
+  return 0;
+}
+
+function resolveFactKind(
+  fact: FactMemory,
+  language: LanguageService,
+  locale: string,
+): FactKind | undefined {
+  if (fact.factKind) {
+    return fact.factKind;
+  }
+  if (language.isRoleFact(fact.content, locale)) {
+    return "role_update";
+  }
+  if (language.isFocusFact(fact.content, locale)) {
+    return "focus_update";
+  }
+  if (language.isBlockerFact(fact.content, locale)) {
+    return "blocker";
+  }
+  if (language.isOpenLoopFact(fact.content, locale)) {
+    return "open_loop";
+  }
+  if (language.isProjectStateFact(fact.content, locale)) {
+    return "project_state";
+  }
+  if (fact.category === "project" || fact.category === "technical") {
+    return "generic_project";
+  }
+
+  return undefined;
+}
+
+function resolveFactScopeKind(
+  fact: FactMemory,
+  factKind: FactKind | undefined,
+): MemoryScopeKind | undefined {
+  if (fact.scopeKind) {
+    return fact.scopeKind;
+  }
+  if (factKind === "role_update") {
+    return "identity";
+  }
+  if (
+    factKind === "focus_update" ||
+    factKind === "blocker" ||
+    factKind === "open_loop" ||
+    factKind === "project_state" ||
+    factKind === "generic_project"
+  ) {
+    return "project";
+  }
+  if (
+    fact.category === "personal" ||
+    fact.category === "relationship" ||
+    fact.category === "event"
+  ) {
+    return "identity";
+  }
+  if (fact.category === "project" || fact.category === "technical") {
+    return "project";
+  }
+
+  return undefined;
+}
+
+function resolveReferenceKind(reference: ReferenceMemory): ReferenceKind | undefined {
+  if (reference.referenceKind) {
+    return reference.referenceKind;
+  }
+
+  const basename = reference.pointer.split("/").at(-1)?.toLowerCase() ?? "";
+  if (basename.includes("runbook")) {
+    return "runbook";
+  }
+  if (basename.includes("dashboard")) {
+    return "dashboard";
+  }
+  if (basename.includes("tracker")) {
+    return "tracker";
+  }
+  if (basename.length > 0) {
+    return "doc";
+  }
+
+  return undefined;
+}
+
+function buildReturnedReason(
+  slot: RecallSlot | "generic",
+  intentScore: number,
+  lexicalScore: number,
+  fallback: RecallCandidateTrace["fallback"],
+): string {
+  return `slot=${slot}, intentScore=${intentScore.toFixed(2)}, lexicalScore=${lexicalScore.toFixed(2)}, fallback=${fallback}`;
+}
+
+function buildFactCandidates(
+  facts: FactMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  referenceTime: string,
+): RankedFactCandidate[] {
+  return sortFacts(facts).map((fact) => {
+    const locale = resolveFactLocale(fact, language);
+    const factKind = resolveFactKind(fact, language, locale);
+    const scopeKind = resolveFactScopeKind(fact, factKind);
+    const subject = fact.subject ?? "unknown";
+    const lexicalScore = language.tokenOverlap(fact.content, query, queryLocale, {
+      excludeStopwords: true,
+    });
+    const subjectScore =
+      subject === "unknown"
+        ? 0
+        : language.tokenOverlap(subject, query, queryLocale, {
+            excludeStopwords: true,
+          });
+    const intentScore = factIntentPriority(
+      fact,
+      query,
+      locale,
+      queryLocale,
+      language,
+    );
+    const freshness = freshnessScore(fact.updatedAt, referenceTime);
+    const explicitness = explicitnessScore(fact.source.method);
+    const categoryBoost = categoryPriority(fact.category, query, language, queryLocale);
+
+    return {
+      fact,
+      locale,
+      factKind,
+      scopeKind,
+      subject,
+      lexicalScore,
+      subjectScore,
+      intentScore,
+      freshnessScore: freshness,
+      explicitnessScore: explicitness,
+      categoryBoost,
+      score: lexicalScore + subjectScore + intentScore + freshness + explicitness + categoryBoost,
+    };
+  });
+}
+
+function buildReferenceCandidates(
+  references: ReferenceMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  referenceTime: string,
+): RankedReferenceCandidate[] {
+  return sortReferences(references).map((reference) => {
+    const locale = resolveReferenceLocale(reference, language);
+    const lexicalScore =
+      language.tokenOverlap(reference.title, query, queryLocale, {
+        excludeStopwords: true,
+      }) +
+      language.tokenOverlap(reference.pointer, query, queryLocale, {
+        excludeStopwords: true,
+      }) +
+      language.tokenOverlap(reference.description ?? "", query, queryLocale, {
+        excludeStopwords: true,
+      });
+    const subject = reference.subject ?? "unknown";
+    const subjectScore =
+      subject === "unknown"
+        ? 0
+        : language.tokenOverlap(subject, query, queryLocale, {
+            excludeStopwords: true,
+          });
+    const freshness = freshnessScore(reference.updatedAt, referenceTime);
+    const explicitness = explicitnessScore(reference.source.method);
+
+    return {
+      reference,
+      locale,
+      referenceKind: resolveReferenceKind(reference),
+      subject,
+      lexicalScore,
+      subjectScore,
+      intentScore: 0.8,
+      freshnessScore: freshness,
+      explicitnessScore: explicitness,
+      score: lexicalScore + subjectScore + freshness + explicitness + 0.8,
+    };
+  });
+}
+
+function buildEpisodeCandidates(
+  episodes: EpisodeMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  referenceTime: string,
+): RankedEpisodeCandidate[] {
+  return sortEpisodes(episodes).map((episode) => {
+    const locale = resolveEpisodeLocale(episode, language);
+    const lexicalScore =
+      language.tokenOverlap(episode.summary, query, queryLocale, {
+        excludeStopwords: true,
+      }) +
+      language.tokenOverlap(episode.topics.join(" "), query, queryLocale, {
+        excludeStopwords: true,
+      });
+    const freshness = freshnessScore(episode.createdAt, referenceTime);
+
+    return {
+      episode,
+      locale,
+      lexicalScore,
+      freshnessScore: freshness,
+      score: lexicalScore + freshness + episode.importance * 0.1,
+    };
+  });
+}
+
+function markSelectedTrace(
+  traces: RecallCandidateTrace[],
+  memoryId: string,
+  slot: RecallSlot | "generic",
+  intentScore: number,
+  lexicalScore: number,
+  freshness: number,
+  explicitness: number,
+  fallback: RecallCandidateTrace["fallback"],
+): void {
+  const index = traces.findIndex((trace) => trace.memoryId === memoryId);
+  if (index === -1) {
+    return;
+  }
+
+  traces[index] = {
+    ...traces[index]!,
+    slot,
+    returned: true,
+    whyReturned: buildReturnedReason(slot, intentScore, lexicalScore, fallback),
+    whySuppressed: undefined,
+    intentScore,
+    lexicalScore,
+    freshnessScore: freshness,
+    explicitnessScore: explicitness,
+    fallback,
+  };
+}
+
+function slotMatchesFact(
+  entry: RankedFactCandidate,
+  slot: RecallSlot,
+): boolean {
+  if (slot === "role") {
+    return entry.factKind === "role_update";
+  }
+  if (slot === "focus") {
+    return entry.factKind === "focus_update";
+  }
+  if (slot === "blocker") {
+    return entry.factKind === "blocker";
+  }
+  if (slot === "open_loop") {
+    return entry.factKind === "open_loop";
+  }
+  if (slot === "project_state_support") {
+    return (
+      entry.factKind === "blocker" ||
+      entry.factKind === "open_loop" ||
+      entry.factKind === "focus_update" ||
+      entry.factKind === "project_state"
+    );
+  }
+
+  return false;
+}
+
 function selectFacts(
   facts: FactMemory[],
   query: string,
   language: LanguageService,
   queryLocale: string,
   retrievalProfile: RetrievalProfile,
-): FactMemory[] {
+  routingDecision: RoutingDecision,
+  profile: UserProfile | null,
+  referenceTime: string,
+): { facts: FactMemory[]; traces: RecallCandidateTrace[] } {
   const answerCompositionQuery = language.isAnswerCompositionQuery(query, queryLocale);
   const factConfirmationQuery = language.isFactConfirmationQuery(query, queryLocale);
-  const actionDrivingQuery = language.isActionDrivingQuery(query, queryLocale);
-  const referenceSeekingQuery = language.isReferenceSeekingQuery(query, queryLocale);
-  const roleQuery = language.isRoleQuery(query, queryLocale);
-  const focusQuery = language.isFocusQuery(query, queryLocale);
-  const openLoopQuery = language.isOpenLoopQuery(query, queryLocale);
-  const blockerQuery = language.isBlockerQuery(query, queryLocale);
-  const slotScopedFactQuery =
-    roleQuery ||
-    focusQuery ||
-    openLoopQuery ||
-    blockerQuery;
-  const needsProjectStateSupport =
-    openLoopQuery ||
-    blockerQuery ||
-    (slotScopedFactQuery && actionDrivingQuery);
-  const needsFactsForReferenceQuery =
-    answerCompositionQuery ||
-    factConfirmationQuery ||
-    actionDrivingQuery ||
-    openLoopQuery ||
-    blockerQuery;
-  if (
-    referenceSeekingQuery &&
-    !needsFactsForReferenceQuery
-  ) {
-    return [];
-  }
-  const ranked = sortFacts(facts)
-    .map((fact) => {
-      const locale = resolveFactLocale(fact, language);
-
-      return {
-        fact,
-        locale,
-        lexicalScore: language.tokenOverlap(fact.content, query, queryLocale, {
-          excludeStopwords: true,
-        }),
-        intentScore: factIntentPriority(
-          fact,
-          query,
-          locale,
-          queryLocale,
-          language,
-        ),
-        categoryBoost: categoryPriority(fact.category, query, language, queryLocale),
-      };
-    })
-    .map((entry) => ({
-      ...entry,
-      score: entry.lexicalScore + entry.intentScore + entry.categoryBoost,
-    }))
-    .sort((left, right) => right.score - left.score);
-  const compatible = ranked.filter((entry) =>
-    language.localesCompatible(queryLocale, entry.locale),
+  const ranked = buildFactCandidates(
+    facts,
+    query,
+    language,
+    queryLocale,
+    referenceTime,
   );
+  const traces: RecallCandidateTrace[] = ranked.map((entry) => ({
+    memoryId: entry.fact.id,
+    memoryType: "fact",
+    slot: "generic",
+    returned: false,
+    whySuppressed: !language.localesCompatible(queryLocale, entry.locale)
+      ? "locale mismatch"
+      : entry.fact.lifecycle !== "active"
+        ? "inactive lifecycle"
+        : "not selected",
+    intentScore: entry.intentScore,
+    lexicalScore: entry.lexicalScore,
+    freshnessScore: entry.freshnessScore,
+    explicitnessScore: entry.explicitnessScore,
+    fallback: "none",
+  }));
+  const compatible = ranked.filter(
+    (entry) =>
+      entry.fact.lifecycle === "active" &&
+      language.localesCompatible(queryLocale, entry.locale),
+  );
+  const selected: RankedFactCandidate[] = [];
+  const selectedIds = new Set<string>();
+  const slotSpecificFactQuery =
+    routingDecision.requestedSlots.includes("role") ||
+    routingDecision.requestedSlots.includes("focus") ||
+    routingDecision.requestedSlots.includes("blocker") ||
+    routingDecision.requestedSlots.includes("open_loop") ||
+    routingDecision.requestedSlots.includes("reference") ||
+    routingDecision.supportSlots.includes("project_state_support");
 
-  const withIntentSignal = compatible.filter((entry) => entry.intentScore > 0);
-  const limit = answerCompositionQuery || factConfirmationQuery ? 3 : 2;
-  const requestedStateSlot =
-    blockerQuery && !openLoopQuery
-      ? "blocker"
-      : openLoopQuery && !blockerQuery
-        ? "open_loop"
-        : "any";
-  const selectSupportingProjectStateFacts = (
-    entries: typeof compatible,
-    remainingLimit: number,
-    mode: "requested_slot" | "any_state",
-  ): FactMemory[] => {
-    const matchesRequestedStateSlot = (
-      entry: (typeof compatible)[number],
-    ): boolean => {
-      if (mode === "any_state") {
-        return language.isProjectStateFact(entry.fact.content, entry.locale);
-      }
-
-      if (requestedStateSlot === "blocker") {
-        return language.isBlockerFact(entry.fact.content, entry.locale);
-      }
-
-      if (requestedStateSlot === "open_loop") {
-        return language.isOpenLoopFact(entry.fact.content, entry.locale);
-      }
-
-      return language.isProjectStateFact(entry.fact.content, entry.locale);
-    };
-    const candidates = entries.filter(
+  const trySelectSlot = (
+    slot: RecallSlot,
+    entries: RankedFactCandidate[],
+    allowUniqueFallback: boolean,
+  ) => {
+    const candidates = entries
+      .filter((entry) => !selectedIds.has(entry.fact.id))
+      .filter((entry) => slotMatchesFact(entry, slot))
+      .sort((left, right) => right.score - left.score);
+    const signaled = candidates.filter(
       (entry) =>
-        entry.intentScore === 0 &&
-        matchesRequestedStateSlot(entry),
+        entry.intentScore > 0 ||
+        entry.lexicalScore >= 0.2 ||
+        entry.subjectScore >= 0.2,
     );
-    const lexicalMatches = candidates
-      .filter((entry) => entry.lexicalScore >= 0.2)
-      .slice(0, remainingLimit)
-      .map((entry) => entry.fact);
+    const signaledPick = signaled[0];
 
-    if (lexicalMatches.length > 0) {
-      return lexicalMatches;
+    if (signaledPick) {
+      selected.push(signaledPick);
+      selectedIds.add(signaledPick.fact.id);
+      markSelectedTrace(
+        traces,
+        signaledPick.fact.id,
+        slot,
+        signaledPick.intentScore,
+        signaledPick.lexicalScore,
+        signaledPick.freshnessScore,
+        signaledPick.explicitnessScore,
+        "none",
+      );
+      return;
     }
 
-    const unambiguousFallback = candidates.filter(
-      (entry) =>
-        entry.fact.lifecycle === "active" &&
-        entry.fact.source.method !== "inferred",
-    );
-    if (unambiguousFallback.length === 1) {
-      return [unambiguousFallback[0]!.fact];
+    if (allowUniqueFallback) {
+      const uniqueActiveExplicit = candidates.filter(
+        (entry) => entry.fact.source.method !== "inferred",
+      );
+      if (uniqueActiveExplicit.length === 1) {
+        const fallbackPick = uniqueActiveExplicit[0]!;
+        selected.push(fallbackPick);
+        selectedIds.add(fallbackPick.fact.id);
+        markSelectedTrace(
+          traces,
+          fallbackPick.fact.id,
+          slot,
+          fallbackPick.intentScore,
+          fallbackPick.lexicalScore,
+          fallbackPick.freshnessScore,
+          fallbackPick.explicitnessScore,
+          "same_slot_unique_candidate",
+        );
+      }
     }
-
-    return [];
   };
 
-  if (withIntentSignal.length > 0) {
-    const selected = withIntentSignal.slice(0, limit);
-    if (!needsProjectStateSupport || selected.length >= limit) {
-      return selected.map((entry) => entry.fact);
+  if (
+    routingDecision.requestedSlots.includes("reference") &&
+    !routingDecision.supportSlots.includes("project_state_support") &&
+    !routingDecision.requestedSlots.includes("blocker") &&
+    !routingDecision.requestedSlots.includes("open_loop") &&
+    !routingDecision.requestedSlots.includes("focus") &&
+    !(
+      routingDecision.requestedSlots.includes("role") &&
+      (!profile?.identity.role || routingDecision.requestedSlots.length > 1)
+    )
+  ) {
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "reference-only query";
+      }
     }
-
-    const supportingFacts = selectSupportingProjectStateFacts(
-      compatible,
-      limit - selected.length,
-      "any_state",
-    );
-
-    return [...selected.map((entry) => entry.fact), ...supportingFacts];
+    return {
+      facts: [],
+      traces,
+    };
   }
 
-  if (slotScopedFactQuery) {
-    if (needsProjectStateSupport) {
-      const supportingFacts = selectSupportingProjectStateFacts(
-        compatible,
-        limit,
-        "requested_slot",
-      );
-
-      if (supportingFacts.length > 0) {
-        return supportingFacts;
+  if (slotSpecificFactQuery) {
+    const activeSlots: RecallSlot[] = [];
+    if (
+      routingDecision.requestedSlots.includes("role") &&
+      (!profile?.identity.role || routingDecision.requestedSlots.length > 1)
+    ) {
+      activeSlots.push("role");
+      trySelectSlot("role", compatible, false);
+    } else if (routingDecision.requestedSlots.includes("role")) {
+      for (const entry of compatible.filter((item) => item.factKind === "role_update")) {
+        const trace = traces.find((item) => item.memoryId === entry.fact.id);
+        if (trace && trace.whySuppressed === "not selected") {
+          trace.whySuppressed = "profile satisfied role slot";
+        }
       }
     }
 
-    return [];
-  }
-
-  if (!slotScopedFactQuery) {
-    const withLexicalSignal = compatible.filter((entry) => entry.lexicalScore >= 0.2);
-    if (withLexicalSignal.length > 0) {
-      return withLexicalSignal.slice(0, limit).map((entry) => entry.fact);
+    if (routingDecision.requestedSlots.includes("focus")) {
+      activeSlots.push("focus");
+      trySelectSlot("focus", compatible, false);
     }
+    if (routingDecision.requestedSlots.includes("blocker")) {
+      activeSlots.push("blocker");
+      trySelectSlot("blocker", compatible, false);
+    }
+    if (routingDecision.requestedSlots.includes("open_loop")) {
+      activeSlots.push("open_loop");
+      trySelectSlot("open_loop", compatible, false);
+    }
+    if (routingDecision.supportSlots.includes("project_state_support")) {
+      activeSlots.push("project_state_support");
+      trySelectSlot("project_state_support", compatible, true);
+    }
+
+    for (const entry of compatible) {
+      const trace = traces.find((item) => item.memoryId === entry.fact.id);
+      if (!trace || trace.returned || trace.whySuppressed !== "not selected") {
+        continue;
+      }
+
+      if (!activeSlots.some((slot) => slotMatchesFact(entry, slot))) {
+        trace.whySuppressed = "slot mismatch";
+      } else {
+        trace.whySuppressed = "no slot signal";
+      }
+    }
+
+    return {
+      facts: selected.map((entry) => entry.fact),
+      traces,
+    };
   }
 
-  if (answerCompositionQuery || factConfirmationQuery) {
-    const relevantToAnswer = compatible
-      .filter((entry) =>
-        entry.fact.category === "project" || entry.fact.category === "technical",
+  const limit = answerCompositionQuery || factConfirmationQuery ? 3 : 2;
+  const withIntentSignal = compatible
+    .filter((entry) => entry.intentScore > 0)
+    .sort((left, right) => right.score - left.score);
+  const withLexicalSignal = compatible
+    .filter((entry) => entry.lexicalScore >= 0.2)
+    .sort((left, right) => right.score - left.score);
+
+  if (withIntentSignal.length > 0) {
+    for (const entry of withIntentSignal.slice(0, limit)) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        "none",
+      );
+    }
+  } else if (withLexicalSignal.length > 0) {
+    for (const entry of withLexicalSignal.slice(0, limit)) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        "none",
+      );
+    }
+  } else if (answerCompositionQuery || factConfirmationQuery) {
+    for (const entry of compatible
+      .filter(
+        (item) =>
+          item.fact.category === "project" || item.fact.category === "technical",
       )
-      .slice(0, limit)
-      .map((entry) => entry.fact);
-
-    if (relevantToAnswer.length > 0) {
-      return relevantToAnswer;
+      .slice(0, limit)) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        "none",
+      );
     }
-
-    if (retrievalProfile === "coding_agent") {
-      return compatible.slice(0, 1).map((entry) => entry.fact);
+  } else if (retrievalProfile === "coding_agent") {
+    const fallback = compatible.find(
+      (entry) =>
+        entry.fact.category !== "personal" &&
+        entry.fact.category !== "relationship" &&
+        entry.fact.category !== "event",
+    );
+    if (fallback) {
+      selected.push(fallback);
+      selectedIds.add(fallback.fact.id);
+      markSelectedTrace(
+        traces,
+        fallback.fact.id,
+        "generic",
+        fallback.intentScore,
+        fallback.lexicalScore,
+        fallback.freshnessScore,
+        fallback.explicitnessScore,
+        "none",
+      );
     }
-
-    return [];
   }
 
-  if (retrievalProfile !== "coding_agent") {
-    return [];
+  for (const entry of compatible) {
+    const trace = traces.find((item) => item.memoryId === entry.fact.id);
+    if (trace && !trace.returned && trace.whySuppressed === "not selected") {
+      trace.whySuppressed = "below generic threshold";
+    }
   }
 
-  const fallback = compatible[0];
-  if (!fallback) {
-    return [];
-  }
-
-  if (
-    fallback.fact.category === "personal" ||
-    fallback.fact.category === "relationship" ||
-    fallback.fact.category === "event"
-  ) {
-    return [];
-  }
-
-  return [fallback.fact];
+  return {
+    facts: selected.map((entry) => entry.fact),
+    traces,
+  };
 }
 
 function selectReferences(
@@ -398,40 +832,129 @@ function selectReferences(
   query: string,
   language: LanguageService,
   queryLocale: string,
-): ReferenceMemory[] {
-  const ranked = sortReferences(references)
-    .map((reference) => ({
-      reference,
-      locale: resolveReferenceLocale(reference, language),
-      score:
-        language.tokenOverlap(reference.title, query, queryLocale, {
-          excludeStopwords: true,
-        }) +
-        language.tokenOverlap(reference.pointer, query, queryLocale, {
-          excludeStopwords: true,
-        }) +
-        language.tokenOverlap(reference.description ?? "", query, queryLocale, {
-          excludeStopwords: true,
-        }),
-    }))
-    .sort((left, right) => right.score - left.score);
-  const compatible = ranked.filter((entry) =>
-    language.localesCompatible(queryLocale, entry.locale),
+  routingDecision: RoutingDecision,
+  referenceTime: string,
+): { references: ReferenceMemory[]; traces: RecallCandidateTrace[] } {
+  const ranked = buildReferenceCandidates(
+    references,
+    query,
+    language,
+    queryLocale,
+    referenceTime,
   );
+  const traces: RecallCandidateTrace[] = ranked.map((entry) => ({
+    memoryId: entry.reference.id,
+    memoryType: "reference",
+    slot: "generic",
+    returned: false,
+    whySuppressed: !language.localesCompatible(queryLocale, entry.locale)
+      ? "locale mismatch"
+      : entry.reference.lifecycle !== "active"
+        ? "inactive lifecycle"
+        : "not selected",
+    intentScore: entry.intentScore,
+    lexicalScore: entry.lexicalScore,
+    freshnessScore: entry.freshnessScore,
+    explicitnessScore: entry.explicitnessScore,
+    fallback: "none",
+  }));
+  const compatible = ranked.filter(
+    (entry) =>
+      entry.reference.lifecycle === "active" &&
+      language.localesCompatible(queryLocale, entry.locale),
+  );
+  const slotSpecificNonReferenceQuery =
+    !routingDecision.requestedSlots.includes("reference") &&
+    (routingDecision.requestedSlots.includes("role") ||
+      routingDecision.requestedSlots.includes("focus") ||
+      routingDecision.requestedSlots.includes("blocker") ||
+      routingDecision.requestedSlots.includes("open_loop"));
+  const signaled = compatible
+    .filter((entry) => entry.lexicalScore > 0 || entry.subjectScore >= 0.2)
+    .sort((left, right) => right.score - left.score);
 
-  const withSignal = compatible.filter((entry) => entry.score > 0);
-  if (withSignal.length > 0) {
-    return withSignal.slice(0, 1).map((entry) => entry.reference);
+  if (slotSpecificNonReferenceQuery) {
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "non-reference slot query";
+      }
+    }
+    return {
+      references: [],
+      traces,
+    };
   }
 
-  if (
-    language.isAnswerCompositionQuery(query, queryLocale) ||
-    language.isReferenceSeekingQuery(query, queryLocale)
-  ) {
-    return compatible.slice(0, 1).map((entry) => entry.reference);
+  if (routingDecision.requestedSlots.includes("reference")) {
+    const selected = signaled[0] ?? (compatible.length === 1 ? compatible[0] : null);
+
+    if (selected) {
+      markSelectedTrace(
+        traces,
+        selected.reference.id,
+        "reference",
+        selected.intentScore,
+        selected.lexicalScore,
+        selected.freshnessScore,
+        selected.explicitnessScore,
+        signaled[0] ? "none" : "same_slot_unique_candidate",
+      );
+      for (const trace of traces) {
+        if (trace.memoryId !== selected.reference.id && trace.whySuppressed === "not selected") {
+          trace.whySuppressed = "same-slot candidate not chosen";
+        }
+      }
+      return {
+        references: [selected.reference],
+        traces,
+      };
+    }
+
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "no reference signal";
+      }
+    }
+    return {
+      references: [],
+      traces,
+    };
   }
 
-  return [];
+  const genericSelected =
+    signaled[0] ??
+    ((language.isAnswerCompositionQuery(query, queryLocale) && compatible[0]) || null);
+  if (!genericSelected) {
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "below generic threshold";
+      }
+    }
+    return {
+      references: [],
+      traces,
+    };
+  }
+
+  markSelectedTrace(
+    traces,
+    genericSelected.reference.id,
+    "generic",
+    genericSelected.intentScore,
+    genericSelected.lexicalScore,
+    genericSelected.freshnessScore,
+    genericSelected.explicitnessScore,
+    signaled[0] ? "none" : "same_slot_unique_candidate",
+  );
+  for (const trace of traces) {
+    if (trace.memoryId !== genericSelected.reference.id && trace.whySuppressed === "not selected") {
+      trace.whySuppressed = "same-slot candidate not chosen";
+    }
+  }
+  return {
+    references: [genericSelected.reference],
+    traces,
+  };
 }
 
 function selectEpisodes(
@@ -439,41 +962,89 @@ function selectEpisodes(
   query: string,
   language: LanguageService,
   queryLocale: string,
-): EpisodeMemory[] {
-  const ranked = sortEpisodes(episodes)
-    .map((episode) => ({
-      episode,
-      locale: resolveEpisodeLocale(episode, language),
-      lexicalSignal:
-        language.tokenOverlap(episode.summary, query, queryLocale, {
-          excludeStopwords: true,
-        }) +
-        language.tokenOverlap(episode.topics.join(" "), query, queryLocale, {
-          excludeStopwords: true,
-        }),
-      score:
-        language.tokenOverlap(episode.summary, query, queryLocale, {
-          excludeStopwords: true,
-        }) +
-        language.tokenOverlap(episode.topics.join(" "), query, queryLocale, {
-          excludeStopwords: true,
-        }) +
-        episode.importance * 0.1,
-    }))
-    .sort((left, right) => right.score - left.score);
+  routingDecision: RoutingDecision,
+  referenceTime: string,
+): { episodes: EpisodeMemory[]; traces: RecallCandidateTrace[] } {
+  const ranked = buildEpisodeCandidates(
+    episodes,
+    query,
+    language,
+    queryLocale,
+    referenceTime,
+  );
+  const traces: RecallCandidateTrace[] = ranked.map((entry) => ({
+    memoryId: entry.episode.id,
+    memoryType: "episode",
+    slot: "generic",
+    returned: false,
+    whySuppressed: !language.localesCompatible(queryLocale, entry.locale)
+      ? "locale mismatch"
+      : "not selected",
+    intentScore: routingDecision.continuation ? 0.6 : 0,
+    lexicalScore: entry.lexicalScore,
+    freshnessScore: entry.freshnessScore,
+    explicitnessScore: 0,
+    fallback: "none",
+  }));
   const compatible = ranked.filter((entry) =>
     language.localesCompatible(queryLocale, entry.locale),
   );
-
+  const slotSpecificQuery =
+    routingDecision.requestedSlots.includes("role") ||
+    routingDecision.requestedSlots.includes("focus") ||
+    routingDecision.requestedSlots.includes("blocker") ||
+    routingDecision.requestedSlots.includes("open_loop") ||
+    routingDecision.requestedSlots.includes("reference");
   const withSignal = compatible.filter(
-    (entry) =>
-      entry.lexicalSignal > 0 || language.isContinuationQuery(query, queryLocale),
+    (entry) => entry.lexicalScore > 0 || routingDecision.continuation,
   );
-  if (withSignal.length > 0) {
-    return withSignal.slice(0, 2).map((entry) => entry.episode);
+
+  if (slotSpecificQuery && !routingDecision.continuation) {
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "slot-specific query";
+      }
+    }
+    return {
+      episodes: [],
+      traces,
+    };
   }
 
-  return [];
+  if (withSignal.length === 0) {
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "no continuation signal";
+      }
+    }
+    return {
+      episodes: [],
+      traces,
+    };
+  }
+
+  const selected = withSignal.slice(0, 2);
+  for (const entry of selected) {
+    markSelectedTrace(
+      traces,
+      entry.episode.id,
+      "generic",
+      routingDecision.continuation ? 0.6 : 0,
+      entry.lexicalScore,
+      entry.freshnessScore,
+      0,
+      "none",
+    );
+  }
+  for (const trace of traces) {
+    if (!trace.returned && trace.whySuppressed === "not selected") {
+      trace.whySuppressed = "lower-ranked continuation candidate";
+    }
+  }
+  return {
+    episodes: selected.map((entry) => entry.episode),
+    traces,
+  };
 }
 
 function sortFacts(facts: FactMemory[]): FactMemory[] {
@@ -718,6 +1289,29 @@ async function applyRecallPolicyToProfile(
   return profile;
 }
 
+function reconcileCandidateTraces(
+  traces: RecallCandidateTrace[],
+  finalSelectedIds: Set<string>,
+  reason = "policy filtered",
+): RecallCandidateTrace[] {
+  return traces.map((trace) => {
+    if (!trace.returned) {
+      return trace;
+    }
+    if (finalSelectedIds.has(trace.memoryId)) {
+      return trace;
+    }
+
+    return {
+      ...trace,
+      returned: false,
+      whyReturned: undefined,
+      whySuppressed: reason,
+      fallback: "none",
+    };
+  });
+}
+
 export function createRecallEngine(config: RecallEngineConfig) {
   const language = config.language ?? createLanguageService();
   const now = config.now ?? Date.now;
@@ -771,6 +1365,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
             tokenCount: packet.debug?.estimatedTokens ?? 0,
             latencyMs: now() - startedAt,
             hits: [],
+            candidateTraces: [],
             verificationHints: [],
             policyApplied: [...policyApplied],
             locale: resolvedLanguage.locale,
@@ -806,7 +1401,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
             : Promise.resolve(null),
         ]);
 
-      const routingDecision = planRecall({
+	      const routingDecision = planRecall({
         retrievalProfile,
         query: input.query,
         locale: resolvedLanguage.locale,
@@ -814,10 +1409,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
         runtime: {
           hasWorkingMemory: Boolean(workingMemoryRaw),
           hasJournal: Boolean(journalRaw),
-        },
-      });
+	        },
+	      });
+	      const currentReferenceTime = referenceTime();
 
-      const filteredProfile = await applyRecallPolicyToProfile(profile, {
+	      const filteredProfile = await applyRecallPolicyToProfile(profile, {
         scope: input.scope,
         query: input.query,
         retrievalProfile,
@@ -836,28 +1432,32 @@ export function createRecallEngine(config: RecallEngineConfig) {
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-          policyApplied,
-        },
-      );
-      const facts = await applyRecallPolicyToRecords(
-        selectFacts(
-          factsRaw,
-          input.query,
-          language,
-          resolvedLanguage.locale,
-          retrievalProfile,
-        ),
-        "fact",
-        {
-          scope: input.scope,
+	          policyApplied,
+	        },
+	      );
+	      const selectedFacts = selectFacts(
+	        factsRaw,
+	        input.query,
+	        language,
+	        resolvedLanguage.locale,
+	        retrievalProfile,
+	        routingDecision,
+	        filteredProfile,
+	        currentReferenceTime,
+	      );
+	      const facts = await applyRecallPolicyToRecords(
+	        selectedFacts.facts,
+	        "fact",
+	        {
+	          scope: input.scope,
           query: input.query,
           retrievalProfile,
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-          policyApplied,
-        },
-      );
+	          policyApplied,
+	        },
+	      );
       const feedback = await applyRecallPolicyToRecords(
         sortFeedback(feedbackRaw),
         "feedback",
@@ -868,42 +1468,67 @@ export function createRecallEngine(config: RecallEngineConfig) {
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-          policyApplied,
-        },
-      );
-      const episodes = await applyRecallPolicyToRecords(
-        selectEpisodes(episodesRaw, input.query, language, resolvedLanguage.locale),
-        "episode",
-        {
-          scope: input.scope,
+	          policyApplied,
+	        },
+	      );
+	      const selectedEpisodes = selectEpisodes(
+	        episodesRaw,
+	        input.query,
+	        language,
+	        resolvedLanguage.locale,
+	        routingDecision,
+	        currentReferenceTime,
+	      );
+	      const episodes = await applyRecallPolicyToRecords(
+	        selectedEpisodes.episodes,
+	        "episode",
+	        {
+	          scope: input.scope,
           query: input.query,
           retrievalProfile,
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-          policyApplied,
-        },
-      );
-      const references = await applyRecallPolicyToRecords(
-        selectReferences(
-          referencesRaw,
-          input.query,
-          language,
-          resolvedLanguage.locale,
-        ),
-        "reference",
-        {
-          scope: input.scope,
+	          policyApplied,
+	        },
+	      );
+	      const selectedReferences = selectReferences(
+	        referencesRaw,
+	        input.query,
+	        language,
+	        resolvedLanguage.locale,
+	        routingDecision,
+	        currentReferenceTime,
+	      );
+	      const references = await applyRecallPolicyToRecords(
+	        selectedReferences.references,
+	        "reference",
+	        {
+	          scope: input.scope,
           query: input.query,
           retrievalProfile,
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-          policyApplied,
-        },
-      );
-      const workingMemory =
-        retrievalProfile === "coding_agent" ? workingMemoryRaw : null;
+	          policyApplied,
+	        },
+	      );
+	      const candidateTraces = [
+	        ...reconcileCandidateTraces(
+	          selectedFacts.traces,
+	          new Set(facts.map((fact) => fact.id)),
+	        ),
+	        ...reconcileCandidateTraces(
+	          selectedReferences.traces,
+	          new Set(references.map((reference) => reference.id)),
+	        ),
+	        ...reconcileCandidateTraces(
+	          selectedEpisodes.traces,
+	          new Set(episodes.map((episode) => episode.id)),
+	        ),
+	      ];
+	      const workingMemory =
+	        retrievalProfile === "coding_agent" ? workingMemoryRaw : null;
       const journal = retrievalProfile === "coding_agent" ? journalRaw : null;
       const packet = buildMemoryPacket({
         profile: filteredProfile,
@@ -928,19 +1553,20 @@ export function createRecallEngine(config: RecallEngineConfig) {
         packet,
         metadata: {
           routingDecision,
-          tokenCount: packet.debug?.estimatedTokens ?? 0,
-          latencyMs: now() - startedAt,
-          verificationHints: evaluateVerificationHints({
-            query: input.query,
-            referenceTime: referenceTime(),
-            facts,
-            references,
-            episodes,
-            locale: resolvedLanguage.locale,
-            language,
-          }),
-          policyApplied: [...policyApplied],
-          locale: resolvedLanguage.locale,
+	          tokenCount: packet.debug?.estimatedTokens ?? 0,
+	          latencyMs: now() - startedAt,
+	          verificationHints: evaluateVerificationHints({
+	            query: input.query,
+	            referenceTime: currentReferenceTime,
+	            facts,
+	            references,
+	            episodes,
+	            locale: resolvedLanguage.locale,
+	            language,
+	          }),
+	          candidateTraces,
+	          policyApplied: [...policyApplied],
+	          locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           adapterId: resolvedLanguage.adapterId,
           analysisMode: resolvedLanguage.analysisMode,

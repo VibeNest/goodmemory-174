@@ -1,0 +1,133 @@
+{
+  "scenario_id": "scenario-medium-13-reference-next-step",
+  "persona_id": "medium-13",
+  "lifecycle_bucket": "medium",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "work_ops",
+  "memory_source_domains": [
+    "work_ops"
+  ],
+  "evaluation_setting": "single_domain",
+  "required_phenomena": [
+    "identity_reveal",
+    "historical_task_continuation",
+    "open_loop",
+    "correction",
+    "confirmation",
+    "stale_info"
+  ],
+  "sessions": [
+    {
+      "session_id": "medium-13-reference-next-s1",
+      "objective": "Reveal identity and stable response style.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "My name is Noah. I'm a data scientist in Singapore."
+        },
+        {
+          "role": "assistant",
+          "content": "Noted. I will keep that background in mind."
+        },
+        {
+          "role": "user",
+          "content": "I prefer concise bullet points and clear next steps."
+        },
+        {
+          "role": "assistant",
+          "content": "Understood. I will respond in that style."
+        }
+      ]
+    },
+    {
+      "session_id": "medium-13-reference-next-s2",
+      "objective": "Introduce a stale reference and current blocker.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Use docs/workflow-reliability-dashboard-runbook-v1.md as the source of truth for workflow reliability dashboard for now."
+        },
+        {
+          "role": "assistant",
+          "content": "Okay. I will use that runbook for now."
+        },
+        {
+          "role": "user",
+          "content": "Remember that the current blocker is vendor approval for workflow reliability dashboard."
+        },
+        {
+          "role": "assistant",
+          "content": "Captured. I will keep that blocker in mind."
+        }
+      ]
+    },
+    {
+      "session_id": "medium-13-reference-next-s3",
+      "objective": "Track the open loop and correct the stale reference.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Remember that the open loop is final signoff for workflow reliability dashboard."
+        },
+        {
+          "role": "assistant",
+          "content": "I will continue from that open loop."
+        },
+        {
+          "role": "user",
+          "content": "Correction: docs/workflow-reliability-dashboard-runbook-v2.md is now the source of truth, not docs/workflow-reliability-dashboard-runbook-v1.md. Please update that."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated. I will use the newer runbook going forward."
+        }
+      ]
+    },
+    {
+      "session_id": "medium-13-reference-next-s4",
+      "objective": "Ask a reference plus next-step retrieval question.",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Which runbook is the current source of truth, and what should I do next for workflow reliability dashboard?"
+        },
+        {
+          "role": "assistant",
+          "content": "I can answer once I have the remembered context."
+        }
+      ]
+    }
+  ],
+  "evaluation": {
+    "prompt": "Which runbook is the current source of truth, and what should I do next for workflow reliability dashboard?",
+    "rubric_focus": [
+      "identity_background",
+      "history_open_loop"
+    ],
+    "expected_identity_signals": [
+      "data scientist"
+    ],
+    "expected_history_signals": [
+      "docs/workflow-reliability-dashboard-runbook-v2.md",
+      "vendor approval for workflow reliability dashboard"
+    ],
+    "expected_transfer_signals": [
+      "docs/workflow-reliability-dashboard-runbook-v2.md",
+      "vendor approval for workflow reliability dashboard"
+    ],
+    "expected_non_transfer_signals": [
+      "docs/workflow-reliability-dashboard-runbook-v1.md"
+    ],
+    "expected_update_wins": [
+      "docs/workflow-reliability-dashboard-runbook-v2.md"
+    ],
+    "expected_stale_suppression": [
+      "docs/workflow-reliability-dashboard-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "docs/workflow-reliability-dashboard-runbook-v1.md"
+    ],
+    "improvement_hypothesis": "GoodMemory should keep the corrected reference primary while allowing only narrow project-state support for the next-step part of the question.",
+    "user_satisfaction_hypothesis": "The agent should answer what is current and what to do next without widening into unrelated lanes."
+  }
+}

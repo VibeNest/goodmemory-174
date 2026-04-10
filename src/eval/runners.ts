@@ -51,6 +51,7 @@ export interface EvalAnswerPackage {
     workingMemory: RecallResult["workingMemory"];
     journal: RecallResult["journal"];
     hits: RecallResult["metadata"]["hits"];
+    candidateTraces: RecallResult["metadata"]["candidateTraces"];
     verificationHints: RecallResult["metadata"]["verificationHints"];
     policyApplied: RecallResult["metadata"]["policyApplied"];
     renderedMemoryContext: string;
@@ -279,6 +280,7 @@ export async function runGoodMemoryScenario(input: {
       workingMemory: recall.workingMemory,
       journal: recall.journal,
       hits: recall.metadata.hits,
+      candidateTraces: recall.metadata.candidateTraces,
       verificationHints: recall.metadata.verificationHints,
       policyApplied: recall.metadata.policyApplied,
       renderedMemoryContext: context.content,

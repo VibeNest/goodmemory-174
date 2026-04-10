@@ -128,16 +128,6 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
         ],
       },
       {
-        collection: "facts",
-        fields: [
-          {
-            path: "content",
-            equals: "I am a robotics engineer in Shanghai leading the migration rollout.",
-          },
-          { path: "lifecycle", equals: "active" },
-        ],
-      },
-      {
         collection: "preferences",
         fields: [
           { path: "value", equals: "concise bullet points" },
@@ -150,20 +140,12 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
         hasEntries: ["Lin - robotics engineer - Shanghai"],
       },
       { path: "Preferences", hasEntries: ["response_style: concise bullet points"] },
-      {
-        path: "Facts",
-        hasEntries: ["I am a robotics engineer in Shanghai leading the migration rollout."],
-      },
     ],
     expectedAnswer: [
       { path: "profileName", equals: "Lin" },
       { path: "profileRole", equals: "robotics engineer" },
       { path: "profileLocation", equals: "Shanghai" },
       { path: "preferences", hasEntries: ["concise bullet points"] },
-      {
-        path: "factEntries",
-        hasEntries: ["I am a robotics engineer in Shanghai leading the migration rollout."],
-      },
     ],
   },
   openLoopContinuation: {
@@ -227,21 +209,14 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
           },
         ],
       },
-      {
-        collection: "facts",
-        fields: [
-          {
-            path: "content",
-            equals: "the robot rollout is blocked on step 2 of the migration runbook.",
-          },
-        ],
-      },
     ],
     expectedContext: [
       {
         path: "Facts",
         hasEntries: [
           "the remaining open loop is final verification for the robot rollout.",
+        ],
+        lacksEntries: [
           "the robot rollout is blocked on step 2 of the migration runbook.",
         ],
       },
@@ -251,6 +226,8 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
         path: "factEntries",
         hasEntries: [
           "the remaining open loop is final verification for the robot rollout.",
+        ],
+        lacksEntries: [
           "the robot rollout is blocked on step 2 of the migration runbook.",
         ],
       },

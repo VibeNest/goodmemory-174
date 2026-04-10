@@ -47,6 +47,21 @@ export interface PreferenceMemory {
   updatedAt: string;
 }
 
+export type FactKind =
+  | "blocker"
+  | "open_loop"
+  | "role_update"
+  | "focus_update"
+  | "project_state"
+  | "generic_project";
+
+export type MemoryScopeKind =
+  | "identity"
+  | "project"
+  | "runtime"
+  | "reference"
+  | "preference";
+
 export interface FactMemory {
   id: string;
   userId: string;
@@ -59,6 +74,9 @@ export interface FactMemory {
   confidence: number;
   importance: number;
   source: MemorySource;
+  factKind?: FactKind;
+  scopeKind?: MemoryScopeKind;
+  subject?: string;
   accessCount: number;
   lastAccessedAt?: string;
   supersededBy?: string | null;
@@ -68,6 +86,13 @@ export interface FactMemory {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ReferenceKind =
+  | "source_of_truth"
+  | "runbook"
+  | "doc"
+  | "dashboard"
+  | "tracker";
 
 export interface ReferenceMemory {
   id: string;
@@ -81,6 +106,8 @@ export interface ReferenceMemory {
   description?: string;
   confidence: number;
   source: MemorySource;
+  referenceKind?: ReferenceKind;
+  subject?: string;
   lifecycle: MemoryLifecycleState;
   createdAt: string;
   updatedAt: string;
@@ -245,6 +272,9 @@ export function createFactMemory(
     confidence: input.confidence ?? 1,
     importance: input.importance ?? 1,
     source: input.source,
+    factKind: input.factKind,
+    scopeKind: input.scopeKind,
+    subject: input.subject,
     accessCount: input.accessCount ?? 0,
     lastAccessedAt: input.lastAccessedAt,
     supersededBy: input.supersededBy ?? null,
@@ -277,6 +307,8 @@ export function createReferenceMemory(
     description: input.description,
     confidence: input.confidence ?? 1,
     source: input.source,
+    referenceKind: input.referenceKind,
+    subject: input.subject,
     lifecycle: input.lifecycle ?? "active",
     createdAt: input.createdAt ?? timestamp,
     updatedAt: input.updatedAt ?? timestamp,

@@ -92,14 +92,14 @@ function createQueryPatterns(locale: string) {
   if (primaryLanguage(locale) === "zh") {
     return {
       answer: /(怎么回复|如何回复|如何回答|怎么回答|给用户回复|回答这个用户)/u,
-      reference: /(手册|文档|参考|以什么为准|来源|规范|流程)/u,
+      reference: /(手册|runbook|文档|参考|以什么为准|以哪个[^。！？?]*为准|来源|规范|流程)/u,
       role: /(角色|身份|职位)/u,
       focus: /(重点|当前重点|当前关注|关注点)/u,
       openLoop: /(开环|待办|未完成|签收|验收|验证)/u,
-      blocker: /(阻塞|卡在哪里|卡住|审批)/u,
-      projectState: /(项目|流程|迁移|审批|阻塞|卡在哪里|卡住|开环|待办|签收|验收)/u,
+      blocker: /(阻塞|卡点|卡在哪里|卡住|审批)/u,
+      projectState: /(项目|流程|迁移|审批|阻塞|卡点|卡在哪里|卡住|开环|待办|签收|验收)/u,
       confirm: /(确认)/u,
-      factConfirmationTarget: /(角色|身份|职位|重点|关注|开环|待办|阻塞|审批|签收|验收|验证)/u,
+      factConfirmationTarget: /(角色|身份|职位|重点|关注|开环|待办|阻塞|卡点|审批|签收|验收|验证)/u,
       actionDriving: /(发送|发布|上线|决定|执行|推进|下一步|部署|迁移方案)/u,
       continuation: /(继续|接着|延续|上次|从上次|继续做|接着做|继续这个)/u,
       positive: /(稳定|已解决|关闭|修复|完成)/u,
@@ -116,13 +116,14 @@ function createQueryPatterns(locale: string) {
       roleFact: /(我当前角色是|我的角色是)/u,
       focusFact: /(我当前重点是|当前重点是)/u,
       openLoopFact: /(开环|待办|未完成|签收|验收|验证)/u,
-      blockerFact: /(阻塞|卡住|审批)/u,
+      blockerFact: /(阻塞|卡点|卡住|审批)/u,
+      projectStateFact: /(待确认|待处理|待跟进|待完成|待评审|仍需|还需|剩余|尚待|待 review)/u,
     };
   }
 
   return {
     answer: /\b(answer|respond|reply|user)\b/i,
-    reference: /\b(runbook|guide|doc|docs|reference|source of truth|workflow)\b/i,
+    reference: /\b(runbook|guide|doc|docs|reference|source of truth)\b/i,
     role: /\brole\b/i,
     focus: /\bfocus\b/i,
     openLoop: /\b(open loop|handoff|signoff|verification)\b/i,
@@ -131,8 +132,8 @@ function createQueryPatterns(locale: string) {
     confirm: /\bconfirm\b/i,
     factConfirmationTarget:
       /\b(role|focus|open loop|blocker|handoff|approval|package|signoff|verification)\b/i,
-    actionDriving:
-      /\b(proceed|send|ship|deploy|decide|rollout|execute|migration plan|next step)\b/i,
+      actionDriving:
+        /\b(proceed|send|ship|deploy|decide|rollout|execute|migration plan|next step|do next)\b/i,
     continuation: /\b(continue|resume|last time|from last time|carry on|pick up)\b/i,
     positive: /\b(stable|resolved|closed|fixed)\b/i,
     negative: /\b(blocked|failing|open|unstable)\b/i,
@@ -151,6 +152,8 @@ function createQueryPatterns(locale: string) {
         /\bmy current focus is\b|\bi(?:'m| am)\s+(?:leading|working on|focused on|owning)\b/i,
       openLoopFact: /\bopen loop\b/i,
       blockerFact: /\bblocker\b|\bblocked\b|\bblocking\b|\bapproval\b/i,
+      projectStateFact:
+        /\b(next milestone|next step|next action|upcoming milestone|pending|waiting|remaining|still needs?|needs? review|needs? confirmation|needs? follow(?:-| )?up)\b/i,
     };
   }
 
@@ -313,7 +316,7 @@ export function createLanguageService(
     },
     isProjectStateFact(content, context) {
       const patterns = createQueryPatterns(contextLocale(context));
-      return patterns.openLoopFact.test(content) || patterns.blockerFact.test(content);
+      return patterns.projectStateFact.test(content);
     },
     detectFactPolarity(content, context) {
       const patterns = createQueryPatterns(contextLocale(context));

@@ -58,6 +58,10 @@
   ],
   "lifecycle_bucket": "medium",
   "scenario_ids": [
-    "scenario-medium-13"
+    "scenario-medium-13",
+    "scenario-medium-13-role-slot",
+    "scenario-medium-13-blocker-slot",
+    "scenario-medium-13-reference-slot",
+    "scenario-medium-13-reference-next-step"
   ]
 }

@@ -1,0 +1,133 @@
+{
+  "scenario_id": "scenario-medium-11-blocker-slot-zh",
+  "persona_id": "medium-11",
+  "lifecycle_bucket": "medium",
+  "task_family": "drift_override_lifelong_update",
+  "domain": "productivity",
+  "memory_source_domains": [
+    "productivity"
+  ],
+  "evaluation_setting": "single_domain",
+  "required_phenomena": [
+    "identity_reveal",
+    "historical_task_continuation",
+    "open_loop",
+    "correction",
+    "confirmation",
+    "stale_info"
+  ],
+  "sessions": [
+    {
+      "session_id": "medium-11-zh-blocker-s1",
+      "objective": "暴露身份与稳定表达偏好。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "我叫 Arjun。我在上海办公。"
+        },
+        {
+          "role": "assistant",
+          "content": "记下了。"
+        },
+        {
+          "role": "user",
+          "content": "我是机器人系统工程师。"
+        },
+        {
+          "role": "assistant",
+          "content": "明白。"
+        }
+      ]
+    },
+    {
+      "session_id": "medium-11-zh-blocker-s2",
+      "objective": "引入旧 reference 与当前阻塞。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "先以 docs/migration-rollout-runbook-v1.md 为准。"
+        },
+        {
+          "role": "assistant",
+          "content": "好的，我先按这个执行。"
+        },
+        {
+          "role": "user",
+          "content": "请记住当前阻塞是 migration rollout 的供应商审批。"
+        },
+        {
+          "role": "assistant",
+          "content": "已记录这个阻塞。"
+        }
+      ]
+    },
+    {
+      "session_id": "medium-11-zh-blocker-s3",
+      "objective": "引入开环并修正旧 reference。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "请记住当前开环是 migration rollout 的最终验收。"
+        },
+        {
+          "role": "assistant",
+          "content": "已记录这个开环。"
+        },
+        {
+          "role": "user",
+          "content": "现在以 docs/migration-rollout-runbook-v2.md 为准，不再以 docs/migration-rollout-runbook-v1.md 为准。"
+        },
+        {
+          "role": "assistant",
+          "content": "收到，我会改用新的 runbook。"
+        }
+      ]
+    },
+    {
+      "session_id": "medium-11-zh-blocker-s4",
+      "objective": "提出中文 blocker-only 问题。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "当前卡点是什么？"
+        },
+        {
+          "role": "assistant",
+          "content": "我可以在看到记忆后回答。"
+        }
+      ]
+    }
+  ],
+  "evaluation": {
+    "prompt": "当前卡点是什么？",
+    "rubric_focus": [
+      "identity_background",
+      "history_open_loop"
+    ],
+    "expected_identity_signals": [
+      "机器人系统工程师"
+    ],
+    "expected_history_signals": [
+      "供应商审批"
+    ],
+    "expected_transfer_signals": [
+      "供应商审批"
+    ],
+    "expected_non_transfer_signals": [
+      "最终验收",
+      "docs/migration-rollout-runbook-v2.md"
+    ],
+    "expected_update_wins": [
+      "供应商审批"
+    ],
+    "expected_stale_suppression": [
+      "docs/migration-rollout-runbook-v1.md"
+    ],
+    "wrong_personalization_signals": [
+      "最终验收",
+      "docs/migration-rollout-runbook-v2.md"
+    ],
+    "improvement_hypothesis": "GoodMemory 应该只返回中文 blocker 证据，而不是把开环或 reference 一起带出来。",
+    "user_satisfaction_hypothesis": "用户问当前卡点时，系统应该保持召回边界收紧。"
+  }
+}

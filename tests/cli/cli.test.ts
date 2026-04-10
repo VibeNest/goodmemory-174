@@ -61,6 +61,21 @@ function buildAnswerPackage(
                 sourceMethod: "explicit",
               },
             ],
+            candidateTraces: [
+              {
+                memoryId: "ref-1",
+                memoryType: "reference",
+                slot: "reference",
+                returned: true,
+                whyReturned:
+                  "slot=reference, intentScore=1.00, lexicalScore=0.86, fallback=none",
+                intentScore: 1,
+                lexicalScore: 0.86,
+                freshnessScore: 1,
+                explicitnessScore: 1,
+                fallback: "none",
+              },
+            ],
             policyApplied: ["custom_shouldRecall"],
             verificationHints: [],
             renderedMemoryContext: "## References\n- Runbook",

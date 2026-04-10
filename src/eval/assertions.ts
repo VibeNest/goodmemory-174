@@ -142,11 +142,27 @@ function buildProvenanceCheck(answerPackage: EvalAnswerPackage): EvalAssertionCh
       .filter((event) => !event.reason)
       .map((event) => `${session.sessionId}:${event.memoryType}`),
   );
+  const missingCandidateTraceForHits = retrieved.hits
+    .filter(
+      (hit) =>
+        (hit.type === "fact" ||
+          hit.type === "reference" ||
+          hit.type === "episode") &&
+        !retrieved.candidateTraces.some(
+          (trace) => trace.memoryId === hit.id && trace.returned,
+        ),
+    )
+    .map((hit) => `missing_candidate_trace_for_hit:${hit.type}:${hit.id}`);
+  const incompleteCandidateTraceReasons = retrieved.candidateTraces
+    .filter((trace) => (trace.returned ? !trace.whyReturned : !trace.whySuppressed))
+    .map((trace) => `missing_candidate_trace_reason:${trace.memoryType}:${trace.memoryId}`);
 
   const details = [
     ...missingHitReasons.map((hit) => `missing_hit_reason:${hit.type}:${hit.id}`),
     ...missingSourceMethods.map((hit) => `missing_source_method:${hit.type}:${hit.id}`),
     ...missingWriteReasons.map((entry) => `missing_write_reason:${entry}`),
+    ...missingCandidateTraceForHits,
+    ...incompleteCandidateTraceReasons,
   ];
 
   return {

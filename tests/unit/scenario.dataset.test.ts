@@ -32,7 +32,7 @@ describe("scenario dataset", () => {
 
     const summary = summarizeScenarioDataset(scenarios);
 
-    expect(scenarios).toHaveLength(40);
+    expect(scenarios).toHaveLength(46);
     expect(summary.coveredPhenomena).toEqual([
       "confirmation",
       "correction",

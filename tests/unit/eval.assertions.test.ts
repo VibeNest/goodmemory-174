@@ -156,6 +156,34 @@ function buildGoodmemoryAnswer(): EvalAnswerPackage {
           sourceMethod: "explicit",
         },
       ],
+      candidateTraces: [
+        {
+          memoryId: "ref-1",
+          memoryType: "reference",
+          slot: "reference",
+          returned: true,
+          whyReturned:
+            "slot=reference, intentScore=1.00, lexicalScore=0.80, fallback=none",
+          intentScore: 1,
+          lexicalScore: 0.8,
+          freshnessScore: 1,
+          explicitnessScore: 1,
+          fallback: "none",
+        },
+        {
+          memoryId: "fact-1",
+          memoryType: "fact",
+          slot: "blocker",
+          returned: true,
+          whyReturned:
+            "slot=blocker, intentScore=0.92, lexicalScore=0.78, fallback=none",
+          intentScore: 0.92,
+          lexicalScore: 0.78,
+          freshnessScore: 1,
+          explicitnessScore: 1,
+          fallback: "none",
+        },
+      ],
       verificationHints: [],
       policyApplied: [],
       renderedMemoryContext:
@@ -387,5 +415,27 @@ describe("eval assertions", () => {
     expect(
       result.checks.find((check) => check.id === "provenance_explainable")?.passed,
     ).toBe(false);
+  });
+
+  it("fails provenance when retrieved hits are missing candidate traces", () => {
+    const answer = buildGoodmemoryAnswer();
+    if (!answer.retrieved) {
+      throw new Error("expected retrieved payload");
+    }
+
+    answer.retrieved.candidateTraces = [];
+
+    const result = evaluateScenarioAssertions({
+      scenario: buildScenario(),
+      goodmemory: answer,
+    });
+
+    expect(
+      result.checks.find((check) => check.id === "provenance_explainable"),
+    ).toEqual({
+      id: "provenance_explainable",
+      passed: false,
+      details: ["missing_candidate_trace_for_hit:reference:ref-1", "missing_candidate_trace_for_hit:fact:fact-1"],
+    });
   });
 });

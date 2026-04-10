@@ -2,10 +2,13 @@ import type { MemoryScope } from "./domain/scope";
 import type {
   ArtifactSpillRecord,
   EpisodeMemory,
+  FactKind,
   FeedbackKind,
   FactMemory,
   FeedbackMemory,
+  MemoryScopeKind,
   PreferenceMemory,
+  ReferenceKind,
   ReferenceMemory,
   SessionBuffer,
   SessionJournal,
@@ -71,10 +74,13 @@ export {
 export type {
   ArtifactSpillRecord,
   EpisodeMemory,
+  FactKind,
   FactMemory,
   FeedbackKind,
   FeedbackMemory,
+  MemoryScopeKind,
   PreferenceMemory,
+  ReferenceKind,
   ReferenceMemory,
   SessionMessage,
   SessionJournal,
@@ -138,6 +144,7 @@ export {
   renderMemoryPacket,
 } from "./recall/contextBuilder";
 export type {
+  RecallCandidateTrace,
   RecallEngineConfig,
   RecallHit,
   RecallResult as InternalRecallResult,
@@ -146,6 +153,7 @@ export { createRecallEngine } from "./recall/engine";
 export type { VerificationHint } from "./verify/policy";
 export { evaluateVerificationHints } from "./verify/policy";
 export type {
+  RecallSlot,
   RecallRuntimeAvailability,
   RecallRoutingInput,
   RecallSource,
@@ -233,6 +241,7 @@ export interface RecallResult {
     tokenCount: number;
     latencyMs: number;
     hits: import("./recall/engine").RecallHit[];
+    candidateTraces: import("./recall/engine").RecallCandidateTrace[];
     verificationHints: import("./verify/policy").VerificationHint[];
     policyApplied: string[];
     locale?: string;

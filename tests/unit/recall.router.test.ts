@@ -64,4 +64,51 @@ describe("recall router", () => {
       "fact",
     ]);
   });
+
+  it("plans role queries with action-driving support as separate slots", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      query: "What is my current role, and what should I do next for the migration rollout?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.requestedSlots).toEqual(["role"]);
+    expect(plan.supportSlots).toEqual(["project_state_support"]);
+    expect(plan.actionDriving).toBe(true);
+  });
+
+  it("plans reference queries with next-step support without widening primary slots", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      query: "Which runbook is the source of truth, and what should I do next?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.requestedSlots).toEqual(["reference"]);
+    expect(plan.supportSlots).toEqual(["project_state_support"]);
+    expect(plan.referenceSeeking).toBe(true);
+    expect(plan.actionDriving).toBe(true);
+  });
+
+  it("plans Chinese blocker queries as blocker-only recalls", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      query: "当前阻塞是什么？",
+      locale: "zh-CN",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.requestedSlots).toEqual(["blocker"]);
+    expect(plan.supportSlots).toEqual([]);
+    expect(plan.actionDriving).toBe(false);
+  });
 });

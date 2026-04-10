@@ -58,6 +58,8 @@
   ],
   "lifecycle_bucket": "medium",
   "scenario_ids": [
-    "scenario-medium-11"
+    "scenario-medium-11",
+    "scenario-medium-11-blocker-slot-zh",
+    "scenario-medium-11-reference-slot-zh"
   ]
 }

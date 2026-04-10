@@ -1,8 +1,17 @@
-import type { MemoryCandidate, ProfileField } from "../remember/candidates";
+import type {
+  MemoryCandidate,
+  MemoryCandidateMetadata,
+  ProfileField,
+} from "../remember/candidates";
 import type {
   LanguageAdapter,
   LanguageCandidateExtractionInput,
 } from "./contracts";
+import type {
+  FactKind,
+  MemoryScopeKind,
+  ReferenceKind,
+} from "../domain/records";
 import {
   splitClausesGeneric,
   normalizeUnicodeForEquality,
@@ -47,6 +56,12 @@ const PROJECT_FACT_PATTERNS = [
   /\bblockers?\b/i,
   /\bopen loops?\b/i,
   /\bhandoffs?\b/i,
+  /\bmilestones?\b/i,
+  /\bvalidations?\b/i,
+  /\bsignoffs?\b/i,
+  /\breadiness\b/i,
+  /\bcutover\b/i,
+  /\breviews?\b/i,
   /\bprojects?\b/i,
   /\brunbooks?\b/i,
   /\bplaybooks?\b/i,
@@ -57,8 +72,13 @@ const PROJECT_FACT_PATTERNS = [
   /\blaunch(?:es)?\b/i,
   /\bproduction\b/i,
   /\bprod\b/i,
+  /\bfollow(?:-| )?up\b/i,
 ];
 const TECHNICAL_FACT_PATTERNS = [
+  /\bservices?\b/i,
+  /\bfeatures?\b/i,
+  /\bdependenc(?:y|ies)\b/i,
+  /\bpipelines?\b/i,
   /\bapis?\b/i,
   /\bruntimes?\b/i,
   /\bbugs?\b/i,
@@ -95,6 +115,12 @@ const TOKEN_STOPWORDS = new Set([
   "current",
   "please",
 ]);
+const ENGLISH_SUBJECT_TAIL_PATTERN =
+  /\b(?:and|but)\s+(?:driving|tracking|keeping|handling|reviewing|planning|shipping|rolling|migrating|preparing|finalizing|waiting|coordinating|owning)\b.*$/i;
+const ENGLISH_SUBJECT_CLAUSE_PATTERN =
+  /\b(?:while|because|after|before|when|if)\b.*$/i;
+const ENGLISH_SUBJECT_PREDICATE_BOUNDARY_PATTERN =
+  /\s+(?:is|are|was|were|remains?|stays?|needs?|requires?|has|have)\b/gi;
 
 function deriveFactCategory(
   content: string,
@@ -142,6 +168,177 @@ function deriveFeedbackKind(content: string): "do" | "dont" | "prefer" {
   return "do";
 }
 
+function extractStableSubject(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const cleaned = cleanExtractedValue(value)
+    .toLowerCase()
+    .replace(/^the\s+(?!to\b)/i, "")
+    .replace(/^a\s+(?!to\b)/i, "")
+    .replace(/^an\s+(?!to\b)/i, "")
+    .replace(/^(?:my|current)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned.length >= 3 ? cleaned : undefined;
+}
+
+function trimPredicateBoundary(value: string): string {
+  for (const match of value.matchAll(ENGLISH_SUBJECT_PREDICATE_BOUNDARY_PATTERN)) {
+    if (match.index === undefined) {
+      continue;
+    }
+
+    const prefix = value.slice(0, match.index).trim();
+    if (/\b(?:that|which|who|to)\s*$/i.test(prefix)) {
+      continue;
+    }
+
+    return prefix;
+  }
+
+  return value;
+}
+
+function extractBoundedEnglishSubject(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = cleanExtractedValue(value)
+    .replace(ENGLISH_SUBJECT_TAIL_PATTERN, "")
+    .replace(ENGLISH_SUBJECT_CLAUSE_PATTERN, "")
+    .trim();
+  const bounded = trimPredicateBoundary(trimmed)
+    .trim();
+
+  return extractStableSubject(bounded);
+}
+
+function extractFactSubject(content: string): string | undefined {
+  const roleProjectMatch = content.match(/\bleading\s+([^.,!?]+)/i);
+  if (roleProjectMatch?.[1]) {
+    return extractBoundedEnglishSubject(roleProjectMatch[1]);
+  }
+
+  const scopedMatch = content.match(/\b(?:for|on)\s+([^.,!?]+)/i);
+  if (scopedMatch?.[1]) {
+    return extractBoundedEnglishSubject(scopedMatch[1]);
+  }
+
+  return undefined;
+}
+
+function deriveFactKind(content: string): FactKind | undefined {
+  if (/\bmy current role is\b/i.test(content)) {
+    return "role_update";
+  }
+
+  if (/\bmy current focus is\b/i.test(content)) {
+    return "focus_update";
+  }
+
+  if (/\bblocker\b|\bblocked\b|\bblocking\b|\bapproval\b/i.test(content)) {
+    return "blocker";
+  }
+
+  if (/\bopen loop\b|\bhandoff\b|\bsignoff\b|\bverification\b/i.test(content)) {
+    return "open_loop";
+  }
+
+  if (
+    /\b(next milestone|next step|next action|upcoming milestone|pending|waiting|remaining|still needs?|needs? review|needs? confirmation|needs? follow(?:-| )?up)\b/i.test(
+      content,
+    )
+  ) {
+    return "project_state";
+  }
+
+  if (deriveFactCategory(content) === "project" || deriveFactCategory(content) === "technical") {
+    return "generic_project";
+  }
+
+  return undefined;
+}
+
+function deriveFactScopeKind(
+  category: ReturnType<typeof deriveFactCategory>,
+  factKind: FactKind | undefined,
+): MemoryScopeKind | undefined {
+  if (factKind === "role_update") {
+    return "identity";
+  }
+
+  if (
+    factKind === "focus_update" ||
+    factKind === "blocker" ||
+    factKind === "open_loop" ||
+    factKind === "project_state" ||
+    factKind === "generic_project"
+  ) {
+    return "project";
+  }
+
+  if (category === "personal" || category === "relationship" || category === "event") {
+    return "identity";
+  }
+
+  if (category === "project" || category === "technical") {
+    return "project";
+  }
+
+  return undefined;
+}
+
+function buildFactMetadata(
+  content: string,
+  categoryOverride?: "project" | "technical" | "personal" | "relationship" | "event",
+): MemoryCandidateMetadata {
+  const factKind = deriveFactKind(content);
+  const derivedCategory = categoryOverride ?? deriveFactCategory(content);
+  const category =
+    derivedCategory === "personal" &&
+    (factKind === "focus_update" ||
+      factKind === "blocker" ||
+      factKind === "open_loop" ||
+      factKind === "project_state")
+      ? "project"
+      : derivedCategory;
+
+  return {
+    category,
+    factKind,
+    scopeKind: deriveFactScopeKind(category, factKind),
+    subject: extractFactSubject(content) ?? "unknown",
+  };
+}
+
+function deriveReferenceKind(content: string, pointer: string): ReferenceKind {
+  if (/\bsource of truth\b/i.test(content)) {
+    return "source_of_truth";
+  }
+
+  const basename = pointer.split("/").at(-1)?.toLowerCase() ?? pointer.toLowerCase();
+  if (basename.includes("runbook")) {
+    return "runbook";
+  }
+  if (basename.includes("dashboard")) {
+    return "dashboard";
+  }
+  if (basename.includes("tracker")) {
+    return "tracker";
+  }
+
+  return "doc";
+}
+
+function extractReferenceSubject(content: string): string | undefined {
+  const match = content.match(/\bfor\s+([^.,!?]+)/i);
+  return extractBoundedEnglishSubject(match?.[1]);
+}
+
 function looksLikeDurableInferredFact(content: string): boolean {
   return DURABLE_INFERENCE_PATTERNS.some((pattern) => pattern.test(content));
 }
@@ -178,9 +375,7 @@ function createFactCandidate(
     content,
     sourceMessageIndex: index,
     sourceRole: "user",
-    metadata: {
-      category: category ?? deriveFactCategory(content),
-    },
+    metadata: buildFactMetadata(content, category),
   };
 }
 
@@ -445,8 +640,10 @@ function maybeExtractCandidatesFromClause(
       sourceMessageIndex: index,
       sourceRole: "user",
       metadata: {
+        referenceKind: deriveReferenceKind(trimmed, pointer),
         referenceTitle: title,
         referencePointer: pointer,
+        subject: extractReferenceSubject(trimmed) ?? "unknown",
       },
     });
   }
@@ -465,9 +662,11 @@ function maybeExtractCandidatesFromClause(
       sourceMessageIndex: index,
       sourceRole: "user",
       metadata: {
+        referenceKind: deriveReferenceKind(trimmed, pointer),
         referenceTitle: title,
         referencePointer: pointer,
         supersedesPointer: previousPointer,
+        subject: extractReferenceSubject(trimmed) ?? "unknown",
       },
     });
   }
@@ -500,7 +699,7 @@ function maybeExtractCandidatesFromClause(
       sourceMessageIndex: index,
       sourceRole: "user",
       metadata: {
-        category: deriveFactCategory(trimmed),
+        ...buildFactMetadata(trimmed),
       },
     });
   }

@@ -492,6 +492,203 @@ describe("deterministic memory extractor", () => {
     expect(result.ignoredMessageCount).toBe(0);
   });
 
+  it("extracts English project-state candidates from next-milestone wording", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-project-state-next" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that the next milestone is cutover readiness for release quality program.",
+        },
+      ],
+    });
+
+    const factCandidate = result.candidates.find(
+      (candidate) => candidate.kindHint === "fact",
+    );
+
+    expect(factCandidate?.metadata?.factKind).toBe("project_state");
+    expect(factCandidate?.metadata?.category).toBe("project");
+    expect(factCandidate?.metadata?.subject).toBe("release quality program");
+  });
+
+  it("does not classify service or feature project-state facts as personal", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-category-consistency" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that the next step for the service that has to stay online is vendor validation.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that owner review is still pending for the feature that has review dependencies.",
+        },
+      ],
+    });
+
+    const categories = result.candidates
+      .filter((candidate) => candidate.kindHint === "fact")
+      .map((candidate) => candidate.metadata?.category);
+
+    expect(categories).not.toContain("personal");
+  });
+
+  it("trims English fact subjects before trailing predicate detail", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-subject-trim" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that my current focus is runtime reliability for release quality program and driving runtime reliability.",
+        },
+      ],
+    });
+
+    const factCandidate = result.candidates.find(
+      (candidate) => candidate.kindHint === "fact",
+    );
+
+    expect(factCandidate?.metadata?.subject).toBe("release quality program");
+  });
+
+  it("preserves English subjects that contain 'to' as part of the project name", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-subject-to-project" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that the next milestone is cutover readiness for migration to Bun.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that owner review is still pending for A to B migration.",
+        },
+      ],
+    });
+
+    const factSubjects = result.candidates
+      .filter((candidate) => candidate.kindHint === "fact")
+      .map((candidate) => candidate.metadata?.subject);
+
+    expect(factSubjects).toContain("migration to bun");
+    expect(factSubjects).toContain("a to b migration");
+  });
+
+  it("stops English scoped subjects at the predicate boundary instead of swallowing the whole clause", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-scoped-subject-boundary" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that the next step for migration rollout is vendor validation.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that owner signoff for A to B migration is still pending.",
+        },
+      ],
+    });
+
+    const factSubjects = result.candidates
+      .filter((candidate) => candidate.kindHint === "fact")
+      .map((candidate) => candidate.metadata?.subject);
+
+    expect(factSubjects).toContain("migration rollout");
+    expect(factSubjects).toContain("a to b migration");
+  });
+
+  it("preserves English subjects that contain relative clauses instead of truncating them into fragments", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-relative-clause-subject" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that the next milestone is cutover readiness for the service that has to stay online.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that owner review is still pending for the feature that has review dependencies.",
+        },
+      ],
+    });
+
+    const factSubjects = result.candidates
+      .filter((candidate) => candidate.kindHint === "fact")
+      .map((candidate) => candidate.metadata?.subject);
+
+    expect(factSubjects).toContain("service that has to stay online");
+    expect(factSubjects).toContain("feature that has review dependencies");
+  });
+
+  it("stops at the outer predicate after a relative clause instead of returning the whole sentence tail", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-relative-clause-outer-boundary" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that the next step for the feature that has review dependencies is vendor validation.",
+        },
+      ],
+    });
+
+    const factCandidate = result.candidates.find(
+      (candidate) => candidate.kindHint === "fact",
+    );
+
+    expect(factCandidate?.metadata?.subject).toBe(
+      "feature that has review dependencies",
+    );
+  });
+
+  it("uses the same bounded subject extraction for English references", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-reference-subject-boundary" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Use docs/service-runbook.md as the source of truth for the service that has to stay online.",
+        },
+      ],
+    });
+
+    const referenceCandidate = result.candidates.find(
+      (candidate) => candidate.kindHint === "reference",
+    );
+
+    expect(referenceCandidate?.metadata?.subject).toBe(
+      "service that has to stay online",
+    );
+  });
+
   it("preserves superseded pointer metadata for corrected Chinese references", async () => {
     const extractor = createDeterministicMemoryExtractor();
 
@@ -509,5 +706,51 @@ describe("deterministic memory extractor", () => {
     expect(result.candidates[0]?.kindHint).toBe("reference");
     expect(result.candidates[0]?.metadata?.referencePointer).toBe("docs/new.md");
     expect(result.candidates[0]?.metadata?.supersedesPointer).toBe("docs/old.md");
+  });
+
+  it("extracts Chinese project subjects for explicitly named facts and references", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-subjects" },
+      messages: [
+        {
+          role: "user",
+          content: "请记住当前阻塞是迁移流程的供应商审批。",
+        },
+        {
+          role: "user",
+          content: "迁移流程以docs/migration-runbook.md为准。",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.find((candidate) => candidate.kindHint === "fact")?.metadata?.subject,
+    ).toBe("迁移流程");
+    expect(
+      result.candidates.find((candidate) => candidate.kindHint === "reference")?.metadata?.subject,
+    ).toBe("迁移流程");
+  });
+
+  it("keeps Chinese reference subjects unknown when only temporal or directive wording precedes the pointer", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-reference-noise" },
+      messages: [
+        {
+          role: "user",
+          content: "以后都以docs/old-runbook.md为准。",
+        },
+      ],
+    });
+
+    const referenceCandidate = result.candidates.find(
+      (candidate) => candidate.kindHint === "reference",
+    );
+
+    expect(referenceCandidate).toBeDefined();
+    expect(referenceCandidate?.metadata?.subject).toBe("unknown");
   });
 });

@@ -62,6 +62,21 @@ function buildAnswerPackage(
                 sourceMethod: "explicit",
               },
             ],
+            candidateTraces: [
+              {
+                memoryId: "ref-1",
+                memoryType: "reference",
+                slot: "reference",
+                returned: true,
+                whyReturned:
+                  "slot=reference, intentScore=1.00, lexicalScore=0.86, fallback=none",
+                intentScore: 1,
+                lexicalScore: 0.86,
+                freshnessScore: 1,
+                explicitnessScore: 1,
+                fallback: "none",
+              },
+            ],
             policyApplied: [],
             verificationHints: [],
             renderedMemoryContext: "## Context",
@@ -327,6 +342,7 @@ describe("eval reporting", () => {
       ) as {
         references: Array<{ pointer: string }>;
         hits: Array<{ type: string }>;
+        candidateTraces?: Array<{ memoryId: string }>;
       };
       const assertions = JSON.parse(
         await readFile(
@@ -348,6 +364,7 @@ describe("eval reporting", () => {
       expect(goodmemoryTrace.trace.recallHitCount).toBe(4);
       expect(rawRecall.references[0]?.pointer).toBe("docs/runbook.md");
       expect(rawRecall.hits[0]?.type).toBe("reference");
+      expect(rawRecall.candidateTraces?.[0]?.memoryId).toBe("ref-1");
       expect(assertions.updateFindings).toContain("docs/runbook.md");
     } finally {
       await workspace.cleanup();

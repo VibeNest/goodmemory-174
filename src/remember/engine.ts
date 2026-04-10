@@ -305,9 +305,38 @@ function buildReference(
       extractedAt: timestamp,
       locale,
     }),
+    referenceKind: candidate.metadata?.referenceKind,
+    subject: candidate.metadata?.subject ?? "unknown",
     createdAt: timestamp,
     updatedAt: timestamp,
   });
+}
+
+function resolveReferenceSubject(
+  candidate: ClassifiedCandidate,
+  scopedReferences: ReferenceMemory[],
+): string {
+  const candidateSubject = candidate.metadata?.subject?.trim();
+  if (candidateSubject && candidateSubject !== "unknown") {
+    return candidateSubject;
+  }
+
+  const supersededPointer = candidate.metadata?.supersedesPointer;
+  if (supersededPointer) {
+    const supersededReference = scopedReferences.find(
+      (reference) =>
+        reference.lifecycle === "active" &&
+        reference.pointer === supersededPointer &&
+        reference.subject &&
+        reference.subject !== "unknown",
+    );
+
+    if (supersededReference?.subject) {
+      return supersededReference.subject;
+    }
+  }
+
+  return "unknown";
 }
 
 function buildFact(
@@ -331,6 +360,9 @@ function buildFact(
       extractedAt: timestamp,
       locale,
     }),
+    factKind: candidate.metadata?.factKind,
+    scopeKind: candidate.metadata?.scopeKind,
+    subject: candidate.metadata?.subject ?? "unknown",
     createdAt: timestamp,
     updatedAt: timestamp,
   });
@@ -660,14 +692,41 @@ export function createRememberEngine(config: RememberEngineConfig) {
           const scopedReferences = await config.repositories.references.listByScope(
             input.scope,
           );
+          const resolvedSubject = resolveReferenceSubject(
+            effectiveCandidate,
+            scopedReferences,
+          );
+          const referenceCandidate =
+            resolvedSubject === effectiveCandidate.metadata?.subject
+              ? effectiveCandidate
+              : {
+                  ...effectiveCandidate,
+                  metadata: {
+                    ...effectiveCandidate.metadata,
+                    subject: resolvedSubject,
+                  },
+                };
           const pointer =
-            effectiveCandidate.metadata?.referencePointer ?? effectiveCandidate.content;
+            referenceCandidate.metadata?.referencePointer ?? referenceCandidate.content;
           const duplicate = scopedReferences.find(
             (reference) =>
               reference.lifecycle === "active" && reference.pointer === pointer,
           );
 
           if (duplicate) {
+            if (
+              duplicate.subject === "unknown" &&
+              referenceCandidate.metadata?.subject &&
+              referenceCandidate.metadata.subject !== "unknown"
+            ) {
+              await config.repositories.references.add(
+                createReferenceMemory({
+                  ...duplicate,
+                  subject: referenceCandidate.metadata.subject,
+                  updatedAt: timestamp,
+                }),
+              );
+            }
             accepted += 1;
             events.push({
               candidateId: candidate.id,
@@ -683,12 +742,12 @@ export function createRememberEngine(config: RememberEngineConfig) {
           const superseded = scopedReferences.find(
             (reference) =>
               reference.lifecycle === "active" &&
-              reference.pointer === effectiveCandidate.metadata?.supersedesPointer,
+              reference.pointer === referenceCandidate.metadata?.supersedesPointer,
           );
           if (superseded && config.policy?.resolveConflict) {
             const resolution = await config.policy.resolveConflict(
               toPolicyMemoryRecord(superseded, "reference"),
-              effectiveCandidate,
+              referenceCandidate,
               policyContext,
             );
 
@@ -707,7 +766,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
           }
           const reference = buildReference(
             input.scope,
-            effectiveCandidate,
+            referenceCandidate,
             createId(),
             timestamp,
             resolvedLanguage.locale,

@@ -427,6 +427,7 @@ describe("public remember API", () => {
     const references = await documentStore.query<{
       pointer: string;
       lifecycle: string;
+      subject?: string;
     }>("references", {
       userId: "u-1",
       workspaceId: "workspace-a",
@@ -443,7 +444,8 @@ describe("public remember API", () => {
       references.some(
         (reference) =>
           reference.pointer === "docs/migration-runbook-v2.md" &&
-          reference.lifecycle === "active",
+          reference.lifecycle === "active" &&
+          reference.subject === "migration work",
       ),
     ).toBe(true);
   });
@@ -495,6 +497,147 @@ describe("public remember API", () => {
     expect(profiles[0]?.activeContext?.currentProjects).toContain(
       "release quality program",
     );
+  });
+
+  it("writes slot-structured fact and reference metadata during remember", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-structured", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that I have now moved into a staff platform engineer leading release quality program.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that my current focus is runtime reliability and platform migration for release quality program.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that the current blocker is vendor approval for release quality program.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that owner review is still pending for release quality program.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that the next milestone is cutover readiness for release quality program.",
+        },
+        {
+          role: "user",
+          content:
+            "Remember that the next step for the service that has to stay online is vendor validation.",
+        },
+        {
+          role: "user",
+          content:
+            "Use docs/release-quality-runbook.md as the source of truth for release quality program.",
+        },
+      ],
+    });
+
+    const facts = await documentStore.query<{
+      content: string;
+      category?: string;
+      factKind?: string;
+      scopeKind?: string;
+      subject?: string;
+    }>("facts", {
+      userId: "u-structured",
+      workspaceId: "workspace-a",
+    });
+    const references = await documentStore.query<{
+      pointer: string;
+      referenceKind?: string;
+      subject?: string;
+    }>("references", {
+      userId: "u-structured",
+      workspaceId: "workspace-a",
+    });
+
+    expect(
+      facts.some(
+        (fact) =>
+          fact.content ===
+            "my current role is staff platform engineer leading release quality program." &&
+          fact.factKind === "role_update" &&
+          fact.scopeKind === "identity" &&
+          fact.subject === "release quality program",
+      ),
+    ).toBe(true);
+    expect(
+      facts.some(
+        (fact) =>
+          fact.content ===
+            "my current focus is runtime reliability and platform migration for release quality program." &&
+          fact.factKind === "focus_update" &&
+          fact.scopeKind === "project" &&
+          fact.subject === "release quality program",
+      ),
+    ).toBe(true);
+    expect(
+      facts.some(
+        (fact) =>
+          fact.content ===
+            "the current blocker is vendor approval for release quality program." &&
+          fact.factKind === "blocker" &&
+          fact.scopeKind === "project" &&
+          fact.subject === "release quality program",
+      ),
+    ).toBe(true);
+    expect(
+      facts.some(
+        (fact) =>
+          fact.content ===
+            "owner review is still pending for release quality program." &&
+          fact.factKind === "project_state" &&
+          fact.scopeKind === "project" &&
+          fact.subject === "release quality program",
+      ),
+    ).toBe(true);
+    expect(
+      facts.some(
+        (fact) =>
+          fact.content ===
+            "the next milestone is cutover readiness for release quality program." &&
+          fact.factKind === "project_state" &&
+          fact.scopeKind === "project" &&
+          fact.subject === "release quality program",
+      ),
+    ).toBe(true);
+    expect(
+      facts.some(
+        (fact) =>
+          fact.content ===
+            "the next step for the service that has to stay online is vendor validation." &&
+          fact.factKind === "project_state" &&
+          fact.scopeKind === "project" &&
+          fact.category !== "personal" &&
+          fact.subject === "service that has to stay online",
+      ),
+    ).toBe(true);
+    expect(
+      references.some(
+        (reference) =>
+          reference.pointer === "docs/release-quality-runbook.md" &&
+          reference.referenceKind === "source_of_truth" &&
+          reference.subject === "release quality program",
+      ),
+    ).toBe(true);
   });
 
   it("writes Chinese durable memory through the public API", async () => {
@@ -615,7 +758,7 @@ describe("public remember API", () => {
       messages: [
         {
           role: "user",
-          content: "以docs/old-runbook.md为准。",
+          content: "迁移流程以docs/old-runbook.md为准。",
         },
       ],
     });
@@ -633,6 +776,7 @@ describe("public remember API", () => {
     const references = await documentStore.query<{
       pointer: string;
       lifecycle: string;
+      subject?: string;
     }>("references", {
       userId: "u-zh-ref",
       workspaceId: "workspace-zh",
@@ -649,7 +793,8 @@ describe("public remember API", () => {
       references.some(
         (reference) =>
           reference.pointer === "docs/new-runbook.md" &&
-          reference.lifecycle === "active",
+          reference.lifecycle === "active" &&
+          reference.subject === "迁移流程",
       ),
     ).toBe(true);
   });

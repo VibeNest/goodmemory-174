@@ -1,8 +1,17 @@
-import type { MemoryCandidate, ProfileField } from "../remember/candidates";
+import type {
+  MemoryCandidate,
+  MemoryCandidateMetadata,
+  ProfileField,
+} from "../remember/candidates";
 import type {
   LanguageAdapter,
   LanguageCandidateExtractionInput,
 } from "./contracts";
+import type {
+  FactKind,
+  MemoryScopeKind,
+  ReferenceKind,
+} from "../domain/records";
 import {
   splitClausesGeneric,
   normalizeUnicodeForEquality,
@@ -20,6 +29,10 @@ const CHINESE_STOPWORDS = new Set([
   "已经",
   "以后",
 ]);
+const CHINESE_REFERENCE_SUBJECT_NOISE_PATTERN =
+  /^(?:现在|目前|当前|以后|以后都|今后|之后|后续|之后都|暂时|先|继续|仍然|都|统一|默认|请|请以后|以后请)$/u;
+const CHINESE_REFERENCE_SUBJECT_HINT_PATTERN =
+  /(项目|流程|迁移|发布|上线|系统|服务|模块|计划|工作|工作流|平台|接口|看板|质量|程序|任务|手册|剧本|审批|验收|签收|交接|可靠性|支付|订单|运行时)/u;
 
 const DURABLE_INFERENCE_PATTERNS = [
   /(目前|现在|仍然|已经)/u,
@@ -114,6 +127,149 @@ function deriveFeedbackKind(content: string): "do" | "dont" | "prefer" {
   }
 
   return "do";
+}
+
+function extractStableSubject(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const cleaned = cleanValue(value)
+    .replace(/^(当前|目前|现在|这个|该)/u, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+  return cleaned.length >= 2 ? cleaned : undefined;
+}
+
+function extractFactSubject(content: string): string | undefined {
+  const matches = [
+    content.match(/(?:为了|关于|针对)\s*([^，。！？；]+)/u),
+    content.match(/(?:在|于)\s*([^，。！？；]+)(?:上|中)/u),
+    content.match(/是\s*([^，。！？；]+?)\s*的[^，。！？；]+/u),
+  ];
+
+  for (const match of matches) {
+    if (match?.[1]) {
+      return extractStableSubject(match[1]);
+    }
+  }
+
+  return undefined;
+}
+
+function extractReferenceSubject(content: string): string | undefined {
+  const matches = [
+    content.match(/(?:关于|针对)\s*([^，。！？；]+)/u),
+    content.match(/([^，。！？；]+?)\s*(?:现在)?以\s*[A-Za-z0-9_./-]+\.[A-Za-z0-9]+\s*(?:为准|作为事实来源)/u),
+  ];
+
+  for (const match of matches) {
+    if (match?.[1]) {
+      const subject = extractStableSubject(match[1]);
+      if (
+        subject &&
+        !CHINESE_REFERENCE_SUBJECT_NOISE_PATTERN.test(subject) &&
+        (CHINESE_REFERENCE_SUBJECT_HINT_PATTERN.test(subject) ||
+          /[A-Za-z0-9][A-Za-z0-9 _-]{1,}/u.test(subject))
+      ) {
+        return subject;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function deriveFactKind(content: string): FactKind | undefined {
+  if (/(我当前角色是|我的角色是)/u.test(content)) {
+    return "role_update";
+  }
+
+  if (/(我当前重点是|当前重点是|当前关注是|当前关注点是)/u.test(content)) {
+    return "focus_update";
+  }
+
+  if (/(阻塞|卡住|审批)/u.test(content)) {
+    return "blocker";
+  }
+
+  if (/(开环|待办|未完成|签收|验收|验证)/u.test(content)) {
+    return "open_loop";
+  }
+
+  if (/(待确认|待处理|待跟进|待完成|待评审|仍需|还需|剩余|尚待|待 review)/u.test(content)) {
+    return "project_state";
+  }
+
+  if (deriveFactCategory(content) === "project" || deriveFactCategory(content) === "technical") {
+    return "generic_project";
+  }
+
+  return undefined;
+}
+
+function deriveFactScopeKind(
+  category: ReturnType<typeof deriveFactCategory>,
+  factKind: FactKind | undefined,
+): MemoryScopeKind | undefined {
+  if (factKind === "role_update") {
+    return "identity";
+  }
+
+  if (
+    factKind === "focus_update" ||
+    factKind === "blocker" ||
+    factKind === "open_loop" ||
+    factKind === "project_state" ||
+    factKind === "generic_project"
+  ) {
+    return "project";
+  }
+
+  if (category === "personal" || category === "relationship" || category === "event") {
+    return "identity";
+  }
+
+  if (category === "project" || category === "technical") {
+    return "project";
+  }
+
+  return undefined;
+}
+
+function buildFactMetadata(
+  content: string,
+  categoryOverride?: "project" | "technical" | "personal" | "relationship" | "event",
+): MemoryCandidateMetadata {
+  const category = categoryOverride ?? deriveFactCategory(content);
+  const factKind = deriveFactKind(content);
+
+  return {
+    category,
+    factKind,
+    scopeKind: deriveFactScopeKind(category, factKind),
+    subject: extractFactSubject(content) ?? "unknown",
+  };
+}
+
+function deriveReferenceKind(content: string, pointer: string): ReferenceKind {
+  if (/(为准|事实来源)/u.test(content)) {
+    return "source_of_truth";
+  }
+
+  const basename = pointer.split("/").at(-1)?.toLowerCase() ?? pointer.toLowerCase();
+  if (basename.includes("runbook")) {
+    return "runbook";
+  }
+  if (basename.includes("dashboard")) {
+    return "dashboard";
+  }
+  if (basename.includes("tracker")) {
+    return "tracker";
+  }
+
+  return "doc";
 }
 
 function looksLikeDurableInferredFact(content: string): boolean {
@@ -296,7 +452,7 @@ function maybeExtractCandidatesFromClause(
         sourceMessageIndex: index,
         sourceRole: "user",
         metadata: {
-          category: deriveFactCategory(factContent),
+          ...buildFactMetadata(factContent),
         },
       });
     }
@@ -331,12 +487,14 @@ function maybeExtractCandidatesFromClause(
       content: pointer,
       sourceMessageIndex: index,
       sourceRole: "user",
-      metadata: {
-        referenceTitle: title,
-        referencePointer: pointer,
-        supersedesPointer: previousPointer,
-      },
-    });
+        metadata: {
+          referenceKind: deriveReferenceKind(trimmed, pointer),
+          referenceTitle: title,
+          referencePointer: pointer,
+          supersedesPointer: previousPointer,
+          subject: extractReferenceSubject(trimmed) ?? "unknown",
+        },
+      });
   } else {
     const referenceMatch = trimmed.match(/以\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s*(?:为准|作为事实来源)/u);
     if (referenceMatch?.[1]) {
@@ -350,8 +508,10 @@ function maybeExtractCandidatesFromClause(
         sourceMessageIndex: index,
         sourceRole: "user",
         metadata: {
+          referenceKind: deriveReferenceKind(trimmed, pointer),
           referenceTitle: title,
           referencePointer: pointer,
+          subject: extractReferenceSubject(trimmed) ?? "unknown",
         },
       });
     }
@@ -384,7 +544,7 @@ function maybeExtractCandidatesFromClause(
       sourceMessageIndex: index,
       sourceRole: "user",
       metadata: {
-        category: deriveFactCategory(trimmed),
+        ...buildFactMetadata(trimmed),
       },
     });
   }

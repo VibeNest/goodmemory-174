@@ -75,6 +75,12 @@ describe("eval runners", () => {
     ).toBe(true);
     expect(result.retrieved?.references.length).toBeGreaterThan(0);
     expect(result.retrieved?.hits.some((hit) => hit.type === "reference")).toBe(true);
+    expect(result.retrieved?.candidateTraces.length).toBeGreaterThan(0);
+    expect(
+      result.retrieved?.candidateTraces.some(
+        (trace) => trace.returned && typeof trace.whyReturned === "string",
+      ),
+    ).toBe(true);
     expect(result.retrieved?.renderedMemoryContext).toContain("runbook");
     expect(result.memoryContext).toContain("final verification for migration rollout");
     expect(
@@ -108,6 +114,7 @@ describe("eval runners", () => {
 
     expect(result.answer).toBe("answer-without-memory");
     expect(result.retrieved?.facts).toHaveLength(0);
+    expect(result.retrieved?.candidateTraces).toHaveLength(0);
     expect(result.retrieved?.policyApplied).toContain("ignore_memory");
   });
 

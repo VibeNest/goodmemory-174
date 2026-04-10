@@ -1,4 +1,9 @@
-import type { FeedbackKind } from "../domain/records";
+import type {
+  FactKind,
+  FeedbackKind,
+  MemoryScopeKind,
+  ReferenceKind,
+} from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 
 export type ProfileField =
@@ -21,6 +26,22 @@ export type MemoryCandidateKindHint =
 
 export type MemoryCandidateExplicitness = "explicit" | "inferred";
 
+export interface MemoryCandidateMetadata {
+  category?: "project" | "technical" | "personal" | "relationship" | "event";
+  factKind?: FactKind;
+  scopeKind?: MemoryScopeKind;
+  subject?: string;
+  feedbackKind?: FeedbackKind;
+  appliesTo?: string;
+  profileField?: ProfileField;
+  preferenceCategory?: string;
+  preferenceValue?: string;
+  referenceKind?: ReferenceKind;
+  referenceTitle?: string;
+  referencePointer?: string;
+  supersedesPointer?: string;
+}
+
 export interface MemoryCandidate {
   id: string;
   kindHint: MemoryCandidateKindHint;
@@ -28,17 +49,7 @@ export interface MemoryCandidate {
   content: string;
   sourceMessageIndex: number;
   sourceRole: string;
-  metadata?: {
-    category?: "project" | "technical" | "personal" | "relationship" | "event";
-    feedbackKind?: FeedbackKind;
-    appliesTo?: string;
-    profileField?: ProfileField;
-    preferenceCategory?: string;
-    preferenceValue?: string;
-    referenceTitle?: string;
-    referencePointer?: string;
-    supersedesPointer?: string;
-  };
+  metadata?: MemoryCandidateMetadata;
 }
 
 export interface MemoryExtractionInput {

@@ -53,7 +53,7 @@ describe("recall verification hints", () => {
     expect(result.metadata.verificationHints?.[0]?.memoryId).toBe("fact-1");
   });
 
-  it("exposes verification hints for stale references and episodes too", async () => {
+  it("exposes verification hints for stale references while keeping slot-specific queries from pulling generic episodes", async () => {
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();
     const repositories = createMemoryRepositories({
@@ -102,9 +102,9 @@ describe("recall verification hints", () => {
       retrievalProfile: "general_chat",
     });
 
-    expect(result.metadata.verificationHints.map((hint) => hint.memoryType).sort()).toEqual([
-      "episode",
+    expect(result.metadata.verificationHints.map((hint) => hint.memoryType)).toEqual([
       "reference",
     ]);
+    expect(result.episodes).toHaveLength(0);
   });
 });
