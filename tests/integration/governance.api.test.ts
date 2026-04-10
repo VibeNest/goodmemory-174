@@ -191,6 +191,26 @@ describe("public governance API", () => {
     expect(globalExport.durable.archives).toHaveLength(2);
     expect(globalExport.durable.evidence).toHaveLength(4);
     expect(globalExport.durable.experiences).toHaveLength(2);
+    expect(durableOnly.artifacts.rootPath).toBe(
+      ".goodmemory/users/u-1/workspaces/workspace-a/sessions/s-1",
+    );
+    expect(durableOnly.artifacts.files.map((file) => file.relativePath)).toEqual([
+      "user.md",
+      "MEMORY.md",
+      "session.md",
+    ]);
+    expect(durableOnly.artifacts.files[1]?.content).toContain(
+      "migration rollout is blocked on prod verification.",
+    );
+    expect(withRuntime.artifacts.files[2]?.content).toContain("Current goal: Finish rollout");
+    expect(withRuntime.artifacts.files[2]?.content).toContain(
+      "Very large runtime-only payload for session one.",
+    );
+    const withRuntimeAgain = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+      includeRuntime: true,
+    });
+    expect(withRuntimeAgain.artifacts).toEqual(withRuntime.artifacts);
     expect(withRuntime.runtime?.workingMemory?.currentGoal).toBe("Finish rollout");
     expect(withRuntime.runtime?.spills).toHaveLength(1);
     expect(withRuntime.runtime?.spills[0]?.sourceId).toBe("tool-1");
@@ -381,6 +401,12 @@ describe("public governance API", () => {
     expect(recallA.journal).toBeNull();
     expect(exportedA.runtime?.spills).toHaveLength(0);
     expect(exportedOtherSession.runtime?.spills).toHaveLength(1);
+    expect(exportedA.artifacts.rootPath).toBe(
+      ".goodmemory/users/u-1/workspaces/workspace-a/sessions/s-1",
+    );
+    expect(exportedOtherSession.artifacts.rootPath).toBe(
+      ".goodmemory/users/u-1/workspaces/workspace-a/sessions/s-9",
+    );
     expect(await documentStore.get(SESSION_ARCHIVES_COLLECTION, "archive-s1")).toBeNull();
     expect(await documentStore.get(SESSION_ARCHIVES_COLLECTION, "archive-s9")).not.toBeNull();
     expect(await documentStore.get(EVIDENCE_COLLECTION, "evidence-s1")).toBeNull();

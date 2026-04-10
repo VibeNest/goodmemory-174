@@ -24,6 +24,7 @@ describe("recall router", () => {
       "feedback",
       "fact",
     ]);
+    expect(plan.sourcePriorities.includes("evidence")).toBe(false);
   });
 
   it("prioritizes runtime continuity for coding-agent recalls", () => {
@@ -43,6 +44,7 @@ describe("recall router", () => {
       "episode",
       "fact",
     ]);
+    expect(plan.sourcePriorities.includes("evidence")).toBe(true);
     expect(plan.intent).toBe("task_continuation");
   });
 
@@ -65,6 +67,7 @@ describe("recall router", () => {
       "episode",
       "fact",
     ]);
+    expect(plan.sourcePriorities.includes("evidence")).toBe(true);
   });
 
   it("plans role queries with action-driving support as separate slots", () => {
@@ -96,6 +99,7 @@ describe("recall router", () => {
     expect(plan.supportSlots).toEqual(["project_state_support"]);
     expect(plan.referenceSeeking).toBe(true);
     expect(plan.actionDriving).toBe(true);
+    expect(plan.sourcePriorities.includes("evidence")).toBe(true);
   });
 
   it("plans Chinese blocker queries as blocker-only recalls", () => {
@@ -112,5 +116,6 @@ describe("recall router", () => {
     expect(plan.requestedSlots).toEqual(["blocker"]);
     expect(plan.supportSlots).toEqual([]);
     expect(plan.actionDriving).toBe(false);
+    expect(plan.sourcePriorities.includes("evidence")).toBe(false);
   });
 });

@@ -12,11 +12,13 @@ export interface VerificationHint {
   memoryId: string;
   memoryType: "fact" | "reference" | "episode";
   reason: string;
+  evidenceIds?: string[];
 }
 
 export interface VerificationPolicyInput {
   query: string;
   referenceTime: string;
+  evidenceIdsByMemoryId?: Record<string, string[]>;
   facts: FactMemory[];
   references?: ReferenceMemory[];
   episodes?: EpisodeMemory[];
@@ -57,6 +59,7 @@ export function evaluateVerificationHints(
         memoryId: fact.id,
         memoryType: "fact",
         reason: `stale fact (${Math.floor(factAgeDays)} days old) should be verified before action`,
+        evidenceIds: input.evidenceIdsByMemoryId?.[fact.id],
       });
       continue;
     }
@@ -66,6 +69,7 @@ export function evaluateVerificationHints(
         memoryId: fact.id,
         memoryType: "fact",
         reason: "inferred fact should be verified before driving action",
+        evidenceIds: input.evidenceIdsByMemoryId?.[fact.id],
       });
     }
   }
@@ -81,6 +85,7 @@ export function evaluateVerificationHints(
         memoryId: reference.id,
         memoryType: "reference",
         reason: `stale reference (${Math.floor(referenceAgeDays)} days old) should be re-checked before action`,
+        evidenceIds: input.evidenceIdsByMemoryId?.[reference.id],
       });
     }
 
@@ -94,6 +99,7 @@ export function evaluateVerificationHints(
         memoryId: episode.id,
         memoryType: "episode",
         reason: `stale episode (${Math.floor(episodeAgeDays)} days old) should be re-validated before action`,
+        evidenceIds: input.evidenceIdsByMemoryId?.[episode.id],
       });
     }
   }

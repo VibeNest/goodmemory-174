@@ -32,6 +32,8 @@ async function assertGovernanceShapes() {
   void exported.durable.archives;
   void exported.durable.evidence;
   void exported.durable.experiences;
+  void exported.artifacts.rootPath;
+  void exported.artifacts.files[0]?.relativePath;
   void deleted.deleted.archives;
   void deleted.deleted.evidence;
   void deleted.deleted.experiences;

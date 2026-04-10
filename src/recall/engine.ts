@@ -69,6 +69,7 @@ export interface RecallHit {
   score?: number;
   reason?: string;
   sourceMethod?: MemorySourceMethod;
+  evidenceIds?: string[];
 }
 
 export interface RecallCandidateTrace {
@@ -83,6 +84,12 @@ export interface RecallCandidateTrace {
   freshnessScore: number;
   explicitnessScore: number;
   fallback: "none" | "same_slot_unique_candidate";
+  evidenceIds?: string[];
+}
+
+interface EvidenceLinkIndex {
+  byArchiveId: Record<string, string[]>;
+  byMemoryId: Record<string, string[]>;
 }
 
 export interface RecallResult {
@@ -1395,7 +1402,7 @@ function sortEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
   );
 }
 
-function selectEvidence(
+function filterLinkedEvidence(
   evidence: EvidenceRecord[],
   linkedMemoryIds: Set<string>,
   linkedArchiveIds: Set<string>,
@@ -1406,8 +1413,71 @@ function selectEvidence(
       const matchesArchive = record.linkedArchiveIds.some((id) => linkedArchiveIds.has(id));
 
       return matchesMemory || matchesArchive;
-    })
-    .slice(0, 3);
+    });
+}
+
+function selectEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
+  return evidence.slice(0, 3);
+}
+
+function addEvidenceLinks(
+  index: Record<string, string[]>,
+  linkedIds: string[],
+  evidenceId: string,
+): void {
+  for (const linkedId of linkedIds) {
+    const existing = index[linkedId];
+    if (!existing) {
+      index[linkedId] = [evidenceId];
+      continue;
+    }
+
+    if (!existing.includes(evidenceId)) {
+      existing.push(evidenceId);
+    }
+  }
+}
+
+function buildEvidenceLinkIndex(evidence: EvidenceRecord[]): EvidenceLinkIndex {
+  const index: EvidenceLinkIndex = {
+    byArchiveId: {},
+    byMemoryId: {},
+  };
+
+  for (const record of evidence) {
+    addEvidenceLinks(index.byMemoryId, record.linkedMemoryIds, record.id);
+    addEvidenceLinks(index.byArchiveId, record.linkedArchiveIds, record.id);
+  }
+
+  return index;
+}
+
+function evidenceIdsForMemory(
+  evidenceIndex: EvidenceLinkIndex,
+  memoryId: string,
+): string[] | undefined {
+  return evidenceIndex.byMemoryId[memoryId];
+}
+
+function evidenceIdsForArchive(
+  evidenceIndex: EvidenceLinkIndex,
+  archiveId: string,
+): string[] | undefined {
+  return evidenceIndex.byArchiveId[archiveId];
+}
+
+function attachEvidenceIdsToCandidateTraces(
+  traces: RecallCandidateTrace[],
+  evidenceIndex: EvidenceLinkIndex,
+): RecallCandidateTrace[] {
+  return traces.map((trace) => {
+    const evidenceIds =
+      trace.memoryType === "archive"
+        ? evidenceIdsForArchive(evidenceIndex, trace.memoryId)
+        : evidenceIdsForMemory(evidenceIndex, trace.memoryId);
+
+    return evidenceIds ? { ...trace, evidenceIds } : trace;
+  });
 }
 
 function buildHits(input: {
@@ -1421,6 +1491,7 @@ function buildHits(input: {
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
+  evidenceIndex: EvidenceLinkIndex;
   routingDecision: RoutingDecision;
 }): RecallHit[] {
   const hits: RecallHit[] = [];
@@ -1450,6 +1521,7 @@ function buildHits(input: {
           type: "reference",
           reason: "semantic_reference",
           sourceMethod: reference.source.method,
+          evidenceIds: evidenceIdsForMemory(input.evidenceIndex, reference.id),
         });
       }
     }
@@ -1461,6 +1533,7 @@ function buildHits(input: {
           type: "fact",
           reason: "scope_match",
           sourceMethod: fact.source.method,
+          evidenceIds: evidenceIdsForMemory(input.evidenceIndex, fact.id),
         });
       }
     }
@@ -1472,6 +1545,7 @@ function buildHits(input: {
           type: "feedback",
           reason: "scope_match",
           sourceMethod: feedback.source.method,
+          evidenceIds: evidenceIdsForMemory(input.evidenceIndex, feedback.id),
         });
       }
     }
@@ -1482,6 +1556,7 @@ function buildHits(input: {
           id: archive.id,
           type: "session_archive",
           reason: "continuation_context",
+          evidenceIds: evidenceIdsForArchive(input.evidenceIndex, archive.id),
         });
       }
     }
@@ -1492,6 +1567,7 @@ function buildHits(input: {
           id: episode.id,
           type: "episode",
           reason: "continuation_context",
+          evidenceIds: evidenceIdsForMemory(input.evidenceIndex, episode.id),
         });
       }
     }
@@ -1511,15 +1587,18 @@ function buildHits(input: {
         reason: "runtime_continuity",
       });
     }
-  }
 
-  for (const evidenceRecord of input.evidence.slice(0, 3)) {
-    hits.push({
-      id: evidenceRecord.id,
-      type: "evidence",
-      reason: "linked_evidence",
-      sourceMethod: evidenceRecord.source.method,
-    });
+    if (source === "evidence") {
+      for (const evidenceRecord of input.evidence.slice(0, 3)) {
+        hits.push({
+          id: evidenceRecord.id,
+          type: "evidence",
+          reason: "linked_evidence",
+          sourceMethod: evidenceRecord.source.method,
+          evidenceIds: [evidenceRecord.id],
+        });
+      }
+    }
   }
 
   return hits;
@@ -1876,8 +1955,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
-      const evidence = await applyRecallPolicyToRecords(
-        selectEvidence(
+      const allLinkedEvidence = await applyRecallPolicyToRecords(
+        filterLinkedEvidence(
           evidenceRaw,
           new Set([
             ...facts.map((fact) => fact.id),
@@ -1898,7 +1977,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
-      const candidateTraces = [
+      const evidence = routingDecision.sourcePriorities.includes("evidence")
+        ? selectEvidence(allLinkedEvidence)
+        : [];
+      const evidenceIndex = buildEvidenceLinkIndex(allLinkedEvidence);
+      const candidateTraces = attachEvidenceIdsToCandidateTraces([
         ...reconcileCandidateTraces(
           selectedFacts.traces,
           new Set(facts.map((fact) => fact.id)),
@@ -1915,7 +1998,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           selectedEpisodes.traces,
           new Set(episodes.map((episode) => episode.id)),
         ),
-      ];
+      ], evidenceIndex);
       const workingMemory =
         retrievalProfile === "coding_agent" ? workingMemoryRaw : null;
       const journal = retrievalProfile === "coding_agent" ? journalRaw : null;
@@ -1951,6 +2034,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           verificationHints: evaluateVerificationHints({
             query: input.query,
             referenceTime: currentReferenceTime,
+            evidenceIdsByMemoryId: evidenceIndex.byMemoryId,
             facts,
             references,
             episodes,
@@ -1974,6 +2058,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
             episodes,
             workingMemory,
             journal,
+            evidenceIndex,
             routingDecision,
           }),
         },

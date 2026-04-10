@@ -20,6 +20,9 @@ import type {
   ExperienceRecord,
   SessionArchive,
 } from "./evolution/contracts";
+import type {
+  MarkdownArtifactBundle,
+} from "./governance/markdownArtifacts";
 import {
   createFeedbackMemory,
 } from "./domain/records";
@@ -52,6 +55,9 @@ import {
   type LanguageConfig,
   type LocaleDetector,
 } from "./language";
+import {
+  buildMarkdownArtifacts,
+} from "./governance/markdownArtifacts";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "./storage/memory";
 import {
   createPostgresDocumentStore,
@@ -229,6 +235,10 @@ export {
   passesDefaultScopeGuard,
   toPolicyMemoryRecord,
 } from "./policy/hooks";
+export type {
+  MarkdownArtifactBundle,
+  MarkdownArtifactFile,
+} from "./governance/markdownArtifacts";
 
 export interface StorageConfig {
   provider: "memory" | "sqlite" | "postgres";
@@ -343,6 +353,7 @@ export interface ExportMemoryInput {
 }
 
 export interface ExportMemoryResult {
+  artifacts: MarkdownArtifactBundle;
   scope: MemoryScope;
   exportedAt: string;
   durable: {
@@ -623,27 +634,35 @@ class GoodMemoryImpl implements GoodMemory {
       recordMatchesScope(record.scope, input.scope),
     );
 
+    const durable = {
+      profile: isPureUserScope(input.scope) ? profile : null,
+      preferences: preferences.filter((record) => recordMatchesScope(record, input.scope)),
+      references: references.filter((record) => recordMatchesScope(record, input.scope)),
+      facts: facts.filter((record) => recordMatchesScope(record, input.scope)),
+      feedback: feedback.filter((record) => recordMatchesScope(record, input.scope)),
+      episodes: episodes.filter((record) => recordMatchesScope(record, input.scope)),
+      archives: archives.filter((record) => recordMatchesScope(record, input.scope)),
+      evidence: evidence.filter((record) => recordMatchesScope(record, input.scope)),
+      experiences: experiences.filter((record) => recordMatchesScope(record, input.scope)),
+    };
+    const runtime = input.includeRuntime
+      ? {
+          workingMemory,
+          journal,
+          spills,
+        }
+      : undefined;
+
     return {
+      artifacts: buildMarkdownArtifacts({
+        scope: input.scope,
+        durable,
+        runtime,
+      }),
       scope: input.scope,
       exportedAt: new Date().toISOString(),
-      durable: {
-        profile: isPureUserScope(input.scope) ? profile : null,
-        preferences: preferences.filter((record) => recordMatchesScope(record, input.scope)),
-        references: references.filter((record) => recordMatchesScope(record, input.scope)),
-        facts: facts.filter((record) => recordMatchesScope(record, input.scope)),
-        feedback: feedback.filter((record) => recordMatchesScope(record, input.scope)),
-        episodes: episodes.filter((record) => recordMatchesScope(record, input.scope)),
-        archives: archives.filter((record) => recordMatchesScope(record, input.scope)),
-        evidence: evidence.filter((record) => recordMatchesScope(record, input.scope)),
-        experiences: experiences.filter((record) => recordMatchesScope(record, input.scope)),
-      },
-      runtime: input.includeRuntime
-        ? {
-            workingMemory,
-            journal,
-            spills,
-          }
-        : undefined,
+      durable,
+      runtime,
     };
   }
 

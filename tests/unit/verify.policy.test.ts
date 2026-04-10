@@ -13,6 +13,9 @@ describe("verification policy", () => {
     const hints = evaluateVerificationHints({
       query: "Proceed with the migration steps using the remembered project status.",
       referenceTime: "2026-04-02T00:00:00.000Z",
+      evidenceIdsByMemoryId: {
+        "fact-1": ["evidence-fact-1"],
+      },
       facts: [
         createFactMemory({
           id: "fact-1",
@@ -28,6 +31,7 @@ describe("verification policy", () => {
 
     expect(hints).toHaveLength(1);
     expect(hints[0]?.memoryId).toBe("fact-1");
+    expect(hints[0]?.evidenceIds).toEqual(["evidence-fact-1"]);
     expect(hints[0]?.reason).toContain("stale");
   });
 

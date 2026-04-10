@@ -19,6 +19,7 @@ export type RecallSource =
   | "profile"
   | "feedback"
   | "fact"
+  | "evidence"
   | "session_archive"
   | "episode"
   | "working_memory"
@@ -103,6 +104,9 @@ export function planRecall(input: RecallRoutingInput): RoutingDecision {
   if (continuationIntent) {
     supportSlots.push("runtime_continuity");
   }
+  const includeEvidence =
+    continuationIntent || actionDriving || referenceSeeking;
+  const evidenceSources: RecallSource[] = includeEvidence ? ["evidence"] : [];
 
   if (continuationIntent) {
     return {
@@ -114,6 +118,7 @@ export function planRecall(input: RecallRoutingInput): RoutingDecision {
         "session_archive",
         "episode",
         "fact",
+        ...evidenceSources,
         "feedback",
         "profile",
       ],
@@ -132,6 +137,7 @@ export function planRecall(input: RecallRoutingInput): RoutingDecision {
       "profile",
       "feedback",
       "fact",
+      ...evidenceSources,
       "episode",
       "working_memory",
       "session_journal",

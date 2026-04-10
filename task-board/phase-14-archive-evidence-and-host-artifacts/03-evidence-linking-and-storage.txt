@@ -3,7 +3,7 @@ Phase 14.3: Evidence Linking and Storage
 
 [DONE] P14.3-T001 Add evidence repository/storage support
 [DONE] P14.3-T002 Link durable memory records to selective evidence shards
-[WIP] P14.3-T003 Link recall and verification traces back to evidence ids
+[DONE] P14.3-T003 Link recall and verification traces back to evidence ids
 
 Why this exists
 ---------------
@@ -32,4 +32,4 @@ Progress notes
 - Added evidence persistence to typed repositories and public exports
 - Remember writes bounded evidence shards for durable fact/reference promotions and merges
 - Recall surfaces linked evidence objects in result payloads, packet summaries, and context output
-- Verification hints still need explicit evidence-id backreferences before this slice is fully closed
+- Recall hits, candidate traces, and verification hints now carry `evidenceIds` backreferences

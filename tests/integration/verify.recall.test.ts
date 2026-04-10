@@ -5,6 +5,7 @@ import {
   createFactMemory,
   createReferenceMemory,
 } from "../../src/domain/records";
+import { createEvidenceRecord } from "../../src/evidence/contracts";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
@@ -34,6 +35,17 @@ describe("recall verification hints", () => {
         updatedAt: "2025-01-01T00:00:00.000Z",
       }),
     );
+    await repositories.evidence.add(
+      createEvidenceRecord({
+        id: "evidence-fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "conversation_excerpt",
+        excerpt: "The user said the robot workflow is blocked on prod migration.",
+        source: { method: "explicit", extractedAt: "2025-01-01T00:00:00.000Z" },
+        linkedMemoryIds: ["fact-1"],
+      }),
+    );
 
     const memory = createGoodMemory({
       storage: { provider: "memory" },
@@ -51,6 +63,9 @@ describe("recall verification hints", () => {
 
     expect(result.metadata.verificationHints).toHaveLength(1);
     expect(result.metadata.verificationHints?.[0]?.memoryId).toBe("fact-1");
+    expect(result.metadata.verificationHints?.[0]?.evidenceIds).toEqual([
+      "evidence-fact-1",
+    ]);
   });
 
   it("exposes verification hints for stale references while keeping slot-specific queries from pulling generic episodes", async () => {
@@ -71,6 +86,17 @@ describe("recall verification hints", () => {
         source: { method: "explicit", extractedAt: "2025-12-01T00:00:00.000Z" },
         createdAt: "2025-12-01T00:00:00.000Z",
         updatedAt: "2025-12-01T00:00:00.000Z",
+      }),
+    );
+    await repositories.evidence.add(
+      createEvidenceRecord({
+        id: "evidence-ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "conversation_excerpt",
+        excerpt: "The user said docs/runbook.md is the rollout runbook.",
+        source: { method: "explicit", extractedAt: "2025-12-01T00:00:00.000Z" },
+        linkedMemoryIds: ["ref-1"],
       }),
     );
     await repositories.episodes.add(
@@ -104,6 +130,9 @@ describe("recall verification hints", () => {
 
     expect(result.metadata.verificationHints.map((hint) => hint.memoryType)).toEqual([
       "reference",
+    ]);
+    expect(result.metadata.verificationHints[0]?.evidenceIds).toEqual([
+      "evidence-ref-1",
     ]);
     expect(result.episodes).toHaveLength(0);
   });
