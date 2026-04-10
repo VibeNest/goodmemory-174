@@ -24,3 +24,17 @@ const recallInput: RecallInput = {
 void memory.exportMemory(exportInput);
 void memory.deleteAllMemory(deleteInput);
 void memory.recall(recallInput);
+
+async function assertGovernanceShapes() {
+  const exported = await memory.exportMemory(exportInput);
+  const deleted = await memory.deleteAllMemory(deleteInput);
+
+  void exported.durable.archives;
+  void exported.durable.evidence;
+  void exported.durable.experiences;
+  void deleted.deleted.archives;
+  void deleted.deleted.evidence;
+  void deleted.deleted.experiences;
+}
+
+void assertGovernanceShapes();

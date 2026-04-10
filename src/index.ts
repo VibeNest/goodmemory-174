@@ -15,7 +15,11 @@ import type {
   UserProfile,
   WorkingMemorySnapshot,
 } from "./domain/records";
-import type { SessionArchive } from "./evolution/contracts";
+import type { EvidenceRecord } from "./evidence/contracts";
+import type {
+  ExperienceRecord,
+  SessionArchive,
+} from "./evolution/contracts";
 import {
   createFeedbackMemory,
 } from "./domain/records";
@@ -346,6 +350,9 @@ export interface ExportMemoryResult {
     facts: FactMemory[];
     feedback: FeedbackMemory[];
     episodes: EpisodeMemory[];
+    archives: SessionArchive[];
+    evidence: EvidenceRecord[];
+    experiences: ExperienceRecord[];
   };
   runtime?: {
     workingMemory: WorkingMemorySnapshot | null;
@@ -368,6 +375,9 @@ export interface DeleteAllMemoryResult {
     facts: number;
     feedback: number;
     episodes: number;
+    archives: number;
+    evidence: number;
+    experiences: number;
     workingMemory: number;
     journal: number;
     artifactSpills: number;
@@ -580,6 +590,9 @@ class GoodMemoryImpl implements GoodMemory {
       facts,
       feedback,
       episodes,
+      archives,
+      evidence,
+      experiences,
       workingMemory,
       journal,
       allSpills,
@@ -590,6 +603,9 @@ class GoodMemoryImpl implements GoodMemory {
       this.repositories.facts.listByScope(input.scope),
       this.repositories.feedback.listByScope(input.scope),
       this.repositories.episodes.listByScope(input.scope),
+      this.repositories.archives.listByScope(input.scope),
+      this.repositories.evidence.listByScope(input.scope),
+      this.repositories.experiences.listByScope(input.scope),
       input.includeRuntime && input.scope.sessionId
         ? this.sessionStore.getWorkingMemory(input.scope)
         : Promise.resolve(null),
@@ -615,6 +631,9 @@ class GoodMemoryImpl implements GoodMemory {
         facts: facts.filter((record) => recordMatchesScope(record, input.scope)),
         feedback: feedback.filter((record) => recordMatchesScope(record, input.scope)),
         episodes: episodes.filter((record) => recordMatchesScope(record, input.scope)),
+        archives: archives.filter((record) => recordMatchesScope(record, input.scope)),
+        evidence: evidence.filter((record) => recordMatchesScope(record, input.scope)),
+        experiences: experiences.filter((record) => recordMatchesScope(record, input.scope)),
       },
       runtime: input.includeRuntime
         ? {
@@ -634,6 +653,9 @@ class GoodMemoryImpl implements GoodMemory {
       facts: 0,
       feedback: 0,
       episodes: 0,
+      archives: 0,
+      evidence: 0,
+      experiences: 0,
       workingMemory: 0,
       journal: 0,
       artifactSpills: 0,
@@ -700,12 +722,15 @@ class GoodMemoryImpl implements GoodMemory {
     }
     for (const archive of archives) {
       await this.documentStore.delete(SESSION_ARCHIVES_COLLECTION, archive.id);
+      deleted.archives += 1;
     }
     for (const evidenceRecord of evidence) {
       await this.documentStore.delete(EVIDENCE_COLLECTION, evidenceRecord.id);
+      deleted.evidence += 1;
     }
     for (const experience of experiences) {
       await this.documentStore.delete(EXPERIENCES_COLLECTION, experience.id);
+      deleted.experiences += 1;
     }
 
     if (input.includeRuntime !== false) {

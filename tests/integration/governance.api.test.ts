@@ -76,6 +76,90 @@ describe("public governance API", () => {
         content: "Very large runtime-only payload for session two.",
       },
     );
+    await documentStore.set(
+      SESSION_ARCHIVES_COLLECTION,
+      "archive-export-s1",
+      createSessionArchive({
+        id: "archive-export-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        summary: "Archive for export session one.",
+        unresolvedItems: ["verify prod"],
+      }),
+    );
+    await documentStore.set(
+      SESSION_ARCHIVES_COLLECTION,
+      "archive-export-s2",
+      createSessionArchive({
+        id: "archive-export-s2",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-2",
+        summary: "Archive for export session two.",
+        unresolvedItems: ["keep session two"],
+      }),
+    );
+    await documentStore.set(
+      EVIDENCE_COLLECTION,
+      "evidence-export-s1",
+      createEvidenceRecord({
+        id: "evidence-export-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        kind: "conversation_excerpt",
+        excerpt: "session-one export evidence",
+        source: createMemorySource({
+          method: "explicit",
+          extractedAt: "2026-04-02T00:00:00.000Z",
+          sessionId: "s-1",
+        }),
+      }),
+    );
+    await documentStore.set(
+      EVIDENCE_COLLECTION,
+      "evidence-export-s2",
+      createEvidenceRecord({
+        id: "evidence-export-s2",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-2",
+        kind: "conversation_excerpt",
+        excerpt: "session-two export evidence",
+        source: createMemorySource({
+          method: "explicit",
+          extractedAt: "2026-04-02T00:00:00.000Z",
+          sessionId: "s-2",
+        }),
+      }),
+    );
+    await documentStore.set(
+      EXPERIENCES_COLLECTION,
+      "experience-export-s1",
+      createExperienceRecord({
+        id: "experience-export-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        kind: "session_end",
+        traceId: "trace-export-s1",
+        summary: "session-one export experience",
+      }),
+    );
+    await documentStore.set(
+      EXPERIENCES_COLLECTION,
+      "experience-export-s2",
+      createExperienceRecord({
+        id: "experience-export-s2",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-2",
+        kind: "session_end",
+        traceId: "trace-export-s2",
+        summary: "session-two export experience",
+      }),
+    );
 
     const durableOnly = await memory.exportMemory({
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
@@ -91,11 +175,20 @@ describe("public governance API", () => {
     expect(durableOnly.durable.profile).toBeNull();
     expect(durableOnly.durable.facts).toHaveLength(1);
     expect(durableOnly.durable.preferences).toHaveLength(1);
+    expect(durableOnly.durable.archives).toHaveLength(1);
+    expect(durableOnly.durable.evidence).toHaveLength(1);
+    expect(durableOnly.durable.experiences).toHaveLength(1);
     expect(
       durableOnly.durable.facts.every((fact) => fact.sessionId === "s-1"),
     ).toBe(true);
+    expect(durableOnly.durable.archives[0]?.id).toBe("archive-export-s1");
+    expect(durableOnly.durable.evidence[0]?.id).toBe("evidence-export-s1");
+    expect(durableOnly.durable.experiences[0]?.id).toBe("experience-export-s1");
     expect(durableOnly.runtime).toBeUndefined();
     expect(globalExport.durable.profile?.identity.name).toBe("Lin");
+    expect(globalExport.durable.archives).toHaveLength(2);
+    expect(globalExport.durable.evidence).toHaveLength(2);
+    expect(globalExport.durable.experiences).toHaveLength(2);
     expect(withRuntime.runtime?.workingMemory?.currentGoal).toBe("Finish rollout");
     expect(withRuntime.runtime?.spills).toHaveLength(1);
     expect(withRuntime.runtime?.spills[0]?.sourceId).toBe("tool-1");
@@ -271,6 +364,9 @@ describe("public governance API", () => {
     });
 
     expect(result.deleted.facts).toBe(1);
+    expect(result.deleted.archives).toBe(1);
+    expect(result.deleted.evidence).toBe(1);
+    expect(result.deleted.experiences).toBe(1);
     expect(result.deleted.journal).toBe(1);
     expect(result.deleted.artifactSpills).toBe(1);
     expect(
