@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { createMemorySource } from "../../src/domain/provenance";
+import { createEvidenceRecord } from "../../src/evidence/contracts";
+import { createSessionArchive } from "../../src/evolution/contracts";
 import { createTempWorkspace } from "../../src/testing/utils";
 import type { EvalAssertionSummary } from "../../src/eval/assertions";
 import {
@@ -18,6 +21,12 @@ function buildAnswerPackage(
   caseId: string,
   mode: "baseline" | "goodmemory",
 ): EvalAnswerPackage {
+  const source = createMemorySource({
+    method: "explicit",
+    extractedAt: "2026-01-01T00:00:00.000Z",
+    sessionId: "s-0",
+  });
+
   return {
     mode,
     personaId: caseId,
@@ -50,8 +59,27 @@ function buildAnswerPackage(
             ],
             facts: [],
             feedback: [],
-            archives: [],
-            evidence: [],
+            archives: [
+              createSessionArchive({
+                id: "archive-1",
+                userId: caseId,
+                sessionId: "s-0",
+                summary: "Previous session paused at final verification.",
+                createdAt: "2026-01-01T00:00:00.000Z",
+                archivedAt: "2026-01-01T00:00:00.000Z",
+              }),
+            ],
+            evidence: [
+              createEvidenceRecord({
+                id: "evidence-1",
+                userId: caseId,
+                sessionId: "s-0",
+                kind: "conversation_excerpt",
+                excerpt: "The user said docs/runbook.md is the source of truth.",
+                source,
+                linkedMemoryIds: ["ref-1"],
+              }),
+            ],
             episodes: [],
             workingMemory: null,
             journal: null,
@@ -61,6 +89,12 @@ function buildAnswerPackage(
                 type: "reference",
                 reason: "semantic_reference",
                 sourceMethod: "explicit",
+                evidenceIds: ["evidence-1"],
+              },
+              {
+                id: "archive-1",
+                type: "session_archive",
+                reason: "continuation_context",
               },
             ],
             candidateTraces: [
@@ -79,7 +113,14 @@ function buildAnswerPackage(
               },
             ],
             policyApplied: ["custom_shouldRecall"],
-            verificationHints: [],
+            verificationHints: [
+              {
+                memoryId: "ref-1",
+                memoryType: "reference",
+                reason: "stale reference should be re-checked before action",
+                evidenceIds: ["evidence-1"],
+              },
+            ],
             renderedMemoryContext: "## References\n- Runbook",
           }
         : undefined,
@@ -231,6 +272,8 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("Target Domain: shopping");
       expect(result.stdout).toContain("Winner: goodmemory");
       expect(result.stdout).toContain("References: 1");
+      expect(result.stdout).toContain("Archives: 1");
+      expect(result.stdout).toContain("Evidence: 1");
       expect(result.stdout).toContain("Assertions: 6/6 passed");
     } finally {
       await workspace.cleanup();
@@ -266,8 +309,12 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("explicit_reference");
       expect(result.stdout).toContain("Recall Hits");
       expect(result.stdout).toContain("semantic_reference");
+      expect(result.stdout).toContain("evidence=evidence-1");
+      expect(result.stdout).toContain("continuation_context");
       expect(result.stdout).toContain("Policy Applied");
       expect(result.stdout).toContain("custom_shouldRecall");
+      expect(result.stdout).toContain("Verification Hints");
+      expect(result.stdout).toContain("stale reference should be re-checked before action");
       expect(result.stdout).toContain("Assertions");
       expect(result.stdout).toContain("transfer_signals_present: pass");
     } finally {

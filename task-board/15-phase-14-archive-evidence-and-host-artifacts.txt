@@ -35,11 +35,11 @@ Definition of Done
 Tasks
 -----
 [DONE] P14-T001 Freeze observation/archive/evidence contracts
-[WIP] P14-T002 Persist session archive from runtime and maintenance outputs
+[DONE] P14-T002 Persist session archive from runtime and maintenance outputs
 [DONE] P14-T003 Link durable memory and recall hits to evidence shards
 [DONE] P14-T004 Add Markdown artifact projection for host-readable memory views
 [DONE] P14-T005 Wire archive/evidence recall into planner, packet, and buildContext
-[TODO] P14-T006 Expand eval, CLI, and example coverage for continuity/explainability artifacts
+[DONE] P14-T006 Expand eval, CLI, and example coverage for continuity/explainability artifacts
 
 
 Key Constraints

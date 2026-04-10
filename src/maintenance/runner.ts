@@ -2,11 +2,13 @@ import {
   createFactMemory,
   createEpisodeMemory,
 } from "../domain/records";
+import { createSessionArchive } from "../evolution/contracts";
 import type {
   EpisodeMemory,
   FactMemory,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
+import type { SessionArchive } from "../evolution/contracts";
 import type { MemoryRepositories } from "../storage/repositories";
 import {
   createLanguageService,
@@ -42,6 +44,94 @@ function sortEpisodesForMaintenance(episodes: EpisodeMemory[]): EpisodeMemory[] 
   return [...episodes].sort((left, right) =>
     right.createdAt.localeCompare(left.createdAt),
   );
+}
+
+function mergeUniqueStrings(...groups: string[][]): string[] {
+  return [...new Set(groups.flat())];
+}
+
+function mergeSummarySegments(...segments: Array<string | undefined>): string {
+  return [...new Set(
+    segments
+      .map((segment) => segment?.trim())
+      .filter((segment): segment is string => Boolean(segment)),
+  )].join(" | ");
+}
+
+function buildScopeLineage(record: {
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+}): string[] {
+  return [
+    record.tenantId,
+    record.workspaceId,
+    record.agentId,
+  ].filter((segment): segment is string => Boolean(segment));
+}
+
+function shareConsolidationScope(left: EpisodeMemory, right: EpisodeMemory): boolean {
+  return (
+    left.userId === right.userId &&
+    left.tenantId === right.tenantId &&
+    left.workspaceId === right.workspaceId &&
+    left.agentId === right.agentId
+  );
+}
+
+function isSameArchiveIdentity(
+  archive: SessionArchive,
+  episode: EpisodeMemory,
+): boolean {
+  return (
+    archive.userId === episode.userId &&
+    archive.tenantId === episode.tenantId &&
+    archive.workspaceId === episode.workspaceId &&
+    archive.agentId === episode.agentId &&
+    archive.sessionId === episode.sessionId
+  );
+}
+
+function createArchiveFromEpisode(
+  episode: EpisodeMemory,
+  timestamp: string,
+  existingArchive?: SessionArchive,
+): SessionArchive {
+  const summary = mergeSummarySegments(existingArchive?.summary, episode.summary);
+  const createdAt = existingArchive && existingArchive.createdAt.localeCompare(episode.createdAt) < 0
+    ? existingArchive.createdAt
+    : episode.createdAt;
+
+  return createSessionArchive({
+    id: existingArchive?.id ?? crypto.randomUUID(),
+    userId: episode.userId,
+    tenantId: episode.tenantId,
+    workspaceId: episode.workspaceId,
+    agentId: episode.agentId,
+    sessionId: episode.sessionId!,
+    sourceSessionIds: mergeUniqueStrings(
+      existingArchive?.sourceSessionIds ?? [],
+      [episode.sessionId!],
+    ),
+    summary,
+    normalizedTranscript: existingArchive?.normalizedTranscript,
+    keyDecisions: mergeUniqueStrings(
+      existingArchive?.keyDecisions ?? [],
+      episode.keyDecisions,
+    ),
+    unresolvedItems: mergeUniqueStrings(
+      existingArchive?.unresolvedItems ?? [],
+      episode.unresolvedItems,
+    ),
+    referencedArtifacts: mergeUniqueStrings(
+      existingArchive?.referencedArtifacts ?? [],
+      episode.topics,
+    ),
+    scopeLineage: buildScopeLineage(episode),
+    locale: existingArchive?.locale ?? episode.locale,
+    createdAt,
+    archivedAt: timestamp,
+  });
 }
 
 async function runDedupeCleanup(
@@ -171,12 +261,17 @@ async function runEpisodeConsolidation(
   const episodes = sortEpisodesForMaintenance(
     (await repositories.episodes.listByScope(scope)).filter((episode) => !episode.archivedAt),
   );
+  const archives = await repositories.archives.listByScope(scope);
 
   for (let i = 0; i < episodes.length; i += 1) {
     const left = episodes[i]!;
 
     for (let j = i + 1; j < episodes.length; j += 1) {
       const right = episodes[j]!;
+      if (!shareConsolidationScope(left, right)) {
+        continue;
+      }
+
       const leftLocale = language.resolveFromText({
         text: left.topics.join(" "),
       }).locale;
@@ -202,17 +297,18 @@ async function runEpisodeConsolidation(
 
       const consolidated = createEpisodeMemory({
         id: crypto.randomUUID(),
-        userId: scope.userId,
-        tenantId: scope.tenantId,
-        workspaceId: scope.workspaceId,
-        agentId: scope.agentId,
-        sessionId: scope.sessionId,
+        userId: left.userId,
+        tenantId: left.tenantId,
+        workspaceId: left.workspaceId,
+        agentId: left.agentId,
+        sessionId: left.sessionId === right.sessionId ? left.sessionId : undefined,
         summary: `Consolidated: ${left.summary} | ${right.summary}`,
-        keyDecisions: [...new Set([...left.keyDecisions, ...right.keyDecisions])],
-        unresolvedItems: [...new Set([...left.unresolvedItems, ...right.unresolvedItems])],
-        topics: [...new Set([...left.topics, ...right.topics])],
+        keyDecisions: mergeUniqueStrings(left.keyDecisions, right.keyDecisions),
+        unresolvedItems: mergeUniqueStrings(left.unresolvedItems, right.unresolvedItems),
+        topics: mergeUniqueStrings(left.topics, right.topics),
         importance: Math.max(left.importance, right.importance),
         confidence: Math.max(left.confidence, right.confidence),
+        locale: left.locale ?? right.locale,
         createdAt: timestamp,
       });
 
@@ -228,6 +324,27 @@ async function runEpisodeConsolidation(
           archivedAt: timestamp,
         }),
       );
+      for (const archivedEpisode of [left, right]) {
+        if (!archivedEpisode.sessionId) {
+          continue;
+        }
+
+        const archiveIndex = archives.findIndex((archive) =>
+          isSameArchiveIdentity(archive, archivedEpisode),
+        );
+        const archive = createArchiveFromEpisode(
+          archivedEpisode,
+          timestamp,
+          archiveIndex >= 0 ? archives[archiveIndex] : undefined,
+        );
+
+        await repositories.archives.add(archive);
+        if (archiveIndex >= 0) {
+          archives[archiveIndex] = archive;
+        } else {
+          archives.push(archive);
+        }
+      }
       await repositories.episodes.add(consolidated);
 
       return {

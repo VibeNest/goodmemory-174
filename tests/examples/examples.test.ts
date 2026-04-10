@@ -12,6 +12,8 @@ describe("examples", () => {
 
     expect(result.memoryContext).toContain("## Profile");
     expect(result.memoryContext).toContain("## Preferences");
+    expect(result.artifacts.rootPath).toContain(".goodmemory/users/example-user");
+    expect(result.artifacts.files.map((file) => file.relativePath)).toContain("MEMORY.md");
     expect(result.answer).toContain("bullet");
     expect(result.answer).toContain("migration");
   });
@@ -22,6 +24,10 @@ describe("examples", () => {
     expect(result.memoryContext).toContain("## Working Memory");
     expect(result.memoryContext).toContain("## Session Journal");
     expect(result.memoryContext).toContain("## Procedural Memory");
+    expect(result.artifacts.files.map((file) => file.relativePath)).toContain("session.md");
+    expect(
+      result.artifacts.files.find((file) => file.relativePath === "session.md")?.content,
+    ).toContain("Current goal: Finish recall engine");
     expect(result.answer).toContain("Finish recall engine");
     expect(result.answer).toContain("wire buildContext output");
   });

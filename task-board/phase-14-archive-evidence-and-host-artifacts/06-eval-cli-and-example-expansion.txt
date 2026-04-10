@@ -1,9 +1,9 @@
 Phase 14.6: Eval, CLI, and Example Expansion
 ============================================
 
-[TODO] P14.6-T001 Add eval slices for archive-backed continuation
-[TODO] P14.6-T002 Add CLI visibility for archive/evidence artifacts and provenance
-[TODO] P14.6-T003 Update examples or docs to show the host-readable artifact flow
+[DONE] P14.6-T001 Add eval slices for archive-backed continuation
+[DONE] P14.6-T002 Add CLI visibility for archive/evidence artifacts and provenance
+[DONE] P14.6-T003 Update examples or docs to show the host-readable artifact flow
 
 Why this exists
 ---------------
@@ -26,3 +26,9 @@ Acceptance
 ----------
 - Archive/evidence/artifact behavior is diagnosable from release artifacts
 - Phase 14 exit is backed by eval and tooling, not only architecture text
+
+Progress notes
+--------------
+- Added eval coverage that seeds archive-backed continuity into `runGoodMemoryScenario()` and verifies archive retrieval in the answer package
+- CLI inspect now shows archive/evidence counts, and CLI trace renders evidence-backed provenance markers for hits and verification hints
+- Examples now expose the host-readable artifact bundle from `exportMemory()` so the projection surface is visible in release-facing code

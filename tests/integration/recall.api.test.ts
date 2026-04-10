@@ -614,6 +614,89 @@ describe("public recall API", () => {
     ).toEqual(["evidence-fact-1"]);
   });
 
+  it("keeps evidenceIds on suppressed candidate traces", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-win",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Runtime runbook",
+        pointer: "docs/runtime-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+        createdAt: "2026-04-01T00:00:00.000Z",
+        updatedAt: "2026-04-01T00:00:00.000Z",
+      }),
+    );
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-lose",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Payments runbook",
+        pointer: "docs/payments-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-03-31T00:00:00.000Z" },
+        createdAt: "2026-03-31T00:00:00.000Z",
+        updatedAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+    await repositories.evidence.add(
+      createEvidenceRecord({
+        id: "evidence-ref-win",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        kind: "conversation_excerpt",
+        excerpt: "The user said docs/runtime-runbook.md is the runtime source of truth.",
+        source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+        createdAt: "2026-04-01T00:00:00.000Z",
+        linkedMemoryIds: ["ref-win"],
+      }),
+    );
+    await repositories.evidence.add(
+      createEvidenceRecord({
+        id: "evidence-ref-lose",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        kind: "conversation_excerpt",
+        excerpt: "The user also mentioned docs/payments-runbook.md for a different flow.",
+        source: { method: "explicit", extractedAt: "2026-03-31T00:00:00.000Z" },
+        createdAt: "2026-03-31T00:00:00.000Z",
+        linkedMemoryIds: ["ref-lose"],
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "Which runtime runbook should I use?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.references.map((reference) => reference.id)).toEqual(["ref-win"]);
+    expect(
+      result.metadata.candidateTraces.find((trace) => trace.memoryId === "ref-win")?.evidenceIds,
+    ).toEqual(["evidence-ref-win"]);
+    expect(
+      result.metadata.candidateTraces.find((trace) => trace.memoryId === "ref-lose")?.evidenceIds,
+    ).toEqual(["evidence-ref-lose"]);
+    expect(
+      result.metadata.candidateTraces.find((trace) => trace.memoryId === "ref-lose")
+        ?.whySuppressed,
+    ).toBe("same-slot candidate not chosen");
+  });
+
   it("keeps the evidence layer closed for non-action general assistance queries", async () => {
     const { documentStore, sessionStore, repositories, runtime } = seedMemory();
 

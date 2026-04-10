@@ -1,6 +1,8 @@
+import type { MarkdownArtifactBundle } from "../src";
 import { createGoodMemory } from "../src";
 
 export async function runBasicChatExample(): Promise<{
+  artifacts: MarkdownArtifactBundle;
   memoryContext: string;
   answer: string;
 }> {
@@ -36,8 +38,12 @@ export async function runBasicChatExample(): Promise<{
     output: "markdown",
     maxTokens: 160,
   });
+  const exported = await memory.exportMemory({
+    scope: { userId: "example-user", workspaceId: "example-chat", sessionId: "chat-s1" },
+  });
 
   return {
+    artifacts: exported.artifacts,
     memoryContext: context.content,
     answer:
       "Bullet summary: the migration rollout is still blocked on prod verification, so I would answer in concise bullet points.",

@@ -1,3 +1,4 @@
+import type { MarkdownArtifactBundle } from "../src";
 import { createGoodMemory } from "../src";
 import { createRuntimeContextService } from "../src/runtime/contextService";
 import {
@@ -6,6 +7,7 @@ import {
 } from "../src/storage/memory";
 
 export async function runCodingAgentExample(): Promise<{
+  artifacts: MarkdownArtifactBundle;
   memoryContext: string;
   answer: string;
 }> {
@@ -53,8 +55,13 @@ export async function runCodingAgentExample(): Promise<{
     output: "markdown",
     maxTokens: 200,
   });
+  const exported = await memory.exportMemory({
+    scope,
+    includeRuntime: true,
+  });
 
   return {
+    artifacts: exported.artifacts,
     memoryContext: context.content,
     answer:
       "Next step: Finish recall engine, then wire buildContext output before closing the open loop on wire buildContext output.",

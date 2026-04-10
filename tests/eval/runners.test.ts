@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { createGoodMemory } from "../../src";
+import { createSessionArchive } from "../../src/evolution/contracts";
 import { createInMemoryDocumentStore, createInMemorySessionStore } from "../../src/storage/memory";
+import { createMemoryRepositories } from "../../src/storage/repositories";
 import {
   loadPersonaSpec,
   loadScenarioFixture,
@@ -237,6 +239,57 @@ describe("eval runners", () => {
 
     expect(result.memoryContext).not.toContain(
       "avoid irrelevant carry-over from hobby preferences",
+    );
+  });
+
+  it("can surface archive-backed continuity in eval answer packages", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-medium-01.json"),
+    );
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore,
+      sessionStore,
+    });
+    await repositories.archives.add(
+      createSessionArchive({
+        id: "archive-eval-1",
+        userId: persona.persona_id,
+        workspaceId: `eval-${persona.lifecycle_bucket}`,
+        sessionId: "archive-s1",
+        summary: "Previous session paused after step 2 and still needs final verification.",
+        unresolvedItems: ["final verification for migration rollout"],
+        keyDecisions: ["Resume from the final verification checklist."],
+        createdAt: "2026-03-31T00:00:00.000Z",
+        archivedAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      retrievalProfile: "coding_agent",
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(result.retrieved?.archives.length).toBeGreaterThan(0);
+    expect(result.retrieved?.hits.some((hit) => hit.type === "session_archive")).toBe(true);
+    expect(result.retrieved?.archives[0]?.summary).toContain(
+      "Previous session paused after step 2",
+    );
+    expect(result.retrieved?.archives[0]?.unresolvedItems).toContain(
+      "final verification for migration rollout",
     );
   });
 });

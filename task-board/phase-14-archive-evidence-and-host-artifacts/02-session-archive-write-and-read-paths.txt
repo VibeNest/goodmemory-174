@@ -2,7 +2,7 @@ Phase 14.2: Session Archive Write and Read Paths
 ================================================
 
 [DONE] P14.2-T001 Add session archive repository/storage support
-[WIP] P14.2-T002 Persist archive records from runtime/session-close or maintenance flows
+[DONE] P14.2-T002 Persist archive records from runtime/session-close or maintenance flows
 [DONE] P14.2-T003 Add scope-aware archive retrieval for continuation queries
 
 Why this exists
@@ -39,10 +39,10 @@ Implemented
 - Added archive continuity integration tests that exercise runtime -> archive -> recall end-to-end
 
 
-Still Missing
--------------
-- maintenance-originated archive writes
-- broader archive/evidence co-rendering and evidence-backed recall
+Completed in this slice
+-----------------------
+- maintenance consolidation now salvages archived episodes into session archives when no archive already exists for the source session
+- maintenance archive salvage stays scope-aware and avoids duplicate archive creation for sessions that already have an archive
 
 
 Validation
@@ -52,5 +52,6 @@ Validation
 - `tests/unit/context-builder.outputs.test.ts`
 - `tests/unit/recall.router.test.ts`
 - `tests/integration/recall.api.test.ts`
+- `tests/integration/maintenance.consolidation.test.ts`
 - `bun run typecheck`
 - `bun test`

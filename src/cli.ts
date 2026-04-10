@@ -91,6 +91,8 @@ async function inspectCase(runDir: string, caseId: string): Promise<string> {
     judge: { winner: string };
     goodmemory?: {
       retrieved?: {
+        archives?: unknown[];
+        evidence?: unknown[];
         preferences?: unknown[];
         references?: unknown[];
         facts?: unknown[];
@@ -118,6 +120,8 @@ async function inspectCase(runDir: string, caseId: string): Promise<string> {
     `References: ${retrieved?.references?.length ?? 0}`,
     `Facts: ${retrieved?.facts?.length ?? 0}`,
     `Feedback: ${retrieved?.feedback?.length ?? 0}`,
+    `Archives: ${retrieved?.archives?.length ?? 0}`,
+    `Evidence: ${retrieved?.evidence?.length ?? 0}`,
     `Episodes: ${retrieved?.episodes?.length ?? 0}`,
     `Recall Hits: ${artifact.goodmemory?.trace?.recallHitCount ?? 0}`,
     `Assertions: ${
@@ -158,8 +162,8 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
     updateFindings: string[];
   }>(join(runDir, "traces", caseId, "assertions.json"));
   const recall = await readJson<{
-    hits?: Array<{ type: string; reason?: string }>;
-    verificationHints?: Array<{ memoryType: string; reason: string }>;
+    hits?: Array<{ type: string; reason?: string; evidenceIds?: string[] }>;
+    verificationHints?: Array<{ memoryType: string; reason: string; evidenceIds?: string[] }>;
     policyApplied?: string[];
   }>(join(runDir, "traces", caseId, "raw-recall.json"));
 
@@ -172,10 +176,16 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
   });
 
   const hitLines = (recall.hits ?? []).map(
-    (hit) => `- ${hit.type}: ${hit.reason ?? "no_reason"}`,
+    (hit) =>
+      `- ${hit.type}: ${hit.reason ?? "no_reason"}${
+        hit.evidenceIds?.length ? ` [evidence=${hit.evidenceIds.join(",")}]` : ""
+      }`,
   );
   const verificationLines = (recall.verificationHints ?? []).map(
-    (hint) => `- ${hint.memoryType}: ${hint.reason}`,
+    (hint) =>
+      `- ${hint.memoryType}: ${hint.reason}${
+        hint.evidenceIds?.length ? ` [evidence=${hint.evidenceIds.join(",")}]` : ""
+      }`,
   );
   const policyLines = (recall.policyApplied ?? []).map((policy) => `- ${policy}`);
   const assertionLines = assertions

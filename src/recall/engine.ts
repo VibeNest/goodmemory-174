@@ -1420,6 +1420,27 @@ function selectEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
   return evidence.slice(0, 3);
 }
 
+function collectTraceMemoryIds(
+  traces: RecallCandidateTrace[],
+): { archiveIds: Set<string>; memoryIds: Set<string> } {
+  const archiveIds = new Set<string>();
+  const memoryIds = new Set<string>();
+
+  for (const trace of traces) {
+    if (trace.memoryType === "archive") {
+      archiveIds.add(trace.memoryId);
+      continue;
+    }
+
+    memoryIds.add(trace.memoryId);
+  }
+
+  return {
+    archiveIds,
+    memoryIds,
+  };
+}
+
 function addEvidenceLinks(
   index: Record<string, string[]>,
   linkedIds: string[],
@@ -1955,7 +1976,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
-      const allLinkedEvidence = await applyRecallPolicyToRecords(
+      const factTraceIds = collectTraceMemoryIds(selectedFacts.traces);
+      const referenceTraceIds = collectTraceMemoryIds(selectedReferences.traces);
+      const archiveTraceIds = collectTraceMemoryIds(selectedArchives.traces);
+      const episodeTraceIds = collectTraceMemoryIds(selectedEpisodes.traces);
+      const visibleLinkedEvidence = await applyRecallPolicyToRecords(
         filterLinkedEvidence(
           evidenceRaw,
           new Set([
@@ -1977,10 +2002,32 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
+      const explainabilityLinkedEvidence = await applyRecallPolicyToRecords(
+        filterLinkedEvidence(
+          evidenceRaw,
+          new Set([
+            ...factTraceIds.memoryIds,
+            ...referenceTraceIds.memoryIds,
+            ...episodeTraceIds.memoryIds,
+            ...feedback.map((feedbackItem) => feedbackItem.id),
+          ]),
+          new Set([...archiveTraceIds.archiveIds]),
+        ),
+        "evidence",
+        {
+          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+          policy: config.policy,
+          policyApplied,
+        },
+      );
       const evidence = routingDecision.sourcePriorities.includes("evidence")
-        ? selectEvidence(allLinkedEvidence)
+        ? selectEvidence(visibleLinkedEvidence)
         : [];
-      const evidenceIndex = buildEvidenceLinkIndex(allLinkedEvidence);
+      const evidenceIndex = buildEvidenceLinkIndex(explainabilityLinkedEvidence);
       const candidateTraces = attachEvidenceIdsToCandidateTraces([
         ...reconcileCandidateTraces(
           selectedFacts.traces,
