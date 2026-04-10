@@ -58,4 +58,28 @@ describe("eval signal matching", () => {
       findConflictedSignals(["docs/migration-rollout-runbook-v2.md"], text),
     ).toEqual([]);
   });
+
+  it("treats Chinese '不再以 ... 为准' stale-reference phrasing as negated", () => {
+    const text =
+      "现在以 docs/migration-rollout-runbook-v2.md 为准，不再以 docs/migration-rollout-runbook-v1.md 为准。";
+
+    expect(
+      findAffirmedSignals(["docs/migration-rollout-runbook-v1.md"], text),
+    ).toEqual([]);
+    expect(
+      findNegatedSignals(["docs/migration-rollout-runbook-v1.md"], text),
+    ).toEqual(["docs/migration-rollout-runbook-v1.md"]);
+  });
+
+  it("treats Chinese '不再作为当前依据' stale-reference phrasing as negated", () => {
+    const text =
+      "docs/migration-rollout-runbook-v1.md 不再作为当前依据，请改用 docs/migration-rollout-runbook-v2.md。";
+
+    expect(
+      findAffirmedSignals(["docs/migration-rollout-runbook-v1.md"], text),
+    ).toEqual([]);
+    expect(
+      findNegatedSignals(["docs/migration-rollout-runbook-v1.md"], text),
+    ).toEqual(["docs/migration-rollout-runbook-v1.md"]);
+  });
 });

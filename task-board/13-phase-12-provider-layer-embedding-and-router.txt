@@ -8,7 +8,7 @@ Turn `llm`, `embedding`, and `router` from architecture-only concepts into stage
 
 Current Status
 --------------
-[BLOCKED] Execute this phase only after Phase 14 archive/evidence/artifact foundation is complete.
+[WIP] Phase 12 has started now that Phase 14 archive/evidence/artifact foundation is complete.
 
 
 Dependencies
@@ -40,12 +40,12 @@ Definition of Done
 
 Tasks
 -----
-[BLOCKED] P12-T001 Define provider-layer contract around Vercel AI SDK
-[BLOCKED] P12-T002 Implement embedding abstraction and vector write/read hooks
-[BLOCKED] P12-T003 Add router strategy framework: rules-only, hybrid, llm-assisted
-[BLOCKED] P12-T004 Implement hybrid retrieval and optional reranking
-[BLOCKED] P12-T005 Add optional LLM-assisted extraction and consolidation paths
-[BLOCKED] P12-T006 Expand eval suite to compare rules-only vs provider-backed modes
+[DONE] P12-T001 Define provider-layer contract around Vercel AI SDK
+[TODO] P12-T002 Implement embedding abstraction and vector write/read hooks
+[TODO] P12-T003 Add router strategy framework: rules-only, hybrid, llm-assisted
+[TODO] P12-T004 Implement hybrid retrieval and optional reranking
+[TODO] P12-T005 Add optional LLM-assisted extraction and consolidation paths
+[TODO] P12-T006 Expand eval suite to compare rules-only vs provider-backed modes
 
 
 Key Constraints

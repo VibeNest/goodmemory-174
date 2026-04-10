@@ -1093,6 +1093,12 @@ describe("run-eval script", () => {
       expect(result.mode).toBe("live");
       expect(result.runtime.generationMode).toBe("live");
       expect(result.runtime.judgeMode).toBe("live");
+      expect(result.runtime.generationLayer).toBe("vercel-ai-sdk");
+      expect(result.runtime.generationProvider).toBe("openai");
+      expect(result.runtime.generationModel).toBe("gpt-5");
+      expect(result.runtime.judgeLayer).toBe("vercel-ai-sdk");
+      expect(result.runtime.judgeProvider).toBe("anthropic");
+      expect(result.runtime.judgeModel).toBe("claude-sonnet");
       expect(createTextCalls).toHaveLength(2);
       expect(createJudgeCalls).toHaveLength(1);
       expect(createTextCalls[0]?.model).toEqual({

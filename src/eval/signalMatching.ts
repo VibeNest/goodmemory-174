@@ -45,6 +45,8 @@ function isNegatedOccurrence(
     /\bwithout\s*$/.test(prefix) ||
     /\bexcept(?: for)?\s*$/.test(prefix) ||
     /\b(?:corrected|superseded)\s+reference:\s*$/.test(prefix) ||
+    /不再(?:以|按|用|使用)\s*$/.test(prefix) ||
+    /(?:不要|别再)(?:以|按|用|使用)\s*$/.test(prefix) ||
     /^\s*is\s+superseded\b/.test(suffix) ||
     /^\s*is\s+no\s+longer\b/.test(suffix) ||
     /^\s*is\s+not\b/.test(suffix) ||
@@ -57,6 +59,10 @@ function isNegatedOccurrence(
     /^\s*is\s+outdated\b/.test(suffix) ||
     /^\s*is\s+not\s+the\s+source\s+of\s+truth\b/.test(suffix) ||
     /^\s*(?:,?\s*)?no\s+longer\s+the\s+source\s+of\s+truth\b/.test(suffix) ||
+    /^\s*(?:已)?不再(?:作为|是)?(?:当前)?(?:依据|标准)(?:\s|[,.!?:;\u3002\uff0c\uff1f\uff01]|$)/.test(
+      suffix,
+    ) ||
+    /^\s*(?:已)?不再为准(?:\s|[,.!?:;\u3002\uff0c\uff1f\uff01]|$)/.test(suffix) ||
     /^\s*should\s+not\s+be\s+treated\s+as\s+the\s+current\s+source\s+of\s+truth\b/.test(
       suffix,
     )

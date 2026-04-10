@@ -310,7 +310,14 @@ describe("eval reporting", () => {
 
       const report = JSON.parse(
         await readFile(join(result.runDirectory, "report.json"), "utf8"),
-      ) as { mode: string; runId: string };
+      ) as {
+        mode: string;
+        runId: string;
+        runtime: {
+          generationLayer?: string;
+          judgeLayer?: string;
+        };
+      };
       const failure = JSON.parse(
         await readFile(join(result.runDirectory, "failures/case-1.json"), "utf8"),
       ) as {
@@ -355,6 +362,8 @@ describe("eval reporting", () => {
 
       expect(report.mode).toBe("fallback");
       expect(report.runId).toBe("run-001");
+      expect(report.runtime.generationLayer).toBe("fallback");
+      expect(report.runtime.judgeLayer).toBe("fallback");
       expect(failure.judge.failure_tags).toContain("identity_miss");
       expect(failure.assertions.updateFindings).toContain("docs/runbook.md");
       expect(caseArtifact.metadata.taskFamily).toBe("drift_override_lifelong_update");

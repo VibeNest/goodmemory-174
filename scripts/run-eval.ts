@@ -10,9 +10,12 @@ import { runEvalSuite, type EvalSuiteResult } from "../src/eval/suite";
 import type { JudgeScores } from "../src/eval/judge";
 import type { EvalAnswerGeneratorInput } from "../src/eval/runners";
 import {
-  createAISDKJudgeModel,
-  createAISDKTextGenerator,
-} from "../src/llm/ai-sdk";
+  createProviderJudgeModel,
+  createProviderRuntimeMetadata,
+  createProviderTextGenerator,
+  createAISDKProviderDescriptor,
+  createFallbackProviderDescriptor,
+} from "../src/provider/layer";
 
 export type EvalMode = "live" | "fallback";
 export type EvalCLIExecutionMode = EvalMode | "smoke";
@@ -41,8 +44,8 @@ export interface FixtureEvalOptions {
 }
 
 export interface LiveEvalDependencies {
-  createTextGenerator?: typeof createAISDKTextGenerator;
-  createJudgeModel?: typeof createAISDKJudgeModel;
+  createTextGenerator?: typeof createProviderTextGenerator;
+  createJudgeModel?: typeof createProviderJudgeModel;
   runSuite?: typeof runEvalSuite;
 }
 
@@ -635,10 +638,10 @@ export async function runFallbackEval(
         };
       },
     },
-    runtime: {
-      generationMode: "fallback",
-      judgeMode: "fallback",
-    },
+    runtime: createProviderRuntimeMetadata({
+      generation: createFallbackProviderDescriptor(),
+      judge: createFallbackProviderDescriptor(),
+    }),
   });
 }
 
@@ -667,9 +670,9 @@ export async function runLiveEval(
 ): Promise<EvalSuiteResult> {
   const root = new URL("..", import.meta.url).pathname;
   const createTextGenerator =
-    dependencies?.createTextGenerator ?? createAISDKTextGenerator;
+    dependencies?.createTextGenerator ?? createProviderTextGenerator;
   const createJudgeModel =
-    dependencies?.createJudgeModel ?? createAISDKJudgeModel;
+    dependencies?.createJudgeModel ?? createProviderJudgeModel;
   const runSuite = dependencies?.runSuite ?? runEvalSuite;
   const failedScenarioIds = input?.failuresFrom
     ? await resolveFailedScenarioIds(input.failuresFrom, "live")
@@ -698,10 +701,10 @@ export async function runLiveEval(
       model: judgeModel,
     }),
     maxConcurrency: resolveEvalMaxConcurrency(),
-    runtime: {
-      generationMode: "live",
-      judgeMode: "live",
-    },
+    runtime: createProviderRuntimeMetadata({
+      generation: createAISDKProviderDescriptor(evalModel),
+      judge: createAISDKProviderDescriptor(judgeModel),
+    }),
   });
 }
 

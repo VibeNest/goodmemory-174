@@ -274,6 +274,41 @@ describe("eval assertions", () => {
     ).toBe(true);
   });
 
+  it("does not fail stale suppression for Chinese source-of-truth corrections", () => {
+    const answer = buildGoodmemoryAnswer();
+    answer.memoryContext = [
+      "## Profile",
+      "Lin - robotics engineer",
+      "",
+      "## Preferences",
+      "- response_style: concise bullet points",
+      "",
+      "## References",
+      "- Runbook (docs/runbook-v2.md)",
+      "",
+      "## Facts",
+      "- vendor approval",
+      "",
+      "## Evidence",
+      "- 现在以 docs/runbook-v2.md 为准，不再以 docs/runbook-v1.md 为准。",
+    ].join("\n");
+    answer.answer = [
+      "根据已提供的记忆上下文，现在以 docs/runbook-v2.md 为准。",
+      "之前的版本已不再作为当前依据。",
+      "Vendor approval is still the blocker.",
+    ].join(" ");
+
+    const result = evaluateScenarioAssertions({
+      scenario: buildScenario(),
+      goodmemory: answer,
+    });
+
+    expect(result.passed).toBe(true);
+    expect(
+      result.checks.find((check) => check.id === "stale_suppression_absent")?.passed,
+    ).toBe(true);
+  });
+
   it("still fails stale suppression when an unrelated negation appears nearby", () => {
     const answer = buildGoodmemoryAnswer();
     answer.answer = "No longer blocked. Use docs/runbook-v2.md and docs/runbook-v1.md for the next step.";

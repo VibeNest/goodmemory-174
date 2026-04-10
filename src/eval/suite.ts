@@ -18,6 +18,7 @@ import {
   type EvalSuiteSummary,
   type JudgedEvalCase,
 } from "./reporting";
+import { normalizeProviderRuntimeMetadata } from "../provider/layer";
 import {
   runBaselineScenario,
   runGoodMemoryScenario,
@@ -235,10 +236,12 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   const judgedCases = new Array<JudgedEvalCase | undefined>(selectedCases.length);
   const failedCases = new Array<EvalCaseExecutionFailure | undefined>(selectedCases.length);
   const runId = input.runId ?? `run-${Date.now()}`;
-  const runtime = input.runtime ?? {
-    generationMode: input.mode,
-    judgeMode: input.mode,
-  };
+  const runtime = normalizeProviderRuntimeMetadata(
+    input.runtime ?? {
+      generationMode: input.mode,
+      judgeMode: input.mode,
+    },
+  );
   const initialArtifacts = await persistEvalArtifacts({
     mode: input.mode,
     outputDir: input.outputDir,

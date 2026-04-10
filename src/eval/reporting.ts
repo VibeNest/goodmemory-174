@@ -1,5 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { AISDKProvider } from "../llm/ai-sdk";
+import { normalizeProviderRuntimeMetadata } from "../provider/layer";
 import type { EvalAssertionSummary } from "./assertions";
 import type { JudgeResult, JudgeScores } from "./judge";
 import type { EvalAnswerPackage } from "./runners";
@@ -57,7 +59,13 @@ export interface EvalSuiteSummary {
 
 export interface EvalRuntimeMetadata {
   generationMode: "live" | "fallback";
+  generationLayer?: "fallback" | "vercel-ai-sdk";
+  generationModel?: string;
+  generationProvider?: AISDKProvider;
   judgeMode: "live" | "fallback";
+  judgeLayer?: "fallback" | "vercel-ai-sdk";
+  judgeModel?: string;
+  judgeProvider?: AISDKProvider;
 }
 
 export type PersistedEvalMode = "live" | "fallback";
@@ -302,6 +310,7 @@ export async function persistEvalArtifacts(input: {
   cases: JudgedEvalCase[];
   executionFailures?: EvalCaseExecutionFailure[];
 }): Promise<{ runDirectory: string }> {
+  const runtime = normalizeProviderRuntimeMetadata(input.runtime);
   const runDirectory = join(input.outputDir, input.runId);
   const casesDirectory = join(runDirectory, "cases");
   const failuresDirectory = join(runDirectory, "failures");
@@ -318,7 +327,7 @@ export async function persistEvalArtifacts(input: {
         mode: input.mode,
         runId: input.runId,
         summary: input.summary,
-        runtime: input.runtime,
+        runtime,
       },
       null,
       2,

@@ -1,9 +1,9 @@
 Phase 12.1: Provider Layer Contract
 ===================================
 
-[TODO] P12.1-T001 Freeze provider-layer goals
-[TODO] P12.1-T002 Define Vercel AI SDK based text/object generation adapters
-[TODO] P12.1-T003 Decide which capabilities stay outside `createGoodMemory()` until behavior lands
+[DONE] P12.1-T001 Freeze provider-layer goals
+[DONE] P12.1-T002 Define Vercel AI SDK based text/object generation adapters
+[DONE] P12.1-T003 Decide which capabilities stay outside `createGoodMemory()` until behavior lands
 
 Why this exists
 ---------------
@@ -25,3 +25,9 @@ Acceptance
 ----------
 - Provider-backed capabilities have one consistent access layer
 - Live vs fallback mode is explicit everywhere
+
+Progress notes
+--------------
+- Added an internal `src/provider/layer.ts` contract that wraps Vercel AI SDK text/judge factories behind one provider layer surface
+- `run-eval` now builds runtime metadata through the provider layer and persists layer/provider/model details into eval artifacts
+- Public `GoodMemoryConfig` remains unchanged: provider-backed capabilities stay outside `createGoodMemory()` until real library behavior lands
