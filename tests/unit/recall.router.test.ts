@@ -36,9 +36,10 @@ describe("recall router", () => {
       },
     });
 
-    expect(plan.sourcePriorities.slice(0, 4)).toEqual([
+    expect(plan.sourcePriorities.slice(0, 5)).toEqual([
       "working_memory",
       "session_journal",
+      "session_archive",
       "episode",
       "fact",
     ]);
@@ -57,9 +58,10 @@ describe("recall router", () => {
     });
 
     expect(plan.intent).toBe("task_continuation");
-    expect(plan.sourcePriorities.slice(0, 4)).toEqual([
+    expect(plan.sourcePriorities.slice(0, 5)).toEqual([
       "working_memory",
       "session_journal",
+      "session_archive",
       "episode",
       "fact",
     ]);

@@ -8,6 +8,7 @@ import type {
   UserProfile,
   WorkingMemorySnapshot,
 } from "../domain/records";
+import type { SessionArchive } from "../evolution/contracts";
 
 export interface MemoryPacket {
   profileSummary?: string;
@@ -17,6 +18,7 @@ export interface MemoryPacket {
   factSummary?: string;
   feedbackSummary?: string;
   episodeSummary?: string;
+  archiveSummary?: string;
   workingMemorySummary?: string;
   journalSummary?: string;
   debug?: {
@@ -32,6 +34,7 @@ export interface MemoryPacketInput {
   facts: FactMemory[];
   feedback: FeedbackMemory[];
   episodes: EpisodeMemory[];
+  archives: SessionArchive[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
 }
@@ -126,6 +129,30 @@ function summarizeEpisodes(episodes: EpisodeMemory[]): string | undefined {
     .join("\n");
 }
 
+function renderArchiveSummary(archive: SessionArchive): string {
+  const segments = [archive.summary];
+
+  if (archive.unresolvedItems.length > 0) {
+    segments.push(`Open loops: ${archive.unresolvedItems.join(", ")}`);
+  }
+  if (archive.keyDecisions.length > 0) {
+    segments.push(`Key decisions: ${archive.keyDecisions.join(", ")}`);
+  }
+
+  return segments.join(" ").trim();
+}
+
+function summarizeArchives(archives: SessionArchive[]): string | undefined {
+  if (archives.length === 0) {
+    return undefined;
+  }
+
+  return archives
+    .slice(0, 2)
+    .map((archive) => `- ${renderArchiveSummary(archive)}`)
+    .join("\n");
+}
+
 function summarizeWorkingMemory(
   workingMemory: WorkingMemorySnapshot | null,
 ): string | undefined {
@@ -168,6 +195,7 @@ export function buildMemoryPacket(input: MemoryPacketInput): MemoryPacket {
     factSummary: summarizeFacts(input.facts),
     feedbackSummary: summarizeFeedback(input.feedback),
     episodeSummary: summarizeEpisodes(input.episodes),
+    archiveSummary: summarizeArchives(input.archives),
     workingMemorySummary: summarizeWorkingMemory(input.workingMemory),
     journalSummary: summarizeJournal(input.journal),
   };
@@ -252,6 +280,11 @@ function buildRenderableSections(packet: MemoryPacket) {
       body: packet.episodeSummary,
     },
     {
+      key: "archiveSummary" as const,
+      title: "Session Archive",
+      body: packet.archiveSummary,
+    },
+    {
       key: "workingMemorySummary" as const,
       title: "Working Memory",
       body: packet.workingMemorySummary,
@@ -273,6 +306,7 @@ function buildRenderableSections(packet: MemoryPacket) {
         | "referenceSummary"
         | "factSummary"
         | "episodeSummary"
+        | "archiveSummary"
         | "workingMemorySummary"
         | "journalSummary";
       title: string;

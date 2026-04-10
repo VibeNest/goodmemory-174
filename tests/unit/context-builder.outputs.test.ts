@@ -20,6 +20,7 @@ describe("context builder output modes", () => {
       references: [],
       facts: [],
       feedback: [],
+      archives: [],
       episodes: [],
       workingMemory: null,
       journal: null,
@@ -64,6 +65,7 @@ describe("context builder output modes", () => {
       references: [],
       facts: [],
       feedback: [],
+      archives: [],
       episodes: [],
       workingMemory: {
         sessionId: "s-1",
@@ -155,6 +157,7 @@ describe("context builder output modes", () => {
           appliesTo: "general_response",
         },
       ],
+      archives: [],
       episodes: [],
       workingMemory: null,
       journal: null,

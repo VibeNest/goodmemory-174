@@ -1,9 +1,9 @@
 Phase 14.1: Observation, Archive, and Evidence Contracts
 ========================================================
 
-[TODO] P14.1-T001 Freeze minimum `SessionArchive` contract
-[TODO] P14.1-T002 Freeze minimum `EvidenceRecord` contract
-[TODO] P14.1-T003 Freeze minimal observation/trace contract that feeds archive/evidence writes
+[DONE] P14.1-T001 Freeze minimum `SessionArchive` contract
+[DONE] P14.1-T002 Freeze minimum `EvidenceRecord` contract
+[DONE] P14.1-T003 Freeze minimal observation/trace contract that feeds archive/evidence writes
 
 Why this exists
 ---------------
@@ -26,3 +26,19 @@ Acceptance
 ----------
 - New data planes have one canonical schema
 - Later write/read paths can build without schema churn
+
+
+Implemented
+-----------
+- Added `src/evolution/contracts.ts` with `SessionArchive` and `ExperienceRecord`
+- Added `src/evidence/contracts.ts` with `EvidenceRecord`
+- Added typed repository accessors for archives, evidence, and experiences
+- Re-exported the new contracts through `src/index.ts`
+
+
+Validation
+----------
+- `tests/unit/evolution.contracts.test.ts`
+- `tests/unit/evidence.contracts.test.ts`
+- `tests/unit/storage.repositories.test.ts`
+- `bun run typecheck`

@@ -126,6 +126,7 @@ function buildGoodmemoryAnswer(): EvalAnswerPackage {
         }),
       ],
       feedback: [],
+      archives: [],
       episodes: [
         {
           id: "episode-1",

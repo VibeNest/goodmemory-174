@@ -1,0 +1,56 @@
+import type { MemorySource } from "../domain/provenance";
+
+export const EVIDENCE_COLLECTION = "evidence";
+
+export type EvidenceKind =
+  | "conversation_excerpt"
+  | "tool_result_excerpt"
+  | "document_excerpt"
+  | "verification_result"
+  | "correction_context";
+
+export interface EvidenceRecord {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+  kind: EvidenceKind;
+  excerpt: string;
+  source: MemorySource;
+  sourceUri?: string;
+  sourceMessageIds: string[];
+  linkedMemoryIds: string[];
+  linkedArchiveIds: string[];
+  createdAt: string;
+}
+
+function resolveCreatedAt(
+  source: MemorySource | undefined,
+  createdAt: string | undefined,
+): string {
+  return createdAt ?? source?.extractedAt ?? new Date(0).toISOString();
+}
+
+export function createEvidenceRecord(
+  input: Pick<EvidenceRecord, "excerpt" | "id" | "kind" | "source" | "userId"> &
+    Partial<Omit<EvidenceRecord, "excerpt" | "id" | "kind" | "source" | "userId">>,
+): EvidenceRecord {
+  return {
+    id: input.id,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    kind: input.kind,
+    excerpt: input.excerpt,
+    source: input.source,
+    sourceUri: input.sourceUri,
+    sourceMessageIds: input.sourceMessageIds ?? [],
+    linkedMemoryIds: input.linkedMemoryIds ?? [],
+    linkedArchiveIds: input.linkedArchiveIds ?? [],
+    createdAt: resolveCreatedAt(input.source, input.createdAt),
+  };
+}

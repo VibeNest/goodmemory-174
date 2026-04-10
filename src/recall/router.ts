@@ -19,6 +19,7 @@ export type RecallSource =
   | "profile"
   | "feedback"
   | "fact"
+  | "session_archive"
   | "episode"
   | "working_memory"
   | "session_journal";
@@ -110,6 +111,7 @@ export function planRecall(input: RecallRoutingInput): RoutingDecision {
       sourcePriorities: [
         "working_memory",
         "session_journal",
+        "session_archive",
         "episode",
         "fact",
         "feedback",

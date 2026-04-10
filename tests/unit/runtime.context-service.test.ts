@@ -1,8 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { createInMemorySessionStore } from "../../src/storage/memory";
+import { createInMemoryDocumentStore, createInMemorySessionStore } from "../../src/storage/memory";
 import {
   createRuntimeContextService,
 } from "../../src/runtime/contextService";
+import {
+  createMemoryRepositories,
+} from "../../src/storage/repositories";
 import {
   DeterministicClock,
   createDeterministicIdGenerator,
@@ -10,15 +13,24 @@ import {
 
 function createService(maxBufferedMessages = 3) {
   const clock = new DeterministicClock("2026-01-01T00:00:00.000Z");
+  const documentStore = createInMemoryDocumentStore();
+  const sessionStore = createInMemorySessionStore();
+  const repositories = createMemoryRepositories({
+    documentStore,
+    sessionStore,
+  });
   const service = createRuntimeContextService({
-    sessionStore: createInMemorySessionStore(),
+    sessionStore,
+    archiveStore: repositories.archives,
     now: () => clock.now().toISOString(),
     createMessageId: createDeterministicIdGenerator("msg"),
+    createArchiveId: createDeterministicIdGenerator("archive"),
     maxBufferedMessages,
   });
 
   return {
     clock,
+    repositories,
     service,
   };
 }
@@ -189,5 +201,63 @@ describe("runtime context service", () => {
     const codingAgent = await service.getRuntimeRecall(scope, "coding_agent");
     expect(codingAgent.workingMemory?.openLoops).toEqual(["wire runtime recall"]);
     expect(codingAgent.journal?.currentState).toBe("Phase 4 in progress");
+  });
+
+  it("persists a session archive on endSession when the session has continuity signal", async () => {
+    const { clock, repositories, service } = createService();
+    const scope = {
+      userId: "u-1",
+      tenantId: "tenant-a",
+      workspaceId: "workspace-a",
+      agentId: "agent-a",
+      sessionId: "s-1",
+    };
+
+    await service.startSession(scope);
+    await service.appendToSession(scope, {
+      role: "user",
+      content: "Please keep the rollback plan ready for Friday night.",
+    });
+    await service.updateWorkingMemory(scope, {
+      currentGoal: "Finish archive write path",
+      openLoops: ["wire archive recall"],
+      temporaryDecisions: ["Keep runtime archive writes deterministic."],
+    });
+    await service.updateSessionJournal(scope, {
+      currentState: "Phase 14.2 in progress",
+      filesAndFunctions: ["src/runtime/contextService.ts"],
+      appendWorklog: ["Archive write path drafted."],
+      keyResults: ["Session archive persistence is the next checkpoint."],
+    });
+
+    clock.advanceMs(1000);
+    await service.endSession(scope);
+
+    const archives = await repositories.archives.listByScope(scope);
+    expect(archives).toHaveLength(1);
+
+    const archive = archives[0]!;
+    expect(archive.id).toBe("archive-0001");
+    expect(archive.summary).toContain("Phase 14.2 in progress");
+    expect(archive.keyDecisions).toEqual([
+      "Keep runtime archive writes deterministic.",
+      "Session archive persistence is the next checkpoint.",
+    ]);
+    expect(archive.unresolvedItems).toEqual(["wire archive recall"]);
+    expect(archive.referencedArtifacts).toEqual(["src/runtime/contextService.ts"]);
+    expect(archive.scopeLineage).toEqual(["tenant-a", "workspace-a", "agent-a"]);
+    expect(archive.normalizedTranscript).toContain("rollback plan ready");
+    expect(archive.createdAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(archive.archivedAt).toBe("2026-01-01T00:00:01.000Z");
+  });
+
+  it("does not persist an archive when ending an untouched empty session", async () => {
+    const { repositories, service } = createService();
+    const scope = { userId: "u-1", sessionId: "s-empty" };
+
+    await service.startSession(scope);
+    await service.endSession(scope);
+
+    expect(await repositories.archives.listByUser("u-1")).toHaveLength(0);
   });
 });

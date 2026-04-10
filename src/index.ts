@@ -15,12 +15,18 @@ import type {
   UserProfile,
   WorkingMemorySnapshot,
 } from "./domain/records";
+import type { SessionArchive } from "./evolution/contracts";
 import {
   createFeedbackMemory,
 } from "./domain/records";
 import {
   createMemorySource,
 } from "./domain/provenance";
+import { EVIDENCE_COLLECTION } from "./evidence/contracts";
+import {
+  EXPERIENCES_COLLECTION,
+  SESSION_ARCHIVES_COLLECTION,
+} from "./evolution/contracts";
 import type { MemorySourceMethod } from "./domain/provenance";
 import type {
   ConflictResolution,
@@ -99,6 +105,25 @@ export {
   createWorkingMemorySnapshot,
 } from "./domain/records";
 export type {
+  EvidenceKind,
+  EvidenceRecord,
+} from "./evidence/contracts";
+export {
+  createEvidenceRecord,
+  EVIDENCE_COLLECTION,
+} from "./evidence/contracts";
+export type {
+  ExperienceKind,
+  ExperienceRecord,
+  SessionArchive,
+} from "./evolution/contracts";
+export {
+  createExperienceRecord,
+  createSessionArchive,
+  EXPERIENCES_COLLECTION,
+  SESSION_ARCHIVES_COLLECTION,
+} from "./evolution/contracts";
+export type {
   MemoryLifecycleState,
   MemorySource,
   MemorySourceMethod,
@@ -136,7 +161,10 @@ export {
   createPostgresSessionStore,
   createPostgresVectorStore,
 } from "./storage/postgres";
-export type { MemoryRepositoriesConfig } from "./storage/repositories";
+export type {
+  MemoryRepositories,
+  MemoryRepositoriesConfig,
+} from "./storage/repositories";
 export { createMemoryRepositories } from "./storage/repositories";
 export type { MemoryPacket } from "./recall/contextBuilder";
 export {
@@ -232,6 +260,7 @@ export interface RecallResult {
   references: ReferenceMemory[];
   facts: FactMemory[];
   feedback: FeedbackMemory[];
+  archives: SessionArchive[];
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
@@ -382,6 +411,18 @@ type ScopeBoundRecord = {
   sessionId?: string;
 };
 
+const FORGETTABLE_COLLECTIONS = [
+  "facts",
+  "feedback",
+  "profiles",
+  "preferences",
+  "references",
+  "episodes",
+  SESSION_ARCHIVES_COLLECTION,
+  EVIDENCE_COLLECTION,
+  EXPERIENCES_COLLECTION,
+] as const;
+
 function recordMatchesScope(record: ScopeBoundRecord, scope: MemoryScope): boolean {
   if (record.userId !== scope.userId) {
     return false;
@@ -515,16 +556,7 @@ class GoodMemoryImpl implements GoodMemory {
       };
     }
 
-    const collections = [
-      "facts",
-      "feedback",
-      "profiles",
-      "preferences",
-      "references",
-      "episodes",
-    ];
-
-    for (const collection of collections) {
+    for (const collection of FORGETTABLE_COLLECTIONS) {
       const existing = await this.documentStore.get(collection, _input.memoryId);
 
       if (existing && recordMatchesScope(existing as ScopeBoundRecord, _input.scope)) {
@@ -614,6 +646,9 @@ class GoodMemoryImpl implements GoodMemory {
       allFacts,
       allFeedback,
       allEpisodes,
+      allArchives,
+      allEvidence,
+      allExperiences,
     ] = await Promise.all([
       this.repositories.profiles.get(input.scope.userId),
       this.repositories.preferences.listByScope(input.scope),
@@ -621,6 +656,9 @@ class GoodMemoryImpl implements GoodMemory {
       this.repositories.facts.listByScope(input.scope),
       this.repositories.feedback.listByScope(input.scope),
       this.repositories.episodes.listByScope(input.scope),
+      this.repositories.archives.listByScope(input.scope),
+      this.repositories.evidence.listByScope(input.scope),
+      this.repositories.experiences.listByScope(input.scope),
     ]);
 
     const preferences = allPreferences.filter((record) => recordMatchesScope(record, input.scope));
@@ -628,6 +666,9 @@ class GoodMemoryImpl implements GoodMemory {
     const facts = allFacts.filter((record) => recordMatchesScope(record, input.scope));
     const feedback = allFeedback.filter((record) => recordMatchesScope(record, input.scope));
     const episodes = allEpisodes.filter((record) => recordMatchesScope(record, input.scope));
+    const archives = allArchives.filter((record) => recordMatchesScope(record, input.scope));
+    const evidence = allEvidence.filter((record) => recordMatchesScope(record, input.scope));
+    const experiences = allExperiences.filter((record) => recordMatchesScope(record, input.scope));
 
     if (
       profile &&
@@ -656,6 +697,15 @@ class GoodMemoryImpl implements GoodMemory {
     for (const episode of episodes) {
       await this.documentStore.delete("episodes", episode.id);
       deleted.episodes += 1;
+    }
+    for (const archive of archives) {
+      await this.documentStore.delete(SESSION_ARCHIVES_COLLECTION, archive.id);
+    }
+    for (const evidenceRecord of evidence) {
+      await this.documentStore.delete(EVIDENCE_COLLECTION, evidenceRecord.id);
+    }
+    for (const experience of experiences) {
+      await this.documentStore.delete(EXPERIENCES_COLLECTION, experience.id);
     }
 
     if (input.includeRuntime !== false) {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
+import { createMemorySource } from "../../src/domain/provenance";
+import { createEvidenceRecord, EVIDENCE_COLLECTION } from "../../src/evidence/contracts";
+import {
+  createExperienceRecord,
+  createSessionArchive,
+  EXPERIENCES_COLLECTION,
+  SESSION_ARCHIVES_COLLECTION,
+} from "../../src/evolution/contracts";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
@@ -151,6 +159,91 @@ describe("public governance API", () => {
         content: "Session nine spill payload",
       },
     );
+    const source = createMemorySource({
+      method: "explicit",
+      extractedAt: "2026-04-02T00:00:00.000Z",
+      sessionId: "s-1",
+    });
+    await documentStore.set(
+      SESSION_ARCHIVES_COLLECTION,
+      "archive-s1",
+      createSessionArchive({
+        id: "archive-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        summary: "Scoped archive for session one.",
+        unresolvedItems: ["follow the session-one rollout"],
+      }),
+    );
+    await documentStore.set(
+      SESSION_ARCHIVES_COLLECTION,
+      "archive-s9",
+      createSessionArchive({
+        id: "archive-s9",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-9",
+        summary: "Scoped archive for session nine.",
+        unresolvedItems: ["keep session nine"],
+      }),
+    );
+    await documentStore.set(
+      EVIDENCE_COLLECTION,
+      "evidence-s1",
+      createEvidenceRecord({
+        id: "evidence-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        kind: "conversation_excerpt",
+        excerpt: "session-one evidence",
+        source,
+      }),
+    );
+    await documentStore.set(
+      EVIDENCE_COLLECTION,
+      "evidence-s9",
+      createEvidenceRecord({
+        id: "evidence-s9",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-9",
+        kind: "conversation_excerpt",
+        excerpt: "session-nine evidence",
+        source: createMemorySource({
+          method: "explicit",
+          extractedAt: "2026-04-02T00:00:00.000Z",
+          sessionId: "s-9",
+        }),
+      }),
+    );
+    await documentStore.set(
+      EXPERIENCES_COLLECTION,
+      "experience-s1",
+      createExperienceRecord({
+        id: "experience-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        kind: "session_end",
+        traceId: "trace-s1",
+        summary: "session-one experience",
+      }),
+    );
+    await documentStore.set(
+      EXPERIENCES_COLLECTION,
+      "experience-s9",
+      createExperienceRecord({
+        id: "experience-s9",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-9",
+        kind: "session_end",
+        traceId: "trace-s9",
+        summary: "session-nine experience",
+      }),
+    );
 
     const result = await memory.deleteAllMemory({
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
@@ -190,6 +283,12 @@ describe("public governance API", () => {
     expect(recallA.journal).toBeNull();
     expect(exportedA.runtime?.spills).toHaveLength(0);
     expect(exportedOtherSession.runtime?.spills).toHaveLength(1);
+    expect(await documentStore.get(SESSION_ARCHIVES_COLLECTION, "archive-s1")).toBeNull();
+    expect(await documentStore.get(SESSION_ARCHIVES_COLLECTION, "archive-s9")).not.toBeNull();
+    expect(await documentStore.get(EVIDENCE_COLLECTION, "evidence-s1")).toBeNull();
+    expect(await documentStore.get(EVIDENCE_COLLECTION, "evidence-s9")).not.toBeNull();
+    expect(await documentStore.get(EXPERIENCES_COLLECTION, "experience-s1")).toBeNull();
+    expect(await documentStore.get(EXPERIENCES_COLLECTION, "experience-s9")).not.toBeNull();
   });
 
   it("returns an empty recall when ignoreMemory is enabled even if data exists", async () => {

@@ -1,9 +1,9 @@
 Phase 14.2: Session Archive Write and Read Paths
 ================================================
 
-[TODO] P14.2-T001 Add session archive repository/storage support
-[TODO] P14.2-T002 Persist archive records from runtime/session-close or maintenance flows
-[TODO] P14.2-T003 Add scope-aware archive retrieval for continuation queries
+[DONE] P14.2-T001 Add session archive repository/storage support
+[WIP] P14.2-T002 Persist archive records from runtime/session-close or maintenance flows
+[DONE] P14.2-T003 Add scope-aware archive retrieval for continuation queries
 
 Why this exists
 ---------------
@@ -26,3 +26,31 @@ Acceptance
 ----------
 - Cross-session continuity has a first-class substrate
 - Archive recall works without provider-backed retrieval
+
+
+Implemented
+-----------
+- Added archive repository/storage support through `src/storage/repositories.ts`
+- Added optional runtime archive persistence on `endSession()` in `src/runtime/contextService.ts`
+- Archive writes stay optional and no-op for untouched empty sessions
+- Persisted archive fields now include summary, normalized transcript, key decisions, unresolved items, referenced artifacts, and scope lineage
+- Added scope-aware archive retrieval for continuation queries in `src/recall/engine.ts`
+- Added archive summaries to recall packets and markdown context output
+- Added archive continuity integration tests that exercise runtime -> archive -> recall end-to-end
+
+
+Still Missing
+-------------
+- maintenance-originated archive writes
+- broader archive/evidence co-rendering and evidence-backed recall
+
+
+Validation
+----------
+- `tests/unit/storage.repositories.test.ts`
+- `tests/unit/runtime.context-service.test.ts`
+- `tests/unit/context-builder.outputs.test.ts`
+- `tests/unit/recall.router.test.ts`
+- `tests/integration/recall.api.test.ts`
+- `bun run typecheck`
+- `bun test`

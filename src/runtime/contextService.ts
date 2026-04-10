@@ -11,12 +11,22 @@ import type {
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import { scopeToKey } from "../domain/scope";
+import {
+  createSessionArchive,
+} from "../evolution/contracts";
+import type { SessionArchive } from "../evolution/contracts";
 import type { SessionStore } from "../storage/contracts";
+
+export interface RuntimeArchiveStore {
+  add(archive: SessionArchive): Promise<void>;
+}
 
 export interface RuntimeContextServiceConfig {
   sessionStore: SessionStore;
+  archiveStore?: RuntimeArchiveStore;
   now?: () => string;
   createMessageId?: () => string;
+  createArchiveId?: () => string;
   maxBufferedMessages?: number;
 }
 
@@ -95,13 +105,79 @@ function hasRuntimeSignal(snapshot: WorkingMemorySnapshot): boolean {
   );
 }
 
+function hasJournalSignal(journal: SessionJournal): boolean {
+  return Boolean(
+    journal.title ||
+      journal.currentState ||
+      journal.taskSpecification ||
+      (journal.filesAndFunctions?.length ?? 0) > 0 ||
+      (journal.workflow?.length ?? 0) > 0 ||
+      (journal.errorsAndCorrections?.length ?? 0) > 0 ||
+      (journal.systemDocumentation?.length ?? 0) > 0 ||
+      (journal.learnings?.length ?? 0) > 0 ||
+      (journal.keyResults?.length ?? 0) > 0 ||
+      journal.worklog.length > 0,
+  );
+}
+
+function hasArchiveSignal(state: RuntimeContextState): boolean {
+  return Boolean(
+    state.buffer.summary ||
+      state.buffer.messages.length > 0 ||
+      hasRuntimeSignal(state.workingMemory) ||
+      hasJournalSignal(state.journal),
+  );
+}
+
+function renderNormalizedTranscript(messages: SessionMessage[]): string | undefined {
+  if (messages.length === 0) {
+    return undefined;
+  }
+
+  return messages.map((message) => `${message.role}: ${message.content}`).join("\n");
+}
+
+function renderArchiveListSegment(
+  label: string,
+  values: string[],
+): string | undefined {
+  if (values.length === 0) {
+    return undefined;
+  }
+
+  return `${label}: ${values.join("; ")}`;
+}
+
+function buildArchiveSummary(state: RuntimeContextState): string {
+  const keyDecisions = mergeUnique(
+    state.workingMemory.temporaryDecisions ?? [],
+    state.journal.keyResults ?? [],
+  );
+  const summarySegments = [
+    state.buffer.summary ?? undefined,
+    state.journal.currentState ?? undefined,
+    state.workingMemory.currentGoal
+      ? `Goal: ${state.workingMemory.currentGoal}.`
+      : undefined,
+    renderArchiveListSegment("Key decisions", keyDecisions),
+    renderArchiveListSegment("Open loops", state.workingMemory.openLoops),
+    state.journal.worklog.at(-1),
+  ].filter((segment): segment is string => Boolean(segment));
+
+  return summarySegments.join(" ").trim() || "Session ended without a synthesized summary.";
+}
+
 export function createRuntimeContextService(config: RuntimeContextServiceConfig) {
   const now = config.now ?? (() => new Date().toISOString());
   const createMessageId = config.createMessageId ?? (() => crypto.randomUUID());
+  const createArchiveId = config.createArchiveId ?? (() => crypto.randomUUID());
   const maxBufferedMessages = Math.max(config.maxBufferedMessages ?? 24, 1);
   const lifecycle = new Map<string, SessionLifecycleStatus>();
 
-  function requireSessionScope(scope: MemoryScope): MemoryScope & { sessionId: string } {
+  function requireSessionScope(scope: MemoryScope): Required<
+    Pick<MemoryScope, "sessionId" | "userId">
+  > &
+    MemoryScope {
     if (!scope.sessionId) {
       throw new Error("Runtime context requires scope.sessionId");
     }
@@ -113,7 +189,7 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
   }
 
   async function createFreshState(
-    scope: MemoryScope & { sessionId: string },
+    scope: Required<Pick<MemoryScope, "sessionId" | "userId">> & MemoryScope,
   ): Promise<RuntimeContextState> {
     const timestamp = now();
     const buffer = createSessionBuffer({
@@ -146,7 +222,7 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
   }
 
   async function ensureActiveState(
-    scope: MemoryScope & { sessionId: string },
+    scope: Required<Pick<MemoryScope, "sessionId" | "userId">> & MemoryScope,
   ): Promise<RuntimeContextState> {
     const key = scopeToKey(scope);
 
@@ -328,6 +404,40 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
     async endSession(scope: MemoryScope): Promise<RuntimeContextState> {
       const sessionScope = requireSessionScope(scope);
       const state = await ensureActiveState(sessionScope);
+      const archivedAt = now();
+
+      if (config.archiveStore && hasArchiveSignal(state)) {
+        const archive = createSessionArchive({
+          id: createArchiveId(),
+          userId: sessionScope.userId,
+          tenantId: sessionScope.tenantId,
+          workspaceId: sessionScope.workspaceId,
+          agentId: sessionScope.agentId,
+          sessionId: sessionScope.sessionId,
+          sourceSessionIds: [sessionScope.sessionId],
+          summary: buildArchiveSummary(state),
+          normalizedTranscript: renderNormalizedTranscript(state.buffer.messages),
+          keyDecisions: mergeUnique(
+            state.workingMemory.temporaryDecisions ?? [],
+            state.journal.keyResults ?? [],
+          ),
+          unresolvedItems: state.workingMemory.openLoops,
+          referencedArtifacts: mergeUnique(
+            state.journal.filesAndFunctions ?? [],
+            state.journal.systemDocumentation ?? [],
+          ),
+          scopeLineage: [
+            sessionScope.tenantId,
+            sessionScope.workspaceId,
+            sessionScope.agentId,
+          ].filter((segment): segment is string => Boolean(segment)),
+          createdAt: state.buffer.createdAt,
+          archivedAt,
+        });
+
+        await config.archiveStore.add(archive);
+      }
+
       lifecycle.set(scopeToKey(sessionScope), "ended");
       return state;
     },

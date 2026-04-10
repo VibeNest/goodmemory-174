@@ -4,8 +4,8 @@ import {
 } from "../../src/storage/repositories";
 import {
   createFactMemory,
-  createFeedbackMemory,
   createEpisodeMemory,
+  createFeedbackMemory,
   createPreferenceMemory,
   createReferenceMemory,
   createSessionBuffer,
@@ -13,6 +13,11 @@ import {
   createUserProfile,
   createWorkingMemorySnapshot,
 } from "../../src/domain/records";
+import { createEvidenceRecord } from "../../src/evidence/contracts";
+import {
+  createExperienceRecord,
+  createSessionArchive,
+} from "../../src/evolution/contracts";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
@@ -194,6 +199,80 @@ describe("memory repositories", () => {
       await repositories.vectorIndex?.searchEpisodeEmbedding([1, 0, 0], {
         topK: 1,
         filter: { userId: "u-1" },
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("persists archives and evidence through typed accessors", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+
+    const archive = createSessionArchive({
+      id: "archive-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+      summary: "The session closed with one unresolved rollout blocker.",
+      unresolvedItems: ["confirm rollback owner"],
+    });
+    const evidence = createEvidenceRecord({
+      id: "evidence-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+      kind: "conversation_excerpt",
+      excerpt: "The user said the rollback owner is still pending.",
+      source: { method: "explicit", extractedAt: "2026-04-10T00:00:00.000Z" },
+      linkedArchiveIds: ["archive-1"],
+    });
+
+    await repositories.archives.add(archive);
+    await repositories.evidence.add(evidence);
+
+    expect(await repositories.archives.get("archive-1")).toEqual(archive);
+    expect(await repositories.evidence.get("evidence-1")).toEqual(evidence);
+    expect(await repositories.archives.listByUser("u-1")).toHaveLength(1);
+    expect(
+      await repositories.archives.listByScope({
+        userId: "u-1",
+        workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.evidence.listByScope({
+        userId: "u-1",
+        workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("persists experience telemetry through typed accessors", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+
+    const experience = createExperienceRecord({
+      id: "xp-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+      kind: "maintenance",
+      traceId: "trace-maint-1",
+      summary: "Maintenance ran one low-risk dedupe job.",
+      linkedMemoryIds: ["fact-1"],
+    });
+
+    await repositories.experiences.add(experience);
+
+    expect(await repositories.experiences.get("xp-1")).toEqual(experience);
+    expect(await repositories.experiences.listByUser("u-1")).toHaveLength(1);
+    expect(
+      await repositories.experiences.listByScope({
+        userId: "u-1",
+        workspaceId: "workspace-a",
       }),
     ).toHaveLength(1);
   });

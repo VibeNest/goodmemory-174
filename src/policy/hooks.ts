@@ -7,6 +7,7 @@ import type {
   UserProfile,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
+import type { SessionArchive } from "../evolution/contracts";
 import type { MemoryCandidate } from "../remember/candidates";
 
 export interface PolicyContext {
@@ -24,6 +25,7 @@ export type PolicyMemoryRecord =
   | ({ memoryType: "reference" } & ReferenceMemory)
   | ({ memoryType: "fact" } & FactMemory)
   | ({ memoryType: "feedback" } & FeedbackMemory)
+  | ({ memoryType: "archive" } & SessionArchive)
   | ({ memoryType: "episode" } & EpisodeMemory);
 
 export interface ConflictResolution {
@@ -52,7 +54,14 @@ export interface GoodMemoryPolicyHooks {
 }
 
 export function toPolicyMemoryRecord(
-  record: UserProfile | PreferenceMemory | ReferenceMemory | FactMemory | FeedbackMemory | EpisodeMemory,
+  record:
+    | UserProfile
+    | PreferenceMemory
+    | ReferenceMemory
+    | FactMemory
+    | FeedbackMemory
+    | SessionArchive
+    | EpisodeMemory,
   memoryType: PolicyMemoryRecord["memoryType"],
 ): PolicyMemoryRecord {
   return {

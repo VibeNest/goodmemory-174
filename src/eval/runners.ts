@@ -47,6 +47,7 @@ export interface EvalAnswerPackage {
     references: RecallResult["references"];
     facts: RecallResult["facts"];
     feedback: RecallResult["feedback"];
+    archives: RecallResult["archives"];
     episodes: RecallResult["episodes"];
     workingMemory: RecallResult["workingMemory"];
     journal: RecallResult["journal"];
@@ -276,6 +277,7 @@ export async function runGoodMemoryScenario(input: {
       references: recall.references,
       facts: recall.facts,
       feedback: recall.feedback,
+      archives: recall.archives,
       episodes: recall.episodes,
       workingMemory: recall.workingMemory,
       journal: recall.journal,

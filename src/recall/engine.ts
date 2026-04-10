@@ -12,6 +12,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
+import type { SessionArchive } from "../evolution/contracts";
 import type { SessionStore } from "../storage/contracts";
 import type { MemoryRepositories } from "../storage/repositories";
 import {
@@ -59,6 +60,7 @@ export interface RecallHit {
     | "reference"
     | "fact"
     | "feedback"
+    | "session_archive"
     | "episode"
     | "working_memory"
     | "session_journal";
@@ -69,7 +71,7 @@ export interface RecallHit {
 
 export interface RecallCandidateTrace {
   memoryId: string;
-  memoryType: "fact" | "reference" | "episode";
+  memoryType: "fact" | "reference" | "archive" | "episode";
   slot: RecallSlot | "generic";
   returned: boolean;
   whyReturned?: string;
@@ -87,6 +89,7 @@ export interface RecallResult {
   references: ReferenceMemory[];
   facts: FactMemory[];
   feedback: FeedbackMemory[];
+  archives: SessionArchive[];
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
@@ -214,6 +217,44 @@ function resolveEpisodeLocale(
   );
 }
 
+function resolveArchiveLocale(
+  archive: SessionArchive,
+  language: LanguageService,
+): string {
+  return (
+    archive.locale ??
+    language.resolveFromText({
+      text: [
+        archive.summary,
+        archive.keyDecisions.join(" "),
+        archive.unresolvedItems.join(" "),
+        archive.normalizedTranscript ?? "",
+        archive.referencedArtifacts.join(" "),
+      ]
+        .filter(Boolean)
+        .join(" "),
+    }).locale
+  );
+}
+
+function rankArchiveCandidates(
+  entries: RankedArchiveCandidate[],
+): RankedArchiveCandidate[] {
+  return [...entries].sort((left, right) => {
+    if (right.score !== left.score) {
+      return right.score - left.score;
+    }
+    if (right.lexicalScore !== left.lexicalScore) {
+      return right.lexicalScore - left.lexicalScore;
+    }
+    if (right.freshnessScore !== left.freshnessScore) {
+      return right.freshnessScore - left.freshnessScore;
+    }
+
+    return right.archive.archivedAt.localeCompare(left.archive.archivedAt);
+  });
+}
+
 interface RankedFactCandidate {
   fact: FactMemory;
   locale: string;
@@ -244,6 +285,14 @@ interface RankedReferenceCandidate {
 
 interface RankedEpisodeCandidate {
   episode: EpisodeMemory;
+  locale: string;
+  lexicalScore: number;
+  freshnessScore: number;
+  score: number;
+}
+
+interface RankedArchiveCandidate {
+  archive: SessionArchive;
   locale: string;
   lexicalScore: number;
   freshnessScore: number;
@@ -492,6 +541,68 @@ function buildEpisodeCandidates(
       lexicalScore,
       freshnessScore: freshness,
       score: lexicalScore + freshness + episode.importance * 0.1,
+    };
+  });
+}
+
+function buildArchiveCandidates(
+  archives: SessionArchive[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  referenceTime: string,
+): RankedArchiveCandidate[] {
+  return sortArchives(archives).map((archive) => {
+    const locale = resolveArchiveLocale(archive, language);
+    const summaryScore = language.tokenOverlap(archive.summary, query, queryLocale, {
+      excludeStopwords: true,
+    });
+    const unresolvedScore = language.tokenOverlap(
+      archive.unresolvedItems.join(" "),
+      query,
+      queryLocale,
+      {
+        excludeStopwords: true,
+      },
+    );
+    const decisionScore = language.tokenOverlap(
+      archive.keyDecisions.join(" "),
+      query,
+      queryLocale,
+      {
+        excludeStopwords: true,
+      },
+    );
+    const transcriptScore = language.tokenOverlap(
+      archive.normalizedTranscript ?? "",
+      query,
+      queryLocale,
+      {
+        excludeStopwords: true,
+      },
+    );
+    const artifactScore = language.tokenOverlap(
+      archive.referencedArtifacts.join(" "),
+      query,
+      queryLocale,
+      {
+        excludeStopwords: true,
+      },
+    );
+    const lexicalScore =
+      unresolvedScore * 1.4 +
+      decisionScore * 1.2 +
+      summaryScore +
+      transcriptScore * 0.6 +
+      artifactScore * 0.4;
+    const freshness = freshnessScore(archive.archivedAt, referenceTime);
+
+    return {
+      archive,
+      locale,
+      lexicalScore,
+      freshnessScore: freshness,
+      score: lexicalScore + freshness + 0.2,
     };
   });
 }
@@ -1128,6 +1239,95 @@ function selectEpisodes(
   };
 }
 
+function selectArchives(
+  archives: SessionArchive[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  routingDecision: RoutingDecision,
+  referenceTime: string,
+): { archives: SessionArchive[]; traces: RecallCandidateTrace[] } {
+  const ranked = buildArchiveCandidates(
+    archives,
+    query,
+    language,
+    queryLocale,
+    referenceTime,
+  );
+  const traces: RecallCandidateTrace[] = ranked.map((entry) => ({
+    memoryId: entry.archive.id,
+    memoryType: "archive",
+    slot: "generic",
+    returned: false,
+    whySuppressed: !language.localesCompatible(queryLocale, entry.locale)
+      ? "locale mismatch"
+      : "not selected",
+    intentScore: routingDecision.continuation ? 0.7 : 0,
+    lexicalScore: entry.lexicalScore,
+    freshnessScore: entry.freshnessScore,
+    explicitnessScore: 0,
+    fallback: "none",
+  }));
+  const compatible = ranked.filter((entry) =>
+    language.localesCompatible(queryLocale, entry.locale),
+  );
+  const withSignal = rankArchiveCandidates(
+    compatible.filter(
+      (entry) => entry.lexicalScore > 0 || routingDecision.continuation,
+    ),
+  );
+
+  if (!routingDecision.continuation) {
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "no continuation signal";
+      }
+    }
+
+    return {
+      archives: [],
+      traces,
+    };
+  }
+
+  if (withSignal.length === 0) {
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "no continuation signal";
+      }
+    }
+
+    return {
+      archives: [],
+      traces,
+    };
+  }
+
+  const selected = withSignal.slice(0, 1);
+  for (const entry of selected) {
+    markSelectedTrace(
+      traces,
+      entry.archive.id,
+      "generic",
+      0.7,
+      entry.lexicalScore,
+      entry.freshnessScore,
+      0,
+      "none",
+    );
+  }
+  for (const trace of traces) {
+    if (!trace.returned && trace.whySuppressed === "not selected") {
+      trace.whySuppressed = "lower-ranked continuation candidate";
+    }
+  }
+
+  return {
+    archives: selected.map((entry) => entry.archive),
+    traces,
+  };
+}
+
 function sortFacts(facts: FactMemory[]): FactMemory[] {
   return [...facts].sort((left, right) => {
     if (left.lifecycle !== right.lifecycle) {
@@ -1180,12 +1380,19 @@ function sortEpisodes(episodes: EpisodeMemory[]): EpisodeMemory[] {
   });
 }
 
+function sortArchives(archives: SessionArchive[]): SessionArchive[] {
+  return [...archives].sort((left, right) =>
+    right.archivedAt.localeCompare(left.archivedAt),
+  );
+}
+
 function buildHits(input: {
   profile: UserProfile | null;
   preferences: PreferenceMemory[];
   references: ReferenceMemory[];
   facts: FactMemory[];
   feedback: FeedbackMemory[];
+  archives: SessionArchive[];
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
@@ -1244,6 +1451,16 @@ function buildHits(input: {
       }
     }
 
+    if (source === "session_archive") {
+      for (const archive of input.archives.slice(0, 1)) {
+        hits.push({
+          id: archive.id,
+          type: "session_archive",
+          reason: "continuation_context",
+        });
+      }
+    }
+
     if (source === "episode") {
       for (const episode of input.episodes.slice(0, 2)) {
         hits.push({
@@ -1285,6 +1502,7 @@ async function applyRecallPolicyToRecords<TRecord extends {
     | "reference"
     | "fact"
     | "feedback"
+    | "archive"
     | "episode",
   input: {
     scope: MemoryScope;
@@ -1425,6 +1643,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           references: [],
           facts: [],
           feedback: [],
+          archives: [],
           episodes: [],
           workingMemory: null,
           journal: null,
@@ -1437,6 +1656,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           references: [],
           facts: [],
           feedback: [],
+          archives: [],
           episodes: [],
           workingMemory: null,
           journal: null,
@@ -1463,6 +1683,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         referencesRaw,
         factsRaw,
         feedbackRaw,
+        archivesRaw,
         episodesRaw,
         workingMemoryRaw,
         journalRaw,
@@ -1473,6 +1694,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           config.repositories.references.listByScope(input.scope),
           config.repositories.facts.listByScope(input.scope),
           config.repositories.feedback.listByScope(input.scope),
+          config.repositories.archives.listByScope(input.scope),
           config.repositories.episodes.listByScope(input.scope),
           input.scope.sessionId
             ? config.sessionStore.getWorkingMemory(input.scope)
@@ -1552,6 +1774,27 @@ export function createRecallEngine(config: RecallEngineConfig) {
 	          policyApplied,
 	        },
 	      );
+	      const selectedArchives = selectArchives(
+	        archivesRaw,
+	        input.query,
+	        language,
+	        resolvedLanguage.locale,
+	        routingDecision,
+	        currentReferenceTime,
+	      );
+	      const archives = await applyRecallPolicyToRecords(
+	        selectedArchives.archives,
+	        "archive",
+	        {
+	          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+          policy: config.policy,
+	          policyApplied,
+	        },
+	      );
 	      const selectedEpisodes = selectEpisodes(
 	        episodesRaw,
 	        input.query,
@@ -1604,6 +1847,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
 	          new Set(references.map((reference) => reference.id)),
 	        ),
 	        ...reconcileCandidateTraces(
+	          selectedArchives.traces,
+	          new Set(archives.map((archive) => archive.id)),
+	        ),
+	        ...reconcileCandidateTraces(
 	          selectedEpisodes.traces,
 	          new Set(episodes.map((episode) => episode.id)),
 	        ),
@@ -1617,6 +1864,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         references,
         facts,
         feedback,
+        archives,
         episodes,
         workingMemory,
         journal,
@@ -1628,6 +1876,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         references,
         facts,
         feedback,
+        archives,
         episodes,
         workingMemory,
         journal,
@@ -1657,6 +1906,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
             references,
             facts,
             feedback,
+            archives,
             episodes,
             workingMemory,
             journal,

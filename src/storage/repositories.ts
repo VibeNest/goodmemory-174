@@ -10,6 +10,16 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
+import type { EvidenceRecord } from "../evidence/contracts";
+import { EVIDENCE_COLLECTION } from "../evidence/contracts";
+import type {
+  ExperienceRecord,
+  SessionArchive,
+} from "../evolution/contracts";
+import {
+  EXPERIENCES_COLLECTION,
+  SESSION_ARCHIVES_COLLECTION,
+} from "../evolution/contracts";
 import type {
   DocumentStore,
   SessionStore,
@@ -51,6 +61,24 @@ export interface MemoryRepositories {
     upsert(feedback: FeedbackMemory): Promise<void>;
     listByUser(userId: string): Promise<FeedbackMemory[]>;
     listByScope(scope: MemoryScope): Promise<FeedbackMemory[]>;
+  };
+  archives: {
+    add(archive: SessionArchive): Promise<void>;
+    get(id: string): Promise<SessionArchive | null>;
+    listByUser(userId: string): Promise<SessionArchive[]>;
+    listByScope(scope: MemoryScope): Promise<SessionArchive[]>;
+  };
+  evidence: {
+    add(evidence: EvidenceRecord): Promise<void>;
+    get(id: string): Promise<EvidenceRecord | null>;
+    listByUser(userId: string): Promise<EvidenceRecord[]>;
+    listByScope(scope: MemoryScope): Promise<EvidenceRecord[]>;
+  };
+  experiences: {
+    add(experience: ExperienceRecord): Promise<void>;
+    get(id: string): Promise<ExperienceRecord | null>;
+    listByUser(userId: string): Promise<ExperienceRecord[]>;
+    listByScope(scope: MemoryScope): Promise<ExperienceRecord[]>;
   };
   sessionBuffers: {
     save(scope: MemoryScope, buffer: SessionBuffer): Promise<void>;
@@ -200,6 +228,75 @@ export function createMemoryRepositories(
       async listByScope(scope: MemoryScope): Promise<FeedbackMemory[]> {
         return config.documentStore.query<FeedbackMemory>(
           "feedback",
+          buildScopeFilter(scope),
+        );
+      },
+    },
+
+    archives: {
+      async add(archive: SessionArchive): Promise<void> {
+        await config.documentStore.set(SESSION_ARCHIVES_COLLECTION, archive.id, archive);
+      },
+
+      async get(id: string): Promise<SessionArchive | null> {
+        return config.documentStore.get<SessionArchive>(SESSION_ARCHIVES_COLLECTION, id);
+      },
+
+      async listByUser(userId: string): Promise<SessionArchive[]> {
+        return config.documentStore.query<SessionArchive>(SESSION_ARCHIVES_COLLECTION, {
+          userId,
+        });
+      },
+
+      async listByScope(scope: MemoryScope): Promise<SessionArchive[]> {
+        return config.documentStore.query<SessionArchive>(
+          SESSION_ARCHIVES_COLLECTION,
+          buildScopeFilter(scope),
+        );
+      },
+    },
+
+    evidence: {
+      async add(evidence: EvidenceRecord): Promise<void> {
+        await config.documentStore.set(EVIDENCE_COLLECTION, evidence.id, evidence);
+      },
+
+      async get(id: string): Promise<EvidenceRecord | null> {
+        return config.documentStore.get<EvidenceRecord>(EVIDENCE_COLLECTION, id);
+      },
+
+      async listByUser(userId: string): Promise<EvidenceRecord[]> {
+        return config.documentStore.query<EvidenceRecord>(EVIDENCE_COLLECTION, {
+          userId,
+        });
+      },
+
+      async listByScope(scope: MemoryScope): Promise<EvidenceRecord[]> {
+        return config.documentStore.query<EvidenceRecord>(
+          EVIDENCE_COLLECTION,
+          buildScopeFilter(scope),
+        );
+      },
+    },
+
+    experiences: {
+      async add(experience: ExperienceRecord): Promise<void> {
+        await config.documentStore.set(EXPERIENCES_COLLECTION, experience.id, experience);
+      },
+
+      async get(id: string): Promise<ExperienceRecord | null> {
+        return config.documentStore.get<ExperienceRecord>(EXPERIENCES_COLLECTION, id);
+      },
+
+      async listByUser(userId: string): Promise<ExperienceRecord[]> {
+        return config.documentStore.query<ExperienceRecord>(EXPERIENCES_COLLECTION, {
+          userId,
+        });
+      },
+
+      async listByScope(scope: MemoryScope): Promise<ExperienceRecord[]> {
+        return config.documentStore.query<ExperienceRecord>(
+          EXPERIENCES_COLLECTION,
           buildScopeFilter(scope),
         );
       },

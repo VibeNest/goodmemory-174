@@ -8,6 +8,7 @@ import {
   createReferenceMemory,
   createUserProfile,
 } from "../../src/domain/records";
+import { createSessionArchive } from "../../src/evolution/contracts";
 import {
   createRuntimeContextService,
 } from "../../src/runtime/contextService";
@@ -28,6 +29,7 @@ function seedMemory() {
   });
   const runtime = createRuntimeContextService({
     sessionStore,
+    archiveStore: repositories.archives,
     now: () => "2026-01-01T00:00:00.000Z",
   });
 
@@ -236,6 +238,176 @@ describe("public recall API", () => {
     });
 
     expect(context.content).toContain("## Relevant Episodes");
+  });
+
+  it("retrieves session archive summaries for continuation queries when prior sessions were archived", async () => {
+    const { documentStore, sessionStore, runtime } = seedMemory();
+
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-prev",
+      workspaceId: "workspace-a",
+    });
+    await runtime.appendToSession(
+      { userId: "u-1", sessionId: "s-prev", workspaceId: "workspace-a" },
+      {
+        role: "user",
+        content: "Last time we narrowed the archive recall work to summary fusion.",
+      },
+    );
+    await runtime.updateWorkingMemory(
+      { userId: "u-1", sessionId: "s-prev", workspaceId: "workspace-a" },
+      {
+        currentGoal: "Finish archive recall",
+        openLoops: ["wire archive summary into context builder"],
+        temporaryDecisions: ["Prefer archive before generic episodic fallback."],
+      },
+    );
+    await runtime.updateSessionJournal(
+      { userId: "u-1", sessionId: "s-prev", workspaceId: "workspace-a" },
+      {
+        currentState: "Archive recall drafted",
+        appendWorklog: ["Session archive support is the next checkpoint."],
+        filesAndFunctions: ["src/recall/engine.ts"],
+      },
+    );
+    await runtime.endSession({
+      userId: "u-1",
+      sessionId: "s-prev",
+      workspaceId: "workspace-a",
+    });
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-current",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-current", workspaceId: "workspace-a" },
+      query: "Continue the archive recall work from last time.",
+      retrievalProfile: "coding_agent",
+    });
+
+    expect(result.archives).toHaveLength(1);
+    expect(result.archives[0]?.summary).toContain("Archive recall drafted");
+    expect(result.packet.archiveSummary).toContain("Archive recall drafted");
+    expect(result.metadata.hits.some((hit) => hit.type === "session_archive")).toBe(true);
+
+    const context = await memory.buildContext({
+      recall: result,
+      output: "markdown",
+      maxTokens: 160,
+    });
+
+    expect(context.content).toContain("## Session Archive");
+    expect(context.content).toContain("Archive recall drafted");
+  });
+
+  it("prefers the archive whose unresolved handoff matches the continuation query", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.archives.add(
+      createSessionArchive({
+        id: "archive-relevant",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-prev-relevant",
+        summary: "Previous session paused after a generic checkpoint.",
+        keyDecisions: ["Keep the rollback plan staged until ownership is confirmed."],
+        unresolvedItems: ["confirm rollback owner before resuming rollout"],
+        createdAt: "2026-01-01T00:00:00.000Z",
+        archivedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    await repositories.archives.add(
+      createSessionArchive({
+        id: "archive-latest",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-prev-latest",
+        summary: "Most recent session covered unrelated docs cleanup.",
+        keyDecisions: ["Leave the docs index as-is for now."],
+        unresolvedItems: ["polish the docs nav labels"],
+        createdAt: "2026-01-02T00:00:00.000Z",
+        archivedAt: "2026-01-02T00:00:00.000Z",
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-current",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-current", workspaceId: "workspace-a" },
+      query: "Continue the rollback owner follow-up from last time.",
+      retrievalProfile: "coding_agent",
+    });
+
+    expect(result.archives).toHaveLength(1);
+    expect(result.archives[0]?.id).toBe("archive-relevant");
+    expect(result.packet.archiveSummary).toContain("confirm rollback owner before resuming rollout");
+    expect(result.packet.archiveSummary).toContain(
+      "Keep the rollback plan staged until ownership is confirmed.",
+    );
+  });
+
+  it("does not surface session archive summaries for non-continuation general queries", async () => {
+    const { documentStore, sessionStore, runtime } = seedMemory();
+
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-prev",
+      workspaceId: "workspace-a",
+    });
+    await runtime.updateWorkingMemory(
+      { userId: "u-1", sessionId: "s-prev", workspaceId: "workspace-a" },
+      {
+        currentGoal: "Finish archive recall",
+        openLoops: ["wire archive summary into context builder"],
+      },
+    );
+    await runtime.updateSessionJournal(
+      { userId: "u-1", sessionId: "s-prev", workspaceId: "workspace-a" },
+      {
+        currentState: "Archive recall drafted",
+      },
+    );
+    await runtime.endSession({
+      userId: "u-1",
+      sessionId: "s-prev",
+      workspaceId: "workspace-a",
+    });
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-current",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-current", workspaceId: "workspace-a" },
+      query: "How should I answer this user?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.archives).toHaveLength(0);
+    expect(result.packet.archiveSummary).toBeUndefined();
+    expect(result.metadata.hits.some((hit) => hit.type === "session_archive")).toBe(false);
   });
 
   it("does not inject unrelated long-term memory when the query has no relevant signal", async () => {

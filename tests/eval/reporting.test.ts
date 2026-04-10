@@ -51,6 +51,7 @@ function buildAnswerPackage(
             ],
             facts: [],
             feedback: [],
+            archives: [],
             episodes: [],
             workingMemory: null,
             journal: null,
