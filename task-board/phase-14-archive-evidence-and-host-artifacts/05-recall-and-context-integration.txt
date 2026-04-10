@@ -1,0 +1,28 @@
+Phase 14.5: Recall and Context Integration
+==========================================
+
+[TODO] P14.5-T001 Teach the recall planner when to open archive and evidence layers
+[TODO] P14.5-T002 Add archive/evidence sections to packet and `buildContext()` outputs
+[TODO] P14.5-T003 Preserve deterministic fallback, policy hooks, and verification hints across the new layers
+
+Why this exists
+---------------
+- New data planes only matter if recall can use them selectively and explainably.
+- This phase should improve continuity and why-trace quality without turning recall into a provider dependency.
+
+Write tests first
+-----------------
+- archive/evidence layers stay closed for irrelevant queries
+- continuation queries can surface archive context with explicit provenance
+- evidence-backed context output keeps current budgeting and policy behavior
+
+Implementation steps
+--------------------
+1. Extend recall planning with archive/evidence eligibility rules
+2. Fuse archive/evidence results into packets without displacing stronger canonical facts
+3. Keep trace artifacts readable enough for eval and CLI inspection
+
+Acceptance
+----------
+- Recall quality improves on continuity/explainability slices while keeping rules-first behavior
+- Provider-layer work can reuse the planner hooks instead of replacing them

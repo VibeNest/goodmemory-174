@@ -1,0 +1,28 @@
+Phase 16.5: Dream Orchestration Expansion
+=========================================
+
+[TODO] P16.5-T001 Expand `dream` from gate-only to orchestrated hygiene runner
+[TODO] P16.5-T002 Let dream batch proposal compilation and low-risk maintenance jobs
+[TODO] P16.5-T003 Prevent overlapping or unsafe dream runs
+
+Why this exists
+---------------
+- Dream should coordinate maintenance work, not become a hidden second memory engine.
+- As outcome signals and proposals grow, orchestration matters as much as the individual jobs.
+
+Write tests first
+-----------------
+- dream can schedule and batch eligible low-risk jobs without overlapping scope runs
+- high-risk items are emitted as proposals instead of direct writes
+- orchestration traces identify which jobs ran and why
+
+Implementation steps
+--------------------
+1. Extend the existing maintenance entrypoint instead of adding a parallel orchestrator
+2. Batch hygiene, demotion, and proposal compilation under one governed runner
+3. Keep cooldown and concurrency gates intact
+
+Acceptance
+----------
+- Dream becomes useful orchestration without violating governance
+- Maintenance behavior is still inspectable and bounded

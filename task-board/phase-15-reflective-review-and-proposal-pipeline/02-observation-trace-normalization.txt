@@ -1,0 +1,28 @@
+Phase 15.2: Observation Trace Normalization
+===========================================
+
+[TODO] P15.2-T001 Normalize remember/recall/verify traces into `ExperienceRecord`
+[TODO] P15.2-T002 Record failure/correction/outcome telemetry in a compact, append-only form
+[TODO] P15.2-T003 Keep contamination-safe links back to recall/evidence artifacts
+
+Why this exists
+---------------
+- Reviewer and maintenance logic should consume one observation substrate instead of scraping ad hoc traces.
+- Outcome-aware learning needs telemetry that is separate from user-visible recall data.
+
+Write tests first
+-----------------
+- normalized experience records preserve scope, timestamps, and source trace ids
+- append-only observation writes do not mutate durable memory state
+- telemetry records do not leak directly into user recall results
+
+Implementation steps
+--------------------
+1. Define normalization rules from existing recall/write/verify outputs
+2. Store compact telemetry instead of raw transcript copies
+3. Keep links to existing artifacts for debugging and later promotion review
+
+Acceptance
+----------
+- Experience records are generated consistently from core flows
+- Reviewer logic has a stable observation substrate to consume

@@ -1,0 +1,28 @@
+Phase 16.2: Outcome Mutation Helpers
+====================================
+
+[TODO] P16.2-T001 Add low-risk touch/reinforce helpers
+[TODO] P16.2-T002 Record outcome counters such as access and reinforcement safely
+[TODO] P16.2-T003 Keep mutation semantics explainable and bounded
+
+Why this exists
+---------------
+- Outcome-aware scoring needs lightweight state changes that do not look like full semantic rewrites.
+- These helpers should express usage and reinforcement, not bypass governance.
+
+Write tests first
+-----------------
+- touches update usage counters without changing canonical content
+- reinforce operations remain scope-aware and idempotent within a bounded window
+- mutation traces explain why counters changed
+
+Implementation steps
+--------------------
+1. Extend internal mutation APIs for low-risk maintenance signals
+2. Keep these helpers out of the public API unless there is later evidence they should be exposed
+3. Feed the counters into scoring and maintenance only after traceability is in place
+
+Acceptance
+----------
+- Usage-aware maintenance can rely on explicit counters
+- Low-risk mutations stay distinct from semantic content changes

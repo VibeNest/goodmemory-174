@@ -1,0 +1,28 @@
+Phase 17.3: Promotion Gates
+===========================
+
+[TODO] P17.3-T001 Define gate criteria for promoting strategy changes
+[TODO] P17.3-T002 Persist gate outcomes and rationale
+[TODO] P17.3-T003 Block default rollout when evidence is insufficient
+
+Why this exists
+---------------
+- Promotion should be an engineering decision backed by artifacts, not a commit-time intuition.
+- Gate criteria need to be explicit so rollback and future comparisons are possible.
+
+Write tests first
+-----------------
+- failing gates keep candidate strategies out of promoted defaults
+- accepted gates record the underlying evidence and thresholds
+- rollback decisions can be traced to prior promotion records
+
+Implementation steps
+--------------------
+1. Define numeric and qualitative gate inputs
+2. Connect eval summaries, proposal history, and regression artifacts into one decision point
+3. Persist promotion or rejection outcomes in the existing decision record model
+
+Acceptance
+----------
+- Promotion decisions are reproducible and reviewable
+- Default behavior changes only when gate criteria are met

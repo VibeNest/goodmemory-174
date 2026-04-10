@@ -1,0 +1,28 @@
+Phase 18.4: Playbook and Procedure Artifact Export
+==================================================
+
+[TODO] P18.4-T001 Export validated patterns into playbook artifacts
+[TODO] P18.4-T002 Keep playbooks linked back to canonical pattern lineage
+[TODO] P18.4-T003 Support host-friendly prompt/skill snippet rendering
+
+Why this exists
+---------------
+- Hosts often consume procedural guidance as files, snippets, or playbooks rather than internal records.
+- These exports should be derived artifacts, not the procedural source of truth.
+
+Write tests first
+-----------------
+- exported playbooks are deterministic from the same validated pattern inputs
+- playbooks record their source pattern lineage
+- playbook regeneration does not mutate procedural truth
+
+Implementation steps
+--------------------
+1. Compile validated patterns into host-readable playbook files
+2. Keep lineage back to the underlying feedback/proposal chain
+3. Render minimal skill/prompt snippets only as derived output forms
+
+Acceptance
+----------
+- Hosts can consume procedural memory through exported artifacts
+- Exported files remain projections rather than truth sources

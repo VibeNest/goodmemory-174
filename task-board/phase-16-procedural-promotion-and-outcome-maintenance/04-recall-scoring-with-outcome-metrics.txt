@@ -1,0 +1,28 @@
+Phase 16.4: Recall Scoring with Outcome Metrics
+===============================================
+
+[TODO] P16.4-T001 Integrate accessCount and lastUsedAt into scoring
+[TODO] P16.4-T002 Integrate evidenceCount and correction/demotion signals into scoring
+[TODO] P16.4-T003 Keep scoring attribution visible in recall traces
+
+Why this exists
+---------------
+- Better memory systems do not only rank by recency and lexical fit; they also rank by demonstrated usefulness and reliability.
+- These signals should improve ranking without creating an opaque scoring model.
+
+Write tests first
+-----------------
+- outcome metrics can boost stable, useful memory without displacing stronger exact matches
+- demoted memories lose prominence in relevant recall slices
+- scoring artifacts explain which outcome signals affected ranking
+
+Implementation steps
+--------------------
+1. Extend recall scoring with bounded, interpretable weights
+2. Keep lexical/policy/scope guards as hard floors
+3. Emit enough attribution for eval and CLI debugging
+
+Acceptance
+----------
+- Recall ranking becomes outcome-aware without becoming opaque
+- Eval can attribute changes to specific scoring signals

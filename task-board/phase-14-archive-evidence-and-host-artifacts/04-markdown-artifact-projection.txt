@@ -1,0 +1,28 @@
+Phase 14.4: Markdown Artifact Projection
+========================================
+
+[TODO] P14.4-T001 Define compiled artifact outputs for `user.md`, `MEMORY.md`, and session memory views
+[TODO] P14.4-T002 Add stable artifact rendering and refresh rules
+[TODO] P14.4-T003 Keep Markdown projection export-friendly without making it canonical
+
+Why this exists
+---------------
+- GoodMemory needs a host-readable memory surface for debugging, migration, and agent integration.
+- Markdown views should be projections of canonical state, not an alternate database.
+
+Write tests first
+-----------------
+- artifact rendering is deterministic from the same canonical inputs
+- artifact paths and contents stay scope-aware
+- regenerating artifacts does not mutate durable memory state
+
+Implementation steps
+--------------------
+1. Define artifact file layout under a GoodMemory-owned directory
+2. Render compact, human-readable summaries from typed memory, archive, and runtime continuity as appropriate
+3. Keep projection refresh explicit and inspectable
+
+Acceptance
+----------
+- Hosts can consume readable memory artifacts without bypassing core governance
+- Compiled artifacts match the canonical store rather than competing with it

@@ -1,0 +1,28 @@
+Phase 18.3: Session Memory Sync and Handoff
+===========================================
+
+[TODO] P18.3-T001 Sync active `session-memory/<sessionId>.md` with runtime state
+[TODO] P18.3-T002 Add handoff-friendly coding-agent views
+[TODO] P18.3-T003 Archive or rotate session files safely on session end
+
+Why this exists
+---------------
+- Coding-agent hosts benefit most immediately from a stable handoff file that mirrors current runtime continuity.
+- Session-memory sync is the bridge between runtime state and host-readable handoff.
+
+Write tests first
+-----------------
+- runtime state changes refresh session-memory artifacts deterministically
+- session-end rotation preserves archive lineage without transcript dumping
+- handoff views stay scoped to the active session/workspace
+
+Implementation steps
+--------------------
+1. Compile runtime state into active session-memory files
+2. Add handoff sections for current goal, open loops, key files, and recent decisions
+3. Rotate or archive session files through existing archive/artifact flows
+
+Acceptance
+----------
+- Coding-agent hosts can resume work from a stable handoff surface
+- Session-memory sync remains governed and scope-aware

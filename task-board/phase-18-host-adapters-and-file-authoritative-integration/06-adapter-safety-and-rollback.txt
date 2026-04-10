@@ -1,0 +1,28 @@
+Phase 18.6: Adapter Safety and Rollback
+=======================================
+
+[TODO] P18.6-T001 Add adapter-originated write diagnostics and rollback guidance
+[TODO] P18.6-T002 Add verification hooks for risky adapter changes
+[TODO] P18.6-T003 Document rollback to read-only adapter mode
+
+Why this exists
+---------------
+- Host adapters introduce a new write surface and therefore need explicit rollback and verification paths.
+- Adapter safety should be operationally obvious before writable modes are recommended.
+
+Write tests first
+-----------------
+- adapter diagnostics preserve provenance and failure reason details
+- risky adapter writes can require verification or be blocked
+- operators can fall back to read-only artifact mode safely
+
+Implementation steps
+--------------------
+1. Extend debug tooling for adapter-originated changes
+2. Reuse existing policy/verification layers before accepting writable adapter flows
+3. Document how to disable writable modes without breaking read-only artifact sync
+
+Acceptance
+----------
+- Writable adapter flows are governable and debuggable
+- Rollback to safer host integration modes is straightforward

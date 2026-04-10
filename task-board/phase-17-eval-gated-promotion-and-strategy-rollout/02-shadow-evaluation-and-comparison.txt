@@ -1,0 +1,28 @@
+Phase 17.2: Shadow Evaluation and Comparison
+============================================
+
+[TODO] P17.2-T001 Run shadow comparisons without mutating default behavior
+[TODO] P17.2-T002 Keep contamination-safe baseline vs candidate traces
+[TODO] P17.2-T003 Attribute differences to strategy family and mode
+
+Why this exists
+---------------
+- Strategy experimentation is only trustworthy if candidate behavior can be observed without silently becoming user-facing truth.
+- Shadow runs should tell you what would have happened, not leak into what did happen.
+
+Write tests first
+-----------------
+- shadow runs do not mutate durable memory or promoted defaults
+- comparison artifacts keep baseline and candidate traces distinct
+- reports can attribute comparison rows to retrieval/reviewer/maintenance families
+
+Implementation steps
+--------------------
+1. Add shadow execution plumbing to eval and relevant offline runners
+2. Persist candidate outputs separately from baseline artifacts
+3. Extend reports with contamination-safe diff metadata
+
+Acceptance
+----------
+- Shadow evaluation is trustworthy and auditable
+- Candidate strategies can be compared before promotion

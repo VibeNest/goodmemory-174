@@ -1,0 +1,59 @@
+Phase 18: Host Adapters and File-Authoritative Integration
+==========================================================
+
+Phase Goal
+----------
+Expose compiled memory artifacts to Claude/Codex-style hosts through adapters without changing GoodMemory's canonical truth model.
+
+
+Dependencies
+------------
+- Phase 14 archive/evidence/artifact foundation complete
+- Phase 16 validated-pattern and playbook-oriented exports complete enough to be useful
+- Phase 17 public surface decisions complete for any advanced adapter APIs
+
+
+Primary Deliverables
+--------------------
+- host adapter contract for file-authoritative or file-assisted hosts
+- parsing and structured-delta writeback for selected artifact files
+- session-memory and handoff sync flows for coding-agent hosts
+- playbook/procedure artifact export for host consumption
+- Claude/Codex-style integration examples and docs
+- adapter safety rules for policy, scope, and provenance preservation
+
+
+Definition of Done
+------------------
+- hosts can consume `MEMORY.md`, `user.md`, session memory, archive recaps, and playbooks as adapter surfaces
+- optional file-authoritative edit flows write back structured deltas instead of redefining core schema
+- adapter writes remain policy-aware, scope-aware, and provenance-preserving
+- core runtime remains usable without any host adapter
+
+
+Tasks
+-----
+[TODO] P18-T001 Define host adapter contract and capability boundaries
+[TODO] P18-T002 Parse selected file edits into structured deltas safely
+[TODO] P18-T003 Add session-memory sync and handoff integration flows
+[TODO] P18-T004 Export playbooks and related procedure artifacts for hosts
+[TODO] P18-T005 Add Claude/Codex-style integration examples and guidance
+[TODO] P18-T006 Add adapter safety, verification, and rollback tooling
+
+
+Key Constraints
+---------------
+- structured store remains the canonical truth source in core mode
+- file-authoritative behavior exists only at the adapter layer
+- adapter writes must preserve scope, policy, provenance, and export/delete semantics
+- unsupported host conveniences must not leak into the minimal OSS core by default
+
+
+Exit Checklist
+--------------
+- Host adapter contract exists
+- Structured delta writeback exists for supported files
+- Session-memory handoff sync exists
+- Playbook export exists
+- Claude/Codex-style examples exist
+- Adapter safety and rollback guidance exists

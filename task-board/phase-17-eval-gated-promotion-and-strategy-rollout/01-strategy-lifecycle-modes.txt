@@ -1,0 +1,28 @@
+Phase 17.1: Strategy Lifecycle Modes
+====================================
+
+[TODO] P17.1-T001 Define `observe`, `assist`, and `promote` mode semantics
+[TODO] P17.1-T002 Apply the lifecycle model to retrieval, reviewer, and maintenance strategies
+[TODO] P17.1-T003 Persist mode metadata in artifacts and decision records
+
+Why this exists
+---------------
+- Strategy changes need a controlled lifecycle that prevents premature default rollout.
+- The same lifecycle language should apply across retrieval, review, and maintenance systems.
+
+Write tests first
+-----------------
+- mode selection is explicit in eval/runtime metadata
+- observe mode records candidate behavior without changing default outputs
+- assist mode influences behavior only when the gate allows it
+
+Implementation steps
+--------------------
+1. Define mode semantics and scope of influence
+2. Reuse existing artifact/report metadata surfaces where possible
+3. Keep promote mode gated by later eval evidence
+
+Acceptance
+----------
+- Strategy lifecycle is explicit instead of implicit
+- Later promotion decisions have consistent mode vocabulary

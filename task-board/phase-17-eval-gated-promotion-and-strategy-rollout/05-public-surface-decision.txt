@@ -1,0 +1,28 @@
+Phase 17.5: Public Surface Decision
+===================================
+
+[TODO] P17.5-T001 Define criteria for exposing advanced config or keeping it internal
+[TODO] P17.5-T002 Evaluate whether `goodmemory/evolution` or similar surfaces are warranted
+[TODO] P17.5-T003 Preserve minimal OSS core when evidence is insufficient
+
+Why this exists
+---------------
+- Not every internal capability should become part of the public API.
+- Surface area should be earned through repeated success, not optimism.
+
+Write tests first
+-----------------
+- type-level guardrails can still block unsupported config when a feature is not promoted
+- release metadata/doc tests catch surface drift
+- promoted surfaces align with actual supported behavior
+
+Implementation steps
+--------------------
+1. Review promoted capabilities against existing public-config constraints
+2. Decide which surfaces remain internal, advanced, or public
+3. Update type tests and release-facing docs only when the decision is real
+
+Acceptance
+----------
+- Public surface remains coherent and evidence-based
+- Unsupported advanced knobs are not leaked prematurely

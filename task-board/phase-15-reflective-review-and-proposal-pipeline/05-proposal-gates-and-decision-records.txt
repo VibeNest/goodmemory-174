@@ -1,0 +1,28 @@
+Phase 15.5: Proposal Gates and Decision Records
+===============================================
+
+[TODO] P15.5-T001 Add proposal policy gate
+[TODO] P15.5-T002 Add proposal verification/eval gate inputs
+[TODO] P15.5-T003 Persist accept/reject/delay outcomes as promotion records
+
+Why this exists
+---------------
+- Proposal-driven evolution only works if proposals can be reviewed, delayed, rejected, or promoted with an audit trail.
+- Gate outcomes need to be explainable and replayable.
+
+Write tests first
+-----------------
+- blocked proposals record gate reasons without mutating target memory
+- delayed proposals remain queryable for later review
+- accepted proposals create promotion records with lineage to the original proposal and evidence
+
+Implementation steps
+--------------------
+1. Define proposal gate decision shapes and statuses
+2. Connect policy and verification hooks before any accepted mutation path
+3. Persist decision records that later eval and release gates can inspect
+
+Acceptance
+----------
+- Proposal lifecycle is auditable end-to-end
+- High-risk changes cannot skip the gate pipeline

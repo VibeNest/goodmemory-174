@@ -1,0 +1,62 @@
+Phase 14: Archive, Evidence, and Host Artifacts
+===============================================
+
+Phase Goal
+----------
+Add the missing continuity and explainability foundation that sits between today's typed memory system and later provider-backed retrieval.
+
+
+Dependencies
+------------
+- Phase 9 product eval operational
+- Phase 10 CLI/examples/release artifacts present
+- Phase 11 public surface aligned with current implementation
+- Phase 13 governance controls complete
+
+
+Primary Deliverables
+--------------------
+- typed contracts for session archive, evidence, and minimal observation/trace inputs
+- session archive persistence and recall hooks
+- evidence linkage between durable memory, recall, and verification traces
+- host-readable Markdown artifacts compiled from canonical state
+- eval/CLI coverage for archive/evidence continuity and explainability
+
+
+Definition of Done
+------------------
+- cross-session continuity can be answered from session archive rather than only episodes
+- recall can surface evidence shards without treating full transcripts as durable truth
+- Markdown artifacts exist as compiled projections, not canonical stores
+- no provider dependency is required to use the new capabilities
+- Phase 12 can build hybrid retrieval on top of these layers instead of redefining them
+
+
+Tasks
+-----
+[TODO] P14-T001 Freeze observation/archive/evidence contracts
+[TODO] P14-T002 Persist session archive from runtime and maintenance outputs
+[TODO] P14-T003 Link durable memory and recall hits to evidence shards
+[TODO] P14-T004 Add Markdown artifact projection for host-readable memory views
+[TODO] P14-T005 Wire archive/evidence recall into planner, packet, and buildContext
+[TODO] P14-T006 Expand eval, CLI, and example coverage for continuity/explainability artifacts
+
+
+Key Constraints
+---------------
+- Structured scoped storage stays the canonical truth source
+- Markdown artifacts are compiled mirrors and must not become write-side source of truth
+- Evidence stores selective shards, not full transcript dumps
+- New recall layers must preserve provenance, verification hints, and policy behavior
+- No new required runtime config may be added to `createGoodMemory()` for this phase
+
+
+Exit Checklist
+--------------
+- Session archive contract exists
+- Evidence record contract exists
+- Archive recall exists
+- Evidence recall exists
+- Host-readable memory artifact compilation exists
+- CLI/eval artifacts expose archive/evidence traces
+- Phase 12 provider-layer work can reuse these foundations

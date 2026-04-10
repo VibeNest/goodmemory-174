@@ -1,0 +1,28 @@
+Phase 16.1: Validated Pattern Compiler
+======================================
+
+[TODO] P16.1-T001 Define compiler rules from `FeedbackMemory` and accepted proposals
+[TODO] P16.1-T002 Keep pattern scope/applicability explicit
+[TODO] P16.1-T003 Add derived artifact hooks without changing procedural truth source
+
+Why this exists
+---------------
+- GoodMemory should learn reusable ways of working without inventing a second procedural taxonomy too early.
+- Pattern promotion should come from governed evidence and outcomes, not one-off heuristics.
+
+Write tests first
+-----------------
+- stable repeated feedback can compile into one `validated_pattern`
+- conflicting or weak procedural suggestions do not promote prematurely
+- pattern scope stays bounded by user/workspace/agent applicability
+
+Implementation steps
+--------------------
+1. Compile over accepted proposal outcomes and stable procedural feedback
+2. Reuse existing feedback storage and lifecycle semantics
+3. Expose derived artifact hooks only after the pattern is stable
+
+Acceptance
+----------
+- Procedural promotion works without adding a new core durable record type
+- Pattern promotion reasons remain inspectable

@@ -1,0 +1,28 @@
+Phase 14.3: Evidence Linking and Storage
+========================================
+
+[TODO] P14.3-T001 Add evidence repository/storage support
+[TODO] P14.3-T002 Link durable memory records to selective evidence shards
+[TODO] P14.3-T003 Link recall and verification traces back to evidence ids
+
+Why this exists
+---------------
+- Explainability should come from bounded evidence shards, not raw transcript dumps.
+- Later reranking and verification features need evidence links that already exist.
+
+Write tests first
+-----------------
+- evidence records reject oversized or unscoped blobs
+- durable memory links only selective shards, not full transcripts
+- recall artifacts can expose evidence-backed provenance without losing current trace output
+
+Implementation steps
+--------------------
+1. Add evidence persistence with source, scope, and lineage metadata
+2. Extend write traces so typed memory can point at evidence ids
+3. Preserve current explainability behavior while enriching it with evidence references
+
+Acceptance
+----------
+- Explainable recall is backed by concrete evidence objects
+- Evidence remains separate from durable truth and archive continuity

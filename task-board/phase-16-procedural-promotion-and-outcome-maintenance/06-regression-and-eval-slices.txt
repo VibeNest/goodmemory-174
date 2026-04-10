@@ -1,0 +1,28 @@
+Phase 16.6: Regression and Eval Slices
+======================================
+
+[TODO] P16.6-T001 Add procedural reuse eval slices
+[TODO] P16.6-T002 Add stale-memory misuse and correction-rate regression slices
+[TODO] P16.6-T003 Add maintenance-oriented debug summaries
+
+Why this exists
+---------------
+- Outcome-aware maintenance should be judged by whether it reduces bad recall and improves reuse, not by whether it mutates more records.
+- These features need their own regression evidence before any default rollout.
+
+Write tests first
+-----------------
+- eval can isolate validated-pattern reuse behavior
+- regression outputs can show demotion/correction effects separately from baseline recall scores
+- debug summaries identify which maintenance signals changed suite behavior
+
+Implementation steps
+--------------------
+1. Add targeted scenario/eval slices for procedural reuse and stale suppression
+2. Extend reporting to attribute gains or regressions to maintenance behavior
+3. Keep the rules-only baseline available for comparison
+
+Acceptance
+----------
+- Maintenance changes are measurable and reviewable
+- Release decisions can rely on targeted regression evidence

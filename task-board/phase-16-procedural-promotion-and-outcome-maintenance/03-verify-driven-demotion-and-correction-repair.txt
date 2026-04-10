@@ -1,0 +1,28 @@
+Phase 16.3: Verify-Driven Demotion and Correction Repair
+========================================================
+
+[TODO] P16.3-T001 Demote stale action-driving memory after repeated verification failures
+[TODO] P16.3-T002 Use repeated corrections to drive supersede/contradiction repair
+[TODO] P16.3-T003 Preserve auditability for demotion and repair decisions
+
+Why this exists
+---------------
+- Memory quality depends on how quickly the system backs away from stale or wrong recall.
+- Repeated correction is one of the strongest signals that a current memory representation is failing.
+
+Write tests first
+-----------------
+- repeated verification failures lower recall prominence without deleting unrelated history
+- repeated corrections can supersede weak inferred memory in favor of better grounded content
+- demotion reasons remain visible in trace and export surfaces
+
+Implementation steps
+--------------------
+1. Connect verification outcomes to maintenance proposals or explicit low-risk repair rules
+2. Reuse existing contradiction-repair seams from maintenance
+3. Avoid direct silent deletion of valuable but stale historical evidence
+
+Acceptance
+----------
+- Stale-memory misuse rate can go down through auditable maintenance behavior
+- Repair logic prefers explicit, better-grounded memory over weak inferred state

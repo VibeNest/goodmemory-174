@@ -1,0 +1,28 @@
+Phase 15.4: Pre-Compact and Session-End Salvage
+===============================================
+
+[TODO] P15.4-T001 Add pre-compact salvage hook
+[TODO] P15.4-T002 Add session-end salvage hook
+[TODO] P15.4-T003 Convert salvage findings into proposals instead of direct durable writes
+
+Why this exists
+---------------
+- High-value continuity and pattern signals are often discovered just before context loss.
+- Salvage should preserve potential value without bypassing governance.
+
+Write tests first
+-----------------
+- pre-compact salvage captures unresolved loops and candidate patterns before runtime loss
+- session-end salvage can emit proposals and archive links without copying full transcripts
+- salvage flows remain idempotent across repeated close/reset boundaries
+
+Implementation steps
+--------------------
+1. Add orchestration hooks around existing compaction and session-end points
+2. Reuse archive/evidence substrates to keep salvage bounded and explainable
+3. Emit proposals plus trace links instead of mutating durable memory directly
+
+Acceptance
+----------
+- Context-loss boundaries become proposal-generation opportunities
+- Salvage stays governed and inspectable

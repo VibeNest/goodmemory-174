@@ -1,0 +1,28 @@
+Phase 15.3: Rules-Only Reviewer
+===============================
+
+[TODO] P15.3-T001 Add rules-only post-turn reviewer baseline
+[TODO] P15.3-T002 Emit proposal candidates with explicit reasons and evidence links
+[TODO] P15.3-T003 Keep optional assisted reviewer hooks default-off
+
+Why this exists
+---------------
+- GoodMemory needs a deterministic review path before any model-assisted reviewer is credible.
+- The reviewer should compile suggestions, not silently mutate memory.
+
+Write tests first
+-----------------
+- reviewer emits proposals for repeated correction, stable pattern, and maintenance-worthy cases
+- irrelevant or low-signal turns produce no proposal
+- reviewer output records whether a rule or optional model path influenced the result
+
+Implementation steps
+--------------------
+1. Build a deterministic reviewer over experience, evidence, and recall traces
+2. Restrict early proposal types to low-risk, high-signal categories
+3. Add assisted-review extension points without changing the default path
+
+Acceptance
+----------
+- Reviewer can generate stable proposals without provider dependency
+- Proposal reasons are inspectable and grounded in trace/evidence inputs

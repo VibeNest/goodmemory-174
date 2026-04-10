@@ -6,11 +6,18 @@ Phase Goal
 Turn `llm`, `embedding`, and `router` from architecture-only concepts into staged, testable product capabilities without breaking the current OSS-first simplicity.
 
 
+Current Status
+--------------
+[BLOCKED] Execute this phase only after Phase 14 archive/evidence/artifact foundation is complete.
+
+
 Dependencies
 ------------
 - Phase 9 product eval operational
 - Phase 10 CLI/examples/release artifacts present
 - Phase 11 public surface aligned with current implementation
+- Phase 13 governance controls complete
+- Phase 14 archive/evidence/artifact foundation complete
 
 
 Primary Deliverables
@@ -18,7 +25,7 @@ Primary Deliverables
 - provider-layer plan grounded in Vercel AI SDK
 - embedding abstraction and vectorization hooks
 - router strategy framework
-- hybrid retrieval path
+- hybrid retrieval path built on top of archive/evidence-aware recall
 - optional LLM-assisted extraction/reranking
 - eval slices that prove when provider-backed features help
 
@@ -33,12 +40,12 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P12-T001 Define provider-layer contract around Vercel AI SDK
-[TODO] P12-T002 Implement embedding abstraction and vector write/read hooks
-[TODO] P12-T003 Add router strategy framework: rules-only, hybrid, llm-assisted
-[TODO] P12-T004 Implement hybrid retrieval and optional reranking
-[TODO] P12-T005 Add optional LLM-assisted extraction and consolidation paths
-[TODO] P12-T006 Expand eval suite to compare rules-only vs provider-backed modes
+[BLOCKED] P12-T001 Define provider-layer contract around Vercel AI SDK
+[BLOCKED] P12-T002 Implement embedding abstraction and vector write/read hooks
+[BLOCKED] P12-T003 Add router strategy framework: rules-only, hybrid, llm-assisted
+[BLOCKED] P12-T004 Implement hybrid retrieval and optional reranking
+[BLOCKED] P12-T005 Add optional LLM-assisted extraction and consolidation paths
+[BLOCKED] P12-T006 Expand eval suite to compare rules-only vs provider-backed modes
 
 
 Key Constraints
@@ -49,6 +56,7 @@ Key Constraints
 - Route all live model calls through Vercel AI SDK adapters
 - Preserve explainability for both write-path and recall-path decisions
 - Locale-aware rules-first behavior must stay usable without provider-backed multilingual retrieval
+- Do not use this phase to backfill missing archive/evidence/artifact foundations that belong to Phase 14
 
 
 Exit Checklist

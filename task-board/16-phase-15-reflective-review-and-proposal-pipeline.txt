@@ -1,0 +1,60 @@
+Phase 15: Reflective Review and Proposal Pipeline
+================================================
+
+Phase Goal
+----------
+Turn observation, continuity, and failure signals into governed proposals instead of letting background logic mutate durable memory directly.
+
+
+Dependencies
+------------
+- Phase 14 archive/evidence/artifact foundation complete enough to provide inspectable trace inputs
+- Phase 13 governance controls complete
+- Phase 8 maintenance scaffold available as orchestration entrypoint
+
+
+Primary Deliverables
+--------------------
+- typed contracts and repositories for `ExperienceRecord`, `LearningProposal`, and `PromotionRecord`
+- normalized observation records from remember/recall/verify/maintenance flows
+- rules-only reflective reviewer baseline
+- pre-compact and session-end salvage flows that emit proposals
+- proposal policy/verification/eval gate pipeline
+- CLI/eval/admin-export visibility for proposal lifecycle
+
+
+Definition of Done
+------------------
+- background learning lands in proposals, not direct high-risk durable mutations
+- post-turn, pre-compact, and session-end salvage paths produce inspectable proposal artifacts
+- proposal provenance records source traces, evidence links, and gate outcomes
+- rules-only review path works without provider-backed assistance
+
+
+Tasks
+-----
+[TODO] P15-T001 Add evolution records and repositories
+[TODO] P15-T002 Normalize observation traces into experience records
+[TODO] P15-T003 Implement rules-only reflective reviewer baseline
+[TODO] P15-T004 Add pre-compact and session-end salvage proposal flows
+[TODO] P15-T005 Add proposal policy, verification, and eval decision pipeline
+[TODO] P15-T006 Extend CLI/eval/admin exports for proposal visibility
+
+
+Key Constraints
+---------------
+- `LearningProposal` is the only legal landing zone for high-risk learned behavior before promotion
+- reviewer logic must preserve provenance and model-influence trace fields
+- assisted reviewer or summarizer paths remain optional and default-off
+- no new mandatory runtime config may be added to `createGoodMemory()`
+- proposal creation must honor scope guard, redact policy, and deletion/export boundaries
+
+
+Exit Checklist
+--------------
+- Experience record contract exists
+- Learning proposal contract exists
+- Promotion record contract exists
+- Rules-only reviewer exists
+- Salvage proposal flows exist
+- Proposal gate outcomes are inspectable in tooling

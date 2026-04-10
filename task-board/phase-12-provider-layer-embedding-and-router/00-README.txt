@@ -10,6 +10,11 @@ Use it together with:
 - task-board/13-phase-12-provider-layer-embedding-and-router.txt
 
 
+Entry Gate
+----------
+Do not start these subtasks until the Phase 14 archive/evidence/artifact foundation is complete.
+
+
 Execution Order
 ---------------
 1. 01-provider-layer-contract.txt

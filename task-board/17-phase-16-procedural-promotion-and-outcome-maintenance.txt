@@ -1,0 +1,59 @@
+Phase 16: Procedural Promotion and Outcome Maintenance
+======================================================
+
+Phase Goal
+----------
+Turn proposal and feedback signals into reusable validated patterns while making maintenance and recall scoring consume real usage outcomes.
+
+
+Dependencies
+------------
+- Phase 15 proposal pipeline complete enough to emit governed pattern and maintenance proposals
+- Phase 14 archive/evidence foundation available
+- Phase 8 maintenance runner remains the orchestration entrypoint
+
+
+Primary Deliverables
+--------------------
+- `validated_pattern` compiler over existing `FeedbackMemory`
+- low-risk outcome mutation helpers such as touch/reinforce/demote semantics
+- verify-driven demotion and repeated-correction repair flows
+- recall scoring that consumes `accessCount`, `lastUsedAt`, and `evidenceCount`
+- dream orchestration that composes hygiene plus proposal compilation
+- eval slices for procedural reuse, stale misuse, and correction-rate movement
+
+
+Definition of Done
+------------------
+- procedural reuse improves without introducing a new core durable memory taxonomy
+- stale or repeatedly corrected memory can be demoted or superseded with auditable reasons
+- recall ranking uses real outcome signals rather than static priority alone
+- dream remains a gate/orchestrator, not a hidden high-risk mutation engine
+
+
+Tasks
+-----
+[TODO] P16-T001 Compile and maintain `validated_pattern` from feedback and proposal outcomes
+[TODO] P16-T002 Add low-risk outcome mutation helpers for recall scoring signals
+[TODO] P16-T003 Implement verify-driven demotion and repeated-correction repair
+[TODO] P16-T004 Connect outcome metrics to recall scoring and maintenance heuristics
+[TODO] P16-T005 Expand dream orchestration to drive hygiene plus proposal compilation
+[TODO] P16-T006 Add regression/eval coverage for procedural reuse and stale-memory misuse
+
+
+Key Constraints
+---------------
+- Procedural memory continues to reuse `FeedbackMemory.kind = "validated_pattern"` until a richer artifact is actually needed
+- high-risk durable mutations still flow through proposal/promotion gates
+- outcome metrics must stay explainable in traces and debug artifacts
+- no graph infra or mandatory provider dependency may be introduced here
+
+
+Exit Checklist
+--------------
+- Validated-pattern compiler exists
+- Outcome mutation helpers exist
+- Verify-driven demotion exists
+- Recall scoring consumes outcome signals
+- Dream orchestration remains governed
+- Eval slices measure the intended improvements

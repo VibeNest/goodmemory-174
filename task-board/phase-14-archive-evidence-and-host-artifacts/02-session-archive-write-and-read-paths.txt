@@ -1,0 +1,28 @@
+Phase 14.2: Session Archive Write and Read Paths
+================================================
+
+[TODO] P14.2-T001 Add session archive repository/storage support
+[TODO] P14.2-T002 Persist archive records from runtime/session-close or maintenance flows
+[TODO] P14.2-T003 Add scope-aware archive retrieval for continuation queries
+
+Why this exists
+---------------
+- `EpisodeMemory` is not enough to answer "what happened last time" across longer lifecycles.
+- Archive recall should improve continuity before embeddings or reranking are introduced.
+
+Write tests first
+-----------------
+- archive writes are isolated by user/workspace/tenant scope
+- archive reads do not leak across adjacent scopes
+- continuation-style recalls can return archive-backed results when durable facts are insufficient
+
+Implementation steps
+--------------------
+1. Add archive persistence hooks behind existing runtime/maintenance seams
+2. Store normalized and summarized session continuity data without promoting it to durable fact truth
+3. Expose archive retrieval through recall planning inputs, not through a new public API surface
+
+Acceptance
+----------
+- Cross-session continuity has a first-class substrate
+- Archive recall works without provider-backed retrieval

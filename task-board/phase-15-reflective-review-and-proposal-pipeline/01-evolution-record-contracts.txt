@@ -1,0 +1,28 @@
+Phase 15.1: Evolution Record Contracts
+======================================
+
+[TODO] P15.1-T001 Freeze `ExperienceRecord` contract
+[TODO] P15.1-T002 Freeze `LearningProposal` contract
+[TODO] P15.1-T003 Freeze `PromotionRecord` contract and relationship rules
+
+Why this exists
+---------------
+- Proposal-driven evolution needs typed records before reviewer or maintenance code can rely on it.
+- These records must stay distinct from user-facing durable memory and recall corpora.
+
+Write tests first
+-----------------
+- records reject invalid scope or missing provenance fields
+- proposal types are constrained to approved categories
+- export/delete behavior stays scope-aware and auditable
+
+Implementation steps
+--------------------
+1. Add contracts and repository access patterns in the canonical storage layer
+2. Reuse existing provenance and lifecycle rules instead of creating a second audit model
+3. Define the minimum linking model between proposals, evidence, and later promotion decisions
+
+Acceptance
+----------
+- Evolution records have one canonical schema
+- Later reviewer and gate flows can build without record-shape churn

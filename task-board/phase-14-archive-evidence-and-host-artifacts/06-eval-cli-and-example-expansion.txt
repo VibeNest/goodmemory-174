@@ -1,0 +1,28 @@
+Phase 14.6: Eval, CLI, and Example Expansion
+============================================
+
+[TODO] P14.6-T001 Add eval slices for archive-backed continuation
+[TODO] P14.6-T002 Add CLI visibility for archive/evidence artifacts and provenance
+[TODO] P14.6-T003 Update examples or docs to show the host-readable artifact flow
+
+Why this exists
+---------------
+- Archive/evidence/artifact work should ship only if it changes observable behavior and debugging quality.
+- The release story needs proof that these new layers help before Phase 12 starts.
+
+Write tests first
+-----------------
+- eval fixtures can assert archive-backed continuation behavior
+- CLI output renders archive/evidence provenance markers
+- example or release-facing docs stay aligned with the new artifact surface
+
+Implementation steps
+--------------------
+1. Add targeted eval slices instead of broad anecdotal claims
+2. Extend CLI inspect/trace output with archive/evidence visibility
+3. Update release-facing guidance on when to rely on canonical memory vs compiled artifacts
+
+Acceptance
+----------
+- Archive/evidence/artifact behavior is diagnosable from release artifacts
+- Phase 14 exit is backed by eval and tooling, not only architecture text

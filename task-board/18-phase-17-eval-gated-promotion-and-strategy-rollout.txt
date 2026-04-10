@@ -1,0 +1,58 @@
+Phase 17: Eval-Gated Promotion and Strategy Rollout
+===================================================
+
+Phase Goal
+----------
+Roll out new retrieval, reviewer, and maintenance strategies through shadow/assist/promote gates instead of shipping them by intuition.
+
+
+Dependencies
+------------
+- Phase 12 provider-layer work complete enough to compare rules-only and provider-backed strategies
+- Phase 15 proposal pipeline complete enough to emit decision records
+- Phase 16 outcome-aware maintenance available for strategy comparison
+
+
+Primary Deliverables
+--------------------
+- `observe -> assist -> promote` strategy modes
+- shadow evaluation support and contamination-safe comparison artifacts
+- promotion gates for retrieval/reviewer/maintenance strategy changes
+- regression dashboard artifacts and release-facing summaries
+- explicit public surface decision criteria for advanced/evolution capabilities
+
+
+Definition of Done
+------------------
+- new strategies can run in shadow before affecting default behavior
+- promotion decisions are backed by eval evidence and persisted records
+- rules-only baseline remains first-class and non-regressing
+- the decision to expose or keep advanced surfaces internal is evidence-based
+
+
+Tasks
+-----
+[TODO] P17-T001 Define strategy lifecycle modes: observe, assist, promote
+[TODO] P17-T002 Add shadow evaluation and comparison artifacts
+[TODO] P17-T003 Add promotion gates for retrieval, reviewer, and maintenance strategies
+[TODO] P17-T004 Extend reporting with regression dashboard and gate summaries
+[TODO] P17-T005 Decide advanced/public surface boundaries from rollout evidence
+[TODO] P17-T006 Update release checklists and operator guidance for promoted strategies
+
+
+Key Constraints
+---------------
+- no strategy becomes default without passing an explicit eval gate
+- rules-only remains available as a supported baseline
+- shadow mode must avoid contaminating user-visible durable state
+- rollout evidence must distinguish provider gains from proposal/maintenance gains
+
+
+Exit Checklist
+--------------
+- Strategy lifecycle modes exist
+- Shadow comparison artifacts exist
+- Promotion gates exist
+- Regression dashboard artifacts exist
+- Public surface decision record exists
+- Release docs reflect promoted strategy policy

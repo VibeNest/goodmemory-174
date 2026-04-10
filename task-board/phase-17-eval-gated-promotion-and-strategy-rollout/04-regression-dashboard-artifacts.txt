@@ -1,0 +1,28 @@
+Phase 17.4: Regression Dashboard Artifacts
+==========================================
+
+[TODO] P17.4-T001 Add per-strategy regression summaries
+[TODO] P17.4-T002 Add dashboard-friendly artifacts for suite deltas and failure clusters
+[TODO] P17.4-T003 Keep artifact lineage back to raw recall/evidence/proposal traces
+
+Why this exists
+---------------
+- Promotion and rollback conversations need more than one aggregate score.
+- Dashboard-friendly artifacts make multi-strategy comparisons sustainable over time.
+
+Write tests first
+-----------------
+- reporting can summarize regressions by strategy family and mode
+- clustered failures retain links to raw artifacts
+- dashboard artifacts remain stable enough for release review
+
+Implementation steps
+--------------------
+1. Extend the report format with strategy and gate dimensions
+2. Add failure clustering and delta summaries without losing raw trace links
+3. Keep report generation deterministic where live models are not required
+
+Acceptance
+----------
+- Strategy regressions are visible at a glance
+- Promotion reviews can drill into raw artifacts when needed

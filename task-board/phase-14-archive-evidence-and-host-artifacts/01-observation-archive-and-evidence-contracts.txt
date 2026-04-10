@@ -1,0 +1,28 @@
+Phase 14.1: Observation, Archive, and Evidence Contracts
+========================================================
+
+[TODO] P14.1-T001 Freeze minimum `SessionArchive` contract
+[TODO] P14.1-T002 Freeze minimum `EvidenceRecord` contract
+[TODO] P14.1-T003 Freeze minimal observation/trace contract that feeds archive/evidence writes
+
+Why this exists
+---------------
+- The current code has runtime state and typed durable memory, but no stable substrate for cross-session continuity or evidence-first explainability.
+- Provider-backed retrieval should consume these contracts later, not invent a parallel model.
+
+Write tests first
+-----------------
+- contract builders reject missing scope or invalid source metadata
+- archive/evidence ids and lineage are deterministic in tests
+- export and deletion boundaries for new records stay scope-aware
+
+Implementation steps
+--------------------
+1. Add typed contracts under the canonical domain/storage layers
+2. Keep archive, evidence, and observation distinct from durable fact truth
+3. Reuse existing provenance and lifecycle rules where possible
+
+Acceptance
+----------
+- New data planes have one canonical schema
+- Later write/read paths can build without schema churn

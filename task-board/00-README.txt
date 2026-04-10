@@ -10,6 +10,8 @@ It translates the following source documents into step-by-step implementation wo
 - docs/GoodMemory-TDD-and-Evaluation-Strategy.md
 - docs/GoodMemory-OSS-Architecture-v1.md
 - docs/GoodMemory-First-Principles-and-Reference-Architecture.md
+- docs/GoodMemory-Unified-Self-Evolving-Roadmap.md
+- docs/GoodMemory-记忆数据分层设计.md
 
 This is not a product spec.
 This is the build order, task breakdown, and definition of done for engineering.
@@ -74,12 +76,43 @@ Read and execute files in this order:
 10. 10-phase-9-persona-scenarios-and-product-eval.txt
 11. 11-phase-10-cli-examples-and-release.txt
 12. 12-phase-11-api-polish-and-surface-alignment.txt
-13. 13-phase-12-provider-layer-embedding-and-router.txt
-14. 14-phase-13-governance-and-memory-control.txt
+13. 14-phase-13-governance-and-memory-control.txt
+14. 15-phase-14-archive-evidence-and-host-artifacts.txt
+15. 13-phase-12-provider-layer-embedding-and-router.txt
+16. 16-phase-15-reflective-review-and-proposal-pipeline.txt
+17. 17-phase-16-procedural-promotion-and-outcome-maintenance.txt
+18. 18-phase-17-eval-gated-promotion-and-strategy-rollout.txt
+19. 19-phase-18-host-adapters-and-file-authoritative-integration.txt
 
 
-Global Exit Criteria
---------------------
+Current Sequencing Note
+-----------------------
+- Phase 13 governance work is complete and remains part of the accepted v1 surface.
+- The next execution priority is Phase 14 archive/evidence/artifact foundation, not provider-backed retrieval.
+- Phase 12 provider-layer work stays on the board, but it is intentionally blocked on the Phase 14 foundation so hybrid retrieval can reuse stable archive/evidence layers instead of redefining them later.
+- Phase 15 through Phase 18 extend the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
+- Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
+
+
+Priority Bands
+--------------
+Use these bands when choosing what to work on next:
+
+1. Immediate focus
+   - Close any local WIP without widening scope
+   - Execute Phase 14 foundation
+2. Near-term product differentiation
+   - Execute Phase 12 provider layer on top of Phase 14
+   - Execute Phase 15 proposal/reviewer pipeline
+3. Medium-term system hardening
+   - Execute Phase 16 outcome-aware maintenance
+   - Execute Phase 17 eval-gated rollout
+4. Host integration track
+   - Execute Phase 18 adapters for Claude/Codex-style hosts only after canonical/archive/artifact surfaces are stable
+
+
+V1 Exit Criteria
+----------------
 GoodMemory v1 is not complete until all of the following are true:
 
 - Bun + TypeScript project boots cleanly
@@ -98,6 +131,20 @@ GoodMemory v1 is not complete until all of the following are true:
   - policy hooks
 - At least one chat example works
 - Release documentation is written
+
+
+Post-v1 Growth Exit Criteria
+----------------------------
+The next development track is not complete until all of the following are true:
+
+- Session archive exists for cross-session continuity
+- Evidence artifacts exist for explainable recall
+- Human-readable memory artifacts can be compiled from canonical state
+- Provider-backed retrieval can be evaluated against rules-only behavior without changing app integration shape
+- Proposal-driven review and salvage exist with inspectable gate outcomes
+- Outcome-aware maintenance measurably reduces stale/corrected-memory problems
+- Strategy rollout is shadowable, eval-gated, and reversible
+- Optional host adapters can consume compiled artifacts without redefining truth sources
 
 
 Files in This Folder
@@ -143,3 +190,18 @@ Files in This Folder
 
 - 14-phase-13-governance-and-memory-control.txt
   Export/delete APIs, policy hooks, ignore-memory, scope guards, governance release gate
+
+- 15-phase-14-archive-evidence-and-host-artifacts.txt
+  Session archive, evidence substrate, Markdown artifacts, and recall/context integration foundation
+
+- 16-phase-15-reflective-review-and-proposal-pipeline.txt
+  Experience records, proposal pipeline, reflective review, and salvage flows
+
+- 17-phase-16-procedural-promotion-and-outcome-maintenance.txt
+  Validated-pattern promotion, outcome-aware scoring, verify-driven demotion, and dream orchestration
+
+- 18-phase-17-eval-gated-promotion-and-strategy-rollout.txt
+  Shadow/assist/promote rollout, strategy comparison, eval gates, and public surface decisions
+
+- 19-phase-18-host-adapters-and-file-authoritative-integration.txt
+  Optional Claude/Codex-style adapter surfaces over compiled artifacts without changing core truth sources

@@ -1,0 +1,28 @@
+Phase 18.1: Host Adapter Contract
+=================================
+
+[TODO] P18.1-T001 Define file-assisted vs file-authoritative host modes
+[TODO] P18.1-T002 Bound which artifact files are editable through adapters
+[TODO] P18.1-T003 Keep adapter capability negotiation explicit
+
+Why this exists
+---------------
+- Claude/Codex-style hosts need a stable integration surface that does not pretend Markdown files are the core schema.
+- Adapter modes should be explicit so hosts know whether they are reading projections or authoring structured changes.
+
+Write tests first
+-----------------
+- adapter capabilities declare readable vs writable artifact types explicitly
+- unsupported write attempts fail fast
+- core mode still works without adapter registration
+
+Implementation steps
+--------------------
+1. Define host adapter interfaces and capability flags
+2. Separate read-only compiled artifact access from writable file-authoritative flows
+3. Keep file modes behind optional adapter registration rather than core config bloat
+
+Acceptance
+----------
+- Hosts can integrate against one clear adapter contract
+- Core truth boundaries remain intact

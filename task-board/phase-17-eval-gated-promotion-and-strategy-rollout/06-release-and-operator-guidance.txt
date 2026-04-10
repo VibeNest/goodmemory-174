@@ -1,0 +1,28 @@
+Phase 17.6: Release and Operator Guidance
+=========================================
+
+[TODO] P17.6-T001 Update release checklist for promoted strategies
+[TODO] P17.6-T002 Add operator guidance for mode selection and rollback
+[TODO] P17.6-T003 Document when to stay rules-only
+
+Why this exists
+---------------
+- Strategy rollout needs operating guidance, not just code and metrics.
+- Rules-only should remain a recommended mode in many environments.
+
+Write tests first
+-----------------
+- release metadata tests catch missing rollout guidance
+- docs stay aligned with promoted strategy states
+- operator guidance references rollback and shadow artifacts accurately
+
+Implementation steps
+--------------------
+1. Update release-facing documents and checklist gates
+2. Explain observe/assist/promote usage and rollback triggers
+3. Keep rules-only fallback visible in examples and guidance
+
+Acceptance
+----------
+- Releases describe the real rollout policy
+- Operators can adopt or roll back strategies without guesswork

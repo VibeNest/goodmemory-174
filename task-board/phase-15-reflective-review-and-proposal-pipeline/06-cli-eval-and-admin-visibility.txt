@@ -1,0 +1,28 @@
+Phase 15.6: CLI, Eval, and Admin Visibility
+===========================================
+
+[TODO] P15.6-T001 Surface proposal lifecycle in CLI inspect/trace flows
+[TODO] P15.6-T002 Add eval slices that verify proposal generation and gate behavior
+[TODO] P15.6-T003 Add export-oriented visibility for experience/proposal/promotion artifacts
+
+Why this exists
+---------------
+- Proposal-driven systems are not operable if proposals only exist in storage internals.
+- Eval and tooling should prove that proposal creation is helpful rather than noisy.
+
+Write tests first
+-----------------
+- CLI output renders proposal status, reasons, and lineage safely
+- eval runs can assert that proposals were generated or intentionally suppressed
+- export/admin visibility does not leak unsupported internal blobs
+
+Implementation steps
+--------------------
+1. Extend existing debug surfaces with proposal views
+2. Add targeted eval assertions instead of broad numerical claims
+3. Keep proposal inspection separate from end-user recall output
+
+Acceptance
+----------
+- Proposal behavior is diagnosable from tooling and artifacts
+- Release decisions can reference proposal traces instead of anecdotes

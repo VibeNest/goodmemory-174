@@ -1,0 +1,28 @@
+Phase 18.2: File Parse and Structured Delta
+===========================================
+
+[TODO] P18.2-T001 Parse supported file edits into structured deltas
+[TODO] P18.2-T002 Validate and redact adapter-originated writes
+[TODO] P18.2-T003 Preserve provenance for adapter-authored changes
+
+Why this exists
+---------------
+- If hosts are allowed to edit `user.md` or playbooks, GoodMemory must translate those edits back into canonical state safely.
+- Raw file replacement cannot be allowed to bypass policy and scope boundaries.
+
+Write tests first
+-----------------
+- supported edits map to deterministic structured deltas
+- malformed or ambiguous edits are rejected with useful diagnostics
+- adapter-originated writes record provenance and obey policy hooks
+
+Implementation steps
+--------------------
+1. Choose the minimal editable file subset first
+2. Parse edits into structured patch operations instead of replacing canonical rows blindly
+3. Route all resulting writes through the same governance and provenance layers as API writes
+
+Acceptance
+----------
+- File-authoritative hosts can write back safely for supported artifact types
+- Unsupported or risky edits fail safely
