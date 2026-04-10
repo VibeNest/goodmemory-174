@@ -1107,6 +1107,27 @@ describe("run-eval script", () => {
         apiKey: "judge-key",
         baseURL: "https://messages.example/v1",
       });
+      expect(String(createTextCalls[1]?.system)).toContain(
+        "use the Profile role as the primary answer",
+      );
+      expect(String(createTextCalls[1]?.system)).toContain(
+        "If memory contains an explicit current-role update",
+      );
+      expect(String(createTextCalls[1]?.system)).toContain(
+        "answer only with the Profile role unless the prompt also asks for current focus, project context, or ownership",
+      );
+      expect(String(createTextCalls[1]?.system)).toContain(
+        "If the prompt is specifically about an update or correction, briefly mark the previous version as no longer current",
+      );
+      expect(String(createTextCalls[1]?.system)).toContain(
+        "Avoid surfacing stale references elsewhere",
+      );
+      expect(String(createTextCalls[1]?.system)).toContain(
+        "Do not repeat the full stale pointer unless the user explicitly asks for it",
+      );
+      expect(String(createTextCalls[1]?.system)).toContain(
+        "Do not volunteer project ownership or leadership when the requested slots are role, blocker, open loop, or runbook",
+      );
     } finally {
       await workspace.cleanup();
     }

@@ -37,7 +37,7 @@ describe("governance policy hooks", () => {
     });
     const recall = await memory.recall({
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
-      query: "What do you remember?",
+      query: "What is the rollout blocker?",
     });
 
     expect(result.events.some((event) => event.reason === "policy_blocked")).toBe(true);
@@ -73,7 +73,7 @@ describe("governance policy hooks", () => {
     });
     const recall = await memory.recall({
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
-      query: "What do you remember?",
+      query: "What is the rollout blocker?",
     });
 
     expect(result.accepted).toBe(0);

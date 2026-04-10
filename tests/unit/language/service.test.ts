@@ -57,8 +57,57 @@ describe("language service", () => {
 
     expect(service.isAnswerCompositionQuery("我应该怎么回复这个用户？", "zh-CN")).toBe(true);
     expect(service.isContinuationQuery("继续上次的工作流修复。", "zh-CN")).toBe(true);
+    expect(service.isActionDrivingQuery("请使用这些记忆决定下一步。", "zh-CN")).toBe(true);
+    expect(service.isActionDrivingQuery("我应该用哪个工作流文档？", "zh-CN")).toBe(false);
+    expect(service.isRoleQuery("我当前的角色是什么？", "zh-CN")).toBe(true);
+    expect(service.isBlockerQuery("当前阻塞是什么？", "zh-CN")).toBe(true);
+    expect(service.isRoleFact("我当前角色是平台工程负责人。", "zh-CN")).toBe(true);
+    expect(service.isBlockerFact("当前阻塞是供应商审批。", "zh-CN")).toBe(true);
     expect(service.detectFactPolarity("工作流仍然被阻塞。", "zh-CN")).toBe("negative");
     expect(service.detectFactPolarity("工作流已经稳定。", "zh-CN")).toBe("positive");
+  });
+
+  it("supports English slot-scoped query and fact intents", () => {
+    const service = createLanguageService();
+
+    expect(service.isRoleQuery("What is my current role?", "en-US")).toBe(true);
+    expect(service.isFocusQuery("What is my current focus?", "en-US")).toBe(true);
+    expect(service.isOpenLoopQuery("What is the open loop right now?", "en-US")).toBe(
+      true,
+    );
+    expect(service.isBlockerQuery("What is the current blocker?", "en-US")).toBe(
+      true,
+    );
+    expect(service.isActionDrivingQuery("Use this memory to decide the next step.", "en-US")).toBe(
+      true,
+    );
+    expect(service.isActionDrivingQuery("Which workflow doc should I use?", "en-US")).toBe(
+      false,
+    );
+    expect(
+      service.isRoleFact(
+        "my current role is staff platform engineer leading runtime reliability.",
+        "en-US",
+      ),
+    ).toBe(true);
+    expect(
+      service.isRoleFact(
+        "I am a robotics engineer in Shanghai leading the migration rollout.",
+        "en-US",
+      ),
+    ).toBe(true);
+    expect(
+      service.isFocusFact("my current focus is stabilizing release workflows.", "en-US"),
+    ).toBe(true);
+    expect(
+      service.isFocusFact("I am leading the migration rollout.", "en-US"),
+    ).toBe(true);
+    expect(service.isOpenLoopFact("The open loop is pending signoff.", "en-US")).toBe(
+      true,
+    );
+    expect(
+      service.isBlockerFact("The current blocker is vendor approval.", "en-US"),
+    ).toBe(true);
   });
 
   it("classifies Chinese feedback signals", () => {

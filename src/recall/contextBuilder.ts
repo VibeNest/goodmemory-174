@@ -227,6 +227,16 @@ function buildRenderableSections(packet: MemoryPacket) {
       body: packet.activeContextSummary,
     },
     {
+      key: "factSummary" as const,
+      title: "Facts",
+      body: packet.factSummary,
+    },
+    {
+      key: "referenceSummary" as const,
+      title: "References",
+      body: packet.referenceSummary,
+    },
+    {
       key: "feedbackSummary" as const,
       title: "Procedural Memory",
       body: packet.feedbackSummary,
@@ -235,16 +245,6 @@ function buildRenderableSections(packet: MemoryPacket) {
       key: "preferenceSummary" as const,
       title: "Preferences",
       body: packet.preferenceSummary,
-    },
-    {
-      key: "referenceSummary" as const,
-      title: "References",
-      body: packet.referenceSummary,
-    },
-    {
-      key: "factSummary" as const,
-      title: "Facts",
-      body: packet.factSummary,
     },
     {
       key: "episodeSummary" as const,

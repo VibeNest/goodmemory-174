@@ -321,6 +321,471 @@ describe("public recall API", () => {
     expect(result.packet.factSummary).toBeUndefined();
   });
 
+  it("does not promote unrelated project facts when confirming preferred response style", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Robot workflow is blocked on prod migration.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.preferences.upsert(
+      createPreferenceMemory({
+        id: "pref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "response_style",
+        value: "concise bullet points",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-confirm-style",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-confirm-style",
+        workspaceId: "workspace-a",
+      },
+      query: "Please confirm my preferred response style.",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.preferences).toHaveLength(1);
+    expect(result.preferences[0]?.value).toBe("concise bullet points");
+    expect(result.facts).toHaveLength(0);
+    expect(result.packet.factSummary).toBeUndefined();
+  });
+
+  it("does not pull unrelated project facts into reference-only runbook queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-runtime",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Runtime runbook",
+        pointer: "docs/runtime-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-blocker",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Vendor approval is still blocking the migration rollout.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-runbook-only",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-runbook-only",
+        workspaceId: "workspace-a",
+      },
+      query: "Which runbook should I use for runtime work?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.references).toHaveLength(1);
+    expect(result.references[0]?.pointer).toBe("docs/runtime-runbook.md");
+    expect(result.facts).toHaveLength(0);
+    expect(result.packet.factSummary).toBeUndefined();
+  });
+
+  it("does not let workflow-doc queries pull workflow status facts into recall", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-workflow",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Workflow guide",
+        pointer: "docs/workflow-guide.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-workflow-status",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Robot workflow is blocked on prod migration.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-workflow-doc-only",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-workflow-doc-only",
+        workspaceId: "workspace-a",
+      },
+      query: "Which workflow doc should I use?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.references).toHaveLength(1);
+    expect(result.references[0]?.pointer).toBe("docs/workflow-guide.md");
+    expect(result.facts).toHaveLength(0);
+    expect(result.packet.factSummary).toBeUndefined();
+  });
+
+  it("does not pull unrelated project facts into blocker confirmation queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-blocker",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The current blocker is vendor approval for runtime migration.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-role",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "my current role is staff platform engineer leading runtime reliability.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-blocker-only",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-blocker-only",
+        workspaceId: "workspace-a",
+      },
+      query: "What is the current blocker?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.facts).toHaveLength(1);
+    expect(result.facts[0]?.content).toContain("vendor approval");
+    expect(result.facts[0]?.content).not.toContain("current role");
+  });
+
+  it("does not fall back to open-loop facts for blocker queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-open-loop-only",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The open loop is pending signoff.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-blocker-slot-only",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-blocker-slot-only",
+        workspaceId: "workspace-a",
+      },
+      query: "What is the current blocker?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.facts).toHaveLength(0);
+    expect(result.packet.factSummary).toBeUndefined();
+  });
+
+  it("does not fall back to blocker facts for open-loop queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-blocker-only",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The blocker is vendor approval.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-open-loop-slot-only",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-open-loop-slot-only",
+        workspaceId: "workspace-a",
+      },
+      query: "What is the open loop?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.facts).toHaveLength(0);
+    expect(result.packet.factSummary).toBeUndefined();
+  });
+
+  it("does not fall back to unrelated blocker facts for role queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.profiles.upsert(
+      createUserProfile({
+        userId: "u-1",
+        identity: { name: "Lin", role: "Staff platform engineer" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-blocker",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The blocker is vendor approval for migration rollout.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-role-only",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-role-only",
+        workspaceId: "workspace-a",
+      },
+      query: "What is my current role?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.profile?.identity.role).toBe("Staff platform engineer");
+    expect(result.facts).toHaveLength(0);
+    expect(result.packet.factSummary).toBeUndefined();
+  });
+
+  it("keeps project-state facts for mixed role and next-step queries", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.profiles.upsert(
+      createUserProfile({
+        userId: "u-1",
+        identity: { name: "Lin", role: "Staff platform engineer" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-blocker",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The blocker is vendor approval for migration rollout.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-role-next-step",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-role-next-step",
+        workspaceId: "workspace-a",
+      },
+      query: "What is my current role, and what should I do next for the migration rollout?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.profile?.identity.role).toBe("Staff platform engineer");
+    expect(result.facts).toHaveLength(1);
+    expect(result.facts[0]?.content).toContain("vendor approval");
+  });
+
+  it("falls back to a unique active state fact for mixed role and next-step queries without lexical overlap", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.profiles.upsert(
+      createUserProfile({
+        userId: "u-1",
+        identity: { name: "Lin", role: "Staff platform engineer" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-blocker-unique",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The blocker is vendor approval.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-role-next-step-implicit-blocker",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-role-next-step-implicit-blocker",
+        workspaceId: "workspace-a",
+      },
+      query: "What is my current role, and what should I do next for the migration rollout?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.profile?.identity.role).toBe("Staff platform engineer");
+    expect(result.facts).toHaveLength(1);
+    expect(result.facts[0]?.content).toBe("The blocker is vendor approval.");
+  });
+
+  it("does not guess among multiple state facts for mixed role and next-step queries without lexical overlap", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.profiles.upsert(
+      createUserProfile({
+        userId: "u-1",
+        identity: { name: "Lin", role: "Staff platform engineer" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-blocker-a",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The blocker is vendor approval.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-blocker-b",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The open loop is pending signoff.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-role-next-step-ambiguous",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: {
+        userId: "u-1",
+        sessionId: "s-role-next-step-ambiguous",
+        workspaceId: "workspace-a",
+      },
+      query: "What is my current role, and what should I do next for the migration rollout?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.profile?.identity.role).toBe("Staff platform engineer");
+    expect(result.facts).toHaveLength(0);
+    expect(result.packet.factSummary).toBeUndefined();
+  });
+
   it("explains recalled preferences and references even when no profile exists", async () => {
     const { documentStore, sessionStore, repositories, runtime } = seedMemory();
 

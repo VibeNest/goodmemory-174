@@ -2,10 +2,10 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import type { FetchFunction } from "@ai-sdk/provider-utils";
 import {
   generateObject,
   generateText,
-  streamText,
 } from "ai";
 import { z } from "zod";
 import type { JudgeModel } from "../eval/judge";
@@ -25,15 +25,153 @@ export interface AISDKModelConfig {
 
 interface TextGeneratorDependencies {
   generateText?: typeof generateText;
-  streamText?: typeof streamText;
   resolveModel?: typeof resolveAISDKModel;
+  fetch?: FetchLike;
+  requestTimeoutMs?: number;
 }
 
 interface JudgeModelDependencies {
   generateObject?: typeof generateObject;
-  generateText?: typeof generateText;
-  streamText?: typeof streamText;
   resolveModel?: typeof resolveAISDKModel;
+  fetch?: FetchLike;
+  requestTimeoutMs?: number;
+}
+
+type FetchInput = Parameters<FetchFunction>[0];
+type FetchInit = Parameters<FetchFunction>[1];
+type FetchLike = (input: FetchInput, init?: FetchInit) => Promise<Response>;
+const DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS = 45_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function isJsonContentType(value: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.toLowerCase();
+  return normalized.includes("application/json") || normalized.includes("+json");
+}
+
+function isMalformedOpenAICompatiblePayload(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const payload = value as Record<string, unknown>;
+  const error = payload.error;
+
+  return payload.choices === null && (!error || typeof error !== "object");
+}
+
+function resolveFetchUrl(input: Parameters<FetchFunction>[0]): string {
+  if (typeof input === "string") {
+    return input;
+  }
+
+  if (input instanceof URL) {
+    return input.toString();
+  }
+
+  return input.url;
+}
+
+export function createOpenAICompatibleFetch(
+  baseFetch: FetchLike = globalThis.fetch.bind(globalThis) as FetchLike,
+): FetchFunction {
+  const wrappedFetch = (async (input: FetchInput, init?: FetchInit) => {
+    const response = await baseFetch(input, init);
+
+    if (!response.ok || !isJsonContentType(response.headers.get("content-type"))) {
+      return response;
+    }
+
+    let payload: unknown;
+
+    try {
+      payload = await response.clone().json();
+    } catch {
+      return response;
+    }
+
+    if (!isMalformedOpenAICompatiblePayload(payload)) {
+      return response;
+    }
+
+    throw new Error(
+      [
+        "Malformed openai-compatible gateway response: expected choices array or error object.",
+        `Received choices=null from ${resolveFetchUrl(input)}.`,
+      ].join(" "),
+    );
+  }) as FetchFunction;
+
+  wrappedFetch.preconnect = (globalThis.fetch as FetchFunction).preconnect;
+
+  return wrappedFetch;
+}
+
+function shouldRetryAISDKError(error: unknown): boolean {
+  const message = extractErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes("malformed openai-compatible gateway response") ||
+    message.includes("empty model response") ||
+    message.includes("rate limit") ||
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("temporarily unavailable") ||
+    message.includes("connection reset") ||
+    message.includes("econnreset") ||
+    message.includes("socket hang up") ||
+    message.includes("502") ||
+    message.includes("503") ||
+    message.includes("504") ||
+    message.includes("choices") && message.includes("received null") ||
+    message.includes("type validation failed") ||
+    message.includes("invalid input: expected array")
+  );
+}
+
+async function withAISDKRetries<T>(
+  operation: () => Promise<T>,
+  retryLimit = 3,
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= retryLimit; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt >= retryLimit || !shouldRetryAISDKError(error)) {
+        throw error;
+      }
+
+      await sleep(250 * attempt);
+    }
+  }
+
+  throw lastError;
 }
 
 const judgeScoresSchema = z.object({
@@ -57,6 +195,376 @@ const judgeResultSchema = z.object({
 
 function stripThinkingBlocks(value: string): string {
   return value.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
+function buildOpenAICompatibleUrl(baseURL: string): string {
+  return `${baseURL.replace(/\/+$/, "")}/chat/completions`;
+}
+
+function buildOpenAICompatibleHeaders(config: AISDKModelConfig): Record<string, string> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    accept: "application/json",
+  };
+
+  if (config.apiKey) {
+    headers.authorization = `Bearer ${config.apiKey}`;
+  }
+
+  return headers;
+}
+
+function extractOpenAICompatibleErrorMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const error = (payload as Record<string, unknown>).error;
+  if (!error || typeof error !== "object" || Array.isArray(error)) {
+    return null;
+  }
+
+  const message = (error as Record<string, unknown>).message;
+  return typeof message === "string" && message.trim().length > 0 ? message.trim() : null;
+}
+
+function extractMessageText(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .map((part) => {
+      if (typeof part === "string") {
+        return part;
+      }
+
+      if (!part || typeof part !== "object" || Array.isArray(part)) {
+        return "";
+      }
+
+      const text = (part as Record<string, unknown>).text;
+      return typeof text === "string" ? text : "";
+    })
+    .join("");
+}
+
+function extractOpenAICompatibleCompletionText(payload: unknown): string {
+  const gatewayError = extractOpenAICompatibleErrorMessage(payload);
+  if (gatewayError) {
+    throw new Error(`OpenAI-compatible gateway error: ${gatewayError}`);
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Malformed openai-compatible gateway response: expected a JSON object.");
+  }
+
+  const choices = (payload as Record<string, unknown>).choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    throw new Error("Malformed openai-compatible gateway response: missing choices array.");
+  }
+
+  const firstChoice = choices[0];
+  if (!firstChoice || typeof firstChoice !== "object" || Array.isArray(firstChoice)) {
+    throw new Error("Malformed openai-compatible gateway response: invalid first choice.");
+  }
+
+  const choice = firstChoice as Record<string, unknown>;
+  const message = choice.message;
+  if (message && typeof message === "object" && !Array.isArray(message)) {
+    const content = extractMessageText((message as Record<string, unknown>).content);
+    if (content.trim().length > 0) {
+      return content;
+    }
+  }
+
+  const text = choice.text;
+  if (typeof text === "string" && text.trim().length > 0) {
+    return text;
+  }
+
+  throw new Error("Empty model response");
+}
+
+function extractOpenAICompatibleStreamText(payload: unknown): string {
+  const gatewayError = extractOpenAICompatibleErrorMessage(payload);
+  if (gatewayError) {
+    throw new Error(`OpenAI-compatible gateway error: ${gatewayError}`);
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Malformed openai-compatible gateway response: expected a JSON object.");
+  }
+
+  const choices = (payload as Record<string, unknown>).choices;
+  if (choices === null) {
+    throw new Error(
+      "Malformed openai-compatible gateway response: expected choices array or error object.",
+    );
+  }
+
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return "";
+  }
+
+  let content = "";
+  for (const item of choices) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+
+    const choice = item as Record<string, unknown>;
+    const delta = choice.delta;
+    if (delta && typeof delta === "object" && !Array.isArray(delta)) {
+      content += extractMessageText((delta as Record<string, unknown>).content);
+    }
+
+    const message = choice.message;
+    if (message && typeof message === "object" && !Array.isArray(message)) {
+      content += extractMessageText((message as Record<string, unknown>).content);
+    }
+
+    const text = choice.text;
+    if (typeof text === "string") {
+      content += text;
+    }
+  }
+
+  return content;
+}
+
+async function withOpenAICompatibleTimeout<T>(input: {
+  timeoutMs: number;
+  message: string;
+  onTimeout?: () => void;
+  operation: () => Promise<T>;
+}): Promise<T> {
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+
+      try {
+        input.onTimeout?.();
+      } catch {
+        // Best effort cleanup only.
+      }
+
+      reject(new Error(input.message));
+    }, input.timeoutMs);
+
+    input.operation().then(
+      (value) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function requestOpenAICompatibleText(input: {
+  model: AISDKModelConfig;
+  system?: string;
+  prompt: string;
+  fetch?: FetchLike;
+  timeoutMs?: number;
+}): Promise<string> {
+  if (!input.model.baseURL) {
+    throw new Error("OpenAI-compatible requests require a baseURL.");
+  }
+
+  const baseURL = input.model.baseURL;
+  const controller = new AbortController();
+  const timeoutMs = input.timeoutMs ?? DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS;
+  const timeoutMessage = `OpenAI-compatible gateway timeout after ${timeoutMs}ms.`;
+  const abortRequest = () => {
+    controller.abort(new Error(timeoutMessage));
+  };
+  let response: Response;
+
+  try {
+    response = await withOpenAICompatibleTimeout({
+      timeoutMs,
+      message: timeoutMessage,
+      onTimeout: abortRequest,
+      operation: () =>
+        createOpenAICompatibleFetch(input.fetch)(
+          buildOpenAICompatibleUrl(baseURL),
+          {
+            method: "POST",
+            headers: {
+              ...buildOpenAICompatibleHeaders(input.model),
+              accept: "text/event-stream",
+            },
+            body: JSON.stringify({
+              model: input.model.model,
+              messages: [
+                input.system
+                  ? {
+                      role: "system",
+                      content: input.system,
+                    }
+                  : null,
+                {
+                  role: "user",
+                  content: input.prompt,
+                },
+              ].filter(Boolean),
+              stream: true,
+              reasoning_effort: "medium",
+            }),
+            signal: controller.signal,
+          },
+        ),
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw controller.signal.reason instanceof Error
+        ? controller.signal.reason
+        : new Error(timeoutMessage);
+    }
+
+    throw error;
+  }
+
+  const contentType = response.headers.get("content-type");
+  if (isJsonContentType(contentType)) {
+    const body = await withOpenAICompatibleTimeout({
+      timeoutMs,
+      message: timeoutMessage,
+      onTimeout: abortRequest,
+      operation: () => response.text(),
+    });
+    let payload: unknown = null;
+
+    if (body.trim().length > 0) {
+      try {
+        payload = JSON.parse(body);
+      } catch {
+        if (!response.ok) {
+          throw new Error(
+            `OpenAI-compatible gateway error ${response.status}: ${response.statusText || "Invalid JSON response"}`,
+          );
+        }
+
+        throw new Error("Malformed openai-compatible gateway response: expected a JSON body.");
+      }
+    }
+
+    const gatewayError = extractOpenAICompatibleErrorMessage(payload);
+    if (!response.ok) {
+      throw new Error(
+        `OpenAI-compatible gateway error ${response.status}: ${gatewayError ?? (response.statusText || "Request failed")}`,
+      );
+    }
+
+    return extractOpenAICompatibleCompletionText(payload);
+  }
+
+  if (!response.ok) {
+    const body = await withOpenAICompatibleTimeout({
+      timeoutMs,
+      message: timeoutMessage,
+      onTimeout: abortRequest,
+      operation: () => response.text(),
+    });
+    throw new Error(
+      `OpenAI-compatible gateway error ${response.status}: ${body.trim() || response.statusText || "Request failed"}`,
+    );
+  }
+
+  if (!response.body) {
+    throw new Error("Malformed openai-compatible gateway response: missing response body.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+  let sawDone = false;
+
+  while (true) {
+    const { value, done } = await withOpenAICompatibleTimeout({
+      timeoutMs,
+      message: timeoutMessage,
+      onTimeout: () => {
+        abortRequest();
+        void reader.cancel(controller.signal.reason).catch(() => undefined);
+      },
+      operation: () => reader.read(),
+    });
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+
+    for (const rawEvent of events) {
+      const data = rawEvent
+        .split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart())
+        .join("\n")
+        .trim();
+
+      if (!data) {
+        continue;
+      }
+
+      if (data === "[DONE]") {
+        sawDone = true;
+        return content;
+      }
+
+      let payload: unknown;
+
+      try {
+        payload = JSON.parse(data);
+      } catch {
+        throw new Error(
+          "Malformed openai-compatible gateway response: invalid JSON stream event.",
+        );
+      }
+
+      content += extractOpenAICompatibleStreamText(payload);
+    }
+  }
+
+  if (buffer.trim().length > 0) {
+    throw new Error(
+      "Malformed openai-compatible gateway response: truncated stream event.",
+    );
+  }
+
+  if (!sawDone) {
+    throw new Error("Malformed openai-compatible gateway response: stream ended before [DONE].");
+  }
+
+  return content;
 }
 
 export function parseAISDKModelConfigFromEnv(
@@ -88,6 +596,7 @@ export function resolveAISDKModel(config: AISDKModelConfig) {
         name: "openai-compatible",
         apiKey: config.apiKey,
         baseURL: config.baseURL,
+        fetch: createOpenAICompatibleFetch(),
       });
 
       return provider.chatModel(config.model);
@@ -133,34 +642,42 @@ export function createAISDKTextGenerator(input: {
   system?: string;
   promptBuilder?: (input: EvalAnswerGeneratorInput) => string;
   dependencies?: TextGeneratorDependencies;
-}): EvalAnswerGenerator {
+  }): EvalAnswerGenerator {
   return async (payload) => {
-    if (input.model.provider === "openai" && input.model.baseURL) {
-      const result = (input.dependencies?.streamText ?? streamText)({
+    return withAISDKRetries(async () => {
+      if (input.model.provider === "openai" && input.model.baseURL) {
+        const content = stripThinkingBlocks(
+          await requestOpenAICompatibleText({
+            model: input.model,
+            system: input.system,
+            prompt: (input.promptBuilder ?? buildAISDKTextPrompt)(payload),
+            fetch: input.dependencies?.fetch,
+            timeoutMs: input.dependencies?.requestTimeoutMs,
+          }),
+        );
+        if (!content) {
+          throw new Error("Empty model response");
+        }
+
+        return {
+          content,
+        };
+      }
+
+      const { text } = await (input.dependencies?.generateText ?? generateText)({
         model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
         system: input.system,
         prompt: (input.promptBuilder ?? buildAISDKTextPrompt)(payload),
-        providerOptions: {
-          openaiCompatible: {
-            reasoningEffort: "medium",
-          },
-        },
       });
+      const content = stripThinkingBlocks(text);
+      if (!content) {
+        throw new Error("Empty model response");
+      }
 
       return {
-        content: stripThinkingBlocks(await result.text),
+        content,
       };
-    }
-
-    const { text } = await (input.dependencies?.generateText ?? generateText)({
-      model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-      system: input.system,
-      prompt: (input.promptBuilder ?? buildAISDKTextPrompt)(payload),
     });
-
-    return {
-      content: stripThinkingBlocks(text),
-    };
   };
 }
 
@@ -175,33 +692,40 @@ export function createAISDKJudgeModel(input: {
         input.system ??
         "You compare two answers and return strict JSON judging which one better understands the user and continues history.";
 
-      if (input.model.provider === "openai" && input.model.baseURL) {
-        const result = (input.dependencies?.streamText ?? streamText)({
+      return withAISDKRetries(async () => {
+        if (input.model.provider === "openai" && input.model.baseURL) {
+          const content = await requestOpenAICompatibleText({
+            model: input.model,
+            system,
+            prompt,
+            fetch: input.dependencies?.fetch,
+            timeoutMs: input.dependencies?.requestTimeoutMs,
+          });
+          if (!content.trim()) {
+            throw new Error("Empty model response");
+          }
+
+          return {
+            content,
+          };
+        }
+
+        const { object } = await (input.dependencies?.generateObject ?? generateObject)({
           model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
+          schema: judgeResultSchema,
           system,
           prompt,
-          providerOptions: {
-            openaiCompatible: {
-              reasoningEffort: "medium",
-            },
-          },
         });
 
+        const content = JSON.stringify(object);
+        if (!content.trim()) {
+          throw new Error("Empty model response");
+        }
+
         return {
-          content: await result.text,
+          content,
         };
-      }
-
-      const { object } = await (input.dependencies?.generateObject ?? generateObject)({
-        model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-        schema: judgeResultSchema,
-        system,
-        prompt,
       });
-
-      return {
-        content: JSON.stringify(object),
-      };
     },
   };
 }

@@ -39,8 +39,47 @@ const CORRECTED_REFERENCE_PATTERN =
   /(?:correction:\s*)?([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s+is now the source of truth,\s*not\s+([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/i;
 const DURABLE_INFERENCE_PATTERNS = [
   /\b(currently|still|blocked|failing|working on|responsible for)\b/i,
-  /\bworkflow|migration|production|prod|project|roadmap|deadline|launch\b/i,
-  /\bapi|runtime|build|schema|incident|bug|error\b/i,
+  /\b(workflows?|migrations?|production|prod|projects?|roadmaps?|deadlines?|launch(?:es)?)\b/i,
+  /\b(apis?|runtimes?|builds?|schemas?|incidents?|bugs?|errors?)\b/i,
+];
+const PROJECT_FACT_PATTERNS = [
+  /\bworkflows?\b/i,
+  /\bblockers?\b/i,
+  /\bopen loops?\b/i,
+  /\bhandoffs?\b/i,
+  /\bprojects?\b/i,
+  /\brunbooks?\b/i,
+  /\bplaybooks?\b/i,
+  /\brollouts?\b/i,
+  /\bapprovals?\b/i,
+  /\broadmaps?\b/i,
+  /\bmigrations?\b/i,
+  /\blaunch(?:es)?\b/i,
+  /\bproduction\b/i,
+  /\bprod\b/i,
+];
+const TECHNICAL_FACT_PATTERNS = [
+  /\bapis?\b/i,
+  /\bruntimes?\b/i,
+  /\bbugs?\b/i,
+  /\berrors?\b/i,
+  /\bbuilds?\b/i,
+  /\bschemas?\b/i,
+];
+const PROFILE_LIKE_PROJECT_FACT_PATTERNS = [
+  /\bblockers?\b/i,
+  /\bopen loops?\b/i,
+  /\bsource of truth\b/i,
+  /\brunbooks?\b/i,
+  /\bhandoffs?\b/i,
+  /\bapprovals?\b/i,
+  /\bblocked\b/i,
+  /\bfailing\b/i,
+  /\bdeadlines?\b/i,
+  /\blaunch(?:es)?\b/i,
+  /\bmigrations?\b/i,
+  /\bprojects?\b/i,
+  /\bworkflows?\b/i,
 ];
 const TOKEN_STOPWORDS = new Set([
   "this",
@@ -62,48 +101,26 @@ function deriveFactCategory(
 ): "project" | "technical" | "personal" | "relationship" | "event" {
   const normalized = content.toLowerCase();
 
-  if (
-    normalized.includes("workflow") ||
-    normalized.includes("blocker") ||
-    normalized.includes("open loop") ||
-    normalized.includes("handoff") ||
-    normalized.includes("project") ||
-    normalized.includes("runbook") ||
-    normalized.includes("playbook") ||
-    normalized.includes("rollout") ||
-    normalized.includes("approval") ||
-    normalized.includes("roadmap") ||
-    normalized.includes("migration") ||
-    normalized.includes("launch") ||
-    normalized.includes("production") ||
-    normalized.includes("prod")
-  ) {
+  if (PROJECT_FACT_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return "project";
   }
 
-  if (
-    normalized.includes("api") ||
-    normalized.includes("runtime") ||
-    normalized.includes("bug") ||
-    normalized.includes("error") ||
-    normalized.includes("build") ||
-    normalized.includes("schema")
-  ) {
+  if (TECHNICAL_FACT_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return "technical";
   }
 
   if (
-    normalized.includes("family") ||
-    normalized.includes("partner") ||
-    normalized.includes("friend")
+    /\bfamily\b/i.test(normalized) ||
+    /\bpartner\b/i.test(normalized) ||
+    /\bfriend\b/i.test(normalized)
   ) {
     return "relationship";
   }
 
   if (
-    normalized.includes("travel") ||
-    normalized.includes("event") ||
-    normalized.includes("meeting")
+    /\btravel\b/i.test(normalized) ||
+    /\bevent\b/i.test(normalized) ||
+    /\bmeeting\b/i.test(normalized)
   ) {
     return "event";
   }
@@ -189,9 +206,7 @@ function shouldSkipExplicitFactForProfileLikeClause(
     return false;
   }
 
-  return !/\b(blocker|open loop|source of truth|runbook|handoff|approval|blocked|failing|deadline|launch|migration|project|workflow)\b/i.test(
-    factContent,
-  );
+  return !PROFILE_LIKE_PROJECT_FACT_PATTERNS.some((pattern) => pattern.test(factContent));
 }
 
 function dedupeCandidates(candidates: MemoryCandidate[]): MemoryCandidate[] {

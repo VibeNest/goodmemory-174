@@ -1,3 +1,8 @@
+import {
+  createLanguageService,
+  type LanguageService,
+} from "../language";
+
 export type RetrievalProfile = "general_chat" | "coding_agent";
 
 export type RecallSource =
@@ -23,10 +28,11 @@ export interface RecallRoutingInput {
   retrievalProfile?: RetrievalProfile;
   query: string;
   runtime: RecallRuntimeAvailability;
+  locale?: string;
+  language?: LanguageService;
 }
 
-const CONTINUATION_PATTERN =
-  /\b(continue|resume|pick up|last time|from last time|carry on)\b/i;
+const DEFAULT_LANGUAGE = createLanguageService();
 
 export function resolveRetrievalProfile(
   profile?: RetrievalProfile,
@@ -36,8 +42,15 @@ export function resolveRetrievalProfile(
 
 export function planRecall(input: RecallRoutingInput): RoutingDecision {
   const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
+  const language = input.language ?? DEFAULT_LANGUAGE;
+  const locale =
+    input.locale ??
+    language.resolveFromText({
+      text: input.query,
+    }).locale;
   const continuationIntent =
-    retrievalProfile === "coding_agent" || CONTINUATION_PATTERN.test(input.query);
+    retrievalProfile === "coding_agent" ||
+    language.isContinuationQuery(input.query, locale);
 
   if (continuationIntent) {
     return {

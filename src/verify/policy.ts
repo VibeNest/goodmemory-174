@@ -3,6 +3,10 @@ import type {
   FactMemory,
   ReferenceMemory,
 } from "../domain/records";
+import {
+  createLanguageService,
+  type LanguageService,
+} from "../language";
 
 export interface VerificationHint {
   memoryId: string;
@@ -16,10 +20,11 @@ export interface VerificationPolicyInput {
   facts: FactMemory[];
   references?: ReferenceMemory[];
   episodes?: EpisodeMemory[];
+  locale?: string;
+  language?: LanguageService;
 }
 
-const ACTION_QUERY_PATTERN =
-  /\b(proceed|use|apply|send|ship|deploy|decide|rollout|execute|migration plan|next step)\b/i;
+const DEFAULT_LANGUAGE = createLanguageService();
 
 function daysBetween(left: string, right: string): number {
   const ms = Math.abs(new Date(left).getTime() - new Date(right).getTime());
@@ -30,7 +35,13 @@ export function evaluateVerificationHints(
   input: VerificationPolicyInput,
 ): VerificationHint[] {
   const hints: VerificationHint[] = [];
-  const actionDriving = ACTION_QUERY_PATTERN.test(input.query);
+  const language = input.language ?? DEFAULT_LANGUAGE;
+  const locale =
+    input.locale ??
+    language.resolveFromText({
+      text: input.query,
+    }).locale;
+  const actionDriving = language.isActionDrivingQuery(input.query, locale);
 
   for (const fact of input.facts) {
     const factAgeDays = daysBetween(input.referenceTime, fact.updatedAt);

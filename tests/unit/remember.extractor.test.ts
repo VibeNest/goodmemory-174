@@ -280,6 +280,44 @@ describe("deterministic memory extractor", () => {
     ).toBe(true);
   });
 
+  it("does not classify scoped carry-over avoidance rules as project facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that for productivity tasks, I avoid irrelevant carry-over from hobby preferences.",
+        },
+      ],
+    });
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.kindHint).toBe("fact");
+    expect(result.candidates[0]?.metadata?.category).toBe("personal");
+  });
+
+  it("classifies plural project nouns as project facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        { role: "user", content: "Remember that workflows are unstable." },
+        { role: "user", content: "Remember that runbooks need revision." },
+        { role: "user", content: "Remember that playbooks are outdated." },
+        { role: "user", content: "Remember that projects are blocked." },
+      ],
+    });
+
+    expect(result.candidates).toHaveLength(4);
+    expect(result.candidates.every((candidate) => candidate.metadata?.category === "project")).toBe(
+      true,
+    );
+  });
+
   it("does not duplicate pure profile remember-that clauses as explicit facts", async () => {
     const extractor = createDeterministicMemoryExtractor();
 

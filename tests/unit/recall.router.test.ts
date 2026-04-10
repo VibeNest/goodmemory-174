@@ -44,4 +44,24 @@ describe("recall router", () => {
     ]);
     expect(plan.intent).toBe("task_continuation");
   });
+
+  it("detects Chinese continuation intent through the language service", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      query: "继续上次的运行时重构。",
+      locale: "zh-CN",
+      runtime: {
+        hasWorkingMemory: true,
+        hasJournal: true,
+      },
+    });
+
+    expect(plan.intent).toBe("task_continuation");
+    expect(plan.sourcePriorities.slice(0, 4)).toEqual([
+      "working_memory",
+      "session_journal",
+      "episode",
+      "fact",
+    ]);
+  });
 });

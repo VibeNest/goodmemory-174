@@ -164,4 +164,71 @@ describe("eval runners", () => {
         .some((event) => event.reason === "explicit_profile_current_project"),
     ).toBe(true);
   });
+
+  it("surfaces explicit current-role updates in long-lifecycle eval context", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/long-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-long-01.json"),
+    );
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: createInMemoryDocumentStore(),
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(
+      result.retrieved?.facts.some((fact) =>
+        fact.content ===
+          "my current role is staff platform engineer leading release quality program.",
+      ) ?? false,
+    ).toBe(true);
+    expect(result.memoryContext).toContain(
+      "my current role is staff platform engineer leading release quality program.",
+    );
+    expect(result.memoryContext).toContain(
+      "my current focus is runtime reliability and platform migration for release quality program, not the old backlog cleanup.",
+    );
+  });
+
+  it("does not surface scoped carry-over avoidance rules in cross-domain eval context", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-11.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-medium-11.json"),
+    );
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: createInMemoryDocumentStore(),
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(result.memoryContext).not.toContain(
+      "avoid irrelevant carry-over from hobby preferences",
+    );
+  });
 });

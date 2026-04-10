@@ -87,4 +87,84 @@ describe("context builder output modes", () => {
     expect(parsed.profileSummary).toBeDefined();
     expect(parsed.workingMemorySummary).toBeUndefined();
   });
+
+  it("prioritizes semantic facts ahead of stylistic preferences under markdown token pressure", () => {
+    const packet = buildMemoryPacket({
+      profile: {
+        userId: "u-1",
+        identity: { name: "Adrian", role: "Staff platform engineer" },
+        expertise: { primarySkills: [], domains: [] },
+        activeContext: { goals: [], currentProjects: ["Release quality program"] },
+        version: 1,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      preferences: [
+        {
+          id: "pref-1",
+          userId: "u-1",
+          category: "response_style",
+          value: "concise bullet points and incremental delivery",
+          confidence: 1,
+          evidenceCount: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      references: [
+        {
+          id: "ref-1",
+          userId: "u-1",
+          title: "release-quality-program-runbook-v2.md",
+          pointer: "docs/release-quality-program-runbook-v2.md",
+          confidence: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          lifecycle: "active",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      facts: [
+        {
+          id: "fact-1",
+          userId: "u-1",
+          category: "project",
+          content: "my current role is staff platform engineer leading release quality program.",
+          confidence: 1,
+          importance: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          accessCount: 0,
+          lifecycle: "active",
+          isActive: true,
+          supersededBy: null,
+        },
+      ],
+      feedback: [
+        {
+          id: "fb-1",
+          userId: "u-1",
+          rule: "Keep answers concise.",
+          kind: "validated_pattern",
+          confidence: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          lifecycle: "active",
+          evidence: [],
+          appliesTo: "general_response",
+        },
+      ],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+    });
+
+    const markdown = renderMemoryPacket(packet, "markdown", 80);
+
+    expect(markdown.content).toContain("## Facts");
+    expect(markdown.content).toContain(
+      "my current role is staff platform engineer leading release quality program.",
+    );
+  });
 });

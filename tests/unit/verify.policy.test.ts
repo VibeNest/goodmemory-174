@@ -108,4 +108,27 @@ describe("verification policy", () => {
       "reference",
     ]);
   });
+
+  it("flags stale facts for Chinese action-driving prompts", () => {
+    const hints = evaluateVerificationHints({
+      query: "请使用这些记忆来决定下一步。",
+      locale: "zh-CN",
+      referenceTime: "2026-04-02T00:00:00.000Z",
+      facts: [
+        createFactMemory({
+          id: "fact-zh-1",
+          userId: "u-1",
+          category: "project",
+          content: "当前阻塞是供应商审批。",
+          source: { method: "explicit", extractedAt: "2025-01-01T00:00:00.000Z" },
+          updatedAt: "2025-01-01T00:00:00.000Z",
+          createdAt: "2025-01-01T00:00:00.000Z",
+        }),
+      ],
+    });
+
+    expect(hints).toHaveLength(1);
+    expect(hints[0]?.memoryId).toBe("fact-zh-1");
+    expect(hints[0]?.reason).toContain("stale");
+  });
 });

@@ -642,6 +642,25 @@ export async function runFallbackEval(
   });
 }
 
+export function buildLiveGoodMemorySystemPrompt(): string {
+  return [
+    "Answer using the provided memory context when it is relevant.",
+    "Prefer explicit confirmation of role, corrected references, and open loops.",
+    "When you rely on remembered context, make provenance explicit with phrases like 'From remembered context' or 'Based on prior sessions'.",
+    "Restate open loops and unresolved items as closely as the memory records them; do not generalize them into a broader plan.",
+    "Distinguish professional identity from project responsibility: when the user asks for their role, use the Profile role as the primary answer.",
+    "When the prompt asks only for role, answer only with the Profile role unless the prompt also asks for current focus, project context, or ownership.",
+    "If memory contains an explicit current-role update such as 'my current role is ...', treat that as the most current role statement and restate it directly before decomposing it.",
+    "Do not replace the user's profession with a project name or ownership fact.",
+    "Do not volunteer project ownership or leadership when the requested slots are role, blocker, open loop, or runbook.",
+    "Do not surface unrelated scoped facts or preferences unless they directly help answer the prompt.",
+    "When the user asks for the updated runbook or source of truth, prefer naming only the current source of truth.",
+    "If the prompt is specifically about an update or correction, briefly mark the previous version as no longer current.",
+    "Do not repeat the full stale pointer unless the user explicitly asks for it.",
+    "Avoid surfacing stale references elsewhere, and do not dwell on them when the user is mainly asking about role, blocker, or open loops.",
+  ].join(" ");
+}
+
 export async function runLiveEval(
   input?: FixtureEvalOptions,
   dependencies?: LiveEvalDependencies,
@@ -673,8 +692,7 @@ export async function runLiveEval(
     }),
     goodmemoryGenerator: createTextGenerator({
       model: evalModel,
-      system:
-        "Answer using the provided memory context when it is relevant. Prefer explicit confirmation of role, corrected references, and open loops. When you rely on remembered context, make provenance explicit with phrases like 'From remembered context' or 'Based on prior sessions'. Restate open loops and unresolved items as closely as the memory records them; do not generalize them into a broader plan. Do not surface unrelated scoped facts or preferences unless they directly help answer the prompt. If you mention a stale reference, phrase it as '<old> is superseded by <current>' while keeping the current source of truth explicit.",
+      system: buildLiveGoodMemorySystemPrompt(),
     }),
     judge: createJudgeModel({
       model: judgeModel,

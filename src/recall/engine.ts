@@ -102,7 +102,11 @@ function categoryPriority(
   language: LanguageService,
   locale: string,
 ): number {
-  if (language.isAnswerCompositionQuery(query, locale)) {
+  if (
+    language.isAnswerCompositionQuery(query, locale) ||
+    language.isFactConfirmationQuery(query, locale) ||
+    language.isProjectStateQuery(query, locale)
+  ) {
     if (category === "project" || category === "technical") {
       return 0.4;
     }
@@ -112,6 +116,43 @@ function categoryPriority(
   }
 
   return 0;
+}
+
+function factIntentPriority(
+  fact: FactMemory,
+  query: string,
+  factLocale: string,
+  queryLocale: string,
+  language: LanguageService,
+): number {
+  let score = 0;
+
+  if (language.isRoleQuery(query, queryLocale) && language.isRoleFact(fact.content, factLocale)) {
+    score += 0.7;
+  }
+
+  if (
+    language.isFocusQuery(query, queryLocale) &&
+    language.isFocusFact(fact.content, factLocale)
+  ) {
+    score += 0.6;
+  }
+
+  if (
+    language.isOpenLoopQuery(query, queryLocale) &&
+    language.isOpenLoopFact(fact.content, factLocale)
+  ) {
+    score += 0.55;
+  }
+
+  if (
+    language.isBlockerQuery(query, queryLocale) &&
+    language.isBlockerFact(fact.content, factLocale)
+  ) {
+    score += 0.55;
+  }
+
+  return score;
 }
 
 function resolveFactLocale(
@@ -162,27 +203,158 @@ function selectFacts(
   retrievalProfile: RetrievalProfile,
 ): FactMemory[] {
   const answerCompositionQuery = language.isAnswerCompositionQuery(query, queryLocale);
+  const factConfirmationQuery = language.isFactConfirmationQuery(query, queryLocale);
+  const actionDrivingQuery = language.isActionDrivingQuery(query, queryLocale);
+  const referenceSeekingQuery = language.isReferenceSeekingQuery(query, queryLocale);
+  const roleQuery = language.isRoleQuery(query, queryLocale);
+  const focusQuery = language.isFocusQuery(query, queryLocale);
+  const openLoopQuery = language.isOpenLoopQuery(query, queryLocale);
+  const blockerQuery = language.isBlockerQuery(query, queryLocale);
+  const slotScopedFactQuery =
+    roleQuery ||
+    focusQuery ||
+    openLoopQuery ||
+    blockerQuery;
+  const needsProjectStateSupport =
+    openLoopQuery ||
+    blockerQuery ||
+    (slotScopedFactQuery && actionDrivingQuery);
+  const needsFactsForReferenceQuery =
+    answerCompositionQuery ||
+    factConfirmationQuery ||
+    actionDrivingQuery ||
+    openLoopQuery ||
+    blockerQuery;
+  if (
+    referenceSeekingQuery &&
+    !needsFactsForReferenceQuery
+  ) {
+    return [];
+  }
   const ranked = sortFacts(facts)
-    .map((fact) => ({
-      fact,
-      locale: resolveFactLocale(fact, language),
-      score:
-        language.tokenOverlap(fact.content, query, queryLocale, {
+    .map((fact) => {
+      const locale = resolveFactLocale(fact, language);
+
+      return {
+        fact,
+        locale,
+        lexicalScore: language.tokenOverlap(fact.content, query, queryLocale, {
           excludeStopwords: true,
-        }) + categoryPriority(fact.category, query, language, queryLocale),
+        }),
+        intentScore: factIntentPriority(
+          fact,
+          query,
+          locale,
+          queryLocale,
+          language,
+        ),
+        categoryBoost: categoryPriority(fact.category, query, language, queryLocale),
+      };
+    })
+    .map((entry) => ({
+      ...entry,
+      score: entry.lexicalScore + entry.intentScore + entry.categoryBoost,
     }))
     .sort((left, right) => right.score - left.score);
   const compatible = ranked.filter((entry) =>
     language.localesCompatible(queryLocale, entry.locale),
   );
 
-  const withSignal = compatible.filter((entry) => entry.score >= 0.2);
-  const limit = answerCompositionQuery ? 3 : 2;
-  if (withSignal.length > 0) {
-    return withSignal.slice(0, limit).map((entry) => entry.fact);
+  const withIntentSignal = compatible.filter((entry) => entry.intentScore > 0);
+  const limit = answerCompositionQuery || factConfirmationQuery ? 3 : 2;
+  const requestedStateSlot =
+    blockerQuery && !openLoopQuery
+      ? "blocker"
+      : openLoopQuery && !blockerQuery
+        ? "open_loop"
+        : "any";
+  const selectSupportingProjectStateFacts = (
+    entries: typeof compatible,
+    remainingLimit: number,
+    mode: "requested_slot" | "any_state",
+  ): FactMemory[] => {
+    const matchesRequestedStateSlot = (
+      entry: (typeof compatible)[number],
+    ): boolean => {
+      if (mode === "any_state") {
+        return language.isProjectStateFact(entry.fact.content, entry.locale);
+      }
+
+      if (requestedStateSlot === "blocker") {
+        return language.isBlockerFact(entry.fact.content, entry.locale);
+      }
+
+      if (requestedStateSlot === "open_loop") {
+        return language.isOpenLoopFact(entry.fact.content, entry.locale);
+      }
+
+      return language.isProjectStateFact(entry.fact.content, entry.locale);
+    };
+    const candidates = entries.filter(
+      (entry) =>
+        entry.intentScore === 0 &&
+        matchesRequestedStateSlot(entry),
+    );
+    const lexicalMatches = candidates
+      .filter((entry) => entry.lexicalScore >= 0.2)
+      .slice(0, remainingLimit)
+      .map((entry) => entry.fact);
+
+    if (lexicalMatches.length > 0) {
+      return lexicalMatches;
+    }
+
+    const unambiguousFallback = candidates.filter(
+      (entry) =>
+        entry.fact.lifecycle === "active" &&
+        entry.fact.source.method !== "inferred",
+    );
+    if (unambiguousFallback.length === 1) {
+      return [unambiguousFallback[0]!.fact];
+    }
+
+    return [];
+  };
+
+  if (withIntentSignal.length > 0) {
+    const selected = withIntentSignal.slice(0, limit);
+    if (!needsProjectStateSupport || selected.length >= limit) {
+      return selected.map((entry) => entry.fact);
+    }
+
+    const supportingFacts = selectSupportingProjectStateFacts(
+      compatible,
+      limit - selected.length,
+      "any_state",
+    );
+
+    return [...selected.map((entry) => entry.fact), ...supportingFacts];
   }
 
-  if (answerCompositionQuery) {
+  if (slotScopedFactQuery) {
+    if (needsProjectStateSupport) {
+      const supportingFacts = selectSupportingProjectStateFacts(
+        compatible,
+        limit,
+        "requested_slot",
+      );
+
+      if (supportingFacts.length > 0) {
+        return supportingFacts;
+      }
+    }
+
+    return [];
+  }
+
+  if (!slotScopedFactQuery) {
+    const withLexicalSignal = compatible.filter((entry) => entry.lexicalScore >= 0.2);
+    if (withLexicalSignal.length > 0) {
+      return withLexicalSignal.slice(0, limit).map((entry) => entry.fact);
+    }
+  }
+
+  if (answerCompositionQuery || factConfirmationQuery) {
     const relevantToAnswer = compatible
       .filter((entry) =>
         entry.fact.category === "project" || entry.fact.category === "technical",
@@ -198,6 +370,10 @@ function selectFacts(
       return compatible.slice(0, 1).map((entry) => entry.fact);
     }
 
+    return [];
+  }
+
+  if (retrievalProfile !== "coding_agent") {
     return [];
   }
 
@@ -561,6 +737,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
         const routingDecision = planRecall({
           retrievalProfile,
           query: input.query,
+          locale: resolvedLanguage.locale,
+          language,
           runtime: {
             hasWorkingMemory: false,
             hasJournal: false,
@@ -631,6 +809,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const routingDecision = planRecall({
         retrievalProfile,
         query: input.query,
+        locale: resolvedLanguage.locale,
+        language,
         runtime: {
           hasWorkingMemory: Boolean(workingMemoryRaw),
           hasJournal: Boolean(journalRaw),
@@ -756,6 +936,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
             facts,
             references,
             episodes,
+            locale: resolvedLanguage.locale,
+            language,
           }),
           policyApplied: [...policyApplied],
           locale: resolvedLanguage.locale,

@@ -89,8 +89,56 @@ export interface LanguageService {
     query: string,
     context: ResolvedLanguageContext | string,
   ): boolean;
+  isRoleQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isFocusQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isOpenLoopQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isBlockerQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isProjectStateQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isFactConfirmationQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isActionDrivingQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
   isContinuationQuery(
     query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isRoleFact(
+    content: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isFocusFact(
+    content: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isOpenLoopFact(
+    content: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isBlockerFact(
+    content: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isProjectStateFact(
+    content: string,
     context: ResolvedLanguageContext | string,
   ): boolean;
   detectFactPolarity(
