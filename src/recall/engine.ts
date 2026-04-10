@@ -553,6 +553,24 @@ function slotMatchesFact(
   return false;
 }
 
+const PROJECT_STATE_SUPPORT_PRIMARY_KINDS = [
+  ["blocker"],
+  ["open_loop"],
+] as const satisfies ReadonlyArray<readonly FactKind[]>;
+
+const PROJECT_STATE_SUPPORT_FALLBACK_KINDS = [
+  "focus_update",
+  "project_state",
+] as const satisfies readonly FactKind[];
+
+function hasFactSelectionSignal(entry: RankedFactCandidate): boolean {
+  return (
+    entry.intentScore > 0 ||
+    entry.lexicalScore >= 0.2 ||
+    entry.subjectScore >= 0.2
+  );
+}
+
 function selectFacts(
   facts: FactMemory[],
   query: string,
@@ -608,53 +626,116 @@ function selectFacts(
     entries: RankedFactCandidate[],
     allowUniqueFallback: boolean,
   ) => {
-    const candidates = entries
-      .filter((entry) => !selectedIds.has(entry.fact.id))
-      .filter((entry) => slotMatchesFact(entry, slot))
-      .sort((left, right) => right.score - left.score);
-    const signaled = candidates.filter(
-      (entry) =>
-        entry.intentScore > 0 ||
-        entry.lexicalScore >= 0.2 ||
-        entry.subjectScore >= 0.2,
-    );
-    const signaledPick = signaled[0];
+    const resolveCandidates = (factKinds?: readonly FactKind[]) =>
+      entries
+        .filter((entry) => !selectedIds.has(entry.fact.id))
+        .filter((entry) => slotMatchesFact(entry, slot))
+        .filter((entry) => {
+          if (!factKinds) {
+            return true;
+          }
 
-    if (signaledPick) {
-      selected.push(signaledPick);
-      selectedIds.add(signaledPick.fact.id);
-      markSelectedTrace(
-        traces,
-        signaledPick.fact.id,
-        slot,
-        signaledPick.intentScore,
-        signaledPick.lexicalScore,
-        signaledPick.freshnessScore,
-        signaledPick.explicitnessScore,
-        "none",
-      );
-      return;
-    }
+          return entry.factKind ? factKinds.includes(entry.factKind) : false;
+        })
+        .sort((left, right) => right.score - left.score);
+    const resolvePick = (
+      candidates: RankedFactCandidate[],
+      allowFallback: boolean,
+    ) => {
+      const signaledPick = candidates.find(hasFactSelectionSignal);
 
-    if (allowUniqueFallback) {
+      if (signaledPick) {
+        return {
+          candidate: signaledPick,
+          fallback: "none" as const,
+        };
+      }
+
+      if (!allowFallback) {
+        return {
+          candidate: undefined,
+          fallback: "none" as const,
+        };
+      }
+
       const uniqueActiveExplicit = candidates.filter(
         (entry) => entry.fact.source.method !== "inferred",
       );
       if (uniqueActiveExplicit.length === 1) {
-        const fallbackPick = uniqueActiveExplicit[0]!;
-        selected.push(fallbackPick);
-        selectedIds.add(fallbackPick.fact.id);
-        markSelectedTrace(
-          traces,
-          fallbackPick.fact.id,
-          slot,
-          fallbackPick.intentScore,
-          fallbackPick.lexicalScore,
-          fallbackPick.freshnessScore,
-          fallbackPick.explicitnessScore,
-          "same_slot_unique_candidate",
-        );
+        return {
+          candidate: uniqueActiveExplicit[0],
+          fallback: "same_slot_unique_candidate" as const,
+        };
       }
+
+      return {
+        candidate: undefined,
+        fallback: "none" as const,
+      };
+    };
+    const selectCandidate = (
+      candidate: RankedFactCandidate,
+      fallback: RecallCandidateTrace["fallback"],
+    ) => {
+      selected.push(candidate);
+      selectedIds.add(candidate.fact.id);
+      markSelectedTrace(
+        traces,
+        candidate.fact.id,
+        slot,
+        candidate.intentScore,
+        candidate.lexicalScore,
+        candidate.freshnessScore,
+        candidate.explicitnessScore,
+        fallback,
+      );
+    };
+
+    if (slot === "project_state_support") {
+      let selectedSupportCount = 0;
+
+      const blockerPick = resolvePick(
+        resolveCandidates(PROJECT_STATE_SUPPORT_PRIMARY_KINDS[0]),
+        false,
+      );
+      if (blockerPick.candidate) {
+        selectCandidate(blockerPick.candidate, blockerPick.fallback);
+        selectedSupportCount += 1;
+      }
+
+      const openLoopPick = resolvePick(
+        resolveCandidates(PROJECT_STATE_SUPPORT_PRIMARY_KINDS[1]),
+        false,
+      );
+      if (openLoopPick.candidate && (blockerPick.candidate || selectedSupportCount === 0)) {
+        selectCandidate(openLoopPick.candidate, openLoopPick.fallback);
+        selectedSupportCount += 1;
+      }
+
+      if (selectedSupportCount === 0) {
+        const fallbackPick = resolvePick(
+          resolveCandidates(PROJECT_STATE_SUPPORT_FALLBACK_KINDS),
+          false,
+        );
+        if (fallbackPick.candidate) {
+          selectCandidate(fallbackPick.candidate, fallbackPick.fallback);
+          selectedSupportCount += 1;
+        }
+      }
+
+      if (selectedSupportCount === 0 && allowUniqueFallback) {
+        const uniqueFallbackPick = resolvePick(resolveCandidates(), true);
+        if (uniqueFallbackPick.candidate) {
+          selectCandidate(uniqueFallbackPick.candidate, uniqueFallbackPick.fallback);
+        }
+      }
+
+      return;
+    }
+
+    const pick = resolvePick(resolveCandidates(), allowUniqueFallback);
+    if (pick.candidate) {
+      selectCandidate(pick.candidate, pick.fallback);
     }
   };
 

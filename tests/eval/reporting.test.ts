@@ -419,6 +419,54 @@ describe("eval reporting", () => {
     }
   });
 
+  it("does not mark shared judge observations as release failures when assertions pass", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-shared-tags");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-1",
+          taskFamily: "cross_domain_transfer",
+          targetDomain: "shopping",
+          memorySourceDomains: ["food", "finance"],
+          evaluationSetting: "cross_domain",
+          winner: "goodmemory",
+          baselineHistory: 3,
+          goodmemoryHistory: 9,
+          failureTags: ["shared_missing_location_signal"],
+        }),
+      ];
+
+      const summary = aggregateJudgedCases(cases);
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-002a",
+        cases,
+        summary,
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+        },
+      });
+      const failureSummary = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "failures/summary.json"),
+          "utf8",
+        ),
+      ) as {
+        totalFailures: number;
+        failedCases: Array<{ failureTags: string[] }>;
+      };
+
+      expect(failureSummary.totalFailures).toBe(0);
+      expect(failureSummary.failedCases).toHaveLength(0);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("treats grouped-parser style goodmemory tags as blocking failures", async () => {
     const workspace = await createTempWorkspace("goodmemory-reporting-grouped-tags");
 

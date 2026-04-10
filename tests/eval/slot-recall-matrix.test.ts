@@ -87,12 +87,13 @@ describe("eval slot recall matrix", () => {
     expect(result.retrieved?.references.map((reference) => reference.pointer)).toEqual([
       "docs/workflow-reliability-dashboard-runbook-v2.md",
     ]);
+    expect(result.retrieved?.facts[0]?.content).toBe(
+      "the current blocker is vendor approval for workflow reliability dashboard.",
+    );
     expect(
       result.retrieved?.facts.some((fact) =>
-        [
-          "the current blocker is vendor approval for workflow reliability dashboard.",
-          "the open loop is final signoff for workflow reliability dashboard.",
-        ].includes(fact.content),
+        fact.content ===
+        "the open loop is final signoff for workflow reliability dashboard.",
       ),
     ).toBe(true);
     expect(

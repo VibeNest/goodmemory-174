@@ -38,6 +38,9 @@ describe("judge scaffold", () => {
     expect(prompt).toContain("expected transfer signals");
     expect(prompt).toContain("Prefix every failure tag with baseline_, goodmemory_, or shared_.");
     expect(prompt).toContain("Do not penalize an answer for refusing to invent unavailable details.");
+    expect(prompt).toContain(
+      "Expected identity signals are evidence of available memory, not a checklist of mandatory tokens.",
+    );
   });
 
   it("parses valid judge output", () => {

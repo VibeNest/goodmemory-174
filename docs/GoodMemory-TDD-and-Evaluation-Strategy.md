@@ -444,6 +444,14 @@ interface JudgeResult {
 }
 ```
 
+`failure_tags` 的口径需要固定：
+
+- `baseline_*` 表示缺陷主要在 baseline，一般用于 GoodMemory 获胜但 baseline 明显失误的情况
+- `goodmemory_*` 表示缺陷仍然真实作用在 GoodMemory 回答上
+- `shared_*` 表示 judge 观察到双方共享的问题或限制
+
+也就是说，`failure_tags` 是 judge 的诊断标签集合，不等于“需要拦截发布的失败集合”。
+
 ## 7.4 Judge Rubric
 
 核心 rubric 固定为：
@@ -563,6 +571,17 @@ persist score + trace + failure cases
 - 失败是 judge 失败还是 assertion 失败
 - baseline 和 GoodMemory 的回答差异
 - judge 的 reasoning
+
+同时要明确失败产物的两层语义：
+
+- `cases/<caseId>.json` 与 `traces/<caseId>/judge.json` 保存完整 judge 结果，包括 `baseline_*`、`goodmemory_*`、`shared_*` 在内的全部诊断标签
+- `failures/summary.json` 只保存阻塞型失败索引，用于回归汇总与失败样本 rerun，不作为 judge 全量观察的归档替代
+
+`failures/summary.json` 的判定口径应固定为：
+
+- 如果 `winner !== "goodmemory"`，该样本记为失败
+- 如果 `winner === "goodmemory"`，只有 `goodmemory_*` 标签和 assertion 失败会进入 `failures/summary.json`
+- `baseline_*` 与 `shared_*` 在 GoodMemory 获胜且 assertions 通过时仍应保留在单 case artifact 中，但不应作为 release-blocking failure 进入失败汇总
 
 ## 9.5 Memory traces
 

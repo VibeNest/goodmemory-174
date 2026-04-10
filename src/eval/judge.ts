@@ -145,6 +145,7 @@ export function buildJudgePrompt(input: JudgePromptInput): string {
     "If GoodMemory wins and baseline made the mistake, use baseline_ tags rather than unscoped tags.",
     "Only use goodmemory_ tags for defects that still apply to the GoodMemory answer.",
     "Do not penalize an answer for refusing to invent unavailable details. If remembered context only proves that an item remains an open loop, explicitly saying that finer-grained details are not yet recorded is acceptable and should not be tagged as a defect.",
+    "Expected identity signals are evidence of available memory, not a checklist of mandatory tokens. Only penalize missing identity details when the user asked for them explicitly or they materially change the recommendation.",
     "scores, baseline_scores, and goodmemory_scores must all use the same per-dimension keys.",
     `task family: ${input.taskFamily}`,
     `evaluation setting: ${input.evaluationSetting}`,

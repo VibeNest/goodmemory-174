@@ -1114,6 +1114,19 @@ describe("public recall API", () => {
     );
     await repositories.facts.add(
       createFactMemory({
+        id: "fact-support-open-loop",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        factKind: "open_loop",
+        scopeKind: "project",
+        subject: "release quality",
+        content: "The open loop is final verification for release quality.",
+        source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
         id: "fact-role-noise-reference",
         userId: "u-1",
         workspaceId: "workspace-a",
@@ -1148,9 +1161,11 @@ describe("public recall API", () => {
 
     expect(result.references).toHaveLength(1);
     expect(result.references[0]?.pointer).toBe("docs/release-runbook.md");
-    expect(result.facts).toHaveLength(1);
-    expect(result.facts[0]?.content).toContain("vendor approval");
-    expect(result.facts[0]?.content).not.toContain("current role");
+    expect(result.facts.map((fact) => fact.content)).toEqual([
+      "The current blocker is vendor approval for release quality.",
+      "The open loop is final verification for release quality.",
+    ]);
+    expect(result.facts.some((fact) => fact.content.includes("current role"))).toBe(false);
     expect(
       result.metadata.candidateTraces.find((trace) => trace.memoryId === "fact-role-noise-reference")
         ?.whySuppressed,

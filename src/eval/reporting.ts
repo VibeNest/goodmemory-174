@@ -243,9 +243,7 @@ function resolveBlockingFailureTags(judge: JudgeResult): string[] {
     return judge.failure_tags;
   }
 
-  return judge.failure_tags.filter((tag) => {
-    return hasFailureTagPrefix(tag, "goodmemory") || hasFailureTagPrefix(tag, "shared");
-  });
+  return judge.failure_tags.filter((tag) => hasFailureTagPrefix(tag, "goodmemory"));
 }
 
 export function aggregateJudgedCases(
