@@ -8,6 +8,7 @@ import type {
   UserProfile,
   WorkingMemorySnapshot,
 } from "../domain/records";
+import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 
 export interface MemoryPacket {
@@ -19,6 +20,7 @@ export interface MemoryPacket {
   feedbackSummary?: string;
   episodeSummary?: string;
   archiveSummary?: string;
+  evidenceSummary?: string;
   workingMemorySummary?: string;
   journalSummary?: string;
   debug?: {
@@ -35,6 +37,7 @@ export interface MemoryPacketInput {
   feedback: FeedbackMemory[];
   episodes: EpisodeMemory[];
   archives: SessionArchive[];
+  evidence: EvidenceRecord[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
 }
@@ -153,6 +156,17 @@ function summarizeArchives(archives: SessionArchive[]): string | undefined {
     .join("\n");
 }
 
+function summarizeEvidence(evidence: EvidenceRecord[]): string | undefined {
+  if (evidence.length === 0) {
+    return undefined;
+  }
+
+  return evidence
+    .slice(0, 3)
+    .map((record) => `- ${record.excerpt}`)
+    .join("\n");
+}
+
 function summarizeWorkingMemory(
   workingMemory: WorkingMemorySnapshot | null,
 ): string | undefined {
@@ -196,6 +210,7 @@ export function buildMemoryPacket(input: MemoryPacketInput): MemoryPacket {
     feedbackSummary: summarizeFeedback(input.feedback),
     episodeSummary: summarizeEpisodes(input.episodes),
     archiveSummary: summarizeArchives(input.archives),
+    evidenceSummary: summarizeEvidence(input.evidence),
     workingMemorySummary: summarizeWorkingMemory(input.workingMemory),
     journalSummary: summarizeJournal(input.journal),
   };
@@ -294,6 +309,11 @@ function buildRenderableSections(packet: MemoryPacket) {
       title: "Session Journal",
       body: packet.journalSummary,
     },
+    {
+      key: "evidenceSummary" as const,
+      title: "Evidence",
+      body: packet.evidenceSummary,
+    },
   ].filter(
     (
       section,
@@ -307,6 +327,7 @@ function buildRenderableSections(packet: MemoryPacket) {
         | "factSummary"
         | "episodeSummary"
         | "archiveSummary"
+        | "evidenceSummary"
         | "workingMemorySummary"
         | "journalSummary";
       title: string;

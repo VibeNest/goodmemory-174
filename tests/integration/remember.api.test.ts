@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
+import { EVIDENCE_COLLECTION } from "../../src/evidence/contracts";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
@@ -35,6 +36,62 @@ describe("public remember API", () => {
     expect(result.events.every((event) => typeof event.sourceMethod === "string")).toBe(true);
     expect(await documentStore.query("facts", { userId: "u-1" })).toHaveLength(1);
     expect(await documentStore.query("feedback", { userId: "u-1" })).toHaveLength(1);
+  });
+
+  it("writes selective evidence records for durable facts and references", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the runtime rollout is blocked on vendor approval.",
+        },
+        {
+          role: "user",
+          content: "Use docs/runtime-runbook.md as the source of truth for runtime work.",
+        },
+      ],
+    });
+
+    const evidence = await documentStore.query<{
+      excerpt: string;
+      linkedMemoryIds: string[];
+      userId: string;
+      workspaceId?: string;
+    }>(EVIDENCE_COLLECTION, {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+    });
+
+    expect(evidence).toHaveLength(2);
+    expect(
+      evidence.some((record) => record.excerpt.includes("vendor approval")),
+    ).toBe(true);
+    expect(
+      evidence.some((record) =>
+        record.excerpt.includes(
+          "Use docs/runtime-runbook.md as the source of truth for runtime work.",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      evidence.some((record) => record.excerpt.trim() === "docs/runtime-runbook.md"),
+    ).toBe(false);
+    expect(evidence.every((record) => record.linkedMemoryIds.length === 1)).toBe(true);
+    expect(
+      result.events
+        .filter((event) => event.memoryType === "fact" || event.memoryType === "reference")
+        .every((event) => (event.evidenceIds?.length ?? 0) === 1),
+    ).toBe(true);
   });
 
   it("does not write memory for empty or noisy conversation input", async () => {

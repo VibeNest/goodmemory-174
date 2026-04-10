@@ -265,6 +265,7 @@ export interface RecallResult {
   facts: FactMemory[];
   feedback: FeedbackMemory[];
   archives: SessionArchive[];
+  evidence: EvidenceRecord[];
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
@@ -317,6 +318,7 @@ export interface RememberResult {
     memoryId?: string;
     reason?: string;
     sourceMethod?: MemorySourceMethod;
+    evidenceIds?: string[];
   }>;
   metadata?: {
     locale: string;

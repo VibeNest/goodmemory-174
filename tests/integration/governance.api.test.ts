@@ -176,18 +176,20 @@ describe("public governance API", () => {
     expect(durableOnly.durable.facts).toHaveLength(1);
     expect(durableOnly.durable.preferences).toHaveLength(1);
     expect(durableOnly.durable.archives).toHaveLength(1);
-    expect(durableOnly.durable.evidence).toHaveLength(1);
+    expect(durableOnly.durable.evidence).toHaveLength(2);
     expect(durableOnly.durable.experiences).toHaveLength(1);
     expect(
       durableOnly.durable.facts.every((fact) => fact.sessionId === "s-1"),
     ).toBe(true);
     expect(durableOnly.durable.archives[0]?.id).toBe("archive-export-s1");
-    expect(durableOnly.durable.evidence[0]?.id).toBe("evidence-export-s1");
+    expect(
+      durableOnly.durable.evidence.some((record) => record.id === "evidence-export-s1"),
+    ).toBe(true);
     expect(durableOnly.durable.experiences[0]?.id).toBe("experience-export-s1");
     expect(durableOnly.runtime).toBeUndefined();
     expect(globalExport.durable.profile?.identity.name).toBe("Lin");
     expect(globalExport.durable.archives).toHaveLength(2);
-    expect(globalExport.durable.evidence).toHaveLength(2);
+    expect(globalExport.durable.evidence).toHaveLength(4);
     expect(globalExport.durable.experiences).toHaveLength(2);
     expect(withRuntime.runtime?.workingMemory?.currentGoal).toBe("Finish rollout");
     expect(withRuntime.runtime?.spills).toHaveLength(1);
@@ -365,7 +367,7 @@ describe("public governance API", () => {
 
     expect(result.deleted.facts).toBe(1);
     expect(result.deleted.archives).toBe(1);
-    expect(result.deleted.evidence).toBe(1);
+    expect(result.deleted.evidence).toBe(2);
     expect(result.deleted.experiences).toBe(1);
     expect(result.deleted.journal).toBe(1);
     expect(result.deleted.artifactSpills).toBe(1);

@@ -12,6 +12,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
+import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import type { SessionStore } from "../storage/contracts";
 import type { MemoryRepositories } from "../storage/repositories";
@@ -60,6 +61,7 @@ export interface RecallHit {
     | "reference"
     | "fact"
     | "feedback"
+    | "evidence"
     | "session_archive"
     | "episode"
     | "working_memory"
@@ -90,6 +92,7 @@ export interface RecallResult {
   facts: FactMemory[];
   feedback: FeedbackMemory[];
   archives: SessionArchive[];
+  evidence: EvidenceRecord[];
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
@@ -1386,6 +1389,27 @@ function sortArchives(archives: SessionArchive[]): SessionArchive[] {
   );
 }
 
+function sortEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
+  return [...evidence].sort((left, right) =>
+    right.createdAt.localeCompare(left.createdAt),
+  );
+}
+
+function selectEvidence(
+  evidence: EvidenceRecord[],
+  linkedMemoryIds: Set<string>,
+  linkedArchiveIds: Set<string>,
+): EvidenceRecord[] {
+  return sortEvidence(evidence)
+    .filter((record) => {
+      const matchesMemory = record.linkedMemoryIds.some((id) => linkedMemoryIds.has(id));
+      const matchesArchive = record.linkedArchiveIds.some((id) => linkedArchiveIds.has(id));
+
+      return matchesMemory || matchesArchive;
+    })
+    .slice(0, 3);
+}
+
 function buildHits(input: {
   profile: UserProfile | null;
   preferences: PreferenceMemory[];
@@ -1393,6 +1417,7 @@ function buildHits(input: {
   facts: FactMemory[];
   feedback: FeedbackMemory[];
   archives: SessionArchive[];
+  evidence: EvidenceRecord[];
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
@@ -1488,6 +1513,15 @@ function buildHits(input: {
     }
   }
 
+  for (const evidenceRecord of input.evidence.slice(0, 3)) {
+    hits.push({
+      id: evidenceRecord.id,
+      type: "evidence",
+      reason: "linked_evidence",
+      sourceMethod: evidenceRecord.source.method,
+    });
+  }
+
   return hits;
 }
 
@@ -1502,6 +1536,7 @@ async function applyRecallPolicyToRecords<TRecord extends {
     | "reference"
     | "fact"
     | "feedback"
+    | "evidence"
     | "archive"
     | "episode",
   input: {
@@ -1644,6 +1679,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           facts: [],
           feedback: [],
           archives: [],
+          evidence: [],
           episodes: [],
           workingMemory: null,
           journal: null,
@@ -1657,6 +1693,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           facts: [],
           feedback: [],
           archives: [],
+          evidence: [],
           episodes: [],
           workingMemory: null,
           journal: null,
@@ -1684,6 +1721,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         factsRaw,
         feedbackRaw,
         archivesRaw,
+        evidenceRaw,
         episodesRaw,
         workingMemoryRaw,
         journalRaw,
@@ -1695,6 +1733,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           config.repositories.facts.listByScope(input.scope),
           config.repositories.feedback.listByScope(input.scope),
           config.repositories.archives.listByScope(input.scope),
+          config.repositories.evidence.listByScope(input.scope),
           config.repositories.episodes.listByScope(input.scope),
           input.scope.sessionId
             ? config.sessionStore.getWorkingMemory(input.scope)
@@ -1704,7 +1743,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
             : Promise.resolve(null),
         ]);
 
-	      const routingDecision = planRecall({
+      const routingDecision = planRecall({
         retrievalProfile,
         query: input.query,
         locale: resolvedLanguage.locale,
@@ -1712,11 +1751,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
         runtime: {
           hasWorkingMemory: Boolean(workingMemoryRaw),
           hasJournal: Boolean(journalRaw),
-	        },
-	      });
-	      const currentReferenceTime = referenceTime();
+        },
+      });
+      const currentReferenceTime = referenceTime();
 
-	      const filteredProfile = await applyRecallPolicyToProfile(profile, {
+      const filteredProfile = await applyRecallPolicyToProfile(profile, {
         scope: input.scope,
         query: input.query,
         retrievalProfile,
@@ -1735,32 +1774,32 @@ export function createRecallEngine(config: RecallEngineConfig) {
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-	          policyApplied,
-	        },
-	      );
-	      const selectedFacts = selectFacts(
-	        factsRaw,
-	        input.query,
-	        language,
-	        resolvedLanguage.locale,
-	        retrievalProfile,
-	        routingDecision,
-	        filteredProfile,
-	        currentReferenceTime,
-	      );
-	      const facts = await applyRecallPolicyToRecords(
-	        selectedFacts.facts,
-	        "fact",
-	        {
-	          scope: input.scope,
+          policyApplied,
+        },
+      );
+      const selectedFacts = selectFacts(
+        factsRaw,
+        input.query,
+        language,
+        resolvedLanguage.locale,
+        retrievalProfile,
+        routingDecision,
+        filteredProfile,
+        currentReferenceTime,
+      );
+      const facts = await applyRecallPolicyToRecords(
+        selectedFacts.facts,
+        "fact",
+        {
+          scope: input.scope,
           query: input.query,
           retrievalProfile,
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-	          policyApplied,
-	        },
-	      );
+          policyApplied,
+        },
+      );
       const feedback = await applyRecallPolicyToRecords(
         sortFeedback(feedbackRaw),
         "feedback",
@@ -1771,92 +1810,114 @@ export function createRecallEngine(config: RecallEngineConfig) {
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-	          policyApplied,
-	        },
-	      );
-	      const selectedArchives = selectArchives(
-	        archivesRaw,
-	        input.query,
-	        language,
-	        resolvedLanguage.locale,
-	        routingDecision,
-	        currentReferenceTime,
-	      );
-	      const archives = await applyRecallPolicyToRecords(
-	        selectedArchives.archives,
-	        "archive",
-	        {
-	          scope: input.scope,
+          policyApplied,
+        },
+      );
+      const selectedArchives = selectArchives(
+        archivesRaw,
+        input.query,
+        language,
+        resolvedLanguage.locale,
+        routingDecision,
+        currentReferenceTime,
+      );
+      const archives = await applyRecallPolicyToRecords(
+        selectedArchives.archives,
+        "archive",
+        {
+          scope: input.scope,
           query: input.query,
           retrievalProfile,
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-	          policyApplied,
-	        },
-	      );
-	      const selectedEpisodes = selectEpisodes(
-	        episodesRaw,
-	        input.query,
-	        language,
-	        resolvedLanguage.locale,
-	        routingDecision,
-	        currentReferenceTime,
-	      );
-	      const episodes = await applyRecallPolicyToRecords(
-	        selectedEpisodes.episodes,
-	        "episode",
-	        {
-	          scope: input.scope,
+          policyApplied,
+        },
+      );
+      const selectedEpisodes = selectEpisodes(
+        episodesRaw,
+        input.query,
+        language,
+        resolvedLanguage.locale,
+        routingDecision,
+        currentReferenceTime,
+      );
+      const episodes = await applyRecallPolicyToRecords(
+        selectedEpisodes.episodes,
+        "episode",
+        {
+          scope: input.scope,
           query: input.query,
           retrievalProfile,
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-	          policyApplied,
-	        },
-	      );
-	      const selectedReferences = selectReferences(
-	        referencesRaw,
-	        input.query,
-	        language,
-	        resolvedLanguage.locale,
-	        routingDecision,
-	        currentReferenceTime,
-	      );
-	      const references = await applyRecallPolicyToRecords(
-	        selectedReferences.references,
-	        "reference",
-	        {
-	          scope: input.scope,
+          policyApplied,
+        },
+      );
+      const selectedReferences = selectReferences(
+        referencesRaw,
+        input.query,
+        language,
+        resolvedLanguage.locale,
+        routingDecision,
+        currentReferenceTime,
+      );
+      const references = await applyRecallPolicyToRecords(
+        selectedReferences.references,
+        "reference",
+        {
+          scope: input.scope,
           query: input.query,
           retrievalProfile,
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           policy: config.policy,
-	          policyApplied,
-	        },
-	      );
-	      const candidateTraces = [
-	        ...reconcileCandidateTraces(
-	          selectedFacts.traces,
-	          new Set(facts.map((fact) => fact.id)),
-	        ),
-	        ...reconcileCandidateTraces(
-	          selectedReferences.traces,
-	          new Set(references.map((reference) => reference.id)),
-	        ),
-	        ...reconcileCandidateTraces(
-	          selectedArchives.traces,
-	          new Set(archives.map((archive) => archive.id)),
-	        ),
-	        ...reconcileCandidateTraces(
-	          selectedEpisodes.traces,
-	          new Set(episodes.map((episode) => episode.id)),
-	        ),
-	      ];
-	      const workingMemory =
-	        retrievalProfile === "coding_agent" ? workingMemoryRaw : null;
+          policyApplied,
+        },
+      );
+      const evidence = await applyRecallPolicyToRecords(
+        selectEvidence(
+          evidenceRaw,
+          new Set([
+            ...facts.map((fact) => fact.id),
+            ...references.map((reference) => reference.id),
+            ...feedback.map((feedbackItem) => feedbackItem.id),
+            ...episodes.map((episode) => episode.id),
+          ]),
+          new Set(archives.map((archive) => archive.id)),
+        ),
+        "evidence",
+        {
+          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+          policy: config.policy,
+          policyApplied,
+        },
+      );
+      const candidateTraces = [
+        ...reconcileCandidateTraces(
+          selectedFacts.traces,
+          new Set(facts.map((fact) => fact.id)),
+        ),
+        ...reconcileCandidateTraces(
+          selectedReferences.traces,
+          new Set(references.map((reference) => reference.id)),
+        ),
+        ...reconcileCandidateTraces(
+          selectedArchives.traces,
+          new Set(archives.map((archive) => archive.id)),
+        ),
+        ...reconcileCandidateTraces(
+          selectedEpisodes.traces,
+          new Set(episodes.map((episode) => episode.id)),
+        ),
+      ];
+      const workingMemory =
+        retrievalProfile === "coding_agent" ? workingMemoryRaw : null;
       const journal = retrievalProfile === "coding_agent" ? journalRaw : null;
       const packet = buildMemoryPacket({
         profile: filteredProfile,
@@ -1865,6 +1926,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         facts,
         feedback,
         archives,
+        evidence,
         episodes,
         workingMemory,
         journal,
@@ -1877,26 +1939,27 @@ export function createRecallEngine(config: RecallEngineConfig) {
         facts,
         feedback,
         archives,
+        evidence,
         episodes,
         workingMemory,
         journal,
         packet,
         metadata: {
           routingDecision,
-	          tokenCount: packet.debug?.estimatedTokens ?? 0,
-	          latencyMs: now() - startedAt,
-	          verificationHints: evaluateVerificationHints({
-	            query: input.query,
-	            referenceTime: currentReferenceTime,
-	            facts,
-	            references,
-	            episodes,
-	            locale: resolvedLanguage.locale,
-	            language,
-	          }),
-	          candidateTraces,
-	          policyApplied: [...policyApplied],
-	          locale: resolvedLanguage.locale,
+          tokenCount: packet.debug?.estimatedTokens ?? 0,
+          latencyMs: now() - startedAt,
+          verificationHints: evaluateVerificationHints({
+            query: input.query,
+            referenceTime: currentReferenceTime,
+            facts,
+            references,
+            episodes,
+            locale: resolvedLanguage.locale,
+            language,
+          }),
+          candidateTraces,
+          policyApplied: [...policyApplied],
+          locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
           adapterId: resolvedLanguage.adapterId,
           analysisMode: resolvedLanguage.analysisMode,
@@ -1907,6 +1970,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
             facts,
             feedback,
             archives,
+            evidence,
             episodes,
             workingMemory,
             journal,

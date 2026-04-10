@@ -15,6 +15,10 @@ import type {
   UserProfile,
 } from "../domain/records";
 import { createMemorySource } from "../domain/provenance";
+import {
+  createEvidenceRecord,
+} from "../evidence/contracts";
+import type { EvidenceRecord } from "../evidence/contracts";
 import type { MemorySourceMethod } from "../domain/provenance";
 import type { DocumentStore } from "../storage/contracts";
 import type { MemoryRepositories } from "../storage/repositories";
@@ -63,6 +67,7 @@ export interface RememberEvent {
   memoryId?: string;
   reason?: string;
   sourceMethod?: MemorySourceMethod;
+  evidenceIds?: string[];
 }
 
 export interface RememberResult {
@@ -92,6 +97,7 @@ export interface RememberEngineConfig {
 }
 
 const SCORE_THRESHOLD = 0.7;
+const EVIDENCE_MAX_EXCERPT_CHARS = 280;
 
 function toRememberEventMemoryType(
   memoryType: ClassifiedCandidate["memoryType"],
@@ -391,6 +397,47 @@ function buildFeedback(
       locale,
     }),
     updatedAt: timestamp,
+  });
+}
+
+function buildEvidenceExcerpt(
+  candidate: ClassifiedCandidate,
+  sourceMessageContent?: string,
+): string {
+  const excerpt = (sourceMessageContent ?? candidate.content).trim();
+
+  if (excerpt.length <= EVIDENCE_MAX_EXCERPT_CHARS) {
+    return excerpt;
+  }
+
+  return `${excerpt.slice(0, EVIDENCE_MAX_EXCERPT_CHARS - 3)}...`;
+}
+
+function buildCandidateEvidence(
+  scope: ScopedIdentity,
+  candidate: ClassifiedCandidate,
+  memoryId: string,
+  evidenceId: string,
+  timestamp: string,
+  locale: string,
+  sourceMessageContent?: string,
+): EvidenceRecord {
+  return createEvidenceRecord({
+    id: evidenceId,
+    userId: scope.userId,
+    tenantId: scope.tenantId,
+    workspaceId: scope.workspaceId,
+    agentId: scope.agentId,
+    sessionId: scope.sessionId,
+    kind: "conversation_excerpt",
+    excerpt: buildEvidenceExcerpt(candidate, sourceMessageContent),
+    source: createMemorySource({
+      method: candidate.explicitness,
+      extractedAt: timestamp,
+      sessionId: scope.sessionId,
+      locale,
+    }),
+    linkedMemoryIds: [memoryId],
   });
 }
 
@@ -714,6 +761,18 @@ export function createRememberEngine(config: RememberEngineConfig) {
           );
 
           if (duplicate) {
+            const evidenceId = createId();
+            await config.repositories.evidence.add(
+              buildCandidateEvidence(
+                input.scope,
+                referenceCandidate,
+                duplicate.id,
+                evidenceId,
+                timestamp,
+                resolvedLanguage.locale,
+                input.messages[referenceCandidate.sourceMessageIndex]?.content,
+              ),
+            );
             if (
               duplicate.subject === "unknown" &&
               referenceCandidate.metadata?.subject &&
@@ -735,6 +794,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               memoryId: duplicate.id,
               reason: "duplicate_reference",
               sourceMethod: effectiveCandidate.explicitness,
+              evidenceIds: [evidenceId],
             });
             continue;
           }
@@ -783,6 +843,18 @@ export function createRememberEngine(config: RememberEngineConfig) {
           }
 
           await config.repositories.references.add(reference);
+          const evidenceId = createId();
+          await config.repositories.evidence.add(
+            buildCandidateEvidence(
+              input.scope,
+              referenceCandidate,
+              reference.id,
+              evidenceId,
+              timestamp,
+              resolvedLanguage.locale,
+              input.messages[referenceCandidate.sourceMessageIndex]?.content,
+            ),
+          );
           accepted += 1;
           events.push({
             candidateId: candidate.id,
@@ -791,6 +863,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryId: reference.id,
             reason: superseded ? "superseded_reference" : "explicit_reference",
             sourceMethod: effectiveCandidate.explicitness,
+            evidenceIds: [evidenceId],
           });
           continue;
         }
@@ -808,6 +881,18 @@ export function createRememberEngine(config: RememberEngineConfig) {
           );
 
           if (duplicate) {
+            const evidenceId = createId();
+            await config.repositories.evidence.add(
+              buildCandidateEvidence(
+                input.scope,
+                effectiveCandidate,
+                duplicate.id,
+                evidenceId,
+                timestamp,
+                resolvedLanguage.locale,
+                input.messages[effectiveCandidate.sourceMessageIndex]?.content,
+              ),
+            );
             accepted += 1;
             events.push({
               candidateId: candidate.id,
@@ -816,6 +901,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               memoryId: duplicate.id,
               reason: "duplicate_fact",
               sourceMethod: effectiveCandidate.explicitness,
+              evidenceIds: [evidenceId],
             });
             continue;
           }
@@ -874,6 +960,18 @@ export function createRememberEngine(config: RememberEngineConfig) {
           }
 
           await config.repositories.facts.add(fact);
+          const evidenceId = createId();
+          await config.repositories.evidence.add(
+            buildCandidateEvidence(
+              input.scope,
+              effectiveCandidate,
+              fact.id,
+              evidenceId,
+              timestamp,
+              resolvedLanguage.locale,
+              input.messages[effectiveCandidate.sourceMessageIndex]?.content,
+            ),
+          );
           accepted += 1;
           events.push({
             candidateId: candidate.id,
@@ -882,6 +980,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryId: fact.id,
             reason: superseded ? "superseded_inferred_fact" : "explicit_fact",
             sourceMethod: effectiveCandidate.explicitness,
+            evidenceIds: [evidenceId],
           });
           continue;
         }

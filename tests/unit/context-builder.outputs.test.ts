@@ -21,6 +21,7 @@ describe("context builder output modes", () => {
       facts: [],
       feedback: [],
       archives: [],
+      evidence: [],
       episodes: [],
       workingMemory: null,
       journal: null,
@@ -66,6 +67,7 @@ describe("context builder output modes", () => {
       facts: [],
       feedback: [],
       archives: [],
+      evidence: [],
       episodes: [],
       workingMemory: {
         sessionId: "s-1",
@@ -158,6 +160,7 @@ describe("context builder output modes", () => {
         },
       ],
       archives: [],
+      evidence: [],
       episodes: [],
       workingMemory: null,
       journal: null,
@@ -169,5 +172,21 @@ describe("context builder output modes", () => {
     expect(markdown.content).toContain(
       "my current role is staff platform engineer leading release quality program.",
     );
+  });
+
+  it("keeps working memory ahead of evidence under tight markdown token budgets", () => {
+    const markdown = renderMemoryPacket(
+      {
+        evidenceSummary:
+          "- vendor approval excerpt proves the handoff was discussed in a prior session",
+        workingMemorySummary: "Current goal: finish the rollout handoff",
+        journalSummary: "Current state: drafting the user reply",
+      },
+      "markdown",
+      20,
+    );
+
+    expect(markdown.content).toContain("## Working Memory");
+    expect(markdown.content).not.toContain("## Evidence");
   });
 });

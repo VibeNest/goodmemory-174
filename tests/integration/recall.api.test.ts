@@ -8,6 +8,7 @@ import {
   createReferenceMemory,
   createUserProfile,
 } from "../../src/domain/records";
+import { createEvidenceRecord } from "../../src/evidence/contracts";
 import { createSessionArchive } from "../../src/evolution/contracts";
 import {
   createRuntimeContextService,
@@ -408,6 +409,84 @@ describe("public recall API", () => {
     expect(result.archives).toHaveLength(0);
     expect(result.packet.archiveSummary).toBeUndefined();
     expect(result.metadata.hits.some((hit) => hit.type === "session_archive")).toBe(false);
+  });
+
+  it("surfaces evidence linked to selected fact and reference hits", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The current blocker is vendor approval for runtime reliability.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Runtime runbook",
+        pointer: "docs/runtime-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.evidence.add(
+      createEvidenceRecord({
+        id: "evidence-fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        kind: "conversation_excerpt",
+        excerpt: "The user said vendor approval is still pending for runtime reliability.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        linkedMemoryIds: ["fact-1"],
+      }),
+    );
+    await repositories.evidence.add(
+      createEvidenceRecord({
+        id: "evidence-ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        kind: "conversation_excerpt",
+        excerpt: "The user said docs/runtime-runbook.md is the source of truth.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        linkedMemoryIds: ["ref-1"],
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "Which runbook should I use and what is the current blocker?",
+      retrievalProfile: "coding_agent",
+    });
+
+    expect(result.evidence).toHaveLength(2);
+    expect(result.packet.evidenceSummary).toContain("vendor approval");
+    expect(result.packet.evidenceSummary).toContain("docs/runtime-runbook.md");
+    expect(result.metadata.hits.some((hit) => hit.type === "evidence")).toBe(true);
+
+    const context = await memory.buildContext({
+      recall: result,
+      output: "markdown",
+      maxTokens: 180,
+    });
+
+    expect(context.content).toContain("## Evidence");
   });
 
   it("does not inject unrelated long-term memory when the query has no relevant signal", async () => {

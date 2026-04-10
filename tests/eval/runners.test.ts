@@ -74,6 +74,7 @@ describe("eval runners", () => {
         .some((event) => event.memoryType === "reference"),
     ).toBe(true);
     expect(result.retrieved?.references.length).toBeGreaterThan(0);
+    expect(result.retrieved?.evidence.length).toBeGreaterThan(0);
     expect(result.retrieved?.hits.some((hit) => hit.type === "reference")).toBe(true);
     expect(result.retrieved?.candidateTraces.length).toBeGreaterThan(0);
     expect(

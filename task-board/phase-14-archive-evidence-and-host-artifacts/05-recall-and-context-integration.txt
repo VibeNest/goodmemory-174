@@ -1,9 +1,9 @@
 Phase 14.5: Recall and Context Integration
 ==========================================
 
-[TODO] P14.5-T001 Teach the recall planner when to open archive and evidence layers
-[TODO] P14.5-T002 Add archive/evidence sections to packet and `buildContext()` outputs
-[TODO] P14.5-T003 Preserve deterministic fallback, policy hooks, and verification hints across the new layers
+[WIP] P14.5-T001 Teach the recall planner when to open archive and evidence layers
+[DONE] P14.5-T002 Add archive/evidence sections to packet and `buildContext()` outputs
+[DONE] P14.5-T003 Preserve deterministic fallback, policy hooks, and verification hints across the new layers
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Recall quality improves on continuity/explainability slices while keeping rules-first behavior
 - Provider-layer work can reuse the planner hooks instead of replacing them
+
+Progress notes
+--------------
+- Session archives now surface on continuation recalls with deterministic selection and provenance
+- Linked evidence now flows into recall results, packet summaries, and markdown context sections
+- Policy guards, token budgeting, and verification hint generation remain intact under the new layers
+- Planner work is still open for making evidence/archive eligibility more explicit instead of piggybacking on selected durable hits

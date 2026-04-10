@@ -7,6 +7,7 @@ import type {
   UserProfile,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
+import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import type { MemoryCandidate } from "../remember/candidates";
 
@@ -25,6 +26,7 @@ export type PolicyMemoryRecord =
   | ({ memoryType: "reference" } & ReferenceMemory)
   | ({ memoryType: "fact" } & FactMemory)
   | ({ memoryType: "feedback" } & FeedbackMemory)
+  | ({ memoryType: "evidence" } & EvidenceRecord)
   | ({ memoryType: "archive" } & SessionArchive)
   | ({ memoryType: "episode" } & EpisodeMemory);
 
@@ -60,6 +62,7 @@ export function toPolicyMemoryRecord(
     | ReferenceMemory
     | FactMemory
     | FeedbackMemory
+    | EvidenceRecord
     | SessionArchive
     | EpisodeMemory,
   memoryType: PolicyMemoryRecord["memoryType"],
