@@ -1,6 +1,7 @@
 import type {
   FeedbackResult,
   GoodMemory,
+  RecallRouterStrategy,
   RecallResult,
   RememberResult as PublicRememberResult,
 } from "../index";
@@ -52,6 +53,7 @@ export interface EvalAnswerPackage {
     episodes: RecallResult["episodes"];
     workingMemory: RecallResult["workingMemory"];
     journal: RecallResult["journal"];
+    routingDecision?: RecallResult["metadata"]["routingDecision"];
     hits: RecallResult["metadata"]["hits"];
     candidateTraces: RecallResult["metadata"]["candidateTraces"];
     verificationHints: RecallResult["metadata"]["verificationHints"];
@@ -211,6 +213,7 @@ export async function runGoodMemoryScenario(input: {
   scenario: ScenarioFixture;
   answerGenerator: EvalAnswerGenerator;
   retrievalProfile?: "general_chat" | "coding_agent";
+  strategy?: RecallRouterStrategy;
   ignoreMemory?: boolean;
 }): Promise<EvalAnswerPackage> {
   const rememberEvents: EvalAnswerPackage["trace"]["rememberEvents"] = [];
@@ -244,6 +247,7 @@ export async function runGoodMemoryScenario(input: {
     ),
     query: getEvaluationPrompt(input.scenario),
     retrievalProfile: input.retrievalProfile ?? "general_chat",
+    strategy: input.strategy,
     ignoreMemory: input.ignoreMemory,
   });
   const context = await input.memory.buildContext({
@@ -284,6 +288,7 @@ export async function runGoodMemoryScenario(input: {
       episodes: recall.episodes,
       workingMemory: recall.workingMemory,
       journal: recall.journal,
+      routingDecision: recall.metadata.routingDecision,
       hits: recall.metadata.hits,
       candidateTraces: recall.metadata.candidateTraces,
       verificationHints: recall.metadata.verificationHints,

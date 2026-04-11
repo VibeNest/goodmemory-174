@@ -16,6 +16,7 @@ import {
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
+  createInMemoryVectorStore,
 } from "../../src/storage/memory";
 import {
   createMemoryRepositories,
@@ -130,9 +131,128 @@ describe("public recall API", () => {
     expect(result.packet.referenceSummary).toContain("Migration runbook");
     expect(result.metadata.hits.some((hit) => hit.type === "feedback")).toBe(true);
     expect(result.metadata.hits.some((hit) => hit.reason === "semantic_preference")).toBe(true);
+    expect(result.metadata.routingDecision.strategy).toBe("rules-only");
+    expect(result.metadata.routingDecision.strategyExplanation.resolvedStrategy).toBe(
+      "rules-only",
+    );
     expect(
       result.metadata.hits.find((hit) => hit.type === "fact")?.sourceMethod,
     ).toBe("explicit");
+  });
+
+  it("uses semantic tie-breaking only when hybrid recall is actually available", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const repositories = createMemoryRepositories({
+      documentStore,
+      sessionStore,
+      vectorStore,
+    });
+    const runtime = createRuntimeContextService({
+      sessionStore,
+      archiveStore: repositories.archives,
+      now: () => "2026-01-01T00:00:00.000Z",
+    });
+    const query = "What is the current blocker?";
+    const wrongFact = createFactMemory({
+      id: "fact-wrong",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      category: "project",
+      factKind: "blocker",
+      content: "The current blocker is vendor approval for the runtime dashboard.",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const rightFact = createFactMemory({
+      id: "fact-right",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      category: "project",
+      factKind: "blocker",
+      content: "The current blocker is service account rotation for migration rollout.",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const embeddingByText = new Map<string, number[]>([
+      [query, [1, 0, 0]],
+      [wrongFact.content, [0, 1, 0]],
+      [rightFact.content, [1, 0, 0]],
+    ]);
+    const embeddingAdapter = {
+      async embed(texts: string[]) {
+        return texts.map((text) => embeddingByText.get(text) ?? [0, 0, 0]);
+      },
+    };
+
+    await repositories.facts.add(wrongFact);
+    await repositories.facts.add(rightFact);
+    await repositories.vectorIndex!.upsertFactEmbedding([
+      {
+        id: wrongFact.id,
+        embedding: embeddingByText.get(wrongFact.content)!,
+        metadata: {
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          memoryType: "fact",
+        },
+        content: wrongFact.content,
+      },
+      {
+        id: rightFact.id,
+        embedding: embeddingByText.get(rightFact.content)!,
+        metadata: {
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          memoryType: "fact",
+        },
+        content: rightFact.content,
+      },
+    ]);
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const withoutSemanticAdapters = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+    const withSemanticAdapters = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+        vectorStore,
+        embeddingAdapter,
+      },
+    });
+
+    const fallback = await withoutSemanticAdapters.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query,
+      retrievalProfile: "general_chat",
+      strategy: "hybrid",
+    });
+    const hybrid = await withSemanticAdapters.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query,
+      retrievalProfile: "general_chat",
+      strategy: "hybrid",
+    });
+
+    expect(fallback.metadata.routingDecision.strategy).toBe("rules-only");
+    expect(fallback.metadata.routingDecision.strategyExplanation.fallbackReason).toBe(
+      "semantic_search_unavailable",
+    );
+    expect(fallback.facts[0]?.id).toBe("fact-wrong");
+    expect(hybrid.metadata.routingDecision.strategy).toBe("hybrid");
+    expect(hybrid.metadata.routingDecision.strategyExplanation.semanticTieBreaking).toBe(true);
+    expect(hybrid.facts[0]?.id).toBe("fact-right");
   });
 
   it("retrieves runtime continuity for coding-agent recalls and builds markdown context", async () => {

@@ -3,6 +3,7 @@ import type {
   FeedbackResult,
   GoodMemory,
   MemoryScope,
+  RecallRouterStrategy,
   RecallResult,
   RememberResult,
 } from "../index";
@@ -47,6 +48,7 @@ export interface ReplayScenarioWithMemoryInput {
   sessions: ReplayMemorySession[];
   prompt: string;
   retrievalProfile?: "general_chat" | "coding_agent";
+  strategy?: RecallRouterStrategy;
   output?: "json" | "markdown" | "system_prompt_fragment" | "developer_prompt_fragment";
   maxTokens?: number;
   feedbackSignals?: ReplayFeedbackSignal[];
@@ -187,6 +189,7 @@ export async function replayScenarioWithMemory(
     scope: recallScope,
     query: input.prompt,
     retrievalProfile: input.retrievalProfile ?? "general_chat",
+    strategy: input.strategy,
   });
   const context = await input.memory.buildContext({
     recall,

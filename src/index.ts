@@ -47,6 +47,7 @@ import {
   renderMemoryPacket,
   type MemoryPacket,
 } from "./recall/contextBuilder";
+import type { RecallRouterStrategy } from "./recall/router";
 import { createRecallEngine } from "./recall/engine";
 import { createRememberEngine } from "./remember/engine";
 import { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
@@ -194,16 +195,20 @@ export { createRecallEngine } from "./recall/engine";
 export type { VerificationHint } from "./verify/policy";
 export { evaluateVerificationHints } from "./verify/policy";
 export type {
+  RecallRouterAvailability,
+  RecallRouterStrategy,
   RecallSlot,
   RecallRuntimeAvailability,
   RecallRoutingInput,
   RecallSource,
   RetrievalProfile,
+  RouterStrategyExplanation,
   RoutingDecision,
 } from "./recall/router";
 export {
   planRecall,
   resolveRetrievalProfile,
+  resolveRouterStrategy,
 } from "./recall/router";
 export type {
   MemoryCandidate,
@@ -268,6 +273,7 @@ export interface RecallInput {
   scope: MemoryScope;
   query: string;
   retrievalProfile?: "general_chat" | "coding_agent";
+  strategy?: RecallRouterStrategy;
   ignoreMemory?: boolean;
   locale?: string;
 }
@@ -563,6 +569,7 @@ class GoodMemoryImpl implements GoodMemory {
     this.recallEngine = createRecallEngine({
       repositories,
       sessionStore,
+      embedding: config.adapters?.embeddingAdapter,
       now: config.testing?.now ? () => config.testing!.now!().getTime() : undefined,
       referenceTime: config.testing?.now
         ? () => config.testing!.now!().toISOString()

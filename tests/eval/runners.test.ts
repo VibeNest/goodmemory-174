@@ -2,8 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { createGoodMemory } from "../../src";
 import { createSessionArchive } from "../../src/evolution/contracts";
-import { createInMemoryDocumentStore, createInMemorySessionStore } from "../../src/storage/memory";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+  createInMemoryVectorStore,
+} from "../../src/storage/memory";
 import { createMemoryRepositories } from "../../src/storage/repositories";
+import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 import {
   loadPersonaSpec,
   loadScenarioFixture,
@@ -92,6 +97,39 @@ describe("eval runners", () => {
       ) ?? false,
     ).toBe(false);
     expect(result.transcript).not.toContain("I can do that once I have the full remembered context.");
+  });
+
+  it("forwards requested recall strategy into eval replay when semantic adapters exist", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-medium-01.json"),
+    );
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: createInMemoryDocumentStore(),
+        sessionStore: createInMemorySessionStore(),
+        vectorStore: createInMemoryVectorStore(),
+        embeddingAdapter: createFakeEmbeddingAdapter(),
+      },
+    });
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      strategy: "hybrid",
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(result.retrieved?.routingDecision?.strategy).toBe("hybrid");
+    expect(result.retrieved?.routingDecision?.strategyExplanation.semanticTieBreaking).toBe(
+      true,
+    );
   });
 
   it("records render-time context tokens separately from packet tokens in eval traces", async () => {

@@ -12,6 +12,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
+import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import type { SessionStore } from "../storage/contracts";
@@ -22,6 +23,7 @@ import {
 } from "./contextBuilder";
 import {
   planRecall,
+  type RecallRouterStrategy,
   resolveRetrievalProfile,
   type RecallSlot,
   type RetrievalProfile,
@@ -49,6 +51,7 @@ export interface RecallInput {
   scope: MemoryScope;
   query: string;
   retrievalProfile?: RetrievalProfile;
+  strategy?: RecallRouterStrategy;
   ignoreMemory?: boolean;
   locale?: string;
 }
@@ -122,6 +125,7 @@ export interface RecallResult {
 export interface RecallEngineConfig {
   repositories: MemoryRepositories;
   sessionStore: SessionStore;
+  embedding?: EmbeddingAdapter;
   now?: () => number;
   referenceTime?: () => string;
   language?: LanguageService;
@@ -271,6 +275,7 @@ interface RankedFactCandidate {
   factKind?: FactKind;
   scopeKind?: MemoryScopeKind;
   subject: string;
+  semanticScore: number;
   lexicalScore: number;
   subjectScore: number;
   intentScore: number;
@@ -302,6 +307,7 @@ interface RankedReferenceCandidate {
   locale: string;
   referenceKind?: ReferenceKind;
   subject: string;
+  semanticScore: number;
   lexicalScore: number;
   subjectScore: number;
   intentScore: number;
@@ -313,6 +319,7 @@ interface RankedReferenceCandidate {
 interface RankedEpisodeCandidate {
   episode: EpisodeMemory;
   locale: string;
+  semanticScore: number;
   lexicalScore: number;
   freshnessScore: number;
   score: number;
@@ -324,6 +331,72 @@ interface RankedArchiveCandidate {
   lexicalScore: number;
   freshnessScore: number;
   score: number;
+}
+
+interface SemanticSearchScores {
+  facts: Map<string, number>;
+  references: Map<string, number>;
+  episodes: Map<string, number>;
+}
+
+const SEMANTIC_TIE_BREAK_EPSILON = 0.2;
+
+function buildVectorScopeFilter(scope: MemoryScope): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries({
+      userId: scope.userId,
+      tenantId: scope.tenantId,
+      workspaceId: scope.workspaceId,
+      agentId: scope.agentId,
+    }).filter(([, value]) => value !== undefined),
+  );
+}
+
+function normalizeSemanticScores(
+  results: Array<{ id: string; score: number }>,
+): Map<string, number> {
+  const highestScore = results.reduce(
+    (currentMax, result) => Math.max(currentMax, result.score),
+    0,
+  );
+
+  if (highestScore <= 0) {
+    return new Map();
+  }
+
+  return new Map(
+    results.map((result) => [result.id, result.score / highestScore] as const),
+  );
+}
+
+async function searchSemanticScores(input: {
+  embedding: EmbeddingAdapter;
+  query: string;
+  scope: MemoryScope;
+  vectorIndex: NonNullable<MemoryRepositories["vectorIndex"]>;
+}): Promise<SemanticSearchScores> {
+  const [queryEmbedding] = await input.embedding.embed([input.query]);
+  const filter = buildVectorScopeFilter(input.scope);
+  const [facts, references, episodes] = await Promise.all([
+    input.vectorIndex.searchFactEmbedding(queryEmbedding, {
+      topK: 8,
+      filter,
+    }),
+    input.vectorIndex.searchReferenceEmbedding(queryEmbedding, {
+      topK: 8,
+      filter,
+    }),
+    input.vectorIndex.searchEpisodeEmbedding(queryEmbedding, {
+      topK: 6,
+      filter,
+    }),
+  ]);
+
+  return {
+    facts: normalizeSemanticScores(facts),
+    references: normalizeSemanticScores(references),
+    episodes: normalizeSemanticScores(episodes),
+  };
 }
 
 function daysBetween(left: string, right: string): number {
@@ -457,6 +530,7 @@ function buildFactCandidates(
   language: LanguageService,
   queryLocale: string,
   referenceTime: string,
+  semanticScores?: Map<string, number>,
 ): RankedFactCandidate[] {
   return sortFacts(facts).map((fact) => {
     const locale = resolveFactLocale(fact, language);
@@ -482,6 +556,7 @@ function buildFactCandidates(
     const freshness = freshnessScore(fact.updatedAt, referenceTime);
     const explicitness = explicitnessScore(fact.source.method);
     const categoryBoost = categoryPriority(fact.category, query, language, queryLocale);
+    const semanticScore = semanticScores?.get(fact.id) ?? 0;
 
     return {
       fact,
@@ -489,6 +564,7 @@ function buildFactCandidates(
       factKind,
       scopeKind,
       subject,
+      semanticScore,
       lexicalScore,
       subjectScore,
       intentScore,
@@ -506,6 +582,7 @@ function buildReferenceCandidates(
   language: LanguageService,
   queryLocale: string,
   referenceTime: string,
+  semanticScores?: Map<string, number>,
 ): RankedReferenceCandidate[] {
   return sortReferences(references).map((reference) => {
     const locale = resolveReferenceLocale(reference, language);
@@ -528,12 +605,14 @@ function buildReferenceCandidates(
           });
     const freshness = freshnessScore(reference.updatedAt, referenceTime);
     const explicitness = explicitnessScore(reference.source.method);
+    const semanticScore = semanticScores?.get(reference.id) ?? 0;
 
     return {
       reference,
       locale,
       referenceKind: resolveReferenceKind(reference),
       subject,
+      semanticScore,
       lexicalScore,
       subjectScore,
       intentScore: 0.8,
@@ -550,6 +629,7 @@ function buildEpisodeCandidates(
   language: LanguageService,
   queryLocale: string,
   referenceTime: string,
+  semanticScores?: Map<string, number>,
 ): RankedEpisodeCandidate[] {
   return sortEpisodes(episodes).map((episode) => {
     const locale = resolveEpisodeLocale(episode, language);
@@ -561,10 +641,12 @@ function buildEpisodeCandidates(
         excludeStopwords: true,
       });
     const freshness = freshnessScore(episode.createdAt, referenceTime);
+    const semanticScore = semanticScores?.get(episode.id) ?? 0;
 
     return {
       episode,
       locale,
+      semanticScore,
       lexicalScore,
       freshnessScore: freshness,
       score: lexicalScore + freshness + episode.importance * 0.1,
@@ -632,6 +714,105 @@ function buildArchiveCandidates(
       score: lexicalScore + freshness + 0.2,
     };
   });
+}
+
+function compareFactCandidates(
+  left: RankedFactCandidate,
+  right: RankedFactCandidate,
+  strategy: RecallRouterStrategy,
+): number {
+  const scoreDelta = right.score - left.score;
+
+  if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
+    return scoreDelta;
+  }
+  if (strategy !== "rules-only" && right.semanticScore !== left.semanticScore) {
+    return right.semanticScore - left.semanticScore;
+  }
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+  if (right.lexicalScore !== left.lexicalScore) {
+    return right.lexicalScore - left.lexicalScore;
+  }
+  if (right.intentScore !== left.intentScore) {
+    return right.intentScore - left.intentScore;
+  }
+
+  return left.fact.id.localeCompare(right.fact.id);
+}
+
+function rankFactCandidates(
+  entries: RankedFactCandidate[],
+  strategy: RecallRouterStrategy,
+): RankedFactCandidate[] {
+  return [...entries].sort((left, right) =>
+    compareFactCandidates(left, right, strategy),
+  );
+}
+
+function compareReferenceCandidates(
+  left: RankedReferenceCandidate,
+  right: RankedReferenceCandidate,
+  strategy: RecallRouterStrategy,
+): number {
+  const scoreDelta = right.score - left.score;
+
+  if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
+    return scoreDelta;
+  }
+  if (strategy !== "rules-only" && right.semanticScore !== left.semanticScore) {
+    return right.semanticScore - left.semanticScore;
+  }
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+  if (right.lexicalScore !== left.lexicalScore) {
+    return right.lexicalScore - left.lexicalScore;
+  }
+
+  return left.reference.id.localeCompare(right.reference.id);
+}
+
+function rankReferenceCandidates(
+  entries: RankedReferenceCandidate[],
+  strategy: RecallRouterStrategy,
+): RankedReferenceCandidate[] {
+  return [...entries].sort((left, right) =>
+    compareReferenceCandidates(left, right, strategy),
+  );
+}
+
+function compareEpisodeCandidates(
+  left: RankedEpisodeCandidate,
+  right: RankedEpisodeCandidate,
+  strategy: RecallRouterStrategy,
+): number {
+  const scoreDelta = right.score - left.score;
+
+  if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
+    return scoreDelta;
+  }
+  if (strategy !== "rules-only" && right.semanticScore !== left.semanticScore) {
+    return right.semanticScore - left.semanticScore;
+  }
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+  if (right.lexicalScore !== left.lexicalScore) {
+    return right.lexicalScore - left.lexicalScore;
+  }
+
+  return left.episode.id.localeCompare(right.episode.id);
+}
+
+function rankEpisodeCandidates(
+  entries: RankedEpisodeCandidate[],
+  strategy: RecallRouterStrategy,
+): RankedEpisodeCandidate[] {
+  return [...entries].sort((left, right) =>
+    compareEpisodeCandidates(left, right, strategy),
+  );
 }
 
 function markSelectedTrace(
@@ -718,15 +899,20 @@ function selectFacts(
   routingDecision: RoutingDecision,
   profile: UserProfile | null,
   referenceTime: string,
+  semanticScores?: Map<string, number>,
 ): { facts: FactMemory[]; traces: RecallCandidateTrace[] } {
   const answerCompositionQuery = language.isAnswerCompositionQuery(query, queryLocale);
   const factConfirmationQuery = language.isFactConfirmationQuery(query, queryLocale);
-  const ranked = buildFactCandidates(
-    facts,
-    query,
-    language,
-    queryLocale,
-    referenceTime,
+  const ranked = rankFactCandidates(
+    buildFactCandidates(
+      facts,
+      query,
+      language,
+      queryLocale,
+      referenceTime,
+      semanticScores,
+    ),
+    routingDecision.strategy,
   );
   const traces: RecallCandidateTrace[] = ranked.map((entry) => ({
     memoryId: entry.fact.id,
@@ -774,8 +960,7 @@ function selectFacts(
           }
 
           return entry.factKind ? factKinds.includes(entry.factKind) : false;
-        })
-        .sort((left, right) => right.score - left.score);
+        });
     const resolvePick = (
       candidates: RankedFactCandidate[],
       allowFallback: boolean,
@@ -953,12 +1138,14 @@ function selectFacts(
   }
 
   const limit = answerCompositionQuery || factConfirmationQuery ? 3 : 2;
-  const withIntentSignal = compatible
-    .filter((entry) => entry.intentScore > 0)
-    .sort((left, right) => right.score - left.score);
-  const withLexicalSignal = compatible
-    .filter((entry) => entry.lexicalScore >= 0.2)
-    .sort((left, right) => right.score - left.score);
+  const withIntentSignal = rankFactCandidates(
+    compatible.filter((entry) => entry.intentScore > 0),
+    routingDecision.strategy,
+  );
+  const withLexicalSignal = rankFactCandidates(
+    compatible.filter((entry) => entry.lexicalScore >= 0.2),
+    routingDecision.strategy,
+  );
 
   if (withIntentSignal.length > 0) {
     for (const entry of withIntentSignal.slice(0, limit)) {
@@ -991,12 +1178,13 @@ function selectFacts(
       );
     }
   } else if (answerCompositionQuery || factConfirmationQuery) {
-    for (const entry of compatible
-      .filter(
+    for (const entry of rankFactCandidates(
+      compatible.filter(
         (item) =>
           item.fact.category === "project" || item.fact.category === "technical",
-      )
-      .slice(0, limit)) {
+      ),
+      routingDecision.strategy,
+    ).slice(0, limit)) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -1011,12 +1199,15 @@ function selectFacts(
       );
     }
   } else if (retrievalProfile === "coding_agent") {
-    const fallback = compatible.find(
-      (entry) =>
-        entry.fact.category !== "personal" &&
-        entry.fact.category !== "relationship" &&
-        entry.fact.category !== "event",
-    );
+    const fallback = rankFactCandidates(
+      compatible.filter(
+        (entry) =>
+          entry.fact.category !== "personal" &&
+          entry.fact.category !== "relationship" &&
+          entry.fact.category !== "event",
+      ),
+      routingDecision.strategy,
+    )[0];
     if (fallback) {
       selected.push(fallback);
       selectedIds.add(fallback.fact.id);
@@ -1053,13 +1244,18 @@ function selectReferences(
   queryLocale: string,
   routingDecision: RoutingDecision,
   referenceTime: string,
+  semanticScores?: Map<string, number>,
 ): { references: ReferenceMemory[]; traces: RecallCandidateTrace[] } {
-  const ranked = buildReferenceCandidates(
-    references,
-    query,
-    language,
-    queryLocale,
-    referenceTime,
+  const ranked = rankReferenceCandidates(
+    buildReferenceCandidates(
+      references,
+      query,
+      language,
+      queryLocale,
+      referenceTime,
+      semanticScores,
+    ),
+    routingDecision.strategy,
   );
   const traces: RecallCandidateTrace[] = ranked.map((entry) => ({
     memoryId: entry.reference.id,
@@ -1088,9 +1284,10 @@ function selectReferences(
       routingDecision.requestedSlots.includes("focus") ||
       routingDecision.requestedSlots.includes("blocker") ||
       routingDecision.requestedSlots.includes("open_loop"));
-  const signaled = compatible
-    .filter((entry) => entry.lexicalScore > 0 || entry.subjectScore >= 0.2)
-    .sort((left, right) => right.score - left.score);
+  const signaled = rankReferenceCandidates(
+    compatible.filter((entry) => entry.lexicalScore > 0 || entry.subjectScore >= 0.2),
+    routingDecision.strategy,
+  );
 
   if (slotSpecificNonReferenceQuery) {
     for (const trace of traces) {
@@ -1142,7 +1339,9 @@ function selectReferences(
 
   const genericSelected =
     signaled[0] ??
-    ((language.isAnswerCompositionQuery(query, queryLocale) && compatible[0]) || null);
+    ((language.isAnswerCompositionQuery(query, queryLocale) &&
+      rankReferenceCandidates(compatible, routingDecision.strategy)[0]) ||
+      null);
   if (!genericSelected) {
     for (const trace of traces) {
       if (trace.whySuppressed === "not selected") {
@@ -1183,13 +1382,18 @@ function selectEpisodes(
   queryLocale: string,
   routingDecision: RoutingDecision,
   referenceTime: string,
+  semanticScores?: Map<string, number>,
 ): { episodes: EpisodeMemory[]; traces: RecallCandidateTrace[] } {
-  const ranked = buildEpisodeCandidates(
-    episodes,
-    query,
-    language,
-    queryLocale,
-    referenceTime,
+  const ranked = rankEpisodeCandidates(
+    buildEpisodeCandidates(
+      episodes,
+      query,
+      language,
+      queryLocale,
+      referenceTime,
+      semanticScores,
+    ),
+    routingDecision.strategy,
   );
   const traces: RecallCandidateTrace[] = ranked.map((entry) => ({
     memoryId: entry.episode.id,
@@ -1214,8 +1418,11 @@ function selectEpisodes(
     routingDecision.requestedSlots.includes("blocker") ||
     routingDecision.requestedSlots.includes("open_loop") ||
     routingDecision.requestedSlots.includes("reference");
-  const withSignal = compatible.filter(
-    (entry) => entry.lexicalScore > 0 || routingDecision.continuation,
+  const withSignal = rankEpisodeCandidates(
+    compatible.filter(
+      (entry) => entry.lexicalScore > 0 || routingDecision.continuation,
+    ),
+    routingDecision.strategy,
   );
 
   if (slotSpecificQuery && !routingDecision.continuation) {
@@ -1777,10 +1984,16 @@ export function createRecallEngine(config: RecallEngineConfig) {
       });
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
       const policyApplied = new Set<string>();
+      const routerAvailability = {
+        semanticSearch: Boolean(config.embedding && config.repositories.vectorIndex),
+        llmRouting: false,
+      };
 
       if (input.ignoreMemory) {
         const routingDecision = planRecall({
           retrievalProfile,
+          strategy: input.strategy,
+          availability: routerAvailability,
           query: input.query,
           locale: resolvedLanguage.locale,
           language,
@@ -1864,6 +2077,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
 
       const routingDecision = planRecall({
         retrievalProfile,
+        strategy: input.strategy,
+        availability: routerAvailability,
         query: input.query,
         locale: resolvedLanguage.locale,
         language,
@@ -1873,6 +2088,17 @@ export function createRecallEngine(config: RecallEngineConfig) {
         },
       });
       const currentReferenceTime = referenceTime();
+      const semanticScores =
+        routingDecision.strategy === "hybrid" &&
+        config.embedding &&
+        config.repositories.vectorIndex
+          ? await searchSemanticScores({
+              embedding: config.embedding,
+              query: input.query,
+              scope: input.scope,
+              vectorIndex: config.repositories.vectorIndex,
+            })
+          : undefined;
 
       const filteredProfile = await applyRecallPolicyToProfile(profile, {
         scope: input.scope,
@@ -1905,6 +2131,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         routingDecision,
         filteredProfile,
         currentReferenceTime,
+        semanticScores?.facts,
       );
       const facts = await applyRecallPolicyToRecords(
         selectedFacts.facts,
@@ -1960,6 +2187,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         resolvedLanguage.locale,
         routingDecision,
         currentReferenceTime,
+        semanticScores?.episodes,
       );
       const episodes = await applyRecallPolicyToRecords(
         selectedEpisodes.episodes,
@@ -1981,6 +2209,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         resolvedLanguage.locale,
         routingDecision,
         currentReferenceTime,
+        semanticScores?.references,
       );
       const references = await applyRecallPolicyToRecords(
         selectedReferences.references,

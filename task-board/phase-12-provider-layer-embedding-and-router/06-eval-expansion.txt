@@ -22,6 +22,12 @@ Implementation steps
 2. Produce A/B/C summaries when multiple strategies are run
 3. Save per-strategy failures and raw recall artifacts
 
+Current implementation notes
+----------------------------
+- `runGoodMemoryScenario()` now accepts `strategy` and threads it into `memory.recall()`
+- router strategy now affects real recall behavior for supported paths (`rules-only` vs semantic `hybrid`), not only trace metadata
+- strategy labels, dedicated comparison slices, and regression summaries remain TODO in this phase
+
 Acceptance
 ----------
 - Strategy changes are measurable, not anecdotal

@@ -83,6 +83,35 @@ function buildAnswerPackage(
             episodes: [],
             workingMemory: null,
             journal: null,
+            routingDecision: {
+              retrievalProfile: "coding_agent",
+              intent: "task_continuation",
+              strategy: "rules-only",
+              strategyExplanation: {
+                requestedStrategy: "rules-only",
+                resolvedStrategy: "rules-only",
+                summary:
+                  "rules-only default keeps lexical, runtime, and procedural priors as the hard floor.",
+                hardFloor: "lexical_runtime_procedural_priors",
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: [
+                "working_memory",
+                "session_journal",
+                "session_archive",
+                "episode",
+                "fact",
+                "evidence",
+                "feedback",
+                "profile",
+              ],
+              requestedSlots: ["reference"],
+              supportSlots: ["runtime_continuity"],
+              actionDriving: false,
+              referenceSeeking: true,
+              continuation: true,
+            },
             hits: [
               {
                 id: "ref-1",
@@ -312,6 +341,9 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("semantic_reference");
       expect(result.stdout).toContain("evidence=evidence-1");
       expect(result.stdout).toContain("continuation_context");
+      expect(result.stdout).toContain("Router Strategy");
+      expect(result.stdout).toContain("rules-only");
+      expect(result.stdout).toContain("lexical, runtime, and procedural priors");
       expect(result.stdout).toContain("Policy Applied");
       expect(result.stdout).toContain("custom_shouldRecall");
       expect(result.stdout).toContain("Verification Hints");

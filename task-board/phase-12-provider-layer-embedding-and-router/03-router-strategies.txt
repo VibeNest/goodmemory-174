@@ -1,9 +1,9 @@
 Phase 12.3: Router Strategies
 =============================
 
-[TODO] P12.3-T001 Define `rules-only`, `hybrid`, and `llm-assisted` router strategies
-[TODO] P12.3-T002 Add router explanation output to trace artifacts
-[TODO] P12.3-T003 Keep `rules-only` as the default path
+[DONE] P12.3-T001 Define `rules-only`, `hybrid`, and `llm-assisted` router strategies
+[DONE] P12.3-T002 Add router explanation output to trace artifacts
+[DONE] P12.3-T003 Keep `rules-only` as the default path
 
 Why this exists
 ---------------
@@ -24,4 +24,14 @@ Implementation steps
 Acceptance
 ----------
 - Router strategies are observable in artifacts and CLI output
-- Switching strategies is measurable in eval
+- Switching supported strategies is measurable through eval runner inputs without changing the app integration shape
+
+Current implementation notes
+----------------------------
+- `planRecall()` now resolves a requested strategy through a typed router strategy framework instead of assuming one implicit path
+- `memory.recall()` now accepts a requested strategy and applies the resolved strategy instead of always executing the implicit default path
+- `rules-only` remains the default and stays deterministic even when provider-backed adapters are present
+- `hybrid` now performs real semantic tie-breaking for fact/reference/episode recall when `embeddingAdapter + vectorStore` are available, and falls back to `rules-only` when they are not
+- `llm-assisted` remains a router framework state with explicit fallback behavior until provider-backed routing lands in P12.5
+- raw recall artifacts and CLI `trace` output now surface strategy and explanation details directly from `routingDecision`
+- eval runner inputs can now thread `strategy` into recall; broader per-strategy labels/summaries still belong to P12.6

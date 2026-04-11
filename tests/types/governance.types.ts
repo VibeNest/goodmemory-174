@@ -19,6 +19,7 @@ const recallInput: RecallInput = {
   scope: { userId: "user-1" },
   query: "answer the user",
   ignoreMemory: true,
+  strategy: "hybrid",
 };
 
 void memory.exportMemory(exportInput);

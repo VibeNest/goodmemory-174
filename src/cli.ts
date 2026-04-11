@@ -162,6 +162,12 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
     updateFindings: string[];
   }>(join(runDir, "traces", caseId, "assertions.json"));
   const recall = await readJson<{
+    routingDecision?: {
+      strategy?: string;
+      strategyExplanation?: {
+        summary?: string;
+      };
+    };
     hits?: Array<{ type: string; reason?: string; evidenceIds?: string[] }>;
     verificationHints?: Array<{ memoryType: string; reason: string; evidenceIds?: string[] }>;
     policyApplied?: string[];
@@ -181,6 +187,14 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
         hit.evidenceIds?.length ? ` [evidence=${hit.evidenceIds.join(",")}]` : ""
       }`,
   );
+  const routerLines = recall.routingDecision
+    ? [
+        `- strategy: ${recall.routingDecision.strategy ?? "unknown"}`,
+        `- explanation: ${
+          recall.routingDecision.strategyExplanation?.summary ?? "no_explanation"
+        }`,
+      ]
+    : ["- unavailable"];
   const verificationLines = (recall.verificationHints ?? []).map(
     (hint) =>
       `- ${hint.memoryType}: ${hint.reason}${
@@ -201,6 +215,9 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
     "",
     "Recall Hits",
     ...hitLines,
+    "",
+    "Router Strategy",
+    ...routerLines,
     "",
     "Verification Hints",
     ...(verificationLines.length > 0 ? verificationLines : ["- none"]),

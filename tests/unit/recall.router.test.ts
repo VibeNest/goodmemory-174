@@ -2,11 +2,22 @@ import { describe, expect, it } from "bun:test";
 import {
   planRecall,
   resolveRetrievalProfile,
+  resolveRouterStrategy,
 } from "../../src/recall/router";
 
 describe("recall router", () => {
   it("defaults to general_chat when no retrieval profile is supplied", () => {
     expect(resolveRetrievalProfile()).toBe("general_chat");
+  });
+
+  it("defaults router strategy to rules-only with a deterministic explanation", () => {
+    const strategy = resolveRouterStrategy({});
+
+    expect(strategy.resolvedStrategy).toBe("rules-only");
+    expect(strategy.requestedStrategy).toBe("rules-only");
+    expect(strategy.summary).toContain("rules-only");
+    expect(strategy.semanticTieBreaking).toBe(false);
+    expect(strategy.llmRefinement).toBe(false);
   });
 
   it("prioritizes profile and procedural memory for general chat", () => {
@@ -24,6 +35,7 @@ describe("recall router", () => {
       "feedback",
       "fact",
     ]);
+    expect(plan.strategy).toBe("rules-only");
     expect(plan.sourcePriorities.includes("evidence")).toBe(false);
   });
 
@@ -44,8 +56,56 @@ describe("recall router", () => {
       "episode",
       "fact",
     ]);
+    expect(plan.strategy).toBe("rules-only");
     expect(plan.sourcePriorities.includes("evidence")).toBe(true);
     expect(plan.intent).toBe("task_continuation");
+  });
+
+  it("resolves hybrid strategy when semantic routing is available without changing rules-first priorities", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      strategy: "hybrid",
+      availability: {
+        semanticSearch: true,
+      },
+      query: "Which runbook should I use for the rollout?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.strategy).toBe("hybrid");
+    expect(plan.strategyExplanation.semanticTieBreaking).toBe(true);
+    expect(plan.strategyExplanation.llmRefinement).toBe(false);
+    expect(plan.sourcePriorities.slice(0, 3)).toEqual([
+      "profile",
+      "feedback",
+      "fact",
+    ]);
+  });
+
+  it("falls back from llm-assisted to hybrid when llm routing is unavailable but semantic routing exists", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      strategy: "llm-assisted",
+      availability: {
+        semanticSearch: true,
+        llmRouting: false,
+      },
+      query: "What should I do next and which source of truth applies?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.strategy).toBe("hybrid");
+    expect(plan.strategyExplanation.requestedStrategy).toBe("llm-assisted");
+    expect(plan.strategyExplanation.resolvedStrategy).toBe("hybrid");
+    expect(plan.strategyExplanation.fallbackReason).toBe("llm_routing_unavailable");
+    expect(plan.strategyExplanation.semanticTieBreaking).toBe(true);
+    expect(plan.strategyExplanation.llmRefinement).toBe(false);
   });
 
   it("detects Chinese continuation intent through the language service", () => {

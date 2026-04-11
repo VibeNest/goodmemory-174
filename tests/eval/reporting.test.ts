@@ -56,6 +56,33 @@ function buildAnswerPackage(
             episodes: [],
             workingMemory: null,
             journal: null,
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only",
+              strategyExplanation: {
+                requestedStrategy: "rules-only",
+                resolvedStrategy: "rules-only",
+                summary:
+                  "rules-only default keeps lexical, runtime, and procedural priors as the hard floor.",
+                hardFloor: "lexical_runtime_procedural_priors",
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: [
+                "profile",
+                "feedback",
+                "fact",
+                "episode",
+                "working_memory",
+                "session_journal",
+              ],
+              requestedSlots: ["reference"],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: true,
+              continuation: false,
+            },
             hits: [
               {
                 id: "ref-1",
@@ -353,6 +380,10 @@ describe("eval reporting", () => {
         references: Array<{ pointer: string }>;
         hits: Array<{ type: string }>;
         candidateTraces?: Array<{ memoryId: string }>;
+        routingDecision?: {
+          strategy?: string;
+          strategyExplanation?: { summary?: string };
+        };
       };
       const assertions = JSON.parse(
         await readFile(
@@ -377,6 +408,10 @@ describe("eval reporting", () => {
       expect(rawRecall.references[0]?.pointer).toBe("docs/runbook.md");
       expect(rawRecall.hits[0]?.type).toBe("reference");
       expect(rawRecall.candidateTraces?.[0]?.memoryId).toBe("ref-1");
+      expect(rawRecall.routingDecision?.strategy).toBe("rules-only");
+      expect(rawRecall.routingDecision?.strategyExplanation?.summary).toContain(
+        "rules-only",
+      );
       expect(assertions.updateFindings).toContain("docs/runbook.md");
     } finally {
       await workspace.cleanup();

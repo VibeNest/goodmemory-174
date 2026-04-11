@@ -4,6 +4,7 @@ import {
 } from "../language";
 
 export type RetrievalProfile = "general_chat" | "coding_agent";
+export type RecallRouterStrategy = "rules-only" | "hybrid" | "llm-assisted";
 
 export type RecallSlot =
   | "role"
@@ -30,9 +31,28 @@ export interface RecallRuntimeAvailability {
   hasJournal: boolean;
 }
 
+export interface RecallRouterAvailability {
+  semanticSearch: boolean;
+  llmRouting: boolean;
+}
+
+export interface RouterStrategyExplanation {
+  requestedStrategy: RecallRouterStrategy;
+  resolvedStrategy: RecallRouterStrategy;
+  fallbackReason?:
+    | "semantic_search_unavailable"
+    | "llm_routing_unavailable";
+  summary: string;
+  hardFloor: "lexical_runtime_procedural_priors";
+  semanticTieBreaking: boolean;
+  llmRefinement: boolean;
+}
+
 export interface RoutingDecision {
   retrievalProfile: RetrievalProfile;
   intent: "general_assistance" | "task_continuation";
+  strategy: RecallRouterStrategy;
+  strategyExplanation: RouterStrategyExplanation;
   sourcePriorities: RecallSource[];
   requestedSlots: RecallSlot[];
   supportSlots: RecallSlot[];
@@ -43,6 +63,8 @@ export interface RoutingDecision {
 
 export interface RecallRoutingInput {
   retrievalProfile?: RetrievalProfile;
+  strategy?: RecallRouterStrategy;
+  availability?: Partial<RecallRouterAvailability>;
   query: string;
   runtime: RecallRuntimeAvailability;
   locale?: string;
@@ -57,9 +79,95 @@ export function resolveRetrievalProfile(
   return profile ?? "general_chat";
 }
 
+export function resolveRouterStrategy(input: {
+  strategy?: RecallRouterStrategy;
+  availability?: Partial<RecallRouterAvailability>;
+}): RouterStrategyExplanation {
+  const requestedStrategy = input.strategy ?? "rules-only";
+  const semanticSearchAvailable = input.availability?.semanticSearch === true;
+  const llmRoutingAvailable = input.availability?.llmRouting === true;
+
+  if (requestedStrategy === "rules-only") {
+    return {
+      requestedStrategy,
+      resolvedStrategy: "rules-only",
+      summary:
+        "rules-only default keeps lexical, runtime, and procedural priors as the hard floor.",
+      hardFloor: "lexical_runtime_procedural_priors",
+      semanticTieBreaking: false,
+      llmRefinement: false,
+    };
+  }
+
+  if (requestedStrategy === "hybrid") {
+    if (semanticSearchAvailable) {
+      return {
+        requestedStrategy,
+        resolvedStrategy: "hybrid",
+        summary:
+          "hybrid routing keeps rules-first priorities primary and only enables semantic tie-breaking around them.",
+        hardFloor: "lexical_runtime_procedural_priors",
+        semanticTieBreaking: true,
+        llmRefinement: false,
+      };
+    }
+
+    return {
+      requestedStrategy,
+      resolvedStrategy: "rules-only",
+      fallbackReason: "semantic_search_unavailable",
+      summary:
+        "hybrid routing was requested but semantic search is unavailable, so routing falls back to deterministic rules-only behavior.",
+      hardFloor: "lexical_runtime_procedural_priors",
+      semanticTieBreaking: false,
+      llmRefinement: false,
+    };
+  }
+
+  if (llmRoutingAvailable) {
+    return {
+      requestedStrategy,
+      resolvedStrategy: "llm-assisted",
+      summary:
+        "llm-assisted routing keeps rules-first priorities primary and only allows model refinement after the deterministic floor is established.",
+      hardFloor: "lexical_runtime_procedural_priors",
+      semanticTieBreaking: semanticSearchAvailable,
+      llmRefinement: true,
+    };
+  }
+
+  if (semanticSearchAvailable) {
+    return {
+      requestedStrategy,
+      resolvedStrategy: "hybrid",
+      fallbackReason: "llm_routing_unavailable",
+      summary:
+        "llm-assisted routing was requested but model refinement is unavailable, so routing falls back to hybrid semantic tie-breaking.",
+      hardFloor: "lexical_runtime_procedural_priors",
+      semanticTieBreaking: true,
+      llmRefinement: false,
+    };
+  }
+
+  return {
+    requestedStrategy,
+    resolvedStrategy: "rules-only",
+    fallbackReason: "llm_routing_unavailable",
+    summary:
+      "llm-assisted routing was requested but provider-backed assistance is unavailable, so routing falls back to deterministic rules-only behavior.",
+    hardFloor: "lexical_runtime_procedural_priors",
+    semanticTieBreaking: false,
+    llmRefinement: false,
+  };
+}
+
 export function planRecall(input: RecallRoutingInput): RoutingDecision {
   const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
   const language = input.language ?? DEFAULT_LANGUAGE;
+  const strategyExplanation = resolveRouterStrategy({
+    strategy: input.strategy,
+    availability: input.availability,
+  });
   const locale =
     input.locale ??
     language.resolveFromText({
@@ -112,6 +220,8 @@ export function planRecall(input: RecallRoutingInput): RoutingDecision {
     return {
       retrievalProfile,
       intent: "task_continuation",
+      strategy: strategyExplanation.resolvedStrategy,
+      strategyExplanation,
       sourcePriorities: [
         "working_memory",
         "session_journal",
@@ -133,6 +243,8 @@ export function planRecall(input: RecallRoutingInput): RoutingDecision {
   return {
     retrievalProfile,
     intent: "general_assistance",
+    strategy: strategyExplanation.resolvedStrategy,
+    strategyExplanation,
     sourcePriorities: [
       "profile",
       "feedback",
