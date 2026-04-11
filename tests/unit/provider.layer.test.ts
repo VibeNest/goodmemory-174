@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { JudgeModel } from "../../src/eval/judge";
 import type { EvalAnswerGenerator } from "../../src/eval/runners";
+import type { MemoryExtractor } from "../../src/remember/candidates";
 import {
   createAISDKProviderDescriptor,
   createFallbackProviderDescriptor,
   createProviderJudgeModel,
+  createProviderMemoryExtractor,
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
 } from "../../src/provider/layer";
@@ -103,6 +105,41 @@ describe("provider layer contract", () => {
     expect(judgeCalls[0]?.model).toEqual({
       provider: "anthropic",
       model: "claude-sonnet",
+    });
+  });
+
+  it("routes provider-backed memory extraction through the same provider layer", async () => {
+    const extractorCalls: Array<Record<string, unknown>> = [];
+
+    const extractor = createProviderMemoryExtractor({
+      model: {
+        provider: "openai",
+        model: "gpt-5",
+      },
+      createMemoryExtractor: (input) => {
+        extractorCalls.push(input as unknown as Record<string, unknown>);
+        const memoryExtractor: MemoryExtractor = {
+          async extract() {
+            return {
+              candidates: [],
+              ignoredMessageCount: 1,
+            };
+          },
+        };
+
+        return memoryExtractor;
+      },
+    });
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1" },
+      messages: [{ role: "user", content: "hi" }],
+    });
+
+    expect(result.ignoredMessageCount).toBe(1);
+    expect(extractorCalls[0]?.model).toEqual({
+      provider: "openai",
+      model: "gpt-5",
     });
   });
 });

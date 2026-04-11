@@ -10,6 +10,7 @@ import {
 } from "../../src/remember/engine";
 import {
   createFactMemory,
+  createReferenceMemory,
 } from "../../src/domain/records";
 import {
   DeterministicClock,
@@ -309,6 +310,256 @@ describe("remember engine", () => {
     expect(
       duplicateResult.events.some((event) => event.reason === "duplicate_fact"),
     ).toBe(true);
+  });
+
+  it("falls back to rules-only extraction when llm-assisted extraction fails", async () => {
+    const scope = { userId: "u-fallback", sessionId: "s-1", workspaceId: "workspace-a" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "rules-1",
+                kindHint: "fact",
+                explicitness: "explicit",
+                content: "Runtime launch is blocked on legal review.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "project",
+                  factKind: "open_loop",
+                  subject: "runtime launch",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          throw new Error("OpenAI-compatible gateway timeout after 45000ms.");
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "Remember that runtime launch is blocked on legal review.",
+        },
+      ],
+    });
+
+    const facts = await repositories.facts.listByScope(scope);
+
+    expect(result.accepted).toBe(1);
+    expect(result.metadata?.requestedExtractionStrategy).toBe("llm-assisted");
+    expect(result.metadata?.resolvedExtractionStrategy).toBe("rules-only");
+    expect(result.events[0]?.extractionSources).toEqual(["rules-only"]);
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.subject).toBe("runtime launch");
+  });
+
+  it("enriches duplicate facts with better structured metadata during llm-assisted merge", async () => {
+    const scope = { userId: "u-llm-fact", sessionId: "s-1", workspaceId: "workspace-a" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "rules-1",
+                kindHint: "fact",
+                explicitness: "explicit",
+                content: "Runtime rollout is blocked on legal signoff.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "project",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-1",
+                kindHint: "fact",
+                explicitness: "explicit",
+                content: "Runtime rollout is blocked on legal signoff.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "project",
+                  factKind: "blocker",
+                  scopeKind: "project",
+                  subject: "runtime rollout",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the runtime rollout is blocked on legal signoff.",
+        },
+      ],
+    });
+
+    const facts = await repositories.facts.listByScope(scope);
+
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.factKind).toBe("blocker");
+    expect(facts[0]?.scopeKind).toBe("project");
+    expect(facts[0]?.subject).toBe("runtime rollout");
+    expect(result.events.some((event) => event.reason === "duplicate_fact")).toBe(true);
+  });
+
+  it("strengthens duplicate fact provenance when a stronger duplicate arrives", async () => {
+    const scope = { userId: "u-fact-provenance", sessionId: "s-1", workspaceId: "workspace-a" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "explicit-1",
+                kindHint: "fact",
+                explicitness: "explicit",
+                content: "Runtime rollout is blocked on legal signoff.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "project",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-existing",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        sessionId: "s-legacy",
+        category: "project",
+        content: "Runtime rollout is blocked on legal signoff.",
+        source: {
+          method: "inferred",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "en-US",
+        },
+      }),
+    );
+
+    await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the runtime rollout is blocked on legal signoff.",
+        },
+      ],
+    });
+
+    const facts = await repositories.facts.listByScope(scope);
+
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.source.method).toBe("explicit");
+  });
+
+  it("strengthens duplicate references with assisted referenceKind and provenance", async () => {
+    const scope = { userId: "u-ref-upgrade", sessionId: "s-1", workspaceId: "workspace-a" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-ref-1",
+                kindHint: "reference",
+                explicitness: "explicit",
+                content: "docs/runtime-runbook.md",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  referencePointer: "docs/runtime-runbook.md",
+                  referenceKind: "source_of_truth",
+                  subject: "runtime rollout",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-existing",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        sessionId: "s-legacy",
+        title: "docs/runtime-runbook.md",
+        pointer: "docs/runtime-runbook.md",
+        referenceKind: "doc",
+        subject: "unknown",
+        source: {
+          method: "inferred",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "en-US",
+        },
+      }),
+    );
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "Use docs/runtime-runbook.md as the source of truth for runtime rollout.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+
+    expect(references).toHaveLength(1);
+    expect(references[0]?.referenceKind).toBe("source_of_truth");
+    expect(references[0]?.subject).toBe("runtime rollout");
+    expect(references[0]?.source.method).toBe("explicit");
   });
 
   it("supersedes older feedback rules when a new active rule replaces them", async () => {

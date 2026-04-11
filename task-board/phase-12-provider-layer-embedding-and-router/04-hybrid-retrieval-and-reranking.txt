@@ -1,9 +1,9 @@
 Phase 12.4: Hybrid Retrieval and Reranking
 ==========================================
 
-[TODO] P12.4-T001 Add semantic candidate retrieval using embeddings
-[TODO] P12.4-T002 Merge lexical, procedural, episodic, and semantic scores
-[TODO] P12.4-T003 Add optional reranking with deterministic fallback
+[DONE] P12.4-T001 Add semantic candidate retrieval using embeddings
+[DONE] P12.4-T002 Merge lexical, procedural, episodic, and semantic scores
+[DONE] P12.4-T003 Add optional reranking with deterministic fallback
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Hybrid retrieval improves selected eval slices
 - Raw recall artifacts still show why each item was included
+
+Current implementation notes
+----------------------------
+- recall now computes semantic candidate scores through the typed vector hooks when `strategy: "hybrid"` is requested and embedding adapters are available
+- hybrid recall keeps lexical/runtime/procedural ordering guarantees as the hard floor, using semantic scores only as explainable tie-breaking input
+- when hybrid routing is requested without semantic availability, routing falls back to `rules-only` and records the fallback in `routingDecision.strategyExplanation`
+- eval answer packages and raw recall artifacts now preserve the resolved routing strategy, so hybrid behavior is inspectable in traces and CLI output

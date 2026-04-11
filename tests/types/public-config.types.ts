@@ -30,10 +30,25 @@ const embeddingAdapterConfig: GoodMemoryConfig = {
   },
 };
 
+const assistedExtractorConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  adapters: {
+    assistedExtractor: {
+      async extract() {
+        return {
+          candidates: [],
+          ignoredMessageCount: 0,
+        };
+      },
+    },
+  },
+};
+
 void minimalConfig;
 void testingConfig;
 void languageConfig;
 void embeddingAdapterConfig;
+void assistedExtractorConfig;
 
 const invalidEmbeddingConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },

@@ -25,6 +25,7 @@ export type MemoryCandidateKindHint =
   | "noise";
 
 export type MemoryCandidateExplicitness = "explicit" | "inferred";
+export type MemoryExtractionStrategy = "rules-only" | "llm-assisted";
 
 export interface MemoryCandidateMetadata {
   category?: "project" | "technical" | "personal" | "relationship" | "event";
@@ -46,6 +47,7 @@ export interface MemoryCandidate {
   id: string;
   kindHint: MemoryCandidateKindHint;
   explicitness: MemoryCandidateExplicitness;
+  extractionSources?: MemoryExtractionStrategy[];
   content: string;
   sourceMessageIndex: number;
   sourceRole: string;
@@ -55,6 +57,7 @@ export interface MemoryCandidate {
 export interface MemoryExtractionInput {
   scope: MemoryScope;
   messages: Array<{ role: string; content: string }>;
+  extractionStrategy?: MemoryExtractionStrategy;
   locale?: string;
 }
 

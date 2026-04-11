@@ -3,8 +3,10 @@ import type {
   EvalAnswerGenerator,
   EvalAnswerGeneratorInput,
 } from "../eval/runners";
+import type { MemoryExtractor } from "../remember/candidates";
 import {
   createAISDKJudgeModel,
+  createAISDKMemoryExtractor,
   createAISDKTextGenerator,
 } from "../llm/ai-sdk";
 import type {
@@ -98,6 +100,17 @@ export function createProviderJudgeModel(input: {
   createJudgeModel?: typeof createAISDKJudgeModel;
 }): JudgeModel {
   return (input.createJudgeModel ?? createAISDKJudgeModel)({
+    model: input.model,
+    system: input.system,
+  });
+}
+
+export function createProviderMemoryExtractor(input: {
+  model: AISDKModelConfig;
+  system?: string;
+  createMemoryExtractor?: typeof createAISDKMemoryExtractor;
+}): MemoryExtractor {
+  return (input.createMemoryExtractor ?? createAISDKMemoryExtractor)({
     model: input.model,
     system: input.system,
   });

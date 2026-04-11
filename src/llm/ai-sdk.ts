@@ -13,6 +13,12 @@ import type {
   EvalAnswerGenerator,
   EvalAnswerGeneratorInput,
 } from "../eval/runners";
+import type {
+  MemoryCandidateKindHint,
+  MemoryExtractionInput,
+  MemoryExtractionResult,
+  MemoryExtractor,
+} from "../remember/candidates";
 
 export type AISDKProvider = "openai" | "anthropic";
 
@@ -31,6 +37,13 @@ interface TextGeneratorDependencies {
 }
 
 interface JudgeModelDependencies {
+  generateObject?: typeof generateObject;
+  resolveModel?: typeof resolveAISDKModel;
+  fetch?: FetchLike;
+  requestTimeoutMs?: number;
+}
+
+interface MemoryExtractorDependencies {
   generateObject?: typeof generateObject;
   resolveModel?: typeof resolveAISDKModel;
   fetch?: FetchLike;
@@ -147,7 +160,10 @@ function shouldRetryAISDKError(error: unknown): boolean {
     message.includes("504") ||
     message.includes("choices") && message.includes("received null") ||
     message.includes("type validation failed") ||
-    message.includes("invalid input: expected array")
+    message.includes("invalid input: expected array") ||
+    message.includes("structured model response did not contain a json object") ||
+    message.includes("structured model response was not valid json") ||
+    message.includes("structured model response schema validation failed")
   );
 }
 
@@ -191,6 +207,71 @@ const judgeResultSchema = z.object({
   goodmemory_scores: judgeScoresSchema.optional(),
   reasoning: z.string(),
   failure_tags: z.array(z.string()),
+});
+
+const memoryCandidateSchema = z.object({
+  id: z.string(),
+  kindHint: z.enum([
+    "profile",
+    "preference",
+    "reference",
+    "fact",
+    "feedback",
+    "episode",
+    "noise",
+  ] satisfies [MemoryCandidateKindHint, ...MemoryCandidateKindHint[]]),
+  explicitness: z.enum(["explicit", "inferred"]),
+  content: z.string(),
+  sourceMessageIndex: z.number().int().nonnegative(),
+  sourceRole: z.string(),
+  metadata: z
+    .object({
+      category: z
+        .enum(["project", "technical", "personal", "relationship", "event"])
+        .optional(),
+      factKind: z
+        .enum([
+          "blocker",
+          "open_loop",
+          "role_update",
+          "focus_update",
+          "project_state",
+          "generic_project",
+        ])
+        .optional(),
+      scopeKind: z
+        .enum(["identity", "project", "runtime", "reference", "preference"])
+        .optional(),
+      subject: z.string().optional(),
+      feedbackKind: z.enum(["do", "dont", "prefer", "validated_pattern"]).optional(),
+      appliesTo: z.string().optional(),
+      profileField: z
+        .enum([
+          "name",
+          "role",
+          "organization",
+          "location",
+          "timezone",
+          "languagePreference",
+          "currentProject",
+        ])
+        .optional(),
+      preferenceCategory: z.string().optional(),
+      preferenceValue: z.string().optional(),
+      referenceKind: z
+        .enum(["source_of_truth", "runbook", "doc", "dashboard", "tracker"])
+        .optional(),
+      referenceTitle: z.string().optional(),
+      referencePointer: z.string().optional(),
+      supersedesPointer: z.string().optional(),
+    })
+    .partial()
+    .optional(),
+});
+
+const memoryExtractionResultSchema = z.object({
+  candidates: z.array(memoryCandidateSchema),
+  ignoredMessageCount: z.number().int().nonnegative(),
 });
 
 function stripThinkingBlocks(value: string): string {
@@ -335,6 +416,53 @@ function extractOpenAICompatibleStreamText(payload: unknown): string {
   }
 
   return content;
+}
+
+function extractStructuredJsonObject(raw: string): string {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error("Structured model response did not contain a JSON object.");
+  }
+
+  return raw.slice(start, end + 1);
+}
+
+function summarizeZodIssues(error: z.ZodError): string {
+  return error.issues
+    .slice(0, 3)
+    .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)
+    .join("; ");
+}
+
+function parseStructuredModelObject<T>(
+  content: string,
+  schema: z.ZodType<T>,
+): T {
+  const normalized = stripThinkingBlocks(content);
+  if (!normalized) {
+    throw new Error("Empty model response");
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = JSON.parse(extractStructuredJsonObject(normalized));
+  } catch (error) {
+    throw new Error(
+      `Structured model response was not valid JSON: ${extractErrorMessage(error)}`,
+    );
+  }
+
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) {
+    throw new Error(
+      `Structured model response schema validation failed: ${summarizeZodIssues(parsed.error)}`,
+    );
+  }
+
+  return parsed.data;
 }
 
 async function withOpenAICompatibleTimeout<T>(input: {
@@ -567,6 +695,26 @@ async function requestOpenAICompatibleText(input: {
   return content;
 }
 
+async function requestOpenAICompatibleObject<T>(input: {
+  model: AISDKModelConfig;
+  schema: z.ZodType<T>;
+  system?: string;
+  prompt: string;
+  fetch?: FetchLike;
+  timeoutMs?: number;
+}): Promise<T> {
+  return parseStructuredModelObject(
+    await requestOpenAICompatibleText({
+      model: input.model,
+      system: input.system,
+      prompt: input.prompt,
+      fetch: input.fetch,
+      timeoutMs: input.timeoutMs,
+    }),
+    input.schema,
+  );
+}
+
 export function parseAISDKModelConfigFromEnv(
   prefix: string,
 ): AISDKModelConfig | null {
@@ -637,6 +785,30 @@ export function buildAISDKTextPrompt(input: EvalAnswerGeneratorInput): string {
     .join("\n\n");
 }
 
+export function buildAISDKMemoryExtractionPrompt(
+  input: MemoryExtractionInput,
+): string {
+  const transcript = input.messages
+    .map((message, index) => `[${index}] ${message.role}: ${message.content}`)
+    .join("\n");
+
+  return [
+    "Extract durable memory candidates from this conversation.",
+    "Return only useful long-lived memory candidates and the ignored message count.",
+    "Respond with a single JSON object. Do not use markdown fences or commentary.",
+    [
+      "The JSON object must contain:",
+      "candidates: an array of objects with id, kindHint, explicitness, content, sourceMessageIndex, sourceRole, and optional metadata.",
+      "ignoredMessageCount: a non-negative integer.",
+      "Only use the allowed enum values implied by this task.",
+    ].join(" "),
+    `Locale hint: ${input.locale ?? "auto"}`,
+    `Requested extraction strategy: ${input.extractionStrategy ?? "rules-only"}`,
+    "Conversation:",
+    transcript,
+  ].join("\n\n");
+}
+
 export function createAISDKTextGenerator(input: {
   model: AISDKModelConfig;
   system?: string;
@@ -678,6 +850,62 @@ export function createAISDKTextGenerator(input: {
         content,
       };
     });
+  };
+}
+
+export function createAISDKMemoryExtractor(input: {
+  model: AISDKModelConfig;
+  system?: string;
+  promptBuilder?: (input: MemoryExtractionInput) => string;
+  dependencies?: MemoryExtractorDependencies;
+}): MemoryExtractor {
+  return {
+    async extract(payload): Promise<MemoryExtractionResult> {
+      const system =
+        input.system ??
+        [
+          "You extract durable memory candidates from a conversation.",
+          "Prefer profile updates, preferences, references, durable facts, and reusable feedback.",
+          "Return an empty candidate list when nothing should be remembered.",
+        ].join(" ");
+      const prompt = (input.promptBuilder ?? buildAISDKMemoryExtractionPrompt)(payload);
+
+      return withAISDKRetries(async () => {
+        if (input.model.provider === "openai" && input.model.baseURL) {
+          const object = await requestOpenAICompatibleObject({
+            model: input.model,
+            schema: memoryExtractionResultSchema,
+            system,
+            prompt,
+            fetch: input.dependencies?.fetch,
+            timeoutMs: input.dependencies?.requestTimeoutMs,
+          });
+
+          return {
+            candidates: object.candidates.map((candidate) => ({
+              ...candidate,
+              content: candidate.content.trim(),
+            })),
+            ignoredMessageCount: object.ignoredMessageCount,
+          };
+        }
+
+        const { object } = await (input.dependencies?.generateObject ?? generateObject)({
+          model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
+          schema: memoryExtractionResultSchema,
+          system,
+          prompt,
+        });
+
+        return {
+          candidates: object.candidates.map((candidate) => ({
+            ...candidate,
+            content: candidate.content.trim(),
+          })),
+          ignoredMessageCount: object.ignoredMessageCount,
+        };
+      });
+    },
   };
 }
 

@@ -320,6 +320,135 @@ describe("public remember API", () => {
     );
   });
 
+  it("can merge llm-assisted extraction into remember while preserving model influence in trace", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const assistedExtractor = {
+      async extract() {
+        return {
+          candidates: [
+            {
+              id: "llm-1",
+              kindHint: "fact" as const,
+              explicitness: "explicit" as const,
+              content: "Rollback owner is Maya.",
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+              metadata: {
+                category: "project" as const,
+                factKind: "project_state" as const,
+                subject: "rollback owner",
+              },
+            },
+          ],
+          ignoredMessageCount: 0,
+        };
+      },
+    };
+    const rulesOnly = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+    });
+    const llmAssisted = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+        assistedExtractor,
+      },
+    });
+    const input = {
+      scope: { userId: "u-llm", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user" as const,
+          content: "Maya is the rollback sheriff.",
+        },
+      ],
+    };
+
+    const baseline = await rulesOnly.remember(input);
+    const result = await llmAssisted.remember({
+      ...input,
+      extractionStrategy: "llm-assisted",
+    });
+
+    expect(baseline.accepted).toBe(0);
+    expect(result.accepted).toBe(1);
+    expect(result.metadata?.requestedExtractionStrategy).toBe("llm-assisted");
+    expect(result.metadata?.resolvedExtractionStrategy).toBe("llm-assisted");
+    expect(result.events[0]?.extractionSources).toEqual(["llm-assisted"]);
+    expect(
+      await documentStore.query("facts", {
+        userId: "u-llm",
+        workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("keeps policy and write gating ahead of llm-assisted model output", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      policy: {
+        async shouldRemember() {
+          return false;
+        },
+      },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+        assistedExtractor: {
+          async extract() {
+            return {
+              candidates: [
+                {
+                  id: "llm-blocked",
+                  kindHint: "fact" as const,
+                  explicitness: "explicit" as const,
+                  content: "Launch owner is Maya.",
+                  sourceMessageIndex: 0,
+                  sourceRole: "user",
+                  metadata: {
+                    category: "project" as const,
+                    factKind: "project_state" as const,
+                    subject: "launch owner",
+                  },
+                },
+              ],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-llm-policy", sessionId: "s-1" },
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "Maya owns launch.",
+        },
+      ],
+    });
+
+    expect(result.accepted).toBe(0);
+    expect(result.rejected).toBeGreaterThanOrEqual(1);
+    expect(
+      result.events.some(
+        (event) =>
+          event.reason === "policy_blocked" &&
+          event.extractionSources?.includes("llm-assisted"),
+      ),
+    ).toBe(true);
+    expect(await documentStore.query("facts", { userId: "u-llm-policy" })).toHaveLength(0);
+  });
+
   it("does not write memory for empty or noisy conversation input", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({

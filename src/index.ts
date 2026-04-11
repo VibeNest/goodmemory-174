@@ -48,6 +48,7 @@ import {
   type MemoryPacket,
 } from "./recall/contextBuilder";
 import type { RecallRouterStrategy } from "./recall/router";
+import type { MemoryExtractionStrategy } from "./remember/candidates";
 import { createRecallEngine } from "./recall/engine";
 import { createRememberEngine } from "./remember/engine";
 import { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
@@ -213,6 +214,7 @@ export {
 export type {
   MemoryCandidate,
   MemoryCandidateExplicitness,
+  MemoryExtractionStrategy,
   MemoryCandidateKindHint,
   MemoryExtractionInput,
   MemoryExtractionResult,
@@ -258,6 +260,7 @@ export interface GoodMemoryConfig {
   policy?: GoodMemoryPolicyHooks;
   language?: LanguageConfig;
   adapters?: {
+    assistedExtractor?: import("./remember/candidates").MemoryExtractor;
     documentStore?: DocumentStore;
     embeddingAdapter?: EmbeddingAdapter;
     sessionStore?: SessionStore;
@@ -321,6 +324,7 @@ export interface BuildContextResult {
 export interface RememberInput {
   scope: MemoryScope;
   messages: Array<{ role: string; content: string }>;
+  extractionStrategy?: MemoryExtractionStrategy;
   locale?: string;
 }
 
@@ -340,6 +344,7 @@ export interface RememberResult {
     memoryId?: string;
     reason?: string;
     sourceMethod?: MemorySourceMethod;
+    extractionSources?: MemoryExtractionStrategy[];
     evidenceIds?: string[];
   }>;
   metadata?: {
@@ -347,6 +352,8 @@ export interface RememberResult {
     localeSource: "explicit" | "detected" | "default";
     adapterId: string;
     analysisMode: "rules-only";
+    requestedExtractionStrategy: MemoryExtractionStrategy;
+    resolvedExtractionStrategy: MemoryExtractionStrategy;
   };
 }
 
@@ -579,6 +586,7 @@ class GoodMemoryImpl implements GoodMemory {
     });
     this.rememberEngine = createRememberEngine({
       repositories,
+      assistedExtractor: config.adapters?.assistedExtractor,
       documentStore,
       embedding: config.adapters?.embeddingAdapter,
       extractor:

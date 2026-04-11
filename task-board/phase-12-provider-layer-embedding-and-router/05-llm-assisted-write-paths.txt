@@ -1,9 +1,9 @@
 Phase 12.5: LLM-Assisted Write Paths
 ====================================
 
-[TODO] P12.5-T001 Add optional LLM-assisted candidate extraction
-[TODO] P12.5-T002 Add optional LLM-assisted consolidation or reranking helpers
-[TODO] P12.5-T003 Keep policy and write gating ahead of model output
+[DONE] P12.5-T001 Add optional LLM-assisted candidate extraction
+[DONE] P12.5-T002 Add optional LLM-assisted consolidation or reranking helpers
+[DONE] P12.5-T003 Keep policy and write gating ahead of model output
 
 Why this exists
 ---------------
@@ -24,3 +24,10 @@ Implementation steps
 Acceptance
 ----------
 - LLM-assisted writes are optional, inspectable, and benchmarked
+
+Current implementation notes
+----------------------------
+- GoodMemory now accepts an optional `adapters.assistedExtractor` without reintroducing top-level `llm` runtime config
+- remember can request `extractionStrategy: "llm-assisted"` per call, merging deterministic and assisted candidates instead of replacing the rules-first baseline
+- candidate-level remember events now preserve `extractionSources`, so model influence stays visible in write traces
+- policy checks, redaction, conflict resolution, and write gating still run after assisted extraction, keeping model output subordinate to governed write rules

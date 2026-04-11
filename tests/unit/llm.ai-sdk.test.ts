@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
+  createAISDKMemoryExtractor,
   buildAISDKTextPrompt,
   createOpenAICompatibleFetch,
   createAISDKJudgeModel,
@@ -251,6 +252,152 @@ describe("vercel ai sdk adapter", () => {
     expect(JSON.parse(result.content).winner).toBe("goodmemory");
     expect(calls[0]?.system).toBe("judge system");
     expect(calls[0]?.schema).toBeTruthy();
+  });
+
+  it("creates a structured memory extractor using generateObject", async () => {
+    const calls: Array<Record<string, unknown>> = [];
+    const extractor = createAISDKMemoryExtractor({
+      model: {
+        provider: "anthropic",
+        model: "claude-sonnet",
+      },
+      system: "extract durable memory",
+      dependencies: {
+        resolveModel: (config) => ({ resolvedFrom: config.model }) as never,
+        generateObject: async (input) => {
+          calls.push(input as unknown as Record<string, unknown>);
+          return {
+            object: {
+              candidates: [
+                {
+                  id: "llm-1",
+                  kindHint: "fact",
+                  explicitness: "explicit",
+                  content: "Runtime rollout still needs legal signoff.",
+                  sourceMessageIndex: 0,
+                  sourceRole: "user",
+                  metadata: {
+                    category: "project",
+                    factKind: "open_loop",
+                    subject: "runtime rollout",
+                  },
+                },
+              ],
+              ignoredMessageCount: 0,
+            },
+          } as never;
+        },
+      },
+    });
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1" },
+      messages: [
+        {
+          role: "user",
+          content: "Heads up: legal still needs to sign off on the runtime rollout.",
+        },
+      ],
+    });
+
+    expect(result.candidates[0]?.kindHint).toBe("fact");
+    expect(result.candidates[0]?.content).toContain("legal signoff");
+    expect(calls[0]?.schema).toBeTruthy();
+    expect(String(calls[0]?.prompt)).toContain("runtime rollout");
+  });
+
+  it("uses fetch-based memory extraction for openai-compatible base URLs", async () => {
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const extractor = createAISDKMemoryExtractor({
+      model: {
+        provider: "openai",
+        model: "gpt-5.4",
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+      },
+      system: "extract durable memory",
+      dependencies: {
+        fetch: async (url, init) => {
+          fetchCalls.push({ url: String(url), init });
+          return new Response(
+            [
+              "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\"},\"index\":0}]}",
+              "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"candidates\\\":[{\\\"id\\\":\\\"llm-1\\\",\\\"kindHint\\\":\\\"fact\\\",\\\"explicitness\\\":\\\"explicit\\\",\\\"content\\\":\\\"Runtime rollout still needs legal signoff.\\\",\\\"sourceMessageIndex\\\":0,\\\"sourceRole\\\":\\\"user\\\",\\\"metadata\\\":{\\\"category\\\":\\\"project\\\",\\\"factKind\\\":\\\"open_loop\\\",\\\"subject\\\":\\\"runtime rollout\\\"}}],\\\"ignoredMessageCount\\\":0}\"},\"index\":0}]}",
+              "data: [DONE]",
+              "",
+            ].join("\n\n"),
+            {
+              status: 200,
+              headers: {
+                "content-type": "text/event-stream",
+              },
+            },
+          );
+        },
+        generateObject: async () => {
+          throw new Error("generateObject should not run for openai-compatible base URLs");
+        },
+      },
+    });
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1" },
+      messages: [
+        {
+          role: "user",
+          content: "Heads up: legal still needs to sign off on the runtime rollout.",
+        },
+      ],
+    });
+
+    expect(result.candidates[0]?.metadata?.subject).toBe("runtime rollout");
+    expect(fetchCalls[0]?.url).toBe("https://gateway.example/v1/chat/completions");
+    expect(fetchCalls[0]?.init?.method).toBe("POST");
+    expect(String(fetchCalls[0]?.init?.body)).toContain("\"reasoning_effort\":\"medium\"");
+    expect(String(fetchCalls[0]?.init?.body)).toContain("\"content\":\"extract durable memory\"");
+    expect(String(fetchCalls[0]?.init?.body)).toContain("runtime rollout");
+  });
+
+  it("retries invalid structured memory extraction payloads for openai-compatible base URLs", async () => {
+    let attempts = 0;
+    const extractor = createAISDKMemoryExtractor({
+      model: {
+        provider: "openai",
+        model: "gpt-5.4",
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+      },
+      dependencies: {
+        fetch: async () => {
+          attempts += 1;
+          return new Response(
+            attempts < 3
+              ? "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"candidates\\\":[],\\\"ignoredMessageCount\\\":\\\"oops\\\"}\"},\"index\":0}]}\n\ndata: [DONE]\n\n"
+              : "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"candidates\\\":[{\\\"id\\\":\\\"llm-1\\\",\\\"kindHint\\\":\\\"fact\\\",\\\"explicitness\\\":\\\"explicit\\\",\\\"content\\\":\\\"Runtime rollout still needs legal signoff.\\\",\\\"sourceMessageIndex\\\":0,\\\"sourceRole\\\":\\\"user\\\"}],\\\"ignoredMessageCount\\\":0}\"},\"index\":0}]}\n\ndata: [DONE]\n\n",
+            {
+              status: 200,
+              headers: {
+                "content-type": "text/event-stream",
+              },
+            },
+          );
+        },
+      },
+    });
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1" },
+      messages: [
+        {
+          role: "user",
+          content: "Heads up: legal still needs to sign off on the runtime rollout.",
+        },
+      ],
+    });
+
+    expect(result.ignoredMessageCount).toBe(0);
+    expect(result.candidates[0]?.id).toBe("llm-1");
+    expect(attempts).toBe(3);
   });
 
   it("retries transient gateway validation failures for judge generation", async () => {

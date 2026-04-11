@@ -34,6 +34,8 @@ import type { MemoryRepositories } from "../storage/repositories";
 import type {
   MemoryCandidate,
   MemoryCandidateKindHint,
+  MemoryExtractionResult,
+  MemoryExtractionStrategy,
   MemoryExtractor,
   MemoryExtractionInput,
 } from "./candidates";
@@ -76,6 +78,7 @@ export interface RememberEvent {
   memoryId?: string;
   reason?: string;
   sourceMethod?: MemorySourceMethod;
+  extractionSources?: MemoryExtractionStrategy[];
   evidenceIds?: string[];
 }
 
@@ -88,11 +91,14 @@ export interface RememberResult {
     localeSource: "explicit" | "detected" | "default";
     adapterId: string;
     analysisMode: "rules-only";
+    requestedExtractionStrategy: MemoryExtractionStrategy;
+    resolvedExtractionStrategy: MemoryExtractionStrategy;
   };
 }
 
 export interface RememberEngineConfig {
   repositories: MemoryRepositories;
+  assistedExtractor?: MemoryExtractor;
   documentStore: DocumentStore;
   embedding?: EmbeddingAdapter;
   extractor?: MemoryExtractor;
@@ -130,6 +136,108 @@ async function rollbackRememberWrites(
   }
 
   return errors;
+}
+
+function mergeExtractionSources(
+  ...groups: Array<MemoryExtractionStrategy[] | undefined>
+): MemoryExtractionStrategy[] {
+  const sources = groups.flatMap((group) => group ?? []);
+
+  return sources.length > 0 ? [...new Set(sources)] : ["rules-only"];
+}
+
+function annotateExtractionResult(
+  result: MemoryExtractionResult,
+  source: MemoryExtractionStrategy,
+): MemoryExtractionResult {
+  return {
+    ...result,
+    candidates: result.candidates.map((candidate) => ({
+      ...candidate,
+      extractionSources: mergeExtractionSources(candidate.extractionSources, [source]),
+    })),
+  };
+}
+
+function buildCandidateMergeKey(candidate: MemoryCandidate): string {
+  return JSON.stringify({
+    content: candidate.content.trim().toLowerCase(),
+    explicitness: candidate.explicitness,
+    kindHint: candidate.kindHint,
+    metadata: candidate.metadata ?? null,
+    sourceMessageIndex: candidate.sourceMessageIndex,
+    sourceRole: candidate.sourceRole,
+  });
+}
+
+function ensureUniqueCandidateId(
+  candidate: MemoryCandidate,
+  usedIds: Set<string>,
+): MemoryCandidate {
+  if (!usedIds.has(candidate.id)) {
+    return candidate;
+  }
+
+  let suffix = 1;
+  let nextId = `llm-${candidate.id}-${suffix}`;
+  while (usedIds.has(nextId)) {
+    suffix += 1;
+    nextId = `llm-${candidate.id}-${suffix}`;
+  }
+
+  return {
+    ...candidate,
+    id: nextId,
+  };
+}
+
+function mergeExtractionResults(
+  baseline: MemoryExtractionResult,
+  assisted: MemoryExtractionResult,
+): MemoryExtractionResult {
+  const candidates = [...baseline.candidates];
+  const usedIds = new Set(candidates.map((candidate) => candidate.id));
+  const signatureToIndex = new Map(
+    candidates.map((candidate, index) => [buildCandidateMergeKey(candidate), index] as const),
+  );
+
+  for (const candidate of assisted.candidates) {
+    const signature = buildCandidateMergeKey(candidate);
+    const existingIndex = signatureToIndex.get(signature);
+    if (existingIndex !== undefined) {
+      const existing = candidates[existingIndex]!;
+      candidates[existingIndex] = {
+        ...existing,
+        extractionSources: mergeExtractionSources(
+          existing.extractionSources,
+          candidate.extractionSources,
+        ),
+      };
+      continue;
+    }
+
+    const uniqueCandidate = ensureUniqueCandidateId(candidate, usedIds);
+    usedIds.add(uniqueCandidate.id);
+    signatureToIndex.set(signature, candidates.length);
+    candidates.push(uniqueCandidate);
+  }
+
+  return {
+    candidates,
+    ignoredMessageCount: Math.max(
+      baseline.ignoredMessageCount,
+      assisted.ignoredMessageCount,
+    ),
+  };
+}
+
+function buildRememberEventTrace(
+  candidate: Pick<MemoryCandidate, "explicitness" | "extractionSources">,
+): Pick<RememberEvent, "sourceMethod" | "extractionSources"> {
+  return {
+    sourceMethod: candidate.explicitness,
+    extractionSources: mergeExtractionSources(candidate.extractionSources),
+  };
 }
 
 function scoreCandidate(candidate: MemoryCandidate): number {
@@ -401,6 +509,207 @@ function buildFact(
   });
 }
 
+function resolveFactCategory(
+  existing: FactMemory["category"],
+  candidate: ClassifiedCandidate,
+): FactMemory["category"] {
+  const next = candidate.metadata?.category;
+  if (!next || next === existing) {
+    return existing;
+  }
+
+  if (existing === "project") {
+    return next;
+  }
+
+  return existing;
+}
+
+function resolveFactKind(
+  existing: FactMemory["factKind"],
+  candidate: ClassifiedCandidate,
+): FactMemory["factKind"] {
+  const next = candidate.metadata?.factKind;
+  if (!next || next === existing) {
+    return existing;
+  }
+
+  if (!existing || existing === "generic_project") {
+    return next;
+  }
+
+  return existing;
+}
+
+function resolveFactScopeKind(
+  existing: FactMemory["scopeKind"],
+  candidate: ClassifiedCandidate,
+): FactMemory["scopeKind"] {
+  return existing ?? candidate.metadata?.scopeKind;
+}
+
+function resolveFactSubject(
+  existing: FactMemory["subject"],
+  candidate: ClassifiedCandidate,
+): FactMemory["subject"] {
+  const next = candidate.metadata?.subject?.trim();
+  if (!next || next === "unknown" || next === existing) {
+    return existing;
+  }
+
+  if (!existing || existing === "unknown") {
+    return next;
+  }
+
+  return existing;
+}
+
+function sourceMethodStrength(method: MemorySourceMethod): number {
+  if (method === "explicit" || method === "confirmed") {
+    return 2;
+  }
+  if (method === "import") {
+    return 1;
+  }
+
+  return 0;
+}
+
+function strengthenSourceMethod(
+  source: FactMemory["source"] | ReferenceMemory["source"],
+  candidate: ClassifiedCandidate,
+  timestamp: string,
+  locale: string,
+): FactMemory["source"] | ReferenceMemory["source"] {
+  if (sourceMethodStrength(candidate.explicitness) <= sourceMethodStrength(source.method)) {
+    return source;
+  }
+
+  return createMemorySource({
+    ...source,
+    method: candidate.explicitness,
+    extractedAt: timestamp,
+    locale,
+  });
+}
+
+function enrichDuplicateFact(
+  fact: FactMemory,
+  candidate: ClassifiedCandidate,
+  timestamp: string,
+  locale: string,
+): FactMemory | null {
+  const category = resolveFactCategory(fact.category, candidate);
+  const factKind = resolveFactKind(fact.factKind, candidate);
+  const scopeKind = resolveFactScopeKind(fact.scopeKind, candidate);
+  const subject = resolveFactSubject(fact.subject, candidate);
+  const source = strengthenSourceMethod(
+    fact.source,
+    candidate,
+    timestamp,
+    locale,
+  ) as FactMemory["source"];
+
+  if (
+    category === fact.category &&
+    factKind === fact.factKind &&
+    scopeKind === fact.scopeKind &&
+    subject === fact.subject &&
+    source.method === fact.source.method
+  ) {
+    return null;
+  }
+
+  return createFactMemory({
+    ...fact,
+    category,
+    factKind,
+    scopeKind,
+    subject,
+    source,
+    updatedAt: timestamp,
+  });
+}
+
+function referenceKindStrength(kind: ReferenceMemory["referenceKind"]): number {
+  if (kind === "source_of_truth") {
+    return 3;
+  }
+  if (kind === "runbook" || kind === "dashboard" || kind === "tracker") {
+    return 2;
+  }
+  if (kind === "doc") {
+    return 1;
+  }
+
+  return 0;
+}
+
+function resolveDuplicateReferenceKind(
+  existing: ReferenceMemory["referenceKind"],
+  candidate: ClassifiedCandidate,
+): ReferenceMemory["referenceKind"] {
+  const next = candidate.metadata?.referenceKind;
+  if (!next || next === existing) {
+    return existing;
+  }
+
+  return referenceKindStrength(next) > referenceKindStrength(existing)
+    ? next
+    : existing;
+}
+
+function resolveDuplicateReferenceSubject(
+  existing: ReferenceMemory["subject"],
+  candidate: ClassifiedCandidate,
+): ReferenceMemory["subject"] {
+  const next = candidate.metadata?.subject?.trim();
+  if (!next || next === "unknown" || next === existing) {
+    return existing;
+  }
+
+  if (!existing || existing === "unknown") {
+    return next;
+  }
+
+  return existing;
+}
+
+function enrichDuplicateReference(
+  reference: ReferenceMemory,
+  candidate: ClassifiedCandidate,
+  timestamp: string,
+  locale: string,
+): ReferenceMemory | null {
+  const referenceKind = resolveDuplicateReferenceKind(
+    reference.referenceKind,
+    candidate,
+  );
+  const subject = resolveDuplicateReferenceSubject(reference.subject, candidate);
+  const source = strengthenSourceMethod(
+    reference.source,
+    candidate,
+    timestamp,
+    locale,
+  ) as ReferenceMemory["source"];
+
+  if (
+    referenceKind === reference.referenceKind &&
+    subject === reference.subject &&
+    source.method === reference.source.method
+  ) {
+    return null;
+  }
+
+  return createReferenceMemory({
+    ...reference,
+    referenceKind,
+    subject,
+    source,
+    updatedAt: timestamp,
+  });
+}
+
 function buildFeedback(
   scope: ScopedIdentity,
   candidate: ClassifiedCandidate,
@@ -572,14 +881,54 @@ export function createRememberEngine(config: RememberEngineConfig) {
     createDeterministicMemoryExtractor({
       service: language,
     });
+  const assistedExtractor = config.assistedExtractor;
   const now = config.now ?? (() => new Date().toISOString());
   const createId = config.createId ?? (() => crypto.randomUUID());
+
+  const resolveExtraction = async (input: MemoryExtractionInput) => {
+    const requestedExtractionStrategy =
+      input.extractionStrategy ?? "rules-only";
+    const baselineExtraction = annotateExtractionResult(
+      await extractor.extract(input),
+      "rules-only",
+    );
+
+    if (requestedExtractionStrategy !== "llm-assisted" || !assistedExtractor) {
+      return {
+        extraction: baselineExtraction,
+        requestedExtractionStrategy,
+        resolvedExtractionStrategy: "rules-only" as const,
+      };
+    }
+
+    let assistedExtraction: MemoryExtractionResult;
+
+    try {
+      assistedExtraction = annotateExtractionResult(
+        await assistedExtractor.extract(input),
+        "llm-assisted",
+      );
+    } catch {
+      return {
+        extraction: baselineExtraction,
+        requestedExtractionStrategy,
+        resolvedExtractionStrategy: "rules-only" as const,
+      };
+    }
+
+    return {
+      extraction: mergeExtractionResults(baselineExtraction, assistedExtraction),
+      requestedExtractionStrategy,
+      resolvedExtractionStrategy: "llm-assisted" as const,
+    };
+  };
 
   return {
     classifyCandidate,
 
     async extract(input: MemoryExtractionInput) {
-      return extractor.extract(input);
+      const { extraction } = await resolveExtraction(input);
+      return extraction;
     },
 
     async remember(input: MemoryExtractionInput): Promise<RememberResult> {
@@ -587,7 +936,11 @@ export function createRememberEngine(config: RememberEngineConfig) {
         locale: input.locale,
         messages: input.messages,
       });
-      const extraction = await extractor.extract(input);
+      const {
+        extraction,
+        requestedExtractionStrategy,
+        resolvedExtractionStrategy,
+      } = await resolveExtraction(input);
       const events: RememberEvent[] = [];
       const rollbackActions: RollbackAction[] = [];
       const pendingEmbeddingWrites: MemoryEmbeddingWrite[] = [];
@@ -730,7 +1083,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             outcome: "rejected",
             memoryType: toRememberEventMemoryType(classified.memoryType),
             reason: classified.reason ?? "policy_rejected",
-            sourceMethod: candidate.explicitness,
+            ...buildRememberEventTrace(classified),
           });
           continue;
         }
@@ -743,6 +1096,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             ...effectiveCandidate,
             kindHint: redacted.kindHint,
             content: redacted.content,
+            extractionSources: effectiveCandidate.extractionSources,
             metadata: redacted.metadata,
             explicitness: redacted.explicitness,
           };
@@ -758,7 +1112,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
                 effectiveCandidate.reason === "invalid_payload"
                   ? "invalid_after_redaction"
                   : effectiveCandidate.reason ?? "policy_redacted_invalid",
-              sourceMethod: effectiveCandidate.explicitness,
+              ...buildRememberEventTrace(effectiveCandidate),
             });
             continue;
           }
@@ -774,7 +1128,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             outcome: "rejected",
             memoryType: toRememberEventMemoryType(effectiveCandidate.memoryType),
             reason: "policy_blocked",
-            sourceMethod: effectiveCandidate.explicitness,
+            ...buildRememberEventTrace(effectiveCandidate),
           });
           continue;
         }
@@ -797,7 +1151,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "profile",
             memoryId: profile.userId,
             reason: getProfileWriteReason(effectiveCandidate),
-            sourceMethod: effectiveCandidate.explicitness,
+            ...buildRememberEventTrace(effectiveCandidate),
           });
           continue;
         }
@@ -825,7 +1179,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               memoryType: "preference",
               memoryId: duplicate.id,
               reason: "duplicate_preference",
-              sourceMethod: effectiveCandidate.explicitness,
+              ...buildRememberEventTrace(effectiveCandidate),
             });
             continue;
           }
@@ -860,7 +1214,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               memoryType: "preference",
               memoryId: updatedPreference.id,
               reason: "superseded_preference",
-              sourceMethod: effectiveCandidate.explicitness,
+              ...buildRememberEventTrace(effectiveCandidate),
             });
             continue;
           }
@@ -880,7 +1234,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "preference",
             memoryId: preference.id,
             reason: "explicit_preference",
-            sourceMethod: effectiveCandidate.explicitness,
+            ...buildRememberEventTrace(effectiveCandidate),
           });
           continue;
         }
@@ -911,6 +1265,19 @@ export function createRememberEngine(config: RememberEngineConfig) {
           );
 
           if (duplicate) {
+            const enrichedDuplicate = enrichDuplicateReference(
+              duplicate,
+              referenceCandidate,
+              timestamp,
+              resolvedLanguage.locale,
+            );
+            if (enrichedDuplicate) {
+              await setDocumentWithRollback(
+                "references",
+                duplicate.id,
+                enrichedDuplicate,
+              );
+            }
             const evidenceId = createId();
             await setDocumentWithRollback(
               "evidence",
@@ -925,21 +1292,6 @@ export function createRememberEngine(config: RememberEngineConfig) {
                 input.messages[referenceCandidate.sourceMessageIndex]?.content,
               ),
             );
-            if (
-              duplicate.subject === "unknown" &&
-              referenceCandidate.metadata?.subject &&
-              referenceCandidate.metadata.subject !== "unknown"
-            ) {
-              await setDocumentWithRollback(
-                "references",
-                duplicate.id,
-                createReferenceMemory({
-                  ...duplicate,
-                  subject: referenceCandidate.metadata.subject,
-                  updatedAt: timestamp,
-                }),
-              );
-            }
             accepted += 1;
             events.push({
               candidateId: candidate.id,
@@ -947,7 +1299,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               memoryType: "reference",
               memoryId: duplicate.id,
               reason: "duplicate_reference",
-              sourceMethod: effectiveCandidate.explicitness,
+              ...buildRememberEventTrace(effectiveCandidate),
               evidenceIds: [evidenceId],
             });
             continue;
@@ -973,7 +1325,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
                 memoryType: "reference",
                 memoryId: superseded.id,
                 reason: resolution.reason ?? "policy_keep_existing",
-                sourceMethod: effectiveCandidate.explicitness,
+                ...buildRememberEventTrace(effectiveCandidate),
               });
               continue;
             }
@@ -1038,7 +1390,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "reference",
             memoryId: reference.id,
             reason: superseded ? "superseded_reference" : "explicit_reference",
-            sourceMethod: effectiveCandidate.explicitness,
+            ...buildRememberEventTrace(effectiveCandidate),
             evidenceIds: [evidenceId],
           });
           continue;
@@ -1057,6 +1409,15 @@ export function createRememberEngine(config: RememberEngineConfig) {
           );
 
           if (duplicate) {
+            const enrichedDuplicate = enrichDuplicateFact(
+              duplicate,
+              effectiveCandidate,
+              timestamp,
+              resolvedLanguage.locale,
+            );
+            if (enrichedDuplicate) {
+              await setDocumentWithRollback("facts", duplicate.id, enrichedDuplicate);
+            }
             const evidenceId = createId();
             await setDocumentWithRollback(
               "evidence",
@@ -1078,7 +1439,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
               memoryType: "fact",
               memoryId: duplicate.id,
               reason: "duplicate_fact",
-              sourceMethod: effectiveCandidate.explicitness,
+              ...buildRememberEventTrace(effectiveCandidate),
               evidenceIds: [evidenceId],
             });
             continue;
@@ -1111,7 +1472,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
                 memoryType: "fact",
                 memoryId: superseded.id,
                 reason: resolution.reason ?? "policy_keep_existing",
-                sourceMethod: effectiveCandidate.explicitness,
+                ...buildRememberEventTrace(effectiveCandidate),
               });
               continue;
             }
@@ -1179,7 +1540,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "fact",
             memoryId: fact.id,
             reason: superseded ? "superseded_inferred_fact" : "explicit_fact",
-            sourceMethod: effectiveCandidate.explicitness,
+            ...buildRememberEventTrace(effectiveCandidate),
             evidenceIds: [evidenceId],
           });
           continue;
@@ -1205,7 +1566,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             memoryType: "feedback",
             memoryId: duplicate.id,
             reason: "duplicate_feedback",
-            sourceMethod: effectiveCandidate.explicitness,
+            ...buildRememberEventTrace(effectiveCandidate),
           });
           continue;
         }
@@ -1225,16 +1586,16 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
           if (resolution.action === "keep_existing") {
             rejected += 1;
-            events.push({
-              candidateId: candidate.id,
-              outcome: "rejected",
-              memoryType: "feedback",
-              memoryId: superseded.id,
-              reason: resolution.reason ?? "policy_keep_existing",
-              sourceMethod: effectiveCandidate.explicitness,
-            });
-            continue;
-          }
+              events.push({
+                candidateId: candidate.id,
+                outcome: "rejected",
+                memoryType: "feedback",
+                memoryId: superseded.id,
+                reason: resolution.reason ?? "policy_keep_existing",
+                ...buildRememberEventTrace(effectiveCandidate),
+              });
+              continue;
+            }
         }
         const feedback = buildFeedback(
           input.scope,
@@ -1265,8 +1626,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
           memoryType: "feedback",
           memoryId: feedback.id,
           reason: superseded ? "superseded_feedback" : "explicit_feedback",
-            sourceMethod: effectiveCandidate.explicitness,
-          });
+          ...buildRememberEventTrace(effectiveCandidate),
+        });
       }
 
       const episode = maybeBuildEpisode(
@@ -1291,6 +1652,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
           memoryId: episode.id,
           reason: "conversation_episode",
           sourceMethod: "explicit",
+          extractionSources: ["rules-only"],
         });
       }
 
@@ -1345,6 +1707,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
             localeSource: resolvedLanguage.localeSource,
             adapterId: resolvedLanguage.adapterId,
             analysisMode: resolvedLanguage.analysisMode,
+            requestedExtractionStrategy,
+            resolvedExtractionStrategy,
           },
         };
       } catch (error) {
