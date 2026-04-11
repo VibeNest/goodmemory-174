@@ -11,7 +11,9 @@ import {
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
+  createInMemoryVectorStore,
 } from "../../src/storage/memory";
+import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 import { createArtifactSpilloverService } from "../../src/runtime/spillover";
 
 describe("public governance API", () => {
@@ -553,5 +555,71 @@ describe("public governance API", () => {
     expect(tenantScopedExport.durable.profile).toBeNull();
     expect(deleteResult.deleted.profiles).toBe(0);
     expect(globalExport.durable.profile?.identity.name).toBe("Lin");
+  });
+
+  it("deletes scoped vector embeddings while preserving other scopes during deleteAllMemory", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const embeddingAdapter = createFakeEmbeddingAdapter();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+        vectorStore,
+        embeddingAdapter,
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-delete-vectors", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [{ role: "user", content: "Remember that workspace A rollout is blocked." }],
+    });
+    await memory.remember({
+      scope: { userId: "u-delete-vectors", workspaceId: "workspace-b", sessionId: "s-2" },
+      messages: [{ role: "user", content: "Remember that workspace B rollout is healthy." }],
+    });
+
+    const factA = await documentStore.query<{ content: string }>("facts", {
+      userId: "u-delete-vectors",
+      workspaceId: "workspace-a",
+    });
+    const factB = await documentStore.query<{ content: string }>("facts", {
+      userId: "u-delete-vectors",
+      workspaceId: "workspace-b",
+    });
+    const [embeddingA] = await embeddingAdapter.embed([String(factA[0]?.content)]);
+    const [embeddingB] = await embeddingAdapter.embed([String(factB[0]?.content)]);
+
+    expect(
+      await vectorStore.search("facts", embeddingA, {
+        topK: 1,
+        filter: { userId: "u-delete-vectors", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await vectorStore.search("facts", embeddingB, {
+        topK: 1,
+        filter: { userId: "u-delete-vectors", workspaceId: "workspace-b" },
+      }),
+    ).toHaveLength(1);
+
+    await memory.deleteAllMemory({
+      scope: { userId: "u-delete-vectors", workspaceId: "workspace-a" },
+    });
+
+    expect(
+      await vectorStore.search("facts", embeddingA, {
+        topK: 1,
+        filter: { userId: "u-delete-vectors", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(0);
+    expect(
+      await vectorStore.search("facts", embeddingB, {
+        topK: 1,
+        filter: { userId: "u-delete-vectors", workspaceId: "workspace-b" },
+      }),
+    ).toHaveLength(1);
   });
 });

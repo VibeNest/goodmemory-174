@@ -203,6 +203,142 @@ describe("memory repositories", () => {
     ).toHaveLength(1);
   });
 
+  it("stores and searches fact, reference, and episode embeddings through typed vector hooks", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+      vectorStore: createInMemoryVectorStore(),
+    });
+
+    await repositories.vectorIndex?.upsertFactEmbedding([
+      {
+        id: "fact-1",
+        embedding: [1, 0, 0],
+        metadata: {
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          memoryType: "fact",
+        },
+        content: "runtime rollout blocked on vendor approval",
+      },
+    ]);
+    await repositories.vectorIndex?.upsertReferenceEmbedding([
+      {
+        id: "ref-1",
+        embedding: [0, 1, 0],
+        metadata: {
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          memoryType: "reference",
+        },
+        content: "Runbook\ndocs/runtime-runbook.md",
+      },
+    ]);
+    await repositories.vectorIndex?.upsertEpisodeEmbedding([
+      {
+        id: "ep-1",
+        embedding: [0, 0, 1],
+        metadata: {
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          memoryType: "episode",
+        },
+        content: "Runtime migration continuity",
+      },
+    ]);
+
+    expect(
+      await repositories.vectorIndex?.searchFactEmbedding([1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.vectorIndex?.searchReferenceEmbedding([0, 1, 0], {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.vectorIndex?.searchEpisodeEmbedding([0, 0, 1], {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.vectorIndex?.searchFactEmbedding([1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-b" },
+      }),
+    ).toHaveLength(0);
+    expect(await repositories.vectorIndex?.getFactEmbedding("fact-1")).toEqual({
+      id: "fact-1",
+      embedding: [1, 0, 0],
+      metadata: {
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        memoryType: "fact",
+      },
+      content: "runtime rollout blocked on vendor approval",
+    });
+  });
+
+  it("deletes fact, reference, and episode embeddings through typed vector hooks", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+      vectorStore: createInMemoryVectorStore(),
+    });
+
+    await repositories.vectorIndex?.upsertFactEmbedding([
+      {
+        id: "fact-1",
+        embedding: [1, 0, 0],
+        metadata: { userId: "u-1", workspaceId: "workspace-a", memoryType: "fact" },
+        content: "runtime rollout blocked",
+      },
+    ]);
+    await repositories.vectorIndex?.upsertReferenceEmbedding([
+      {
+        id: "ref-1",
+        embedding: [0, 1, 0],
+        metadata: { userId: "u-1", workspaceId: "workspace-a", memoryType: "reference" },
+        content: "Runbook\ndocs/runtime-runbook.md",
+      },
+    ]);
+    await repositories.vectorIndex?.upsertEpisodeEmbedding([
+      {
+        id: "ep-1",
+        embedding: [0, 0, 1],
+        metadata: { userId: "u-1", workspaceId: "workspace-a", memoryType: "episode" },
+        content: "Runtime migration continuity",
+      },
+    ]);
+
+    await repositories.vectorIndex?.deleteFactEmbedding("fact-1");
+    await repositories.vectorIndex?.deleteReferenceEmbedding("ref-1");
+    await repositories.vectorIndex?.deleteEpisodeEmbedding("ep-1");
+
+    expect(
+      await repositories.vectorIndex?.searchFactEmbedding([1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(0);
+    expect(
+      await repositories.vectorIndex?.searchReferenceEmbedding([0, 1, 0], {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(0);
+    expect(
+      await repositories.vectorIndex?.searchEpisodeEmbedding([0, 0, 1], {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(0);
+  });
+
   it("persists archives and evidence through typed accessors", async () => {
     const repositories = createMemoryRepositories({
       documentStore: createInMemoryDocumentStore(),

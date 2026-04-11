@@ -94,6 +94,43 @@ describe("eval runners", () => {
     expect(result.transcript).not.toContain("I can do that once I have the full remembered context.");
   });
 
+  it("records render-time context tokens separately from packet tokens in eval traces", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-13.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(
+        import.meta.dir,
+        "../../fixtures/scenarios/eval/scenario-medium-13-reference-next-step.json",
+      ),
+    );
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: createInMemoryDocumentStore(),
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    const contextBuild = result.trace.contextBuild as Record<string, unknown> | null;
+
+    expect(contextBuild).not.toBeNull();
+    expect(contextBuild?.contextEstimatedTokens).toBe(
+      Math.ceil((result.memoryContext?.length ?? 0) / 4),
+    );
+    expect(contextBuild?.packetTokenCountBeforeRender).toBeGreaterThan(0);
+    expect(contextBuild?.recallTokenCount).toBeUndefined();
+  });
+
   it("can force ignore-memory during eval replay and still produce a valid answer package", async () => {
     const persona = await loadPersonaSpec(
       join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),

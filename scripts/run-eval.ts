@@ -648,9 +648,12 @@ export async function runFallbackEval(
 export function buildLiveGoodMemorySystemPrompt(): string {
   return [
     "Answer using the provided memory context when it is relevant.",
-    "Prefer explicit confirmation of role, corrected references, and open loops.",
+    "Prefer explicit confirmation of role, corrected references, and immediate next-step blockers.",
     "When you rely on remembered context, make provenance explicit with phrases like 'From remembered context' or 'Based on prior sessions'.",
-    "Restate open loops and unresolved items as closely as the memory records them; do not generalize them into a broader plan.",
+    "When the user asks what to do next, treat blockers or explicit next-action facts as the immediate next step.",
+    "Treat open loops as deferred follow-up context unless the user explicitly asks for open loops.",
+    "If remembered context only proves that an open loop remains, say that no more concrete immediate next step is recorded.",
+    "Restate open loops and unresolved items as closely as the memory records them when they are directly asked for or when they clarify deferred follow-up context.",
     "Distinguish professional identity from project responsibility: when the user asks for their role, use the Profile role as the primary answer.",
     "When the prompt asks only for role, answer only with the Profile role unless the prompt also asks for current focus, project context, or ownership.",
     "If memory contains an explicit current-role update such as 'my current role is ...', treat that as the most current role statement and restate it directly before decomposing it.",

@@ -519,6 +519,37 @@ export function createPostgresVectorStore(
       });
     },
 
+    async get(collection, id) {
+      await runtime.ensureVectorStore();
+
+      const rows = await runtime.sql.unsafe<VectorRow[]>(
+        `
+          SELECT
+            id,
+            array_to_json(embedding)::text AS embedding_json,
+            metadata::text AS metadata_json,
+            content,
+            0 AS score
+          FROM ${runtime.vectorTable}
+          WHERE collection = $1 AND id = $2
+          LIMIT 1
+        `,
+        [collection, id],
+      );
+      const row = rows[0];
+
+      if (!row) {
+        return null;
+      }
+
+      return {
+        id: row.id,
+        embedding: parseJson<number[]>(row.embedding_json),
+        metadata: parseJson<Record<string, unknown>>(row.metadata_json),
+        content: row.content,
+      };
+    },
+
     async search(collection, queryEmbedding, input) {
       await runtime.ensureVectorStore();
 

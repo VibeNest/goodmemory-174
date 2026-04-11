@@ -3,6 +3,7 @@ import {
   buildMemoryPacket,
   renderMemoryPacket,
 } from "../../src/recall/contextBuilder";
+import { planRecall } from "../../src/recall/router";
 
 describe("context builder output modes", () => {
   it("renders different non-json output modes differently", () => {
@@ -188,5 +189,144 @@ describe("context builder output modes", () => {
 
     expect(markdown.content).toContain("## Working Memory");
     expect(markdown.content).not.toContain("## Evidence");
+  });
+
+  it("frames blocker facts as immediate next-step support and open loops as deferred context", () => {
+    const packet = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [
+        {
+          id: "fact-blocker",
+          userId: "u-1",
+          category: "project",
+          content: "The current blocker is vendor approval for release quality.",
+          confidence: 1,
+          importance: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          factKind: "blocker",
+          scopeKind: "project",
+          accessCount: 0,
+          lifecycle: "active",
+          isActive: true,
+          supersededBy: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "fact-open-loop",
+          userId: "u-1",
+          category: "project",
+          content: "The open loop is final verification for release quality.",
+          confidence: 1,
+          importance: 1,
+          source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+          factKind: "open_loop",
+          scopeKind: "project",
+          accessCount: 0,
+          lifecycle: "active",
+          isActive: true,
+          supersededBy: null,
+          createdAt: "2026-01-02T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        },
+      ],
+      feedback: [],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+      routingDecision: planRecall({
+        retrievalProfile: "general_chat",
+        query:
+          "Which runbook is the source of truth, and what should I do next for release quality?",
+        runtime: {
+          hasWorkingMemory: false,
+          hasJournal: false,
+        },
+      }),
+    });
+
+    const markdown = renderMemoryPacket(packet, "markdown");
+
+    expect(markdown.content).toContain("Immediate next-step support:");
+    expect(markdown.content).toContain(
+      "The current blocker is vendor approval for release quality.",
+    );
+    expect(markdown.content).toContain("Deferred follow-up context:");
+    expect(markdown.content).toContain(
+      "The open loop is final verification for release quality.",
+    );
+    expect(markdown.content.indexOf("Immediate next-step support:")).toBeLessThan(
+      markdown.content.indexOf("Deferred follow-up context:"),
+    );
+  });
+
+  it("localizes next-step support labels for Chinese memory context", () => {
+    const packet = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [
+        {
+          id: "fact-blocker-zh",
+          userId: "u-zh",
+          category: "project",
+          content: "当前阻塞是供应商审批。",
+          confidence: 1,
+          importance: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          factKind: "blocker",
+          scopeKind: "project",
+          accessCount: 0,
+          lifecycle: "active",
+          isActive: true,
+          supersededBy: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "fact-open-loop-zh",
+          userId: "u-zh",
+          category: "project",
+          content: "待后续跟进的是最终签收。",
+          confidence: 1,
+          importance: 1,
+          source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+          factKind: "open_loop",
+          scopeKind: "project",
+          accessCount: 0,
+          lifecycle: "active",
+          isActive: true,
+          supersededBy: null,
+          createdAt: "2026-01-02T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        },
+      ],
+      feedback: [],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+      locale: "zh-CN",
+      routingDecision: planRecall({
+        retrievalProfile: "general_chat",
+        query: "当前以哪个 runbook 为准，下一步该做什么？",
+        locale: "zh-CN",
+        runtime: {
+          hasWorkingMemory: false,
+          hasJournal: false,
+        },
+      }),
+    });
+
+    const markdown = renderMemoryPacket(packet, "markdown");
+
+    expect(markdown.content).toContain("当前可立即推进的下一步:");
+    expect(markdown.content).toContain("后续待跟进事项:");
+    expect(markdown.content).not.toContain("Immediate next-step support:");
   });
 });

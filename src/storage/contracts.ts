@@ -48,6 +48,7 @@ export interface VectorSearchResult extends VectorRecord {
 
 export interface VectorStore {
   upsert(collection: string, records: VectorRecord[]): Promise<void>;
+  get(collection: string, id: string): Promise<VectorRecord | null>;
   search(
     collection: string,
     queryEmbedding: number[],

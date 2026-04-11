@@ -196,6 +196,11 @@ export function createInMemoryVectorStore(): VectorStore {
       }
     },
 
+    async get(collection, id) {
+      const record = getCollection(collection).get(id);
+      return record ? clone(record) : null;
+    },
+
     async search(collection, queryEmbedding, input) {
       const vectors = [...getCollection(collection).values()]
         .filter((record) => matchesFilter(record.metadata, input.filter))

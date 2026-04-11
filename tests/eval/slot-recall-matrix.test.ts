@@ -78,7 +78,7 @@ describe("eval slot recall matrix", () => {
     expect(result.retrieved?.candidateTraces.length).toBeGreaterThan(0);
   });
 
-  it("allows narrow project-state support for reference plus next-step fixtures", async () => {
+  it("frames reference plus next-step fixture support as immediate versus deferred state", async () => {
     const result = await runFixtureScenario(
       "medium-13",
       "scenario-medium-13-reference-next-step",
@@ -91,14 +91,21 @@ describe("eval slot recall matrix", () => {
       "the current blocker is vendor approval for workflow reliability dashboard.",
     );
     expect(
-      result.retrieved?.facts.some((fact) =>
-        fact.content ===
-        "the open loop is final signoff for workflow reliability dashboard.",
-      ),
-    ).toBe(true);
-    expect(
       result.retrieved?.facts.some((fact) => fact.content.includes("data scientist")),
     ).toBe(false);
+    const memoryContext = result.memoryContext ?? "";
+
+    expect(memoryContext).toContain("Immediate next-step support:");
+    expect(memoryContext).toContain(
+      "the current blocker is vendor approval for workflow reliability dashboard.",
+    );
+    expect(memoryContext).toContain("Deferred follow-up context:");
+    expect(memoryContext).toContain(
+      "the open loop is final signoff for workflow reliability dashboard.",
+    );
+    expect(memoryContext.indexOf("Immediate next-step support:")).toBeLessThan(
+      memoryContext.indexOf("Deferred follow-up context:"),
+    );
     expect(result.retrieved?.episodes).toHaveLength(0);
     expect(result.retrieved?.candidateTraces.length).toBeGreaterThan(0);
   });

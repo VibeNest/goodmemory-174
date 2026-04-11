@@ -14,6 +14,15 @@ import type {
   ReferenceMemory,
   UserProfile,
 } from "../domain/records";
+import type { EmbeddingAdapter } from "../embedding/contracts";
+import {
+  buildEpisodeEmbeddingWrite,
+  buildFactEmbeddingWrite,
+  buildReferenceEmbeddingWrite,
+  type MemoryEmbeddingWrite,
+  prepareMemoryEmbeddingWrites,
+  type PreparedMemoryEmbeddingRecord,
+} from "../embedding/vectorWrites";
 import { createMemorySource } from "../domain/provenance";
 import {
   createEvidenceRecord,
@@ -85,6 +94,7 @@ export interface RememberResult {
 export interface RememberEngineConfig {
   repositories: MemoryRepositories;
   documentStore: DocumentStore;
+  embedding?: EmbeddingAdapter;
   extractor?: MemoryExtractor;
   now?: () => string;
   createId?: () => string;
@@ -98,11 +108,28 @@ export interface RememberEngineConfig {
 
 const SCORE_THRESHOLD = 0.7;
 const EVIDENCE_MAX_EXCERPT_CHARS = 280;
+type RollbackAction = () => Promise<void>;
 
 function toRememberEventMemoryType(
   memoryType: ClassifiedCandidate["memoryType"],
 ): RememberEvent["memoryType"] {
   return memoryType === "reject" ? "fact" : memoryType;
+}
+
+async function rollbackRememberWrites(
+  actions: RollbackAction[],
+): Promise<unknown[]> {
+  const errors: unknown[] = [];
+
+  for (const action of [...actions].reverse()) {
+    try {
+      await action();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  return errors;
 }
 
 function scoreCandidate(candidate: MemoryCandidate): number {
@@ -562,6 +589,13 @@ export function createRememberEngine(config: RememberEngineConfig) {
       });
       const extraction = await extractor.extract(input);
       const events: RememberEvent[] = [];
+      const rollbackActions: RollbackAction[] = [];
+      const pendingEmbeddingWrites: MemoryEmbeddingWrite[] = [];
+      const pendingVectorDeletes: Array<{
+        id: string;
+        memoryType: MemoryEmbeddingWrite["memoryType"];
+        restoreRecord: PreparedMemoryEmbeddingRecord | null;
+      }> = [];
       let accepted = 0;
       let rejected = 0;
       const policyContext: PolicyContext = {
@@ -570,8 +604,120 @@ export function createRememberEngine(config: RememberEngineConfig) {
         locale: resolvedLanguage.locale,
         localeSource: resolvedLanguage.localeSource,
       };
+      const vectorIndex = config.repositories.vectorIndex;
+      const canUpsertVectors = Boolean(config.embedding && vectorIndex);
+      const setDocumentWithRollback = async <TDocument extends object>(
+        collection: string,
+        id: string,
+        document: TDocument,
+      ): Promise<void> => {
+        const previous = await config.documentStore.get<object>(collection, id);
+        await config.documentStore.set(collection, id, document);
+        rollbackActions.push(async () => {
+          if (previous) {
+            await config.documentStore.set(collection, id, previous);
+            return;
+          }
 
-      for (const candidate of extraction.candidates) {
+          await config.documentStore.delete(collection, id);
+        });
+      };
+      const deleteDocumentWithRollback = async (
+        collection: string,
+        id: string,
+      ): Promise<void> => {
+        const previous = await config.documentStore.get<object>(collection, id);
+        if (!previous) {
+          return;
+        }
+
+        await config.documentStore.delete(collection, id);
+        rollbackActions.push(async () => {
+          await config.documentStore.set(collection, id, previous);
+        });
+      };
+      const deleteVectorEmbedding = async (
+        memoryType: PreparedMemoryEmbeddingRecord["memoryType"],
+        id: string,
+      ): Promise<void> => {
+        if (!vectorIndex) {
+          return;
+        }
+
+        if (memoryType === "fact") {
+          await vectorIndex.deleteFactEmbedding(id);
+          return;
+        }
+        if (memoryType === "reference") {
+          await vectorIndex.deleteReferenceEmbedding(id);
+          return;
+        }
+
+        await vectorIndex.deleteEpisodeEmbedding(id);
+      };
+      const upsertVectorRecords = async (
+        records: PreparedMemoryEmbeddingRecord[],
+      ): Promise<void> => {
+        if (!vectorIndex || records.length === 0) {
+          return;
+        }
+
+        const factRecords = records.filter((record) => record.memoryType === "fact");
+        if (factRecords.length > 0) {
+          await vectorIndex.upsertFactEmbedding(
+            factRecords.map((record) => ({
+              id: record.id,
+              embedding: record.embedding,
+              metadata: record.metadata,
+              content: record.content,
+            })),
+          );
+          rollbackActions.push(async () => {
+            for (const record of factRecords) {
+              await vectorIndex.deleteFactEmbedding(record.id);
+            }
+          });
+        }
+
+        const referenceRecords = records.filter(
+          (record) => record.memoryType === "reference",
+        );
+        if (referenceRecords.length > 0) {
+          await vectorIndex.upsertReferenceEmbedding(
+            referenceRecords.map((record) => ({
+              id: record.id,
+              embedding: record.embedding,
+              metadata: record.metadata,
+              content: record.content,
+            })),
+          );
+          rollbackActions.push(async () => {
+            for (const record of referenceRecords) {
+              await vectorIndex.deleteReferenceEmbedding(record.id);
+            }
+          });
+        }
+
+        const episodeRecords = records.filter((record) => record.memoryType === "episode");
+        if (episodeRecords.length > 0) {
+          await vectorIndex.upsertEpisodeEmbedding(
+            episodeRecords.map((record) => ({
+              id: record.id,
+              embedding: record.embedding,
+              metadata: record.metadata,
+              content: record.content,
+            })),
+          );
+          rollbackActions.push(async () => {
+            for (const record of episodeRecords) {
+              await vectorIndex.deleteEpisodeEmbedding(record.id);
+            }
+          });
+        }
+      };
+
+      try {
+        for (const candidate of extraction.candidates) {
         const classified = classifyCandidate(candidate);
 
         if (
@@ -643,7 +789,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             effectiveCandidate,
             timestamp,
           );
-          await config.repositories.profiles.upsert(profile);
+          await setDocumentWithRollback("profiles", profile.userId, profile);
           accepted += 1;
           events.push({
             candidateId: candidate.id,
@@ -698,9 +844,13 @@ export function createRememberEngine(config: RememberEngineConfig) {
               resolvedLanguage.locale,
             );
 
-            await config.repositories.preferences.upsert(updatedPreference);
+            await setDocumentWithRollback(
+              "preferences",
+              updatedPreference.id,
+              updatedPreference,
+            );
             for (const stale of conflictingPreferences.slice(1)) {
-              await config.documentStore.delete("preferences", stale.id);
+              await deleteDocumentWithRollback("preferences", stale.id);
             }
 
             accepted += 1;
@@ -722,7 +872,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             timestamp,
             resolvedLanguage.locale,
           );
-          await config.repositories.preferences.upsert(preference);
+          await setDocumentWithRollback("preferences", preference.id, preference);
           accepted += 1;
           events.push({
             candidateId: candidate.id,
@@ -762,7 +912,9 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
           if (duplicate) {
             const evidenceId = createId();
-            await config.repositories.evidence.add(
+            await setDocumentWithRollback(
+              "evidence",
+              evidenceId,
               buildCandidateEvidence(
                 input.scope,
                 referenceCandidate,
@@ -778,7 +930,9 @@ export function createRememberEngine(config: RememberEngineConfig) {
               referenceCandidate.metadata?.subject &&
               referenceCandidate.metadata.subject !== "unknown"
             ) {
-              await config.repositories.references.add(
+              await setDocumentWithRollback(
+                "references",
+                duplicate.id,
                 createReferenceMemory({
                   ...duplicate,
                   subject: referenceCandidate.metadata.subject,
@@ -831,20 +985,42 @@ export function createRememberEngine(config: RememberEngineConfig) {
             timestamp,
             resolvedLanguage.locale,
           );
+          const referenceEmbeddingWrite = buildReferenceEmbeddingWrite(reference);
+          const supersededReferenceVector =
+            superseded && vectorIndex
+              ? await vectorIndex.getReferenceEmbedding(superseded.id)
+              : null;
 
           if (superseded) {
-            await config.repositories.references.add(
+            await setDocumentWithRollback(
+              "references",
+              superseded.id,
               createReferenceMemory({
                 ...superseded,
                 lifecycle: "superseded",
                 updatedAt: timestamp,
               }),
             );
+            pendingVectorDeletes.push({
+              id: superseded.id,
+              memoryType: "reference",
+              restoreRecord: supersededReferenceVector
+                ? {
+                    ...supersededReferenceVector,
+                    memoryType: "reference",
+                  }
+                : null,
+            });
           }
 
-          await config.repositories.references.add(reference);
+          await setDocumentWithRollback("references", reference.id, reference);
+          if (canUpsertVectors) {
+            pendingEmbeddingWrites.push(referenceEmbeddingWrite);
+          }
           const evidenceId = createId();
-          await config.repositories.evidence.add(
+          await setDocumentWithRollback(
+            "evidence",
+            evidenceId,
             buildCandidateEvidence(
               input.scope,
               referenceCandidate,
@@ -882,7 +1058,9 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
           if (duplicate) {
             const evidenceId = createId();
-            await config.repositories.evidence.add(
+            await setDocumentWithRollback(
+              "evidence",
+              evidenceId,
               buildCandidateEvidence(
                 input.scope,
                 effectiveCandidate,
@@ -946,9 +1124,16 @@ export function createRememberEngine(config: RememberEngineConfig) {
             timestamp,
             resolvedLanguage.locale,
           );
+          const factEmbeddingWrite = buildFactEmbeddingWrite(fact);
+          const supersededFactVector =
+            superseded && vectorIndex
+              ? await vectorIndex.getFactEmbedding(superseded.id)
+              : null;
 
           if (superseded) {
-            await config.repositories.facts.add(
+            await setDocumentWithRollback(
+              "facts",
+              superseded.id,
               createFactMemory({
                 ...superseded,
                 lifecycle: "superseded",
@@ -957,11 +1142,26 @@ export function createRememberEngine(config: RememberEngineConfig) {
                 updatedAt: timestamp,
               }),
             );
+            pendingVectorDeletes.push({
+              id: superseded.id,
+              memoryType: "fact",
+              restoreRecord: supersededFactVector
+                ? {
+                    ...supersededFactVector,
+                    memoryType: "fact",
+                  }
+                : null,
+            });
           }
 
-          await config.repositories.facts.add(fact);
+          await setDocumentWithRollback("facts", fact.id, fact);
+          if (canUpsertVectors) {
+            pendingEmbeddingWrites.push(factEmbeddingWrite);
+          }
           const evidenceId = createId();
-          await config.repositories.evidence.add(
+          await setDocumentWithRollback(
+            "evidence",
+            evidenceId,
             buildCandidateEvidence(
               input.scope,
               effectiveCandidate,
@@ -1045,7 +1245,9 @@ export function createRememberEngine(config: RememberEngineConfig) {
         );
 
         if (superseded) {
-          await config.repositories.feedback.upsert(
+          await setDocumentWithRollback(
+            "feedback",
+            superseded.id,
             createFeedbackMemory({
               ...superseded,
               lifecycle: "superseded",
@@ -1055,7 +1257,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
           );
         }
 
-        await config.repositories.feedback.upsert(feedback);
+        await setDocumentWithRollback("feedback", feedback.id, feedback);
         accepted += 1;
         events.push({
           candidateId: candidate.id,
@@ -1076,7 +1278,11 @@ export function createRememberEngine(config: RememberEngineConfig) {
         resolvedLanguage.locale,
       );
       if (episode) {
-        await config.repositories.episodes.add(episode);
+        const episodeEmbeddingWrite = buildEpisodeEmbeddingWrite(episode);
+        await setDocumentWithRollback("episodes", episode.id, episode);
+        if (canUpsertVectors) {
+          pendingEmbeddingWrites.push(episodeEmbeddingWrite);
+        }
         accepted += 1;
         events.push({
           candidateId: `episode:${episode.id}`,
@@ -1090,17 +1296,68 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
       rejected += extraction.ignoredMessageCount;
 
-      return {
-        accepted,
-        rejected,
-        events,
-        metadata: {
-          locale: resolvedLanguage.locale,
-          localeSource: resolvedLanguage.localeSource,
-          adapterId: resolvedLanguage.adapterId,
-          analysisMode: resolvedLanguage.analysisMode,
-        },
-      };
+        if (canUpsertVectors) {
+          const preparedUpserts = await prepareMemoryEmbeddingWrites(
+            pendingEmbeddingWrites,
+            config.embedding!,
+          );
+
+          const factUpserts = preparedUpserts.filter(
+            (record) => record.memoryType === "fact",
+          );
+          await upsertVectorRecords(factUpserts);
+
+          const referenceUpserts = preparedUpserts.filter(
+            (record) => record.memoryType === "reference",
+          );
+          await upsertVectorRecords(referenceUpserts);
+
+          const episodeUpserts = preparedUpserts.filter(
+            (record) => record.memoryType === "episode",
+          );
+          await upsertVectorRecords(episodeUpserts);
+
+          for (const staleVector of pendingVectorDeletes) {
+            await deleteVectorEmbedding(staleVector.memoryType, staleVector.id);
+            rollbackActions.push(async () => {
+              if (staleVector.restoreRecord) {
+                await upsertVectorRecords([staleVector.restoreRecord]);
+              }
+            });
+          }
+        } else if (vectorIndex) {
+          for (const staleVector of pendingVectorDeletes) {
+            await deleteVectorEmbedding(staleVector.memoryType, staleVector.id);
+            rollbackActions.push(async () => {
+              if (staleVector.restoreRecord) {
+                await upsertVectorRecords([staleVector.restoreRecord]);
+              }
+            });
+          }
+        }
+
+        return {
+          accepted,
+          rejected,
+          events,
+          metadata: {
+            locale: resolvedLanguage.locale,
+            localeSource: resolvedLanguage.localeSource,
+            adapterId: resolvedLanguage.adapterId,
+            analysisMode: resolvedLanguage.analysisMode,
+          },
+        };
+      } catch (error) {
+        const rollbackErrors = await rollbackRememberWrites(rollbackActions);
+        if (rollbackErrors.length > 0) {
+          throw new AggregateError(
+            [error, ...rollbackErrors],
+            "Remember failed and rollback encountered errors.",
+          );
+        }
+
+        throw error;
+      }
     },
   };
 }

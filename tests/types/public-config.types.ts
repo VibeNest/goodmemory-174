@@ -19,9 +19,21 @@ const languageConfig: GoodMemoryConfig = {
   },
 };
 
+const embeddingAdapterConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  adapters: {
+    embeddingAdapter: {
+      async embed(texts) {
+        return texts.map(() => [1, 0, 0]);
+      },
+    },
+  },
+};
+
 void minimalConfig;
 void testingConfig;
 void languageConfig;
+void embeddingAdapterConfig;
 
 const invalidEmbeddingConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },

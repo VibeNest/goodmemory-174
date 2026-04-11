@@ -83,7 +83,8 @@ export interface EvalAnswerPackage {
           output: "json" | "markdown" | "system_prompt_fragment" | "developer_prompt_fragment";
           maxTokens: number;
           contentLength: number;
-          recallTokenCount: number;
+          contextEstimatedTokens: number;
+          packetTokenCountBeforeRender: number;
         };
   };
 }
@@ -300,6 +301,7 @@ function buildGoodMemoryTrace(
   context: {
     output: "json" | "markdown" | "system_prompt_fragment" | "developer_prompt_fragment";
     content: string;
+    estimatedTokens: number;
   },
 ): EvalAnswerPackage["trace"] {
   return {
@@ -312,7 +314,8 @@ function buildGoodMemoryTrace(
       output: context.output,
       maxTokens: 160,
       contentLength: context.content.length,
-      recallTokenCount: recall.metadata.tokenCount,
+      contextEstimatedTokens: context.estimatedTokens,
+      packetTokenCountBeforeRender: recall.metadata.tokenCount,
     },
   };
 }

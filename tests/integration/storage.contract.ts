@@ -140,8 +140,15 @@ export function runVectorStoreContract(
         });
 
         expect(result[0]?.id).toBe("e-1");
+        expect(await fixture.store.get("episodes", "e-1")).toEqual({
+          id: "e-1",
+          embedding: [1, 0, 0],
+          metadata: { userId: "u-1" },
+          content: "robot migration issue",
+        });
 
         await fixture.store.delete("episodes", "e-1");
+        expect(await fixture.store.get("episodes", "e-1")).toBeNull();
         const afterDelete = await fixture.store.search("episodes", [1, 0, 0], {
           topK: 2,
           filter: { userId: "u-1" },

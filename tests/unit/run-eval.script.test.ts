@@ -1126,6 +1126,12 @@ describe("run-eval script", () => {
         "If the prompt is specifically about an update or correction, briefly mark the previous version as no longer current",
       );
       expect(String(createTextCalls[1]?.system)).toContain(
+        "treat blockers or explicit next-action facts as the immediate next step",
+      );
+      expect(String(createTextCalls[1]?.system)).toContain(
+        "Treat open loops as deferred follow-up context unless the user explicitly asks for open loops",
+      );
+      expect(String(createTextCalls[1]?.system)).toContain(
         "Avoid surfacing stale references elsewhere",
       );
       expect(String(createTextCalls[1]?.system)).toContain(

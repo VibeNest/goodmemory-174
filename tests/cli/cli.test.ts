@@ -164,7 +164,8 @@ function buildAnswerPackage(
               output: "markdown",
               maxTokens: 160,
               contentLength: 22,
-              recallTokenCount: 12,
+              contextEstimatedTokens: 6,
+              packetTokenCountBeforeRender: 12,
             }
           : null,
     },

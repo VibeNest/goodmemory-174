@@ -16,6 +16,7 @@ import type {
   WorkingMemorySnapshot,
 } from "./domain/records";
 import type { EvidenceRecord } from "./evidence/contracts";
+import type { EmbeddingAdapter } from "./embedding/contracts";
 import type {
   ExperienceRecord,
   SessionArchive,
@@ -66,6 +67,7 @@ import {
 } from "./storage/postgres";
 import { createSQLiteDocumentStore, createSQLiteSessionStore } from "./storage/sqlite";
 import { createMemoryRepositories } from "./storage/repositories";
+import type { MemoryRepositories } from "./storage/repositories";
 import type {
   DocumentStore,
   SessionStore,
@@ -122,6 +124,7 @@ export {
   createEvidenceRecord,
   EVIDENCE_COLLECTION,
 } from "./evidence/contracts";
+export type { EmbeddingAdapter } from "./embedding/contracts";
 export type {
   ExperienceKind,
   ExperienceRecord,
@@ -251,6 +254,7 @@ export interface GoodMemoryConfig {
   language?: LanguageConfig;
   adapters?: {
     documentStore?: DocumentStore;
+    embeddingAdapter?: EmbeddingAdapter;
     sessionStore?: SessionStore;
     vectorStore?: VectorStore;
   };
@@ -304,6 +308,8 @@ export interface BuildContextInput {
 export interface BuildContextResult {
   output: "json" | "markdown" | "system_prompt_fragment" | "developer_prompt_fragment";
   content: string;
+  estimatedTokens: number;
+  omittedSections: string[];
 }
 
 export interface RememberInput {
@@ -477,6 +483,28 @@ function isPureUserScope(scope: MemoryScope): boolean {
   );
 }
 
+async function deleteVectorForCollection(
+  repositories: MemoryRepositories,
+  collection: string,
+  id: string,
+): Promise<void> {
+  if (!repositories.vectorIndex) {
+    return;
+  }
+
+  if (collection === "facts") {
+    await repositories.vectorIndex.deleteFactEmbedding(id);
+    return;
+  }
+  if (collection === "references") {
+    await repositories.vectorIndex.deleteReferenceEmbedding(id);
+    return;
+  }
+  if (collection === "episodes") {
+    await repositories.vectorIndex.deleteEpisodeEmbedding(id);
+  }
+}
+
 class GoodMemoryImpl implements GoodMemory {
   private readonly documentStore;
   private readonly sessionStore;
@@ -545,6 +573,7 @@ class GoodMemoryImpl implements GoodMemory {
     this.rememberEngine = createRememberEngine({
       repositories,
       documentStore,
+      embedding: config.adapters?.embeddingAdapter,
       extractor:
         config.testing?.extractor ?? createDeterministicMemoryExtractor({
           service: language,
@@ -564,7 +593,9 @@ class GoodMemoryImpl implements GoodMemory {
 
     return {
       output,
-      content: rendered.content
+      content: rendered.content,
+      estimatedTokens: rendered.estimatedTokens,
+      omittedSections: rendered.omittedSections,
     };
   }
 
@@ -583,6 +614,7 @@ class GoodMemoryImpl implements GoodMemory {
       const existing = await this.documentStore.get(collection, _input.memoryId);
 
       if (existing && recordMatchesScope(existing as ScopeBoundRecord, _input.scope)) {
+        await deleteVectorForCollection(this.repositories, collection, _input.memoryId);
         await this.documentStore.delete(collection, _input.memoryId);
         return {
           forgotten: true
@@ -726,10 +758,12 @@ class GoodMemoryImpl implements GoodMemory {
       deleted.preferences += 1;
     }
     for (const reference of references) {
+      await deleteVectorForCollection(this.repositories, "references", reference.id);
       await this.documentStore.delete("references", reference.id);
       deleted.references += 1;
     }
     for (const fact of facts) {
+      await deleteVectorForCollection(this.repositories, "facts", fact.id);
       await this.documentStore.delete("facts", fact.id);
       deleted.facts += 1;
     }
@@ -738,6 +772,7 @@ class GoodMemoryImpl implements GoodMemory {
       deleted.feedback += 1;
     }
     for (const episode of episodes) {
+      await deleteVectorForCollection(this.repositories, "episodes", episode.id);
       await this.documentStore.delete("episodes", episode.id);
       deleted.episodes += 1;
     }

@@ -23,6 +23,7 @@ import {
 import type {
   DocumentStore,
   SessionStore,
+  VectorRecord,
   VectorStore,
 } from "./contracts";
 
@@ -93,6 +94,50 @@ export interface MemoryRepositories {
     get(scope: MemoryScope): Promise<SessionJournal | null>;
   };
   vectorIndex: {
+    upsertFactEmbedding(
+      records: Array<{
+        id: string;
+        embedding: number[];
+        metadata: Record<string, unknown>;
+        content: string;
+      }>,
+    ): Promise<void>;
+    searchFactEmbedding(
+      queryEmbedding: number[],
+      input: { topK: number; filter?: Record<string, unknown> },
+    ): Promise<
+      Array<{
+        id: string;
+        embedding: number[];
+        metadata: Record<string, unknown>;
+        content: string;
+        score: number;
+      }>
+    >;
+    getFactEmbedding(id: string): Promise<VectorRecord | null>;
+    deleteFactEmbedding(id: string): Promise<void>;
+    upsertReferenceEmbedding(
+      records: Array<{
+        id: string;
+        embedding: number[];
+        metadata: Record<string, unknown>;
+        content: string;
+      }>,
+    ): Promise<void>;
+    searchReferenceEmbedding(
+      queryEmbedding: number[],
+      input: { topK: number; filter?: Record<string, unknown> },
+    ): Promise<
+      Array<{
+        id: string;
+        embedding: number[];
+        metadata: Record<string, unknown>;
+        content: string;
+        score: number;
+      }>
+    >;
+    getReferenceEmbedding(id: string): Promise<VectorRecord | null>;
+    deleteReferenceEmbedding(id: string): Promise<void>;
     upsertEpisodeEmbedding(
       records: Array<{
         id: string;
@@ -113,6 +158,8 @@ export interface MemoryRepositories {
         score: number;
       }>
     >;
+    getEpisodeEmbedding(id: string): Promise<VectorRecord | null>;
+    deleteEpisodeEmbedding(id: string): Promise<void>;
   } | null;
 }
 
@@ -334,6 +381,27 @@ export function createMemoryRepositories(
 
     vectorIndex: config.vectorStore
       ? {
+          upsertFactEmbedding: config.vectorStore.upsert.bind(
+            config.vectorStore,
+            "facts",
+          ),
+          searchFactEmbedding: (
+            queryEmbedding: number[],
+            input: { topK: number; filter?: Record<string, unknown> },
+          ) => config.vectorStore!.search("facts", queryEmbedding, input),
+          getFactEmbedding: (id: string) => config.vectorStore!.get("facts", id),
+          deleteFactEmbedding: (id: string) => config.vectorStore!.delete("facts", id),
+          upsertReferenceEmbedding: config.vectorStore.upsert.bind(
+            config.vectorStore,
+            "references",
+          ),
+          searchReferenceEmbedding: (
+            queryEmbedding: number[],
+            input: { topK: number; filter?: Record<string, unknown> },
+          ) => config.vectorStore!.search("references", queryEmbedding, input),
+          getReferenceEmbedding: (id: string) => config.vectorStore!.get("references", id),
+          deleteReferenceEmbedding: (id: string) =>
+            config.vectorStore!.delete("references", id),
           upsertEpisodeEmbedding: config.vectorStore.upsert.bind(
             config.vectorStore,
             "episodes",
@@ -342,6 +410,8 @@ export function createMemoryRepositories(
             queryEmbedding: number[],
             input: { topK: number; filter?: Record<string, unknown> },
           ) => config.vectorStore!.search("episodes", queryEmbedding, input),
+          getEpisodeEmbedding: (id: string) => config.vectorStore!.get("episodes", id),
+          deleteEpisodeEmbedding: (id: string) => config.vectorStore!.delete("episodes", id),
         }
       : null,
   };

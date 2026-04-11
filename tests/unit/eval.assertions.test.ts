@@ -218,7 +218,8 @@ function buildGoodmemoryAnswer(): EvalAnswerPackage {
         output: "markdown",
         maxTokens: 160,
         contentLength: 120,
-        recallTokenCount: 24,
+        contextEstimatedTokens: 30,
+        packetTokenCountBeforeRender: 24,
       },
     },
   };

@@ -1,9 +1,9 @@
 Phase 12.2: Embedding Abstraction
 =================================
 
-[TODO] P12.2-T001 Define embedding adapter contract
-[TODO] P12.2-T002 Add vector write hooks for facts, references, and episodes
-[TODO] P12.2-T003 Add background re-embed and missing-embedding repair hooks
+[DONE] P12.2-T001 Define embedding adapter contract
+[DONE] P12.2-T002 Add vector write hooks for facts, references, and episodes
+[DONE] P12.2-T003 Add background re-embed and missing-embedding repair hooks
 
 Why this exists
 ---------------
@@ -26,3 +26,11 @@ Acceptance
 ----------
 - Turning embeddings on improves retrieval plumbing without changing app integration shape
 - Turning embeddings off keeps the library usable
+
+Current implementation notes
+----------------------------
+- `GoodMemoryConfig.adapters.embeddingAdapter` now enables semantic vector writes without exposing a top-level `embedding` runtime config surface
+- remember writes embeddings for new active facts, references, and episodes after durable persistence completes
+- repository vector hooks now expose typed fact/reference/episode collections with scope-aware filtering
+- maintenance runner now exposes an `embeddingRepair` job that can backfill or refresh active fact/reference/episode vectors when an embedding adapter is available
+- recall behavior remains rules-first for now; hybrid retrieval is deferred to later Phase 12 work

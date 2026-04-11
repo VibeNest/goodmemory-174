@@ -1,28 +1,40 @@
 import { describe, expect, it } from "bun:test";
-import { createFactMemory } from "../../src/domain/records";
+import {
+  createEpisodeMemory,
+  createFactMemory,
+  createReferenceMemory,
+} from "../../src/domain/records";
 import {
   createMaintenanceRunner,
 } from "../../src/maintenance/runner";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
+  createInMemoryVectorStore,
 } from "../../src/storage/memory";
 import {
   createMemoryRepositories,
 } from "../../src/storage/repositories";
+import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 
-function createFixture() {
+function createFixture(input?: { withEmbeddings?: boolean }) {
   const documentStore = createInMemoryDocumentStore();
+  const embeddingAdapter = input?.withEmbeddings
+    ? createFakeEmbeddingAdapter()
+    : undefined;
   const repositories = createMemoryRepositories({
     documentStore,
     sessionStore: createInMemorySessionStore(),
+    vectorStore: input?.withEmbeddings ? createInMemoryVectorStore() : undefined,
   });
   const runner = createMaintenanceRunner({
+    embedding: embeddingAdapter,
     repositories,
     now: () => "2026-04-02T00:00:00.000Z",
   });
 
   return {
+    embeddingAdapter,
     repositories,
     runner,
   };
@@ -147,6 +159,7 @@ describe("maintenance runner", () => {
       "dedupe",
       "contradiction",
       "consolidation",
+      "embeddingRepair",
     ]);
   });
 
@@ -197,5 +210,242 @@ describe("maintenance runner", () => {
 
     const contradiction = await runner.run(scope, ["contradiction"]);
     expect(contradiction.jobs[0]?.applied).toBe(1);
+  });
+
+  it("repairs missing fact, reference, and episode embeddings through maintenance hooks", async () => {
+    const { embeddingAdapter, repositories, runner } = createFixture({
+      withEmbeddings: true,
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Runtime rollout is blocked on vendor approval.",
+        source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Runtime runbook",
+        pointer: "docs/runtime-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        summary: "Conversation covered runtime rollout continuity.",
+        keyDecisions: ["Use the runtime runbook."],
+        unresolvedItems: ["Confirm vendor approval."],
+        topics: ["runtime rollout"],
+      }),
+    );
+
+    const report = await runner.run(scope, ["embeddingRepair"]);
+    expect(report.jobs[0]?.applied).toBe(3);
+
+    const [factEmbedding] = await embeddingAdapter!.embed([
+      "Runtime rollout is blocked on vendor approval.",
+    ]);
+    const [referenceEmbedding] = await embeddingAdapter!.embed([
+      "Runtime runbook\ndocs/runtime-runbook.md",
+    ]);
+    const [episodeEmbedding] = await embeddingAdapter!.embed([
+      [
+        "Conversation covered runtime rollout continuity.",
+        "Use the runtime runbook.",
+        "Confirm vendor approval.",
+        "runtime rollout",
+      ].join("\n"),
+    ]);
+
+    expect(
+      await repositories.vectorIndex?.searchFactEmbedding(factEmbedding, {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.vectorIndex?.searchReferenceEmbedding(referenceEmbedding, {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.vectorIndex?.searchEpisodeEmbedding(episodeEmbedding, {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("builds a vector for the consolidated episode when running consolidation as a selected job", async () => {
+    const { embeddingAdapter, repositories, runner } = createFixture({
+      withEmbeddings: true,
+    });
+    const scope = { userId: "u-consolidate", workspaceId: "workspace-a" };
+
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-left",
+        userId: "u-consolidate",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        summary: "Left episode summary.",
+        keyDecisions: ["Use the release checklist."],
+        unresolvedItems: ["Confirm signoff."],
+        topics: ["release rollout"],
+      }),
+    );
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-right",
+        userId: "u-consolidate",
+        workspaceId: "workspace-a",
+        sessionId: "s-2",
+        summary: "Right episode summary.",
+        keyDecisions: ["Use the release checklist."],
+        unresolvedItems: ["Confirm signoff."],
+        topics: ["release rollout"],
+      }),
+    );
+
+    const report = await runner.run(scope, ["consolidation"]);
+    expect(report.jobs[0]?.applied).toBe(1);
+
+    const episodes = await repositories.episodes.listByScope(scope);
+    const consolidated = episodes.find((episode) => episode.summary.startsWith("Consolidated:"));
+    expect(consolidated).toBeTruthy();
+
+    const [embedding] = await embeddingAdapter!.embed([
+      [
+        consolidated?.summary ?? "",
+        consolidated?.keyDecisions.join("\n") ?? "",
+        consolidated?.unresolvedItems.join("\n") ?? "",
+        consolidated?.topics.join("\n") ?? "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ]);
+
+    expect(
+      await repositories.vectorIndex?.searchEpisodeEmbedding(embedding, {
+        topK: 5,
+        filter: { userId: "u-consolidate", workspaceId: "workspace-a" },
+      }),
+    ).toContainEqual(expect.objectContaining({ id: consolidated?.id }));
+  });
+
+  it("removes stale vectors for superseded, inactive, and archived memory during embedding repair", async () => {
+    const { embeddingAdapter, repositories, runner } = createFixture({
+      withEmbeddings: true,
+    });
+    const scope = { userId: "u-stale", workspaceId: "workspace-a" };
+
+    const staleFact = createFactMemory({
+      id: "fact-stale",
+      userId: "u-stale",
+      workspaceId: "workspace-a",
+      category: "project",
+      content: "Runtime rollout is blocked on vendor approval.",
+      lifecycle: "superseded",
+      isActive: false,
+      source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+    });
+    const staleReference = createReferenceMemory({
+      id: "ref-stale",
+      userId: "u-stale",
+      workspaceId: "workspace-a",
+      title: "Old runtime runbook",
+      pointer: "docs/runtime-runbook-v1.md",
+      lifecycle: "inactive",
+      source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+    });
+    const staleEpisode = createEpisodeMemory({
+      id: "ep-stale",
+      userId: "u-stale",
+      workspaceId: "workspace-a",
+      summary: "Old runtime continuity thread.",
+      topics: ["runtime rollout"],
+      archivedAt: "2026-04-01T00:00:00.000Z",
+    });
+    const activeFact = createFactMemory({
+      id: "fact-active",
+      userId: "u-stale",
+      workspaceId: "workspace-a",
+      category: "project",
+      content: "Current blocker is security review.",
+      source: { method: "explicit", extractedAt: "2026-04-02T00:00:00.000Z" },
+    });
+
+    await repositories.facts.add(staleFact);
+    await repositories.references.add(staleReference);
+    await repositories.episodes.add(staleEpisode);
+    await repositories.facts.add(activeFact);
+
+    const [staleFactEmbedding] = await embeddingAdapter!.embed([staleFact.content]);
+    const [staleReferenceEmbedding] = await embeddingAdapter!.embed([
+      `${staleReference.title}\n${staleReference.pointer}`,
+    ]);
+    const [staleEpisodeEmbedding] = await embeddingAdapter!.embed([
+      [staleEpisode.summary, staleEpisode.topics.join("\n")].filter(Boolean).join("\n"),
+    ]);
+
+    await repositories.vectorIndex?.upsertFactEmbedding([
+      {
+        id: staleFact.id,
+        embedding: staleFactEmbedding,
+        metadata: { userId: "u-stale", workspaceId: "workspace-a", memoryType: "fact" },
+        content: staleFact.content,
+      },
+    ]);
+    await repositories.vectorIndex?.upsertReferenceEmbedding([
+      {
+        id: staleReference.id,
+        embedding: staleReferenceEmbedding,
+        metadata: { userId: "u-stale", workspaceId: "workspace-a", memoryType: "reference" },
+        content: `${staleReference.title}\n${staleReference.pointer}`,
+      },
+    ]);
+    await repositories.vectorIndex?.upsertEpisodeEmbedding([
+      {
+        id: staleEpisode.id,
+        embedding: staleEpisodeEmbedding,
+        metadata: { userId: "u-stale", workspaceId: "workspace-a", memoryType: "episode" },
+        content: [staleEpisode.summary, staleEpisode.topics.join("\n")].filter(Boolean).join(
+          "\n",
+        ),
+      },
+    ]);
+
+    await runner.run(scope, ["embeddingRepair"]);
+
+    expect(
+      await repositories.vectorIndex?.searchFactEmbedding(staleFactEmbedding, {
+        topK: 5,
+        filter: { userId: "u-stale", workspaceId: "workspace-a" },
+      }),
+    ).not.toContainEqual(expect.objectContaining({ id: staleFact.id }));
+    expect(
+      await repositories.vectorIndex?.searchReferenceEmbedding(staleReferenceEmbedding, {
+        topK: 5,
+        filter: { userId: "u-stale", workspaceId: "workspace-a" },
+      }),
+    ).not.toContainEqual(expect.objectContaining({ id: staleReference.id }));
+    expect(
+      await repositories.vectorIndex?.searchEpisodeEmbedding(staleEpisodeEmbedding, {
+        topK: 5,
+        filter: { userId: "u-stale", workspaceId: "workspace-a" },
+      }),
+    ).not.toContainEqual(expect.objectContaining({ id: staleEpisode.id }));
   });
 });

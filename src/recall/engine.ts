@@ -280,6 +280,23 @@ interface RankedFactCandidate {
   score: number;
 }
 
+function materializeFactCandidate(entry: RankedFactCandidate): FactMemory {
+  if (
+    entry.fact.factKind === entry.factKind &&
+    entry.fact.scopeKind === entry.scopeKind &&
+    entry.fact.subject === entry.subject
+  ) {
+    return entry.fact;
+  }
+
+  return {
+    ...entry.fact,
+    factKind: entry.fact.factKind ?? entry.factKind,
+    scopeKind: entry.fact.scopeKind ?? entry.scopeKind,
+    subject: entry.fact.subject ?? entry.subject,
+  };
+}
+
 interface RankedReferenceCandidate {
   reference: ReferenceMemory;
   locale: string;
@@ -930,7 +947,7 @@ function selectFacts(
     }
 
     return {
-      facts: selected.map((entry) => entry.fact),
+      facts: selected.map(materializeFactCandidate),
       traces,
     };
   }
@@ -1024,7 +1041,7 @@ function selectFacts(
   }
 
   return {
-    facts: selected.map((entry) => entry.fact),
+    facts: selected.map(materializeFactCandidate),
     traces,
   };
 }
@@ -1783,6 +1800,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
           episodes: [],
           workingMemory: null,
           journal: null,
+          locale: resolvedLanguage.locale,
+          routingDecision,
         });
         policyApplied.add("ignore_memory");
 
@@ -2060,6 +2079,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
         episodes,
         workingMemory,
         journal,
+        locale: resolvedLanguage.locale,
+        routingDecision,
       });
 
       return {

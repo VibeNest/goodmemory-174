@@ -2,6 +2,13 @@ import {
   createFactMemory,
   createEpisodeMemory,
 } from "../domain/records";
+import type { EmbeddingAdapter } from "../embedding/contracts";
+import {
+  buildEpisodeEmbeddingWrite,
+  buildFactEmbeddingWrite,
+  buildReferenceEmbeddingWrite,
+  upsertMemoryEmbeddings,
+} from "../embedding/vectorWrites";
 import { createSessionArchive } from "../evolution/contracts";
 import type {
   EpisodeMemory,
@@ -15,9 +22,14 @@ import {
   type LanguageService,
 } from "../language";
 
-export type MaintenanceJobName = "dedupe" | "contradiction" | "consolidation";
+export type MaintenanceJobName =
+  | "dedupe"
+  | "contradiction"
+  | "consolidation"
+  | "embeddingRepair";
 
 export interface MaintenanceRunnerConfig {
+  embedding?: EmbeddingAdapter;
   repositories: MemoryRepositories;
   now?: () => string;
   language?: LanguageService;
@@ -167,6 +179,7 @@ async function runDedupeCleanup(
         updatedAt: timestamp,
       }),
     );
+    await repositories.vectorIndex?.deleteFactEmbedding(fact.id);
     applied += 1;
   }
 
@@ -241,6 +254,7 @@ async function runContradictionRepair(
           updatedAt: timestamp,
         }),
       );
+      await repositories.vectorIndex?.deleteFactEmbedding(weaker.id);
       applied += 1;
       break;
     }
@@ -257,6 +271,7 @@ async function runEpisodeConsolidation(
   language: LanguageService,
   scope: MemoryScope,
   timestamp: string,
+  embedding?: EmbeddingAdapter,
 ): Promise<MaintenanceJobReport> {
   const episodes = sortEpisodesForMaintenance(
     (await repositories.episodes.listByScope(scope)).filter((episode) => !episode.archivedAt),
@@ -346,6 +361,15 @@ async function runEpisodeConsolidation(
         }
       }
       await repositories.episodes.add(consolidated);
+      if (embedding && repositories.vectorIndex) {
+        await upsertMemoryEmbeddings(
+          [buildEpisodeEmbeddingWrite(consolidated)],
+          embedding,
+          repositories.vectorIndex,
+        );
+      }
+      await repositories.vectorIndex?.deleteEpisodeEmbedding(left.id);
+      await repositories.vectorIndex?.deleteEpisodeEmbedding(right.id);
 
       return {
         name: "consolidation",
@@ -360,6 +384,55 @@ async function runEpisodeConsolidation(
   };
 }
 
+async function runEmbeddingRepair(
+  repositories: MemoryRepositories,
+  scope: MemoryScope,
+  embedding?: EmbeddingAdapter,
+): Promise<MaintenanceJobReport> {
+  if (!embedding || !repositories.vectorIndex) {
+    return {
+      name: "embeddingRepair",
+      applied: 0,
+    };
+  }
+
+  const [facts, references, episodes] = await Promise.all([
+    repositories.facts.listByScope(scope),
+    repositories.references.listByScope(scope),
+    repositories.episodes.listByScope(scope),
+  ]);
+  const writes = [
+    ...facts
+      .filter((fact) => fact.lifecycle === "active")
+      .map((fact) => buildFactEmbeddingWrite(fact)),
+    ...references
+      .filter((reference) => reference.lifecycle === "active")
+      .map((reference) => buildReferenceEmbeddingWrite(reference)),
+    ...episodes
+      .filter((episode) => !episode.archivedAt)
+      .map((episode) => buildEpisodeEmbeddingWrite(episode)),
+  ];
+  for (const fact of facts.filter((fact) => fact.lifecycle !== "active")) {
+    await repositories.vectorIndex.deleteFactEmbedding(fact.id);
+  }
+  for (const reference of references.filter((reference) => reference.lifecycle !== "active")) {
+    await repositories.vectorIndex.deleteReferenceEmbedding(reference.id);
+  }
+  for (const episode of episodes.filter((episode) => Boolean(episode.archivedAt))) {
+    await repositories.vectorIndex.deleteEpisodeEmbedding(episode.id);
+  }
+  const applied = await upsertMemoryEmbeddings(
+    writes,
+    embedding,
+    repositories.vectorIndex,
+  );
+
+  return {
+    name: "embeddingRepair",
+    applied,
+  };
+}
+
 export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
   const language = config.language ?? createLanguageService();
   const now = config.now ?? (() => new Date().toISOString());
@@ -367,7 +440,12 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
   return {
     async run(
       scope: MemoryScope,
-      jobs: MaintenanceJobName[] = ["dedupe", "contradiction", "consolidation"],
+      jobs: MaintenanceJobName[] = [
+        "dedupe",
+        "contradiction",
+        "consolidation",
+        "embeddingRepair",
+      ],
     ): Promise<MaintenanceRunReport> {
       const timestamp = now();
       const reports: MaintenanceJobReport[] = [];
@@ -387,6 +465,18 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
               language,
               scope,
               timestamp,
+              config.embedding,
+            ),
+          );
+          continue;
+        }
+
+        if (job === "embeddingRepair") {
+          reports.push(
+            await runEmbeddingRepair(
+              config.repositories,
+              scope,
+              config.embedding,
             ),
           );
           continue;

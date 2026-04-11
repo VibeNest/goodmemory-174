@@ -41,7 +41,7 @@ Definition of Done
 Tasks
 -----
 [DONE] P12-T001 Define provider-layer contract around Vercel AI SDK
-[TODO] P12-T002 Implement embedding abstraction and vector write/read hooks
+[DONE] P12-T002 Implement embedding abstraction and vector write/read hooks
 [TODO] P12-T003 Add router strategy framework: rules-only, hybrid, llm-assisted
 [TODO] P12-T004 Implement hybrid retrieval and optional reranking
 [TODO] P12-T005 Add optional LLM-assisted extraction and consolidation paths

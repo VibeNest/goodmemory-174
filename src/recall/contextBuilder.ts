@@ -1,5 +1,6 @@
 import type {
   EpisodeMemory,
+  FactKind,
   FactMemory,
   FeedbackMemory,
   PreferenceMemory,
@@ -10,6 +11,7 @@ import type {
 } from "../domain/records";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
+import type { RoutingDecision } from "./router";
 
 export interface MemoryPacket {
   profileSummary?: string;
@@ -40,6 +42,8 @@ export interface MemoryPacketInput {
   evidence: EvidenceRecord[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
+  locale?: string;
+  routingDecision?: RoutingDecision;
 }
 
 function estimateTokens(value: string): number {
@@ -79,13 +83,128 @@ function summarizeActiveContext(profile: UserProfile | null): string | undefined
   return segments.length > 0 ? segments.join("\n") : undefined;
 }
 
-function summarizeFacts(facts: FactMemory[]): string | undefined {
+function inferFactKindForSummary(fact: FactMemory): FactKind | undefined {
+  if (fact.factKind) {
+    return fact.factKind;
+  }
+
+  const content = fact.content;
+  const normalized = content.toLowerCase();
+
+  if (
+    /\bblocker\b|\bblocked\b|\bblocking\b|\bapproval\b/i.test(content) ||
+    /阻塞|卡点|卡住|审批/u.test(content)
+  ) {
+    return "blocker";
+  }
+  if (
+    /\bopen loop\b|\bhandoff\b|\bsignoff\b|\bverification\b/i.test(content) ||
+    /待跟进|待处理|签字|验收/u.test(content)
+  ) {
+    return "open_loop";
+  }
+  if (
+    /\bcurrent focus\b/i.test(content) ||
+    /当前重点|当前聚焦/u.test(content)
+  ) {
+    return "focus_update";
+  }
+  if (
+    /\bnext milestone\b|\bnext step\b|\bnext action\b|\bpending\b|\bremaining\b|\bneeds? review\b|\bneeds? confirmation\b|\bfollow(?:-| )?up\b/i.test(
+      normalized,
+    ) ||
+    /下一步|待确认|待评审|后续跟进/u.test(content)
+  ) {
+    return "project_state";
+  }
+
+  return undefined;
+}
+
+function shouldGroupProjectStateSupport(routingDecision?: RoutingDecision): boolean {
+  if (!routingDecision) {
+    return false;
+  }
+
+  return (
+    routingDecision.supportSlots.includes("project_state_support") &&
+    !routingDecision.requestedSlots.includes("blocker") &&
+    !routingDecision.requestedSlots.includes("open_loop")
+  );
+}
+
+function factsSectionLabels(locale?: string): {
+  immediate: string;
+  deferred: string;
+  additional: string;
+} {
+  const normalizedLocale = locale?.toLowerCase() ?? "en-us";
+
+  if (normalizedLocale.startsWith("zh")) {
+    return {
+      immediate: "当前可立即推进的下一步:",
+      deferred: "后续待跟进事项:",
+      additional: "补充项目状态上下文:",
+    };
+  }
+
+  return {
+    immediate: "Immediate next-step support:",
+    deferred: "Deferred follow-up context:",
+    additional: "Additional project-state context:",
+  };
+}
+
+function summarizeFacts(
+  facts: FactMemory[],
+  locale?: string,
+  routingDecision?: RoutingDecision,
+): string | undefined {
   const activeFacts = facts.filter((fact) => fact.lifecycle === "active").slice(0, 3);
   if (activeFacts.length === 0) {
     return undefined;
   }
 
-  return activeFacts.map((fact) => `- ${fact.content}`).join("\n");
+  if (!shouldGroupProjectStateSupport(routingDecision)) {
+    return activeFacts.map((fact) => `- ${fact.content}`).join("\n");
+  }
+
+  const immediate: string[] = [];
+  const deferred: string[] = [];
+  const additional: string[] = [];
+  const labels = factsSectionLabels(locale);
+
+  for (const fact of activeFacts) {
+    const factKind = inferFactKindForSummary(fact);
+
+    if (factKind === "blocker" || factKind === "project_state") {
+      immediate.push(`- ${fact.content}`);
+      continue;
+    }
+    if (factKind === "open_loop") {
+      deferred.push(`- ${fact.content}`);
+      continue;
+    }
+
+    additional.push(`- ${fact.content}`);
+  }
+
+  const segments: string[] = [];
+  if (immediate.length > 0) {
+    segments.push(labels.immediate, ...immediate);
+  }
+  if (deferred.length > 0) {
+    segments.push(labels.deferred, ...deferred);
+  }
+  if (additional.length > 0) {
+    segments.push(labels.additional, ...additional);
+  }
+
+  if (segments.length === 0) {
+    return undefined;
+  }
+
+  return segments.join("\n");
 }
 
 function summarizePreferences(preferences: PreferenceMemory[]): string | undefined {
@@ -206,7 +325,7 @@ export function buildMemoryPacket(input: MemoryPacketInput): MemoryPacket {
     activeContextSummary: summarizeActiveContext(input.profile),
     preferenceSummary: summarizePreferences(input.preferences),
     referenceSummary: summarizeReferences(input.references),
-    factSummary: summarizeFacts(input.facts),
+    factSummary: summarizeFacts(input.facts, input.locale, input.routingDecision),
     feedbackSummary: summarizeFeedback(input.feedback),
     episodeSummary: summarizeEpisodes(input.episodes),
     archiveSummary: summarizeArchives(input.archives),

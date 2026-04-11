@@ -4,7 +4,10 @@ import { EVIDENCE_COLLECTION } from "../../src/evidence/contracts";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
+  createInMemoryVectorStore,
 } from "../../src/storage/memory";
+import { createMemoryRepositories } from "../../src/storage/repositories";
+import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 
 describe("public remember API", () => {
   it("writes durable memory through the public API", async () => {
@@ -92,6 +95,229 @@ describe("public remember API", () => {
         .filter((event) => event.memoryType === "fact" || event.memoryType === "reference")
         .every((event) => (event.evidenceIds?.length ?? 0) === 1),
     ).toBe(true);
+  });
+
+  it("writes fact, reference, and episode embeddings when an embedding adapter is enabled", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const embeddingAdapter = createFakeEmbeddingAdapter();
+    const repositories = createMemoryRepositories({
+      documentStore,
+      sessionStore,
+      vectorStore,
+    });
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+        vectorStore,
+        embeddingAdapter,
+      },
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" } as const;
+
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the runtime rollout is blocked on vendor approval.",
+        },
+        {
+          role: "assistant",
+          content: "Understood. I will keep the handoff concise.",
+        },
+        {
+          role: "user",
+          content: "Use docs/runtime-runbook.md as the source of truth for runtime work.",
+        },
+      ],
+    });
+
+    const facts = await repositories.facts.listByScope(scope);
+    const references = await repositories.references.listByScope(scope);
+    const episodes = await repositories.episodes.listByScope(scope);
+    const [factEmbedding] = await embeddingAdapter.embed([facts[0]!.content]);
+    const [referenceEmbedding] = await embeddingAdapter.embed([
+      [references[0]!.title, references[0]!.pointer, references[0]!.description ?? ""]
+        .filter(Boolean)
+        .join("\n"),
+    ]);
+    const [episodeEmbedding] = await embeddingAdapter.embed([
+      [
+        episodes[0]!.summary,
+        episodes[0]!.keyDecisions.join("\n"),
+        episodes[0]!.unresolvedItems.join("\n"),
+        episodes[0]!.topics.join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ]);
+
+    expect(
+      await repositories.vectorIndex?.searchFactEmbedding(factEmbedding, {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.vectorIndex?.searchReferenceEmbedding(referenceEmbedding, {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.vectorIndex?.searchEpisodeEmbedding(episodeEmbedding, {
+        topK: 1,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+
+    const recall = await memory.recall({
+      scope,
+      query: "Which runbook should I use and what is the blocker?",
+      retrievalProfile: "coding_agent",
+    });
+
+    expect(recall.references).toHaveLength(1);
+    expect(recall.facts).toHaveLength(1);
+  });
+
+  it("batches embedding preparation by memory type instead of per written record", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const embedCalls: string[][] = [];
+    const embeddingAdapter = {
+      async embed(texts: string[]) {
+        embedCalls.push([...texts]);
+        return texts.map(() => [1, 2, 3]);
+      },
+    };
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+        vectorStore,
+        embeddingAdapter,
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-batch", workspaceId: "workspace-a", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the runtime rollout is blocked on vendor approval.",
+        },
+        {
+          role: "user",
+          content: "Remember that the handoff package still needs legal review.",
+        },
+        {
+          role: "user",
+          content: "Use docs/runtime-runbook.md as the source of truth for runtime work.",
+        },
+        {
+          role: "assistant",
+          content: "Understood. I will keep the handoff concise.",
+        },
+      ],
+    });
+
+    expect(embedCalls).toHaveLength(3);
+    expect(embedCalls[0]).toHaveLength(2);
+    expect(embedCalls[1]).toHaveLength(1);
+    expect(embedCalls[2]).toHaveLength(1);
+  });
+
+  it("rolls back durable writes when embedding preparation fails before remember completes", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    let embedCalls = 0;
+    const embeddingAdapter = {
+      async embed(texts: string[]) {
+        embedCalls += 1;
+        if (embedCalls === 1) {
+          throw new Error("embedding unavailable");
+        }
+
+        return texts.map(() => [1, 2, 3]);
+      },
+    };
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+        vectorStore,
+        embeddingAdapter,
+      },
+    });
+    const scope = { userId: "u-rollback", workspaceId: "workspace-a", sessionId: "s-1" } as const;
+
+    await expect(
+      memory.remember({
+        scope,
+        messages: [
+          {
+            role: "user",
+            content: "Remember that the runtime rollout is blocked on vendor approval.",
+          },
+          {
+            role: "user",
+            content: "Use docs/runtime-runbook.md as the source of truth for runtime work.",
+          },
+          {
+            role: "assistant",
+            content: "Understood. I will keep the handoff concise.",
+          },
+        ],
+      }),
+    ).rejects.toThrow("embedding unavailable");
+
+    expect(await documentStore.query("facts", { userId: "u-rollback" })).toHaveLength(0);
+    expect(await documentStore.query("references", { userId: "u-rollback" })).toHaveLength(0);
+    expect(await documentStore.query("episodes", { userId: "u-rollback" })).toHaveLength(0);
+    expect(await documentStore.query(EVIDENCE_COLLECTION, { userId: "u-rollback" })).toHaveLength(
+      0,
+    );
+    expect(
+      await vectorStore.search("facts", [1, 2, 3], {
+        topK: 5,
+        filter: { userId: "u-rollback" },
+      }),
+    ).toHaveLength(0);
+
+    const retry = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the runtime rollout is blocked on vendor approval.",
+        },
+        {
+          role: "user",
+          content: "Use docs/runtime-runbook.md as the source of truth for runtime work.",
+        },
+        {
+          role: "assistant",
+          content: "Understood. I will keep the handoff concise.",
+        },
+      ],
+    });
+
+    expect(retry.accepted).toBeGreaterThanOrEqual(2);
+    expect(await documentStore.query("facts", { userId: "u-rollback" })).toHaveLength(1);
+    expect(await documentStore.query("references", { userId: "u-rollback" })).toHaveLength(1);
+    expect(await documentStore.query("episodes", { userId: "u-rollback" })).toHaveLength(1);
+    expect(await documentStore.query(EVIDENCE_COLLECTION, { userId: "u-rollback" })).toHaveLength(
+      2,
+    );
   });
 
   it("does not write memory for empty or noisy conversation input", async () => {
@@ -444,11 +670,15 @@ describe("public remember API", () => {
   it("supersedes stale reference memory when the user corrects the source of truth", async () => {
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const embeddingAdapter = createFakeEmbeddingAdapter();
     const memory = createGoodMemory({
       storage: { provider: "memory" },
       adapters: {
         documentStore,
         sessionStore,
+        vectorStore,
+        embeddingAdapter,
       },
     });
 
@@ -482,6 +712,8 @@ describe("public remember API", () => {
     });
 
     const references = await documentStore.query<{
+      id: string;
+      title: string;
       pointer: string;
       lifecycle: string;
       subject?: string;
@@ -505,6 +737,115 @@ describe("public remember API", () => {
           reference.subject === "migration work",
       ),
     ).toBe(true);
+
+    const oldReference = references.find(
+      (reference) => reference.pointer === "docs/migration-runbook-v1.md",
+    );
+    const newReference = references.find(
+      (reference) => reference.pointer === "docs/migration-runbook-v2.md",
+    );
+    const [oldEmbedding] = await embeddingAdapter.embed([
+      [
+        oldReference?.title ?? "",
+        oldReference?.pointer ?? "",
+      ].filter(Boolean).join("\n"),
+    ]);
+    const [newEmbedding] = await embeddingAdapter.embed([
+      [
+        newReference?.title ?? "",
+        newReference?.pointer ?? "",
+      ].filter(Boolean).join("\n"),
+    ]);
+
+    expect(
+      await vectorStore.search("references", oldEmbedding, {
+        topK: 5,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).not.toContainEqual(
+      expect.objectContaining({
+        id: oldReference?.id,
+      }),
+    );
+    expect(
+      await vectorStore.search("references", newEmbedding, {
+        topK: 5,
+        filter: { userId: "u-1", workspaceId: "workspace-a" },
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        id: newReference?.id,
+      }),
+    );
+  });
+
+  it("deletes stale vectors on supersede even when no embedding adapter is configured", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const seedingEmbeddingAdapter = createFakeEmbeddingAdapter();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+        vectorStore,
+      },
+    });
+
+    await documentStore.set("references", "ref-old", {
+      id: "ref-old",
+      userId: "u-no-embed",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+      title: "docs/runbook-v1.md",
+      pointer: "docs/runbook-v1.md",
+      confidence: 1,
+      source: {
+        method: "explicit",
+        extractedAt: "2026-01-01T00:00:00.000Z",
+        locale: "en-US",
+      },
+      referenceKind: "source_of_truth",
+      subject: "migration work",
+      lifecycle: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const [oldEmbedding] = await seedingEmbeddingAdapter.embed([
+      "docs/runbook-v1.md\ndocs/runbook-v1.md",
+    ]);
+    await vectorStore.upsert("references", [
+      {
+        id: "ref-old",
+        embedding: oldEmbedding,
+        metadata: {
+          userId: "u-no-embed",
+          workspaceId: "workspace-a",
+          sessionId: "s-1",
+          memoryType: "reference",
+        },
+        content: "docs/runbook-v1.md\ndocs/runbook-v1.md",
+      },
+    ]);
+
+    await memory.remember({
+      scope: { userId: "u-no-embed", workspaceId: "workspace-a", sessionId: "s-2" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Correction: docs/runbook-v2.md is now the source of truth, not docs/runbook-v1.md. Please update that.",
+        },
+      ],
+    });
+
+    const searchResults = await vectorStore.search("references", oldEmbedding, {
+      topK: 5,
+      filter: { userId: "u-no-embed", workspaceId: "workspace-a" },
+    });
+
+    expect(searchResults).not.toContainEqual(expect.objectContaining({ id: "ref-old" }));
   });
 
   it("updates the durable profile when the user moves into a new role", async () => {

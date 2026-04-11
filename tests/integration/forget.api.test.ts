@@ -11,7 +11,9 @@ import {
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
+  createInMemoryVectorStore,
 } from "../../src/storage/memory";
+import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 
 describe("public forget API", () => {
   it("deletes a stored memory record by id", async () => {
@@ -48,6 +50,57 @@ describe("public forget API", () => {
       await documentStore.query("facts", {
         userId: "u-1",
         workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("deletes vector embeddings alongside forgettable durable memory", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const vectorStore = createInMemoryVectorStore();
+    const embeddingAdapter = createFakeEmbeddingAdapter();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+        vectorStore,
+        embeddingAdapter,
+      },
+    });
+    const scope = { userId: "u-vector", workspaceId: "workspace-a", sessionId: "s-1" } as const;
+
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the robot workflow is blocked on prod migration.",
+        },
+      ],
+    });
+
+    const stored = await documentStore.query<{ id: string; content: string }>("facts", {
+      userId: "u-vector",
+      workspaceId: "workspace-a",
+    });
+    const [embedding] = await embeddingAdapter.embed([String(stored[0]?.content)]);
+
+    expect(
+      await vectorStore.search("facts", embedding, {
+        topK: 1,
+        filter: { userId: "u-vector", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(1);
+
+    await memory.forget({
+      scope: { userId: "u-vector", workspaceId: "workspace-a" },
+      memoryId: String(stored[0]?.id),
+    });
+
+    expect(
+      await vectorStore.search("facts", embedding, {
+        topK: 1,
+        filter: { userId: "u-vector", workspaceId: "workspace-a" },
       }),
     ).toHaveLength(0);
   });

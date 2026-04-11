@@ -1,3 +1,4 @@
+import type { EmbeddingAdapter } from "../embedding/contracts";
 import type {
   MemoryScope,
 } from "../index";
@@ -34,7 +35,7 @@ function hashString(value: string): number {
   return hash;
 }
 
-export function createFakeEmbeddingAdapter() {
+export function createFakeEmbeddingAdapter(): EmbeddingAdapter {
   return {
     async embed(texts: string[]): Promise<number[][]> {
       return texts.map((text) => {
