@@ -4,7 +4,11 @@ import {
 } from "../language";
 
 export type RetrievalProfile = "general_chat" | "coding_agent";
-export type RecallRouterStrategy = "rules-only" | "hybrid" | "llm-assisted";
+export type RecallRouterStrategy =
+  | "rules-only"
+  | "hybrid"
+  | "llm-assisted"
+  | "auto";
 
 export type RecallSlot =
   | "role"
@@ -71,6 +75,15 @@ export interface RecallRoutingInput {
   language?: LanguageService;
 }
 
+interface AutoRouterSignals {
+  retrievalProfile: RetrievalProfile;
+  requestedSlots: RecallSlot[];
+  supportSlots: RecallSlot[];
+  continuation: boolean;
+  referenceSeeking: boolean;
+  actionDriving: boolean;
+}
+
 const DEFAULT_LANGUAGE = createLanguageService();
 
 export function resolveRetrievalProfile(
@@ -82,10 +95,51 @@ export function resolveRetrievalProfile(
 export function resolveRouterStrategy(input: {
   strategy?: RecallRouterStrategy;
   availability?: Partial<RecallRouterAvailability>;
+  autoSignals?: AutoRouterSignals;
 }): RouterStrategyExplanation {
-  const requestedStrategy = input.strategy ?? "rules-only";
+  const requestedStrategy = input.strategy ?? "auto";
   const semanticSearchAvailable = input.availability?.semanticSearch === true;
   const llmRoutingAvailable = input.availability?.llmRouting === true;
+
+  if (requestedStrategy === "auto") {
+    const shouldUseHybrid = Boolean(
+      semanticSearchAvailable &&
+        input.autoSignals &&
+        (
+          input.autoSignals.retrievalProfile === "coding_agent" ||
+          input.autoSignals.continuation ||
+          input.autoSignals.referenceSeeking ||
+          input.autoSignals.actionDriving ||
+          input.autoSignals.requestedSlots.some((slot) =>
+            slot === "blocker" || slot === "open_loop" || slot === "reference"
+          ) ||
+          input.autoSignals.supportSlots.includes("project_state_support")
+        ),
+    );
+
+    if (shouldUseHybrid) {
+      return {
+        requestedStrategy,
+        resolvedStrategy: "hybrid",
+        summary:
+          "auto routing enabled hybrid recall because the query needs continuation, references, or action-driving semantic support while keeping rules-first priorities as the hard floor.",
+        hardFloor: "lexical_runtime_procedural_priors",
+        semanticTieBreaking: true,
+        llmRefinement: false,
+      };
+    }
+
+    return {
+      requestedStrategy,
+      resolvedStrategy: "rules-only",
+      summary: semanticSearchAvailable
+        ? "auto routing kept deterministic rules-only recall because the query is profile/procedural/general assistance and does not need semantic tie-breaking."
+        : "auto routing kept deterministic rules-only recall because semantic search is unavailable.",
+      hardFloor: "lexical_runtime_procedural_priors",
+      semanticTieBreaking: false,
+      llmRefinement: false,
+    };
+  }
 
   if (requestedStrategy === "rules-only") {
     return {
@@ -164,10 +218,6 @@ export function resolveRouterStrategy(input: {
 export function planRecall(input: RecallRoutingInput): RoutingDecision {
   const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
   const language = input.language ?? DEFAULT_LANGUAGE;
-  const strategyExplanation = resolveRouterStrategy({
-    strategy: input.strategy,
-    availability: input.availability,
-  });
   const locale =
     input.locale ??
     language.resolveFromText({
@@ -212,6 +262,18 @@ export function planRecall(input: RecallRoutingInput): RoutingDecision {
   if (continuationIntent) {
     supportSlots.push("runtime_continuity");
   }
+  const strategyExplanation = resolveRouterStrategy({
+    strategy: input.strategy,
+    availability: input.availability,
+    autoSignals: {
+      retrievalProfile,
+      requestedSlots,
+      supportSlots,
+      continuation: continuationIntent,
+      referenceSeeking,
+      actionDriving,
+    },
+  });
   const includeEvidence =
     continuationIntent || actionDriving || referenceSeeking;
   const evidenceSources: RecallSource[] = includeEvidence ? ["evidence"] : [];

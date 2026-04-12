@@ -549,10 +549,10 @@ describe("public remember API", () => {
       workspaceId: "workspace-a",
     });
     expect(episodes[0]?.summary).toContain(
-      "Assistant follow-through: Understood. I will use concise bullet points.",
+      "Assistant follow-through captured.",
     );
     expect(episodes[0]?.keyDecisions).toContain(
-      "Understood. I will use concise bullet points.",
+      "Assistant follow-through on: bullet points in project summaries",
     );
   });
 
@@ -629,10 +629,10 @@ describe("public remember API", () => {
     expect(facts).toHaveLength(0);
     expect(episodes).toHaveLength(1);
     expect(episodes[0]?.summary).toContain(
-      "Assistant follow-through: Updated. I will use the newer runbook going forward.",
+      "Assistant follow-through captured.",
     );
     expect(episodes[0]?.keyDecisions).toContain(
-      "Updated. I will use the newer runbook going forward.",
+      "Assistant follow-through on: docs/migration-runbook-v2.md",
     );
   });
 

@@ -29,6 +29,7 @@ import {
   type EvalAnswerPackage,
   type EvalAnswerGenerator,
 } from "./runners";
+import type { MemoryExtractionStrategy } from "../remember/candidates";
 
 export interface EvalSuiteInput {
   mode: PersistedEvalMode;
@@ -42,14 +43,17 @@ export interface EvalSuiteInput {
   scenarioIds?: string[];
   caseIds?: string[];
   createMemory?: (input: {
+    caseId: string;
     persona: PersonaSpec;
     scenario: ScenarioFixture;
-  }) => GoodMemory;
+    scopeNamespace: string;
+  }) => GoodMemory | { cleanup?: () => Promise<void>; memory: GoodMemory };
   runId?: string;
   runtime?: EvalRuntimeMetadata;
   maxConcurrency?: number;
   caseRetryLimit?: number;
   strategies?: RecallRouterStrategy[];
+  rememberExtractionStrategy?: MemoryExtractionStrategy;
 }
 
 export interface EvalSuiteResult {
@@ -94,7 +98,23 @@ function resolveCaseRetryLimit(
   return mode === "live" ? 3 : 1;
 }
 
+function indentErrorBlock(value: string): string {
+  return value
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
+}
+
 function formatCaseError(error: unknown): string {
+  if (error instanceof AggregateError) {
+    const header = error.stack ?? `${error.name}: ${error.message}`;
+    const causes = error.errors.map((cause, index) =>
+      `Cause ${index + 1}:\n${indentErrorBlock(formatCaseError(cause))}`
+    );
+
+    return [header, ...causes].join("\n");
+  }
+
   if (error instanceof Error) {
     return error.stack ?? `${error.name}: ${error.message}`;
   }
@@ -104,10 +124,45 @@ function formatCaseError(error: unknown): string {
   }
 
   try {
-    return JSON.stringify(error);
+    return JSON.stringify(error) ?? String(error);
   } catch {
     return String(error);
   }
+}
+
+async function runWithCaseCleanup<T>(
+  execute: () => Promise<T>,
+  cleanup?: () => Promise<void>,
+): Promise<T> {
+  let executionFailed = false;
+  let primaryError: unknown;
+  let result: T | undefined;
+
+  try {
+    result = await execute();
+  } catch (error) {
+    executionFailed = true;
+    primaryError = error;
+  }
+
+  try {
+    await cleanup?.();
+  } catch (cleanupError) {
+    if (executionFailed) {
+      throw new AggregateError(
+        [primaryError, cleanupError],
+        "Eval case execution failed and cleanup also failed.",
+      );
+    }
+
+    throw cleanupError;
+  }
+
+  if (executionFailed) {
+    throw primaryError;
+  }
+
+  return result as T;
 }
 
 const RECALL_ROUTER_STRATEGIES = [
@@ -135,6 +190,7 @@ function parseRequestedCaseId(caseId: string): {
 
 async function evaluateCase(input: {
   caseId: string;
+  scopeNamespace: string;
   baseline: EvalAnswerPackage;
   persona: PersonaSpec;
   scenario: ScenarioFixture;
@@ -142,48 +198,63 @@ async function evaluateCase(input: {
   createMemory?: EvalSuiteInput["createMemory"];
   goodmemoryGenerator: EvalAnswerGenerator;
   judge: JudgeModel;
+  rememberExtractionStrategy?: MemoryExtractionStrategy;
 }): Promise<JudgedEvalCase> {
+  const memoryHandle =
+    input.createMemory?.({
+      caseId: input.caseId,
+      persona: input.persona,
+      scenario: input.scenario,
+      scopeNamespace: input.scopeNamespace,
+    }) ?? defaultCreateMemory();
   const memory =
-    input.createMemory?.({ persona: input.persona, scenario: input.scenario }) ??
-    defaultCreateMemory();
-  const goodmemory = await runGoodMemoryScenario({
-    memory,
-    persona: input.persona,
-    scenario: input.scenario,
-    answerGenerator: input.goodmemoryGenerator,
-    strategy: input.strategy,
-  });
-  const judge = await runJudgeComparison({
-    persona: input.persona,
-    scenario: input.scenario,
-    baseline: input.baseline,
-    goodmemory,
-    judge: input.judge,
-  });
-  const assertions = evaluateScenarioAssertions({
-    scenario: input.scenario,
-    goodmemory,
-  });
+    "memory" in memoryHandle ? memoryHandle.memory : memoryHandle;
+  const cleanup =
+    "memory" in memoryHandle ? memoryHandle.cleanup : undefined;
 
-  return {
-    caseId: input.caseId,
-    metadata: {
-      taskFamily: input.scenario.task_family,
-      targetDomain: input.scenario.domain,
-      memorySourceDomains: input.scenario.memory_source_domains,
-      evaluationSetting: input.scenario.evaluation_setting,
-      strategyLabel: goodmemory.strategyLabel,
-      resolvedStrategyLabel: goodmemory.resolvedStrategyLabel,
-    },
-    baseline: input.baseline,
-    goodmemory,
-    judge,
-    assertions,
-  };
+  return runWithCaseCleanup(async () => {
+    const goodmemory = await runGoodMemoryScenario({
+      memory,
+      persona: input.persona,
+      scenario: input.scenario,
+      answerGenerator: input.goodmemoryGenerator,
+      strategy: input.strategy,
+      rememberExtractionStrategy: input.rememberExtractionStrategy,
+      scopeNamespace: input.scopeNamespace,
+    });
+    const judge = await runJudgeComparison({
+      persona: input.persona,
+      scenario: input.scenario,
+      baseline: input.baseline,
+      goodmemory,
+      judge: input.judge,
+    });
+    const assertions = evaluateScenarioAssertions({
+      scenario: input.scenario,
+      goodmemory,
+    });
+
+    return {
+      caseId: input.caseId,
+      metadata: {
+        taskFamily: input.scenario.task_family,
+        targetDomain: input.scenario.domain,
+        memorySourceDomains: input.scenario.memory_source_domains,
+        evaluationSetting: input.scenario.evaluation_setting,
+        strategyLabel: goodmemory.strategyLabel,
+        resolvedStrategyLabel: goodmemory.resolvedStrategyLabel,
+      },
+      baseline: input.baseline,
+      goodmemory,
+      judge,
+      assertions,
+    };
+  }, cleanup);
 }
 
 async function evaluateCaseWithRetries(input: {
   caseId: string;
+  scopeNamespace: string;
   persona: PersonaSpec;
   scenario: ScenarioFixture;
   strategy: RecallRouterStrategy;
@@ -195,6 +266,7 @@ async function evaluateCaseWithRetries(input: {
   goodmemoryGenerator: EvalAnswerGenerator;
   judge: JudgeModel;
   retryLimit: number;
+  rememberExtractionStrategy?: MemoryExtractionStrategy;
 }): Promise<
   | { judgedCase: JudgedEvalCase; failure?: undefined }
   | { judgedCase?: undefined; failure: EvalCaseExecutionFailure }
@@ -209,6 +281,7 @@ async function evaluateCaseWithRetries(input: {
       });
       const judgedCase = await evaluateCase({
         caseId: input.caseId,
+        scopeNamespace: input.scopeNamespace,
         baseline,
         persona: input.persona,
         scenario: input.scenario,
@@ -216,6 +289,7 @@ async function evaluateCaseWithRetries(input: {
         createMemory: input.createMemory,
         goodmemoryGenerator: input.goodmemoryGenerator,
         judge: input.judge,
+        rememberExtractionStrategy: input.rememberExtractionStrategy,
       });
 
       return { judgedCase };
@@ -442,9 +516,11 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
       }
 
       const { caseId, persona, scenario, strategy } = selectedCases[currentIndex]!;
+      const scopeNamespace = `${runId}-${caseId}`;
 
       const outcome = await evaluateCaseWithRetries({
         caseId,
+        scopeNamespace,
         persona,
         scenario,
         strategy,
@@ -453,6 +529,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
         goodmemoryGenerator: input.goodmemoryGenerator,
         judge: input.judge,
         retryLimit,
+        rememberExtractionStrategy: input.rememberExtractionStrategy,
       });
 
       if (outcome.judgedCase) {

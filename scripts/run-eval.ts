@@ -1,24 +1,32 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AISDKModelConfig } from "../src/llm/ai-sdk-runtime";
+import { createGoodMemory } from "../src/api/createGoodMemory";
 import {
   countAffirmedSignals,
   countConflictedSignals,
   countNegatedSignals,
 } from "../src/eval/signalMatching";
+import {
+  buildEvalUserId,
+  buildEvalWorkspaceId,
+  type EvalAnswerGeneratorInput,
+} from "../src/eval/runners";
 import { runEvalSuite, type EvalSuiteResult } from "../src/eval/suite";
 import type { JudgeScores } from "../src/eval/judge";
-import type { EvalAnswerGeneratorInput } from "../src/eval/runners";
+import type { AISDKModelConfig } from "../src/llm/ai-sdk-runtime";
+import { parseAISDKModelConfigFromEnv } from "../src/llm/ai-sdk-runtime";
 import {
   createFallbackAdapterDescriptor,
   createLiveAdapterDescriptor,
+  createProviderEmbeddingAdapter,
   createProviderJudgeModel,
+  createProviderMemoryExtractor,
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
 } from "../src/provider/layer";
 
 export type EvalMode = "live" | "fallback";
-export type EvalCLIExecutionMode = EvalMode | "smoke";
+export type EvalCLIExecutionMode = EvalMode | "live-memory" | "smoke";
 
 export interface SmokeEvalCase {
   caseId: string;
@@ -48,6 +56,12 @@ export interface LiveEvalDependencies {
   createTextGenerator?: typeof createProviderTextGenerator;
   createJudgeModel?: typeof createProviderJudgeModel;
   runSuite?: typeof runEvalSuite;
+}
+
+export interface LiveMemoryEvalDependencies extends LiveEvalDependencies {
+  createEmbeddingAdapter?: typeof createProviderEmbeddingAdapter;
+  createMemory?: typeof createGoodMemory;
+  createMemoryExtractor?: typeof createProviderMemoryExtractor;
 }
 
 export interface FallbackEvalDependencies {
@@ -467,8 +481,15 @@ export function resolveRepeatedFlagValues(argv: string[], name: string): string[
 
 export function parseCliOptionsFromArgv(argv: string[]): CLIOptions {
   const mode = resolveFlagValue(argv, "--mode");
-  if (mode !== "live" && mode !== "fallback" && mode !== "smoke") {
-    throw new Error("Missing or invalid required flag --mode=smoke|fallback|live");
+  if (
+    mode !== "live" &&
+    mode !== "fallback" &&
+    mode !== "live-memory" &&
+    mode !== "smoke"
+  ) {
+    throw new Error(
+      "Missing or invalid required flag --mode=smoke|fallback|live|live-memory",
+    );
   }
 
   const limitValue = resolveFlagValue(argv, "--limit");
@@ -483,6 +504,13 @@ export function parseCliOptionsFromArgv(argv: string[]): CLIOptions {
 }
 
 export function resolveDefaultOutputDir(root: string, mode: EvalMode): string {
+  return join(root, "reports/eval", mode);
+}
+
+function resolveDefaultCLIOutputDir(
+  root: string,
+  mode: Exclude<EvalCLIExecutionMode, "smoke">,
+): string {
   return join(root, "reports/eval", mode);
 }
 
@@ -513,6 +541,27 @@ export function resolveLiveModelConfig(prefix: "GOODMEMORY_EVAL" | "GOODMEMORY_J
     apiKey: apiKey as string,
     baseURL: isNonEmpty(baseURL) ? baseURL : undefined,
   };
+}
+
+function resolveProviderBackedModelConfig(
+  prefix: "GOODMEMORY_EMBEDDING" | "GOODMEMORY_ASSISTED_EXTRACTOR",
+): AISDKModelConfig {
+  const config = parseAISDKModelConfigFromEnv(prefix);
+  const missingVars = [
+    !isNonEmpty(process.env[`${prefix}_PROVIDER`])
+      ? `${prefix}_PROVIDER`
+      : null,
+    !isNonEmpty(process.env[`${prefix}_MODEL`]) ? `${prefix}_MODEL` : null,
+    !isNonEmpty(process.env[`${prefix}_API_KEY`]) ? `${prefix}_API_KEY` : null,
+  ].filter(Boolean) as string[];
+
+  if (!config || missingVars.length > 0) {
+    throw new Error(
+      `Missing required ${prefix} provider-backed eval environment variables: ${missingVars.join(", ")}`,
+    );
+  }
+
+  return config;
 }
 
 export function resolveEvalMaxConcurrency(
@@ -659,10 +708,15 @@ export async function runFallbackEval(
         };
       },
     },
-    runtime: createProviderRuntimeMetadata({
-      generation: createFallbackAdapterDescriptor(),
-      judge: createFallbackAdapterDescriptor(),
-    }),
+    runtime: {
+      ...createProviderRuntimeMetadata({
+        generation: createFallbackAdapterDescriptor(),
+        judge: createFallbackAdapterDescriptor(),
+      }),
+      memoryBackend: "in-memory",
+      embeddingEnabled: false,
+      assistedExtractionEnabled: false,
+    },
   });
 }
 
@@ -727,16 +781,125 @@ export async function runLiveEval(
       model: judgeModel,
     }),
     maxConcurrency: resolveEvalMaxConcurrency(),
-    runtime: createProviderRuntimeMetadata({
-      generation: createLiveAdapterDescriptor({
-        providerId: evalModel.provider,
-        modelId: evalModel.model,
+    runtime: {
+      ...createProviderRuntimeMetadata({
+        generation: createLiveAdapterDescriptor({
+          providerId: evalModel.provider,
+          modelId: evalModel.model,
+        }),
+        judge: createLiveAdapterDescriptor({
+          providerId: judgeModel.provider,
+          modelId: judgeModel.model,
+        }),
       }),
-      judge: createLiveAdapterDescriptor({
-        providerId: judgeModel.provider,
-        modelId: judgeModel.model,
-      }),
+      memoryBackend: "in-memory",
+      embeddingEnabled: false,
+      assistedExtractionEnabled: false,
+    },
+  });
+}
+
+export async function runLiveMemoryEval(
+  input?: FixtureEvalOptions,
+  dependencies?: LiveMemoryEvalDependencies,
+): Promise<EvalSuiteResult> {
+  const root = new URL("..", import.meta.url).pathname;
+  const createTextGenerator =
+    dependencies?.createTextGenerator ?? createProviderTextGenerator;
+  const createJudgeModel =
+    dependencies?.createJudgeModel ?? createProviderJudgeModel;
+  const createEmbeddingAdapter =
+    dependencies?.createEmbeddingAdapter ?? createProviderEmbeddingAdapter;
+  const createMemoryExtractor =
+    dependencies?.createMemoryExtractor ?? createProviderMemoryExtractor;
+  const runSuite = dependencies?.runSuite ?? runEvalSuite;
+  const failedCaseIds = input?.failuresFrom
+    ? await resolveFailedCaseIds(input.failuresFrom, "live")
+    : [];
+  const scenarioIds = mergeScenarioIds(input?.scenarioIds, []);
+  const caseIds = mergeCaseIds(input?.caseIds, failedCaseIds);
+  const evalModel = resolveLiveModelConfig("GOODMEMORY_EVAL");
+  const judgeModel = resolveLiveModelConfig("GOODMEMORY_JUDGE");
+  const embeddingModel = resolveProviderBackedModelConfig("GOODMEMORY_EMBEDDING");
+  const extractorModel = resolveProviderBackedModelConfig(
+    "GOODMEMORY_ASSISTED_EXTRACTOR",
+  );
+  const postgresUrl = process.env.GOODMEMORY_TEST_POSTGRES_URL;
+
+  if (!isNonEmpty(postgresUrl)) {
+    throw new Error(
+      "Missing required provider-backed eval environment variables: GOODMEMORY_TEST_POSTGRES_URL",
+    );
+  }
+
+  return runSuite({
+    mode: "live",
+    personaDir: join(root, "fixtures/personas/eval"),
+    scenarioDir: join(root, "fixtures/scenarios/eval"),
+    outputDir:
+      input?.outputDir ?? resolveDefaultCLIOutputDir(root, "live-memory"),
+    limit: input?.limit,
+    scenarioIds,
+    caseIds,
+    baselineGenerator: createTextGenerator({
+      model: evalModel,
+      system:
+        "Answer using only the visible transcript. If critical history is missing, say that you need more context.",
     }),
+    goodmemoryGenerator: createTextGenerator({
+      model: evalModel,
+      system: buildLiveGoodMemorySystemPrompt(),
+    }),
+    judge: createJudgeModel({
+      model: judgeModel,
+    }),
+    createMemory: ({ persona, scopeNamespace }) => {
+      const memory = (dependencies?.createMemory ?? createGoodMemory)({
+        storage: {
+          provider: "postgres",
+          url: postgresUrl,
+        },
+        adapters: {
+          embeddingAdapter: createEmbeddingAdapter({
+            model: embeddingModel,
+          }),
+          assistedExtractor: createMemoryExtractor({
+            model: extractorModel,
+          }),
+        },
+      });
+
+      return {
+        memory,
+        cleanup: async () => {
+          await memory.deleteAllMemory({
+            scope: {
+              userId: buildEvalUserId(persona, scopeNamespace),
+              workspaceId: buildEvalWorkspaceId(persona, scopeNamespace),
+            },
+            includeRuntime: true,
+          });
+        },
+      };
+    },
+    maxConcurrency: resolveEvalMaxConcurrency(),
+    strategies: ["rules-only", "hybrid"],
+    rememberExtractionStrategy: "auto",
+    runtime: {
+      ...createProviderRuntimeMetadata({
+        generation: createLiveAdapterDescriptor({
+          providerId: evalModel.provider,
+          modelId: evalModel.model,
+        }),
+        judge: createLiveAdapterDescriptor({
+          providerId: judgeModel.provider,
+          modelId: judgeModel.model,
+        }),
+      }),
+      memoryBackend: "provider-backed",
+      embeddingEnabled: true,
+      assistedExtractionEnabled: true,
+    },
   });
 }
 
@@ -748,19 +911,27 @@ async function main(): Promise<void> {
     return;
   }
 
-  const report = options.mode === "live"
-    ? await runLiveEval({
-        limit: options.limit,
-        scenarioIds: options.scenarioIds,
-        outputDir: options.outputDir,
-        failuresFrom: options.failuresFrom,
-      })
-    : await runFallbackEval({
-        limit: options.limit,
-        scenarioIds: options.scenarioIds,
-        outputDir: options.outputDir,
-        failuresFrom: options.failuresFrom,
-      });
+  const report =
+    options.mode === "live"
+      ? await runLiveEval({
+          limit: options.limit,
+          scenarioIds: options.scenarioIds,
+          outputDir: options.outputDir,
+          failuresFrom: options.failuresFrom,
+        })
+      : options.mode === "live-memory"
+        ? await runLiveMemoryEval({
+            limit: options.limit,
+            scenarioIds: options.scenarioIds,
+            outputDir: options.outputDir,
+            failuresFrom: options.failuresFrom,
+          })
+        : await runFallbackEval({
+            limit: options.limit,
+            scenarioIds: options.scenarioIds,
+            outputDir: options.outputDir,
+            failuresFrom: options.failuresFrom,
+          });
 
   console.log(JSON.stringify(report, null, 2));
 }

@@ -20,4 +20,7 @@ export interface ProviderRuntimeMetadata {
   judgeAdapter?: RuntimeAdapterId;
   judgeModelId?: string;
   judgeProviderId?: ModelProviderId;
+  memoryBackend?: "in-memory" | "provider-backed";
+  embeddingEnabled?: boolean;
+  assistedExtractionEnabled?: boolean;
 }

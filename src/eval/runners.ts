@@ -12,6 +12,7 @@ import type {
   ScenarioTurn,
 } from "./dataset";
 import type { RecallRouterStrategy } from "../recall/router";
+import type { MemoryExtractionStrategy } from "../remember/candidates";
 import type { RememberResult as PublicRememberResult } from "../remember/contracts";
 
 export interface EvalAnswerGeneratorInput {
@@ -70,6 +71,7 @@ export interface EvalAnswerPackage {
       accepted: number;
       rejected: number;
       events: PublicRememberResult["events"];
+      metadata?: PublicRememberResult["metadata"];
     }>;
     feedbackEvents: Array<{
       sessionId: string;
@@ -177,10 +179,36 @@ export async function runBaselineScenario(input: {
   };
 }
 
-function buildScenarioScope(persona: PersonaSpec, sessionId: string) {
+function sanitizeScopeNamespace(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/-+/g, "-");
+}
+
+export function buildEvalUserId(
+  persona: PersonaSpec,
+  scopeNamespace?: string,
+): string {
+  return scopeNamespace
+    ? `${persona.persona_id}--eval-${sanitizeScopeNamespace(scopeNamespace)}`
+    : persona.persona_id;
+}
+
+export function buildEvalWorkspaceId(
+  persona: PersonaSpec,
+  scopeNamespace?: string,
+): string {
+  return scopeNamespace
+    ? `eval-${persona.lifecycle_bucket}-${sanitizeScopeNamespace(scopeNamespace)}`
+    : `eval-${persona.lifecycle_bucket}`;
+}
+
+function buildScenarioScope(
+  persona: PersonaSpec,
+  sessionId: string,
+  scopeNamespace?: string,
+) {
   return {
-    userId: persona.persona_id,
-    workspaceId: `eval-${persona.lifecycle_bucket}`,
+    userId: buildEvalUserId(persona, scopeNamespace),
+    workspaceId: buildEvalWorkspaceId(persona, scopeNamespace),
     sessionId,
   };
 }
@@ -189,12 +217,17 @@ async function runScenarioFeedbackSignals(input: {
   memory: GoodMemory;
   persona: PersonaSpec;
   signals: ScenarioFeedbackSignal[];
+  scopeNamespace?: string;
 }): Promise<EvalAnswerPackage["trace"]["feedbackEvents"]> {
   const events: EvalAnswerPackage["trace"]["feedbackEvents"] = [];
 
   for (const signal of input.signals) {
     const result = await input.memory.feedback({
-      scope: buildScenarioScope(input.persona, signal.session_id),
+      scope: buildScenarioScope(
+        input.persona,
+        signal.session_id,
+        input.scopeNamespace,
+      ),
       signal: signal.signal,
     });
     events.push({
@@ -217,15 +250,22 @@ export async function runGoodMemoryScenario(input: {
   answerGenerator: EvalAnswerGenerator;
   retrievalProfile?: "general_chat" | "coding_agent";
   strategy?: RecallRouterStrategy;
+  rememberExtractionStrategy?: MemoryExtractionStrategy;
   ignoreMemory?: boolean;
+  scopeNamespace?: string;
 }): Promise<EvalAnswerPackage> {
   const rememberEvents: EvalAnswerPackage["trace"]["rememberEvents"] = [];
   const evaluationPlan = buildEvaluationPlan(input.scenario);
 
   for (const session of evaluationPlan.replaySessions) {
     const result = await input.memory.remember({
-      scope: buildScenarioScope(input.persona, session.session_id),
+      scope: buildScenarioScope(
+        input.persona,
+        session.session_id,
+        input.scopeNamespace,
+      ),
       messages: session.turns,
+      extractionStrategy: input.rememberExtractionStrategy,
     });
 
     rememberEvents.push({
@@ -234,6 +274,7 @@ export async function runGoodMemoryScenario(input: {
       accepted: result.accepted,
       rejected: result.rejected,
       events: result.events,
+      metadata: result.metadata,
     });
   }
 
@@ -241,12 +282,14 @@ export async function runGoodMemoryScenario(input: {
     memory: input.memory,
     persona: input.persona,
     signals: input.scenario.feedback_signals ?? [],
+    scopeNamespace: input.scopeNamespace,
   });
 
   const recall = await input.memory.recall({
     scope: buildScenarioScope(
       input.persona,
       input.scenario.sessions.at(-1)!.session_id,
+      input.scopeNamespace,
     ),
     query: getEvaluationPrompt(input.scenario),
     retrievalProfile: input.retrievalProfile ?? "general_chat",
@@ -270,7 +313,7 @@ export async function runGoodMemoryScenario(input: {
 
   return {
     mode: "goodmemory",
-    strategyLabel: input.strategy ?? "rules-only",
+    strategyLabel: input.strategy ?? "auto",
     resolvedStrategyLabel: recall.metadata.routingDecision.strategy,
     personaId: input.persona.persona_id,
     scenarioId: input.scenario.scenario_id,

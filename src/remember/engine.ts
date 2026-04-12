@@ -20,6 +20,7 @@ import type {
   MemoryCandidate,
   MemoryExtractionInput,
   MemoryExtractionResult,
+  MemoryExtractionStrategy,
 } from "./candidates";
 import type {
   RememberEngineConfig,
@@ -37,6 +38,9 @@ export type {
 } from "./contracts";
 
 export function createRememberEngine(config: RememberEngineConfig) {
+  const AUTO_EXTRACTION_COMPLEXITY_CHAR_THRESHOLD = 220;
+  const AUTO_EXTRACTION_DURABLE_CUE_PATTERN =
+    /\b(remember that|source of truth|runbook|current blocker|blocked|blocking|prefer|please keep|my current role|my role|my timezone|preferred language|current focus|current project|use .+ instead of|instead of)\b|记住|以.+为准|阻塞|卡点|不再/u;
   const language = config.language ?? createLanguageService();
   const extractor =
     config.extractor ??
@@ -47,15 +51,73 @@ export function createRememberEngine(config: RememberEngineConfig) {
   const now = config.now ?? (() => new Date().toISOString());
   const createId = config.createId ?? (() => crypto.randomUUID());
 
+  const shouldAutoUseAssistedExtraction = (input: {
+    request: MemoryExtractionInput;
+    baselineExtraction: MemoryExtractionResult;
+  }): boolean => {
+    if (!assistedExtractor) {
+      return false;
+    }
+
+    const userMessages = input.request.messages.filter(
+      (message) => message.role === "user",
+    );
+    const combinedUserContent = userMessages
+      .map((message) => message.content.trim())
+      .filter((content) => content.length > 0)
+      .join("\n");
+    const durableCandidateKinds = new Set(
+      input.baselineExtraction.candidates
+        .filter((candidate) => candidate.kindHint !== "noise")
+        .map((candidate) => candidate.kindHint),
+    );
+    const hasCorrectionCue =
+      /\b(correction|replace|replaced|supersede|superseded|instead of|use .+ as the source of truth|not .+ source of truth)\b|不再|改成|更正|以.+为准/u.test(
+        combinedUserContent,
+      );
+    const hasDurableCue = AUTO_EXTRACTION_DURABLE_CUE_PATTERN.test(
+      combinedUserContent,
+    );
+    const hasMixedReferenceIntent =
+      durableCandidateKinds.has("reference") &&
+      (
+        durableCandidateKinds.has("fact") ||
+        durableCandidateKinds.has("profile") ||
+        durableCandidateKinds.has("preference") ||
+        durableCandidateKinds.has("feedback")
+      );
+
+    return (
+      userMessages.length >= 2 ||
+      combinedUserContent.length >= AUTO_EXTRACTION_COMPLEXITY_CHAR_THRESHOLD ||
+      (input.baselineExtraction.candidates.length === 0 && hasDurableCue) ||
+      hasCorrectionCue ||
+      hasMixedReferenceIntent
+    );
+  };
+
+  const resolveRequestedExtractionStrategy = (
+    strategy: MemoryExtractionStrategy | undefined,
+  ): MemoryExtractionStrategy => strategy ?? "auto";
+
   const resolveExtraction = async (input: MemoryExtractionInput) => {
-    const requestedExtractionStrategy =
-      input.extractionStrategy ?? "rules-only";
+    const requestedExtractionStrategy = resolveRequestedExtractionStrategy(
+      input.extractionStrategy,
+    );
     const baselineExtraction = annotateExtractionResult(
       await extractor.extract(input),
       "rules-only",
     );
 
-    if (requestedExtractionStrategy !== "llm-assisted" || !assistedExtractor) {
+    const shouldRunAssistedExtraction =
+      requestedExtractionStrategy === "llm-assisted" ||
+      (requestedExtractionStrategy === "auto" &&
+        shouldAutoUseAssistedExtraction({
+          request: input,
+          baselineExtraction,
+        }));
+
+    if (!shouldRunAssistedExtraction || !assistedExtractor) {
       return {
         extraction: baselineExtraction,
         requestedExtractionStrategy,
@@ -67,7 +129,10 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
     try {
       assistedExtraction = annotateExtractionResult(
-        await assistedExtractor.extract(input),
+        await assistedExtractor.extract({
+          ...input,
+          extractionStrategy: "llm-assisted",
+        }),
         "llm-assisted",
       );
     } catch {
@@ -112,7 +177,6 @@ export function createRememberEngine(config: RememberEngineConfig) {
         pendingVectorDeletes: [],
       };
       const episodeCandidates: MemoryCandidate[] = [];
-      const episodeRedactions: Array<{ from: string; to: string }> = [];
       const policyContext: PolicyContext = {
         scope: input.scope,
         phase: "remember",
@@ -237,15 +301,6 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
           if (state.accepted > acceptedBeforeWrite) {
             episodeCandidates.push(effectiveCandidate);
-
-            const originalContent = candidate.content.trim();
-            const redactedContent = effectiveCandidate.content.trim();
-            if (originalContent.length > 0 && originalContent !== redactedContent) {
-              episodeRedactions.push({
-                from: originalContent,
-                to: redactedContent,
-              });
-            }
           }
         }
 
@@ -256,7 +311,6 @@ export function createRememberEngine(config: RememberEngineConfig) {
           now(),
           language,
           resolvedLanguage.locale,
-          episodeRedactions,
         );
         if (episode) {
           await setDocumentWithRollback("episodes", episode.id, episode);

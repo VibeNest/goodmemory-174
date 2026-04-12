@@ -25,7 +25,7 @@ export type MemoryCandidateKindHint =
   | "noise";
 
 export type MemoryCandidateExplicitness = "explicit" | "inferred";
-export type MemoryExtractionStrategy = "rules-only" | "llm-assisted";
+export type MemoryExtractionStrategy = "rules-only" | "llm-assisted" | "auto";
 
 export interface MemoryCandidateMetadata {
   category?: "project" | "technical" | "personal" | "relationship" | "event";

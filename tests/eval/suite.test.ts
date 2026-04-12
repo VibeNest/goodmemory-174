@@ -272,6 +272,161 @@ describe("eval suite", () => {
     }
   });
 
+  it("preserves the primary case failure when cleanup also fails", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-cleanup-errors");
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-medium-01"],
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async () => ({
+          content: "not used",
+        }),
+        judge: createFakeLLMAdapter([]),
+        createMemory: () => ({
+          memory: {
+            async remember() {
+              return {
+                accepted: 0,
+                rejected: 0,
+                events: [],
+              };
+            },
+            async feedback() {
+              return { accepted: false };
+            },
+            async recall() {
+              throw new Error("primary-recall-error");
+            },
+            async buildContext() {
+              throw new Error("not used");
+            },
+            async forget() {
+              return { forgotten: false };
+            },
+            async exportMemory() {
+              throw new Error("not used");
+            },
+            async deleteAllMemory() {
+              return {
+                scope: { userId: "u-1" },
+                deleted: {
+                  profiles: 0,
+                  preferences: 0,
+                  references: 0,
+                  facts: 0,
+                  feedback: 0,
+                  episodes: 0,
+                  archives: 0,
+                  evidence: 0,
+                  experiences: 0,
+                  workingMemory: 0,
+                  journal: 0,
+                  artifactSpills: 0,
+                },
+              };
+            },
+          } as never,
+          cleanup: async () => {
+            throw new Error("cleanup-error");
+          },
+        }),
+      });
+
+      expect(result.cases).toHaveLength(0);
+      expect(result.failedCases).toHaveLength(1);
+      expect(result.failedCases?.[0]?.lastError).toContain("primary-recall-error");
+      expect(result.failedCases?.[0]?.lastError).toContain("cleanup-error");
+      expect(
+        result.failedCases?.[0]?.lastError.indexOf("primary-recall-error"),
+      ).toBeLessThan(
+        result.failedCases?.[0]?.lastError.indexOf("cleanup-error") ?? Infinity,
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("reports undefined primary failures instead of swallowing the case", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-undefined-primary");
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-medium-01"],
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async () => ({
+          content: "not used",
+        }),
+        judge: createFakeLLMAdapter([]),
+        createMemory: () => ({
+          memory: {
+            async remember() {
+              return {
+                accepted: 0,
+                rejected: 0,
+                events: [],
+              };
+            },
+            async feedback() {
+              return { accepted: false };
+            },
+            async recall() {
+              throw undefined;
+            },
+            async buildContext() {
+              throw new Error("not used");
+            },
+            async forget() {
+              return { forgotten: false };
+            },
+            async exportMemory() {
+              throw new Error("not used");
+            },
+            async deleteAllMemory() {
+              return {
+                scope: { userId: "u-1" },
+                deleted: {
+                  profiles: 0,
+                  preferences: 0,
+                  references: 0,
+                  facts: 0,
+                  feedback: 0,
+                  episodes: 0,
+                  archives: 0,
+                  evidence: 0,
+                  experiences: 0,
+                  workingMemory: 0,
+                  journal: 0,
+                  artifactSpills: 0,
+                },
+              };
+            },
+          } as never,
+        }),
+      });
+
+      expect(result.summary.totalCases).toBe(1);
+      expect(result.cases).toHaveLength(0);
+      expect(result.failedCases).toHaveLength(1);
+      expect(result.failedCases?.[0]?.caseId).toBe("scenario-medium-01");
+      expect(result.failedCases?.[0]?.lastError).toBe("undefined");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("runs live cases concurrently instead of serializing all baseline calls", async () => {
     const workspace = await createTempWorkspace("goodmemory-suite-concurrency");
     let releaseBaseline!: () => void;

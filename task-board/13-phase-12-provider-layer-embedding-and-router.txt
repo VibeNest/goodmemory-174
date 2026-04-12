@@ -8,7 +8,7 @@ Turn `llm`, `embedding`, and `router` from architecture-only concepts into stage
 
 Current Status
 --------------
-[WIP] Phase 12 has started now that Phase 14 archive/evidence/artifact foundation is complete.
+[DONE] Phase 12 provider-layer, embedding, router, auto strategy defaults, and provider-backed live memory eval are implemented and regression-covered.
 
 
 Dependencies
@@ -67,3 +67,5 @@ Exit Checklist
 - Hybrid retrieval has eval evidence
 - LLM-assisted features are optional, not mandatory
 - Docs and examples explain when to stay rules-only
+- Public defaults now resolve `strategy` / `extractionStrategy` through `auto`
+- `eval:live-memory` exercises Postgres + embeddings + assisted extraction without changing legacy `eval:live`

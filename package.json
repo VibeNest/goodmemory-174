@@ -29,6 +29,7 @@
     "eval:smoke": "bun run scripts/run-eval.ts --mode=smoke",
     "eval:fallback": "bun run scripts/run-eval.ts --mode=fallback",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
+    "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",
     "eval:summary": "bun run scripts/summarize-eval.ts"
   },
   "devDependencies": {

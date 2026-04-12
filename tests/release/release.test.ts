@@ -29,6 +29,9 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:smoke"]).toBe("bun run scripts/run-eval.ts --mode=smoke");
     expect(pkg.scripts?.["eval:fallback"]).toBe("bun run scripts/run-eval.ts --mode=fallback");
     expect(pkg.scripts?.["eval:live"]).toBe("bun run scripts/run-eval.ts --mode=live");
+    expect(pkg.scripts?.["eval:live-memory"]).toBe(
+      "bun run scripts/run-eval.ts --mode=live-memory",
+    );
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
 
@@ -75,6 +78,7 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("bun test");
     expect(checklist).toContain("bun run test:coverage");
     expect(checklist).toContain("eval:live");
+    expect(checklist).toContain("eval:live-memory");
     expect(checklist).not.toContain("eval:full");
   });
 

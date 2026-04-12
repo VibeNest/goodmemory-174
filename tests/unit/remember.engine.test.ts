@@ -365,6 +365,211 @@ describe("remember engine", () => {
     expect(facts[0]?.subject).toBe("runtime launch");
   });
 
+  it("defaults extraction strategy to auto and keeps simple explicit inputs on rules-only", async () => {
+    const scope = { userId: "u-auto-simple", sessionId: "s-1", workspaceId: "workspace-a" };
+    let assistedCalls = 0;
+    const { engine } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "rules-1",
+                kindHint: "fact",
+                explicitness: "explicit",
+                content: "Runtime launch is blocked on legal review.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "project",
+                  factKind: "blocker",
+                  subject: "runtime launch",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          assistedCalls += 1;
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that runtime launch is blocked on legal review.",
+        },
+      ],
+    });
+
+    expect(result.metadata?.requestedExtractionStrategy).toBe("auto");
+    expect(result.metadata?.resolvedExtractionStrategy).toBe("rules-only");
+    expect(assistedCalls).toBe(0);
+    expect(result.events[0]?.extractionSources).toEqual(["rules-only"]);
+  });
+
+  it("upgrades auto extraction to llm-assisted for multi-intent replay batches", async () => {
+    const scope = { userId: "u-auto-assisted", sessionId: "s-1", workspaceId: "workspace-a" };
+    let assistedCalls = 0;
+    const { engine } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "rules-reference",
+                kindHint: "reference",
+                explicitness: "explicit",
+                content: "docs/runtime-runbook.md",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  referencePointer: "docs/runtime-runbook.md",
+                  referenceTitle: "Runtime runbook",
+                },
+              },
+              {
+                id: "rules-fact",
+                kindHint: "fact",
+                explicitness: "explicit",
+                content: "Runtime migration is blocked on schema rollout.",
+                sourceMessageIndex: 1,
+                sourceRole: "user",
+                metadata: {
+                  category: "project",
+                  factKind: "blocker",
+                  subject: "runtime migration",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          assistedCalls += 1;
+          return {
+            candidates: [
+              {
+                id: "llm-reference",
+                kindHint: "reference",
+                explicitness: "explicit",
+                content: "The source of truth is docs/runtime-runbook.md.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  referenceKind: "runbook",
+                  referencePointer: "docs/runtime-runbook.md",
+                  referenceTitle: "Runtime runbook",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Use docs/runtime-runbook.md as the source of truth.",
+        },
+        {
+          role: "user",
+          content: "Remember that runtime migration is blocked on schema rollout.",
+        },
+      ],
+    });
+
+    expect(result.metadata?.requestedExtractionStrategy).toBe("auto");
+    expect(result.metadata?.resolvedExtractionStrategy).toBe("llm-assisted");
+    expect(assistedCalls).toBe(1);
+    expect(
+      result.events.some((event) => event.extractionSources?.includes("llm-assisted")),
+    ).toBe(true);
+  });
+
+  it("falls back from auto extraction to rules-only when assisted extraction fails", async () => {
+    const scope = { userId: "u-auto-fallback", sessionId: "s-1", workspaceId: "workspace-a" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "rules-reference",
+                kindHint: "reference",
+                explicitness: "explicit",
+                content: "docs/runtime-runbook.md",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  referencePointer: "docs/runtime-runbook.md",
+                  referenceTitle: "Runtime runbook",
+                },
+              },
+              {
+                id: "rules-fact",
+                kindHint: "fact",
+                explicitness: "explicit",
+                content: "Runtime launch is blocked on legal review.",
+                sourceMessageIndex: 1,
+                sourceRole: "user",
+                metadata: {
+                  category: "project",
+                  factKind: "blocker",
+                  subject: "runtime launch",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          throw new Error("OpenAI-compatible gateway timeout after 45000ms.");
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Correction: docs/runtime-runbook.md is now the source of truth.",
+        },
+        {
+          role: "user",
+          content: "Remember that runtime launch is blocked on legal review.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const facts = await repositories.facts.listByScope(scope);
+
+    expect(result.metadata?.requestedExtractionStrategy).toBe("auto");
+    expect(result.metadata?.resolvedExtractionStrategy).toBe("rules-only");
+    expect(references).toHaveLength(1);
+    expect(facts).toHaveLength(1);
+  });
+
   it("enriches duplicate facts with better structured metadata during llm-assisted merge", async () => {
     const scope = { userId: "u-llm-fact", sessionId: "s-1", workspaceId: "workspace-a" };
     const { engine, repositories } = createEngine({

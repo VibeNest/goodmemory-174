@@ -6,10 +6,7 @@ import type {
   MemoryExtractionInput,
 } from "./candidates";
 
-interface EpisodeTextRedaction {
-  from: string;
-  to: string;
-}
+const ASSISTANT_FOLLOW_THROUGH_OVERLAP_THRESHOLD = 0.14;
 
 function dedupeNonEmpty(values: string[]): string[] {
   const seen = new Set<string>();
@@ -23,33 +20,6 @@ function dedupeNonEmpty(values: string[]): string[] {
     seen.add(trimmed);
     return true;
   });
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function applyEpisodeRedactions(
-  value: string,
-  redactions: EpisodeTextRedaction[],
-): string {
-  let sanitized = value.trim();
-  const sortedRedactions = [...redactions].sort(
-    (left, right) => right.from.length - left.from.length,
-  );
-
-  for (const redaction of sortedRedactions) {
-    const from = redaction.from.trim();
-    const to = redaction.to.trim();
-
-    if (from.length === 0 || from === to) {
-      continue;
-    }
-
-    sanitized = sanitized.replace(new RegExp(escapeRegExp(from), "giu"), to);
-  }
-
-  return sanitized.trim();
 }
 
 function describeEpisodeCandidate(candidate: MemoryCandidate): string {
@@ -67,9 +37,8 @@ function selectSubstantiveAssistantMessages(
   messages: MemoryExtractionInput["messages"],
   language: LanguageService,
   locale?: string,
-  redactions: EpisodeTextRedaction[] = [],
 ): string[] {
-  const assistantMessages = messages
+  return messages
     .filter((message) => message.role === "assistant")
     .map((message) => message.content.trim())
     .filter((content) => content.length > 0)
@@ -83,10 +52,82 @@ function selectSubstantiveAssistantMessages(
         language.isAssistantContinuitySignal(content, resolved) ||
         content.length >= 24
       );
-    })
-    .map((content) => applyEpisodeRedactions(content, redactions));
+    });
+}
 
-  return dedupeNonEmpty(assistantMessages);
+function selectAssistantContinuityMessages(
+  messages: string[],
+  language: LanguageService,
+  locale: string,
+): string[] {
+  return messages.filter((message) =>
+    language.isAssistantContinuitySignal(
+      message,
+      language.resolveFromText({
+        locale,
+        text: message,
+      }),
+    ),
+  );
+}
+
+function buildCandidateGroundingText(candidate: MemoryCandidate): string {
+  const hints: string[] = [];
+
+  if (candidate.kindHint === "profile" && candidate.metadata?.profileField) {
+    hints.push(candidate.metadata.profileField);
+  }
+
+  if (candidate.kindHint === "fact" && candidate.metadata?.factKind) {
+    hints.push(candidate.metadata.factKind);
+  }
+
+  if (candidate.kindHint === "reference" && candidate.metadata?.referenceKind) {
+    hints.push(candidate.metadata.referenceKind);
+  }
+
+  if (candidate.kindHint === "feedback" && candidate.metadata?.feedbackKind) {
+    hints.push(candidate.metadata.feedbackKind);
+  }
+
+  return [describeEpisodeCandidate(candidate), ...hints]
+    .filter((value) => value.trim().length > 0)
+    .join(" ");
+}
+
+function selectFollowThroughHighlights(
+  assistantMessages: string[],
+  candidates: MemoryCandidate[],
+  language: LanguageService,
+  locale: string,
+): string[] {
+  const candidateDetails = candidates.map((candidate) => ({
+    grounding: buildCandidateGroundingText(candidate),
+    highlight: describeEpisodeCandidate(candidate),
+  }));
+
+  const matchedHighlights = assistantMessages.flatMap((message) => {
+    const matchingCandidates = candidateDetails.filter(
+      (candidate) =>
+        language.tokenOverlap(message, candidate.grounding, locale, {
+          excludeStopwords: true,
+        }) >= ASSISTANT_FOLLOW_THROUGH_OVERLAP_THRESHOLD,
+    );
+
+    if (matchingCandidates.length !== 1) {
+      return [];
+    }
+
+    return [matchingCandidates[0]!.highlight];
+  });
+
+  return dedupeNonEmpty(matchedHighlights).slice(0, 2);
+}
+
+function buildEpisodeKeyDecisions(candidateHighlights: string[]): string[] {
+  return candidateHighlights
+    .map((highlight) => `Assistant follow-through on: ${highlight}`)
+    .slice(0, 2);
 }
 
 function extractEpisodeUnresolvedItems(
@@ -125,31 +166,7 @@ function extractEpisodeUnresolvedItems(
 }
 
 function buildEpisodeTopics(candidates: MemoryCandidate[]): string[] {
-  return dedupeNonEmpty(
-    candidates.map((candidate) => {
-      if (candidate.kindHint === "profile") {
-        return candidate.metadata?.profileField ?? candidate.content;
-      }
-
-      if (candidate.kindHint === "reference") {
-        return (
-          candidate.metadata?.referenceTitle ??
-          candidate.metadata?.referencePointer ??
-          candidate.content
-        );
-      }
-
-      if (candidate.kindHint === "preference") {
-        return candidate.metadata?.preferenceCategory ?? candidate.content;
-      }
-
-      if (candidate.kindHint === "feedback") {
-        return candidate.metadata?.appliesTo ?? candidate.content;
-      }
-
-      return candidate.metadata?.subject ?? candidate.content;
-    }),
-  )
+  return dedupeNonEmpty(candidates.map((candidate) => describeEpisodeCandidate(candidate)))
     .map((topic) => topic.split(" ").slice(0, 3).join(" "))
     .filter((topic) => topic.length > 0)
     .slice(0, 2);
@@ -162,28 +179,39 @@ export function maybeBuildEpisode(
   timestamp: string,
   language: LanguageService,
   locale: string,
-  redactions: EpisodeTextRedaction[] = [],
 ): EpisodeMemory | null {
-  const substantiveAssistantMessages = selectSubstantiveAssistantMessages(
+  const assistantMessages = selectSubstantiveAssistantMessages(
     input.messages,
     language,
     input.locale,
-    redactions,
+  );
+  const assistantContinuityMessages = selectAssistantContinuityMessages(
+    assistantMessages,
+    language,
+    locale,
   );
   const candidateHighlights = dedupeNonEmpty(
     candidates.map((candidate) => describeEpisodeCandidate(candidate)),
   ).slice(0, 2);
+  const followThroughHighlights = selectFollowThroughHighlights(
+    assistantContinuityMessages,
+    candidates,
+    language,
+    locale,
+  );
+  const hasAssistantContribution =
+    assistantContinuityMessages.length > 0 || followThroughHighlights.length > 0;
 
-  if (candidateHighlights.length === 0 || substantiveAssistantMessages.length === 0) {
+  if (candidateHighlights.length === 0 || !hasAssistantContribution) {
     return null;
   }
 
   const summarySegments = [...candidateHighlights];
-  if (substantiveAssistantMessages.length > 0) {
-    summarySegments.push(
-      `Assistant follow-through: ${substantiveAssistantMessages[0]}`,
-    );
-  }
+  summarySegments.push(
+    followThroughHighlights.length > 0
+      ? "Assistant follow-through captured."
+      : "Assistant substantive continuity captured.",
+  );
 
   return createEpisodeMemory({
     id,
@@ -193,7 +221,7 @@ export function maybeBuildEpisode(
     agentId: input.scope.agentId,
     sessionId: input.scope.sessionId,
     summary: `Conversation covered: ${summarySegments.join(" / ")}`,
-    keyDecisions: substantiveAssistantMessages.slice(0, 2),
+    keyDecisions: buildEpisodeKeyDecisions(followThroughHighlights),
     unresolvedItems: extractEpisodeUnresolvedItems(
       candidates,
       language,

@@ -13,6 +13,7 @@ import {
   resolveRepeatedFlagValues,
   runFallbackEval,
   runLiveEval,
+  runLiveMemoryEval,
   runSmokeEval,
 } from "../../scripts/run-eval";
 
@@ -109,7 +110,7 @@ describe("run-eval script", () => {
     });
 
     expect(() => parseCliOptionsFromArgv(["bun", "scripts/run-eval.ts"])).toThrow(
-      "Missing or invalid required flag --mode=smoke|fallback|live",
+      "Missing or invalid required flag --mode=smoke|fallback|live|live-memory",
     );
   });
 
@@ -144,6 +145,22 @@ describe("run-eval script", () => {
     expect(resolveDefaultOutputDir("/tmp/goodmemory", "live")).toBe(
       "/tmp/goodmemory/reports/eval/live",
     );
+  });
+
+  it("parses the live-memory cli mode explicitly", () => {
+    expect(
+      parseCliOptionsFromArgv([
+        "bun",
+        "scripts/run-eval.ts",
+        "--mode=live-memory",
+      ]),
+    ).toEqual({
+      mode: "live-memory",
+      limit: undefined,
+      scenarioIds: [],
+      outputDir: undefined,
+      failuresFrom: undefined,
+    });
   });
 
   it("parses live eval max concurrency from environment", () => {
@@ -893,6 +910,206 @@ describe("run-eval script", () => {
       );
       expect(String(createTextCalls[1]?.system)).toContain(
         "Do not volunteer project ownership or leadership when the requested slots are role, blocker, open loop, or runbook",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("builds provider-backed live memory eval with postgres, embeddings, and assisted extraction", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-live-memory");
+    const createEmbeddingCalls: Array<Record<string, unknown>> = [];
+    const createExtractorCalls: Array<Record<string, unknown>> = [];
+    const createMemoryCalls: Array<Record<string, unknown>> = [];
+    const cleanupCalls: Array<Record<string, unknown>> = [];
+    const runSuiteCalls: Array<Record<string, unknown>> = [];
+
+    process.env.GOODMEMORY_TEST_POSTGRES_URL = "postgres://localhost/goodmemory-test";
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";
+    process.env.GOODMEMORY_EVAL_API_KEY = "eval-key";
+    process.env.GOODMEMORY_JUDGE_PROVIDER = "anthropic";
+    process.env.GOODMEMORY_JUDGE_MODEL = "claude-sonnet";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "judge-key";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "openai/text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "embedding-key";
+    process.env.GOODMEMORY_EMBEDDING_BASE_URL = "https://openrouter.ai/api/v1";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "openai/gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "extractor-key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL = "https://openrouter.ai/api/v1";
+
+    try {
+      const result = await runLiveMemoryEval(
+        {
+          scenarioIds: ["scenario-medium-01"],
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          createTextGenerator: () => async () => ({ content: "live-answer" }),
+          createJudgeModel: () => ({
+            async complete() {
+              return {
+                content: JSON.stringify({
+                  winner: "tie",
+                  scores: {
+                    factual_recall: 7,
+                    preference_consistency: 7,
+                    cross_domain_transfer: 7,
+                    contamination_penalty: 7,
+                    update_correctness: 7,
+                    personalization_usefulness: 7,
+                    provenance_explainability: 7,
+                  },
+                  reasoning: "live comparison",
+                  failure_tags: [],
+                }),
+              };
+            },
+          }),
+          createEmbeddingAdapter: (input) => {
+            createEmbeddingCalls.push(input as unknown as Record<string, unknown>);
+            return {
+              async embed(texts) {
+                return texts.map(() => [1, 0, 0]);
+              },
+            };
+          },
+          createMemoryExtractor: (input) => {
+            createExtractorCalls.push(input as unknown as Record<string, unknown>);
+            return {
+              async extract() {
+                return {
+                  candidates: [],
+                  ignoredMessageCount: 0,
+                };
+              },
+            };
+          },
+          createMemory: (config) => {
+            createMemoryCalls.push(config as unknown as Record<string, unknown>);
+            return {
+              async recall() {
+                throw new Error("not used");
+              },
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async remember() {
+                throw new Error("not used");
+              },
+              async forget() {
+                return { forgotten: false };
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory(input) {
+                cleanupCalls.push(input as unknown as Record<string, unknown>);
+                return {
+                  scope: { userId: "u-1" },
+                  deleted: {
+                    profiles: 0,
+                    preferences: 0,
+                    references: 0,
+                    facts: 0,
+                    feedback: 0,
+                    episodes: 0,
+                    archives: 0,
+                    evidence: 0,
+                    experiences: 0,
+                    workingMemory: 0,
+                    journal: 0,
+                    artifactSpills: 0,
+                  },
+                };
+              },
+              async feedback() {
+                return { accepted: false };
+              },
+            };
+          },
+          runSuite: async (input) => {
+            const persona = {
+              persona_id: "persona-medium-01",
+              lifecycle_bucket: "medium",
+            } as never;
+            const scenario = {
+              scenario_id: "scenario-medium-01",
+            } as never;
+            const memoryHandle = input.createMemory?.({
+              caseId: "scenario-medium-01__hybrid",
+              persona,
+              scenario,
+              scopeNamespace: "run-live-scenario-medium-01__hybrid",
+            });
+            if (memoryHandle && "memory" in memoryHandle) {
+              await memoryHandle.cleanup?.();
+            }
+
+            runSuiteCalls.push({
+              mode: input.mode,
+              outputDir: input.outputDir,
+              strategies: input.strategies,
+              rememberExtractionStrategy: input.rememberExtractionStrategy,
+              runtime: input.runtime,
+              hasMemoryHandle: Boolean(memoryHandle),
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-live-memory",
+              runDirectory: join(workspace.root, "reports/run-live-memory"),
+              summary: buildEmptySuiteSummary(),
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(result.mode).toBe("live");
+      expect(runSuiteCalls[0]?.mode).toBe("live");
+      expect(runSuiteCalls[0]?.strategies).toEqual(["rules-only", "hybrid"]);
+      expect(runSuiteCalls[0]?.rememberExtractionStrategy).toBe("auto");
+      expect(runSuiteCalls[0]?.runtime).toMatchObject({
+        memoryBackend: "provider-backed",
+        embeddingEnabled: true,
+        assistedExtractionEnabled: true,
+      });
+      expect(createEmbeddingCalls[0]?.model).toEqual({
+        provider: "openai",
+        model: "openai/text-embedding-3-small",
+        apiKey: "embedding-key",
+        baseURL: "https://openrouter.ai/api/v1",
+      });
+      expect(createExtractorCalls[0]?.model).toEqual({
+        provider: "openai",
+        model: "openai/gpt-4o-mini",
+        apiKey: "extractor-key",
+        baseURL: "https://openrouter.ai/api/v1",
+      });
+      expect(createMemoryCalls[0]).toMatchObject({
+        storage: {
+          provider: "postgres",
+          url: "postgres://localhost/goodmemory-test",
+        },
+      });
+      expect(
+        (createMemoryCalls[0]?.adapters as Record<string, unknown> | undefined)
+          ?.embeddingAdapter,
+      ).toBeTruthy();
+      expect(
+        (createMemoryCalls[0]?.adapters as Record<string, unknown> | undefined)
+          ?.assistedExtractor,
+      ).toBeTruthy();
+      expect(cleanupCalls).toHaveLength(1);
+      expect((cleanupCalls[0]?.scope as Record<string, unknown>)?.workspaceId).toContain(
+        "run-live-scenario-medium-01__hybrid",
+      );
+      expect((cleanupCalls[0]?.scope as Record<string, unknown>)?.userId).not.toBe(
+        "persona-medium-01",
       );
     } finally {
       await workspace.cleanup();

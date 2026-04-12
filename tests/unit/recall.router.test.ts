@@ -10,12 +10,12 @@ describe("recall router", () => {
     expect(resolveRetrievalProfile()).toBe("general_chat");
   });
 
-  it("defaults router strategy to rules-only with a deterministic explanation", () => {
+  it("defaults router strategy to auto and keeps a deterministic explanation", () => {
     const strategy = resolveRouterStrategy({});
 
     expect(strategy.resolvedStrategy).toBe("rules-only");
-    expect(strategy.requestedStrategy).toBe("rules-only");
-    expect(strategy.summary).toContain("rules-only");
+    expect(strategy.requestedStrategy).toBe("auto");
+    expect(strategy.summary).toContain("auto routing");
     expect(strategy.semanticTieBreaking).toBe(false);
     expect(strategy.llmRefinement).toBe(false);
   });
@@ -59,6 +59,55 @@ describe("recall router", () => {
     expect(plan.strategy).toBe("rules-only");
     expect(plan.sourcePriorities.includes("evidence")).toBe(true);
     expect(plan.intent).toBe("task_continuation");
+  });
+
+  it("keeps auto routing on rules-only for profile-style and procedural queries even when semantic search exists", () => {
+    const rolePlan = planRecall({
+      retrievalProfile: "general_chat",
+      availability: {
+        semanticSearch: true,
+      },
+      query: "What is my current role?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+    const proceduralPlan = planRecall({
+      retrievalProfile: "general_chat",
+      availability: {
+        semanticSearch: true,
+      },
+      query: "How should I respond to this user?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(rolePlan.strategy).toBe("rules-only");
+    expect(rolePlan.strategyExplanation.requestedStrategy).toBe("auto");
+    expect(proceduralPlan.strategy).toBe("rules-only");
+    expect(proceduralPlan.strategyExplanation.requestedStrategy).toBe("auto");
+  });
+
+  it("promotes auto routing to hybrid for reference and action-driving queries when semantic search exists", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      availability: {
+        semanticSearch: true,
+      },
+      query: "Which runbook is the source of truth and what should I do next?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.strategy).toBe("hybrid");
+    expect(plan.strategyExplanation.requestedStrategy).toBe("auto");
+    expect(plan.strategyExplanation.resolvedStrategy).toBe("hybrid");
+    expect(plan.strategyExplanation.semanticTieBreaking).toBe(true);
   });
 
   it("resolves hybrid strategy when semantic routing is available without changing rules-first priorities", () => {

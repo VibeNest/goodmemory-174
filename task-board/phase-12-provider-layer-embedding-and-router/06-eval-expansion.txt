@@ -39,3 +39,5 @@ Current implementation notes
 - eval suite can replay the same persona/scenario set across multiple requested strategies in one run, suffixing case ids only when strategy fanout is active
 - report summaries now include `strategySummary.byStrategy` plus `embeddingImpact` and `routerImpact` comparison slices with scenario-coverage checks
 - strategy regressions are summarized directly in report artifacts, so provider-backed retrieval changes can be judged by strategy instead of anecdote
+- eval replay traces now retain `remember().metadata`, so `requestedExtractionStrategy=auto` and resolved write-path behavior stay visible in artifacts
+- `eval:live-memory` now runs provider-backed memory on Postgres with embeddings and assisted extraction, while legacy `eval:live` remains the in-memory/rules-first baseline
