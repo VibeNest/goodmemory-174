@@ -1,119 +1,23 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AISDKProvider } from "../llm/ai-sdk";
 import { normalizeProviderRuntimeMetadata } from "../provider/layer";
-import type { EvalAssertionSummary } from "./assertions";
-import type { JudgeResult, JudgeScores } from "./judge";
+import type {
+  EvalAssertionsAggregate,
+  EvalCaseExecutionFailure,
+  EvalLayerScores,
+  EvalRuntimeMetadata,
+  EvalStrategyBreakdown,
+  EvalStrategySliceSummary,
+  EvalStrategySummary,
+  EvalSuiteSummary,
+  JudgedEvalCase,
+  PersistedEvalMode,
+} from "./contracts";
+import type {
+  JudgeResult,
+  JudgeScores,
+} from "./judge";
 import type { EvalAnswerPackage } from "./runners";
-
-export interface EvalLayerScores {
-  retrieval: number;
-  personalization: number;
-  runtime_governance: number;
-}
-
-export interface EvalAssertionsAggregate {
-  totalCases: number;
-  passingCases: number;
-  passRate: number;
-  totalChecks: number;
-  passingChecks: number;
-  checkPassRate: number;
-  contaminationFailures: number;
-  updateFailures: number;
-}
-
-export interface JudgedEvalCase {
-  caseId: string;
-  metadata: {
-    taskFamily: EvalAnswerPackage["taskFamily"];
-    targetDomain: string;
-    memorySourceDomains: string[];
-    evaluationSetting: EvalAnswerPackage["evaluationSetting"];
-    strategyLabel: EvalAnswerPackage["strategyLabel"];
-    resolvedStrategyLabel?: EvalAnswerPackage["resolvedStrategyLabel"];
-  };
-  baseline: EvalAnswerPackage;
-  goodmemory: EvalAnswerPackage;
-  judge: JudgeResult;
-  assertions: EvalAssertionSummary;
-}
-
-export interface EvalStrategyBreakdown {
-  totalCases: number;
-  uniqueScenarios: number;
-  winnerCounts: {
-    baseline: number;
-    goodmemory: number;
-    tie: number;
-  };
-  uplift: JudgeScores;
-  regressionCases: string[];
-}
-
-export interface EvalStrategySliceSummary {
-  strategiesCompared: Array<EvalAnswerPackage["strategyLabel"]>;
-  totalCases: number;
-  uniqueScenarios: number;
-  consistentScenarioCoverage: boolean;
-  regressionCases: string[];
-}
-
-export interface EvalStrategySummary {
-  byStrategy: Record<string, EvalStrategyBreakdown>;
-  embeddingImpact: EvalStrategySliceSummary | null;
-  routerImpact: EvalStrategySliceSummary | null;
-}
-
-export interface EvalSuiteSummary {
-  totalCases: number;
-  completedCases?: number;
-  executionFailures?: number;
-  winnerCounts: {
-    baseline: number;
-    goodmemory: number;
-    tie: number;
-  };
-  goodmemoryAverage: JudgeScores;
-  baselineAverage: JudgeScores;
-  uplift: JudgeScores;
-  layers: {
-    baseline: EvalLayerScores;
-    goodmemory: EvalLayerScores;
-    uplift: EvalLayerScores;
-  };
-  assertions: EvalAssertionsAggregate;
-  strategySummary: EvalStrategySummary;
-}
-
-export interface EvalRuntimeMetadata {
-  generationMode: "live" | "fallback";
-  generationLayer?: "fallback" | "vercel-ai-sdk";
-  generationModel?: string;
-  generationProvider?: AISDKProvider;
-  judgeMode: "live" | "fallback";
-  judgeLayer?: "fallback" | "vercel-ai-sdk";
-  judgeModel?: string;
-  judgeProvider?: AISDKProvider;
-}
-
-export type PersistedEvalMode = "live" | "fallback";
-
-export interface EvalCaseExecutionFailure {
-  caseId: string;
-  metadata: {
-    taskFamily: EvalAnswerPackage["taskFamily"];
-    targetDomain: string;
-    memorySourceDomains: string[];
-    evaluationSetting: EvalAnswerPackage["evaluationSetting"];
-  };
-  retryLimit: number;
-  attempts: Array<{
-    attempt: number;
-    error: string;
-  }>;
-  lastError: string;
-}
 
 function emptyScores(): JudgeScores {
   return {

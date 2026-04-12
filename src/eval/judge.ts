@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import type { PersonaSpec, ScenarioFixture } from "./dataset";
 import type { EvalAnswerPackage } from "./runners";
 
@@ -40,6 +42,37 @@ export interface JudgeResult {
   failure_tags: string[];
 }
 
+const JUDGE_SCORE_FIELDS = [
+  "factual_recall",
+  "preference_consistency",
+  "cross_domain_transfer",
+  "contamination_penalty",
+  "update_correctness",
+  "personalization_usefulness",
+  "provenance_explainability",
+] as const satisfies readonly (keyof JudgeScores)[];
+
+const judgeScoreShape = {
+  factual_recall: z.number(),
+  preference_consistency: z.number(),
+  cross_domain_transfer: z.number(),
+  contamination_penalty: z.number(),
+  update_correctness: z.number(),
+  personalization_usefulness: z.number(),
+  provenance_explainability: z.number(),
+} satisfies Record<(typeof JUDGE_SCORE_FIELDS)[number], z.ZodNumber>;
+
+export const judgeScoresSchema = z.object(judgeScoreShape);
+
+export const judgeResultSchema = z.object({
+  winner: z.enum(["baseline", "goodmemory", "tie"]),
+  scores: judgeScoresSchema,
+  baseline_scores: judgeScoresSchema.optional(),
+  goodmemory_scores: judgeScoresSchema.optional(),
+  reasoning: z.string(),
+  failure_tags: z.array(z.string()),
+});
+
 export interface JudgeModel {
   complete(input: {
     purpose: string;
@@ -48,14 +81,15 @@ export interface JudgeModel {
 }
 
 function extractJsonObject(raw: string): Record<string, unknown> {
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
+  const normalized = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  const start = normalized.indexOf("{");
+  const end = normalized.lastIndexOf("}");
 
   if (start === -1 || end === -1 || end < start) {
     throw new Error("Judge output did not contain a JSON object");
   }
 
-  return JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
+  return JSON.parse(normalized.slice(start, end + 1)) as Record<string, unknown>;
 }
 
 function validateScores(
@@ -71,17 +105,7 @@ function validateScores(
   }
 
   const record = value as Record<string, unknown>;
-  const fields: Array<keyof JudgeScores> = [
-    "factual_recall",
-    "preference_consistency",
-    "cross_domain_transfer",
-    "contamination_penalty",
-    "update_correctness",
-    "personalization_usefulness",
-    "provenance_explainability",
-  ];
-
-  for (const field of fields) {
+  for (const field of JUDGE_SCORE_FIELDS) {
     if (typeof record[field] !== "number") {
       throw new Error(`${path}.${field} must be a number`);
     }
@@ -137,9 +161,9 @@ export function buildJudgePrompt(input: JudgePromptInput): string {
     "Return only JSON. No prose, no markdown, no code fences, no <think> tags.",
     "Use this exact top-level shape:",
     "winner, scores, baseline_scores, goodmemory_scores, reasoning, failure_tags.",
-    "Use 0-10 scores for factual_recall, preference_consistency, cross_domain_transfer, contamination_penalty, update_correctness, personalization_usefulness, and provenance_explainability.",
+    `Use 0-10 scores for ${JUDGE_SCORE_FIELDS.join(", ")}.`,
     "Higher contamination_penalty means less incorrect personalization or cross-domain contamination.",
-    "Rubric: factual_recall, preference_consistency, cross_domain_transfer, contamination_penalty, update_correctness, personalization_usefulness, provenance_explainability.",
+    `Rubric: ${JUDGE_SCORE_FIELDS.join(", ")}.`,
     "failure_tags must be a flat string array.",
     "Prefix every failure tag with baseline_, goodmemory_, or shared_.",
     "If GoodMemory wins and baseline made the mistake, use baseline_ tags rather than unscoped tags.",

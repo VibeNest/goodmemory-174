@@ -1,0 +1,749 @@
+import type {
+  EpisodeMemory,
+  FactKind,
+  FactMemory,
+  FeedbackMemory,
+  MemoryScopeKind,
+  PreferenceMemory,
+  ReferenceKind,
+  ReferenceMemory,
+} from "../domain/records";
+import type { MemoryScope } from "../domain/scope";
+import type { MemorySourceMethod } from "../domain/provenance";
+import type { EmbeddingAdapter } from "../embedding/contracts";
+import type { SessionArchive } from "../evolution/contracts";
+import type { LanguageService } from "../language";
+import type { MemoryRepositories } from "../storage/repositories";
+import type { RecallRouterStrategy } from "./router";
+
+export interface RankedFactCandidate {
+  fact: FactMemory;
+  locale: string;
+  factKind?: FactKind;
+  scopeKind?: MemoryScopeKind;
+  subject: string;
+  semanticScore: number;
+  lexicalScore: number;
+  subjectScore: number;
+  intentScore: number;
+  freshnessScore: number;
+  explicitnessScore: number;
+  categoryBoost: number;
+  score: number;
+}
+
+export interface RankedReferenceCandidate {
+  reference: ReferenceMemory;
+  locale: string;
+  referenceKind?: ReferenceKind;
+  subject: string;
+  semanticScore: number;
+  lexicalScore: number;
+  subjectScore: number;
+  intentScore: number;
+  freshnessScore: number;
+  explicitnessScore: number;
+  score: number;
+}
+
+export interface RankedEpisodeCandidate {
+  episode: EpisodeMemory;
+  locale: string;
+  semanticScore: number;
+  lexicalScore: number;
+  freshnessScore: number;
+  score: number;
+}
+
+export interface RankedArchiveCandidate {
+  archive: SessionArchive;
+  locale: string;
+  lexicalScore: number;
+  freshnessScore: number;
+  score: number;
+}
+
+export interface SemanticSearchScores {
+  facts: Map<string, number>;
+  references: Map<string, number>;
+  episodes: Map<string, number>;
+}
+
+const SEMANTIC_TIE_BREAK_EPSILON = 0.2;
+
+function categoryPriority(
+  category: FactMemory["category"],
+  query: string,
+  language: LanguageService,
+  locale: string,
+): number {
+  if (
+    language.isAnswerCompositionQuery(query, locale) ||
+    language.isFactConfirmationQuery(query, locale) ||
+    language.isProjectStateQuery(query, locale)
+  ) {
+    if (category === "project" || category === "technical") {
+      return 0.4;
+    }
+    if (category === "personal") {
+      return -0.25;
+    }
+  }
+
+  return 0;
+}
+
+function factIntentPriority(
+  fact: FactMemory,
+  query: string,
+  factLocale: string,
+  queryLocale: string,
+  language: LanguageService,
+): number {
+  let score = 0;
+
+  if (language.isRoleQuery(query, queryLocale) && language.isRoleFact(fact.content, factLocale)) {
+    score += 0.7;
+  }
+
+  if (
+    language.isFocusQuery(query, queryLocale) &&
+    language.isFocusFact(fact.content, factLocale)
+  ) {
+    score += 0.6;
+  }
+
+  if (
+    language.isOpenLoopQuery(query, queryLocale) &&
+    language.isOpenLoopFact(fact.content, factLocale)
+  ) {
+    score += 0.55;
+  }
+
+  if (
+    language.isBlockerQuery(query, queryLocale) &&
+    language.isBlockerFact(fact.content, factLocale)
+  ) {
+    score += 0.55;
+  }
+
+  return score;
+}
+
+function resolveFactLocale(
+  fact: FactMemory,
+  language: LanguageService,
+): string {
+  return (
+    fact.source.locale ??
+    language.resolveFromText({
+      text: fact.content,
+    }).locale
+  );
+}
+
+function resolveReferenceLocale(
+  reference: ReferenceMemory,
+  language: LanguageService,
+): string {
+  return (
+    reference.source.locale ??
+    language.resolveFromText({
+      text: [reference.title, reference.pointer, reference.description ?? ""]
+        .filter(Boolean)
+        .join(" "),
+    }).locale
+  );
+}
+
+function resolveEpisodeLocale(
+  episode: EpisodeMemory,
+  language: LanguageService,
+): string {
+  return (
+    episode.locale ??
+    language.resolveFromText({
+      text: [episode.summary, episode.topics.join(" ")]
+        .filter(Boolean)
+        .join(" "),
+    }).locale
+  );
+}
+
+function resolveArchiveLocale(
+  archive: SessionArchive,
+  language: LanguageService,
+): string {
+  return (
+    archive.locale ??
+    language.resolveFromText({
+      text: [
+        archive.summary,
+        archive.keyDecisions.join(" "),
+        archive.unresolvedItems.join(" "),
+        archive.normalizedTranscript ?? "",
+        archive.referencedArtifacts.join(" "),
+      ]
+        .filter(Boolean)
+        .join(" "),
+    }).locale
+  );
+}
+
+function buildVectorScopeFilter(scope: MemoryScope): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries({
+      userId: scope.userId,
+      tenantId: scope.tenantId,
+      workspaceId: scope.workspaceId,
+      agentId: scope.agentId,
+    }).filter(([, value]) => value !== undefined),
+  );
+}
+
+export function normalizeSemanticScores(
+  results: Array<{ id: string; score: number }>,
+): Map<string, number> {
+  const highestScore = results.reduce(
+    (currentMax, result) => Math.max(currentMax, result.score),
+    0,
+  );
+
+  if (highestScore <= 0) {
+    return new Map();
+  }
+
+  return new Map(
+    results.map((result) => [result.id, result.score / highestScore] as const),
+  );
+}
+
+export async function searchSemanticScores(input: {
+  embedding: EmbeddingAdapter;
+  query: string;
+  scope: MemoryScope;
+  vectorIndex: NonNullable<MemoryRepositories["vectorIndex"]>;
+}): Promise<SemanticSearchScores> {
+  const [queryEmbedding] = await input.embedding.embed([input.query]);
+  const filter = buildVectorScopeFilter(input.scope);
+  const [facts, references, episodes] = await Promise.all([
+    input.vectorIndex.searchFactEmbedding(queryEmbedding, {
+      topK: 8,
+      filter,
+    }),
+    input.vectorIndex.searchReferenceEmbedding(queryEmbedding, {
+      topK: 8,
+      filter,
+    }),
+    input.vectorIndex.searchEpisodeEmbedding(queryEmbedding, {
+      topK: 6,
+      filter,
+    }),
+  ]);
+
+  return {
+    facts: normalizeSemanticScores(facts),
+    references: normalizeSemanticScores(references),
+    episodes: normalizeSemanticScores(episodes),
+  };
+}
+
+function daysBetween(left: string, right: string): number {
+  const ms = Math.abs(new Date(left).getTime() - new Date(right).getTime());
+  return ms / (1000 * 60 * 60 * 24);
+}
+
+export function freshnessScore(timestamp: string, referenceTime: string): number {
+  const ageDays = daysBetween(referenceTime, timestamp);
+  if (ageDays <= 7) {
+    return 0.25;
+  }
+  if (ageDays <= 30) {
+    return 0.15;
+  }
+  if (ageDays <= 90) {
+    return 0.05;
+  }
+
+  return 0;
+}
+
+export function explicitnessScore(method: MemorySourceMethod): number {
+  if (method === "explicit" || method === "confirmed") {
+    return 0.15;
+  }
+  if (method === "import") {
+    return 0.05;
+  }
+
+  return 0;
+}
+
+function resolveFactKind(
+  fact: FactMemory,
+  language: LanguageService,
+  locale: string,
+): FactKind | undefined {
+  if (fact.factKind) {
+    return fact.factKind;
+  }
+  if (language.isRoleFact(fact.content, locale)) {
+    return "role_update";
+  }
+  if (language.isFocusFact(fact.content, locale)) {
+    return "focus_update";
+  }
+  if (language.isBlockerFact(fact.content, locale)) {
+    return "blocker";
+  }
+  if (language.isOpenLoopFact(fact.content, locale)) {
+    return "open_loop";
+  }
+  if (language.isProjectStateFact(fact.content, locale)) {
+    return "project_state";
+  }
+  if (fact.category === "project" || fact.category === "technical") {
+    return "generic_project";
+  }
+
+  return undefined;
+}
+
+function resolveFactScopeKind(
+  fact: FactMemory,
+  factKind: FactKind | undefined,
+): MemoryScopeKind | undefined {
+  if (fact.scopeKind) {
+    return fact.scopeKind;
+  }
+  if (factKind === "role_update") {
+    return "identity";
+  }
+  if (
+    factKind === "focus_update" ||
+    factKind === "blocker" ||
+    factKind === "open_loop" ||
+    factKind === "project_state" ||
+    factKind === "generic_project"
+  ) {
+    return "project";
+  }
+  if (
+    fact.category === "personal" ||
+    fact.category === "relationship" ||
+    fact.category === "event"
+  ) {
+    return "identity";
+  }
+  if (fact.category === "project" || fact.category === "technical") {
+    return "project";
+  }
+
+  return undefined;
+}
+
+function resolveReferenceKind(reference: ReferenceMemory): ReferenceKind | undefined {
+  if (reference.referenceKind) {
+    return reference.referenceKind;
+  }
+
+  const basename = reference.pointer.split("/").at(-1)?.toLowerCase() ?? "";
+  if (basename.includes("runbook")) {
+    return "runbook";
+  }
+  if (basename.includes("dashboard")) {
+    return "dashboard";
+  }
+  if (basename.includes("tracker")) {
+    return "tracker";
+  }
+  if (basename.length > 0) {
+    return "doc";
+  }
+
+  return undefined;
+}
+
+export function buildFactCandidates(
+  facts: FactMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  referenceTime: string,
+  semanticScores?: Map<string, number>,
+): RankedFactCandidate[] {
+  return sortFacts(facts).map((fact) => {
+    const locale = resolveFactLocale(fact, language);
+    const factKind = resolveFactKind(fact, language, locale);
+    const scopeKind = resolveFactScopeKind(fact, factKind);
+    const subject = fact.subject ?? "unknown";
+    const lexicalScore = language.tokenOverlap(fact.content, query, queryLocale, {
+      excludeStopwords: true,
+    });
+    const subjectScore =
+      subject === "unknown"
+        ? 0
+        : language.tokenOverlap(subject, query, queryLocale, {
+            excludeStopwords: true,
+          });
+    const intentScore = factIntentPriority(
+      fact,
+      query,
+      locale,
+      queryLocale,
+      language,
+    );
+    const freshness = freshnessScore(fact.updatedAt, referenceTime);
+    const explicitness = explicitnessScore(fact.source.method);
+    const categoryBoost = categoryPriority(fact.category, query, language, queryLocale);
+    const semanticScore = semanticScores?.get(fact.id) ?? 0;
+
+    return {
+      fact,
+      locale,
+      factKind,
+      scopeKind,
+      subject,
+      semanticScore,
+      lexicalScore,
+      subjectScore,
+      intentScore,
+      freshnessScore: freshness,
+      explicitnessScore: explicitness,
+      categoryBoost,
+      score: lexicalScore + subjectScore + intentScore + freshness + explicitness + categoryBoost,
+    };
+  });
+}
+
+export function buildReferenceCandidates(
+  references: ReferenceMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  referenceTime: string,
+  semanticScores?: Map<string, number>,
+): RankedReferenceCandidate[] {
+  return sortReferences(references).map((reference) => {
+    const locale = resolveReferenceLocale(reference, language);
+    const lexicalScore =
+      language.tokenOverlap(reference.title, query, queryLocale, {
+        excludeStopwords: true,
+      }) +
+      language.tokenOverlap(reference.pointer, query, queryLocale, {
+        excludeStopwords: true,
+      }) +
+      language.tokenOverlap(reference.description ?? "", query, queryLocale, {
+        excludeStopwords: true,
+      });
+    const subject = reference.subject ?? "unknown";
+    const subjectScore =
+      subject === "unknown"
+        ? 0
+        : language.tokenOverlap(subject, query, queryLocale, {
+            excludeStopwords: true,
+          });
+    const freshness = freshnessScore(reference.updatedAt, referenceTime);
+    const explicitness = explicitnessScore(reference.source.method);
+    const semanticScore = semanticScores?.get(reference.id) ?? 0;
+
+    return {
+      reference,
+      locale,
+      referenceKind: resolveReferenceKind(reference),
+      subject,
+      semanticScore,
+      lexicalScore,
+      subjectScore,
+      intentScore: 0.8,
+      freshnessScore: freshness,
+      explicitnessScore: explicitness,
+      score: lexicalScore + subjectScore + freshness + explicitness + 0.8,
+    };
+  });
+}
+
+export function buildEpisodeCandidates(
+  episodes: EpisodeMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  referenceTime: string,
+  semanticScores?: Map<string, number>,
+): RankedEpisodeCandidate[] {
+  return sortEpisodes(episodes).map((episode) => {
+    const locale = resolveEpisodeLocale(episode, language);
+    const lexicalScore =
+      language.tokenOverlap(episode.summary, query, queryLocale, {
+        excludeStopwords: true,
+      }) +
+      language.tokenOverlap(episode.topics.join(" "), query, queryLocale, {
+        excludeStopwords: true,
+      });
+    const freshness = freshnessScore(episode.createdAt, referenceTime);
+    const semanticScore = semanticScores?.get(episode.id) ?? 0;
+
+    return {
+      episode,
+      locale,
+      semanticScore,
+      lexicalScore,
+      freshnessScore: freshness,
+      score: lexicalScore + freshness + episode.importance * 0.1,
+    };
+  });
+}
+
+export function buildArchiveCandidates(
+  archives: SessionArchive[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  referenceTime: string,
+): RankedArchiveCandidate[] {
+  return sortArchives(archives).map((archive) => {
+    const locale = resolveArchiveLocale(archive, language);
+    const summaryScore = language.tokenOverlap(archive.summary, query, queryLocale, {
+      excludeStopwords: true,
+    });
+    const unresolvedScore = language.tokenOverlap(
+      archive.unresolvedItems.join(" "),
+      query,
+      queryLocale,
+      {
+        excludeStopwords: true,
+      },
+    );
+    const decisionScore = language.tokenOverlap(
+      archive.keyDecisions.join(" "),
+      query,
+      queryLocale,
+      {
+        excludeStopwords: true,
+      },
+    );
+    const transcriptScore = language.tokenOverlap(
+      archive.normalizedTranscript ?? "",
+      query,
+      queryLocale,
+      {
+        excludeStopwords: true,
+      },
+    );
+    const artifactScore = language.tokenOverlap(
+      archive.referencedArtifacts.join(" "),
+      query,
+      queryLocale,
+      {
+        excludeStopwords: true,
+      },
+    );
+    const lexicalScore =
+      unresolvedScore * 1.4 +
+      decisionScore * 1.2 +
+      summaryScore +
+      transcriptScore * 0.6 +
+      artifactScore * 0.4;
+    const freshness = freshnessScore(archive.archivedAt, referenceTime);
+
+    return {
+      archive,
+      locale,
+      lexicalScore,
+      freshnessScore: freshness,
+      score: lexicalScore + freshness + 0.2,
+    };
+  });
+}
+
+function compareFactCandidates(
+  left: RankedFactCandidate,
+  right: RankedFactCandidate,
+  strategy: RecallRouterStrategy,
+): number {
+  const scoreDelta = right.score - left.score;
+
+  if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
+    return scoreDelta;
+  }
+  if (strategy !== "rules-only" && right.semanticScore !== left.semanticScore) {
+    return right.semanticScore - left.semanticScore;
+  }
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+  if (right.lexicalScore !== left.lexicalScore) {
+    return right.lexicalScore - left.lexicalScore;
+  }
+  if (right.intentScore !== left.intentScore) {
+    return right.intentScore - left.intentScore;
+  }
+
+  return left.fact.id.localeCompare(right.fact.id);
+}
+
+export function rankFactCandidates(
+  entries: RankedFactCandidate[],
+  strategy: RecallRouterStrategy,
+): RankedFactCandidate[] {
+  return [...entries].sort((left, right) =>
+    compareFactCandidates(left, right, strategy),
+  );
+}
+
+function compareReferenceCandidates(
+  left: RankedReferenceCandidate,
+  right: RankedReferenceCandidate,
+  strategy: RecallRouterStrategy,
+): number {
+  const scoreDelta = right.score - left.score;
+
+  if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
+    return scoreDelta;
+  }
+  if (strategy !== "rules-only" && right.semanticScore !== left.semanticScore) {
+    return right.semanticScore - left.semanticScore;
+  }
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+  if (right.lexicalScore !== left.lexicalScore) {
+    return right.lexicalScore - left.lexicalScore;
+  }
+
+  return left.reference.id.localeCompare(right.reference.id);
+}
+
+export function rankReferenceCandidates(
+  entries: RankedReferenceCandidate[],
+  strategy: RecallRouterStrategy,
+): RankedReferenceCandidate[] {
+  return [...entries].sort((left, right) =>
+    compareReferenceCandidates(left, right, strategy),
+  );
+}
+
+function compareEpisodeCandidates(
+  left: RankedEpisodeCandidate,
+  right: RankedEpisodeCandidate,
+  strategy: RecallRouterStrategy,
+): number {
+  const scoreDelta = right.score - left.score;
+
+  if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
+    return scoreDelta;
+  }
+  if (strategy !== "rules-only" && right.semanticScore !== left.semanticScore) {
+    return right.semanticScore - left.semanticScore;
+  }
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+  if (right.lexicalScore !== left.lexicalScore) {
+    return right.lexicalScore - left.lexicalScore;
+  }
+
+  return left.episode.id.localeCompare(right.episode.id);
+}
+
+export function rankEpisodeCandidates(
+  entries: RankedEpisodeCandidate[],
+  strategy: RecallRouterStrategy,
+): RankedEpisodeCandidate[] {
+  return [...entries].sort((left, right) =>
+    compareEpisodeCandidates(left, right, strategy),
+  );
+}
+
+export function rankArchiveCandidates(
+  entries: RankedArchiveCandidate[],
+): RankedArchiveCandidate[] {
+  return [...entries].sort((left, right) => {
+    if (right.score !== left.score) {
+      return right.score - left.score;
+    }
+    if (right.lexicalScore !== left.lexicalScore) {
+      return right.lexicalScore - left.lexicalScore;
+    }
+    if (right.freshnessScore !== left.freshnessScore) {
+      return right.freshnessScore - left.freshnessScore;
+    }
+
+    return right.archive.archivedAt.localeCompare(left.archive.archivedAt);
+  });
+}
+
+export function materializeFactCandidate(entry: RankedFactCandidate): FactMemory {
+  if (
+    entry.fact.factKind === entry.factKind &&
+    entry.fact.scopeKind === entry.scopeKind &&
+    entry.fact.subject === entry.subject
+  ) {
+    return entry.fact;
+  }
+
+  return {
+    ...entry.fact,
+    factKind: entry.fact.factKind ?? entry.factKind,
+    scopeKind: entry.fact.scopeKind ?? entry.scopeKind,
+    subject: entry.fact.subject ?? entry.subject,
+  };
+}
+
+export function sortFacts(facts: FactMemory[]): FactMemory[] {
+  return [...facts].sort((left, right) => {
+    if (left.lifecycle !== right.lifecycle) {
+      return left.lifecycle === "active" ? -1 : 1;
+    }
+    if (left.source.method !== right.source.method) {
+      return left.source.method === "explicit" ? -1 : 1;
+    }
+
+    return right.updatedAt.localeCompare(left.updatedAt);
+  });
+}
+
+export function sortFeedback(feedback: FeedbackMemory[]): FeedbackMemory[] {
+  return [...feedback].sort((left, right) => {
+    if (left.lifecycle !== right.lifecycle) {
+      return left.lifecycle === "active" ? -1 : 1;
+    }
+
+    return right.updatedAt.localeCompare(left.updatedAt);
+  });
+}
+
+export function sortPreferences(preferences: PreferenceMemory[]): PreferenceMemory[] {
+  return [...preferences].sort((left, right) =>
+    right.updatedAt.localeCompare(left.updatedAt),
+  );
+}
+
+export function sortReferences(references: ReferenceMemory[]): ReferenceMemory[] {
+  return [...references].sort((left, right) => {
+    if (left.lifecycle !== right.lifecycle) {
+      return left.lifecycle === "active" ? -1 : 1;
+    }
+
+    return right.updatedAt.localeCompare(left.updatedAt);
+  });
+}
+
+export function sortEpisodes(episodes: EpisodeMemory[]): EpisodeMemory[] {
+  return [...episodes].sort((left, right) => {
+    if (right.importance !== left.importance) {
+      return right.importance - left.importance;
+    }
+    if (right.confidence !== left.confidence) {
+      return right.confidence - left.confidence;
+    }
+
+    return right.createdAt.localeCompare(left.createdAt);
+  });
+}
+
+export function sortArchives(archives: SessionArchive[]): SessionArchive[] {
+  return [...archives].sort((left, right) =>
+    right.archivedAt.localeCompare(left.archivedAt),
+  );
+}

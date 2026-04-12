@@ -3,53 +3,17 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
-import {
-  embedMany,
-  generateObject,
-  generateText,
-} from "ai";
+import { embedMany } from "ai";
 import { z } from "zod";
 import type { EmbeddingAdapter } from "../embedding/contracts";
-import type { JudgeModel } from "../eval/judge";
-import type {
-  EvalAnswerGenerator,
-  EvalAnswerGeneratorInput,
-} from "../eval/runners";
-import type {
-  MemoryCandidateKindHint,
-  MemoryExtractionInput,
-  MemoryExtractionResult,
-  MemoryExtractor,
-} from "../remember/candidates";
-
-export type AISDKProvider = "openai" | "anthropic";
+import { isModelProviderId } from "../provider/model-provider";
+import type { ModelProviderId } from "../provider/model-provider";
 
 export interface AISDKModelConfig {
-  provider: AISDKProvider;
+  provider: ModelProviderId;
   model: string;
   apiKey?: string;
   baseURL?: string;
-}
-
-interface TextGeneratorDependencies {
-  generateText?: typeof generateText;
-  resolveModel?: typeof resolveAISDKModel;
-  fetch?: FetchLike;
-  requestTimeoutMs?: number;
-}
-
-interface JudgeModelDependencies {
-  generateObject?: typeof generateObject;
-  resolveModel?: typeof resolveAISDKModel;
-  fetch?: FetchLike;
-  requestTimeoutMs?: number;
-}
-
-interface MemoryExtractorDependencies {
-  generateObject?: typeof generateObject;
-  resolveModel?: typeof resolveAISDKModel;
-  fetch?: FetchLike;
-  requestTimeoutMs?: number;
 }
 
 interface EmbeddingAdapterDependencies {
@@ -59,7 +23,7 @@ interface EmbeddingAdapterDependencies {
 
 type FetchInput = Parameters<FetchFunction>[0];
 type FetchInit = Parameters<FetchFunction>[1];
-type FetchLike = (input: FetchInput, init?: FetchInit) => Promise<Response>;
+export type FetchLike = (input: FetchInput, init?: FetchInit) => Promise<Response>;
 const DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS = 45_000;
 
 function sleep(ms: number): Promise<void> {
@@ -174,7 +138,7 @@ function shouldRetryAISDKError(error: unknown): boolean {
   );
 }
 
-async function withAISDKRetries<T>(
+export async function withAISDKRetries<T>(
   operation: () => Promise<T>,
   retryLimit = 3,
 ): Promise<T> {
@@ -197,91 +161,7 @@ async function withAISDKRetries<T>(
   throw lastError;
 }
 
-const judgeScoresSchema = z.object({
-  factual_recall: z.number(),
-  preference_consistency: z.number(),
-  cross_domain_transfer: z.number(),
-  contamination_penalty: z.number(),
-  update_correctness: z.number(),
-  personalization_usefulness: z.number(),
-  provenance_explainability: z.number(),
-});
-
-const judgeResultSchema = z.object({
-  winner: z.enum(["baseline", "goodmemory", "tie"]),
-  scores: judgeScoresSchema,
-  baseline_scores: judgeScoresSchema.optional(),
-  goodmemory_scores: judgeScoresSchema.optional(),
-  reasoning: z.string(),
-  failure_tags: z.array(z.string()),
-});
-
-const memoryCandidateSchema = z.object({
-  id: z.string(),
-  kindHint: z.enum([
-    "profile",
-    "preference",
-    "reference",
-    "fact",
-    "feedback",
-    "episode",
-    "noise",
-  ] satisfies [MemoryCandidateKindHint, ...MemoryCandidateKindHint[]]),
-  explicitness: z.enum(["explicit", "inferred"]),
-  content: z.string(),
-  sourceMessageIndex: z.number().int().nonnegative(),
-  sourceRole: z.string(),
-  metadata: z
-    .object({
-      category: z
-        .enum(["project", "technical", "personal", "relationship", "event"])
-        .optional(),
-      factKind: z
-        .enum([
-          "blocker",
-          "open_loop",
-          "role_update",
-          "focus_update",
-          "project_state",
-          "generic_project",
-        ])
-        .optional(),
-      scopeKind: z
-        .enum(["identity", "project", "runtime", "reference", "preference"])
-        .optional(),
-      subject: z.string().optional(),
-      feedbackKind: z.enum(["do", "dont", "prefer", "validated_pattern"]).optional(),
-      appliesTo: z.string().optional(),
-      profileField: z
-        .enum([
-          "name",
-          "role",
-          "organization",
-          "location",
-          "timezone",
-          "languagePreference",
-          "currentProject",
-        ])
-        .optional(),
-      preferenceCategory: z.string().optional(),
-      preferenceValue: z.string().optional(),
-      referenceKind: z
-        .enum(["source_of_truth", "runbook", "doc", "dashboard", "tracker"])
-        .optional(),
-      referenceTitle: z.string().optional(),
-      referencePointer: z.string().optional(),
-      supersedesPointer: z.string().optional(),
-    })
-    .partial()
-    .optional(),
-});
-
-const memoryExtractionResultSchema = z.object({
-  candidates: z.array(memoryCandidateSchema),
-  ignoredMessageCount: z.number().int().nonnegative(),
-});
-
-function stripThinkingBlocks(value: string): string {
+export function stripThinkingBlocks(value: string): string {
   return value.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
@@ -446,6 +326,7 @@ function summarizeZodIssues(error: z.ZodError): string {
 function parseStructuredModelObject<T>(
   content: string,
   schema: z.ZodType<T>,
+  normalizePayload?: (payload: unknown) => unknown,
 ): T {
   const normalized = stripThinkingBlocks(content);
   if (!normalized) {
@@ -462,7 +343,7 @@ function parseStructuredModelObject<T>(
     );
   }
 
-  const parsed = schema.safeParse(payload);
+  const parsed = schema.safeParse(normalizePayload ? normalizePayload(payload) : payload);
   if (!parsed.success) {
     throw new Error(
       `Structured model response schema validation failed: ${summarizeZodIssues(parsed.error)}`,
@@ -519,7 +400,7 @@ async function withOpenAICompatibleTimeout<T>(input: {
   });
 }
 
-async function requestOpenAICompatibleText(input: {
+export async function requestOpenAICompatibleText(input: {
   model: AISDKModelConfig;
   system?: string;
   prompt: string;
@@ -702,13 +583,14 @@ async function requestOpenAICompatibleText(input: {
   return content;
 }
 
-async function requestOpenAICompatibleObject<T>(input: {
+export async function requestOpenAICompatibleObject<T>(input: {
   model: AISDKModelConfig;
   schema: z.ZodType<T>;
   system?: string;
   prompt: string;
   fetch?: FetchLike;
   timeoutMs?: number;
+  normalizePayload?: (payload: unknown) => unknown;
 }): Promise<T> {
   return parseStructuredModelObject(
     await requestOpenAICompatibleText({
@@ -719,6 +601,7 @@ async function requestOpenAICompatibleObject<T>(input: {
       timeoutMs: input.timeoutMs,
     }),
     input.schema,
+    input.normalizePayload,
   );
 }
 
@@ -732,7 +615,7 @@ export function parseAISDKModelConfigFromEnv(
     return null;
   }
 
-  if (provider !== "openai" && provider !== "anthropic") {
+  if (!isModelProviderId(provider)) {
     throw new Error(`Unsupported Vercel AI SDK provider: ${provider}`);
   }
 
@@ -814,16 +697,6 @@ export function resolveAISDKEmbeddingModel(config: AISDKModelConfig) {
   throw new Error(`Unsupported Vercel AI SDK provider: ${config.provider}`);
 }
 
-export function buildAISDKTextPrompt(input: EvalAnswerGeneratorInput): string {
-  return [
-    input.transcript,
-    input.memoryContext ? `Memory context:\n${input.memoryContext}` : undefined,
-    `User request:\n${input.prompt}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 export function createAISDKEmbeddingAdapter(input: {
   model: AISDKModelConfig;
   dependencies?: EmbeddingAdapterDependencies;
@@ -850,179 +723,6 @@ export function createAISDKEmbeddingAdapter(input: {
       }
 
       return embeddings.map((embedding) => embedding.map((value) => Number(value)));
-    },
-  };
-}
-
-export function buildAISDKMemoryExtractionPrompt(
-  input: MemoryExtractionInput,
-): string {
-  const transcript = input.messages
-    .map((message, index) => `[${index}] ${message.role}: ${message.content}`)
-    .join("\n");
-
-  return [
-    "Extract durable memory candidates from this conversation.",
-    "Return only useful long-lived memory candidates and the ignored message count.",
-    "Respond with a single JSON object. Do not use markdown fences or commentary.",
-    [
-      "The JSON object must contain:",
-      "candidates: an array of objects with id, kindHint, explicitness, content, sourceMessageIndex, sourceRole, and optional metadata.",
-      "ignoredMessageCount: a non-negative integer.",
-      "Only use the allowed enum values implied by this task.",
-    ].join(" "),
-    `Locale hint: ${input.locale ?? "auto"}`,
-    `Requested extraction strategy: ${input.extractionStrategy ?? "rules-only"}`,
-    "Conversation:",
-    transcript,
-  ].join("\n\n");
-}
-
-export function createAISDKTextGenerator(input: {
-  model: AISDKModelConfig;
-  system?: string;
-  promptBuilder?: (input: EvalAnswerGeneratorInput) => string;
-  dependencies?: TextGeneratorDependencies;
-  }): EvalAnswerGenerator {
-  return async (payload) => {
-    return withAISDKRetries(async () => {
-      if (input.model.provider === "openai" && input.model.baseURL) {
-        const content = stripThinkingBlocks(
-          await requestOpenAICompatibleText({
-            model: input.model,
-            system: input.system,
-            prompt: (input.promptBuilder ?? buildAISDKTextPrompt)(payload),
-            fetch: input.dependencies?.fetch,
-            timeoutMs: input.dependencies?.requestTimeoutMs,
-          }),
-        );
-        if (!content) {
-          throw new Error("Empty model response");
-        }
-
-        return {
-          content,
-        };
-      }
-
-      const { text } = await (input.dependencies?.generateText ?? generateText)({
-        model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-        system: input.system,
-        prompt: (input.promptBuilder ?? buildAISDKTextPrompt)(payload),
-      });
-      const content = stripThinkingBlocks(text);
-      if (!content) {
-        throw new Error("Empty model response");
-      }
-
-      return {
-        content,
-      };
-    });
-  };
-}
-
-export function createAISDKMemoryExtractor(input: {
-  model: AISDKModelConfig;
-  system?: string;
-  promptBuilder?: (input: MemoryExtractionInput) => string;
-  dependencies?: MemoryExtractorDependencies;
-}): MemoryExtractor {
-  return {
-    async extract(payload): Promise<MemoryExtractionResult> {
-      const system =
-        input.system ??
-        [
-          "You extract durable memory candidates from a conversation.",
-          "Prefer profile updates, preferences, references, durable facts, and reusable feedback.",
-          "Return an empty candidate list when nothing should be remembered.",
-        ].join(" ");
-      const prompt = (input.promptBuilder ?? buildAISDKMemoryExtractionPrompt)(payload);
-
-      return withAISDKRetries(async () => {
-        if (input.model.provider === "openai" && input.model.baseURL) {
-          const object = await requestOpenAICompatibleObject({
-            model: input.model,
-            schema: memoryExtractionResultSchema,
-            system,
-            prompt,
-            fetch: input.dependencies?.fetch,
-            timeoutMs: input.dependencies?.requestTimeoutMs,
-          });
-
-          return {
-            candidates: object.candidates.map((candidate) => ({
-              ...candidate,
-              content: candidate.content.trim(),
-            })),
-            ignoredMessageCount: object.ignoredMessageCount,
-          };
-        }
-
-        const { object } = await (input.dependencies?.generateObject ?? generateObject)({
-          model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-          schema: memoryExtractionResultSchema,
-          system,
-          prompt,
-        });
-
-        return {
-          candidates: object.candidates.map((candidate) => ({
-            ...candidate,
-            content: candidate.content.trim(),
-          })),
-          ignoredMessageCount: object.ignoredMessageCount,
-        };
-      });
-    },
-  };
-}
-
-export function createAISDKJudgeModel(input: {
-  model: AISDKModelConfig;
-  system?: string;
-  dependencies?: JudgeModelDependencies;
-}): JudgeModel {
-  return {
-    async complete({ prompt }) {
-      const system =
-        input.system ??
-        "You compare two answers and return strict JSON judging which one better understands the user and continues history.";
-
-      return withAISDKRetries(async () => {
-        if (input.model.provider === "openai" && input.model.baseURL) {
-          const content = await requestOpenAICompatibleText({
-            model: input.model,
-            system,
-            prompt,
-            fetch: input.dependencies?.fetch,
-            timeoutMs: input.dependencies?.requestTimeoutMs,
-          });
-          if (!content.trim()) {
-            throw new Error("Empty model response");
-          }
-
-          return {
-            content,
-          };
-        }
-
-        const { object } = await (input.dependencies?.generateObject ?? generateObject)({
-          model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-          schema: judgeResultSchema,
-          system,
-          prompt,
-        });
-
-        const content = JSON.stringify(object);
-        if (!content.trim()) {
-          throw new Error("Empty model response");
-        }
-
-        return {
-          content,
-        };
-      });
     },
   };
 }

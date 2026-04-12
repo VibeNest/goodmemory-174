@@ -1,4 +1,5 @@
-import { createGoodMemory, type GoodMemory } from "../index";
+import type { GoodMemory } from "../api/contracts";
+import { createGoodMemory } from "../api/createGoodMemory";
 import { evaluateScenarioAssertions } from "./assertions";
 import {
   listPersonaSpecs,
@@ -7,19 +8,21 @@ import {
   type PersonaSpec,
   type ScenarioFixture,
 } from "./dataset";
-import type { RecallRouterStrategy } from "../index";
+import type {
+  EvalCaseExecutionFailure,
+  EvalRuntimeMetadata,
+  EvalSuiteSummary,
+  JudgedEvalCase,
+  PersistedEvalMode,
+} from "./contracts";
 import type { JudgeModel } from "./judge";
 import { runJudgeComparison } from "./judge";
 import {
   aggregateJudgedCases,
   persistEvalArtifacts,
-  type EvalCaseExecutionFailure,
-  type EvalRuntimeMetadata,
-  type PersistedEvalMode,
-  type EvalSuiteSummary,
-  type JudgedEvalCase,
 } from "./reporting";
 import { normalizeProviderRuntimeMetadata } from "../provider/layer";
+import type { RecallRouterStrategy } from "../recall/router";
 import {
   runBaselineScenario,
   runGoodMemoryScenario,

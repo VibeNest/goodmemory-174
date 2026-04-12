@@ -69,9 +69,9 @@ describe("eval suite", () => {
         summary: { totalCases: number; winnerCounts: { goodmemory: number } };
         runtime: {
           generationMode: string;
-          generationLayer?: string;
+          generationAdapter?: string;
           judgeMode: string;
-          judgeLayer?: string;
+          judgeAdapter?: string;
         };
       };
 
@@ -82,8 +82,8 @@ describe("eval suite", () => {
       expect(report.summary.totalCases).toBe(1);
       expect(report.runtime.generationMode).toBe("fallback");
       expect(report.runtime.judgeMode).toBe("fallback");
-      expect(report.runtime.generationLayer).toBe("fallback");
-      expect(report.runtime.judgeLayer).toBe("fallback");
+      expect(report.runtime.generationAdapter).toBe("fallback");
+      expect(report.runtime.judgeAdapter).toBe("fallback");
       expect(result.cases[0]?.assertions.passed).toBe(true);
       expect(result.cases[0]?.metadata.taskFamily).toBeDefined();
     } finally {

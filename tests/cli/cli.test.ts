@@ -6,10 +6,10 @@ import { createEvidenceRecord } from "../../src/evidence/contracts";
 import { createSessionArchive } from "../../src/evolution/contracts";
 import { createTempWorkspace } from "../../src/testing/utils";
 import type { EvalAssertionSummary } from "../../src/eval/assertions";
+import type { JudgedEvalCase } from "../../src/eval/contracts";
 import {
   persistEvalArtifacts,
   aggregateJudgedCases,
-  type JudgedEvalCase,
 } from "../../src/eval/reporting";
 import type { EvalAnswerPackage } from "../../src/eval/runners";
 import type { JudgeResult } from "../../src/eval/judge";

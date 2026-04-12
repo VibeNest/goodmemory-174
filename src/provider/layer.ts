@@ -1,85 +1,105 @@
+import {
+  createEvalAnswerGenerator,
+} from "../eval/answer-generator";
+import {
+  createEvalJudgeModel,
+} from "../eval/judge-model";
 import type { JudgeModel } from "../eval/judge";
 import type {
   EvalAnswerGenerator,
   EvalAnswerGeneratorInput,
 } from "../eval/runners";
 import type { MemoryExtractor } from "../remember/candidates";
-import {
-  createAISDKEmbeddingAdapter,
-  createAISDKJudgeModel,
-  createAISDKMemoryExtractor,
-  createAISDKTextGenerator,
-} from "../llm/ai-sdk";
-import type {
-  AISDKModelConfig,
-  AISDKProvider,
-} from "../llm/ai-sdk";
+import type { AISDKModelConfig } from "../llm/ai-sdk-runtime";
+import { createAISDKEmbeddingAdapter } from "../llm/ai-sdk-runtime";
+import { createLLMMemoryExtractor } from "../remember/llm-extractor";
 import type { EmbeddingAdapter } from "../embedding/contracts";
+import type {
+  ModelProviderId,
+  ProviderRuntimeMetadata,
+  RuntimeTargetDescriptor,
+} from "./contracts";
 
-export type ProviderLayerName = "fallback" | "vercel-ai-sdk";
-export type ProviderExecutionMode = "fallback" | "live";
-
-export interface ProviderTargetDescriptor {
-  layer: ProviderLayerName;
-  mode: ProviderExecutionMode;
-  provider?: AISDKProvider;
-  model?: string;
+interface ProviderTextGeneratorFactory {
+  (input: {
+    model: AISDKModelConfig;
+    system?: string;
+    promptBuilder?: (input: EvalAnswerGeneratorInput) => string;
+  }): EvalAnswerGenerator;
 }
 
-export function createFallbackProviderDescriptor(): ProviderTargetDescriptor {
+interface ProviderJudgeModelFactory {
+  (input: {
+    model: AISDKModelConfig;
+    system?: string;
+  }): JudgeModel;
+}
+
+interface ProviderMemoryExtractorFactory {
+  (input: {
+    model: AISDKModelConfig;
+    system?: string;
+  }): MemoryExtractor;
+}
+
+interface ProviderEmbeddingAdapterFactory {
+  (input: {
+    model: AISDKModelConfig;
+  }): EmbeddingAdapter;
+}
+
+export interface ModelProviderDescriptorInput {
+  providerId: ModelProviderId;
+  modelId: string;
+}
+
+export function createFallbackAdapterDescriptor(): RuntimeTargetDescriptor {
   return {
-    layer: "fallback",
+    adapterId: "fallback",
     mode: "fallback",
   };
 }
 
-export function createAISDKProviderDescriptor(
-  config: AISDKModelConfig,
-): ProviderTargetDescriptor {
+export function createLiveAdapterDescriptor(
+  config: ModelProviderDescriptorInput,
+): RuntimeTargetDescriptor {
   return {
-    layer: "vercel-ai-sdk",
+    adapterId: "live-adapter",
     mode: "live",
-    provider: config.provider,
-    model: config.model,
+    providerId: config.providerId,
+    modelId: config.modelId,
   };
 }
 
 export function createProviderRuntimeMetadata(input: {
-  generation: ProviderTargetDescriptor;
-  judge: ProviderTargetDescriptor;
-}) {
+  generation: RuntimeTargetDescriptor;
+  judge: RuntimeTargetDescriptor;
+}): ProviderRuntimeMetadata {
   return {
     generationMode: input.generation.mode,
-    generationLayer: input.generation.layer,
+    generationAdapter: input.generation.adapterId,
     judgeMode: input.judge.mode,
-    judgeLayer: input.judge.layer,
-    ...(input.generation.provider
-      ? { generationProvider: input.generation.provider }
+    judgeAdapter: input.judge.adapterId,
+    ...(input.generation.providerId
+      ? { generationProviderId: input.generation.providerId }
       : {}),
-    ...(input.generation.model ? { generationModel: input.generation.model } : {}),
-    ...(input.judge.provider ? { judgeProvider: input.judge.provider } : {}),
-    ...(input.judge.model ? { judgeModel: input.judge.model } : {}),
+    ...(input.generation.modelId ? { generationModelId: input.generation.modelId } : {}),
+    ...(input.judge.providerId ? { judgeProviderId: input.judge.providerId } : {}),
+    ...(input.judge.modelId ? { judgeModelId: input.judge.modelId } : {}),
   };
 }
 
-export function normalizeProviderRuntimeMetadata(input: {
-  generationMode: ProviderExecutionMode;
-  generationLayer?: ProviderLayerName;
-  generationModel?: string;
-  generationProvider?: AISDKProvider;
-  judgeMode: ProviderExecutionMode;
-  judgeLayer?: ProviderLayerName;
-  judgeModel?: string;
-  judgeProvider?: AISDKProvider;
-}) {
+export function normalizeProviderRuntimeMetadata(
+  input: ProviderRuntimeMetadata,
+): ProviderRuntimeMetadata {
   return {
     ...input,
-    generationLayer:
-      input.generationLayer ??
-      (input.generationMode === "live" ? "vercel-ai-sdk" : "fallback"),
-    judgeLayer:
-      input.judgeLayer ??
-      (input.judgeMode === "live" ? "vercel-ai-sdk" : "fallback"),
+    generationAdapter:
+      input.generationAdapter ??
+      (input.generationMode === "live" ? "live-adapter" : "fallback"),
+    judgeAdapter:
+      input.judgeAdapter ??
+      (input.judgeMode === "live" ? "live-adapter" : "fallback"),
   };
 }
 
@@ -87,9 +107,9 @@ export function createProviderTextGenerator(input: {
   model: AISDKModelConfig;
   system?: string;
   promptBuilder?: (input: EvalAnswerGeneratorInput) => string;
-  createTextGenerator?: typeof createAISDKTextGenerator;
+  createTextGenerator?: ProviderTextGeneratorFactory;
 }): EvalAnswerGenerator {
-  return (input.createTextGenerator ?? createAISDKTextGenerator)({
+  return (input.createTextGenerator ?? createEvalAnswerGenerator)({
     model: input.model,
     system: input.system,
     promptBuilder: input.promptBuilder,
@@ -99,9 +119,9 @@ export function createProviderTextGenerator(input: {
 export function createProviderJudgeModel(input: {
   model: AISDKModelConfig;
   system?: string;
-  createJudgeModel?: typeof createAISDKJudgeModel;
+  createJudgeModel?: ProviderJudgeModelFactory;
 }): JudgeModel {
-  return (input.createJudgeModel ?? createAISDKJudgeModel)({
+  return (input.createJudgeModel ?? createEvalJudgeModel)({
     model: input.model,
     system: input.system,
   });
@@ -110,9 +130,9 @@ export function createProviderJudgeModel(input: {
 export function createProviderMemoryExtractor(input: {
   model: AISDKModelConfig;
   system?: string;
-  createMemoryExtractor?: typeof createAISDKMemoryExtractor;
+  createMemoryExtractor?: ProviderMemoryExtractorFactory;
 }): MemoryExtractor {
-  return (input.createMemoryExtractor ?? createAISDKMemoryExtractor)({
+  return (input.createMemoryExtractor ?? createLLMMemoryExtractor)({
     model: input.model,
     system: input.system,
   });
@@ -120,7 +140,7 @@ export function createProviderMemoryExtractor(input: {
 
 export function createProviderEmbeddingAdapter(input: {
   model: AISDKModelConfig;
-  createEmbeddingAdapter?: typeof createAISDKEmbeddingAdapter;
+  createEmbeddingAdapter?: ProviderEmbeddingAdapterFactory;
 }): EmbeddingAdapter {
   return (input.createEmbeddingAdapter ?? createAISDKEmbeddingAdapter)({
     model: input.model,

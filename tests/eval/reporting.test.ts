@@ -2,12 +2,12 @@ import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { EvalAssertionSummary } from "../../src/eval/assertions";
+import type { JudgedEvalCase } from "../../src/eval/contracts";
 import type { JudgeResult } from "../../src/eval/judge";
 import type { EvalAnswerPackage } from "../../src/eval/runners";
 import {
   aggregateJudgedCases,
   persistEvalArtifacts,
-  type JudgedEvalCase,
 } from "../../src/eval/reporting";
 import { createTempWorkspace } from "../../src/testing/utils";
 
@@ -454,8 +454,8 @@ describe("eval reporting", () => {
           };
         };
         runtime: {
-          generationLayer?: string;
-          judgeLayer?: string;
+          generationAdapter?: string;
+          judgeAdapter?: string;
         };
       };
       const failure = JSON.parse(
@@ -509,8 +509,8 @@ describe("eval reporting", () => {
       expect(report.summary.strategySummary?.byStrategy?.["rules-only"]?.totalCases).toBe(
         1,
       );
-      expect(report.runtime.generationLayer).toBe("fallback");
-      expect(report.runtime.judgeLayer).toBe("fallback");
+      expect(report.runtime.generationAdapter).toBe("fallback");
+      expect(report.runtime.judgeAdapter).toBe("fallback");
       expect(failure.judge.failure_tags).toContain("identity_miss");
       expect(failure.assertions.updateFindings).toContain("docs/runbook.md");
       expect(caseArtifact.metadata.taskFamily).toBe("drift_override_lifelong_update");

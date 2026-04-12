@@ -1,7 +1,7 @@
 import { SQL } from "bun";
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
-import { createAISDKEmbeddingAdapter } from "../../src/llm/ai-sdk";
+import { createAISDKEmbeddingAdapter } from "../../src/llm/ai-sdk-runtime";
 
 const POSTGRES_URL = process.env.GOODMEMORY_TEST_POSTGRES_URL;
 

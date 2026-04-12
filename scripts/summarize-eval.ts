@@ -1,7 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-
-type PersistedEvalMode = "live" | "fallback";
+import type { PersistedEvalMode } from "../src/eval/contracts";
 
 interface EvalSummary {
   totalCases: number;

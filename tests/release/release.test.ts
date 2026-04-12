@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 describe("release metadata and docs", () => {
@@ -15,6 +15,7 @@ describe("release metadata and docs", () => {
     expect(pkg.bin?.goodmemory).toBe("./scripts/goodmemory-cli.ts");
     expect(pkg.exports?.["."]).toBe("./src/index.ts");
     expect(pkg.exports?.["./cli"]).toBe("./src/cli.ts");
+    expect(pkg.exports?.["./llm/ai-sdk"]).toBe("./src/llm/ai-sdk-runtime.ts");
     expect(pkg.scripts?.cli).toBe("bun run scripts/goodmemory-cli.ts");
     expect(pkg.scripts?.["example:chat"]).toBe("bun run examples/basic-chat.ts");
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
@@ -29,6 +30,18 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:fallback"]).toBe("bun run scripts/run-eval.ts --mode=fallback");
     expect(pkg.scripts?.["eval:live"]).toBe("bun run scripts/run-eval.ts --mode=live");
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
+  });
+
+  it("package export targets resolve to files that still exist", async () => {
+    const pkg = JSON.parse(
+      await readFile(join(import.meta.dir, "../../package.json"), "utf8"),
+    ) as {
+      exports?: Record<string, string | { import?: string }>;
+    };
+
+    const aiSDKExport = pkg.exports?.["./llm/ai-sdk"];
+    expect(typeof aiSDKExport).toBe("string");
+    await access(join(import.meta.dir, "../../", aiSDKExport as string));
   });
 
   it("readme links the canonical docs, examples, cli, and eval flow", async () => {

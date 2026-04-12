@@ -1,7 +1,5 @@
 import type { EmbeddingAdapter } from "../embedding/contracts";
-import type {
-  MemoryScope,
-} from "../index";
+import type { MemoryScope } from "../domain/scope";
 import { scopeToPrefix } from "../domain/scope";
 
 export interface FakeLLMRequest {

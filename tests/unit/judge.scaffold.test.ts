@@ -77,6 +77,16 @@ internal reasoning
     expect(result.scores.personalization_usefulness).toBe(8);
   });
 
+  it("ignores structured scratch json inside think blocks before parsing the final result", () => {
+    const result = parseJudgeResult(
+      `<think>{"scratch":1}</think>
+{"winner":"tie","scores":{"factual_recall":7,"preference_consistency":7,"cross_domain_transfer":7,"contamination_penalty":7,"update_correctness":7,"personalization_usefulness":7,"provenance_explainability":7},"reasoning":"comparison complete","failure_tags":[]}`,
+    );
+
+    expect(result.winner).toBe("tie");
+    expect(result.scores.factual_recall).toBe(7);
+  });
+
   it("normalizes grouped failure tags and falls back to comparative scores", () => {
     const result = parseJudgeResult(
       JSON.stringify({

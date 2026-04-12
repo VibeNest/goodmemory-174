@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AISDKModelConfig } from "../src/llm/ai-sdk";
+import type { AISDKModelConfig } from "../src/llm/ai-sdk-runtime";
 import {
   countAffirmedSignals,
   countConflictedSignals,
@@ -10,11 +10,11 @@ import { runEvalSuite, type EvalSuiteResult } from "../src/eval/suite";
 import type { JudgeScores } from "../src/eval/judge";
 import type { EvalAnswerGeneratorInput } from "../src/eval/runners";
 import {
+  createFallbackAdapterDescriptor,
+  createLiveAdapterDescriptor,
   createProviderJudgeModel,
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
-  createAISDKProviderDescriptor,
-  createFallbackProviderDescriptor,
 } from "../src/provider/layer";
 
 export type EvalMode = "live" | "fallback";
@@ -660,8 +660,8 @@ export async function runFallbackEval(
       },
     },
     runtime: createProviderRuntimeMetadata({
-      generation: createFallbackProviderDescriptor(),
-      judge: createFallbackProviderDescriptor(),
+      generation: createFallbackAdapterDescriptor(),
+      judge: createFallbackAdapterDescriptor(),
     }),
   });
 }
@@ -728,8 +728,14 @@ export async function runLiveEval(
     }),
     maxConcurrency: resolveEvalMaxConcurrency(),
     runtime: createProviderRuntimeMetadata({
-      generation: createAISDKProviderDescriptor(evalModel),
-      judge: createAISDKProviderDescriptor(judgeModel),
+      generation: createLiveAdapterDescriptor({
+        providerId: evalModel.provider,
+        modelId: evalModel.model,
+      }),
+      judge: createLiveAdapterDescriptor({
+        providerId: judgeModel.provider,
+        modelId: judgeModel.model,
+      }),
     }),
   });
 }

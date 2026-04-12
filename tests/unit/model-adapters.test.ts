@@ -1,15 +1,21 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
-  createAISDKMemoryExtractor,
+  buildEvalAnswerPrompt as buildAISDKTextPrompt,
+  createEvalAnswerGenerator as createAISDKTextGenerator,
+} from "../../src/eval/answer-generator";
+import {
+  createEvalJudgeModel as createAISDKJudgeModel,
+} from "../../src/eval/judge-model";
+import {
   createAISDKEmbeddingAdapter,
-  buildAISDKTextPrompt,
   createOpenAICompatibleFetch,
-  createAISDKJudgeModel,
-  createAISDKTextGenerator,
   parseAISDKModelConfigFromEnv,
   resolveAISDKEmbeddingModel,
   resolveAISDKModel,
-} from "../../src/llm/ai-sdk";
+} from "../../src/llm/ai-sdk-runtime";
+import {
+  createLLMMemoryExtractor as createAISDKMemoryExtractor,
+} from "../../src/remember/llm-extractor";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -17,7 +23,7 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
 });
 
-describe("vercel ai sdk adapter", () => {
+describe("model adapters", () => {
   it("parses model config from environment variables", () => {
     process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
     process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";
@@ -393,6 +399,58 @@ describe("vercel ai sdk adapter", () => {
     expect(String(fetchCalls[0]?.init?.body)).toContain("runtime rollout");
   });
 
+  it("normalizes openai-compatible memory extraction enum aliases before schema validation", async () => {
+    const extractor = createAISDKMemoryExtractor({
+      model: {
+        provider: "openai",
+        model: "gpt-5.4",
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+      },
+      dependencies: {
+        fetch: async () =>
+          new Response(
+            [
+              "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\"},\"index\":0}]}",
+              "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"candidates\\\":[{\\\"id\\\":1,\\\"kindHint\\\":\\\"durable_fact\\\",\\\"explicitness\\\":\\\"direct\\\",\\\"content\\\":\\\"Runtime rollout still needs legal signoff.\\\",\\\"sourceMessageIndex\\\":\\\"0\\\",\\\"sourceRole\\\":\\\"USER\\\"}],\\\"ignoredMessageCount\\\":\\\"0\\\"}\"},\"index\":0}]}",
+              "data: [DONE]",
+              "",
+            ].join("\n\n"),
+            {
+              status: 200,
+              headers: {
+                "content-type": "text/event-stream",
+              },
+            },
+          ),
+      },
+    });
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1" },
+      messages: [
+        {
+          role: "user",
+          content: "Heads up: legal still needs to sign off on the runtime rollout.",
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      candidates: [
+        {
+          id: "1",
+          kindHint: "fact",
+          explicitness: "explicit",
+          content: "Runtime rollout still needs legal signoff.",
+          sourceMessageIndex: 0,
+          sourceRole: "user",
+        },
+      ],
+      ignoredMessageCount: 0,
+    });
+  });
+
   it("retries invalid structured memory extraction payloads for openai-compatible base URLs", async () => {
     let attempts = 0;
     const extractor = createAISDKMemoryExtractor({
@@ -531,7 +589,7 @@ describe("vercel ai sdk adapter", () => {
         fetch: async (url, init) => {
           fetchCalls.push({ url: String(url), init });
           return new Response(
-            "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"winner\\\":\\\"tie\\\",\\\"scores\\\":{\\\"factual_recall\\\":7,\\\"preference_consistency\\\":7,\\\"cross_domain_transfer\\\":7,\\\"contamination_penalty\\\":7,\\\"update_correctness\\\":7,\\\"personalization_usefulness\\\":7,\\\"provenance_explainability\\\":7},\\\"reasoning\\\":\\\"ok\\\",\\\"failure_tags\\\":[]}\"},\"index\":0}]}\n\ndata: [DONE]\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"<think>{\\\"scratch\\\":1}</think>\\n{\\\"winner\\\":\\\"tie\\\",\\\"scores\\\":{\\\"factual_recall\\\":7,\\\"preference_consistency\\\":7,\\\"cross_domain_transfer\\\":7,\\\"contamination_penalty\\\":7,\\\"update_correctness\\\":7,\\\"personalization_usefulness\\\":7,\\\"provenance_explainability\\\":7},\\\"reasoning\\\":\\\"ok\\\",\\\"failure_tags\\\":[]}\"},\"index\":0}]}\n\ndata: [DONE]\n\n",
             {
               status: 200,
               headers: {

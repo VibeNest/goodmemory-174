@@ -2,11 +2,11 @@ import type {
   BuildContextResult,
   FeedbackResult,
   GoodMemory,
-  MemoryScope,
-  RecallRouterStrategy,
   RecallResult,
-  RememberResult,
-} from "../index";
+} from "../api/contracts";
+import type { MemoryScope } from "../domain/scope";
+import type { RecallRouterStrategy } from "../recall/router";
+import type { RememberResult } from "../remember/contracts";
 
 export interface ReplayTurn {
   role: string;

@@ -4,8 +4,8 @@ import type { EmbeddingAdapter } from "../../src/embedding/contracts";
 import type { EvalAnswerGenerator } from "../../src/eval/runners";
 import type { MemoryExtractor } from "../../src/remember/candidates";
 import {
-  createAISDKProviderDescriptor,
-  createFallbackProviderDescriptor,
+  createFallbackAdapterDescriptor,
+  createLiveAdapterDescriptor,
   createProviderEmbeddingAdapter,
   createProviderJudgeModel,
   createProviderMemoryExtractor,
@@ -17,36 +17,36 @@ describe("provider layer contract", () => {
   it("builds explicit runtime metadata for fallback and live provider targets", () => {
     expect(
       createProviderRuntimeMetadata({
-        generation: createFallbackProviderDescriptor(),
-        judge: createFallbackProviderDescriptor(),
+        generation: createFallbackAdapterDescriptor(),
+        judge: createFallbackAdapterDescriptor(),
       }),
     ).toEqual({
-      generationLayer: "fallback",
+      generationAdapter: "fallback",
       generationMode: "fallback",
-      judgeLayer: "fallback",
+      judgeAdapter: "fallback",
       judgeMode: "fallback",
     });
 
     expect(
       createProviderRuntimeMetadata({
-        generation: createAISDKProviderDescriptor({
-          provider: "openai",
-          model: "gpt-5",
+        generation: createLiveAdapterDescriptor({
+          providerId: "openai",
+          modelId: "gpt-5",
         }),
-        judge: createAISDKProviderDescriptor({
-          provider: "anthropic",
-          model: "claude-sonnet",
+        judge: createLiveAdapterDescriptor({
+          providerId: "anthropic",
+          modelId: "claude-sonnet",
         }),
       }),
     ).toEqual({
-      generationLayer: "vercel-ai-sdk",
+      generationAdapter: "live-adapter",
       generationMode: "live",
-      generationModel: "gpt-5",
-      generationProvider: "openai",
-      judgeLayer: "vercel-ai-sdk",
+      generationModelId: "gpt-5",
+      generationProviderId: "openai",
+      judgeAdapter: "live-adapter",
       judgeMode: "live",
-      judgeModel: "claude-sonnet",
-      judgeProvider: "anthropic",
+      judgeModelId: "claude-sonnet",
+      judgeProviderId: "anthropic",
     });
   });
 

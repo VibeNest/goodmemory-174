@@ -1,10 +1,8 @@
 import type {
   FeedbackResult,
   GoodMemory,
-  RecallRouterStrategy,
   RecallResult,
-  RememberResult as PublicRememberResult,
-} from "../index";
+} from "../api/contracts";
 import type {
   PersonalizationTaskFamily,
   PersonaSpec,
@@ -13,6 +11,8 @@ import type {
   ScenarioFixture,
   ScenarioTurn,
 } from "./dataset";
+import type { RecallRouterStrategy } from "../recall/router";
+import type { RememberResult as PublicRememberResult } from "../remember/contracts";
 
 export interface EvalAnswerGeneratorInput {
   persona: PersonaSpec;
