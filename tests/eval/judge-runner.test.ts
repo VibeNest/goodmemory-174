@@ -16,6 +16,8 @@ function buildAnswerPackage(
 ): EvalAnswerPackage {
   return {
     mode,
+    strategyLabel: mode === "goodmemory" ? "rules-only" : "baseline",
+    resolvedStrategyLabel: mode === "goodmemory" ? "rules-only" : undefined,
     personaId: "medium-01",
     scenarioId: "scenario-medium-01",
     taskFamily: "preference_continuation",

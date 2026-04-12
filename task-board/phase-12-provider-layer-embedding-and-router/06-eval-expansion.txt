@@ -1,10 +1,10 @@
 Phase 12.6: Eval Expansion
 ==========================
 
-[TODO] P12.6-T001 Add mode labels for rules-only vs hybrid vs llm-assisted
-[TODO] P12.6-T002 Add eval slices that isolate embedding impact
-[TODO] P12.6-T003 Add eval slices that isolate router impact
-[TODO] P12.6-T004 Add regression summary by strategy
+[DONE] P12.6-T001 Add mode labels for rules-only vs hybrid vs llm-assisted
+[DONE] P12.6-T002 Add eval slices that isolate embedding impact
+[DONE] P12.6-T003 Add eval slices that isolate router impact
+[DONE] P12.6-T004 Add regression summary by strategy
 
 Why this exists
 ---------------
@@ -32,3 +32,10 @@ Acceptance
 ----------
 - Strategy changes are measurable, not anecdotal
 - Release decisions can be made from eval evidence
+
+Current implementation notes
+----------------------------
+- eval answer packages now carry strategy labels separately from baseline/goodmemory mode, so per-strategy runs stay visible in persisted artifacts
+- eval suite can replay the same persona/scenario set across multiple requested strategies in one run, suffixing case ids only when strategy fanout is active
+- report summaries now include `strategySummary.byStrategy` plus `embeddingImpact` and `routerImpact` comparison slices with scenario-coverage checks
+- strategy regressions are summarized directly in report artifacts, so provider-backed retrieval changes can be judged by strategy instead of anecdote

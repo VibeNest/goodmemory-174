@@ -30,11 +30,39 @@ export interface JudgedEvalCase {
     targetDomain: string;
     memorySourceDomains: string[];
     evaluationSetting: EvalAnswerPackage["evaluationSetting"];
+    strategyLabel: EvalAnswerPackage["strategyLabel"];
+    resolvedStrategyLabel?: EvalAnswerPackage["resolvedStrategyLabel"];
   };
   baseline: EvalAnswerPackage;
   goodmemory: EvalAnswerPackage;
   judge: JudgeResult;
   assertions: EvalAssertionSummary;
+}
+
+export interface EvalStrategyBreakdown {
+  totalCases: number;
+  uniqueScenarios: number;
+  winnerCounts: {
+    baseline: number;
+    goodmemory: number;
+    tie: number;
+  };
+  uplift: JudgeScores;
+  regressionCases: string[];
+}
+
+export interface EvalStrategySliceSummary {
+  strategiesCompared: Array<EvalAnswerPackage["strategyLabel"]>;
+  totalCases: number;
+  uniqueScenarios: number;
+  consistentScenarioCoverage: boolean;
+  regressionCases: string[];
+}
+
+export interface EvalStrategySummary {
+  byStrategy: Record<string, EvalStrategyBreakdown>;
+  embeddingImpact: EvalStrategySliceSummary | null;
+  routerImpact: EvalStrategySliceSummary | null;
 }
 
 export interface EvalSuiteSummary {
@@ -55,6 +83,7 @@ export interface EvalSuiteSummary {
     uplift: EvalLayerScores;
   };
   assertions: EvalAssertionsAggregate;
+  strategySummary: EvalStrategySummary;
 }
 
 export interface EvalRuntimeMetadata {
@@ -254,6 +283,156 @@ function resolveBlockingFailureTags(judge: JudgeResult): string[] {
   return judge.failure_tags.filter((tag) => hasFailureTagPrefix(tag, "goodmemory"));
 }
 
+function buildStrategyWinnerCounts() {
+  return {
+    baseline: 0,
+    goodmemory: 0,
+    tie: 0,
+  };
+}
+
+function resolveExecutedStrategyLabel(
+  item: JudgedEvalCase,
+): Exclude<EvalAnswerPackage["strategyLabel"], "baseline"> {
+  return (item.metadata.resolvedStrategyLabel ??
+    item.metadata.strategyLabel) as Exclude<
+    EvalAnswerPackage["strategyLabel"],
+    "baseline"
+  >;
+}
+
+function isStrategyRegression(caseArtifact: JudgedEvalCase): boolean {
+  return (
+    caseArtifact.judge.winner !== "goodmemory" ||
+    !caseArtifact.assertions.passed ||
+    resolveBlockingFailureTags(caseArtifact.judge).length > 0
+  );
+}
+
+function setsEqual(left: Set<string>, right: Set<string>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+
+  for (const value of left) {
+    if (!right.has(value)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function buildStrategySlice(
+  cases: JudgedEvalCase[],
+  strategyOrder: Array<EvalAnswerPackage["strategyLabel"]>,
+): EvalStrategySliceSummary | null {
+  const filtered = cases.filter((item) =>
+    strategyOrder.includes(resolveExecutedStrategyLabel(item)),
+  );
+  const presentStrategies = strategyOrder.filter((strategy) =>
+    filtered.some((item) => resolveExecutedStrategyLabel(item) === strategy),
+  );
+
+  if (presentStrategies.length < 2) {
+    return null;
+  }
+
+  const scenarioIdsByStrategy = new Map<string, Set<string>>();
+  const uniqueScenarioIds = new Set<string>();
+
+  for (const item of filtered) {
+    const strategy = resolveExecutedStrategyLabel(item);
+    let scenarioIds = scenarioIdsByStrategy.get(strategy);
+    if (!scenarioIds) {
+      scenarioIds = new Set<string>();
+      scenarioIdsByStrategy.set(strategy, scenarioIds);
+    }
+
+    scenarioIds.add(item.goodmemory.scenarioId);
+    uniqueScenarioIds.add(item.goodmemory.scenarioId);
+  }
+
+  const firstScenarioSet = scenarioIdsByStrategy.get(presentStrategies[0]!) ?? new Set();
+  const consistentScenarioCoverage = presentStrategies.every((strategy) =>
+    setsEqual(scenarioIdsByStrategy.get(strategy) ?? new Set(), firstScenarioSet),
+  );
+
+  return {
+    strategiesCompared: presentStrategies,
+    totalCases: filtered.length,
+    uniqueScenarios: uniqueScenarioIds.size,
+    consistentScenarioCoverage,
+    regressionCases: filtered
+      .filter((item) => isStrategyRegression(item))
+      .map((item) => item.caseId),
+  };
+}
+
+function buildStrategySummary(cases: JudgedEvalCase[]): EvalStrategySummary {
+  const accumulators = new Map<
+    string,
+    {
+      totalCases: number;
+      scenarioIds: Set<string>;
+      winnerCounts: EvalStrategyBreakdown["winnerCounts"];
+      upliftTotal: JudgeScores;
+      regressionCases: string[];
+    }
+  >();
+
+  for (const item of cases) {
+    const strategy = resolveExecutedStrategyLabel(item);
+    const comparative = resolveComparativeScores(item.judge);
+    const uplift = subtractScores(comparative.goodmemory, comparative.baseline);
+    let accumulator = accumulators.get(strategy);
+
+    if (!accumulator) {
+      accumulator = {
+        totalCases: 0,
+        scenarioIds: new Set<string>(),
+        winnerCounts: buildStrategyWinnerCounts(),
+        upliftTotal: emptyScores(),
+        regressionCases: [],
+      };
+      accumulators.set(strategy, accumulator);
+    }
+
+    accumulator.totalCases += 1;
+    accumulator.scenarioIds.add(item.goodmemory.scenarioId);
+    accumulator.winnerCounts[item.judge.winner] += 1;
+    accumulator.upliftTotal = addScores(accumulator.upliftTotal, uplift);
+    if (isStrategyRegression(item)) {
+      accumulator.regressionCases.push(item.caseId);
+    }
+  }
+
+  const byStrategy = Object.fromEntries(
+    [...accumulators.entries()].map(([strategy, accumulator]) => [
+      strategy,
+      {
+        totalCases: accumulator.totalCases,
+        uniqueScenarios: accumulator.scenarioIds.size,
+        winnerCounts: accumulator.winnerCounts,
+        uplift: roundScores(
+          divideScores(accumulator.upliftTotal, Math.max(accumulator.totalCases, 1)),
+        ),
+        regressionCases: accumulator.regressionCases,
+      } satisfies EvalStrategyBreakdown,
+    ]),
+  );
+
+  return {
+    byStrategy,
+    embeddingImpact: buildStrategySlice(cases, ["rules-only", "hybrid"]),
+    routerImpact: buildStrategySlice(cases, [
+      "rules-only",
+      "hybrid",
+      "llm-assisted",
+    ]),
+  };
+}
+
 export function aggregateJudgedCases(
   cases: JudgedEvalCase[],
   executionFailureCount = 0,
@@ -298,6 +477,7 @@ export function aggregateJudgedCases(
       uplift: upliftLayers,
     },
     assertions: aggregateAssertions(cases),
+    strategySummary: buildStrategySummary(cases),
   };
 }
 

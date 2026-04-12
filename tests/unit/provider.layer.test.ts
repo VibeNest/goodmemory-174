@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { JudgeModel } from "../../src/eval/judge";
+import type { EmbeddingAdapter } from "../../src/embedding/contracts";
 import type { EvalAnswerGenerator } from "../../src/eval/runners";
 import type { MemoryExtractor } from "../../src/remember/candidates";
 import {
   createAISDKProviderDescriptor,
   createFallbackProviderDescriptor,
+  createProviderEmbeddingAdapter,
   createProviderJudgeModel,
   createProviderMemoryExtractor,
   createProviderRuntimeMetadata,
@@ -140,6 +142,35 @@ describe("provider layer contract", () => {
     expect(extractorCalls[0]?.model).toEqual({
       provider: "openai",
       model: "gpt-5",
+    });
+  });
+
+  it("routes provider-backed embedding creation through the same provider layer", async () => {
+    const embeddingCalls: Array<Record<string, unknown>> = [];
+
+    const adapter = createProviderEmbeddingAdapter({
+      model: {
+        provider: "openai",
+        model: "text-embedding-3-small",
+      },
+      createEmbeddingAdapter: (input) => {
+        embeddingCalls.push(input as unknown as Record<string, unknown>);
+        const embeddingAdapter: EmbeddingAdapter = {
+          async embed(texts) {
+            return texts.map(() => [1, 0, 0]);
+          },
+        };
+
+        return embeddingAdapter;
+      },
+    });
+
+    const vectors = await adapter.embed(["alpha"]);
+
+    expect(vectors).toEqual([[1, 0, 0]]);
+    expect(embeddingCalls[0]?.model).toEqual({
+      provider: "openai",
+      model: "text-embedding-3-small",
     });
   });
 });

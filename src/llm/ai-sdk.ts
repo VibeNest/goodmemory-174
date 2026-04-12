@@ -4,10 +4,12 @@ import { createOpenAI, openai } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import {
+  embedMany,
   generateObject,
   generateText,
 } from "ai";
 import { z } from "zod";
+import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { JudgeModel } from "../eval/judge";
 import type {
   EvalAnswerGenerator,
@@ -48,6 +50,11 @@ interface MemoryExtractorDependencies {
   resolveModel?: typeof resolveAISDKModel;
   fetch?: FetchLike;
   requestTimeoutMs?: number;
+}
+
+interface EmbeddingAdapterDependencies {
+  embedMany?: typeof embedMany;
+  resolveEmbeddingModel?: typeof resolveAISDKEmbeddingModel;
 }
 
 type FetchInput = Parameters<FetchFunction>[0];
@@ -775,6 +782,38 @@ export function resolveAISDKModel(config: AISDKModelConfig) {
   throw new Error(`Unsupported Vercel AI SDK provider: ${config.provider}`);
 }
 
+export function resolveAISDKEmbeddingModel(config: AISDKModelConfig) {
+  if (config.provider === "openai") {
+    if (config.baseURL) {
+      const provider = createOpenAICompatible({
+        name: "openai-compatible",
+        apiKey: config.apiKey,
+        baseURL: config.baseURL,
+        fetch: createOpenAICompatibleFetch(),
+      });
+
+      return provider.embeddingModel(config.model);
+    }
+
+    if (config.apiKey) {
+      const provider = createOpenAI({
+        apiKey: config.apiKey,
+      });
+      return provider.embeddingModel(config.model);
+    }
+
+    return openai.embeddingModel(config.model);
+  }
+
+  if (config.provider === "anthropic") {
+    throw new Error(
+      "Anthropic via Vercel AI SDK does not currently support text embeddings.",
+    );
+  }
+
+  throw new Error(`Unsupported Vercel AI SDK provider: ${config.provider}`);
+}
+
 export function buildAISDKTextPrompt(input: EvalAnswerGeneratorInput): string {
   return [
     input.transcript,
@@ -783,6 +822,36 @@ export function buildAISDKTextPrompt(input: EvalAnswerGeneratorInput): string {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+export function createAISDKEmbeddingAdapter(input: {
+  model: AISDKModelConfig;
+  dependencies?: EmbeddingAdapterDependencies;
+}): EmbeddingAdapter {
+  return {
+    async embed(texts: string[]): Promise<number[][]> {
+      if (texts.length === 0) {
+        return [];
+      }
+
+      const embeddings = await withAISDKRetries(async () => {
+        const result = await (input.dependencies?.embedMany ?? embedMany)({
+          model: (
+            input.dependencies?.resolveEmbeddingModel ?? resolveAISDKEmbeddingModel
+          )(input.model),
+          values: texts,
+        });
+
+        return result.embeddings;
+      });
+
+      if (embeddings.some((embedding) => embedding.length === 0)) {
+        throw new Error("Empty embedding response");
+      }
+
+      return embeddings.map((embedding) => embedding.map((value) => Number(value)));
+    },
+  };
 }
 
 export function buildAISDKMemoryExtractionPrompt(

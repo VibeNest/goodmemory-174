@@ -29,6 +29,8 @@ function buildAnswerPackage(
 
   return {
     mode,
+    strategyLabel: mode === "goodmemory" ? "rules-only" : "baseline",
+    resolvedStrategyLabel: mode === "goodmemory" ? "rules-only" : undefined,
     personaId: caseId,
     scenarioId: `scenario-${caseId}`,
     taskFamily: "cross_domain_transfer",
@@ -262,6 +264,8 @@ function buildCase(caseId: string): JudgedEvalCase {
       targetDomain: "shopping",
       memorySourceDomains: ["work_ops", "gaming"],
       evaluationSetting: "cross_domain",
+      strategyLabel: "rules-only",
+      resolvedStrategyLabel: "rules-only",
     },
     baseline: buildAnswerPackage(caseId, "baseline"),
     goodmemory: buildAnswerPackage(caseId, "goodmemory"),

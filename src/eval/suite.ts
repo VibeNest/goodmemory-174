@@ -7,6 +7,7 @@ import {
   type PersonaSpec,
   type ScenarioFixture,
 } from "./dataset";
+import type { RecallRouterStrategy } from "../index";
 import type { JudgeModel } from "./judge";
 import { runJudgeComparison } from "./judge";
 import {
@@ -22,6 +23,7 @@ import { normalizeProviderRuntimeMetadata } from "../provider/layer";
 import {
   runBaselineScenario,
   runGoodMemoryScenario,
+  type EvalAnswerPackage,
   type EvalAnswerGenerator,
 } from "./runners";
 
@@ -35,6 +37,7 @@ export interface EvalSuiteInput {
   goodmemoryGenerator: EvalAnswerGenerator;
   limit?: number;
   scenarioIds?: string[];
+  caseIds?: string[];
   createMemory?: (input: {
     persona: PersonaSpec;
     scenario: ScenarioFixture;
@@ -43,6 +46,7 @@ export interface EvalSuiteInput {
   runtime?: EvalRuntimeMetadata;
   maxConcurrency?: number;
   caseRetryLimit?: number;
+  strategies?: RecallRouterStrategy[];
 }
 
 export interface EvalSuiteResult {
@@ -103,32 +107,53 @@ function formatCaseError(error: unknown): string {
   }
 }
 
+const RECALL_ROUTER_STRATEGIES = [
+  "rules-only",
+  "hybrid",
+  "llm-assisted",
+] as const satisfies RecallRouterStrategy[];
+
+function parseRequestedCaseId(caseId: string): {
+  scenarioId: string;
+  strategy?: RecallRouterStrategy;
+} {
+  for (const strategy of RECALL_ROUTER_STRATEGIES) {
+    const suffix = `__${strategy}`;
+    if (caseId.endsWith(suffix)) {
+      return {
+        scenarioId: caseId.slice(0, -suffix.length),
+        strategy,
+      };
+    }
+  }
+
+  return { scenarioId: caseId };
+}
+
 async function evaluateCase(input: {
+  caseId: string;
+  baseline: EvalAnswerPackage;
   persona: PersonaSpec;
   scenario: ScenarioFixture;
+  strategy: RecallRouterStrategy;
   createMemory?: EvalSuiteInput["createMemory"];
-  baselineGenerator: EvalAnswerGenerator;
   goodmemoryGenerator: EvalAnswerGenerator;
   judge: JudgeModel;
 }): Promise<JudgedEvalCase> {
   const memory =
     input.createMemory?.({ persona: input.persona, scenario: input.scenario }) ??
     defaultCreateMemory();
-  const baseline = await runBaselineScenario({
-    persona: input.persona,
-    scenario: input.scenario,
-    answerGenerator: input.baselineGenerator,
-  });
   const goodmemory = await runGoodMemoryScenario({
     memory,
     persona: input.persona,
     scenario: input.scenario,
     answerGenerator: input.goodmemoryGenerator,
+    strategy: input.strategy,
   });
   const judge = await runJudgeComparison({
     persona: input.persona,
     scenario: input.scenario,
-    baseline,
+    baseline: input.baseline,
     goodmemory,
     judge: input.judge,
   });
@@ -138,14 +163,16 @@ async function evaluateCase(input: {
   });
 
   return {
-    caseId: input.scenario.scenario_id,
+    caseId: input.caseId,
     metadata: {
       taskFamily: input.scenario.task_family,
       targetDomain: input.scenario.domain,
       memorySourceDomains: input.scenario.memory_source_domains,
       evaluationSetting: input.scenario.evaluation_setting,
+      strategyLabel: goodmemory.strategyLabel,
+      resolvedStrategyLabel: goodmemory.resolvedStrategyLabel,
     },
-    baseline,
+    baseline: input.baseline,
     goodmemory,
     judge,
     assertions,
@@ -153,10 +180,15 @@ async function evaluateCase(input: {
 }
 
 async function evaluateCaseWithRetries(input: {
+  caseId: string;
   persona: PersonaSpec;
   scenario: ScenarioFixture;
+  strategy: RecallRouterStrategy;
+  getBaseline: (input: {
+    persona: PersonaSpec;
+    scenario: ScenarioFixture;
+  }) => Promise<EvalAnswerPackage>;
   createMemory?: EvalSuiteInput["createMemory"];
-  baselineGenerator: EvalAnswerGenerator;
   goodmemoryGenerator: EvalAnswerGenerator;
   judge: JudgeModel;
   retryLimit: number;
@@ -168,11 +200,17 @@ async function evaluateCaseWithRetries(input: {
 
   for (let attempt = 1; attempt <= input.retryLimit; attempt += 1) {
     try {
-      const judgedCase = await evaluateCase({
+      const baseline = await input.getBaseline({
         persona: input.persona,
         scenario: input.scenario,
+      });
+      const judgedCase = await evaluateCase({
+        caseId: input.caseId,
+        baseline,
+        persona: input.persona,
+        scenario: input.scenario,
+        strategy: input.strategy,
         createMemory: input.createMemory,
-        baselineGenerator: input.baselineGenerator,
         goodmemoryGenerator: input.goodmemoryGenerator,
         judge: input.judge,
       });
@@ -188,7 +226,7 @@ async function evaluateCaseWithRetries(input: {
 
   return {
     failure: {
-      caseId: input.scenario.scenario_id,
+      caseId: input.caseId,
       metadata: {
         taskFamily: input.scenario.task_family,
         targetDomain: input.scenario.domain,
@@ -206,25 +244,103 @@ function resolveCases(
   personas: PersonaSpec[],
   scenarios: ScenarioFixture[],
   scenarioIds?: string[],
+  caseIds?: string[],
   limit?: number,
-): Array<{ persona: PersonaSpec; scenario: ScenarioFixture }> {
+  strategies?: RecallRouterStrategy[],
+): Array<{
+  caseId: string;
+  persona: PersonaSpec;
+  scenario: ScenarioFixture;
+  strategy: RecallRouterStrategy;
+}> {
   const personasById = new Map(personas.map((persona) => [persona.persona_id, persona]));
-  const allowedScenarioIds = scenarioIds ? new Set(scenarioIds) : null;
+  const scenariosById = new Map(scenarios.map((scenario) => [scenario.scenario_id, scenario]));
+  const requestedStrategies: RecallRouterStrategy[] = strategies?.length
+    ? [...new Set(strategies)]
+    : ["rules-only"];
+  const selected = new Map<
+    string,
+    {
+      caseId: string;
+      persona: PersonaSpec;
+      scenario: ScenarioFixture;
+      strategy: RecallRouterStrategy;
+    }
+  >();
 
-  return scenarios
-    .filter((scenario) => (allowedScenarioIds ? allowedScenarioIds.has(scenario.scenario_id) : true))
-    .slice(0, limit ?? scenarios.length)
-    .map((scenario) => {
-      const persona = personasById.get(scenario.persona_id);
-      if (!persona) {
-        throw new Error(`Missing persona ${scenario.persona_id} for scenario ${scenario.scenario_id}`);
-      }
+  const addCase = (input: {
+    caseId: string;
+    persona: PersonaSpec;
+    scenario: ScenarioFixture;
+    strategy: RecallRouterStrategy;
+  }) => {
+    if (!selected.has(input.caseId)) {
+      selected.set(input.caseId, input);
+    }
+  };
 
-      return {
+  const addScenarioStrategies = (
+    scenario: ScenarioFixture,
+    includeStrategyInCaseId: boolean,
+  ) => {
+    const persona = personasById.get(scenario.persona_id);
+    if (!persona) {
+      throw new Error(`Missing persona ${scenario.persona_id} for scenario ${scenario.scenario_id}`);
+    }
+
+    for (const strategy of requestedStrategies) {
+      addCase({
+        caseId: includeStrategyInCaseId
+          ? `${scenario.scenario_id}__${strategy}`
+          : scenario.scenario_id,
         persona,
         scenario,
-      };
-    });
+        strategy,
+      });
+    }
+  };
+
+  const allowedScenarioIds = scenarioIds ? new Set(scenarioIds) : null;
+  const runAllScenarios = !allowedScenarioIds && !(caseIds?.length);
+  const filteredScenarios = runAllScenarios
+    ? scenarios
+    : allowedScenarioIds
+      ? scenarios.filter((scenario) => allowedScenarioIds.has(scenario.scenario_id))
+      : [];
+  const limitedScenarios = filteredScenarios.slice(0, limit ?? filteredScenarios.length);
+  const limitedCaseIds = caseIds?.slice(0, limit ?? caseIds.length) ?? [];
+
+  for (const scenario of limitedScenarios) {
+    addScenarioStrategies(scenario, requestedStrategies.length > 1);
+  }
+
+  for (const requestedCaseId of limitedCaseIds) {
+    const { scenarioId, strategy } = parseRequestedCaseId(requestedCaseId);
+    const scenario = scenariosById.get(scenarioId);
+
+    if (!scenario) {
+      continue;
+    }
+
+    const persona = personasById.get(scenario.persona_id);
+    if (!persona) {
+      throw new Error(`Missing persona ${scenario.persona_id} for scenario ${scenario.scenario_id}`);
+    }
+
+    if (strategy) {
+      addCase({
+        caseId: requestedCaseId,
+        persona,
+        scenario,
+        strategy,
+      });
+      continue;
+    }
+
+    addScenarioStrategies(scenario, requestedStrategies.length > 1);
+  }
+
+  return [...selected.values()];
 }
 
 export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResult> {
@@ -232,7 +348,14 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   const scenarios = await listScenarioFixtures(input.scenarioDir);
   validateScenarioDatasetLinks(personas, scenarios);
 
-  const selectedCases = resolveCases(personas, scenarios, input.scenarioIds, input.limit);
+  const selectedCases = resolveCases(
+    personas,
+    scenarios,
+    input.scenarioIds,
+    input.caseIds,
+    input.limit,
+    input.strategies,
+  );
   const judgedCases = new Array<JudgedEvalCase | undefined>(selectedCases.length);
   const failedCases = new Array<EvalCaseExecutionFailure | undefined>(selectedCases.length);
   const runId = input.runId ?? `run-${Date.now()}`;
@@ -256,8 +379,32 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
     input.maxConcurrency,
   );
   const retryLimit = resolveCaseRetryLimit(input.mode, input.caseRetryLimit);
+  const baselineCache = new Map<string, Promise<EvalAnswerPackage>>();
   let nextCaseIndex = 0;
   let persistQueue = Promise.resolve();
+
+  const getBaseline = (baselineInput: {
+    persona: PersonaSpec;
+    scenario: ScenarioFixture;
+  }): Promise<EvalAnswerPackage> => {
+    const cacheKey = baselineInput.scenario.scenario_id;
+    const cached = baselineCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const baselinePromise = runBaselineScenario({
+      persona: baselineInput.persona,
+      scenario: baselineInput.scenario,
+      answerGenerator: input.baselineGenerator,
+    }).catch((error) => {
+      baselineCache.delete(cacheKey);
+      throw error;
+    });
+
+    baselineCache.set(cacheKey, baselinePromise);
+    return baselinePromise;
+  };
 
   const persistCurrentState = () => {
     const completedCases = judgedCases.filter(
@@ -291,13 +438,15 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
         return;
       }
 
-      const { persona, scenario } = selectedCases[currentIndex]!;
+      const { caseId, persona, scenario, strategy } = selectedCases[currentIndex]!;
 
       const outcome = await evaluateCaseWithRetries({
+        caseId,
         persona,
         scenario,
+        strategy,
+        getBaseline,
         createMemory: input.createMemory,
-        baselineGenerator: input.baselineGenerator,
         goodmemoryGenerator: input.goodmemoryGenerator,
         judge: input.judge,
         retryLimit,

@@ -32,6 +32,8 @@ export type EvalAnswerGenerator = (
 
 export interface EvalAnswerPackage {
   mode: "baseline" | "goodmemory";
+  strategyLabel: "baseline" | RecallRouterStrategy;
+  resolvedStrategyLabel?: RecallRouterStrategy;
   personaId: string;
   scenarioId: string;
   taskFamily: PersonalizationTaskFamily;
@@ -154,6 +156,7 @@ export async function runBaselineScenario(input: {
 
   return {
     mode: "baseline",
+    strategyLabel: "baseline",
     personaId: input.persona.persona_id,
     scenarioId: input.scenario.scenario_id,
     taskFamily: input.scenario.task_family,
@@ -267,6 +270,8 @@ export async function runGoodMemoryScenario(input: {
 
   return {
     mode: "goodmemory",
+    strategyLabel: input.strategy ?? "rules-only",
+    resolvedStrategyLabel: recall.metadata.routingDecision.strategy,
     personaId: input.persona.persona_id,
     scenarioId: input.scenario.scenario_id,
     taskFamily: input.scenario.task_family,

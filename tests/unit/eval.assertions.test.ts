@@ -49,6 +49,8 @@ function buildScenario(): ScenarioFixture {
 function buildGoodmemoryAnswer(): EvalAnswerPackage {
   return {
     mode: "goodmemory",
+    strategyLabel: "rules-only",
+    resolvedStrategyLabel: "rules-only",
     personaId: "persona-test",
     scenarioId: "scenario-test",
     taskFamily: "drift_override_lifelong_update",

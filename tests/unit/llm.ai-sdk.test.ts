@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
   createAISDKMemoryExtractor,
+  createAISDKEmbeddingAdapter,
   buildAISDKTextPrompt,
   createOpenAICompatibleFetch,
   createAISDKJudgeModel,
   createAISDKTextGenerator,
   parseAISDKModelConfigFromEnv,
+  resolveAISDKEmbeddingModel,
   resolveAISDKModel,
 } from "../../src/llm/ai-sdk";
 
@@ -304,6 +306,39 @@ describe("vercel ai sdk adapter", () => {
     expect(result.candidates[0]?.content).toContain("legal signoff");
     expect(calls[0]?.schema).toBeTruthy();
     expect(String(calls[0]?.prompt)).toContain("runtime rollout");
+  });
+
+  it("creates an embedding adapter using injected dependencies", async () => {
+    const calls: Array<Record<string, unknown>> = [];
+    const adapter = createAISDKEmbeddingAdapter({
+      model: {
+        provider: "openai",
+        model: "text-embedding-3-small",
+      },
+      dependencies: {
+        resolveEmbeddingModel: (config) => ({ resolvedFrom: config.model }) as never,
+        embedMany: async (input) => {
+          calls.push(input as unknown as Record<string, unknown>);
+          return {
+            embeddings: [[1, 0, 0], [0, 1, 0]],
+          } as never;
+        },
+      },
+    });
+
+    const result = await adapter.embed(["alpha", "beta"]);
+
+    expect(result).toEqual([[1, 0, 0], [0, 1, 0]]);
+    expect(calls[0]?.values).toEqual(["alpha", "beta"]);
+  });
+
+  it("rejects anthropic embedding model resolution because embeddings are unsupported", () => {
+    expect(() =>
+      resolveAISDKEmbeddingModel({
+        provider: "anthropic",
+        model: "claude-sonnet",
+      }),
+    ).toThrow("does not currently support text embeddings");
   });
 
   it("uses fetch-based memory extraction for openai-compatible base URLs", async () => {

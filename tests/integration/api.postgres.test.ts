@@ -1,6 +1,7 @@
 import { SQL } from "bun";
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
+import { createAISDKEmbeddingAdapter } from "../../src/llm/ai-sdk";
 
 const POSTGRES_URL = process.env.GOODMEMORY_TEST_POSTGRES_URL;
 
@@ -21,6 +22,13 @@ async function cleanupUserData(url: string, userId: string): Promise<void> {
         WHERE scope_key LIKE $1
       `,
       [`${userId}::%`],
+    );
+    await sql.unsafe(
+      `
+        DELETE FROM "public"."gm_vectors"
+        WHERE metadata->>'userId' = $1
+      `,
+      [userId],
     );
   } finally {
     await sql.close();
@@ -117,6 +125,95 @@ if (POSTGRES_URL) {
           ),
         ).toBe(true);
       } finally {
+        await cleanupUserData(POSTGRES_URL, userId);
+      }
+    });
+
+    it("writes provider-backed embeddings into pgvector and uses them during hybrid recall", async () => {
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const userId = `pg-embed-${unique}`;
+      const sessionId = `s-${unique}`;
+      const workspaceId = "workspace-a";
+      const scope = {
+        userId,
+        sessionId,
+        workspaceId,
+      };
+      const query = "What is the current blocker?";
+      const wrongFactText =
+        "The current blocker is vendor approval for the runtime dashboard.";
+      const rightFactText =
+        "The current blocker is service account rotation for migration rollout.";
+      const embeddingByText = new Map<string, number[]>([
+        [query, [1, 0, 0]],
+        [wrongFactText, [0, 1, 0]],
+        [rightFactText, [1, 0, 0]],
+      ]);
+      const embeddingAdapter = createAISDKEmbeddingAdapter({
+        model: {
+          provider: "openai",
+          model: "text-embedding-3-small",
+        },
+        dependencies: {
+          resolveEmbeddingModel: (config) => ({ resolvedFrom: config.model }) as never,
+          embedMany: async ({ values }) => ({
+            embeddings: values.map((value) => embeddingByText.get(value) ?? [0, 0, 0]),
+          }) as never,
+        },
+      });
+      const memory = createGoodMemory({
+        storage: {
+          provider: "postgres",
+          url: POSTGRES_URL,
+        },
+        adapters: {
+          embeddingAdapter,
+        },
+      });
+      const sql = new SQL(POSTGRES_URL);
+
+      try {
+        const rememberResult = await memory.remember({
+          scope,
+          messages: [
+            {
+              role: "user",
+              content: `Remember that ${wrongFactText}`,
+            },
+            {
+              role: "user",
+              content: `Remember that ${rightFactText}`,
+            },
+          ],
+        });
+
+        expect(rememberResult.accepted).toBe(2);
+
+        const vectorRows = await sql.unsafe<Array<{ collection: string; content: string }>>(
+          `
+            SELECT collection, content
+            FROM "public"."gm_vectors"
+            WHERE metadata->>'userId' = $1
+              AND metadata->>'workspaceId' = $2
+            ORDER BY collection ASC, id ASC
+          `,
+          [userId, workspaceId],
+        );
+
+        expect(vectorRows.filter((row) => row.collection === "facts")).toHaveLength(2);
+        expect(vectorRows.some((row) => row.content === rightFactText)).toBe(true);
+
+        const result = await memory.recall({
+          scope,
+          query,
+          retrievalProfile: "general_chat",
+          strategy: "hybrid",
+        });
+
+        expect(result.metadata.routingDecision.strategy).toBe("hybrid");
+        expect(result.facts[0]?.content).toBe(rightFactText);
+      } finally {
+        await sql.close();
         await cleanupUserData(POSTGRES_URL, userId);
       }
     });

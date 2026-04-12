@@ -16,6 +16,64 @@ import {
   runSmokeEval,
 } from "../../scripts/run-eval";
 
+function buildEmptySuiteSummary() {
+  return {
+    totalCases: 0,
+    winnerCounts: {
+      baseline: 0,
+      goodmemory: 0,
+      tie: 0,
+    },
+    baselineAverage: {
+      factual_recall: 0,
+      preference_consistency: 0,
+      cross_domain_transfer: 0,
+      contamination_penalty: 0,
+      update_correctness: 0,
+      personalization_usefulness: 0,
+      provenance_explainability: 0,
+    },
+    goodmemoryAverage: {
+      factual_recall: 0,
+      preference_consistency: 0,
+      cross_domain_transfer: 0,
+      contamination_penalty: 0,
+      update_correctness: 0,
+      personalization_usefulness: 0,
+      provenance_explainability: 0,
+    },
+    uplift: {
+      factual_recall: 0,
+      preference_consistency: 0,
+      cross_domain_transfer: 0,
+      contamination_penalty: 0,
+      update_correctness: 0,
+      personalization_usefulness: 0,
+      provenance_explainability: 0,
+    },
+    layers: {
+      baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+      goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+      uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
+    },
+    assertions: {
+      totalCases: 0,
+      passingCases: 0,
+      passRate: 0,
+      totalChecks: 0,
+      passingChecks: 0,
+      checkPassRate: 0,
+      contaminationFailures: 0,
+      updateFailures: 0,
+    },
+    strategySummary: {
+      byStrategy: {},
+      embeddingImpact: null,
+      routerImpact: null,
+    },
+  };
+}
+
 const ORIGINAL_ENV = { ...process.env };
 
 afterEach(() => {
@@ -179,6 +237,94 @@ describe("run-eval script", () => {
     }
   });
 
+  it("passes failed multi-strategy case ids through to the suite", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-failed-case-ids");
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";
+    process.env.GOODMEMORY_EVAL_API_KEY = "eval-key";
+    process.env.GOODMEMORY_JUDGE_PROVIDER = "anthropic";
+    process.env.GOODMEMORY_JUDGE_MODEL = "claude-sonnet";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "judge-key";
+
+    try {
+      const runDirectory = join(workspace.root, "reports/eval/live/run-004");
+      const failuresDir = join(runDirectory, "failures");
+      const calls: Array<Record<string, unknown>> = [];
+      await mkdir(failuresDir, { recursive: true });
+      await writeFile(
+        join(runDirectory, "report.json"),
+        JSON.stringify({
+          mode: "live",
+          runId: "run-004",
+        }),
+        "utf8",
+      );
+      await writeFile(
+        join(failuresDir, "summary.json"),
+        JSON.stringify({
+          failedCases: [
+            { caseId: "scenario-medium-03__hybrid" },
+            { caseId: "scenario-medium-04__rules-only" },
+          ],
+        }),
+        "utf8",
+      );
+
+      await runLiveEval(
+        {
+          failuresFrom: runDirectory,
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          createTextGenerator: () => async () => ({ content: "live-answer" }),
+          createJudgeModel: () => ({
+            async complete() {
+              return {
+                content: JSON.stringify({
+                  winner: "tie",
+                  scores: {
+                    factual_recall: 7,
+                    preference_consistency: 7,
+                    cross_domain_transfer: 7,
+                    contamination_penalty: 7,
+                    update_correctness: 7,
+                    personalization_usefulness: 7,
+                    provenance_explainability: 7,
+                  },
+                  reasoning: "live comparison",
+                  failure_tags: [],
+                }),
+              };
+            },
+          }),
+          runSuite: async (input) => {
+            calls.push({
+              caseIds: input.caseIds,
+              scenarioIds: input.scenarioIds,
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-live",
+              runDirectory: join(workspace.root, "reports/run-live"),
+              summary: buildEmptySuiteSummary(),
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(calls[0]?.scenarioIds).toBeUndefined();
+      expect(calls[0]?.caseIds).toEqual([
+        "scenario-medium-03__hybrid",
+        "scenario-medium-04__rules-only",
+      ]);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("reports smoke mode explicitly", async () => {
     const report = await runSmokeEval();
 
@@ -241,56 +387,7 @@ describe("run-eval script", () => {
               mode: input.mode,
               runId: "run-fallback",
               runDirectory: join(workspace.root, "reports/run-fallback"),
-              summary: {
-                totalCases: 0,
-                winnerCounts: {
-                  baseline: 0,
-                  goodmemory: 0,
-                  tie: 0,
-                },
-                baselineAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                goodmemoryAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                uplift: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                layers: {
-                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                },
-                assertions: {
-                  totalCases: 0,
-                  passingCases: 0,
-                  passRate: 0,
-                  totalChecks: 0,
-                  passingChecks: 0,
-                  checkPassRate: 0,
-                  contaminationFailures: 0,
-                  updateFailures: 0,
-                },
-              },
+              summary: buildEmptySuiteSummary(),
               runtime: input.runtime!,
               cases: [],
             };
@@ -347,56 +444,7 @@ describe("run-eval script", () => {
               mode: input.mode,
               runId: "run-fallback-tags",
               runDirectory: join(workspace.root, "reports/run-fallback-tags"),
-              summary: {
-                totalCases: 0,
-                winnerCounts: {
-                  baseline: 0,
-                  goodmemory: 0,
-                  tie: 0,
-                },
-                baselineAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                goodmemoryAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                uplift: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                layers: {
-                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                },
-                assertions: {
-                  totalCases: 0,
-                  passingCases: 0,
-                  passRate: 0,
-                  totalChecks: 0,
-                  passingChecks: 0,
-                  checkPassRate: 0,
-                  contaminationFailures: 0,
-                  updateFailures: 0,
-                },
-              },
+              summary: buildEmptySuiteSummary(),
               runtime: input.runtime!,
               cases: [],
             };
@@ -446,56 +494,7 @@ describe("run-eval script", () => {
               mode: input.mode,
               runId: "run-fallback-negated",
               runDirectory: join(workspace.root, "reports/run-fallback-negated"),
-              summary: {
-                totalCases: 0,
-                winnerCounts: {
-                  baseline: 0,
-                  goodmemory: 0,
-                  tie: 0,
-                },
-                baselineAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                goodmemoryAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                uplift: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                layers: {
-                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                },
-                assertions: {
-                  totalCases: 0,
-                  passingCases: 0,
-                  passRate: 0,
-                  totalChecks: 0,
-                  passingChecks: 0,
-                  checkPassRate: 0,
-                  contaminationFailures: 0,
-                  updateFailures: 0,
-                },
-              },
+              summary: buildEmptySuiteSummary(),
               runtime: input.runtime!,
               cases: [],
             };
@@ -555,56 +554,7 @@ describe("run-eval script", () => {
                 workspace.root,
                 "reports/run-fallback-contradiction",
               ),
-              summary: {
-                totalCases: 0,
-                winnerCounts: {
-                  baseline: 0,
-                  goodmemory: 0,
-                  tie: 0,
-                },
-                baselineAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                goodmemoryAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                uplift: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                layers: {
-                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                },
-                assertions: {
-                  totalCases: 0,
-                  passingCases: 0,
-                  passRate: 0,
-                  totalChecks: 0,
-                  passingChecks: 0,
-                  checkPassRate: 0,
-                  contaminationFailures: 0,
-                  updateFailures: 0,
-                },
-              },
+              summary: buildEmptySuiteSummary(),
               runtime: input.runtime!,
               cases: [],
             };
@@ -663,56 +613,7 @@ describe("run-eval script", () => {
                 workspace.root,
                 "reports/run-fallback-conflicted-required",
               ),
-              summary: {
-                totalCases: 0,
-                winnerCounts: {
-                  baseline: 0,
-                  goodmemory: 0,
-                  tie: 0,
-                },
-                baselineAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                goodmemoryAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                uplift: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                layers: {
-                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                },
-                assertions: {
-                  totalCases: 0,
-                  passingCases: 0,
-                  passRate: 0,
-                  totalChecks: 0,
-                  passingChecks: 0,
-                  checkPassRate: 0,
-                  contaminationFailures: 0,
-                  updateFailures: 0,
-                },
-              },
+              summary: buildEmptySuiteSummary(),
               runtime: input.runtime!,
               cases: [],
             };
@@ -773,56 +674,7 @@ describe("run-eval script", () => {
                 workspace.root,
                 "reports/run-fallback-negated-identity",
               ),
-              summary: {
-                totalCases: 0,
-                winnerCounts: {
-                  baseline: 0,
-                  goodmemory: 0,
-                  tie: 0,
-                },
-                baselineAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                goodmemoryAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                uplift: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                layers: {
-                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                },
-                assertions: {
-                  totalCases: 0,
-                  passingCases: 0,
-                  passRate: 0,
-                  totalChecks: 0,
-                  passingChecks: 0,
-                  checkPassRate: 0,
-                  contaminationFailures: 0,
-                  updateFailures: 0,
-                },
-              },
+              summary: buildEmptySuiteSummary(),
               runtime: input.runtime!,
               cases: [],
             };
@@ -881,56 +733,7 @@ describe("run-eval script", () => {
                 workspace.root,
                 "reports/run-fallback-negated-identity-contracted",
               ),
-              summary: {
-                totalCases: 0,
-                winnerCounts: {
-                  baseline: 0,
-                  goodmemory: 0,
-                  tie: 0,
-                },
-                baselineAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                goodmemoryAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                uplift: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                layers: {
-                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                },
-                assertions: {
-                  totalCases: 0,
-                  passingCases: 0,
-                  passRate: 0,
-                  totalChecks: 0,
-                  passingChecks: 0,
-                  checkPassRate: 0,
-                  contaminationFailures: 0,
-                  updateFailures: 0,
-                },
-              },
+              summary: buildEmptySuiteSummary(),
               runtime: input.runtime!,
               cases: [],
             };
@@ -1034,56 +837,7 @@ describe("run-eval script", () => {
             mode: input.mode,
             runId: "run-live",
             runDirectory: join(workspace.root, "reports/run-live"),
-            summary: {
-              totalCases: 0,
-              winnerCounts: {
-                baseline: 0,
-                goodmemory: 0,
-                tie: 0,
-              },
-              baselineAverage: {
-                factual_recall: 0,
-                preference_consistency: 0,
-                cross_domain_transfer: 0,
-                contamination_penalty: 0,
-                update_correctness: 0,
-                personalization_usefulness: 0,
-                provenance_explainability: 0,
-              },
-              goodmemoryAverage: {
-                factual_recall: 0,
-                preference_consistency: 0,
-                cross_domain_transfer: 0,
-                contamination_penalty: 0,
-                update_correctness: 0,
-                personalization_usefulness: 0,
-                provenance_explainability: 0,
-              },
-              uplift: {
-                factual_recall: 0,
-                preference_consistency: 0,
-                cross_domain_transfer: 0,
-                contamination_penalty: 0,
-                update_correctness: 0,
-                personalization_usefulness: 0,
-                provenance_explainability: 0,
-              },
-              layers: {
-                baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-              },
-              assertions: {
-                totalCases: 0,
-                passingCases: 0,
-                passRate: 0,
-                totalChecks: 0,
-                passingChecks: 0,
-                checkPassRate: 0,
-                contaminationFailures: 0,
-                updateFailures: 0,
-              },
-            },
+            summary: buildEmptySuiteSummary(),
             runtime: input.runtime!,
             cases: [],
           }),
@@ -1197,56 +951,7 @@ describe("run-eval script", () => {
               mode: input.mode,
               runId: "run-live",
               runDirectory: join(workspace.root, "reports/run-live"),
-              summary: {
-                totalCases: 0,
-                winnerCounts: {
-                  baseline: 0,
-                  goodmemory: 0,
-                  tie: 0,
-                },
-                baselineAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                goodmemoryAverage: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                uplift: {
-                  factual_recall: 0,
-                  preference_consistency: 0,
-                  cross_domain_transfer: 0,
-                  contamination_penalty: 0,
-                  update_correctness: 0,
-                  personalization_usefulness: 0,
-                  provenance_explainability: 0,
-                },
-                layers: {
-                  baseline: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  goodmemory: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                  uplift: { retrieval: 0, personalization: 0, runtime_governance: 0 },
-                },
-                assertions: {
-                  totalCases: 0,
-                  passingCases: 0,
-                  passRate: 0,
-                  totalChecks: 0,
-                  passingChecks: 0,
-                  checkPassRate: 0,
-                  contaminationFailures: 0,
-                  updateFailures: 0,
-                },
-              },
+              summary: buildEmptySuiteSummary(),
               runtime: input.runtime!,
               cases: [],
             };

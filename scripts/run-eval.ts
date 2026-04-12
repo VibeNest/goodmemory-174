@@ -39,6 +39,7 @@ export interface SmokeEvalReport {
 export interface FixtureEvalOptions {
   limit?: number;
   scenarioIds?: string[];
+  caseIds?: string[];
   outputDir?: string;
   failuresFrom?: string;
 }
@@ -536,7 +537,7 @@ async function readPersistedEvalReport(runDirectory: string): Promise<PersistedE
   ) as PersistedEvalReport;
 }
 
-export async function resolveFailedScenarioIds(
+export async function resolveFailedCaseIds(
   runDirectory: string,
   expectedMode?: EvalMode,
 ): Promise<string[]> {
@@ -576,6 +577,13 @@ export async function resolveFailedScenarioIds(
   }
 }
 
+export async function resolveFailedScenarioIds(
+  runDirectory: string,
+  expectedMode?: EvalMode,
+): Promise<string[]> {
+  return resolveFailedCaseIds(runDirectory, expectedMode);
+}
+
 export function mergeScenarioIds(
   explicitScenarioIds: string[] | undefined,
   failedScenarioIds: string[],
@@ -583,6 +591,17 @@ export function mergeScenarioIds(
   const merged = new Set<string>([
     ...(explicitScenarioIds ?? []),
     ...failedScenarioIds,
+  ]);
+  return merged.size > 0 ? [...merged] : undefined;
+}
+
+export function mergeCaseIds(
+  explicitCaseIds: string[] | undefined,
+  failedCaseIds: string[],
+): string[] | undefined {
+  const merged = new Set<string>([
+    ...(explicitCaseIds ?? []),
+    ...failedCaseIds,
   ]);
   return merged.size > 0 ? [...merged] : undefined;
 }
@@ -613,10 +632,11 @@ export async function runFallbackEval(
 ): Promise<EvalSuiteResult> {
   const root = new URL("..", import.meta.url).pathname;
   const runSuite = dependencies?.runSuite ?? runEvalSuite;
-  const failedScenarioIds = input?.failuresFrom
-    ? await resolveFailedScenarioIds(input.failuresFrom, "fallback")
+  const failedCaseIds = input?.failuresFrom
+    ? await resolveFailedCaseIds(input.failuresFrom, "fallback")
     : [];
-  const scenarioIds = mergeScenarioIds(input?.scenarioIds, failedScenarioIds);
+  const scenarioIds = mergeScenarioIds(input?.scenarioIds, []);
+  const caseIds = mergeCaseIds(input?.caseIds, failedCaseIds);
 
   return runSuite({
     mode: "fallback",
@@ -625,6 +645,7 @@ export async function runFallbackEval(
     outputDir: input?.outputDir ?? resolveDefaultOutputDir(root, "fallback"),
     limit: input?.limit,
     scenarioIds,
+    caseIds,
     baselineGenerator: async () => ({
       content: "I need more context before I can answer reliably.",
     }),
@@ -677,10 +698,11 @@ export async function runLiveEval(
   const createJudgeModel =
     dependencies?.createJudgeModel ?? createProviderJudgeModel;
   const runSuite = dependencies?.runSuite ?? runEvalSuite;
-  const failedScenarioIds = input?.failuresFrom
-    ? await resolveFailedScenarioIds(input.failuresFrom, "live")
+  const failedCaseIds = input?.failuresFrom
+    ? await resolveFailedCaseIds(input.failuresFrom, "live")
     : [];
-  const scenarioIds = mergeScenarioIds(input?.scenarioIds, failedScenarioIds);
+  const scenarioIds = mergeScenarioIds(input?.scenarioIds, []);
+  const caseIds = mergeCaseIds(input?.caseIds, failedCaseIds);
   const evalModel = resolveLiveModelConfig("GOODMEMORY_EVAL");
   const judgeModel = resolveLiveModelConfig("GOODMEMORY_JUDGE");
 
@@ -691,6 +713,7 @@ export async function runLiveEval(
     outputDir: input?.outputDir ?? resolveDefaultOutputDir(root, "live"),
     limit: input?.limit,
     scenarioIds,
+    caseIds,
     baselineGenerator: createTextGenerator({
       model: evalModel,
       system:

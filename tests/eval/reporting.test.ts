@@ -15,11 +15,16 @@ function buildAnswerPackage(
   caseId: string,
   mode: "baseline" | "goodmemory",
   answer: string,
+  strategyLabel: "baseline" | "rules-only" | "hybrid" | "llm-assisted" = "baseline",
+  resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted",
+  scenarioId = `scenario-${caseId}`,
 ): EvalAnswerPackage {
   return {
     mode,
+    strategyLabel,
+    resolvedStrategyLabel,
     personaId: caseId,
-    scenarioId: `scenario-${caseId}`,
+    scenarioId,
     taskFamily: "preference_continuation",
     targetDomain: "work_ops",
     memorySourceDomains: ["work_ops"],
@@ -229,6 +234,9 @@ function buildJudgeResult(
 
 function buildCase(input: {
   caseId: string;
+  scenarioId?: string;
+  strategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+  resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
   taskFamily: JudgedEvalCase["metadata"]["taskFamily"];
   targetDomain: string;
   memorySourceDomains: string[];
@@ -247,12 +255,25 @@ function buildCase(input: {
       targetDomain: input.targetDomain,
       memorySourceDomains: input.memorySourceDomains,
       evaluationSetting: input.evaluationSetting,
+      strategyLabel: input.strategyLabel ?? "rules-only",
+      resolvedStrategyLabel:
+        input.resolvedStrategyLabel ?? input.strategyLabel ?? "rules-only",
     },
-    baseline: buildAnswerPackage(input.caseId, "baseline", `baseline-${input.caseId}`),
+    baseline: buildAnswerPackage(
+      input.caseId,
+      "baseline",
+      `baseline-${input.caseId}`,
+      "baseline",
+      undefined,
+      input.scenarioId,
+    ),
     goodmemory: buildAnswerPackage(
       input.caseId,
       "goodmemory",
       `goodmemory-${input.caseId}`,
+      input.strategyLabel ?? "rules-only",
+      input.resolvedStrategyLabel ?? input.strategyLabel ?? "rules-only",
+      input.scenarioId,
     ),
     judge: buildJudgeResult(
       input.winner,
@@ -301,6 +322,92 @@ describe("eval reporting", () => {
     expect(summary.uplift.cross_domain_transfer).toBe(2);
     expect(summary.layers.uplift.personalization).toBeGreaterThan(0);
     expect(summary.assertions.contaminationFailures).toBe(1);
+    expect(summary.strategySummary.byStrategy["rules-only"]?.totalCases).toBe(2);
+  });
+
+  it("builds strategy summaries and comparison slices from multi-strategy cases", () => {
+    const summary = aggregateJudgedCases([
+      buildCase({
+        caseId: "case-1__rules-only",
+        scenarioId: "scenario-shared-1",
+        strategyLabel: "rules-only",
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "goodmemory",
+        baselineHistory: 4,
+        goodmemoryHistory: 8,
+      }),
+      buildCase({
+        caseId: "case-1__hybrid",
+        scenarioId: "scenario-shared-1",
+        strategyLabel: "hybrid",
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "baseline",
+        baselineHistory: 8,
+        goodmemoryHistory: 6,
+        failureTags: ["missed_open_loop"],
+      }),
+    ]);
+
+    expect(summary.strategySummary.byStrategy["rules-only"]?.totalCases).toBe(1);
+    expect(summary.strategySummary.byStrategy["hybrid"]?.totalCases).toBe(1);
+    expect(summary.strategySummary.byStrategy["hybrid"]?.regressionCases).toContain(
+      "case-1__hybrid",
+    );
+    expect(summary.strategySummary.embeddingImpact?.strategiesCompared).toEqual([
+      "rules-only",
+      "hybrid",
+    ]);
+    expect(summary.strategySummary.embeddingImpact?.consistentScenarioCoverage).toBe(
+      true,
+    );
+    expect(summary.strategySummary.embeddingImpact?.uniqueScenarios).toBe(1);
+    expect(summary.strategySummary.routerImpact?.strategiesCompared).toEqual([
+      "rules-only",
+      "hybrid",
+    ]);
+  });
+
+  it("buckets strategy summaries by resolved strategy instead of requested strategy", () => {
+    const summary = aggregateJudgedCases([
+      buildCase({
+        caseId: "case-1__rules-only",
+        scenarioId: "scenario-shared-1",
+        strategyLabel: "rules-only",
+        resolvedStrategyLabel: "rules-only",
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "goodmemory",
+        baselineHistory: 4,
+        goodmemoryHistory: 8,
+      }),
+      buildCase({
+        caseId: "case-1__hybrid",
+        scenarioId: "scenario-shared-1",
+        strategyLabel: "hybrid",
+        resolvedStrategyLabel: "rules-only",
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "goodmemory",
+        baselineHistory: 4,
+        goodmemoryHistory: 7,
+      }),
+    ]);
+
+    expect(summary.strategySummary.byStrategy["rules-only"]?.totalCases).toBe(2);
+    expect(summary.strategySummary.byStrategy["rules-only"]?.uniqueScenarios).toBe(1);
+    expect(summary.strategySummary.byStrategy["hybrid"]).toBeUndefined();
+    expect(summary.strategySummary.embeddingImpact).toBeNull();
+    expect(summary.strategySummary.routerImpact).toBeNull();
   });
 
   it("persists suite report and failure artifacts", async () => {
@@ -341,6 +448,11 @@ describe("eval reporting", () => {
       ) as {
         mode: string;
         runId: string;
+        summary: {
+          strategySummary?: {
+            byStrategy?: Record<string, { totalCases: number }>;
+          };
+        };
         runtime: {
           generationLayer?: string;
           judgeLayer?: string;
@@ -394,6 +506,9 @@ describe("eval reporting", () => {
 
       expect(report.mode).toBe("fallback");
       expect(report.runId).toBe("run-001");
+      expect(report.summary.strategySummary?.byStrategy?.["rules-only"]?.totalCases).toBe(
+        1,
+      );
       expect(report.runtime.generationLayer).toBe("fallback");
       expect(report.runtime.judgeLayer).toBe("fallback");
       expect(failure.judge.failure_tags).toContain("identity_miss");

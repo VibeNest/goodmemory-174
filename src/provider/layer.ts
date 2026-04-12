@@ -5,6 +5,7 @@ import type {
 } from "../eval/runners";
 import type { MemoryExtractor } from "../remember/candidates";
 import {
+  createAISDKEmbeddingAdapter,
   createAISDKJudgeModel,
   createAISDKMemoryExtractor,
   createAISDKTextGenerator,
@@ -13,6 +14,7 @@ import type {
   AISDKModelConfig,
   AISDKProvider,
 } from "../llm/ai-sdk";
+import type { EmbeddingAdapter } from "../embedding/contracts";
 
 export type ProviderLayerName = "fallback" | "vercel-ai-sdk";
 export type ProviderExecutionMode = "fallback" | "live";
@@ -113,5 +115,14 @@ export function createProviderMemoryExtractor(input: {
   return (input.createMemoryExtractor ?? createAISDKMemoryExtractor)({
     model: input.model,
     system: input.system,
+  });
+}
+
+export function createProviderEmbeddingAdapter(input: {
+  model: AISDKModelConfig;
+  createEmbeddingAdapter?: typeof createAISDKEmbeddingAdapter;
+}): EmbeddingAdapter {
+  return (input.createEmbeddingAdapter ?? createAISDKEmbeddingAdapter)({
+    model: input.model,
   });
 }
