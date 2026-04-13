@@ -59,7 +59,7 @@ function isNegatedOccurrence(
     /^\s*is\s+outdated\b/.test(suffix) ||
     /^\s*is\s+not\s+the\s+source\s+of\s+truth\b/.test(suffix) ||
     /^\s*(?:,?\s*)?no\s+longer\s+the\s+source\s+of\s+truth\b/.test(suffix) ||
-    /^\s*(?:已)?不再(?:作为|是)?(?:当前)?(?:依据|标准)(?:\s|[,.!?:;\u3002\uff0c\uff1f\uff01]|$)/.test(
+    /^\s*(?:已)?不再(?:作为|是)?(?:当前)?(?:依据|标准|版本)(?:\s|[,.!?:;\u3002\uff0c\uff1f\uff01]|$)/.test(
       suffix,
     ) ||
     /^\s*(?:已)?不再为准(?:\s|[,.!?:;\u3002\uff0c\uff1f\uff01]|$)/.test(suffix) ||

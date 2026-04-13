@@ -365,6 +365,118 @@ describe("eval assertions", () => {
     ).toBe(false);
   });
 
+  it("treats checklist-style answers as satisfying visible checklist transfer signals", () => {
+    const answer = buildGoodmemoryAnswer();
+    answer.answer = [
+      "From remembered context:",
+      "- Updated runbook: docs/runbook-v2.md",
+      "- Blocker: vendor approval",
+      "- Next step: follow up on vendor approval",
+    ].join("\n");
+
+    const scenario = buildScenario();
+    scenario.evaluation.expected_transfer_signals = ["visible checklists"];
+
+    const result = evaluateScenarioAssertions({
+      scenario,
+      goodmemory: answer,
+    });
+
+    expect(
+      result.checks.find((check) => check.id === "transfer_signals_present")?.passed,
+    ).toBe(true);
+  });
+
+  it("treats explicit follow-up offers as satisfying tight feedback loop transfer signals", () => {
+    const answer = buildGoodmemoryAnswer();
+    answer.answer = [
+      "Based on prior sessions:",
+      "- Updated runbook: docs/runbook-v2.md",
+      "- Blocker: vendor approval",
+      "",
+      "If you want, I can turn that into a short structured outline with owner and exit criteria.",
+    ].join("\n");
+
+    const scenario = buildScenario();
+    scenario.evaluation.expected_transfer_signals = ["tight feedback loops"];
+
+    const result = evaluateScenarioAssertions({
+      scenario,
+      goodmemory: answer,
+    });
+
+    expect(
+      result.checks.find((check) => check.id === "transfer_signals_present")?.passed,
+    ).toBe(true);
+  });
+
+  it("treats 'if useful' follow-up offers as satisfying tight feedback loop transfer signals", () => {
+    const answer = buildGoodmemoryAnswer();
+    answer.answer = [
+      "Based on prior sessions:",
+      "- Updated runbook: docs/runbook-v2.md",
+      "- Blocker: vendor approval",
+      "",
+      "If useful, I can turn this into a short handoff/status note.",
+    ].join("\n");
+
+    const scenario = buildScenario();
+    scenario.evaluation.expected_transfer_signals = ["tight feedback loops"];
+
+    const result = evaluateScenarioAssertions({
+      scenario,
+      goodmemory: answer,
+    });
+
+    expect(
+      result.checks.find((check) => check.id === "transfer_signals_present")?.passed,
+    ).toBe(true);
+  });
+
+  it("treats blocker-led summaries as satisfying risk-first transfer signals", () => {
+    const answer = buildGoodmemoryAnswer();
+    answer.answer = [
+      "Based on prior sessions:",
+      "- Current blocker: vendor approval",
+      "- Updated runbook: docs/runbook-v2.md",
+      "- Next step: resolve vendor approval first",
+    ].join("\n");
+
+    const scenario = buildScenario();
+    scenario.evaluation.expected_transfer_signals = ["risk-first summaries"];
+
+    const result = evaluateScenarioAssertions({
+      scenario,
+      goodmemory: answer,
+    });
+
+    expect(
+      result.checks.find((check) => check.id === "transfer_signals_present")?.passed,
+    ).toBe(true);
+  });
+
+  it("does not treat next-step-first summaries as satisfying risk-first transfer signals", () => {
+    const answer = buildGoodmemoryAnswer();
+    answer.answer = [
+      "Based on prior sessions:",
+      "- Next step: ship the rollout",
+      "- Open loop: vendor approval",
+      "- Updated runbook: docs/runbook-v2.md",
+    ].join("\n");
+
+    const scenario = buildScenario();
+    scenario.evaluation.expected_transfer_signals = ["risk-first summaries"];
+
+    const result = evaluateScenarioAssertions({
+      scenario,
+      goodmemory: answer,
+    });
+
+    expect(
+      result.checks.find((check) => check.id === "transfer_signals_present")?.passed,
+    ).toBe(false);
+  });
+
   it("fails contradictory required signals even when the same signal is also affirmed", () => {
     const answer = buildGoodmemoryAnswer();
     answer.answer = [

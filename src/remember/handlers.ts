@@ -26,6 +26,7 @@ import type {
   RememberWriteContext,
   RememberWriteState,
 } from "./contracts";
+import { extractCanonicalReferencePointer } from "./normalization";
 
 function pushAcceptedEvent(
   state: RememberWriteState,
@@ -46,6 +47,33 @@ export async function writeRememberCandidate(input: {
 
   if (candidate.memoryType === "profile") {
     const existing = await context.repositories.profiles.get(context.input.scope.userId);
+    const profileField = candidate.metadata?.profileField ?? "name";
+
+    if (profileField === "currentProject") {
+      const currentProjects = existing?.activeContext.currentProjects ?? [];
+      if (currentProjects.includes(candidate.content)) {
+        pushAcceptedEvent(state, {
+          candidateId,
+          outcome: "merged",
+          memoryType: "profile",
+          memoryId: context.input.scope.userId,
+          reason: "duplicate_profile",
+          ...buildRememberEventTrace(candidate),
+        });
+        return;
+      }
+    } else if (existing?.identity[profileField] === candidate.content) {
+      pushAcceptedEvent(state, {
+        candidateId,
+        outcome: "merged",
+        memoryType: "profile",
+        memoryId: context.input.scope.userId,
+        reason: "duplicate_profile",
+        ...buildRememberEventTrace(candidate),
+      });
+      return;
+    }
+
     const profile = buildProfile(
       context.input.scope.userId,
       existing,
@@ -163,10 +191,15 @@ export async function writeRememberCandidate(input: {
             },
           };
     const pointer =
-      referenceCandidate.metadata?.referencePointer ?? referenceCandidate.content;
+      extractCanonicalReferencePointer(referenceCandidate.metadata?.referencePointer) ??
+      extractCanonicalReferencePointer(referenceCandidate.content) ??
+      referenceCandidate.metadata?.referencePointer ??
+      referenceCandidate.content;
     const duplicate = scopedReferences.find(
       (reference) =>
-        reference.lifecycle === "active" && reference.pointer === pointer,
+        reference.lifecycle === "active" &&
+        (extractCanonicalReferencePointer(reference.pointer) ?? reference.pointer) ===
+          pointer,
     );
 
     if (duplicate) {
@@ -212,7 +245,12 @@ export async function writeRememberCandidate(input: {
     const superseded = scopedReferences.find(
       (reference) =>
         reference.lifecycle === "active" &&
-        reference.pointer === referenceCandidate.metadata?.supersedesPointer,
+        (extractCanonicalReferencePointer(reference.pointer) ?? reference.pointer) ===
+          (
+            extractCanonicalReferencePointer(
+              referenceCandidate.metadata?.supersedesPointer,
+            ) ?? referenceCandidate.metadata?.supersedesPointer
+          ),
     );
     if (superseded && context.policy?.resolveConflict) {
       const resolution = await context.policy.resolveConflict(

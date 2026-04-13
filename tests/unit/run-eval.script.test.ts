@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createTempWorkspace } from "../../src/testing/utils";
 import {
+  buildLiveGoodMemorySystemPrompt,
   mergeScenarioIds,
   parseCliOptionsFromArgv,
   resolveDefaultOutputDir,
@@ -170,6 +171,20 @@ describe("run-eval script", () => {
     process.env.GOODMEMORY_EVAL_MAX_CONCURRENCY = "0";
     expect(() => resolveEvalMaxConcurrency()).toThrow(
       "GOODMEMORY_EVAL_MAX_CONCURRENCY must be a positive integer",
+    );
+  });
+
+  it("instructs live-memory generation to prioritize risk-first structure over field order", () => {
+    const prompt = buildLiveGoodMemorySystemPrompt();
+
+    expect(prompt).toContain(
+      "start with the blocker, risk, or open loop instead of mirroring the user's field order",
+    );
+    expect(prompt).toContain(
+      "Do not preserve the user's requested field order when it conflicts with a remembered response-style preference",
+    );
+    expect(prompt).toContain(
+      "the first labeled section or first bullet must be the blocker, risk, or open loop",
     );
   });
 

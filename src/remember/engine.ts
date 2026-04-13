@@ -28,6 +28,10 @@ import type {
   RollbackAction,
   RememberWriteState,
 } from "./contracts";
+import {
+  extractCanonicalReferencePointer,
+  normalizeMemoryCandidate,
+} from "./normalization";
 import { commitRememberVectors, rollbackRememberWrites } from "./vectorOps";
 
 export type {
@@ -39,6 +43,7 @@ export type {
 
 export function createRememberEngine(config: RememberEngineConfig) {
   const AUTO_EXTRACTION_COMPLEXITY_CHAR_THRESHOLD = 220;
+  const AUTO_EXTRACTION_COMPLEX_BATCH_THRESHOLD = 4;
   const AUTO_EXTRACTION_DURABLE_CUE_PATTERN =
     /\b(remember that|source of truth|runbook|current blocker|blocked|blocking|prefer|please keep|my current role|my role|my timezone|preferred language|current focus|current project|use .+ instead of|instead of)\b|记住|以.+为准|阻塞|卡点|不再/u;
   const language = config.language ?? createLanguageService();
@@ -71,6 +76,9 @@ export function createRememberEngine(config: RememberEngineConfig) {
         .filter((candidate) => candidate.kindHint !== "noise")
         .map((candidate) => candidate.kindHint),
     );
+    const durableCandidateCount = input.baselineExtraction.candidates.filter(
+      (candidate) => candidate.kindHint !== "noise",
+    ).length;
     const hasCorrectionCue =
       /\b(correction|replace|replaced|supersede|superseded|instead of|use .+ as the source of truth|not .+ source of truth)\b|不再|改成|更正|以.+为准/u.test(
         combinedUserContent,
@@ -78,22 +86,54 @@ export function createRememberEngine(config: RememberEngineConfig) {
     const hasDurableCue = AUTO_EXTRACTION_DURABLE_CUE_PATTERN.test(
       combinedUserContent,
     );
-    const hasMixedReferenceIntent =
-      durableCandidateKinds.has("reference") &&
-      (
-        durableCandidateKinds.has("fact") ||
-        durableCandidateKinds.has("profile") ||
-        durableCandidateKinds.has("preference") ||
-        durableCandidateKinds.has("feedback")
-      );
+    const hasUnderspecifiedReferenceState = input.baselineExtraction.candidates.some(
+      (candidate) =>
+        candidate.kindHint === "reference" &&
+        (
+          !extractCanonicalReferencePointer(
+            candidate.metadata?.referencePointer ?? candidate.content,
+          ) ||
+          (candidate.metadata?.subject ?? "unknown") === "unknown"
+        ),
+    );
+    const hasUnderspecifiedProjectState = input.baselineExtraction.candidates.some(
+      (candidate) =>
+        candidate.kindHint === "fact" &&
+        (
+          candidate.metadata?.factKind === "blocker" ||
+          candidate.metadata?.factKind === "open_loop" ||
+          candidate.metadata?.factKind === "project_state"
+        ) &&
+        (candidate.metadata?.subject ?? "unknown") === "unknown",
+    );
 
     return (
-      userMessages.length >= 2 ||
       combinedUserContent.length >= AUTO_EXTRACTION_COMPLEXITY_CHAR_THRESHOLD ||
       (input.baselineExtraction.candidates.length === 0 && hasDurableCue) ||
       hasCorrectionCue ||
-      hasMixedReferenceIntent
+      hasUnderspecifiedReferenceState ||
+      hasUnderspecifiedProjectState ||
+      (
+        durableCandidateCount >= AUTO_EXTRACTION_COMPLEX_BATCH_THRESHOLD &&
+        combinedUserContent.length >= AUTO_EXTRACTION_COMPLEXITY_CHAR_THRESHOLD / 2 &&
+        durableCandidateKinds.size >= 3
+      )
     );
+  };
+
+  const normalizeExtractionResult = (
+    request: MemoryExtractionInput,
+    result: MemoryExtractionResult,
+  ): MemoryExtractionResult => {
+    return {
+      ...result,
+      candidates: result.candidates.map((candidate) =>
+        normalizeMemoryCandidate(
+          candidate,
+          request.messages[candidate.sourceMessageIndex]?.content,
+        )
+      ),
+    };
   };
 
   const resolveRequestedExtractionStrategy = (
@@ -105,7 +145,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
       input.extractionStrategy,
     );
     const baselineExtraction = annotateExtractionResult(
-      await extractor.extract(input),
+      normalizeExtractionResult(input, await extractor.extract(input)),
       "rules-only",
     );
 
@@ -129,10 +169,13 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
     try {
       assistedExtraction = annotateExtractionResult(
-        await assistedExtractor.extract({
-          ...input,
-          extractionStrategy: "llm-assisted",
-        }),
+        normalizeExtractionResult(
+          input,
+          await assistedExtractor.extract({
+            ...input,
+            extractionStrategy: "llm-assisted",
+          }),
+        ),
         "llm-assisted",
       );
     } catch {

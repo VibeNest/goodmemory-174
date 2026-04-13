@@ -42,6 +42,106 @@ function collectSurfacedEvidenceText(answerPackage: EvalAnswerPackage): string {
   return segments.join("\n");
 }
 
+function hasListFormatting(text: string): boolean {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  return lines.filter((line) => /^[-*•]\s+\S/.test(line) || /^\d+\.\s+\S/.test(line)).length >= 2;
+}
+
+function hasShortStatusFormatting(text: string): boolean {
+  const listLines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^[-*•]\s+\S/.test(line) || /^\d+\.\s+\S/.test(line));
+
+  return listLines.length >= 2 && listLines.every((line) => line.length <= 160);
+}
+
+function hasInteractiveFollowUp(text: string): boolean {
+  return /if you want, i can|if you'd like, i can|if helpful, i can|if useful, i can|if that helps, i can|let me know|share .* and i can|send .* and i can/iu.test(
+    text,
+  );
+}
+
+function hasWrittenDecisionFormatting(text: string): boolean {
+  return (
+    hasListFormatting(text) &&
+    /confirmed|decision|current source of truth|next step|updated runbook/iu.test(text)
+  );
+}
+
+function getFirstMeaningfulStructuredLine(text: string): string | undefined {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  for (const line of lines) {
+    const normalized = line
+      .replace(/^[-*•]\s+/, "")
+      .replace(/^\d+\.\s+/, "")
+      .trim();
+
+    if (
+      /^(based on prior sessions|from remembered context|confirmed from memory|confirmed from remembered context)[:：]?$/iu.test(
+        normalized,
+      )
+    ) {
+      continue;
+    }
+
+    return normalized;
+  }
+
+  return undefined;
+}
+
+function hasRiskFirstSummary(text: string): boolean {
+  const lead = getFirstMeaningfulStructuredLine(text);
+  if (!lead) {
+    return false;
+  }
+
+  return /blocker|risk|open loop/iu.test(lead);
+}
+
+function isBehaviorallyAffirmedTransferSignal(signal: string, answer: string): boolean {
+  const normalizedSignal = signal.toLowerCase();
+
+  if (normalizedSignal.includes("visible checklists")) {
+    return hasListFormatting(answer);
+  }
+
+  if (normalizedSignal.includes("concise bullet points")) {
+    return hasListFormatting(answer);
+  }
+
+  if (normalizedSignal.includes("short status updates")) {
+    return hasShortStatusFormatting(answer) || hasListFormatting(answer);
+  }
+
+  if (normalizedSignal.includes("structured outlines")) {
+    return hasListFormatting(answer);
+  }
+
+  if (normalizedSignal.includes("tight feedback loops")) {
+    return hasInteractiveFollowUp(answer);
+  }
+
+  if (normalizedSignal.includes("written decisions")) {
+    return hasWrittenDecisionFormatting(answer);
+  }
+
+  if (normalizedSignal.includes("risk-first summaries")) {
+    return hasRiskFirstSummary(answer);
+  }
+
+  return false;
+}
+
 function buildPositiveSignalAssessment(input: {
   signals: string[];
   haystack: string;
@@ -62,6 +162,20 @@ function buildPositiveSignalAssessment(input: {
     }
 
     missing.add(signal);
+  }
+
+  for (const signal of input.signals) {
+    if (
+      !missing.has(signal) ||
+      conflicted.has(signal) ||
+      negatedInAnswer.has(signal)
+    ) {
+      continue;
+    }
+
+    if (isBehaviorallyAffirmedTransferSignal(signal, input.answer)) {
+      missing.delete(signal);
+    }
   }
 
   return {

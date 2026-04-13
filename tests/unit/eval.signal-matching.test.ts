@@ -82,4 +82,16 @@ describe("eval signal matching", () => {
       findNegatedSignals(["docs/migration-rollout-runbook-v1.md"], text),
     ).toEqual(["docs/migration-rollout-runbook-v1.md"]);
   });
+
+  it("treats Chinese '已不再作为当前版本' stale-reference phrasing as negated", () => {
+    const text =
+      "基于先前记录：现在以 docs/migration-rollout-runbook-v2.md 为准。旧的 docs/migration-rollout-runbook-v1.md 已不再作为当前版本。";
+
+    expect(
+      findAffirmedSignals(["docs/migration-rollout-runbook-v1.md"], text),
+    ).toEqual([]);
+    expect(
+      findNegatedSignals(["docs/migration-rollout-runbook-v1.md"], text),
+    ).toEqual(["docs/migration-rollout-runbook-v1.md"]);
+  });
 });

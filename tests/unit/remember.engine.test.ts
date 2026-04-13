@@ -570,6 +570,768 @@ describe("remember engine", () => {
     expect(facts).toHaveLength(1);
   });
 
+  it("does not auto-upgrade ordinary multi-message batches to llm-assisted without correction or mixed reference state", async () => {
+    const scope = {
+      userId: "u-auto-ordinary-batch",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    let assistedCalls = 0;
+    const { engine } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "rules-profile",
+                kindHint: "profile",
+                explicitness: "explicit",
+                content: "Nadia",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  profileField: "name",
+                },
+              },
+              {
+                id: "rules-preference",
+                kindHint: "preference",
+                explicitness: "explicit",
+                content: "short status updates",
+                sourceMessageIndex: 1,
+                sourceRole: "user",
+                metadata: {
+                  preferenceCategory: "response_style",
+                  preferenceValue: "short status updates",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          assistedCalls += 1;
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "My name is Nadia.",
+        },
+        {
+          role: "user",
+          content: "I prefer short status updates.",
+        },
+      ],
+    });
+
+    expect(result.metadata?.requestedExtractionStrategy).toBe("auto");
+    expect(result.metadata?.resolvedExtractionStrategy).toBe("rules-only");
+    expect(assistedCalls).toBe(0);
+  });
+
+  it("canonicalizes llm-assisted profile names and reference pointers before durable write", async () => {
+    const scope = {
+      userId: "u-llm-canonical",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-profile-name",
+                kindHint: "profile",
+                explicitness: "explicit",
+                content: "User's name is Nadia and she is a game designer in Toronto, Canada.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  profileField: "name",
+                },
+              },
+              {
+                id: "llm-reference",
+                kindHint: "reference",
+                explicitness: "explicit",
+                content:
+                  "The source of truth for the cross-team API cleanup is docs/cross-team-API-cleanup-runbook-v1.md.",
+                sourceMessageIndex: 1,
+                sourceRole: "user",
+                metadata: {
+                  referenceKind: "source_of_truth",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "My name is Nadia and I am a game designer in Toronto, Canada.",
+        },
+        {
+          role: "user",
+          content:
+            "Use docs/cross-team-API-cleanup-runbook-v1.md as the source of truth for the cross-team API cleanup.",
+        },
+      ],
+    });
+
+    const profile = await repositories.profiles.get(scope.userId);
+    const references = await repositories.references.listByScope(scope);
+
+    expect(profile?.identity.name).toBe("Nadia");
+    expect(references).toHaveLength(1);
+    expect(references[0]?.pointer).toBe("docs/cross-team-API-cleanup-runbook-v1.md");
+    expect(references[0]?.title).toBe("cross-team-API-cleanup-runbook-v1.md");
+  });
+
+  it("prefers the source user message when llm-assisted name extraction rewrites the name field into a sentence", async () => {
+    const scope = {
+      userId: "u-llm-source-name",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "rules-profile-name",
+                kindHint: "profile",
+                explicitness: "explicit",
+                content: "Theo",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  profileField: "name",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-profile-name",
+                kindHint: "profile",
+                explicitness: "explicit",
+                content: "Theo, robotics engineer in Shanghai, China",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  profileField: "name",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content:
+            "My name is Theo. I'm a robotics engineer in Shanghai, China. Remember that I'm leading migration rollout.",
+        },
+      ],
+    });
+
+    const profile = await repositories.profiles.get(scope.userId);
+    expect(profile?.identity.name).toBe("Theo");
+  });
+
+  it("salvages llm-assisted profile names with missing profileField instead of defaulting the whole sentence into name", async () => {
+    const scope = {
+      userId: "u-llm-missing-profile-field",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "rules-profile-name",
+                kindHint: "profile",
+                explicitness: "explicit",
+                content: "Theo",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  profileField: "name",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-profile-name",
+                kindHint: "profile",
+                explicitness: "explicit",
+                content:
+                  "User's name is Theo and he is a robotics engineer in Shanghai, China.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content:
+            "My name is Theo. I'm a robotics engineer in Shanghai, China. Remember that I'm leading migration rollout.",
+        },
+      ],
+    });
+
+    const profile = await repositories.profiles.get(scope.userId);
+    expect(profile?.identity.name).toBe("Theo");
+  });
+
+  it("matches superseded source-of-truth references by canonical pointer even when the old pointer was stored as a sentence", async () => {
+    const scope = {
+      userId: "u-ref-canonical-supersede",
+      sessionId: "s-2",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine();
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-old-llm",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        sessionId: "s-legacy",
+        title:
+          "The source of truth for the workflow reliability dashboard is docs/workflow-reliability-dashboard-runbook-v1.md.",
+        pointer:
+          "The source of truth for the workflow reliability dashboard is docs/workflow-reliability-dashboard-runbook-v1.md.",
+        referenceKind: "source_of_truth",
+        subject: "workflow reliability dashboard",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "en-US",
+        },
+        lifecycle: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+
+    await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content:
+            "Correction: docs/workflow-reliability-dashboard-runbook-v2.md is now the source of truth, not docs/workflow-reliability-dashboard-runbook-v1.md. Please update that.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const activeReferences = references.filter((reference) => reference.lifecycle === "active");
+    const supersededReferences = references.filter(
+      (reference) => reference.lifecycle === "superseded",
+    );
+
+    expect(activeReferences).toHaveLength(1);
+    expect(activeReferences[0]?.pointer).toBe(
+      "docs/workflow-reliability-dashboard-runbook-v2.md",
+    );
+    expect(supersededReferences).toHaveLength(1);
+    expect(supersededReferences[0]?.pointer).toBe(
+      "The source of truth for the workflow reliability dashboard is docs/workflow-reliability-dashboard-runbook-v1.md.",
+    );
+  });
+
+  it("reclassifies llm-assisted source-of-truth directives instead of storing them as preferences", async () => {
+    const scope = {
+      userId: "u-zh-source-truth",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-pref",
+                kindHint: "preference",
+                explicitness: "explicit",
+                content:
+                  "现在以 docs/migration-rollout-runbook-v2.md 为准，不再以 docs/migration-rollout-runbook-v1.md 为准。",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  preferenceCategory: "general_preference",
+                  preferenceValue:
+                    "现在以 docs/migration-rollout-runbook-v2.md 为准，不再以 docs/migration-rollout-runbook-v1.md 为准。",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content:
+            "现在以 docs/migration-rollout-runbook-v2.md 为准，不再以 docs/migration-rollout-runbook-v1.md 为准。",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const preferences = await repositories.preferences.listByScope(scope);
+
+    expect(references).toHaveLength(1);
+    expect(references[0]?.pointer).toBe("docs/migration-rollout-runbook-v2.md");
+    expect(references[0]?.referenceKind).toBe("source_of_truth");
+    expect(preferences).toHaveLength(0);
+  });
+
+  it("does not convert negated source-of-truth directives into active references", async () => {
+    const scope = {
+      userId: "u-negated-source-truth",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-feedback",
+                kindHint: "feedback",
+                explicitness: "explicit",
+                content:
+                  "Please do not use docs/old-runbook.md as the source of truth.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  feedbackKind: "dont",
+                  appliesTo: "general_response",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "Please do not use docs/old-runbook.md as the source of truth.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const feedback = await repositories.feedback.listByScope(scope);
+
+    expect(references).toHaveLength(0);
+    expect(feedback).toHaveLength(1);
+  });
+
+  it("does not convert 'should not use ... as the source of truth' into an active reference", async () => {
+    const scope = {
+      userId: "u-negated-should-not-use",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-feedback",
+                kindHint: "feedback",
+                explicitness: "explicit",
+                content:
+                  "You should not use docs/old-runbook.md as the source of truth.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  feedbackKind: "dont",
+                  appliesTo: "general_response",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "You should not use docs/old-runbook.md as the source of truth.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const feedback = await repositories.feedback.listByScope(scope);
+
+    expect(references).toHaveLength(0);
+    expect(feedback).toHaveLength(1);
+  });
+
+  it("does not convert 'do not treat ... as the source of truth' into an active reference", async () => {
+    const scope = {
+      userId: "u-negated-do-not-treat",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-feedback",
+                kindHint: "feedback",
+                explicitness: "explicit",
+                content:
+                  "Please do not treat docs/old-runbook.md as the source of truth.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  feedbackKind: "dont",
+                  appliesTo: "general_response",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "Please do not treat docs/old-runbook.md as the source of truth.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const feedback = await repositories.feedback.listByScope(scope);
+
+    expect(references).toHaveLength(0);
+    expect(feedback).toHaveLength(1);
+  });
+
+  it("does not promote unrelated pointers from the same sentence into source-of-truth references", async () => {
+    const scope = {
+      userId: "u-unrelated-pointer-source-truth",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-feedback",
+                kindHint: "feedback",
+                explicitness: "explicit",
+                content:
+                  "Please do not use docs/old-runbook.md as the source of truth. Track status in notes/status.md.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  feedbackKind: "dont",
+                  appliesTo: "general_response",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content:
+            "Please do not use docs/old-runbook.md as the source of truth. Track status in notes/status.md.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const feedback = await repositories.feedback.listByScope(scope);
+
+    expect(references).toHaveLength(0);
+    expect(feedback).toHaveLength(1);
+  });
+
+  it("keeps an affirmed source-of-truth pointer active when the same pointer appears again as background context", async () => {
+    const scope = {
+      userId: "u-repeated-current-pointer",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-feedback",
+                kindHint: "feedback",
+                explicitness: "explicit",
+                content:
+                  "Please use docs/current-runbook.md as the source of truth. See docs/current-runbook.md for background.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  feedbackKind: "do",
+                  appliesTo: "general_response",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content:
+            "Please use docs/current-runbook.md as the source of truth. See docs/current-runbook.md for background.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const feedback = await repositories.feedback.listByScope(scope);
+
+    expect(references).toHaveLength(1);
+    expect(references[0]?.pointer).toBe("docs/current-runbook.md");
+    expect(feedback).toHaveLength(0);
+  });
+
+  it("matches superseded source-of-truth references for bare filenames without slash prefixes", async () => {
+    const scope = {
+      userId: "u-bare-filename-supersede",
+      sessionId: "s-2",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-reference",
+                kindHint: "reference",
+                explicitness: "explicit",
+                content: "runbook-v2.md is now the source of truth.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  referenceKind: "source_of_truth",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-old-bare-name",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        sessionId: "s-legacy",
+        title: "The source of truth is runbook-v1.md.",
+        pointer: "The source of truth is runbook-v1.md.",
+        referenceKind: "source_of_truth",
+        subject: "unknown",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "en-US",
+        },
+        lifecycle: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "runbook-v2.md is now the source of truth, not runbook-v1.md.",
+        },
+      ],
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    const activeReferences = references.filter((reference) => reference.lifecycle === "active");
+    const supersededReferences = references.filter(
+      (reference) => reference.lifecycle === "superseded",
+    );
+
+    expect(activeReferences).toHaveLength(1);
+    expect(activeReferences[0]?.pointer).toBe("runbook-v2.md");
+    expect(supersededReferences).toHaveLength(1);
+    expect(supersededReferences[0]?.pointer).toBe(
+      "The source of truth is runbook-v1.md.",
+    );
+  });
+
   it("enriches duplicate facts with better structured metadata during llm-assisted merge", async () => {
     const scope = { userId: "u-llm-fact", sessionId: "s-1", workspaceId: "workspace-a" };
     const { engine, repositories } = createEngine({

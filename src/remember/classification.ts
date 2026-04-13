@@ -52,11 +52,14 @@ export function scoreCandidate(candidate: MemoryCandidate): number {
 export function hasValidCandidatePayload(candidate: MemoryCandidate): boolean {
   const trimmedContent = candidate.content.trim();
 
-  if (
-    candidate.kindHint === "profile" ||
-    candidate.kindHint === "fact" ||
-    candidate.kindHint === "feedback"
-  ) {
+  if (candidate.kindHint === "profile") {
+    return (
+      trimmedContent.length > 0 &&
+      typeof candidate.metadata?.profileField === "string"
+    );
+  }
+
+  if (candidate.kindHint === "fact" || candidate.kindHint === "feedback") {
     return trimmedContent.length > 0;
   }
 

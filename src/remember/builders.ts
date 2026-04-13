@@ -20,6 +20,7 @@ import {
 import type { EvidenceRecord } from "../evidence/contracts";
 import type { MemorySourceMethod } from "../domain/provenance";
 import type { ClassifiedCandidate, ScopedIdentity } from "./contracts";
+import { extractCanonicalReferencePointer } from "./normalization";
 
 const EVIDENCE_MAX_EXCERPT_CHARS = 280;
 
@@ -112,6 +113,13 @@ export function buildReference(
   timestamp: string,
   locale: string,
 ): ReferenceMemory {
+  const resolvedPointer =
+    extractCanonicalReferencePointer(candidate.metadata?.referencePointer) ??
+    extractCanonicalReferencePointer(candidate.content) ??
+    candidate.metadata?.referencePointer ??
+    candidate.content;
+  const resolvedTitle = candidate.metadata?.referenceTitle?.trim();
+
   return createReferenceMemory({
     id,
     userId: scope.userId,
@@ -119,8 +127,11 @@ export function buildReference(
     workspaceId: scope.workspaceId,
     agentId: scope.agentId,
     sessionId: scope.sessionId,
-    title: candidate.metadata?.referenceTitle ?? candidate.content,
-    pointer: candidate.metadata?.referencePointer ?? candidate.content,
+    title:
+      resolvedTitle && resolvedTitle.length > 0
+        ? resolvedTitle
+        : resolvedPointer.split("/").at(-1) ?? resolvedPointer,
+    pointer: resolvedPointer,
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
@@ -144,10 +155,13 @@ export function resolveReferenceSubject(
 
   const supersededPointer = candidate.metadata?.supersedesPointer;
   if (supersededPointer) {
+    const canonicalSupersededPointer =
+      extractCanonicalReferencePointer(supersededPointer) ?? supersededPointer;
     const supersededReference = scopedReferences.find(
       (reference) =>
         reference.lifecycle === "active" &&
-        reference.pointer === supersededPointer &&
+        (extractCanonicalReferencePointer(reference.pointer) ?? reference.pointer) ===
+          canonicalSupersededPointer &&
         reference.subject &&
         reference.subject !== "unknown",
     );
