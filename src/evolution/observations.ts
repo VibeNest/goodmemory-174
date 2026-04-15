@@ -33,7 +33,17 @@ function buildRecallSummary(result: RecallObservationResult): string {
     return "Recall skipped memory retrieval because ignoreMemory was enabled.";
   }
 
-  return `Recall ${result.strategy} returned ${result.hitCount} hit(s).`;
+  const touchSegments: string[] = [];
+  if ((result.touchedFactCount ?? 0) > 0) {
+    touchSegments.push(`touched ${result.touchedFactCount} fact counter(s)`);
+  }
+  if ((result.reinforcedFeedbackCount ?? 0) > 0) {
+    touchSegments.push(`reinforced ${result.reinforcedFeedbackCount} feedback item(s)`);
+  }
+
+  return touchSegments.length > 0
+    ? `Recall ${result.strategy} returned ${result.hitCount} hit(s) and ${touchSegments.join(" plus ")}.`
+    : `Recall ${result.strategy} returned ${result.hitCount} hit(s).`;
 }
 
 function buildVerifySummary(result: RecallObservationResult): string {
@@ -129,6 +139,19 @@ export function buildRecallExperienceRecords(
     ),
   ]);
 
+  const recallMetrics = {
+    hitCount: input.result.hitCount,
+    verificationHintCount: input.result.verificationHints.length,
+    latencyMs: input.result.latencyMs,
+    tokenCount: input.result.tokenCount,
+    ...(input.result.touchedFactCount && input.result.touchedFactCount > 0
+      ? { touchedFactCount: input.result.touchedFactCount }
+      : {}),
+    ...(input.result.reinforcedFeedbackCount && input.result.reinforcedFeedbackCount > 0
+      ? { reinforcedFeedbackCount: input.result.reinforcedFeedbackCount }
+      : {}),
+  };
+
   const recallRecord = createExperienceRecord({
     id: input.createId(),
     userId: input.scope.userId,
@@ -143,12 +166,7 @@ export function buildRecallExperienceRecords(
     summary: buildRecallSummary(input.result),
     outcome: resolveRecallOutcome(input.result),
     policyApplied: input.result.policyApplied,
-    metrics: {
-      hitCount: input.result.hitCount,
-      verificationHintCount: input.result.verificationHints.length,
-      latencyMs: input.result.latencyMs,
-      tokenCount: input.result.tokenCount,
-    },
+    metrics: recallMetrics,
     linkedMemoryIds,
     linkedArchiveIds,
     linkedEvidenceIds,

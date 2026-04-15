@@ -2,11 +2,13 @@ import type {
   EpisodeMemory,
   FactKind,
   FactMemory,
+  FeedbackMemory,
   ReferenceMemory,
   UserProfile,
 } from "../domain/records";
 import type { SessionArchive } from "../evolution/contracts";
 import type { LanguageService } from "../language";
+import { FEEDBACK_RECALL_LIMIT } from "./budgets";
 import type {
   RecallCandidateTrace,
 } from "./engine";
@@ -24,6 +26,7 @@ import {
   rankArchiveCandidates,
   rankEpisodeCandidates,
   rankFactCandidates,
+  sortFeedback,
   rankReferenceCandidates,
   type RankedArchiveCandidate,
   type RankedFactCandidate,
@@ -43,9 +46,10 @@ function buildReturnedReason(
   slot: RecallSlot | "generic",
   intentScore: number,
   lexicalScore: number,
+  outcomeScore: number,
   fallback: RecallCandidateTrace["fallback"],
 ): string {
-  return `slot=${slot}, intentScore=${intentScore.toFixed(2)}, lexicalScore=${lexicalScore.toFixed(2)}, fallback=${fallback}`;
+  return `slot=${slot}, intentScore=${intentScore.toFixed(2)}, lexicalScore=${lexicalScore.toFixed(2)}, outcomeScore=${outcomeScore.toFixed(2)}, fallback=${fallback}`;
 }
 
 function markSelectedTrace(
@@ -56,6 +60,9 @@ function markSelectedTrace(
   lexicalScore: number,
   freshness: number,
   explicitness: number,
+  usageScore: number,
+  evidenceScore: number,
+  outcomeScore: number,
   fallback: RecallCandidateTrace["fallback"],
 ): void {
   const index = traces.findIndex((trace) => trace.memoryId === memoryId);
@@ -67,12 +74,21 @@ function markSelectedTrace(
     ...traces[index]!,
     slot,
     returned: true,
-    whyReturned: buildReturnedReason(slot, intentScore, lexicalScore, fallback),
+    whyReturned: buildReturnedReason(
+      slot,
+      intentScore,
+      lexicalScore,
+      outcomeScore,
+      fallback,
+    ),
     whySuppressed: undefined,
     intentScore,
     lexicalScore,
     freshnessScore: freshness,
     explicitnessScore: explicitness,
+    usageScore,
+    evidenceScore,
+    outcomeScore,
     fallback,
   };
 }
@@ -113,6 +129,12 @@ function hasFactSelectionSignal(entry: RankedFactCandidate): boolean {
   );
 }
 
+export function selectFeedback(feedback: FeedbackMemory[]): FeedbackMemory[] {
+  return sortFeedback(feedback)
+    .filter((record) => record.lifecycle === "active")
+    .slice(0, FEEDBACK_RECALL_LIMIT);
+}
+
 export function selectFacts(
   facts: FactMemory[],
   query: string,
@@ -123,6 +145,7 @@ export function selectFacts(
   profile: UserProfile | null,
   referenceTime: string,
   semanticScores?: Map<string, number>,
+  evidenceCountsByMemoryId?: Map<string, number>,
 ): { facts: FactMemory[]; traces: RecallCandidateTrace[] } {
   const answerCompositionQuery = language.isAnswerCompositionQuery(query, queryLocale);
   const factConfirmationQuery = language.isFactConfirmationQuery(query, queryLocale);
@@ -134,6 +157,7 @@ export function selectFacts(
       queryLocale,
       referenceTime,
       semanticScores,
+      evidenceCountsByMemoryId,
     ),
     routingDecision.strategy,
   );
@@ -151,6 +175,9 @@ export function selectFacts(
     lexicalScore: entry.lexicalScore,
     freshnessScore: entry.freshnessScore,
     explicitnessScore: entry.explicitnessScore,
+    usageScore: entry.usageScore,
+    evidenceScore: entry.evidenceScore,
+    outcomeScore: entry.outcomeScore,
     fallback: "none",
   }));
   const compatible = ranked.filter(
@@ -233,6 +260,9 @@ export function selectFacts(
         candidate.lexicalScore,
         candidate.freshnessScore,
         candidate.explicitnessScore,
+        candidate.usageScore,
+        candidate.evidenceScore,
+        candidate.outcomeScore,
         fallback,
       );
     };
@@ -382,6 +412,9 @@ export function selectFacts(
         entry.lexicalScore,
         entry.freshnessScore,
         entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
         "none",
       );
     }
@@ -397,6 +430,9 @@ export function selectFacts(
         entry.lexicalScore,
         entry.freshnessScore,
         entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
         "none",
       );
     }
@@ -418,6 +454,9 @@ export function selectFacts(
         entry.lexicalScore,
         entry.freshnessScore,
         entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
         "none",
       );
     }
@@ -442,6 +481,9 @@ export function selectFacts(
         fallback.lexicalScore,
         fallback.freshnessScore,
         fallback.explicitnessScore,
+        fallback.usageScore,
+        fallback.evidenceScore,
+        fallback.outcomeScore,
         "none",
       );
     }
@@ -468,6 +510,7 @@ export function selectReferences(
   routingDecision: RoutingDecision,
   referenceTime: string,
   semanticScores?: Map<string, number>,
+  evidenceCountsByMemoryId?: Map<string, number>,
 ): { references: ReferenceMemory[]; traces: RecallCandidateTrace[] } {
   const ranked = rankReferenceCandidates(
     buildReferenceCandidates(
@@ -477,6 +520,7 @@ export function selectReferences(
       queryLocale,
       referenceTime,
       semanticScores,
+      evidenceCountsByMemoryId,
     ),
     routingDecision.strategy,
   );
@@ -494,6 +538,8 @@ export function selectReferences(
     lexicalScore: entry.lexicalScore,
     freshnessScore: entry.freshnessScore,
     explicitnessScore: entry.explicitnessScore,
+    evidenceScore: entry.evidenceScore,
+    outcomeScore: entry.outcomeScore,
     fallback: "none",
   }));
   const compatible = ranked.filter(
@@ -536,6 +582,9 @@ export function selectReferences(
         selected.lexicalScore,
         selected.freshnessScore,
         selected.explicitnessScore,
+        0,
+        selected.evidenceScore,
+        selected.outcomeScore,
         signaled[0] ? "none" : "same_slot_unique_candidate",
       );
       for (const trace of traces) {
@@ -585,6 +634,9 @@ export function selectReferences(
     genericSelected.lexicalScore,
     genericSelected.freshnessScore,
     genericSelected.explicitnessScore,
+    0,
+    genericSelected.evidenceScore,
+    genericSelected.outcomeScore,
     signaled[0] ? "none" : "same_slot_unique_candidate",
   );
   for (const trace of traces) {
@@ -682,6 +734,9 @@ export function selectEpisodes(
       entry.lexicalScore,
       entry.freshnessScore,
       0,
+      0,
+      0,
+      0,
       "none",
     );
   }
@@ -769,6 +824,9 @@ export function selectArchives(
       0.7,
       entry.lexicalScore,
       entry.freshnessScore,
+      0,
+      0,
+      0,
       0,
       "none",
     );

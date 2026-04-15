@@ -1,9 +1,9 @@
 Phase 16.2: Outcome Mutation Helpers
 ====================================
 
-[TODO] P16.2-T001 Add low-risk touch/reinforce helpers
-[TODO] P16.2-T002 Record outcome counters such as access and reinforcement safely
-[TODO] P16.2-T003 Keep mutation semantics explainable and bounded
+[DONE] P16.2-T001 Add low-risk touch/reinforce helpers
+[DONE] P16.2-T002 Record outcome counters such as access and reinforcement safely
+[DONE] P16.2-T003 Keep mutation semantics explainable and bounded
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Usage-aware maintenance can rely on explicit counters
 - Low-risk mutations stay distinct from semantic content changes
+
+Implemented Notes
+-----------------
+- Recall now touches selected facts via `accessCount` and `lastAccessedAt`.
+- Recall now reinforces returned feedback via `lastUsedAt`.
+- Repeated recalls inside the bounded time window remain idempotent.
+- Recall experience telemetry records how many low-risk touches were applied.

@@ -38,8 +38,10 @@ export interface RecallObservationResult {
   modelInfluence: ExperienceModelInfluence;
   policyApplied: string[];
   preferences: ObservationLinkedRecord[];
+  reinforcedFeedbackCount?: number;
   references: ObservationLinkedRecord[];
   strategy: "auto" | "hybrid" | "llm-assisted" | "rules-only";
+  touchedFactCount?: number;
   tokenCount: number;
   verificationHints: RecallObservationVerificationHint[];
 }

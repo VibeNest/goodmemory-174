@@ -28,6 +28,9 @@ export interface RankedFactCandidate {
   intentScore: number;
   freshnessScore: number;
   explicitnessScore: number;
+  usageScore: number;
+  evidenceScore: number;
+  outcomeScore: number;
   categoryBoost: number;
   score: number;
 }
@@ -43,6 +46,8 @@ export interface RankedReferenceCandidate {
   intentScore: number;
   freshnessScore: number;
   explicitnessScore: number;
+  evidenceScore: number;
+  outcomeScore: number;
   score: number;
 }
 
@@ -279,6 +284,44 @@ export function explicitnessScore(method: MemorySourceMethod): number {
   return 0;
 }
 
+function accessCountScore(accessCount: number): number {
+  if (accessCount <= 0) {
+    return 0;
+  }
+
+  return Math.min(accessCount, 5) * 0.02;
+}
+
+function lastAccessedScore(
+  timestamp: string | undefined,
+  referenceTime: string,
+): number {
+  if (!timestamp) {
+    return 0;
+  }
+
+  const ageDays = daysBetween(referenceTime, timestamp);
+  if (ageDays <= 7) {
+    return 0.08;
+  }
+  if (ageDays <= 30) {
+    return 0.04;
+  }
+  if (ageDays <= 90) {
+    return 0.015;
+  }
+
+  return 0;
+}
+
+function evidenceSupportScore(evidenceCount: number): number {
+  if (evidenceCount <= 0) {
+    return 0;
+  }
+
+  return Math.min(evidenceCount, 4) * 0.015;
+}
+
 function resolveFactKind(
   fact: FactMemory,
   language: LanguageService,
@@ -371,6 +414,7 @@ export function buildFactCandidates(
   queryLocale: string,
   referenceTime: string,
   semanticScores?: Map<string, number>,
+  evidenceCountsByMemoryId?: Map<string, number>,
 ): RankedFactCandidate[] {
   return sortFacts(facts).map((fact) => {
     const locale = resolveFactLocale(fact, language);
@@ -395,6 +439,13 @@ export function buildFactCandidates(
     );
     const freshness = freshnessScore(fact.updatedAt, referenceTime);
     const explicitness = explicitnessScore(fact.source.method);
+    const usageScore =
+      accessCountScore(fact.accessCount) +
+      lastAccessedScore(fact.lastAccessedAt, referenceTime);
+    const evidenceScore = evidenceSupportScore(
+      evidenceCountsByMemoryId?.get(fact.id) ?? 0,
+    );
+    const outcomeScore = usageScore + evidenceScore;
     const categoryBoost = categoryPriority(fact.category, query, language, queryLocale);
     const semanticScore = semanticScores?.get(fact.id) ?? 0;
 
@@ -410,8 +461,18 @@ export function buildFactCandidates(
       intentScore,
       freshnessScore: freshness,
       explicitnessScore: explicitness,
+      usageScore,
+      evidenceScore,
+      outcomeScore,
       categoryBoost,
-      score: lexicalScore + subjectScore + intentScore + freshness + explicitness + categoryBoost,
+      score:
+        lexicalScore +
+        subjectScore +
+        intentScore +
+        freshness +
+        explicitness +
+        outcomeScore +
+        categoryBoost,
     };
   });
 }
@@ -423,6 +484,7 @@ export function buildReferenceCandidates(
   queryLocale: string,
   referenceTime: string,
   semanticScores?: Map<string, number>,
+  evidenceCountsByMemoryId?: Map<string, number>,
 ): RankedReferenceCandidate[] {
   return sortReferences(references).map((reference) => {
     const locale = resolveReferenceLocale(reference, language);
@@ -445,6 +507,9 @@ export function buildReferenceCandidates(
           });
     const freshness = freshnessScore(reference.updatedAt, referenceTime);
     const explicitness = explicitnessScore(reference.source.method);
+    const evidenceScore = evidenceSupportScore(
+      evidenceCountsByMemoryId?.get(reference.id) ?? 0,
+    );
     const semanticScore = semanticScores?.get(reference.id) ?? 0;
 
     return {
@@ -458,7 +523,9 @@ export function buildReferenceCandidates(
       intentScore: 0.8,
       freshnessScore: freshness,
       explicitnessScore: explicitness,
-      score: lexicalScore + subjectScore + freshness + explicitness + 0.8,
+      evidenceScore,
+      outcomeScore: evidenceScore,
+      score: lexicalScore + subjectScore + freshness + explicitness + evidenceScore + 0.8,
     };
   });
 }
@@ -707,6 +774,12 @@ export function sortFeedback(feedback: FeedbackMemory[]): FeedbackMemory[] {
   return [...feedback].sort((left, right) => {
     if (left.lifecycle !== right.lifecycle) {
       return left.lifecycle === "active" ? -1 : 1;
+    }
+
+    const rightUsageTimestamp = right.lastUsedAt ?? right.updatedAt;
+    const leftUsageTimestamp = left.lastUsedAt ?? left.updatedAt;
+    if (rightUsageTimestamp !== leftUsageTimestamp) {
+      return rightUsageTimestamp.localeCompare(leftUsageTimestamp);
     }
 
     return right.updatedAt.localeCompare(left.updatedAt);

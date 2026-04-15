@@ -1,5 +1,6 @@
 import type {
   ArtifactSpillRecord,
+  FactMemory,
   FeedbackMemory,
 } from "../domain/records";
 import { createFeedbackMemory } from "../domain/records";
@@ -66,6 +67,13 @@ type ScopeBoundRecord = {
   agentId?: string;
   sessionId?: string;
 };
+
+interface RecallTouchSummary {
+  reinforcedFeedbackCount: number;
+  touchedFactCount: number;
+}
+
+const LOW_RISK_RECALL_TOUCH_WINDOW_MS = 5 * 60 * 1000;
 
 const FORGETTABLE_COLLECTIONS = [
   "facts",
@@ -134,6 +142,84 @@ async function deleteVectorForCollection(
   }
 }
 
+function shouldApplyLowRiskTouch(
+  previousTimestamp: string | undefined,
+  nextTimestamp: string,
+): boolean {
+  if (!previousTimestamp) {
+    return true;
+  }
+
+  const previousMs = new Date(previousTimestamp).getTime();
+  const nextMs = new Date(nextTimestamp).getTime();
+
+  if (!Number.isFinite(previousMs) || !Number.isFinite(nextMs)) {
+    return true;
+  }
+
+  return nextMs - previousMs >= LOW_RISK_RECALL_TOUCH_WINDOW_MS;
+}
+
+async function applyRecallTouchHelpers(
+  repositories: MemoryRepositories,
+  result: RecallResult,
+  timestamp: string,
+): Promise<RecallTouchSummary> {
+  const nextFacts = result.facts
+    .filter(
+      (fact) =>
+        fact.lifecycle === "active" &&
+        shouldApplyLowRiskTouch(fact.lastAccessedAt, timestamp),
+    )
+    .map((fact) => {
+      const nextFact: FactMemory = {
+        ...fact,
+        accessCount: fact.accessCount + 1,
+        lastAccessedAt: timestamp,
+      };
+
+      return nextFact;
+    });
+  const nextFeedback = result.feedback
+    .filter(
+      (feedback) =>
+        feedback.lifecycle === "active" &&
+        shouldApplyLowRiskTouch(feedback.lastUsedAt, timestamp),
+    )
+    .map((feedback) => {
+      const reinforcedFeedback: FeedbackMemory = {
+        ...feedback,
+        lastUsedAt: timestamp,
+      };
+
+      return reinforcedFeedback;
+    });
+
+  await Promise.all([
+    ...nextFacts.map((fact) => repositories.facts.add(fact)),
+    ...nextFeedback.map((feedback) => repositories.feedback.upsert(feedback)),
+  ]);
+
+  const touchedFacts = new Map(nextFacts.map((fact) => [fact.id, fact] as const));
+  const reinforcedFeedback = new Map(
+    nextFeedback.map((feedback) => [feedback.id, feedback] as const),
+  );
+
+  if (touchedFacts.size > 0) {
+    result.facts = result.facts.map((fact) => touchedFacts.get(fact.id) ?? fact);
+  }
+  if (reinforcedFeedback.size > 0) {
+    result.feedback = result.feedback.map(
+      (feedback) => reinforcedFeedback.get(feedback.id) ?? feedback,
+    );
+  }
+
+  return {
+    reinforcedFeedbackCount: nextFeedback.length,
+    touchedFactCount: nextFacts.length,
+  };
+}
+
 function toRememberObservationResult(
   result: RememberResult,
 ): RememberObservationResult {
@@ -154,6 +240,7 @@ function toRememberObservationResult(
 
 function toRecallObservationResult(
   result: RecallResult,
+  touchSummary?: RecallTouchSummary,
 ): RecallObservationResult {
   return {
     preferences: result.preferences.map((record) => ({ id: record.id })),
@@ -174,6 +261,8 @@ function toRecallObservationResult(
     })),
     latencyMs: result.metadata.latencyMs,
     tokenCount: result.metadata.tokenCount,
+    touchedFactCount: touchSummary?.touchedFactCount ?? 0,
+    reinforcedFeedbackCount: touchSummary?.reinforcedFeedbackCount ?? 0,
     policyApplied: result.metadata.policyApplied,
     modelInfluence:
       result.metadata.routingDecision.strategy === "llm-assisted"
@@ -204,6 +293,7 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly reviewer;
   private readonly proposalGate;
   private readonly language;
+  private readonly now: () => Date;
 
   constructor(private readonly config: GoodMemoryConfig) {
     if (config.storage.provider === "postgres" && !config.storage.url) {
@@ -248,6 +338,7 @@ class GoodMemoryImpl implements GoodMemory {
     this.sessionStore = sessionStore;
     this.repositories = repositories;
     this.language = language;
+    this.now = config.testing?.now ?? (() => new Date());
     this.recallEngine = createRecallEngine({
       repositories,
       runtime: sessionStore,
@@ -284,13 +375,18 @@ class GoodMemoryImpl implements GoodMemory {
 
   async recall(input: RecallInput): Promise<RecallResult> {
     const result = await this.recallEngine.recall(input);
-    const timestamp = new Date().toISOString();
+    const timestamp = this.now().toISOString();
     const traceId = crypto.randomUUID();
+    const touchSummary = await applyRecallTouchHelpers(
+      this.repositories,
+      result,
+      timestamp,
+    );
 
     await this.persistExperienceRecords(
       buildRecallExperienceRecords({
         scope: input.scope,
-        result: toRecallObservationResult(result),
+        result: toRecallObservationResult(result, touchSummary),
         traceId,
         createdAt: timestamp,
         createId: () => crypto.randomUUID(),

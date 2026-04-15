@@ -108,4 +108,47 @@ describe("recall selection", () => {
     expect(result.references.map((reference) => reference.id)).toEqual(["ref-1"]);
     expect(result.traces[0]?.fallback).toBe("same_slot_unique_candidate");
   });
+
+  it("prefers better-supported fact candidates when slot signals tie", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-weak",
+        userId: "user-1",
+        category: "project",
+        content: "The runtime rollout is blocked by legal signoff.",
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-strong",
+        userId: "user-1",
+        category: "project",
+        content: "The runtime rollout is blocked by legal signoff.",
+        source: SOURCE,
+        accessCount: 5,
+        lastAccessedAt: TIMESTAMP,
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the blocker right now?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({
+        requestedSlots: ["blocker"],
+      }),
+      null,
+      TIMESTAMP,
+      undefined,
+      new Map([["fact-strong", 3]]),
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual(["fact-strong"]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-strong")?.outcomeScore).toBeGreaterThan(0);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-strong")?.whyReturned).toContain("outcomeScore=");
+  });
 });

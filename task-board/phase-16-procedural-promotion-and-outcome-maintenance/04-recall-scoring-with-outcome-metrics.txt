@@ -1,9 +1,9 @@
 Phase 16.4: Recall Scoring with Outcome Metrics
 ===============================================
 
-[TODO] P16.4-T001 Integrate accessCount and lastUsedAt into scoring
-[TODO] P16.4-T002 Integrate evidenceCount and correction/demotion signals into scoring
-[TODO] P16.4-T003 Keep scoring attribution visible in recall traces
+[DONE] P16.4-T001 Integrate accessCount and lastUsedAt into scoring
+[WIP] P16.4-T002 Integrate evidenceCount and correction/demotion signals into scoring
+[DONE] P16.4-T003 Keep scoring attribution visible in recall traces
 
 Why this exists
 ---------------
@@ -21,8 +21,17 @@ Implementation steps
 1. Extend recall scoring with bounded, interpretable weights
 2. Keep lexical/policy/scope guards as hard floors
 3. Emit enough attribution for eval and CLI debugging
+4. Only after attribution lands, wire low-risk touch/reinforce helpers so counters can move under real recall traffic
 
 Acceptance
 ----------
 - Recall ranking becomes outcome-aware without becoming opaque
 - Eval can attribute changes to specific scoring signals
+
+Implemented Notes
+-----------------
+- Fact ranking now consumes bounded usage signals from `accessCount` and `lastAccessedAt`.
+- Feedback ordering now prefers recently used guidance via `lastUsedAt`.
+- Fact and reference ranking now consume visible linked-evidence counts as an explainable support signal.
+- Candidate traces now expose `usageScore`, `evidenceScore`, and `outcomeScore`.
+- Remaining work is to add future demotion / correction signals on top of the current scoring surface.

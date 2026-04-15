@@ -14,6 +14,7 @@ import type {
   RecallCandidateTrace,
   RecallHit,
 } from "./engine";
+import { FEEDBACK_RECALL_LIMIT } from "./budgets";
 import type { RoutingDecision } from "./router";
 
 export interface EvidenceLinkIndex {
@@ -185,7 +186,7 @@ export function buildHits(input: {
     }
 
     if (source === "feedback") {
-      for (const feedback of input.feedback.slice(0, 3)) {
+      for (const feedback of input.feedback.slice(0, FEEDBACK_RECALL_LIMIT)) {
         hits.push({
           id: feedback.id,
           type: "feedback",

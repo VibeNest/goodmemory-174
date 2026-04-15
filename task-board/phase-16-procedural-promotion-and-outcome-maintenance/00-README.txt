@@ -12,12 +12,17 @@ Use it together with:
 
 Execution Order
 ---------------
-1. 01-validated-pattern-compiler.txt
+1. 04-recall-scoring-with-outcome-metrics.txt
 2. 02-outcome-mutation-helpers.txt
 3. 03-verify-driven-demotion-and-correction-repair.txt
-4. 04-recall-scoring-with-outcome-metrics.txt
+4. 01-validated-pattern-compiler.txt
 5. 05-dream-orchestration-expansion.txt
 6. 06-regression-and-eval-slices.txt
+
+Execution Notes
+---------------
+- Current code already emits governed procedural proposals, so the lowest-risk next slice is to make outcome signals visible in recall before adding new promotion mutations.
+- Score attribution should land before touch/reinforce helpers so the first rollout remains explainable in traces and CLI output.
 
 
 Status Rule

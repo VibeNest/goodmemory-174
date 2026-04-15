@@ -33,12 +33,18 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P16-T001 Compile and maintain `validated_pattern` from feedback and proposal outcomes
-[TODO] P16-T002 Add low-risk outcome mutation helpers for recall scoring signals
+[WIP] P16-T004 Connect outcome metrics to recall scoring and maintenance heuristics
+[DONE] P16-T002 Add low-risk outcome mutation helpers for recall scoring signals
 [TODO] P16-T003 Implement verify-driven demotion and repeated-correction repair
-[TODO] P16-T004 Connect outcome metrics to recall scoring and maintenance heuristics
+[TODO] P16-T001 Compile and maintain `validated_pattern` from feedback and proposal outcomes
 [TODO] P16-T005 Expand dream orchestration to drive hygiene plus proposal compilation
 [TODO] P16-T006 Add regression/eval coverage for procedural reuse and stale-memory misuse
+
+Progress Notes
+--------------
+- Outcome-aware scoring now consumes recall usage plus visible evidence support and emits attribution in recall candidate traces.
+- Low-risk recall touch helpers now update `accessCount`, `lastAccessedAt`, and `lastUsedAt` with a bounded window and append telemetry for the applied touches.
+- Remaining work in P16-T004 is to fold future demotion / correction signals into the same explainable scoring surface.
 
 
 Key Constraints

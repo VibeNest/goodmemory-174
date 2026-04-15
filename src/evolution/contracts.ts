@@ -30,6 +30,8 @@ export interface ExperienceMetrics {
   verificationHintCount?: number;
   latencyMs?: number;
   tokenCount?: number;
+  touchedFactCount?: number;
+  reinforcedFeedbackCount?: number;
 }
 
 export interface ExperienceRecord {

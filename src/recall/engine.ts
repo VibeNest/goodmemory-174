@@ -54,12 +54,12 @@ import {
 } from "./router";
 import {
   searchSemanticScores,
-  sortFeedback,
   sortPreferences,
 } from "./scoring";
 import {
   selectArchives,
   selectEpisodes,
+  selectFeedback,
   selectFacts,
   selectReferences,
 } from "./selection";
@@ -103,6 +103,9 @@ export interface RecallCandidateTrace {
   lexicalScore: number;
   freshnessScore: number;
   explicitnessScore: number;
+  usageScore?: number;
+  evidenceScore?: number;
+  outcomeScore?: number;
   fallback: "none" | "same_slot_unique_candidate";
   evidenceIds?: string[];
 }
@@ -143,6 +146,20 @@ export interface RecallEngineConfig {
   now?: () => number;
   policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
   referenceTime?: () => string;
+}
+
+function buildEvidenceCountByMemoryId(
+  evidence: EvidenceRecord[],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const record of evidence) {
+    for (const memoryId of record.linkedMemoryIds) {
+      counts.set(memoryId, (counts.get(memoryId) ?? 0) + 1);
+    }
+  }
+
+  return counts;
 }
 
 export function createRecallEngine(config: RecallEngineConfig) {
@@ -266,6 +283,20 @@ export function createRecallEngine(config: RecallEngineConfig) {
         },
       });
       const currentReferenceTime = referenceTime();
+      const visibleEvidencePool = await applyRecallPolicyToRecords(
+        evidenceRaw,
+        "evidence",
+        {
+          scope: input.scope,
+          query: input.query,
+          retrievalProfile,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+          policy: config.policy,
+          policyApplied,
+        },
+      );
+      const evidenceCountsByMemoryId = buildEvidenceCountByMemoryId(visibleEvidencePool);
       const semanticScores =
         routingDecision.strategy === "hybrid" &&
         config.embedding &&
@@ -310,6 +341,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         filteredProfile,
         currentReferenceTime,
         semanticScores?.facts,
+        evidenceCountsByMemoryId,
       );
       const facts = await applyRecallPolicyToRecords(
         selectedFacts.facts,
@@ -324,8 +356,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
-      const feedback = await applyRecallPolicyToRecords(
-        sortFeedback(feedbackRaw),
+      const visibleFeedback = await applyRecallPolicyToRecords(
+        feedbackRaw,
         "feedback",
         {
           scope: input.scope,
@@ -337,6 +369,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
+      const feedback = selectFeedback(visibleFeedback);
       const selectedArchives = selectArchives(
         archivesRaw,
         input.query,
@@ -388,6 +421,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         routingDecision,
         currentReferenceTime,
         semanticScores?.references,
+        evidenceCountsByMemoryId,
       );
       const references = await applyRecallPolicyToRecords(
         selectedReferences.references,
@@ -406,49 +440,25 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const referenceTraceIds = collectTraceMemoryIds(selectedReferences.traces);
       const archiveTraceIds = collectTraceMemoryIds(selectedArchives.traces);
       const episodeTraceIds = collectTraceMemoryIds(selectedEpisodes.traces);
-      const visibleLinkedEvidence = await applyRecallPolicyToRecords(
-        filterLinkedEvidence(
-          evidenceRaw,
-          new Set([
-            ...facts.map((fact) => fact.id),
-            ...references.map((reference) => reference.id),
-            ...feedback.map((feedbackItem) => feedbackItem.id),
-            ...episodes.map((episode) => episode.id),
-          ]),
-          new Set(archives.map((archive) => archive.id)),
-        ),
-        "evidence",
-        {
-          scope: input.scope,
-          query: input.query,
-          retrievalProfile,
-          locale: resolvedLanguage.locale,
-          localeSource: resolvedLanguage.localeSource,
-          policy: config.policy,
-          policyApplied,
-        },
+      const visibleLinkedEvidence = filterLinkedEvidence(
+        visibleEvidencePool,
+        new Set([
+          ...facts.map((fact) => fact.id),
+          ...references.map((reference) => reference.id),
+          ...feedback.map((feedbackItem) => feedbackItem.id),
+          ...episodes.map((episode) => episode.id),
+        ]),
+        new Set(archives.map((archive) => archive.id)),
       );
-      const explainabilityLinkedEvidence = await applyRecallPolicyToRecords(
-        filterLinkedEvidence(
-          evidenceRaw,
-          new Set([
-            ...factTraceIds.memoryIds,
-            ...referenceTraceIds.memoryIds,
-            ...episodeTraceIds.memoryIds,
-            ...feedback.map((feedbackItem) => feedbackItem.id),
-          ]),
-          new Set([...archiveTraceIds.archiveIds]),
-        ),
-        "evidence",
-        {
-          scope: input.scope,
-          query: input.query,
-          retrievalProfile,
-          locale: resolvedLanguage.locale,
-          localeSource: resolvedLanguage.localeSource,
-          policy: config.policy,
-          policyApplied,
-        },
+      const explainabilityLinkedEvidence = filterLinkedEvidence(
+        visibleEvidencePool,
+        new Set([
+          ...factTraceIds.memoryIds,
+          ...referenceTraceIds.memoryIds,
+          ...episodeTraceIds.memoryIds,
+          ...feedback.map((feedbackItem) => feedbackItem.id),
+        ]),
+        new Set([...archiveTraceIds.archiveIds]),
       );
       const evidence = routingDecision.sourcePriorities.includes("evidence")
         ? selectEvidence(visibleLinkedEvidence)

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import {
   createFactMemory,
+  createFeedbackMemory,
   createReferenceMemory,
 } from "../../src/domain/records";
 import { createLanguageService } from "../../src/language";
 import {
   buildFactCandidates,
+  sortFeedback,
   normalizeSemanticScores,
   rankReferenceCandidates,
   buildReferenceCandidates,
@@ -52,6 +54,34 @@ describe("recall scoring", () => {
     expect(candidate?.explicitnessScore).toBeGreaterThan(0);
   });
 
+  it("adds bounded outcome support signals to fact candidates", () => {
+    const language = createLanguageService();
+    const fact = createFactMemory({
+      id: "fact-1",
+      userId: "user-1",
+      category: "project",
+      content: "The runtime rollout is blocked by legal signoff.",
+      source: SOURCE,
+      accessCount: 4,
+      lastAccessedAt: "2026-01-08T00:00:00.000Z",
+      updatedAt: TIMESTAMP,
+    });
+
+    const [candidate] = buildFactCandidates(
+      [fact],
+      "What is the blocker right now?",
+      language,
+      "en",
+      TIMESTAMP,
+      undefined,
+      new Map([["fact-1", 3]]),
+    );
+
+    expect(candidate?.usageScore).toBeGreaterThan(0);
+    expect(candidate?.evidenceScore).toBeGreaterThan(0);
+    expect(candidate?.outcomeScore).toBeGreaterThan(0);
+  });
+
   it("prefers higher lexical reference matches when ranking", () => {
     const language = createLanguageService();
     const references = [
@@ -85,5 +115,29 @@ describe("recall scoring", () => {
     );
 
     expect(ranked[0]?.reference.id).toBe("ref-hi");
+  });
+
+  it("prefers recently used feedback when sorting active guidance", () => {
+    const feedback = sortFeedback([
+      createFeedbackMemory({
+        id: "feedback-stale",
+        userId: "user-1",
+        rule: "Keep summaries concise.",
+        kind: "prefer",
+        source: SOURCE,
+        updatedAt: "2026-01-09T00:00:00.000Z",
+      }),
+      createFeedbackMemory({
+        id: "feedback-used",
+        userId: "user-1",
+        rule: "Use bullet points in summaries.",
+        kind: "validated_pattern",
+        source: SOURCE,
+        updatedAt: "2026-01-05T00:00:00.000Z",
+        lastUsedAt: "2026-01-10T00:00:00.000Z",
+      }),
+    ]);
+
+    expect(feedback[0]?.id).toBe("feedback-used");
   });
 });
