@@ -40,6 +40,19 @@ export interface JudgeResult {
   goodmemory_scores?: JudgeScores;
   reasoning: string;
   failure_tags: string[];
+  blocking_failure_tags?: string[];
+}
+
+function findMissingBlockingFailureTags(
+  failureTags: string[],
+  blockingFailureTags?: string[],
+): string[] {
+  if (!blockingFailureTags || blockingFailureTags.length === 0) {
+    return [];
+  }
+
+  const failureTagSet = new Set(failureTags);
+  return blockingFailureTags.filter((tag) => !failureTagSet.has(tag));
 }
 
 const JUDGE_SCORE_FIELDS = [
@@ -64,13 +77,32 @@ const judgeScoreShape = {
 
 export const judgeScoresSchema = z.object(judgeScoreShape);
 
-export const judgeResultSchema = z.object({
+const judgeResultBaseSchema = z.object({
   winner: z.enum(["baseline", "goodmemory", "tie"]),
   scores: judgeScoresSchema,
   baseline_scores: judgeScoresSchema.optional(),
   goodmemory_scores: judgeScoresSchema.optional(),
   reasoning: z.string(),
   failure_tags: z.array(z.string()),
+  blocking_failure_tags: z.array(z.string()).optional(),
+});
+
+export const judgeResultSchema = judgeResultBaseSchema.superRefine((value, ctx) => {
+  const missingBlockingTags = findMissingBlockingFailureTags(
+    value.failure_tags,
+    value.blocking_failure_tags,
+  );
+
+  if (missingBlockingTags.length === 0) {
+    return;
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["blocking_failure_tags"],
+    message:
+      `blocking_failure_tags must be a subset of failure_tags: ${missingBlockingTags.join(", ")}`,
+  });
 });
 
 export interface JudgeModel {
@@ -133,7 +165,10 @@ function tryValidateScores(
   }
 }
 
-function normalizeFailureTags(value: unknown): string[] {
+function normalizeFailureTags(
+  value: unknown,
+  fieldName = "failure_tags",
+): string[] {
   if (Array.isArray(value) && value.every((tag) => typeof tag === "string")) {
     return value as string[];
   }
@@ -152,7 +187,7 @@ function normalizeFailureTags(value: unknown): string[] {
     });
   }
 
-  throw new Error("failure_tags must be a string array");
+  throw new Error(`${fieldName} must be a string array`);
 }
 
 export function buildJudgePrompt(input: JudgePromptInput): string {
@@ -160,14 +195,18 @@ export function buildJudgePrompt(input: JudgePromptInput): string {
     "You are judging which answer better serves the user.",
     "Return only JSON. No prose, no markdown, no code fences, no <think> tags.",
     "Use this exact top-level shape:",
-    "winner, scores, baseline_scores, goodmemory_scores, reasoning, failure_tags.",
+    "winner, scores, baseline_scores, goodmemory_scores, reasoning, failure_tags, blocking_failure_tags.",
     `Use 0-10 scores for ${JUDGE_SCORE_FIELDS.join(", ")}.`,
     "Higher contamination_penalty means less incorrect personalization or cross-domain contamination.",
     `Rubric: ${JUDGE_SCORE_FIELDS.join(", ")}.`,
     "failure_tags must be a flat string array.",
+    "blocking_failure_tags must be a flat string array.",
     "Prefix every failure tag with baseline_, goodmemory_, or shared_.",
     "If GoodMemory wins and baseline made the mistake, use baseline_ tags rather than unscoped tags.",
     "Only use goodmemory_ tags for defects that still apply to the GoodMemory answer.",
+    "failure_tags is the full diagnostic set, including non-blocking nits and observations.",
+    "blocking_failure_tags is the strict subset that should still fail release gating or enter failures/summary.json if GoodMemory would otherwise win.",
+    "Leave blocking_failure_tags empty for style, verbosity, or explicitness nits that do not make the answer materially incorrect, unsafe, stale, privacy-leaking, or cross-contaminated.",
     "Do not penalize an answer for refusing to invent unavailable details. If remembered context only proves that an item remains an open loop, explicitly saying that finer-grained details are not yet recorded is acceptable and should not be tagged as a defect.",
     "Expected identity signals are evidence of available memory, not a checklist of mandatory tokens. Only penalize missing identity details when the user asked for them explicitly or they materially change the recommendation.",
     "scores, baseline_scores, and goodmemory_scores must all use the same per-dimension keys.",
@@ -227,13 +266,30 @@ export function parseJudgeResult(raw: string): JudgeResult {
     throw new Error("reasoning must be a string");
   }
 
+  const failureTags = normalizeFailureTags(parsed.failure_tags);
+  const blockingFailureTags =
+    parsed.blocking_failure_tags === undefined
+      ? undefined
+      : normalizeFailureTags(parsed.blocking_failure_tags, "blocking_failure_tags");
+  const missingBlockingTags = findMissingBlockingFailureTags(
+    failureTags,
+    blockingFailureTags,
+  );
+
+  if (missingBlockingTags.length > 0) {
+    throw new Error(
+      `blocking_failure_tags must be a subset of failure_tags: ${missingBlockingTags.join(", ")}`,
+    );
+  }
+
   return {
     winner: parsed.winner,
     scores,
     baseline_scores: baselineScores,
     goodmemory_scores: goodmemoryScores,
     reasoning,
-    failure_tags: normalizeFailureTags(parsed.failure_tags),
+    failure_tags: failureTags,
+    blocking_failure_tags: blockingFailureTags,
   };
 }
 

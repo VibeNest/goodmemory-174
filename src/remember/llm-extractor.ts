@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 
+import type { AISDKRetryOptions } from "../llm/ai-sdk-runtime";
 import type { FetchLike } from "../llm/ai-sdk-runtime";
 import type { AISDKModelConfig } from "../llm/ai-sdk-runtime";
 import {
@@ -21,6 +22,7 @@ interface MemoryExtractorDependencies {
   resolveModel?: typeof resolveAISDKModel;
   fetch?: FetchLike;
   requestTimeoutMs?: number;
+  retryOptions?: AISDKRetryOptions;
 }
 
 const MEMORY_CANDIDATE_KIND_HINT_VALUES = [
@@ -293,7 +295,7 @@ export function createLLMMemoryExtractor(input: {
         });
 
         return finalizeMemoryExtractionResult(object);
-      });
+      }, input.dependencies?.retryOptions);
     },
   };
 }

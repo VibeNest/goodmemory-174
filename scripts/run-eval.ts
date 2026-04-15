@@ -327,6 +327,25 @@ function scoreTotal(scores: JudgeScores): number {
   );
 }
 
+const FALLBACK_BLOCKING_GOODMEMORY_TAG_PATTERNS = [
+  /(?:^|_)stale_memory_leak(?:$|_)/,
+  /(?:^|_)wrong_personalization(?:$|_)/,
+  /(?:^|_)(?:missed|rejected)_update_signal(?:$|_)/,
+] as const;
+
+function resolveFallbackBlockingFailureTags(
+  winner: "baseline" | "goodmemory" | "tie",
+  failureTags: string[],
+): string[] {
+  if (winner !== "goodmemory") {
+    return failureTags;
+  }
+
+  return failureTags.filter((tag) =>
+    FALLBACK_BLOCKING_GOODMEMORY_TAG_PATTERNS.some((pattern) => pattern.test(tag)),
+  );
+}
+
 function buildFallbackJudgeContent(prompt: string): string {
   const baselineAnswer = extractBlockField(prompt, "baseline", "goodmemory");
   const goodmemoryAnswer = extractBlockField(prompt, "goodmemory");
@@ -382,7 +401,7 @@ function buildFallbackJudgeContent(prompt: string): string {
   const rejectedRequiredSignalCount =
     countNegatedSignals(expectedUpdateWins, goodmemoryAnswer) +
     countNegatedSignals(expectedTransferSignals, goodmemoryAnswer);
-  let winner =
+  let winner: "baseline" | "goodmemory" | "tie" =
     Math.abs(goodmemoryTotal - baselineTotal) < 1
       ? "tie"
       : goodmemoryTotal > baselineTotal
@@ -423,6 +442,11 @@ function buildFallbackJudgeContent(prompt: string): string {
     failureTags.push("goodmemory_rejected_preference_signal");
   }
 
+  const blockingFailureTags = resolveFallbackBlockingFailureTags(
+    winner,
+    failureTags,
+  );
+
   return JSON.stringify({
     winner,
     scores: winner === "baseline" ? baselineScores : goodmemoryScores,
@@ -435,6 +459,7 @@ function buildFallbackJudgeContent(prompt: string): string {
           ? "The baseline answer avoided errors while GoodMemory failed to surface enough current memory."
           : "Both answers surfaced a similar amount of relevant user state.",
     failure_tags: failureTags,
+    blocking_failure_tags: blockingFailureTags,
   });
 }
 

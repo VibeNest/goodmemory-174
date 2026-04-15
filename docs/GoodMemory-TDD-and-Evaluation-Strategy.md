@@ -441,6 +441,7 @@ interface JudgeResult {
   };
   reasoning: string;
   failure_tags: string[];
+  blocking_failure_tags?: string[];
 }
 ```
 
@@ -451,6 +452,13 @@ interface JudgeResult {
 - `shared_*` 表示 judge 观察到双方共享的问题或限制
 
 也就是说，`failure_tags` 是 judge 的诊断标签集合，不等于“需要拦截发布的失败集合”。
+
+`blocking_failure_tags` 的口径单独固定：
+
+- 它是 `failure_tags` 的严格子集
+- 只放“即使 GoodMemory 最终获胜，也仍然应该阻塞 release gate / rerun inbox”的缺陷
+- 当 GoodMemory 获胜时，允许进入 `blocking_failure_tags` 的通常是 `goodmemory_*` 或 `shared_*`；`baseline_*` 不应单独阻塞 GoodMemory
+- 风格、措辞、显式性不足、轻微 personalization nit 不应进入 `blocking_failure_tags`
 
 ## 7.4 Judge Rubric
 
@@ -580,8 +588,10 @@ persist score + trace + failure cases
 `failures/summary.json` 的判定口径应固定为：
 
 - 如果 `winner !== "goodmemory"`，该样本记为失败
-- 如果 `winner === "goodmemory"`，只有 `goodmemory_*` 标签和 assertion 失败会进入 `failures/summary.json`
-- `baseline_*` 与 `shared_*` 在 GoodMemory 获胜且 assertions 通过时仍应保留在单 case artifact 中，但不应作为 release-blocking failure 进入失败汇总
+- 如果 `winner === "goodmemory"`，只有 `blocking_failure_tags` 和 assertion 失败会进入 `failures/summary.json`
+- `failure_tags` 中的 `baseline_*`、`shared_*`、以及非阻塞的 `goodmemory_*` 诊断，在 GoodMemory 获胜且 assertions 通过时仍应保留在单 case artifact 中，但不应作为 release-blocking failure 进入失败汇总
+- 如果 `winner !== "goodmemory"`，`failures/summary.json` 仍应优先保留完整 `failure_tags` 作为诊断信息；`blocking_failure_tags` 主要服务于 GoodMemory 获胜时的 gate 语义
+- 为兼容旧 judge 产物，reporting 可以临时把明显高风险的 leak / contamination / update-correctness 标签提升为阻塞项，但这只是过渡策略，不应替代显式的 `blocking_failure_tags`
 
 ## 9.5 Memory traces
 

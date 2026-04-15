@@ -19,12 +19,21 @@ export interface AISDKModelConfig {
 interface EmbeddingAdapterDependencies {
   embedMany?: typeof embedMany;
   resolveEmbeddingModel?: typeof resolveAISDKEmbeddingModel;
+  retryOptions?: AISDKRetryOptions;
 }
 
 type FetchInput = Parameters<FetchFunction>[0];
 type FetchInit = Parameters<FetchFunction>[1];
 export type FetchLike = (input: FetchInput, init?: FetchInit) => Promise<Response>;
 const DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS = 45_000;
+const DEFAULT_AISDK_RETRY_LIMIT = 4;
+const FAST_AISDK_RETRY_DELAYS_MS = [250, 500, 1_000] as const;
+const SLOW_AISDK_RETRY_DELAYS_MS = [2_000, 5_000, 10_000] as const;
+
+export interface AISDKRetryOptions {
+  retryLimit?: number;
+  sleep?: (ms: number) => Promise<void>;
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -113,12 +122,12 @@ export function createOpenAICompatibleFetch(
   return wrappedFetch;
 }
 
-function shouldRetryAISDKError(error: unknown): boolean {
+function resolveAISDKRetryDelayMs(
+  error: unknown,
+  attempt: number,
+): number | null {
   const message = extractErrorMessage(error).toLowerCase();
-
-  return (
-    message.includes("malformed openai-compatible gateway response") ||
-    message.includes("empty model response") ||
+  const slowRetry =
     message.includes("rate limit") ||
     message.includes("timeout") ||
     message.includes("timed out") ||
@@ -128,20 +137,40 @@ function shouldRetryAISDKError(error: unknown): boolean {
     message.includes("socket hang up") ||
     message.includes("502") ||
     message.includes("503") ||
-    message.includes("504") ||
+    message.includes("504");
+  if (slowRetry) {
+    return SLOW_AISDK_RETRY_DELAYS_MS[
+      Math.min(attempt - 1, SLOW_AISDK_RETRY_DELAYS_MS.length - 1)
+    ]!;
+  }
+
+  const fastRetry =
+    message.includes("malformed openai-compatible gateway response") ||
+    message.includes("empty model response") ||
     message.includes("choices") && message.includes("received null") ||
     message.includes("type validation failed") ||
     message.includes("invalid input: expected array") ||
     message.includes("structured model response did not contain a json object") ||
     message.includes("structured model response was not valid json") ||
-    message.includes("structured model response schema validation failed")
-  );
+    message.includes("structured model response schema validation failed");
+  if (!fastRetry) {
+    return null;
+  }
+
+  return FAST_AISDK_RETRY_DELAYS_MS[
+    Math.min(attempt - 1, FAST_AISDK_RETRY_DELAYS_MS.length - 1)
+  ]!;
 }
 
 export async function withAISDKRetries<T>(
   operation: () => Promise<T>,
-  retryLimit = 3,
+  options: number | AISDKRetryOptions = DEFAULT_AISDK_RETRY_LIMIT,
 ): Promise<T> {
+  const retryLimit =
+    typeof options === "number"
+      ? options
+      : options.retryLimit ?? DEFAULT_AISDK_RETRY_LIMIT;
+  const sleepFn = typeof options === "number" ? sleep : options.sleep ?? sleep;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= retryLimit; attempt += 1) {
@@ -150,11 +179,12 @@ export async function withAISDKRetries<T>(
     } catch (error) {
       lastError = error;
 
-      if (attempt >= retryLimit || !shouldRetryAISDKError(error)) {
+      const retryDelayMs = resolveAISDKRetryDelayMs(error, attempt);
+      if (attempt >= retryLimit || retryDelayMs === null) {
         throw error;
       }
 
-      await sleep(250 * attempt);
+      await sleepFn(retryDelayMs);
     }
   }
 
@@ -716,7 +746,7 @@ export function createAISDKEmbeddingAdapter(input: {
         });
 
         return result.embeddings;
-      });
+      }, input.dependencies?.retryOptions);
 
       if (embeddings.some((embedding) => embedding.length === 0)) {
         throw new Error("Empty embedding response");

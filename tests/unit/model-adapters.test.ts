@@ -12,6 +12,7 @@ import {
   parseAISDKModelConfigFromEnv,
   resolveAISDKEmbeddingModel,
   resolveAISDKModel,
+  withAISDKRetries,
 } from "../../src/llm/ai-sdk-runtime";
 import {
   createLLMMemoryExtractor as createAISDKMemoryExtractor,
@@ -221,6 +222,60 @@ describe("model adapters", () => {
 
     expect(result.content).toBe("non-empty-answer");
     expect(attempts).toBe(3);
+  });
+
+  it("uses escalating backoff for transient service availability failures", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+
+    const result = await withAISDKRetries(
+      async () => {
+        attempts += 1;
+        if (attempts < 4) {
+          throw new Error(
+            "Error: OpenAI-compatible gateway error 503: Service temporarily unavailable",
+          );
+        }
+
+        return "recovered";
+      },
+      {
+        sleep: async (ms) => {
+          delays.push(ms);
+        },
+      },
+    );
+
+    expect(result).toBe("recovered");
+    expect(attempts).toBe(4);
+    expect(delays).toEqual([2_000, 5_000, 10_000]);
+  });
+
+  it("keeps validation retries on a short backoff schedule", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+
+    const result = await withAISDKRetries(
+      async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw new Error(
+            "AI_TypeValidationError: Type validation failed: Invalid input: expected array, received null",
+          );
+        }
+
+        return "recovered";
+      },
+      {
+        sleep: async (ms) => {
+          delays.push(ms);
+        },
+      },
+    );
+
+    expect(result).toBe("recovered");
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([250, 500]);
   });
 
   it("creates a judge model using injected dependencies", async () => {
@@ -712,6 +767,9 @@ describe("model adapters", () => {
       },
       dependencies: {
         requestTimeoutMs: 10,
+        retryOptions: {
+          sleep: async () => undefined,
+        },
         fetch: async (_url, init) => {
           attempts += 1;
           if (attempts < 3) {
@@ -761,6 +819,9 @@ describe("model adapters", () => {
       },
       dependencies: {
         requestTimeoutMs: 10,
+        retryOptions: {
+          sleep: async () => undefined,
+        },
         fetch: async (_url, init) => {
           attempts += 1;
           if (attempts < 3) {

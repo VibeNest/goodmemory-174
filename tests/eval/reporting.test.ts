@@ -197,6 +197,7 @@ function buildJudgeResult(
   baselineHistory: number,
   goodmemoryHistory: number,
   failureTags: string[] = [],
+  blockingFailureTags?: string[],
 ): JudgeResult {
   return {
     winner,
@@ -229,6 +230,7 @@ function buildJudgeResult(
     },
     reasoning: "comparison complete",
     failure_tags: failureTags,
+    blocking_failure_tags: blockingFailureTags,
   };
 }
 
@@ -245,6 +247,7 @@ function buildCase(input: {
   baselineHistory: number;
   goodmemoryHistory: number;
   failureTags?: string[];
+  blockingFailureTags?: string[];
   contaminationFindings?: string[];
   updateFindings?: string[];
 }): JudgedEvalCase {
@@ -280,6 +283,7 @@ function buildCase(input: {
       input.baselineHistory,
       input.goodmemoryHistory,
       input.failureTags,
+      input.blockingFailureTags,
     ),
     assertions: buildAssertions(
       input.contaminationFindings,
@@ -629,7 +633,7 @@ describe("eval reporting", () => {
     }
   });
 
-  it("treats grouped-parser style goodmemory tags as blocking failures", async () => {
+  it("keeps non-blocking GoodMemory diagnostics out of release failures when assertions pass", async () => {
     const workspace = await createTempWorkspace("goodmemory-reporting-grouped-tags");
 
     try {
@@ -670,16 +674,116 @@ describe("eval reporting", () => {
         failedCases: Array<{ failureTags: string[] }>;
       };
 
-      expect(failureSummary.totalFailures).toBe(1);
-      expect(failureSummary.failedCases[0]?.failureTags).toContain(
-        "goodmemory:limited_personalization",
-      );
+      expect(failureSummary.totalFailures).toBe(0);
+      expect(failureSummary.failedCases).toHaveLength(0);
     } finally {
       await workspace.cleanup();
     }
   });
 
-  it("still marks explicit GoodMemory judge defects as failures even when GoodMemory wins", async () => {
+  it("uses explicit blocking failure tags when GoodMemory otherwise wins", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-explicit-blocking-tags");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-1",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 3,
+          goodmemoryHistory: 9,
+          failureTags: ["goodmemory:limited_personalization"],
+          blockingFailureTags: ["goodmemory_internal_thought_leak"],
+        }),
+      ];
+
+      const summary = aggregateJudgedCases(cases);
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-002c",
+        cases,
+        summary,
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+        },
+      });
+      const failureSummary = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "failures/summary.json"),
+          "utf8",
+        ),
+      ) as {
+        totalFailures: number;
+        failedCases: Array<{ failureTags: string[] }>;
+      };
+
+      expect(failureSummary.totalFailures).toBe(1);
+      expect(failureSummary.failedCases[0]?.failureTags).toEqual([
+        "goodmemory_internal_thought_leak",
+      ]);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("treats shared blocking defects as release failures even when GoodMemory wins", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-shared-blocking-tags");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-1",
+          taskFamily: "cross_domain_transfer",
+          targetDomain: "shopping",
+          memorySourceDomains: ["food", "finance"],
+          evaluationSetting: "cross_domain",
+          winner: "goodmemory",
+          baselineHistory: 3,
+          goodmemoryHistory: 9,
+          failureTags: ["shared_unsafe_recommendation"],
+          blockingFailureTags: ["shared_unsafe_recommendation"],
+        }),
+      ];
+
+      const summary = aggregateJudgedCases(cases);
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-002d",
+        cases,
+        summary,
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+        },
+      });
+      const failureSummary = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "failures/summary.json"),
+          "utf8",
+        ),
+      ) as {
+        totalFailures: number;
+        failedCases: Array<{ failureTags: string[] }>;
+      };
+
+      expect(failureSummary.totalFailures).toBe(1);
+      expect(failureSummary.failedCases[0]?.failureTags).toEqual([
+        "shared_unsafe_recommendation",
+      ]);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("still marks legacy high-risk GoodMemory defects as failures even without blocking tags", async () => {
     const workspace = await createTempWorkspace("goodmemory-reporting-goodmemory-tags");
 
     try {
@@ -724,6 +828,57 @@ describe("eval reporting", () => {
       expect(failureSummary.failedCases[0]?.failureTags).toContain(
         "goodmemory_internal_thought_leak",
       );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("preserves diagnostic failure tags for baseline losses when blocking tags are empty", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-baseline-diagnostics");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-1",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 3,
+          failureTags: ["goodmemory_missed_update_signal"],
+          blockingFailureTags: [],
+        }),
+      ];
+
+      const summary = aggregateJudgedCases(cases);
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-004",
+        cases,
+        summary,
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+        },
+      });
+      const failureSummary = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "failures/summary.json"),
+          "utf8",
+        ),
+      ) as {
+        totalFailures: number;
+        failedCases: Array<{ failureTags: string[] }>;
+      };
+
+      expect(failureSummary.totalFailures).toBe(1);
+      expect(failureSummary.failedCases[0]?.failureTags).toEqual([
+        "goodmemory_missed_update_signal",
+      ]);
     } finally {
       await workspace.cleanup();
     }

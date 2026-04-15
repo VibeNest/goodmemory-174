@@ -1,5 +1,6 @@
 import { generateText } from "ai";
 
+import type { AISDKRetryOptions } from "../llm/ai-sdk-runtime";
 import type { FetchLike } from "../llm/ai-sdk-runtime";
 import type { AISDKModelConfig } from "../llm/ai-sdk-runtime";
 import {
@@ -18,6 +19,7 @@ interface TextGeneratorDependencies {
   resolveModel?: typeof resolveAISDKModel;
   fetch?: FetchLike;
   requestTimeoutMs?: number;
+  retryOptions?: AISDKRetryOptions;
 }
 
 export function buildEvalAnswerPrompt(input: EvalAnswerGeneratorInput): string {
@@ -37,19 +39,35 @@ export function createEvalAnswerGenerator(input: {
   dependencies?: TextGeneratorDependencies;
 }): EvalAnswerGenerator {
   return async (payload) => {
-    return withAISDKRetries(async () => {
-      const prompt = (input.promptBuilder ?? buildEvalAnswerPrompt)(payload);
+    return withAISDKRetries(
+      async () => {
+        const prompt = (input.promptBuilder ?? buildEvalAnswerPrompt)(payload);
 
-      if (input.model.provider === "openai" && input.model.baseURL) {
-        const content = stripThinkingBlocks(
-          await requestOpenAICompatibleText({
-            model: input.model,
-            system: input.system,
-            prompt,
-            fetch: input.dependencies?.fetch,
-            timeoutMs: input.dependencies?.requestTimeoutMs,
-          }),
-        );
+        if (input.model.provider === "openai" && input.model.baseURL) {
+          const content = stripThinkingBlocks(
+            await requestOpenAICompatibleText({
+              model: input.model,
+              system: input.system,
+              prompt,
+              fetch: input.dependencies?.fetch,
+              timeoutMs: input.dependencies?.requestTimeoutMs,
+            }),
+          );
+          if (!content) {
+            throw new Error("Empty model response");
+          }
+
+          return {
+            content,
+          };
+        }
+
+        const { text } = await (input.dependencies?.generateText ?? generateText)({
+          model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
+          system: input.system,
+          prompt,
+        });
+        const content = stripThinkingBlocks(text);
         if (!content) {
           throw new Error("Empty model response");
         }
@@ -57,21 +75,8 @@ export function createEvalAnswerGenerator(input: {
         return {
           content,
         };
-      }
-
-      const { text } = await (input.dependencies?.generateText ?? generateText)({
-        model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-        system: input.system,
-        prompt,
-      });
-      const content = stripThinkingBlocks(text);
-      if (!content) {
-        throw new Error("Empty model response");
-      }
-
-      return {
-        content,
-      };
-    });
+      },
+      input.dependencies?.retryOptions,
+    );
   };
 }

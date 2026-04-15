@@ -37,6 +37,7 @@ describe("judge scaffold", () => {
     expect(prompt).toContain("expected history signals");
     expect(prompt).toContain("expected transfer signals");
     expect(prompt).toContain("Prefix every failure tag with baseline_, goodmemory_, or shared_.");
+    expect(prompt).toContain("blocking_failure_tags");
     expect(prompt).toContain("Do not penalize an answer for refusing to invent unavailable details.");
     expect(prompt).toContain(
       "Expected identity signals are evidence of available memory, not a checklist of mandatory tokens.",
@@ -58,11 +59,13 @@ describe("judge scaffold", () => {
         },
         reasoning: "GoodMemory better continued prior task context.",
         failure_tags: [],
+        blocking_failure_tags: [],
       }),
     );
 
     expect(result.winner).toBe("goodmemory");
     expect(result.scores.update_correctness).toBe(10);
+    expect(result.blocking_failure_tags).toEqual([]);
   });
 
   it("extracts the JSON object from model output that includes reasoning wrappers", () => {
@@ -116,7 +119,10 @@ internal reasoning
         reasoning: "comparison complete",
         failure_tags: {
           baseline: ["no_memory_use"],
-          goodmemory: ["limited_personalization"],
+          goodmemory: ["limited_personalization", "internal_thought_leak"],
+        },
+        blocking_failure_tags: {
+          goodmemory: ["internal_thought_leak"],
         },
       }),
     );
@@ -125,6 +131,10 @@ internal reasoning
     expect(result.failure_tags).toEqual([
       "baseline:no_memory_use",
       "goodmemory:limited_personalization",
+      "goodmemory:internal_thought_leak",
+    ]);
+    expect(result.blocking_failure_tags).toEqual([
+      "goodmemory:internal_thought_leak",
     ]);
   });
 
@@ -147,5 +157,24 @@ internal reasoning
         }),
       ),
     ).toThrow("scores must be present");
+    expect(() =>
+      parseJudgeResult(
+        JSON.stringify({
+          winner: "goodmemory",
+          scores: {
+            factual_recall: 7,
+            preference_consistency: 7,
+            cross_domain_transfer: 7,
+            contamination_penalty: 7,
+            update_correctness: 7,
+            personalization_usefulness: 7,
+            provenance_explainability: 7,
+          },
+          reasoning: "subset violation",
+          failure_tags: ["goodmemory:limited_personalization"],
+          blocking_failure_tags: ["shared_unsafe_recommendation"],
+        }),
+      ),
+    ).toThrow("blocking_failure_tags must be a subset of failure_tags");
   });
 });

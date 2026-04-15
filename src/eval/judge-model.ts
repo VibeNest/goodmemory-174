@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 
+import type { AISDKRetryOptions } from "../llm/ai-sdk-runtime";
 import type { FetchLike } from "../llm/ai-sdk-runtime";
 import type { AISDKModelConfig } from "../llm/ai-sdk-runtime";
 import {
@@ -15,6 +16,7 @@ interface JudgeModelDependencies {
   resolveModel?: typeof resolveAISDKModel;
   fetch?: FetchLike;
   requestTimeoutMs?: number;
+  retryOptions?: AISDKRetryOptions;
 }
 
 const DEFAULT_JUDGE_SYSTEM_PROMPT =
@@ -65,7 +67,7 @@ export function createEvalJudgeModel(input: {
         return {
           content,
         };
-      });
+      }, input.dependencies?.retryOptions);
     },
   };
 }

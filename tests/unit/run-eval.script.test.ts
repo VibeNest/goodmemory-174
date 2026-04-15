@@ -542,6 +542,10 @@ describe("run-eval script", () => {
           "goodmemory_missed_preference_signal",
           "goodmemory_missed_update_signal",
         ]),
+        blocking_failure_tags: expect.arrayContaining([
+          "goodmemory_missed_preference_signal",
+          "goodmemory_missed_update_signal",
+        ]),
       });
     } finally {
       await workspace.cleanup();

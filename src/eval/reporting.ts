@@ -179,12 +179,60 @@ function hasFailureTagPrefix(tag: string, prefix: "baseline" | "goodmemory" | "s
   return tag.startsWith(`${prefix}_`) || tag.startsWith(`${prefix}:`);
 }
 
+const LEGACY_BLOCKING_GOODMEMORY_TAG_PATTERNS = [
+  /(?:^|[_:])(?:internal_)?thought_leak(?:$|[_:])/,
+  /(?:^|[_:])memory_leak(?:$|[_:])/,
+  /(?:^|[_:])wrong_personalization(?:$|[_:])/,
+  /(?:^|[_:])contamination(?:$|[_:])/,
+  /(?:^|[_:])privacy(?:$|[_:])/,
+  /(?:^|[_:])unsafe(?:$|[_:])/,
+  /(?:^|[_:])(?:missed|rejected|ignored)_(?:update|override)(?:$|[_:])/,
+  /(?:^|[_:])hallucin(?:ation|ated|ates)?(?:$|[_:])/,
+  /(?:^|[_:])fabricat(?:e|ed|ion)(?:$|[_:])/,
+] as const;
+
+function isLegacyBlockingGoodMemoryTag(tag: string): boolean {
+  if (!hasFailureTagPrefix(tag, "goodmemory")) {
+    return false;
+  }
+
+  const normalizedTag = tag.replace(/^goodmemory[:_]/, "");
+  return LEGACY_BLOCKING_GOODMEMORY_TAG_PATTERNS.some((pattern) =>
+    pattern.test(normalizedTag),
+  );
+}
+
 function resolveBlockingFailureTags(judge: JudgeResult): string[] {
+  if (judge.blocking_failure_tags !== undefined) {
+    if (judge.winner !== "goodmemory") {
+      return judge.blocking_failure_tags;
+    }
+
+    return judge.blocking_failure_tags.filter((tag) =>
+      hasFailureTagPrefix(tag, "goodmemory") || hasFailureTagPrefix(tag, "shared"),
+    );
+  }
+
   if (judge.winner !== "goodmemory") {
     return judge.failure_tags;
   }
 
-  return judge.failure_tags.filter((tag) => hasFailureTagPrefix(tag, "goodmemory"));
+  return judge.failure_tags.filter((tag) => isLegacyBlockingGoodMemoryTag(tag));
+}
+
+function resolveFailureSummaryTags(
+  judge: JudgeResult,
+  blockingFailureTags: string[],
+): string[] {
+  if (judge.winner === "goodmemory") {
+    return blockingFailureTags;
+  }
+
+  if (judge.failure_tags.length > 0) {
+    return judge.failure_tags;
+  }
+
+  return blockingFailureTags;
 }
 
 function buildStrategyWinnerCounts() {
@@ -489,6 +537,10 @@ export async function persistEvalArtifacts(input: {
     );
 
     const blockingFailureTags = resolveBlockingFailureTags(item.judge);
+    const summaryFailureTags = resolveFailureSummaryTags(
+      item.judge,
+      blockingFailureTags,
+    );
     const failed =
       item.judge.winner !== "goodmemory" ||
       blockingFailureTags.length > 0 ||
@@ -503,13 +555,13 @@ export async function persistEvalArtifacts(input: {
       `${JSON.stringify(item, null, 2)}\n`,
       "utf8",
     );
-      failedCases.push({
+    failedCases.push({
       caseId: item.caseId,
       path: join(failuresDirectory, `${item.caseId}.json`),
       kind: "judged",
       winner: item.judge.winner,
       failureTags: [
-        ...blockingFailureTags,
+        ...summaryFailureTags,
         ...item.assertions.checks
           .filter((check) => !check.passed)
           .map((check) => `assertion:${check.id}`),
