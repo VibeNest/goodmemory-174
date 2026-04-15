@@ -13,6 +13,8 @@ import { createMemorySource } from "../../src/domain/provenance";
 import { createEvidenceRecord } from "../../src/evidence/contracts";
 import {
   createExperienceRecord,
+  createLearningProposal,
+  createPromotionRecord,
   createSessionArchive,
 } from "../../src/evolution/contracts";
 import { buildMarkdownArtifacts } from "../../src/governance/markdownArtifacts";
@@ -138,6 +140,38 @@ function buildProjectionInput() {
           createdAt: "2026-04-02T00:00:00.000Z",
         }),
       ],
+      proposals: [
+        createLearningProposal({
+          id: "proposal-1",
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          sessionId: "s-1",
+          proposalType: "memory_revision",
+          traceId: "trace-proposal-1",
+          summary: "Revise the rollout blocker after repeated corrections.",
+          rationale: "Later evidence shows the blocker statement is stale.",
+          createdAt: "2026-04-02T00:00:00.000Z",
+          updatedAt: "2026-04-02T00:00:00.000Z",
+        }),
+      ],
+      promotions: [
+        createPromotionRecord({
+          id: "promotion-1",
+          proposalId: "proposal-1",
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          sessionId: "s-1",
+          traceId: "trace-promotion-1",
+          decision: "delayed",
+          summary: "Delay the rollout revision until verification reruns.",
+          rationale: "The proposal should not mutate durable memory before re-check.",
+          policyOutcome: "review_required",
+          verificationOutcome: "blocked",
+          evalOutcome: "not_run",
+          createdAt: "2026-04-02T00:00:00.000Z",
+          decidedAt: "2026-04-02T00:00:00.000Z",
+        }),
+      ],
     },
     runtime: {
       workingMemory: createWorkingMemorySnapshot({
@@ -173,6 +207,20 @@ describe("markdown artifact projection", () => {
     ]);
     expect(first.files[1]?.content).toContain("# MEMORY");
     expect(first.files[1]?.content).toContain("Migration rollout is blocked on prod verification.");
+    expect(first.files[1]?.content).toContain("## Learning Proposals");
+    expect(first.files[1]?.content).toContain(
+      "Revise the rollout blocker after repeated corrections.",
+    );
+    expect(first.files[1]?.content).toContain("## Promotions");
+    expect(first.files[1]?.content).toContain(
+      "Delay the rollout revision until verification reruns.",
+    );
+    expect(first.files[2]?.content).toContain(
+      "Revise the rollout blocker after repeated corrections.",
+    );
+    expect(first.files[2]?.content).toContain(
+      "Delay the rollout revision until verification reruns.",
+    );
     expect(first.files[2]?.content).toContain("Current goal: Finish rollout");
     expect(first.files[2]?.content).toContain("Large tool payload preview");
   });

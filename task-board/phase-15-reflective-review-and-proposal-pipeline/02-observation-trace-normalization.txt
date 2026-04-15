@@ -1,9 +1,9 @@
 Phase 15.2: Observation Trace Normalization
 ===========================================
 
-[TODO] P15.2-T001 Normalize remember/recall/verify traces into `ExperienceRecord`
-[TODO] P15.2-T002 Record failure/correction/outcome telemetry in a compact, append-only form
-[TODO] P15.2-T003 Keep contamination-safe links back to recall/evidence artifacts
+[DONE] P15.2-T001 Normalize remember/recall/verify traces into `ExperienceRecord`
+[DONE] P15.2-T002 Record failure/correction/outcome telemetry in a compact, append-only form
+[DONE] P15.2-T003 Keep contamination-safe links back to recall/evidence artifacts
 
 Why this exists
 ---------------
@@ -26,3 +26,20 @@ Acceptance
 ----------
 - Experience records are generated consistently from core flows
 - Reviewer logic has a stable observation substrate to consume
+
+
+Progress
+--------
+- Added `src/evolution/observations.ts` to normalize remember/recall/feedback results and verification hints into `ExperienceRecord`
+- Wired `createGoodMemory()` to persist append-only experience telemetry for remember/recall/feedback without widening the public API
+- Recall normalization now emits a separate `verify` experience when verification hints are present
+- Maintenance runner now emits append-only `maintenance` experience telemetry after each run
+
+
+Validation
+----------
+- `tests/unit/evolution.observations.test.ts`
+- `tests/integration/governance.api.test.ts`
+- `tests/integration/forget.api.test.ts`
+- `tests/integration/verify.recall.test.ts`
+- `bun run typecheck`

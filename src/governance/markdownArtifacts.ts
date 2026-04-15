@@ -13,6 +13,8 @@ import type { MemoryScope } from "../domain/scope";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type {
   ExperienceRecord,
+  LearningProposal,
+  PromotionRecord,
   SessionArchive,
 } from "../evolution/contracts";
 
@@ -40,6 +42,8 @@ interface MarkdownArtifactInput {
     archives: SessionArchive[];
     evidence: EvidenceRecord[];
     experiences: ExperienceRecord[];
+    proposals: LearningProposal[];
+    promotions: PromotionRecord[];
   };
   runtime?: {
     workingMemory: WorkingMemorySnapshot | null;
@@ -241,6 +245,28 @@ function sortSpills(spills: ArtifactSpillRecord[]): ArtifactSpillRecord[] {
   });
 }
 
+function sortProposals(proposals: LearningProposal[]): LearningProposal[] {
+  return [...proposals].sort((left, right) => {
+    const updated = right.updatedAt.localeCompare(left.updatedAt);
+    if (updated !== 0) {
+      return updated;
+    }
+
+    return compareStrings(left.summary, right.summary);
+  });
+}
+
+function sortPromotions(promotions: PromotionRecord[]): PromotionRecord[] {
+  return [...promotions].sort((left, right) => {
+    const decided = right.decidedAt.localeCompare(left.decidedAt);
+    if (decided !== 0) {
+      return decided;
+    }
+
+    return compareStrings(left.summary, right.summary);
+  });
+}
+
 function renderPreferenceLines(preferences: PreferenceMemory[]): string[] {
   return sortPreferences(preferences).map(
     (preference) =>
@@ -293,6 +319,20 @@ function renderEvidenceLines(evidence: EvidenceRecord[]): string[] {
 function renderExperienceLines(experiences: ExperienceRecord[]): string[] {
   return sortExperiences(experiences).map(
     (experience) => `- [${experience.kind}] ${sanitizeMarkdownInline(experience.summary)}`,
+  );
+}
+
+function renderProposalLines(proposals: LearningProposal[]): string[] {
+  return sortProposals(proposals).map(
+    (proposal) =>
+      `- [${sanitizeMarkdownInline(proposal.status)}] [${sanitizeMarkdownInline(proposal.proposalType)}] ${sanitizeMarkdownInline(proposal.summary)}`,
+  );
+}
+
+function renderPromotionLines(promotions: PromotionRecord[]): string[] {
+  return sortPromotions(promotions).map(
+    (promotion) =>
+      `- [${sanitizeMarkdownInline(promotion.decision)}] ${sanitizeMarkdownInline(promotion.summary)} (proposal: ${sanitizeMarkdownInline(promotion.proposalId)}; policy=${sanitizeMarkdownInline(promotion.policyOutcome)}; verification=${sanitizeMarkdownInline(promotion.verificationOutcome)}; eval=${sanitizeMarkdownInline(promotion.evalOutcome)})`,
   );
 }
 
@@ -380,6 +420,8 @@ function collectSessionIds(input: MarkdownArtifactInput): string[] {
     ...input.durable.archives,
     ...input.durable.evidence,
     ...input.durable.experiences,
+    ...input.durable.proposals,
+    ...input.durable.promotions,
   ]) {
     if (record.sessionId) {
       sessionIds.add(record.sessionId);
@@ -429,6 +471,11 @@ function buildMemoryArtifact(input: MarkdownArtifactInput): MarkdownArtifactFile
       renderSection("Session Archives", renderArchiveLines(input.durable.archives)),
       renderSection("Evidence", renderEvidenceLines(input.durable.evidence)),
       renderSection("Experiences", renderExperienceLines(input.durable.experiences)),
+      renderSection(
+        "Learning Proposals",
+        renderProposalLines(input.durable.proposals),
+      ),
+      renderSection("Promotions", renderPromotionLines(input.durable.promotions)),
       renderSection(
         "Working Memory",
         renderWorkingMemoryLines(input.runtime?.workingMemory ?? null),
@@ -514,6 +561,18 @@ function buildSessionArtifact(
         "Experiences",
         renderExperienceLines(
           input.durable.experiences.filter((record) => record.sessionId === sessionId),
+        ),
+      ),
+      renderSection(
+        "Learning Proposals",
+        renderProposalLines(
+          input.durable.proposals.filter((record) => record.sessionId === sessionId),
+        ),
+      ),
+      renderSection(
+        "Promotions",
+        renderPromotionLines(
+          input.durable.promotions.filter((record) => record.sessionId === sessionId),
         ),
       ),
       renderSection("Working Memory", renderWorkingMemoryLines(workingMemory)),

@@ -9,7 +9,10 @@ import {
   buildReferenceEmbeddingWrite,
   upsertMemoryEmbeddings,
 } from "../embedding/vectorWrites";
-import { createSessionArchive } from "../evolution/contracts";
+import {
+  createExperienceRecord,
+  createSessionArchive,
+} from "../evolution/contracts";
 import type {
   EpisodeMemory,
   FactMemory,
@@ -44,6 +47,39 @@ export interface MaintenanceRunReport {
   scope: MemoryScope;
   ranAt: string;
   jobs: MaintenanceJobReport[];
+}
+
+function buildMaintenanceSummary(reports: MaintenanceJobReport[]): string {
+  const segments = reports.map((report) => `${report.name}=${report.applied}`);
+  return `Maintenance ran ${segments.join(", ")}.`;
+}
+
+async function persistMaintenanceExperienceRecord(
+  repositories: MemoryRepositories,
+  scope: MemoryScope,
+  reports: MaintenanceJobReport[],
+  timestamp: string,
+): Promise<void> {
+  try {
+    await repositories.experiences.add(
+      createExperienceRecord({
+        id: crypto.randomUUID(),
+        userId: scope.userId,
+        tenantId: scope.tenantId,
+        workspaceId: scope.workspaceId,
+        agentId: scope.agentId,
+        sessionId: scope.sessionId,
+        kind: "maintenance",
+        traceId: crypto.randomUUID(),
+        trigger: "maintenance",
+        summary: buildMaintenanceSummary(reports),
+        outcome: reports.some((job) => job.applied > 0) ? "success" : "skipped",
+        createdAt: timestamp,
+      }),
+    );
+  } catch (error) {
+    console.error("Failed to persist maintenance experience record", error);
+  }
 }
 
 function sortFactsForMaintenance(facts: FactMemory[]): FactMemory[] {
@@ -492,11 +528,20 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
         );
       }
 
-      return {
+      const report = {
         scope,
         ranAt: timestamp,
         jobs: reports,
       };
+
+      await persistMaintenanceExperienceRecord(
+        config.repositories,
+        scope,
+        reports,
+        timestamp,
+      );
+
+      return report;
     },
   };
 }

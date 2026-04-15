@@ -5,8 +5,16 @@ import type {
 import { createFeedbackMemory } from "../domain/records";
 import { createMemorySource } from "../domain/provenance";
 import { EVIDENCE_COLLECTION } from "../evidence/contracts";
+import type { ExperienceRecord } from "../evolution/contracts";
+import {
+  buildFeedbackExperienceRecord,
+  buildRecallExperienceRecords,
+  buildRememberExperienceRecord,
+} from "../evolution/observations";
 import {
   EXPERIENCES_COLLECTION,
+  LEARNING_PROPOSALS_COLLECTION,
+  PROMOTION_RECORDS_COLLECTION,
   SESSION_ARCHIVES_COLLECTION,
 } from "../evolution/contracts";
 import { buildMarkdownArtifacts } from "../governance/markdownArtifacts";
@@ -62,6 +70,8 @@ const FORGETTABLE_COLLECTIONS = [
   SESSION_ARCHIVES_COLLECTION,
   EVIDENCE_COLLECTION,
   EXPERIENCES_COLLECTION,
+  LEARNING_PROPOSALS_COLLECTION,
+  PROMOTION_RECORDS_COLLECTION,
 ] as const;
 
 function recordMatchesScope(record: ScopeBoundRecord, scope: ForgetInput["scope"]): boolean {
@@ -195,7 +205,21 @@ class GoodMemoryImpl implements GoodMemory {
   }
 
   async recall(input: RecallInput): Promise<RecallResult> {
-    return this.recallEngine.recall(input);
+    const result = await this.recallEngine.recall(input);
+    const timestamp = new Date().toISOString();
+    const traceId = crypto.randomUUID();
+
+    await this.persistExperienceRecords(
+      buildRecallExperienceRecords({
+        scope: input.scope,
+        result,
+        traceId,
+        createdAt: timestamp,
+        createId: () => crypto.randomUUID(),
+      }),
+    );
+
+    return result;
   }
 
   async buildContext(input: BuildContextInput): Promise<BuildContextResult> {
@@ -211,7 +235,21 @@ class GoodMemoryImpl implements GoodMemory {
   }
 
   async remember(input: RememberInput): Promise<RememberResult> {
-    return this.rememberEngine.remember(input);
+    const result = await this.rememberEngine.remember(input);
+    const timestamp = new Date().toISOString();
+    const traceId = crypto.randomUUID();
+
+    await this.persistExperienceRecords([
+      buildRememberExperienceRecord({
+        scope: input.scope,
+        result,
+        traceId,
+        createdAt: timestamp,
+        createId: () => crypto.randomUUID(),
+      }),
+    ]);
+
+    return result;
   }
 
   async forget(input: ForgetInput): Promise<ForgetResult> {
@@ -249,6 +287,8 @@ class GoodMemoryImpl implements GoodMemory {
       archives,
       evidence,
       experiences,
+      proposals,
+      promotions,
       workingMemory,
       journal,
       allSpills,
@@ -262,6 +302,8 @@ class GoodMemoryImpl implements GoodMemory {
       this.repositories.archives.listByScope(input.scope),
       this.repositories.evidence.listByScope(input.scope),
       this.repositories.experiences.listByScope(input.scope),
+      this.repositories.proposals.listByScope(input.scope),
+      this.repositories.promotions.listByScope(input.scope),
       input.includeRuntime && input.scope.sessionId
         ? this.sessionStore.getWorkingMemory(input.scope)
         : Promise.resolve(null),
@@ -287,6 +329,8 @@ class GoodMemoryImpl implements GoodMemory {
       archives: archives.filter((record) => recordMatchesScope(record, input.scope)),
       evidence: evidence.filter((record) => recordMatchesScope(record, input.scope)),
       experiences: experiences.filter((record) => recordMatchesScope(record, input.scope)),
+      proposals: proposals.filter((record) => recordMatchesScope(record, input.scope)),
+      promotions: promotions.filter((record) => recordMatchesScope(record, input.scope)),
     };
     const runtime = input.includeRuntime
       ? {
@@ -320,6 +364,8 @@ class GoodMemoryImpl implements GoodMemory {
       archives: 0,
       evidence: 0,
       experiences: 0,
+      proposals: 0,
+      promotions: 0,
       workingMemory: 0,
       journal: 0,
       artifactSpills: 0,
@@ -335,6 +381,8 @@ class GoodMemoryImpl implements GoodMemory {
       allArchives,
       allEvidence,
       allExperiences,
+      allProposals,
+      allPromotions,
     ] = await Promise.all([
       this.repositories.profiles.get(input.scope.userId),
       this.repositories.preferences.listByScope(input.scope),
@@ -345,6 +393,8 @@ class GoodMemoryImpl implements GoodMemory {
       this.repositories.archives.listByScope(input.scope),
       this.repositories.evidence.listByScope(input.scope),
       this.repositories.experiences.listByScope(input.scope),
+      this.repositories.proposals.listByScope(input.scope),
+      this.repositories.promotions.listByScope(input.scope),
     ]);
 
     const preferences = allPreferences.filter((record) => recordMatchesScope(record, input.scope));
@@ -355,6 +405,10 @@ class GoodMemoryImpl implements GoodMemory {
     const archives = allArchives.filter((record) => recordMatchesScope(record, input.scope));
     const evidence = allEvidence.filter((record) => recordMatchesScope(record, input.scope));
     const experiences = allExperiences.filter((record) => recordMatchesScope(record, input.scope));
+    const proposals = allProposals.filter((record) => recordMatchesScope(record, input.scope));
+    const promotions = allPromotions.filter((record) =>
+      recordMatchesScope(record, input.scope)
+    );
 
     if (profile && isPureUserScope(input.scope)) {
       await this.documentStore.delete("profiles", input.scope.userId);
@@ -395,6 +449,14 @@ class GoodMemoryImpl implements GoodMemory {
     for (const experience of experiences) {
       await this.documentStore.delete(EXPERIENCES_COLLECTION, experience.id);
       deleted.experiences += 1;
+    }
+    for (const proposal of proposals) {
+      await this.documentStore.delete(LEARNING_PROPOSALS_COLLECTION, proposal.id);
+      deleted.proposals += 1;
+    }
+    for (const promotion of promotions) {
+      await this.documentStore.delete(PROMOTION_RECORDS_COLLECTION, promotion.id);
+      deleted.promotions += 1;
     }
 
     if (input.includeRuntime !== false) {
@@ -478,7 +540,7 @@ class GoodMemoryImpl implements GoodMemory {
         );
 
         await this.repositories.feedback.upsert(nextRecord);
-        return {
+        const result: FeedbackResult = {
           accepted: true,
           outcome: "superseded",
           memoryId: nextRecord.id,
@@ -490,10 +552,22 @@ class GoodMemoryImpl implements GoodMemory {
             analysisMode: resolvedLanguage.analysisMode,
           },
         };
+
+        await this.persistExperienceRecords([
+          buildFeedbackExperienceRecord({
+            scope: input.scope,
+            result,
+            traceId: crypto.randomUUID(),
+            createdAt: timestamp,
+            createId: () => crypto.randomUUID(),
+          }),
+        ]);
+
+        return result;
       }
 
       await this.repositories.feedback.upsert(nextRecord);
-      return {
+      const result: FeedbackResult = {
         accepted: true,
         outcome: "written",
         memoryId: nextRecord.id,
@@ -505,9 +579,21 @@ class GoodMemoryImpl implements GoodMemory {
           analysisMode: resolvedLanguage.analysisMode,
         },
       };
+
+      await this.persistExperienceRecords([
+        buildFeedbackExperienceRecord({
+          scope: input.scope,
+          result,
+          traceId: crypto.randomUUID(),
+          createdAt: timestamp,
+          createId: () => crypto.randomUUID(),
+        }),
+      ]);
+
+      return result;
     }
 
-    return {
+    const result: FeedbackResult = {
       accepted: true,
       outcome: "merged",
       memoryId: duplicate.id,
@@ -519,6 +605,28 @@ class GoodMemoryImpl implements GoodMemory {
         analysisMode: resolvedLanguage.analysisMode,
       },
     };
+
+    await this.persistExperienceRecords([
+      buildFeedbackExperienceRecord({
+        scope: input.scope,
+        result,
+        traceId: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        createId: () => crypto.randomUUID(),
+      }),
+    ]);
+
+    return result;
+  }
+
+  private async persistExperienceRecords(records: ExperienceRecord[]): Promise<void> {
+    for (const record of records) {
+      try {
+        await this.repositories.experiences.add(record);
+      } catch (error) {
+        console.error("Failed to persist experience record", error);
+      }
+    }
   }
 }
 

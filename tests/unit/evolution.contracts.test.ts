@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
   createExperienceRecord,
+  createLearningProposal,
+  createPromotionRecord,
   createSessionArchive,
 } from "../../src/evolution/contracts";
 
@@ -56,7 +58,57 @@ describe("evolution contracts", () => {
 
     expect(experience.kind).toBe("recall");
     expect(experience.outcome).toBe("success");
+    expect(experience.sourceTraceIds).toEqual(["trace-1"]);
+    expect(experience.trigger).toBe("api");
+    expect(experience.modelInfluence).toBe("none");
+    expect(experience.policyApplied).toEqual([]);
+    expect(experience.metrics).toEqual({});
     expect(experience.linkedMemoryIds).toEqual([]);
     expect(experience.linkedEvidenceIds).toEqual([]);
+    expect(experience.linkedProposalIds).toEqual([]);
+  });
+
+  it("creates learning proposals with governed defaults", () => {
+    const proposal = createLearningProposal({
+      id: "proposal-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+      proposalType: "memory_revision",
+      traceId: "trace-review-1",
+      summary: "Revise a stale rollout memory after repeated correction.",
+      rationale: "Two later traces contradicted the previous durable fact.",
+      sourceExperienceIds: ["xp-1"],
+      linkedMemoryIds: ["fact-1"],
+      linkedEvidenceIds: ["evidence-1"],
+    });
+
+    expect(proposal.status).toBe("pending");
+    expect(proposal.modelInfluence).toBe("none");
+    expect(proposal.sourceExperienceIds).toEqual(["xp-1"]);
+    expect(proposal.linkedArchiveIds).toEqual([]);
+    expect(proposal.updatedAt).toBe(proposal.createdAt);
+  });
+
+  it("creates promotion records with gate defaults", () => {
+    const promotion = createPromotionRecord({
+      id: "promotion-1",
+      proposalId: "proposal-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+      traceId: "trace-gate-1",
+      decision: "delayed",
+      summary: "Delay promotion until verification is complete.",
+      rationale: "The proposal affects a production workflow and needs re-checking.",
+      sourceExperienceIds: ["xp-1"],
+      linkedEvidenceIds: ["evidence-1"],
+    });
+
+    expect(promotion.policyOutcome).toBe("not_run");
+    expect(promotion.verificationOutcome).toBe("not_run");
+    expect(promotion.evalOutcome).toBe("not_run");
+    expect(promotion.linkedMemoryIds).toEqual([]);
+    expect(promotion.decidedAt).toBe(promotion.createdAt);
   });
 });

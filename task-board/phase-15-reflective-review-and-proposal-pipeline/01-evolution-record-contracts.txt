@@ -1,13 +1,14 @@
 Phase 15.1: Evolution Record Contracts
 ======================================
 
-[TODO] P15.1-T001 Freeze `ExperienceRecord` contract
-[TODO] P15.1-T002 Freeze `LearningProposal` contract
-[TODO] P15.1-T003 Freeze `PromotionRecord` contract and relationship rules
+[DONE] P15.1-T001 Freeze `ExperienceRecord` contract
+[DONE] P15.1-T002 Freeze `LearningProposal` contract
+[DONE] P15.1-T003 Freeze `PromotionRecord` contract and relationship rules
 
 Why this exists
 ---------------
 - Proposal-driven evolution needs typed records before reviewer or maintenance code can rely on it.
+- Phase 14 only established the minimum `ExperienceRecord` substrate; this slice freezes the fuller contract and adds proposal/promotion records without creating parallel audit models.
 - These records must stay distinct from user-facing durable memory and recall corpora.
 
 Write tests first
@@ -18,7 +19,7 @@ Write tests first
 
 Implementation steps
 --------------------
-1. Add contracts and repository access patterns in the canonical storage layer
+1. Extend the existing evolution contracts and repository access patterns in the canonical storage layer
 2. Reuse existing provenance and lifecycle rules instead of creating a second audit model
 3. Define the minimum linking model between proposals, evidence, and later promotion decisions
 
@@ -26,3 +27,19 @@ Acceptance
 ----------
 - Evolution records have one canonical schema
 - Later reviewer and gate flows can build without record-shape churn
+
+
+Implemented
+-----------
+- Expanded `src/evolution/contracts.ts` to finalize `ExperienceRecord` and add `LearningProposal` / `PromotionRecord`
+- Added proposal/promotion repositories in `src/storage/repositories.ts`
+- Extended governance export/delete/forget coverage to include proposal and promotion records
+
+
+Validation
+----------
+- `tests/unit/evolution.contracts.test.ts`
+- `tests/unit/storage.repositories.test.ts`
+- `tests/integration/governance.api.test.ts`
+- `tests/integration/forget.api.test.ts`
+- `bun run typecheck`

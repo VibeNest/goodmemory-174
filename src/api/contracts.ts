@@ -16,6 +16,8 @@ import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type {
   ExperienceRecord,
+  LearningProposal,
+  PromotionRecord,
   SessionArchive,
 } from "../evolution/contracts";
 import type { MarkdownArtifactBundle } from "../governance/markdownArtifacts";
@@ -162,6 +164,8 @@ export interface ExportMemoryResult {
     archives: SessionArchive[];
     evidence: EvidenceRecord[];
     experiences: ExperienceRecord[];
+    proposals: LearningProposal[];
+    promotions: PromotionRecord[];
   };
   runtime?: {
     workingMemory: WorkingMemorySnapshot | null;
@@ -187,6 +191,8 @@ export interface DeleteAllMemoryResult {
     archives: number;
     evidence: number;
     experiences: number;
+    proposals: number;
+    promotions: number;
     workingMemory: number;
     journal: number;
     artifactSpills: number;

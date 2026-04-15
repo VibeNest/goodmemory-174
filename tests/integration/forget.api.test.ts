@@ -4,8 +4,12 @@ import { createMemorySource } from "../../src/domain/provenance";
 import { createEvidenceRecord, EVIDENCE_COLLECTION } from "../../src/evidence/contracts";
 import {
   createExperienceRecord,
+  createLearningProposal,
+  createPromotionRecord,
   createSessionArchive,
   EXPERIENCES_COLLECTION,
+  LEARNING_PROPOSALS_COLLECTION,
+  PROMOTION_RECORDS_COLLECTION,
   SESSION_ARCHIVES_COLLECTION,
 } from "../../src/evolution/contracts";
 import {
@@ -157,7 +161,7 @@ describe("public forget API", () => {
     ).toHaveLength(1);
   });
 
-  it("deletes session archives, evidence, and experiences by id", async () => {
+  it("deletes archive, evidence, experience, proposal, and promotion records by id", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({
       storage: { provider: "memory" },
@@ -211,6 +215,37 @@ describe("public forget API", () => {
         summary: "Archived one unresolved rollback task.",
       }),
     );
+    await documentStore.set(
+      LEARNING_PROPOSALS_COLLECTION,
+      "proposal-1",
+      createLearningProposal({
+        id: "proposal-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        proposalType: "memory_revision",
+        traceId: "trace-proposal-1",
+        summary: "Revise the rollout blocker after a newer correction.",
+        rationale: "Later evidence supersedes the older blocker statement.",
+        sourceExperienceIds: ["experience-1"],
+      }),
+    );
+    await documentStore.set(
+      PROMOTION_RECORDS_COLLECTION,
+      "promotion-1",
+      createPromotionRecord({
+        id: "promotion-1",
+        proposalId: "proposal-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        traceId: "trace-promotion-1",
+        decision: "delayed",
+        summary: "Delay the memory revision until verify reruns.",
+        rationale: "The correction should not auto-promote yet.",
+        sourceExperienceIds: ["experience-1"],
+      }),
+    );
 
     expect(
       await memory.forget({
@@ -230,9 +265,23 @@ describe("public forget API", () => {
         memoryId: "experience-1",
       }),
     ).toEqual({ forgotten: true });
+    expect(
+      await memory.forget({
+        scope,
+        memoryId: "proposal-1",
+      }),
+    ).toEqual({ forgotten: true });
+    expect(
+      await memory.forget({
+        scope,
+        memoryId: "promotion-1",
+      }),
+    ).toEqual({ forgotten: true });
 
     expect(await documentStore.get(SESSION_ARCHIVES_COLLECTION, "archive-1")).toBeNull();
     expect(await documentStore.get(EVIDENCE_COLLECTION, "evidence-1")).toBeNull();
     expect(await documentStore.get(EXPERIENCES_COLLECTION, "experience-1")).toBeNull();
+    expect(await documentStore.get(LEARNING_PROPOSALS_COLLECTION, "proposal-1")).toBeNull();
+    expect(await documentStore.get(PROMOTION_RECORDS_COLLECTION, "promotion-1")).toBeNull();
   });
 });

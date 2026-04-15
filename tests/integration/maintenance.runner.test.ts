@@ -163,6 +163,81 @@ describe("maintenance runner", () => {
     ]);
   });
 
+  it("persists append-only maintenance telemetry after each run", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = { userId: "u-telemetry", workspaceId: "workspace-a" };
+
+    const report = await runner.run(scope, ["dedupe"]);
+    const experiences = await repositories.experiences.listByScope(scope);
+
+    expect(report.jobs[0]?.name).toBe("dedupe");
+    expect(report.jobs[0]?.applied).toBe(0);
+    expect(experiences).toHaveLength(1);
+    expect(experiences[0]?.kind).toBe("maintenance");
+    expect(experiences[0]?.trigger).toBe("maintenance");
+    expect(experiences[0]?.outcome).toBe("skipped");
+    expect(experiences[0]?.summary).toContain("dedupe=0");
+  });
+
+  it("does not fail the run when telemetry persistence fails after maintenance mutations", async () => {
+    const scope = { userId: "u-telemetry-failure", workspaceId: "workspace-a" };
+    const { repositories: baseRepositories } = createFixture();
+    const repositories = {
+      ...baseRepositories,
+      experiences: {
+        ...baseRepositories.experiences,
+        async add() {
+          throw new Error("telemetry unavailable");
+        },
+      },
+    };
+    const runner = createMaintenanceRunner({
+      repositories,
+      now: () => "2026-04-02T00:00:00.000Z",
+    });
+
+    await baseRepositories.facts.add(
+      createFactMemory({
+        id: "fact-telemetry-1",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "Rollout is blocked on prod verification.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    await baseRepositories.facts.add(
+      createFactMemory({
+        id: "fact-telemetry-2",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "Rollout is blocked on prod verification.",
+        source: { method: "explicit", extractedAt: "2026-02-01T00:00:00.000Z" },
+        createdAt: "2026-02-01T00:00:00.000Z",
+        updatedAt: "2026-02-01T00:00:00.000Z",
+      }),
+    );
+
+    const originalConsoleError = console.error;
+    console.error = () => {};
+
+    try {
+      const report = await runner.run(scope, ["dedupe"]);
+      const facts = await baseRepositories.facts.listByScope(scope);
+      const experiences = await baseRepositories.experiences.listByScope(scope);
+
+      expect(report.jobs[0]?.applied).toBe(1);
+      expect(facts.filter((fact) => fact.lifecycle === "active")).toHaveLength(1);
+      expect(facts.filter((fact) => fact.lifecycle === "superseded")).toHaveLength(1);
+      expect(experiences).toHaveLength(0);
+    } finally {
+      console.error = originalConsoleError;
+    }
+  });
+
   it("dedupes and repairs Chinese facts", async () => {
     const { repositories, runner } = createFixture();
     const scope = { userId: "u-zh", workspaceId: "workspace-a" };

@@ -16,6 +16,8 @@ import {
 import { createEvidenceRecord } from "../../src/evidence/contracts";
 import {
   createExperienceRecord,
+  createLearningProposal,
+  createPromotionRecord,
   createSessionArchive,
 } from "../../src/evolution/contracts";
 import {
@@ -407,6 +409,62 @@ describe("memory repositories", () => {
     expect(await repositories.experiences.listByUser("u-1")).toHaveLength(1);
     expect(
       await repositories.experiences.listByScope({
+        userId: "u-1",
+        workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("persists learning proposals and promotion records through typed accessors", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+
+    const proposal = createLearningProposal({
+      id: "proposal-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+      proposalType: "procedural_pattern",
+      traceId: "trace-review-1",
+      summary: "Promote a stable rollback checklist into a validated pattern.",
+      rationale: "Three sessions reused the same corrective sequence successfully.",
+      sourceExperienceIds: ["xp-1"],
+      linkedMemoryIds: ["feedback-1"],
+    });
+    const promotion = createPromotionRecord({
+      id: "promotion-1",
+      proposalId: "proposal-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+      traceId: "trace-gate-1",
+      decision: "accepted",
+      summary: "Accepted a governed procedural promotion.",
+      rationale: "Rules-only evidence and eval both passed.",
+      sourceExperienceIds: ["xp-1"],
+      linkedMemoryIds: ["feedback-1"],
+      policyOutcome: "passed",
+      verificationOutcome: "passed",
+      evalOutcome: "passed",
+    });
+
+    await repositories.proposals.add(proposal);
+    await repositories.promotions.add(promotion);
+
+    expect(await repositories.proposals.get("proposal-1")).toEqual(proposal);
+    expect(await repositories.promotions.get("promotion-1")).toEqual(promotion);
+    expect(await repositories.proposals.listByUser("u-1")).toHaveLength(1);
+    expect(await repositories.promotions.listByUser("u-1")).toHaveLength(1);
+    expect(
+      await repositories.proposals.listByScope({
+        userId: "u-1",
+        workspaceId: "workspace-a",
+      }),
+    ).toHaveLength(1);
+    expect(
+      await repositories.promotions.listByScope({
         userId: "u-1",
         workspaceId: "workspace-a",
       }),

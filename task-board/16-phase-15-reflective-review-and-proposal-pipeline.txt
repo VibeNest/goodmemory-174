@@ -15,7 +15,7 @@ Dependencies
 
 Primary Deliverables
 --------------------
-- typed contracts and repositories for `ExperienceRecord`, `LearningProposal`, and `PromotionRecord`
+- finalized evolution contracts and repositories for `ExperienceRecord`, `LearningProposal`, and `PromotionRecord`
 - normalized observation records from remember/recall/verify/maintenance flows
 - rules-only reflective reviewer baseline
 - pre-compact and session-end salvage flows that emit proposals
@@ -33,8 +33,8 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P15-T001 Add evolution records and repositories
-[TODO] P15-T002 Normalize observation traces into experience records
+[DONE] P15-T001 Finalize evolution records and repositories
+[DONE] P15-T002 Normalize observation traces into experience records
 [TODO] P15-T003 Implement rules-only reflective reviewer baseline
 [TODO] P15-T004 Add pre-compact and session-end salvage proposal flows
 [TODO] P15-T005 Add proposal policy, verification, and eval decision pipeline
@@ -58,3 +58,9 @@ Exit Checklist
 - Rules-only reviewer exists
 - Salvage proposal flows exist
 - Proposal gate outcomes are inspectable in tooling
+
+
+Implementation Note
+-------------------
+- Phase 14 already introduced the minimum `ExperienceRecord` substrate and repository wiring.
+- Phase 15 starts by freezing and extending that substrate, then adds proposal/promotion records and the pipelines that depend on them.

@@ -1,5 +1,7 @@
 export const SESSION_ARCHIVES_COLLECTION = "session_archives";
 export const EXPERIENCES_COLLECTION = "experiences";
+export const LEARNING_PROPOSALS_COLLECTION = "learning_proposals";
+export const PROMOTION_RECORDS_COLLECTION = "promotion_records";
 
 export type ExperienceKind =
   | "remember"
@@ -8,6 +10,27 @@ export type ExperienceKind =
   | "verify"
   | "maintenance"
   | "session_end";
+
+export type ExperienceTrigger =
+  | "api"
+  | "background"
+  | "maintenance"
+  | "governance";
+
+export type ExperienceModelInfluence =
+  | "none"
+  | "rules-only"
+  | "llm-assisted"
+  | "mixed";
+
+export interface ExperienceMetrics {
+  accepted?: number;
+  rejected?: number;
+  hitCount?: number;
+  verificationHintCount?: number;
+  latencyMs?: number;
+  tokenCount?: number;
+}
 
 export interface ExperienceRecord {
   id: string;
@@ -18,12 +41,84 @@ export interface ExperienceRecord {
   sessionId?: string;
   kind: ExperienceKind;
   traceId: string;
+  sourceTraceIds: string[];
+  trigger: ExperienceTrigger;
+  modelInfluence: ExperienceModelInfluence;
   summary: string;
   outcome: "success" | "failure" | "mixed" | "skipped";
+  policyApplied: string[];
+  metrics: ExperienceMetrics;
   linkedMemoryIds: string[];
   linkedArchiveIds: string[];
   linkedEvidenceIds: string[];
+  linkedProposalIds: string[];
   createdAt: string;
+}
+
+export type LearningProposalType =
+  | "memory_write"
+  | "memory_revision"
+  | "procedural_pattern"
+  | "maintenance_action"
+  | "recall_weight_adjustment"
+  | "verification_rule";
+
+export type LearningProposalStatus =
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "delayed";
+
+export interface LearningProposal {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+  proposalType: LearningProposalType;
+  status: LearningProposalStatus;
+  traceId: string;
+  summary: string;
+  rationale: string;
+  sourceExperienceIds: string[];
+  linkedMemoryIds: string[];
+  linkedArchiveIds: string[];
+  linkedEvidenceIds: string[];
+  modelInfluence: ExperienceModelInfluence;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PromotionDecision = "accepted" | "rejected" | "delayed";
+
+export type PromotionGateOutcome =
+  | "passed"
+  | "blocked"
+  | "review_required"
+  | "not_run";
+
+export interface PromotionRecord {
+  id: string;
+  proposalId: string;
+  userId: string;
+  tenantId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  sessionId?: string;
+  traceId: string;
+  decision: PromotionDecision;
+  summary: string;
+  rationale: string;
+  sourceExperienceIds: string[];
+  linkedMemoryIds: string[];
+  linkedArchiveIds: string[];
+  linkedEvidenceIds: string[];
+  policyOutcome: PromotionGateOutcome;
+  verificationOutcome: PromotionGateOutcome;
+  evalOutcome: PromotionGateOutcome;
+  createdAt: string;
+  decidedAt: string;
 }
 
 export interface SessionArchive {
@@ -96,11 +191,91 @@ export function createExperienceRecord(
     sessionId: input.sessionId,
     kind: input.kind,
     traceId: input.traceId,
+    sourceTraceIds: input.sourceTraceIds ?? [input.traceId],
+    trigger: input.trigger ?? "api",
+    modelInfluence: input.modelInfluence ?? "none",
     summary: input.summary,
     outcome: input.outcome ?? "success",
+    policyApplied: input.policyApplied ?? [],
+    metrics: input.metrics ?? {},
     linkedMemoryIds: input.linkedMemoryIds ?? [],
     linkedArchiveIds: input.linkedArchiveIds ?? [],
     linkedEvidenceIds: input.linkedEvidenceIds ?? [],
+    linkedProposalIds: input.linkedProposalIds ?? [],
     createdAt: input.createdAt ?? new Date(0).toISOString(),
+  };
+}
+
+export function createLearningProposal(
+  input: Pick<
+    LearningProposal,
+    "id" | "proposalType" | "rationale" | "summary" | "traceId" | "userId"
+  > &
+    Partial<
+      Omit<
+        LearningProposal,
+        "id" | "proposalType" | "rationale" | "summary" | "traceId" | "userId"
+      >
+    >,
+): LearningProposal {
+  const createdAt = input.createdAt ?? new Date(0).toISOString();
+
+  return {
+    id: input.id,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    proposalType: input.proposalType,
+    status: input.status ?? "pending",
+    traceId: input.traceId,
+    summary: input.summary,
+    rationale: input.rationale,
+    sourceExperienceIds: input.sourceExperienceIds ?? [],
+    linkedMemoryIds: input.linkedMemoryIds ?? [],
+    linkedArchiveIds: input.linkedArchiveIds ?? [],
+    linkedEvidenceIds: input.linkedEvidenceIds ?? [],
+    modelInfluence: input.modelInfluence ?? "none",
+    createdAt,
+    updatedAt: input.updatedAt ?? createdAt,
+  };
+}
+
+export function createPromotionRecord(
+  input: Pick<
+    PromotionRecord,
+    "decision" | "id" | "proposalId" | "rationale" | "summary" | "traceId" | "userId"
+  > &
+    Partial<
+      Omit<
+        PromotionRecord,
+        "decision" | "id" | "proposalId" | "rationale" | "summary" | "traceId" | "userId"
+      >
+    >,
+): PromotionRecord {
+  const decidedAt = input.decidedAt ?? input.createdAt ?? new Date(0).toISOString();
+
+  return {
+    id: input.id,
+    proposalId: input.proposalId,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    traceId: input.traceId,
+    decision: input.decision,
+    summary: input.summary,
+    rationale: input.rationale,
+    sourceExperienceIds: input.sourceExperienceIds ?? [],
+    linkedMemoryIds: input.linkedMemoryIds ?? [],
+    linkedArchiveIds: input.linkedArchiveIds ?? [],
+    linkedEvidenceIds: input.linkedEvidenceIds ?? [],
+    policyOutcome: input.policyOutcome ?? "not_run",
+    verificationOutcome: input.verificationOutcome ?? "not_run",
+    evalOutcome: input.evalOutcome ?? "not_run",
+    createdAt: input.createdAt ?? decidedAt,
+    decidedAt,
   };
 }

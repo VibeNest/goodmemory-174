@@ -1034,6 +1034,8 @@ describe("run-eval script", () => {
                     archives: 0,
                     evidence: 0,
                     experiences: 0,
+                    proposals: 0,
+                    promotions: 0,
                     workingMemory: 0,
                     journal: 0,
                     artifactSpills: 0,

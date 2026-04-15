@@ -4,8 +4,12 @@ import { createMemorySource } from "../../src/domain/provenance";
 import { createEvidenceRecord, EVIDENCE_COLLECTION } from "../../src/evidence/contracts";
 import {
   createExperienceRecord,
+  createLearningProposal,
+  createPromotionRecord,
   createSessionArchive,
   EXPERIENCES_COLLECTION,
+  LEARNING_PROPOSALS_COLLECTION,
+  PROMOTION_RECORDS_COLLECTION,
   SESSION_ARCHIVES_COLLECTION,
 } from "../../src/evolution/contracts";
 import {
@@ -162,6 +166,37 @@ describe("public governance API", () => {
         summary: "session-two export experience",
       }),
     );
+    await documentStore.set(
+      LEARNING_PROPOSALS_COLLECTION,
+      "proposal-export-s1",
+      createLearningProposal({
+        id: "proposal-export-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        proposalType: "memory_revision",
+        traceId: "trace-proposal-s1",
+        summary: "Revise a rollout blocker after repeated corrections.",
+        rationale: "Later evidence shows the original blocker statement is outdated.",
+        sourceExperienceIds: ["experience-export-s1"],
+      }),
+    );
+    await documentStore.set(
+      PROMOTION_RECORDS_COLLECTION,
+      "promotion-export-s1",
+      createPromotionRecord({
+        id: "promotion-export-s1",
+        proposalId: "proposal-export-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        traceId: "trace-promotion-s1",
+        decision: "delayed",
+        summary: "Delay rollout revision until verification reruns.",
+        rationale: "The proposal should not mutate durable memory before re-check.",
+        sourceExperienceIds: ["experience-export-s1"],
+      }),
+    );
 
     const durableOnly = await memory.exportMemory({
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
@@ -179,7 +214,7 @@ describe("public governance API", () => {
     expect(durableOnly.durable.preferences).toHaveLength(1);
     expect(durableOnly.durable.archives).toHaveLength(1);
     expect(durableOnly.durable.evidence).toHaveLength(2);
-    expect(durableOnly.durable.experiences).toHaveLength(1);
+    expect(durableOnly.durable.experiences).toHaveLength(2);
     expect(
       durableOnly.durable.facts.every((fact) => fact.sessionId === "s-1"),
     ).toBe(true);
@@ -187,12 +222,21 @@ describe("public governance API", () => {
     expect(
       durableOnly.durable.evidence.some((record) => record.id === "evidence-export-s1"),
     ).toBe(true);
-    expect(durableOnly.durable.experiences[0]?.id).toBe("experience-export-s1");
+    expect(
+      durableOnly.durable.experiences.some((record) => record.id === "experience-export-s1"),
+    ).toBe(true);
+    expect(
+      durableOnly.durable.experiences.some((record) => record.kind === "remember"),
+    ).toBe(true);
+    expect(durableOnly.durable.proposals[0]?.id).toBe("proposal-export-s1");
+    expect(durableOnly.durable.promotions[0]?.id).toBe("promotion-export-s1");
     expect(durableOnly.runtime).toBeUndefined();
     expect(globalExport.durable.profile?.identity.name).toBe("Lin");
     expect(globalExport.durable.archives).toHaveLength(2);
     expect(globalExport.durable.evidence).toHaveLength(4);
-    expect(globalExport.durable.experiences).toHaveLength(2);
+    expect(globalExport.durable.experiences).toHaveLength(4);
+    expect(globalExport.durable.proposals).toHaveLength(1);
+    expect(globalExport.durable.promotions).toHaveLength(1);
     expect(durableOnly.artifacts.rootPath).toBe(
       ".goodmemory/users/u-1/workspaces/workspace-a/sessions/s-1",
     );
@@ -203,6 +247,12 @@ describe("public governance API", () => {
     ]);
     expect(durableOnly.artifacts.files[1]?.content).toContain(
       "migration rollout is blocked on prod verification.",
+    );
+    expect(durableOnly.artifacts.files[1]?.content).toContain(
+      "Revise a rollout blocker after repeated corrections.",
+    );
+    expect(durableOnly.artifacts.files[1]?.content).toContain(
+      "Delay rollout revision until verification reruns.",
     );
     expect(withRuntime.artifacts.files[2]?.content).toContain("Current goal: Finish rollout");
     expect(withRuntime.artifacts.files[2]?.content).toContain(
@@ -361,6 +411,37 @@ describe("public governance API", () => {
         summary: "session-nine experience",
       }),
     );
+    await documentStore.set(
+      LEARNING_PROPOSALS_COLLECTION,
+      "proposal-s1",
+      createLearningProposal({
+        id: "proposal-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        proposalType: "maintenance_action",
+        traceId: "trace-proposal-s1",
+        summary: "Run a governed maintenance repair for session one.",
+        rationale: "Session one emitted a stale rollout signal that needs repair.",
+        sourceExperienceIds: ["experience-s1"],
+      }),
+    );
+    await documentStore.set(
+      PROMOTION_RECORDS_COLLECTION,
+      "promotion-s1",
+      createPromotionRecord({
+        id: "promotion-s1",
+        proposalId: "proposal-s1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+        traceId: "trace-promotion-s1",
+        decision: "rejected",
+        summary: "Rejected the maintenance repair for session one.",
+        rationale: "The evidence was incomplete for an automatic mutation.",
+        sourceExperienceIds: ["experience-s1"],
+      }),
+    );
 
     const result = await memory.deleteAllMemory({
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
@@ -390,7 +471,9 @@ describe("public governance API", () => {
     expect(result.deleted.facts).toBe(1);
     expect(result.deleted.archives).toBe(1);
     expect(result.deleted.evidence).toBe(2);
-    expect(result.deleted.experiences).toBe(1);
+    expect(result.deleted.experiences).toBe(2);
+    expect(result.deleted.proposals).toBe(1);
+    expect(result.deleted.promotions).toBe(1);
     expect(result.deleted.journal).toBe(1);
     expect(result.deleted.artifactSpills).toBe(1);
     expect(
@@ -415,6 +498,8 @@ describe("public governance API", () => {
     expect(await documentStore.get(EVIDENCE_COLLECTION, "evidence-s9")).not.toBeNull();
     expect(await documentStore.get(EXPERIENCES_COLLECTION, "experience-s1")).toBeNull();
     expect(await documentStore.get(EXPERIENCES_COLLECTION, "experience-s9")).not.toBeNull();
+    expect(await documentStore.get(LEARNING_PROPOSALS_COLLECTION, "proposal-s1")).toBeNull();
+    expect(await documentStore.get(PROMOTION_RECORDS_COLLECTION, "promotion-s1")).toBeNull();
   });
 
   it("returns an empty recall when ignoreMemory is enabled even if data exists", async () => {

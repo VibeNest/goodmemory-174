@@ -14,10 +14,14 @@ import type { EvidenceRecord } from "../evidence/contracts";
 import { EVIDENCE_COLLECTION } from "../evidence/contracts";
 import type {
   ExperienceRecord,
+  LearningProposal,
+  PromotionRecord,
   SessionArchive,
 } from "../evolution/contracts";
 import {
   EXPERIENCES_COLLECTION,
+  LEARNING_PROPOSALS_COLLECTION,
+  PROMOTION_RECORDS_COLLECTION,
   SESSION_ARCHIVES_COLLECTION,
 } from "../evolution/contracts";
 import type {
@@ -80,6 +84,18 @@ export interface MemoryRepositories {
     get(id: string): Promise<ExperienceRecord | null>;
     listByUser(userId: string): Promise<ExperienceRecord[]>;
     listByScope(scope: MemoryScope): Promise<ExperienceRecord[]>;
+  };
+  proposals: {
+    add(proposal: LearningProposal): Promise<void>;
+    get(id: string): Promise<LearningProposal | null>;
+    listByUser(userId: string): Promise<LearningProposal[]>;
+    listByScope(scope: MemoryScope): Promise<LearningProposal[]>;
+  };
+  promotions: {
+    add(promotion: PromotionRecord): Promise<void>;
+    get(id: string): Promise<PromotionRecord | null>;
+    listByUser(userId: string): Promise<PromotionRecord[]>;
+    listByScope(scope: MemoryScope): Promise<PromotionRecord[]>;
   };
   sessionBuffers: {
     save(scope: MemoryScope, buffer: SessionBuffer): Promise<void>;
@@ -344,6 +360,72 @@ export function createMemoryRepositories(
       async listByScope(scope: MemoryScope): Promise<ExperienceRecord[]> {
         return config.documentStore.query<ExperienceRecord>(
           EXPERIENCES_COLLECTION,
+          buildScopeFilter(scope),
+        );
+      },
+    },
+
+    proposals: {
+      async add(proposal: LearningProposal): Promise<void> {
+        await config.documentStore.set(
+          LEARNING_PROPOSALS_COLLECTION,
+          proposal.id,
+          proposal,
+        );
+      },
+
+      async get(id: string): Promise<LearningProposal | null> {
+        return config.documentStore.get<LearningProposal>(
+          LEARNING_PROPOSALS_COLLECTION,
+          id,
+        );
+      },
+
+      async listByUser(userId: string): Promise<LearningProposal[]> {
+        return config.documentStore.query<LearningProposal>(
+          LEARNING_PROPOSALS_COLLECTION,
+          {
+            userId,
+          },
+        );
+      },
+
+      async listByScope(scope: MemoryScope): Promise<LearningProposal[]> {
+        return config.documentStore.query<LearningProposal>(
+          LEARNING_PROPOSALS_COLLECTION,
+          buildScopeFilter(scope),
+        );
+      },
+    },
+
+    promotions: {
+      async add(promotion: PromotionRecord): Promise<void> {
+        await config.documentStore.set(
+          PROMOTION_RECORDS_COLLECTION,
+          promotion.id,
+          promotion,
+        );
+      },
+
+      async get(id: string): Promise<PromotionRecord | null> {
+        return config.documentStore.get<PromotionRecord>(
+          PROMOTION_RECORDS_COLLECTION,
+          id,
+        );
+      },
+
+      async listByUser(userId: string): Promise<PromotionRecord[]> {
+        return config.documentStore.query<PromotionRecord>(
+          PROMOTION_RECORDS_COLLECTION,
+          {
+            userId,
+          },
+        );
+      },
+
+      async listByScope(scope: MemoryScope): Promise<PromotionRecord[]> {
+        return config.documentStore.query<PromotionRecord>(
+          PROMOTION_RECORDS_COLLECTION,
           buildScopeFilter(scope),
         );
       },
