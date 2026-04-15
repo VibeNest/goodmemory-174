@@ -16,7 +16,7 @@ import {
 } from "../../src/llm/ai-sdk-runtime";
 import {
   createLLMMemoryExtractor as createAISDKMemoryExtractor,
-} from "../../src/remember/llm-extractor";
+} from "../../src/provider/memory-extractor";
 
 const ORIGINAL_ENV = { ...process.env };
 

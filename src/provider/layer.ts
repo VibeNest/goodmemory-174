@@ -12,8 +12,8 @@ import type {
 import type { MemoryExtractor } from "../remember/candidates";
 import type { AISDKModelConfig } from "../llm/ai-sdk-runtime";
 import { createAISDKEmbeddingAdapter } from "../llm/ai-sdk-runtime";
-import { createLLMMemoryExtractor } from "../remember/llm-extractor";
 import type { EmbeddingAdapter } from "../embedding/contracts";
+import { createLLMMemoryExtractor } from "./memory-extractor";
 import type {
   ModelProviderId,
   ProviderRuntimeMetadata,

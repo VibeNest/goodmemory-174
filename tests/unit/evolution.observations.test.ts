@@ -1,18 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type {
-  FeedbackResult,
-  RecallResult,
-  RememberResult,
-} from "../../src/api/contracts";
-import {
-  createEpisodeMemory,
-  createFactMemory,
-  createFeedbackMemory,
-  createPreferenceMemory,
-  createReferenceMemory,
-} from "../../src/domain/records";
-import { createEvidenceRecord } from "../../src/evidence/contracts";
-import { createSessionArchive } from "../../src/evolution/contracts";
+  FeedbackObservationResult,
+  RecallObservationResult,
+  RememberObservationResult,
+} from "../../src/evolution/observation-results";
 import {
   buildFeedbackExperienceRecord,
   buildRecallExperienceRecords,
@@ -27,32 +18,19 @@ const scope = {
 
 describe("evolution observation normalization", () => {
   it("normalizes remember results into append-only experience telemetry", () => {
-    const result: RememberResult = {
+    const result: RememberObservationResult = {
       accepted: 2,
       rejected: 1,
       events: [
         {
-          candidateId: "candidate-1",
-          outcome: "written",
-          memoryType: "fact",
           memoryId: "fact-1",
           evidenceIds: ["evidence-1"],
         },
         {
-          candidateId: "candidate-2",
-          outcome: "rejected",
-          memoryType: "episode",
           reason: "policy_blocked",
         },
       ],
-      metadata: {
-        locale: "en-US",
-        localeSource: "explicit",
-        adapterId: "language-rules",
-        analysisMode: "rules-only",
-        requestedExtractionStrategy: "auto",
-        resolvedExtractionStrategy: "llm-assisted",
-      },
+      modelInfluence: "llm-assisted",
     };
 
     const record = buildRememberExperienceRecord({
@@ -77,136 +55,32 @@ describe("evolution observation normalization", () => {
   });
 
   it("normalizes recall and verify telemetry from a single recall result", () => {
-    const result: RecallResult = {
-      profile: null,
-      preferences: [
-        createPreferenceMemory({
-          id: "pref-1",
-          userId: "u-1",
-          workspaceId: "workspace-a",
-          category: "response_style",
-          value: "bullet points",
-          source: { method: "explicit", extractedAt: "2026-04-13T00:00:00.000Z" },
-        }),
-      ],
-      references: [
-        createReferenceMemory({
-          id: "ref-1",
-          userId: "u-1",
-          workspaceId: "workspace-a",
-          title: "Runbook",
-          pointer: "docs/runbook.md",
-          source: { method: "explicit", extractedAt: "2026-04-13T00:00:00.000Z" },
-        }),
-      ],
-      facts: [
-        createFactMemory({
-          id: "fact-1",
-          userId: "u-1",
-          workspaceId: "workspace-a",
-          category: "project",
-          content: "The rollout is blocked on verification.",
-          source: { method: "explicit", extractedAt: "2026-04-13T00:00:00.000Z" },
-        }),
-      ],
-      feedback: [
-        createFeedbackMemory({
-          id: "feedback-1",
-          userId: "u-1",
-          workspaceId: "workspace-a",
-          rule: "Use bullet points.",
-          kind: "do",
-          source: { method: "explicit", extractedAt: "2026-04-13T00:00:00.000Z" },
-        }),
-      ],
-      archives: [
-        createSessionArchive({
-          id: "archive-1",
-          userId: "u-1",
-          workspaceId: "workspace-a",
-          sessionId: "s-9",
-          summary: "The previous session ended with one verification blocker.",
-        }),
-      ],
-      evidence: [
-        createEvidenceRecord({
-          id: "evidence-1",
-          userId: "u-1",
-          workspaceId: "workspace-a",
-          sessionId: "s-1",
-          kind: "conversation_excerpt",
-          excerpt: "Need verification before the rollout can resume.",
-          source: { method: "explicit", extractedAt: "2026-04-13T00:00:00.000Z" },
-        }),
-      ],
-      episodes: [
-        createEpisodeMemory({
-          id: "episode-1",
-          userId: "u-1",
-          workspaceId: "workspace-a",
-          sessionId: "s-9",
-          summary: "The team paused rollout pending verification.",
-          keyDecisions: ["Pause rollout"],
-          unresolvedItems: ["Verify the checklist"],
-          topics: ["rollout"],
-        }),
-      ],
-      workingMemory: null,
-      journal: null,
-      packet: {
-        debug: {
-          omittedSections: [],
-          estimatedTokens: 64,
+    const result: RecallObservationResult = {
+      preferences: [{ id: "pref-1" }],
+      references: [{ id: "ref-1" }],
+      facts: [{ id: "fact-1" }],
+      feedback: [{ id: "feedback-1" }],
+      archives: [{ id: "archive-1" }],
+      evidence: [{ id: "evidence-1" }],
+      episodes: [{ id: "episode-1" }],
+      strategy: "hybrid",
+      hitCount: 2,
+      hits: [
+        {
+          evidenceIds: ["evidence-1"],
         },
-      },
-      metadata: {
-        routingDecision: {
-          retrievalProfile: "coding_agent",
-          intent: "task_continuation",
-          strategy: "hybrid",
-          strategyExplanation: {
-            requestedStrategy: "hybrid",
-            resolvedStrategy: "hybrid",
-            summary: "hybrid",
-            hardFloor: "lexical_runtime_procedural_priors",
-            semanticTieBreaking: true,
-            llmRefinement: false,
-          },
-          sourcePriorities: ["feedback", "fact", "session_archive", "episode"],
-          requestedSlots: ["blocker", "open_loop"],
-          supportSlots: ["project_state_support"],
-          actionDriving: true,
-          referenceSeeking: false,
-          continuation: true,
+        {},
+      ],
+      verificationHints: [
+        {
+          memoryId: "fact-1",
+          evidenceIds: ["evidence-1"],
         },
-        tokenCount: 64,
-        latencyMs: 12,
-        hits: [
-          {
-            id: "fact-1",
-            type: "fact",
-            evidenceIds: ["evidence-1"],
-          },
-          {
-            id: "archive-1",
-            type: "session_archive",
-          },
-        ],
-        candidateTraces: [],
-        verificationHints: [
-          {
-            memoryId: "fact-1",
-            memoryType: "fact",
-            reason: "stale fact should be verified before action",
-            evidenceIds: ["evidence-1"],
-          },
-        ],
-        policyApplied: ["default_scope_guard"],
-        locale: "en-US",
-        localeSource: "explicit",
-        adapterId: "language-rules",
-        analysisMode: "rules-only",
-      },
+      ],
+      latencyMs: 12,
+      tokenCount: 64,
+      policyApplied: ["default_scope_guard"],
+      modelInfluence: "rules-only",
     };
 
     const [recallRecord, verifyRecord] = buildRecallExperienceRecords({
@@ -250,7 +124,6 @@ describe("evolution observation normalization", () => {
       createdAt: "2026-04-13T00:00:00.000Z",
       createId: () => "xp-recall-empty",
       result: {
-        profile: null,
         preferences: [],
         references: [],
         facts: [],
@@ -258,46 +131,15 @@ describe("evolution observation normalization", () => {
         archives: [],
         evidence: [],
         episodes: [],
-        workingMemory: null,
-        journal: null,
-        packet: {
-          debug: {
-            omittedSections: [],
-            estimatedTokens: 0,
-          },
-        },
-        metadata: {
-          routingDecision: {
-            retrievalProfile: "coding_agent",
-            intent: "task_continuation",
-            strategy: "hybrid",
-            strategyExplanation: {
-              requestedStrategy: "hybrid",
-              resolvedStrategy: "hybrid",
-              summary: "hybrid",
-              hardFloor: "lexical_runtime_procedural_priors",
-              semanticTieBreaking: true,
-              llmRefinement: false,
-            },
-            sourcePriorities: ["feedback", "fact", "session_archive", "episode"],
-            requestedSlots: ["blocker"],
-            supportSlots: [],
-            actionDriving: true,
-            referenceSeeking: false,
-            continuation: true,
-          },
-          tokenCount: 0,
-          latencyMs: 8,
-          hits: [],
-          candidateTraces: [],
-          verificationHints: [],
-          policyApplied: ["default_scope_guard"],
-          locale: "en-US",
-          localeSource: "explicit",
-          adapterId: "language-rules",
-          analysisMode: "rules-only",
-        },
-      },
+        strategy: "hybrid",
+        hitCount: 0,
+        hits: [],
+        verificationHints: [],
+        latencyMs: 8,
+        tokenCount: 0,
+        policyApplied: ["default_scope_guard"],
+        modelInfluence: "rules-only",
+      } satisfies RecallObservationResult,
     });
 
     expect(recallRecord.kind).toBe("recall");
@@ -317,7 +159,6 @@ describe("evolution observation normalization", () => {
       createdAt: "2026-04-13T00:00:00.000Z",
       createId: () => "xp-recall-skip",
       result: {
-        profile: null,
         preferences: [],
         references: [],
         facts: [],
@@ -325,46 +166,15 @@ describe("evolution observation normalization", () => {
         archives: [],
         evidence: [],
         episodes: [],
-        workingMemory: null,
-        journal: null,
-        packet: {
-          debug: {
-            omittedSections: [],
-            estimatedTokens: 0,
-          },
-        },
-        metadata: {
-          routingDecision: {
-            retrievalProfile: "coding_agent",
-            intent: "task_continuation",
-            strategy: "hybrid",
-            strategyExplanation: {
-              requestedStrategy: "hybrid",
-              resolvedStrategy: "hybrid",
-              summary: "hybrid",
-              hardFloor: "lexical_runtime_procedural_priors",
-              semanticTieBreaking: true,
-              llmRefinement: false,
-            },
-            sourcePriorities: ["feedback", "fact", "session_archive", "episode"],
-            requestedSlots: ["blocker"],
-            supportSlots: [],
-            actionDriving: true,
-            referenceSeeking: false,
-            continuation: true,
-          },
-          tokenCount: 0,
-          latencyMs: 6,
-          hits: [],
-          candidateTraces: [],
-          verificationHints: [],
-          policyApplied: ["ignore_memory"],
-          locale: "en-US",
-          localeSource: "explicit",
-          adapterId: "language-rules",
-          analysisMode: "rules-only",
-        },
-      },
+        strategy: "hybrid",
+        hitCount: 0,
+        hits: [],
+        verificationHints: [],
+        latencyMs: 6,
+        tokenCount: 0,
+        policyApplied: ["ignore_memory"],
+        modelInfluence: "rules-only",
+      } satisfies RecallObservationResult,
     });
 
     expect(recallRecord.kind).toBe("recall");
@@ -372,17 +182,12 @@ describe("evolution observation normalization", () => {
   });
 
   it("normalizes feedback results into experience telemetry", () => {
-    const result: FeedbackResult = {
+    const result: FeedbackObservationResult = {
       accepted: true,
       outcome: "written",
       memoryId: "feedback-1",
       kind: "do",
-      metadata: {
-        locale: "en-US",
-        localeSource: "explicit",
-        adapterId: "language-rules",
-        analysisMode: "rules-only",
-      },
+      modelInfluence: "rules-only",
     };
 
     const record = buildFeedbackExperienceRecord({

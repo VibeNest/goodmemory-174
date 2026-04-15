@@ -630,6 +630,28 @@ Purpose:
 
 - keep the system healthy over time without bloating the hot path
 
+### 6.3.1 Repository invariants: core contracts, core behavior, adapters, composition
+
+The repository should preserve four explicit implementation zones:
+
+- **core contracts/model**
+  `domain/` plus stable contract files such as evidence, evolution, embedding, and storage contracts
+- **core behavior**
+  `remember/`, `recall/`, `runtime/`, `maintenance/`, `verify/`, `governance/`, and non-contract evolution flows
+- **adapters**
+  provider-backed, vendor-backed, storage implementation, and future host/file-authoritative integrations
+- **composition**
+  public API wiring, CLI wiring, and package export surfaces
+
+These are repository invariants, not style preferences.
+
+Implications:
+
+- core contracts do not depend on API, eval, provider, vendor runtime, or concrete storage implementations
+- core behavior does not depend on API, eval, CLI, provider/vendor runtime, or concrete storage implementations
+- provider-backed and host/file-authoritative behavior enter only through explicit adapter boundaries and do not redefine the core truth model
+- dependency-matrix tests are part of the merge gate for the post-v1 archive, evidence, proposal, and host-adapter work
+
 ### 6.4 Default vs optional capabilities
 
 The reference architecture should explicitly separate what is default from what is optional.

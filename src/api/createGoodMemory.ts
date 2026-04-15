@@ -11,6 +11,11 @@ import {
   buildRecallExperienceRecords,
   buildRememberExperienceRecord,
 } from "../evolution/observations";
+import type {
+  FeedbackObservationResult,
+  RecallObservationResult,
+  RememberObservationResult,
+} from "../evolution/observation-results";
 import {
   EXPERIENCES_COLLECTION,
   LEARNING_PROPOSALS_COLLECTION,
@@ -127,6 +132,67 @@ async function deleteVectorForCollection(
   }
 }
 
+function toRememberObservationResult(
+  result: RememberResult,
+): RememberObservationResult {
+  return {
+    accepted: result.accepted,
+    rejected: result.rejected,
+    events: result.events.map((event) => ({
+      memoryId: event.memoryId,
+      evidenceIds: event.evidenceIds,
+      reason: event.reason,
+    })),
+    modelInfluence:
+      result.metadata?.resolvedExtractionStrategy === "llm-assisted"
+        ? "llm-assisted"
+        : "rules-only",
+  };
+}
+
+function toRecallObservationResult(
+  result: RecallResult,
+): RecallObservationResult {
+  return {
+    preferences: result.preferences.map((record) => ({ id: record.id })),
+    references: result.references.map((record) => ({ id: record.id })),
+    facts: result.facts.map((record) => ({ id: record.id })),
+    feedback: result.feedback.map((record) => ({ id: record.id })),
+    archives: result.archives.map((record) => ({ id: record.id })),
+    evidence: result.evidence.map((record) => ({ id: record.id })),
+    episodes: result.episodes.map((record) => ({ id: record.id })),
+    strategy: result.metadata.routingDecision.strategy,
+    hitCount: result.metadata.hits.length,
+    hits: result.metadata.hits.map((hit) => ({
+      evidenceIds: hit.evidenceIds,
+    })),
+    verificationHints: result.metadata.verificationHints.map((hint) => ({
+      memoryId: hint.memoryId,
+      evidenceIds: hint.evidenceIds,
+    })),
+    latencyMs: result.metadata.latencyMs,
+    tokenCount: result.metadata.tokenCount,
+    policyApplied: result.metadata.policyApplied,
+    modelInfluence:
+      result.metadata.routingDecision.strategy === "llm-assisted"
+        ? "llm-assisted"
+        : "rules-only",
+  };
+}
+
+function toFeedbackObservationResult(
+  result: FeedbackResult,
+): FeedbackObservationResult {
+  return {
+    accepted: result.accepted,
+    outcome: result.outcome,
+    kind: result.kind,
+    memoryId: result.memoryId,
+    modelInfluence:
+      result.metadata?.analysisMode === "rules-only" ? "rules-only" : "none",
+  };
+}
+
 class GoodMemoryImpl implements GoodMemory {
   private readonly documentStore;
   private readonly sessionStore;
@@ -212,7 +278,7 @@ class GoodMemoryImpl implements GoodMemory {
     await this.persistExperienceRecords(
       buildRecallExperienceRecords({
         scope: input.scope,
-        result,
+        result: toRecallObservationResult(result),
         traceId,
         createdAt: timestamp,
         createId: () => crypto.randomUUID(),
@@ -242,7 +308,7 @@ class GoodMemoryImpl implements GoodMemory {
     await this.persistExperienceRecords([
       buildRememberExperienceRecord({
         scope: input.scope,
-        result,
+        result: toRememberObservationResult(result),
         traceId,
         createdAt: timestamp,
         createId: () => crypto.randomUUID(),
@@ -556,7 +622,7 @@ class GoodMemoryImpl implements GoodMemory {
         await this.persistExperienceRecords([
           buildFeedbackExperienceRecord({
             scope: input.scope,
-            result,
+            result: toFeedbackObservationResult(result),
             traceId: crypto.randomUUID(),
             createdAt: timestamp,
             createId: () => crypto.randomUUID(),
@@ -583,7 +649,7 @@ class GoodMemoryImpl implements GoodMemory {
       await this.persistExperienceRecords([
         buildFeedbackExperienceRecord({
           scope: input.scope,
-          result,
+          result: toFeedbackObservationResult(result),
           traceId: crypto.randomUUID(),
           createdAt: timestamp,
           createId: () => crypto.randomUUID(),
@@ -609,7 +675,7 @@ class GoodMemoryImpl implements GoodMemory {
     await this.persistExperienceRecords([
       buildFeedbackExperienceRecord({
         scope: input.scope,
-        result,
+        result: toFeedbackObservationResult(result),
         traceId: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
         createId: () => crypto.randomUUID(),

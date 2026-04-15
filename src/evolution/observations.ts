@@ -1,14 +1,13 @@
-import type {
-  FeedbackResult,
-  RecallResult,
-  RememberResult,
-} from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
 import {
   createExperienceRecord,
-  type ExperienceModelInfluence,
   type ExperienceRecord,
 } from "./contracts";
+import type {
+  FeedbackObservationResult,
+  RecallObservationResult,
+  RememberObservationResult,
+} from "./observation-results";
 
 interface ObservationRecordInput {
   createdAt: string;
@@ -25,49 +24,33 @@ function collectUniqueFromGroups(groups: Array<readonly string[] | undefined>): 
   return collectUnique(groups.flatMap((group) => group ?? []));
 }
 
-function resolveRememberInfluence(result: RememberResult): ExperienceModelInfluence {
-  if (result.metadata?.resolvedExtractionStrategy === "llm-assisted") {
-    return "llm-assisted";
-  }
-
-  return "rules-only";
-}
-
-function resolveRecallInfluence(result: RecallResult): ExperienceModelInfluence {
-  if (result.metadata.routingDecision.strategy === "llm-assisted") {
-    return "llm-assisted";
-  }
-
-  return "rules-only";
-}
-
-function buildRememberSummary(result: RememberResult): string {
+function buildRememberSummary(result: RememberObservationResult): string {
   return `Remember accepted ${result.accepted} candidate(s) and rejected ${result.rejected} candidate(s).`;
 }
 
-function buildRecallSummary(result: RecallResult): string {
-  if (result.metadata.policyApplied.includes("ignore_memory")) {
+function buildRecallSummary(result: RecallObservationResult): string {
+  if (result.policyApplied.includes("ignore_memory")) {
     return "Recall skipped memory retrieval because ignoreMemory was enabled.";
   }
 
-  return `Recall ${result.metadata.routingDecision.strategy} returned ${result.metadata.hits.length} hit(s).`;
+  return `Recall ${result.strategy} returned ${result.hitCount} hit(s).`;
 }
 
-function buildVerifySummary(result: RecallResult): string {
-  return `Verification raised ${result.metadata.verificationHints.length} hint(s) for recalled memory.`;
+function buildVerifySummary(result: RecallObservationResult): string {
+  return `Verification raised ${result.verificationHints.length} hint(s) for recalled memory.`;
 }
 
 function resolveRecallOutcome(
-  result: RecallResult,
+  result: RecallObservationResult,
 ): "success" | "failure" | "mixed" | "skipped" {
-  if (result.metadata.policyApplied.includes("ignore_memory")) {
+  if (result.policyApplied.includes("ignore_memory")) {
     return "skipped";
   }
 
-  return result.metadata.hits.length > 0 ? "success" : "failure";
+  return result.hitCount > 0 ? "success" : "failure";
 }
 
-function buildFeedbackSummary(result: FeedbackResult): string {
+function buildFeedbackSummary(result: FeedbackObservationResult): string {
   if (!result.accepted) {
     return "Feedback was rejected before it became durable guidance.";
   }
@@ -78,7 +61,7 @@ function buildFeedbackSummary(result: FeedbackResult): string {
 }
 
 export function buildRememberExperienceRecord(
-  input: ObservationRecordInput & { result: RememberResult },
+  input: ObservationRecordInput & { result: RememberObservationResult },
 ): ExperienceRecord {
   const linkedMemoryIds = collectUnique(
     input.result.events.map((event) => event.memoryId),
@@ -102,7 +85,7 @@ export function buildRememberExperienceRecord(
     kind: "remember",
     traceId: input.traceId,
     trigger: "api",
-    modelInfluence: resolveRememberInfluence(input.result),
+    modelInfluence: input.result.modelInfluence,
     summary: buildRememberSummary(input.result),
     outcome:
       input.result.accepted > 0 && input.result.rejected > 0
@@ -124,7 +107,7 @@ export function buildRememberExperienceRecord(
 }
 
 export function buildRecallExperienceRecords(
-  input: ObservationRecordInput & { result: RecallResult },
+  input: ObservationRecordInput & { result: RecallObservationResult },
 ): ExperienceRecord[] {
   const linkedMemoryIds = collectUnique([
     ...input.result.preferences.map((record) => record.id),
@@ -139,10 +122,10 @@ export function buildRecallExperienceRecords(
   const linkedEvidenceIds = collectUnique([
     ...input.result.evidence.map((record) => record.id),
     ...collectUniqueFromGroups(
-      input.result.metadata.hits.map((hit) => hit.evidenceIds),
+      input.result.hits.map((hit) => hit.evidenceIds),
     ),
     ...collectUniqueFromGroups(
-      input.result.metadata.verificationHints.map((hint) => hint.evidenceIds),
+      input.result.verificationHints.map((hint) => hint.evidenceIds),
     ),
   ]);
 
@@ -156,15 +139,15 @@ export function buildRecallExperienceRecords(
     kind: "recall",
     traceId: input.traceId,
     trigger: "api",
-    modelInfluence: resolveRecallInfluence(input.result),
+    modelInfluence: input.result.modelInfluence,
     summary: buildRecallSummary(input.result),
     outcome: resolveRecallOutcome(input.result),
-    policyApplied: input.result.metadata.policyApplied,
+    policyApplied: input.result.policyApplied,
     metrics: {
-      hitCount: input.result.metadata.hits.length,
-      verificationHintCount: input.result.metadata.verificationHints.length,
-      latencyMs: input.result.metadata.latencyMs,
-      tokenCount: input.result.metadata.tokenCount,
+      hitCount: input.result.hitCount,
+      verificationHintCount: input.result.verificationHints.length,
+      latencyMs: input.result.latencyMs,
+      tokenCount: input.result.tokenCount,
     },
     linkedMemoryIds,
     linkedArchiveIds,
@@ -172,7 +155,7 @@ export function buildRecallExperienceRecords(
     createdAt: input.createdAt,
   });
 
-  if (input.result.metadata.verificationHints.length === 0) {
+  if (input.result.verificationHints.length === 0) {
     return [recallRecord];
   }
 
@@ -187,18 +170,18 @@ export function buildRecallExperienceRecords(
     traceId: input.traceId,
     sourceTraceIds: [input.traceId],
     trigger: "api",
-    modelInfluence: resolveRecallInfluence(input.result),
+    modelInfluence: input.result.modelInfluence,
     summary: buildVerifySummary(input.result),
     outcome: "mixed",
-    policyApplied: input.result.metadata.policyApplied,
+    policyApplied: input.result.policyApplied,
     metrics: {
-      verificationHintCount: input.result.metadata.verificationHints.length,
+      verificationHintCount: input.result.verificationHints.length,
     },
     linkedMemoryIds: collectUnique(
-      input.result.metadata.verificationHints.map((hint) => hint.memoryId),
+      input.result.verificationHints.map((hint) => hint.memoryId),
     ),
     linkedEvidenceIds: collectUniqueFromGroups(
-      input.result.metadata.verificationHints.map((hint) => hint.evidenceIds),
+      input.result.verificationHints.map((hint) => hint.evidenceIds),
     ),
     createdAt: input.createdAt,
   });
@@ -207,7 +190,7 @@ export function buildRecallExperienceRecords(
 }
 
 export function buildFeedbackExperienceRecord(
-  input: ObservationRecordInput & { result: FeedbackResult },
+  input: ObservationRecordInput & { result: FeedbackObservationResult },
 ): ExperienceRecord {
   return createExperienceRecord({
     id: input.createId(),
@@ -219,8 +202,7 @@ export function buildFeedbackExperienceRecord(
     kind: "feedback",
     traceId: input.traceId,
     trigger: "api",
-    modelInfluence:
-      input.result.metadata?.analysisMode === "rules-only" ? "rules-only" : "none",
+    modelInfluence: input.result.modelInfluence,
     summary: buildFeedbackSummary(input.result),
     outcome: input.result.accepted ? "success" : "failure",
     metrics: {

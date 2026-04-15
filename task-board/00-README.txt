@@ -88,9 +88,11 @@ Read and execute files in this order:
 Current Sequencing Note
 -----------------------
 - Phase 13 governance work is complete and remains part of the accepted v1 surface.
+- A small architecture-guardrail pass is valid before widening Phase 14 and Phase 15 work; it is foundation hardening, not a new roadmap branch.
 - The next execution priority is Phase 14 archive/evidence/artifact foundation, not provider-backed retrieval.
 - Phase 12 provider-layer work stays on the board, but it is intentionally blocked on the Phase 14 foundation so hybrid retrieval can reuse stable archive/evidence layers instead of redefining them later.
 - Phase 15 through Phase 18 extend the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
+- Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
 
 

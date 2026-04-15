@@ -15,13 +15,13 @@ import type {
   MemoryExtractionInput,
   MemoryExtractionResult,
   MemoryExtractor,
-} from "./candidates";
+} from "../remember/candidates";
 
 interface MemoryExtractorDependencies {
-  generateObject?: typeof generateObject;
-  resolveModel?: typeof resolveAISDKModel;
   fetch?: FetchLike;
+  generateObject?: typeof generateObject;
   requestTimeoutMs?: number;
+  resolveModel?: typeof resolveAISDKModel;
   retryOptions?: AISDKRetryOptions;
 }
 
@@ -99,6 +99,7 @@ const memoryCandidateSchema = z.object({
   sourceRole: z.string(),
   metadata: z
     .object({
+      appliesTo: z.string().optional(),
       category: z
         .enum(["project", "technical", "personal", "relationship", "event"])
         .optional(),
@@ -112,12 +113,9 @@ const memoryCandidateSchema = z.object({
           "generic_project",
         ])
         .optional(),
-      scopeKind: z
-        .enum(["identity", "project", "runtime", "reference", "preference"])
-        .optional(),
-      subject: z.string().optional(),
       feedbackKind: z.enum(["do", "dont", "prefer", "validated_pattern"]).optional(),
-      appliesTo: z.string().optional(),
+      preferenceCategory: z.string().optional(),
+      preferenceValue: z.string().optional(),
       profileField: z
         .enum([
           "name",
@@ -129,13 +127,15 @@ const memoryCandidateSchema = z.object({
           "currentProject",
         ])
         .optional(),
-      preferenceCategory: z.string().optional(),
-      preferenceValue: z.string().optional(),
       referenceKind: z
         .enum(["source_of_truth", "runbook", "doc", "dashboard", "tracker"])
         .optional(),
-      referenceTitle: z.string().optional(),
       referencePointer: z.string().optional(),
+      referenceTitle: z.string().optional(),
+      scopeKind: z
+        .enum(["identity", "project", "runtime", "reference", "preference"])
+        .optional(),
+      subject: z.string().optional(),
       supersedesPointer: z.string().optional(),
     })
     .partial()
@@ -262,10 +262,10 @@ export function buildMemoryExtractionPrompt(
 }
 
 export function createLLMMemoryExtractor(input: {
-  model: AISDKModelConfig;
-  system?: string;
-  promptBuilder?: (input: MemoryExtractionInput) => string;
   dependencies?: MemoryExtractorDependencies;
+  model: AISDKModelConfig;
+  promptBuilder?: (input: MemoryExtractionInput) => string;
+  system?: string;
 }): MemoryExtractor {
   return {
     async extract(payload): Promise<MemoryExtractionResult> {
