@@ -1,9 +1,9 @@
 Phase 15.3: Rules-Only Reviewer
 ===============================
 
-[TODO] P15.3-T001 Add rules-only post-turn reviewer baseline
-[TODO] P15.3-T002 Emit proposal candidates with explicit reasons and evidence links
-[TODO] P15.3-T003 Keep optional assisted reviewer hooks default-off
+[DONE] P15.3-T001 Add rules-only post-turn reviewer baseline
+[DONE] P15.3-T002 Emit proposal candidates with explicit reasons and evidence links
+[DONE] P15.3-T003 Keep optional assisted reviewer hooks default-off
 
 Why this exists
 ---------------
@@ -26,3 +26,21 @@ Acceptance
 ----------
 - Reviewer can generate stable proposals without provider dependency
 - Proposal reasons are inspectable and grounded in trace/evidence inputs
+
+
+Implemented
+-----------
+- Added `src/evolution/reviewer.ts` with deterministic rules for `memory_revision`, `procedural_pattern`, and `maintenance_action` proposals
+- Reused append-only `ExperienceRecord` telemetry plus scoped feedback/fact state to keep the reviewer explainable and rules-first
+- Wired post-turn reviewer execution into `createGoodMemory().remember()` and `createGoodMemory().feedback()` without widening the public API
+- Kept optional assisted reviewer extension hooks present but default-off
+
+
+Validation
+----------
+- `tests/unit/evolution.reviewer.test.ts`
+- `tests/integration/evolution.reviewer.test.ts`
+- `tests/integration/governance.api.test.ts`
+- `tests/integration/forget.api.test.ts`
+- `tests/unit/evolution.observations.test.ts`
+- `bun run typecheck`

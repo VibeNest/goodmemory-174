@@ -502,6 +502,43 @@ describe("public governance API", () => {
     expect(await documentStore.get(PROMOTION_RECORDS_COLLECTION, "promotion-s1")).toBeNull();
   });
 
+  it("keeps workspace-scoped proposals when deleting one contributing session", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+
+    await memory.feedback({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+      signal: "Use bullet points in summaries.",
+    });
+    await memory.feedback({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+      signal: "Use bullet points in summaries.",
+    });
+
+    const beforeDelete = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+
+    expect(beforeDelete.durable.proposals).toHaveLength(1);
+    expect(beforeDelete.durable.proposals[0]?.proposalType).toBe("procedural_pattern");
+    expect(beforeDelete.durable.proposals[0]?.sessionId).toBeUndefined();
+
+    const deleteResult = await memory.deleteAllMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+    });
+    const afterWorkspaceDelete = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+    const deletedSessionView = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+    });
+
+    expect(deleteResult.deleted.proposals).toBe(0);
+    expect(afterWorkspaceDelete.durable.proposals).toHaveLength(1);
+    expect(deletedSessionView.durable.proposals).toHaveLength(0);
+  });
+
   it("returns an empty recall when ignoreMemory is enabled even if data exists", async () => {
     const memory = createGoodMemory({
       storage: { provider: "memory" },

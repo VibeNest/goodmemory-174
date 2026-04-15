@@ -11,6 +11,7 @@ import {
   buildRecallExperienceRecords,
   buildRememberExperienceRecord,
 } from "../evolution/observations";
+import { createRulesOnlyReviewer } from "../evolution/reviewer";
 import type {
   FeedbackObservationResult,
   RecallObservationResult,
@@ -199,6 +200,7 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly repositories;
   private readonly recallEngine;
   private readonly rememberEngine;
+  private readonly reviewer;
   private readonly language;
 
   constructor(private readonly config: GoodMemoryConfig) {
@@ -268,6 +270,9 @@ class GoodMemoryImpl implements GoodMemory {
       language,
       policy: config.policy,
     });
+    this.reviewer = createRulesOnlyReviewer({
+      repositories,
+    });
   }
 
   async recall(input: RecallInput): Promise<RecallResult> {
@@ -284,6 +289,7 @@ class GoodMemoryImpl implements GoodMemory {
         createId: () => crypto.randomUUID(),
       }),
     );
+    await this.runRulesOnlyReview(input.scope);
 
     return result;
   }
@@ -314,6 +320,7 @@ class GoodMemoryImpl implements GoodMemory {
         createId: () => crypto.randomUUID(),
       }),
     ]);
+    await this.runRulesOnlyReview(input.scope);
 
     return result;
   }
@@ -628,6 +635,7 @@ class GoodMemoryImpl implements GoodMemory {
             createId: () => crypto.randomUUID(),
           }),
         ]);
+        await this.runRulesOnlyReview(input.scope);
 
         return result;
       }
@@ -655,6 +663,7 @@ class GoodMemoryImpl implements GoodMemory {
           createId: () => crypto.randomUUID(),
         }),
       ]);
+      await this.runRulesOnlyReview(input.scope);
 
       return result;
     }
@@ -681,6 +690,7 @@ class GoodMemoryImpl implements GoodMemory {
         createId: () => crypto.randomUUID(),
       }),
     ]);
+    await this.runRulesOnlyReview(input.scope);
 
     return result;
   }
@@ -692,6 +702,18 @@ class GoodMemoryImpl implements GoodMemory {
       } catch (error) {
         console.error("Failed to persist experience record", error);
       }
+    }
+  }
+
+  private async runRulesOnlyReview(scope: RememberInput["scope"]): Promise<void> {
+    try {
+      const proposals = await this.reviewer.review({ scope });
+
+      for (const proposal of proposals) {
+        await this.repositories.proposals.add(proposal);
+      }
+    } catch (error) {
+      console.error("Failed to run rules-only reviewer", error);
     }
   }
 }

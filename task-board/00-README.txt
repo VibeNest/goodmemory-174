@@ -90,8 +90,8 @@ Current Sequencing Note
 - Phase 13 governance work is complete and remains part of the accepted v1 surface.
 - Phase 14 archive/evidence/artifact foundation is complete enough to support downstream evolution work.
 - Phase 12 provider-layer work is implemented on top of the Phase 14 substrate and remains part of the accepted roadmap, not a competing branch.
-- Phase 15.1 and Phase 15.2 are complete: evolution contracts/repos exist and append-only observation telemetry now covers remember, recall, verify, feedback, and maintenance.
-- The active execution focus is now Phase 15.3 rules-only reflective reviewer, followed by the remaining Phase 15 proposal/salvage/gate work.
+- Phase 15.1, Phase 15.2, and Phase 15.3 are complete: evolution contracts/repos exist, append-only observation telemetry covers remember/recall/verify/feedback/maintenance, and the rules-only reviewer now emits governed proposals on post-turn paths.
+- The active execution focus is now Phase 15.4 salvage hooks, followed by the remaining Phase 15 proposal gate and visibility work.
 - Phase 15 through Phase 18 extend the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
@@ -103,9 +103,9 @@ Use these bands when choosing what to work on next:
 
 1. Immediate focus
    - Close any local WIP without widening scope
-   - Execute Phase 15.3 rules-only reviewer baseline
+   - Execute Phase 15.4 pre-compact and session-end salvage hooks
 2. Near-term product differentiation
-   - Finish the remaining Phase 15 proposal/reviewer pipeline slices
+   - Finish the remaining Phase 15 salvage, proposal gate, and visibility slices
    - Keep proposal visibility and gate behavior regression-covered while the reviewer/salvage path expands
 3. Medium-term system hardening
    - Execute Phase 16 outcome-aware maintenance
