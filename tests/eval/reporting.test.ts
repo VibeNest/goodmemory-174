@@ -122,6 +122,75 @@ function buildAnswerPackage(
       feedbackEvents: [],
       recallHitCount: mode === "goodmemory" ? 4 : 0,
       verificationHintCount: 0,
+      proposalLifecycle:
+        mode === "goodmemory"
+          ? {
+              experienceCount: 4,
+              experienceKindCounts: {
+                remember: 1,
+                feedback: 2,
+                verify: 1,
+              },
+              proposalCount: 2,
+              proposalStatusCounts: {
+                accepted: 1,
+                delayed: 1,
+              },
+              promotionCount: 2,
+              promotionDecisionCounts: {
+                accepted: 1,
+                delayed: 1,
+              },
+              proposals: [
+                {
+                  id: "proposal-1",
+                  proposalType: "maintenance_action" as const,
+                  status: "accepted" as const,
+                  summary: "Re-check stale blocker memory.",
+                  rationale: "One verification trace suggests a bounded maintenance follow-up.",
+                  modelInfluence: "rules-only" as const,
+                  sourceExperienceIds: ["xp-1"],
+                  linkedMemoryIds: ["fact-1"],
+                  linkedArchiveIds: [],
+                  linkedEvidenceIds: ["evidence-1"],
+                },
+                {
+                  id: "proposal-2",
+                  proposalType: "procedural_pattern" as const,
+                  status: "delayed" as const,
+                  summary: "Promote repeated guidance into a pattern.",
+                  rationale: "Repeated feedback suggests a reusable pattern.",
+                  modelInfluence: "rules-only" as const,
+                  sourceExperienceIds: ["xp-2", "xp-3"],
+                  linkedMemoryIds: ["feedback-1"],
+                  linkedArchiveIds: [],
+                  linkedEvidenceIds: [],
+                },
+              ],
+              promotions: [
+                {
+                  id: "promotion-1",
+                  proposalId: "proposal-1",
+                  decision: "accepted" as const,
+                  summary: "accepted proposal: Re-check stale blocker memory.",
+                  rationale: "proposal passed deterministic gates",
+                  policyOutcome: "passed" as const,
+                  verificationOutcome: "passed" as const,
+                  evalOutcome: "passed" as const,
+                },
+                {
+                  id: "promotion-2",
+                  proposalId: "proposal-2",
+                  decision: "delayed" as const,
+                  summary: "delayed proposal: Promote repeated guidance into a pattern.",
+                  rationale: "procedural proposal requires later eval review",
+                  policyOutcome: "passed" as const,
+                  verificationOutcome: "passed" as const,
+                  evalOutcome: "review_required" as const,
+                },
+              ],
+            }
+          : null,
       contextBuild:
         mode === "goodmemory"
           ? {
@@ -473,7 +542,12 @@ describe("eval reporting", () => {
       ) as {
         metadata: { taskFamily: string };
         assertions: { passed: boolean };
-        goodmemory: { trace: { recallHitCount: number } };
+        goodmemory: {
+          trace: {
+            recallHitCount: number;
+            proposalLifecycle?: { proposalCount: number };
+          };
+        };
       };
       const baselineTrace = JSON.parse(
         await readFile(
@@ -507,6 +581,16 @@ describe("eval reporting", () => {
           "utf8",
         ),
       ) as { updateFindings: string[] };
+      const proposalTrace = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "traces/case-1/proposal-trace.json"),
+          "utf8",
+        ),
+      ) as {
+        proposalCount: number;
+        promotionCount: number;
+        promotionDecisionCounts: Record<string, number>;
+      };
 
       expect(report.mode).toBe("fallback");
       expect(report.runId).toBe("run-001");
@@ -520,6 +604,7 @@ describe("eval reporting", () => {
       expect(caseArtifact.metadata.taskFamily).toBe("drift_override_lifelong_update");
       expect(caseArtifact.assertions.passed).toBe(false);
       expect(caseArtifact.goodmemory.trace.recallHitCount).toBe(4);
+      expect(caseArtifact.goodmemory.trace.proposalLifecycle?.proposalCount).toBe(2);
       expect(baselineTrace.mode).toBe("baseline");
       expect(baselineTrace.trace.sessionsReplayed).toBe(0);
       expect(goodmemoryTrace.mode).toBe("goodmemory");
@@ -532,6 +617,9 @@ describe("eval reporting", () => {
         "rules-only",
       );
       expect(assertions.updateFindings).toContain("docs/runbook.md");
+      expect(proposalTrace.proposalCount).toBe(2);
+      expect(proposalTrace.promotionCount).toBe(2);
+      expect(proposalTrace.promotionDecisionCounts.accepted).toBe(1);
     } finally {
       await workspace.cleanup();
     }

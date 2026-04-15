@@ -10,9 +10,9 @@ import type {
   EvalAnswerGeneratorInput,
 } from "../eval/runners";
 import type { MemoryExtractor } from "../remember/candidates";
-import type { AISDKModelConfig } from "../llm/ai-sdk-runtime";
-import { createAISDKEmbeddingAdapter } from "../llm/ai-sdk-runtime";
 import type { EmbeddingAdapter } from "../embedding/contracts";
+import type { AISDKModelConfig } from "./ai-sdk-runtime";
+import { createAISDKEmbeddingAdapter } from "./ai-sdk-runtime";
 import { createLLMMemoryExtractor } from "./memory-extractor";
 import type {
   ModelProviderId,

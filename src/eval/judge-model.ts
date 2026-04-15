@@ -1,13 +1,13 @@
 import { generateObject } from "ai";
 
-import type { AISDKRetryOptions } from "../llm/ai-sdk-runtime";
-import type { FetchLike } from "../llm/ai-sdk-runtime";
-import type { AISDKModelConfig } from "../llm/ai-sdk-runtime";
 import {
   requestOpenAICompatibleObject,
   resolveAISDKModel,
   withAISDKRetries,
-} from "../llm/ai-sdk-runtime";
+} from "../provider/ai-sdk-runtime";
+import type { AISDKRetryOptions } from "../provider/ai-sdk-runtime";
+import type { FetchLike } from "../provider/ai-sdk-runtime";
+import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
 import type { JudgeModel } from "./judge";
 import { judgeResultSchema } from "./judge";
 

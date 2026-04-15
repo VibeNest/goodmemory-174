@@ -11,6 +11,7 @@ import {
   buildRecallExperienceRecords,
   buildRememberExperienceRecord,
 } from "../evolution/observations";
+import { createProposalGateProcessor } from "../evolution/gates";
 import { createRulesOnlyReviewer } from "../evolution/reviewer";
 import type {
   FeedbackObservationResult,
@@ -201,6 +202,7 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly recallEngine;
   private readonly rememberEngine;
   private readonly reviewer;
+  private readonly proposalGate;
   private readonly language;
 
   constructor(private readonly config: GoodMemoryConfig) {
@@ -248,7 +250,8 @@ class GoodMemoryImpl implements GoodMemory {
     this.language = language;
     this.recallEngine = createRecallEngine({
       repositories,
-      sessionStore,
+      runtime: sessionStore,
+      vectorIndex: repositories.vectorIndex,
       embedding: config.adapters?.embeddingAdapter,
       now: config.testing?.now ? () => config.testing!.now!().getTime() : undefined,
       referenceTime: config.testing?.now
@@ -259,6 +262,7 @@ class GoodMemoryImpl implements GoodMemory {
     });
     this.rememberEngine = createRememberEngine({
       repositories,
+      vectorIndex: repositories.vectorIndex,
       assistedExtractor: config.adapters?.assistedExtractor,
       documentStore,
       embedding: config.adapters?.embeddingAdapter,
@@ -271,6 +275,9 @@ class GoodMemoryImpl implements GoodMemory {
       policy: config.policy,
     });
     this.reviewer = createRulesOnlyReviewer({
+      repositories,
+    });
+    this.proposalGate = createProposalGateProcessor({
       repositories,
     });
   }
@@ -709,9 +716,14 @@ class GoodMemoryImpl implements GoodMemory {
     try {
       const proposals = await this.reviewer.review({ scope });
 
-      for (const proposal of proposals) {
-        await this.repositories.proposals.add(proposal);
+      if (proposals.length === 0) {
+        return;
       }
+
+      await this.proposalGate.process({
+        scope,
+        proposals,
+      });
     } catch (error) {
       console.error("Failed to run rules-only reviewer", error);
     }

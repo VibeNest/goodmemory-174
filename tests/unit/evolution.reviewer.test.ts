@@ -236,7 +236,7 @@ describe("rules-only reviewer", () => {
     expect(proposals[0]?.sessionId).toBeUndefined();
   });
 
-  it("does not emit duplicate proposals when an equivalent pending proposal already exists", async () => {
+  it("does not emit duplicate proposals when an equivalent accepted proposal already exists", async () => {
     const repositories = createMemoryRepositories({
       documentStore: createInMemoryDocumentStore(),
       sessionStore: createInMemorySessionStore(),
@@ -286,10 +286,10 @@ describe("rules-only reviewer", () => {
       userId: "u-1",
       workspaceId: "workspace-a",
       proposalType: "procedural_pattern",
-      status: "pending",
+      status: "accepted",
       traceId: "trace-existing",
       summary: "Promote repeated guidance into a governed procedural pattern: Use bullet points in summaries.",
-      rationale: "Existing pending proposal.",
+      rationale: "Existing accepted proposal.",
       sourceExperienceIds: ["xp-feedback-1", "xp-feedback-2"],
       linkedMemoryIds: ["feedback-1"],
       linkedArchiveIds: [],
@@ -302,5 +302,93 @@ describe("rules-only reviewer", () => {
     const proposals = await reviewer.review({ scope });
 
     expect(proposals).toHaveLength(0);
+  });
+
+  it("refreshes an equivalent delayed proposal when new experience lineage arrives", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+    const reviewer = createRulesOnlyReviewer({
+      repositories,
+      now: () => "2026-04-15T00:00:00.000Z",
+      createId: () => "proposal-2",
+      createTraceId: () => "review-trace-2",
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    await repositories.feedback.upsert(
+      createFeedbackMemory({
+        id: "feedback-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        rule: "Use bullet points in summaries.",
+        kind: "do",
+        source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.experiences.add(
+      createExperienceRecord({
+        id: "xp-feedback-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "feedback",
+        traceId: "trace-feedback-1",
+        summary: "Feedback written.",
+        linkedMemoryIds: ["feedback-1"],
+      }),
+    );
+    await repositories.experiences.add(
+      createExperienceRecord({
+        id: "xp-feedback-2",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "feedback",
+        traceId: "trace-feedback-2",
+        summary: "Feedback merged.",
+        linkedMemoryIds: ["feedback-1"],
+      }),
+    );
+    await repositories.experiences.add(
+      createExperienceRecord({
+        id: "xp-feedback-3",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "feedback",
+        traceId: "trace-feedback-3",
+        summary: "Feedback validated again.",
+        linkedMemoryIds: ["feedback-1"],
+      }),
+    );
+    await repositories.proposals.add({
+      id: "proposal-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      proposalType: "procedural_pattern",
+      status: "delayed",
+      traceId: "trace-existing",
+      summary: "Promote repeated guidance into a governed procedural pattern: Use bullet points in summaries.",
+      rationale: "Rules-only reviewer saw 2 successful feedback traces pointing to the same active guidance. This is stable enough to propose as a reusable procedural pattern.",
+      sourceExperienceIds: ["xp-feedback-1", "xp-feedback-2"],
+      linkedMemoryIds: ["feedback-1"],
+      linkedArchiveIds: [],
+      linkedEvidenceIds: [],
+      modelInfluence: "rules-only",
+      createdAt: "2026-04-14T00:00:00.000Z",
+      updatedAt: "2026-04-14T00:00:00.000Z",
+    });
+
+    const proposals = await reviewer.review({ scope });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.id).toBe("proposal-1");
+    expect(proposals[0]?.traceId).toBe("trace-existing");
+    expect(proposals[0]?.createdAt).toBe("2026-04-14T00:00:00.000Z");
+    expect(proposals[0]?.sourceExperienceIds).toEqual([
+      "xp-feedback-1",
+      "xp-feedback-2",
+      "xp-feedback-3",
+    ]);
+    expect(proposals[0]?.rationale).toContain("3 successful feedback traces");
   });
 });

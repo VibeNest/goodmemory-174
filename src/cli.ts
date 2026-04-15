@@ -9,6 +9,32 @@ interface CLIResult {
 
 type ParsedArgs = Record<string, string>;
 
+interface ProposalLifecycleTrace {
+  experienceCount: number;
+  experienceKindCounts?: Record<string, number>;
+  proposalCount: number;
+  proposalStatusCounts?: Record<string, number>;
+  promotionCount: number;
+  promotionDecisionCounts?: Record<string, number>;
+  proposals: Array<{
+    id: string;
+    proposalType: string;
+    status: string;
+    summary: string;
+    sourceExperienceIds: string[];
+    linkedMemoryIds: string[];
+    linkedArchiveIds: string[];
+    linkedEvidenceIds: string[];
+  }>;
+  promotions: Array<{
+    proposalId: string;
+    decision: string;
+    policyOutcome: string;
+    verificationOutcome: string;
+    evalOutcome: string;
+  }>;
+}
+
 function parseArgs(argv: string[]): { command?: string; flags: ParsedArgs } {
   const [command, ...rest] = argv;
   const flags: ParsedArgs = {};
@@ -66,6 +92,36 @@ function requireFlag(flags: ParsedArgs, name: string): string {
   return value;
 }
 
+function formatCountBreakdown(
+  counts: Record<string, number> | undefined,
+): string | null {
+  if (!counts || Object.keys(counts).length === 0) {
+    return null;
+  }
+
+  return Object.entries(counts)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join(", ");
+}
+
+function formatCountLine(
+  label: string,
+  total: number | undefined,
+  counts: Record<string, number> | undefined,
+): string {
+  if (total === undefined) {
+    return `${label}: unknown`;
+  }
+
+  const breakdown = formatCountBreakdown(counts);
+  return breakdown ? `${label}: ${total} (${breakdown})` : `${label}: ${total}`;
+}
+
+function clipText(content: string, maxLength = 100): string {
+  return content.length <= maxLength ? content : `${content.slice(0, maxLength - 3)}...`;
+}
+
 async function inspectCase(runDir: string, caseId: string): Promise<string> {
   const report = await readJson<{
     mode?: string;
@@ -100,11 +156,15 @@ async function inspectCase(runDir: string, caseId: string): Promise<string> {
         episodes?: unknown[];
         policyApplied?: string[];
       };
-      trace?: { recallHitCount?: number };
+      trace?: {
+        recallHitCount?: number;
+        proposalLifecycle?: ProposalLifecycleTrace | null;
+      };
     };
   }>(join(runDir, "cases", `${caseId}.json`));
 
   const retrieved = artifact.goodmemory?.retrieved;
+  const proposalLifecycle = artifact.goodmemory?.trace?.proposalLifecycle ?? null;
 
   return [
     `Run Mode: ${report.mode ?? "unknown"}`,
@@ -123,6 +183,21 @@ async function inspectCase(runDir: string, caseId: string): Promise<string> {
     `Archives: ${retrieved?.archives?.length ?? 0}`,
     `Evidence: ${retrieved?.evidence?.length ?? 0}`,
     `Episodes: ${retrieved?.episodes?.length ?? 0}`,
+    formatCountLine(
+      "Experience Records",
+      proposalLifecycle?.experienceCount,
+      proposalLifecycle?.experienceKindCounts,
+    ),
+    formatCountLine(
+      "Proposals",
+      proposalLifecycle?.proposalCount,
+      proposalLifecycle?.proposalStatusCounts,
+    ),
+    formatCountLine(
+      "Promotions",
+      proposalLifecycle?.promotionCount,
+      proposalLifecycle?.promotionDecisionCounts,
+    ),
     `Recall Hits: ${artifact.goodmemory?.trace?.recallHitCount ?? 0}`,
     `Assertions: ${
       artifact.assertions
@@ -153,6 +228,7 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
           reason?: string;
         }>;
       }>;
+      proposalLifecycle?: ProposalLifecycleTrace | null;
     };
   }>(join(runDir, "traces", caseId, "goodmemory.json"));
   const assertions = await readOptionalJson<{
@@ -172,6 +248,12 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
     verificationHints?: Array<{ memoryType: string; reason: string; evidenceIds?: string[] }>;
     policyApplied?: string[];
   }>(join(runDir, "traces", caseId, "raw-recall.json"));
+  const proposalTrace =
+    (await readOptionalJson<ProposalLifecycleTrace>(
+      join(runDir, "traces", caseId, "proposal-trace.json"),
+    )) ??
+    goodmemory.trace.proposalLifecycle ??
+    null;
 
   const writeLines = goodmemory.trace.rememberEvents.flatMap((session) => {
     const header = `- ${session.sessionId}: accepted=${session.accepted}, rejected=${session.rejected}`;
@@ -202,6 +284,33 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
       }`,
   );
   const policyLines = (recall.policyApplied ?? []).map((policy) => `- ${policy}`);
+  const proposalLines = proposalTrace
+    ? [
+        `- experiences: ${proposalTrace.experienceCount}${
+          formatCountBreakdown(proposalTrace.experienceKindCounts)
+            ? ` [${formatCountBreakdown(proposalTrace.experienceKindCounts)}]`
+            : ""
+        }`,
+        `- proposals: ${proposalTrace.proposalCount}${
+          formatCountBreakdown(proposalTrace.proposalStatusCounts)
+            ? ` [${formatCountBreakdown(proposalTrace.proposalStatusCounts)}]`
+            : ""
+        }`,
+        ...proposalTrace.proposals.map(
+          (proposal) =>
+            `- ${proposal.proposalType} / ${proposal.status}: ${clipText(proposal.summary)} ` +
+            `[source=${proposal.sourceExperienceIds.length} memory=${proposal.linkedMemoryIds.length} ` +
+            `archive=${proposal.linkedArchiveIds.length} evidence=${proposal.linkedEvidenceIds.length}]`,
+        ),
+      ]
+    : ["- unavailable"];
+  const promotionLines = proposalTrace
+    ? proposalTrace.promotions.map(
+        (promotion) =>
+          `- ${promotion.proposalId} -> ${promotion.decision} ` +
+          `[policy=${promotion.policyOutcome} verification=${promotion.verificationOutcome} eval=${promotion.evalOutcome}]`,
+      )
+    : ["- unavailable"];
   const assertionLines = assertions
     ? assertions.checks.map(
         (check) =>
@@ -224,6 +333,12 @@ async function traceCase(runDir: string, caseId: string): Promise<string> {
     "",
     "Policy Applied",
     ...(policyLines.length > 0 ? policyLines : ["- none"]),
+    "",
+    "Proposal Lifecycle",
+    ...(proposalLines.length > 0 ? proposalLines : ["- none"]),
+    "",
+    "Promotion Decisions",
+    ...(promotionLines.length > 0 ? promotionLines : ["- none"]),
     "",
     "Assertions",
     ...assertionLines,

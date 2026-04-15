@@ -87,12 +87,14 @@ export interface MemoryRepositories {
   };
   proposals: {
     add(proposal: LearningProposal): Promise<void>;
+    delete(id: string): Promise<void>;
     get(id: string): Promise<LearningProposal | null>;
     listByUser(userId: string): Promise<LearningProposal[]>;
     listByScope(scope: MemoryScope): Promise<LearningProposal[]>;
   };
   promotions: {
     add(promotion: PromotionRecord): Promise<void>;
+    delete(id: string): Promise<void>;
     get(id: string): Promise<PromotionRecord | null>;
     listByUser(userId: string): Promise<PromotionRecord[]>;
     listByScope(scope: MemoryScope): Promise<PromotionRecord[]>;
@@ -374,6 +376,10 @@ export function createMemoryRepositories(
         );
       },
 
+      async delete(id: string): Promise<void> {
+        await config.documentStore.delete(LEARNING_PROPOSALS_COLLECTION, id);
+      },
+
       async get(id: string): Promise<LearningProposal | null> {
         return config.documentStore.get<LearningProposal>(
           LEARNING_PROPOSALS_COLLECTION,
@@ -405,6 +411,10 @@ export function createMemoryRepositories(
           promotion.id,
           promotion,
         );
+      },
+
+      async delete(id: string): Promise<void> {
+        await config.documentStore.delete(PROMOTION_RECORDS_COLLECTION, id);
       },
 
       async get(id: string): Promise<PromotionRecord | null> {

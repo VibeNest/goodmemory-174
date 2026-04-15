@@ -987,7 +987,7 @@ goodmemory/
 │   │   │   │   ├── facts.ts         # L2 fact store logic
 │   │   │   │   └── episodes.ts      # L3 episode store logic
 │   │   │   ├── adapters/
-│   │   │   │   ├── llm/
+│   │   │   │   ├── provider/
 │   │   │   │   │   ├── interface.ts
 │   │   │   │   │   ├── anthropic.ts
 │   │   │   │   │   ├── openai.ts

@@ -8,8 +8,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./cli": "./src/cli.ts",
-    "./llm/ai-sdk": "./src/llm/ai-sdk-runtime.ts"
+    "./cli": "./src/cli.ts"
   },
   "scripts": {
     "test": "bun test",

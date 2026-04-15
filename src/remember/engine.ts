@@ -55,6 +55,10 @@ export function createRememberEngine(config: RememberEngineConfig) {
   const assistedExtractor = config.assistedExtractor;
   const now = config.now ?? (() => new Date().toISOString());
   const createId = config.createId ?? (() => crypto.randomUUID());
+  const vectorIndex =
+    config.vectorIndex !== undefined
+      ? config.vectorIndex ?? null
+      : config.repositories.vectorIndex ?? null;
 
   const shouldAutoUseAssistedExtraction = (input: {
     request: MemoryExtractionInput;
@@ -226,7 +230,6 @@ export function createRememberEngine(config: RememberEngineConfig) {
         locale: resolvedLanguage.locale,
         localeSource: resolvedLanguage.localeSource,
       };
-      const vectorIndex = config.repositories.vectorIndex;
       const setDocumentWithRollback = async <TDocument extends object>(
         collection: string,
         id: string,

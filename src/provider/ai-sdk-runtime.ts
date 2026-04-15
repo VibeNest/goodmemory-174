@@ -6,8 +6,8 @@ import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { embedMany } from "ai";
 import { z } from "zod";
 import type { EmbeddingAdapter } from "../embedding/contracts";
-import { isModelProviderId } from "../provider/model-provider";
-import type { ModelProviderId } from "../provider/model-provider";
+import { isModelProviderId } from "./model-provider";
+import type { ModelProviderId } from "./model-provider";
 
 export interface AISDKModelConfig {
   provider: ModelProviderId;

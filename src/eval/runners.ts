@@ -1,8 +1,17 @@
 import type {
+  ExportMemoryResult,
   FeedbackResult,
   GoodMemory,
   RecallResult,
 } from "../api/contracts";
+import type {
+  ExperienceKind,
+  ExperienceModelInfluence,
+  LearningProposalStatus,
+  LearningProposalType,
+  PromotionDecision,
+  PromotionGateOutcome,
+} from "../evolution/contracts";
 import type {
   PersonalizationTaskFamily,
   PersonaSpec,
@@ -30,6 +39,41 @@ export interface EvalAnswerGeneratorOutput {
 export type EvalAnswerGenerator = (
   input: EvalAnswerGeneratorInput,
 ) => Promise<EvalAnswerGeneratorOutput>;
+
+export interface EvalProposalTraceItem {
+  id: string;
+  proposalType: LearningProposalType;
+  status: LearningProposalStatus;
+  summary: string;
+  rationale: string;
+  modelInfluence: ExperienceModelInfluence;
+  sourceExperienceIds: string[];
+  linkedMemoryIds: string[];
+  linkedArchiveIds: string[];
+  linkedEvidenceIds: string[];
+}
+
+export interface EvalPromotionTraceItem {
+  id: string;
+  proposalId: string;
+  decision: PromotionDecision;
+  summary: string;
+  rationale: string;
+  policyOutcome: PromotionGateOutcome;
+  verificationOutcome: PromotionGateOutcome;
+  evalOutcome: PromotionGateOutcome;
+}
+
+export interface EvalProposalLifecycleTrace {
+  experienceCount: number;
+  experienceKindCounts: Partial<Record<ExperienceKind, number>>;
+  proposalCount: number;
+  proposalStatusCounts: Partial<Record<LearningProposalStatus, number>>;
+  promotionCount: number;
+  promotionDecisionCounts: Partial<Record<PromotionDecision, number>>;
+  proposals: EvalProposalTraceItem[];
+  promotions: EvalPromotionTraceItem[];
+}
 
 export interface EvalAnswerPackage {
   mode: "baseline" | "goodmemory";
@@ -83,6 +127,7 @@ export interface EvalAnswerPackage {
     }>;
     recallHitCount: number;
     verificationHintCount: number;
+    proposalLifecycle: EvalProposalLifecycleTrace | null;
     contextBuild:
       | null
       | {
@@ -174,6 +219,7 @@ export async function runBaselineScenario(input: {
       feedbackEvents: [],
       recallHitCount: 0,
       verificationHintCount: 0,
+      proposalLifecycle: null,
       contextBuild: null,
     },
   };
@@ -210,6 +256,77 @@ function buildScenarioScope(
     userId: buildEvalUserId(persona, scopeNamespace),
     workspaceId: buildEvalWorkspaceId(persona, scopeNamespace),
     sessionId,
+  };
+}
+
+function incrementCount<Key extends string>(
+  counts: Partial<Record<Key, number>>,
+  key: Key,
+): void {
+  counts[key] = (counts[key] ?? 0) + 1;
+}
+
+function compareByTimestamp(
+  left: { id: string; createdAt?: string; decidedAt?: string },
+  right: { id: string; createdAt?: string; decidedAt?: string },
+): number {
+  const leftTimestamp = left.decidedAt ?? left.createdAt ?? "";
+  const rightTimestamp = right.decidedAt ?? right.createdAt ?? "";
+  const timestampComparison = leftTimestamp.localeCompare(rightTimestamp);
+
+  return timestampComparison !== 0 ? timestampComparison : left.id.localeCompare(right.id);
+}
+
+function buildProposalLifecycleTrace(
+  exported: ExportMemoryResult,
+): EvalProposalLifecycleTrace {
+  const experienceKindCounts: EvalProposalLifecycleTrace["experienceKindCounts"] = {};
+  const proposalStatusCounts: EvalProposalLifecycleTrace["proposalStatusCounts"] = {};
+  const promotionDecisionCounts: EvalProposalLifecycleTrace["promotionDecisionCounts"] = {};
+
+  for (const experience of exported.durable.experiences) {
+    incrementCount(experienceKindCounts, experience.kind);
+  }
+  for (const proposal of exported.durable.proposals) {
+    incrementCount(proposalStatusCounts, proposal.status);
+  }
+  for (const promotion of exported.durable.promotions) {
+    incrementCount(promotionDecisionCounts, promotion.decision);
+  }
+
+  return {
+    experienceCount: exported.durable.experiences.length,
+    experienceKindCounts,
+    proposalCount: exported.durable.proposals.length,
+    proposalStatusCounts,
+    promotionCount: exported.durable.promotions.length,
+    promotionDecisionCounts,
+    proposals: [...exported.durable.proposals]
+      .sort(compareByTimestamp)
+      .map((proposal) => ({
+        id: proposal.id,
+        proposalType: proposal.proposalType,
+        status: proposal.status,
+        summary: proposal.summary,
+        rationale: proposal.rationale,
+        modelInfluence: proposal.modelInfluence,
+        sourceExperienceIds: proposal.sourceExperienceIds,
+        linkedMemoryIds: proposal.linkedMemoryIds,
+        linkedArchiveIds: proposal.linkedArchiveIds,
+        linkedEvidenceIds: proposal.linkedEvidenceIds,
+      })),
+    promotions: [...exported.durable.promotions]
+      .sort(compareByTimestamp)
+      .map((promotion) => ({
+        id: promotion.id,
+        proposalId: promotion.proposalId,
+        decision: promotion.decision,
+        summary: promotion.summary,
+        rationale: promotion.rationale,
+        policyOutcome: promotion.policyOutcome,
+        verificationOutcome: promotion.verificationOutcome,
+        evalOutcome: promotion.evalOutcome,
+      })),
   };
 }
 
@@ -256,6 +373,8 @@ export async function runGoodMemoryScenario(input: {
 }): Promise<EvalAnswerPackage> {
   const rememberEvents: EvalAnswerPackage["trace"]["rememberEvents"] = [];
   const evaluationPlan = buildEvaluationPlan(input.scenario);
+  const evalUserId = buildEvalUserId(input.persona, input.scopeNamespace);
+  const evalWorkspaceId = buildEvalWorkspaceId(input.persona, input.scopeNamespace);
 
   for (const session of evaluationPlan.replaySessions) {
     const result = await input.memory.remember({
@@ -301,6 +420,12 @@ export async function runGoodMemoryScenario(input: {
     output: "markdown",
     maxTokens: 160,
   });
+  const exported = await input.memory.exportMemory({
+    scope: {
+      userId: evalUserId,
+      workspaceId: evalWorkspaceId,
+    },
+  });
   const prompt = getEvaluationPrompt(input.scenario);
   const transcript = renderTranscript(evaluationPlan.visibleTranscriptTurns);
   const answer = await input.answerGenerator({
@@ -343,7 +468,13 @@ export async function runGoodMemoryScenario(input: {
       policyApplied: recall.metadata.policyApplied,
       renderedMemoryContext: context.content,
     },
-    trace: buildGoodMemoryTrace(rememberEvents, feedbackEvents, recall, context),
+    trace: buildGoodMemoryTrace(
+      rememberEvents,
+      feedbackEvents,
+      recall,
+      context,
+      buildProposalLifecycleTrace(exported),
+    ),
   };
 }
 
@@ -356,6 +487,7 @@ function buildGoodMemoryTrace(
     content: string;
     estimatedTokens: number;
   },
+  proposalLifecycle: EvalProposalLifecycleTrace,
 ): EvalAnswerPackage["trace"] {
   return {
     sessionsReplayed: rememberEvents.length,
@@ -363,6 +495,7 @@ function buildGoodMemoryTrace(
     feedbackEvents,
     recallHitCount: recall.metadata.hits.length,
     verificationHintCount: recall.metadata.verificationHints.length,
+    proposalLifecycle,
     contextBuild: {
       output: context.output,
       maxTokens: 160,

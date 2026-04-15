@@ -13,8 +13,8 @@ import {
 } from "../src/eval/runners";
 import { runEvalSuite, type EvalSuiteResult } from "../src/eval/suite";
 import type { JudgeScores } from "../src/eval/judge";
-import type { AISDKModelConfig } from "../src/llm/ai-sdk-runtime";
-import { parseAISDKModelConfigFromEnv } from "../src/llm/ai-sdk-runtime";
+import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
+import { parseAISDKModelConfigFromEnv } from "../src/provider/ai-sdk-runtime";
 import {
   createFallbackAdapterDescriptor,
   createLiveAdapterDescriptor,

@@ -521,6 +521,11 @@ export async function persistEvalArtifacts(input: {
       "utf8",
     );
     await writeFile(
+      join(caseTraceDirectory, "proposal-trace.json"),
+      `${JSON.stringify(item.goodmemory.trace.proposalLifecycle, null, 2)}\n`,
+      "utf8",
+    );
+    await writeFile(
       join(caseTraceDirectory, "context-build.json"),
       `${JSON.stringify(item.goodmemory.trace.contextBuild, null, 2)}\n`,
       "utf8",

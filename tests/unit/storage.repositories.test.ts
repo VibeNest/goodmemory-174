@@ -25,6 +25,15 @@ import {
   createInMemorySessionStore,
   createInMemoryVectorStore,
 } from "../../src/storage/memory";
+import type {
+  EvolutionRepositoryPort,
+  MaintenanceRepositoryPort,
+  MaintenanceVectorPort,
+  RecallRepositoryPort,
+  RecallVectorSearchPort,
+  RememberRepositoryPort,
+  RememberVectorPort,
+} from "../../src/storage/ports";
 
 describe("memory repositories", () => {
   it("provides typed accessors over storage contracts", async () => {
@@ -50,6 +59,81 @@ describe("memory repositories", () => {
     await repositories.facts.add(fact);
 
     expect(await repositories.facts.listByUser("u-1")).toHaveLength(1);
+  });
+
+  it("satisfies narrow internal ports for subsystem assembly", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+      vectorStore: createInMemoryVectorStore(),
+    });
+    const rememberRepositories: RememberRepositoryPort = repositories;
+    const recallRepositories: RecallRepositoryPort = repositories;
+    const evolutionRepositories: EvolutionRepositoryPort = repositories;
+    const maintenanceRepositories: MaintenanceRepositoryPort = repositories;
+    const rememberVector = repositories.vectorIndex as RememberVectorPort;
+    const recallVector = repositories.vectorIndex as RecallVectorSearchPort;
+    const maintenanceVector = repositories.vectorIndex as MaintenanceVectorPort;
+    const scope = { userId: "u-port", workspaceId: "workspace-a" };
+
+    const fact = createFactMemory({
+      id: "fact-port",
+      userId: "u-port",
+      workspaceId: "workspace-a",
+      category: "project",
+      content: "Ports keep subsystem wiring narrow.",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+    });
+    await rememberRepositories.facts.add(fact);
+
+    const archive = createSessionArchive({
+      id: "archive-port",
+      userId: "u-port",
+      workspaceId: "workspace-a",
+      sessionId: "session-a",
+      summary: "Archive created through maintenance port.",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      archivedAt: "2026-01-01T00:00:00.000Z",
+    });
+    await maintenanceRepositories.archives.add(archive);
+
+    const proposal = createLearningProposal({
+      id: "proposal-port",
+      userId: "u-port",
+      workspaceId: "workspace-a",
+      proposalType: "procedural_pattern",
+      traceId: "trace-port",
+      summary: "Promote a stable preference after review.",
+      rationale: "Ports keep proposal persistence narrow and explicit.",
+    });
+    await evolutionRepositories.proposals.add(proposal);
+
+    await rememberVector.upsertFactEmbedding([
+      {
+        id: fact.id,
+        embedding: [1, 0, 0],
+        metadata: { userId: "u-port", workspaceId: "workspace-a", memoryType: "fact" },
+        content: fact.content,
+      },
+    ]);
+
+    expect(await recallRepositories.facts.listByScope(scope)).toEqual([fact]);
+    expect(await recallRepositories.archives.listByScope(scope)).toEqual([archive]);
+    expect(await evolutionRepositories.proposals.get(proposal.id)).toEqual(proposal);
+    expect(
+      await recallVector.searchFactEmbedding([1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-port", workspaceId: "workspace-a" },
+      }),
+    ).toContainEqual(expect.objectContaining({ id: fact.id }));
+
+    await maintenanceVector.deleteFactEmbedding(fact.id);
+    expect(
+      await recallVector.searchFactEmbedding([1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-port", workspaceId: "workspace-a" },
+      }),
+    ).toHaveLength(0);
   });
 
   it("supports scope-aware retrieval for facts and feedback", async () => {

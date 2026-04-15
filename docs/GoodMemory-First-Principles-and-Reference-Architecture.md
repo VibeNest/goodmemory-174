@@ -649,7 +649,10 @@ Implications:
 
 - core contracts do not depend on API, eval, provider, vendor runtime, or concrete storage implementations
 - core behavior does not depend on API, eval, CLI, provider/vendor runtime, or concrete storage implementations
+- core behavior depends on narrow internal subsystem ports rather than the wide repository assembly surface
 - provider-backed and host/file-authoritative behavior enter only through explicit adapter boundaries and do not redefine the core truth model
+- `createGoodMemory(config)` is the formal composition root; raw repository assembly and vendor-runtime shims remain legacy advanced surfaces for compatibility only
+- `src/provider/` is the provider-backed implementation boundary; provider runtime code does not live in a parallel compatibility tree
 - dependency-matrix tests are part of the merge gate for the post-v1 archive, evidence, proposal, and host-adapter work
 
 ### 6.4 Default vs optional capabilities

@@ -3,7 +3,7 @@ import {
   type PreparedMemoryEmbeddingRecord,
 } from "../embedding/vectorWrites";
 import type { EmbeddingAdapter } from "../embedding/contracts";
-import type { MemoryRepositories } from "../storage/repositories";
+import type { RememberVectorPort } from "../storage/ports";
 import type {
   PendingVectorDelete,
   RememberWriteState,
@@ -27,7 +27,7 @@ export async function rollbackRememberWrites(
 }
 
 async function deleteVectorEmbedding(
-  vectorIndex: NonNullable<MemoryRepositories["vectorIndex"]>,
+  vectorIndex: RememberVectorPort,
   memoryType: PreparedMemoryEmbeddingRecord["memoryType"],
   id: string,
 ): Promise<void> {
@@ -45,7 +45,7 @@ async function deleteVectorEmbedding(
 
 async function upsertVectorRecords(input: {
   records: PreparedMemoryEmbeddingRecord[];
-  vectorIndex: NonNullable<MemoryRepositories["vectorIndex"]>;
+  vectorIndex: RememberVectorPort;
   rollbackActions?: RollbackAction[];
 }): Promise<void> {
   const { records, vectorIndex, rollbackActions } = input;
@@ -109,7 +109,7 @@ export async function commitRememberVectors(input: {
   embedding?: EmbeddingAdapter;
   rollbackActions: RollbackAction[];
   state: RememberWriteState;
-  vectorIndex: MemoryRepositories["vectorIndex"];
+  vectorIndex?: RememberVectorPort | null;
 }): Promise<void> {
   if (!input.vectorIndex) {
     return;

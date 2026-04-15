@@ -15,7 +15,7 @@ describe("release metadata and docs", () => {
     expect(pkg.bin?.goodmemory).toBe("./scripts/goodmemory-cli.ts");
     expect(pkg.exports?.["."]).toBe("./src/index.ts");
     expect(pkg.exports?.["./cli"]).toBe("./src/cli.ts");
-    expect(pkg.exports?.["./llm/ai-sdk"]).toBe("./src/llm/ai-sdk-runtime.ts");
+    expect(Object.keys(pkg.exports ?? {})).not.toContain("./llm/ai-sdk");
     expect(pkg.scripts?.cli).toBe("bun run scripts/goodmemory-cli.ts");
     expect(pkg.scripts?.["example:chat"]).toBe("bun run examples/basic-chat.ts");
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
@@ -42,9 +42,13 @@ describe("release metadata and docs", () => {
       exports?: Record<string, string | { import?: string }>;
     };
 
-    const aiSDKExport = pkg.exports?.["./llm/ai-sdk"];
-    expect(typeof aiSDKExport).toBe("string");
-    await access(join(import.meta.dir, "../../", aiSDKExport as string));
+    for (const target of Object.values(pkg.exports ?? {})) {
+      if (typeof target !== "string") {
+        continue;
+      }
+
+      await access(join(import.meta.dir, "../../", target));
+    }
   });
 
   it("readme links the canonical docs, examples, cli, and eval flow", async () => {

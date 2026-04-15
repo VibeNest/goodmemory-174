@@ -38,6 +38,13 @@ describe("reflective reviewer integration", () => {
     expect(exported.durable.proposals).toHaveLength(1);
     expect(exported.durable.proposals[0]?.proposalType).toBe("procedural_pattern");
     expect(exported.durable.proposals[0]?.linkedMemoryIds).toHaveLength(1);
+    expect(exported.durable.proposals[0]?.sourceExperienceIds).toHaveLength(3);
+    expect(exported.durable.promotions).toHaveLength(2);
+    expect(
+      exported.durable.promotions.every(
+        (promotion) => promotion.proposalId === exported.durable.proposals[0]?.id,
+      ),
+    ).toBe(true);
   });
 
   it("emits a maintenance proposal after a stale verification signal is observed and the turn completes", async () => {

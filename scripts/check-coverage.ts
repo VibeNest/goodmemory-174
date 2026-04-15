@@ -72,9 +72,9 @@ export const GROUPS: ThresholdGroup[] = [
     matches: (path) => path.startsWith("src/eval/"),
   },
   {
-    name: "src/llm",
+    name: "src/provider",
     threshold: 80,
-    matches: (path) => path.startsWith("src/llm/"),
+    matches: (path) => path.startsWith("src/provider/"),
   },
   {
     name: "scripts/run-eval.ts",

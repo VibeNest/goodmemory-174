@@ -3,13 +3,18 @@ import type {
   FeedbackMemory,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
-import type { MemoryRepositories } from "../storage/repositories";
+import type { EvolutionRepositoryPort } from "../storage/ports";
 import {
   createLearningProposal,
   type ExperienceModelInfluence,
   type ExperienceRecord,
   type LearningProposal,
 } from "./contracts";
+import {
+  refreshDelayedProposal,
+  sameProposalContent,
+  sameStringSet,
+} from "./proposalLifecycle";
 
 export interface AssistedReviewerExtension {
   enabled?: boolean;
@@ -17,26 +22,15 @@ export interface AssistedReviewerExtension {
 }
 
 export interface RulesOnlyReviewerConfig {
-  repositories: MemoryRepositories;
-  now?: () => string;
+  assistedReview?: AssistedReviewerExtension;
+  repositories: EvolutionRepositoryPort;
   createId?: () => string;
   createTraceId?: () => string;
-  assistedReview?: AssistedReviewerExtension;
+  now?: () => string;
 }
 
 export interface ReflectiveReviewInput {
   scope: MemoryScope;
-}
-
-function sameStringSet(left: string[], right: string[]): boolean {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  const leftSorted = [...left].sort();
-  const rightSorted = [...right].sort();
-
-  return leftSorted.every((value, index) => value === rightSorted[index]);
 }
 
 function collectUnique(values: Array<string | undefined>): string[] {
@@ -68,17 +62,38 @@ function aggregateModelInfluence(
   return "none";
 }
 
-function findEquivalentPendingProposal(
+function findEquivalentExistingProposal(
   existing: LearningProposal[],
   candidate: LearningProposal,
-): boolean {
-  return existing.some(
+): LearningProposal | undefined {
+  return existing.find(
     (proposal) =>
-      proposal.status === "pending" &&
+      proposal.status !== "rejected" &&
       proposal.proposalType === candidate.proposalType &&
       sameStringSet(proposal.linkedMemoryIds, candidate.linkedMemoryIds) &&
       sameStringSet(proposal.linkedArchiveIds, candidate.linkedArchiveIds),
   );
+}
+
+function reconcileCandidateProposal(
+  existing: LearningProposal[],
+  candidate: LearningProposal,
+): LearningProposal | null {
+  const matched = findEquivalentExistingProposal(existing, candidate);
+
+  if (!matched) {
+    return candidate;
+  }
+
+  if (matched.status !== "delayed") {
+    return null;
+  }
+
+  if (sameProposalContent(matched, candidate)) {
+    return null;
+  }
+
+  return refreshDelayedProposal(matched, candidate);
 }
 
 function buildFactSummary(fact: FactMemory | undefined): string {
@@ -277,8 +292,10 @@ export function createRulesOnlyReviewer(config: RulesOnlyReviewerConfig) {
                 now: timestamp,
               });
 
-        if (!findEquivalentPendingProposal(existingProposals, candidate)) {
-          proposals.push(candidate);
+        const reconciled = reconcileCandidateProposal(existingProposals, candidate);
+
+        if (reconciled) {
+          proposals.push(reconciled);
         }
       }
 
@@ -312,8 +329,10 @@ export function createRulesOnlyReviewer(config: RulesOnlyReviewerConfig) {
           now: timestamp,
         });
 
-        if (!findEquivalentPendingProposal(existingProposals, candidate)) {
-          proposals.push(candidate);
+        const reconciled = reconcileCandidateProposal(existingProposals, candidate);
+
+        if (reconciled) {
+          proposals.push(reconciled);
         }
       }
 

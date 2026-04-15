@@ -19,7 +19,7 @@ function buildCoverageRecords(
     "src/verify/example.ts": { found: 10, covered: 10 },
     "src/storage/example.ts": { found: 10, covered: 10 },
     "src/eval/example.ts": { found: 10, covered: 10 },
-    "src/llm/example.ts": { found: 10, covered: 10 },
+    "src/provider/example.ts": { found: 10, covered: 10 },
     "scripts/run-eval.ts": { found: 20, covered: 19 },
     "scripts/summarize-eval.ts": { found: 31, covered: 25 },
   };

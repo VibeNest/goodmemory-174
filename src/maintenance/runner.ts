@@ -19,11 +19,14 @@ import type {
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { SessionArchive } from "../evolution/contracts";
-import type { MemoryRepositories } from "../storage/repositories";
 import {
   createLanguageService,
   type LanguageService,
 } from "../language";
+import type {
+  MaintenanceRepositoryPort,
+  MaintenanceVectorPort,
+} from "../storage/ports";
 
 export type MaintenanceJobName =
   | "dedupe"
@@ -33,9 +36,10 @@ export type MaintenanceJobName =
 
 export interface MaintenanceRunnerConfig {
   embedding?: EmbeddingAdapter;
-  repositories: MemoryRepositories;
-  now?: () => string;
   language?: LanguageService;
+  repositories: MaintenanceRepositoryPort & { vectorIndex?: MaintenanceVectorPort | null };
+  vectorIndex?: MaintenanceVectorPort | null;
+  now?: () => string;
 }
 
 export interface MaintenanceJobReport {
@@ -55,7 +59,7 @@ function buildMaintenanceSummary(reports: MaintenanceJobReport[]): string {
 }
 
 async function persistMaintenanceExperienceRecord(
-  repositories: MemoryRepositories,
+  repositories: MaintenanceRepositoryPort,
   scope: MemoryScope,
   reports: MaintenanceJobReport[],
   timestamp: string,
@@ -183,7 +187,8 @@ function createArchiveFromEpisode(
 }
 
 async function runDedupeCleanup(
-  repositories: MemoryRepositories,
+  repositories: MaintenanceRepositoryPort,
+  vectorIndex: MaintenanceVectorPort | null,
   language: LanguageService,
   scope: MemoryScope,
   timestamp: string,
@@ -215,7 +220,7 @@ async function runDedupeCleanup(
         updatedAt: timestamp,
       }),
     );
-    await repositories.vectorIndex?.deleteFactEmbedding(fact.id);
+    await vectorIndex?.deleteFactEmbedding(fact.id);
     applied += 1;
   }
 
@@ -226,7 +231,8 @@ async function runDedupeCleanup(
 }
 
 async function runContradictionRepair(
-  repositories: MemoryRepositories,
+  repositories: MaintenanceRepositoryPort,
+  vectorIndex: MaintenanceVectorPort | null,
   language: LanguageService,
   scope: MemoryScope,
   timestamp: string,
@@ -290,7 +296,7 @@ async function runContradictionRepair(
           updatedAt: timestamp,
         }),
       );
-      await repositories.vectorIndex?.deleteFactEmbedding(weaker.id);
+      await vectorIndex?.deleteFactEmbedding(weaker.id);
       applied += 1;
       break;
     }
@@ -303,7 +309,8 @@ async function runContradictionRepair(
 }
 
 async function runEpisodeConsolidation(
-  repositories: MemoryRepositories,
+  repositories: MaintenanceRepositoryPort,
+  vectorIndex: MaintenanceVectorPort | null,
   language: LanguageService,
   scope: MemoryScope,
   timestamp: string,
@@ -397,15 +404,15 @@ async function runEpisodeConsolidation(
         }
       }
       await repositories.episodes.add(consolidated);
-      if (embedding && repositories.vectorIndex) {
+      if (embedding && vectorIndex) {
         await upsertMemoryEmbeddings(
           [buildEpisodeEmbeddingWrite(consolidated)],
           embedding,
-          repositories.vectorIndex,
+          vectorIndex,
         );
       }
-      await repositories.vectorIndex?.deleteEpisodeEmbedding(left.id);
-      await repositories.vectorIndex?.deleteEpisodeEmbedding(right.id);
+      await vectorIndex?.deleteEpisodeEmbedding(left.id);
+      await vectorIndex?.deleteEpisodeEmbedding(right.id);
 
       return {
         name: "consolidation",
@@ -421,11 +428,12 @@ async function runEpisodeConsolidation(
 }
 
 async function runEmbeddingRepair(
-  repositories: MemoryRepositories,
+  repositories: MaintenanceRepositoryPort,
+  vectorIndex: MaintenanceVectorPort | null,
   scope: MemoryScope,
   embedding?: EmbeddingAdapter,
 ): Promise<MaintenanceJobReport> {
-  if (!embedding || !repositories.vectorIndex) {
+  if (!embedding || !vectorIndex) {
     return {
       name: "embeddingRepair",
       applied: 0,
@@ -449,18 +457,18 @@ async function runEmbeddingRepair(
       .map((episode) => buildEpisodeEmbeddingWrite(episode)),
   ];
   for (const fact of facts.filter((fact) => fact.lifecycle !== "active")) {
-    await repositories.vectorIndex.deleteFactEmbedding(fact.id);
+    await vectorIndex.deleteFactEmbedding(fact.id);
   }
   for (const reference of references.filter((reference) => reference.lifecycle !== "active")) {
-    await repositories.vectorIndex.deleteReferenceEmbedding(reference.id);
+    await vectorIndex.deleteReferenceEmbedding(reference.id);
   }
   for (const episode of episodes.filter((episode) => Boolean(episode.archivedAt))) {
-    await repositories.vectorIndex.deleteEpisodeEmbedding(episode.id);
+    await vectorIndex.deleteEpisodeEmbedding(episode.id);
   }
   const applied = await upsertMemoryEmbeddings(
     writes,
     embedding,
-    repositories.vectorIndex,
+    vectorIndex,
   );
 
   return {
@@ -472,6 +480,10 @@ async function runEmbeddingRepair(
 export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
   const language = config.language ?? createLanguageService();
   const now = config.now ?? (() => new Date().toISOString());
+  const vectorIndex =
+    config.vectorIndex !== undefined
+      ? config.vectorIndex ?? null
+      : config.repositories.vectorIndex ?? null;
 
   return {
     async run(
@@ -489,7 +501,13 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
       for (const job of jobs) {
         if (job === "dedupe") {
           reports.push(
-            await runDedupeCleanup(config.repositories, language, scope, timestamp),
+            await runDedupeCleanup(
+              config.repositories,
+              vectorIndex,
+              language,
+              scope,
+              timestamp,
+            ),
           );
           continue;
         }
@@ -498,6 +516,7 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
           reports.push(
             await runEpisodeConsolidation(
               config.repositories,
+              vectorIndex,
               language,
               scope,
               timestamp,
@@ -511,6 +530,7 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
           reports.push(
             await runEmbeddingRepair(
               config.repositories,
+              vectorIndex,
               scope,
               config.embedding,
             ),
@@ -521,6 +541,7 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
         reports.push(
           await runContradictionRepair(
             config.repositories,
+            vectorIndex,
             language,
             scope,
             timestamp,

@@ -87,12 +87,8 @@ Read and execute files in this order:
 
 Current Sequencing Note
 -----------------------
-- Phase 13 governance work is complete and remains part of the accepted v1 surface.
-- Phase 14 archive/evidence/artifact foundation is complete enough to support downstream evolution work.
-- Phase 12 provider-layer work is implemented on top of the Phase 14 substrate and remains part of the accepted roadmap, not a competing branch.
-- Phase 15.1, Phase 15.2, and Phase 15.3 are complete: evolution contracts/repos exist, append-only observation telemetry covers remember/recall/verify/feedback/maintenance, and the rules-only reviewer now emits governed proposals on post-turn paths.
-- Phase 15.4 salvage hooks are complete: pre-compact and session-end boundaries now emit governed proposals instead of dropping continuity signals at context-loss edges.
-- The active execution focus is now Phase 15.5 proposal gates and decision records, followed by the remaining Phase 15 visibility work.
+- Phase 15 is closed. The active execution focus is now Phase 16 procedural promotion and outcome-aware maintenance.
+- Phase 16 work should build on the new internal ports and provider-boundary guardrails: core behavior uses narrow subsystem ports, and provider-backed runtime code lives under `src/provider/`.
 - Phase 15 through Phase 18 extend the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
@@ -104,12 +100,11 @@ Use these bands when choosing what to work on next:
 
 1. Immediate focus
    - Close any local WIP without widening scope
-   - Execute Phase 15.5 proposal gates and decision records
+   - Execute Phase 16 procedural promotion and outcome-aware maintenance
 2. Near-term product differentiation
-   - Finish the remaining Phase 15 proposal gate and visibility slices
-   - Keep proposal visibility and gate behavior regression-covered while the reviewer/salvage path expands
+   - Build validated promotion, demotion, and maintenance outcomes on top of the completed Phase 15 proposal substrate
+   - Keep proposal visibility and gate behavior regression-covered while Phase 16 outcome loops land
 3. Medium-term system hardening
-   - Execute Phase 16 outcome-aware maintenance
    - Execute Phase 17 eval-gated rollout
 4. Host integration track
    - Execute Phase 18 adapters for Claude/Codex-style hosts only after canonical/archive/artifact surfaces are stable

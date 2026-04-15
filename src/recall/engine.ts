@@ -18,8 +18,11 @@ import {
   type LanguageService,
 } from "../language";
 import type { GoodMemoryPolicyHooks } from "../policy/hooks";
-import type { SessionStore } from "../storage/contracts";
-import type { MemoryRepositories } from "../storage/repositories";
+import type {
+  RecallRepositoryPort,
+  RecallRuntimePort,
+  RecallVectorSearchPort,
+} from "../storage/ports";
 import {
   evaluateVerificationHints,
   type VerificationHint,
@@ -132,19 +135,24 @@ export interface RecallResult {
 }
 
 export interface RecallEngineConfig {
-  repositories: MemoryRepositories;
-  sessionStore: SessionStore;
   embedding?: EmbeddingAdapter;
-  now?: () => number;
-  referenceTime?: () => string;
   language?: LanguageService;
+  repositories: RecallRepositoryPort & { vectorIndex?: RecallVectorSearchPort | null };
+  runtime: RecallRuntimePort;
+  vectorIndex?: RecallVectorSearchPort | null;
+  now?: () => number;
   policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
+  referenceTime?: () => string;
 }
 
 export function createRecallEngine(config: RecallEngineConfig) {
   const language = config.language ?? createLanguageService();
   const now = config.now ?? Date.now;
   const referenceTime = config.referenceTime ?? (() => new Date(now()).toISOString());
+  const vectorIndex =
+    config.vectorIndex !== undefined
+      ? config.vectorIndex ?? null
+      : config.repositories.vectorIndex ?? null;
 
   return {
     async recall(input: RecallInput): Promise<RecallResult> {
@@ -156,7 +164,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
       const policyApplied = new Set<string>();
       const routerAvailability = {
-        semanticSearch: Boolean(config.embedding && config.repositories.vectorIndex),
+        semanticSearch: Boolean(config.embedding && vectorIndex),
         llmRouting: false,
       };
 
@@ -238,10 +246,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
         config.repositories.evidence.listByScope(input.scope),
         config.repositories.episodes.listByScope(input.scope),
         input.scope.sessionId
-          ? config.sessionStore.getWorkingMemory(input.scope)
+          ? config.runtime.getWorkingMemory(input.scope)
           : Promise.resolve(null),
         input.scope.sessionId
-          ? config.sessionStore.getJournal(input.scope)
+          ? config.runtime.getJournal(input.scope)
           : Promise.resolve(null),
       ]);
 
@@ -261,12 +269,12 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const semanticScores =
         routingDecision.strategy === "hybrid" &&
         config.embedding &&
-        config.repositories.vectorIndex
+        vectorIndex
           ? await searchSemanticScores({
               embedding: config.embedding,
               query: input.query,
               scope: input.scope,
-              vectorIndex: config.repositories.vectorIndex,
+              vectorIndex,
             })
           : undefined;
 

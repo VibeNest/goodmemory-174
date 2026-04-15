@@ -189,6 +189,75 @@ function buildAnswerPackage(
       feedbackEvents: [],
       recallHitCount: mode === "goodmemory" ? 1 : 0,
       verificationHintCount: 0,
+      proposalLifecycle:
+        mode === "goodmemory"
+          ? {
+              experienceCount: 4,
+              experienceKindCounts: {
+                remember: 1,
+                feedback: 2,
+                verify: 1,
+              },
+              proposalCount: 2,
+              proposalStatusCounts: {
+                accepted: 1,
+                delayed: 1,
+              },
+              promotionCount: 2,
+              promotionDecisionCounts: {
+                accepted: 1,
+                delayed: 1,
+              },
+              proposals: [
+                {
+                  id: "proposal-1",
+                  proposalType: "maintenance_action" as const,
+                  status: "accepted" as const,
+                  summary: "Re-check stale blocker memory.",
+                  rationale: "One verification trace suggests a bounded maintenance follow-up.",
+                  modelInfluence: "rules-only" as const,
+                  sourceExperienceIds: ["xp-1"],
+                  linkedMemoryIds: ["fact-1"],
+                  linkedArchiveIds: [],
+                  linkedEvidenceIds: ["evidence-1"],
+                },
+                {
+                  id: "proposal-2",
+                  proposalType: "procedural_pattern" as const,
+                  status: "delayed" as const,
+                  summary: "Promote repeated guidance into a pattern.",
+                  rationale: "Repeated feedback suggests a reusable pattern.",
+                  modelInfluence: "rules-only" as const,
+                  sourceExperienceIds: ["xp-2", "xp-3"],
+                  linkedMemoryIds: ["feedback-1"],
+                  linkedArchiveIds: [],
+                  linkedEvidenceIds: [],
+                },
+              ],
+              promotions: [
+                {
+                  id: "promotion-1",
+                  proposalId: "proposal-1",
+                  decision: "accepted" as const,
+                  summary: "accepted proposal: Re-check stale blocker memory.",
+                  rationale: "proposal passed deterministic gates",
+                  policyOutcome: "passed" as const,
+                  verificationOutcome: "passed" as const,
+                  evalOutcome: "passed" as const,
+                },
+                {
+                  id: "promotion-2",
+                  proposalId: "proposal-2",
+                  decision: "delayed" as const,
+                  summary: "delayed proposal: Promote repeated guidance into a pattern.",
+                  rationale: "procedural proposal requires later eval review",
+                  policyOutcome: "passed" as const,
+                  verificationOutcome: "passed" as const,
+                  evalOutcome: "review_required" as const,
+                },
+              ],
+            }
+          : null,
       contextBuild:
         mode === "goodmemory"
           ? {
@@ -308,6 +377,9 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("References: 1");
       expect(result.stdout).toContain("Archives: 1");
       expect(result.stdout).toContain("Evidence: 1");
+      expect(result.stdout).toContain("Experience Records: 4");
+      expect(result.stdout).toContain("Proposals: 2 (accepted=1, delayed=1)");
+      expect(result.stdout).toContain("Promotions: 2 (accepted=1, delayed=1)");
       expect(result.stdout).toContain("Assertions: 6/6 passed");
     } finally {
       await workspace.cleanup();
@@ -352,6 +424,12 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("custom_shouldRecall");
       expect(result.stdout).toContain("Verification Hints");
       expect(result.stdout).toContain("stale reference should be re-checked before action");
+      expect(result.stdout).toContain("Proposal Lifecycle");
+      expect(result.stdout).toContain("maintenance_action / accepted");
+      expect(result.stdout).toContain("procedural_pattern / delayed");
+      expect(result.stdout).toContain("Promotion Decisions");
+      expect(result.stdout).toContain("proposal-2 -> delayed");
+      expect(result.stdout).toContain("eval=review_required");
       expect(result.stdout).toContain("Assertions");
       expect(result.stdout).toContain("transfer_signals_present: pass");
     } finally {

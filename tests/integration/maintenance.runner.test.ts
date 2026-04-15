@@ -30,6 +30,7 @@ function createFixture(input?: { withEmbeddings?: boolean }) {
   const runner = createMaintenanceRunner({
     embedding: embeddingAdapter,
     repositories,
+    vectorIndex: repositories.vectorIndex,
     now: () => "2026-04-02T00:00:00.000Z",
   });
 
@@ -418,6 +419,69 @@ describe("maintenance runner", () => {
         filter: { userId: "u-consolidate", workspaceId: "workspace-a" },
       }),
     ).toContainEqual(expect.objectContaining({ id: consolidated?.id }));
+  });
+
+  it("uses repositories.vectorIndex by default so legacy maintenance wiring still cleans stale vectors", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const repositories = createMemoryRepositories({
+      documentStore,
+      sessionStore,
+      vectorStore,
+    });
+    const embeddingAdapter = createFakeEmbeddingAdapter();
+    const runner = createMaintenanceRunner({
+      repositories,
+      embedding: embeddingAdapter,
+      now: () => "2026-04-02T00:00:00.000Z",
+    });
+    const scope = { userId: "u-legacy", workspaceId: "workspace-a" };
+    const factOne = createFactMemory({
+      id: "fact-legacy-1",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Runtime rollout is blocked on vendor approval.",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const factTwo = createFactMemory({
+      id: "fact-legacy-2",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Runtime rollout is blocked on vendor approval.",
+      source: { method: "explicit", extractedAt: "2026-02-01T00:00:00.000Z" },
+      createdAt: "2026-02-01T00:00:00.000Z",
+      updatedAt: "2026-02-01T00:00:00.000Z",
+    });
+
+    await repositories.facts.add(factOne);
+    await repositories.facts.add(factTwo);
+
+    const [embedding] = await embeddingAdapter.embed([factOne.content]);
+    await repositories.vectorIndex?.upsertFactEmbedding([
+      {
+        id: factOne.id,
+        embedding,
+        metadata: { userId: scope.userId, workspaceId: scope.workspaceId, memoryType: "fact" },
+        content: factOne.content,
+      },
+      {
+        id: factTwo.id,
+        embedding,
+        metadata: { userId: scope.userId, workspaceId: scope.workspaceId, memoryType: "fact" },
+        content: factTwo.content,
+      },
+    ]);
+
+    const report = await runner.run(scope, ["dedupe"]);
+
+    expect(report.jobs[0]?.applied).toBe(1);
+    expect(await repositories.vectorIndex?.getFactEmbedding(factOne.id)).toBeNull();
+    expect(await repositories.vectorIndex?.getFactEmbedding(factTwo.id)).not.toBeNull();
   });
 
   it("removes stale vectors for superseded, inactive, and archived memory during embedding repair", async () => {

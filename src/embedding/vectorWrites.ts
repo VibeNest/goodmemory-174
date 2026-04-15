@@ -3,8 +3,8 @@ import type {
   FactMemory,
   ReferenceMemory,
 } from "../domain/records";
-import type { MemoryRepositories } from "../storage/repositories";
 import type { EmbeddingAdapter } from "./contracts";
+import type { MaintenanceVectorPort, RememberVectorPort } from "../storage/ports";
 
 type EmbeddingScopedRecord = {
   id: string;
@@ -129,7 +129,7 @@ export async function prepareMemoryEmbeddingWrites(
 
 export async function upsertPreparedMemoryEmbeddings(
   records: PreparedMemoryEmbeddingRecord[],
-  vectorIndex: NonNullable<MemoryRepositories["vectorIndex"]>,
+  vectorIndex: MaintenanceVectorPort | RememberVectorPort,
 ): Promise<number> {
   const factRecords = records.filter((record) => record.memoryType === "fact");
   if (factRecords.length > 0) {
@@ -173,7 +173,7 @@ export async function upsertPreparedMemoryEmbeddings(
 export async function upsertMemoryEmbeddings(
   writes: MemoryEmbeddingWrite[],
   embedding: EmbeddingAdapter,
-  vectorIndex: NonNullable<MemoryRepositories["vectorIndex"]>,
+  vectorIndex: MaintenanceVectorPort | RememberVectorPort,
 ): Promise<number> {
   return upsertPreparedMemoryEmbeddings(
     await prepareMemoryEmbeddingWrites(writes, embedding),

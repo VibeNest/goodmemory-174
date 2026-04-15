@@ -8,8 +8,10 @@ const SRC_ROOT = join(import.meta.dir, "../../src");
 const STORAGE_IMPLEMENTATION_FILES = new Set([
   "storage/memory.ts",
   "storage/postgres.ts",
+  "storage/repositories.ts",
   "storage/sqlite.ts",
 ]);
+const STORAGE_PORTS_FILE = "storage/ports.ts";
 const CORE_CONTRACT_FILES = new Set([
   "embedding/contracts.ts",
   "evidence/contracts.ts",
@@ -99,6 +101,53 @@ async function collectInternalImportEdges(file: string): Promise<string[]> {
   return [...targets];
 }
 
+async function collectImportedBindingsForTarget(
+  file: string,
+  targetPath: string,
+): Promise<string[]> {
+  const source = await readFile(file, "utf8");
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const bindings = new Set<string>();
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) {
+      continue;
+    }
+
+    const moduleSpecifier = statement.moduleSpecifier;
+    if (!ts.isStringLiteral(moduleSpecifier)) {
+      continue;
+    }
+
+    const specifier = moduleSpecifier.text;
+    if (!specifier.startsWith("./") && !specifier.startsWith("../")) {
+      continue;
+    }
+
+    const resolvedTarget = await resolveInternalImport(file, specifier);
+    if (resolvedTarget !== targetPath) {
+      continue;
+    }
+
+    const importClause = statement.importClause;
+    if (!importClause?.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
+      continue;
+    }
+
+    for (const element of importClause.namedBindings.elements) {
+      bindings.add(element.propertyName?.text ?? element.name.text);
+    }
+  }
+
+  return [...bindings];
+}
+
 function isCoreContractFile(relativePath: string): boolean {
   const normalizedPath = normalizeInternalPath(relativePath);
   return (
@@ -121,6 +170,40 @@ function isCoreBehaviorFile(relativePath: string): boolean {
       normalizedPath !== "evolution/contracts.ts"
     )
   );
+}
+
+function allowedStoragePortBindings(relativePath: string): Set<string> {
+  const normalizedPath = normalizeInternalPath(relativePath);
+
+  if (normalizedPath.startsWith("remember/")) {
+    return new Set([
+      "RememberRepositoryPort",
+      "RememberVectorPort",
+    ]);
+  }
+
+  if (normalizedPath.startsWith("recall/")) {
+    return new Set([
+      "RecallRepositoryPort",
+      "RecallRuntimePort",
+      "RecallVectorSearchPort",
+    ]);
+  }
+
+  if (normalizedPath.startsWith("maintenance/")) {
+    return new Set([
+      "MaintenanceRepositoryPort",
+      "MaintenanceVectorPort",
+    ]);
+  }
+
+  if (normalizedPath.startsWith("evolution/")) {
+    return new Set([
+      "EvolutionRepositoryPort",
+    ]);
+  }
+
+  return new Set();
 }
 
 describe("architecture boundaries", () => {
@@ -228,6 +311,90 @@ describe("architecture boundaries", () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+
+  it("keeps subsystem ports scoped to their owning core behavior directories", async () => {
+    const files = await collectTypeScriptFiles(SRC_ROOT);
+    const offenders: Array<{ file: string; bindings: string[] }> = [];
+
+    for (const file of files) {
+      const relativePath = toSourceRelativePath(file);
+      if (!isCoreBehaviorFile(relativePath)) {
+        continue;
+      }
+
+      const importedBindings = await collectImportedBindingsForTarget(
+        file,
+        STORAGE_PORTS_FILE,
+      );
+      const allowedBindings = allowedStoragePortBindings(relativePath);
+      const disallowedBindings = importedBindings.filter(
+        (binding) => !allowedBindings.has(binding),
+      );
+
+      if (disallowedBindings.length > 0) {
+        offenders.push({
+          file: relativePath,
+          bindings: disallowedBindings,
+        });
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("limits storage repository wiring to composition and public compatibility layers", async () => {
+    const files = await collectTypeScriptFiles(SRC_ROOT);
+    const allowedFiles = new Set([
+      "api/createGoodMemory.ts",
+      "index.ts",
+      "storage/repositories.ts",
+    ]);
+    const offenders: Array<{ file: string; targets: string[] }> = [];
+
+    for (const file of files) {
+      const relativePath = toSourceRelativePath(file);
+      if (allowedFiles.has(relativePath)) {
+        continue;
+      }
+
+      const targets = await collectInternalImportEdges(file);
+      const disallowedTargets = targets.filter(
+        (target) => target === "storage/repositories.ts",
+      );
+
+      if (disallowedTargets.length > 0) {
+        offenders.push({
+          file: relativePath,
+          targets: disallowedTargets,
+        });
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("removes the legacy llm directory and blocks any internal reintroduction", async () => {
+    const files = await collectTypeScriptFiles(SRC_ROOT);
+    const offenders: Array<{ file: string; targets: string[] }> = [];
+
+    for (const file of files) {
+      const relativePath = toSourceRelativePath(file);
+      const targets = await collectInternalImportEdges(file);
+      const disallowedTargets = targets.filter((target) =>
+        target.startsWith("llm/"),
+      );
+
+      if (disallowedTargets.length > 0) {
+        offenders.push({
+          file: relativePath,
+          targets: disallowedTargets,
+        });
+      }
+    }
+
+    expect(offenders).toEqual([]);
+    expect(await fileExists(join(SRC_ROOT, "llm", "ai-sdk-runtime.ts"))).toBe(false);
   });
 
   it("keeps provider-backed memory extraction outside the remember directory", async () => {

@@ -1,9 +1,9 @@
 Phase 15.5: Proposal Gates and Decision Records
 ===============================================
 
-[TODO] P15.5-T001 Add proposal policy gate
-[TODO] P15.5-T002 Add proposal verification/eval gate inputs
-[TODO] P15.5-T003 Persist accept/reject/delay outcomes as promotion records
+[DONE] P15.5-T001 Add proposal policy gate
+[DONE] P15.5-T002 Add proposal verification/eval gate inputs
+[DONE] P15.5-T003 Persist accept/reject/delay outcomes as promotion records
 
 Why this exists
 ---------------
@@ -26,3 +26,15 @@ Acceptance
 ----------
 - Proposal lifecycle is auditable end-to-end
 - High-risk changes cannot skip the gate pipeline
+
+Implementation Notes
+--------------------
+- `src/evolution/gates.ts` now defines the deterministic proposal gate processor and auditable decision shape.
+- Reviewer-generated and salvage-generated proposals both flow through the gate pipeline before persistence.
+- Accept, reject, and delay outcomes now persist as `PromotionRecord` artifacts with gate rationale and lineage.
+
+Validation
+----------
+- `bun test tests/unit/evolution.gates.test.ts tests/integration/evolution.gates.test.ts`
+- `bun test tests/unit/evolution.reviewer.test.ts tests/unit/evolution.salvage.test.ts tests/integration/evolution.reviewer.test.ts`
+- `bun run typecheck`

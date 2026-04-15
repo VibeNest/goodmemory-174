@@ -1,9 +1,9 @@
 Phase 15.6: CLI, Eval, and Admin Visibility
 ===========================================
 
-[TODO] P15.6-T001 Surface proposal lifecycle in CLI inspect/trace flows
-[TODO] P15.6-T002 Add eval slices that verify proposal generation and gate behavior
-[TODO] P15.6-T003 Add export-oriented visibility for experience/proposal/promotion artifacts
+[DONE] P15.6-T001 Surface proposal lifecycle in CLI inspect/trace flows
+[DONE] P15.6-T002 Add eval slices that verify proposal generation and gate behavior
+[DONE] P15.6-T003 Add export-oriented visibility for experience/proposal/promotion artifacts
 
 Why this exists
 ---------------
@@ -26,3 +26,15 @@ Acceptance
 ----------
 - Proposal behavior is diagnosable from tooling and artifacts
 - Release decisions can reference proposal traces instead of anecdotes
+
+Implementation Notes
+--------------------
+- `EvalAnswerPackage.trace` now carries a dedicated `proposalLifecycle` view derived from `exportMemory()` artifacts.
+- Eval reporting persists `proposal-trace.json` beside existing remember/feedback/context traces.
+- CLI `inspect` shows proposal/promotion totals and `trace` shows per-proposal lineage plus gate decisions without mixing them into end-user recall output.
+
+Validation
+----------
+- `bun test tests/eval/runners.test.ts tests/eval/reporting.test.ts tests/cli/cli.test.ts`
+- `bun test tests/eval/judge-runner.test.ts tests/unit/eval.assertions.test.ts`
+- `bun run typecheck`

@@ -3,10 +3,13 @@ import type {
   MemoryEmbeddingWrite,
   PreparedMemoryEmbeddingRecord,
 } from "../embedding/vectorWrites";
-import type { DocumentStore } from "../storage/contracts";
-import type { MemoryRepositories } from "../storage/repositories";
-import type { GoodMemoryPolicyHooks, PolicyContext } from "../policy/hooks";
 import type { LanguageService, ResolvedLanguageContext } from "../language";
+import type { GoodMemoryPolicyHooks, PolicyContext } from "../policy/hooks";
+import type { DocumentStore } from "../storage/contracts";
+import type {
+  RememberRepositoryPort,
+  RememberVectorPort,
+} from "../storage/ports";
 import type {
   MemoryCandidate,
   MemoryCandidateKindHint,
@@ -63,15 +66,16 @@ export interface RememberResult {
 }
 
 export interface RememberEngineConfig {
-  repositories: MemoryRepositories;
   assistedExtractor?: MemoryExtractor;
   documentStore: DocumentStore;
   embedding?: EmbeddingAdapter;
   extractor?: MemoryExtractor;
-  now?: () => string;
-  createId?: () => string;
-  shouldWrite?: (candidate: ClassifiedCandidate) => boolean;
   language?: LanguageService;
+  repositories: RememberRepositoryPort & { vectorIndex?: RememberVectorPort | null };
+  vectorIndex?: RememberVectorPort | null;
+  shouldWrite?: (candidate: ClassifiedCandidate) => boolean;
+  createId?: () => string;
+  now?: () => string;
   policy?: Pick<
     GoodMemoryPolicyHooks,
     "shouldRemember" | "redact" | "resolveConflict"
@@ -99,8 +103,8 @@ export interface RememberWriteContext {
   resolvedLanguage: ResolvedLanguageContext;
   language: LanguageService;
   policyContext: PolicyContext;
-  repositories: MemoryRepositories;
-  vectorIndex: MemoryRepositories["vectorIndex"];
+  repositories: RememberRepositoryPort;
+  vectorIndex: RememberVectorPort | null;
   createId: () => string;
   now: () => string;
   policy?: Pick<GoodMemoryPolicyHooks, "resolveConflict">;

@@ -34,6 +34,7 @@ function buildAnswerPackage(
       feedbackEvents: [],
       recallHitCount: mode === "goodmemory" ? 4 : 0,
       verificationHintCount: 0,
+      proposalLifecycle: null,
       contextBuild:
         mode === "goodmemory"
           ? {

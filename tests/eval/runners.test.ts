@@ -18,6 +18,35 @@ import {
   runGoodMemoryScenario,
 } from "../../src/eval/runners";
 
+function buildEmptyExportMemoryResult(userId: string, workspaceId: string) {
+  return {
+    artifacts: {
+      markdown: "",
+      manifest: {
+        scope: { userId, workspaceId },
+        sections: [],
+        generatedAt: "2026-04-15T00:00:00.000Z",
+      },
+      files: {},
+    },
+    scope: { userId, workspaceId },
+    exportedAt: "2026-04-15T00:00:00.000Z",
+    durable: {
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [],
+      feedback: [],
+      episodes: [],
+      archives: [],
+      evidence: [],
+      experiences: [],
+      proposals: [],
+      promotions: [],
+    },
+  };
+}
+
 describe("eval runners", () => {
   it("builds a baseline answer package without memory context", async () => {
     const persona = await loadPersonaSpec(
@@ -97,7 +126,266 @@ describe("eval runners", () => {
         feedback.rule.includes("Please confirm the updated runbook"),
       ) ?? false,
     ).toBe(false);
+    expect(result.trace.proposalLifecycle?.experienceCount).toBeGreaterThan(0);
+    expect(result.trace.proposalLifecycle?.proposalCount).toBeGreaterThanOrEqual(0);
+    expect(result.trace.proposalLifecycle?.promotionCount).toBeGreaterThanOrEqual(
+      result.trace.proposalLifecycle?.proposalCount ?? 0,
+    );
     expect(result.transcript).not.toContain("I can do that once I have the full remembered context.");
+  });
+
+  it("records proposal lifecycle from exported governance artifacts", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-medium-01.json"),
+    );
+    const workspaceId = `eval-${persona.lifecycle_bucket}`;
+    const memory = {
+      async remember() {
+        return {
+          accepted: 0,
+          rejected: 0,
+          events: [],
+          metadata: {
+            locale: "en-US",
+            localeSource: "default" as const,
+            adapterId: "english",
+            analysisMode: "rules-only" as const,
+            requestedExtractionStrategy: "auto" as const,
+            resolvedExtractionStrategy: "rules-only" as const,
+          },
+        };
+      },
+      async feedback() {
+        return { accepted: false };
+      },
+      async recall() {
+        return {
+          profile: null,
+          preferences: [],
+          references: [],
+          facts: [],
+          feedback: [],
+          archives: [],
+          evidence: [],
+          episodes: [],
+          workingMemory: null,
+          journal: null,
+          packet: {
+            locale: "en-US",
+            profile: null,
+            preferences: [],
+            references: [],
+            facts: [],
+            feedback: [],
+            archives: [],
+            evidence: [],
+            episodes: [],
+            workingMemory: null,
+            journal: null,
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only" as const,
+              strategyExplanation: {
+                requestedStrategy: "auto" as const,
+                resolvedStrategy: "rules-only" as const,
+                summary: "auto routing stayed rules-only",
+                hardFloor: "lexical_runtime_procedural_priors" as const,
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: ["profile", "feedback", "fact"],
+              requestedSlots: [],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: false,
+              continuation: false,
+            },
+          },
+          metadata: {
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only" as const,
+              strategyExplanation: {
+                requestedStrategy: "auto" as const,
+                resolvedStrategy: "rules-only" as const,
+                summary: "auto routing stayed rules-only",
+                hardFloor: "lexical_runtime_procedural_priors" as const,
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: ["profile", "feedback", "fact"],
+              requestedSlots: [],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: false,
+              continuation: false,
+            },
+            tokenCount: 0,
+            latencyMs: 0,
+            hits: [],
+            candidateTraces: [],
+            verificationHints: [],
+            policyApplied: [],
+          },
+        };
+      },
+      async buildContext() {
+        return {
+          output: "markdown" as const,
+          content: "memory context",
+          estimatedTokens: 3,
+          omittedSections: [],
+        };
+      },
+      async forget() {
+        return { forgotten: false };
+      },
+      async exportMemory() {
+        return {
+          ...buildEmptyExportMemoryResult(persona.persona_id, workspaceId),
+          durable: {
+            ...buildEmptyExportMemoryResult(persona.persona_id, workspaceId).durable,
+            experiences: [
+              {
+                id: "xp-1",
+                userId: persona.persona_id,
+                workspaceId,
+                kind: "verify" as const,
+                traceId: "trace-1",
+                sourceTraceIds: ["trace-1"],
+                trigger: "api" as const,
+                modelInfluence: "rules-only" as const,
+                summary: "Verification hint for rollout blocker.",
+                outcome: "success" as const,
+                policyApplied: [],
+                metrics: {},
+                linkedMemoryIds: ["fact-1"],
+                linkedArchiveIds: [],
+                linkedEvidenceIds: ["evidence-1"],
+                linkedProposalIds: ["proposal-1"],
+                createdAt: "2026-04-15T00:00:00.000Z",
+              },
+            ],
+            proposals: [
+              {
+                id: "proposal-1",
+                userId: persona.persona_id,
+                workspaceId,
+                proposalType: "maintenance_action" as const,
+                status: "accepted" as const,
+                traceId: "proposal-trace-1",
+                summary: "Re-check stale blocker memory.",
+                rationale: "One verification trace suggests a bounded maintenance follow-up.",
+                sourceExperienceIds: ["xp-1"],
+                linkedMemoryIds: ["fact-1"],
+                linkedArchiveIds: [],
+                linkedEvidenceIds: ["evidence-1"],
+                modelInfluence: "rules-only" as const,
+                createdAt: "2026-04-15T00:00:00.000Z",
+                updatedAt: "2026-04-15T00:00:00.000Z",
+              },
+            ],
+            promotions: [
+              {
+                id: "promotion-1",
+                proposalId: "proposal-1",
+                userId: persona.persona_id,
+                workspaceId,
+                traceId: "promotion-trace-1",
+                decision: "accepted" as const,
+                summary: "accepted proposal: Re-check stale blocker memory.",
+                rationale: "proposal passed deterministic gates",
+                sourceExperienceIds: ["xp-1"],
+                linkedMemoryIds: ["fact-1"],
+                linkedArchiveIds: [],
+                linkedEvidenceIds: ["evidence-1"],
+                policyOutcome: "passed" as const,
+                verificationOutcome: "passed" as const,
+                evalOutcome: "passed" as const,
+                createdAt: "2026-04-15T00:00:00.000Z",
+                decidedAt: "2026-04-15T00:00:00.000Z",
+              },
+            ],
+          },
+        };
+      },
+      async deleteAllMemory() {
+        return {
+          scope: { userId: persona.persona_id },
+          deleted: {
+            profiles: 0,
+            preferences: 0,
+            references: 0,
+            facts: 0,
+            feedback: 0,
+            episodes: 0,
+            archives: 0,
+            evidence: 0,
+            experiences: 0,
+            proposals: 0,
+            promotions: 0,
+            workingMemory: 0,
+            journal: 0,
+            artifactSpills: 0,
+          },
+        };
+      },
+    };
+
+    const result = await runGoodMemoryScenario({
+      memory: memory as never,
+      persona,
+      scenario,
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(result.trace.proposalLifecycle).toEqual({
+      experienceCount: 1,
+      experienceKindCounts: {
+        verify: 1,
+      },
+      proposalCount: 1,
+      proposalStatusCounts: {
+        accepted: 1,
+      },
+      promotionCount: 1,
+      promotionDecisionCounts: {
+        accepted: 1,
+      },
+      proposals: [
+        {
+          id: "proposal-1",
+          proposalType: "maintenance_action",
+          status: "accepted",
+          summary: "Re-check stale blocker memory.",
+          rationale: "One verification trace suggests a bounded maintenance follow-up.",
+          modelInfluence: "rules-only",
+          sourceExperienceIds: ["xp-1"],
+          linkedMemoryIds: ["fact-1"],
+          linkedArchiveIds: [],
+          linkedEvidenceIds: ["evidence-1"],
+        },
+      ],
+      promotions: [
+        {
+          id: "promotion-1",
+          proposalId: "proposal-1",
+          decision: "accepted",
+          summary: "accepted proposal: Re-check stale blocker memory.",
+          rationale: "proposal passed deterministic gates",
+          policyOutcome: "passed",
+          verificationOutcome: "passed",
+          evalOutcome: "passed",
+        },
+      ],
+    });
   });
 
   it("forwards requested recall strategy into eval replay when semantic adapters exist", async () => {
@@ -250,7 +538,7 @@ describe("eval runners", () => {
         return { forgotten: false };
       },
       async exportMemory() {
-        throw new Error("not used");
+        return buildEmptyExportMemoryResult(persona.persona_id, `eval-${persona.lifecycle_bucket}`);
       },
       async deleteAllMemory() {
         return {
@@ -399,7 +687,7 @@ describe("eval runners", () => {
         return { forgotten: false };
       },
       async exportMemory() {
-        throw new Error("not used");
+        return buildEmptyExportMemoryResult(persona.persona_id, `eval-${persona.lifecycle_bucket}`);
       },
       async deleteAllMemory() {
         return {
@@ -573,7 +861,10 @@ describe("eval runners", () => {
           return { forgotten: false };
         },
         async exportMemory() {
-          throw new Error("not used");
+          return buildEmptyExportMemoryResult(
+            persona.persona_id,
+            `eval-${persona.lifecycle_bucket}-run-live-memory-scenario-medium-01__hybrid`,
+          );
         },
         async deleteAllMemory() {
           return {

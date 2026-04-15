@@ -13,7 +13,7 @@ import {
   resolveAISDKEmbeddingModel,
   resolveAISDKModel,
   withAISDKRetries,
-} from "../../src/llm/ai-sdk-runtime";
+} from "../../src/provider/ai-sdk-runtime";
 import {
   createLLMMemoryExtractor as createAISDKMemoryExtractor,
 } from "../../src/provider/memory-extractor";

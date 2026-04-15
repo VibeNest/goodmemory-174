@@ -13,7 +13,7 @@ import type { MemorySourceMethod } from "../domain/provenance";
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import type { LanguageService } from "../language";
-import type { MemoryRepositories } from "../storage/repositories";
+import type { RecallVectorSearchPort } from "../storage/ports";
 import type { RecallRouterStrategy } from "./router";
 
 export interface RankedFactCandidate {
@@ -222,7 +222,7 @@ export async function searchSemanticScores(input: {
   embedding: EmbeddingAdapter;
   query: string;
   scope: MemoryScope;
-  vectorIndex: NonNullable<MemoryRepositories["vectorIndex"]>;
+  vectorIndex: RecallVectorSearchPort;
 }): Promise<SemanticSearchScores> {
   const [queryEmbedding] = await input.embedding.embed([input.query]);
   const filter = buildVectorScopeFilter(input.scope);

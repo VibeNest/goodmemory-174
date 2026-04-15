@@ -1,70 +1,85 @@
-import type { SessionArchive } from "./contracts";
-import { createLearningProposal, type LearningProposal } from "./contracts";
+import type { MemoryScope } from "../domain/scope";
 import type { SessionMessage } from "../domain/records";
 import type { RuntimeSalvageHooks } from "../runtime/contextService";
-import type { MemoryRepositories } from "../storage/repositories";
-import type { MemoryScope } from "../domain/scope";
+import type { EvolutionRepositoryPort } from "../storage/ports";
+import { createLearningProposal, type LearningProposal, type PromotionDecision } from "./contracts";
+import { createProposalGateProcessor } from "./gates";
+import { refreshDelayedProposal, sameProposalContent } from "./proposalLifecycle";
 
 export interface RuntimeSalvageConfig {
-  repositories: MemoryRepositories;
-  now?: () => string;
+  repositories: EvolutionRepositoryPort;
   createId?: () => string;
   createTraceId?: () => string;
+  now?: () => string;
 }
 
 function buildProposalKey(input: {
   proposalType: LearningProposal["proposalType"];
   sessionId?: string;
   linkedArchiveIds: string[];
-  summary: string;
 }): string {
   return [
     input.proposalType,
     input.sessionId ?? "",
     [...input.linkedArchiveIds].sort().join(","),
-    input.summary,
   ].join("::");
 }
 
-async function existingPendingProposalKeys(
-  repositories: MemoryRepositories,
+function isRetainedProposalDecision(status: PromotionDecision | "pending"): boolean {
+  return status !== "rejected";
+}
+
+async function existingProposalKeys(
+  repositories: EvolutionRepositoryPort,
   scope: MemoryScope,
-): Promise<Set<string>> {
-  const pending = (await repositories.proposals.listByScope(scope)).filter(
-    (proposal) => proposal.status === "pending",
+): Promise<Map<string, LearningProposal>> {
+  const retained = (await repositories.proposals.listByScope(scope)).filter(
+    (proposal) => isRetainedProposalDecision(proposal.status),
   );
 
-  return new Set(
-    pending.map((proposal) =>
-      buildProposalKey({
-        proposalType: proposal.proposalType,
-        sessionId: proposal.sessionId,
-        linkedArchiveIds: proposal.linkedArchiveIds,
-        summary: proposal.summary,
-      }),
+  return new Map(
+    retained.map((proposal) =>
+      [
+        buildProposalKey({
+          proposalType: proposal.proposalType,
+          sessionId: proposal.sessionId,
+          linkedArchiveIds: proposal.linkedArchiveIds,
+        }),
+        proposal,
+      ] as const,
     ),
   );
 }
 
-async function addProposalIfNew(
-  repositories: MemoryRepositories,
-  scope: MemoryScope,
+function addProposalIfNew(
   proposal: LearningProposal,
-  pendingKeys: Set<string>,
-): Promise<void> {
+  retainedKeys: Map<string, LearningProposal>,
+  candidates: LearningProposal[],
+): void {
   const key = buildProposalKey({
     proposalType: proposal.proposalType,
     sessionId: proposal.sessionId,
     linkedArchiveIds: proposal.linkedArchiveIds,
-    summary: proposal.summary,
   });
 
-  if (pendingKeys.has(key)) {
+  const existing = retainedKeys.get(key);
+  if (!existing) {
+    retainedKeys.set(key, proposal);
+    candidates.push(proposal);
     return;
   }
 
-  pendingKeys.add(key);
-  await repositories.proposals.add(proposal);
+  if (existing.status !== "delayed") {
+    return;
+  }
+
+  if (sameProposalContent(existing, proposal)) {
+    return;
+  }
+
+  const refreshed = refreshDelayedProposal(existing, proposal);
+  retainedKeys.set(key, refreshed);
+  candidates.push(refreshed);
 }
 
 function clipText(content: string, maxLength = 120): string {
@@ -113,21 +128,26 @@ export function createRuntimeSalvageHooks(
   const now = config.now ?? (() => new Date().toISOString());
   const createId = config.createId ?? (() => crypto.randomUUID());
   const createTraceId = config.createTraceId ?? (() => crypto.randomUUID());
+  const proposalGate = createProposalGateProcessor({
+    repositories: config.repositories,
+    now,
+    createId,
+    createTraceId,
+  });
 
   return {
     async onPreCompact(input) {
-      const pendingKeys = await existingPendingProposalKeys(
+      const retainedKeys = await existingProposalKeys(
         config.repositories,
         input.scope,
       );
+      const candidates: LearningProposal[] = [];
       const timestamp = now();
       const { workingMemory, journal } = input.runtimeState;
       const evictedContext = renderMessageExcerpt(input.evictedMessages);
 
       if (workingMemory.openLoops.length > 0) {
-        await addProposalIfNew(
-          config.repositories,
-          input.scope,
+        addProposalIfNew(
           createLearningProposal({
             id: createId(),
             userId: input.scope.userId,
@@ -154,7 +174,8 @@ export function createRuntimeSalvageHooks(
             createdAt: timestamp,
             updatedAt: timestamp,
           }),
-          pendingKeys,
+          retainedKeys,
+          candidates,
         );
       }
 
@@ -166,9 +187,7 @@ export function createRuntimeSalvageHooks(
       });
 
       if (candidatePattern) {
-        await addProposalIfNew(
-          config.repositories,
-          input.scope,
+        addProposalIfNew(
           createLearningProposal({
             id: createId(),
             userId: input.scope.userId,
@@ -195,23 +214,30 @@ export function createRuntimeSalvageHooks(
             createdAt: timestamp,
             updatedAt: timestamp,
           }),
-          pendingKeys,
+          retainedKeys,
+          candidates,
         );
+      }
+
+      if (candidates.length > 0) {
+        await proposalGate.process({
+          scope: input.scope,
+          proposals: candidates,
+        });
       }
     },
 
     async onSessionEnd(input) {
-      const pendingKeys = await existingPendingProposalKeys(
+      const retainedKeys = await existingProposalKeys(
         config.repositories,
         input.scope,
       );
+      const candidates: LearningProposal[] = [];
       const timestamp = now();
       const archive = input.archive;
 
       if (archive.unresolvedItems.length > 0) {
-        await addProposalIfNew(
-          config.repositories,
-          input.scope,
+        addProposalIfNew(
           createLearningProposal({
             id: createId(),
             userId: input.scope.userId,
@@ -232,15 +258,14 @@ export function createRuntimeSalvageHooks(
             createdAt: timestamp,
             updatedAt: timestamp,
           }),
-          pendingKeys,
+          retainedKeys,
+          candidates,
         );
       }
 
       const candidatePattern = archive.keyDecisions[0];
       if (candidatePattern) {
-        await addProposalIfNew(
-          config.repositories,
-          input.scope,
+        addProposalIfNew(
           createLearningProposal({
             id: createId(),
             userId: input.scope.userId,
@@ -261,8 +286,16 @@ export function createRuntimeSalvageHooks(
             createdAt: timestamp,
             updatedAt: timestamp,
           }),
-          pendingKeys,
+          retainedKeys,
+          candidates,
         );
+      }
+
+      if (candidates.length > 0) {
+        await proposalGate.process({
+          scope: input.scope,
+          proposals: candidates,
+        });
       }
     },
   };

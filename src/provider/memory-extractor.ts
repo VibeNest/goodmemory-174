@@ -1,14 +1,14 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 
-import type { AISDKRetryOptions } from "../llm/ai-sdk-runtime";
-import type { FetchLike } from "../llm/ai-sdk-runtime";
-import type { AISDKModelConfig } from "../llm/ai-sdk-runtime";
 import {
   requestOpenAICompatibleObject,
   resolveAISDKModel,
   withAISDKRetries,
-} from "../llm/ai-sdk-runtime";
+} from "./ai-sdk-runtime";
+import type { AISDKRetryOptions } from "./ai-sdk-runtime";
+import type { FetchLike } from "./ai-sdk-runtime";
+import type { AISDKModelConfig } from "./ai-sdk-runtime";
 import type {
   MemoryCandidateExplicitness,
   MemoryCandidateKindHint,

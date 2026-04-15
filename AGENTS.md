@@ -40,7 +40,7 @@ src/
 ├── storage/                                                   # in-memory, sqlite, postgres, and repository adapters
 ├── eval/                                                      # eval runners, judge integration, reporting
 ├── evidence/ evolution/ governance/                           # evidence, archive, proposal, and governance layers
-├── embedding/ provider/ llm/                                  # provider-backed adapters and model plumbing
+├── embedding/ provider/                                       # provider-backed adapters and model plumbing
 ├── language/                                                  # locale-aware extraction and normalization
 ├── policy/ testing/                                           # policy hooks and shared test helpers
 └── cli.ts                                                     # CLI entrypoint exposed via package exports

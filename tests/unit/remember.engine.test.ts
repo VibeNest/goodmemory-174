@@ -3,6 +3,7 @@ import { createMemoryRepositories } from "../../src/storage/repositories";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
+  createInMemoryVectorStore,
 } from "../../src/storage/memory";
 import {
   createRememberEngine,
@@ -16,6 +17,7 @@ import {
   DeterministicClock,
   createDeterministicIdGenerator,
 } from "../../src/testing/utils";
+import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 
 function createEngine(overrides: Partial<RememberEngineConfig> = {}) {
   const clock = new DeterministicClock("2026-01-01T00:00:00.000Z");
@@ -154,6 +156,46 @@ describe("remember engine", () => {
         workspaceId: "workspace-b",
       }),
     ).toHaveLength(1);
+  });
+
+  it("uses repositories.vectorIndex by default so legacy engine wiring still writes embeddings", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const repositories = createMemoryRepositories({
+      documentStore,
+      sessionStore,
+      vectorStore,
+    });
+    const embeddingAdapter = createFakeEmbeddingAdapter();
+    const engine = createRememberEngine({
+      repositories,
+      documentStore,
+      embedding: embeddingAdapter,
+      now: () => "2026-01-01T00:00:00.000Z",
+      createId: createDeterministicIdGenerator("mem"),
+    });
+    const scope = { userId: "u-legacy", workspaceId: "workspace-a", sessionId: "s-1" } as const;
+
+    await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the runtime rollout is blocked on vendor approval.",
+        },
+      ],
+    });
+
+    const [fact] = await repositories.facts.listByScope(scope);
+    const [factEmbedding] = await embeddingAdapter.embed([fact!.content]);
+
+    expect(
+      await repositories.vectorIndex?.searchFactEmbedding(factEmbedding, {
+        topK: 1,
+        filter: { userId: scope.userId, workspaceId: scope.workspaceId },
+      }),
+    ).toContainEqual(expect.objectContaining({ id: fact?.id }));
   });
 
   it("updates procedural memory independently from semantic fact storage", async () => {
