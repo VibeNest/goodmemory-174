@@ -1,21 +1,34 @@
 import type { MarkdownArtifactBundle } from "../src";
-import { createGoodMemory } from "../src";
-import { createRuntimeContextService } from "../src/runtime/contextService";
 import {
+  createGoodMemory,
   createInMemoryDocumentStore,
   createInMemorySessionStore,
-} from "../src/storage/memory";
+  createMemoryRepositories,
+  createRuntimeContextService,
+  createRuntimeSalvageHooks,
+} from "../src";
 
 export async function runCodingAgentExample(): Promise<{
   artifacts: MarkdownArtifactBundle;
   memoryContext: string;
   answer: string;
+  salvageProposalSummaries: string[];
 }> {
   const documentStore = createInMemoryDocumentStore();
   const sessionStore = createInMemorySessionStore();
+  const repositories = createMemoryRepositories({
+    documentStore,
+    sessionStore,
+  });
   const runtime = createRuntimeContextService({
     sessionStore,
+    archiveStore: repositories.archives,
+    salvageHooks: createRuntimeSalvageHooks({
+      repositories,
+      now: () => "2026-04-02T00:00:00.000Z",
+    }),
     now: () => "2026-04-02T00:00:00.000Z",
+    maxBufferedMessages: 2,
   });
   const memory = createGoodMemory({
     storage: { provider: "memory" },
@@ -32,13 +45,26 @@ export async function runCodingAgentExample(): Promise<{
   } as const;
 
   await runtime.startSession(scope);
+  await runtime.appendToSession(scope, {
+    role: "user",
+    content: "Outline the rollback checklist before deploy.",
+  });
+  await runtime.appendToSession(scope, {
+    role: "assistant",
+    content: "Use the rollback checklist before deploy.",
+  });
   await runtime.updateWorkingMemory(scope, {
     currentGoal: "Finish recall engine",
     openLoops: ["wire buildContext output"],
+    temporaryDecisions: ["Use the rollback checklist before deploy."],
   });
   await runtime.updateSessionJournal(scope, {
     currentState: "Phase 6 in progress",
     appendWorklog: ["Recall router implemented."],
+  });
+  await runtime.appendToSession(scope, {
+    role: "user",
+    content: "Continue the recall engine implementation.",
   });
   await memory.feedback({
     scope,
@@ -65,6 +91,9 @@ export async function runCodingAgentExample(): Promise<{
     memoryContext: context.content,
     answer:
       "Next step: Finish recall engine, then wire buildContext output before closing the open loop on wire buildContext output.",
+    salvageProposalSummaries: exported.durable.proposals.map(
+      (proposal) => proposal.summary,
+    ),
   };
 }
 

@@ -21,9 +21,29 @@ export interface RuntimeArchiveStore {
   add(archive: SessionArchive): Promise<void>;
 }
 
+export interface PreCompactSalvageInput {
+  evictedMessages: SessionMessage[];
+  nextMessage: SessionMessage;
+  nextMessages: SessionMessage[];
+  scope: MemoryScope;
+  overflowCount: number;
+  runtimeState: RuntimeContextState;
+}
+
+export interface SessionEndSalvageInput {
+  scope: MemoryScope;
+  archive: SessionArchive;
+}
+
+export interface RuntimeSalvageHooks {
+  onPreCompact?(input: PreCompactSalvageInput): Promise<void>;
+  onSessionEnd?(input: SessionEndSalvageInput): Promise<void>;
+}
+
 export interface RuntimeContextServiceConfig {
   sessionStore: SessionStore;
   archiveStore?: RuntimeArchiveStore;
+  salvageHooks?: RuntimeSalvageHooks;
   now?: () => string;
   createMessageId?: () => string;
   createArchiveId?: () => string;
@@ -167,6 +187,17 @@ function buildArchiveSummary(state: RuntimeContextState): string {
   return summarySegments.join(" ").trim() || "Session ended without a synthesized summary.";
 }
 
+async function runBestEffortSalvage(
+  stage: "pre-compact" | "session-end",
+  operation: () => Promise<void>,
+): Promise<void> {
+  try {
+    await operation();
+  } catch (error) {
+    console.error(`Runtime salvage hook failed during ${stage}`, error);
+  }
+}
+
 export function createRuntimeContextService(config: RuntimeContextServiceConfig) {
   const now = config.now ?? (() => new Date().toISOString());
   const createMessageId = config.createMessageId ?? (() => crypto.randomUUID());
@@ -265,21 +296,32 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
       const sessionScope = requireSessionScope(scope);
       const state = await ensureActiveState(sessionScope);
       const timestamp = now();
+      const nextMessage = {
+        id: message.id ?? createMessageId(),
+        role: message.role,
+        content: message.content,
+      };
       const nextMessages = [
         ...state.buffer.messages,
-        {
-          id: message.id ?? createMessageId(),
-          role: message.role,
-          content: message.content,
-        },
+        nextMessage,
       ];
 
       let summary = state.buffer.summary;
       let summaryUpToIndex = state.buffer.summaryUpToIndex;
       let messages = nextMessages;
+      let preCompactInput: PreCompactSalvageInput | undefined;
 
       if (nextMessages.length > maxBufferedMessages) {
         const overflow = nextMessages.length - maxBufferedMessages;
+        const evictedMessages = nextMessages.slice(0, overflow);
+        preCompactInput = {
+          evictedMessages,
+          nextMessage,
+          nextMessages,
+          scope: sessionScope,
+          overflowCount: overflow,
+          runtimeState: state,
+        };
         messages = nextMessages.slice(overflow);
         summary = summary ?? "Earlier messages compacted.";
         summaryUpToIndex += overflow;
@@ -292,8 +334,16 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
         summaryUpToIndex,
         lastActiveAt: timestamp,
       });
+      const onPreCompact = config.salvageHooks?.onPreCompact;
 
       await config.sessionStore.saveBuffer(sessionScope, buffer);
+
+      if (preCompactInput && onPreCompact) {
+        await runBestEffortSalvage("pre-compact", async () => {
+          await onPreCompact(preCompactInput);
+        });
+      }
+
       return buffer;
     },
 
@@ -406,8 +456,10 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
       const state = await ensureActiveState(sessionScope);
       const archivedAt = now();
 
+      let archive: SessionArchive | undefined;
+
       if (config.archiveStore && hasArchiveSignal(state)) {
-        const archive = createSessionArchive({
+        archive = createSessionArchive({
           id: createArchiveId(),
           userId: sessionScope.userId,
           tenantId: sessionScope.tenantId,
@@ -439,6 +491,17 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
       }
 
       lifecycle.set(scopeToKey(sessionScope), "ended");
+      const onSessionEnd = config.salvageHooks?.onSessionEnd;
+
+      if (archive && onSessionEnd) {
+        await runBestEffortSalvage("session-end", async () => {
+          await onSessionEnd({
+            scope: sessionScope,
+            archive,
+          });
+        });
+      }
+
       return state;
     },
   };

@@ -1,9 +1,9 @@
 Phase 15.4: Pre-Compact and Session-End Salvage
 ===============================================
 
-[TODO] P15.4-T001 Add pre-compact salvage hook
-[TODO] P15.4-T002 Add session-end salvage hook
-[TODO] P15.4-T003 Convert salvage findings into proposals instead of direct durable writes
+[DONE] P15.4-T001 Add pre-compact salvage hook
+[DONE] P15.4-T002 Add session-end salvage hook
+[DONE] P15.4-T003 Convert salvage findings into proposals instead of direct durable writes
 
 Why this exists
 ---------------
@@ -26,3 +26,21 @@ Acceptance
 ----------
 - Context-loss boundaries become proposal-generation opportunities
 - Salvage stays governed and inspectable
+
+
+Implemented
+-----------
+- Added `RuntimeSalvageHooks` to `src/runtime/contextService.ts` and wired `onPreCompact()` before buffer trimming plus `onSessionEnd()` after archive creation
+- Added `src/evolution/salvage.ts` with deterministic rules-only salvage that emits `maintenance_action` and `procedural_pattern` proposals
+- Kept salvage output in `LearningProposal` only; no salvage path directly mutates durable memory
+- Added idempotence checks so repeated compact/session-end boundaries do not duplicate equivalent pending salvage proposals
+
+
+Validation
+----------
+- `tests/unit/runtime.context-service.test.ts`
+- `tests/unit/evolution.salvage.test.ts`
+- `tests/unit/evolution.reviewer.test.ts`
+- `tests/unit/evolution.observations.test.ts`
+- `tests/integration/evolution.reviewer.test.ts`
+- `bun run typecheck`

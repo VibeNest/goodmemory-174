@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { createInMemoryDocumentStore, createInMemorySessionStore } from "../../src/storage/memory";
 import {
   createRuntimeContextService,
+  type RuntimeSalvageHooks,
 } from "../../src/runtime/contextService";
 import {
   createMemoryRepositories,
@@ -11,7 +12,10 @@ import {
   createDeterministicIdGenerator,
 } from "../../src/testing/utils";
 
-function createService(maxBufferedMessages = 3) {
+function createService(
+  maxBufferedMessages = 3,
+  input?: { salvageHooks?: RuntimeSalvageHooks },
+) {
   const clock = new DeterministicClock("2026-01-01T00:00:00.000Z");
   const documentStore = createInMemoryDocumentStore();
   const sessionStore = createInMemorySessionStore();
@@ -22,6 +26,7 @@ function createService(maxBufferedMessages = 3) {
   const service = createRuntimeContextService({
     sessionStore,
     archiveStore: repositories.archives,
+    salvageHooks: input?.salvageHooks,
     now: () => clock.now().toISOString(),
     createMessageId: createDeterministicIdGenerator("msg"),
     createArchiveId: createDeterministicIdGenerator("archive"),
@@ -99,6 +104,90 @@ describe("runtime context service", () => {
     state = await service.getRuntimeState(scope);
     expect(state.buffer.summary).toBe("User confirmed runtime architecture.");
     expect(state.buffer.summaryUpToIndex).toBe(2);
+  });
+
+  it("invokes pre-compact salvage hooks before trimming buffered messages", async () => {
+    const preCompactCalls: Array<{
+      evictedMessages: string[];
+      nextMessage: string;
+      nextMessages: string[];
+      overflowCount: number;
+      openLoops: string[];
+    }> = [];
+    const { clock, service } = createService(2, {
+      salvageHooks: {
+        async onPreCompact({
+          evictedMessages,
+          nextMessage,
+          nextMessages,
+          overflowCount,
+          runtimeState,
+        }) {
+          preCompactCalls.push({
+            evictedMessages: evictedMessages.map((message) => message.content),
+            nextMessage: nextMessage.content,
+            nextMessages: nextMessages.map((message) => message.content),
+            overflowCount,
+            openLoops: runtimeState.workingMemory.openLoops,
+          });
+        },
+      },
+    });
+    const scope = { userId: "u-1", sessionId: "s-1" };
+
+    await service.startSession(scope);
+    await service.updateWorkingMemory(scope, {
+      openLoops: ["preserve unresolved runtime handoff"],
+    });
+    await service.appendToSession(scope, { role: "user", content: "m1" });
+    clock.advanceMs(1000);
+    await service.appendToSession(scope, { role: "assistant", content: "m2" });
+    clock.advanceMs(1000);
+    await service.appendToSession(scope, { role: "user", content: "m3" });
+
+    expect(preCompactCalls).toEqual([
+      {
+        evictedMessages: ["m1"],
+        nextMessage: "m3",
+        nextMessages: ["m1", "m2", "m3"],
+        overflowCount: 1,
+        openLoops: ["preserve unresolved runtime handoff"],
+      },
+    ]);
+  });
+
+  it("keeps compaction on the core append path when pre-compact salvage fails", async () => {
+    const errors: unknown[][] = [];
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      errors.push(args);
+    };
+
+    try {
+      const { clock, service } = createService(2, {
+        salvageHooks: {
+          async onPreCompact() {
+            throw new Error("proposal repository temporarily unavailable");
+          },
+        },
+      });
+      const scope = { userId: "u-1", sessionId: "s-1" };
+
+      await service.startSession(scope);
+      await service.appendToSession(scope, { role: "user", content: "m1" });
+      clock.advanceMs(1000);
+      await service.appendToSession(scope, { role: "assistant", content: "m2" });
+      clock.advanceMs(1000);
+      await service.appendToSession(scope, { role: "user", content: "m3" });
+
+      expect((await service.getRuntimeState(scope)).buffer.messages.map((message) => message.content))
+        .toEqual(["m2", "m3"]);
+
+      expect(errors).toHaveLength(1);
+      expect(String(errors[0]?.[0])).toContain("Runtime salvage hook failed");
+    } finally {
+      console.error = originalConsoleError;
+    }
   });
 
   it("updates working memory without leaking into durable memory semantics", async () => {
@@ -249,6 +338,76 @@ describe("runtime context service", () => {
     expect(archive.normalizedTranscript).toContain("rollback plan ready");
     expect(archive.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(archive.archivedAt).toBe("2026-01-01T00:00:01.000Z");
+  });
+
+  it("invokes session-end salvage hooks with the created archive", async () => {
+    const sessionEndCalls: Array<{ archiveId: string; unresolvedItems: string[] }> = [];
+    const { clock, service } = createService(3, {
+      salvageHooks: {
+        async onSessionEnd({ archive }) {
+          sessionEndCalls.push({
+            archiveId: archive.id,
+            unresolvedItems: archive.unresolvedItems,
+          });
+        },
+      },
+    });
+    const scope = { userId: "u-1", sessionId: "s-1" };
+
+    await service.startSession(scope);
+    await service.updateWorkingMemory(scope, {
+      currentGoal: "Finish salvage hook wiring",
+      openLoops: ["keep unresolved loop visible"],
+    });
+    clock.advanceMs(1000);
+    await service.endSession(scope);
+
+    expect(sessionEndCalls).toEqual([
+      {
+        archiveId: "archive-0001",
+        unresolvedItems: ["keep unresolved loop visible"],
+      },
+    ]);
+  });
+
+  it("keeps session close committed when session-end salvage fails", async () => {
+    const errors: unknown[][] = [];
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      errors.push(args);
+    };
+
+    try {
+      const { clock, repositories, service } = createService(3, {
+        salvageHooks: {
+          async onSessionEnd() {
+            throw new Error("proposal creation failed");
+          },
+        },
+      });
+      const scope = { userId: "u-1", sessionId: "s-1" };
+
+      await service.startSession(scope);
+      await service.updateWorkingMemory(scope, {
+        currentGoal: "Finish salvage isolation",
+        openLoops: ["carry unresolved handoff into archive"],
+      });
+      clock.advanceMs(1000);
+      await expect(service.endSession(scope)).resolves.toBeDefined();
+
+      expect(await repositories.archives.listByScope(scope)).toHaveLength(1);
+      await expect(
+        service.appendToSession(scope, {
+          role: "assistant",
+          content: "should be blocked because the session already ended",
+        }),
+      ).rejects.toThrow("ended");
+
+      expect(errors).toHaveLength(1);
+      expect(String(errors[0]?.[0])).toContain("Runtime salvage hook failed");
+    } finally {
+      console.error = originalConsoleError;
+    }
   });
 
   it("does not persist an archive when ending an untouched empty session", async () => {
