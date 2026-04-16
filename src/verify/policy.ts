@@ -28,43 +28,121 @@ export interface VerificationPolicyInput {
 
 const DEFAULT_LANGUAGE = createLanguageService();
 
+export interface FactVerificationAssessment {
+  actionDriving: boolean;
+  factAgeDays: number;
+  inferred: boolean;
+  shouldHint: boolean;
+  stale: boolean;
+}
+
 function daysBetween(left: string, right: string): number {
   const ms = Math.abs(new Date(left).getTime() - new Date(right).getTime());
   return ms / (1000 * 60 * 60 * 24);
 }
 
-export function evaluateVerificationHints(
-  input: VerificationPolicyInput,
-): VerificationHint[] {
-  const hints: VerificationHint[] = [];
+function resolveVerificationContext(input: {
+  query: string;
+  locale?: string;
+  language?: LanguageService;
+}): {
+  actionDriving: boolean;
+  language: LanguageService;
+  locale: string;
+} {
   const language = input.language ?? DEFAULT_LANGUAGE;
   const locale =
     input.locale ??
     language.resolveFromText({
       text: input.query,
     }).locale;
-  const actionDriving = language.isActionDrivingQuery(input.query, locale);
+
+  return {
+    actionDriving: language.isActionDrivingQuery(input.query, locale),
+    language,
+    locale,
+  };
+}
+
+export function assessFactVerificationNeed(input: {
+  fact: FactMemory;
+  query: string;
+  referenceTime: string;
+  locale?: string;
+  language?: LanguageService;
+}): FactVerificationAssessment {
+  const context = resolveVerificationContext(input);
+  const factAgeDays = daysBetween(input.referenceTime, input.fact.updatedAt);
+  const stale = factAgeDays >= 30;
+  const inferred = input.fact.source.method === "inferred";
+
+  return {
+    actionDriving: context.actionDriving,
+    factAgeDays,
+    inferred,
+    shouldHint: stale || (context.actionDriving && inferred),
+    stale,
+  };
+}
+
+export function factVerificationAdvisoryPenalty(input: {
+  fact: FactMemory;
+  query: string;
+  referenceTime: string;
+  locale?: string;
+  language?: LanguageService;
+}): number {
+  const assessment = assessFactVerificationNeed(input);
+  if (!assessment.shouldHint) {
+    return 0;
+  }
+
+  let penalty = 0;
+
+  if (assessment.stale) {
+    if (assessment.actionDriving) {
+      penalty += assessment.factAgeDays >= 90 ? 0.22 : 0.18;
+    } else {
+      penalty += assessment.factAgeDays >= 90 ? 0.08 : 0.05;
+    }
+  }
+
+  if (assessment.actionDriving && assessment.inferred) {
+    penalty += 0.12;
+  }
+
+  return penalty;
+}
+
+export function evaluateVerificationHints(
+  input: VerificationPolicyInput,
+): VerificationHint[] {
+  const hints: VerificationHint[] = [];
+  const context = resolveVerificationContext(input);
 
   for (const fact of input.facts) {
-    const factAgeDays = daysBetween(input.referenceTime, fact.updatedAt);
-    const stale = factAgeDays >= 30;
-    const inferred = fact.source.method === "inferred";
-
-    if (!actionDriving && !stale) {
+    const assessment = assessFactVerificationNeed({
+      fact,
+      query: input.query,
+      referenceTime: input.referenceTime,
+      locale: context.locale,
+      language: context.language,
+    });
+    if (!assessment.shouldHint) {
       continue;
     }
 
-    if (stale) {
+    if (assessment.stale) {
       hints.push({
         memoryId: fact.id,
         memoryType: "fact",
-        reason: `stale fact (${Math.floor(factAgeDays)} days old) should be verified before action`,
+        reason: `stale fact (${Math.floor(assessment.factAgeDays)} days old) should be verified before action`,
         evidenceIds: input.evidenceIdsByMemoryId?.[fact.id],
       });
       continue;
     }
 
-    if (actionDriving && inferred) {
+    if (assessment.actionDriving && assessment.inferred) {
       hints.push({
         memoryId: fact.id,
         memoryType: "fact",
@@ -74,7 +152,7 @@ export function evaluateVerificationHints(
     }
   }
 
-  if (actionDriving) {
+  if (context.actionDriving) {
     for (const reference of input.references ?? []) {
       const referenceAgeDays = daysBetween(input.referenceTime, reference.updatedAt);
       if (referenceAgeDays < 30) {

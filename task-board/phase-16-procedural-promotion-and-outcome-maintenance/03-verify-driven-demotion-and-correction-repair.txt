@@ -1,9 +1,9 @@
 Phase 16.3: Verify-Driven Demotion and Correction Repair
 ========================================================
 
-[TODO] P16.3-T001 Demote stale action-driving memory after repeated verification failures
-[TODO] P16.3-T002 Use repeated corrections to drive supersede/contradiction repair
-[TODO] P16.3-T003 Preserve auditability for demotion and repair decisions
+[DONE] P16.3-T001 Demote stale action-driving memory after repeated verification failures
+[DONE] P16.3-T002 Use repeated corrections to drive supersede/contradiction repair
+[DONE] P16.3-T003 Preserve auditability for demotion and repair decisions
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Stale-memory misuse rate can go down through auditable maintenance behavior
 - Repair logic prefers explicit, better-grounded memory over weak inferred state
+
+Implemented Notes
+-----------------
+- Verification hints remain advisory on the recall path and are captured via recall/verify traces rather than silently mutating durable fact state.
+- Recall scoring now applies an explainable verification-penalty signal during the current recall so stale action-driving facts lose prominence without being rewritten as failed memory.
+- Durable demotion stays reserved for governed repair paths such as contradiction handling or explicit correction outcomes, where the system has stronger evidence than a hint.
+- Contradiction repair now uses verification pressure plus recency tie-breaks so newer or verification-safer facts survive repair more reliably.

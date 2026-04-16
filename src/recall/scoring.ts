@@ -14,6 +14,7 @@ import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import type { LanguageService } from "../language";
 import type { RecallVectorSearchPort } from "../storage/ports";
+import { factVerificationAdvisoryPenalty } from "../verify/policy";
 import type { RecallRouterStrategy } from "./router";
 
 export interface RankedFactCandidate {
@@ -31,6 +32,7 @@ export interface RankedFactCandidate {
   usageScore: number;
   evidenceScore: number;
   outcomeScore: number;
+  verificationPenaltyScore: number;
   categoryBoost: number;
   score: number;
 }
@@ -322,6 +324,31 @@ function evidenceSupportScore(evidenceCount: number): number {
   return Math.min(evidenceCount, 4) * 0.015;
 }
 
+function durableVerificationPressurePenalty(input: {
+  referenceTime: string;
+  verificationPressureCount?: number;
+  lastVerificationHintAt?: string;
+}): number {
+  const count = input.verificationPressureCount ?? 0;
+  if (count <= 0) {
+    return 0;
+  }
+
+  if (!input.lastVerificationHintAt) {
+    return Math.min(count, 4) * 0.02;
+  }
+
+  const ageDays = daysBetween(input.referenceTime, input.lastVerificationHintAt);
+  if (ageDays > 30) {
+    return Math.min(count, 4) * 0.008;
+  }
+  if (ageDays > 7) {
+    return Math.min(count, 4) * 0.015;
+  }
+
+  return Math.min(count, 4) * 0.03;
+}
+
 function resolveFactKind(
   fact: FactMemory,
   language: LanguageService,
@@ -446,6 +473,19 @@ export function buildFactCandidates(
       evidenceCountsByMemoryId?.get(fact.id) ?? 0,
     );
     const outcomeScore = usageScore + evidenceScore;
+    const verificationPenaltyScore =
+      factVerificationAdvisoryPenalty({
+        fact,
+        query,
+        referenceTime,
+        locale: queryLocale,
+        language,
+      }) +
+      durableVerificationPressurePenalty({
+        referenceTime,
+        verificationPressureCount: fact.verificationPressureCount,
+        lastVerificationHintAt: fact.lastVerificationHintAt,
+      });
     const categoryBoost = categoryPriority(fact.category, query, language, queryLocale);
     const semanticScore = semanticScores?.get(fact.id) ?? 0;
 
@@ -464,6 +504,7 @@ export function buildFactCandidates(
       usageScore,
       evidenceScore,
       outcomeScore,
+      verificationPenaltyScore,
       categoryBoost,
       score:
         lexicalScore +
@@ -472,7 +513,8 @@ export function buildFactCandidates(
         freshness +
         explicitness +
         outcomeScore +
-        categoryBoost,
+        categoryBoost -
+        verificationPenaltyScore,
     };
   });
 }

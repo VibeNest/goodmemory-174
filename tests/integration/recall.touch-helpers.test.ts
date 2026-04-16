@@ -233,6 +233,55 @@ describe("recall touch helpers", () => {
     expect(recallExperience?.summary).toContain("touched 1 fact counter");
   });
 
+  it("does not reinforce fact access when the same recall raises a verification hint", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const now = new Date("2026-04-02T00:00:00.000Z");
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+      testing: {
+        now: () => now,
+      },
+    });
+
+    await documentStore.set(
+      "facts",
+      "fact-1",
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The runtime rollout is blocked by legal signoff.",
+        source: { method: "explicit", extractedAt: "2025-12-01T00:00:00.000Z" },
+        accessCount: 1,
+        createdAt: "2025-12-01T00:00:00.000Z",
+        updatedAt: "2025-12-01T00:00:00.000Z",
+      }),
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "Proceed with the rollout using the remembered blocker.",
+      retrievalProfile: "coding_agent",
+    });
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+    const fact = exported.durable.facts.find((record) => record.id === "fact-1");
+    const recallExperience = exported.durable.experiences.find((record) => record.kind === "recall");
+
+    expect(result.metadata.verificationHints.map((hint) => hint.memoryId)).toContain("fact-1");
+    expect(fact?.accessCount).toBe(1);
+    expect(fact?.lastAccessedAt).toBeUndefined();
+    expect(recallExperience?.metrics.touchedFactCount).toBeUndefined();
+  });
+
   it("keeps low-risk recall touches idempotent inside the bounded window", async () => {
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();

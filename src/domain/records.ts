@@ -79,6 +79,10 @@ export interface FactMemory {
   subject?: string;
   accessCount: number;
   lastAccessedAt?: string;
+  verificationPressureCount?: number;
+  lastVerificationHintAt?: string;
+  demotedAt?: string;
+  demotionReason?: string;
   supersededBy?: string | null;
   lifecycle: MemoryLifecycleState;
   isActive: boolean;
@@ -277,6 +281,10 @@ export function createFactMemory(
     subject: input.subject,
     accessCount: input.accessCount ?? 0,
     lastAccessedAt: input.lastAccessedAt,
+    verificationPressureCount: input.verificationPressureCount ?? 0,
+    lastVerificationHintAt: input.lastVerificationHintAt,
+    demotedAt: input.demotedAt,
+    demotionReason: input.demotionReason,
     supersededBy: input.supersededBy ?? null,
     lifecycle: input.lifecycle ?? "active",
     isActive: input.isActive ?? true,

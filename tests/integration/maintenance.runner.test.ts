@@ -122,6 +122,54 @@ describe("maintenance runner", () => {
     expect(repaired?.isActive).toBe(false);
   });
 
+  it("prefers newer or verification-safer facts during contradiction repair and records the demotion reason", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-older",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Robot workflow is blocked on prod migration.",
+        verificationPressureCount: 3,
+        lastVerificationHintAt: "2026-03-15T00:00:00.000Z",
+        source: { method: "explicit", extractedAt: "2026-03-01T00:00:00.000Z" },
+        confidence: 0.95,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-newer",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Robot workflow is stable after prod migration.",
+        source: { method: "explicit", extractedAt: "2026-03-20T00:00:00.000Z" },
+        confidence: 0.95,
+        createdAt: "2026-03-20T00:00:00.000Z",
+        updatedAt: "2026-03-20T00:00:00.000Z",
+      }),
+    );
+
+    const report = await runner.run(scope, ["contradiction"]);
+    expect(report.jobs[0]?.applied).toBe(1);
+
+    const facts = await repositories.facts.listByScope(scope);
+    const older = facts.find((fact) => fact.id === "fact-older");
+    const newer = facts.find((fact) => fact.id === "fact-newer");
+
+    expect(older?.lifecycle).toBe("inactive");
+    expect(older?.isActive).toBe(false);
+    expect(older?.demotionReason).toBe("contradicted_by_stronger_fact");
+    expect(older?.demotedAt).toBe("2026-04-02T00:00:00.000Z");
+    expect(newer?.lifecycle).toBe("active");
+    expect(newer?.isActive).toBe(true);
+  });
+
   it("can run selected jobs or all jobs through one entry point", async () => {
     const { repositories, runner } = createFixture();
     const scope = { userId: "u-1", workspaceId: "workspace-a" };

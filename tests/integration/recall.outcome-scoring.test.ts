@@ -97,4 +97,128 @@ describe("recall outcome scoring", () => {
     expect(trace?.usageScore).toBeGreaterThan(0);
     expect(trace?.whyReturned).toContain("outcomeScore=");
   });
+
+  it("down-weights stale action-driving facts without persisting advisory pressure", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+      testing: {
+        now: () => new Date("2026-02-15T00:00:00.000Z"),
+      },
+    });
+
+    await documentStore.set(
+      "facts",
+      "fact-risky",
+      createFactMemory({
+        id: "fact-risky",
+        userId: "u-verify",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The runtime rollout is blocked by legal signoff.",
+        source: { method: "explicit", extractedAt: "2025-12-01T00:00:00.000Z" },
+        accessCount: 5,
+        lastAccessedAt: "2026-02-14T00:00:00.000Z",
+        createdAt: "2025-12-01T00:00:00.000Z",
+        updatedAt: "2025-12-01T00:00:00.000Z",
+      }),
+    );
+    await documentStore.set(
+      "facts",
+      "fact-safe",
+      createFactMemory({
+        id: "fact-safe",
+        userId: "u-verify",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The runtime rollout is blocked by legal signoff.",
+        source: { method: "explicit", extractedAt: "2026-01-25T00:00:00.000Z" },
+        createdAt: "2026-01-25T00:00:00.000Z",
+        updatedAt: "2026-01-25T00:00:00.000Z",
+      }),
+    );
+    const source = createMemorySource({
+      method: "explicit",
+      extractedAt: "2026-02-14T00:00:00.000Z",
+      sessionId: "s-verify",
+    });
+    await documentStore.set(
+      "evidence",
+      "evidence-risky-1",
+      createEvidenceRecord({
+        id: "evidence-risky-1",
+        userId: "u-verify",
+        workspaceId: "workspace-a",
+        kind: "conversation_excerpt",
+        excerpt: "Earlier sessions repeated the same blocker.",
+        source,
+        linkedMemoryIds: ["fact-risky"],
+      }),
+    );
+    await documentStore.set(
+      "evidence",
+      "evidence-risky-2",
+      createEvidenceRecord({
+        id: "evidence-risky-2",
+        userId: "u-verify",
+        workspaceId: "workspace-a",
+        kind: "verification_result",
+        excerpt: "A prior verification also pointed to this blocker.",
+        source,
+        linkedMemoryIds: ["fact-risky"],
+      }),
+    );
+    await documentStore.set(
+      "evidence",
+      "evidence-safe-1",
+      createEvidenceRecord({
+        id: "evidence-safe-1",
+        userId: "u-verify",
+        workspaceId: "workspace-a",
+        kind: "conversation_excerpt",
+        excerpt: "The recent project note still references the same blocker.",
+        source,
+        linkedMemoryIds: ["fact-safe"],
+      }),
+    );
+    await documentStore.set(
+      "evidence",
+      "evidence-safe-2",
+      createEvidenceRecord({
+        id: "evidence-safe-2",
+        userId: "u-verify",
+        workspaceId: "workspace-a",
+        kind: "verification_result",
+        excerpt: "The recent check also supports the safer blocker record.",
+        source,
+        linkedMemoryIds: ["fact-safe"],
+      }),
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-verify", workspaceId: "workspace-a" },
+      query: "Proceed with the rollout using the remembered blocker.",
+      retrievalProfile: "coding_agent",
+    });
+
+    expect(result.facts[0]?.id).toBe("fact-safe");
+    const riskyTrace = result.metadata.candidateTraces.find((entry) => entry.memoryId === "fact-risky");
+    expect(riskyTrace?.verificationPenaltyScore).toBeGreaterThan(0);
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-verify", workspaceId: "workspace-a" },
+    });
+    const riskyFact = exported.durable.facts.find((fact) => fact.id === "fact-risky");
+    const safeFact = exported.durable.facts.find((fact) => fact.id === "fact-safe");
+
+    expect(riskyFact?.lifecycle).toBe("active");
+    expect(riskyFact?.verificationPressureCount).toBe(0);
+    expect(riskyFact?.demotionReason).toBeUndefined();
+    expect(safeFact?.lifecycle).toBe("active");
+  });
 });

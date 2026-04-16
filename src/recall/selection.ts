@@ -47,9 +47,10 @@ function buildReturnedReason(
   intentScore: number,
   lexicalScore: number,
   outcomeScore: number,
+  verificationPenaltyScore: number,
   fallback: RecallCandidateTrace["fallback"],
 ): string {
-  return `slot=${slot}, intentScore=${intentScore.toFixed(2)}, lexicalScore=${lexicalScore.toFixed(2)}, outcomeScore=${outcomeScore.toFixed(2)}, fallback=${fallback}`;
+  return `slot=${slot}, intentScore=${intentScore.toFixed(2)}, lexicalScore=${lexicalScore.toFixed(2)}, outcomeScore=${outcomeScore.toFixed(2)}, verificationPenaltyScore=${verificationPenaltyScore.toFixed(2)}, fallback=${fallback}`;
 }
 
 function markSelectedTrace(
@@ -63,6 +64,7 @@ function markSelectedTrace(
   usageScore: number,
   evidenceScore: number,
   outcomeScore: number,
+  verificationPenaltyScore: number,
   fallback: RecallCandidateTrace["fallback"],
 ): void {
   const index = traces.findIndex((trace) => trace.memoryId === memoryId);
@@ -79,6 +81,7 @@ function markSelectedTrace(
       intentScore,
       lexicalScore,
       outcomeScore,
+      verificationPenaltyScore,
       fallback,
     ),
     whySuppressed: undefined,
@@ -89,6 +92,7 @@ function markSelectedTrace(
     usageScore,
     evidenceScore,
     outcomeScore,
+    verificationPenaltyScore,
     fallback,
   };
 }
@@ -178,6 +182,7 @@ export function selectFacts(
     usageScore: entry.usageScore,
     evidenceScore: entry.evidenceScore,
     outcomeScore: entry.outcomeScore,
+    verificationPenaltyScore: entry.verificationPenaltyScore,
     fallback: "none",
   }));
   const compatible = ranked.filter(
@@ -263,6 +268,7 @@ export function selectFacts(
         candidate.usageScore,
         candidate.evidenceScore,
         candidate.outcomeScore,
+        candidate.verificationPenaltyScore,
         fallback,
       );
     };
@@ -415,6 +421,7 @@ export function selectFacts(
         entry.usageScore,
         entry.evidenceScore,
         entry.outcomeScore,
+        entry.verificationPenaltyScore,
         "none",
       );
     }
@@ -433,6 +440,7 @@ export function selectFacts(
         entry.usageScore,
         entry.evidenceScore,
         entry.outcomeScore,
+        entry.verificationPenaltyScore,
         "none",
       );
     }
@@ -457,6 +465,7 @@ export function selectFacts(
         entry.usageScore,
         entry.evidenceScore,
         entry.outcomeScore,
+        entry.verificationPenaltyScore,
         "none",
       );
     }
@@ -484,6 +493,7 @@ export function selectFacts(
         fallback.usageScore,
         fallback.evidenceScore,
         fallback.outcomeScore,
+        fallback.verificationPenaltyScore,
         "none",
       );
     }
@@ -585,6 +595,7 @@ export function selectReferences(
         0,
         selected.evidenceScore,
         selected.outcomeScore,
+        0,
         signaled[0] ? "none" : "same_slot_unique_candidate",
       );
       for (const trace of traces) {
@@ -637,6 +648,7 @@ export function selectReferences(
     0,
     genericSelected.evidenceScore,
     genericSelected.outcomeScore,
+    0,
     signaled[0] ? "none" : "same_slot_unique_candidate",
   );
   for (const trace of traces) {
@@ -737,6 +749,7 @@ export function selectEpisodes(
       0,
       0,
       0,
+      0,
       "none",
     );
   }
@@ -824,6 +837,7 @@ export function selectArchives(
       0.7,
       entry.lexicalScore,
       entry.freshnessScore,
+      0,
       0,
       0,
       0,

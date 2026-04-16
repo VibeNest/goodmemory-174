@@ -98,6 +98,14 @@ function sortEpisodesForMaintenance(episodes: EpisodeMemory[]): EpisodeMemory[] 
   );
 }
 
+function factMaintenanceStrength(fact: FactMemory): number {
+  return (
+    (fact.source.method === "explicit" ? 2 : 0) +
+    fact.confidence -
+    Math.min(fact.verificationPressureCount ?? 0, 4) * 0.3
+  );
+}
+
 function mergeUniqueStrings(...groups: string[][]): string[] {
   return [...new Set(groups.flat())];
 }
@@ -282,17 +290,30 @@ async function runContradictionRepair(
         continue;
       }
 
-      const leftStrength =
-        (left.source.method === "explicit" ? 2 : 0) + left.confidence;
-      const rightStrength =
-        (right.source.method === "explicit" ? 2 : 0) + right.confidence;
-      const weaker = leftStrength <= rightStrength ? left : right;
+      const leftStrength = factMaintenanceStrength(left);
+      const rightStrength = factMaintenanceStrength(right);
+      let weaker = leftStrength < rightStrength ? left : right;
+
+      if (leftStrength === rightStrength) {
+        const leftPressure = left.verificationPressureCount ?? 0;
+        const rightPressure = right.verificationPressureCount ?? 0;
+
+        if (leftPressure !== rightPressure) {
+          weaker = leftPressure > rightPressure ? left : right;
+        } else if (left.updatedAt !== right.updatedAt) {
+          weaker = left.updatedAt.localeCompare(right.updatedAt) < 0 ? left : right;
+        } else {
+          weaker = left.id.localeCompare(right.id) < 0 ? left : right;
+        }
+      }
 
       await repositories.facts.add(
         createFactMemory({
           ...weaker,
           lifecycle: "inactive",
           isActive: false,
+          demotedAt: timestamp,
+          demotionReason: "contradicted_by_stronger_fact",
           updatedAt: timestamp,
         }),
       );

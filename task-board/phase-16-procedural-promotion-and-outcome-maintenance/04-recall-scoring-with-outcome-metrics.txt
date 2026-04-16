@@ -33,5 +33,5 @@ Implemented Notes
 - Fact ranking now consumes bounded usage signals from `accessCount` and `lastAccessedAt`.
 - Feedback ordering now prefers recently used guidance via `lastUsedAt`.
 - Fact and reference ranking now consume visible linked-evidence counts as an explainable support signal.
-- Candidate traces now expose `usageScore`, `evidenceScore`, and `outcomeScore`.
-- Remaining work is to add future demotion / correction signals on top of the current scoring surface.
+- Candidate traces now expose `usageScore`, `evidenceScore`, `outcomeScore`, and `verificationPenaltyScore`.
+- Verification-pressure demotion is now part of the scoring surface; remaining work is to add future correction-specific signals on top of it.

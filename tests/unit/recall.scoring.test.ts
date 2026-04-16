@@ -82,6 +82,31 @@ describe("recall scoring", () => {
     expect(candidate?.outcomeScore).toBeGreaterThan(0);
   });
 
+  it("applies an advisory verification penalty to stale action-driving facts", () => {
+    const language = createLanguageService();
+    const fact = createFactMemory({
+      id: "fact-1",
+      userId: "user-1",
+      category: "project",
+      content: "The runtime rollout is blocked by legal signoff.",
+      source: SOURCE,
+      accessCount: 5,
+      lastAccessedAt: "2026-01-08T00:00:00.000Z",
+      updatedAt: "2025-10-01T00:00:00.000Z",
+    });
+
+    const [candidate] = buildFactCandidates(
+      [fact],
+      "Proceed with the rollout using the remembered blocker.",
+      language,
+      "en",
+      TIMESTAMP,
+    );
+
+    expect(candidate?.usageScore).toBeGreaterThan(0);
+    expect(candidate?.verificationPenaltyScore).toBeGreaterThan(candidate?.usageScore ?? 0);
+  });
+
   it("prefers higher lexical reference matches when ranking", () => {
     const language = createLanguageService();
     const references = [

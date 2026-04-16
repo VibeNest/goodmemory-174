@@ -165,10 +165,17 @@ async function applyRecallTouchHelpers(
   result: RecallResult,
   timestamp: string,
 ): Promise<RecallTouchSummary> {
+  const touchedFacts = new Map<string, FactMemory>();
+  const verificationHintFactIds = new Set(
+    result.metadata.verificationHints
+      .filter((hint) => hint.memoryType === "fact")
+      .map((hint) => hint.memoryId),
+  );
   const nextFacts = result.facts
     .filter(
       (fact) =>
         fact.lifecycle === "active" &&
+        !verificationHintFactIds.has(fact.id) &&
         shouldApplyLowRiskTouch(fact.lastAccessedAt, timestamp),
     )
     .map((fact) => {
@@ -178,6 +185,7 @@ async function applyRecallTouchHelpers(
         lastAccessedAt: timestamp,
       };
 
+      touchedFacts.set(nextFact.id, nextFact);
       return nextFact;
     });
   const nextFeedback = result.feedback
@@ -195,15 +203,14 @@ async function applyRecallTouchHelpers(
       return reinforcedFeedback;
     });
 
-  await Promise.all([
-    ...nextFacts.map((fact) => repositories.facts.add(fact)),
-    ...nextFeedback.map((feedback) => repositories.feedback.upsert(feedback)),
-  ]);
-
-  const touchedFacts = new Map(nextFacts.map((fact) => [fact.id, fact] as const));
   const reinforcedFeedback = new Map(
     nextFeedback.map((feedback) => [feedback.id, feedback] as const),
   );
+
+  await Promise.all([
+    ...[...touchedFacts.values()].map((fact) => repositories.facts.add(fact)),
+    ...nextFeedback.map((feedback) => repositories.feedback.upsert(feedback)),
+  ]);
 
   if (touchedFacts.size > 0) {
     result.facts = result.facts.map((fact) => touchedFacts.get(fact.id) ?? fact);
