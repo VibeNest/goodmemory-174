@@ -149,6 +149,35 @@ function aggregateAssertions(cases: JudgedEvalCase[]): EvalAssertionsAggregate {
     (sum, item) => sum + item.assertions.passedChecks,
     0,
   );
+  let applicableUpdateCases = 0;
+  let updateWinCases = 0;
+  let applicableStaleSuppressionCases = 0;
+  let staleSuppressionCases = 0;
+
+  for (const item of cases) {
+    const updateCheck = item.assertions.checks.find(
+      (check) => check.id === "update_wins_present",
+    );
+    if (updateCheck && updateCheck.details.length > 0) {
+      applicableUpdateCases += 1;
+      if (updateCheck.passed) {
+        updateWinCases += 1;
+      }
+    }
+
+    const staleSuppressionCheck = item.assertions.checks.find(
+      (check) => check.id === "stale_suppression_absent",
+    );
+    if (staleSuppressionCheck && staleSuppressionCheck.details.length > 0) {
+      applicableStaleSuppressionCases += 1;
+      if (staleSuppressionCheck.passed) {
+        staleSuppressionCases += 1;
+      }
+    }
+  }
+
+  const staleMisuseCases =
+    applicableStaleSuppressionCases - staleSuppressionCases;
 
   return {
     totalCases,
@@ -157,6 +186,20 @@ function aggregateAssertions(cases: JudgedEvalCase[]): EvalAssertionsAggregate {
     totalChecks,
     passingChecks,
     checkPassRate: roundMetric(passingChecks / Math.max(totalChecks, 1)),
+    applicableUpdateCases,
+    updateWinCases,
+    updateWinRate: roundMetric(
+      updateWinCases / Math.max(applicableUpdateCases, 1),
+    ),
+    applicableStaleSuppressionCases,
+    staleSuppressionCases,
+    staleSuppressionRate: roundMetric(
+      staleSuppressionCases / Math.max(applicableStaleSuppressionCases, 1),
+    ),
+    staleMisuseCases,
+    staleMisuseRate: roundMetric(
+      staleMisuseCases / Math.max(applicableStaleSuppressionCases, 1),
+    ),
     contaminationFailures: cases.filter(
       (item) => item.assertions.contaminationFindings.length > 0,
     ).length,
@@ -427,6 +470,88 @@ function buildMaintenanceSummary(cases: JudgedEvalCase[]) {
   };
 }
 
+function buildOutcomeLoopSummary(cases: JudgedEvalCase[]) {
+  let applicableProceduralReuseCases = 0;
+  let governedProceduralReuseCases = 0;
+  let acceptedProceduralPromotionCases = 0;
+  let applicableCorrectionCases = 0;
+  let correctionWinCases = 0;
+  let applicableStaleSuppressionCases = 0;
+  let staleSuppressionCases = 0;
+
+  for (const item of cases) {
+    const maintenanceSummary = item.goodmemory.trace.maintenanceSummary;
+    const transferCheck = item.assertions.checks.find(
+      (check) => check.id === "transfer_signals_present",
+    );
+    if (transferCheck && transferCheck.details.length > 0) {
+      applicableProceduralReuseCases += 1;
+      const recalledGovernedPattern = item.goodmemory.retrieved?.feedback.some(
+        (record) =>
+          record.lifecycle === "active" &&
+          record.kind === "validated_pattern" &&
+          record.source.method === "confirmed",
+      );
+      if (
+        transferCheck.passed &&
+        recalledGovernedPattern &&
+        (maintenanceSummary?.compiledValidatedPatternCount ?? 0) > 0
+      ) {
+        governedProceduralReuseCases += 1;
+      }
+      if ((maintenanceSummary?.acceptedProceduralPromotionCount ?? 0) > 0) {
+        acceptedProceduralPromotionCases += 1;
+      }
+    }
+
+    const updateCheck = item.assertions.checks.find(
+      (check) => check.id === "update_wins_present",
+    );
+    if (updateCheck && updateCheck.details.length > 0) {
+      applicableCorrectionCases += 1;
+      if (updateCheck.passed) {
+        correctionWinCases += 1;
+      }
+    }
+
+    const staleSuppressionCheck = item.assertions.checks.find(
+      (check) => check.id === "stale_suppression_absent",
+    );
+    if (staleSuppressionCheck && staleSuppressionCheck.details.length > 0) {
+      applicableStaleSuppressionCases += 1;
+      if (staleSuppressionCheck.passed) {
+        staleSuppressionCases += 1;
+      }
+    }
+  }
+
+  const staleMisuseCases =
+    applicableStaleSuppressionCases - staleSuppressionCases;
+
+  return {
+    acceptedProceduralPromotionCases,
+    applicableCorrectionCases,
+    applicableProceduralReuseCases,
+    applicableStaleSuppressionCases,
+    correctionWinCases,
+    correctionWinRate: roundMetric(
+      correctionWinCases / Math.max(applicableCorrectionCases, 1),
+    ),
+    governedProceduralReuseCases,
+    governedProceduralReuseRate: roundMetric(
+      governedProceduralReuseCases / Math.max(applicableProceduralReuseCases, 1),
+    ),
+    staleMisuseCases,
+    staleMisuseRate: roundMetric(
+      staleMisuseCases / Math.max(applicableStaleSuppressionCases, 1),
+    ),
+    staleSuppressionCases,
+    staleSuppressionRate: roundMetric(
+      staleSuppressionCases / Math.max(applicableStaleSuppressionCases, 1),
+    ),
+  };
+}
+
 export function aggregateJudgedCases(
   cases: JudgedEvalCase[],
   executionFailureCount = 0,
@@ -471,6 +596,7 @@ export function aggregateJudgedCases(
       uplift: upliftLayers,
     },
     assertions: aggregateAssertions(cases),
+    outcomeLoopSummary: buildOutcomeLoopSummary(cases),
     strategySummary: buildStrategySummary(cases),
     maintenanceSummary: buildMaintenanceSummary(cases),
   };

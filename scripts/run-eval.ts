@@ -147,7 +147,7 @@ function extractBlockField(
   return prompt.slice(valueStart, valueEnd === -1 ? prompt.length : valueEnd).trim();
 }
 
-function buildFallbackGoodMemoryAnswer(
+export function buildFallbackGoodMemoryAnswer(
   input: EvalAnswerGeneratorInput,
 ): string {
   const expectedUpdateWins = input.scenario?.evaluation?.expected_update_wins ?? [];
@@ -346,7 +346,7 @@ function resolveFallbackBlockingFailureTags(
   );
 }
 
-function buildFallbackJudgeContent(prompt: string): string {
+export function buildFallbackJudgeContent(prompt: string): string {
   const baselineAnswer = extractBlockField(prompt, "baseline", "goodmemory");
   const goodmemoryAnswer = extractBlockField(prompt, "goodmemory");
   const evaluationSetting =

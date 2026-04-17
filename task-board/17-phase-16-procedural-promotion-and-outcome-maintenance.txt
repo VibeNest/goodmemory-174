@@ -8,8 +8,8 @@ Turn proposal and feedback signals into reusable validated patterns while making
 
 Status Note
 -----------
-- Implementation is largely closed for the core engineering slices (`T001` through `T005`).
-- Phase acceptance remains open while `T006` gathers result-level evidence for stale-misuse reduction and correction-rate movement, not just trace/debug visibility.
+- Phase 16 is now implemented and accepted.
+- A dedicated fallback quality gate is archived in `docs/GoodMemory-Phase-16-Quality-Gate.md` and `reports/eval/fallback/phase-16/run-1776441180237`.
 
 
 Dependencies
@@ -44,7 +44,7 @@ Tasks
 [DONE] P16-T003 Implement verify-driven demotion and repeated-correction repair
 [DONE] P16-T001 Compile and maintain `validated_pattern` from feedback and proposal outcomes
 [DONE] P16-T005 Expand dream orchestration to drive hygiene plus proposal compilation
-[WIP] P16-T006 Add regression/eval coverage for procedural reuse and stale-memory misuse
+[DONE] P16-T006 Add regression/eval coverage for procedural reuse and stale-memory misuse
 
 Progress Notes
 --------------
@@ -54,8 +54,10 @@ Progress Notes
 - Accepted procedural-pattern promotions now compile idempotently into active `validated_pattern` feedback records, superseding weaker source guidance without introducing a new durable type.
 - Dream orchestration now batches governed maintenance, reviewer/gate passes, and procedural compilation under cooldown and overlap protection.
 - Eval traces and reports now surface maintenance-oriented debug summaries for procedural reuse, verification pressure, demotion/correction signals, and whether reuse came from compiled/governed patterns instead of direct validated feedback.
-- Targeted eval replay now proves a scenario-level `accepted procedural promotion -> compiler -> validated pattern reuse` path when an accepted governed promotion is present before the final recall.
-- Remaining acceptance gap: the phase still needs broader result metrics for stale-misuse reduction and correction-rate movement before it should be marked fully accepted.
+- Targeted eval replay now proves a scenario-level `repeated feedback -> accepted procedural promotion -> compiler -> validated pattern reuse` path inside the replay itself.
+- Eval suite summaries now expose result-level `updateWinRate` and `staleMisuseRate` aggregates from assertion outcomes, so stale/correction movement can be tracked across judged cases rather than inferred only from trace counters.
+- Eval reports now also expose a consolidated outcome-loop summary that groups governed procedural reuse, correction wins, and stale suppression into one acceptance-oriented section.
+- A dedicated Phase 16 fallback gate now runs across five curated scenarios and records `governedProceduralReuseRate = 1`, `correctionWinRate = 1`, and `staleMisuseRate = 0` without pre-seeding proposal/promotion records.
 
 
 Key Constraints
@@ -75,4 +77,4 @@ Exit Checklist
 - Dream orchestration remains governed
 - Eval slices distinguish compiled/governed procedural reuse from direct validated feedback
 - Targeted scenario replay proves governed promotion can compile into reusable procedural memory
-- Broader stale-misuse and correction-rate movement remains to be demonstrated before final acceptance
+- Dedicated Phase 16 gate report exists and demonstrates measurable stale/correction/procedural-reuse outcomes

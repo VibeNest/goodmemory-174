@@ -19,6 +19,25 @@ function buildAnswerPackage(
   resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted",
   scenarioId = `scenario-${caseId}`,
 ): EvalAnswerPackage {
+  const governedPattern =
+    mode === "goodmemory"
+      ? {
+          id: "feedback-governed-1",
+          userId: caseId,
+          rule: "Use concise bullet points in summaries.",
+          kind: "validated_pattern" as const,
+          appliesTo: "general_response",
+          confidence: 1,
+          evidence: ["evidence-1"],
+          source: {
+            method: "confirmed" as const,
+            extractedAt: "2026-01-01T00:00:00.000Z",
+          },
+          lifecycle: "active" as const,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        }
+      : null;
+
   return {
     mode,
     strategyLabel,
@@ -55,7 +74,7 @@ function buildAnswerPackage(
               },
             ],
             facts: [],
-            feedback: [],
+            feedback: governedPattern ? [governedPattern] : [],
             archives: [],
             evidence: [],
             episodes: [],
@@ -95,6 +114,16 @@ function buildAnswerPackage(
                 reason: "semantic_reference",
                 sourceMethod: "explicit",
               },
+              ...(governedPattern
+                ? [
+                    {
+                      id: governedPattern.id,
+                      type: "feedback" as const,
+                      reason: "procedural_guidance",
+                      sourceMethod: "confirmed" as const,
+                    },
+                  ]
+                : []),
             ],
             candidateTraces: [
               {
@@ -220,6 +249,7 @@ function buildAnswerPackage(
 function buildAssertions(
   contaminationFindings: string[] = [],
   updateFindings: string[] = [],
+  staleFindings: string[] = [],
 ): EvalAssertionSummary {
   const checks = [
     {
@@ -245,8 +275,11 @@ function buildAssertions(
     },
     {
       id: "stale_suppression_absent" as const,
-      passed: true,
-      details: ["absent:docs/stale-runbook.md"],
+      passed: staleFindings.length === 0,
+      details:
+        staleFindings.length === 0
+          ? ["absent:docs/stale-runbook.md"]
+          : staleFindings.map((finding) => `unexpected:${finding}`),
     },
     {
       id: "wrong_personalization_absent" as const,
@@ -264,7 +297,10 @@ function buildAssertions(
   ];
 
   return {
-    passed: contaminationFindings.length === 0 && updateFindings.length === 0,
+    passed:
+      contaminationFindings.length === 0 &&
+      updateFindings.length === 0 &&
+      staleFindings.length === 0,
     totalChecks: checks.length,
     passedChecks: checks.filter((check) => check.passed).length,
     checks,
@@ -330,6 +366,7 @@ function buildCase(input: {
   failureTags?: string[];
   blockingFailureTags?: string[];
   contaminationFindings?: string[];
+  staleFindings?: string[];
   updateFindings?: string[];
 }): JudgedEvalCase {
   return {
@@ -369,6 +406,7 @@ function buildCase(input: {
     assertions: buildAssertions(
       input.contaminationFindings,
       input.updateFindings,
+      input.staleFindings,
     ),
   };
 }
@@ -397,6 +435,8 @@ describe("eval reporting", () => {
         goodmemoryHistory: 6,
         failureTags: ["missed_open_loop"],
         contaminationFindings: ["spoiler-heavy framing"],
+        updateFindings: ["docs/runbook.md"],
+        staleFindings: ["docs/stale-runbook.md"],
       }),
     ]);
 
@@ -407,6 +447,26 @@ describe("eval reporting", () => {
     expect(summary.uplift.cross_domain_transfer).toBe(2);
     expect(summary.layers.uplift.personalization).toBeGreaterThan(0);
     expect(summary.assertions.contaminationFailures).toBe(1);
+    expect(summary.assertions.applicableUpdateCases).toBe(2);
+    expect(summary.assertions.updateWinCases).toBe(1);
+    expect(summary.assertions.updateWinRate).toBe(0.5);
+    expect(summary.assertions.applicableStaleSuppressionCases).toBe(2);
+    expect(summary.assertions.staleSuppressionCases).toBe(1);
+    expect(summary.assertions.staleSuppressionRate).toBe(0.5);
+    expect(summary.assertions.staleMisuseCases).toBe(1);
+    expect(summary.assertions.staleMisuseRate).toBe(0.5);
+    expect(summary.outcomeLoopSummary?.applicableProceduralReuseCases).toBe(2);
+    expect(summary.outcomeLoopSummary?.governedProceduralReuseCases).toBe(2);
+    expect(summary.outcomeLoopSummary?.governedProceduralReuseRate).toBe(1);
+    expect(summary.outcomeLoopSummary?.acceptedProceduralPromotionCases).toBe(2);
+    expect(summary.outcomeLoopSummary?.applicableCorrectionCases).toBe(2);
+    expect(summary.outcomeLoopSummary?.correctionWinCases).toBe(1);
+    expect(summary.outcomeLoopSummary?.correctionWinRate).toBe(0.5);
+    expect(summary.outcomeLoopSummary?.applicableStaleSuppressionCases).toBe(2);
+    expect(summary.outcomeLoopSummary?.staleSuppressionCases).toBe(1);
+    expect(summary.outcomeLoopSummary?.staleSuppressionRate).toBe(0.5);
+    expect(summary.outcomeLoopSummary?.staleMisuseCases).toBe(1);
+    expect(summary.outcomeLoopSummary?.staleMisuseRate).toBe(0.5);
     expect(summary.strategySummary.byStrategy["rules-only"]?.totalCases).toBe(2);
     expect(summary.maintenanceSummary?.casesWithProceduralReuse).toBe(2);
     expect(summary.maintenanceSummary?.casesWithCompiledProceduralReuse).toBe(2);
@@ -415,6 +475,46 @@ describe("eval reporting", () => {
     expect(summary.maintenanceSummary?.averageCompiledValidatedPatterns).toBe(1);
     expect(summary.maintenanceSummary?.averageCorrectionRepairs).toBe(1);
     expect(summary.maintenanceSummary?.averageDemotedFacts).toBe(1);
+  });
+
+  it("counts governed procedural reuse only when recall actually returns a confirmed pattern and transfer passes", () => {
+    const reusedCase = buildCase({
+      caseId: "case-1",
+      taskFamily: "preference_continuation",
+      targetDomain: "work_ops",
+      memorySourceDomains: ["work_ops"],
+      evaluationSetting: "single_domain",
+      winner: "goodmemory",
+      baselineHistory: 4,
+      goodmemoryHistory: 9,
+    });
+    const storedButUnusedCase = buildCase({
+      caseId: "case-2",
+      taskFamily: "preference_continuation",
+      targetDomain: "work_ops",
+      memorySourceDomains: ["work_ops"],
+      evaluationSetting: "single_domain",
+      winner: "goodmemory",
+      baselineHistory: 4,
+      goodmemoryHistory: 9,
+    });
+    const transferCheck = storedButUnusedCase.assertions.checks.find(
+      (check) => check.id === "transfer_signals_present",
+    );
+
+    if (!transferCheck || !storedButUnusedCase.goodmemory.retrieved) {
+      throw new Error("expected transfer check and retrieved memory for test setup");
+    }
+
+    transferCheck.passed = false;
+    transferCheck.details = ["missing:concise bullet points"];
+    storedButUnusedCase.goodmemory.retrieved.feedback = [];
+
+    const summary = aggregateJudgedCases([reusedCase, storedButUnusedCase]);
+
+    expect(summary.outcomeLoopSummary?.applicableProceduralReuseCases).toBe(2);
+    expect(summary.outcomeLoopSummary?.governedProceduralReuseCases).toBe(1);
+    expect(summary.outcomeLoopSummary?.governedProceduralReuseRate).toBe(0.5);
   });
 
   it("builds strategy summaries and comparison slices from multi-strategy cases", () => {
@@ -541,6 +641,9 @@ describe("eval reporting", () => {
         mode: string;
         runId: string;
         summary: {
+          outcomeLoopSummary?: {
+            governedProceduralReuseRate: number;
+          };
           strategySummary?: {
             byStrategy?: Record<string, { totalCases: number }>;
           };
@@ -621,6 +724,7 @@ describe("eval reporting", () => {
 
       expect(report.mode).toBe("fallback");
       expect(report.runId).toBe("run-001");
+      expect(report.summary.outcomeLoopSummary?.governedProceduralReuseRate).toBe(1);
       expect(report.summary.strategySummary?.byStrategy?.["rules-only"]?.totalCases).toBe(
         1,
       );

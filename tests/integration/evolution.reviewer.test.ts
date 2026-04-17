@@ -7,7 +7,7 @@ import {
 } from "../../src/storage/memory";
 
 describe("reflective reviewer integration", () => {
-  it("emits one procedural pattern proposal after repeated feedback and does not duplicate it", async () => {
+  it("emits one accepted procedural pattern proposal after repeated feedback and does not duplicate it", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({
       storage: { provider: "memory" },
@@ -37,14 +37,16 @@ describe("reflective reviewer integration", () => {
 
     expect(exported.durable.proposals).toHaveLength(1);
     expect(exported.durable.proposals[0]?.proposalType).toBe("procedural_pattern");
+    expect(exported.durable.proposals[0]?.status).toBe("accepted");
     expect(exported.durable.proposals[0]?.linkedMemoryIds).toHaveLength(1);
-    expect(exported.durable.proposals[0]?.sourceExperienceIds).toHaveLength(3);
-    expect(exported.durable.promotions).toHaveLength(2);
+    expect(exported.durable.proposals[0]?.sourceExperienceIds).toHaveLength(2);
+    expect(exported.durable.promotions).toHaveLength(1);
     expect(
       exported.durable.promotions.every(
         (promotion) => promotion.proposalId === exported.durable.proposals[0]?.id,
       ),
     ).toBe(true);
+    expect(exported.durable.promotions[0]?.decision).toBe("accepted");
   });
 
   it("emits a maintenance proposal after a stale verification signal is observed and the turn completes", async () => {

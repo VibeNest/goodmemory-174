@@ -87,7 +87,11 @@
   "feedback_signals": [
     {
       "session_id": "medium-01-s1",
-      "signal": "The concise bullet points format worked well. Keep using that style."
+      "signal": "Use concise bullet points in summaries."
+    },
+    {
+      "session_id": "medium-01-s3",
+      "signal": "Use concise bullet points in summaries."
     }
   ],
   "evaluation": {

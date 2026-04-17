@@ -2,7 +2,7 @@ Phase 16.6: Regression and Eval Slices
 ======================================
 
 [DONE] P16.6-T001 Add procedural reuse eval slices
-[WIP] P16.6-T002 Add stale-memory misuse and correction-rate regression slices
+[DONE] P16.6-T002 Add stale-memory misuse and correction-rate regression slices
 [DONE] P16.6-T003 Add maintenance-oriented debug summaries
 
 Why this exists
@@ -31,6 +31,9 @@ Implemented Notes
 -----------------
 - Eval answer traces now include maintenance-oriented debug summaries for active validated patterns, verification pressure, and demotion/correction counts.
 - Eval suite summaries now aggregate procedural reuse, compiled/governed procedural reuse, accepted procedural promotions, verification pressure, and demotion/correction presence across judged cases.
+- Eval suite summaries now also expose assertion-derived `updateWinRate` and `staleMisuseRate` so correction handling and stale suppression can be compared across runs.
+- Eval suite summaries now expose a consolidated outcome-loop section for governed procedural reuse, correction wins, and stale suppression.
 - Persisted eval artifacts now carry the same maintenance summary fields through case traces and top-level report output.
-- Targeted eval replay now covers the scenario-level path where an accepted `procedural_pattern` promotion is compiled before the final recall and then reused as a `validated_pattern`.
-- Remaining gap: the suite still lacks a broader result-level metric showing stale-misuse reduction and correction-rate movement across multiple cases, so this slice is not fully accepted yet.
+- Targeted eval replay now covers the scenario-level path where repeated explicit feedback inside the replay produces an accepted `procedural_pattern` promotion, compiles it before the final recall, and then reuses it as a `validated_pattern`.
+- `bun run eval:phase-16` now runs a dedicated five-scenario fallback gate with real replay-generated governed procedural promotions and formal outcome-loop metrics.
+- The latest archived gate is `reports/eval/fallback/phase-16/run-1776441180237`, summarized in `docs/GoodMemory-Phase-16-Quality-Gate.md`.

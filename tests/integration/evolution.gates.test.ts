@@ -32,8 +32,8 @@ describe("proposal gate integration", () => {
 
     expect(exported.durable.proposals).toHaveLength(1);
     expect(exported.durable.promotions).toHaveLength(1);
-    expect(exported.durable.proposals[0]?.status).toBe("delayed");
-    expect(exported.durable.promotions[0]?.decision).toBe("delayed");
+    expect(exported.durable.proposals[0]?.status).toBe("accepted");
+    expect(exported.durable.promotions[0]?.decision).toBe("accepted");
     expect(exported.durable.promotions[0]?.proposalId).toBe(
       exported.durable.proposals[0]?.id,
     );

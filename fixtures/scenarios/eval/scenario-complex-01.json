@@ -131,7 +131,11 @@
   "feedback_signals": [
     {
       "session_id": "complex-01-s3",
-      "signal": "The concise bullet points format worked well. Keep using that for incident playbook refresh."
+      "signal": "Use concise bullet points and visible checklists in summaries."
+    },
+    {
+      "session_id": "complex-01-s4",
+      "signal": "Use concise bullet points and visible checklists in summaries."
     }
   ],
   "evaluation": {

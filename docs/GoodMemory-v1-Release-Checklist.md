@@ -28,6 +28,7 @@
 
 - `bun run eval:smoke` passes
 - `bun run eval:fallback` produces a deterministic validation report
+- `bun run eval:phase-16` produces the dedicated procedural-promotion and outcome-maintenance gate report
 - `bun run eval:live` produces a live report
 - `bun run eval:live-memory` produces a provider-backed live report
 - `raw-recall.json` exists for GoodMemory cases

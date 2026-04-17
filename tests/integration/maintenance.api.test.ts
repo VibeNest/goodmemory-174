@@ -205,8 +205,8 @@ describe("public maintenance API", () => {
 
     expect(result.ran).toBe(true);
     expect(result.proposalCount).toBe(1);
-    expect(result.promotionDecisionCounts).toEqual({ delayed: 1 });
-    expect(result.compiledCount).toBe(1);
+    expect(result.promotionDecisionCounts).toEqual({ accepted: 1 });
+    expect(result.compiledCount).toBe(2);
 
     const exported = await memory.exportMemory({ scope });
     expect(
@@ -214,7 +214,7 @@ describe("public maintenance API", () => {
         (proposal) =>
           proposal.proposalType === "procedural_pattern" &&
           proposal.linkedMemoryIds.includes("feedback-source") &&
-          proposal.status === "delayed",
+          proposal.status === "accepted",
       ),
     ).toBe(true);
     expect(

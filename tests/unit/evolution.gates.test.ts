@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { createFeedbackMemory } from "../../src/domain/records";
 import {
   PROMOTION_RECORDS_COLLECTION,
+  createExperienceRecord,
   createLearningProposal,
 } from "../../src/evolution/contracts";
 import { createProposalGateProcessor } from "../../src/evolution/gates";
@@ -50,6 +52,61 @@ function createPromotionFailingDocumentStore(): DocumentStore {
       await store.set(collection, id, document);
     },
   };
+}
+
+async function seedFeedbackBackedProceduralLineage(input: {
+  repositories: ReturnType<typeof createFixture>["repositories"];
+  userId?: string;
+  workspaceId?: string;
+}) {
+  const userId = input.userId ?? "u-1";
+  const workspaceId = input.workspaceId ?? "workspace-a";
+
+  await input.repositories.feedback.upsert(
+    createFeedbackMemory({
+      id: "feedback-1",
+      userId,
+      workspaceId,
+      rule: "Use bullet points in summaries.",
+      kind: "do",
+      appliesTo: "general_response",
+      source: {
+        method: "explicit",
+        extractedAt: "2026-04-14T00:00:00.000Z",
+      },
+      updatedAt: "2026-04-14T00:00:00.000Z",
+    }),
+  );
+  await input.repositories.experiences.add(
+    createExperienceRecord({
+      id: "xp-1",
+      userId,
+      workspaceId,
+      kind: "feedback",
+      traceId: "trace-1",
+      trigger: "api",
+      modelInfluence: "rules-only",
+      summary: "Feedback confirmed bullet summaries.",
+      outcome: "success",
+      linkedMemoryIds: ["feedback-1"],
+      createdAt: "2026-04-14T00:00:00.000Z",
+    }),
+  );
+  await input.repositories.experiences.add(
+    createExperienceRecord({
+      id: "xp-2",
+      userId,
+      workspaceId,
+      kind: "feedback",
+      traceId: "trace-2",
+      trigger: "api",
+      modelInfluence: "rules-only",
+      summary: "Feedback confirmed bullet summaries again.",
+      outcome: "success",
+      linkedMemoryIds: ["feedback-1"],
+      createdAt: "2026-04-15T00:00:00.000Z",
+    }),
+  );
 }
 
 describe("proposal gate processor", () => {
@@ -113,8 +170,9 @@ describe("proposal gate processor", () => {
     expect((await repositories.promotions.get("promotion-0001"))?.decision).toBe("accepted");
   });
 
-  it("delays high-risk proposals while keeping them queryable for later review", async () => {
+  it("accepts feedback-backed procedural proposals when real repeated lineage exists", async () => {
     const { processor, repositories } = createFixture();
+    await seedFeedbackBackedProceduralLineage({ repositories });
     const proposal = createLearningProposal({
       id: "proposal-1",
       userId: "u-1",
@@ -133,7 +191,63 @@ describe("proposal gate processor", () => {
       proposals: [proposal],
     });
 
+    expect(decisions[0]?.decision).toBe("accepted");
+    expect(decisions[0]?.verificationOutcome).toBe("passed");
+    expect(decisions[0]?.evalOutcome).toBe("passed");
+    expect((await repositories.proposals.get("proposal-1"))?.status).toBe("accepted");
+    expect((await repositories.promotions.get("promotion-0001"))?.decision).toBe("accepted");
+  });
+
+  it("delays procedural proposals that duplicate the same experience id instead of providing repeated evidence", async () => {
+    const { processor, repositories } = createFixture();
+    await seedFeedbackBackedProceduralLineage({ repositories });
+    const proposal = createLearningProposal({
+      id: "proposal-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      proposalType: "procedural_pattern",
+      traceId: "proposal-trace-1",
+      summary: "Promote repeated guidance into a pattern.",
+      rationale: "Repeated feedback suggests a reusable pattern.",
+      sourceExperienceIds: ["xp-1", "xp-1"],
+      linkedMemoryIds: ["feedback-1"],
+      modelInfluence: "rules-only",
+    });
+
+    const decisions = await processor.process({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      proposals: [proposal],
+    });
+
     expect(decisions[0]?.decision).toBe("delayed");
+    expect(decisions[0]?.verificationOutcome).toBe("review_required");
+    expect(decisions[0]?.evalOutcome).toBe("review_required");
+    expect((await repositories.proposals.get("proposal-1"))?.status).toBe("delayed");
+    expect((await repositories.promotions.get("promotion-0001"))?.decision).toBe("delayed");
+  });
+
+  it("delays procedural proposals that only reference fake experience lineage", async () => {
+    const { processor, repositories } = createFixture();
+    const proposal = createLearningProposal({
+      id: "proposal-1",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      proposalType: "procedural_pattern",
+      traceId: "proposal-trace-1",
+      summary: "Promote repeated guidance into a pattern.",
+      rationale: "Repeated feedback suggests a reusable pattern.",
+      sourceExperienceIds: ["xp-missing-1", "xp-missing-2"],
+      linkedMemoryIds: ["feedback-1"],
+      modelInfluence: "rules-only",
+    });
+
+    const decisions = await processor.process({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      proposals: [proposal],
+    });
+
+    expect(decisions[0]?.decision).toBe("delayed");
+    expect(decisions[0]?.verificationOutcome).toBe("review_required");
     expect(decisions[0]?.evalOutcome).toBe("review_required");
     expect((await repositories.proposals.get("proposal-1"))?.status).toBe("delayed");
     expect((await repositories.promotions.get("promotion-0001"))?.decision).toBe("delayed");

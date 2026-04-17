@@ -22,7 +22,15 @@ export interface EvalAssertionsAggregate {
   totalChecks: number;
   passingChecks: number;
   checkPassRate: number;
+  applicableStaleSuppressionCases: number;
+  applicableUpdateCases: number;
   contaminationFailures: number;
+  staleMisuseCases: number;
+  staleMisuseRate: number;
+  staleSuppressionCases: number;
+  staleSuppressionRate: number;
+  updateWinCases: number;
+  updateWinRate: number;
   updateFailures: number;
 }
 
@@ -82,6 +90,21 @@ export interface EvalMaintenanceSummary {
   casesWithVerificationPressure: number;
 }
 
+export interface EvalOutcomeLoopSummary {
+  acceptedProceduralPromotionCases: number;
+  applicableCorrectionCases: number;
+  applicableProceduralReuseCases: number;
+  applicableStaleSuppressionCases: number;
+  correctionWinCases: number;
+  correctionWinRate: number;
+  governedProceduralReuseCases: number;
+  governedProceduralReuseRate: number;
+  staleMisuseCases: number;
+  staleMisuseRate: number;
+  staleSuppressionCases: number;
+  staleSuppressionRate: number;
+}
+
 export interface EvalSuiteSummary {
   totalCases: number;
   completedCases?: number;
@@ -100,6 +123,7 @@ export interface EvalSuiteSummary {
     uplift: EvalLayerScores;
   };
   assertions: EvalAssertionsAggregate;
+  outcomeLoopSummary?: EvalOutcomeLoopSummary;
   strategySummary: EvalStrategySummary;
   maintenanceSummary?: EvalMaintenanceSummary;
 }

@@ -1,11 +1,14 @@
 import type { MemoryScope } from "../domain/scope";
 import type { EvolutionRepositoryPort } from "../storage/ports";
-import {
-  createPromotionRecord,
-  type LearningProposal,
-  type PromotionDecision,
-  type PromotionGateOutcome,
-  type PromotionRecord,
+import type { FeedbackMemory } from "../domain/records";
+import { createPromotionRecord } from "./contracts";
+import type {
+  ExperienceRecord,
+  LearningProposal,
+  PromotionDecision,
+  PromotionGateOutcome,
+  PromotionRecord,
+  SessionArchive,
 } from "./contracts";
 
 export interface ProposalGateDecision {
@@ -28,6 +31,17 @@ export interface ProposalGateProcessorConfig {
 export interface ProposalGateProcessInput {
   scope: MemoryScope;
   proposals: LearningProposal[];
+}
+
+interface ProposalGateContext {
+  archiveIds: Set<string>;
+  experiencesById: Map<string, ExperienceRecord>;
+  feedbackById: Map<string, FeedbackMemory>;
+}
+
+interface ProceduralPatternLineageAssessment {
+  hasRepeatedFeedbackLineage: boolean;
+  missingExperienceIds: string[];
 }
 
 function matchesScope(proposal: LearningProposal, scope: MemoryScope): boolean {
@@ -68,6 +82,7 @@ function evaluatePolicyGate(
 
 function evaluateVerificationGate(
   proposal: LearningProposal,
+  context: ProposalGateContext,
 ): {
   outcome: PromotionGateOutcome;
   rationale: string;
@@ -106,14 +121,53 @@ function evaluateVerificationGate(
 
   if (
     proposal.proposalType === "procedural_pattern" &&
-    (
-      proposal.sourceExperienceIds.length >= 2 ||
-      proposal.linkedArchiveIds.length > 0
-    )
+    proposal.linkedArchiveIds.length > 0
   ) {
+    const missingArchives = proposal.linkedArchiveIds.filter(
+      (archiveId) => !context.archiveIds.has(archiveId),
+    );
+    if (missingArchives.length === 0) {
+      return {
+        outcome: "passed",
+        rationale: "procedural proposal has archive-backed lineage",
+      };
+    }
+
     return {
-      outcome: "passed",
-      rationale: "procedural proposal has repeated experience or archive-backed lineage",
+      outcome: "review_required",
+      rationale: "procedural proposal references missing archive lineage",
+    };
+  }
+
+  if (proposal.proposalType === "procedural_pattern") {
+    const lineage = assessProceduralPatternLineage(proposal, context);
+
+    if (lineage.hasRepeatedFeedbackLineage) {
+      return {
+        outcome: "passed",
+        rationale:
+          "procedural proposal has repeated successful feedback lineage over one active guidance memory",
+      };
+    }
+
+    if (lineage.missingExperienceIds.length > 0) {
+      return {
+        outcome: "review_required",
+        rationale: "procedural proposal references missing experience lineage",
+      };
+    }
+
+    if (proposal.sourceExperienceIds.length >= 2) {
+      return {
+        outcome: "review_required",
+        rationale:
+          "procedural proposal needs repeated successful feedback traces over one active guidance memory",
+      };
+    }
+
+    return {
+      outcome: "review_required",
+      rationale: "procedural proposal needs more verification context before it can pass automatically",
     };
   }
 
@@ -125,6 +179,7 @@ function evaluateVerificationGate(
 
 function evaluateEvalGate(
   proposal: LearningProposal,
+  context: ProposalGateContext,
 ): {
   outcome: PromotionGateOutcome;
   rationale: string;
@@ -143,9 +198,75 @@ function evaluateEvalGate(
     };
   }
 
+  if (proposal.proposalType === "procedural_pattern") {
+    const lineage = assessProceduralPatternLineage(proposal, context);
+
+    if (lineage.hasRepeatedFeedbackLineage) {
+      return {
+        outcome: "passed",
+        rationale:
+          "repeated explicit feedback confirms existing guidance strongly enough for deterministic procedural promotion",
+      };
+    }
+  }
+
   return {
     outcome: "review_required",
     rationale: "high-risk proposals stay delayed until later eval and promotion phases",
+  };
+}
+
+function buildProposalGateContext(input: {
+  archives: SessionArchive[];
+  experiences: ExperienceRecord[];
+  feedback: FeedbackMemory[];
+}): ProposalGateContext {
+  return {
+    archiveIds: new Set(input.archives.map((archive) => archive.id)),
+    experiencesById: new Map(
+      input.experiences.map((experience) => [experience.id, experience] as const),
+    ),
+    feedbackById: new Map(
+      input.feedback.map((record) => [record.id, record] as const),
+    ),
+  };
+}
+
+function assessProceduralPatternLineage(
+  proposal: LearningProposal,
+  context: ProposalGateContext,
+): ProceduralPatternLineageAssessment {
+  const distinctSourceExperienceIds = [...new Set(proposal.sourceExperienceIds)];
+  const missingExperienceIds = distinctSourceExperienceIds.filter(
+    (experienceId) => !context.experiencesById.has(experienceId),
+  );
+  const sourceFeedbackId =
+    proposal.linkedMemoryIds.length === 1 ? proposal.linkedMemoryIds[0] : undefined;
+  const sourceFeedback = sourceFeedbackId
+    ? context.feedbackById.get(sourceFeedbackId)
+    : undefined;
+  const sourceExperiences = distinctSourceExperienceIds
+    .map((experienceId) => context.experiencesById.get(experienceId))
+    .filter((experience): experience is ExperienceRecord => Boolean(experience));
+  const hasActiveSourceFeedback =
+    sourceFeedback?.lifecycle === "active" &&
+    sourceFeedback.kind !== "validated_pattern";
+
+  const hasRepeatedFeedbackLineage =
+    hasActiveSourceFeedback &&
+    distinctSourceExperienceIds.length >= 2 &&
+    missingExperienceIds.length === 0 &&
+    sourceExperiences.every(
+      (experience) =>
+        experience.kind === "feedback" &&
+        experience.outcome === "success" &&
+        experience.linkedMemoryIds.length === 1 &&
+        experience.linkedMemoryIds[0] === sourceFeedback?.id,
+    );
+
+  return {
+    hasRepeatedFeedbackLineage,
+    missingExperienceIds,
   };
 }
 
@@ -191,11 +312,16 @@ export function createProposalGateProcessor(
     async process(input: ProposalGateProcessInput): Promise<ProposalGateDecision[]> {
       const timestamp = now();
       const decisions: ProposalGateDecision[] = [];
+      const gateContext = buildProposalGateContext({
+        archives: await config.repositories.archives.listByScope(input.scope),
+        experiences: await config.repositories.experiences.listByScope(input.scope),
+        feedback: await config.repositories.feedback.listByScope(input.scope),
+      });
 
       for (const proposal of input.proposals) {
         const policy = evaluatePolicyGate(proposal, input.scope);
-        const verification = evaluateVerificationGate(proposal);
-        const evalGate = evaluateEvalGate(proposal);
+        const verification = evaluateVerificationGate(proposal, gateContext);
+        const evalGate = evaluateEvalGate(proposal, gateContext);
         const decision = finalizeDecision({
           policyOutcome: policy.outcome,
           verificationOutcome: verification.outcome,

@@ -96,7 +96,11 @@
   "feedback_signals": [
     {
       "session_id": "medium-03-s1",
-      "signal": "The structured outlines format worked well. Keep using that style."
+      "signal": "Use structured outlines in summaries."
+    },
+    {
+      "session_id": "medium-03-s3",
+      "signal": "Use structured outlines in summaries."
     }
   ],
   "evaluation": {

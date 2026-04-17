@@ -31,6 +31,7 @@ bun run eval:fallback -- --limit=1 --scenario-id=<scenario-id>
 ## Scope Notes
 
 - This quality gate intentionally focused on Phase 9 through Phase 13 deliverables.
+- Phase 16 now has a separate targeted gate in `docs/GoodMemory-Phase-16-Quality-Gate.md`.
 - `bun test` is the canonical local/CI red-green path and is intentionally scoped to `tests/`.
 - `bun run test:all` remains available for broader vendor-tree sweeps, but it is not the default merge gate.
 - Postgres / pgvector environment-dependent validation remains owner-managed and is not part of this gate.

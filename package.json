@@ -27,6 +27,7 @@
     "example:coding-agent": "bun run examples/coding-agent.ts",
     "eval:smoke": "bun run scripts/run-eval.ts --mode=smoke",
     "eval:fallback": "bun run scripts/run-eval.ts --mode=fallback",
+    "eval:phase-16": "bun run scripts/run-phase-16-eval.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",
     "eval:summary": "bun run scripts/summarize-eval.ts"
