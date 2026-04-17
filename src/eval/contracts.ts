@@ -68,6 +68,20 @@ export interface EvalStrategySummary {
   routerImpact: EvalStrategySliceSummary | null;
 }
 
+export interface EvalMaintenanceSummary {
+  averageActiveValidatedPatterns: number;
+  averageCompiledValidatedPatterns: number;
+  averageCorrectionRepairs: number;
+  averageDemotedFacts: number;
+  averagePressuredFacts: number;
+  casesWithAcceptedProceduralPromotions: number;
+  casesWithCompiledProceduralReuse: number;
+  casesWithCorrectionRepairs: number;
+  casesWithDemotions: number;
+  casesWithProceduralReuse: number;
+  casesWithVerificationPressure: number;
+}
+
 export interface EvalSuiteSummary {
   totalCases: number;
   completedCases?: number;
@@ -87,6 +101,7 @@ export interface EvalSuiteSummary {
   };
   assertions: EvalAssertionsAggregate;
   strategySummary: EvalStrategySummary;
+  maintenanceSummary?: EvalMaintenanceSummary;
 }
 
 export type EvalRuntimeMetadata = ProviderRuntimeMetadata;

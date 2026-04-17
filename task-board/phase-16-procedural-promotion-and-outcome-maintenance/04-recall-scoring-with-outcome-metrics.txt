@@ -2,7 +2,7 @@ Phase 16.4: Recall Scoring with Outcome Metrics
 ===============================================
 
 [DONE] P16.4-T001 Integrate accessCount and lastUsedAt into scoring
-[WIP] P16.4-T002 Integrate evidenceCount and correction/demotion signals into scoring
+[DONE] P16.4-T002 Integrate evidenceCount and correction/demotion signals into scoring
 [DONE] P16.4-T003 Keep scoring attribution visible in recall traces
 
 Why this exists
@@ -34,4 +34,4 @@ Implemented Notes
 - Feedback ordering now prefers recently used guidance via `lastUsedAt`.
 - Fact and reference ranking now consume visible linked-evidence counts as an explainable support signal.
 - Candidate traces now expose `usageScore`, `evidenceScore`, `outcomeScore`, and `verificationPenaltyScore`.
-- Verification-pressure demotion is now part of the scoring surface; remaining work is to add future correction-specific signals on top of it.
+- Verification-pressure demotion is now part of the scoring surface, and contradiction repair now preserves newer or verification-safer facts more reliably.

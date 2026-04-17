@@ -6,6 +6,12 @@ Phase Goal
 Turn proposal and feedback signals into reusable validated patterns while making maintenance and recall scoring consume real usage outcomes.
 
 
+Status Note
+-----------
+- Implementation is largely closed for the core engineering slices (`T001` through `T005`).
+- Phase acceptance remains open while `T006` gathers result-level evidence for stale-misuse reduction and correction-rate movement, not just trace/debug visibility.
+
+
 Dependencies
 ------------
 - Phase 15 proposal pipeline complete enough to emit governed pattern and maintenance proposals
@@ -33,12 +39,12 @@ Definition of Done
 
 Tasks
 -----
-[WIP] P16-T004 Connect outcome metrics to recall scoring and maintenance heuristics
+[DONE] P16-T004 Connect outcome metrics to recall scoring and maintenance heuristics
 [DONE] P16-T002 Add low-risk outcome mutation helpers for recall scoring signals
 [DONE] P16-T003 Implement verify-driven demotion and repeated-correction repair
 [DONE] P16-T001 Compile and maintain `validated_pattern` from feedback and proposal outcomes
-[TODO] P16-T005 Expand dream orchestration to drive hygiene plus proposal compilation
-[TODO] P16-T006 Add regression/eval coverage for procedural reuse and stale-memory misuse
+[DONE] P16-T005 Expand dream orchestration to drive hygiene plus proposal compilation
+[WIP] P16-T006 Add regression/eval coverage for procedural reuse and stale-memory misuse
 
 Progress Notes
 --------------
@@ -46,7 +52,10 @@ Progress Notes
 - Low-risk recall touch helpers now update `accessCount`, `lastAccessedAt`, and `lastUsedAt` with a bounded window and append telemetry for the applied touches.
 - Repeated verification pressure now lowers recall prominence through auditable penalty signals, while contradiction repair prefers newer or verification-safer facts and records demotion reasons.
 - Accepted procedural-pattern promotions now compile idempotently into active `validated_pattern` feedback records, superseding weaker source guidance without introducing a new durable type.
-- Remaining work in P16-T004 is to extend the current penalty surface with future correction-specific signals beyond verification pressure.
+- Dream orchestration now batches governed maintenance, reviewer/gate passes, and procedural compilation under cooldown and overlap protection.
+- Eval traces and reports now surface maintenance-oriented debug summaries for procedural reuse, verification pressure, demotion/correction signals, and whether reuse came from compiled/governed patterns instead of direct validated feedback.
+- Targeted eval replay now proves a scenario-level `accepted procedural promotion -> compiler -> validated pattern reuse` path when an accepted governed promotion is present before the final recall.
+- Remaining acceptance gap: the phase still needs broader result metrics for stale-misuse reduction and correction-rate movement before it should be marked fully accepted.
 
 
 Key Constraints
@@ -64,4 +73,6 @@ Exit Checklist
 - Verify-driven demotion exists
 - Recall scoring consumes outcome signals
 - Dream orchestration remains governed
-- Eval slices measure the intended improvements
+- Eval slices distinguish compiled/governed procedural reuse from direct validated feedback
+- Targeted scenario replay proves governed promotion can compile into reusable procedural memory
+- Broader stale-misuse and correction-rate movement remains to be demonstrated before final acceptance

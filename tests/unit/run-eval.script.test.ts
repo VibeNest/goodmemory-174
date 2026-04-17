@@ -1049,6 +1049,9 @@ describe("run-eval script", () => {
               async feedback() {
                 return { accepted: false };
               },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
             };
           },
           runSuite: async (input) => {

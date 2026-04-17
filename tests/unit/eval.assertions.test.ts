@@ -217,6 +217,7 @@ function buildGoodmemoryAnswer(): EvalAnswerPackage {
       recallHitCount: 2,
       verificationHintCount: 0,
       proposalLifecycle: null,
+      maintenanceSummary: null,
       contextBuild: {
         output: "markdown",
         maxTokens: 160,

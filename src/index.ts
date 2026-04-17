@@ -298,6 +298,8 @@ export type {
   RecallResult,
   RememberInput,
   RememberResult,
+  RunMaintenanceInput,
+  RunMaintenanceResult,
   StorageConfig,
 } from "./api/contracts";
 export { createGoodMemory } from "./api/createGoodMemory";

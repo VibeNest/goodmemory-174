@@ -12,6 +12,7 @@ describe("public API smoke", () => {
     expect(typeof memory.remember).toBe("function");
     expect(typeof memory.forget).toBe("function");
     expect(typeof memory.feedback).toBe("function");
+    expect(typeof memory.runMaintenance).toBe("function");
   });
 
   it("creates a postgres-backed memory instance lazily", () => {
@@ -27,6 +28,7 @@ describe("public API smoke", () => {
     expect(typeof memory.remember).toBe("function");
     expect(typeof memory.forget).toBe("function");
     expect(typeof memory.feedback).toBe("function");
+    expect(typeof memory.runMaintenance).toBe("function");
   });
 
   it("requires a storage url for postgres mode", () => {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { createGoodMemory } from "../../src";
+import { createFeedbackMemory } from "../../src/domain/records";
+import {
+  createLearningProposal,
+  createPromotionRecord,
+} from "../../src/evolution/contracts";
 import { createSessionArchive } from "../../src/evolution/contracts";
 import {
   createInMemoryDocumentStore,
@@ -15,6 +20,8 @@ import {
 } from "../../src/eval/dataset";
 import {
   runBaselineScenario,
+  buildEvalUserId,
+  buildEvalWorkspaceId,
   runGoodMemoryScenario,
 } from "../../src/eval/runners";
 
@@ -131,7 +138,172 @@ describe("eval runners", () => {
     expect(result.trace.proposalLifecycle?.promotionCount).toBeGreaterThanOrEqual(
       result.trace.proposalLifecycle?.proposalCount ?? 0,
     );
+    expect(result.trace.maintenanceSummary?.activeValidatedPatternCount).toBeGreaterThanOrEqual(0);
+    expect(result.trace.maintenanceSummary?.compiledValidatedPatternCount).toBeGreaterThanOrEqual(0);
+    expect(result.trace.maintenanceSummary?.pressuredFactCount).toBeGreaterThanOrEqual(0);
     expect(result.transcript).not.toContain("I can do that once I have the full remembered context.");
+  });
+
+  it("captures governed procedural reuse when accepted procedural promotions compile before the final recall", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),
+    );
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+      testing: {
+        now: () => new Date("2026-04-17T00:00:00.000Z"),
+      },
+    });
+    const userId = buildEvalUserId(persona);
+    const workspaceId = buildEvalWorkspaceId(persona);
+
+    await documentStore.set(
+      "feedback",
+      "feedback-source",
+      createFeedbackMemory({
+        id: "feedback-source",
+        userId,
+        workspaceId,
+        rule: "Use bullet points in summaries.",
+        kind: "do",
+        appliesTo: "general_response",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-04-01T00:00:00.000Z",
+        },
+        updatedAt: "2026-04-01T00:00:00.000Z",
+      }),
+    );
+    await documentStore.set(
+      "learning_proposals",
+      "proposal-1",
+      createLearningProposal({
+        id: "proposal-1",
+        userId,
+        workspaceId,
+        proposalType: "procedural_pattern",
+        status: "accepted",
+        traceId: "proposal-trace-1",
+        summary: "Promote repeated bullet-summary guidance into a governed pattern.",
+        rationale: "Repeated successful feedback established stable summary guidance.",
+        linkedMemoryIds: ["feedback-source"],
+        sourceExperienceIds: ["xp-1", "xp-2"],
+        createdAt: "2026-04-16T00:00:00.000Z",
+        updatedAt: "2026-04-17T00:00:00.000Z",
+      }),
+    );
+    await documentStore.set(
+      "promotion_records",
+      "promotion-1",
+      createPromotionRecord({
+        id: "promotion-1",
+        proposalId: "proposal-1",
+        userId,
+        workspaceId,
+        decision: "accepted",
+        traceId: "promotion-trace-1",
+        summary:
+          "accepted proposal: Promote repeated bullet-summary guidance into a governed pattern.",
+        rationale: "proposal passed deterministic gates",
+        linkedMemoryIds: ["feedback-source"],
+        sourceExperienceIds: ["xp-1", "xp-2"],
+        policyOutcome: "passed",
+        verificationOutcome: "passed",
+        evalOutcome: "passed",
+        createdAt: "2026-04-17T00:00:00.000Z",
+        decidedAt: "2026-04-17T00:00:00.000Z",
+      }),
+    );
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario: {
+        scenario_id: "scenario-phase-16-governed-procedural-reuse",
+        persona_id: persona.persona_id,
+        lifecycle_bucket: persona.lifecycle_bucket,
+        task_family: "preference_continuation",
+        domain: "work_ops",
+        memory_source_domains: ["work_ops"],
+        evaluation_setting: "single_domain",
+        required_phenomena: [
+          "confirmation",
+          "correction",
+          "historical_task_continuation",
+          "identity_reveal",
+          "open_loop",
+          "stale_info",
+        ],
+        sessions: [
+          {
+            session_id: "session-1",
+            objective: "Create a replay step that can trigger compilation before the final recall.",
+            turns: [
+              {
+                role: "user",
+                content: "We are preparing a release status summary for rollout readiness.",
+              },
+              {
+                role: "assistant",
+                content: "Understood. I will keep the status summary tight and actionable.",
+              },
+            ],
+          },
+          {
+            session_id: "session-2",
+            objective: "Check whether the compiled procedural pattern is reused on recall.",
+            turns: [
+              {
+                role: "user",
+                content: "Please summarize the current rollout status.",
+              },
+            ],
+          },
+        ],
+        evaluation: {
+          prompt: "Please summarize the current rollout status.",
+          rubric_focus: ["history_open_loop"],
+          expected_identity_signals: [],
+          expected_history_signals: ["bullet points"],
+          expected_transfer_signals: ["Use bullet points in summaries."],
+          expected_non_transfer_signals: [],
+          expected_update_wins: [],
+          expected_stale_suppression: [],
+          wrong_personalization_signals: [],
+          improvement_hypothesis:
+            "GoodMemory should reuse governed procedural guidance once the accepted promotion has compiled.",
+          user_satisfaction_hypothesis:
+            "The answer should already carry the promoted summary style without asking the user again.",
+        },
+      },
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(result.trace.proposalLifecycle?.proposalStatusCounts.accepted).toBe(1);
+    expect(result.trace.proposalLifecycle?.promotionDecisionCounts.accepted).toBe(1);
+    expect(result.trace.maintenanceSummary).toEqual({
+      activeValidatedPatternCount: 1,
+      compiledValidatedPatternCount: 1,
+      supersededFeedbackCount: 1,
+      pressuredFactCount: 0,
+      demotedFactCount: 0,
+      correctionRepairFactCount: 0,
+      acceptedProceduralPromotionCount: 1,
+    });
+    expect(
+      result.retrieved?.feedback.some(
+        (record) =>
+          record.kind === "validated_pattern" &&
+          record.source.method === "confirmed" &&
+          record.rule === "Use bullet points in summaries.",
+      ),
+    ).toBe(true);
+    expect(result.memoryContext).toContain("Use bullet points in summaries.");
   });
 
   it("records proposal lifecycle from exported governance artifacts", async () => {
@@ -385,6 +557,15 @@ describe("eval runners", () => {
           evalOutcome: "passed",
         },
       ],
+    });
+    expect(result.trace.maintenanceSummary).toEqual({
+      activeValidatedPatternCount: 0,
+      compiledValidatedPatternCount: 0,
+      supersededFeedbackCount: 0,
+      pressuredFactCount: 0,
+      demotedFactCount: 0,
+      correctionRepairFactCount: 0,
+      acceptedProceduralPromotionCount: 0,
     });
   });
 

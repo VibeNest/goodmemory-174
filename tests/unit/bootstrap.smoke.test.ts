@@ -19,5 +19,6 @@ describe("bootstrap smoke", () => {
 
     const memory: GoodMemory = createGoodMemory(config);
     expect(memory).toBeDefined();
+    expect(typeof memory.runMaintenance).toBe("function");
   });
 });

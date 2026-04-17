@@ -1,9 +1,9 @@
 Phase 16.5: Dream Orchestration Expansion
 =========================================
 
-[TODO] P16.5-T001 Expand `dream` from gate-only to orchestrated hygiene runner
-[TODO] P16.5-T002 Let dream batch proposal compilation and low-risk maintenance jobs
-[TODO] P16.5-T003 Prevent overlapping or unsafe dream runs
+[DONE] P16.5-T001 Expand `dream` from gate-only to orchestrated hygiene runner
+[DONE] P16.5-T002 Let dream batch proposal compilation and low-risk maintenance jobs
+[DONE] P16.5-T003 Prevent overlapping or unsafe dream runs
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Dream becomes useful orchestration without violating governance
 - Maintenance behavior is still inspectable and bounded
+
+Implemented Notes
+-----------------
+- `dream` now exposes an orchestrator that batches maintenance jobs, reviewer/gate passes, and procedural compilation in one governed run.
+- Cooldown and session-count checks still gate entry before any work runs.
+- Scope-level locking prevents overlapping dream work on the same scope key.
+- Orchestration reports now expose executed maintenance results, proposal counts, promotion decision counts, and compiled pattern counts.

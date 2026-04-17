@@ -17,11 +17,13 @@ import type { EvidenceRecord } from "../evidence/contracts";
 import type {
   ExperienceRecord,
   LearningProposal,
+  PromotionDecision,
   PromotionRecord,
   SessionArchive,
 } from "../evolution/contracts";
 import type { MarkdownArtifactBundle } from "../governance/markdownArtifacts";
 import type { LanguageConfig } from "../language";
+import type { MaintenanceJobName, MaintenanceRunReport } from "../maintenance/runner";
 import type { GoodMemoryPolicyHooks } from "../policy/hooks";
 import type { MemoryPacket } from "../recall/contextBuilder";
 import type {
@@ -218,6 +220,24 @@ export interface FeedbackResult {
   };
 }
 
+export interface RunMaintenanceInput {
+  scope: MemoryScope;
+  jobs?: MaintenanceJobName[];
+  lastRunAt?: string;
+  minHoursBetweenRuns?: number;
+  minSessionCount?: number;
+  sessionCountSinceLastRun?: number;
+}
+
+export interface RunMaintenanceResult {
+  compiledCount: number;
+  maintenance: MaintenanceRunReport | null;
+  promotionDecisionCounts: Partial<Record<PromotionDecision, number>>;
+  proposalCount: number;
+  ran: boolean;
+  reason: "completed" | "cooldown" | "scope_busy" | "threshold";
+}
+
 export interface GoodMemory {
   recall(input: RecallInput): Promise<RecallResult>;
   buildContext(input: BuildContextInput): Promise<BuildContextResult>;
@@ -226,4 +246,5 @@ export interface GoodMemory {
   exportMemory(input: ExportMemoryInput): Promise<ExportMemoryResult>;
   deleteAllMemory(input: DeleteAllMemoryInput): Promise<DeleteAllMemoryResult>;
   feedback(input: FeedbackInput): Promise<FeedbackResult>;
+  runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult>;
 }

@@ -385,6 +385,48 @@ function buildStrategySummary(cases: JudgedEvalCase[]): EvalStrategySummary {
   };
 }
 
+function buildMaintenanceSummary(cases: JudgedEvalCase[]) {
+  const summaries = cases
+    .map((item) => item.goodmemory.trace.maintenanceSummary)
+    .filter((summary): summary is NonNullable<typeof summary> => Boolean(summary));
+
+  return {
+    casesWithAcceptedProceduralPromotions: summaries.filter(
+      (summary) => summary.acceptedProceduralPromotionCount > 0,
+    ).length,
+    casesWithCompiledProceduralReuse: summaries.filter(
+      (summary) => summary.compiledValidatedPatternCount > 0,
+    ).length,
+    casesWithCorrectionRepairs: summaries.filter(
+      (summary) => summary.correctionRepairFactCount > 0,
+    ).length,
+    casesWithProceduralReuse: summaries.filter(
+      (summary) => summary.activeValidatedPatternCount > 0,
+    ).length,
+    casesWithVerificationPressure: summaries.filter(
+      (summary) => summary.pressuredFactCount > 0,
+    ).length,
+    casesWithDemotions: summaries.filter(
+      (summary) => summary.demotedFactCount > 0,
+    ).length,
+    averageActiveValidatedPatterns: roundMetric(
+      average(summaries.map((summary) => summary.activeValidatedPatternCount)),
+    ),
+    averageCompiledValidatedPatterns: roundMetric(
+      average(summaries.map((summary) => summary.compiledValidatedPatternCount)),
+    ),
+    averageCorrectionRepairs: roundMetric(
+      average(summaries.map((summary) => summary.correctionRepairFactCount)),
+    ),
+    averagePressuredFacts: roundMetric(
+      average(summaries.map((summary) => summary.pressuredFactCount)),
+    ),
+    averageDemotedFacts: roundMetric(
+      average(summaries.map((summary) => summary.demotedFactCount)),
+    ),
+  };
+}
+
 export function aggregateJudgedCases(
   cases: JudgedEvalCase[],
   executionFailureCount = 0,
@@ -430,6 +472,7 @@ export function aggregateJudgedCases(
     },
     assertions: aggregateAssertions(cases),
     strategySummary: buildStrategySummary(cases),
+    maintenanceSummary: buildMaintenanceSummary(cases),
   };
 }
 

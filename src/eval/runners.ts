@@ -75,6 +75,16 @@ export interface EvalProposalLifecycleTrace {
   promotions: EvalPromotionTraceItem[];
 }
 
+export interface EvalMaintenanceDebugSummary {
+  acceptedProceduralPromotionCount: number;
+  activeValidatedPatternCount: number;
+  compiledValidatedPatternCount: number;
+  correctionRepairFactCount: number;
+  demotedFactCount: number;
+  pressuredFactCount: number;
+  supersededFeedbackCount: number;
+}
+
 export interface EvalAnswerPackage {
   mode: "baseline" | "goodmemory";
   strategyLabel: "baseline" | RecallRouterStrategy;
@@ -128,6 +138,7 @@ export interface EvalAnswerPackage {
     recallHitCount: number;
     verificationHintCount: number;
     proposalLifecycle: EvalProposalLifecycleTrace | null;
+    maintenanceSummary?: EvalMaintenanceDebugSummary | null;
     contextBuild:
       | null
       | {
@@ -220,6 +231,7 @@ export async function runBaselineScenario(input: {
       recallHitCount: 0,
       verificationHintCount: 0,
       proposalLifecycle: null,
+      maintenanceSummary: null,
       contextBuild: null,
     },
   };
@@ -327,6 +339,53 @@ function buildProposalLifecycleTrace(
         verificationOutcome: promotion.verificationOutcome,
         evalOutcome: promotion.evalOutcome,
       })),
+  };
+}
+
+function buildMaintenanceDebugSummary(
+  exported: ExportMemoryResult,
+): EvalMaintenanceDebugSummary {
+  const activeValidatedPatterns = exported.durable.feedback.filter(
+    (record) =>
+      record.lifecycle === "active" && record.kind === "validated_pattern",
+  );
+  const activeValidatedPatternCount = activeValidatedPatterns.length;
+  const compiledValidatedPatternCount = activeValidatedPatterns.filter(
+    (record) => record.source.method === "confirmed",
+  ).length;
+  const supersededFeedbackCount = exported.durable.feedback.filter(
+    (record) => record.lifecycle === "superseded",
+  ).length;
+  const pressuredFactCount = exported.durable.facts.filter(
+    (record) => (record.verificationPressureCount ?? 0) > 0,
+  ).length;
+  const demotedFacts = exported.durable.facts.filter((record) =>
+    Boolean(record.demotionReason),
+  );
+  const acceptedProceduralProposalIds = new Set(
+    exported.durable.proposals
+      .filter(
+        (proposal) =>
+          proposal.proposalType === "procedural_pattern" &&
+          proposal.status === "accepted",
+      )
+      .map((proposal) => proposal.id),
+  );
+
+  return {
+    activeValidatedPatternCount,
+    compiledValidatedPatternCount,
+    supersededFeedbackCount,
+    pressuredFactCount,
+    demotedFactCount: demotedFacts.length,
+    correctionRepairFactCount: demotedFacts.filter(
+      (record) => record.demotionReason === "contradicted_by_stronger_fact",
+    ).length,
+    acceptedProceduralPromotionCount: exported.durable.promotions.filter(
+      (promotion) =>
+        promotion.decision === "accepted" &&
+        acceptedProceduralProposalIds.has(promotion.proposalId),
+    ).length,
   };
 }
 
@@ -474,6 +533,7 @@ export async function runGoodMemoryScenario(input: {
       recall,
       context,
       buildProposalLifecycleTrace(exported),
+      buildMaintenanceDebugSummary(exported),
     ),
   };
 }
@@ -488,6 +548,7 @@ function buildGoodMemoryTrace(
     estimatedTokens: number;
   },
   proposalLifecycle: EvalProposalLifecycleTrace,
+  maintenanceSummary: EvalMaintenanceDebugSummary,
 ): EvalAnswerPackage["trace"] {
   return {
     sessionsReplayed: rememberEvents.length,
@@ -496,6 +557,7 @@ function buildGoodMemoryTrace(
     recallHitCount: recall.metadata.hits.length,
     verificationHintCount: recall.metadata.verificationHints.length,
     proposalLifecycle,
+    maintenanceSummary,
     contextBuild: {
       output: context.output,
       maxTokens: 160,

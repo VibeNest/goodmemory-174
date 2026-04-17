@@ -191,6 +191,18 @@ function buildAnswerPackage(
               ],
             }
           : null,
+      maintenanceSummary:
+        mode === "goodmemory"
+          ? {
+              activeValidatedPatternCount: 1,
+              compiledValidatedPatternCount: 1,
+              supersededFeedbackCount: 1,
+              pressuredFactCount: 1,
+              demotedFactCount: 1,
+              correctionRepairFactCount: 1,
+              acceptedProceduralPromotionCount: 1,
+            }
+          : null,
       contextBuild:
         mode === "goodmemory"
           ? {
@@ -396,6 +408,13 @@ describe("eval reporting", () => {
     expect(summary.layers.uplift.personalization).toBeGreaterThan(0);
     expect(summary.assertions.contaminationFailures).toBe(1);
     expect(summary.strategySummary.byStrategy["rules-only"]?.totalCases).toBe(2);
+    expect(summary.maintenanceSummary?.casesWithProceduralReuse).toBe(2);
+    expect(summary.maintenanceSummary?.casesWithCompiledProceduralReuse).toBe(2);
+    expect(summary.maintenanceSummary?.casesWithAcceptedProceduralPromotions).toBe(2);
+    expect(summary.maintenanceSummary?.casesWithVerificationPressure).toBe(2);
+    expect(summary.maintenanceSummary?.averageCompiledValidatedPatterns).toBe(1);
+    expect(summary.maintenanceSummary?.averageCorrectionRepairs).toBe(1);
+    expect(summary.maintenanceSummary?.averageDemotedFacts).toBe(1);
   });
 
   it("builds strategy summaries and comparison slices from multi-strategy cases", () => {
@@ -525,6 +544,10 @@ describe("eval reporting", () => {
           strategySummary?: {
             byStrategy?: Record<string, { totalCases: number }>;
           };
+          maintenanceSummary?: {
+            casesWithCompiledProceduralReuse: number;
+            casesWithProceduralReuse: number;
+          };
         };
         runtime: {
           generationAdapter?: string;
@@ -546,6 +569,10 @@ describe("eval reporting", () => {
           trace: {
             recallHitCount: number;
             proposalLifecycle?: { proposalCount: number };
+            maintenanceSummary?: {
+              activeValidatedPatternCount: number;
+              compiledValidatedPatternCount: number;
+            };
           };
         };
       };
@@ -597,6 +624,8 @@ describe("eval reporting", () => {
       expect(report.summary.strategySummary?.byStrategy?.["rules-only"]?.totalCases).toBe(
         1,
       );
+      expect(report.summary.maintenanceSummary?.casesWithProceduralReuse).toBe(1);
+      expect(report.summary.maintenanceSummary?.casesWithCompiledProceduralReuse).toBe(1);
       expect(report.runtime.generationAdapter).toBe("fallback");
       expect(report.runtime.judgeAdapter).toBe("fallback");
       expect(failure.judge.failure_tags).toContain("identity_miss");
@@ -605,6 +634,10 @@ describe("eval reporting", () => {
       expect(caseArtifact.assertions.passed).toBe(false);
       expect(caseArtifact.goodmemory.trace.recallHitCount).toBe(4);
       expect(caseArtifact.goodmemory.trace.proposalLifecycle?.proposalCount).toBe(2);
+      expect(caseArtifact.goodmemory.trace.maintenanceSummary?.activeValidatedPatternCount).toBe(1);
+      expect(caseArtifact.goodmemory.trace.maintenanceSummary?.compiledValidatedPatternCount).toBe(
+        1,
+      );
       expect(baselineTrace.mode).toBe("baseline");
       expect(baselineTrace.trace.sessionsReplayed).toBe(0);
       expect(goodmemoryTrace.mode).toBe("goodmemory");

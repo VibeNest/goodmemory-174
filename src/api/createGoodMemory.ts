@@ -4,6 +4,7 @@ import type {
   FeedbackMemory,
 } from "../domain/records";
 import { createFeedbackMemory } from "../domain/records";
+import { scopeToKey } from "../domain/scope";
 import { createMemorySource } from "../domain/provenance";
 import { EVIDENCE_COLLECTION } from "../evidence/contracts";
 import type { ExperienceRecord } from "../evolution/contracts";
@@ -28,6 +29,11 @@ import {
 } from "../evolution/contracts";
 import { buildMarkdownArtifacts } from "../governance/markdownArtifacts";
 import { createLanguageService } from "../language";
+import {
+  createDreamMaintenanceGate,
+  createDreamMaintenanceOrchestrator,
+} from "../maintenance/dream";
+import { createMaintenanceRunner } from "../maintenance/runner";
 import { ARTIFACT_SPILL_COLLECTION } from "../runtime/spillover";
 import { renderMemoryPacket } from "../recall/contextBuilder";
 import { createRecallEngine } from "../recall/engine";
@@ -59,6 +65,8 @@ import type {
   RecallResult,
   RememberInput,
   RememberResult,
+  RunMaintenanceInput,
+  RunMaintenanceResult,
 } from "./contracts";
 
 type ScopeBoundRecord = {
@@ -301,6 +309,7 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly reviewer;
   private readonly proposalGate;
   private readonly proceduralPatternCompiler;
+  private readonly dreamMaintenance;
   private readonly language;
   private readonly now: () => Date;
 
@@ -384,6 +393,21 @@ class GoodMemoryImpl implements GoodMemory {
       repositories,
       language,
       now: () => this.now().toISOString(),
+    });
+    const maintenanceRunner = createMaintenanceRunner({
+      repositories,
+      vectorIndex: repositories.vectorIndex,
+      embedding: config.adapters?.embeddingAdapter,
+      language,
+      now: () => this.now().toISOString(),
+    });
+    const dreamMaintenanceGate = createDreamMaintenanceGate();
+    this.dreamMaintenance = createDreamMaintenanceOrchestrator({
+      gate: dreamMaintenanceGate,
+      maintenanceRunner,
+      reviewer: this.reviewer,
+      proposalGate: this.proposalGate,
+      compiler: this.proceduralPatternCompiler,
     });
   }
 
@@ -810,6 +834,19 @@ class GoodMemoryImpl implements GoodMemory {
     await this.runRulesOnlyReview(input.scope);
 
     return result;
+  }
+
+  async runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult> {
+    return this.dreamMaintenance.run({
+      scope: input.scope,
+      scopeKey: scopeToKey(input.scope),
+      now: this.now().toISOString(),
+      maintenanceJobs: input.jobs,
+      sessionCountSinceLastRun: input.sessionCountSinceLastRun ?? 1,
+      minSessionCount: input.minSessionCount ?? 1,
+      lastRunAt: input.lastRunAt,
+      minHoursBetweenRuns: input.minHoursBetweenRuns ?? 0,
+    });
   }
 
   private async persistExperienceRecords(records: ExperienceRecord[]): Promise<void> {

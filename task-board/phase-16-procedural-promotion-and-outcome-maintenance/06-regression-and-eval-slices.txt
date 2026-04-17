@@ -1,9 +1,9 @@
 Phase 16.6: Regression and Eval Slices
 ======================================
 
-[TODO] P16.6-T001 Add procedural reuse eval slices
-[TODO] P16.6-T002 Add stale-memory misuse and correction-rate regression slices
-[TODO] P16.6-T003 Add maintenance-oriented debug summaries
+[DONE] P16.6-T001 Add procedural reuse eval slices
+[WIP] P16.6-T002 Add stale-memory misuse and correction-rate regression slices
+[DONE] P16.6-T003 Add maintenance-oriented debug summaries
 
 Why this exists
 ---------------
@@ -26,3 +26,11 @@ Acceptance
 ----------
 - Maintenance changes are measurable and reviewable
 - Release decisions can rely on targeted regression evidence
+
+Implemented Notes
+-----------------
+- Eval answer traces now include maintenance-oriented debug summaries for active validated patterns, verification pressure, and demotion/correction counts.
+- Eval suite summaries now aggregate procedural reuse, compiled/governed procedural reuse, accepted procedural promotions, verification pressure, and demotion/correction presence across judged cases.
+- Persisted eval artifacts now carry the same maintenance summary fields through case traces and top-level report output.
+- Targeted eval replay now covers the scenario-level path where an accepted `procedural_pattern` promotion is compiled before the final recall and then reused as a `validated_pattern`.
+- Remaining gap: the suite still lacks a broader result-level metric showing stale-misuse reduction and correction-rate movement across multiple cases, so this slice is not fully accepted yet.

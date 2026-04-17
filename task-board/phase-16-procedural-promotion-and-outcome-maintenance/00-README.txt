@@ -23,6 +23,8 @@ Execution Notes
 ---------------
 - Current code already emits governed procedural proposals, so the lowest-risk next slice is to make outcome signals visible in recall before adding new promotion mutations.
 - Score attribution should land before touch/reinforce helpers so the first rollout remains explainable in traces and CLI output.
+- `[DONE]` here means the implementation slice is complete and accepted.
+- Phase 16 currently still keeps the eval/regression slice open until broader result metrics are in place.
 
 
 Status Rule
