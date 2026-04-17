@@ -1,9 +1,9 @@
 Phase 16.1: Validated Pattern Compiler
 ======================================
 
-[TODO] P16.1-T001 Define compiler rules from `FeedbackMemory` and accepted proposals
-[TODO] P16.1-T002 Keep pattern scope/applicability explicit
-[TODO] P16.1-T003 Add derived artifact hooks without changing procedural truth source
+[DONE] P16.1-T001 Define compiler rules from `FeedbackMemory` and accepted proposals
+[DONE] P16.1-T002 Keep pattern scope/applicability explicit
+[DONE] P16.1-T003 Add derived artifact hooks without changing procedural truth source
 
 Why this exists
 ---------------
@@ -26,3 +26,9 @@ Acceptance
 ----------
 - Procedural promotion works without adding a new core durable record type
 - Pattern promotion reasons remain inspectable
+
+Implemented Notes
+-----------------
+- Accepted `procedural_pattern` proposals now compile into active `validated_pattern` feedback records through an idempotent compiler pass.
+- Compiler scope comes from the governed proposal/promotion record, so reusable patterns can drop session scope while retaining user/workspace/agent boundaries.
+- Source guidance is superseded instead of silently deleted, and compiled patterns retain inspectable rationale/evidence lineage.

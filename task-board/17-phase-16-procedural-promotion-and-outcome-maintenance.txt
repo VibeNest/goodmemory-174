@@ -36,7 +36,7 @@ Tasks
 [WIP] P16-T004 Connect outcome metrics to recall scoring and maintenance heuristics
 [DONE] P16-T002 Add low-risk outcome mutation helpers for recall scoring signals
 [DONE] P16-T003 Implement verify-driven demotion and repeated-correction repair
-[TODO] P16-T001 Compile and maintain `validated_pattern` from feedback and proposal outcomes
+[DONE] P16-T001 Compile and maintain `validated_pattern` from feedback and proposal outcomes
 [TODO] P16-T005 Expand dream orchestration to drive hygiene plus proposal compilation
 [TODO] P16-T006 Add regression/eval coverage for procedural reuse and stale-memory misuse
 
@@ -45,6 +45,7 @@ Progress Notes
 - Outcome-aware scoring now consumes recall usage plus visible evidence support and emits attribution in recall candidate traces.
 - Low-risk recall touch helpers now update `accessCount`, `lastAccessedAt`, and `lastUsedAt` with a bounded window and append telemetry for the applied touches.
 - Repeated verification pressure now lowers recall prominence through auditable penalty signals, while contradiction repair prefers newer or verification-safer facts and records demotion reasons.
+- Accepted procedural-pattern promotions now compile idempotently into active `validated_pattern` feedback records, superseding weaker source guidance without introducing a new durable type.
 - Remaining work in P16-T004 is to extend the current penalty surface with future correction-specific signals beyond verification pressure.
 
 

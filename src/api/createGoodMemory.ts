@@ -12,6 +12,7 @@ import {
   buildRecallExperienceRecords,
   buildRememberExperienceRecord,
 } from "../evolution/observations";
+import { createProceduralPatternCompiler } from "../evolution/compiler";
 import { createProposalGateProcessor } from "../evolution/gates";
 import { createRulesOnlyReviewer } from "../evolution/reviewer";
 import type {
@@ -299,6 +300,7 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly rememberEngine;
   private readonly reviewer;
   private readonly proposalGate;
+  private readonly proceduralPatternCompiler;
   private readonly language;
   private readonly now: () => Date;
 
@@ -377,6 +379,11 @@ class GoodMemoryImpl implements GoodMemory {
     });
     this.proposalGate = createProposalGateProcessor({
       repositories,
+    });
+    this.proceduralPatternCompiler = createProceduralPatternCompiler({
+      repositories,
+      language,
+      now: () => this.now().toISOString(),
     });
   }
 
@@ -819,14 +826,14 @@ class GoodMemoryImpl implements GoodMemory {
     try {
       const proposals = await this.reviewer.review({ scope });
 
-      if (proposals.length === 0) {
-        return;
+      if (proposals.length > 0) {
+        await this.proposalGate.process({
+          scope,
+          proposals,
+        });
       }
 
-      await this.proposalGate.process({
-        scope,
-        proposals,
-      });
+      await this.proceduralPatternCompiler.compile(scope);
     } catch (error) {
       console.error("Failed to run rules-only reviewer", error);
     }
