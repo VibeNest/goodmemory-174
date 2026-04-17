@@ -1,0 +1,257 @@
+[
+  {
+    "sessionId": "complex-01-s1",
+    "replayedTurns": 4,
+    "accepted": 6,
+    "rejected": 0,
+    "events": [
+      {
+        "candidateId": "candidate-0001",
+        "outcome": "written",
+        "memoryType": "profile",
+        "memoryId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+        "reason": "explicit_profile_name",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      },
+      {
+        "candidateId": "candidate-0002",
+        "outcome": "written",
+        "memoryType": "profile",
+        "memoryId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+        "reason": "explicit_profile_role",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      },
+      {
+        "candidateId": "candidate-0003",
+        "outcome": "written",
+        "memoryType": "profile",
+        "memoryId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+        "reason": "explicit_profile_location",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      },
+      {
+        "candidateId": "candidate-0004",
+        "outcome": "written",
+        "memoryType": "profile",
+        "memoryId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+        "reason": "explicit_profile_current_project",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      },
+      {
+        "candidateId": "candidate-0005",
+        "outcome": "written",
+        "memoryType": "preference",
+        "memoryId": "a3f9e230-8a0b-4a35-8dac-9e67d7212934",
+        "reason": "explicit_preference",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      },
+      {
+        "candidateId": "episode:d53a1b9f-8df7-4b08-a774-95ad025ef8e8",
+        "outcome": "written",
+        "memoryType": "episode",
+        "memoryId": "d53a1b9f-8df7-4b08-a774-95ad025ef8e8",
+        "reason": "conversation_episode",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      }
+    ],
+    "metadata": {
+      "locale": "en-US",
+      "localeSource": "detected",
+      "adapterId": "en",
+      "analysisMode": "rules-only",
+      "requestedExtractionStrategy": "auto",
+      "resolvedExtractionStrategy": "rules-only"
+    }
+  },
+  {
+    "sessionId": "complex-01-s2",
+    "replayedTurns": 4,
+    "accepted": 3,
+    "rejected": 0,
+    "events": [
+      {
+        "candidateId": "candidate-0001",
+        "outcome": "written",
+        "memoryType": "reference",
+        "memoryId": "3f71eb1c-9dc8-44e8-b671-a9f264e4875e",
+        "reason": "explicit_reference",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ],
+        "evidenceIds": [
+          "ee8fbce9-45a8-4f05-9dbb-6e9564900ccc"
+        ]
+      },
+      {
+        "candidateId": "candidate-0002",
+        "outcome": "written",
+        "memoryType": "fact",
+        "memoryId": "aa17c33b-1edf-464f-b81b-783a5d8cc494",
+        "reason": "explicit_fact",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ],
+        "evidenceIds": [
+          "5c5d9d6c-2391-47dc-8ef3-63aac177a3ef"
+        ]
+      },
+      {
+        "candidateId": "episode:866cf8c6-9eae-4a81-babb-306a513ea05a",
+        "outcome": "written",
+        "memoryType": "episode",
+        "memoryId": "866cf8c6-9eae-4a81-babb-306a513ea05a",
+        "reason": "conversation_episode",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      }
+    ],
+    "metadata": {
+      "locale": "en-US",
+      "localeSource": "detected",
+      "adapterId": "en",
+      "analysisMode": "rules-only",
+      "requestedExtractionStrategy": "auto",
+      "resolvedExtractionStrategy": "rules-only"
+    }
+  },
+  {
+    "sessionId": "complex-01-s3",
+    "replayedTurns": 4,
+    "accepted": 2,
+    "rejected": 1,
+    "events": [
+      {
+        "candidateId": "candidate-0001",
+        "outcome": "written",
+        "memoryType": "fact",
+        "memoryId": "30c93159-d2fc-498b-940f-a1df44a2934e",
+        "reason": "explicit_fact",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ],
+        "evidenceIds": [
+          "0a98f2aa-281d-4171-bd40-b5060c166f7c"
+        ]
+      },
+      {
+        "candidateId": "episode:267cc9b1-79e2-4a5b-90bb-614166c6c61a",
+        "outcome": "written",
+        "memoryType": "episode",
+        "memoryId": "267cc9b1-79e2-4a5b-90bb-614166c6c61a",
+        "reason": "conversation_episode",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      }
+    ],
+    "metadata": {
+      "locale": "en-US",
+      "localeSource": "detected",
+      "adapterId": "en",
+      "analysisMode": "rules-only",
+      "requestedExtractionStrategy": "auto",
+      "resolvedExtractionStrategy": "rules-only"
+    }
+  },
+  {
+    "sessionId": "complex-01-s4",
+    "replayedTurns": 4,
+    "accepted": 0,
+    "rejected": 2,
+    "events": [
+      {
+        "candidateId": "candidate-0001",
+        "outcome": "rejected",
+        "memoryType": "fact",
+        "reason": "below_threshold",
+        "sourceMethod": "inferred",
+        "extractionSources": [
+          "rules-only"
+        ]
+      },
+      {
+        "candidateId": "candidate-0002",
+        "outcome": "rejected",
+        "memoryType": "fact",
+        "reason": "below_threshold",
+        "sourceMethod": "inferred",
+        "extractionSources": [
+          "rules-only"
+        ]
+      }
+    ],
+    "metadata": {
+      "locale": "en-US",
+      "localeSource": "detected",
+      "adapterId": "en",
+      "analysisMode": "rules-only",
+      "requestedExtractionStrategy": "auto",
+      "resolvedExtractionStrategy": "rules-only"
+    }
+  },
+  {
+    "sessionId": "complex-01-s5",
+    "replayedTurns": 2,
+    "accepted": 2,
+    "rejected": 0,
+    "events": [
+      {
+        "candidateId": "candidate-0001",
+        "outcome": "superseded",
+        "memoryType": "reference",
+        "memoryId": "57d8513d-230e-4b33-9ae8-565461dc122e",
+        "reason": "superseded_reference",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ],
+        "evidenceIds": [
+          "353002b6-5a3e-49b9-b9cf-00bd6a24215c"
+        ]
+      },
+      {
+        "candidateId": "episode:470801f8-faa1-4395-99cf-b578a542abd3",
+        "outcome": "written",
+        "memoryType": "episode",
+        "memoryId": "470801f8-faa1-4395-99cf-b578a542abd3",
+        "reason": "conversation_episode",
+        "sourceMethod": "explicit",
+        "extractionSources": [
+          "rules-only"
+        ]
+      }
+    ],
+    "metadata": {
+      "locale": "en-US",
+      "localeSource": "detected",
+      "adapterId": "en",
+      "analysisMode": "rules-only",
+      "requestedExtractionStrategy": "auto",
+      "resolvedExtractionStrategy": "rules-only"
+    }
+  }
+]

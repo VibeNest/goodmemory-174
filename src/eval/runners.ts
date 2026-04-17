@@ -21,8 +21,10 @@ import type {
   ScenarioTurn,
 } from "./dataset";
 import type { RecallRouterStrategy } from "../recall/router";
+import type { RetrievalStrategyRolloutConfig } from "./strategy-rollout";
 import type { MemoryExtractionStrategy } from "../remember/candidates";
 import type { RememberResult as PublicRememberResult } from "../remember/contracts";
+import { resolveRetrievalStrategyRollout } from "./strategy-rollout";
 
 export interface EvalAnswerGeneratorInput {
   persona: PersonaSpec;
@@ -89,6 +91,10 @@ export interface EvalAnswerPackage {
   mode: "baseline" | "goodmemory";
   strategyLabel: "baseline" | RecallRouterStrategy;
   resolvedStrategyLabel?: RecallRouterStrategy;
+  strategyFamily?: "retrieval" | "reviewer" | "maintenance";
+  strategyMode?: "observe" | "assist" | "promote";
+  promotedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+  candidateInfluencedExecution?: boolean;
   personaId: string;
   scenarioId: string;
   taskFamily: PersonalizationTaskFamily;
@@ -426,6 +432,7 @@ export async function runGoodMemoryScenario(input: {
   answerGenerator: EvalAnswerGenerator;
   retrievalProfile?: "general_chat" | "coding_agent";
   strategy?: RecallRouterStrategy;
+  strategyRollout?: RetrievalStrategyRolloutConfig;
   rememberExtractionStrategy?: MemoryExtractionStrategy;
   ignoreMemory?: boolean;
   scopeNamespace?: string;
@@ -434,6 +441,10 @@ export async function runGoodMemoryScenario(input: {
   const evaluationPlan = buildEvaluationPlan(input.scenario);
   const evalUserId = buildEvalUserId(input.persona, input.scopeNamespace);
   const evalWorkspaceId = buildEvalWorkspaceId(input.persona, input.scopeNamespace);
+  const rollout = resolveRetrievalStrategyRollout({
+    requestedStrategy: input.strategy,
+    rollout: input.strategyRollout,
+  });
 
   for (const session of evaluationPlan.replaySessions) {
     const result = await input.memory.remember({
@@ -471,7 +482,7 @@ export async function runGoodMemoryScenario(input: {
     ),
     query: getEvaluationPrompt(input.scenario),
     retrievalProfile: input.retrievalProfile ?? "general_chat",
-    strategy: input.strategy,
+    strategy: rollout.executedStrategy,
     ignoreMemory: input.ignoreMemory,
   });
   const context = await input.memory.buildContext({
@@ -497,8 +508,12 @@ export async function runGoodMemoryScenario(input: {
 
   return {
     mode: "goodmemory",
-    strategyLabel: input.strategy ?? "auto",
+    strategyLabel: rollout.requestedStrategyLabel,
     resolvedStrategyLabel: recall.metadata.routingDecision.strategy,
+    strategyFamily: rollout.family,
+    strategyMode: rollout.mode,
+    promotedStrategyLabel: rollout.promotedStrategyLabel,
+    candidateInfluencedExecution: rollout.candidateInfluencedExecution,
     personaId: input.persona.persona_id,
     scenarioId: input.scenario.scenario_id,
     taskFamily: input.scenario.task_family,

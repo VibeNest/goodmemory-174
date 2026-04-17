@@ -8,6 +8,7 @@ import type {
   JudgeScores,
 } from "./judge";
 import type { EvalAnswerPackage } from "./runners";
+import type { StrategyRolloutMetadata } from "./strategy-rollout";
 
 export interface EvalLayerScores {
   retrieval: number;
@@ -43,6 +44,9 @@ export interface JudgedEvalCase {
     evaluationSetting: EvalAnswerPackage["evaluationSetting"];
     strategyLabel: EvalAnswerPackage["strategyLabel"];
     resolvedStrategyLabel?: EvalAnswerPackage["resolvedStrategyLabel"];
+    strategyFamily?: EvalAnswerPackage["strategyFamily"];
+    strategyMode?: EvalAnswerPackage["strategyMode"];
+    promotedStrategyLabel?: EvalAnswerPackage["promotedStrategyLabel"];
   };
   baseline: EvalAnswerPackage;
   goodmemory: EvalAnswerPackage;
@@ -128,7 +132,9 @@ export interface EvalSuiteSummary {
   maintenanceSummary?: EvalMaintenanceSummary;
 }
 
-export type EvalRuntimeMetadata = ProviderRuntimeMetadata;
+export interface EvalRuntimeMetadata extends ProviderRuntimeMetadata {
+  strategyRollout?: StrategyRolloutMetadata;
+}
 
 export type PersistedEvalMode = ProviderExecutionMode;
 

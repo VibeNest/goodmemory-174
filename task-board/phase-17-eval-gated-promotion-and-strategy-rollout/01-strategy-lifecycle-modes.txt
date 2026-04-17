@@ -1,9 +1,9 @@
 Phase 17.1: Strategy Lifecycle Modes
 ====================================
 
-[TODO] P17.1-T001 Define `observe`, `assist`, and `promote` mode semantics
-[TODO] P17.1-T002 Apply the lifecycle model to retrieval, reviewer, and maintenance strategies
-[TODO] P17.1-T003 Persist mode metadata in artifacts and decision records
+[DONE] P17.1-T001 Define `observe`, `assist`, and `promote` mode semantics
+[WIP] P17.1-T002 Apply the lifecycle model to retrieval, reviewer, and maintenance strategies
+[DONE] P17.1-T003 Persist mode metadata in artifacts and decision records
 
 Why this exists
 ---------------
@@ -19,8 +19,18 @@ Write tests first
 Implementation steps
 --------------------
 1. Define mode semantics and scope of influence
-2. Reuse existing artifact/report metadata surfaces where possible
-3. Keep promote mode gated by later eval evidence
+2. Land retrieval rollout first in eval/runtime/reporting so later reviewer and maintenance work can reuse the same vocabulary
+3. Reuse existing artifact/report metadata surfaces where possible
+4. Keep promote mode gated by later eval evidence
+
+Current implementation slice
+----------------------------
+1. Add shared lifecycle vocabulary for `observe`, `assist`, and `promote`
+2. Persist rollout mode metadata into eval runtime and case artifacts
+3. Make retrieval the first concrete rollout family:
+   - `observe` records candidate strategy labels without changing executed recall behavior
+   - `assist` allows candidate retrieval strategy to influence eval behavior without treating it as the promoted default
+   - `promote` represents the currently supported default path
 
 Acceptance
 ----------

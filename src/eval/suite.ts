@@ -30,6 +30,11 @@ import {
   type EvalAnswerGenerator,
 } from "./runners";
 import type { MemoryExtractionStrategy } from "../remember/candidates";
+import type { RetrievalStrategyRolloutConfig } from "./strategy-rollout";
+import {
+  buildRetrievalStrategyRolloutConfig,
+  buildStrategyRolloutMetadata,
+} from "./strategy-rollout";
 
 export interface EvalSuiteInput {
   mode: PersistedEvalMode;
@@ -54,6 +59,7 @@ export interface EvalSuiteInput {
   caseRetryLimit?: number;
   strategies?: RecallRouterStrategy[];
   rememberExtractionStrategy?: MemoryExtractionStrategy;
+  strategyRollout?: RetrievalStrategyRolloutConfig;
 }
 
 export interface EvalSuiteResult {
@@ -96,6 +102,38 @@ function resolveCaseRetryLimit(
   }
 
   return mode === "live" ? 3 : 1;
+}
+
+function resolveEvalSuiteStrategyRollout(input: {
+  strategyRollout?: RetrievalStrategyRolloutConfig;
+  runtimeStrategyRollout?: EvalRuntimeMetadata["strategyRollout"];
+}): {
+  effectiveStrategyRollout?: RetrievalStrategyRolloutConfig;
+  runtimeStrategyRollout?: EvalRuntimeMetadata["strategyRollout"];
+} {
+  if (input.strategyRollout) {
+    return {
+      effectiveStrategyRollout: input.strategyRollout,
+      runtimeStrategyRollout: buildStrategyRolloutMetadata(input.strategyRollout),
+    };
+  }
+
+  if (!input.runtimeStrategyRollout) {
+    return {};
+  }
+
+  if (input.runtimeStrategyRollout.family !== "retrieval") {
+    throw new Error(
+      `runEvalSuite currently supports only retrieval strategy rollouts; received ${input.runtimeStrategyRollout.family}.`,
+    );
+  }
+
+  return {
+    effectiveStrategyRollout: buildRetrievalStrategyRolloutConfig(
+      input.runtimeStrategyRollout,
+    ),
+    runtimeStrategyRollout: input.runtimeStrategyRollout,
+  };
 }
 
 function indentErrorBlock(value: string): string {
@@ -199,6 +237,7 @@ async function evaluateCase(input: {
   goodmemoryGenerator: EvalAnswerGenerator;
   judge: JudgeModel;
   rememberExtractionStrategy?: MemoryExtractionStrategy;
+  strategyRollout?: RetrievalStrategyRolloutConfig;
 }): Promise<JudgedEvalCase> {
   const memoryHandle =
     input.createMemory?.({
@@ -219,6 +258,7 @@ async function evaluateCase(input: {
       scenario: input.scenario,
       answerGenerator: input.goodmemoryGenerator,
       strategy: input.strategy,
+      strategyRollout: input.strategyRollout,
       rememberExtractionStrategy: input.rememberExtractionStrategy,
       scopeNamespace: input.scopeNamespace,
     });
@@ -243,6 +283,9 @@ async function evaluateCase(input: {
         evaluationSetting: input.scenario.evaluation_setting,
         strategyLabel: goodmemory.strategyLabel,
         resolvedStrategyLabel: goodmemory.resolvedStrategyLabel,
+        strategyFamily: goodmemory.strategyFamily,
+        strategyMode: goodmemory.strategyMode,
+        promotedStrategyLabel: goodmemory.promotedStrategyLabel,
       },
       baseline: input.baseline,
       goodmemory,
@@ -267,6 +310,7 @@ async function evaluateCaseWithRetries(input: {
   judge: JudgeModel;
   retryLimit: number;
   rememberExtractionStrategy?: MemoryExtractionStrategy;
+  strategyRollout?: RetrievalStrategyRolloutConfig;
 }): Promise<
   | { judgedCase: JudgedEvalCase; failure?: undefined }
   | { judgedCase?: undefined; failure: EvalCaseExecutionFailure }
@@ -290,6 +334,7 @@ async function evaluateCaseWithRetries(input: {
         goodmemoryGenerator: input.goodmemoryGenerator,
         judge: input.judge,
         rememberExtractionStrategy: input.rememberExtractionStrategy,
+        strategyRollout: input.strategyRollout,
       });
 
       return { judgedCase };
@@ -436,12 +481,20 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   const judgedCases = new Array<JudgedEvalCase | undefined>(selectedCases.length);
   const failedCases = new Array<EvalCaseExecutionFailure | undefined>(selectedCases.length);
   const runId = input.runId ?? `run-${Date.now()}`;
-  const runtime = normalizeProviderRuntimeMetadata(
-    input.runtime ?? {
-      generationMode: input.mode,
-      judgeMode: input.mode,
-    },
-  );
+  const { effectiveStrategyRollout, runtimeStrategyRollout } =
+    resolveEvalSuiteStrategyRollout({
+      strategyRollout: input.strategyRollout,
+      runtimeStrategyRollout: input.runtime?.strategyRollout,
+    });
+  const runtime = {
+    ...normalizeProviderRuntimeMetadata(
+      input.runtime ?? {
+        generationMode: input.mode,
+        judgeMode: input.mode,
+      },
+    ),
+    ...(runtimeStrategyRollout ? { strategyRollout: runtimeStrategyRollout } : {}),
+  } as EvalRuntimeMetadata;
   const initialArtifacts = await persistEvalArtifacts({
     mode: input.mode,
     outputDir: input.outputDir,
@@ -530,6 +583,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
         judge: input.judge,
         retryLimit,
         rememberExtractionStrategy: input.rememberExtractionStrategy,
+        strategyRollout: effectiveStrategyRollout,
       });
 
       if (outcome.judgedCase) {

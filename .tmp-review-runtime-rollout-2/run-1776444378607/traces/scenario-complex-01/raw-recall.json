@@ -1,0 +1,439 @@
+{
+  "profile": {
+    "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+    "identity": {
+      "name": "Felix",
+      "role": "climate policy advisor",
+      "location": "Austin, USA"
+    },
+    "expertise": {
+      "primarySkills": [],
+      "domains": []
+    },
+    "activeContext": {
+      "goals": [],
+      "currentProjects": [
+        "incident playbook refresh"
+      ]
+    },
+    "version": 4,
+    "updatedAt": "2026-04-17T16:46:18.617Z",
+    "createdAt": "2026-04-17T16:46:18.615Z"
+  },
+  "preferences": [
+    {
+      "id": "a3f9e230-8a0b-4a35-8dac-9e67d7212934",
+      "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "workspaceId": "eval-complex-run-1776444378607-scenario-complex-01",
+      "sessionId": "complex-01-s1",
+      "category": "response_style",
+      "value": "concise bullet points and visible checklists",
+      "confidence": 1,
+      "source": {
+        "method": "explicit",
+        "extractedAt": "2026-04-17T16:46:18.617Z",
+        "locale": "en-US"
+      },
+      "evidenceCount": 1,
+      "updatedAt": "2026-04-17T16:46:18.617Z"
+    }
+  ],
+  "references": [
+    {
+      "id": "57d8513d-230e-4b33-9ae8-565461dc122e",
+      "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "workspaceId": "eval-complex-run-1776444378607-scenario-complex-01",
+      "sessionId": "complex-01-s5",
+      "title": "incident-playbook-refresh-runbook-v2.md",
+      "pointer": "docs/incident-playbook-refresh-runbook-v2.md",
+      "confidence": 1,
+      "source": {
+        "method": "explicit",
+        "extractedAt": "2026-04-17T16:46:18.625Z",
+        "locale": "en-US"
+      },
+      "referenceKind": "source_of_truth",
+      "subject": "incident playbook refresh until further notice",
+      "lifecycle": "active",
+      "createdAt": "2026-04-17T16:46:18.625Z",
+      "updatedAt": "2026-04-17T16:46:18.625Z"
+    }
+  ],
+  "facts": [
+    {
+      "id": "aa17c33b-1edf-464f-b81b-783a5d8cc494",
+      "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "workspaceId": "eval-complex-run-1776444378607-scenario-complex-01",
+      "sessionId": "complex-01-s2",
+      "category": "project",
+      "content": "the current blocker is vendor approval for incident playbook refresh.",
+      "confidence": 1,
+      "importance": 1,
+      "source": {
+        "method": "explicit",
+        "extractedAt": "2026-04-17T16:46:18.624Z",
+        "locale": "en-US"
+      },
+      "factKind": "blocker",
+      "scopeKind": "project",
+      "subject": "incident playbook refresh",
+      "accessCount": 1,
+      "lastAccessedAt": "2026-04-17T16:46:18.631Z",
+      "verificationPressureCount": 0,
+      "supersededBy": null,
+      "lifecycle": "active",
+      "isActive": true,
+      "createdAt": "2026-04-17T16:46:18.624Z",
+      "updatedAt": "2026-04-17T16:46:18.624Z"
+    },
+    {
+      "id": "30c93159-d2fc-498b-940f-a1df44a2934e",
+      "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "workspaceId": "eval-complex-run-1776444378607-scenario-complex-01",
+      "sessionId": "complex-01-s3",
+      "category": "project",
+      "content": "the open loop is the handoff package for incident playbook refresh.",
+      "confidence": 1,
+      "importance": 1,
+      "source": {
+        "method": "explicit",
+        "extractedAt": "2026-04-17T16:46:18.625Z",
+        "locale": "en-US"
+      },
+      "factKind": "open_loop",
+      "scopeKind": "project",
+      "subject": "incident playbook refresh",
+      "accessCount": 1,
+      "lastAccessedAt": "2026-04-17T16:46:18.631Z",
+      "verificationPressureCount": 0,
+      "supersededBy": null,
+      "lifecycle": "active",
+      "isActive": true,
+      "createdAt": "2026-04-17T16:46:18.625Z",
+      "updatedAt": "2026-04-17T16:46:18.625Z"
+    }
+  ],
+  "feedback": [
+    {
+      "id": "d7c582c9-4a7e-4ebd-8d7a-46f475b645cb",
+      "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "workspaceId": "eval-complex-run-1776444378607-scenario-complex-01",
+      "rule": "Use concise bullet points and visible checklists in summaries.",
+      "kind": "validated_pattern",
+      "appliesTo": "general_response",
+      "why": "Rules-only reviewer saw 2 successful feedback traces pointing to the same active guidance. This is stable enough to propose as a reusable procedural pattern.",
+      "evidence": [],
+      "confidence": 1,
+      "source": {
+        "method": "confirmed",
+        "extractedAt": "2026-04-17T16:46:18.628Z",
+        "locale": "en-US"
+      },
+      "supersededBy": null,
+      "lifecycle": "active",
+      "lastUsedAt": "2026-04-17T16:46:18.631Z",
+      "updatedAt": "2026-04-17T16:46:18.628Z"
+    }
+  ],
+  "archives": [],
+  "evidence": [
+    {
+      "id": "0a98f2aa-281d-4171-bd40-b5060c166f7c",
+      "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "workspaceId": "eval-complex-run-1776444378607-scenario-complex-01",
+      "sessionId": "complex-01-s3",
+      "kind": "conversation_excerpt",
+      "excerpt": "Remember that the open loop is the handoff package for incident playbook refresh.",
+      "source": {
+        "method": "explicit",
+        "extractedAt": "2026-04-17T16:46:18.625Z",
+        "sessionId": "complex-01-s3",
+        "locale": "en-US"
+      },
+      "sourceMessageIds": [],
+      "linkedMemoryIds": [
+        "30c93159-d2fc-498b-940f-a1df44a2934e"
+      ],
+      "linkedArchiveIds": [],
+      "createdAt": "2026-04-17T16:46:18.625Z"
+    },
+    {
+      "id": "353002b6-5a3e-49b9-b9cf-00bd6a24215c",
+      "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "workspaceId": "eval-complex-run-1776444378607-scenario-complex-01",
+      "sessionId": "complex-01-s5",
+      "kind": "conversation_excerpt",
+      "excerpt": "Correction: docs/incident-playbook-refresh-runbook-v2.md is now the source of truth, not docs/incident-playbook-refresh-runbook-v1.md. Please update that.",
+      "source": {
+        "method": "explicit",
+        "extractedAt": "2026-04-17T16:46:18.625Z",
+        "sessionId": "complex-01-s5",
+        "locale": "en-US"
+      },
+      "sourceMessageIds": [],
+      "linkedMemoryIds": [
+        "57d8513d-230e-4b33-9ae8-565461dc122e"
+      ],
+      "linkedArchiveIds": [],
+      "createdAt": "2026-04-17T16:46:18.625Z"
+    },
+    {
+      "id": "5c5d9d6c-2391-47dc-8ef3-63aac177a3ef",
+      "userId": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "workspaceId": "eval-complex-run-1776444378607-scenario-complex-01",
+      "sessionId": "complex-01-s2",
+      "kind": "conversation_excerpt",
+      "excerpt": "Remember that the current blocker is vendor approval for incident playbook refresh.",
+      "source": {
+        "method": "explicit",
+        "extractedAt": "2026-04-17T16:46:18.624Z",
+        "sessionId": "complex-01-s2",
+        "locale": "en-US"
+      },
+      "sourceMessageIds": [],
+      "linkedMemoryIds": [
+        "aa17c33b-1edf-464f-b81b-783a5d8cc494"
+      ],
+      "linkedArchiveIds": [],
+      "createdAt": "2026-04-17T16:46:18.624Z"
+    }
+  ],
+  "episodes": [],
+  "workingMemory": null,
+  "journal": null,
+  "routingDecision": {
+    "retrievalProfile": "general_chat",
+    "intent": "general_assistance",
+    "strategy": "rules-only",
+    "strategyExplanation": {
+      "requestedStrategy": "hybrid",
+      "resolvedStrategy": "rules-only",
+      "fallbackReason": "semantic_search_unavailable",
+      "summary": "hybrid routing was requested but semantic search is unavailable, so routing falls back to deterministic rules-only behavior.",
+      "hardFloor": "lexical_runtime_procedural_priors",
+      "semanticTieBreaking": false,
+      "llmRefinement": false
+    },
+    "sourcePriorities": [
+      "profile",
+      "feedback",
+      "fact",
+      "evidence",
+      "episode",
+      "working_memory",
+      "session_journal"
+    ],
+    "requestedSlots": [
+      "role",
+      "blocker",
+      "open_loop",
+      "reference"
+    ],
+    "supportSlots": [
+      "project_state_support"
+    ],
+    "actionDriving": true,
+    "referenceSeeking": true,
+    "continuation": false
+  },
+  "hits": [
+    {
+      "id": "complex-01--eval-run-1776444378607-scenario-complex-01",
+      "type": "profile",
+      "reason": "profile_available"
+    },
+    {
+      "id": "a3f9e230-8a0b-4a35-8dac-9e67d7212934",
+      "type": "preference",
+      "reason": "semantic_preference",
+      "sourceMethod": "explicit"
+    },
+    {
+      "id": "57d8513d-230e-4b33-9ae8-565461dc122e",
+      "type": "reference",
+      "reason": "semantic_reference",
+      "sourceMethod": "explicit",
+      "evidenceIds": [
+        "353002b6-5a3e-49b9-b9cf-00bd6a24215c"
+      ]
+    },
+    {
+      "id": "d7c582c9-4a7e-4ebd-8d7a-46f475b645cb",
+      "type": "feedback",
+      "reason": "scope_match",
+      "sourceMethod": "confirmed"
+    },
+    {
+      "id": "aa17c33b-1edf-464f-b81b-783a5d8cc494",
+      "type": "fact",
+      "reason": "scope_match",
+      "sourceMethod": "explicit",
+      "evidenceIds": [
+        "5c5d9d6c-2391-47dc-8ef3-63aac177a3ef"
+      ]
+    },
+    {
+      "id": "30c93159-d2fc-498b-940f-a1df44a2934e",
+      "type": "fact",
+      "reason": "scope_match",
+      "sourceMethod": "explicit",
+      "evidenceIds": [
+        "0a98f2aa-281d-4171-bd40-b5060c166f7c"
+      ]
+    },
+    {
+      "id": "0a98f2aa-281d-4171-bd40-b5060c166f7c",
+      "type": "evidence",
+      "reason": "linked_evidence",
+      "sourceMethod": "explicit",
+      "evidenceIds": [
+        "0a98f2aa-281d-4171-bd40-b5060c166f7c"
+      ]
+    },
+    {
+      "id": "353002b6-5a3e-49b9-b9cf-00bd6a24215c",
+      "type": "evidence",
+      "reason": "linked_evidence",
+      "sourceMethod": "explicit",
+      "evidenceIds": [
+        "353002b6-5a3e-49b9-b9cf-00bd6a24215c"
+      ]
+    },
+    {
+      "id": "5c5d9d6c-2391-47dc-8ef3-63aac177a3ef",
+      "type": "evidence",
+      "reason": "linked_evidence",
+      "sourceMethod": "explicit",
+      "evidenceIds": [
+        "5c5d9d6c-2391-47dc-8ef3-63aac177a3ef"
+      ]
+    }
+  ],
+  "candidateTraces": [
+    {
+      "memoryId": "30c93159-d2fc-498b-940f-a1df44a2934e",
+      "memoryType": "fact",
+      "slot": "open_loop",
+      "returned": true,
+      "intentScore": 0.55,
+      "lexicalScore": 0.35714285714285715,
+      "freshnessScore": 0.25,
+      "explicitnessScore": 0.15,
+      "usageScore": 0,
+      "evidenceScore": 0.015,
+      "outcomeScore": 0.015,
+      "verificationPenaltyScore": 0,
+      "fallback": "none",
+      "whyReturned": "slot=open_loop, intentScore=0.55, lexicalScore=0.36, outcomeScore=0.01, verificationPenaltyScore=0.00, fallback=none",
+      "evidenceIds": [
+        "0a98f2aa-281d-4171-bd40-b5060c166f7c"
+      ]
+    },
+    {
+      "memoryId": "aa17c33b-1edf-464f-b81b-783a5d8cc494",
+      "memoryType": "fact",
+      "slot": "blocker",
+      "returned": true,
+      "intentScore": 0.55,
+      "lexicalScore": 0.2857142857142857,
+      "freshnessScore": 0.25,
+      "explicitnessScore": 0.15,
+      "usageScore": 0,
+      "evidenceScore": 0.015,
+      "outcomeScore": 0.015,
+      "verificationPenaltyScore": 0,
+      "fallback": "none",
+      "whyReturned": "slot=blocker, intentScore=0.55, lexicalScore=0.29, outcomeScore=0.01, verificationPenaltyScore=0.00, fallback=none",
+      "evidenceIds": [
+        "5c5d9d6c-2391-47dc-8ef3-63aac177a3ef"
+      ]
+    },
+    {
+      "memoryId": "3f71eb1c-9dc8-44e8-b671-a9f264e4875e",
+      "memoryType": "reference",
+      "slot": "generic",
+      "returned": false,
+      "whySuppressed": "inactive lifecycle",
+      "intentScore": 0.8,
+      "lexicalScore": 0.5714285714285714,
+      "freshnessScore": 0.25,
+      "explicitnessScore": 0.15,
+      "evidenceScore": 0.015,
+      "outcomeScore": 0.015,
+      "fallback": "none",
+      "evidenceIds": [
+        "ee8fbce9-45a8-4f05-9dbb-6e9564900ccc"
+      ]
+    },
+    {
+      "memoryId": "57d8513d-230e-4b33-9ae8-565461dc122e",
+      "memoryType": "reference",
+      "slot": "reference",
+      "returned": true,
+      "intentScore": 0.8,
+      "lexicalScore": 0.5714285714285714,
+      "freshnessScore": 0.25,
+      "explicitnessScore": 0.15,
+      "evidenceScore": 0.015,
+      "outcomeScore": 0.015,
+      "fallback": "none",
+      "whyReturned": "slot=reference, intentScore=0.80, lexicalScore=0.57, outcomeScore=0.01, verificationPenaltyScore=0.00, fallback=none",
+      "usageScore": 0,
+      "verificationPenaltyScore": 0,
+      "evidenceIds": [
+        "353002b6-5a3e-49b9-b9cf-00bd6a24215c"
+      ]
+    },
+    {
+      "memoryId": "866cf8c6-9eae-4a81-babb-306a513ea05a",
+      "memoryType": "episode",
+      "slot": "generic",
+      "returned": false,
+      "whySuppressed": "slot-specific query",
+      "intentScore": 0,
+      "lexicalScore": 0.7142857142857143,
+      "freshnessScore": 0.25,
+      "explicitnessScore": 0,
+      "fallback": "none"
+    },
+    {
+      "memoryId": "470801f8-faa1-4395-99cf-b578a542abd3",
+      "memoryType": "episode",
+      "slot": "generic",
+      "returned": false,
+      "whySuppressed": "slot-specific query",
+      "intentScore": 0,
+      "lexicalScore": 0.5714285714285714,
+      "freshnessScore": 0.25,
+      "explicitnessScore": 0,
+      "fallback": "none"
+    },
+    {
+      "memoryId": "267cc9b1-79e2-4a5b-90bb-614166c6c61a",
+      "memoryType": "episode",
+      "slot": "generic",
+      "returned": false,
+      "whySuppressed": "slot-specific query",
+      "intentScore": 0,
+      "lexicalScore": 0.35714285714285715,
+      "freshnessScore": 0.25,
+      "explicitnessScore": 0,
+      "fallback": "none"
+    },
+    {
+      "memoryId": "d53a1b9f-8df7-4b08-a774-95ad025ef8e8",
+      "memoryType": "episode",
+      "slot": "generic",
+      "returned": false,
+      "whySuppressed": "slot-specific query",
+      "intentScore": 0,
+      "lexicalScore": 0.14285714285714285,
+      "freshnessScore": 0.25,
+      "explicitnessScore": 0,
+      "fallback": "none"
+    }
+  ],
+  "verificationHints": [],
+  "policyApplied": [],
+  "renderedMemoryContext": "## Profile\nFelix - climate policy advisor - Austin, USA\n\n## Active Context\nCurrent projects: incident playbook refresh\n\n## Facts\n- the current blocker is vendor approval for incident playbook refresh.\n- the open loop is the handoff package for incident playbook refresh.\n\n## References\n- incident-playbook-refresh-runbook-v2.md (docs/incident-playbook-refresh-runbook-v2.md)\n\n## Procedural Memory\n- Use concise bullet points and visible checklists in summaries.\n\n## Preferences\n- response_style: concise bullet points and visible checklists"
+}

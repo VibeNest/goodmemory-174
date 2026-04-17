@@ -733,6 +733,11 @@ export async function runFallbackEval(
         };
       },
     },
+    strategyRollout: {
+      family: "retrieval",
+      mode: "promote",
+      promotedStrategy: "rules-only",
+    },
     runtime: {
       ...createProviderRuntimeMetadata({
         generation: createFallbackAdapterDescriptor(),
@@ -741,6 +746,11 @@ export async function runFallbackEval(
       memoryBackend: "in-memory",
       embeddingEnabled: false,
       assistedExtractionEnabled: false,
+      strategyRollout: {
+        family: "retrieval",
+        mode: "promote",
+        promotedStrategyLabel: "rules-only",
+      },
     },
   });
 }
@@ -818,6 +828,11 @@ export async function runLiveEval(
       model: judgeModel,
     }),
     maxConcurrency: resolveEvalMaxConcurrency(),
+    strategyRollout: {
+      family: "retrieval",
+      mode: "promote",
+      promotedStrategy: "rules-only",
+    },
     runtime: {
       ...createProviderRuntimeMetadata({
         generation: createLiveAdapterDescriptor({
@@ -832,6 +847,11 @@ export async function runLiveEval(
       memoryBackend: "in-memory",
       embeddingEnabled: false,
       assistedExtractionEnabled: false,
+      strategyRollout: {
+        family: "retrieval",
+        mode: "promote",
+        promotedStrategyLabel: "rules-only",
+      },
     },
   });
 }
@@ -922,6 +942,11 @@ export async function runLiveMemoryEval(
     maxConcurrency: resolveEvalMaxConcurrency(),
     strategies: ["rules-only", "hybrid"],
     rememberExtractionStrategy: "auto",
+    strategyRollout: {
+      family: "retrieval",
+      mode: "assist",
+      promotedStrategy: "rules-only",
+    },
     runtime: {
       ...createProviderRuntimeMetadata({
         generation: createLiveAdapterDescriptor({
@@ -936,6 +961,11 @@ export async function runLiveMemoryEval(
       memoryBackend: "provider-backed",
       embeddingEnabled: true,
       assistedExtractionEnabled: true,
+      strategyRollout: {
+        family: "retrieval",
+        mode: "assist",
+        promotedStrategyLabel: "rules-only",
+      },
     },
   });
 }

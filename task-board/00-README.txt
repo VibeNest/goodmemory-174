@@ -89,6 +89,8 @@ Current Sequencing Note
 -----------------------
 - Phase 15 and Phase 16 are closed. The active execution focus is now Phase 17 eval-gated promotion and strategy rollout.
 - Phase 17 should build on the completed procedural-promotion and outcome-aware maintenance gate, including the new `bun run eval:phase-16` fallback slice and archived Phase 16 quality gate evidence.
+- The first concrete Phase 17 slice is strategy lifecycle metadata and gating vocabulary in eval/runtime/reporting, with retrieval rollout implemented first and shared mode language prepared for reviewer and maintenance rollout later.
+- Phase 17 public-surface work must resolve the official OSS-facing CLI shape: memory-first commands at the root, eval inspection under `goodmemory eval ...`, and no premature public `goodmemory/evolution` surface before evidence exists.
 - Phase 15 through Phase 18 extend the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
@@ -101,6 +103,7 @@ Use these bands when choosing what to work on next:
 1. Immediate focus
    - Close any local WIP without widening scope
    - Execute Phase 17 eval-gated promotion and strategy rollout
+   - Start with P17.1 lifecycle modes and P17.5 public-surface boundary decisions that unblock the official CLI direction
 2. Near-term product differentiation
    - Build validated promotion, demotion, and maintenance outcomes on top of the completed Phase 15 proposal substrate
    - Keep proposal visibility and gate behavior regression-covered while Phase 16 outcome loops land

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { createGoodMemory } from "../../src";
+import type { GoodMemory } from "../../src/api/contracts";
 import { createFeedbackMemory } from "../../src/domain/records";
 import {
   createLearningProposal,
@@ -142,6 +143,172 @@ describe("eval runners", () => {
     expect(result.trace.maintenanceSummary?.compiledValidatedPatternCount).toBeGreaterThanOrEqual(0);
     expect(result.trace.maintenanceSummary?.pressuredFactCount).toBeGreaterThanOrEqual(0);
     expect(result.transcript).not.toContain("I can do that once I have the full remembered context.");
+  });
+
+  it("preserves auto routing when no rollout is configured", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-medium-01.json"),
+    );
+    const recallStrategies: string[] = [];
+    const workspaceId = `eval-${persona.lifecycle_bucket}`;
+    const memory = {
+      async remember() {
+        return {
+          accepted: 0,
+          rejected: 0,
+          events: [],
+          metadata: {
+            locale: "en-US",
+            localeSource: "default" as const,
+            adapterId: "english",
+            analysisMode: "rules-only" as const,
+            requestedExtractionStrategy: "auto" as const,
+            resolvedExtractionStrategy: "rules-only" as const,
+          },
+        };
+      },
+      async feedback() {
+        return { accepted: false };
+      },
+      async recall(input: { strategy?: string }) {
+        recallStrategies.push(input.strategy ?? "missing");
+
+        return {
+          profile: null,
+          preferences: [],
+          references: [],
+          facts: [],
+          feedback: [],
+          archives: [],
+          evidence: [],
+          episodes: [],
+          workingMemory: null,
+          journal: null,
+          packet: {
+            locale: "en-US",
+            profile: null,
+            preferences: [],
+            references: [],
+            facts: [],
+            feedback: [],
+            archives: [],
+            evidence: [],
+            episodes: [],
+            workingMemory: null,
+            journal: null,
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only" as const,
+              strategyExplanation: {
+                requestedStrategy: "auto" as const,
+                resolvedStrategy: "rules-only" as const,
+                summary: "auto routing stayed rules-only",
+                hardFloor: "lexical_runtime_procedural_priors" as const,
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: ["profile", "feedback", "fact"],
+              requestedSlots: [],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: false,
+              continuation: false,
+            },
+          },
+          metadata: {
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only" as const,
+              strategyExplanation: {
+                requestedStrategy: "auto" as const,
+                resolvedStrategy: "rules-only" as const,
+                summary: "auto routing stayed rules-only",
+                hardFloor: "lexical_runtime_procedural_priors" as const,
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: ["profile", "feedback", "fact"],
+              requestedSlots: [],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: false,
+              continuation: false,
+            },
+            tokenCount: 0,
+            latencyMs: 0,
+            hits: [],
+            candidateTraces: [],
+            verificationHints: [],
+            policyApplied: [],
+          },
+        };
+      },
+      async buildContext() {
+        return {
+          output: "markdown" as const,
+          content: "memory context",
+          estimatedTokens: 3,
+          omittedSections: [],
+        };
+      },
+      async forget() {
+        return { forgotten: false };
+      },
+      async deleteAllMemory(input: { scope: { userId: string; workspaceId: string } }) {
+        return {
+          scope: input.scope,
+          deleted: {
+            profiles: 0,
+            preferences: 0,
+            references: 0,
+            facts: 0,
+            feedback: 0,
+            episodes: 0,
+            archives: 0,
+            evidence: 0,
+            experiences: 0,
+            proposals: 0,
+            promotions: 0,
+            workingMemory: 0,
+            journal: 0,
+            artifactSpills: 0,
+          },
+        };
+      },
+      async exportMemory() {
+        return buildEmptyExportMemoryResult(persona.persona_id, workspaceId);
+      },
+      async runMaintenance() {
+        return {
+          compiledCount: 0,
+          maintenance: null,
+          promotionDecisionCounts: {},
+          proposalCount: 0,
+          ran: false,
+          reason: "threshold" as const,
+        };
+      },
+    } as unknown as GoodMemory;
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(recallStrategies).toEqual(["auto"]);
+    expect(result.strategyLabel).toBe("auto");
+    expect(result.strategyMode).toBeUndefined();
+    expect(result.promotedStrategyLabel).toBeUndefined();
+    expect(result.candidateInfluencedExecution).toBeUndefined();
   });
 
   it("captures governed procedural reuse when accepted procedural promotions compile before the final recall", async () => {

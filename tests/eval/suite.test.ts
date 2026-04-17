@@ -745,6 +745,234 @@ describe("eval suite", () => {
     }
   });
 
+  it("persists retrieval rollout metadata and keeps observe mode execution on the promoted strategy", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-observe-rollout");
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        strategies: ["hybrid"],
+        strategyRollout: {
+          family: "retrieval",
+          mode: "observe",
+          promotedStrategy: "rules-only",
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "observe mode case",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.runtime.strategyRollout).toEqual({
+        family: "retrieval",
+        mode: "observe",
+        promotedStrategyLabel: "rules-only",
+      });
+      expect(result.cases).toHaveLength(1);
+      expect(result.cases[0]?.metadata.strategyFamily).toBe("retrieval");
+      expect(result.cases[0]?.metadata.strategyMode).toBe("observe");
+      expect(result.cases[0]?.metadata.promotedStrategyLabel).toBe("rules-only");
+      expect(result.cases[0]?.metadata.strategyLabel).toBe("hybrid");
+      expect(result.cases[0]?.metadata.resolvedStrategyLabel).toBe("rules-only");
+      expect(result.cases[0]?.goodmemory.candidateInfluencedExecution).toBe(false);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("uses runtime rollout metadata as the execution source of truth when no case-level rollout is provided", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-runtime-rollout");
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        strategies: ["hybrid"],
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "runtime observe mode case",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.runtime.strategyRollout).toEqual({
+        family: "retrieval",
+        mode: "observe",
+        promotedStrategyLabel: "rules-only",
+      });
+      expect(result.cases).toHaveLength(1);
+      expect(result.cases[0]?.metadata.strategyFamily).toBe("retrieval");
+      expect(result.cases[0]?.metadata.strategyMode).toBe("observe");
+      expect(result.cases[0]?.metadata.promotedStrategyLabel).toBe("rules-only");
+      expect(result.cases[0]?.metadata.strategyLabel).toBe("hybrid");
+      expect(result.cases[0]?.metadata.resolvedStrategyLabel).toBe("rules-only");
+      expect(result.cases[0]?.goodmemory.candidateInfluencedExecution).toBe(false);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("rejects non-retrieval runtime rollout metadata that cannot affect suite execution", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-unsupported-runtime-rollout");
+
+    try {
+      await expect(
+        runEvalSuite({
+          mode: "fallback",
+          personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+          scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+          outputDir: join(workspace.root, "reports"),
+          scenarioIds: ["scenario-complex-01"],
+          runtime: {
+            generationMode: "fallback",
+            judgeMode: "fallback",
+            strategyRollout: {
+              family: "reviewer",
+              mode: "observe",
+            },
+          },
+          baselineGenerator: async () => ({
+            content: "baseline",
+          }),
+          goodmemoryGenerator: async (input) => ({
+            content: input.memoryContext ?? "missing memory context",
+          }),
+          judge: createFakeLLMAdapter([
+            {
+              content: JSON.stringify({
+                winner: "goodmemory",
+                scores: {
+                  factual_recall: 8,
+                  preference_consistency: 8,
+                  cross_domain_transfer: 8,
+                  contamination_penalty: 8,
+                  update_correctness: 8,
+                  personalization_usefulness: 8,
+                  provenance_explainability: 8,
+                },
+                baseline_scores: {
+                  factual_recall: 5,
+                  preference_consistency: 5,
+                  cross_domain_transfer: 5,
+                  contamination_penalty: 5,
+                  update_correctness: 5,
+                  personalization_usefulness: 5,
+                  provenance_explainability: 5,
+                },
+                goodmemory_scores: {
+                  factual_recall: 8,
+                  preference_consistency: 8,
+                  cross_domain_transfer: 8,
+                  contamination_penalty: 8,
+                  update_correctness: 8,
+                  personalization_usefulness: 8,
+                  provenance_explainability: 8,
+                },
+                reasoning: "not used",
+                failure_tags: [],
+              }),
+            },
+          ]),
+        }),
+      ).rejects.toThrow(
+        "runEvalSuite currently supports only retrieval strategy rollouts; received reviewer.",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("reuses the same baseline answer across strategy variants for one scenario", async () => {
     const workspace = await createTempWorkspace("goodmemory-suite-shared-baseline");
     let baselineCalls = 0;

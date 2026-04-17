@@ -1,0 +1,18 @@
+[
+  {
+    "sessionId": "complex-01-s3",
+    "signal": "Use concise bullet points and visible checklists in summaries.",
+    "accepted": true,
+    "outcome": "written",
+    "memoryId": "8f2bb971-2979-4e08-9bda-04386ca34935",
+    "kind": "do"
+  },
+  {
+    "sessionId": "complex-01-s4",
+    "signal": "Use concise bullet points and visible checklists in summaries.",
+    "accepted": true,
+    "outcome": "merged",
+    "memoryId": "8f2bb971-2979-4e08-9bda-04386ca34935",
+    "kind": "do"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "mode": "baseline",
+  "strategyLabel": "baseline",
+  "personaId": "complex-01",
+  "scenarioId": "scenario-complex-01",
+  "taskFamily": "preference_continuation",
+  "targetDomain": "travel",
+  "memorySourceDomains": [
+    "travel"
+  ],
+  "evaluationSetting": "single_domain",
+  "prompt": "Please confirm the updated runbook, my role, the blocker, and the handoff package for incident playbook refresh before proposing the next step for incident playbook refresh.",
+  "transcript": "user: Correction: docs/incident-playbook-refresh-runbook-v2.md is now the source of truth, not docs/incident-playbook-refresh-runbook-v1.md. Please update that.\nassistant: Updated. I will use the newer runbook going forward.\nuser: Please confirm the updated runbook, my role, the blocker, and the handoff package for incident playbook refresh before proposing the next step for incident playbook refresh.",
+  "answer": "baseline",
+  "trace": {
+    "sessionsReplayed": 0,
+    "rememberEvents": [],
+    "feedbackEvents": [],
+    "recallHitCount": 0,
+    "verificationHintCount": 0,
+    "proposalLifecycle": null,
+    "maintenanceSummary": null,
+    "contextBuild": null
+  }
+}

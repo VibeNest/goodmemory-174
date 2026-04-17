@@ -1109,6 +1109,11 @@ describe("run-eval script", () => {
         memoryBackend: "provider-backed",
         embeddingEnabled: true,
         assistedExtractionEnabled: true,
+        strategyRollout: {
+          family: "retrieval",
+          mode: "assist",
+          promotedStrategyLabel: "rules-only",
+        },
       });
       expect(createEmbeddingCalls[0]?.model).toEqual({
         provider: "openai",

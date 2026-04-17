@@ -356,6 +356,9 @@ function buildCase(input: {
   scenarioId?: string;
   strategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
   resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+  strategyFamily?: "retrieval" | "reviewer" | "maintenance";
+  strategyMode?: "observe" | "assist" | "promote";
+  promotedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
   taskFamily: JudgedEvalCase["metadata"]["taskFamily"];
   targetDomain: string;
   memorySourceDomains: string[];
@@ -379,6 +382,9 @@ function buildCase(input: {
       strategyLabel: input.strategyLabel ?? "rules-only",
       resolvedStrategyLabel:
         input.resolvedStrategyLabel ?? input.strategyLabel ?? "rules-only",
+      strategyFamily: input.strategyFamily,
+      strategyMode: input.strategyMode,
+      promotedStrategyLabel: input.promotedStrategyLabel,
     },
     baseline: buildAnswerPackage(
       input.caseId,
@@ -632,6 +638,11 @@ describe("eval reporting", () => {
         runtime: {
           generationMode: "fallback",
           judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "assist",
+            promotedStrategyLabel: "rules-only",
+          },
         },
       });
 
@@ -655,6 +666,11 @@ describe("eval reporting", () => {
         runtime: {
           generationAdapter?: string;
           judgeAdapter?: string;
+          strategyRollout?: {
+            family?: string;
+            mode?: string;
+            promotedStrategyLabel?: string;
+          };
         };
       };
       const failure = JSON.parse(
@@ -666,7 +682,12 @@ describe("eval reporting", () => {
       const caseArtifact = JSON.parse(
         await readFile(join(result.runDirectory, "cases/case-1.json"), "utf8"),
       ) as {
-        metadata: { taskFamily: string };
+        metadata: {
+          taskFamily: string;
+          strategyFamily?: string;
+          strategyMode?: string;
+          promotedStrategyLabel?: string;
+        };
         assertions: { passed: boolean };
         goodmemory: {
           trace: {
@@ -732,9 +753,17 @@ describe("eval reporting", () => {
       expect(report.summary.maintenanceSummary?.casesWithCompiledProceduralReuse).toBe(1);
       expect(report.runtime.generationAdapter).toBe("fallback");
       expect(report.runtime.judgeAdapter).toBe("fallback");
+      expect(report.runtime.strategyRollout).toEqual({
+        family: "retrieval",
+        mode: "assist",
+        promotedStrategyLabel: "rules-only",
+      });
       expect(failure.judge.failure_tags).toContain("identity_miss");
       expect(failure.assertions.updateFindings).toContain("docs/runbook.md");
       expect(caseArtifact.metadata.taskFamily).toBe("drift_override_lifelong_update");
+      expect(caseArtifact.metadata.strategyFamily).toBeUndefined();
+      expect(caseArtifact.metadata.strategyMode).toBeUndefined();
+      expect(caseArtifact.metadata.promotedStrategyLabel).toBeUndefined();
       expect(caseArtifact.assertions.passed).toBe(false);
       expect(caseArtifact.goodmemory.trace.recallHitCount).toBe(4);
       expect(caseArtifact.goodmemory.trace.proposalLifecycle?.proposalCount).toBe(2);
@@ -757,6 +786,67 @@ describe("eval reporting", () => {
       expect(proposalTrace.proposalCount).toBe(2);
       expect(proposalTrace.promotionCount).toBe(2);
       expect(proposalTrace.promotionDecisionCounts.accepted).toBe(1);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("persists rollout metadata on case artifacts when a strategy lifecycle mode is present", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-rollout-metadata");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-rollout",
+          scenarioId: "scenario-shared-1",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "rules-only",
+          strategyFamily: "retrieval",
+          strategyMode: "observe",
+          promotedStrategyLabel: "rules-only",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-rollout",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const caseArtifact = JSON.parse(
+        await readFile(join(result.runDirectory, "cases/case-rollout.json"), "utf8"),
+      ) as {
+        metadata: {
+          strategyFamily?: string;
+          strategyMode?: string;
+          promotedStrategyLabel?: string;
+        };
+      };
+
+      expect(caseArtifact.metadata).toMatchObject({
+        strategyFamily: "retrieval",
+        strategyMode: "observe",
+        promotedStrategyLabel: "rules-only",
+      });
     } finally {
       await workspace.cleanup();
     }
