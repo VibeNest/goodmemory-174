@@ -8,7 +8,11 @@ import type {
   JudgeScores,
 } from "./judge";
 import type { EvalAnswerPackage } from "./runners";
-import type { StrategyRolloutMetadata } from "./strategy-rollout";
+import type {
+  StrategyRolloutFamily,
+  StrategyRolloutMetadata,
+  StrategyRolloutMode,
+} from "./strategy-rollout";
 
 export interface EvalLayerScores {
   retrieval: number;
@@ -109,6 +113,43 @@ export interface EvalOutcomeLoopSummary {
   staleSuppressionRate: number;
 }
 
+export interface EvalShadowSummary {
+  totalCases: number;
+  byFamily: Partial<Record<StrategyRolloutFamily, number>>;
+  byMode: Partial<Record<StrategyRolloutMode, number>>;
+  candidateInfluencedCases: number;
+  safeObserveCases: number;
+  unknownObserveCases: number;
+  regressionCases: string[];
+}
+
+export type EvalShadowExecutionPathSource =
+  | "candidate"
+  | "promoted_or_default"
+  | "unknown";
+
+export interface EvalShadowComparisonRow {
+  caseId: string;
+  scenarioId: string;
+  strategyFamily: StrategyRolloutFamily;
+  strategyMode: StrategyRolloutMode;
+  requestedStrategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  executedStrategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  promotedStrategyLabel?: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  comparisonTarget: "executed-path";
+  executedPathSource: EvalShadowExecutionPathSource;
+  candidateInfluencedExecution?: boolean;
+  winner: JudgeResult["winner"];
+  assertionsPassed: boolean;
+  artifactPaths: {
+    baselineTrace: string;
+    executedTrace: string;
+    rawRecall?: string;
+    judge: string;
+    assertions: string;
+  };
+}
+
 export interface EvalSuiteSummary {
   totalCases: number;
   completedCases?: number;
@@ -128,6 +169,7 @@ export interface EvalSuiteSummary {
   };
   assertions: EvalAssertionsAggregate;
   outcomeLoopSummary?: EvalOutcomeLoopSummary;
+  shadowSummary?: EvalShadowSummary;
   strategySummary: EvalStrategySummary;
   maintenanceSummary?: EvalMaintenanceSummary;
 }

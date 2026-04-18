@@ -2,8 +2,8 @@ Phase 17.2: Shadow Evaluation and Comparison
 ============================================
 
 [TODO] P17.2-T001 Run shadow comparisons without mutating default behavior
-[TODO] P17.2-T002 Keep contamination-safe baseline vs candidate traces
-[TODO] P17.2-T003 Attribute differences to strategy family and mode
+[WIP] P17.2-T002 Keep contamination-safe baseline vs candidate traces
+[WIP] P17.2-T003 Attribute differences to strategy family and mode
 
 Why this exists
 ---------------
@@ -21,6 +21,17 @@ Implementation steps
 1. Add shadow execution plumbing to eval and relevant offline runners
 2. Persist candidate outputs separately from baseline artifacts
 3. Extend reports with contamination-safe diff metadata
+
+Current implementation slice
+----------------------------
+1. Persist `shadow-comparisons.json` per eval run
+2. Add `shadowSummary` into suite reporting
+3. Attribute rollout comparisons by strategy family and mode
+4. Keep baseline trace and executed trace paths explicit while `observe` mode still executes the promoted strategy
+
+Current blocker
+---------------
+- Full candidate shadow replay is not yet safe to enable through a second public `recall()` call because the current recall path updates low-risk usage state (`accessCount`, `lastAccessedAt`, `lastUsedAt`). P17.2-T001 needs a non-mutating read path or equivalent isolation before candidate execution can be treated as contamination-safe.
 
 Acceptance
 ----------

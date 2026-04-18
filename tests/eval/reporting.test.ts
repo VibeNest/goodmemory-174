@@ -17,6 +17,7 @@ function buildAnswerPackage(
   answer: string,
   strategyLabel: "baseline" | "rules-only" | "hybrid" | "llm-assisted" = "baseline",
   resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted",
+  candidateInfluencedExecution?: boolean,
   scenarioId = `scenario-${caseId}`,
 ): EvalAnswerPackage {
   const governedPattern =
@@ -42,6 +43,9 @@ function buildAnswerPackage(
     mode,
     strategyLabel,
     resolvedStrategyLabel,
+    ...(mode === "goodmemory" && candidateInfluencedExecution !== undefined
+      ? { candidateInfluencedExecution }
+      : {}),
     personaId: caseId,
     scenarioId,
     taskFamily: "preference_continuation",
@@ -359,6 +363,7 @@ function buildCase(input: {
   strategyFamily?: "retrieval" | "reviewer" | "maintenance";
   strategyMode?: "observe" | "assist" | "promote";
   promotedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+  candidateInfluencedExecution?: boolean;
   taskFamily: JudgedEvalCase["metadata"]["taskFamily"];
   targetDomain: string;
   memorySourceDomains: string[];
@@ -392,6 +397,7 @@ function buildCase(input: {
       `baseline-${input.caseId}`,
       "baseline",
       undefined,
+      undefined,
       input.scenarioId,
     ),
     goodmemory: buildAnswerPackage(
@@ -400,6 +406,7 @@ function buildCase(input: {
       `goodmemory-${input.caseId}`,
       input.strategyLabel ?? "rules-only",
       input.resolvedStrategyLabel ?? input.strategyLabel ?? "rules-only",
+      input.candidateInfluencedExecution,
       input.scenarioId,
     ),
     judge: buildJudgeResult(
@@ -606,6 +613,96 @@ describe("eval reporting", () => {
     expect(summary.strategySummary.byStrategy["hybrid"]).toBeUndefined();
     expect(summary.strategySummary.embeddingImpact).toBeNull();
     expect(summary.strategySummary.routerImpact).toBeNull();
+  });
+
+  it("builds shadow comparison summaries for observe and assist rollout cases", () => {
+    const summary = aggregateJudgedCases([
+      buildCase({
+        caseId: "case-observe",
+        scenarioId: "scenario-shadow-1",
+        strategyLabel: "hybrid",
+        resolvedStrategyLabel: "rules-only",
+        strategyFamily: "retrieval",
+        strategyMode: "observe",
+        promotedStrategyLabel: "rules-only",
+        candidateInfluencedExecution: false,
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "goodmemory",
+        baselineHistory: 4,
+        goodmemoryHistory: 8,
+      }),
+      buildCase({
+        caseId: "case-assist",
+        scenarioId: "scenario-shadow-2",
+        strategyLabel: "hybrid",
+        resolvedStrategyLabel: "hybrid",
+        strategyFamily: "retrieval",
+        strategyMode: "assist",
+        promotedStrategyLabel: "rules-only",
+        candidateInfluencedExecution: true,
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "baseline",
+        baselineHistory: 8,
+        goodmemoryHistory: 6,
+        failureTags: ["missed_open_loop"],
+      }),
+    ]);
+
+    expect(summary.shadowSummary).toEqual({
+      totalCases: 2,
+      byFamily: {
+        retrieval: 2,
+      },
+      byMode: {
+        observe: 1,
+        assist: 1,
+      },
+      candidateInfluencedCases: 1,
+      safeObserveCases: 1,
+      unknownObserveCases: 0,
+      regressionCases: ["case-assist"],
+    });
+  });
+
+  it("keeps observe execution safety unknown when the rollout did not emit influence evidence", () => {
+    const summary = aggregateJudgedCases([
+      buildCase({
+        caseId: "case-observe-unknown",
+        scenarioId: "scenario-shadow-unknown",
+        strategyLabel: "hybrid",
+        resolvedStrategyLabel: "rules-only",
+        strategyFamily: "retrieval",
+        strategyMode: "observe",
+        promotedStrategyLabel: "rules-only",
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "goodmemory",
+        baselineHistory: 4,
+        goodmemoryHistory: 8,
+      }),
+    ]);
+
+    expect(summary.shadowSummary).toEqual({
+      totalCases: 1,
+      byFamily: {
+        retrieval: 1,
+      },
+      byMode: {
+        observe: 1,
+      },
+      candidateInfluencedCases: 0,
+      safeObserveCases: 0,
+      unknownObserveCases: 1,
+      regressionCases: [],
+    });
   });
 
   it("persists suite report and failure artifacts", async () => {
@@ -847,6 +944,170 @@ describe("eval reporting", () => {
         strategyMode: "observe",
         promotedStrategyLabel: "rules-only",
       });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("persists a shadow comparison artifact with distinct baseline and executed traces", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-shadow-comparisons");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-shadow",
+          scenarioId: "scenario-shadow-1",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "rules-only",
+          strategyFamily: "retrieval",
+          strategyMode: "observe",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: false,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-shadow",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const artifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "shadow-executed-path-comparisons.json"),
+          "utf8",
+        ),
+      ) as {
+        comparisonTarget: string;
+        totalCases: number;
+        comparisons: Array<{
+          caseId: string;
+          strategyFamily: string;
+          strategyMode: string;
+          requestedStrategyLabel: string;
+          executedStrategyLabel: string;
+          promotedStrategyLabel?: string;
+          comparisonTarget: string;
+          executedPathSource: string;
+          candidateInfluencedExecution?: boolean;
+          artifactPaths: {
+            baselineTrace: string;
+            executedTrace: string;
+            rawRecall?: string;
+          };
+        }>;
+      };
+
+      expect(artifact.totalCases).toBe(1);
+      expect(artifact.comparisonTarget).toBe("executed-path");
+      expect(artifact.comparisons[0]).toMatchObject({
+        caseId: "case-shadow",
+        strategyFamily: "retrieval",
+        strategyMode: "observe",
+        requestedStrategyLabel: "hybrid",
+        executedStrategyLabel: "rules-only",
+        promotedStrategyLabel: "rules-only",
+        comparisonTarget: "executed-path",
+        executedPathSource: "promoted_or_default",
+        candidateInfluencedExecution: false,
+      });
+      expect(artifact.comparisons[0]?.artifactPaths.baselineTrace).toBe(
+        "traces/case-shadow/baseline.json",
+      );
+      expect(artifact.comparisons[0]?.artifactPaths.executedTrace).toBe(
+        "traces/case-shadow/goodmemory.json",
+      );
+      expect(artifact.comparisons[0]?.artifactPaths.baselineTrace).not.toBe(
+        artifact.comparisons[0]?.artifactPaths.executedTrace,
+      );
+      expect(artifact.comparisons[0]?.artifactPaths.rawRecall).toBe(
+        "traces/case-shadow/raw-recall.json",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("preserves unknown execution influence in shadow comparison artifacts", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-reporting-shadow-comparisons-unknown",
+    );
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-shadow-unknown",
+          scenarioId: "scenario-shadow-unknown",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "rules-only",
+          strategyFamily: "retrieval",
+          strategyMode: "observe",
+          promotedStrategyLabel: "rules-only",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-shadow-unknown",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const artifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "shadow-executed-path-comparisons.json"),
+          "utf8",
+        ),
+      ) as {
+        comparisons: Array<{
+          executedPathSource: string;
+          candidateInfluencedExecution?: boolean;
+        }>;
+      };
+
+      expect(artifact.comparisons[0]).toMatchObject({
+        executedPathSource: "unknown",
+      });
+      expect("candidateInfluencedExecution" in (artifact.comparisons[0] ?? {})).toBe(
+        false,
+      );
     } finally {
       await workspace.cleanup();
     }

@@ -805,6 +805,34 @@ describe("eval suite", () => {
         ]),
       });
 
+      const report = JSON.parse(
+        await readFile(join(result.runDirectory, "report.json"), "utf8"),
+      ) as {
+        summary?: {
+          shadowSummary?: {
+            totalCases?: number;
+            safeObserveCases?: number;
+            unknownObserveCases?: number;
+          };
+        };
+      };
+      const shadowArtifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "shadow-executed-path-comparisons.json"),
+          "utf8",
+        ),
+      ) as {
+        comparisonTarget: string;
+        totalCases: number;
+        comparisons: Array<{
+          requestedStrategyLabel: string;
+          executedStrategyLabel: string;
+          comparisonTarget: string;
+          executedPathSource: string;
+          candidateInfluencedExecution?: boolean;
+        }>;
+      };
+
       expect(result.runtime.strategyRollout).toEqual({
         family: "retrieval",
         mode: "observe",
@@ -817,6 +845,33 @@ describe("eval suite", () => {
       expect(result.cases[0]?.metadata.strategyLabel).toBe("hybrid");
       expect(result.cases[0]?.metadata.resolvedStrategyLabel).toBe("rules-only");
       expect(result.cases[0]?.goodmemory.candidateInfluencedExecution).toBe(false);
+      expect(result.summary.shadowSummary).toEqual({
+        totalCases: 1,
+        byFamily: {
+          retrieval: 1,
+        },
+        byMode: {
+          observe: 1,
+        },
+        candidateInfluencedCases: 0,
+        safeObserveCases: 1,
+        unknownObserveCases: 0,
+        regressionCases: [],
+      });
+      expect(report.summary?.shadowSummary).toMatchObject({
+        totalCases: 1,
+        safeObserveCases: 1,
+        unknownObserveCases: 0,
+      });
+      expect(shadowArtifact.totalCases).toBe(1);
+      expect(shadowArtifact.comparisonTarget).toBe("executed-path");
+      expect(shadowArtifact.comparisons[0]).toMatchObject({
+        requestedStrategyLabel: "hybrid",
+        executedStrategyLabel: "rules-only",
+        comparisonTarget: "executed-path",
+        executedPathSource: "promoted_or_default",
+        candidateInfluencedExecution: false,
+      });
     } finally {
       await workspace.cleanup();
     }

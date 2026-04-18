@@ -6,6 +6,8 @@ import type {
   EvalCaseExecutionFailure,
   EvalLayerScores,
   EvalRuntimeMetadata,
+  EvalShadowComparisonRow,
+  EvalShadowSummary,
   EvalStrategyBreakdown,
   EvalStrategySliceSummary,
   EvalStrategySummary,
@@ -18,6 +20,7 @@ import type {
   JudgeScores,
 } from "./judge";
 import type { EvalAnswerPackage } from "./runners";
+import type { StrategyRolloutFamily, StrategyRolloutMode } from "./strategy-rollout";
 
 function emptyScores(): JudgeScores {
   return {
@@ -428,6 +431,128 @@ function buildStrategySummary(cases: JudgedEvalCase[]): EvalStrategySummary {
   };
 }
 
+function incrementRolloutCount<Key extends string>(
+  counts: Partial<Record<Key, number>>,
+  key: Key,
+): void {
+  counts[key] = (counts[key] ?? 0) + 1;
+}
+
+function isShadowComparisonCase(
+  item: JudgedEvalCase,
+): item is JudgedEvalCase & {
+  metadata: JudgedEvalCase["metadata"] & {
+    strategyFamily: StrategyRolloutFamily;
+    strategyMode: StrategyRolloutMode;
+  };
+} {
+  return (
+    item.metadata.strategyFamily !== undefined &&
+    item.metadata.strategyMode !== undefined &&
+    item.metadata.strategyMode !== "promote"
+  );
+}
+
+function resolveShadowExecutionPathSource(
+  item: JudgedEvalCase,
+): EvalShadowComparisonRow["executedPathSource"] {
+  if (item.goodmemory.candidateInfluencedExecution === true) {
+    return "candidate";
+  }
+  if (item.goodmemory.candidateInfluencedExecution === false) {
+    return "promoted_or_default";
+  }
+  return "unknown";
+}
+
+function buildShadowSummary(cases: JudgedEvalCase[]): EvalShadowSummary | undefined {
+  const shadowCases = cases.filter(isShadowComparisonCase);
+  if (shadowCases.length === 0) {
+    return undefined;
+  }
+
+  const byFamily: EvalShadowSummary["byFamily"] = {};
+  const byMode: EvalShadowSummary["byMode"] = {};
+  let candidateInfluencedCases = 0;
+  let safeObserveCases = 0;
+  let unknownObserveCases = 0;
+  const regressionCases: string[] = [];
+
+  for (const item of shadowCases) {
+    const executedPathSource = resolveShadowExecutionPathSource(item);
+
+    incrementRolloutCount(byFamily, item.metadata.strategyFamily);
+    incrementRolloutCount(byMode, item.metadata.strategyMode);
+
+    if (executedPathSource === "candidate") {
+      candidateInfluencedCases += 1;
+    }
+
+    if (item.metadata.strategyMode === "observe") {
+      if (executedPathSource === "promoted_or_default") {
+        safeObserveCases += 1;
+      } else if (executedPathSource === "unknown") {
+        unknownObserveCases += 1;
+      }
+    }
+
+    if (isStrategyRegression(item)) {
+      regressionCases.push(item.caseId);
+    }
+  }
+
+  return {
+    totalCases: shadowCases.length,
+    byFamily,
+    byMode,
+    candidateInfluencedCases,
+    safeObserveCases,
+    unknownObserveCases,
+    regressionCases,
+  };
+}
+
+function buildShadowComparisonRows(
+  cases: JudgedEvalCase[],
+): EvalShadowComparisonRow[] {
+  return cases.filter(isShadowComparisonCase).map((item) => {
+    const candidateInfluencedExecution =
+      item.goodmemory.candidateInfluencedExecution;
+
+    return {
+      caseId: item.caseId,
+      scenarioId: item.goodmemory.scenarioId,
+      strategyFamily: item.metadata.strategyFamily,
+      strategyMode: item.metadata.strategyMode,
+      requestedStrategyLabel: item.metadata.strategyLabel as Exclude<
+        EvalAnswerPackage["strategyLabel"],
+        "baseline"
+      >,
+      executedStrategyLabel: resolveExecutedStrategyLabel(item),
+      promotedStrategyLabel: item.metadata.promotedStrategyLabel as Exclude<
+        EvalAnswerPackage["strategyLabel"],
+        "baseline"
+      > | undefined,
+      comparisonTarget: "executed-path",
+      executedPathSource: resolveShadowExecutionPathSource(item),
+      ...(candidateInfluencedExecution !== undefined
+        ? { candidateInfluencedExecution }
+        : {}),
+      winner: item.judge.winner,
+      assertionsPassed: item.assertions.passed,
+      artifactPaths: {
+        baselineTrace: join("traces", item.caseId, "baseline.json"),
+        executedTrace: join("traces", item.caseId, "goodmemory.json"),
+        ...(item.goodmemory.retrieved
+          ? { rawRecall: join("traces", item.caseId, "raw-recall.json") }
+          : {}),
+        judge: join("traces", item.caseId, "judge.json"),
+        assertions: join("traces", item.caseId, "assertions.json"),
+      },
+    };
+  });
+}
+
 function buildMaintenanceSummary(cases: JudgedEvalCase[]) {
   const summaries = cases
     .map((item) => item.goodmemory.trace.maintenanceSummary)
@@ -597,6 +722,7 @@ export function aggregateJudgedCases(
     },
     assertions: aggregateAssertions(cases),
     outcomeLoopSummary: buildOutcomeLoopSummary(cases),
+    shadowSummary: buildShadowSummary(cases),
     strategySummary: buildStrategySummary(cases),
     maintenanceSummary: buildMaintenanceSummary(cases),
   };
@@ -616,6 +742,7 @@ export async function persistEvalArtifacts(input: {
   const casesDirectory = join(runDirectory, "cases");
   const failuresDirectory = join(runDirectory, "failures");
   const tracesDirectory = join(runDirectory, "traces");
+  const shadowComparisons = buildShadowComparisonRows(input.cases);
 
   await mkdir(casesDirectory, { recursive: true });
   await mkdir(failuresDirectory, { recursive: true });
@@ -774,6 +901,30 @@ export async function persistEvalArtifacts(input: {
       null,
       2,
     )}\n`,
+    "utf8",
+  );
+
+  const shadowComparisonPayload = `${JSON.stringify(
+    {
+      mode: input.mode,
+      runId: input.runId,
+      comparisonTarget: "executed-path",
+      totalCases: shadowComparisons.length,
+      comparisons: shadowComparisons,
+    },
+    null,
+    2,
+  )}\n`;
+
+  await writeFile(
+    join(runDirectory, "shadow-executed-path-comparisons.json"),
+    shadowComparisonPayload,
+    "utf8",
+  );
+
+  await writeFile(
+    join(runDirectory, "shadow-comparisons.json"),
+    shadowComparisonPayload,
     "utf8",
   );
 
