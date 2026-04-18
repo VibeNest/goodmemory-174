@@ -10,12 +10,16 @@ import {
 } from "./dataset";
 import type {
   EvalCaseExecutionFailure,
+  EvalCaseExecutionFailureStage,
   EvalRuntimeMetadata,
   EvalSuiteSummary,
   JudgedEvalCase,
   PersistedEvalMode,
 } from "./contracts";
-import type { JudgeModel } from "./judge";
+import type {
+  JudgeModel,
+  JudgeResult,
+} from "./judge";
 import { runJudgeComparison } from "./judge";
 import {
   aggregateJudgedCases,
@@ -24,6 +28,7 @@ import {
 import { normalizeProviderRuntimeMetadata } from "../provider/layer";
 import type { RecallRouterStrategy } from "../recall/router";
 import {
+  isEvalGoodMemoryScenarioStageError,
   runBaselineScenario,
   runGoodMemoryScenario,
   type EvalAnswerPackage,
@@ -34,6 +39,7 @@ import type { RetrievalStrategyRolloutConfig } from "./strategy-rollout";
 import {
   buildRetrievalStrategyRolloutConfig,
   buildStrategyRolloutMetadata,
+  resolveRetrievalStrategyRollout,
 } from "./strategy-rollout";
 import {
   assertRetrievalPromotionGateAllowsDefaultRollout,
@@ -190,6 +196,95 @@ function resolveMaxConcurrency(
   return 1;
 }
 
+interface EvalCaseStageError extends Error {
+  cause?: unknown;
+  stage: EvalCaseExecutionFailureStage;
+}
+
+function wrapCaseStageError(
+  stage: EvalCaseExecutionFailureStage,
+  error: unknown,
+): EvalCaseStageError {
+  const wrapped = new Error(
+    error instanceof Error ? error.message : String(error),
+  ) as EvalCaseStageError;
+  wrapped.name = "EvalCaseStageError";
+  wrapped.stage = stage;
+  wrapped.cause = error;
+  if (error instanceof Error && error.stack) {
+    wrapped.stack = error.stack;
+  }
+
+  return wrapped;
+}
+
+function isEvalCaseStageError(error: unknown): error is EvalCaseStageError {
+  return (
+    error instanceof Error &&
+    "stage" in error &&
+    typeof error.stage === "string"
+  );
+}
+
+function findEvalCaseStageError(error: unknown): EvalCaseStageError | undefined {
+  if (isEvalCaseStageError(error)) {
+    return error;
+  }
+
+  if (error instanceof AggregateError) {
+    for (const cause of error.errors) {
+      const found = findEvalCaseStageError(cause);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function resolveExecutionFailureStage(
+  error: unknown,
+): EvalCaseExecutionFailureStage {
+  return findEvalCaseStageError(error)?.stage ?? "unknown";
+}
+
+function buildExecutionFailureMetadata(input: {
+  failureStage: EvalCaseExecutionFailureStage;
+  scenario: ScenarioFixture;
+  strategy: RecallRouterStrategy;
+  strategyRollout?: RetrievalStrategyRolloutConfig;
+}): EvalCaseExecutionFailure["metadata"] {
+  const rolloutDecision = resolveRetrievalStrategyRollout({
+    requestedStrategy: input.strategy,
+    rollout: input.strategyRollout,
+  });
+  const resolvedStrategyLabel =
+    input.failureStage === "primary_execution"
+      ? rolloutDecision.executedStrategy
+      : input.failureStage === "shadow_execution" && input.strategy !== "auto"
+        ? input.strategy
+        : undefined;
+
+  return {
+    taskFamily: input.scenario.task_family,
+    targetDomain: input.scenario.domain,
+    memorySourceDomains: input.scenario.memory_source_domains,
+    evaluationSetting: input.scenario.evaluation_setting,
+    strategyLabel: rolloutDecision.requestedStrategyLabel,
+    ...(resolvedStrategyLabel ? { resolvedStrategyLabel } : {}),
+    ...(rolloutDecision.family
+      ? { strategyFamily: rolloutDecision.family }
+      : {}),
+    ...(rolloutDecision.mode
+      ? { strategyMode: rolloutDecision.mode }
+      : {}),
+    ...(rolloutDecision.promotedStrategyLabel
+      ? { promotedStrategyLabel: rolloutDecision.promotedStrategyLabel }
+      : {}),
+  };
+}
+
 function resolveCaseRetryLimit(
   mode: PersistedEvalMode,
   requested?: number,
@@ -249,6 +344,14 @@ function indentErrorBlock(value: string): string {
 }
 
 function formatCaseError(error: unknown): string {
+  if (isEvalCaseStageError(error)) {
+    return error.cause === undefined ? "undefined" : formatCaseError(error.cause);
+  }
+
+  if (isEvalGoodMemoryScenarioStageError(error)) {
+    return error.cause === undefined ? "undefined" : formatCaseError(error.cause);
+  }
+
   if (error instanceof AggregateError) {
     const header = error.stack ?? `${error.name}: ${error.message}`;
     const causes = error.errors.map((cause, index) =>
@@ -291,14 +394,15 @@ async function runWithCaseCleanup<T>(
   try {
     await cleanup?.();
   } catch (cleanupError) {
+    const stagedCleanupError = wrapCaseStageError("cleanup", cleanupError);
     if (executionFailed) {
       throw new AggregateError(
-        [primaryError, cleanupError],
+        [primaryError, stagedCleanupError],
         "Eval case execution failed and cleanup also failed.",
       );
     }
 
-    throw cleanupError;
+    throw stagedCleanupError;
   }
 
   if (executionFailed) {
@@ -348,13 +452,18 @@ async function evaluateCase(input: {
   const cleanup = combineCleanups(cleanups);
 
   return runWithCaseCleanup(async () => {
-    const primaryHandle = resolveEvalMemoryHandle({
-      caseId: input.caseId,
-      createMemory: input.createMemory,
-      persona: input.persona,
-      scenario: input.scenario,
-      scopeNamespace: input.scopeNamespace,
-    });
+    let primaryHandle: EvalMemoryHandle;
+    try {
+      primaryHandle = resolveEvalMemoryHandle({
+        caseId: input.caseId,
+        createMemory: input.createMemory,
+        persona: input.persona,
+        scenario: input.scenario,
+        scopeNamespace: input.scopeNamespace,
+      });
+    } catch (error) {
+      throw wrapCaseStageError("primary_setup", error);
+    }
     cleanups.push(primaryHandle.cleanup);
 
     const shadowReplay = buildObserveShadowReplay({
@@ -363,49 +472,82 @@ async function evaluateCase(input: {
       strategy: input.strategy,
       strategyRollout: input.strategyRollout,
     });
-    const shadowHandle = shadowReplay
-      ? resolveEvalMemoryHandle({
+    let shadowHandle: EvalMemoryHandle | undefined;
+    if (shadowReplay) {
+      try {
+        shadowHandle = resolveEvalMemoryHandle({
           caseId: shadowReplay.caseId,
           createMemory: input.createMemory,
           persona: input.persona,
           scenario: input.scenario,
           scopeNamespace: shadowReplay.scopeNamespace,
-        })
-      : undefined;
+        });
+      } catch (error) {
+        throw wrapCaseStageError("shadow_setup", error);
+      }
+    }
     if (shadowHandle) {
       cleanups.push(shadowHandle.cleanup);
     }
 
-    const goodmemory = await runGoodMemoryScenario({
-      memory: primaryHandle.memory,
-      persona: input.persona,
-      scenario: input.scenario,
-      answerGenerator: input.goodmemoryGenerator,
-      strategy: input.strategy,
-      strategyRollout: input.strategyRollout,
-      rememberExtractionStrategy: input.rememberExtractionStrategy,
-      scopeNamespace: input.scopeNamespace,
-    });
+    let goodmemory: EvalAnswerPackage;
+    try {
+      goodmemory = await runGoodMemoryScenario({
+        memory: primaryHandle.memory,
+        persona: input.persona,
+        scenario: input.scenario,
+        answerGenerator: input.goodmemoryGenerator,
+        strategy: input.strategy,
+        strategyRollout: input.strategyRollout,
+        rememberExtractionStrategy: input.rememberExtractionStrategy,
+        scopeNamespace: input.scopeNamespace,
+      });
+    } catch (error) {
+      throw wrapCaseStageError(
+        isEvalGoodMemoryScenarioStageError(error) &&
+          error.boundary === "pre_recall"
+          ? "primary_pre_recall"
+          : "primary_execution",
+        error,
+      );
+    }
     const shadow =
       shadowReplay && shadowHandle
-        ? await runGoodMemoryScenario({
-            memory: shadowHandle.memory,
-            persona: input.persona,
-            scenario: input.scenario,
-            answerGenerator: input.goodmemoryGenerator,
-            strategy: input.strategy,
-            strategyRollout: shadowReplay.strategyRollout,
-            rememberExtractionStrategy: input.rememberExtractionStrategy,
-            scopeNamespace: shadowReplay.scopeNamespace,
-          })
+        ? await (async () => {
+            try {
+              return await runGoodMemoryScenario({
+                memory: shadowHandle.memory,
+                persona: input.persona,
+                scenario: input.scenario,
+                answerGenerator: input.goodmemoryGenerator,
+                strategy: input.strategy,
+                strategyRollout: shadowReplay.strategyRollout,
+                rememberExtractionStrategy: input.rememberExtractionStrategy,
+                scopeNamespace: shadowReplay.scopeNamespace,
+              });
+            } catch (error) {
+              throw wrapCaseStageError(
+                isEvalGoodMemoryScenarioStageError(error) &&
+                  error.boundary === "pre_recall"
+                  ? "shadow_pre_recall"
+                  : "shadow_execution",
+                error,
+              );
+            }
+          })()
         : undefined;
-    const judge = await runJudgeComparison({
-      persona: input.persona,
-      scenario: input.scenario,
-      baseline: input.baseline,
-      goodmemory,
-      judge: input.judge,
-    });
+    let judge: JudgeResult;
+    try {
+      judge = await runJudgeComparison({
+        persona: input.persona,
+        scenario: input.scenario,
+        baseline: input.baseline,
+        goodmemory,
+        judge: input.judge,
+      });
+    } catch (error) {
+      throw wrapCaseStageError("judge", error);
+    }
     const assertions = evaluateScenarioAssertions({
       scenario: input.scenario,
       goodmemory,
@@ -418,8 +560,16 @@ async function evaluateCase(input: {
         targetDomain: input.scenario.domain,
         memorySourceDomains: input.scenario.memory_source_domains,
         evaluationSetting: input.scenario.evaluation_setting,
-        strategyLabel: goodmemory.strategyLabel,
-        resolvedStrategyLabel: goodmemory.resolvedStrategyLabel,
+        strategyLabel:
+          goodmemory.strategyLabel as Exclude<
+            EvalAnswerPackage["strategyLabel"],
+            "baseline"
+          >,
+        resolvedStrategyLabel:
+          goodmemory.resolvedStrategyLabel as Exclude<
+            EvalAnswerPackage["resolvedStrategyLabel"],
+            "baseline"
+          > | undefined,
         strategyFamily: goodmemory.strategyFamily,
         strategyMode: goodmemory.strategyMode,
         promotedStrategyLabel: goodmemory.promotedStrategyLabel,
@@ -457,10 +607,15 @@ async function evaluateCaseWithRetries(input: {
 
   for (let attempt = 1; attempt <= input.retryLimit; attempt += 1) {
     try {
-      const baseline = await input.getBaseline({
-        persona: input.persona,
-        scenario: input.scenario,
-      });
+      let baseline: EvalAnswerPackage;
+      try {
+        baseline = await input.getBaseline({
+          persona: input.persona,
+          scenario: input.scenario,
+        });
+      } catch (error) {
+        throw wrapCaseStageError("baseline_execution", error);
+      }
       const judgedCase = await evaluateCase({
         caseId: input.caseId,
         scopeNamespace: input.scopeNamespace,
@@ -477,22 +632,43 @@ async function evaluateCaseWithRetries(input: {
 
       return { judgedCase };
     } catch (error) {
+      const failureStage = resolveExecutionFailureStage(error);
       attempts.push({
         attempt,
         error: formatCaseError(error),
       });
+
+      if (attempt === input.retryLimit) {
+        return {
+          failure: {
+            caseId: input.caseId,
+            failureStage,
+            metadata: buildExecutionFailureMetadata({
+              scenario: input.scenario,
+              failureStage,
+              strategy: input.strategy,
+              strategyRollout: input.strategyRollout,
+            }),
+            retryLimit: input.retryLimit,
+            attempts,
+            lastError:
+              attempts[attempts.length - 1]?.error ?? "Unknown case failure",
+          },
+        };
+      }
     }
   }
 
   return {
     failure: {
       caseId: input.caseId,
-      metadata: {
-        taskFamily: input.scenario.task_family,
-        targetDomain: input.scenario.domain,
-        memorySourceDomains: input.scenario.memory_source_domains,
-        evaluationSetting: input.scenario.evaluation_setting,
-      },
+      failureStage: "unknown",
+      metadata: buildExecutionFailureMetadata({
+        scenario: input.scenario,
+        failureStage: "unknown",
+        strategy: input.strategy,
+        strategyRollout: input.strategyRollout,
+      }),
       retryLimit: input.retryLimit,
       attempts,
       lastError: attempts[attempts.length - 1]?.error ?? "Unknown case failure",
@@ -690,7 +866,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
         cases: completedCases,
         summary: aggregateJudgedCases(
           completedCases,
-          completedFailures.length,
+          completedFailures,
           runtime,
         ),
         runtime,
@@ -751,7 +927,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   );
   const summary = aggregateJudgedCases(
     completedCases,
-    completedFailures.length,
+    completedFailures,
     runtime,
   );
 

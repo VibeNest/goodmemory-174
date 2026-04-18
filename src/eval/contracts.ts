@@ -50,8 +50,11 @@ export interface JudgedEvalCase {
     targetDomain: string;
     memorySourceDomains: string[];
     evaluationSetting: EvalAnswerPackage["evaluationSetting"];
-    strategyLabel: EvalAnswerPackage["strategyLabel"];
-    resolvedStrategyLabel?: EvalAnswerPackage["resolvedStrategyLabel"];
+    strategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+    resolvedStrategyLabel?: Exclude<
+      EvalAnswerPackage["resolvedStrategyLabel"],
+      "baseline"
+    >;
     strategyFamily?: EvalAnswerPackage["strategyFamily"];
     strategyMode?: EvalAnswerPackage["strategyMode"];
     promotedStrategyLabel?: EvalAnswerPackage["promotedStrategyLabel"];
@@ -87,6 +90,37 @@ export interface EvalStrategySummary {
   byStrategy: Record<string, EvalStrategyBreakdown>;
   embeddingImpact: EvalStrategySliceSummary | null;
   routerImpact: EvalStrategySliceSummary | null;
+}
+
+export interface EvalStrategyRegressionSummary {
+  strategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  totalCases: number;
+  attemptedCaseCount: number;
+  regressionCaseCount: number;
+  executionFailureCaseCount: number;
+  blockingCaseCount: number;
+  regressionRate: number;
+  blockingRate: number;
+  regressionCases: string[];
+  executionFailureCases: string[];
+}
+
+export interface EvalRegressionDashboardSummary {
+  totalRegressionCases: number;
+  totalBlockingCases: number;
+  judgedRegressionCases: number;
+  executionFailureCount: number;
+  unattributedExecutionFailureCount: number;
+  strategyRegressions: EvalStrategyRegressionSummary[];
+  gate?: {
+    family: StrategyRolloutFamily;
+    mode: StrategyRolloutMode;
+    targetStrategyLabel?: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+    promotedStrategyLabel?: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+    decision: PromotionDecision;
+    outcome: PromotionGateOutcome;
+    regressionCaseCount: number;
+  };
 }
 
 export interface EvalMaintenanceSummary {
@@ -210,6 +244,7 @@ export interface EvalSuiteSummary {
   assertions: EvalAssertionsAggregate;
   outcomeLoopSummary?: EvalOutcomeLoopSummary;
   promotionGate?: EvalStrategyPromotionGateDecision;
+  regressionDashboardSummary?: EvalRegressionDashboardSummary;
   shadowSummary?: EvalShadowSummary;
   strategySummary: EvalStrategySummary;
   maintenanceSummary?: EvalMaintenanceSummary;
@@ -221,13 +256,34 @@ export interface EvalRuntimeMetadata extends ProviderRuntimeMetadata {
 
 export type PersistedEvalMode = ProviderExecutionMode;
 
+export type EvalCaseExecutionFailureStage =
+  | "unknown"
+  | "baseline_execution"
+  | "primary_setup"
+  | "primary_pre_recall"
+  | "primary_execution"
+  | "shadow_setup"
+  | "shadow_pre_recall"
+  | "shadow_execution"
+  | "judge"
+  | "cleanup";
+
 export interface EvalCaseExecutionFailure {
   caseId: string;
+  failureStage: EvalCaseExecutionFailureStage;
   metadata: {
     taskFamily: EvalAnswerPackage["taskFamily"];
     targetDomain: string;
     memorySourceDomains: string[];
     evaluationSetting: EvalAnswerPackage["evaluationSetting"];
+    strategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+    resolvedStrategyLabel?: Exclude<
+      EvalAnswerPackage["resolvedStrategyLabel"],
+      "baseline"
+    >;
+    strategyFamily?: EvalAnswerPackage["strategyFamily"];
+    strategyMode?: EvalAnswerPackage["strategyMode"];
+    promotedStrategyLabel?: EvalAnswerPackage["promotedStrategyLabel"];
   };
   retryLimit: number;
   attempts: Array<{

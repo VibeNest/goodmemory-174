@@ -187,7 +187,15 @@ describe("eval suite", () => {
           join(runDirectory, "failures", "scenario-complex-02.execution.json"),
           "utf8",
         ),
-      ) as { retryLimit: number; attempts: Array<{ attempt: number }> };
+      ) as {
+        failureStage?: string;
+        retryLimit: number;
+        attempts: Array<{ attempt: number }>;
+        metadata?: {
+          strategyLabel?: string;
+          resolvedStrategyLabel?: string;
+        };
+      };
 
       expect(report.summary.totalCases).toBe(2);
       expect(report.summary.completedCases).toBe(1);
@@ -196,10 +204,16 @@ describe("eval suite", () => {
       expect(firstCase.caseId).toBe("scenario-complex-01");
       expect(result.failedCases).toHaveLength(1);
       expect(result.failedCases?.[0]?.caseId).toBe("scenario-complex-02");
+      expect(result.failedCases?.[0]?.failureStage).toBe("judge");
+      expect(result.failedCases?.[0]?.metadata.strategyLabel).toBe("rules-only");
+      expect(result.failedCases?.[0]?.metadata.resolvedStrategyLabel).toBeUndefined();
       expect(judgeCalls).toBe(4);
       expect(failuresSummary.totalFailures).toBe(1);
+      expect(executionFailure.failureStage).toBe("judge");
       expect(executionFailure.retryLimit).toBe(3);
       expect(executionFailure.attempts).toHaveLength(3);
+      expect(executionFailure.metadata?.strategyLabel).toBe("rules-only");
+      expect(executionFailure.metadata?.resolvedStrategyLabel).toBeUndefined();
     } finally {
       await workspace.cleanup();
     }
@@ -430,6 +444,81 @@ describe("eval suite", () => {
       expect(result.failedCases).toHaveLength(1);
       expect(result.failedCases?.[0]?.caseId).toBe("scenario-medium-01");
       expect(result.failedCases?.[0]?.lastError).toBe("undefined");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("keeps primary pre-recall failures unattributed before recall starts", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-suite-primary-pre-recall-failure",
+    );
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-medium-01"],
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async () => ({
+          content: "not used",
+        }),
+        judge: createFakeLLMAdapter([]),
+        createMemory: () => ({
+          memory: {
+            async remember() {
+              throw new Error("primary-remember-error");
+            },
+            async feedback() {
+              throw new Error("should-not-run");
+            },
+            async recall() {
+              throw new Error("should-not-run");
+            },
+            async buildContext() {
+              throw new Error("should-not-run");
+            },
+            async forget() {
+              return { forgotten: false };
+            },
+            async exportMemory() {
+              throw new Error("should-not-run");
+            },
+            async deleteAllMemory() {
+              return {
+                scope: { userId: "u-1" },
+                deleted: {
+                  profiles: 0,
+                  preferences: 0,
+                  references: 0,
+                  facts: 0,
+                  feedback: 0,
+                  episodes: 0,
+                  archives: 0,
+                  evidence: 0,
+                  experiences: 0,
+                  proposals: 0,
+                  promotions: 0,
+                  workingMemory: 0,
+                  journal: 0,
+                  artifactSpills: 0,
+                },
+              };
+            },
+          } as never,
+        }),
+      });
+
+      expect(result.cases).toHaveLength(0);
+      expect(result.failedCases).toHaveLength(1);
+      expect(result.failedCases?.[0]?.lastError).toContain("primary-remember-error");
+      expect(result.failedCases?.[0]?.failureStage).toBe("primary_pre_recall");
+      expect(result.failedCases?.[0]?.metadata.strategyLabel).toBe("rules-only");
+      expect(result.failedCases?.[0]?.metadata.resolvedStrategyLabel).toBeUndefined();
     } finally {
       await workspace.cleanup();
     }
@@ -1194,6 +1283,155 @@ describe("eval suite", () => {
       expect(result.cases).toHaveLength(0);
       expect(result.failedCases).toHaveLength(1);
       expect(result.failedCases?.[0]?.lastError).toContain("shadow-create-error");
+      expect(result.failedCases?.[0]?.failureStage).toBe("shadow_setup");
+      expect(result.failedCases?.[0]?.metadata.strategyLabel).toBe("hybrid");
+      expect(result.failedCases?.[0]?.metadata.resolvedStrategyLabel).toBeUndefined();
+      expect(result.failedCases?.[0]?.metadata.strategyMode).toBe("observe");
+      expect(result.failedCases?.[0]?.metadata.promotedStrategyLabel).toBe(
+        "rules-only",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("attributes observe shadow replay execution failures to the candidate strategy", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-suite-shadow-replay-failure-attribution",
+    );
+    let goodmemoryCalls = 0;
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        caseIds: ["scenario-complex-01__hybrid"],
+        strategyRollout: {
+          family: "retrieval",
+          mode: "observe",
+          promotedStrategy: "rules-only",
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async () => {
+          goodmemoryCalls += 1;
+          if (goodmemoryCalls === 2) {
+            throw new Error("shadow-execution-error");
+          }
+
+          return {
+            content: "primary-goodmemory",
+          };
+        },
+        judge: createFakeLLMAdapter([]),
+      });
+
+      expect(result.cases).toHaveLength(0);
+      expect(result.failedCases).toHaveLength(1);
+      expect(result.failedCases?.[0]?.lastError).toContain(
+        "shadow-execution-error",
+      );
+      expect(result.failedCases?.[0]?.failureStage).toBe("shadow_execution");
+      expect(result.failedCases?.[0]?.metadata.strategyLabel).toBe("hybrid");
+      expect(result.failedCases?.[0]?.metadata.resolvedStrategyLabel).toBe(
+        "hybrid",
+      );
+      expect(result.failedCases?.[0]?.metadata.strategyMode).toBe("observe");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("keeps observe shadow pre-recall failures unattributed before candidate recall starts", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-suite-shadow-pre-recall-failure",
+    );
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        caseIds: ["scenario-complex-01__hybrid"],
+        strategyRollout: {
+          family: "retrieval",
+          mode: "observe",
+          promotedStrategy: "rules-only",
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "primary-goodmemory",
+        }),
+        judge: createFakeLLMAdapter([]),
+        createMemory: ({ caseId }) => {
+          if (caseId.endsWith("__shadow")) {
+            return {
+              memory: {
+                async remember() {
+                  throw new Error("shadow-remember-error");
+                },
+                async feedback() {
+                  throw new Error("should-not-run");
+                },
+                async recall() {
+                  throw new Error("should-not-run");
+                },
+                async buildContext() {
+                  throw new Error("should-not-run");
+                },
+                async forget() {
+                  return { forgotten: false };
+                },
+                async exportMemory() {
+                  throw new Error("should-not-run");
+                },
+                async deleteAllMemory() {
+                  return {
+                    scope: { userId: "u-1" },
+                    deleted: {
+                      profiles: 0,
+                      preferences: 0,
+                      references: 0,
+                      facts: 0,
+                      feedback: 0,
+                      episodes: 0,
+                      archives: 0,
+                      evidence: 0,
+                      experiences: 0,
+                      proposals: 0,
+                      promotions: 0,
+                      workingMemory: 0,
+                      journal: 0,
+                      artifactSpills: 0,
+                    },
+                  };
+                },
+              } as never,
+            };
+          }
+
+          return createGoodMemory({
+            storage: { provider: "memory" },
+            adapters: {
+              embeddingAdapter: createFakeEmbeddingAdapter(),
+            },
+          });
+        },
+      });
+
+      expect(result.cases).toHaveLength(0);
+      expect(result.failedCases).toHaveLength(1);
+      expect(result.failedCases?.[0]?.lastError).toContain("shadow-remember-error");
+      expect(result.failedCases?.[0]?.failureStage).toBe("shadow_pre_recall");
+      expect(result.failedCases?.[0]?.metadata.strategyLabel).toBe("hybrid");
+      expect(result.failedCases?.[0]?.metadata.resolvedStrategyLabel).toBeUndefined();
+      expect(result.failedCases?.[0]?.metadata.strategyMode).toBe("observe");
     } finally {
       await workspace.cleanup();
     }

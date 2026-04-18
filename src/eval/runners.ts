@@ -42,6 +42,42 @@ export type EvalAnswerGenerator = (
   input: EvalAnswerGeneratorInput,
 ) => Promise<EvalAnswerGeneratorOutput>;
 
+export type EvalGoodMemoryScenarioFailureBoundary =
+  | "pre_recall"
+  | "recall_path";
+
+interface EvalGoodMemoryScenarioStageError extends Error {
+  cause?: unknown;
+  boundary: EvalGoodMemoryScenarioFailureBoundary;
+}
+
+function wrapEvalGoodMemoryScenarioStageError(
+  boundary: EvalGoodMemoryScenarioFailureBoundary,
+  error: unknown,
+): EvalGoodMemoryScenarioStageError {
+  const wrapped = new Error(
+    error instanceof Error ? error.message : String(error),
+  ) as EvalGoodMemoryScenarioStageError;
+  wrapped.name = "EvalGoodMemoryScenarioStageError";
+  wrapped.boundary = boundary;
+  wrapped.cause = error;
+  if (error instanceof Error && error.stack) {
+    wrapped.stack = error.stack;
+  }
+
+  return wrapped;
+}
+
+export function isEvalGoodMemoryScenarioStageError(
+  error: unknown,
+): error is EvalGoodMemoryScenarioStageError {
+  return (
+    error instanceof Error &&
+    "boundary" in error &&
+    (error.boundary === "pre_recall" || error.boundary === "recall_path")
+  );
+}
+
 export interface EvalProposalTraceItem {
   id: string;
   proposalType: LearningProposalType;
@@ -446,65 +482,83 @@ export async function runGoodMemoryScenario(input: {
     rollout: input.strategyRollout,
   });
 
-  for (const session of evaluationPlan.replaySessions) {
-    const result = await input.memory.remember({
-      scope: buildScenarioScope(
-        input.persona,
-        session.session_id,
-        input.scopeNamespace,
-      ),
-      messages: session.turns,
-      extractionStrategy: input.rememberExtractionStrategy,
-    });
+  let feedbackEvents: EvalAnswerPackage["trace"]["feedbackEvents"];
+  try {
+    for (const session of evaluationPlan.replaySessions) {
+      const result = await input.memory.remember({
+        scope: buildScenarioScope(
+          input.persona,
+          session.session_id,
+          input.scopeNamespace,
+        ),
+        messages: session.turns,
+        extractionStrategy: input.rememberExtractionStrategy,
+      });
 
-    rememberEvents.push({
-      sessionId: session.session_id,
-      replayedTurns: session.turns.length,
-      accepted: result.accepted,
-      rejected: result.rejected,
-      events: result.events,
-      metadata: result.metadata,
+      rememberEvents.push({
+        sessionId: session.session_id,
+        replayedTurns: session.turns.length,
+        accepted: result.accepted,
+        rejected: result.rejected,
+        events: result.events,
+        metadata: result.metadata,
+      });
+    }
+
+    feedbackEvents = await runScenarioFeedbackSignals({
+      memory: input.memory,
+      persona: input.persona,
+      signals: input.scenario.feedback_signals ?? [],
+      scopeNamespace: input.scopeNamespace,
     });
+  } catch (error) {
+    throw wrapEvalGoodMemoryScenarioStageError("pre_recall", error);
   }
 
-  const feedbackEvents = await runScenarioFeedbackSignals({
-    memory: input.memory,
-    persona: input.persona,
-    signals: input.scenario.feedback_signals ?? [],
-    scopeNamespace: input.scopeNamespace,
-  });
+  let recall: RecallResult;
+  try {
+    recall = await input.memory.recall({
+      scope: buildScenarioScope(
+        input.persona,
+        input.scenario.sessions.at(-1)!.session_id,
+        input.scopeNamespace,
+      ),
+      query: getEvaluationPrompt(input.scenario),
+      retrievalProfile: input.retrievalProfile ?? "general_chat",
+      strategy: rollout.executedStrategy,
+      ignoreMemory: input.ignoreMemory,
+    });
+  } catch (error) {
+    throw wrapEvalGoodMemoryScenarioStageError("recall_path", error);
+  }
 
-  const recall = await input.memory.recall({
-    scope: buildScenarioScope(
-      input.persona,
-      input.scenario.sessions.at(-1)!.session_id,
-      input.scopeNamespace,
-    ),
-    query: getEvaluationPrompt(input.scenario),
-    retrievalProfile: input.retrievalProfile ?? "general_chat",
-    strategy: rollout.executedStrategy,
-    ignoreMemory: input.ignoreMemory,
-  });
-  const context = await input.memory.buildContext({
-    recall,
-    output: "markdown",
-    maxTokens: 160,
-  });
-  const exported = await input.memory.exportMemory({
-    scope: {
-      userId: evalUserId,
-      workspaceId: evalWorkspaceId,
-    },
-  });
+  let context;
+  let exported: ExportMemoryResult;
   const prompt = getEvaluationPrompt(input.scenario);
   const transcript = renderTranscript(evaluationPlan.visibleTranscriptTurns);
-  const answer = await input.answerGenerator({
-    persona: input.persona,
-    scenario: input.scenario,
-    prompt,
-    transcript,
-    memoryContext: context.content,
-  });
+  let answer: EvalAnswerGeneratorOutput;
+  try {
+    context = await input.memory.buildContext({
+      recall,
+      output: "markdown",
+      maxTokens: 160,
+    });
+    exported = await input.memory.exportMemory({
+      scope: {
+        userId: evalUserId,
+        workspaceId: evalWorkspaceId,
+      },
+    });
+    answer = await input.answerGenerator({
+      persona: input.persona,
+      scenario: input.scenario,
+      prompt,
+      transcript,
+      memoryContext: context.content,
+    });
+  } catch (error) {
+    throw wrapEvalGoodMemoryScenarioStageError("recall_path", error);
+  }
 
   return {
     mode: "goodmemory",

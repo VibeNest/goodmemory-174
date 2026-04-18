@@ -35,7 +35,7 @@ Tasks
 [DONE] P17-T001 Define strategy lifecycle modes: observe, assist, promote
 [WIP] P17-T002 Add shadow evaluation and comparison artifacts
 [WIP] P17-T003 Add promotion gates for retrieval, reviewer, and maintenance strategies
-[TODO] P17-T004 Extend reporting with regression dashboard and gate summaries
+[DONE] P17-T004 Extend reporting with regression dashboard and gate summaries
 [TODO] P17-T005 Decide advanced/public surface boundaries from rollout evidence
 [TODO] P17-T006 Update release checklists and operator guidance for promoted strategies
 

@@ -1,9 +1,9 @@
 Phase 17.4: Regression Dashboard Artifacts
 ==========================================
 
-[TODO] P17.4-T001 Add per-strategy regression summaries
-[TODO] P17.4-T002 Add dashboard-friendly artifacts for suite deltas and failure clusters
-[TODO] P17.4-T003 Keep artifact lineage back to raw recall/evidence/proposal traces
+[DONE] P17.4-T001 Add per-strategy regression summaries
+[DONE] P17.4-T002 Add dashboard-friendly artifacts for suite deltas and failure clusters
+[DONE] P17.4-T003 Keep artifact lineage back to raw recall/evidence/proposal traces
 
 Why this exists
 ---------------
@@ -21,6 +21,12 @@ Implementation steps
 1. Extend the report format with strategy and gate dimensions
 2. Add failure clustering and delta summaries without losing raw trace links
 3. Keep report generation deterministic where live models are not required
+
+Current implementation slice
+----------------------------
+1. Add `summary.regressionDashboardSummary` to `report.json` with per-strategy regression counts, total regression counts, and gate summary
+2. Persist `regression-dashboard.json` with suite deltas, failure cluster counts, and stable cluster signatures
+3. Keep drill-down lineage explicit per failed case: `case`, `failure`, `rawRecall`, `judge`, `assertions`, `proposalTrace`, and trace artifacts stay linked
 
 Acceptance
 ----------

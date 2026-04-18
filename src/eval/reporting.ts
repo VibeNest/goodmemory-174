@@ -4,6 +4,8 @@ import { normalizeProviderRuntimeMetadata } from "../provider/layer";
 import type {
   EvalAssertionsAggregate,
   EvalCaseExecutionFailure,
+  EvalCaseExecutionFailureStage,
+  EvalRegressionDashboardSummary,
   EvalLayerScores,
   EvalRuntimeMetadata,
   EvalShadowComparisonRow,
@@ -617,6 +619,145 @@ function buildMaintenanceSummary(cases: JudgedEvalCase[]) {
   };
 }
 
+function resolveExecutionFailureCount(
+  executionFailures: number | EvalCaseExecutionFailure[],
+): number {
+  return typeof executionFailures === "number"
+    ? Math.max(0, executionFailures)
+    : executionFailures.length;
+}
+
+function resolveExecutionFailureExecutedStrategyLabel(
+  failure: EvalCaseExecutionFailure,
+): Exclude<EvalAnswerPackage["strategyLabel"], "baseline"> | undefined {
+  return failure.metadata.resolvedStrategyLabel;
+}
+
+function buildExecutionFailureBreakdown(
+  executionFailures: number | EvalCaseExecutionFailure[],
+): {
+  count: number;
+  unattributedCount: number;
+  byStrategy: Map<
+    Exclude<EvalAnswerPackage["strategyLabel"], "baseline">,
+    string[]
+  >;
+} {
+  if (typeof executionFailures === "number") {
+    return {
+      count: Math.max(0, executionFailures),
+      unattributedCount: Math.max(0, executionFailures),
+      byStrategy: new Map(),
+    };
+  }
+
+  const byStrategy = new Map<
+    Exclude<EvalAnswerPackage["strategyLabel"], "baseline">,
+    string[]
+  >();
+  let unattributedCount = 0;
+
+  for (const failure of executionFailures) {
+    const strategyLabel = resolveExecutionFailureExecutedStrategyLabel(failure);
+    if (!strategyLabel) {
+      unattributedCount += 1;
+      continue;
+    }
+
+    const cases = byStrategy.get(strategyLabel) ?? [];
+    cases.push(failure.caseId);
+    byStrategy.set(strategyLabel, cases);
+  }
+
+  return {
+    count: executionFailures.length,
+    unattributedCount,
+    byStrategy,
+  };
+}
+
+function buildRegressionDashboardSummary(
+  summary: EvalSuiteSummary,
+  executionFailures: number | EvalCaseExecutionFailure[] = summary.executionFailures ?? 0,
+): EvalRegressionDashboardSummary {
+  const executionFailureBreakdown = buildExecutionFailureBreakdown(
+    executionFailures,
+  );
+  const strategyLabels = new Set<
+    EvalRegressionDashboardSummary["strategyRegressions"][number]["strategyLabel"]
+  >([
+    ...Object.keys(summary.strategySummary.byStrategy),
+    ...executionFailureBreakdown.byStrategy.keys(),
+  ] as EvalRegressionDashboardSummary["strategyRegressions"][number]["strategyLabel"][]);
+  const strategyRegressions = [...strategyLabels]
+    .map((strategyLabel) => {
+      const breakdown = summary.strategySummary.byStrategy[strategyLabel];
+      const regressionCases = breakdown?.regressionCases ?? [];
+      const executionFailureCases =
+        executionFailureBreakdown.byStrategy.get(strategyLabel) ?? [];
+      const totalCases = breakdown?.totalCases ?? 0;
+      const attemptedCaseCount = totalCases + executionFailureCases.length;
+      const regressionCaseCount = regressionCases.length;
+      const executionFailureCaseCount = executionFailureCases.length;
+      const blockingCaseCount =
+        regressionCaseCount + executionFailureCaseCount;
+
+      return {
+        strategyLabel,
+        totalCases,
+        attemptedCaseCount,
+        regressionCaseCount,
+        executionFailureCaseCount,
+        blockingCaseCount,
+        regressionRate: roundMetric(
+          regressionCaseCount / Math.max(totalCases, 1),
+        ),
+        blockingRate: roundMetric(
+          blockingCaseCount / Math.max(attemptedCaseCount, 1),
+        ),
+        regressionCases,
+        executionFailureCases,
+      };
+    })
+    .sort((left, right) => {
+      if (right.blockingCaseCount !== left.blockingCaseCount) {
+        return right.blockingCaseCount - left.blockingCaseCount;
+      }
+      if (right.regressionCaseCount !== left.regressionCaseCount) {
+        return right.regressionCaseCount - left.regressionCaseCount;
+      }
+      return left.strategyLabel.localeCompare(right.strategyLabel);
+    });
+
+  const judgedRegressionCases = new Set(
+    strategyRegressions.flatMap((item) => item.regressionCases),
+  ).size;
+  const executionFailureCount = resolveExecutionFailureCount(executionFailures);
+
+  return {
+    totalRegressionCases: judgedRegressionCases,
+    totalBlockingCases: judgedRegressionCases + executionFailureCount,
+    judgedRegressionCases,
+    executionFailureCount,
+    unattributedExecutionFailureCount:
+      executionFailureBreakdown.unattributedCount,
+    strategyRegressions,
+    ...(summary.promotionGate
+      ? {
+          gate: {
+            family: summary.promotionGate.family,
+            mode: summary.promotionGate.mode,
+            targetStrategyLabel: summary.promotionGate.targetStrategyLabel,
+            promotedStrategyLabel: summary.promotionGate.promotedStrategyLabel,
+            decision: summary.promotionGate.decision,
+            outcome: summary.promotionGate.outcome,
+            regressionCaseCount: summary.promotionGate.regressionCases.length,
+          },
+        }
+      : {}),
+  };
+}
+
 function buildOutcomeLoopSummary(cases: JudgedEvalCase[]) {
   let applicableProceduralReuseCases = 0;
   let governedProceduralReuseCases = 0;
@@ -701,9 +842,10 @@ function buildOutcomeLoopSummary(cases: JudgedEvalCase[]) {
 
 export function aggregateJudgedCases(
   cases: JudgedEvalCase[],
-  executionFailureCount = 0,
+  executionFailures: number | EvalCaseExecutionFailure[] = 0,
   runtime?: EvalRuntimeMetadata,
 ): EvalSuiteSummary {
+  const executionFailureCount = resolveExecutionFailureCount(executionFailures);
   const winnerCounts = {
     baseline: 0,
     goodmemory: 0,
@@ -752,8 +894,276 @@ export function aggregateJudgedCases(
 
   const promotionGate =
     runtime ? evaluateStrategyPromotionGate({ cases, runtime, summary }) : undefined;
+  const summaryWithGate = promotionGate ? { ...summary, promotionGate } : summary;
 
-  return promotionGate ? { ...summary, promotionGate } : summary;
+  return {
+    ...summaryWithGate,
+    regressionDashboardSummary: buildRegressionDashboardSummary(
+      summaryWithGate,
+      executionFailures,
+    ),
+  };
+}
+
+interface PersistedFailureSummaryRecord {
+  caseId: string;
+  path: string;
+  kind: "judged" | "execution";
+  winner: JudgeResult["winner"];
+  failureTags: string[];
+  lastError?: string;
+  attemptCount?: number;
+}
+
+interface DashboardFailureCaseRecord {
+  caseId: string;
+  scenarioId?: string;
+  kind: "judged" | "execution";
+  winner: JudgeResult["winner"];
+  failureStage?: EvalCaseExecutionFailureStage;
+  taskFamily?: JudgedEvalCase["metadata"]["taskFamily"];
+  strategyLabel?: JudgedEvalCase["metadata"]["strategyLabel"];
+  executedStrategyLabel?: JudgedEvalCase["metadata"]["resolvedStrategyLabel"];
+  resolvedStrategyLabel?: JudgedEvalCase["metadata"]["resolvedStrategyLabel"];
+  strategyMode?: JudgedEvalCase["metadata"]["strategyMode"];
+  failureTags: string[];
+  artifactPaths: Record<string, string>;
+}
+
+type ClusterableDashboardFailureCaseRecord =
+  DashboardFailureCaseRecord & { clusterId: string };
+
+function buildJudgedCaseArtifactPaths(item: JudgedEvalCase): Record<string, string> {
+  return {
+    case: join("cases", `${item.caseId}.json`),
+    failure: join("failures", `${item.caseId}.json`),
+    baselineTrace: join("traces", item.caseId, "baseline.json"),
+    executedTrace: join("traces", item.caseId, "goodmemory.json"),
+    rememberTrace: join("traces", item.caseId, "remember-trace.json"),
+    feedbackTrace: join("traces", item.caseId, "feedback-trace.json"),
+    proposalTrace: join("traces", item.caseId, "proposal-trace.json"),
+    contextBuild: join("traces", item.caseId, "context-build.json"),
+    judge: join("traces", item.caseId, "judge.json"),
+    assertions: join("traces", item.caseId, "assertions.json"),
+    ...(item.goodmemory.retrieved
+      ? { rawRecall: join("traces", item.caseId, "raw-recall.json") }
+      : {}),
+    ...(item.shadow
+      ? { shadowTrace: join("traces", `${item.caseId}__shadow`, "shadow.json") }
+      : {}),
+    ...(item.shadow?.retrieved
+      ? {
+          shadowRawRecall: join(
+            "traces",
+            `${item.caseId}__shadow`,
+            "shadow-raw-recall.json",
+          ),
+        }
+      : {}),
+  };
+}
+
+function resolveJudgedFailureTags(item: JudgedEvalCase): string[] {
+  const blockingFailureTags = resolveBlockingFailureTags(item.judge);
+  const summaryFailureTags = resolveFailureSummaryTags(
+    item.judge,
+    blockingFailureTags,
+  );
+
+  return [
+    ...summaryFailureTags,
+    ...item.assertions.checks
+      .filter((check) => !check.passed)
+      .map((check) => `assertion:${check.id}`),
+  ];
+}
+
+function buildJudgedFailureRecord(
+  item: JudgedEvalCase,
+): PersistedFailureSummaryRecord | undefined {
+  const failureTags = resolveJudgedFailureTags(item);
+  const failed =
+    item.judge.winner !== "goodmemory" ||
+    resolveBlockingFailureTags(item.judge).length > 0 ||
+    !item.assertions.passed;
+
+  if (!failed) {
+    return undefined;
+  }
+
+  return {
+    caseId: item.caseId,
+    path: join("failures", `${item.caseId}.json`),
+    kind: "judged",
+    winner: item.judge.winner,
+    failureTags,
+  };
+}
+
+function buildExecutionFailureRecord(
+  failure: EvalCaseExecutionFailure,
+): PersistedFailureSummaryRecord {
+  return {
+    caseId: failure.caseId,
+    path: join("failures", `${failure.caseId}.execution.json`),
+    kind: "execution",
+    winner: "baseline",
+    failureTags: ["execution:retry_exhausted"],
+    lastError: failure.lastError,
+    attemptCount: failure.attempts.length,
+  };
+}
+
+function resolveDashboardClusterStrategyLabel(
+  record: DashboardFailureCaseRecord,
+): string | undefined {
+  if (record.kind === "execution") {
+    return record.executedStrategyLabel ?? record.resolvedStrategyLabel;
+  }
+
+  return (
+    record.executedStrategyLabel ??
+    record.resolvedStrategyLabel ??
+    record.strategyLabel
+  );
+}
+
+function buildRegressionDashboardArtifact(input: {
+  mode: PersistedEvalMode;
+  runId: string;
+  summary: EvalSuiteSummary;
+  cases: JudgedEvalCase[];
+  executionFailures: EvalCaseExecutionFailure[];
+}): {
+  mode: PersistedEvalMode;
+  runId: string;
+  summary: Record<string, unknown>;
+  failureClusters: Array<Record<string, unknown>>;
+} {
+  const judgedFailures: ClusterableDashboardFailureCaseRecord[] = input.cases.flatMap((item) => {
+    const failure = buildJudgedFailureRecord(item);
+    if (!failure) {
+      return [];
+    }
+
+    return [
+      {
+        clusterId: `judged:${[...failure.failureTags].sort().join("|")}`,
+        kind: "judged" as const,
+        caseId: item.caseId,
+        scenarioId: item.goodmemory.scenarioId,
+        winner: item.judge.winner,
+        taskFamily: item.metadata.taskFamily,
+        strategyLabel: item.metadata.strategyLabel,
+        executedStrategyLabel: resolveExecutedStrategyLabel(item),
+        resolvedStrategyLabel: item.metadata.resolvedStrategyLabel,
+        strategyMode: item.metadata.strategyMode,
+        failureTags: failure.failureTags,
+        artifactPaths: buildJudgedCaseArtifactPaths(item),
+      } satisfies ClusterableDashboardFailureCaseRecord,
+    ];
+  });
+
+  const executionFailureRecords: ClusterableDashboardFailureCaseRecord[] =
+    input.executionFailures.map((failure) => {
+      const record = buildExecutionFailureRecord(failure);
+
+      return {
+        clusterId: `execution:${record.failureTags.join("|")}`,
+        kind: "execution" as const,
+        caseId: failure.caseId,
+        winner: record.winner,
+        failureStage: failure.failureStage,
+        taskFamily: failure.metadata.taskFamily,
+        strategyLabel: failure.metadata.strategyLabel,
+        executedStrategyLabel: failure.metadata.resolvedStrategyLabel,
+        resolvedStrategyLabel: failure.metadata.resolvedStrategyLabel,
+        strategyMode: failure.metadata.strategyMode,
+        failureTags: record.failureTags,
+        artifactPaths: {
+          failure: record.path,
+        },
+      } satisfies ClusterableDashboardFailureCaseRecord;
+    });
+
+  const clustered = new Map<
+    string,
+    {
+      clusterId: string;
+      kind: "judged" | "execution";
+      failureTags: string[];
+      strategyLabels: Set<string>;
+      strategyModes: Set<string>;
+      cases: DashboardFailureCaseRecord[];
+    }
+  >();
+
+  for (const record of [...judgedFailures, ...executionFailureRecords]) {
+    let cluster = clustered.get(record.clusterId);
+    if (!cluster) {
+      cluster = {
+        clusterId: record.clusterId,
+        kind: record.kind,
+        failureTags: [...record.failureTags].sort(),
+        strategyLabels: new Set<string>(),
+        strategyModes: new Set<string>(),
+        cases: [],
+      };
+      clustered.set(record.clusterId, cluster);
+    }
+
+    const clusterStrategyLabel = resolveDashboardClusterStrategyLabel(record);
+    if (clusterStrategyLabel) {
+      cluster.strategyLabels.add(clusterStrategyLabel);
+    }
+    if (record.strategyMode) {
+      cluster.strategyModes.add(record.strategyMode);
+    }
+    cluster.cases.push(record);
+  }
+
+  const failureClusters = [...clustered.values()]
+    .map((cluster) => ({
+      clusterId: cluster.clusterId,
+      kind: cluster.kind,
+      totalCases: cluster.cases.length,
+      failureTags: cluster.failureTags,
+      strategyLabels: [...cluster.strategyLabels].sort(),
+      strategyModes: [...cluster.strategyModes].sort(),
+      cases: cluster.cases.sort((left, right) => left.caseId.localeCompare(right.caseId)),
+    }))
+    .sort((left, right) => {
+      if (right.totalCases !== left.totalCases) {
+        return right.totalCases - left.totalCases;
+      }
+      return left.clusterId.localeCompare(right.clusterId);
+    });
+
+  return {
+    mode: input.mode,
+    runId: input.runId,
+    summary: {
+      totalCases: input.summary.totalCases,
+      completedCases: input.summary.completedCases ?? 0,
+      executionFailures: input.summary.executionFailures ?? 0,
+      winnerCounts: input.summary.winnerCounts,
+      uplift: input.summary.uplift,
+      assertions: {
+        passRate: input.summary.assertions.passRate,
+        checkPassRate: input.summary.assertions.checkPassRate,
+        contaminationFailures: input.summary.assertions.contaminationFailures,
+        updateFailures: input.summary.assertions.updateFailures,
+      },
+      shadowSummary: input.summary.shadowSummary ?? null,
+      promotionGate: input.summary.promotionGate ?? null,
+      regressionDashboardSummary: buildRegressionDashboardSummary(
+        input.summary,
+        input.executionFailures,
+      ),
+      failureClusterCount: failureClusters.length,
+    },
+    failureClusters,
+  };
 }
 
 export async function persistEvalArtifacts(input: {
@@ -782,6 +1192,13 @@ export async function persistEvalArtifacts(input: {
             summary: input.summary,
           }),
         };
+  const summaryWithDashboard = {
+    ...summary,
+    regressionDashboardSummary: buildRegressionDashboardSummary(
+      summary,
+      input.executionFailures ?? summary.executionFailures ?? 0,
+    ),
+  };
   const runDirectory = join(input.outputDir, input.runId);
   const casesDirectory = join(runDirectory, "cases");
   const failuresDirectory = join(runDirectory, "failures");
@@ -798,7 +1215,7 @@ export async function persistEvalArtifacts(input: {
       {
         mode: input.mode,
         runId: input.runId,
-        summary,
+        summary: summaryWithDashboard,
         runtime,
       },
       null,
@@ -807,15 +1224,7 @@ export async function persistEvalArtifacts(input: {
     "utf8",
   );
 
-  const failedCases: Array<{
-    caseId: string;
-    path: string;
-    kind: "judged" | "execution";
-    winner: JudgeResult["winner"];
-    failureTags: string[];
-    lastError?: string;
-    attemptCount?: number;
-  }> = [];
+  const failedCases: PersistedFailureSummaryRecord[] = [];
 
   for (const item of input.cases) {
     const caseTraceDirectory = join(tracesDirectory, item.caseId);
@@ -904,17 +1313,8 @@ export async function persistEvalArtifacts(input: {
       "utf8",
     );
 
-    const blockingFailureTags = resolveBlockingFailureTags(item.judge);
-    const summaryFailureTags = resolveFailureSummaryTags(
-      item.judge,
-      blockingFailureTags,
-    );
-    const failed =
-      item.judge.winner !== "goodmemory" ||
-      blockingFailureTags.length > 0 ||
-      !item.assertions.passed;
-
-    if (!failed) {
+    const failureRecord = buildJudgedFailureRecord(item);
+    if (!failureRecord) {
       continue;
     }
 
@@ -924,16 +1324,8 @@ export async function persistEvalArtifacts(input: {
       "utf8",
     );
     failedCases.push({
-      caseId: item.caseId,
+      ...failureRecord,
       path: join(failuresDirectory, `${item.caseId}.json`),
-      kind: "judged",
-      winner: item.judge.winner,
-      failureTags: [
-        ...summaryFailureTags,
-        ...item.assertions.checks
-          .filter((check) => !check.passed)
-          .map((check) => `assertion:${check.id}`),
-      ],
     });
   }
 
@@ -946,13 +1338,8 @@ export async function persistEvalArtifacts(input: {
       "utf8",
     );
     failedCases.push({
-      caseId: failure.caseId,
+      ...buildExecutionFailureRecord(failure),
       path,
-      kind: "execution",
-      winner: "baseline",
-      failureTags: ["execution:retry_exhausted"],
-      lastError: failure.lastError,
-      attemptCount: failure.attempts.length,
     });
   }
 
@@ -997,7 +1384,23 @@ export async function persistEvalArtifacts(input: {
 
   await writeFile(
     join(runDirectory, "strategy-promotion-gate.json"),
-    `${JSON.stringify(summary.promotionGate ?? null, null, 2)}\n`,
+    `${JSON.stringify(summaryWithDashboard.promotionGate ?? null, null, 2)}\n`,
+    "utf8",
+  );
+
+  await writeFile(
+    join(runDirectory, "regression-dashboard.json"),
+    `${JSON.stringify(
+      buildRegressionDashboardArtifact({
+        mode: input.mode,
+        runId: input.runId,
+        summary: summaryWithDashboard,
+        cases: input.cases,
+        executionFailures: input.executionFailures ?? [],
+      }),
+      null,
+      2,
+    )}\n`,
     "utf8",
   );
 

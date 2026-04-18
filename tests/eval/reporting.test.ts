@@ -733,6 +733,205 @@ describe("eval reporting", () => {
     });
   });
 
+  it("summarizes per-strategy regressions for dashboard use", () => {
+    const executionFailures = [
+      {
+        caseId: "case-hybrid-execution",
+        failureStage: "primary_execution" as const,
+        metadata: {
+          taskFamily: "preference_continuation" as const,
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain" as const,
+          strategyLabel: "hybrid" as const,
+          resolvedStrategyLabel: "hybrid" as const,
+          strategyFamily: "retrieval" as const,
+          strategyMode: "assist" as const,
+          promotedStrategyLabel: "rules-only" as const,
+        },
+        retryLimit: 2,
+        attempts: [
+          { attempt: 1, error: "timeout" },
+          { attempt: 2, error: "timeout" },
+        ],
+        lastError: "timeout",
+      },
+    ];
+    const summary = aggregateJudgedCases(
+      [
+        buildCase({
+          caseId: "case-rules",
+          scenarioId: "scenario-dashboard-1",
+          strategyLabel: "rules-only",
+          resolvedStrategyLabel: "rules-only",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+        buildCase({
+          caseId: "case-hybrid-regression",
+          scenarioId: "scenario-dashboard-2",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "hybrid",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 6,
+          failureTags: ["goodmemory_wrong_personalization"],
+          contaminationFindings: ["leaked stale preference"],
+        }),
+      ],
+      executionFailures,
+      {
+        generationMode: "fallback",
+        judgeMode: "fallback",
+        strategyRollout: {
+          family: "retrieval",
+          mode: "assist",
+          promotedStrategyLabel: "rules-only",
+        },
+      },
+    );
+
+    expect(summary.regressionDashboardSummary).toMatchObject({
+      totalRegressionCases: 1,
+      totalBlockingCases: 2,
+      judgedRegressionCases: 1,
+      executionFailureCount: 1,
+      unattributedExecutionFailureCount: 0,
+      gate: {
+        family: "retrieval",
+        mode: "assist",
+        promotedStrategyLabel: "rules-only",
+        decision: "delayed",
+        outcome: "review_required",
+        regressionCaseCount: 0,
+      },
+    });
+    expect(summary.regressionDashboardSummary?.strategyRegressions).toEqual([
+      {
+        strategyLabel: "hybrid",
+        totalCases: 1,
+        attemptedCaseCount: 2,
+        regressionCaseCount: 1,
+        executionFailureCaseCount: 1,
+        blockingCaseCount: 2,
+        regressionRate: 1,
+        blockingRate: 1,
+        regressionCases: ["case-hybrid-regression"],
+        executionFailureCases: ["case-hybrid-execution"],
+      },
+      {
+        strategyLabel: "rules-only",
+        totalCases: 1,
+        attemptedCaseCount: 1,
+        regressionCaseCount: 0,
+        executionFailureCaseCount: 0,
+        blockingCaseCount: 0,
+        regressionRate: 0,
+        blockingRate: 0,
+        regressionCases: [],
+        executionFailureCases: [],
+      },
+    ]);
+  });
+
+  it("keeps shadow setup execution failures unattributed in the regression dashboard", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-reporting-shadow-setup-unattributed",
+    );
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const executionFailures = [
+        {
+          caseId: "case-shadow-setup-failure",
+          failureStage: "shadow_setup" as const,
+          metadata: {
+            taskFamily: "preference_continuation" as const,
+            targetDomain: "work_ops",
+            memorySourceDomains: ["work_ops"],
+            evaluationSetting: "single_domain" as const,
+            strategyLabel: "hybrid" as const,
+            strategyFamily: "retrieval" as const,
+            strategyMode: "observe" as const,
+            promotedStrategyLabel: "rules-only" as const,
+          },
+          retryLimit: 1,
+          attempts: [{ attempt: 1, error: "shadow-create-error" }],
+          lastError: "shadow-create-error",
+        },
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-shadow-setup-unattributed",
+        cases: [],
+        summary: aggregateJudgedCases([], executionFailures),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+        },
+        executionFailures,
+      });
+
+      const artifact = JSON.parse(
+        await readFile(join(result.runDirectory, "regression-dashboard.json"), "utf8"),
+      ) as {
+        summary: {
+          regressionDashboardSummary?: {
+            totalRegressionCases: number;
+            totalBlockingCases: number;
+            executionFailureCount: number;
+            unattributedExecutionFailureCount: number;
+            strategyRegressions: Array<{ strategyLabel: string }>;
+          };
+        };
+        failureClusters: Array<{
+          strategyLabels: string[];
+          strategyModes: string[];
+          cases: Array<{
+            caseId: string;
+            failureStage?: string;
+            strategyLabel?: string;
+            executedStrategyLabel?: string;
+          }>;
+        }>;
+      };
+
+      expect(artifact.summary.regressionDashboardSummary).toMatchObject({
+        totalRegressionCases: 0,
+        totalBlockingCases: 1,
+        executionFailureCount: 1,
+        unattributedExecutionFailureCount: 1,
+        strategyRegressions: [],
+      });
+      expect(artifact.failureClusters).toHaveLength(1);
+      expect(artifact.failureClusters[0]).toMatchObject({
+        strategyLabels: [],
+        strategyModes: ["observe"],
+      });
+      expect(artifact.failureClusters[0]?.cases[0]).toMatchObject({
+        caseId: "case-shadow-setup-failure",
+        failureStage: "shadow_setup",
+        strategyLabel: "hybrid",
+      });
+      expect(
+        artifact.failureClusters[0]?.cases[0]?.executedStrategyLabel,
+      ).toBeUndefined();
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("persists suite report and failure artifacts", async () => {
     const workspace = await createTempWorkspace("goodmemory-reporting");
 
@@ -777,6 +976,7 @@ describe("eval reporting", () => {
         mode: string;
         runId: string;
         summary: {
+          regressionDashboardSummary?: Record<string, unknown>;
           outcomeLoopSummary?: {
             governedProceduralReuseRate: number;
           };
@@ -870,6 +1070,28 @@ describe("eval reporting", () => {
 
       expect(report.mode).toBe("fallback");
       expect(report.runId).toBe("run-001");
+      expect(report.summary.regressionDashboardSummary).toMatchObject({
+        totalRegressionCases: 1,
+        judgedRegressionCases: 1,
+        executionFailureCount: 0,
+        strategyRegressions: [
+          {
+            strategyLabel: "rules-only",
+            totalCases: 1,
+            regressionCaseCount: 1,
+            regressionRate: 1,
+            regressionCases: ["case-1"],
+          },
+        ],
+        gate: {
+          family: "retrieval",
+          mode: "assist",
+          promotedStrategyLabel: "rules-only",
+          decision: "delayed",
+          outcome: "review_required",
+          regressionCaseCount: 0,
+        },
+      });
       expect(report.summary.outcomeLoopSummary?.governedProceduralReuseRate).toBe(1);
       expect(report.summary.strategySummary?.byStrategy?.["rules-only"]?.totalCases).toBe(
         1,
@@ -1170,6 +1392,198 @@ describe("eval reporting", () => {
     }
   });
 
+  it("persists a regression dashboard artifact with failure clusters and raw lineage", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-regression-dashboard");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-cluster-1",
+          scenarioId: "scenario-cluster-1",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "hybrid",
+          strategyFamily: "retrieval",
+          strategyMode: "assist",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: true,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 6,
+          failureTags: ["goodmemory_wrong_personalization"],
+          contaminationFindings: ["leaked stale preference"],
+        }),
+        buildCase({
+          caseId: "case-cluster-2",
+          scenarioId: "scenario-cluster-2",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "hybrid",
+          strategyFamily: "retrieval",
+          strategyMode: "assist",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: true,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 6,
+          failureTags: ["goodmemory_wrong_personalization"],
+          contaminationFindings: ["leaked stale preference"],
+        }),
+      ];
+
+      const executionFailures = [
+        {
+          caseId: "case-execution",
+          failureStage: "primary_execution" as const,
+          metadata: {
+            taskFamily: "preference_continuation" as const,
+            targetDomain: "work_ops",
+            memorySourceDomains: ["work_ops"],
+            evaluationSetting: "single_domain" as const,
+            strategyLabel: "hybrid" as const,
+            resolvedStrategyLabel: "hybrid" as const,
+            strategyFamily: "retrieval" as const,
+            strategyMode: "assist" as const,
+            promotedStrategyLabel: "rules-only" as const,
+          },
+          retryLimit: 2,
+          attempts: [
+            { attempt: 1, error: "timeout" },
+            { attempt: 2, error: "timeout" },
+          ],
+          lastError: "timeout",
+        },
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-regression-dashboard",
+        cases,
+        summary: aggregateJudgedCases(cases, executionFailures),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "assist",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+        executionFailures,
+      });
+
+      const artifact = JSON.parse(
+        await readFile(join(result.runDirectory, "regression-dashboard.json"), "utf8"),
+      ) as {
+        summary: {
+          regressionDashboardSummary?: {
+            totalRegressionCases: number;
+            totalBlockingCases: number;
+            judgedRegressionCases: number;
+            executionFailureCount: number;
+            unattributedExecutionFailureCount: number;
+            strategyRegressions: Array<{
+              strategyLabel: string;
+              regressionCaseCount: number;
+              executionFailureCaseCount: number;
+              blockingCaseCount: number;
+            }>;
+            gate?: {
+              decision?: string;
+              outcome?: string;
+            };
+          };
+          failureClusterCount?: number;
+          promotionGate?: {
+            decision?: string;
+            outcome?: string;
+          } | null;
+        };
+        failureClusters: Array<{
+          clusterId: string;
+          kind: string;
+          totalCases: number;
+          failureTags: string[];
+          strategyLabels: string[];
+          strategyModes: string[];
+          cases: Array<{
+            caseId: string;
+            artifactPaths: Record<string, string>;
+          }>;
+        }>;
+      };
+
+      expect(artifact.summary.regressionDashboardSummary).toMatchObject({
+        totalRegressionCases: 2,
+        totalBlockingCases: 3,
+        judgedRegressionCases: 2,
+        executionFailureCount: 1,
+        unattributedExecutionFailureCount: 0,
+        strategyRegressions: [
+          {
+            strategyLabel: "hybrid",
+            regressionCaseCount: 2,
+            executionFailureCaseCount: 1,
+            blockingCaseCount: 3,
+          },
+        ],
+        gate: {
+          decision: "delayed",
+          outcome: "review_required",
+        },
+      });
+      expect(artifact.summary.failureClusterCount).toBe(2);
+      expect(artifact.summary.promotionGate).toMatchObject({
+        decision: "delayed",
+        outcome: "review_required",
+      });
+      expect(artifact.failureClusters[0]).toMatchObject({
+        clusterId:
+          "judged:assertion:non_transfer_signals_absent|assertion:wrong_personalization_absent|goodmemory_wrong_personalization",
+        kind: "judged",
+        totalCases: 2,
+        failureTags: [
+          "assertion:non_transfer_signals_absent",
+          "assertion:wrong_personalization_absent",
+          "goodmemory_wrong_personalization",
+        ],
+        strategyLabels: ["hybrid"],
+        strategyModes: ["assist"],
+      });
+      expect(artifact.failureClusters[0]?.cases[0]?.artifactPaths).toMatchObject({
+        case: "cases/case-cluster-1.json",
+        failure: "failures/case-cluster-1.json",
+        baselineTrace: "traces/case-cluster-1/baseline.json",
+        executedTrace: "traces/case-cluster-1/goodmemory.json",
+        rawRecall: "traces/case-cluster-1/raw-recall.json",
+        judge: "traces/case-cluster-1/judge.json",
+        assertions: "traces/case-cluster-1/assertions.json",
+        proposalTrace: "traces/case-cluster-1/proposal-trace.json",
+      });
+      expect(artifact.failureClusters[1]).toMatchObject({
+        clusterId: "execution:execution:retry_exhausted",
+        kind: "execution",
+        totalCases: 1,
+        failureTags: ["execution:retry_exhausted"],
+        strategyLabels: ["hybrid"],
+        strategyModes: ["assist"],
+      });
+      expect(artifact.failureClusters[1]?.cases[0]?.artifactPaths).toEqual({
+        failure: "failures/case-execution.execution.json",
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("preserves unknown execution influence in shadow comparison artifacts", async () => {
     const workspace = await createTempWorkspace(
       "goodmemory-reporting-shadow-comparisons-unknown",
@@ -1231,6 +1645,81 @@ describe("eval reporting", () => {
       expect("candidateInfluencedExecution" in (artifact.comparisons[0] ?? {})).toBe(
         false,
       );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("clusters judged observe-mode failures under the executed strategy label", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-reporting-observe-failure-cluster",
+    );
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-observe-regression",
+          scenarioId: "scenario-observe-regression",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "rules-only",
+          strategyFamily: "retrieval",
+          strategyMode: "observe",
+          promotedStrategyLabel: "rules-only",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 6,
+          failureTags: ["goodmemory_wrong_personalization"],
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-observe-failure-cluster",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const artifact = JSON.parse(
+        await readFile(join(result.runDirectory, "regression-dashboard.json"), "utf8"),
+      ) as {
+        failureClusters: Array<{
+          strategyLabels: string[];
+          strategyModes: string[];
+          cases: Array<{
+            caseId: string;
+            strategyLabel?: string;
+            executedStrategyLabel?: string;
+            resolvedStrategyLabel?: string;
+          }>;
+        }>;
+      };
+
+      expect(artifact.failureClusters).toHaveLength(1);
+      expect(artifact.failureClusters[0]).toMatchObject({
+        strategyLabels: ["rules-only"],
+        strategyModes: ["observe"],
+      });
+      expect(artifact.failureClusters[0]?.cases[0]).toMatchObject({
+        caseId: "case-observe-regression",
+        strategyLabel: "hybrid",
+        executedStrategyLabel: "rules-only",
+        resolvedStrategyLabel: "rules-only",
+      });
     } finally {
       await workspace.cleanup();
     }
