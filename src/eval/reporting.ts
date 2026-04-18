@@ -5,6 +5,7 @@ import type {
   EvalAssertionsAggregate,
   EvalCaseExecutionFailure,
   EvalCaseExecutionFailureStage,
+  EvalPublicSurfaceDecision,
   EvalRegressionDashboardSummary,
   EvalLayerScores,
   EvalRuntimeMetadata,
@@ -22,6 +23,7 @@ import type {
   JudgeResult,
   JudgeScores,
 } from "./judge";
+import { evaluatePublicSurfaceDecision } from "./public-surface-decision";
 import type { EvalAnswerPackage } from "./runners";
 import { evaluateStrategyPromotionGate } from "./strategy-promotion-gate";
 import type { StrategyRolloutFamily, StrategyRolloutMode } from "./strategy-rollout";
@@ -895,13 +897,17 @@ export function aggregateJudgedCases(
   const promotionGate =
     runtime ? evaluateStrategyPromotionGate({ cases, runtime, summary }) : undefined;
   const summaryWithGate = promotionGate ? { ...summary, promotionGate } : summary;
-
-  return {
+  const summaryWithDashboard = {
     ...summaryWithGate,
     regressionDashboardSummary: buildRegressionDashboardSummary(
       summaryWithGate,
       executionFailures,
     ),
+  };
+
+  return {
+    ...summaryWithDashboard,
+    publicSurfaceDecision: evaluatePublicSurfaceDecision(summaryWithDashboard),
   };
 }
 
@@ -1156,6 +1162,9 @@ function buildRegressionDashboardArtifact(input: {
       },
       shadowSummary: input.summary.shadowSummary ?? null,
       promotionGate: input.summary.promotionGate ?? null,
+      publicSurfaceDecision:
+        input.summary.publicSurfaceDecision ??
+        evaluatePublicSurfaceDecision(input.summary),
       regressionDashboardSummary: buildRegressionDashboardSummary(
         input.summary,
         input.executionFailures,
@@ -1199,6 +1208,10 @@ export async function persistEvalArtifacts(input: {
       input.executionFailures ?? summary.executionFailures ?? 0,
     ),
   };
+  const summaryWithPublicSurface = {
+    ...summaryWithDashboard,
+    publicSurfaceDecision: evaluatePublicSurfaceDecision(summaryWithDashboard),
+  };
   const runDirectory = join(input.outputDir, input.runId);
   const casesDirectory = join(runDirectory, "cases");
   const failuresDirectory = join(runDirectory, "failures");
@@ -1215,7 +1228,7 @@ export async function persistEvalArtifacts(input: {
       {
         mode: input.mode,
         runId: input.runId,
-        summary: summaryWithDashboard,
+        summary: summaryWithPublicSurface,
         runtime,
       },
       null,
@@ -1384,7 +1397,7 @@ export async function persistEvalArtifacts(input: {
 
   await writeFile(
     join(runDirectory, "strategy-promotion-gate.json"),
-    `${JSON.stringify(summaryWithDashboard.promotionGate ?? null, null, 2)}\n`,
+    `${JSON.stringify(summaryWithPublicSurface.promotionGate ?? null, null, 2)}\n`,
     "utf8",
   );
 
@@ -1394,13 +1407,19 @@ export async function persistEvalArtifacts(input: {
       buildRegressionDashboardArtifact({
         mode: input.mode,
         runId: input.runId,
-        summary: summaryWithDashboard,
+        summary: summaryWithPublicSurface,
         cases: input.cases,
         executionFailures: input.executionFailures ?? [],
       }),
       null,
       2,
     )}\n`,
+    "utf8",
+  );
+
+  await writeFile(
+    join(runDirectory, "public-surface-decision.json"),
+    `${JSON.stringify(summaryWithPublicSurface.publicSurfaceDecision ?? null, null, 2)}\n`,
     "utf8",
   );
 

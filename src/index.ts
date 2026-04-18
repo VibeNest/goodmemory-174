@@ -278,8 +278,6 @@ export type {
   WorkingMemoryPatch,
 } from "./runtime/contextService";
 export { createRuntimeContextService } from "./runtime/contextService";
-export type { RuntimeSalvageConfig } from "./evolution/salvage";
-export { createRuntimeSalvageHooks } from "./evolution/salvage";
 
 export type {
   BuildContextInput,

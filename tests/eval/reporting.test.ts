@@ -1392,6 +1392,148 @@ describe("eval reporting", () => {
     }
   });
 
+  it("persists a deterministic public surface decision artifact", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-public-surface");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-surface",
+          scenarioId: "scenario-surface-1",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "rules-only",
+          strategyFamily: "retrieval",
+          strategyMode: "observe",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: false,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-public-surface",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const report = JSON.parse(
+        await readFile(join(result.runDirectory, "report.json"), "utf8"),
+      ) as {
+        summary?: {
+          publicSurfaceDecision?: {
+            officialCliShape?: {
+              evalSubcommandsNested?: boolean;
+              memoryCommandsAtRoot?: boolean;
+              publicEvolutionNamespace?: boolean;
+            };
+            evidence?: {
+              promotionGateDecision?: string;
+              totalRegressionCases?: number;
+            };
+            surfaces?: Array<{
+              surface?: string;
+              exposure?: string;
+              decision?: string;
+            }>;
+          };
+        };
+      };
+      const artifact = JSON.parse(
+        await readFile(join(result.runDirectory, "public-surface-decision.json"), "utf8"),
+      ) as {
+        officialCliShape?: {
+          evalSubcommandsNested?: boolean;
+          memoryCommandsAtRoot?: boolean;
+          publicEvolutionNamespace?: boolean;
+        };
+        evidence?: {
+          promotionGateDecision?: string;
+          totalRegressionCases?: number;
+        };
+        surfaces?: Array<{
+          surface?: string;
+          exposure?: string;
+          decision?: string;
+        }>;
+      };
+
+      expect(report.summary?.publicSurfaceDecision).toMatchObject({
+        officialCliShape: {
+          evalSubcommandsNested: true,
+          memoryCommandsAtRoot: true,
+          publicEvolutionNamespace: false,
+        },
+        evidence: {
+          promotionGateDecision: "delayed",
+          totalRegressionCases: 0,
+        },
+      });
+      expect(report.summary?.publicSurfaceDecision?.surfaces).toMatchObject([
+        {
+          surface: "core_config",
+          exposure: "public",
+          decision: "accepted",
+        },
+        {
+          surface: "eval_artifact_cli",
+          exposure: "public",
+          decision: "accepted",
+        },
+        {
+          surface: "official_memory_cli",
+          exposure: "advanced",
+          decision: "delayed",
+        },
+        {
+          surface: "strategy_rollout_config",
+          exposure: "internal",
+          decision: "delayed",
+        },
+        {
+          surface: "promotion_gate_runtime",
+          exposure: "internal",
+          decision: "delayed",
+        },
+        {
+          surface: "evolution_namespace",
+          exposure: "internal",
+          decision: "delayed",
+        },
+      ]);
+      expect(artifact).toMatchObject({
+        officialCliShape: {
+          evalSubcommandsNested: true,
+          memoryCommandsAtRoot: true,
+          publicEvolutionNamespace: false,
+        },
+        evidence: {
+          promotionGateDecision: "delayed",
+          totalRegressionCases: 0,
+        },
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("persists a regression dashboard artifact with failure clusters and raw lineage", async () => {
     const workspace = await createTempWorkspace("goodmemory-reporting-regression-dashboard");
 

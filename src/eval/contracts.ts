@@ -123,6 +123,36 @@ export interface EvalRegressionDashboardSummary {
   };
 }
 
+export type EvalPublicSurfaceExposure = "public" | "advanced" | "internal";
+
+export interface EvalPublicSurfaceDecisionItem {
+  surface:
+    | "core_config"
+    | "eval_artifact_cli"
+    | "official_memory_cli"
+    | "strategy_rollout_config"
+    | "promotion_gate_runtime"
+    | "evolution_namespace";
+  exposure: EvalPublicSurfaceExposure;
+  decision: PromotionDecision;
+  rationale: string;
+}
+
+export interface EvalPublicSurfaceDecision {
+  officialCliShape: {
+    evalSubcommandsNested: true;
+    memoryCommandsAtRoot: true;
+    publicEvolutionNamespace: false;
+  };
+  surfaces: EvalPublicSurfaceDecisionItem[];
+  evidence: {
+    executionFailureCount: number;
+    promotionGateDecision?: PromotionDecision;
+    promotionGateOutcome?: PromotionGateOutcome;
+    totalRegressionCases: number;
+  };
+}
+
 export interface EvalMaintenanceSummary {
   averageActiveValidatedPatterns: number;
   averageCompiledValidatedPatterns: number;
@@ -243,6 +273,7 @@ export interface EvalSuiteSummary {
   };
   assertions: EvalAssertionsAggregate;
   outcomeLoopSummary?: EvalOutcomeLoopSummary;
+  publicSurfaceDecision?: EvalPublicSurfaceDecision;
   promotionGate?: EvalStrategyPromotionGateDecision;
   regressionDashboardSummary?: EvalRegressionDashboardSummary;
   shadowSummary?: EvalShadowSummary;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 describe("release metadata and docs", () => {
   it("package metadata exposes bin, exports, and key scripts", async () => {
@@ -51,6 +52,16 @@ describe("release metadata and docs", () => {
     }
   });
 
+  it("root exports stay aligned with the declared public surface", async () => {
+    const rootModule = (await import(
+      pathToFileURL(join(import.meta.dir, "../../src/index.ts")).href
+    )) as Record<string, unknown>;
+
+    expect(rootModule.createGoodMemory).toBeDefined();
+    expect(rootModule.createRuntimeContextService).toBeDefined();
+    expect(rootModule.createRuntimeSalvageHooks).toBeUndefined();
+  });
+
   it("readme links the canonical docs, examples, cli, and eval flow", async () => {
     const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
 
@@ -67,6 +78,9 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("eval:fallback");
     expect(readme).toContain("eval:live");
     expect(readme).not.toContain("eval:full");
+    expect(readme).not.toContain("goodmemory/evolution");
+    expect(readme).not.toContain("strategyRollout");
+    expect(readme).not.toContain("promotionGate");
   });
 
   it("release checklist exists and covers the final gate", async () => {
@@ -84,6 +98,9 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
     expect(checklist).not.toContain("eval:full");
+    expect(checklist).not.toContain("goodmemory/evolution");
+    expect(checklist).not.toContain("strategyRollout");
+    expect(checklist).not.toContain("promotionGate");
   });
 
   it("bun test discovery is pinned to the repository test tree", async () => {

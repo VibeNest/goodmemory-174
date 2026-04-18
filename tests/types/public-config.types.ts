@@ -68,6 +68,34 @@ const invalidRouterConfig: GoodMemoryConfig = {
   router: { strategy: "rules-only" },
 };
 
+const invalidEvolutionConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  // @ts-expect-error GoodMemory core config does not expose evolution internals.
+  evolution: { enabled: true },
+};
+
+const invalidStrategyRolloutConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  // @ts-expect-error GoodMemory core config does not expose eval rollout controls.
+  strategyRollout: { family: "retrieval", mode: "assist" },
+};
+
+const invalidPromotionGateConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  // @ts-expect-error GoodMemory core config does not expose promotion-gate runtime controls.
+  promotionGate: { decision: "accepted" },
+};
+
+const invalidEvalConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  // @ts-expect-error GoodMemory core config does not expose eval-only configuration.
+  eval: { outputDir: "reports/eval" },
+};
+
 void invalidEmbeddingConfig;
 void invalidLLMConfig;
 void invalidRouterConfig;
+void invalidEvolutionConfig;
+void invalidStrategyRolloutConfig;
+void invalidPromotionGateConfig;
+void invalidEvalConfig;

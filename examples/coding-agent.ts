@@ -5,8 +5,8 @@ import {
   createInMemorySessionStore,
   createMemoryRepositories,
   createRuntimeContextService,
-  createRuntimeSalvageHooks,
 } from "../src";
+import { createRuntimeSalvageHooks } from "../src/evolution/salvage";
 
 export async function runCodingAgentExample(): Promise<{
   artifacts: MarkdownArtifactBundle;
