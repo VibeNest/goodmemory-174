@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createFakeLLMAdapter } from "../../src/testing/fakes";
+import { createGoodMemory } from "../../src";
+import {
+  createFakeEmbeddingAdapter,
+  createFakeLLMAdapter,
+} from "../../src/testing/fakes";
 import { createTempWorkspace } from "../../src/testing/utils";
 import {
   runEvalSuite,
@@ -754,8 +758,7 @@ describe("eval suite", () => {
         personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
         scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
         outputDir: join(workspace.root, "reports"),
-        scenarioIds: ["scenario-complex-01"],
-        strategies: ["hybrid"],
+        caseIds: ["scenario-complex-01__hybrid"],
         strategyRollout: {
           family: "retrieval",
           mode: "observe",
@@ -953,6 +956,238 @@ describe("eval suite", () => {
       expect(result.cases[0]?.metadata.strategyLabel).toBe("hybrid");
       expect(result.cases[0]?.metadata.resolvedStrategyLabel).toBe("rules-only");
       expect(result.cases[0]?.goodmemory.candidateInfluencedExecution).toBe(false);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("runs an isolated shadow candidate replay in observe mode and persists separate shadow traces", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-shadow-replay");
+    const createMemoryCalls: Array<{
+      caseId: string;
+      scopeNamespace: string;
+    }> = [];
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        caseIds: ["scenario-complex-01__hybrid"],
+        strategyRollout: {
+          family: "retrieval",
+          mode: "observe",
+          promotedStrategy: "rules-only",
+        },
+        createMemory: ({ caseId, scopeNamespace }) => {
+          createMemoryCalls.push({ caseId, scopeNamespace });
+
+          return createGoodMemory({
+            storage: { provider: "memory" },
+            adapters: {
+              embeddingAdapter: createFakeEmbeddingAdapter(),
+            },
+          });
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "shadow replay case",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      const shadowArtifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "shadow-executed-path-comparisons.json"),
+          "utf8",
+        ),
+      ) as {
+        comparisons: Array<{
+          shadowResolvedStrategyLabel?: string;
+          artifactPaths: {
+            shadowTrace?: string;
+            shadowRawRecall?: string;
+          };
+        }>;
+      };
+      const shadowTracePath = shadowArtifact.comparisons[0]?.artifactPaths.shadowTrace;
+      const shadowRawRecallPath =
+        shadowArtifact.comparisons[0]?.artifactPaths.shadowRawRecall;
+      if (!shadowTracePath || !shadowRawRecallPath) {
+        throw new Error("Missing persisted shadow artifact paths");
+      }
+      const shadowTrace = JSON.parse(
+        await readFile(join(result.runDirectory, shadowTracePath), "utf8"),
+      ) as {
+        strategyMode?: string;
+        candidateInfluencedExecution?: boolean;
+        resolvedStrategyLabel?: string;
+      };
+      const shadowRecall = JSON.parse(
+        await readFile(join(result.runDirectory, shadowRawRecallPath), "utf8"),
+      ) as {
+        routingDecision?: {
+          strategy?: string;
+        };
+      };
+
+      expect(createMemoryCalls).toHaveLength(2);
+      expect(createMemoryCalls[0]?.caseId).toBe("scenario-complex-01__hybrid");
+      expect(createMemoryCalls[1]?.caseId).toBe("scenario-complex-01__hybrid__shadow");
+      expect(createMemoryCalls[1]?.scopeNamespace).toContain("__shadow");
+      expect(createMemoryCalls[1]?.scopeNamespace).not.toBe(
+        createMemoryCalls[0]?.scopeNamespace,
+      );
+      expect(result.cases[0]?.shadow?.strategyMode).toBe("assist");
+      expect(result.cases[0]?.shadow?.candidateInfluencedExecution).toBe(true);
+      expect(result.cases[0]?.shadow?.resolvedStrategyLabel).toBe("hybrid");
+      expect(shadowTrace.strategyMode).toBe("assist");
+      expect(shadowTrace.candidateInfluencedExecution).toBe(true);
+      expect(shadowTrace.resolvedStrategyLabel).toBe("hybrid");
+      expect(shadowRecall.routingDecision?.strategy).toBe("hybrid");
+      expect(shadowArtifact.comparisons[0]?.shadowResolvedStrategyLabel).toBe("hybrid");
+      expect(shadowTracePath).toBe(
+        "traces/scenario-complex-01__hybrid__shadow/shadow.json",
+      );
+      expect(shadowRawRecallPath).toBe(
+        "traces/scenario-complex-01__hybrid__shadow/shadow-raw-recall.json",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("cleans up the primary handle when observe shadow setup fails", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-suite-shadow-setup-cleanup",
+    );
+    const createMemoryCalls: string[] = [];
+    let primaryCleanupCalls = 0;
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        caseIds: ["scenario-complex-01__hybrid"],
+        strategyRollout: {
+          family: "retrieval",
+          mode: "observe",
+          promotedStrategy: "rules-only",
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async () => ({
+          content: "not used",
+        }),
+        judge: createFakeLLMAdapter([]),
+        createMemory: ({ caseId }) => {
+          createMemoryCalls.push(caseId);
+          if (caseId.endsWith("__shadow")) {
+            throw new Error("shadow-create-error");
+          }
+
+          return {
+            memory: {
+              async remember() {
+                return {
+                  accepted: 0,
+                  rejected: 0,
+                  events: [],
+                };
+              },
+              async feedback() {
+                return { accepted: false };
+              },
+              async recall() {
+                throw new Error("should-not-run");
+              },
+              async buildContext() {
+                throw new Error("should-not-run");
+              },
+              async forget() {
+                return { forgotten: false };
+              },
+              async exportMemory() {
+                throw new Error("should-not-run");
+              },
+              async deleteAllMemory() {
+                return {
+                  scope: { userId: "u-1" },
+                  deleted: {
+                    profiles: 0,
+                    preferences: 0,
+                    references: 0,
+                    facts: 0,
+                    feedback: 0,
+                    episodes: 0,
+                    archives: 0,
+                    evidence: 0,
+                    experiences: 0,
+                    proposals: 0,
+                    promotions: 0,
+                    workingMemory: 0,
+                    journal: 0,
+                    artifactSpills: 0,
+                  },
+                };
+              },
+            } as never,
+            cleanup: async () => {
+              primaryCleanupCalls += 1;
+            },
+          };
+        },
+      });
+
+      expect(createMemoryCalls).toEqual([
+        "scenario-complex-01__hybrid",
+        "scenario-complex-01__hybrid__shadow",
+      ]);
+      expect(primaryCleanupCalls).toBe(1);
+      expect(result.cases).toHaveLength(0);
+      expect(result.failedCases).toHaveLength(1);
+      expect(result.failedCases?.[0]?.lastError).toContain("shadow-create-error");
     } finally {
       await workspace.cleanup();
     }

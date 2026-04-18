@@ -376,8 +376,13 @@ function buildCase(input: {
   contaminationFindings?: string[];
   staleFindings?: string[];
   updateFindings?: string[];
+  shadow?: {
+    strategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+    resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+    candidateInfluencedExecution?: boolean;
+  };
 }): JudgedEvalCase {
-  return {
+  const result: JudgedEvalCase = {
     caseId: input.caseId,
     metadata: {
       taskFamily: input.taskFamily,
@@ -422,6 +427,29 @@ function buildCase(input: {
       input.staleFindings,
     ),
   };
+
+  if (input.shadow) {
+    result.shadow = {
+      ...buildAnswerPackage(
+        `${input.caseId}__shadow`,
+        "goodmemory",
+        `shadow-${input.caseId}`,
+        input.shadow.strategyLabel ?? input.strategyLabel ?? "rules-only",
+        input.shadow.resolvedStrategyLabel ??
+          input.shadow.strategyLabel ??
+          input.resolvedStrategyLabel ??
+          input.strategyLabel ??
+          "rules-only",
+        input.shadow.candidateInfluencedExecution,
+        input.scenarioId,
+      ),
+      strategyFamily: input.strategyFamily,
+      strategyMode: "assist",
+      promotedStrategyLabel: input.promotedStrategyLabel,
+    };
+  }
+
+  return result;
 }
 
 describe("eval reporting", () => {
@@ -971,6 +999,11 @@ describe("eval reporting", () => {
           winner: "goodmemory",
           baselineHistory: 4,
           goodmemoryHistory: 8,
+          shadow: {
+            strategyLabel: "hybrid",
+            resolvedStrategyLabel: "hybrid",
+            candidateInfluencedExecution: true,
+          },
         }),
       ];
 
@@ -1005,6 +1038,7 @@ describe("eval reporting", () => {
           strategyMode: string;
           requestedStrategyLabel: string;
           executedStrategyLabel: string;
+          shadowResolvedStrategyLabel?: string;
           promotedStrategyLabel?: string;
           comparisonTarget: string;
           executedPathSource: string;
@@ -1012,6 +1046,8 @@ describe("eval reporting", () => {
           artifactPaths: {
             baselineTrace: string;
             executedTrace: string;
+            shadowTrace?: string;
+            shadowRawRecall?: string;
             rawRecall?: string;
           };
         }>;
@@ -1025,6 +1061,7 @@ describe("eval reporting", () => {
         strategyMode: "observe",
         requestedStrategyLabel: "hybrid",
         executedStrategyLabel: "rules-only",
+        shadowResolvedStrategyLabel: "hybrid",
         promotedStrategyLabel: "rules-only",
         comparisonTarget: "executed-path",
         executedPathSource: "promoted_or_default",
@@ -1035,6 +1072,12 @@ describe("eval reporting", () => {
       );
       expect(artifact.comparisons[0]?.artifactPaths.executedTrace).toBe(
         "traces/case-shadow/goodmemory.json",
+      );
+      expect(artifact.comparisons[0]?.artifactPaths.shadowTrace).toBe(
+        "traces/case-shadow__shadow/shadow.json",
+      );
+      expect(artifact.comparisons[0]?.artifactPaths.shadowRawRecall).toBe(
+        "traces/case-shadow__shadow/shadow-raw-recall.json",
       );
       expect(artifact.comparisons[0]?.artifactPaths.baselineTrace).not.toBe(
         artifact.comparisons[0]?.artifactPaths.executedTrace,

@@ -529,6 +529,14 @@ function buildShadowComparisonRows(
         "baseline"
       >,
       executedStrategyLabel: resolveExecutedStrategyLabel(item),
+      ...(item.shadow?.resolvedStrategyLabel
+        ? {
+            shadowResolvedStrategyLabel: item.shadow.resolvedStrategyLabel as Exclude<
+              EvalAnswerPackage["strategyLabel"],
+              "baseline"
+            >,
+          }
+        : {}),
       promotedStrategyLabel: item.metadata.promotedStrategyLabel as Exclude<
         EvalAnswerPackage["strategyLabel"],
         "baseline"
@@ -543,6 +551,18 @@ function buildShadowComparisonRows(
       artifactPaths: {
         baselineTrace: join("traces", item.caseId, "baseline.json"),
         executedTrace: join("traces", item.caseId, "goodmemory.json"),
+        ...(item.shadow
+          ? { shadowTrace: join("traces", `${item.caseId}__shadow`, "shadow.json") }
+          : {}),
+        ...(item.shadow?.retrieved
+          ? {
+              shadowRawRecall: join(
+                "traces",
+                `${item.caseId}__shadow`,
+                "shadow-raw-recall.json",
+              ),
+            }
+          : {}),
         ...(item.goodmemory.retrieved
           ? { rawRecall: join("traces", item.caseId, "raw-recall.json") }
           : {}),
@@ -792,6 +812,29 @@ export async function persistEvalArtifacts(input: {
       `${JSON.stringify(item.goodmemory, null, 2)}\n`,
       "utf8",
     );
+    if (item.shadow) {
+      const shadowTraceDirectory = join(tracesDirectory, `${item.caseId}__shadow`);
+      await mkdir(shadowTraceDirectory, { recursive: true });
+      await writeFile(
+        join(shadowTraceDirectory, "shadow.json"),
+        `${JSON.stringify(item.shadow, null, 2)}\n`,
+        "utf8",
+      );
+      if (item.shadow.retrieved) {
+        await writeFile(
+          join(shadowTraceDirectory, "shadow-raw-recall.json"),
+          `${JSON.stringify(item.shadow.retrieved, null, 2)}\n`,
+          "utf8",
+        );
+      }
+      if (item.shadow.memoryContext) {
+        await writeFile(
+          join(shadowTraceDirectory, "shadow-built-context.md"),
+          `${item.shadow.memoryContext}\n`,
+          "utf8",
+        );
+      }
+    }
     if (item.goodmemory.retrieved) {
       await writeFile(
         join(caseTraceDirectory, "raw-recall.json"),

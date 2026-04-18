@@ -54,6 +54,7 @@ export interface JudgedEvalCase {
   };
   baseline: EvalAnswerPackage;
   goodmemory: EvalAnswerPackage;
+  shadow?: EvalAnswerPackage;
   judge: JudgeResult;
   assertions: EvalAssertionSummary;
 }
@@ -135,6 +136,10 @@ export interface EvalShadowComparisonRow {
   strategyMode: StrategyRolloutMode;
   requestedStrategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
   executedStrategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  shadowResolvedStrategyLabel?: Exclude<
+    EvalAnswerPackage["strategyLabel"],
+    "baseline"
+  >;
   promotedStrategyLabel?: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
   comparisonTarget: "executed-path";
   executedPathSource: EvalShadowExecutionPathSource;
@@ -144,6 +149,8 @@ export interface EvalShadowComparisonRow {
   artifactPaths: {
     baselineTrace: string;
     executedTrace: string;
+    shadowTrace?: string;
+    shadowRawRecall?: string;
     rawRecall?: string;
     judge: string;
     assertions: string;

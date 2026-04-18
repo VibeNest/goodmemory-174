@@ -72,10 +72,104 @@ export interface EvalSuiteResult {
   failedCases?: EvalCaseExecutionFailure[];
 }
 
+interface EvalMemoryHandle {
+  cleanup?: () => Promise<void>;
+  memory: GoodMemory;
+}
+
 function defaultCreateMemory(): GoodMemory {
   return createGoodMemory({
     storage: { provider: "memory" },
   });
+}
+
+function resolveEvalMemoryHandle(input: {
+  caseId: string;
+  createMemory?: EvalSuiteInput["createMemory"];
+  persona: PersonaSpec;
+  scenario: ScenarioFixture;
+  scopeNamespace: string;
+}): EvalMemoryHandle {
+  const memoryHandle =
+    input.createMemory?.({
+      caseId: input.caseId,
+      persona: input.persona,
+      scenario: input.scenario,
+      scopeNamespace: input.scopeNamespace,
+    }) ?? defaultCreateMemory();
+
+  if ("memory" in memoryHandle) {
+    return memoryHandle;
+  }
+
+  return {
+    memory: memoryHandle,
+  };
+}
+
+function combineCleanups(
+  cleanups: Array<(() => Promise<void>) | undefined>,
+): () => Promise<void> {
+  return async () => {
+    const available = cleanups.filter(
+      (cleanup): cleanup is () => Promise<void> => cleanup !== undefined,
+    );
+    if (available.length === 0) {
+      return;
+    }
+
+    const errors: unknown[] = [];
+    for (const cleanup of available) {
+      try {
+        await cleanup();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    if (errors.length === 1) {
+      throw errors[0];
+    }
+    if (errors.length > 1) {
+      throw new AggregateError(errors, "Multiple eval cleanup handlers failed.");
+    }
+  };
+}
+
+function buildObserveShadowReplay(input: {
+  caseId: string;
+  scopeNamespace: string;
+  strategy: RecallRouterStrategy;
+  strategyRollout?: RetrievalStrategyRolloutConfig;
+}):
+  | {
+      caseId: string;
+      scopeNamespace: string;
+      strategyRollout: RetrievalStrategyRolloutConfig;
+    }
+  | undefined {
+  if (
+    input.strategyRollout?.mode !== "observe" ||
+    input.strategy === "auto"
+  ) {
+    return undefined;
+  }
+
+  const promotedStrategy =
+    input.strategyRollout.promotedStrategy ?? "rules-only";
+  if (input.strategy === promotedStrategy) {
+    return undefined;
+  }
+
+  return {
+    caseId: `${input.caseId}__shadow`,
+    scopeNamespace: `${input.scopeNamespace}__shadow`,
+    strategyRollout: {
+      family: "retrieval",
+      mode: "assist",
+      promotedStrategy,
+    },
+  };
 }
 
 function resolveMaxConcurrency(
@@ -239,21 +333,40 @@ async function evaluateCase(input: {
   rememberExtractionStrategy?: MemoryExtractionStrategy;
   strategyRollout?: RetrievalStrategyRolloutConfig;
 }): Promise<JudgedEvalCase> {
-  const memoryHandle =
-    input.createMemory?.({
+  const cleanups: Array<(() => Promise<void>) | undefined> = [];
+  const cleanup = combineCleanups(cleanups);
+
+  return runWithCaseCleanup(async () => {
+    const primaryHandle = resolveEvalMemoryHandle({
       caseId: input.caseId,
+      createMemory: input.createMemory,
       persona: input.persona,
       scenario: input.scenario,
       scopeNamespace: input.scopeNamespace,
-    }) ?? defaultCreateMemory();
-  const memory =
-    "memory" in memoryHandle ? memoryHandle.memory : memoryHandle;
-  const cleanup =
-    "memory" in memoryHandle ? memoryHandle.cleanup : undefined;
+    });
+    cleanups.push(primaryHandle.cleanup);
 
-  return runWithCaseCleanup(async () => {
+    const shadowReplay = buildObserveShadowReplay({
+      caseId: input.caseId,
+      scopeNamespace: input.scopeNamespace,
+      strategy: input.strategy,
+      strategyRollout: input.strategyRollout,
+    });
+    const shadowHandle = shadowReplay
+      ? resolveEvalMemoryHandle({
+          caseId: shadowReplay.caseId,
+          createMemory: input.createMemory,
+          persona: input.persona,
+          scenario: input.scenario,
+          scopeNamespace: shadowReplay.scopeNamespace,
+        })
+      : undefined;
+    if (shadowHandle) {
+      cleanups.push(shadowHandle.cleanup);
+    }
+
     const goodmemory = await runGoodMemoryScenario({
-      memory,
+      memory: primaryHandle.memory,
       persona: input.persona,
       scenario: input.scenario,
       answerGenerator: input.goodmemoryGenerator,
@@ -262,6 +375,19 @@ async function evaluateCase(input: {
       rememberExtractionStrategy: input.rememberExtractionStrategy,
       scopeNamespace: input.scopeNamespace,
     });
+    const shadow =
+      shadowReplay && shadowHandle
+        ? await runGoodMemoryScenario({
+            memory: shadowHandle.memory,
+            persona: input.persona,
+            scenario: input.scenario,
+            answerGenerator: input.goodmemoryGenerator,
+            strategy: input.strategy,
+            strategyRollout: shadowReplay.strategyRollout,
+            rememberExtractionStrategy: input.rememberExtractionStrategy,
+            scopeNamespace: shadowReplay.scopeNamespace,
+          })
+        : undefined;
     const judge = await runJudgeComparison({
       persona: input.persona,
       scenario: input.scenario,
@@ -289,6 +415,7 @@ async function evaluateCase(input: {
       },
       baseline: input.baseline,
       goodmemory,
+      ...(shadow ? { shadow } : {}),
       judge,
       assertions,
     };

@@ -1,8 +1,8 @@
 Phase 17.2: Shadow Evaluation and Comparison
 ============================================
 
-[TODO] P17.2-T001 Run shadow comparisons without mutating default behavior
-[WIP] P17.2-T002 Keep contamination-safe baseline vs candidate traces
+[DONE] P17.2-T001 Run shadow comparisons without mutating default behavior
+[DONE] P17.2-T002 Keep contamination-safe baseline vs candidate traces
 [WIP] P17.2-T003 Attribute differences to strategy family and mode
 
 Why this exists
@@ -28,10 +28,12 @@ Current implementation slice
 2. Add `shadowSummary` into suite reporting
 3. Attribute rollout comparisons by strategy family and mode
 4. Keep baseline trace and executed trace paths explicit while `observe` mode still executes the promoted strategy
+5. Run isolated retrieval shadow replays through a separate memory handle so observe-mode candidate evaluation does not mutate the promoted execution path
+6. Persist separate `shadow.json` and `shadow-raw-recall.json` traces for the isolated candidate replay
 
-Current blocker
+Remaining scope
 ---------------
-- Full candidate shadow replay is not yet safe to enable through a second public `recall()` call because the current recall path updates low-risk usage state (`accessCount`, `lastAccessedAt`, `lastUsedAt`). P17.2-T001 needs a non-mutating read path or equivalent isolation before candidate execution can be treated as contamination-safe.
+- The real isolated shadow replay is currently implemented for retrieval rollout in eval. Generalizing the same pattern to reviewer and maintenance families still belongs to P17.2-T003 and later promotion-gate work.
 
 Acceptance
 ----------
