@@ -2,8 +2,9 @@ import { describe, expect, it } from "bun:test";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
-  createMemoryRepositories,
+  createRuntimeArchiveStore,
   createRuntimeContextService,
+  SESSION_ARCHIVES_COLLECTION,
 } from "../../src";
 
 describe("public runtime wrapper", () => {
@@ -11,14 +12,10 @@ describe("public runtime wrapper", () => {
     let called = false;
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();
-    const repositories = createMemoryRepositories({
-      documentStore,
-      sessionStore,
-    });
 
     const runtime = createRuntimeContextService({
       sessionStore,
-      archiveStore: repositories.archives,
+      archiveStore: createRuntimeArchiveStore({ documentStore }),
       now: () => "2026-04-18T00:00:00.000Z",
       createArchiveId: () => "archive-public-1",
       maxBufferedMessages: 2,
@@ -39,6 +36,10 @@ describe("public runtime wrapper", () => {
     await runtime.endSession(scope);
 
     expect(called).toBeFalse();
-    expect(await repositories.archives.listByScope(scope)).toHaveLength(1);
+    expect(
+      await documentStore.query(SESSION_ARCHIVES_COLLECTION, {
+        userId: scope.userId,
+      }),
+    ).toHaveLength(1);
   });
 });

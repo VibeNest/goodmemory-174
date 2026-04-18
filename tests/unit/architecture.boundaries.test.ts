@@ -247,6 +247,28 @@ describe("architecture boundaries", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("keeps raw repository and engine assembly out of the root public barrel", async () => {
+    const source = await readFile(join(SRC_ROOT, "index.ts"), "utf8");
+
+    expect(source).not.toContain('export { createMemoryRepositories } from "./storage/repositories"');
+    expect(source).not.toContain('export { createRecallEngine } from "./recall/engine"');
+    expect(source).not.toContain('export { createRememberEngine } from "./remember/engine"');
+    expect(source).not.toContain("MemoryRepositoriesConfig");
+    expect(source).not.toContain("RecallEngineConfig");
+    expect(source).not.toContain("InternalRecallResult");
+  });
+
+  it("keeps createGoodMemory composed from narrow governance ports instead of MemoryRepositories typing", async () => {
+    const source = await readFile(
+      join(SRC_ROOT, "api", "createGoodMemory.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toMatch(/\bMemoryRepositories\b/);
+    expect(source).toContain("GovernanceRepositoryPort");
+    expect(source).toContain("createEvolutionRuntime");
+  });
+
   it("keeps core contracts isolated from api, eval, adapters, and storage implementations", async () => {
     const files = await collectTypeScriptFiles(SRC_ROOT);
     const offenders: Array<{ file: string; targets: string[] }> = [];

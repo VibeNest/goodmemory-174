@@ -62,7 +62,11 @@ describe("release metadata and docs", () => {
     )) as Record<string, unknown>;
 
     expect(rootModule.createGoodMemory).toBeDefined();
+    expect(rootModule.createRuntimeArchiveStore).toBeDefined();
     expect(rootModule.createRuntimeContextService).toBeDefined();
+    expect(rootModule.createMemoryRepositories).toBeUndefined();
+    expect(rootModule.createRecallEngine).toBeUndefined();
+    expect(rootModule.createRememberEngine).toBeUndefined();
     expect(rootModule.createRuntimeSalvageHooks).toBeUndefined();
   });
 
@@ -138,6 +142,7 @@ describe("release metadata and docs", () => {
 
     expect(example).not.toContain("../src/evolution/salvage");
     expect(example).not.toContain("createRuntimeSalvageHooks");
+    expect(example).not.toContain("SESSION_ARCHIVES_COLLECTION");
   });
 
   it("bun test discovery is pinned to the repository test tree", async () => {

@@ -53,8 +53,6 @@ import {
 } from "./recall/contextBuilder";
 import type { RecallRouterStrategy } from "./recall/router";
 import type { MemoryExtractionStrategy } from "./remember/candidates";
-import { createRecallEngine } from "./recall/engine";
-import { createRememberEngine } from "./remember/engine";
 import { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
 import {
   createLanguageService,
@@ -72,8 +70,6 @@ import {
   createPostgresVectorStore,
 } from "./storage/postgres";
 import { createSQLiteDocumentStore, createSQLiteSessionStore } from "./storage/sqlite";
-import { createMemoryRepositories } from "./storage/repositories";
-import type { MemoryRepositories } from "./storage/repositories";
 import type {
   DocumentStore,
   SessionStore,
@@ -193,11 +189,6 @@ export {
   createPostgresSessionStore,
   createPostgresVectorStore,
 } from "./storage/postgres";
-export type {
-  MemoryRepositories,
-  MemoryRepositoriesConfig,
-} from "./storage/repositories";
-export { createMemoryRepositories } from "./storage/repositories";
 export type { MemoryPacket } from "./recall/contextBuilder";
 export {
   buildMemoryPacket,
@@ -205,11 +196,8 @@ export {
 } from "./recall/contextBuilder";
 export type {
   RecallCandidateTrace,
-  RecallEngineConfig,
   RecallHit,
-  RecallResult as InternalRecallResult,
 } from "./recall/engine";
-export { createRecallEngine } from "./recall/engine";
 export type { VerificationHint } from "./verify/policy";
 export { evaluateVerificationHints } from "./verify/policy";
 export type {
@@ -251,7 +239,6 @@ export type {
   RememberEvent as RememberPipelineEvent,
   RememberResult as RememberPipelineResult,
 } from "./remember/engine";
-export { createRememberEngine } from "./remember/engine";
 export type {
   ConflictResolution,
   GoodMemoryPolicyHooks,
@@ -268,6 +255,7 @@ export type {
 } from "./governance/markdownArtifacts";
 export type {
   RuntimeArchiveStore,
+  RuntimeArchiveStoreConfig,
   RuntimeContextServiceConfig,
   RuntimeContextState,
   RuntimeRecallSnapshot,
@@ -275,7 +263,10 @@ export type {
   SessionSummaryInput,
   WorkingMemoryPatch,
 } from "./runtime/public";
-export { createRuntimeContextService } from "./runtime/public";
+export {
+  createRuntimeArchiveStore,
+  createRuntimeContextService,
+} from "./runtime/public";
 
 export type {
   BuildContextInput,

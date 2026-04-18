@@ -1,9 +1,11 @@
-import type { MarkdownArtifactBundle } from "../src";
+import type {
+  MarkdownArtifactBundle,
+} from "../src";
 import {
   createGoodMemory,
   createInMemoryDocumentStore,
   createInMemorySessionStore,
-  createMemoryRepositories,
+  createRuntimeArchiveStore,
   createRuntimeContextService,
 } from "../src";
 
@@ -14,13 +16,9 @@ export async function runCodingAgentExample(): Promise<{
 }> {
   const documentStore = createInMemoryDocumentStore();
   const sessionStore = createInMemorySessionStore();
-  const repositories = createMemoryRepositories({
-    documentStore,
-    sessionStore,
-  });
   const runtime = createRuntimeContextService({
     sessionStore,
-    archiveStore: repositories.archives,
+    archiveStore: createRuntimeArchiveStore({ documentStore }),
     now: () => "2026-04-02T00:00:00.000Z",
     maxBufferedMessages: 2,
   });

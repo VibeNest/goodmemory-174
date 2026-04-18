@@ -27,6 +27,8 @@ import {
 } from "../../src/storage/memory";
 import type {
   EvolutionRepositoryPort,
+  GovernanceRepositoryPort,
+  GovernanceVectorPort,
   MaintenanceRepositoryPort,
   MaintenanceVectorPort,
   RecallRepositoryPort,
@@ -70,9 +72,11 @@ describe("memory repositories", () => {
     const rememberRepositories: RememberRepositoryPort = repositories;
     const recallRepositories: RecallRepositoryPort = repositories;
     const evolutionRepositories: EvolutionRepositoryPort = repositories;
+    const governanceRepositories: GovernanceRepositoryPort = repositories;
     const maintenanceRepositories: MaintenanceRepositoryPort = repositories;
     const rememberVector = repositories.vectorIndex as RememberVectorPort;
     const recallVector = repositories.vectorIndex as RecallVectorSearchPort;
+    const governanceVector = repositories.vectorIndex as GovernanceVectorPort;
     const maintenanceVector = repositories.vectorIndex as MaintenanceVectorPort;
     const scope = { userId: "u-port", workspaceId: "workspace-a" };
 
@@ -120,6 +124,7 @@ describe("memory repositories", () => {
     expect(await recallRepositories.facts.listByScope(scope)).toEqual([fact]);
     expect(await recallRepositories.archives.listByScope(scope)).toEqual([archive]);
     expect(await evolutionRepositories.proposals.get(proposal.id)).toEqual(proposal);
+    expect(await governanceRepositories.profiles.get("u-port")).toBeNull();
     expect(
       await recallVector.searchFactEmbedding([1, 0, 0], {
         topK: 1,
@@ -127,6 +132,15 @@ describe("memory repositories", () => {
       }),
     ).toContainEqual(expect.objectContaining({ id: fact.id }));
 
+    await governanceVector.deleteFactEmbedding(fact.id);
+    await rememberVector.upsertFactEmbedding([
+      {
+        id: fact.id,
+        embedding: [1, 0, 0],
+        metadata: { userId: "u-port", workspaceId: "workspace-a", memoryType: "fact" },
+        content: fact.content,
+      },
+    ]);
     await maintenanceVector.deleteFactEmbedding(fact.id);
     expect(
       await recallVector.searchFactEmbedding([1, 0, 0], {

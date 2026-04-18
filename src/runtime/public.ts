@@ -1,4 +1,8 @@
-import type { SessionStore } from "../storage/contracts";
+import type {
+  DocumentStore,
+  SessionStore,
+} from "../storage/contracts";
+import { SESSION_ARCHIVES_COLLECTION } from "../evolution/contracts";
 import {
   createRuntimeContextService as createInternalRuntimeContextService,
 } from "./contextService";
@@ -20,6 +24,10 @@ export type {
   WorkingMemoryPatch,
 } from "./contextService";
 
+export interface RuntimeArchiveStoreConfig {
+  documentStore: DocumentStore;
+}
+
 export interface RuntimeContextServiceConfig {
   sessionStore: SessionStore;
   archiveStore?: RuntimeArchiveStore;
@@ -27,6 +35,20 @@ export interface RuntimeContextServiceConfig {
   createMessageId?: () => string;
   createArchiveId?: () => string;
   maxBufferedMessages?: number;
+}
+
+export function createRuntimeArchiveStore(
+  config: RuntimeArchiveStoreConfig,
+): RuntimeArchiveStore {
+  return {
+    async add(archive) {
+      await config.documentStore.set(
+        SESSION_ARCHIVES_COLLECTION,
+        archive.id,
+        archive,
+      );
+    },
+  };
 }
 
 export function createRuntimeContextService(

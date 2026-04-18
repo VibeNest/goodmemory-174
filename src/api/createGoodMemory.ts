@@ -1,26 +1,13 @@
 import type {
   ArtifactSpillRecord,
-  FactMemory,
   FeedbackMemory,
 } from "../domain/records";
 import { createFeedbackMemory } from "../domain/records";
-import { scopeToKey } from "../domain/scope";
 import { createMemorySource } from "../domain/provenance";
 import { EVIDENCE_COLLECTION } from "../evidence/contracts";
-import type { ExperienceRecord } from "../evolution/contracts";
-import {
-  buildFeedbackExperienceRecord,
-  buildRecallExperienceRecords,
-  buildRememberExperienceRecord,
-} from "../evolution/observations";
 import { createProceduralPatternCompiler } from "../evolution/compiler";
 import { createProposalGateProcessor } from "../evolution/gates";
 import { createRulesOnlyReviewer } from "../evolution/reviewer";
-import type {
-  FeedbackObservationResult,
-  RecallObservationResult,
-  RememberObservationResult,
-} from "../evolution/observation-results";
 import {
   EXPERIENCES_COLLECTION,
   LEARNING_PROPOSALS_COLLECTION,
@@ -46,8 +33,13 @@ import {
   createPostgresVectorStore,
 } from "../storage/postgres";
 import { createMemoryRepositories } from "../storage/repositories";
-import type { MemoryRepositories } from "../storage/repositories";
+import type {
+  GovernanceRepositoryPort,
+  GovernanceVectorPort,
+} from "../storage/ports";
 import { createSQLiteDocumentStore, createSQLiteSessionStore } from "../storage/sqlite";
+import { createEvolutionRuntime } from "./evolutionRuntime";
+import { deleteVectorForCollection } from "./governance";
 import type {
   BuildContextInput,
   BuildContextResult,
@@ -76,13 +68,6 @@ type ScopeBoundRecord = {
   agentId?: string;
   sessionId?: string;
 };
-
-interface RecallTouchSummary {
-  reinforcedFeedbackCount: number;
-  touchedFactCount: number;
-}
-
-const LOW_RISK_RECALL_TOUCH_WINDOW_MS = 5 * 60 * 1000;
 
 const FORGETTABLE_COLLECTIONS = [
   "facts",
@@ -129,187 +114,14 @@ function isPureUserScope(scope: ForgetInput["scope"]): boolean {
   );
 }
 
-async function deleteVectorForCollection(
-  repositories: MemoryRepositories,
-  collection: string,
-  id: string,
-): Promise<void> {
-  if (!repositories.vectorIndex) {
-    return;
-  }
-
-  if (collection === "facts") {
-    await repositories.vectorIndex.deleteFactEmbedding(id);
-    return;
-  }
-  if (collection === "references") {
-    await repositories.vectorIndex.deleteReferenceEmbedding(id);
-    return;
-  }
-  if (collection === "episodes") {
-    await repositories.vectorIndex.deleteEpisodeEmbedding(id);
-  }
-}
-
-function shouldApplyLowRiskTouch(
-  previousTimestamp: string | undefined,
-  nextTimestamp: string,
-): boolean {
-  if (!previousTimestamp) {
-    return true;
-  }
-
-  const previousMs = new Date(previousTimestamp).getTime();
-  const nextMs = new Date(nextTimestamp).getTime();
-
-  if (!Number.isFinite(previousMs) || !Number.isFinite(nextMs)) {
-    return true;
-  }
-
-  return nextMs - previousMs >= LOW_RISK_RECALL_TOUCH_WINDOW_MS;
-}
-
-async function applyRecallTouchHelpers(
-  repositories: MemoryRepositories,
-  result: RecallResult,
-  timestamp: string,
-): Promise<RecallTouchSummary> {
-  const touchedFacts = new Map<string, FactMemory>();
-  const verificationHintFactIds = new Set(
-    result.metadata.verificationHints
-      .filter((hint) => hint.memoryType === "fact")
-      .map((hint) => hint.memoryId),
-  );
-  const nextFacts = result.facts
-    .filter(
-      (fact) =>
-        fact.lifecycle === "active" &&
-        !verificationHintFactIds.has(fact.id) &&
-        shouldApplyLowRiskTouch(fact.lastAccessedAt, timestamp),
-    )
-    .map((fact) => {
-      const nextFact: FactMemory = {
-        ...fact,
-        accessCount: fact.accessCount + 1,
-        lastAccessedAt: timestamp,
-      };
-
-      touchedFacts.set(nextFact.id, nextFact);
-      return nextFact;
-    });
-  const nextFeedback = result.feedback
-    .filter(
-      (feedback) =>
-        feedback.lifecycle === "active" &&
-        shouldApplyLowRiskTouch(feedback.lastUsedAt, timestamp),
-    )
-    .map((feedback) => {
-      const reinforcedFeedback: FeedbackMemory = {
-        ...feedback,
-        lastUsedAt: timestamp,
-      };
-
-      return reinforcedFeedback;
-    });
-
-  const reinforcedFeedback = new Map(
-    nextFeedback.map((feedback) => [feedback.id, feedback] as const),
-  );
-
-  await Promise.all([
-    ...[...touchedFacts.values()].map((fact) => repositories.facts.add(fact)),
-    ...nextFeedback.map((feedback) => repositories.feedback.upsert(feedback)),
-  ]);
-
-  if (touchedFacts.size > 0) {
-    result.facts = result.facts.map((fact) => touchedFacts.get(fact.id) ?? fact);
-  }
-  if (reinforcedFeedback.size > 0) {
-    result.feedback = result.feedback.map(
-      (feedback) => reinforcedFeedback.get(feedback.id) ?? feedback,
-    );
-  }
-
-  return {
-    reinforcedFeedbackCount: nextFeedback.length,
-    touchedFactCount: nextFacts.length,
-  };
-}
-
-function toRememberObservationResult(
-  result: RememberResult,
-): RememberObservationResult {
-  return {
-    accepted: result.accepted,
-    rejected: result.rejected,
-    events: result.events.map((event) => ({
-      memoryId: event.memoryId,
-      evidenceIds: event.evidenceIds,
-      reason: event.reason,
-    })),
-    modelInfluence:
-      result.metadata?.resolvedExtractionStrategy === "llm-assisted"
-        ? "llm-assisted"
-        : "rules-only",
-  };
-}
-
-function toRecallObservationResult(
-  result: RecallResult,
-  touchSummary?: RecallTouchSummary,
-): RecallObservationResult {
-  return {
-    preferences: result.preferences.map((record) => ({ id: record.id })),
-    references: result.references.map((record) => ({ id: record.id })),
-    facts: result.facts.map((record) => ({ id: record.id })),
-    feedback: result.feedback.map((record) => ({ id: record.id })),
-    archives: result.archives.map((record) => ({ id: record.id })),
-    evidence: result.evidence.map((record) => ({ id: record.id })),
-    episodes: result.episodes.map((record) => ({ id: record.id })),
-    strategy: result.metadata.routingDecision.strategy,
-    hitCount: result.metadata.hits.length,
-    hits: result.metadata.hits.map((hit) => ({
-      evidenceIds: hit.evidenceIds,
-    })),
-    verificationHints: result.metadata.verificationHints.map((hint) => ({
-      memoryId: hint.memoryId,
-      evidenceIds: hint.evidenceIds,
-    })),
-    latencyMs: result.metadata.latencyMs,
-    tokenCount: result.metadata.tokenCount,
-    touchedFactCount: touchSummary?.touchedFactCount ?? 0,
-    reinforcedFeedbackCount: touchSummary?.reinforcedFeedbackCount ?? 0,
-    policyApplied: result.metadata.policyApplied,
-    modelInfluence:
-      result.metadata.routingDecision.strategy === "llm-assisted"
-        ? "llm-assisted"
-        : "rules-only",
-  };
-}
-
-function toFeedbackObservationResult(
-  result: FeedbackResult,
-): FeedbackObservationResult {
-  return {
-    accepted: result.accepted,
-    outcome: result.outcome,
-    kind: result.kind,
-    memoryId: result.memoryId,
-    modelInfluence:
-      result.metadata?.analysisMode === "rules-only" ? "rules-only" : "none",
-  };
-}
-
 class GoodMemoryImpl implements GoodMemory {
   private readonly documentStore;
   private readonly sessionStore;
-  private readonly repositories;
+  private readonly governanceRepositories: GovernanceRepositoryPort;
+  private readonly governanceVectors: GovernanceVectorPort | null;
   private readonly recallEngine;
   private readonly rememberEngine;
-  private readonly reviewer;
-  private readonly proposalGate;
-  private readonly proceduralPatternCompiler;
-  private readonly dreamMaintenance;
+  private readonly evolutionRuntime: ReturnType<typeof createEvolutionRuntime>;
   private readonly language;
   private readonly now: () => Date;
 
@@ -354,7 +166,8 @@ class GoodMemoryImpl implements GoodMemory {
 
     this.documentStore = documentStore;
     this.sessionStore = sessionStore;
-    this.repositories = repositories;
+    this.governanceRepositories = repositories;
+    this.governanceVectors = repositories.vectorIndex;
     this.language = language;
     this.now = config.testing?.now ?? (() => new Date());
     this.recallEngine = createRecallEngine({
@@ -383,13 +196,13 @@ class GoodMemoryImpl implements GoodMemory {
       language,
       policy: config.policy,
     });
-    this.reviewer = createRulesOnlyReviewer({
+    const reviewer = createRulesOnlyReviewer({
       repositories,
     });
-    this.proposalGate = createProposalGateProcessor({
+    const proposalGate = createProposalGateProcessor({
       repositories,
     });
-    this.proceduralPatternCompiler = createProceduralPatternCompiler({
+    const proceduralPatternCompiler = createProceduralPatternCompiler({
       repositories,
       language,
       now: () => this.now().toISOString(),
@@ -402,35 +215,29 @@ class GoodMemoryImpl implements GoodMemory {
       now: () => this.now().toISOString(),
     });
     const dreamMaintenanceGate = createDreamMaintenanceGate();
-    this.dreamMaintenance = createDreamMaintenanceOrchestrator({
+    const dreamMaintenance = createDreamMaintenanceOrchestrator({
       gate: dreamMaintenanceGate,
       maintenanceRunner,
-      reviewer: this.reviewer,
-      proposalGate: this.proposalGate,
-      compiler: this.proceduralPatternCompiler,
+      reviewer,
+      proposalGate,
+      compiler: proceduralPatternCompiler,
+    });
+    this.evolutionRuntime = createEvolutionRuntime({
+      governanceRepositories: repositories,
+      reviewer,
+      proposalGate,
+      compiler: proceduralPatternCompiler,
+      dreamMaintenance,
+      now: () => this.now().toISOString(),
     });
   }
 
   async recall(input: RecallInput): Promise<RecallResult> {
     const result = await this.recallEngine.recall(input);
-    const timestamp = this.now().toISOString();
-    const traceId = crypto.randomUUID();
-    const touchSummary = await applyRecallTouchHelpers(
-      this.repositories,
+    await this.evolutionRuntime.handleRecall({
+      scope: input.scope,
       result,
-      timestamp,
-    );
-
-    await this.persistExperienceRecords(
-      buildRecallExperienceRecords({
-        scope: input.scope,
-        result: toRecallObservationResult(result, touchSummary),
-        traceId,
-        createdAt: timestamp,
-        createId: () => crypto.randomUUID(),
-      }),
-    );
-    await this.runRulesOnlyReview(input.scope);
+    });
 
     return result;
   }
@@ -453,19 +260,10 @@ class GoodMemoryImpl implements GoodMemory {
 
   async remember(input: RememberInput): Promise<RememberResult> {
     const result = await this.rememberEngine.remember(input);
-    const timestamp = new Date().toISOString();
-    const traceId = crypto.randomUUID();
-
-    await this.persistExperienceRecords([
-      buildRememberExperienceRecord({
-        scope: input.scope,
-        result: toRememberObservationResult(result),
-        traceId,
-        createdAt: timestamp,
-        createId: () => crypto.randomUUID(),
-      }),
-    ]);
-    await this.runRulesOnlyReview(input.scope);
+    await this.evolutionRuntime.handleRemember({
+      scope: input.scope,
+      result,
+    });
 
     return result;
   }
@@ -481,7 +279,11 @@ class GoodMemoryImpl implements GoodMemory {
       const existing = await this.documentStore.get(collection, input.memoryId);
 
       if (existing && recordMatchesScope(existing as ScopeBoundRecord, input.scope)) {
-        await deleteVectorForCollection(this.repositories, collection, input.memoryId);
+        await deleteVectorForCollection(
+          this.governanceVectors,
+          collection,
+          input.memoryId,
+        );
         await this.documentStore.delete(collection, input.memoryId);
         return {
           forgotten: true,
@@ -511,17 +313,17 @@ class GoodMemoryImpl implements GoodMemory {
       journal,
       allSpills,
     ] = await Promise.all([
-      this.repositories.profiles.get(input.scope.userId),
-      this.repositories.preferences.listByScope(input.scope),
-      this.repositories.references.listByScope(input.scope),
-      this.repositories.facts.listByScope(input.scope),
-      this.repositories.feedback.listByScope(input.scope),
-      this.repositories.episodes.listByScope(input.scope),
-      this.repositories.archives.listByScope(input.scope),
-      this.repositories.evidence.listByScope(input.scope),
-      this.repositories.experiences.listByScope(input.scope),
-      this.repositories.proposals.listByScope(input.scope),
-      this.repositories.promotions.listByScope(input.scope),
+      this.governanceRepositories.profiles.get(input.scope.userId),
+      this.governanceRepositories.preferences.listByScope(input.scope),
+      this.governanceRepositories.references.listByScope(input.scope),
+      this.governanceRepositories.facts.listByScope(input.scope),
+      this.governanceRepositories.feedback.listByScope(input.scope),
+      this.governanceRepositories.episodes.listByScope(input.scope),
+      this.governanceRepositories.archives.listByScope(input.scope),
+      this.governanceRepositories.evidence.listByScope(input.scope),
+      this.governanceRepositories.experiences.listByScope(input.scope),
+      this.governanceRepositories.proposals.listByScope(input.scope),
+      this.governanceRepositories.promotions.listByScope(input.scope),
       input.includeRuntime && input.scope.sessionId
         ? this.sessionStore.getWorkingMemory(input.scope)
         : Promise.resolve(null),
@@ -602,17 +404,17 @@ class GoodMemoryImpl implements GoodMemory {
       allProposals,
       allPromotions,
     ] = await Promise.all([
-      this.repositories.profiles.get(input.scope.userId),
-      this.repositories.preferences.listByScope(input.scope),
-      this.repositories.references.listByScope(input.scope),
-      this.repositories.facts.listByScope(input.scope),
-      this.repositories.feedback.listByScope(input.scope),
-      this.repositories.episodes.listByScope(input.scope),
-      this.repositories.archives.listByScope(input.scope),
-      this.repositories.evidence.listByScope(input.scope),
-      this.repositories.experiences.listByScope(input.scope),
-      this.repositories.proposals.listByScope(input.scope),
-      this.repositories.promotions.listByScope(input.scope),
+      this.governanceRepositories.profiles.get(input.scope.userId),
+      this.governanceRepositories.preferences.listByScope(input.scope),
+      this.governanceRepositories.references.listByScope(input.scope),
+      this.governanceRepositories.facts.listByScope(input.scope),
+      this.governanceRepositories.feedback.listByScope(input.scope),
+      this.governanceRepositories.episodes.listByScope(input.scope),
+      this.governanceRepositories.archives.listByScope(input.scope),
+      this.governanceRepositories.evidence.listByScope(input.scope),
+      this.governanceRepositories.experiences.listByScope(input.scope),
+      this.governanceRepositories.proposals.listByScope(input.scope),
+      this.governanceRepositories.promotions.listByScope(input.scope),
     ]);
 
     const preferences = allPreferences.filter((record) => recordMatchesScope(record, input.scope));
@@ -638,12 +440,12 @@ class GoodMemoryImpl implements GoodMemory {
       deleted.preferences += 1;
     }
     for (const reference of references) {
-      await deleteVectorForCollection(this.repositories, "references", reference.id);
+      await deleteVectorForCollection(this.governanceVectors, "references", reference.id);
       await this.documentStore.delete("references", reference.id);
       deleted.references += 1;
     }
     for (const fact of facts) {
-      await deleteVectorForCollection(this.repositories, "facts", fact.id);
+      await deleteVectorForCollection(this.governanceVectors, "facts", fact.id);
       await this.documentStore.delete("facts", fact.id);
       deleted.facts += 1;
     }
@@ -652,7 +454,7 @@ class GoodMemoryImpl implements GoodMemory {
       deleted.feedback += 1;
     }
     for (const episode of episodes) {
-      await deleteVectorForCollection(this.repositories, "episodes", episode.id);
+      await deleteVectorForCollection(this.governanceVectors, "episodes", episode.id);
       await this.documentStore.delete("episodes", episode.id);
       deleted.episodes += 1;
     }
@@ -707,7 +509,7 @@ class GoodMemoryImpl implements GoodMemory {
       locale: input.locale,
       text: input.signal,
     });
-    const existing = await this.repositories.feedback.listByScope(input.scope);
+    const existing = await this.governanceRepositories.feedback.listByScope(input.scope);
     const kind = this.language.deriveFeedbackKind(input.signal, resolvedLanguage);
     const normalizedRule = this.language.normalizeForEquality(
       input.signal,
@@ -748,7 +550,7 @@ class GoodMemoryImpl implements GoodMemory {
       });
 
       if (superseded) {
-        await this.repositories.feedback.upsert(
+        await this.governanceRepositories.feedback.upsert(
           createFeedbackMemory({
             ...superseded,
             lifecycle: "superseded",
@@ -757,7 +559,7 @@ class GoodMemoryImpl implements GoodMemory {
           }),
         );
 
-        await this.repositories.feedback.upsert(nextRecord);
+        await this.governanceRepositories.feedback.upsert(nextRecord);
         const result: FeedbackResult = {
           accepted: true,
           outcome: "superseded",
@@ -771,21 +573,15 @@ class GoodMemoryImpl implements GoodMemory {
           },
         };
 
-        await this.persistExperienceRecords([
-          buildFeedbackExperienceRecord({
-            scope: input.scope,
-            result: toFeedbackObservationResult(result),
-            traceId: crypto.randomUUID(),
-            createdAt: timestamp,
-            createId: () => crypto.randomUUID(),
-          }),
-        ]);
-        await this.runRulesOnlyReview(input.scope);
+        await this.evolutionRuntime.handleFeedback({
+          scope: input.scope,
+          result,
+        });
 
         return result;
       }
 
-      await this.repositories.feedback.upsert(nextRecord);
+      await this.governanceRepositories.feedback.upsert(nextRecord);
       const result: FeedbackResult = {
         accepted: true,
         outcome: "written",
@@ -799,16 +595,10 @@ class GoodMemoryImpl implements GoodMemory {
         },
       };
 
-      await this.persistExperienceRecords([
-        buildFeedbackExperienceRecord({
-          scope: input.scope,
-          result: toFeedbackObservationResult(result),
-          traceId: crypto.randomUUID(),
-          createdAt: timestamp,
-          createId: () => crypto.randomUUID(),
-        }),
-      ]);
-      await this.runRulesOnlyReview(input.scope);
+      await this.evolutionRuntime.handleFeedback({
+        scope: input.scope,
+        result,
+      });
 
       return result;
     }
@@ -826,58 +616,16 @@ class GoodMemoryImpl implements GoodMemory {
       },
     };
 
-    await this.persistExperienceRecords([
-      buildFeedbackExperienceRecord({
-        scope: input.scope,
-        result: toFeedbackObservationResult(result),
-        traceId: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        createId: () => crypto.randomUUID(),
-      }),
-    ]);
-    await this.runRulesOnlyReview(input.scope);
+    await this.evolutionRuntime.handleFeedback({
+      scope: input.scope,
+      result,
+    });
 
     return result;
   }
 
   async runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult> {
-    return this.dreamMaintenance.run({
-      scope: input.scope,
-      scopeKey: scopeToKey(input.scope),
-      now: this.now().toISOString(),
-      maintenanceJobs: input.jobs,
-      sessionCountSinceLastRun: input.sessionCountSinceLastRun ?? 1,
-      minSessionCount: input.minSessionCount ?? 1,
-      lastRunAt: input.lastRunAt,
-      minHoursBetweenRuns: input.minHoursBetweenRuns ?? 0,
-    });
-  }
-
-  private async persistExperienceRecords(records: ExperienceRecord[]): Promise<void> {
-    for (const record of records) {
-      try {
-        await this.repositories.experiences.add(record);
-      } catch (error) {
-        console.error("Failed to persist experience record", error);
-      }
-    }
-  }
-
-  private async runRulesOnlyReview(scope: RememberInput["scope"]): Promise<void> {
-    try {
-      const proposals = await this.reviewer.review({ scope });
-
-      if (proposals.length > 0) {
-        await this.proposalGate.process({
-          scope,
-          proposals,
-        });
-      }
-
-      await this.proceduralPatternCompiler.compile(scope);
-    } catch (error) {
-      console.error("Failed to run rules-only reviewer", error);
-    }
+    return this.evolutionRuntime.runMaintenance(input);
   }
 }
 

@@ -132,6 +132,19 @@ export interface MaintenanceRepositoryPort extends
   EpisodeRepositoryPort,
   ExperienceRepositoryPort {}
 
+export interface GovernanceRepositoryPort extends
+  ProfileRepositoryPort,
+  PreferenceRepositoryPort,
+  ReferenceRepositoryPort,
+  FactRepositoryPort,
+  FeedbackRepositoryPort,
+  ArchiveRepositoryPort,
+  EvidenceRepositoryPort,
+  EpisodeRepositoryPort,
+  ExperienceRepositoryPort,
+  ProposalRepositoryPort,
+  PromotionRepositoryPort {}
+
 export interface FactVectorSearchPort {
   searchFactEmbedding(
     queryEmbedding: number[],
@@ -153,20 +166,29 @@ export interface EpisodeVectorSearchPort {
   ): Promise<VectorSearchRecord[]>;
 }
 
-interface FactVectorMutationPort {
+interface FactVectorDeletionPort {
   deleteFactEmbedding(id: string): Promise<void>;
+}
+
+interface ReferenceVectorDeletionPort {
+  deleteReferenceEmbedding(id: string): Promise<void>;
+}
+
+interface EpisodeVectorDeletionPort {
+  deleteEpisodeEmbedding(id: string): Promise<void>;
+}
+
+interface FactVectorMutationPort extends FactVectorDeletionPort {
   getFactEmbedding(id: string): Promise<VectorRecord | null>;
   upsertFactEmbedding(records: VectorMutationRecord[]): Promise<void>;
 }
 
-interface ReferenceVectorMutationPort {
-  deleteReferenceEmbedding(id: string): Promise<void>;
+interface ReferenceVectorMutationPort extends ReferenceVectorDeletionPort {
   getReferenceEmbedding(id: string): Promise<VectorRecord | null>;
   upsertReferenceEmbedding(records: VectorMutationRecord[]): Promise<void>;
 }
 
-interface EpisodeVectorMutationPort {
-  deleteEpisodeEmbedding(id: string): Promise<void>;
+interface EpisodeVectorMutationPort extends EpisodeVectorDeletionPort {
   getEpisodeEmbedding(id: string): Promise<VectorRecord | null>;
   upsertEpisodeEmbedding(records: VectorMutationRecord[]): Promise<void>;
 }
@@ -185,6 +207,11 @@ export interface MaintenanceVectorPort extends
   FactVectorMutationPort,
   ReferenceVectorMutationPort,
   EpisodeVectorMutationPort {}
+
+export interface GovernanceVectorPort extends
+  FactVectorDeletionPort,
+  ReferenceVectorDeletionPort,
+  EpisodeVectorDeletionPort {}
 
 export interface VectorMutationRecord {
   content: string;
