@@ -73,10 +73,13 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("GoodMemory-OSS-Architecture-v1.md");
     expect(readme).toContain("GoodMemory-PRD.md");
     expect(readme).toContain("GoodMemory-TDD-and-Evaluation-Strategy.md");
+    expect(readme).toContain("GoodMemory-Strategy-Rollout-Guide.md");
     expect(readme).toContain("bun run test:coverage");
     expect(readme).toContain("bun run test:all");
     expect(readme).toContain("eval:fallback");
     expect(readme).toContain("eval:live");
+    expect(readme).toContain("observe -> assist -> promote");
+    expect(readme).toContain("regression-dashboard.json");
     expect(readme).not.toContain("eval:full");
     expect(readme).not.toContain("goodmemory/evolution");
     expect(readme).not.toContain("strategyRollout");
@@ -97,10 +100,27 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("bun run test:coverage");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
+    expect(checklist).toContain("Strategy Rollout");
+    expect(checklist).toContain("strategy-promotion-gate.json");
+    expect(checklist).toContain("regression-dashboard.json");
+    expect(checklist).toContain("public-surface-decision.json");
+    expect(checklist).toContain("GoodMemory-Strategy-Rollout-Guide.md");
+    expect(checklist).toContain("rules-only");
+    expect(checklist).toContain("salvage hooks");
     expect(checklist).not.toContain("eval:full");
     expect(checklist).not.toContain("goodmemory/evolution");
     expect(checklist).not.toContain("strategyRollout");
     expect(checklist).not.toContain("promotionGate");
+  });
+
+  it("coding-agent example stays on the public path and avoids internal evolution imports", async () => {
+    const example = await readFile(
+      join(import.meta.dir, "../../examples/coding-agent.ts"),
+      "utf8",
+    );
+
+    expect(example).not.toContain("../src/evolution/salvage");
+    expect(example).not.toContain("createRuntimeSalvageHooks");
   });
 
   it("bun test discovery is pinned to the repository test tree", async () => {

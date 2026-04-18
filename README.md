@@ -128,12 +128,24 @@ bun run eval:live
 
 只有 `reports/eval/live/...` 应被视为产品评测证据。
 
+## Strategy Rollout
+
+GoodMemory v1 keeps `rules-only` as the supported baseline. New retrieval behavior should move through `observe -> assist -> promote`, and non-default promotion should only happen after an `accepted/passed` promotion gate with no blocking regressions.
+
+Operator guidance:
+
+- `observe`: collect isolated shadow evidence without changing the executed path
+- `assist`: allow candidate execution in controlled eval runs
+- `promote`: require `strategy-promotion-gate.json` plus a clean `regression-dashboard.json`
+- stay `rules-only` when eval evidence is incomplete, provider-backed dependencies are unavailable, or rollback conditions are present
+
 ## Key Docs
 
 - Canonical design: [docs/GoodMemory-First-Principles-and-Reference-Architecture.md](./docs/GoodMemory-First-Principles-and-Reference-Architecture.md)
 - v1 implementation architecture: [docs/GoodMemory-OSS-Architecture-v1.md](./docs/GoodMemory-OSS-Architecture-v1.md)
 - PRD: [docs/GoodMemory-PRD.md](./docs/GoodMemory-PRD.md)
 - TDD and evaluation strategy: [docs/GoodMemory-TDD-and-Evaluation-Strategy.md](./docs/GoodMemory-TDD-and-Evaluation-Strategy.md)
+- Strategy rollout guide: [docs/GoodMemory-Strategy-Rollout-Guide.md](./docs/GoodMemory-Strategy-Rollout-Guide.md)
 - Release checklist: [docs/GoodMemory-v1-Release-Checklist.md](./docs/GoodMemory-v1-Release-Checklist.md)
 
 ## Current Scope

@@ -33,11 +33,11 @@ Definition of Done
 Tasks
 -----
 [DONE] P17-T001 Define strategy lifecycle modes: observe, assist, promote
-[WIP] P17-T002 Add shadow evaluation and comparison artifacts
-[WIP] P17-T003 Add promotion gates for retrieval, reviewer, and maintenance strategies
+[DONE] P17-T002 Add shadow evaluation and comparison artifacts
+[DONE] P17-T003 Add promotion gates for retrieval, reviewer, and maintenance strategies
 [DONE] P17-T004 Extend reporting with regression dashboard and gate summaries
-[WIP] P17-T005 Decide advanced/public surface boundaries from rollout evidence
-[TODO] P17-T006 Update release checklists and operator guidance for promoted strategies
+[DONE] P17-T005 Decide advanced/public surface boundaries from rollout evidence
+[DONE] P17-T006 Update release checklists and operator guidance for promoted strategies
 
 
 Key Constraints
@@ -58,3 +58,9 @@ Exit Checklist
 - Regression dashboard artifacts exist
 - Public surface decision record exists
 - Release docs reflect promoted strategy policy
+
+Phase-17 Closure Note
+---------------------
+- Retrieval is the only active rollout family closed in phase 17. The lifecycle, shadow, gate, dashboard, and public-surface decision machinery are now complete for that path.
+- Advanced runtime salvage controls remain internal and are stripped from the root runtime wrapper, so they are not part of the promoted OSS surface or behavior for retrieval rollout.
+- Reviewer and maintenance rollout families remain internal-only until they have real rollout candidates and evidence, so phase 17 closes without prematurely promoting unsupported surfaces.

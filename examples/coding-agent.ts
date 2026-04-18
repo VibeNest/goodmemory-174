@@ -6,13 +6,11 @@ import {
   createMemoryRepositories,
   createRuntimeContextService,
 } from "../src";
-import { createRuntimeSalvageHooks } from "../src/evolution/salvage";
 
 export async function runCodingAgentExample(): Promise<{
   artifacts: MarkdownArtifactBundle;
   memoryContext: string;
   answer: string;
-  salvageProposalSummaries: string[];
 }> {
   const documentStore = createInMemoryDocumentStore();
   const sessionStore = createInMemorySessionStore();
@@ -23,10 +21,6 @@ export async function runCodingAgentExample(): Promise<{
   const runtime = createRuntimeContextService({
     sessionStore,
     archiveStore: repositories.archives,
-    salvageHooks: createRuntimeSalvageHooks({
-      repositories,
-      now: () => "2026-04-02T00:00:00.000Z",
-    }),
     now: () => "2026-04-02T00:00:00.000Z",
     maxBufferedMessages: 2,
   });
@@ -91,9 +85,6 @@ export async function runCodingAgentExample(): Promise<{
     memoryContext: context.content,
     answer:
       "Next step: Finish recall engine, then wire buildContext output before closing the open loop on wire buildContext output.",
-    salvageProposalSummaries: exported.durable.proposals.map(
-      (proposal) => proposal.summary,
-    ),
   };
 }
 

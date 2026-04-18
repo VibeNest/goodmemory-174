@@ -35,6 +35,15 @@
 - report shows top-level `mode`
 - report shows `runtime.generationMode` and `runtime.judgeMode`
 
+## Strategy Rollout
+
+- non-default promotion is blocked unless `strategy-promotion-gate.json` reports `accepted/passed`
+- `regression-dashboard.json` exists and shows no blocking cases for any promoted path
+- `public-surface-decision.json` exists and matches the documented OSS surface
+- observe / assist / promote guidance is documented in `docs/GoodMemory-Strategy-Rollout-Guide.md`
+- rollback conditions explicitly keep `rules-only` available as the supported fallback
+- root runtime entrypoints keep salvage hooks and promotion-gate runtime controls internal
+
 ## Quality Gate
 
 - `bun test` passes on the canonical `tests/` suite

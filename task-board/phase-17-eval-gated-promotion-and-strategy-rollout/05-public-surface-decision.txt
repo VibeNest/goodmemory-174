@@ -3,7 +3,7 @@ Phase 17.5: Public Surface Decision
 
 [DONE] P17.5-T001 Define criteria for exposing advanced config or keeping it internal
 [DONE] P17.5-T002 Evaluate whether `goodmemory/evolution` or similar surfaces are warranted
-[WIP] P17.5-T003 Preserve minimal OSS core when evidence is insufficient
+[DONE] P17.5-T003 Preserve minimal OSS core when evidence is insufficient
 
 Why this exists
 ---------------
@@ -32,7 +32,7 @@ Current implementation slice
 2. Keep `goodmemory/evolution`, rollout config, and promotion-gate runtime controls classified as internal when evidence is insufficient
 3. Add type-level guardrails so `GoodMemoryConfig` still rejects `evolution`, `strategyRollout`, `promotionGate`, and `eval` knobs
 4. Add release doc checks that README and release checklist do not prematurely advertise `goodmemory/evolution`
-5. Keep P17.5-T003 open because the root export surface still includes `createRuntimeSalvageHooks`, and the coding-agent example still depends on it
+5. Keep runtime salvage hooks off the root public surface and strip them from the root runtime wrapper so forced extra keys do not reactivate internal behavior
 
 Acceptance
 ----------

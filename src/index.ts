@@ -267,17 +267,15 @@ export type {
   MarkdownArtifactFile,
 } from "./governance/markdownArtifacts";
 export type {
-  PreCompactSalvageInput,
+  RuntimeArchiveStore,
   RuntimeContextServiceConfig,
   RuntimeContextState,
   RuntimeRecallSnapshot,
-  RuntimeSalvageHooks,
-  SessionEndSalvageInput,
   SessionJournalPatch,
   SessionSummaryInput,
   WorkingMemoryPatch,
-} from "./runtime/contextService";
-export { createRuntimeContextService } from "./runtime/contextService";
+} from "./runtime/public";
+export { createRuntimeContextService } from "./runtime/public";
 
 export type {
   BuildContextInput,

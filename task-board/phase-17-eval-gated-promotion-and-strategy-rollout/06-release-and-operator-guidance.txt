@@ -1,9 +1,9 @@
 Phase 17.6: Release and Operator Guidance
 =========================================
 
-[TODO] P17.6-T001 Update release checklist for promoted strategies
-[TODO] P17.6-T002 Add operator guidance for mode selection and rollback
-[TODO] P17.6-T003 Document when to stay rules-only
+[DONE] P17.6-T001 Update release checklist for promoted strategies
+[DONE] P17.6-T002 Add operator guidance for mode selection and rollback
+[DONE] P17.6-T003 Document when to stay rules-only
 
 Why this exists
 ---------------
@@ -21,6 +21,13 @@ Implementation steps
 1. Update release-facing documents and checklist gates
 2. Explain observe/assist/promote usage and rollback triggers
 3. Keep rules-only fallback visible in examples and guidance
+
+Current implementation slice
+----------------------------
+1. Add `docs/GoodMemory-Strategy-Rollout-Guide.md` for observe / assist / promote usage, rollback triggers, and rules-only guidance
+2. Extend `docs/GoodMemory-v1-Release-Checklist.md` with strategy rollout gates and required artifacts
+3. Update README to link the rollout guide and summarize rollout policy
+4. Lock the guidance with release tests so docs and examples cannot drift back toward internal-only surfaces
 
 Acceptance
 ----------

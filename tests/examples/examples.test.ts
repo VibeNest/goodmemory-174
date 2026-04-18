@@ -30,11 +30,5 @@ describe("examples", () => {
     ).toContain("Current goal: Finish recall engine");
     expect(result.answer).toContain("Finish recall engine");
     expect(result.answer).toContain("wire buildContext output");
-    expect(result.salvageProposalSummaries).toHaveLength(2);
-    expect(
-      result.salvageProposalSummaries.some((summary) =>
-        summary.includes("Pre-compact salvage"),
-      ),
-    ).toBe(true);
   });
 });
