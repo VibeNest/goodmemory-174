@@ -861,6 +861,12 @@ describe("eval suite", () => {
         unknownObserveCases: 0,
         regressionCases: [],
       });
+      expect(result.summary.promotionGate).toMatchObject({
+        mode: "observe",
+        targetStrategyLabel: "hybrid",
+        decision: "delayed",
+        outcome: "review_required",
+      });
       expect(report.summary?.shadowSummary).toMatchObject({
         totalCases: 1,
         safeObserveCases: 1,
@@ -1257,6 +1263,113 @@ describe("eval suite", () => {
         }),
       ).rejects.toThrow(
         "runEvalSuite currently supports only retrieval strategy rollouts; received reviewer.",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("blocks promote-mode retrieval defaults when no accepted promotion gate is supplied", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-promote-gate-required");
+
+    try {
+      await expect(
+        runEvalSuite({
+          mode: "fallback",
+          personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+          scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+          outputDir: join(workspace.root, "reports"),
+          scenarioIds: ["scenario-complex-01"],
+          strategies: ["hybrid"],
+          strategyRollout: {
+            family: "retrieval",
+            mode: "promote",
+            promotedStrategy: "hybrid",
+          },
+          baselineGenerator: async () => ({
+            content: "baseline",
+          }),
+          goodmemoryGenerator: async () => ({
+            content: "not used",
+          }),
+          judge: createFakeLLMAdapter([]),
+        }),
+      ).rejects.toThrow(
+        "Retrieval strategy hybrid cannot become the promoted default because trusted strategy-promotion authorization is not implemented yet.",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("keeps non-default promote rollouts blocked because no trusted authorization source exists yet", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-promote-gate-untrusted");
+
+    try {
+      await expect(
+        runEvalSuite({
+          mode: "fallback",
+          personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+          scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+          outputDir: join(workspace.root, "reports"),
+          caseIds: ["scenario-complex-01__hybrid"],
+          strategyRollout: {
+            family: "retrieval",
+            mode: "promote",
+            promotedStrategy: "hybrid",
+          },
+          baselineGenerator: async () => ({
+            content: "baseline",
+          }),
+          createMemory: () =>
+            createGoodMemory({
+              storage: { provider: "memory" },
+              adapters: {
+                embeddingAdapter: createFakeEmbeddingAdapter(),
+              },
+            }),
+          goodmemoryGenerator: async (input) => ({
+            content: input.memoryContext ?? "missing memory context",
+          }),
+          judge: createFakeLLMAdapter([
+            {
+              content: JSON.stringify({
+                winner: "goodmemory",
+                scores: {
+                  factual_recall: 8,
+                  preference_consistency: 8,
+                  cross_domain_transfer: 8,
+                  contamination_penalty: 8,
+                  update_correctness: 8,
+                  personalization_usefulness: 8,
+                  provenance_explainability: 8,
+                },
+                baseline_scores: {
+                  factual_recall: 5,
+                  preference_consistency: 5,
+                  cross_domain_transfer: 5,
+                  contamination_penalty: 5,
+                  update_correctness: 5,
+                  personalization_usefulness: 5,
+                  provenance_explainability: 5,
+                },
+                goodmemory_scores: {
+                  factual_recall: 8,
+                  preference_consistency: 8,
+                  cross_domain_transfer: 8,
+                  contamination_penalty: 8,
+                  update_correctness: 8,
+                  personalization_usefulness: 8,
+                  provenance_explainability: 8,
+                },
+                reasoning: "attempted promote gate case",
+                failure_tags: [],
+              }),
+            },
+          ]),
+        }),
+      ).rejects.toThrow(
+        "Retrieval strategy hybrid cannot become the promoted default because trusted strategy-promotion authorization is not implemented yet.",
       );
     } finally {
       await workspace.cleanup();

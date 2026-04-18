@@ -1,4 +1,8 @@
 import type {
+  PromotionDecision,
+  PromotionGateOutcome,
+} from "../evolution/contracts";
+import type {
   ProviderExecutionMode,
   ProviderRuntimeMetadata,
 } from "../provider/contracts";
@@ -157,6 +161,35 @@ export interface EvalShadowComparisonRow {
   };
 }
 
+export interface EvalStrategyPromotionGateThresholds {
+  requireKnownObserveSafety: boolean;
+  requireNoRegressions: boolean;
+  requirePassingAssertions: boolean;
+  requirePositivePrimaryUplift: boolean;
+}
+
+export interface EvalStrategyPromotionGateDecision {
+  family: StrategyRolloutFamily;
+  mode: StrategyRolloutMode;
+  targetStrategyLabel?: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  promotedStrategyLabel?: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  decision: PromotionDecision;
+  outcome: PromotionGateOutcome;
+  rationale: string;
+  regressionCases: string[];
+  thresholds: EvalStrategyPromotionGateThresholds;
+  evidence: {
+    assertionPassRate: number;
+    candidateInfluencedCases?: number;
+    completedCases?: number;
+    executionFailures?: number;
+    positivePrimaryUplift?: boolean;
+    safeObserveCases?: number;
+    totalCases: number;
+    unknownObserveCases?: number;
+  };
+}
+
 export interface EvalSuiteSummary {
   totalCases: number;
   completedCases?: number;
@@ -176,6 +209,7 @@ export interface EvalSuiteSummary {
   };
   assertions: EvalAssertionsAggregate;
   outcomeLoopSummary?: EvalOutcomeLoopSummary;
+  promotionGate?: EvalStrategyPromotionGateDecision;
   shadowSummary?: EvalShadowSummary;
   strategySummary: EvalStrategySummary;
   maintenanceSummary?: EvalMaintenanceSummary;

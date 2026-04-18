@@ -26,7 +26,7 @@ export interface RetrievalStrategyRolloutDecision {
   candidateInfluencedExecution?: boolean;
 }
 
-const DEFAULT_PROMOTED_RETRIEVAL_STRATEGY = "rules-only";
+export const DEFAULT_PROMOTED_RETRIEVAL_STRATEGY = "rules-only";
 
 export function buildStrategyRolloutMetadata(
   rollout?: RetrievalStrategyRolloutConfig,

@@ -9,6 +9,7 @@ import type {
   EvalShadowComparisonRow,
   EvalShadowSummary,
   EvalStrategyBreakdown,
+  EvalStrategyPromotionGateDecision,
   EvalStrategySliceSummary,
   EvalStrategySummary,
   EvalSuiteSummary,
@@ -20,6 +21,7 @@ import type {
   JudgeScores,
 } from "./judge";
 import type { EvalAnswerPackage } from "./runners";
+import { evaluateStrategyPromotionGate } from "./strategy-promotion-gate";
 import type { StrategyRolloutFamily, StrategyRolloutMode } from "./strategy-rollout";
 
 function emptyScores(): JudgeScores {
@@ -700,6 +702,7 @@ function buildOutcomeLoopSummary(cases: JudgedEvalCase[]) {
 export function aggregateJudgedCases(
   cases: JudgedEvalCase[],
   executionFailureCount = 0,
+  runtime?: EvalRuntimeMetadata,
 ): EvalSuiteSummary {
   const winnerCounts = {
     baseline: 0,
@@ -727,7 +730,7 @@ export function aggregateJudgedCases(
     subtractLayerScores(goodmemoryLayers, baselineLayers),
   );
 
-  return {
+  const summary: EvalSuiteSummary = {
     totalCases: cases.length + executionFailureCount,
     completedCases: cases.length,
     executionFailures: executionFailureCount,
@@ -746,6 +749,11 @@ export function aggregateJudgedCases(
     strategySummary: buildStrategySummary(cases),
     maintenanceSummary: buildMaintenanceSummary(cases),
   };
+
+  const promotionGate =
+    runtime ? evaluateStrategyPromotionGate({ cases, runtime, summary }) : undefined;
+
+  return promotionGate ? { ...summary, promotionGate } : summary;
 }
 
 export async function persistEvalArtifacts(input: {
@@ -757,7 +765,23 @@ export async function persistEvalArtifacts(input: {
   cases: JudgedEvalCase[];
   executionFailures?: EvalCaseExecutionFailure[];
 }): Promise<{ runDirectory: string }> {
-  const runtime = normalizeProviderRuntimeMetadata(input.runtime);
+  const runtime = {
+    ...normalizeProviderRuntimeMetadata(input.runtime),
+    ...(input.runtime.strategyRollout
+      ? { strategyRollout: input.runtime.strategyRollout }
+      : {}),
+  } satisfies EvalRuntimeMetadata;
+  const summary =
+    input.summary.promotionGate !== undefined || runtime.strategyRollout === undefined
+      ? input.summary
+      : {
+          ...input.summary,
+          promotionGate: evaluateStrategyPromotionGate({
+            cases: input.cases,
+            runtime,
+            summary: input.summary,
+          }),
+        };
   const runDirectory = join(input.outputDir, input.runId);
   const casesDirectory = join(runDirectory, "cases");
   const failuresDirectory = join(runDirectory, "failures");
@@ -774,7 +798,7 @@ export async function persistEvalArtifacts(input: {
       {
         mode: input.mode,
         runId: input.runId,
-        summary: input.summary,
+        summary,
         runtime,
       },
       null,
@@ -968,6 +992,12 @@ export async function persistEvalArtifacts(input: {
   await writeFile(
     join(runDirectory, "shadow-comparisons.json"),
     shadowComparisonPayload,
+    "utf8",
+  );
+
+  await writeFile(
+    join(runDirectory, "strategy-promotion-gate.json"),
+    `${JSON.stringify(summary.promotionGate ?? null, null, 2)}\n`,
     "utf8",
   );
 

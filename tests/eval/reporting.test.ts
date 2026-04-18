@@ -1090,6 +1090,86 @@ describe("eval reporting", () => {
     }
   });
 
+  it("persists a deterministic strategy promotion gate artifact", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-promotion-gate");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-gate",
+          scenarioId: "scenario-gate-1",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "rules-only",
+          strategyFamily: "retrieval",
+          strategyMode: "observe",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: false,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-gate",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const report = JSON.parse(
+        await readFile(join(result.runDirectory, "report.json"), "utf8"),
+      ) as {
+        summary?: {
+          promotionGate?: {
+            mode?: string;
+            targetStrategyLabel?: string;
+            decision?: string;
+            outcome?: string;
+          };
+        };
+      };
+      const artifact = JSON.parse(
+        await readFile(join(result.runDirectory, "strategy-promotion-gate.json"), "utf8"),
+      ) as {
+        mode?: string;
+        targetStrategyLabel?: string;
+        decision?: string;
+        outcome?: string;
+      };
+
+      expect(report.summary?.promotionGate).toMatchObject({
+        mode: "observe",
+        targetStrategyLabel: "hybrid",
+        decision: "delayed",
+        outcome: "review_required",
+      });
+      expect(artifact).toMatchObject({
+        mode: "observe",
+        targetStrategyLabel: "hybrid",
+        decision: "delayed",
+        outcome: "review_required",
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("preserves unknown execution influence in shadow comparison artifacts", async () => {
     const workspace = await createTempWorkspace(
       "goodmemory-reporting-shadow-comparisons-unknown",

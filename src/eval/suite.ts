@@ -35,6 +35,9 @@ import {
   buildRetrievalStrategyRolloutConfig,
   buildStrategyRolloutMetadata,
 } from "./strategy-rollout";
+import {
+  assertRetrievalPromotionGateAllowsDefaultRollout,
+} from "./strategy-promotion-gate";
 
 export interface EvalSuiteInput {
   mode: PersistedEvalMode;
@@ -206,6 +209,9 @@ function resolveEvalSuiteStrategyRollout(input: {
   runtimeStrategyRollout?: EvalRuntimeMetadata["strategyRollout"];
 } {
   if (input.strategyRollout) {
+    assertRetrievalPromotionGateAllowsDefaultRollout({
+      rollout: input.strategyRollout,
+    });
     return {
       effectiveStrategyRollout: input.strategyRollout,
       runtimeStrategyRollout: buildStrategyRolloutMetadata(input.strategyRollout),
@@ -222,10 +228,15 @@ function resolveEvalSuiteStrategyRollout(input: {
     );
   }
 
+  const effectiveStrategyRollout = buildRetrievalStrategyRolloutConfig(
+    input.runtimeStrategyRollout,
+  );
+  assertRetrievalPromotionGateAllowsDefaultRollout({
+    rollout: effectiveStrategyRollout,
+  });
+
   return {
-    effectiveStrategyRollout: buildRetrievalStrategyRolloutConfig(
-      input.runtimeStrategyRollout,
-    ),
+    effectiveStrategyRollout,
     runtimeStrategyRollout: input.runtimeStrategyRollout,
   };
 }
@@ -627,7 +638,7 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
     outputDir: input.outputDir,
     runId,
     cases: [],
-    summary: aggregateJudgedCases([], 0),
+    summary: aggregateJudgedCases([], 0, runtime),
     runtime,
     executionFailures: [],
   });
@@ -677,7 +688,11 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
         outputDir: input.outputDir,
         runId,
         cases: completedCases,
-        summary: aggregateJudgedCases(completedCases, completedFailures.length),
+        summary: aggregateJudgedCases(
+          completedCases,
+          completedFailures.length,
+          runtime,
+        ),
         runtime,
         executionFailures: completedFailures,
       }).then(() => undefined),
@@ -734,7 +749,11 @@ export async function runEvalSuite(input: EvalSuiteInput): Promise<EvalSuiteResu
   const completedFailures = failedCases.filter(
     (item): item is EvalCaseExecutionFailure => item !== undefined,
   );
-  const summary = aggregateJudgedCases(completedCases, completedFailures.length);
+  const summary = aggregateJudgedCases(
+    completedCases,
+    completedFailures.length,
+    runtime,
+  );
 
   return {
     mode: input.mode,
