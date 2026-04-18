@@ -16,6 +16,7 @@ describe("release metadata and docs", () => {
     expect(pkg.bin?.goodmemory).toBe("./scripts/goodmemory-cli.ts");
     expect(pkg.exports?.["."]).toBe("./src/index.ts");
     expect(pkg.exports?.["./cli"]).toBe("./src/cli.ts");
+    expect(pkg.exports?.["./host"]).toBe("./src/host/index.ts");
     expect(Object.keys(pkg.exports ?? {})).not.toContain("./llm/ai-sdk");
     expect(pkg.scripts?.cli).toBe("bun run scripts/goodmemory-cli.ts");
     expect(pkg.scripts?.["example:chat"]).toBe("bun run examples/basic-chat.ts");
@@ -64,6 +65,7 @@ describe("release metadata and docs", () => {
     expect(rootModule.createGoodMemory).toBeDefined();
     expect(rootModule.createRuntimeArchiveStore).toBeDefined();
     expect(rootModule.createRuntimeContextService).toBeDefined();
+    expect(rootModule.createHostAdapter).toBeUndefined();
     expect(rootModule.createMemoryRepositories).toBeUndefined();
     expect(rootModule.createRecallEngine).toBeUndefined();
     expect(rootModule.createRememberEngine).toBeUndefined();

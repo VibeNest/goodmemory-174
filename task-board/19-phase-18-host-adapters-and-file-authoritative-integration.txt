@@ -16,29 +16,54 @@ Dependencies
 Primary Deliverables
 --------------------
 - host adapter contract for file-authoritative or file-assisted hosts
-- parsing and structured-delta writeback for selected artifact files
 - session-memory and handoff sync flows for coding-agent hosts
 - playbook/procedure artifact export for host consumption
 - Claude/Codex-style integration examples and docs
 - adapter safety rules for policy, scope, and provenance preservation
+- parsing and structured-delta writeback for selected artifact files
 
 
 Definition of Done
 ------------------
+- a read-only or file-assisted host slice exists before any writable adapter mode is recommended
 - hosts can consume `MEMORY.md`, `user.md`, session memory, archive recaps, and playbooks as adapter surfaces
 - optional file-authoritative edit flows write back structured deltas instead of redefining core schema
 - adapter writes remain policy-aware, scope-aware, and provenance-preserving
 - core runtime remains usable without any host adapter
 
 
+Execution Strategy
+------------------
+Phase 18 should be executed in two steady slices instead of mixing low-risk and high-risk work:
+
+1. Read path first
+   - host adapter contract
+   - session-memory and handoff sync
+   - playbook/procedure artifact export
+   - Claude/Codex integration examples
+2. Writable path second
+   - adapter safety / verification / rollback rules
+   - structured-delta writeback for a minimal supported editable file subset
+
+This keeps Claude/Codex-style integration concrete early while preventing file-authoritative writes from outrunning the policy, provenance, and rollback story.
+
+
+Development Cadence
+-------------------
+- complete one sub-slice at a time
+- tests first for each sub-slice
+- run targeted regression checks after each shipped sub-slice before widening scope
+- do not enable writable adapter modes until the read-path slice is stable and safety rules are in place
+
+
 Tasks
 -----
-[TODO] P18-T001 Define host adapter contract and capability boundaries
-[TODO] P18-T002 Parse selected file edits into structured deltas safely
+[DONE] P18-T001 Define host adapter contract and capability boundaries
 [TODO] P18-T003 Add session-memory sync and handoff integration flows
 [TODO] P18-T004 Export playbooks and related procedure artifacts for hosts
 [TODO] P18-T005 Add Claude/Codex-style integration examples and guidance
 [TODO] P18-T006 Add adapter safety, verification, and rollback tooling
+[TODO] P18-T002 Parse selected file edits into structured deltas safely
 
 
 Key Constraints
@@ -52,8 +77,8 @@ Key Constraints
 Exit Checklist
 --------------
 - Host adapter contract exists
-- Structured delta writeback exists for supported files
 - Session-memory handoff sync exists
 - Playbook export exists
 - Claude/Codex-style examples exist
 - Adapter safety and rollback guidance exists
+- Structured delta writeback exists for supported files

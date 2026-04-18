@@ -10,6 +10,8 @@ Why this exists
 - Host adapters introduce a new write surface and therefore need explicit rollback and verification paths.
 - Adapter safety should be operationally obvious before writable modes are recommended.
 
+This slice is the gate in front of file-authoritative rollout, not cleanup after writable support already lands.
+
 Write tests first
 -----------------
 - adapter diagnostics preserve provenance and failure reason details

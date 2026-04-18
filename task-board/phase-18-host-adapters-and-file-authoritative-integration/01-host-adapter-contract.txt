@@ -1,9 +1,9 @@
 Phase 18.1: Host Adapter Contract
 =================================
 
-[TODO] P18.1-T001 Define file-assisted vs file-authoritative host modes
-[TODO] P18.1-T002 Bound which artifact files are editable through adapters
-[TODO] P18.1-T003 Keep adapter capability negotiation explicit
+[DONE] P18.1-T001 Define file-assisted vs file-authoritative host modes
+[DONE] P18.1-T002 Bound which artifact files are editable through adapters
+[DONE] P18.1-T003 Keep adapter capability negotiation explicit
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Hosts can integrate against one clear adapter contract
 - Core truth boundaries remain intact
+
+
+Implementation Notes
+--------------------
+- `goodmemory/host` is now the dedicated host adapter entrypoint instead of widening the root barrel
+- read-only or file-assisted artifact access is implemented on top of `exportMemory()`
+- writable flows stay behind the same contract but still fail fast until structured-delta support lands

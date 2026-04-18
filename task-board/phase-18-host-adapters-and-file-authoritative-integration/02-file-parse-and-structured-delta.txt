@@ -10,6 +10,8 @@ Why this exists
 - If hosts are allowed to edit `user.md` or playbooks, GoodMemory must translate those edits back into canonical state safely.
 - Raw file replacement cannot be allowed to bypass policy and scope boundaries.
 
+Start this slice only after the read-only or file-assisted host path is stable and adapter safety requirements are already explicit.
+
 Write tests first
 -----------------
 - supported edits map to deterministic structured deltas

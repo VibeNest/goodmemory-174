@@ -18,7 +18,7 @@ Write tests first
 
 Implementation steps
 --------------------
-1. Add narrow, realistic examples instead of broad host simulation
+1. Add narrow, realistic read-only or file-assisted examples before any writable host example
 2. Reuse compiled artifact surfaces from earlier phases
 3. Keep example claims aligned with what the adapter actually supports
 
