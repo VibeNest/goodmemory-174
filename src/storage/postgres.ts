@@ -21,6 +21,10 @@ export interface PostgresStorageConfig {
   vectorTablePrefix?: string;
 }
 
+interface PostgresStoreOptions {
+  readOnly?: boolean;
+}
+
 type SessionStateKind = "buffer" | "working_memory" | "journal";
 
 interface DocumentRow {
@@ -45,6 +49,9 @@ interface PostgresRuntime {
   documentTable: string;
   sessionStateTable: string;
   vectorTable: string;
+  hasDocumentStore(): Promise<boolean>;
+  hasSessionStore(): Promise<boolean>;
+  hasVectorStore(): Promise<boolean>;
   ensureDocumentStore(): Promise<void>;
   ensureSessionStore(): Promise<void>;
   ensureVectorStore(): Promise<void>;
@@ -142,6 +149,19 @@ function createInitializer(action: () => Promise<void>): () => Promise<void> {
   };
 }
 
+function createReadOnlyMutationError(store: string): Error {
+  return new Error(`Postgres ${store} store is read-only in this context.`);
+}
+
+async function relationExists(sql: SQL, relationName: string): Promise<boolean> {
+  const rows = await sql.unsafe<Array<{ oid: string | null }>>(
+    "SELECT to_regclass($1)::text AS oid",
+    [relationName],
+  );
+
+  return rows[0]?.oid !== null && rows[0]?.oid !== undefined;
+}
+
 function createRuntime(config: PostgresStorageConfig): PostgresRuntime {
   const url = normalizeUrl(config.url);
   const schema = validateIdentifier(config.schema ?? DEFAULT_SCHEMA, "schema");
@@ -166,6 +186,9 @@ function createRuntime(config: PostgresStorageConfig): PostgresRuntime {
   const documentTable = qualifyTable(schema, DOCUMENT_TABLE_NAME);
   const sessionStateTable = qualifyTable(schema, SESSION_STATE_TABLE_NAME);
   const vectorTable = qualifyTable(schema, vectorTableName);
+  const documentRelationName = `${schema}.${DOCUMENT_TABLE_NAME}`;
+  const sessionStateRelationName = `${schema}.${SESSION_STATE_TABLE_NAME}`;
+  const vectorRelationName = `${schema}.${vectorTableName}`;
 
   const ensureSchema = createInitializer(async () => {
     await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS ${quotedSchema}`);
@@ -177,6 +200,9 @@ function createRuntime(config: PostgresStorageConfig): PostgresRuntime {
     documentTable,
     sessionStateTable,
     vectorTable,
+    hasDocumentStore: () => relationExists(sql, documentRelationName),
+    hasSessionStore: () => relationExists(sql, sessionStateRelationName),
+    hasVectorStore: () => relationExists(sql, vectorRelationName),
     ensureDocumentStore: createInitializer(async () => {
       await ensureSchema();
       await sql.unsafe(`
@@ -242,6 +268,7 @@ function createRuntime(config: PostgresStorageConfig): PostgresRuntime {
 function createPostgresSessionStateStore<TValue>(
   runtime: PostgresRuntime,
   stateKind: SessionStateKind,
+  options?: PostgresStoreOptions,
 ): {
   set(scope: MemoryScope, value: TValue): Promise<void>;
   get(scope: MemoryScope): Promise<TValue | null>;
@@ -249,6 +276,10 @@ function createPostgresSessionStateStore<TValue>(
 } {
   return {
     async set(scope, value) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("session");
+      }
+
       await runtime.ensureSessionStore();
       await runtime.sql.unsafe(
         `
@@ -273,7 +304,13 @@ function createPostgresSessionStateStore<TValue>(
     },
 
     async get(scope) {
-      await runtime.ensureSessionStore();
+      if (options?.readOnly && !(await runtime.hasSessionStore())) {
+        return null;
+      }
+
+      if (!options?.readOnly) {
+        await runtime.ensureSessionStore();
+      }
       const rows = await runtime.sql.unsafe<SessionRow[]>(
         `
           SELECT payload::text AS payload_json
@@ -288,6 +325,10 @@ function createPostgresSessionStateStore<TValue>(
     },
 
     async deleteByScope(scope) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("session");
+      }
+
       await runtime.ensureSessionStore();
 
       if (scope.sessionId !== undefined) {
@@ -317,6 +358,7 @@ function createPostgresSessionStateStore<TValue>(
 
 export function createPostgresDocumentStore(
   config: PostgresStorageConfig,
+  options?: PostgresStoreOptions,
 ): DocumentStore {
   const runtime = createRuntime(config);
 
@@ -326,6 +368,10 @@ export function createPostgresDocumentStore(
       id: string,
       document: TDocument,
     ) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("document");
+      }
+
       await runtime.ensureDocumentStore();
       await runtime.sql.unsafe(
         `
@@ -352,7 +398,13 @@ export function createPostgresDocumentStore(
     },
 
     async get<TDocument extends StorageDocument>(collection: string, id: string) {
-      await runtime.ensureDocumentStore();
+      if (options?.readOnly && !(await runtime.hasDocumentStore())) {
+        return null;
+      }
+
+      if (!options?.readOnly) {
+        await runtime.ensureDocumentStore();
+      }
       const rows = await runtime.sql.unsafe<DocumentRow[]>(
         `
           SELECT document::text AS document_json
@@ -371,6 +423,10 @@ export function createPostgresDocumentStore(
       id: string,
       patch: Partial<TDocument>,
     ) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("document");
+      }
+
       await runtime.ensureDocumentStore();
       const rows = await runtime.sql.unsafe<Array<{ id: string }>>(
         `
@@ -393,7 +449,13 @@ export function createPostgresDocumentStore(
       collection: string,
       filter?: Record<string, unknown>,
     ) {
-      await runtime.ensureDocumentStore();
+      if (options?.readOnly && !(await runtime.hasDocumentStore())) {
+        return [];
+      }
+
+      if (!options?.readOnly) {
+        await runtime.ensureDocumentStore();
+      }
       const values: unknown[] = [collection];
       const filterClause = buildJsonbFilterClause("document", filter, values);
       const rows = await runtime.sql.unsafe<DocumentRow[]>(
@@ -410,6 +472,10 @@ export function createPostgresDocumentStore(
     },
 
     async delete(collection, id) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("document");
+      }
+
       await runtime.ensureDocumentStore();
       await runtime.sql.unsafe(
         `
@@ -424,14 +490,24 @@ export function createPostgresDocumentStore(
 
 export function createPostgresSessionStore(
   config: PostgresStorageConfig,
+  options?: PostgresStoreOptions,
 ): SessionStore {
   const runtime = createRuntime(config);
-  const buffers = createPostgresSessionStateStore<SessionBuffer>(runtime, "buffer");
+  const buffers = createPostgresSessionStateStore<SessionBuffer>(
+    runtime,
+    "buffer",
+    options,
+  );
   const workingMemory = createPostgresSessionStateStore<WorkingMemorySnapshot>(
     runtime,
     "working_memory",
+    options,
   );
-  const journals = createPostgresSessionStateStore<SessionJournal>(runtime, "journal");
+  const journals = createPostgresSessionStateStore<SessionJournal>(
+    runtime,
+    "journal",
+    options,
+  );
 
   return {
     saveBuffer(scope, buffer) {
@@ -474,11 +550,16 @@ export function createPostgresSessionStore(
 
 export function createPostgresVectorStore(
   config: PostgresStorageConfig,
+  options?: PostgresStoreOptions,
 ): VectorStore {
   const runtime = createRuntime(config);
 
   return {
     async upsert(collection, records) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("vector");
+      }
+
       await runtime.ensureVectorStore();
 
       await runtime.sql.begin(async (tx) => {
@@ -520,7 +601,13 @@ export function createPostgresVectorStore(
     },
 
     async get(collection, id) {
-      await runtime.ensureVectorStore();
+      if (options?.readOnly && !(await runtime.hasVectorStore())) {
+        return null;
+      }
+
+      if (!options?.readOnly) {
+        await runtime.ensureVectorStore();
+      }
 
       const rows = await runtime.sql.unsafe<VectorRow[]>(
         `
@@ -551,10 +638,16 @@ export function createPostgresVectorStore(
     },
 
     async search(collection, queryEmbedding, input) {
-      await runtime.ensureVectorStore();
-
       if (input.topK <= 0 || queryEmbedding.length === 0) {
         return [];
+      }
+
+      if (options?.readOnly && !(await runtime.hasVectorStore())) {
+        return [];
+      }
+
+      if (!options?.readOnly) {
+        await runtime.ensureVectorStore();
       }
 
       const values: unknown[] = [collection];
@@ -590,6 +683,10 @@ export function createPostgresVectorStore(
     },
 
     async delete(collection, id) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("vector");
+      }
+
       await runtime.ensureVectorStore();
       await runtime.sql.unsafe(
         `

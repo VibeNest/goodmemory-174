@@ -6,6 +6,7 @@ import type {
 } from "../../src/eval/contracts";
 import {
   assertRetrievalPromotionGateAllowsDefaultRollout,
+  createRetrievalPromotionAuthorization,
   evaluateStrategyPromotionGate,
 } from "../../src/eval/strategy-promotion-gate";
 
@@ -222,11 +223,147 @@ function buildSummary(
       embeddingImpact: null,
       routerImpact: null,
     },
+    publicSurfaceDecision: {
+      officialCliShape: {
+        evalSubcommandsNested: true,
+        memoryCommandsAtRoot: true,
+        publicEvolutionNamespace: false,
+      },
+      surfaces: [
+        {
+          surface: "core_config",
+          exposure: "public",
+          decision: "accepted",
+          rationale: "core remains public",
+        },
+        {
+          surface: "eval_artifact_cli",
+          exposure: "public",
+          decision: "accepted",
+          rationale: "eval cli is public",
+        },
+        {
+          surface: "official_memory_cli",
+          exposure: "public",
+          decision: "accepted",
+          rationale: "official cli is public",
+        },
+        {
+          surface: "strategy_rollout_config",
+          exposure: "internal",
+          decision: "delayed",
+          rationale: "rollout config remains internal",
+        },
+        {
+          surface: "promotion_gate_runtime",
+          exposure: "internal",
+          decision: "delayed",
+          rationale: "promotion gate remains internal",
+        },
+        {
+          surface: "evolution_namespace",
+          exposure: "internal",
+          decision: "delayed",
+          rationale: "evolution namespace remains internal",
+        },
+      ],
+      evidence: {
+        totalRegressionCases: 0,
+        executionFailureCount: 0,
+        promotionGateDecision: "accepted",
+        promotionGateOutcome: "passed",
+      },
+    },
+    regressionDashboardSummary: {
+      totalRegressionCases: 0,
+      totalBlockingCases: 0,
+      judgedRegressionCases: 0,
+      executionFailureCount: 0,
+      unattributedExecutionFailureCount: 0,
+      strategyRegressions: [],
+    },
     shadowSummary: undefined,
     maintenanceSummary: undefined,
     outcomeLoopSummary: undefined,
     ...overrides,
   };
+}
+
+function buildPromotionAuthorization(
+  overrides?: Partial<EvalSuiteSummary>,
+  observeOverrides?: Partial<EvalSuiteSummary>,
+) {
+  return createRetrievalPromotionAuthorization({
+    generatedBy: "tests",
+    issuedAt: "2026-01-10T00:00:00.000Z",
+    observe: {
+      runId: "run-001-observe",
+      summary: buildSummary({
+        promotionGate: {
+          family: "retrieval",
+          mode: "observe",
+          targetStrategyLabel: "hybrid",
+          promotedStrategyLabel: "rules-only",
+          decision: "delayed",
+          outcome: "review_required",
+          rationale: "observe must advance to assist",
+          regressionCases: [],
+          thresholds: {
+            requireKnownObserveSafety: true,
+            requireNoRegressions: true,
+            requirePassingAssertions: false,
+            requirePositivePrimaryUplift: false,
+          },
+          evidence: {
+            assertionPassRate: 1,
+            completedCases: 1,
+            executionFailures: 0,
+            safeObserveCases: 1,
+            totalCases: 1,
+            unknownObserveCases: 0,
+          },
+        },
+        shadowSummary: {
+          totalCases: 1,
+          byFamily: { retrieval: 1 },
+          byMode: { observe: 1 },
+          candidateInfluencedCases: 0,
+          safeObserveCases: 1,
+          unknownObserveCases: 0,
+          regressionCases: [],
+        },
+        ...observeOverrides,
+      }),
+    },
+    runId: "run-001",
+    summary: buildSummary({
+      promotionGate: {
+        family: "retrieval",
+        mode: "assist",
+        targetStrategyLabel: "hybrid",
+        promotedStrategyLabel: "rules-only",
+        decision: "accepted",
+        outcome: "passed",
+        rationale: "ready",
+        regressionCases: [],
+        thresholds: {
+          requireKnownObserveSafety: false,
+          requireNoRegressions: true,
+          requirePassingAssertions: true,
+          requirePositivePrimaryUplift: true,
+        },
+        evidence: {
+          assertionPassRate: 1,
+          candidateInfluencedCases: 1,
+          completedCases: 1,
+          executionFailures: 0,
+          positivePrimaryUplift: true,
+          totalCases: 1,
+        },
+      },
+      ...overrides,
+    }),
+  });
 }
 
 describe("eval strategy promotion gate", () => {
@@ -428,7 +565,7 @@ describe("eval strategy promotion gate", () => {
         },
       }),
     ).toThrow(
-      "Retrieval strategy hybrid cannot become the promoted default because trusted strategy-promotion authorization is not implemented yet.",
+      "Retrieval strategy hybrid cannot become the promoted default because no trusted strategy-promotion authorization was supplied.",
     );
   });
 
@@ -442,7 +579,122 @@ describe("eval strategy promotion gate", () => {
         },
       }),
     ).toThrow(
-      "Retrieval strategy hybrid cannot become the promoted default because trusted strategy-promotion authorization is not implemented yet.",
+      "Retrieval strategy hybrid cannot become the promoted default because no trusted strategy-promotion authorization was supplied.",
+    );
+  });
+
+  it("accepts a matching clean trusted promotion authorization", () => {
+    expect(() =>
+      assertRetrievalPromotionGateAllowsDefaultRollout({
+        now: "2026-01-10T12:00:00.000Z",
+        rollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "hybrid",
+          promotionAuthorization: buildPromotionAuthorization(),
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects trusted promotion authorization missing paired observe evidence", () => {
+    const authorization = buildPromotionAuthorization();
+    const forged = {
+      ...authorization,
+      pairedObserve: undefined,
+    } as unknown as ReturnType<typeof buildPromotionAuthorization>;
+
+    expect(() =>
+      assertRetrievalPromotionGateAllowsDefaultRollout({
+        now: "2026-01-10T12:00:00.000Z",
+        rollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "hybrid",
+          promotionAuthorization: forged,
+        },
+      }),
+    ).toThrow(
+      "Retrieval strategy hybrid cannot become the promoted default because trusted strategy-promotion authorization is missing paired observe evidence.",
+    );
+  });
+
+  it("rejects trusted promotion authorization that targets a different strategy", () => {
+    expect(() =>
+      assertRetrievalPromotionGateAllowsDefaultRollout({
+        now: "2026-01-10T12:00:00.000Z",
+        rollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "llm-assisted",
+          promotionAuthorization: buildPromotionAuthorization(),
+        },
+      }),
+    ).toThrow(
+      "Retrieval strategy llm-assisted cannot become the promoted default because trusted strategy-promotion authorization targets hybrid.",
+    );
+  });
+
+  it("rejects stale trusted promotion authorization", () => {
+    expect(() =>
+      assertRetrievalPromotionGateAllowsDefaultRollout({
+        now: "2026-01-20T00:00:00.000Z",
+        rollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "hybrid",
+          promotionAuthorization: buildPromotionAuthorization({
+            regressionDashboardSummary: {
+              totalRegressionCases: 0,
+              totalBlockingCases: 0,
+              judgedRegressionCases: 0,
+              executionFailureCount: 0,
+              unattributedExecutionFailureCount: 0,
+              strategyRegressions: [],
+            },
+          }),
+        },
+      }),
+    ).toThrow(
+      "Retrieval strategy hybrid cannot become the promoted default because trusted strategy-promotion authorization expired at 2026-01-17T00:00:00.000Z.",
+    );
+  });
+
+  it("rejects trusted promotion authorization with blocking evidence", () => {
+    expect(() =>
+      buildPromotionAuthorization({
+        regressionDashboardSummary: {
+          totalRegressionCases: 1,
+          totalBlockingCases: 1,
+          judgedRegressionCases: 1,
+          executionFailureCount: 0,
+          unattributedExecutionFailureCount: 0,
+          strategyRegressions: [],
+        },
+      }),
+    ).toThrow(
+      "Trusted strategy-promotion authorization requires zero blocking cases and zero execution failures.",
+    );
+  });
+
+  it("rejects trusted promotion authorization when paired observe evidence is not known-safe", () => {
+    expect(() =>
+      buildPromotionAuthorization(
+        undefined,
+        {
+          shadowSummary: {
+            totalCases: 1,
+            byFamily: { retrieval: 1 },
+            byMode: { observe: 1 },
+            candidateInfluencedCases: 0,
+            safeObserveCases: 0,
+            unknownObserveCases: 1,
+            regressionCases: [],
+          },
+        },
+      ),
+    ).toThrow(
+      "Trusted strategy-promotion authorization requires paired observe execution safety to be known for every case.",
     );
   });
 });

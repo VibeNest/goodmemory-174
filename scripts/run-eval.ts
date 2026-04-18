@@ -13,8 +13,15 @@ import {
 } from "../src/eval/runners";
 import { runEvalSuite, type EvalSuiteResult } from "../src/eval/suite";
 import type { JudgeScores } from "../src/eval/judge";
+import type { EvalRuntimeMetadata } from "../src/eval/contracts";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import { parseAISDKModelConfigFromEnv } from "../src/provider/ai-sdk-runtime";
+import type { RecallRouterStrategy } from "../src/recall/router";
+import type { MemoryExtractionStrategy } from "../src/remember/candidates";
+import {
+  buildStrategyRolloutMetadata,
+  type RetrievalStrategyRolloutConfig,
+} from "../src/eval/strategy-rollout";
 import {
   createFallbackAdapterDescriptor,
   createLiveAdapterDescriptor,
@@ -45,11 +52,15 @@ export interface SmokeEvalReport {
 }
 
 export interface FixtureEvalOptions {
+  runId?: string;
   limit?: number;
   scenarioIds?: string[];
   caseIds?: string[];
   outputDir?: string;
   failuresFrom?: string;
+  rememberExtractionStrategy?: MemoryExtractionStrategy;
+  strategies?: RecallRouterStrategy[];
+  strategyRollout?: RetrievalStrategyRolloutConfig;
 }
 
 export interface LiveEvalDependencies {
@@ -712,14 +723,26 @@ export async function runFallbackEval(
   const scenarioIds = mergeScenarioIds(input?.scenarioIds, []);
   const caseIds = mergeCaseIds(input?.caseIds, failedCaseIds);
 
+  const strategyRollout = input?.strategyRollout ?? {
+    family: "retrieval",
+    mode: "promote",
+    promotedStrategy: "rules-only",
+  };
+  const runtimeStrategyRollout =
+    buildStrategyRolloutMetadata(strategyRollout) satisfies
+      EvalRuntimeMetadata["strategyRollout"] | undefined;
+
   return runSuite({
     mode: "fallback",
     personaDir: join(root, "fixtures/personas/eval"),
     scenarioDir: join(root, "fixtures/scenarios/eval"),
     outputDir: input?.outputDir ?? resolveDefaultOutputDir(root, "fallback"),
+    runId: input?.runId,
     limit: input?.limit,
     scenarioIds,
     caseIds,
+    strategies: input?.strategies,
+    rememberExtractionStrategy: input?.rememberExtractionStrategy,
     baselineGenerator: async () => ({
       content: "I need more context before I can answer reliably.",
     }),
@@ -733,11 +756,7 @@ export async function runFallbackEval(
         };
       },
     },
-    strategyRollout: {
-      family: "retrieval",
-      mode: "promote",
-      promotedStrategy: "rules-only",
-    },
+    strategyRollout,
     runtime: {
       ...createProviderRuntimeMetadata({
         generation: createFallbackAdapterDescriptor(),
@@ -746,11 +765,9 @@ export async function runFallbackEval(
       memoryBackend: "in-memory",
       embeddingEnabled: false,
       assistedExtractionEnabled: false,
-      strategyRollout: {
-        family: "retrieval",
-        mode: "promote",
-        promotedStrategyLabel: "rules-only",
-      },
+      ...(runtimeStrategyRollout
+        ? { strategyRollout: runtimeStrategyRollout }
+        : {}),
     },
   });
 }
@@ -807,14 +824,26 @@ export async function runLiveEval(
   const evalModel = resolveLiveModelConfig("GOODMEMORY_EVAL");
   const judgeModel = resolveLiveModelConfig("GOODMEMORY_JUDGE");
 
+  const strategyRollout = input?.strategyRollout ?? {
+    family: "retrieval",
+    mode: "promote",
+    promotedStrategy: "rules-only",
+  };
+  const runtimeStrategyRollout =
+    buildStrategyRolloutMetadata(strategyRollout) satisfies
+      EvalRuntimeMetadata["strategyRollout"] | undefined;
+
   return runSuite({
     mode: "live",
     personaDir: join(root, "fixtures/personas/eval"),
     scenarioDir: join(root, "fixtures/scenarios/eval"),
     outputDir: input?.outputDir ?? resolveDefaultOutputDir(root, "live"),
+    runId: input?.runId,
     limit: input?.limit,
     scenarioIds,
     caseIds,
+    strategies: input?.strategies,
+    rememberExtractionStrategy: input?.rememberExtractionStrategy,
     baselineGenerator: createTextGenerator({
       model: evalModel,
       system:
@@ -828,11 +857,7 @@ export async function runLiveEval(
       model: judgeModel,
     }),
     maxConcurrency: resolveEvalMaxConcurrency(),
-    strategyRollout: {
-      family: "retrieval",
-      mode: "promote",
-      promotedStrategy: "rules-only",
-    },
+    strategyRollout,
     runtime: {
       ...createProviderRuntimeMetadata({
         generation: createLiveAdapterDescriptor({
@@ -847,11 +872,9 @@ export async function runLiveEval(
       memoryBackend: "in-memory",
       embeddingEnabled: false,
       assistedExtractionEnabled: false,
-      strategyRollout: {
-        family: "retrieval",
-        mode: "promote",
-        promotedStrategyLabel: "rules-only",
-      },
+      ...(runtimeStrategyRollout
+        ? { strategyRollout: runtimeStrategyRollout }
+        : {}),
     },
   });
 }
@@ -889,12 +912,22 @@ export async function runLiveMemoryEval(
     );
   }
 
+  const strategyRollout = input?.strategyRollout ?? {
+    family: "retrieval",
+    mode: "assist",
+    promotedStrategy: "rules-only",
+  };
+  const runtimeStrategyRollout =
+    buildStrategyRolloutMetadata(strategyRollout) satisfies
+      EvalRuntimeMetadata["strategyRollout"] | undefined;
+
   return runSuite({
     mode: "live",
     personaDir: join(root, "fixtures/personas/eval"),
     scenarioDir: join(root, "fixtures/scenarios/eval"),
     outputDir:
       input?.outputDir ?? resolveDefaultCLIOutputDir(root, "live-memory"),
+    runId: input?.runId,
     limit: input?.limit,
     scenarioIds,
     caseIds,
@@ -940,13 +973,10 @@ export async function runLiveMemoryEval(
       };
     },
     maxConcurrency: resolveEvalMaxConcurrency(),
-    strategies: ["rules-only", "hybrid"],
-    rememberExtractionStrategy: "auto",
-    strategyRollout: {
-      family: "retrieval",
-      mode: "assist",
-      promotedStrategy: "rules-only",
-    },
+    strategies: input?.strategies ?? ["rules-only", "hybrid"],
+    rememberExtractionStrategy:
+      input?.rememberExtractionStrategy ?? "auto",
+    strategyRollout,
     runtime: {
       ...createProviderRuntimeMetadata({
         generation: createLiveAdapterDescriptor({
@@ -961,11 +991,9 @@ export async function runLiveMemoryEval(
       memoryBackend: "provider-backed",
       embeddingEnabled: true,
       assistedExtractionEnabled: true,
-      strategyRollout: {
-        family: "retrieval",
-        mode: "assist",
-        promotedStrategyLabel: "rules-only",
-      },
+      ...(runtimeStrategyRollout
+        ? { strategyRollout: runtimeStrategyRollout }
+        : {}),
     },
   });
 }

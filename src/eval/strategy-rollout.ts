@@ -1,8 +1,68 @@
 import type { RecallRouterStrategy } from "../recall/router";
+import type {
+  PromotionDecision,
+  PromotionGateOutcome,
+} from "../evolution/contracts";
 
 export type StrategyRolloutFamily = "retrieval" | "reviewer" | "maintenance";
 export type StrategyRolloutMode = "observe" | "assist" | "promote";
 type PromotedRecallRouterStrategy = Exclude<RecallRouterStrategy, "auto">;
+
+export interface RetrievalStrategyPromotionAuthorization {
+  expiresAt: string;
+  family: "retrieval";
+  issuedAt: string;
+  pairedObserve: {
+    promotionGate: {
+      decision: PromotionDecision;
+      outcome: PromotionGateOutcome;
+      promotedStrategyLabel?: PromotedRecallRouterStrategy;
+      targetStrategyLabel?: PromotedRecallRouterStrategy;
+    };
+    source: {
+      runDirectory?: string;
+      runId: string;
+    };
+    summary: {
+      assertionPassRate: number;
+      completedCases: number;
+      executionFailures: number;
+      regressionCases: string[];
+      safeObserveCases: number;
+      totalCases: number;
+      unknownObserveCases: number;
+    };
+  };
+  promotionGate: {
+    decision: PromotionDecision;
+    outcome: PromotionGateOutcome;
+    promotedStrategyLabel?: PromotedRecallRouterStrategy;
+    targetStrategyLabel?: PromotedRecallRouterStrategy;
+  };
+  publicSurfaceDecision: {
+    surfaces: Array<{
+      decision: PromotionDecision;
+      exposure: "advanced" | "internal" | "public";
+      surface:
+        | "core_config"
+        | "eval_artifact_cli"
+        | "official_memory_cli"
+        | "strategy_rollout_config"
+        | "promotion_gate_runtime"
+        | "evolution_namespace";
+    }>;
+  };
+  regressionDashboardSummary: {
+    executionFailureCount: number;
+    totalBlockingCases: number;
+  };
+  source: {
+    generatedBy: string;
+    runDirectory?: string;
+    runId: string;
+  };
+  targetStrategyLabel: PromotedRecallRouterStrategy;
+}
 
 export interface StrategyRolloutMetadata {
   family: StrategyRolloutFamily;
@@ -14,6 +74,7 @@ export interface RetrievalStrategyRolloutConfig {
   family?: "retrieval";
   mode?: StrategyRolloutMode;
   promotedStrategy?: PromotedRecallRouterStrategy;
+  promotionAuthorization?: RetrievalStrategyPromotionAuthorization;
 }
 
 export interface RetrievalStrategyRolloutDecision {

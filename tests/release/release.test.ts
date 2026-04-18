@@ -29,9 +29,13 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["eval:smoke"]).toBe("bun run scripts/run-eval.ts --mode=smoke");
     expect(pkg.scripts?.["eval:fallback"]).toBe("bun run scripts/run-eval.ts --mode=fallback");
+    expect(pkg.scripts?.["eval:phase-17"]).toBe("bun run scripts/run-phase-17-eval.ts");
     expect(pkg.scripts?.["eval:live"]).toBe("bun run scripts/run-eval.ts --mode=live");
     expect(pkg.scripts?.["eval:live-memory"]).toBe(
       "bun run scripts/run-eval.ts --mode=live-memory",
+    );
+    expect(pkg.scripts?.["eval:phase-17-live-memory"]).toBe(
+      "bun run scripts/run-phase-17-live-memory.ts",
     );
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
@@ -68,18 +72,27 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("createGoodMemory");
     expect(readme).toContain("examples/basic-chat.ts");
     expect(readme).toContain("examples/coding-agent.ts");
-    expect(readme).toContain("scripts/goodmemory-cli.ts");
+    expect(readme).toContain("bun run cli -- inspect");
+    expect(readme).toContain("goodmemory inspect");
+    expect(readme).toContain("goodmemory export-memory");
+    expect(readme).toContain("goodmemory stats");
+    expect(readme).toContain("goodmemory eval inspect");
+    expect(readme).toContain("goodmemory eval export-case");
     expect(readme).toContain("GoodMemory-First-Principles-and-Reference-Architecture.md");
     expect(readme).toContain("GoodMemory-OSS-Architecture-v1.md");
+    expect(readme).toContain("GoodMemory-Phase-17-Quality-Gate.md");
     expect(readme).toContain("GoodMemory-PRD.md");
     expect(readme).toContain("GoodMemory-TDD-and-Evaluation-Strategy.md");
     expect(readme).toContain("GoodMemory-Strategy-Rollout-Guide.md");
     expect(readme).toContain("bun run test:coverage");
     expect(readme).toContain("bun run test:all");
     expect(readme).toContain("eval:fallback");
+    expect(readme).toContain("eval:phase-17");
     expect(readme).toContain("eval:live");
+    expect(readme).toContain("eval:phase-17-live-memory");
     expect(readme).toContain("observe -> assist -> promote");
     expect(readme).toContain("regression-dashboard.json");
+    expect(readme).toContain("strategy-promotion-authorization.json");
     expect(readme).not.toContain("eval:full");
     expect(readme).not.toContain("goodmemory/evolution");
     expect(readme).not.toContain("strategyRollout");
@@ -100,10 +113,14 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("bun run test:coverage");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
+    expect(checklist).toContain("eval:phase-17");
+    expect(checklist).toContain("eval:phase-17-live-memory");
     expect(checklist).toContain("Strategy Rollout");
     expect(checklist).toContain("strategy-promotion-gate.json");
+    expect(checklist).toContain("strategy-promotion-authorization.json");
     expect(checklist).toContain("regression-dashboard.json");
     expect(checklist).toContain("public-surface-decision.json");
+    expect(checklist).toContain("GoodMemory-Phase-17-Quality-Gate.md");
     expect(checklist).toContain("GoodMemory-Strategy-Rollout-Guide.md");
     expect(checklist).toContain("rules-only");
     expect(checklist).toContain("salvage hooks");

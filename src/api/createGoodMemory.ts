@@ -435,6 +435,10 @@ class GoodMemoryImpl implements GoodMemory {
     return result;
   }
 
+  async diagnoseRecall(input: RecallInput): Promise<RecallResult> {
+    return this.recallEngine.recall(input);
+  }
+
   async buildContext(input: BuildContextInput): Promise<BuildContextResult> {
     const output = input.output ?? "json";
     const rendered = renderMemoryPacket(input.recall.packet, output, input.maxTokens);

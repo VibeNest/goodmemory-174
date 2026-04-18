@@ -2,7 +2,7 @@ Phase 17.1: Strategy Lifecycle Modes
 ====================================
 
 [DONE] P17.1-T001 Define `observe`, `assist`, and `promote` mode semantics
-[WIP] P17.1-T002 Apply the lifecycle model to retrieval, reviewer, and maintenance strategies
+[DONE] P17.1-T002 Apply the lifecycle model to retrieval rollout and freeze reusable vocabulary for reviewer and maintenance
 [DONE] P17.1-T003 Persist mode metadata in artifacts and decision records
 
 Why this exists

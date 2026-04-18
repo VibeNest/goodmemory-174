@@ -3,7 +3,7 @@ Phase 17: Eval-Gated Promotion and Strategy Rollout
 
 Phase Goal
 ----------
-Roll out new retrieval, reviewer, and maintenance strategies through shadow/assist/promote gates instead of shipping them by intuition.
+Close Wave 6 as a retrieval-first rollout and public-surface closure, with reusable lifecycle vocabulary prepared for reviewer and maintenance rollout later.
 
 
 Dependencies
@@ -15,19 +15,21 @@ Dependencies
 
 Primary Deliverables
 --------------------
-- `observe -> assist -> promote` strategy modes
+- retrieval-first `observe -> assist -> promote` strategy modes
 - shadow evaluation support and contamination-safe comparison artifacts
-- promotion gates for retrieval/reviewer/maintenance strategy changes
+- promotion gates and trusted release authorization for retrieval strategy changes
 - regression dashboard artifacts and release-facing summaries
 - explicit public surface decision criteria for advanced/evolution capabilities and the official OSS CLI shape
+- dedicated phase-17 fallback and live-memory quality gates
 
 
 Definition of Done
 ------------------
-- new strategies can run in shadow before affecting default behavior
-- promotion decisions are backed by eval evidence and persisted records
+- retrieval candidate strategies can run in shadow before affecting default behavior
+- retrieval promotion decisions are backed by eval evidence, persisted records, and an explicit trusted authorization artifact
 - rules-only baseline remains first-class and non-regressing
 - the decision to expose or keep advanced surfaces internal is evidence-based
+- the official OSS CLI shape exists on the supported public path
 
 
 Tasks
@@ -46,7 +48,7 @@ Key Constraints
 - rules-only remains available as a supported baseline
 - shadow mode must avoid contaminating user-visible durable state
 - rollout evidence must distinguish provider gains from proposal/maintenance gains
-- retrieval rollout lands first, but the lifecycle vocabulary must stay reusable for reviewer and maintenance families
+- retrieval rollout lands first, and reviewer/maintenance rollout move to a later dedicated phase instead of stretching phase 17 scope
 - public-surface decisions must not turn the current eval-artifact inspector into the final OSS CLI story by accident
 
 
@@ -61,6 +63,6 @@ Exit Checklist
 
 Phase-17 Closure Note
 ---------------------
-- Retrieval is the only active rollout family closed in phase 17. The lifecycle, shadow, gate, dashboard, and public-surface decision machinery are now complete for that path.
+- Phase 17 closes retrieval-first on purpose. The lifecycle, shadow, gate, trusted promotion authorization, regression dashboard, dedicated quality gates, and public-surface/CLI machinery are complete for retrieval rollout.
 - Advanced runtime salvage controls remain internal and are stripped from the root runtime wrapper, so they are not part of the promoted OSS surface or behavior for retrieval rollout.
-- Reviewer and maintenance rollout families remain internal-only until they have real rollout candidates and evidence, so phase 17 closes without prematurely promoting unsupported surfaces.
+- Reviewer and maintenance rollout families move to a later dedicated phase after host adapters instead of remaining implicit unfinished scope inside phase 17.

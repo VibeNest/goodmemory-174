@@ -117,4 +117,48 @@ describe("public surface decision", () => {
       promotionGateOutcome: "passed",
     });
   });
+
+  it("accepts the official memory cli once rollout evidence is clean", () => {
+    const decision = evaluatePublicSurfaceDecision(
+      buildSummary({
+        promotionGate: {
+          family: "retrieval",
+          mode: "assist",
+          decision: "accepted",
+          outcome: "passed",
+          rationale: "ready",
+          regressionCases: [],
+          thresholds: {
+            requireKnownObserveSafety: false,
+            requireNoRegressions: true,
+            requirePassingAssertions: true,
+            requirePositivePrimaryUplift: true,
+          },
+          evidence: {
+            assertionPassRate: 1,
+            completedCases: 1,
+            executionFailures: 0,
+            positivePrimaryUplift: true,
+            totalCases: 1,
+          },
+        },
+        regressionDashboardSummary: {
+          totalRegressionCases: 0,
+          totalBlockingCases: 0,
+          judgedRegressionCases: 0,
+          executionFailureCount: 0,
+          unattributedExecutionFailureCount: 0,
+          strategyRegressions: [],
+        },
+      }),
+    );
+
+    expect(decision.surfaces).toContainEqual(
+      expect.objectContaining({
+        surface: "official_memory_cli",
+        exposure: "public",
+        decision: "accepted",
+      }),
+    );
+  });
 });

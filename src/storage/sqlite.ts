@@ -24,8 +24,19 @@ interface SessionRow {
   json: string;
 }
 
-function createDatabase(path: string): Database {
-  return new Database(path, { create: true, strict: true });
+interface SQLiteStoreOptions {
+  readOnly?: boolean;
+}
+
+function createDatabase(
+  path: string,
+  options?: SQLiteStoreOptions,
+): Database {
+  return new Database(path, {
+    create: options?.readOnly ? false : true,
+    readonly: options?.readOnly ?? false,
+    strict: true,
+  });
 }
 
 function ensureDocumentSchema(database: Database): void {
@@ -62,9 +73,14 @@ function parseJson<TValue>(json: string): TValue {
   return JSON.parse(json) as TValue;
 }
 
-export function createSQLiteDocumentStore(path: string): DocumentStore {
-  const database = createDatabase(path);
-  ensureDocumentSchema(database);
+export function createSQLiteDocumentStore(
+  path: string,
+  options?: SQLiteStoreOptions,
+): DocumentStore {
+  const database = createDatabase(path, options);
+  if (!options?.readOnly) {
+    ensureDocumentSchema(database);
+  }
 
   const upsertStatement = database.query(
     `INSERT INTO documents (collection, id, json)
@@ -171,9 +187,14 @@ function createSQLiteScopedStore<TValue>(
   };
 }
 
-export function createSQLiteSessionStore(path: string): SessionStore {
-  const database = createDatabase(path);
-  ensureSessionSchema(database);
+export function createSQLiteSessionStore(
+  path: string,
+  options?: SQLiteStoreOptions,
+): SessionStore {
+  const database = createDatabase(path, options);
+  if (!options?.readOnly) {
+    ensureSessionSchema(database);
+  }
 
   const buffers = createSQLiteScopedStore<SessionBuffer>(database, "session_buffers");
   const workingMemory = createSQLiteScopedStore<WorkingMemorySnapshot>(

@@ -28,6 +28,8 @@
     "eval:smoke": "bun run scripts/run-eval.ts --mode=smoke",
     "eval:fallback": "bun run scripts/run-eval.ts --mode=fallback",
     "eval:phase-16": "bun run scripts/run-phase-16-eval.ts",
+    "eval:phase-17": "bun run scripts/run-phase-17-eval.ts",
+    "eval:phase-17-live-memory": "bun run scripts/run-phase-17-live-memory.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",
     "eval:summary": "bun run scripts/summarize-eval.ts"

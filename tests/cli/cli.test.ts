@@ -1,21 +1,20 @@
 import { describe, expect, it } from "bun:test";
-import { readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { access, mkdir, readFile, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { createGoodMemory } from "../../src";
 import { createMemorySource } from "../../src/domain/provenance";
 import { createEvidenceRecord } from "../../src/evidence/contracts";
 import { createSessionArchive } from "../../src/evolution/contracts";
-import { createTempWorkspace } from "../../src/testing/utils";
 import type { EvalAssertionSummary } from "../../src/eval/assertions";
 import type { JudgedEvalCase } from "../../src/eval/contracts";
-import {
-  persistEvalArtifacts,
-  aggregateJudgedCases,
-} from "../../src/eval/reporting";
-import type { EvalAnswerPackage } from "../../src/eval/runners";
 import type { JudgeResult } from "../../src/eval/judge";
 import {
-  runCLI,
-} from "../../src/cli";
+  aggregateJudgedCases,
+  persistEvalArtifacts,
+} from "../../src/eval/reporting";
+import type { EvalAnswerPackage } from "../../src/eval/runners";
+import { createTempWorkspace } from "../../src/testing/utils";
+import { runCLI } from "../../src/cli";
 
 function buildAnswerPackage(
   caseId: string,
@@ -343,8 +342,56 @@ function buildCase(caseId: string): JudgedEvalCase {
   };
 }
 
-describe("goodmemory cli", () => {
-  it("inspect returns a human-readable case summary", async () => {
+async function seedSQLiteMemory(sqlitePath: string) {
+  await mkdir(dirname(sqlitePath), { recursive: true });
+  const memory = createGoodMemory({
+    storage: {
+      provider: "sqlite",
+      url: sqlitePath,
+    },
+  });
+  const scope = {
+    userId: "cli-user",
+    workspaceId: "workspace-a",
+    sessionId: "session-1",
+  };
+
+  await memory.remember({
+    scope,
+    messages: [
+      {
+        role: "user",
+        content: "Remember that my name is Felix.",
+      },
+      {
+        role: "user",
+        content: "Remember that I'm a climate policy advisor in Austin, USA.",
+      },
+      {
+        role: "user",
+        content:
+          "Remember that the current blocker is vendor approval for release quality program.",
+      },
+      {
+        role: "user",
+        content:
+          "Use docs/release-quality-runbook.md as the source of truth for release quality program.",
+      },
+    ],
+  });
+  await memory.feedback({
+    scope,
+    signal: "Use concise bullet points in summaries.",
+  });
+
+  return {
+    memory,
+    scope,
+  };
+}
+
+describe("goodmemory cli eval commands", () => {
+  it("eval inspect returns a human-readable case summary", async () => {
     const workspace = await createTempWorkspace("goodmemory-cli");
 
     try {
@@ -361,6 +408,7 @@ describe("goodmemory cli", () => {
       });
 
       const result = await runCLI([
+        "eval",
         "inspect",
         "--run-dir",
         persisted.runDirectory,
@@ -386,7 +434,7 @@ describe("goodmemory cli", () => {
     }
   });
 
-  it("trace returns recall and write details", async () => {
+  it("eval trace returns recall and write details", async () => {
     const workspace = await createTempWorkspace("goodmemory-cli");
 
     try {
@@ -403,6 +451,7 @@ describe("goodmemory cli", () => {
       });
 
       const result = await runCLI([
+        "eval",
         "trace",
         "--run-dir",
         persisted.runDirectory,
@@ -437,7 +486,7 @@ describe("goodmemory cli", () => {
     }
   });
 
-  it("trace tolerates legacy runs without assertions artifacts", async () => {
+  it("eval trace tolerates legacy runs without assertions artifacts", async () => {
     const workspace = await createTempWorkspace("goodmemory-cli-legacy");
 
     try {
@@ -455,6 +504,7 @@ describe("goodmemory cli", () => {
       await rm(join(persisted.runDirectory, "traces", "case-1", "assertions.json"));
 
       const result = await runCLI([
+        "eval",
         "trace",
         "--run-dir",
         persisted.runDirectory,
@@ -470,7 +520,7 @@ describe("goodmemory cli", () => {
     }
   });
 
-  it("export copies a case artifact to a target path", async () => {
+  it("eval export-case copies a case artifact to a target path", async () => {
     const workspace = await createTempWorkspace("goodmemory-cli");
 
     try {
@@ -488,7 +538,8 @@ describe("goodmemory cli", () => {
       });
 
       const result = await runCLI([
-        "export",
+        "eval",
+        "export-case",
         "--run-dir",
         persisted.runDirectory,
         "--case-id",
@@ -502,6 +553,326 @@ describe("goodmemory cli", () => {
       expect(result.stdout).toContain("Exported case artifact");
       expect(exported.caseId).toBe("case-1");
     } finally {
+      await workspace.cleanup();
+    }
+  });
+});
+
+describe("goodmemory cli root commands", () => {
+  it("inspect summarizes scoped memory from sqlite storage", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-root-inspect");
+
+    try {
+      const sqlitePath = join(workspace.root, "memory.sqlite");
+      await seedSQLiteMemory(sqlitePath);
+
+      const result = await runCLI([
+        "inspect",
+        "--user-id",
+        "cli-user",
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        sqlitePath,
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Scope: user=cli-user");
+      expect(result.stdout).toContain(`Storage: sqlite (${sqlitePath})`);
+      expect(result.stdout).toContain("Profile: present");
+      expect(result.stdout).toContain("Top Facts");
+      expect(result.stdout).toContain("vendor approval for release quality program");
+      expect(result.stdout).toContain("Top References");
+      expect(result.stdout).toContain("docs/release-quality-runbook.md");
+      expect(result.stdout).toContain("Top Feedback");
+      expect(result.stdout).toContain("Use concise bullet points in summaries.");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("inspect hides superseded references from the top summary", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-root-inspect-superseded");
+
+    try {
+      const sqlitePath = join(workspace.root, "memory.sqlite");
+      const { memory, scope } = await seedSQLiteMemory(sqlitePath);
+
+      await memory.remember({
+        scope,
+        messages: [
+          {
+            role: "user",
+            content:
+              "Correction: docs/release-quality-runbook-v2.md is now the source of truth, not docs/release-quality-runbook.md. Please update that.",
+          },
+        ],
+      });
+
+      const result = await runCLI([
+        "inspect",
+        "--user-id",
+        scope.userId,
+        "--workspace-id",
+        scope.workspaceId!,
+        "--session-id",
+        scope.sessionId!,
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        sqlitePath,
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Top References");
+      expect(result.stdout).toContain("docs/release-quality-runbook-v2.md");
+      expect(result.stdout).not.toContain(
+        "- release-quality-runbook.md -> docs/release-quality-runbook.md",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("trace uses a non-mutating recall diagnostic path", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-root-trace");
+
+    try {
+      const sqlitePath = join(workspace.root, "memory.sqlite");
+      const { memory, scope } = await seedSQLiteMemory(sqlitePath);
+      const before = await memory.exportMemory({
+        scope,
+      });
+      const blockerFact = before.durable.facts.find((record) =>
+        record.content.includes("vendor approval"),
+      );
+      const feedback = before.durable.feedback.find((record) =>
+        record.rule.includes("concise bullet points"),
+      );
+
+      const result = await runCLI([
+        "trace",
+        "--user-id",
+        scope.userId,
+        "--workspace-id",
+        scope.workspaceId!,
+        "--session-id",
+        scope.sessionId!,
+        "--query",
+        "Which runbook is the source of truth and what is the blocker?",
+        "--strategy",
+        "rules-only",
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        sqlitePath,
+      ]);
+
+      const after = await memory.exportMemory({
+        scope,
+      });
+      const blockerFactAfter = after.durable.facts.find((record) =>
+        record.content.includes("vendor approval"),
+      );
+      const feedbackAfter = after.durable.feedback.find((record) =>
+        record.rule.includes("concise bullet points"),
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Routing Decision");
+      expect(result.stdout).toContain("requested strategy: rules-only");
+      expect(result.stdout).toContain("resolved strategy: rules-only");
+      expect(result.stdout).toContain("Hits");
+      expect(result.stdout).toContain("Returned Candidate Traces");
+      expect(result.stdout).toContain("Suppressed Candidate Traces");
+      expect(blockerFactAfter?.accessCount).toBe(blockerFact?.accessCount);
+      expect(blockerFactAfter?.lastAccessedAt).toBe(blockerFact?.lastAccessedAt);
+      expect(feedbackAfter?.lastUsedAt).toBe(feedback?.lastUsedAt);
+      expect(after.durable.experiences).toHaveLength(before.durable.experiences.length);
+      expect(after.durable.proposals).toHaveLength(before.durable.proposals.length);
+      expect(after.durable.promotions).toHaveLength(before.durable.promotions.length);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("stats reports scope-bounded counts and backend metadata", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-root-stats");
+
+    try {
+      const sqlitePath = join(workspace.root, "memory.sqlite");
+      await seedSQLiteMemory(sqlitePath);
+
+      const result = await runCLI([
+        "stats",
+        "--user-id",
+        "cli-user",
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        sqlitePath,
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Storage Provider: sqlite");
+      expect(result.stdout).toContain(`Storage Location: ${sqlitePath}`);
+      expect(result.stdout).toContain("Profile Records: 1");
+      expect(result.stdout).toContain("References: 1");
+      expect(result.stdout).toContain("Facts: 1");
+      expect(result.stdout).toContain("Feedback: 1");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("export-memory writes json and markdown artifacts", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-root-export");
+
+    try {
+      const sqlitePath = join(workspace.root, "memory.sqlite");
+      const { scope } = await seedSQLiteMemory(sqlitePath);
+      const outputPath = join(workspace.root, "memory-export");
+
+      const result = await runCLI([
+        "export-memory",
+        "--user-id",
+        scope.userId,
+        "--workspace-id",
+        scope.workspaceId!,
+        "--session-id",
+        scope.sessionId!,
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        sqlitePath,
+        "--output",
+        outputPath,
+      ]);
+
+      const exported = JSON.parse(
+        await readFile(join(outputPath, "memory-export.json"), "utf8"),
+      ) as { scope: { userId: string } };
+      const memoryArtifact = await readFile(
+        join(
+          outputPath,
+          ".goodmemory",
+          "users",
+          scope.userId,
+          "workspaces",
+          scope.workspaceId!,
+          "sessions",
+          scope.sessionId!,
+          "MEMORY.md",
+        ),
+        "utf8",
+      );
+      const userArtifact = await readFile(
+        join(
+          outputPath,
+          ".goodmemory",
+          "users",
+          scope.userId,
+          "workspaces",
+          scope.workspaceId!,
+          "sessions",
+          scope.sessionId!,
+          "user.md",
+        ),
+        "utf8",
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Exported memory snapshot");
+      expect(exported.scope.userId).toBe(scope.userId);
+      expect(memoryArtifact).toContain("# MEMORY");
+      expect(memoryArtifact).toContain("release quality program");
+      expect(userArtifact).toContain("User Memory");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("defaults sqlite storage to the cwd .goodmemory path", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-default-sqlite");
+    const previousCwd = process.cwd();
+
+    try {
+      process.chdir(workspace.root);
+      await seedSQLiteMemory(join(workspace.root, ".goodmemory", "memory.sqlite"));
+
+      const result = await runCLI([
+        "stats",
+        "--user-id",
+        "cli-user",
+        "--workspace-id",
+        "workspace-a",
+        "--session-id",
+        "session-1",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Storage Location: ");
+      expect(result.stdout).toContain(
+        join(".goodmemory", "memory.sqlite"),
+      );
+    } finally {
+      process.chdir(previousCwd);
+      await workspace.cleanup();
+    }
+  });
+
+  for (const command of ["inspect", "stats"] as const) {
+    it(`${command} does not create default sqlite storage when the cwd store is missing`, async () => {
+      const workspace = await createTempWorkspace(`goodmemory-cli-${command}-missing-store`);
+      const previousCwd = process.cwd();
+
+      try {
+        process.chdir(workspace.root);
+
+        const result = await runCLI([
+          command,
+          "--user-id",
+          "review-user",
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain(
+          "Read-only CLI commands require an existing sqlite database",
+        );
+        await expect(
+          access(join(workspace.root, ".goodmemory", "memory.sqlite")),
+        ).rejects.toThrow();
+      } finally {
+        process.chdir(previousCwd);
+        await workspace.cleanup();
+      }
+    });
+  }
+
+  it("trace does not create default sqlite storage when the cwd store is missing", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-trace-missing-store");
+    const previousCwd = process.cwd();
+
+    try {
+      process.chdir(workspace.root);
+
+      const result = await runCLI([
+        "trace",
+        "--user-id",
+        "review-user",
+        "--query",
+        "What should I do next?",
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(
+        "Read-only CLI commands require an existing sqlite database",
+      );
+      await expect(
+        access(join(workspace.root, ".goodmemory", "memory.sqlite")),
+      ).rejects.toThrow();
+    } finally {
+      process.chdir(previousCwd);
       await workspace.cleanup();
     }
   });

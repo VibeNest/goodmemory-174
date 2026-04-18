@@ -50,10 +50,11 @@ export function evaluatePublicSurfaceDecision(
       },
       {
         surface: "official_memory_cli",
-        exposure: "advanced",
-        decision: "delayed",
-        rationale:
-          "The official CLI shape is memory-facing commands at the root with eval nested underneath, but current rollout evidence only proves the eval artifact inspector path.",
+        exposure: rolloutReadyForBroaderExposure ? "public" : "advanced",
+        decision: rolloutReadyForBroaderExposure ? "accepted" : "delayed",
+        rationale: rolloutReadyForBroaderExposure
+          ? "The official CLI shape is now memory-facing commands at the root with eval nested underneath, and release-facing rollout evidence keeps that surface aligned."
+          : "The official CLI shape is memory-facing commands at the root with eval nested underneath, but current rollout evidence only proves the eval artifact inspector path.",
       },
       {
         surface: "strategy_rollout_config",

@@ -2,9 +2,13 @@
 
 ## CLI
 
-- `inspect` works against eval run directories
-- `trace` shows write trace, recall hits, verification hints, and applied policy markers
-- `export` copies case artifacts cleanly
+- `goodmemory inspect` reads scope-bounded memory from the supported storage backend
+- `goodmemory trace` shows routing, hits, candidate traces, verification hints, and applied policy markers without mutating memory state
+- `goodmemory export-memory` writes JSON export plus Markdown artifacts cleanly
+- `goodmemory stats` reports scope-bounded counts and backend metadata
+- `goodmemory eval inspect` works against eval run directories
+- `goodmemory eval trace` shows write trace, recall hits, verification hints, and applied policy markers
+- `goodmemory eval export-case` copies case artifacts cleanly
 
 ## Governance
 
@@ -29,8 +33,10 @@
 - `bun run eval:smoke` passes
 - `bun run eval:fallback` produces a deterministic validation report
 - `bun run eval:phase-16` produces the dedicated procedural-promotion and outcome-maintenance gate report
+- `bun run eval:phase-17` produces the dedicated retrieval rollout fallback gate report
 - `bun run eval:live` produces a live report
 - `bun run eval:live-memory` produces a provider-backed live report
+- `bun run eval:phase-17-live-memory` produces the dedicated observe + assist live-memory gate report
 - `raw-recall.json` exists for GoodMemory cases
 - report shows top-level `mode`
 - report shows `runtime.generationMode` and `runtime.judgeMode`
@@ -38,9 +44,11 @@
 ## Strategy Rollout
 
 - non-default promotion is blocked unless `strategy-promotion-gate.json` reports `accepted/passed`
+- non-default promotion requires an explicit `strategy-promotion-authorization.json`
 - `regression-dashboard.json` exists and shows no blocking cases for any promoted path
 - `public-surface-decision.json` exists and matches the documented OSS surface
 - observe / assist / promote guidance is documented in `docs/GoodMemory-Strategy-Rollout-Guide.md`
+- `docs/GoodMemory-Phase-17-Quality-Gate.md` summarizes the latest fallback and live-memory phase-17 gates
 - rollback conditions explicitly keep `rules-only` available as the supported fallback
 - root runtime entrypoints keep salvage hooks and promotion-gate runtime controls internal
 

@@ -1,0 +1,45 @@
+Phase 19: Reviewer and Maintenance Strategy Rollout
+===================================================
+
+Phase Goal
+----------
+Apply the phase-17 lifecycle, gate, and dashboard machinery to reviewer and maintenance strategies after host-adapter work has stabilized the surrounding surfaces.
+
+
+Dependencies
+------------
+- Phase 17 retrieval-first closure complete
+- Phase 18 host adapters complete enough to avoid mixing host-surface churn with rollout-gate churn
+- Phase 15/16 proposal and maintenance foundations remain stable under current regression suites
+
+
+Primary Deliverables
+--------------------
+- reviewer rollout candidates with `observe -> assist -> promote` lifecycle support
+- maintenance rollout candidates with the same lifecycle support
+- phase-specific shadow/gate/dashboard artifacts for reviewer and maintenance paths
+- evidence-backed decision on whether either family deserves broader surfaced controls
+
+
+Definition of Done
+------------------
+- reviewer strategies can run through shadow/assist/promote without affecting unsupported defaults
+- maintenance strategies can run through shadow/assist/promote without affecting unsupported defaults
+- promotion decisions are backed by family-specific eval evidence and persisted records
+- retrieval-first phase-17 guarantees remain intact while later families land
+
+
+Tasks
+-----
+[TODO] P19-T001 Define reviewer rollout candidates and eval slices
+[TODO] P19-T002 Define maintenance rollout candidates and eval slices
+[TODO] P19-T003 Reuse shadow/gate/dashboard plumbing for reviewer and maintenance families
+[TODO] P19-T004 Add dedicated quality gates for reviewer and maintenance rollout
+[TODO] P19-T005 Re-evaluate advanced/public surface boundaries after non-retrieval evidence exists
+
+
+Key Constraints
+---------------
+- do not widen public runtime config by default
+- do not regress retrieval-first rollout guarantees while adding new families
+- reviewer and maintenance rollout evidence must remain distinguishable from provider-backed retrieval gains

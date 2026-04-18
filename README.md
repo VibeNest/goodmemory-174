@@ -44,19 +44,28 @@ const context = await memory.buildContext({
 
 ## CLI
 
-GoodMemory v1 自带一个只读 CLI，用来查看 eval artifact 和 trace。
+GoodMemory v1 自带一个只读 CLI。默认读取当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`，也可以通过 `--storage-provider` / `--storage-url` 或环境变量覆盖。根命令只会读取已有存储；如果默认 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。
 
 ```bash
-bun run scripts/goodmemory-cli.ts inspect --run-dir reports/eval/live/<run-id> --case-id <case-id>
-bun run scripts/goodmemory-cli.ts trace --run-dir reports/eval/live/<run-id> --case-id <case-id>
-bun run scripts/goodmemory-cli.ts export --run-dir reports/eval/live/<run-id> --case-id <case-id> --output /tmp/case.json
+bun run cli -- inspect --user-id <user-id> --workspace-id <workspace-id>
+bun run cli -- trace --user-id <user-id> --workspace-id <workspace-id> --query "Which runbook is the source of truth?"
+bun run cli -- export-memory --user-id <user-id> --workspace-id <workspace-id> --output ./tmp/export
+bun run cli -- stats --user-id <user-id> --workspace-id <workspace-id>
+
+bun run cli -- eval inspect --run-dir reports/eval/live/<run-id> --case-id <case-id>
+bun run cli -- eval trace --run-dir reports/eval/live/<run-id> --case-id <case-id>
+bun run cli -- eval export-case --run-dir reports/eval/live/<run-id> --case-id <case-id> --output /tmp/case.json
 ```
 
-等价脚本：
+CLI surface:
 
-- `bun run cli -- inspect ...`
-- `bun run cli -- trace ...`
-- `bun run cli -- export ...`
+- `goodmemory inspect`
+- `goodmemory trace`
+- `goodmemory export-memory`
+- `goodmemory stats`
+- `goodmemory eval inspect`
+- `goodmemory eval trace`
+- `goodmemory eval export-case`
 
 ## Examples
 
@@ -100,14 +109,18 @@ Phase 9 评测链路支持：
 ```bash
 bun run eval:smoke
 bun run eval:fallback
+bun run eval:phase-17
 bun run eval:live
+bun run eval:phase-17-live-memory
 ```
 
 含义：
 
 - `eval:smoke`: 最小 harness 自检，不代表产品评测结果
 - `eval:fallback`: deterministic pipeline 验证，不调用真实模型，不可作为产品证据
+- `eval:phase-17`: retrieval-first phase 17 deterministic gate，验证 observe rollout artifact 完整性与 shadow safety
 - `eval:live`: 真实模型生成 + 真实模型 judge 的产品评测入口
+- `eval:phase-17-live-memory`: phase 17 provider-backed gate，执行 observe + assist 两个 retrieval rollout 子运行并生成内部 promotion authorization artifact
 
 `eval:live` 必须显式配置以下环境变量，否则会直接失败：
 
@@ -130,13 +143,13 @@ bun run eval:live
 
 ## Strategy Rollout
 
-GoodMemory v1 keeps `rules-only` as the supported baseline. New retrieval behavior should move through `observe -> assist -> promote`, and non-default promotion should only happen after an `accepted/passed` promotion gate with no blocking regressions.
+GoodMemory v1 keeps `rules-only` as the supported baseline. New retrieval behavior should move through `observe -> assist -> promote`, and non-default promotion should only happen after an `accepted/passed` promotion gate with no blocking regressions plus a trusted internal promotion authorization artifact.
 
 Operator guidance:
 
 - `observe`: collect isolated shadow evidence without changing the executed path
 - `assist`: allow candidate execution in controlled eval runs
-- `promote`: require `strategy-promotion-gate.json` plus a clean `regression-dashboard.json`
+- `promote`: require `strategy-promotion-gate.json`, a clean `regression-dashboard.json`, and `strategy-promotion-authorization.json`
 - stay `rules-only` when eval evidence is incomplete, provider-backed dependencies are unavailable, or rollback conditions are present
 
 ## Key Docs
@@ -145,6 +158,7 @@ Operator guidance:
 - v1 implementation architecture: [docs/GoodMemory-OSS-Architecture-v1.md](./docs/GoodMemory-OSS-Architecture-v1.md)
 - PRD: [docs/GoodMemory-PRD.md](./docs/GoodMemory-PRD.md)
 - TDD and evaluation strategy: [docs/GoodMemory-TDD-and-Evaluation-Strategy.md](./docs/GoodMemory-TDD-and-Evaluation-Strategy.md)
+- Phase 17 quality gate: [docs/GoodMemory-Phase-17-Quality-Gate.md](./docs/GoodMemory-Phase-17-Quality-Gate.md)
 - Strategy rollout guide: [docs/GoodMemory-Strategy-Rollout-Guide.md](./docs/GoodMemory-Strategy-Rollout-Guide.md)
 - Release checklist: [docs/GoodMemory-v1-Release-Checklist.md](./docs/GoodMemory-v1-Release-Checklist.md)
 

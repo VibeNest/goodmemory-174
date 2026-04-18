@@ -1533,7 +1533,7 @@ describe("eval suite", () => {
           judge: createFakeLLMAdapter([]),
         }),
       ).rejects.toThrow(
-        "Retrieval strategy hybrid cannot become the promoted default because trusted strategy-promotion authorization is not implemented yet.",
+        "Retrieval strategy hybrid cannot become the promoted default because no trusted strategy-promotion authorization was supplied.",
       );
     } finally {
       await workspace.cleanup();
@@ -1607,7 +1607,7 @@ describe("eval suite", () => {
           ]),
         }),
       ).rejects.toThrow(
-        "Retrieval strategy hybrid cannot become the promoted default because trusted strategy-promotion authorization is not implemented yet.",
+        "Retrieval strategy hybrid cannot become the promoted default because no trusted strategy-promotion authorization was supplied.",
       );
     } finally {
       await workspace.cleanup();
