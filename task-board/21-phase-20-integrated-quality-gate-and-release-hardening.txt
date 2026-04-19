@@ -1,0 +1,63 @@
+Phase 20: Integrated Quality Gate and Release Hardening
+=======================================================
+
+Phase Goal
+----------
+Close the current project slice with one integrated acceptance gate after the already-accepted phase-16 through phase-19 capability work.
+
+
+Status Snapshot
+---------------
+- Status: closed and accepted
+- This phase exists because `docs/GoodMemory-v1-Quality-Gate.md` is still the historical 2026-04-08 snapshot for phase-9 through phase-13 work.
+- The integrated closure for the current repo state must combine release, examples, and the accepted dedicated gates from phase 16 through phase 19.
+- Accepted evidence:
+  - `docs/GoodMemory-Phase-20-Quality-Gate.md`
+  - `reports/quality-gates/phase-20/run-20260419164837/phase-20-quality-gate.json`
+
+
+Dependencies
+------------
+- Phase 16 accepted
+- Phase 17 accepted
+- Phase 18 accepted
+- Phase 19 accepted
+
+
+Primary Deliverables
+--------------------
+- a new integrated `gate:phase-20` script under `scripts/`
+- release and README references for the integrated gate
+- a dedicated `docs/GoodMemory-Phase-20-Quality-Gate.md` summary
+- phase-20 task-board breakdown and acceptance evidence
+
+
+Definition of Done
+------------------
+- `gate:phase-20` exists and writes `phase-20-quality-gate.json`
+- release metadata and docs point to the integrated gate
+- the integrated gate passes on the current repo state
+- phase-20 docs and task-board point to exactly one canonical accepted run
+
+
+Tasks
+-----
+[DONE] P20-T001 Add failing tests for integrated gate coverage and release/doc references
+[DONE] P20-T002 Implement the integrated gate script and package entrypoint
+[DONE] P20-T003 Refresh README, release checklist, and quality-gate cross-links
+[DONE] P20-T004 Run the integrated gate and archive canonical acceptance evidence
+
+
+Execution Order
+---------------
+1. Add failing tests for the new gate script and release-facing references.
+2. Implement the integrated gate script and output contract.
+3. Update docs and task-board references to the new integrated gate.
+4. Run targeted regressions, then run `bun run gate:phase-20`.
+
+
+Key Constraints
+---------------
+- do not reopen phase-16 through phase-19 scope unless regressions fail
+- keep owner-managed live-provider validation explicitly separate from this deterministic integrated gate
+- do not widen public runtime config or advanced OSS surface while closing release hardening

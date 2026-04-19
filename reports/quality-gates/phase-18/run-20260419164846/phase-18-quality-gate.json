@@ -1,0 +1,159 @@
+{
+  "phase": "phase-18",
+  "generatedAt": "2026-04-19T16:48:46.449Z",
+  "generatedBy": "scripts/run-phase-18-gate.ts",
+  "runId": "run-20260419164846",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-18/run-20260419164846",
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2765,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "artifact-foundation-regressions",
+      "command": "bun test tests/integration/governance.api.test.ts tests/integration/evolution.compiler.test.ts",
+      "durationMs": 41,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) public governance API > exports scoped durable memory and optional runtime memory [8.56ms]",
+        "(pass) public governance API > deletes all scoped memory without touching other scopes [5.20ms]",
+        "(pass) public governance API > keeps workspace-scoped proposals when deleting one contributing session [1.38ms]",
+        "(pass) public governance API > returns an empty recall when ignoreMemory is enabled even if data exists [0.34ms]",
+        "(pass) public governance API > supports shouldRecall and resolveConflict hooks [0.95ms]",
+        "(pass) public governance API > blocks cross-workspace recall by default when workspace is omitted [0.39ms]",
+        "(pass) public governance API > blocks cross-tenant recall by default when tenant is omitted [0.32ms]",
+        "(pass) public governance API > does not export or delete the global profile for tenant-scoped governance calls [0.30ms]",
+        "(pass) public governance API > deletes scoped vector embeddings while preserving other scopes during deleteAllMemory [0.75ms]",
+        "",
+        "tests/integration/evolution.compiler.test.ts:",
+        "(pass) procedural pattern compiler > compiles accepted procedural promotions into one active validated pattern and supersedes the source guidance [0.87ms]",
+        "(pass) procedural pattern compiler > does not compile delayed procedural proposals into validated patterns [0.31ms]",
+        "(pass) procedural pattern compiler > does not reactivate a superseded source guidance into a new validated pattern [0.29ms]",
+        "(pass) procedural pattern compiler > deduplicates equivalent procedural patterns across accepted session-scoped promotions [0.47ms]",
+        "",
+        " 13 pass",
+        " 0 fail",
+        " 105 expect() calls",
+        "Ran 13 tests across 2 files. [36.00ms]"
+      ]
+    },
+    {
+      "label": "host-adapter-regressions",
+      "command": "bun test tests/unit/markdown-artifacts.test.ts tests/unit/host.adapter.test.ts tests/unit/host.writeback.test.ts tests/examples/examples.test.ts tests/release/release.test.ts",
+      "durationMs": 49,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "tests/release/release.test.ts:",
+        "(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [0.77ms]",
+        "(pass) release metadata and docs > package export targets resolve to files that still exist [0.85ms]",
+        "(pass) release metadata and docs > root exports stay aligned with the declared public surface [0.43ms]",
+        "(pass) release metadata and docs > readme links the canonical docs, examples, cli, and eval flow [0.30ms]",
+        "(pass) release metadata and docs > release checklist exists and covers the final gate [0.27ms]",
+        "(pass) release metadata and docs > phase-18 quality gate doc points to one canonical accepted report [0.43ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.10ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.21ms]",
+        "",
+        "tests/examples/examples.test.ts:",
+        "(pass) examples > basic chat example demonstrates the minimal integration path [7.62ms]",
+        "(pass) examples > coding-agent example demonstrates runtime continuity and procedural memory [1.17ms]",
+        "(pass) examples > claude host example demonstrates read-only compiled artifact consumption [0.51ms]",
+        "(pass) examples > codex host example demonstrates session handoff consumption [0.32ms]",
+        "",
+        " 40 pass",
+        " 0 fail",
+        " 274 expect() calls",
+        "Ran 40 tests across 5 files. [43.00ms]"
+      ]
+    },
+    {
+      "label": "host-example-claude",
+      "command": "bun run example:host-claude",
+      "durationMs": 28,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "{",
+        "  \"artifacts\": [",
+        "    {",
+        "      \"kind\": \"user\",",
+        "      \"relativePath\": \"user.md\",",
+        "      \"content\": \"# User Memory\\n\\n## Profile\\n- none\\n\\n## Active Context\\n- none\\n\\n## Preferences\\n- none\\n\\n## Feedback\\n- [do] Keep project updates short and scannable.\",",
+        "      \"artifactType\": \"user_memory\",",
+        "      \"writable\": false",
+        "    },",
+        "    {",
+        "      \"kind\": \"memory\",",
+        "      \"relativePath\": \"MEMORY.md\",",
+        "      \"content\": \"# MEMORY\\n\\n## Scope\\n- userId: claude-user\\n- workspaceId: claude-workspace\\n- scoped sessionId: claude-s1\\n\\n## Profile\\n- none\\n\\n## Preferences\\n- none\\n\\n## Feedback\\n- [do] Keep project updates short and scannable.\\n\\n## References\\n- none\\n\\n## Facts\\n- [active] the migration rollout is blocked on prod verification.\\n\\n## Episodes\\n- none\\n\\n## Session Archives\\n- none\\n\\n## Evidence\\n- My name is Lin. Remember that the migration rollout is blocked on prod verification.\\n\\n## Experiences\\n- [feedback] Feedback written as do.\\n- [remember] Remember accepted 2 candidate(s) and rejected 0 candidate(s).\\n\\n## Learning Proposals\\n- none\\n\\n## Promotions\\n- none\\n\\n## Working Memory\\n- none\\n\\n## Session Journal\\n- none\\n\\n## Artifact Spills\\n- none\",",
+        "      \"artifactType\": \"memory_index\",",
+        "      \"writable\": false",
+        "    }",
+        "  ],",
+        "  \"summary\": \"Claude can read compiled memory artifacts through file-assisted mode without editing canonical GoodMemory state.\"",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run examples/host-claude-artifacts.ts"
+      ]
+    },
+    {
+      "label": "host-example-codex",
+      "command": "bun run example:host-codex",
+      "durationMs": 25,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "{",
+        "  \"artifacts\": [",
+        "    {",
+        "      \"kind\": \"session\",",
+        "      \"relativePath\": \"session-memory/agent-s1.md\",",
+        "      \"sessionId\": \"agent-s1\",",
+        "      \"content\": \"# Session Handoff: agent-s1\\n\\n## Scope\\n- userId: codex-user\\n- workspaceId: codex-workspace\\n- sessionId: agent-s1\\n\\n## Current Goal\\n- Finish recall engine\\n\\n## Open Loops\\n- wire buildContext output\\n\\n## Recent Decisions\\n- Reuse the runtime runbook before deploy.\\n\\n## Constraints\\n- none\\n\\n## Current State\\n- Recall router implemented.\\n\\n## Key Files\\n- src/recall/engine.ts\\n- src/recall/contextBuilder.ts\\n\\n## Workflow\\n- Verify the runtime runbook\\n- Wire buildContext output\\n\\n## Procedural Memory\\n- [do] Keep coding task updates concise and action-oriented.\\n\\n## Artifact Spills\\n- none\",",
+        "      \"artifactType\": \"session_memory\",",
+        "      \"writable\": false",
+        "    }",
+        "  ],",
+        "  \"nextStep\": \"Next step: Finish recall engine, then wire buildContext output before closing the open loop.\"",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run examples/host-codex-handoff.ts"
+      ]
+    }
+  ],
+  "scope": {
+    "inScope": [
+      "goodmemory/host adapter public entrypoint and capability negotiation",
+      "compiled MEMORY.md / user.md / archive recap / playbook host surfaces",
+      "session-memory/<sessionId>.md handoff projection for coding-agent hosts",
+      "minimal file-authoritative playbook writeback with policy, verification, provenance, and rollback",
+      "Claude/Codex-style public examples on the supported read path"
+    ],
+    "outOfScope": [
+      "reviewer rollout lifecycle",
+      "maintenance rollout lifecycle",
+      "new writable host artifact types beyond canonical playbooks",
+      "changing core truth sources away from structured canonical memory"
+    ]
+  },
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 18 host-adapter scope is regression-covered on the current public path."
+  }
+}

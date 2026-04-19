@@ -686,6 +686,45 @@ describe("eval reporting", () => {
     expect(summary.strategySummary.routerImpact).toBeNull();
   });
 
+  it("marks strategy comparison coverage as inconsistent when scenario sets differ", () => {
+    const summary = aggregateJudgedCases([
+      buildCase({
+        caseId: "case-rules-only-shared",
+        scenarioId: "scenario-shared-1",
+        strategyLabel: "rules-only",
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "goodmemory",
+        baselineHistory: 4,
+        goodmemoryHistory: 8,
+      }),
+      buildCase({
+        caseId: "case-hybrid-different",
+        scenarioId: "scenario-shared-2",
+        strategyLabel: "hybrid",
+        taskFamily: "preference_continuation",
+        targetDomain: "work_ops",
+        memorySourceDomains: ["work_ops"],
+        evaluationSetting: "single_domain",
+        winner: "baseline",
+        baselineHistory: 8,
+        goodmemoryHistory: 6,
+        failureTags: ["missed_open_loop"],
+      }),
+    ]);
+
+    expect(summary.strategySummary.embeddingImpact?.strategiesCompared).toEqual([
+      "rules-only",
+      "hybrid",
+    ]);
+    expect(summary.strategySummary.embeddingImpact?.consistentScenarioCoverage).toBe(
+      false,
+    );
+    expect(summary.strategySummary.embeddingImpact?.uniqueScenarios).toBe(2);
+  });
+
   it("builds shadow comparison summaries for observe and assist rollout cases", () => {
     const summary = aggregateJudgedCases([
       buildCase({
@@ -1855,6 +1894,9 @@ describe("eval reporting", () => {
           goodmemoryHistory: 6,
           failureTags: ["goodmemory_wrong_personalization"],
           contaminationFindings: ["leaked stale preference"],
+          shadow: {
+            strategyLabel: "hybrid",
+          },
         }),
         buildCase({
           caseId: "case-cluster-2",
@@ -2002,6 +2044,8 @@ describe("eval reporting", () => {
         failure: "failures/case-cluster-1.json",
         baselineTrace: "traces/case-cluster-1/baseline.json",
         executedTrace: "traces/case-cluster-1/goodmemory.json",
+        shadowTrace: "traces/case-cluster-1__shadow/shadow.json",
+        shadowRawRecall: "traces/case-cluster-1__shadow/shadow-raw-recall.json",
         rawRecall: "traces/case-cluster-1/raw-recall.json",
         judge: "traces/case-cluster-1/judge.json",
         assertions: "traces/case-cluster-1/assertions.json",
@@ -2018,6 +2062,141 @@ describe("eval reporting", () => {
       expect(artifact.failureClusters[1]?.cases[0]?.artifactPaths).toEqual({
         failure: "failures/case-execution.execution.json",
       });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("sorts regression dashboard strategies by blocking count, then regression count, then label", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-reporting-regression-dashboard-order",
+    );
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-assisted",
+          scenarioId: "scenario-assisted",
+          strategyLabel: "assisted",
+          resolvedStrategyLabel: "assisted",
+          strategyFamily: "retrieval",
+          strategyMode: "assist",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: true,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 6,
+          failureTags: ["goodmemory_wrong_personalization"],
+        }),
+        buildCase({
+          caseId: "case-hybrid",
+          scenarioId: "scenario-hybrid",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "hybrid",
+          strategyFamily: "retrieval",
+          strategyMode: "assist",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: true,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 6,
+          failureTags: ["goodmemory_wrong_personalization"],
+        }),
+      ];
+
+      const executionFailures = [
+        {
+          caseId: "case-llm-assisted-execution",
+          failureStage: "primary_execution" as const,
+          metadata: {
+            taskFamily: "preference_continuation" as const,
+            targetDomain: "work_ops",
+            memorySourceDomains: ["work_ops"],
+            evaluationSetting: "single_domain" as const,
+            strategyLabel: "llm-assisted" as const,
+            resolvedStrategyLabel: "llm-assisted" as const,
+            strategyFamily: "retrieval" as const,
+            strategyMode: "assist" as const,
+            promotedStrategyLabel: "rules-only" as const,
+          },
+          retryLimit: 2,
+          attempts: [
+            { attempt: 1, error: "timeout" },
+            { attempt: 2, error: "timeout" },
+          ],
+          lastError: "timeout",
+        },
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-regression-dashboard-order",
+        cases,
+        summary: aggregateJudgedCases(cases, executionFailures),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "assist",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+        executionFailures,
+      });
+
+      const artifact = JSON.parse(
+        await readFile(join(result.runDirectory, "regression-dashboard.json"), "utf8"),
+      ) as {
+        summary: {
+          regressionDashboardSummary?: {
+            strategyRegressions: Array<{
+              strategyLabel: string;
+              blockingCaseCount: number;
+              regressionCaseCount: number;
+            }>;
+          };
+        };
+      };
+
+      expect(
+        artifact.summary.regressionDashboardSummary?.strategyRegressions.map(
+          (item) => item.strategyLabel,
+        ),
+      ).toEqual(["assisted", "hybrid", "llm-assisted"]);
+      expect(
+        artifact.summary.regressionDashboardSummary?.strategyRegressions.map((item) => ({
+          strategyLabel: item.strategyLabel,
+          blockingCaseCount: item.blockingCaseCount,
+          regressionCaseCount: item.regressionCaseCount,
+        })),
+      ).toEqual([
+        {
+          strategyLabel: "assisted",
+          blockingCaseCount: 1,
+          regressionCaseCount: 1,
+        },
+        {
+          strategyLabel: "hybrid",
+          blockingCaseCount: 1,
+          regressionCaseCount: 1,
+        },
+        {
+          strategyLabel: "llm-assisted",
+          blockingCaseCount: 1,
+          regressionCaseCount: 0,
+        },
+      ]);
     } finally {
       await workspace.cleanup();
     }
@@ -2159,6 +2338,88 @@ describe("eval reporting", () => {
         executedStrategyLabel: "rules-only",
         resolvedStrategyLabel: "rules-only",
       });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("sorts equal-sized failure clusters by cluster id", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-reporting-failure-cluster-order",
+    );
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-cluster-alpha",
+          scenarioId: "scenario-cluster-alpha",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "hybrid",
+          strategyFamily: "retrieval",
+          strategyMode: "assist",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: true,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 6,
+          failureTags: ["aaa_failure"],
+        }),
+        buildCase({
+          caseId: "case-cluster-zulu",
+          scenarioId: "scenario-cluster-zulu",
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "hybrid",
+          strategyFamily: "retrieval",
+          strategyMode: "assist",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: true,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "baseline",
+          baselineHistory: 8,
+          goodmemoryHistory: 6,
+          failureTags: ["zzz_failure"],
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-failure-cluster-order",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "assist",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const artifact = JSON.parse(
+        await readFile(join(result.runDirectory, "regression-dashboard.json"), "utf8"),
+      ) as {
+        failureClusters: Array<{
+          clusterId: string;
+          totalCases: number;
+        }>;
+      };
+
+      expect(artifact.failureClusters.map((item) => item.totalCases)).toEqual([1, 1]);
+      expect(artifact.failureClusters.map((item) => item.clusterId)).toEqual([
+        "judged:aaa_failure",
+        "judged:zzz_failure",
+      ]);
     } finally {
       await workspace.cleanup();
     }

@@ -1,0 +1,8 @@
+[DONE] P20.3-T001 Run targeted regression commands after the doc/script changes
+[DONE] P20.3-T002 Run `bun run gate:phase-20`
+[DONE] P20.3-T003 Update phase-20 docs and task-board files to point at the canonical accepted run
+
+Canonical accepted run
+----------------------
+- `run-20260419164837`
+- `reports/quality-gates/phase-20/run-20260419164837/phase-20-quality-gate.json`

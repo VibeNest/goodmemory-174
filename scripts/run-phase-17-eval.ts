@@ -18,6 +18,7 @@ import {
   resolveFlagValue,
   resolveRepeatedFlagValues,
 } from "./run-eval";
+import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export interface Phase17EvalOptions extends FixtureEvalOptions {
   runId?: string;
@@ -43,7 +44,7 @@ export async function runPhase17FallbackEval(
   input?: Phase17EvalOptions,
   dependencies?: Phase17EvalDependencies,
 ): Promise<EvalSuiteResult> {
-  const root = new URL("..", import.meta.url).pathname;
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const runSuite = dependencies?.runSuite ?? runEvalSuite;
   const strategyRollout = {
     family: "retrieval" as const,

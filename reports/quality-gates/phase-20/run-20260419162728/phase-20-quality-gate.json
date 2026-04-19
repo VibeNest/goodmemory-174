@@ -1,0 +1,84 @@
+{
+  "phase": "phase-20",
+  "generatedAt": "2026-04-19T16:27:28.076Z",
+  "generatedBy": "scripts/run-phase-20-gate.ts",
+  "runId": "run-20260419162728",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-20/run-20260419162728",
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2072,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "coverage-regression-suite",
+      "command": "bun run test:coverage",
+      "durationMs": 6886,
+      "exitCode": 1,
+      "status": "failed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)",
+        "Coverage overall: 92.99% (18524/19920)",
+        "src/domain: 99.62% (262/263)",
+        "src/remember: 93.84% (1919/2045)",
+        "src/recall: 94.78% (2543/2683)",
+        "src/runtime: 98.12% (417/425)",
+        "src/maintenance: 95.35% (554/581)",
+        "src/verify: 99.08% (108/109)",
+        "src/storage: 95.69% (889/929)",
+        "src/eval: 91.71% (4291/4679)",
+        "src/provider: 82.41% (717/870)",
+        "scripts/run-eval.ts: 92.69% (761/821)",
+        "scripts/summarize-eval.ts: 97.47% (77/79)"
+      ],
+      "stderrTail": [
+        " tests/scenarios/behavior-fixtures.ts        |  100.00 |  100.00 | ",
+        "---------------------------------------------|---------|---------|-------------------",
+        "",
+        " 649 pass",
+        " 0 fail",
+        " 2860 expect() calls",
+        "Ran 649 tests across 98 files. [6.82s]",
+        "223 |   const result = evaluateCoverage(records);",
+        "224 | ",
+        "225 |   logCoverageReport(result);",
+        "226 | ",
+        "227 |   if (result.failures.length > 0) {",
+        "228 |     throw new Error(`Coverage gate failed:\\n- ${result.failures.join(\"\\n- \")}`);",
+        "                    ^",
+        "error: Coverage gate failed:",
+        "- overall deterministic line coverage 92.99% < 93.00%",
+        "      at main (/Users/hjqcan/Documents/GoodMomery/scripts/check-coverage.ts:228:15)",
+        "",
+        "Bun v1.3.11 (macOS arm64)",
+        "error: script \"test:coverage\" exited with code 1"
+      ]
+    }
+  ],
+  "scope": {
+    "inScope": [
+      "integrated typecheck and coverage regression across the canonical tests tree",
+      "cli, examples, and release metadata alignment on the supported OSS path",
+      "phase-16 procedural promotion and outcome-maintenance closure",
+      "phase-17 retrieval rollout closure",
+      "phase-18 host-adapter closure",
+      "phase-19 reviewer and maintenance rollout closure",
+      "current public examples across chat, coding-agent, and host-assisted paths"
+    ],
+    "outOfScope": [
+      "owner-managed live-provider credentials and manual production data checks",
+      "new public config widening beyond the closed phase-19 decision",
+      "new post-phase-20 product capability work"
+    ]
+  },
+  "acceptance": {
+    "decision": "blocked",
+    "reason": "Required regression command failed: coverage-regression-suite"
+  }
+}

@@ -7,8 +7,9 @@ import type {
   ScenarioEvaluationSetting,
   ScenarioFixture,
 } from "../src/eval/dataset";
+import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = resolveRepoRootFromScriptUrl(import.meta.url);
 const PERSONA_DIR = join(ROOT, "fixtures/personas/eval");
 const SCENARIO_DIR = join(ROOT, "fixtures/scenarios/eval");
 

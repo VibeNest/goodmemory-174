@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export interface Phase18GateCommand {
   args: string[];
@@ -166,7 +167,7 @@ export async function runPhase18QualityGate(
   input?: Phase18GateOptions,
   dependencies?: Phase18GateDependencies,
 ): Promise<Phase18GateReport> {
-  const root = new URL("..", import.meta.url).pathname;
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const ensureDir = dependencies?.ensureDir ?? mkdir;
   const now = dependencies?.now ?? (() => new Date().toISOString());
   const runCommand = dependencies?.runCommand ?? defaultRunCommand;

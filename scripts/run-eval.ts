@@ -31,6 +31,7 @@ import {
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
 } from "../src/provider/layer";
+import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export type EvalMode = "live" | "fallback";
 export type EvalCLIExecutionMode = EvalMode | "live-memory" | "smoke";
@@ -715,7 +716,7 @@ export async function runFallbackEval(
   input?: FixtureEvalOptions,
   dependencies?: FallbackEvalDependencies,
 ): Promise<EvalSuiteResult> {
-  const root = new URL("..", import.meta.url).pathname;
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const runSuite = dependencies?.runSuite ?? runEvalSuite;
   const failedCaseIds = input?.failuresFrom
     ? await resolveFailedCaseIds(input.failuresFrom, "fallback")
@@ -810,7 +811,7 @@ export async function runLiveEval(
   input?: FixtureEvalOptions,
   dependencies?: LiveEvalDependencies,
 ): Promise<EvalSuiteResult> {
-  const root = new URL("..", import.meta.url).pathname;
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const createTextGenerator =
     dependencies?.createTextGenerator ?? createProviderTextGenerator;
   const createJudgeModel =
@@ -883,7 +884,7 @@ export async function runLiveMemoryEval(
   input?: FixtureEvalOptions,
   dependencies?: LiveMemoryEvalDependencies,
 ): Promise<EvalSuiteResult> {
-  const root = new URL("..", import.meta.url).pathname;
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const createTextGenerator =
     dependencies?.createTextGenerator ?? createProviderTextGenerator;
   const createJudgeModel =

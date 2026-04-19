@@ -1,0 +1,422 @@
+{
+  "phase": "phase-20",
+  "generatedAt": "2026-04-19T16:48:37.034Z",
+  "generatedBy": "scripts/run-phase-20-gate.ts",
+  "runId": "run-20260419164837",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-20/run-20260419164837",
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2003,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "coverage-regression-suite",
+      "command": "bun run test:coverage",
+      "durationMs": 6736,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)",
+        "Coverage overall: 93.00% (18526/19921)",
+        "src/domain: 99.62% (262/263)",
+        "src/remember: 93.84% (1919/2045)",
+        "src/recall: 94.78% (2543/2683)",
+        "src/runtime: 98.12% (417/425)",
+        "src/maintenance: 95.18% (553/581)",
+        "src/verify: 99.08% (108/109)",
+        "src/storage: 95.69% (889/929)",
+        "src/eval: 91.75% (4293/4679)",
+        "src/provider: 82.41% (717/870)",
+        "scripts/run-eval.ts: 92.70% (762/822)",
+        "scripts/summarize-eval.ts: 97.47% (77/79)"
+      ],
+      "stderrTail": [
+        " src/runtime/spillover.ts                    |  100.00 |  100.00 | ",
+        " src/storage/contracts.ts                    |  100.00 |  100.00 | ",
+        " src/storage/memory.ts                       |  100.00 |   97.73 | 63,214",
+        " src/storage/postgres.ts                     |   92.96 |   94.07 | 114,123,131,142-143,156-161,308,344,346-348,352-353,402,444,453,605,642",
+        " src/storage/repositories.ts                 |   95.65 |   95.83 | 330-335,413-416",
+        " src/storage/sqlite.ts                       |  100.00 |   97.78 | 122,182",
+        " src/testing/fakes.ts                        |   56.00 |   53.77 | 20,64-77,97-109,118-138",
+        " src/testing/fixtures.ts                     |  100.00 |  100.00 | ",
+        " src/testing/scenarioReplay.ts               |  100.00 |  100.00 | ",
+        " src/testing/utils.ts                        |  100.00 |  100.00 | ",
+        " src/verify/policy.ts                        |  100.00 |   99.08 | ",
+        " tests/integration/storage.contract.ts       |  100.00 |  100.00 | ",
+        " tests/scenarios/assert-behavior-scenario.ts |  100.00 |   91.10 | 40,44,48,57,99,104,110-112,114-118,158-160",
+        " tests/scenarios/behavior-fixtures.ts        |  100.00 |  100.00 | ",
+        "---------------------------------------------|---------|---------|-------------------",
+        "",
+        " 653 pass",
+        " 0 fail",
+        " 2867 expect() calls",
+        "Ran 653 tests across 99 files. [6.69s]"
+      ]
+    },
+    {
+      "label": "cli-and-example-regressions",
+      "command": "bun test tests/cli/cli.test.ts tests/examples/examples.test.ts tests/release/release.test.ts",
+      "durationMs": 218,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) goodmemory cli root commands > inspect summarizes scoped memory from sqlite storage [25.40ms]",
+        "(pass) goodmemory cli root commands > inspect hides superseded references from the top summary [9.21ms]",
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [14.13ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [7.79ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [8.70ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [6.94ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [3.60ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [6.16ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [5.51ms]",
+        "",
+        "tests/examples/examples.test.ts:",
+        "(pass) examples > basic chat example demonstrates the minimal integration path [4.14ms]",
+        "(pass) examples > coding-agent example demonstrates runtime continuity and procedural memory [6.04ms]",
+        "(pass) examples > claude host example demonstrates read-only compiled artifact consumption [1.78ms]",
+        "(pass) examples > codex host example demonstrates session handoff consumption [0.69ms]",
+        "",
+        " 25 pass",
+        " 0 fail",
+        " 228 expect() calls",
+        "Ran 25 tests across 3 files. [212.00ms]"
+      ]
+    },
+    {
+      "label": "eval-smoke",
+      "command": "bun run eval:smoke",
+      "durationMs": 65,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "{",
+        "  \"mode\": \"smoke\",",
+        "  \"runId\": \"run-1776617326054\",",
+        "  \"summary\": {",
+        "    \"totalCases\": 1,",
+        "    \"passedCases\": 1",
+        "  },",
+        "  \"cases\": [",
+        "    {",
+        "      \"caseId\": \"smoke-001\",",
+        "      \"name\": \"smoke eval bootstrap\",",
+        "      \"status\": \"passed\"",
+        "    }",
+        "  ]",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-eval.ts --mode=smoke"
+      ]
+    },
+    {
+      "label": "phase-16-gate",
+      "command": "bun run eval:phase-16",
+      "durationMs": 142,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "            \"passed\": true,",
+        "            \"details\": [",
+        "              \"absent:avoid irrelevant carry-over from hobby preferences\"",
+        "            ]",
+        "          },",
+        "          {",
+        "            \"id\": \"provenance_explainable\",",
+        "            \"passed\": true,",
+        "            \"details\": [",
+        "              \"provenance:complete\"",
+        "            ]",
+        "          }",
+        "        ],",
+        "        \"contaminationFindings\": [],",
+        "        \"updateFindings\": []",
+        "      }",
+        "    }",
+        "  ],",
+        "  \"failedCases\": []",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-16-eval.ts"
+      ]
+    },
+    {
+      "label": "phase-17-gate",
+      "command": "bun run eval:phase-17",
+      "durationMs": 232,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "      \"totalCases\": 14,",
+        "      \"byFamily\": {",
+        "        \"retrieval\": 14",
+        "      },",
+        "      \"byMode\": {",
+        "        \"observe\": 14",
+        "      },",
+        "      \"candidateInfluencedCases\": 0,",
+        "      \"safeObserveCases\": 14,",
+        "      \"unknownObserveCases\": 0,",
+        "      \"regressionCases\": []",
+        "    },",
+        "    \"totalCases\": 14,",
+        "    \"winnerCounts\": {",
+        "      \"baseline\": 0,",
+        "      \"goodmemory\": 14,",
+        "      \"tie\": 0",
+        "    }",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-17-eval.ts"
+      ]
+    },
+    {
+      "label": "phase-18-gate",
+      "command": "bun run gate:phase-18",
+      "durationMs": 2926,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"goodmemory/host adapter public entrypoint and capability negotiation\",",
+        "      \"compiled MEMORY.md / user.md / archive recap / playbook host surfaces\",",
+        "      \"session-memory/<sessionId>.md handoff projection for coding-agent hosts\",",
+        "      \"minimal file-authoritative playbook writeback with policy, verification, provenance, and rollback\",",
+        "      \"Claude/Codex-style public examples on the supported read path\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"reviewer rollout lifecycle\",",
+        "      \"maintenance rollout lifecycle\",",
+        "      \"new writable host artifact types beyond canonical playbooks\",",
+        "      \"changing core truth sources away from structured canonical memory\"",
+        "    ]",
+        "  },",
+        "  \"acceptance\": {",
+        "    \"decision\": \"accepted\",",
+        "    \"reason\": \"Phase 18 host-adapter scope is regression-covered on the current public path.\"",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-18-gate.ts"
+      ]
+    },
+    {
+      "label": "phase-19-reviewer-gate",
+      "command": "bun run gate:phase-19-reviewer",
+      "durationMs": 2887,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "    }",
+        "  ],",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"reviewer rollout family observe/assist/promote lifecycle\",",
+        "      \"family-aware eval/runtime/reporting rollout substrate\",",
+        "      \"retrieval rollout regression coverage required by the reviewer family\",",
+        "      \"phase-18 host-adapter public-path regressions\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"maintenance rollout family closure\",",
+        "      \"public config widening for reviewer controls\",",
+        "      \"non-deterministic live-model acceptance\"",
+        "    ]",
+        "  },",
+        "  \"acceptance\": {",
+        "    \"decision\": \"accepted\",",
+        "    \"reason\": \"Phase 19 reviewer rollout is regression-covered on top of the closed retrieval and host surfaces.\"",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-19-reviewer-gate.ts"
+      ]
+    },
+    {
+      "label": "phase-19-maintenance-gate",
+      "command": "bun run gate:phase-19-maintenance",
+      "durationMs": 2653,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "    }",
+        "  ],",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"maintenance rollout family observe/assist/promote lifecycle\",",
+        "      \"public runMaintenance eval-only candidate execution path\",",
+        "      \"retrieval rollout regression coverage required by the maintenance family\",",
+        "      \"phase-18 host-adapter public-path regressions\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"reviewer rollout family closure\",",
+        "      \"public config widening for maintenance controls\",",
+        "      \"non-deterministic live-model acceptance\"",
+        "    ]",
+        "  },",
+        "  \"acceptance\": {",
+        "    \"decision\": \"accepted\",",
+        "    \"reason\": \"Phase 19 maintenance rollout is regression-covered on top of the closed retrieval and host surfaces.\"",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-19-maintenance-gate.ts"
+      ]
+    },
+    {
+      "label": "chat-example",
+      "command": "bun run example:chat",
+      "durationMs": 32,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "{",
+        "  \"artifacts\": {",
+        "    \"rootPath\": \".goodmemory/users/example-user/workspaces/example-chat/sessions/chat-s1\",",
+        "    \"files\": [",
+        "      {",
+        "        \"kind\": \"user\",",
+        "        \"relativePath\": \"user.md\",",
+        "        \"content\": \"# User Memory\\n\\n## Profile\\n- none\\n\\n## Active Context\\n- none\\n\\n## Preferences\\n- response_style: bullet points in project summaries\\n\\n## Feedback\\n- none\"",
+        "      },",
+        "      {",
+        "        \"kind\": \"memory\",",
+        "        \"relativePath\": \"MEMORY.md\",",
+        "        \"content\": \"# MEMORY\\n\\n## Scope\\n- userId: example-user\\n- workspaceId: example-chat\\n- scoped sessionId: chat-s1\\n\\n## Profile\\n- none\\n\\n## Preferences\\n- response_style: bullet points in project summaries\\n\\n## Feedback\\n- none\\n\\n## References\\n- none\\n\\n## Facts\\n- [active] the migration rollout is blocked on prod verification.\\n\\n## Episodes\\n- none\\n\\n## Session Archives\\n- none\\n\\n## Evidence\\n- My name is Lin. Remember that the migration rollout is blocked on prod verification.\\n\\n## Experiences\\n- [remember] Remember accepted 3 candidate(s) and rejected 0 candidate(s).\\n\\n## Learning Proposals\\n- none\\n\\n## Promotions\\n- none\\n\\n## Working Memory\\n- none\\n\\n## Session Journal\\n- none\\n\\n## Artifact Spills\\n- none\"",
+        "      }",
+        "    ]",
+        "  },",
+        "  \"memoryContext\": \"## Profile\\nLin\\n\\n## Facts\\n- the migration rollout is blocked on prod verification.\\n\\n## Preferences\\n- response_style: bullet points in project summaries\",",
+        "  \"answer\": \"Bullet summary: the migration rollout is still blocked on prod verification, so I would answer in concise bullet points.\"",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run examples/basic-chat.ts"
+      ]
+    },
+    {
+      "label": "coding-agent-example",
+      "command": "bun run example:coding-agent",
+      "durationMs": 27,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "        \"kind\": \"user\",",
+        "        \"relativePath\": \"user.md\",",
+        "        \"content\": \"# User Memory\\n\\n## Profile\\n- none\\n\\n## Active Context\\n- none\\n\\n## Preferences\\n- none\\n\\n## Feedback\\n- [do] Please keep coding task updates concise and action-oriented.\"",
+        "      },",
+        "      {",
+        "        \"kind\": \"memory\",",
+        "        \"relativePath\": \"MEMORY.md\",",
+        "        \"content\": \"# MEMORY\\n\\n## Scope\\n- userId: agent-user\\n- workspaceId: example-agent\\n- scoped sessionId: agent-s1\\n\\n## Profile\\n- none\\n\\n## Preferences\\n- none\\n\\n## Feedback\\n- [do] Please keep coding task updates concise and action-oriented.\\n\\n## References\\n- none\\n\\n## Facts\\n- none\\n\\n## Episodes\\n- none\\n\\n## Session Archives\\n- none\\n\\n## Evidence\\n- none\\n\\n## Experiences\\n- [recall] Recall rules-only returned 3 hit(s) and reinforced 1 feedback item(s).\\n- [feedback] Feedback written as do.\\n\\n## Learning Proposals\\n- none\\n\\n## Promotions\\n- none\\n\\n## Working Memory\\n- Current goal: Finish recall engine\\n- Open loop: wire buildContext output\\n- Temporary decision: Use the rollback checklist before deploy.\\n\\n## Session Journal\\n- Current state: Phase 6 in progress\\n- Worklog: Recall router implemented.\\n\\n## Artifact Spills\\n- none\"",
+        "      },",
+        "      {",
+        "        \"kind\": \"session\",",
+        "        \"relativePath\": \"session.md\",",
+        "        \"sessionId\": \"agent-s1\",",
+        "        \"content\": \"# Session Memory: agent-s1\\n\\n## Scope\\n- userId: agent-user\\n- workspaceId: example-agent\\n- scoped sessionId: agent-s1\\n- sessionId: agent-s1\\n\\n## Preferences\\n- none\\n\\n## References\\n- none\\n\\n## Facts\\n- none\\n\\n## Feedback\\n- [do] Please keep coding task updates concise and action-oriented.\\n\\n## Episodes\\n- none\\n\\n## Session Archives\\n- none\\n\\n## Evidence\\n- none\\n\\n## Experiences\\n- [recall] Recall rules-only returned 3 hit(s) and reinforced 1 feedback item(s).\\n- [feedback] Feedback written as do.\\n\\n## Learning Proposals\\n- none\\n\\n## Promotions\\n- none\\n\\n## Working Memory\\n- Current goal: Finish recall engine\\n- Open loop: wire buildContext output\\n- Temporary decision: Use the rollback checklist before deploy.\\n\\n## Session Journal\\n- Current state: Phase 6 in progress\\n- Worklog: Recall router implemented.\\n\\n## Artifact Spills\\n- none\"",
+        "      }",
+        "    ]",
+        "  },",
+        "  \"memoryContext\": \"## Procedural Memory\\n- Please keep coding task updates concise and action-oriented.\\n\\n## Working Memory\\nCurrent goal: Finish recall engine\\nOpen loops: wire buildContext output\\n\\n## Session Journal\\nCurrent state: Phase 6 in progress\\nRecent worklog: Recall router implemented.\",",
+        "  \"answer\": \"Next step: Finish recall engine, then wire buildContext output before closing the open loop on wire buildContext output.\"",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run examples/coding-agent.ts"
+      ]
+    },
+    {
+      "label": "host-example-claude",
+      "command": "bun run example:host-claude",
+      "durationMs": 28,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "{",
+        "  \"artifacts\": [",
+        "    {",
+        "      \"kind\": \"user\",",
+        "      \"relativePath\": \"user.md\",",
+        "      \"content\": \"# User Memory\\n\\n## Profile\\n- none\\n\\n## Active Context\\n- none\\n\\n## Preferences\\n- none\\n\\n## Feedback\\n- [do] Keep project updates short and scannable.\",",
+        "      \"artifactType\": \"user_memory\",",
+        "      \"writable\": false",
+        "    },",
+        "    {",
+        "      \"kind\": \"memory\",",
+        "      \"relativePath\": \"MEMORY.md\",",
+        "      \"content\": \"# MEMORY\\n\\n## Scope\\n- userId: claude-user\\n- workspaceId: claude-workspace\\n- scoped sessionId: claude-s1\\n\\n## Profile\\n- none\\n\\n## Preferences\\n- none\\n\\n## Feedback\\n- [do] Keep project updates short and scannable.\\n\\n## References\\n- none\\n\\n## Facts\\n- [active] the migration rollout is blocked on prod verification.\\n\\n## Episodes\\n- none\\n\\n## Session Archives\\n- none\\n\\n## Evidence\\n- My name is Lin. Remember that the migration rollout is blocked on prod verification.\\n\\n## Experiences\\n- [feedback] Feedback written as do.\\n- [remember] Remember accepted 2 candidate(s) and rejected 0 candidate(s).\\n\\n## Learning Proposals\\n- none\\n\\n## Promotions\\n- none\\n\\n## Working Memory\\n- none\\n\\n## Session Journal\\n- none\\n\\n## Artifact Spills\\n- none\",",
+        "      \"artifactType\": \"memory_index\",",
+        "      \"writable\": false",
+        "    }",
+        "  ],",
+        "  \"summary\": \"Claude can read compiled memory artifacts through file-assisted mode without editing canonical GoodMemory state.\"",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run examples/host-claude-artifacts.ts"
+      ]
+    },
+    {
+      "label": "host-example-codex",
+      "command": "bun run example:host-codex",
+      "durationMs": 26,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "{",
+        "  \"artifacts\": [",
+        "    {",
+        "      \"kind\": \"session\",",
+        "      \"relativePath\": \"session-memory/agent-s1.md\",",
+        "      \"sessionId\": \"agent-s1\",",
+        "      \"content\": \"# Session Handoff: agent-s1\\n\\n## Scope\\n- userId: codex-user\\n- workspaceId: codex-workspace\\n- sessionId: agent-s1\\n\\n## Current Goal\\n- Finish recall engine\\n\\n## Open Loops\\n- wire buildContext output\\n\\n## Recent Decisions\\n- Reuse the runtime runbook before deploy.\\n\\n## Constraints\\n- none\\n\\n## Current State\\n- Recall router implemented.\\n\\n## Key Files\\n- src/recall/engine.ts\\n- src/recall/contextBuilder.ts\\n\\n## Workflow\\n- Verify the runtime runbook\\n- Wire buildContext output\\n\\n## Procedural Memory\\n- [do] Keep coding task updates concise and action-oriented.\\n\\n## Artifact Spills\\n- none\",",
+        "      \"artifactType\": \"session_memory\",",
+        "      \"writable\": false",
+        "    }",
+        "  ],",
+        "  \"nextStep\": \"Next step: Finish recall engine, then wire buildContext output before closing the open loop.\"",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run examples/host-codex-handoff.ts"
+      ]
+    }
+  ],
+  "scope": {
+    "inScope": [
+      "integrated typecheck and coverage regression across the canonical tests tree",
+      "cli, examples, and release metadata alignment on the supported OSS path",
+      "phase-16 procedural promotion and outcome-maintenance closure",
+      "phase-17 retrieval rollout closure",
+      "phase-18 host-adapter closure",
+      "phase-19 reviewer and maintenance rollout closure",
+      "current public examples across chat, coding-agent, and host-assisted paths"
+    ],
+    "outOfScope": [
+      "owner-managed live-provider credentials and manual production data checks",
+      "new public config widening beyond the closed phase-19 decision",
+      "new post-phase-20 product capability work"
+    ]
+  },
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 20 integrated release-hardening scope is regression-covered across the current v1 and post-v1 growth surfaces."
+  }
+}

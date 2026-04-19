@@ -1,0 +1,8 @@
+[DONE] P20.2-T001 Update README references for the integrated gate
+[DONE] P20.2-T002 Update `docs/GoodMemory-v1-Release-Checklist.md`
+[DONE] P20.2-T003 Reclassify `docs/GoodMemory-v1-Quality-Gate.md` as the historical pre-phase-16 snapshot
+[DONE] P20.2-T004 Add `docs/GoodMemory-Phase-20-Quality-Gate.md`
+
+Regression
+----------
+- `bun test tests/release/release.test.ts`

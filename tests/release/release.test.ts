@@ -3,6 +3,43 @@ import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+async function expectCanonicalAcceptedQualityGate(input: {
+  docPath: string;
+  phaseDirectory: string;
+  reportFileName: string;
+  runId: string;
+}) {
+  const qualityGateDoc = await readFile(
+    join(import.meta.dir, "../../", input.docPath),
+    "utf8",
+  );
+  const referencedRunIds = [
+    ...qualityGateDoc.matchAll(/run-\d{14}/g),
+  ].map((match) => match[0]);
+
+  expect(referencedRunIds.length).toBeGreaterThan(0);
+  expect(new Set(referencedRunIds)).toEqual(new Set([input.runId]));
+
+  const [canonicalRunId] = referencedRunIds;
+  const report = JSON.parse(
+    await readFile(
+      join(
+        import.meta.dir,
+        `../../reports/quality-gates/${input.phaseDirectory}/${canonicalRunId}/${input.reportFileName}`,
+      ),
+      "utf8",
+    ),
+  ) as {
+    acceptance: {
+      decision: string;
+    };
+    runId: string;
+  };
+
+  expect(report.runId).toBe(canonicalRunId);
+  expect(report.acceptance.decision).toBe("accepted");
+}
+
 describe("release metadata and docs", () => {
   it("package metadata exposes bin, exports, and key scripts", async () => {
     const pkg = JSON.parse(
@@ -51,6 +88,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-19-maintenance"]).toBe(
       "bun run scripts/run-phase-19-maintenance-gate.ts",
     );
+    expect(pkg.scripts?.["gate:phase-20"]).toBe("bun run scripts/run-phase-20-gate.ts");
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
 
@@ -109,6 +147,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("GoodMemory-Phase-18-Quality-Gate.md");
     expect(readme).toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
     expect(readme).toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
+    expect(readme).toContain("GoodMemory-Phase-20-Quality-Gate.md");
     expect(readme).toContain("GoodMemory-PRD.md");
     expect(readme).toContain("GoodMemory-TDD-and-Evaluation-Strategy.md");
     expect(readme).toContain("GoodMemory-Strategy-Rollout-Guide.md");
@@ -121,6 +160,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("gate:phase-18");
     expect(readme).toContain("gate:phase-19-reviewer");
     expect(readme).toContain("gate:phase-19-maintenance");
+    expect(readme).toContain("gate:phase-20");
     expect(readme).toContain("observe -> assist -> promote");
     expect(readme).toContain("regression-dashboard.json");
     expect(readme).toContain("strategy-promotion-authorization.json");
@@ -154,9 +194,11 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("GoodMemory-Phase-17-Quality-Gate.md");
     expect(checklist).toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
     expect(checklist).toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
+    expect(checklist).toContain("GoodMemory-Phase-20-Quality-Gate.md");
     expect(checklist).toContain("GoodMemory-Strategy-Rollout-Guide.md");
     expect(checklist).toContain("gate:phase-19-reviewer");
     expect(checklist).toContain("gate:phase-19-maintenance");
+    expect(checklist).toContain("gate:phase-20");
     expect(checklist).toContain("rules-only");
     expect(checklist).toContain("salvage hooks");
     expect(checklist).not.toContain("eval:full");
@@ -166,37 +208,21 @@ describe("release metadata and docs", () => {
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
-    const qualityGateDoc = await readFile(
-      join(import.meta.dir, "../../docs/GoodMemory-Phase-18-Quality-Gate.md"),
-      "utf8",
-    );
-    const referencedRunIds = [
-      ...qualityGateDoc.matchAll(/run-\d{14}/g),
-    ].map((match) => match[0]);
+    await expectCanonicalAcceptedQualityGate({
+      docPath: "docs/GoodMemory-Phase-18-Quality-Gate.md",
+      phaseDirectory: "phase-18",
+      reportFileName: "phase-18-quality-gate.json",
+      runId: "run-20260419031141",
+    });
+  });
 
-    expect(referencedRunIds.length).toBeGreaterThan(0);
-    expect(new Set(referencedRunIds)).toEqual(
-      new Set(["run-20260419031141"]),
-    );
-
-    const [canonicalRunId] = referencedRunIds;
-    const report = JSON.parse(
-      await readFile(
-        join(
-          import.meta.dir,
-          `../../reports/quality-gates/phase-18/${canonicalRunId}/phase-18-quality-gate.json`,
-        ),
-        "utf8",
-      ),
-    ) as {
-      acceptance: {
-        decision: string;
-      };
-      runId: string;
-    };
-
-    expect(report.runId).toBe(canonicalRunId);
-    expect(report.acceptance.decision).toBe("accepted");
+  it("phase-20 quality gate doc points to one canonical accepted report", async () => {
+    await expectCanonicalAcceptedQualityGate({
+      docPath: "docs/GoodMemory-Phase-20-Quality-Gate.md",
+      phaseDirectory: "phase-20",
+      reportFileName: "phase-20-quality-gate.json",
+      runId: "run-20260419164837",
+    });
   });
 
   it("coding-agent example stays on the public path and avoids internal evolution imports", async () => {

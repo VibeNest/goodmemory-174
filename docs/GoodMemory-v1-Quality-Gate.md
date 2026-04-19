@@ -2,6 +2,11 @@
 
 Generated at: `2026-04-08 02:08:17 +0800`
 
+> Note:
+> This document is the historical phase-9 to phase-13 quality gate snapshot.
+> The current integrated post-phase-19 acceptance entrypoint is `bun run gate:phase-20`,
+> summarized in `docs/GoodMemory-Phase-20-Quality-Gate.md`.
+
 ## Commands Run
 
 ```bash

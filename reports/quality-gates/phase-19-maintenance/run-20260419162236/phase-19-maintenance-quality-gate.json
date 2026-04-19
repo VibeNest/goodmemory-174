@@ -1,0 +1,45 @@
+{
+  "phase": "phase-19-maintenance",
+  "generatedAt": "2026-04-19T16:22:36.777Z",
+  "generatedBy": "scripts/run-phase-19-maintenance-gate.ts",
+  "runId": "run-20260419162236",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-19-maintenance/run-20260419162236",
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 4035,
+      "exitCode": 2,
+      "status": "failed",
+      "stdoutTail": [
+        "tests/unit/run-phase-20-gate.script.test.ts(7,8): error TS2307: Cannot find module '../../scripts/run-phase-20-gate' or its corresponding type declarations.",
+        "tests/unit/run-phase-20-gate.script.test.ts(104,31): error TS7006: Parameter 'path' implicitly has an 'any' type.",
+        "tests/unit/run-phase-20-gate.script.test.ts(104,37): error TS7006: Parameter 'content' implicitly has an 'any' type.",
+        "tests/unit/run-phase-20-gate.script.test.ts(107,28): error TS7006: Parameter 'command' implicitly has an 'any' type.",
+        "tests/unit/run-phase-20-gate.script.test.ts(166,31): error TS7006: Parameter 'path' implicitly has an 'any' type.",
+        "tests/unit/run-phase-20-gate.script.test.ts(166,37): error TS7006: Parameter 'content' implicitly has an 'any' type.",
+        "tests/unit/run-phase-20-gate.script.test.ts(169,28): error TS7006: Parameter 'command' implicitly has an 'any' type."
+      ],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    }
+  ],
+  "scope": {
+    "inScope": [
+      "maintenance rollout family observe/assist/promote lifecycle",
+      "public runMaintenance eval-only candidate execution path",
+      "retrieval rollout regression coverage required by the maintenance family",
+      "phase-18 host-adapter public-path regressions"
+    ],
+    "outOfScope": [
+      "reviewer rollout family closure",
+      "public config widening for maintenance controls",
+      "non-deterministic live-model acceptance"
+    ]
+  },
+  "acceptance": {
+    "decision": "blocked",
+    "reason": "Required regression command failed: typecheck"
+  }
+}

@@ -1,0 +1,7 @@
+[DONE] P20.1-T001 Add failing script tests for the integrated gate entrypoint
+[DONE] P20.1-T002 Implement `scripts/run-phase-20-gate.ts`
+[DONE] P20.1-T003 Add `gate:phase-20` to `package.json`
+
+Regression
+----------
+- `bun test tests/unit/run-phase-20-gate.script.test.ts`

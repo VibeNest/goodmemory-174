@@ -7,6 +7,7 @@ import type { EvalSuiteResult } from "../src/eval/suite";
 import type { RecallRouterStrategy } from "../src/recall/router";
 import type { RetrievalStrategyPromotionAuthorization } from "../src/eval/strategy-rollout";
 import type { FixtureEvalOptions } from "./run-eval";
+import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   resolveFlagValue,
   resolveRepeatedFlagValues,
@@ -275,7 +276,7 @@ function assertObserveAssistPromotionChain(input: {
 async function resolveExpectedPhase17CaseCount(
   input: Phase17LiveMemoryOptions,
 ): Promise<number> {
-  const root = new URL("..", import.meta.url).pathname;
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const scenarios = await listScenarioFixtures(join(root, "fixtures/scenarios/eval"));
   const requestedStrategies = input.strategies?.length
     ? [...new Set(input.strategies)]
@@ -392,7 +393,7 @@ async function waitForPersistedPhase17LiveMemoryCliSummary(
     timeoutMs?: number;
   },
 ) {
-  const root = new URL("..", import.meta.url).pathname;
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = input.outputDir ?? resolvePhase17LiveMemoryOutputDir(root);
   const baseRunId = resolvePhase17BaseRunId(input.runId);
   const createAuthorization =
@@ -499,7 +500,7 @@ export async function runPhase17LiveMemoryGate(
   input?: Phase17LiveMemoryOptions,
   dependencies?: Phase17LiveMemoryDependencies,
 ): Promise<Phase17LiveMemoryReport> {
-  const root = new URL("..", import.meta.url).pathname;
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = input?.outputDir ?? resolvePhase17LiveMemoryOutputDir(root);
   const baseRunId = resolvePhase17BaseRunId(input?.runId);
   const runEval = dependencies?.runEval ?? runLiveMemoryEval;
