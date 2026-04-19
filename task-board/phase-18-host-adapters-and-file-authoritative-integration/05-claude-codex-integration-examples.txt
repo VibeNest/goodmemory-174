@@ -1,9 +1,9 @@
 Phase 18.5: Claude and Codex Integration Examples
 =================================================
 
-[TODO] P18.5-T001 Add Claude-style artifact consumption example
-[TODO] P18.5-T002 Add Codex-style coding-agent handoff example
-[TODO] P18.5-T003 Document when to use read-only vs file-authoritative adapter modes
+[DONE] P18.5-T001 Add Claude-style artifact consumption example
+[DONE] P18.5-T002 Add Codex-style coding-agent handoff example
+[DONE] P18.5-T003 Document when to use read-only vs file-authoritative adapter modes
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Host integration story is concrete and non-ambiguous
 - Examples do not overstate adapter capabilities
+
+
+Implementation Notes
+--------------------
+- added runnable Claude-style and Codex-style host examples on the `goodmemory/host` read path
+- README now documents `file-assisted` versus `file-authoritative` mode boundaries explicitly
+- current examples intentionally stay read-only and do not imply writable adapter support

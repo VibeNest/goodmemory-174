@@ -26,6 +26,8 @@
     "fixtures:generate": "bun run scripts/generate-eval-fixtures.ts",
     "example:chat": "bun run examples/basic-chat.ts",
     "example:coding-agent": "bun run examples/coding-agent.ts",
+    "example:host-claude": "bun run examples/host-claude-artifacts.ts",
+    "example:host-codex": "bun run examples/host-codex-handoff.ts",
     "eval:smoke": "bun run scripts/run-eval.ts --mode=smoke",
     "eval:fallback": "bun run scripts/run-eval.ts --mode=fallback",
     "eval:phase-16": "bun run scripts/run-phase-16-eval.ts",

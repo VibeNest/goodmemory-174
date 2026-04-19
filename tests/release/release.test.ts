@@ -23,6 +23,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
       "bun run examples/coding-agent.ts",
     );
+    expect(pkg.scripts?.["example:host-claude"]).toBe(
+      "bun run examples/host-claude-artifacts.ts",
+    );
+    expect(pkg.scripts?.["example:host-codex"]).toBe(
+      "bun run examples/host-codex-handoff.ts",
+    );
     expect(pkg.scripts?.test).toBe("bun test");
     expect(pkg.scripts?.["test:all"]).toBe("bun --config=bunfig.all.toml test tests third-party");
     expect(pkg.scripts?.["test:coverage"]).toBe(
@@ -78,7 +84,13 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("createGoodMemory");
     expect(readme).toContain("examples/basic-chat.ts");
     expect(readme).toContain("examples/coding-agent.ts");
+    expect(readme).toContain("examples/host-claude-artifacts.ts");
+    expect(readme).toContain("examples/host-codex-handoff.ts");
     expect(readme).toContain("bun run cli -- inspect");
+    expect(readme).toContain('createHostAdapter');
+    expect(readme).toContain('goodmemory/host');
+    expect(readme).toContain('file-assisted');
+    expect(readme).toContain('file-authoritative');
     expect(readme).toContain("goodmemory inspect");
     expect(readme).toContain("goodmemory export-memory");
     expect(readme).toContain("goodmemory stats");

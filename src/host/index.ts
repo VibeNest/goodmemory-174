@@ -7,6 +7,13 @@ export type {
   HostArtifactType,
   HostKind,
   HostReadArtifactsResult,
+  HostRollbackGuidance,
+  HostStructuredDelta,
   HostWriteArtifactInput,
+  HostWriteArtifactResult,
+  HostWriteDiagnostics,
+  HostWriteVerificationInput,
+  HostWriteVerificationOutcome,
+  HostWriteVerificationResult,
 } from "./contracts";
-export { createHostAdapter } from "./public";
+export { HostAdapterWriteError, createHostAdapter } from "./public";

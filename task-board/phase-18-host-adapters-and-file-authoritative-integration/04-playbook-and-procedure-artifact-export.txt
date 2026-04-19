@@ -1,9 +1,9 @@
 Phase 18.4: Playbook and Procedure Artifact Export
 ==================================================
 
-[TODO] P18.4-T001 Export validated patterns into playbook artifacts
-[TODO] P18.4-T002 Keep playbooks linked back to canonical pattern lineage
-[TODO] P18.4-T003 Support host-friendly prompt/skill snippet rendering
+[DONE] P18.4-T001 Export validated patterns into playbook artifacts
+[DONE] P18.4-T002 Keep playbooks linked back to canonical pattern lineage
+[DONE] P18.4-T003 Support host-friendly prompt/skill snippet rendering
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Hosts can consume procedural memory through exported artifacts
 - Exported files remain projections rather than truth sources
+
+
+Implementation Notes
+--------------------
+- active `validated_pattern` feedback now compiles into deterministic `playbooks/*.md` artifacts during `exportMemory()`
+- playbook files carry canonical pattern lineage, including the canonical memory id and evidence ids when present
+- prompt and skill snippet variants now compile alongside the canonical playbook file as read-only derived outputs

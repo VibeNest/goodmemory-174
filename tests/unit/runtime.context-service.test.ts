@@ -36,6 +36,7 @@ function createService(
   return {
     clock,
     repositories,
+    sessionStore,
     service,
   };
 }
@@ -408,6 +409,36 @@ describe("runtime context service", () => {
     } finally {
       console.error = originalConsoleError;
     }
+  });
+
+  it("clears runtime state after session end so future exports rotate to archive views", async () => {
+    const { clock, service, sessionStore } = createService();
+    const scope = {
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-archive",
+    };
+
+    await service.startSession(scope);
+    await service.appendToSession(scope, {
+      role: "user",
+      content: "Keep the rollout handoff concise.",
+    });
+    await service.updateWorkingMemory(scope, {
+      currentGoal: "Finish archive rotation",
+      openLoops: ["publish archive recap"],
+    });
+    await service.updateSessionJournal(scope, {
+      currentState: "Session closing",
+      appendWorklog: ["Archive recap prepared."],
+    });
+
+    clock.advanceMs(1000);
+    await service.endSession(scope);
+
+    expect(await sessionStore.getBuffer(scope)).toBeNull();
+    expect(await sessionStore.getWorkingMemory(scope)).toBeNull();
+    expect(await sessionStore.getJournal(scope)).toBeNull();
   });
 
   it("does not persist an archive when ending an untouched empty session", async () => {

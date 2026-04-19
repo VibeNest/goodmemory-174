@@ -243,7 +243,7 @@ describe("public governance API", () => {
     expect(durableOnly.artifacts.files.map((file) => file.relativePath)).toEqual([
       "user.md",
       "MEMORY.md",
-      "session.md",
+      "archive/1970/01/s-1.md",
     ]);
     expect(durableOnly.artifacts.files[1]?.content).toContain(
       "migration rollout is blocked on prod verification.",
@@ -258,6 +258,7 @@ describe("public governance API", () => {
     expect(withRuntime.artifacts.files[2]?.content).toContain(
       "Very large runtime-only payload for session one.",
     );
+    expect(withRuntime.artifacts.files.map((file) => file.relativePath)).toContain("session.md");
     const withRuntimeAgain = await memory.exportMemory({
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
       includeRuntime: true,

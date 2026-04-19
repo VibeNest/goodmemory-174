@@ -1,13 +1,38 @@
 import type {
   ExportMemoryInput,
+  ExportMemoryResult,
 } from "../api/contracts";
+import {
+  createFeedbackMemory,
+} from "../domain/records";
+import type {
+  ArtifactSpillRecord,
+  FeedbackMemory,
+  ReferenceMemory,
+  SessionJournal,
+  WorkingMemorySnapshot,
+} from "../domain/records";
+import { createMemorySource } from "../domain/provenance";
+import {
+  createExperienceRecord,
+  EXPERIENCES_COLLECTION,
+} from "../evolution/contracts";
+import { toPolicyMemoryRecord } from "../policy/hooks";
 import type {
   CreateHostAdapterInput,
   HostAdapter,
   HostArtifact,
   HostArtifactType,
   HostReadArtifactsResult,
+  HostRollbackGuidance,
+  HostStructuredDelta,
   HostWriteArtifactInput,
+  HostWriteArtifactResult,
+  HostWriteDiagnostics,
+  HostWriteVerificationInput,
+} from "./contracts";
+import {
+  HostAdapterWriteError,
 } from "./contracts";
 
 export type {
@@ -19,8 +44,16 @@ export type {
   HostArtifactType,
   HostKind,
   HostReadArtifactsResult,
+  HostRollbackGuidance,
+  HostStructuredDelta,
   HostWriteArtifactInput,
+  HostWriteArtifactResult,
+  HostWriteDiagnostics,
+  HostWriteVerificationInput,
+  HostWriteVerificationOutcome,
+  HostWriteVerificationResult,
 } from "./contracts";
+export { HostAdapterWriteError } from "./contracts";
 
 const DEFAULT_READABLE_ARTIFACT_TYPES = [
   "memory_index",
@@ -30,7 +63,32 @@ const DEFAULT_READABLE_ARTIFACT_TYPES = [
 
 const DEFAULT_SUPPORTED_READABLE_ARTIFACT_TYPES = [
   ...DEFAULT_READABLE_ARTIFACT_TYPES,
+  "archive_recap",
+  "playbook",
 ] as const satisfies readonly HostArtifactType[];
+
+function sanitizeMarkdownInline(value: string): string {
+  return value
+    .trim()
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`")
+    .replace(/\t/g, "\\t")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n/g, "\\n");
+}
+
+function renderSection(title: string, lines: string[]): string {
+  return [
+    `## ${sanitizeMarkdownInline(title)}`,
+    ...(lines.length > 0 ? lines : ["- none"]),
+  ].join("\n");
+}
+
+function renderDocument(title: string, sections: string[]): string {
+  return [`# ${sanitizeMarkdownInline(title)}`, ...sections.flatMap((section) => ["", section])].join(
+    "\n",
+  );
+}
 
 function uniqueArtifactTypes(
   artifactTypes: readonly HostArtifactType[] | undefined,
@@ -54,11 +112,21 @@ function freezeArtifactTypes(
   return Object.freeze([...artifactTypes]);
 }
 
+function slugifySegment(value: string): string {
+  const ascii = value.normalize("NFKD").replace(/[^\x00-\x7F]/g, "");
+  const slug = ascii
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug.length > 0 ? slug : "playbook";
+}
+
 function resolveHostArtifactType(input: {
   kind: HostArtifact["kind"];
   relativePath: string;
 }): HostArtifactType | null {
-  if (input.relativePath.startsWith("archives/")) {
+  if (input.kind === "archive" || input.relativePath.startsWith("archive/")) {
     return "archive_recap";
   }
 
@@ -99,12 +167,19 @@ function assertReadableNegotiation(input: {
 }
 
 function assertWritableNegotiation(input: {
+  documentStorePresent: boolean;
   mode: CreateHostAdapterInput["mode"];
   readableArtifactTypes: readonly HostArtifactType[];
   writableArtifactTypes: readonly HostArtifactType[];
 }): void {
   if (input.mode !== "file-authoritative" && input.writableArtifactTypes.length > 0) {
     throw new Error("file-assisted adapters cannot declare writable artifact types");
+  }
+
+  if (input.writableArtifactTypes.length > 0 && !input.documentStorePresent) {
+    throw new Error(
+      "file-authoritative adapters require documentStore when writable artifact types are enabled",
+    );
   }
 
   for (const artifactType of input.writableArtifactTypes) {
@@ -114,6 +189,180 @@ function assertWritableNegotiation(input: {
       );
     }
   }
+}
+
+function renderSessionScopeLines(exported: ExportMemoryResult, sessionId: string): string[] {
+  return [
+    `- userId: ${sanitizeMarkdownInline(exported.scope.userId)}`,
+    exported.scope.workspaceId
+      ? `- workspaceId: ${sanitizeMarkdownInline(exported.scope.workspaceId)}`
+      : undefined,
+    exported.scope.agentId
+      ? `- agentId: ${sanitizeMarkdownInline(exported.scope.agentId)}`
+      : undefined,
+    `- sessionId: ${sanitizeMarkdownInline(sessionId)}`,
+  ].filter((line): line is string => Boolean(line));
+}
+
+function renderWorkingMemoryLines(workingMemory: WorkingMemorySnapshot | null): {
+  constraints: string[];
+  currentGoal: string[];
+  openLoops: string[];
+  recentDecisions: string[];
+} {
+  if (!workingMemory) {
+    return {
+      constraints: [],
+      currentGoal: [],
+      openLoops: [],
+      recentDecisions: [],
+    };
+  }
+
+  return {
+    currentGoal: workingMemory.currentGoal
+      ? [`- ${sanitizeMarkdownInline(workingMemory.currentGoal)}`]
+      : [],
+    openLoops: workingMemory.openLoops.map(
+      (loop) => `- ${sanitizeMarkdownInline(loop)}`,
+    ),
+    recentDecisions: (workingMemory.temporaryDecisions ?? []).map(
+      (decision) => `- ${sanitizeMarkdownInline(decision)}`,
+    ),
+    constraints: (workingMemory.constraints ?? []).map(
+      (constraint) => `- ${sanitizeMarkdownInline(constraint)}`,
+    ),
+  };
+}
+
+function renderJournalStateLines(journal: SessionJournal | null): {
+  currentState: string[];
+  keyFiles: string[];
+  workflow: string[];
+} {
+  if (!journal) {
+    return {
+      currentState: [],
+      keyFiles: [],
+      workflow: [],
+    };
+  }
+
+  return {
+    currentState: journal.currentState
+      ? [`- ${sanitizeMarkdownInline(journal.currentState)}`]
+      : [],
+    keyFiles: (journal.filesAndFunctions ?? []).map(
+      (entry) => `- ${sanitizeMarkdownInline(entry)}`,
+    ),
+    workflow: (journal.workflow ?? []).map(
+      (entry) => `- ${sanitizeMarkdownInline(entry)}`,
+    ),
+  };
+}
+
+function renderReferenceLines(references: ReferenceMemory[]): string[] {
+  return references.map((reference) => {
+    const title = sanitizeMarkdownInline(reference.title);
+    const pointer = sanitizeMarkdownInline(reference.pointer);
+
+    return `- ${title}: ${pointer}`;
+  });
+}
+
+function renderFeedbackLines(feedback: FeedbackMemory[]): string[] {
+  return feedback.map((entry) => `- [${entry.kind}] ${sanitizeMarkdownInline(entry.rule)}`);
+}
+
+function renderSpillLines(spills: ArtifactSpillRecord[]): string[] {
+  return spills.map((spill) => `- ${sanitizeMarkdownInline(spill.preview)}`);
+}
+
+function uniqueLines(lines: string[]): string[] {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const line of lines) {
+    if (seen.has(line)) {
+      continue;
+    }
+
+    seen.add(line);
+    deduped.push(line);
+  }
+
+  return deduped;
+}
+
+function isActiveLifecycleRecord<TRecord extends { lifecycle: string }>(
+  record: TRecord,
+): boolean {
+  return record.lifecycle === "active";
+}
+
+function buildSessionArtifactRelativePath(sessionId: string): string {
+  return `session-memory/${encodeURIComponent(sessionId)}.md`;
+}
+
+function buildSessionHandoffContent(
+  exported: ExportMemoryResult,
+  sessionId: string,
+): string {
+  const workingMemory =
+    exported.runtime?.workingMemory?.sessionId === sessionId
+      ? exported.runtime.workingMemory
+      : null;
+  const journal =
+    exported.runtime?.journal?.sessionId === sessionId ? exported.runtime.journal : null;
+  const references = exported.durable.references.filter(
+    (reference) => reference.sessionId === sessionId && isActiveLifecycleRecord(reference),
+  );
+  const feedback = exported.durable.feedback.filter(
+    (entry) => entry.sessionId === sessionId && isActiveLifecycleRecord(entry),
+  );
+  const spills = (exported.runtime?.spills ?? []).filter(
+    (spill) => spill.scope.sessionId === sessionId,
+  );
+  const workingMemoryLines = renderWorkingMemoryLines(workingMemory);
+  const journalLines = renderJournalStateLines(journal);
+
+  return renderDocument(`Session Handoff: ${sessionId}`, [
+    renderSection("Scope", renderSessionScopeLines(exported, sessionId)),
+    renderSection("Current Goal", workingMemoryLines.currentGoal),
+    renderSection("Open Loops", workingMemoryLines.openLoops),
+    renderSection("Recent Decisions", workingMemoryLines.recentDecisions),
+    renderSection("Constraints", workingMemoryLines.constraints),
+    renderSection("Current State", journalLines.currentState),
+    renderSection(
+      "Key Files",
+      uniqueLines([...journalLines.keyFiles, ...renderReferenceLines(references)]),
+    ),
+    renderSection("Workflow", journalLines.workflow),
+    renderSection("Procedural Memory", renderFeedbackLines(feedback)),
+    renderSection("Artifact Spills", renderSpillLines(spills)),
+  ]);
+}
+
+function toHostArtifact(
+  exported: ExportMemoryResult,
+  file: ExportMemoryResult["artifacts"]["files"][number],
+  artifactType: HostArtifactType,
+): HostArtifact {
+  if (artifactType === "session_memory" && file.sessionId) {
+    return {
+      ...file,
+      artifactType,
+      relativePath: buildSessionArtifactRelativePath(file.sessionId),
+      content: buildSessionHandoffContent(exported, file.sessionId),
+      writable: false,
+    };
+  }
+
+  return {
+    ...file,
+    artifactType,
+    writable: false,
+  };
 }
 
 async function readArtifacts(
@@ -129,13 +378,7 @@ async function readArtifacts(
       return [];
     }
 
-    return [
-      {
-        ...file,
-        artifactType,
-        writable: false,
-      },
-    ];
+    return [toHostArtifact(exported, file, artifactType)];
   });
 
   return {
@@ -146,18 +389,727 @@ async function readArtifacts(
   };
 }
 
-function writeUnsupported(
-  writableArtifactTypes: readonly HostArtifactType[],
-  input: HostWriteArtifactInput,
-): void {
-  if (!writableArtifactTypes.includes(input.artifactType)) {
-    throw new Error(
-      `Host adapter does not allow writes for artifact type ${input.artifactType}`,
+function createRollbackGuidance(performed = false): HostRollbackGuidance {
+  return {
+    mode: "file-assisted",
+    hint:
+      "Recreate the host adapter in file-assisted mode and inspect compiled artifacts before retrying writable operations.",
+    performed,
+  };
+}
+
+function createDiagnostics(input: {
+  adapterId: string;
+  artifactType: HostArtifactType;
+  canonicalMemoryId?: string;
+  failureReasons?: string[];
+  hostKind: HostAdapter["hostKind"];
+  mode: HostAdapter["capabilities"]["mode"];
+  policyApplied?: string[];
+  relativePath: string;
+  risky?: boolean;
+  rollbackPerformed?: boolean;
+  structuredDelta?: HostStructuredDelta[];
+  verificationOutcome?: HostWriteDiagnostics["verificationOutcome"];
+  wroteAt: string;
+}): HostWriteDiagnostics {
+  return {
+    adapterId: input.adapterId,
+    artifactType: input.artifactType,
+    canonicalMemoryId: input.canonicalMemoryId,
+    failureReasons: input.failureReasons ?? [],
+    hostKind: input.hostKind,
+    mode: input.mode,
+    policyApplied: input.policyApplied ?? [],
+    provenance: {
+      adapterId: input.adapterId,
+      hostKind: input.hostKind,
+      origin: "host_adapter",
+      wroteAt: input.wroteAt,
+    },
+    relativePath: input.relativePath,
+    risky: input.risky ?? false,
+    rollback: createRollbackGuidance(input.rollbackPerformed ?? false),
+    structuredDelta: input.structuredDelta ?? [],
+    verificationOutcome: input.verificationOutcome ?? "not_run",
+  };
+}
+
+function createWriteError(
+  message: string,
+  diagnostics: HostWriteDiagnostics,
+): HostAdapterWriteError {
+  return new HostAdapterWriteError(message, diagnostics);
+}
+
+function parseListItems(lines: string[]): string[] {
+  return lines
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.slice(2).trim());
+}
+
+function parseKeyValueSection(lines: string[]): Record<string, string> {
+  const entries = parseListItems(lines);
+  const result: Record<string, string> = {};
+
+  for (const entry of entries) {
+    const delimiter = entry.indexOf(":");
+    if (delimiter < 0) {
+      continue;
+    }
+
+    const key = entry.slice(0, delimiter).trim();
+    const value = entry.slice(delimiter + 1).trim();
+
+    result[key] = value;
+  }
+
+  return result;
+}
+
+function parseSections(content: string): Map<string, string[]> {
+  const sections = new Map<string, string[]>();
+  let currentSection: string | null = null;
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trimEnd();
+
+    if (line.startsWith("## ")) {
+      currentSection = line.slice(3).trim();
+      sections.set(currentSection, []);
+      continue;
+    }
+
+    if (currentSection) {
+      sections.get(currentSection)?.push(line);
+    }
+  }
+
+  return sections;
+}
+
+function parseSectionListItems(content: string, sectionTitle: string): string[] {
+  const sections = parseSections(content);
+
+  return parseListItems(sections.get(sectionTitle) ?? []);
+}
+
+function isLegacyEmptyWhyPlaceholder(items: string[]): boolean {
+  return items.length === 1 && items[0] === "none";
+}
+
+function parsePlaybookWriteInput(input: HostWriteArtifactInput): {
+  appliesTo?: string;
+  canonicalMemoryId: string;
+  rule: string;
+  why?: string;
+} {
+  const sections = parseSections(input.content);
+  const canonicalSection = parseKeyValueSection(sections.get("Canonical Pattern") ?? []);
+  const guidanceItems = parseListItems(sections.get("Guidance") ?? []);
+  const whyItems = parseListItems(sections.get("Why") ?? []);
+
+  if (!canonicalSection.canonicalMemoryId) {
+    throw createWriteError(
+      "Malformed playbook file.",
+      createDiagnostics({
+        adapterId: "unknown",
+        artifactType: input.artifactType,
+        failureReasons: [
+          "Playbook writeback requires canonicalMemoryId in the Canonical Pattern section.",
+        ],
+        hostKind: "generic",
+        mode: "file-authoritative",
+        relativePath: input.relativePath,
+        wroteAt: new Date(0).toISOString(),
+      }),
     );
   }
 
-  throw new Error(
+  if (guidanceItems.length === 0) {
+    throw createWriteError(
+      "Malformed playbook file.",
+      createDiagnostics({
+        adapterId: "unknown",
+        artifactType: input.artifactType,
+        failureReasons: [
+          "Playbook writeback requires one guidance bullet in the Guidance section.",
+        ],
+        hostKind: "generic",
+        mode: "file-authoritative",
+        relativePath: input.relativePath,
+        wroteAt: new Date(0).toISOString(),
+      }),
+    );
+  }
+
+  if (guidanceItems.length > 1) {
+    throw createWriteError(
+      "Malformed playbook file.",
+      createDiagnostics({
+        adapterId: "unknown",
+        artifactType: input.artifactType,
+        failureReasons: [
+          "Playbook writeback only supports a single guidance bullet in the Guidance section.",
+        ],
+        hostKind: "generic",
+        mode: "file-authoritative",
+        relativePath: input.relativePath,
+        wroteAt: new Date(0).toISOString(),
+      }),
+    );
+  }
+
+  if (whyItems.length > 1) {
+    throw createWriteError(
+      "Malformed playbook file.",
+      createDiagnostics({
+        adapterId: "unknown",
+        artifactType: input.artifactType,
+        failureReasons: [
+          "Playbook writeback only supports zero or one Why bullet in the Why section.",
+        ],
+        hostKind: "generic",
+        mode: "file-authoritative",
+        relativePath: input.relativePath,
+        wroteAt: new Date(0).toISOString(),
+      }),
+    );
+  }
+
+  return {
+    appliesTo: canonicalSection.appliesTo,
+    canonicalMemoryId: canonicalSection.canonicalMemoryId,
+    rule: guidanceItems[0]!,
+    why: whyItems[0],
+  };
+}
+
+function parsePlaybookCanonicalMemoryId(content: string): string | null {
+  const sections = parseSections(content);
+  const canonicalSection = parseKeyValueSection(sections.get("Canonical Pattern") ?? []);
+  const canonicalMemoryId = canonicalSection.canonicalMemoryId?.trim();
+
+  return canonicalMemoryId ? canonicalMemoryId : null;
+}
+
+function createPolicyCandidate(input: {
+  appliesTo?: string;
+  rule: string;
+}): {
+  content: string;
+  explicitness: "explicit";
+  id: string;
+  kindHint: "feedback";
+  metadata: {
+    appliesTo?: string;
+    feedbackKind: "validated_pattern";
+  };
+  sourceMessageIndex: number;
+  sourceRole: string;
+} {
+  return {
+    id: "host-write-candidate",
+    kindHint: "feedback",
+    explicitness: "explicit",
+    content: input.rule,
+    sourceMessageIndex: 0,
+    sourceRole: "assistant",
+    metadata: {
+      appliesTo: input.appliesTo,
+      feedbackKind: "validated_pattern",
+    },
+  };
+}
+
+function matchesWritableScope(
+  record: FeedbackMemory,
+  scope: HostWriteArtifactInput["scope"],
+): boolean {
+  if (record.userId !== scope.userId) {
+    return false;
+  }
+
+  if (scope.tenantId !== undefined && record.tenantId !== scope.tenantId) {
+    return false;
+  }
+
+  if (scope.workspaceId !== undefined && record.workspaceId !== scope.workspaceId) {
+    return false;
+  }
+
+  if (scope.agentId !== undefined && record.agentId !== scope.agentId) {
+    return false;
+  }
+
+  return true;
+}
+
+function buildStructuredDelta(input: {
+  nextAppliesTo?: string;
+  nextRule: string;
+  nextWhy?: string;
+  previous: FeedbackMemory;
+}): HostStructuredDelta[] {
+  const delta: HostStructuredDelta[] = [];
+
+  if (input.previous.appliesTo !== input.nextAppliesTo) {
+    delta.push({
+      op: "set",
+      target: "appliesTo",
+      value: input.nextAppliesTo,
+    });
+  }
+
+  if (input.previous.rule !== input.nextRule) {
+    delta.push({
+      op: "set",
+      target: "rule",
+      value: input.nextRule,
+    });
+  }
+
+  if (input.previous.why !== input.nextWhy) {
+    delta.push({
+      op: "set",
+      target: "why",
+      value: input.nextWhy,
+    });
+  }
+
+  return delta;
+}
+
+function buildVerificationInput(input: {
+  artifactType: HostArtifactType;
+  canonicalMemoryId?: string;
+  currentContent: string;
+  nextContent: string;
+  relativePath: string;
+  risky: boolean;
+  scope: HostWriteArtifactInput["scope"];
+  structuredDelta: HostStructuredDelta[];
+}): HostWriteVerificationInput {
+  return {
+    artifactType: input.artifactType,
+    canonicalMemoryId: input.canonicalMemoryId,
+    currentContent: input.currentContent,
+    nextContent: input.nextContent,
+    relativePath: input.relativePath,
+    risky: input.risky,
+    scope: input.scope,
+    structuredDelta: input.structuredDelta,
+  };
+}
+
+async function readArtifactMap(
+  memory: CreateHostAdapterInput["memory"],
+  scope: HostWriteArtifactInput["scope"],
+): Promise<Map<string, HostArtifact>> {
+  const exported = await readArtifacts(memory, DEFAULT_SUPPORTED_READABLE_ARTIFACT_TYPES, {
+    scope,
+    includeRuntime: true,
+  });
+
+  return new Map(exported.artifacts.map((artifact) => [artifact.relativePath, artifact]));
+}
+
+async function applyPlaybookWrite(input: {
+  adapterId: string;
+  documentStore: NonNullable<CreateHostAdapterInput["documentStore"]>;
+  hostKind: HostAdapter["hostKind"];
+  memory: CreateHostAdapterInput["memory"];
+  mode: HostAdapter["capabilities"]["mode"];
+  now: () => string;
+  policy: CreateHostAdapterInput["policy"];
+  verifyWrite: CreateHostAdapterInput["verifyWrite"];
+  writeInput: HostWriteArtifactInput;
+  createId: () => string;
+}): Promise<HostWriteArtifactResult> {
+  const wroteAt = input.now();
+  const writableDiagnostics = (
+    overrides: Partial<HostWriteDiagnostics> & {
+      rollbackPerformed?: boolean;
+    },
+  ): HostWriteDiagnostics =>
+    createDiagnostics({
+      adapterId: input.adapterId,
+      artifactType: input.writeInput.artifactType,
+      canonicalMemoryId: overrides.canonicalMemoryId,
+      failureReasons: overrides.failureReasons,
+      hostKind: input.hostKind,
+      mode: input.mode,
+      policyApplied: overrides.policyApplied,
+      relativePath: overrides.relativePath ?? input.writeInput.relativePath,
+      risky: overrides.risky,
+      rollbackPerformed: overrides.rollbackPerformed,
+      structuredDelta: overrides.structuredDelta,
+      verificationOutcome: overrides.verificationOutcome,
+      wroteAt,
+    });
+
+  if (
+    !input.writeInput.relativePath.startsWith("playbooks/") ||
+    input.writeInput.relativePath.endsWith(".prompt.md") ||
+    input.writeInput.relativePath.endsWith(".skill.md")
+  ) {
+    throw createWriteError(
+      `Host adapter does not allow writes for artifact path ${input.writeInput.relativePath}`,
+      writableDiagnostics({
+        failureReasons: [
+          "Structured delta writeback only supports canonical playbook markdown files.",
+        ],
+      }),
+    );
+  }
+
+  const currentArtifacts = await readArtifactMap(input.memory, input.writeInput.scope);
+  const currentArtifact = currentArtifacts.get(input.writeInput.relativePath);
+
+  if (!currentArtifact) {
+    throw createWriteError(
+      `Host adapter cannot locate the current artifact ${input.writeInput.relativePath}`,
+      writableDiagnostics({
+        failureReasons: [
+          "The requested artifact path does not exist in the current exported host surface.",
+        ],
+      }),
+    );
+  }
+
+  const boundCanonicalMemoryId = parsePlaybookCanonicalMemoryId(currentArtifact.content);
+
+  if (input.writeInput.content === currentArtifact.content) {
+    return {
+      diagnostics: writableDiagnostics({
+        canonicalMemoryId: boundCanonicalMemoryId ?? undefined,
+        policyApplied: [],
+        risky: false,
+        structuredDelta: [],
+      }),
+      status: "noop",
+      updatedArtifact: currentArtifact,
+    };
+  }
+
+  let parsed;
+
+  try {
+    parsed = parsePlaybookWriteInput(input.writeInput);
+  } catch (error) {
+    if (error instanceof HostAdapterWriteError) {
+      throw createWriteError(
+        error.message,
+        writableDiagnostics({
+          ...error.diagnostics,
+          adapterId: input.adapterId,
+          hostKind: input.hostKind,
+          mode: input.mode,
+          relativePath: input.writeInput.relativePath,
+          provenance: {
+            adapterId: input.adapterId,
+            hostKind: input.hostKind,
+            origin: "host_adapter",
+            wroteAt,
+          },
+        }),
+      );
+    }
+
+    throw error;
+  }
+
+  if (!boundCanonicalMemoryId) {
+    throw createWriteError(
+      `Host adapter cannot verify canonical binding for ${input.writeInput.relativePath}`,
+      writableDiagnostics({
+        failureReasons: [
+          "The current exported playbook is missing canonicalMemoryId and cannot be used for authoritative writeback.",
+        ],
+      }),
+    );
+  }
+
+  if (parsed.canonicalMemoryId !== boundCanonicalMemoryId) {
+    throw createWriteError(
+      "Host adapter write targets a different canonical record than the current playbook path.",
+      writableDiagnostics({
+        canonicalMemoryId: boundCanonicalMemoryId,
+        failureReasons: [
+          "Edited playbook canonicalMemoryId must match the current artifact bound to this path.",
+        ],
+      }),
+    );
+  }
+
+  const existing = await input.documentStore.get<FeedbackMemory>(
+    "feedback",
+    boundCanonicalMemoryId,
+  );
+
+  if (
+    !existing ||
+    existing.kind !== "validated_pattern" ||
+    existing.lifecycle !== "active" ||
+    !matchesWritableScope(existing, input.writeInput.scope)
+  ) {
+    throw createWriteError(
+      `Host adapter cannot find writable validated pattern ${boundCanonicalMemoryId}`,
+      writableDiagnostics({
+        canonicalMemoryId: boundCanonicalMemoryId,
+        failureReasons: [
+          "Structured delta writeback only supports the active validated pattern currently bound to this playbook path.",
+        ],
+      }),
+    );
+  }
+
+  let candidate = createPolicyCandidate({
+    appliesTo: parsed.appliesTo,
+    rule: parsed.rule,
+  });
+  const policyApplied: string[] = [];
+  const policyContext = {
+    locale: existing.source.locale ?? "en-US",
+    localeSource: "default" as const,
+    phase: "remember" as const,
+    scope: input.writeInput.scope,
+  };
+
+  if (input.policy?.redact) {
+    const redacted = await input.policy.redact(candidate, policyContext);
+
+    if (
+      redacted.content !== candidate.content ||
+      redacted.metadata?.appliesTo !== candidate.metadata.appliesTo
+    ) {
+      policyApplied.push("custom_redact");
+    }
+
+    candidate = {
+      ...candidate,
+      content: redacted.content,
+      metadata: {
+        ...candidate.metadata,
+        ...redacted.metadata,
+        feedbackKind: "validated_pattern",
+      },
+    };
+  }
+
+  if (
+    input.policy?.shouldRemember &&
+    !(await input.policy.shouldRemember(candidate, policyContext))
+  ) {
+    policyApplied.push("custom_shouldRemember");
+
+    throw createWriteError(
+      "Host adapter write was blocked by policy.",
+      writableDiagnostics({
+        canonicalMemoryId: existing.id,
+        failureReasons: ["Policy rejected the adapter-authored change."],
+        policyApplied,
+      }),
+    );
+  }
+
+  const risky = existing.rule !== candidate.content;
+  const currentWhyItems = parseSectionListItems(currentArtifact.content, "Why");
+  const nextWhyItems = parseSectionListItems(input.writeInput.content, "Why");
+  const nextWhy =
+    existing.why === undefined &&
+    isLegacyEmptyWhyPlaceholder(nextWhyItems) &&
+    (currentWhyItems.length === 0 || isLegacyEmptyWhyPlaceholder(currentWhyItems))
+      ? undefined
+      : parsed.why;
+  const structuredDelta = buildStructuredDelta({
+    nextAppliesTo: candidate.metadata.appliesTo,
+    nextRule: candidate.content,
+    nextWhy,
+    previous: existing,
+  });
+
+  if (structuredDelta.length === 0) {
+    return {
+      diagnostics: writableDiagnostics({
+        canonicalMemoryId: existing.id,
+        policyApplied,
+        risky,
+        structuredDelta,
+      }),
+      status: "noop",
+      updatedArtifact: currentArtifact,
+    };
+  }
+
+  if (input.policy?.resolveConflict) {
+    const resolution = await input.policy.resolveConflict(
+      toPolicyMemoryRecord(existing, "feedback"),
+      candidate,
+      policyContext,
+    );
+
+    if (resolution.action === "keep_existing") {
+      policyApplied.push("custom_resolveConflict");
+
+      throw createWriteError(
+        "Host adapter write was blocked by conflict policy.",
+        writableDiagnostics({
+          canonicalMemoryId: existing.id,
+          failureReasons: [
+            resolution.reason ?? "Conflict policy kept the existing canonical memory.",
+          ],
+          policyApplied,
+          risky,
+          structuredDelta,
+        }),
+      );
+    }
+  }
+
+  let verificationOutcome: HostWriteDiagnostics["verificationOutcome"] = "not_run";
+  let verificationReason: string | undefined;
+
+  if (risky) {
+    if (!input.verifyWrite) {
+      verificationOutcome = "review_required";
+      verificationReason =
+        "Risky adapter writes require verification before they can be applied.";
+    } else {
+      const verification = await input.verifyWrite(
+        buildVerificationInput({
+          artifactType: input.writeInput.artifactType,
+          canonicalMemoryId: existing.id,
+          currentContent: currentArtifact.content,
+          nextContent: input.writeInput.content,
+          relativePath: input.writeInput.relativePath,
+          risky,
+          scope: input.writeInput.scope,
+          structuredDelta,
+        }),
+      );
+
+      verificationOutcome = verification.outcome;
+      verificationReason = verification.reason;
+    }
+
+    if (verificationOutcome !== "passed") {
+      throw createWriteError(
+        "Host adapter write requires verification.",
+        writableDiagnostics({
+          canonicalMemoryId: existing.id,
+          failureReasons: [
+            verificationReason ??
+              "Risky adapter writes require verification before they can be applied.",
+          ],
+          policyApplied,
+          risky,
+          structuredDelta,
+          verificationOutcome,
+        }),
+      );
+    }
+  }
+
+  const updatedRecord = createFeedbackMemory({
+    ...existing,
+    appliesTo: candidate.metadata.appliesTo,
+    rule: candidate.content,
+    source: createMemorySource(existing.source),
+    updatedAt: wroteAt,
+    why: nextWhy,
+  });
+  const linkedExperienceId = input.createId();
+  const experience = createExperienceRecord({
+    id: linkedExperienceId,
+    userId: existing.userId,
+    tenantId: existing.tenantId,
+    workspaceId: existing.workspaceId,
+    agentId: existing.agentId,
+    sessionId: input.writeInput.scope.sessionId,
+    kind: "feedback",
+    traceId: `host-write-${linkedExperienceId}`,
+    trigger: "governance",
+    modelInfluence: "none",
+    summary: `Host adapter ${input.adapterId} updated validated pattern ${existing.id}.`,
+    policyApplied,
+    linkedMemoryIds: [existing.id],
+    metrics: {},
+    createdAt: wroteAt,
+  });
+  let rollbackPerformed = false;
+
+  try {
+    await input.documentStore.set("feedback", existing.id, updatedRecord);
+    await input.documentStore.set(
+      EXPERIENCES_COLLECTION,
+      linkedExperienceId,
+      experience,
+    );
+    const nextArtifacts = await readArtifactMap(input.memory, input.writeInput.scope);
+    const updatedArtifact =
+      [...nextArtifacts.values()].find(
+        (artifact) =>
+          artifact.artifactType === "playbook" &&
+          artifact.relativePath.endsWith(".md") &&
+          !artifact.relativePath.endsWith(".prompt.md") &&
+          !artifact.relativePath.endsWith(".skill.md") &&
+          artifact.content.includes(`canonicalMemoryId: ${existing.id}`),
+      ) ?? currentArtifact;
+
+    return {
+      diagnostics: writableDiagnostics({
+        canonicalMemoryId: existing.id,
+        policyApplied,
+        risky,
+        structuredDelta,
+        verificationOutcome,
+      }),
+      linkedExperienceId,
+      status: "applied",
+      updatedArtifact,
+    };
+  } catch (error) {
+    rollbackPerformed = true;
+
+    try {
+      await input.documentStore.set("feedback", existing.id, existing);
+      await input.documentStore.delete(EXPERIENCES_COLLECTION, linkedExperienceId);
+    } catch {
+      rollbackPerformed = false;
+    }
+
+    throw createWriteError(
+      "Host adapter write failed.",
+      writableDiagnostics({
+        canonicalMemoryId: existing.id,
+        failureReasons: [error instanceof Error ? error.message : String(error)],
+        policyApplied,
+        risky,
+        rollbackPerformed,
+        structuredDelta,
+        verificationOutcome,
+      }),
+    );
+  }
+}
+
+function writeUnsupported(
+  writableArtifactTypes: readonly HostArtifactType[],
+  input: HostWriteArtifactInput,
+  diagnostics: HostWriteDiagnostics,
+): HostWriteArtifactResult {
+  if (!writableArtifactTypes.includes(input.artifactType)) {
+    throw createWriteError(
+      `Host adapter does not allow writes for artifact type ${input.artifactType}`,
+      diagnostics,
+    );
+  }
+
+  throw createWriteError(
     `Structured delta writeback is not implemented yet for artifact type ${input.artifactType}`,
+    diagnostics,
   );
 }
 
@@ -172,6 +1124,8 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
   );
   const writableArtifactTypes = uniqueArtifactTypes(input.writableArtifactTypes, []);
   const mode = input.mode ?? "file-assisted";
+  const now = input.now ?? (() => new Date().toISOString());
+  const createId = input.createId ?? (() => crypto.randomUUID());
 
   if (input.id.trim().length === 0) {
     throw new Error("host adapter id must not be empty");
@@ -182,6 +1136,7 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
     supportedReadableArtifactTypes,
   });
   assertWritableNegotiation({
+    documentStorePresent: Boolean(input.documentStore),
     mode,
     readableArtifactTypes,
     writableArtifactTypes,
@@ -194,10 +1149,11 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
     readableArtifactTypes: readableArtifactTypesSnapshot,
     writableArtifactTypes: writableArtifactTypesSnapshot,
   });
+  const hostKind = input.hostKind ?? "generic";
 
   return Object.freeze({
     id: input.id,
-    hostKind: input.hostKind ?? "generic",
+    hostKind,
     capabilities,
     async readArtifacts(exportInput: ExportMemoryInput) {
       const result = await readArtifacts(
@@ -215,7 +1171,34 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
       };
     },
     async writeArtifact(writeInput: HostWriteArtifactInput) {
-      return writeUnsupported(writableArtifactTypesSnapshot, writeInput);
+      const diagnostics = createDiagnostics({
+        adapterId: input.id,
+        artifactType: writeInput.artifactType,
+        hostKind,
+        mode,
+        relativePath: writeInput.relativePath,
+        wroteAt: now(),
+      });
+
+      if (
+        writeInput.artifactType === "playbook" &&
+        writableArtifactTypesSnapshot.includes("playbook")
+      ) {
+        return applyPlaybookWrite({
+          adapterId: input.id,
+          createId,
+          documentStore: input.documentStore!,
+          hostKind,
+          memory: input.memory,
+          mode,
+          now,
+          policy: input.policy,
+          verifyWrite: input.verifyWrite,
+          writeInput,
+        });
+      }
+
+      return writeUnsupported(writableArtifactTypesSnapshot, writeInput, diagnostics);
     },
   });
 }

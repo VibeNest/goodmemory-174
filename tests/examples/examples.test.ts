@@ -5,6 +5,12 @@ import {
 import {
   runCodingAgentExample,
 } from "../../examples/coding-agent";
+import {
+  runClaudeArtifactExample,
+} from "../../examples/host-claude-artifacts";
+import {
+  runCodexHandoffExample,
+} from "../../examples/host-codex-handoff";
 
 describe("examples", () => {
   it("basic chat example demonstrates the minimal integration path", async () => {
@@ -30,5 +36,27 @@ describe("examples", () => {
     ).toContain("Current goal: Finish recall engine");
     expect(result.answer).toContain("Finish recall engine");
     expect(result.answer).toContain("wire buildContext output");
+  });
+
+  it("claude host example demonstrates read-only compiled artifact consumption", async () => {
+    const result = await runClaudeArtifactExample();
+
+    expect(result.artifacts.map((artifact) => artifact.relativePath)).toEqual([
+      "user.md",
+      "MEMORY.md",
+    ]);
+    expect(result.artifacts[0]?.artifactType).toBe("user_memory");
+    expect(result.artifacts[1]?.artifactType).toBe("memory_index");
+    expect(result.summary).toContain("read compiled memory artifacts");
+  });
+
+  it("codex host example demonstrates session handoff consumption", async () => {
+    const result = await runCodexHandoffExample();
+
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]?.relativePath).toBe("session-memory/agent-s1.md");
+    expect(result.artifacts[0]?.content).toContain("# Session Handoff: agent-s1");
+    expect(result.artifacts[0]?.content).toContain("Finish recall engine");
+    expect(result.nextStep).toContain("wire buildContext output");
   });
 });

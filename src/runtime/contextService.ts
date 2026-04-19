@@ -502,6 +502,12 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
         });
       }
 
+      await Promise.all([
+        config.sessionStore.deleteBuffersByScope(sessionScope),
+        config.sessionStore.deleteWorkingMemoryByScope(sessionScope),
+        config.sessionStore.deleteJournalsByScope(sessionScope),
+      ]);
+
       return state;
     },
   };

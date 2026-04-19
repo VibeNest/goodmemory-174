@@ -1,9 +1,9 @@
 Phase 18.3: Session Memory Sync and Handoff
 ===========================================
 
-[TODO] P18.3-T001 Sync active `session-memory/<sessionId>.md` with runtime state
-[TODO] P18.3-T002 Add handoff-friendly coding-agent views
-[TODO] P18.3-T003 Archive or rotate session files safely on session end
+[DONE] P18.3-T001 Sync active `session-memory/<sessionId>.md` with runtime state
+[DONE] P18.3-T002 Add handoff-friendly coding-agent views
+[DONE] P18.3-T003 Archive or rotate session files safely on session end
 
 Why this exists
 ---------------
@@ -26,3 +26,10 @@ Acceptance
 ----------
 - Coding-agent hosts can resume work from a stable handoff surface
 - Session-memory sync remains governed and scope-aware
+
+
+Implementation Notes
+--------------------
+- `goodmemory/host` now remaps session artifacts to `session-memory/<sessionId>.md` for host consumption
+- session handoff content is rebuilt from current runtime state plus session-scoped references and procedural memory on each read
+- `endSession()` now clears runtime state after persisting `SessionArchive`, so ended sessions rotate to archive recap artifacts instead of lingering as active session memory

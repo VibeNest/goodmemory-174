@@ -111,6 +111,26 @@ describe("procedural pattern compiler", () => {
     expect(validatedPatterns[0]?.source.method).toBe("confirmed");
     expect(sourceGuidance?.lifecycle).toBe("superseded");
     expect(sourceGuidance?.supersededBy).toBe(validatedPatterns[0]?.id);
+    expect(
+      exported.artifacts.files.some((file) =>
+        file.relativePath === "playbooks/use-bullet-points-in-summaries.md",
+      ),
+    ).toBeTrue();
+    expect(
+      exported.artifacts.files.find((file) =>
+        file.relativePath === "playbooks/use-bullet-points-in-summaries.md",
+      )?.content,
+    ).toContain("canonicalMemoryId");
+    expect(
+      exported.artifacts.files.some((file) =>
+        file.relativePath === "playbooks/use-bullet-points-in-summaries.prompt.md",
+      ),
+    ).toBeTrue();
+    expect(
+      exported.artifacts.files.some((file) =>
+        file.relativePath === "playbooks/use-bullet-points-in-summaries.skill.md",
+      ),
+    ).toBeTrue();
   });
 
   it("does not compile delayed procedural proposals into validated patterns", async () => {

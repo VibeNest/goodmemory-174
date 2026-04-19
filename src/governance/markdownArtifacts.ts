@@ -20,7 +20,7 @@ import type {
 
 export interface MarkdownArtifactFile {
   content: string;
-  kind: "memory" | "session" | "user";
+  kind: "archive" | "memory" | "playbook" | "session" | "user";
   relativePath: string;
   sessionId?: string;
 }
@@ -89,6 +89,13 @@ function renderSection(title: string, lines: string[]): string {
   return [
     `## ${sanitizeMarkdownInline(title)}`,
     ...(lines.length > 0 ? lines : ["- none"]),
+  ].join("\n");
+}
+
+function renderOptionalPlaybookSection(title: string, lines: string[]): string {
+  return [
+    `## ${sanitizeMarkdownInline(title)}`,
+    ...(lines.length > 0 ? lines : ["<!-- intentionally empty -->"]),
   ].join("\n");
 }
 
@@ -336,6 +343,16 @@ function renderPromotionLines(promotions: PromotionRecord[]): string[] {
   );
 }
 
+function slugifySegment(value: string): string {
+  const ascii = value.normalize("NFKD").replace(/[^\x00-\x7F]/g, "");
+  const slug = ascii
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug.length > 0 ? slug : "playbook";
+}
+
 function renderWorkingMemoryLines(
   workingMemory: WorkingMemorySnapshot | null,
 ): string[] {
@@ -404,29 +421,8 @@ function buildSessionArtifactRelativePath(
   return `sessions/${encodeURIComponent(sessionId)}.md`;
 }
 
-function collectSessionIds(input: MarkdownArtifactInput): string[] {
+function collectActiveSessionIds(input: MarkdownArtifactInput): string[] {
   const sessionIds = new Set<string>();
-
-  if (input.scope.sessionId) {
-    sessionIds.add(input.scope.sessionId);
-  }
-
-  for (const record of [
-    ...input.durable.preferences,
-    ...input.durable.references,
-    ...input.durable.facts,
-    ...input.durable.feedback,
-    ...input.durable.episodes,
-    ...input.durable.archives,
-    ...input.durable.evidence,
-    ...input.durable.experiences,
-    ...input.durable.proposals,
-    ...input.durable.promotions,
-  ]) {
-    if (record.sessionId) {
-      sessionIds.add(record.sessionId);
-    }
-  }
 
   if (input.runtime?.workingMemory?.sessionId) {
     sessionIds.add(input.runtime.workingMemory.sessionId);
@@ -434,13 +430,20 @@ function collectSessionIds(input: MarkdownArtifactInput): string[] {
   if (input.runtime?.journal?.sessionId) {
     sessionIds.add(input.runtime.journal.sessionId);
   }
-  for (const spill of input.runtime?.spills ?? []) {
-    if (spill.scope.sessionId) {
-      sessionIds.add(spill.scope.sessionId);
-    }
-  }
 
   return [...sessionIds].sort(compareStrings);
+}
+
+function buildArchiveArtifactRelativePath(archive: SessionArchive): string {
+  const archivedAt = new Date(archive.archivedAt);
+  const year = Number.isNaN(archivedAt.getTime())
+    ? "unknown"
+    : String(archivedAt.getUTCFullYear()).padStart(4, "0");
+  const month = Number.isNaN(archivedAt.getTime())
+    ? "00"
+    : String(archivedAt.getUTCMonth() + 1).padStart(2, "0");
+
+  return `archive/${year}/${month}/${encodeURIComponent(archive.sessionId)}.md`;
 }
 
 function buildUserArtifact(input: MarkdownArtifactInput): MarkdownArtifactFile {
@@ -582,15 +585,135 @@ function buildSessionArtifact(
   };
 }
 
+function buildPlaybookArtifacts(input: MarkdownArtifactInput): MarkdownArtifactFile[] {
+  const usedRelativePaths = new Set<string>();
+  const validatedPatterns = sortFeedback(input.durable.feedback).filter(
+    (entry) => entry.kind === "validated_pattern" && entry.lifecycle === "active",
+  );
+
+  return validatedPatterns.map((pattern) => {
+    const baseSlug = slugifySegment(pattern.rule);
+    let relativePath = `playbooks/${baseSlug}.md`;
+
+    if (usedRelativePaths.has(relativePath)) {
+      relativePath = `playbooks/${baseSlug}-${slugifySegment(pattern.id)}.md`;
+    }
+
+    usedRelativePaths.add(relativePath);
+    const derivedBasePath = relativePath.slice(0, -".md".length);
+
+    const lineageLines = [
+      `- sourceMethod: ${sanitizeMarkdownInline(pattern.source.method)}`,
+      pattern.source.sessionId
+        ? `- sourceSessionId: ${sanitizeMarkdownInline(pattern.source.sessionId)}`
+        : undefined,
+      pattern.evidence && pattern.evidence.length > 0
+        ? `- evidenceIds: ${sanitizeMarkdownInline(pattern.evidence.join(", "))}`
+        : undefined,
+    ].filter((line): line is string => Boolean(line));
+    const canonicalPatternLines = [
+      `- canonicalMemoryId: ${sanitizeMarkdownInline(pattern.id)}`,
+      `- lifecycle: ${sanitizeMarkdownInline(pattern.lifecycle)}`,
+      pattern.appliesTo
+        ? `- appliesTo: ${sanitizeMarkdownInline(pattern.appliesTo)}`
+        : undefined,
+      pattern.workspaceId
+        ? `- workspaceId: ${sanitizeMarkdownInline(pattern.workspaceId)}`
+        : undefined,
+      pattern.agentId
+        ? `- agentId: ${sanitizeMarkdownInline(pattern.agentId)}`
+        : undefined,
+    ].filter((line): line is string => Boolean(line));
+
+    return [
+      {
+        kind: "playbook" as const,
+        relativePath,
+        content: renderDocument(`Playbook: ${pattern.rule}`, [
+          renderSection("Canonical Pattern", canonicalPatternLines),
+          renderSection("Guidance", [`- ${sanitizeMarkdownInline(pattern.rule)}`]),
+          renderOptionalPlaybookSection(
+            "Why",
+            pattern.why ? [`- ${sanitizeMarkdownInline(pattern.why)}`] : [],
+          ),
+          renderSection("Lineage", lineageLines),
+        ]),
+      },
+      {
+        kind: "playbook" as const,
+        relativePath: `${derivedBasePath}.prompt.md`,
+        content: renderDocument(`Prompt Snippet: ${pattern.rule}`, [
+          renderSection("Use When", [
+            pattern.appliesTo
+              ? `- appliesTo: ${sanitizeMarkdownInline(pattern.appliesTo)}`
+              : "- appliesTo: general",
+          ]),
+          renderSection("Instruction", [`- ${sanitizeMarkdownInline(pattern.rule)}`]),
+          renderSection("Lineage", lineageLines),
+        ]),
+      },
+      {
+        kind: "playbook" as const,
+          relativePath: `${derivedBasePath}.skill.md`,
+          content: renderDocument(`Skill Snippet: ${pattern.rule}`, [
+            renderSection("Metadata", canonicalPatternLines),
+            renderSection("Procedure", [`- ${sanitizeMarkdownInline(pattern.rule)}`]),
+            renderOptionalPlaybookSection(
+              "Why",
+              pattern.why ? [`- ${sanitizeMarkdownInline(pattern.why)}`] : [],
+            ),
+          ]),
+        },
+      ];
+  }).flat();
+}
+
+function buildArchiveArtifacts(input: MarkdownArtifactInput): MarkdownArtifactFile[] {
+  return sortArchives(input.durable.archives).map((archive) => ({
+    kind: "archive",
+    relativePath: buildArchiveArtifactRelativePath(archive),
+    sessionId: archive.sessionId,
+    content: renderDocument(`Archive Recap: ${archive.sessionId}`, [
+      renderSection("Summary", [`- ${sanitizeMarkdownInline(archive.summary)}`]),
+      renderSection(
+        "Key Decisions",
+        archive.keyDecisions.map((decision) => `- ${sanitizeMarkdownInline(decision)}`),
+      ),
+      renderSection(
+        "Unresolved Loops",
+        archive.unresolvedItems.map((item) => `- ${sanitizeMarkdownInline(item)}`),
+      ),
+      renderSection(
+        "Referenced Artifacts",
+        archive.referencedArtifacts.map(
+          (artifact) => `- ${sanitizeMarkdownInline(artifact)}`,
+        ),
+      ),
+      renderSection(
+        "Lineage",
+        [
+          `- archiveId: ${sanitizeMarkdownInline(archive.id)}`,
+          `- sourceSessionIds: ${sanitizeMarkdownInline(archive.sourceSessionIds.join(", "))}`,
+          archive.scopeLineage.length > 0
+            ? `- scopeLineage: ${sanitizeMarkdownInline(archive.scopeLineage.join(", "))}`
+            : undefined,
+        ].filter((line): line is string => Boolean(line)),
+      ),
+    ]),
+  }));
+}
+
 export function buildMarkdownArtifacts(
   input: MarkdownArtifactInput,
 ): MarkdownArtifactBundle {
   const files: MarkdownArtifactFile[] = [
     buildUserArtifact(input),
     buildMemoryArtifact(input),
-    ...collectSessionIds(input).map((sessionId) =>
+    ...collectActiveSessionIds(input).map((sessionId) =>
       buildSessionArtifact(input, sessionId),
     ),
+    ...buildArchiveArtifacts(input),
+    ...buildPlaybookArtifacts(input),
   ];
 
   return {

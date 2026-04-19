@@ -59,11 +59,11 @@ Development Cadence
 Tasks
 -----
 [DONE] P18-T001 Define host adapter contract and capability boundaries
-[TODO] P18-T003 Add session-memory sync and handoff integration flows
-[TODO] P18-T004 Export playbooks and related procedure artifacts for hosts
-[TODO] P18-T005 Add Claude/Codex-style integration examples and guidance
-[TODO] P18-T006 Add adapter safety, verification, and rollback tooling
-[TODO] P18-T002 Parse selected file edits into structured deltas safely
+[DONE] P18-T003 Add session-memory sync and handoff integration flows
+[DONE] P18-T004 Export playbooks and related procedure artifacts for hosts
+[DONE] P18-T005 Add Claude/Codex-style integration examples and guidance
+[DONE] P18-T006 Add adapter safety, verification, and rollback tooling
+[DONE] P18-T002 Parse selected file edits into structured deltas safely
 
 
 Key Constraints

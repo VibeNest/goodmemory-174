@@ -1,9 +1,9 @@
 Phase 18.2: File Parse and Structured Delta
 ===========================================
 
-[TODO] P18.2-T001 Parse supported file edits into structured deltas
-[TODO] P18.2-T002 Validate and redact adapter-originated writes
-[TODO] P18.2-T003 Preserve provenance for adapter-authored changes
+[DONE] P18.2-T001 Parse supported file edits into structured deltas
+[DONE] P18.2-T002 Validate and redact adapter-originated writes
+[DONE] P18.2-T003 Preserve provenance for adapter-authored changes
 
 Why this exists
 ---------------
@@ -28,3 +28,10 @@ Acceptance
 ----------
 - File-authoritative hosts can write back safely for supported artifact types
 - Unsupported or risky edits fail safely
+
+
+Implementation Notes
+--------------------
+- the minimal supported editable subset is the canonical `playbooks/*.md` artifact only
+- writeback parses structured deltas for `Guidance`, `Why`, and `appliesTo`, then applies them to the linked active `validated_pattern`
+- adapter-authored writes now preserve provenance through linked experience records and fail with structured diagnostics when parsing, policy, or verification blocks the change

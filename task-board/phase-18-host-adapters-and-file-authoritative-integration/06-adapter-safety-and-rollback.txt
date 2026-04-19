@@ -1,9 +1,9 @@
 Phase 18.6: Adapter Safety and Rollback
 =======================================
 
-[TODO] P18.6-T001 Add adapter-originated write diagnostics and rollback guidance
-[TODO] P18.6-T002 Add verification hooks for risky adapter changes
-[TODO] P18.6-T003 Document rollback to read-only adapter mode
+[DONE] P18.6-T001 Add adapter-originated write diagnostics and rollback guidance
+[DONE] P18.6-T002 Add verification hooks for risky adapter changes
+[DONE] P18.6-T003 Document rollback to read-only adapter mode
 
 Why this exists
 ---------------
@@ -28,3 +28,10 @@ Acceptance
 ----------
 - Writable adapter flows are governable and debuggable
 - Rollback to safer host integration modes is straightforward
+
+
+Implementation Notes
+--------------------
+- writable adapter failures now surface structured diagnostics, including failure reasons, verification outcomes, and rollback guidance
+- risky playbook rule edits require explicit `verifyWrite` approval before they can be applied
+- README now documents the safe rollback path: recreate the adapter in `file-assisted` mode and inspect compiled artifacts before retrying writable operations

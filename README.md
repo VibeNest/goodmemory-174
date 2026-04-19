@@ -71,13 +71,56 @@ CLI surface:
 
 - Basic chat integration: [examples/basic-chat.ts](./examples/basic-chat.ts)
 - Coding-agent flavored integration: [examples/coding-agent.ts](./examples/coding-agent.ts)
+- Claude-style host artifact consumption: [examples/host-claude-artifacts.ts](./examples/host-claude-artifacts.ts)
+- Codex-style session handoff consumption: [examples/host-codex-handoff.ts](./examples/host-codex-handoff.ts)
 
 运行方式：
 
 ```bash
 bun run example:chat
 bun run example:coding-agent
+bun run example:host-claude
+bun run example:host-codex
 ```
+
+## Host Adapters
+
+GoodMemory also exposes a dedicated host adapter surface:
+
+```ts
+import { createGoodMemory } from "goodmemory";
+import { createHostAdapter } from "goodmemory/host";
+
+const memory = createGoodMemory({
+  storage: { provider: "memory" },
+});
+
+const adapter = createHostAdapter({
+  id: "codex-handoff",
+  hostKind: "codex",
+  memory,
+  readableArtifactTypes: ["session_memory"],
+});
+
+const result = await adapter.readArtifacts({
+  scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+  includeRuntime: true,
+});
+```
+
+Mode guidance:
+
+- `file-assisted`: read compiled artifacts such as `MEMORY.md`, `user.md`, `session-memory/<sessionId>.md`, and `playbooks/*.md` without writing back into canonical state.
+- `file-authoritative`: available for the minimal writable subset. Today that subset is the canonical `playbooks/*.md` file only, and it writes back structured deltas into active `validated_pattern` feedback records.
+
+Writable guardrails:
+
+- prompt and skill snippet files (`*.prompt.md`, `*.skill.md`) remain derived read-only outputs
+- risky `Guidance` rule edits require an explicit `verifyWrite` approval before they are applied
+- low-risk metadata edits such as `appliesTo` and `Why` can write back without the extra verification step
+- failed writable operations return diagnostics with rollback guidance; the safe fallback is to recreate the adapter in `file-assisted` mode and inspect the compiled artifacts first
+
+Current host adapter examples stay in `file-assisted` mode because they are the recommended default path for Claude/Codex-style integration.
 
 ## Testing
 
