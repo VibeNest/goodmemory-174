@@ -49,6 +49,10 @@
 - `public-surface-decision.json` exists and matches the documented OSS surface
 - observe / assist / promote guidance is documented in `docs/GoodMemory-Strategy-Rollout-Guide.md`
 - `docs/GoodMemory-Phase-17-Quality-Gate.md` summarizes the latest fallback and live-memory phase-17 gates
+- `bun run gate:phase-19-reviewer` produces the dedicated reviewer rollout quality-gate report
+- `bun run gate:phase-19-maintenance` produces the dedicated maintenance rollout quality-gate report
+- `docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md` summarizes the latest reviewer rollout gate
+- `docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md` summarizes the latest maintenance rollout gate
 - rollback conditions explicitly keep `rules-only` available as the supported fallback
 - root runtime entrypoints keep salvage hooks and promotion-gate runtime controls internal
 

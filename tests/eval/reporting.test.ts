@@ -1534,6 +1534,74 @@ describe("eval reporting", () => {
     }
   });
 
+  it("persists non-retrieval runtime rollout metadata without implying executed-path family changes", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-reviewer-runtime-rollout");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-reviewer-runtime",
+          scenarioId: "scenario-reviewer-runtime",
+          strategyLabel: "rules-only",
+          resolvedStrategyLabel: "rules-only",
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-reviewer-runtime-rollout",
+        cases,
+        summary: aggregateJudgedCases(cases, 0, {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "reviewer",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        }),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "reviewer",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const report = JSON.parse(
+        await readFile(join(result.runDirectory, "report.json"), "utf8"),
+      ) as {
+        runtime: {
+          strategyRollout?: {
+            family?: string;
+            mode?: string;
+            promotedStrategyLabel?: string;
+          };
+        };
+      };
+
+      expect(report.runtime.strategyRollout).toEqual({
+        family: "reviewer",
+        mode: "observe",
+        promotedStrategyLabel: "rules-only",
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("persists a regression dashboard artifact with failure clusters and raw lineage", async () => {
     const workspace = await createTempWorkspace("goodmemory-reporting-regression-dashboard");
 

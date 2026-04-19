@@ -1,0 +1,39 @@
+Phase 19.3: Maintenance Rollout Family
+======================================
+
+[TODO] P19.3-T001 Define maintenance rollout candidates as `default-hygiene` baseline vs `outcome-aware` candidate
+[TODO] P19.3-T002 Add maintenance family `observe` with isolated candidate state
+[TODO] P19.3-T003 Add maintenance family `assist` and `promote` gating with low-risk-only default influence
+
+Why this exists
+---------------
+- maintenance already runs through the public API, but it is not yet a rollout family with controlled candidate evaluation and promotion.
+- phase-16 outcome-aware maintenance needs the same rollout rigor phase-17 gave retrieval before it can influence defaults more broadly.
+
+Write tests first
+-----------------
+- maintenance `observe` keeps candidate maintenance off the executed path and off durable state
+- maintenance `assist` influences only controlled low-risk eval execution
+- maintenance `promote` is blocked without family-specific gate evidence
+- maintenance artifacts report stale/correction/reuse movement without being confused with retrieval uplift
+
+Implementation steps
+--------------------
+1. Build maintenance rollout profiles over the existing maintenance runner and dream orchestration rather than replacing the maintenance API.
+2. Treat `default-hygiene` as the current default maintenance profile and `outcome-aware` as the candidate profile.
+3. Keep high-risk mutations behind proposal/gate/compiler rules even when maintenance family rollout is in assist or promote mode.
+4. Preserve phase-16 outcome metrics in a family-specific form for phase-19 gates.
+
+Acceptance
+----------
+- maintenance family has a full observe/assist/promote lifecycle
+- outcome-aware maintenance remains governed rather than silently mutating defaults
+- phase-18 host regressions still pass after maintenance rollout wiring lands
+
+Targeted Regression
+-------------------
+- maintenance unit, integration, and eval tests added for phase-19 maintenance rollout
+- `bun test tests/integration/maintenance.api.test.ts`
+- retrieval rollout regression tests touched by phase-17 behavior
+- host-adapter regression tests touched by phase-18 behavior
+- `bun run typecheck`

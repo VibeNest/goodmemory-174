@@ -1,0 +1,35 @@
+Phase 19.4: Family Shadow, Gate, and Dashboard Artifacts
+========================================================
+
+[TODO] P19.4-T001 Persist family-specific shadow comparison artifacts for reviewer and maintenance
+[TODO] P19.4-T002 Persist family-specific promotion-gate and regression-dashboard artifacts
+[TODO] P19.4-T003 Keep artifact lineage and naming unambiguous across retrieval, reviewer, and maintenance runs
+
+Why this exists
+---------------
+- reviewer and maintenance rollout evidence must be auditable without being mistaken for retrieval/provider gains.
+- phase-19 promotion conversations need family-specific artifacts, not reused retrieval artifact names.
+
+Write tests first
+-----------------
+- reporting persists family-specific shadow summaries and gate summaries
+- artifact payloads identify `reviewer` vs `maintenance` correctly
+- regression dashboard summaries keep per-family blocking cases and lineage
+
+Implementation steps
+--------------------
+1. Reuse the existing phase-17 reporting machinery where possible, but add explicit family separation in summaries and persisted artifact fields.
+2. Keep reviewer and maintenance artifact names stable and self-describing.
+3. Preserve drill-down lineage from family dashboards back to raw traces, proposal traces, and maintenance summaries.
+
+Acceptance
+----------
+- reviewer and maintenance rollout evidence is auditable without ambiguity
+- promotion reviews can distinguish family-specific uplift, regressions, and blocking cases cleanly
+
+Targeted Regression
+-------------------
+- reporting and artifact tests covering family-specific phase-19 output
+- reviewer rollout eval tests
+- maintenance rollout eval tests
+- `bun run typecheck`

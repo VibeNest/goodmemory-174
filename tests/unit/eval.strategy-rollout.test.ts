@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { resolveRetrievalStrategyRollout } from "../../src/eval/strategy-rollout";
+import {
+  buildStrategyRolloutMetadata,
+  resolveRetrievalStrategyRollout,
+} from "../../src/eval/strategy-rollout";
 
 describe("eval strategy rollout", () => {
   it("does not rewrite router semantics when no rollout is configured", () => {
@@ -61,5 +64,31 @@ describe("eval strategy rollout", () => {
     expect(plan.executedStrategy).toBe("rules-only");
     expect(plan.candidateStrategyLabel).toBe("hybrid");
     expect(plan.candidateInfluencedExecution).toBe(false);
+  });
+
+  it("builds reviewer rollout metadata without inventing retrieval execution semantics", () => {
+    const metadata = buildStrategyRolloutMetadata({
+      family: "reviewer",
+      mode: "observe",
+    });
+
+    expect(metadata).toEqual({
+      family: "reviewer",
+      mode: "observe",
+      promotedStrategyLabel: "rules-only",
+    });
+  });
+
+  it("builds maintenance rollout metadata with the default maintenance baseline", () => {
+    const metadata = buildStrategyRolloutMetadata({
+      family: "maintenance",
+      mode: "assist",
+    });
+
+    expect(metadata).toEqual({
+      family: "maintenance",
+      mode: "assist",
+      promotedStrategyLabel: "default-hygiene",
+    });
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { createGoodMemory } from "../../src";
 import type { GoodMemory } from "../../src/api/contracts";
+import { attachGoodMemoryEvalSupport } from "../../src/api/evalSupport";
 import { createFeedbackMemory } from "../../src/domain/records";
 import {
   createLearningProposal,
@@ -309,6 +310,410 @@ describe("eval runners", () => {
     expect(result.strategyMode).toBeUndefined();
     expect(result.promotedStrategyLabel).toBeUndefined();
     expect(result.candidateInfluencedExecution).toBeUndefined();
+  });
+
+  it("runs reviewer assist rollout as an eval-only proposal annotation path without changing recall routing", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-medium-01.json"),
+    );
+    const recallStrategies: string[] = [];
+    const workspaceId = `eval-${persona.lifecycle_bucket}`;
+    const memory = {
+      async remember() {
+        return {
+          accepted: 0,
+          rejected: 0,
+          events: [],
+          metadata: {
+            locale: "en-US",
+            localeSource: "default" as const,
+            adapterId: "english",
+            analysisMode: "rules-only" as const,
+            requestedExtractionStrategy: "auto" as const,
+            resolvedExtractionStrategy: "rules-only" as const,
+          },
+        };
+      },
+      async feedback() {
+        return { accepted: false };
+      },
+      async recall(input: { strategy?: string }) {
+        recallStrategies.push(input.strategy ?? "missing");
+
+        return {
+          profile: null,
+          preferences: [],
+          references: [],
+          facts: [],
+          feedback: [],
+          archives: [],
+          evidence: [],
+          episodes: [],
+          workingMemory: null,
+          journal: null,
+          packet: {
+            locale: "en-US",
+            profile: null,
+            preferences: [],
+            references: [],
+            facts: [],
+            feedback: [],
+            archives: [],
+            evidence: [],
+            episodes: [],
+            workingMemory: null,
+            journal: null,
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only" as const,
+              strategyExplanation: {
+                requestedStrategy: "rules-only" as const,
+                resolvedStrategy: "rules-only" as const,
+                summary: "rules-only retrieval stayed on the executed path",
+                hardFloor: "lexical_runtime_procedural_priors" as const,
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: ["profile", "feedback", "fact"],
+              requestedSlots: [],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: false,
+              continuation: false,
+            },
+          },
+          metadata: {
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only" as const,
+              strategyExplanation: {
+                requestedStrategy: "rules-only" as const,
+                resolvedStrategy: "rules-only" as const,
+                summary: "rules-only retrieval stayed on the executed path",
+                hardFloor: "lexical_runtime_procedural_priors" as const,
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: ["profile", "feedback", "fact"],
+              requestedSlots: [],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: false,
+              continuation: false,
+            },
+            tokenCount: 0,
+            latencyMs: 0,
+            hits: [],
+            candidateTraces: [],
+            verificationHints: [],
+            policyApplied: [],
+          },
+        };
+      },
+      async buildContext() {
+        return {
+          output: "markdown" as const,
+          content: "memory context",
+          estimatedTokens: 3,
+          omittedSections: [],
+        };
+      },
+      async forget() {
+        return { forgotten: false };
+      },
+      async deleteAllMemory(input: { scope: { userId: string; workspaceId: string } }) {
+        return {
+          scope: input.scope,
+          deleted: {
+            profiles: 0,
+            preferences: 0,
+            references: 0,
+            facts: 0,
+            feedback: 0,
+            episodes: 0,
+            archives: 0,
+            evidence: 0,
+            experiences: 0,
+            proposals: 0,
+            promotions: 0,
+            workingMemory: 0,
+            journal: 0,
+            artifactSpills: 0,
+          },
+        };
+      },
+      async exportMemory() {
+        const exported = buildEmptyExportMemoryResult(persona.persona_id, workspaceId);
+        return {
+          ...exported,
+          durable: {
+            ...exported.durable,
+            proposals: [
+              {
+                id: "proposal-1",
+                userId: persona.persona_id,
+                workspaceId,
+                proposalType: "procedural_pattern" as const,
+                status: "accepted" as const,
+                traceId: "proposal-trace-1",
+                summary: "[assisted reviewer] Promote stable review opening guidance.",
+                rationale:
+                  "[assisted reviewer] Rules-only reviewer found repeated successful feedback lineage.",
+                sourceExperienceIds: ["xp-1", "xp-2"],
+                linkedMemoryIds: ["feedback-1"],
+                linkedArchiveIds: [],
+                linkedEvidenceIds: ["evidence-1"],
+                modelInfluence: "llm-assisted" as const,
+                createdAt: "2026-04-15T00:00:00.000Z",
+                updatedAt: "2026-04-15T00:00:00.000Z",
+              },
+            ],
+            promotions: [],
+          },
+        };
+      },
+      async runMaintenance() {
+        return {
+          compiledCount: 0,
+          maintenance: null,
+          promotionDecisionCounts: {},
+          proposalCount: 0,
+          ran: false,
+          reason: "threshold" as const,
+        };
+      },
+    } as unknown as GoodMemory;
+    attachGoodMemoryEvalSupport(memory, {
+      assistedReviewer: true,
+    });
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      strategy: "rules-only",
+      strategyRollout: {
+        family: "reviewer",
+        mode: "assist",
+      },
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(recallStrategies).toEqual(["rules-only"]);
+    expect(result.strategyFamily).toBe("reviewer");
+    expect(result.strategyMode).toBe("assist");
+    expect(result.strategyLabel).toBe("assisted");
+    expect(result.resolvedStrategyLabel).toBe("assisted");
+    expect(result.promotedStrategyLabel).toBe("rules-only");
+    expect(result.candidateInfluencedExecution).toBe(true);
+    expect(result.trace.proposalLifecycle?.proposals[0]).toMatchObject({
+      summary: "[assisted reviewer] Promote stable review opening guidance.",
+      rationale:
+        "[assisted reviewer] Rules-only reviewer found repeated successful feedback lineage.",
+      modelInfluence: "llm-assisted",
+    });
+  });
+
+  it("runs maintenance assist rollout through the public maintenance API before the final recall", async () => {
+    const persona = await loadPersonaSpec(
+      join(import.meta.dir, "../../fixtures/personas/eval/medium-01.json"),
+    );
+    const scenario = await loadScenarioFixture(
+      join(import.meta.dir, "../../fixtures/scenarios/eval/scenario-medium-01.json"),
+    );
+    const recallStrategies: string[] = [];
+    const maintenanceRuns: Array<{
+      jobs?: string[];
+      scope: { userId: string; workspaceId: string };
+    }> = [];
+    const workspaceId = `eval-${persona.lifecycle_bucket}`;
+    const memory = {
+      async remember() {
+        return {
+          accepted: 0,
+          rejected: 0,
+          events: [],
+          metadata: {
+            locale: "en-US",
+            localeSource: "default" as const,
+            adapterId: "english",
+            analysisMode: "rules-only" as const,
+            requestedExtractionStrategy: "auto" as const,
+            resolvedExtractionStrategy: "rules-only" as const,
+          },
+        };
+      },
+      async feedback() {
+        return { accepted: false };
+      },
+      async recall(input: { strategy?: string }) {
+        recallStrategies.push(input.strategy ?? "missing");
+
+        return {
+          profile: null,
+          preferences: [],
+          references: [],
+          facts: [],
+          feedback: [],
+          archives: [],
+          evidence: [],
+          episodes: [],
+          workingMemory: null,
+          journal: null,
+          packet: {
+            locale: "en-US",
+            profile: null,
+            preferences: [],
+            references: [],
+            facts: [],
+            feedback: [],
+            archives: [],
+            evidence: [],
+            episodes: [],
+            workingMemory: null,
+            journal: null,
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only" as const,
+              strategyExplanation: {
+                requestedStrategy: "rules-only" as const,
+                resolvedStrategy: "rules-only" as const,
+                summary: "rules-only retrieval stayed on the executed path",
+                hardFloor: "lexical_runtime_procedural_priors" as const,
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: ["profile", "feedback", "fact"],
+              requestedSlots: [],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: false,
+              continuation: false,
+            },
+          },
+          metadata: {
+            routingDecision: {
+              retrievalProfile: "general_chat",
+              intent: "general_assistance",
+              strategy: "rules-only" as const,
+              strategyExplanation: {
+                requestedStrategy: "rules-only" as const,
+                resolvedStrategy: "rules-only" as const,
+                summary: "rules-only retrieval stayed on the executed path",
+                hardFloor: "lexical_runtime_procedural_priors" as const,
+                semanticTieBreaking: false,
+                llmRefinement: false,
+              },
+              sourcePriorities: ["profile", "feedback", "fact"],
+              requestedSlots: [],
+              supportSlots: [],
+              actionDriving: false,
+              referenceSeeking: false,
+              continuation: false,
+            },
+            tokenCount: 0,
+            latencyMs: 0,
+            hits: [],
+            candidateTraces: [],
+            verificationHints: [],
+            policyApplied: [],
+          },
+        };
+      },
+      async buildContext() {
+        return {
+          output: "markdown" as const,
+          content: "memory context",
+          estimatedTokens: 3,
+          omittedSections: [],
+        };
+      },
+      async forget() {
+        return { forgotten: false };
+      },
+      async deleteAllMemory(input: { scope: { userId: string; workspaceId: string } }) {
+        return {
+          scope: input.scope,
+          deleted: {
+            profiles: 0,
+            preferences: 0,
+            references: 0,
+            facts: 0,
+            feedback: 0,
+            episodes: 0,
+            archives: 0,
+            evidence: 0,
+            experiences: 0,
+            proposals: 0,
+            promotions: 0,
+            workingMemory: 0,
+            journal: 0,
+            artifactSpills: 0,
+          },
+        };
+      },
+      async exportMemory() {
+        return buildEmptyExportMemoryResult(persona.persona_id, workspaceId);
+      },
+      async runMaintenance(input: {
+        jobs?: string[];
+        scope: { userId: string; workspaceId: string };
+      }) {
+        maintenanceRuns.push(input);
+        return {
+          compiledCount: 1,
+          maintenance: null,
+          promotionDecisionCounts: {},
+          proposalCount: 0,
+          ran: true,
+          reason: "completed" as const,
+        };
+      },
+    } as unknown as GoodMemory;
+
+    const result = await runGoodMemoryScenario({
+      memory,
+      persona,
+      scenario,
+      strategy: "rules-only",
+      strategyRollout: {
+        family: "maintenance",
+        mode: "assist",
+      },
+      answerGenerator: async (input) => ({
+        content: input.memoryContext ?? "missing-context",
+      }),
+    });
+
+    expect(recallStrategies).toEqual(["rules-only"]);
+    expect(maintenanceRuns).toEqual([
+      {
+        scope: {
+          userId: persona.persona_id,
+          workspaceId,
+        },
+        jobs: [
+          "dedupe",
+          "contradiction",
+          "consolidation",
+          "embeddingRepair",
+        ],
+      },
+    ]);
+    expect(result.strategyFamily).toBe("maintenance");
+    expect(result.strategyMode).toBe("assist");
+    expect(result.strategyLabel).toBe("outcome-aware");
+    expect(result.resolvedStrategyLabel).toBe("outcome-aware");
+    expect(result.promotedStrategyLabel).toBe("default-hygiene");
+    expect(result.candidateInfluencedExecution).toBe(true);
   });
 
   it("captures governed procedural reuse when accepted procedural promotions compile before the final recall", async () => {

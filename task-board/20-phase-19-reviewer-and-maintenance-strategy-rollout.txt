@@ -3,7 +3,7 @@ Phase 19: Reviewer and Maintenance Strategy Rollout
 
 Phase Goal
 ----------
-Apply the phase-17 lifecycle, gate, and dashboard machinery to reviewer and maintenance strategies after host-adapter work has stabilized the surrounding surfaces.
+Turn the already-landed reviewer and maintenance internals into controlled rollout families after phase-18 host stabilization, without widening the public surface or regressing retrieval-first and host-adapter guarantees.
 
 
 Dependencies
@@ -15,27 +15,59 @@ Dependencies
 
 Primary Deliverables
 --------------------
-- reviewer rollout candidates with `observe -> assist -> promote` lifecycle support
-- maintenance rollout candidates with the same lifecycle support
-- phase-specific shadow/gate/dashboard artifacts for reviewer and maintenance paths
-- evidence-backed decision on whether either family deserves broader surfaced controls
+- an executable phase-19 task decomposition under `task-board/phase-19-reviewer-and-maintenance-strategy-rollout/`
+- family-aware rollout substrate in `src/eval/*` that preserves retrieval behavior while allowing reviewer and maintenance families to plug in
+- reviewer rollout candidate support with `observe -> assist -> promote`
+- maintenance rollout candidate support with the same lifecycle
+- family-specific shadow, gate, dashboard, and quality-gate artifacts
+- evidence-backed public-surface re-evaluation that keeps advanced knobs internal unless phase-19 evidence justifies exposure
 
 
 Definition of Done
 ------------------
-- reviewer strategies can run through shadow/assist/promote without affecting unsupported defaults
-- maintenance strategies can run through shadow/assist/promote without affecting unsupported defaults
-- promotion decisions are backed by family-specific eval evidence and persisted records
-- retrieval-first phase-17 guarantees remain intact while later families land
+- phase 19 task-board is detailed enough to execute slice-by-slice without re-planning
+- reviewer strategies can run through `observe`, `assist`, and `promote` without changing unsupported defaults
+- maintenance strategies can run through `observe`, `assist`, and `promote` without changing unsupported defaults
+- promotion decisions are backed by family-specific eval evidence and persisted artifacts
+- retrieval-first phase-17 guarantees and phase-18 host-adapter guarantees remain intact while later families land
+- every completed subtask has a recorded targeted regression pass before the next subtask begins
 
 
 Tasks
 -----
-[TODO] P19-T001 Define reviewer rollout candidates and eval slices
-[TODO] P19-T002 Define maintenance rollout candidates and eval slices
-[TODO] P19-T003 Reuse shadow/gate/dashboard plumbing for reviewer and maintenance families
-[TODO] P19-T004 Add dedicated quality gates for reviewer and maintenance rollout
-[TODO] P19-T005 Re-evaluate advanced/public surface boundaries after non-retrieval evidence exists
+[TODO] P19-T001 Rewrite phase-19 task-board into executable subtask slices
+[TODO] P19-T002 Land shared family-aware rollout substrate before any new business-family wiring
+[TODO] P19-T003 Land reviewer rollout family end-to-end before maintenance rollout begins
+[TODO] P19-T004 Land maintenance rollout family on top of the shared substrate and closed reviewer path
+[TODO] P19-T005 Add dedicated family quality gates and regression bundles
+[TODO] P19-T006 Re-evaluate advanced/internal surface boundaries only after reviewer and maintenance evidence exists
+
+
+Execution Order
+---------------
+1. Rewrite the phase-19 board and create subtask files.
+2. Land shared rollout substrate in eval/runtime/reporting without changing retrieval semantics.
+3. Land reviewer rollout family and its targeted regression slice.
+4. Land maintenance rollout family and its targeted regression slice.
+5. Add reviewer and maintenance quality-gate scripts plus release/doc checks.
+6. Re-run public-surface classification with phase-19 evidence and keep unsupported knobs internal by default.
+
+
+Candidate Families
+------------------
+- reviewer
+  - baseline: `rules-only`
+  - candidate: `assisted`
+- maintenance
+  - baseline: `default-hygiene`
+  - candidate: `outcome-aware`
+
+
+Per-Subtask Regression Rule
+---------------------------
+- Every subtask starts with failing tests for the new behavior.
+- Every subtask ends with the targeted regression commands listed in its subtask file.
+- Do not begin the next subtask until the current subtask regressions pass.
 
 
 Key Constraints
@@ -43,3 +75,7 @@ Key Constraints
 - do not widen public runtime config by default
 - do not regress retrieval-first rollout guarantees while adding new families
 - reviewer and maintenance rollout evidence must remain distinguishable from provider-backed retrieval gains
+- keep `goodmemory/evolution`, rollout config, promotion-gate runtime controls, and other advanced knobs internal unless phase-19 evidence explicitly changes that decision
+- do not silently reuse retrieval strategy labels as reviewer or maintenance labels; family-specific rollout metadata must stay explicit
+- `observe` mode must keep candidate behavior off the executed path through isolated shadow state
+- high-risk maintenance and review mutations must continue to go through proposal/gate/compiler controls rather than direct default mutation

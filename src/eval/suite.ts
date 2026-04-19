@@ -1,5 +1,8 @@
 import type { GoodMemory } from "../api/contracts";
-import { createGoodMemory } from "../api/createGoodMemory";
+import {
+  createGoodMemory,
+  createInternalGoodMemory,
+} from "../api/createGoodMemory";
 import { evaluateScenarioAssertions } from "./assertions";
 import {
   listPersonaSpecs,
@@ -35,14 +38,21 @@ import {
   type EvalAnswerGenerator,
 } from "./runners";
 import type { MemoryExtractionStrategy } from "../remember/candidates";
-import type { RetrievalStrategyRolloutConfig } from "./strategy-rollout";
+import type {
+  MaintenanceStrategyRolloutConfig,
+  RetrievalStrategyRolloutConfig,
+  StrategyRolloutConfig,
+} from "./strategy-rollout";
 import {
   buildRetrievalStrategyRolloutConfig,
   buildStrategyRolloutMetadata,
+  normalizeStrategyRolloutMetadata,
+  resolveMaintenanceStrategyRollout,
   resolveRetrievalStrategyRollout,
+  resolveReviewerStrategyRollout,
 } from "./strategy-rollout";
 import {
-  assertRetrievalPromotionGateAllowsDefaultRollout,
+  assertStrategyPromotionGateAllowsDefaultRollout,
 } from "./strategy-promotion-gate";
 
 export interface EvalSuiteInput {
@@ -61,6 +71,7 @@ export interface EvalSuiteInput {
     persona: PersonaSpec;
     scenario: ScenarioFixture;
     scopeNamespace: string;
+    strategyRollout?: StrategyRolloutConfig;
   }) => GoodMemory | { cleanup?: () => Promise<void>; memory: GoodMemory };
   runId?: string;
   runtime?: EvalRuntimeMetadata;
@@ -68,7 +79,7 @@ export interface EvalSuiteInput {
   caseRetryLimit?: number;
   strategies?: RecallRouterStrategy[];
   rememberExtractionStrategy?: MemoryExtractionStrategy;
-  strategyRollout?: RetrievalStrategyRolloutConfig;
+  strategyRollout?: StrategyRolloutConfig;
 }
 
 export interface EvalSuiteResult {
@@ -86,7 +97,25 @@ interface EvalMemoryHandle {
   memory: GoodMemory;
 }
 
-function defaultCreateMemory(): GoodMemory {
+function defaultCreateMemory(input?: {
+  strategyRollout?: StrategyRolloutConfig;
+}): GoodMemory {
+  const reviewerDecision =
+    input?.strategyRollout?.family === "reviewer"
+      ? resolveReviewerStrategyRollout(input.strategyRollout)
+      : undefined;
+
+  if (reviewerDecision?.executedStrategyLabel === "assisted") {
+    return createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+      },
+      {
+        assistedReviewer: true,
+      },
+    );
+  }
+
   return createGoodMemory({
     storage: { provider: "memory" },
   });
@@ -98,6 +127,7 @@ function resolveEvalMemoryHandle(input: {
   persona: PersonaSpec;
   scenario: ScenarioFixture;
   scopeNamespace: string;
+  strategyRollout?: StrategyRolloutConfig;
 }): EvalMemoryHandle {
   const memoryHandle =
     input.createMemory?.({
@@ -105,7 +135,10 @@ function resolveEvalMemoryHandle(input: {
       persona: input.persona,
       scenario: input.scenario,
       scopeNamespace: input.scopeNamespace,
-    }) ?? defaultCreateMemory();
+      strategyRollout: input.strategyRollout,
+    }) ?? defaultCreateMemory({
+      strategyRollout: input.strategyRollout,
+    });
 
   if ("memory" in memoryHandle) {
     return memoryHandle;
@@ -149,24 +182,61 @@ function buildObserveShadowReplay(input: {
   caseId: string;
   scopeNamespace: string;
   strategy: RecallRouterStrategy;
-  strategyRollout?: RetrievalStrategyRolloutConfig;
+  strategyRollout?: StrategyRolloutConfig;
 }):
   | {
       caseId: string;
       scopeNamespace: string;
-      strategyRollout: RetrievalStrategyRolloutConfig;
+      strategyRollout: StrategyRolloutConfig;
     }
   | undefined {
-  if (
-    input.strategyRollout?.mode !== "observe" ||
-    input.strategy === "auto"
-  ) {
+  if (input.strategyRollout?.mode !== "observe") {
     return undefined;
   }
 
-  const promotedStrategy =
-    input.strategyRollout.promotedStrategy ?? "rules-only";
-  if (input.strategy === promotedStrategy) {
+  if ((input.strategyRollout.family ?? "retrieval") === "retrieval") {
+    const rollout = input.strategyRollout as RetrievalStrategyRolloutConfig;
+    if (input.strategy === "auto") {
+      return undefined;
+    }
+
+    const promotedStrategy = rollout.promotedStrategy ?? "rules-only";
+    if (input.strategy === promotedStrategy) {
+      return undefined;
+    }
+
+    return {
+      caseId: `${input.caseId}__shadow`,
+      scopeNamespace: `${input.scopeNamespace}__shadow`,
+      strategyRollout: {
+        family: "retrieval",
+        mode: "assist",
+        promotedStrategy,
+      },
+    };
+  }
+
+  if (input.strategyRollout.family === "reviewer") {
+    const rolloutDecision = resolveReviewerStrategyRollout(input.strategyRollout);
+    if (!rolloutDecision?.candidateStrategyLabel) {
+      return undefined;
+    }
+
+    return {
+      caseId: `${input.caseId}__shadow`,
+      scopeNamespace: `${input.scopeNamespace}__shadow`,
+      strategyRollout: {
+        family: "reviewer",
+        mode: "assist",
+        promotedStrategy: rolloutDecision.promotedStrategyLabel,
+      },
+    };
+  }
+
+  const rolloutDecision = resolveMaintenanceStrategyRollout(
+    input.strategyRollout as MaintenanceStrategyRolloutConfig,
+  );
+  if (!rolloutDecision?.candidateStrategyLabel) {
     return undefined;
   }
 
@@ -174,9 +244,9 @@ function buildObserveShadowReplay(input: {
     caseId: `${input.caseId}__shadow`,
     scopeNamespace: `${input.scopeNamespace}__shadow`,
     strategyRollout: {
-      family: "retrieval",
+      family: "maintenance",
       mode: "assist",
-      promotedStrategy,
+      promotedStrategy: rolloutDecision.promotedStrategyLabel,
     },
   };
 }
@@ -253,11 +323,77 @@ function buildExecutionFailureMetadata(input: {
   failureStage: EvalCaseExecutionFailureStage;
   scenario: ScenarioFixture;
   strategy: RecallRouterStrategy;
-  strategyRollout?: RetrievalStrategyRolloutConfig;
+  strategyRollout?: StrategyRolloutConfig;
 }): EvalCaseExecutionFailure["metadata"] {
+  if (input.strategyRollout?.family === "reviewer") {
+    const primaryDecision = resolveReviewerStrategyRollout(input.strategyRollout);
+    const shadowDecision =
+      input.failureStage === "shadow_execution" ||
+      input.failureStage === "shadow_pre_recall"
+        ? resolveReviewerStrategyRollout({
+            family: "reviewer",
+            mode: "assist",
+            promotedStrategy:
+              primaryDecision?.promotedStrategyLabel,
+          })
+        : undefined;
+    const decision = shadowDecision ?? primaryDecision;
+    const resolvedStrategyLabel =
+      input.failureStage === "primary_execution" ||
+      input.failureStage === "shadow_execution"
+        ? decision?.executedStrategyLabel
+        : undefined;
+
+    return {
+      taskFamily: input.scenario.task_family,
+      targetDomain: input.scenario.domain,
+      memorySourceDomains: input.scenario.memory_source_domains,
+      evaluationSetting: input.scenario.evaluation_setting,
+      strategyLabel:
+        decision?.requestedStrategyLabel ?? "rules-only",
+      ...(resolvedStrategyLabel ? { resolvedStrategyLabel } : {}),
+      strategyFamily: "reviewer",
+      strategyMode: decision?.mode,
+      promotedStrategyLabel: decision?.promotedStrategyLabel,
+    };
+  }
+
+  if (input.strategyRollout?.family === "maintenance") {
+    const primaryDecision = resolveMaintenanceStrategyRollout(input.strategyRollout);
+    const shadowDecision =
+      input.failureStage === "shadow_execution" ||
+      input.failureStage === "shadow_pre_recall"
+        ? resolveMaintenanceStrategyRollout({
+            family: "maintenance",
+            mode: "assist",
+            promotedStrategy:
+              primaryDecision?.promotedStrategyLabel,
+          })
+        : undefined;
+    const decision = shadowDecision ?? primaryDecision;
+    const resolvedStrategyLabel =
+      input.failureStage === "primary_execution" ||
+      input.failureStage === "shadow_execution"
+        ? decision?.executedStrategyLabel
+        : undefined;
+
+    return {
+      taskFamily: input.scenario.task_family,
+      targetDomain: input.scenario.domain,
+      memorySourceDomains: input.scenario.memory_source_domains,
+      evaluationSetting: input.scenario.evaluation_setting,
+      strategyLabel:
+        decision?.requestedStrategyLabel ?? "default-hygiene",
+      ...(resolvedStrategyLabel ? { resolvedStrategyLabel } : {}),
+      strategyFamily: "maintenance",
+      strategyMode: decision?.mode,
+      promotedStrategyLabel: decision?.promotedStrategyLabel,
+    };
+  }
+
   const rolloutDecision = resolveRetrievalStrategyRollout({
     requestedStrategy: input.strategy,
-    rollout: input.strategyRollout,
+    rollout: input.strategyRollout as RetrievalStrategyRolloutConfig | undefined,
   });
   const resolvedStrategyLabel =
     input.failureStage === "primary_execution"
@@ -297,16 +433,17 @@ function resolveCaseRetryLimit(
 }
 
 function resolveEvalSuiteStrategyRollout(input: {
-  strategyRollout?: RetrievalStrategyRolloutConfig;
+  strategyRollout?: StrategyRolloutConfig;
   runtimeStrategyRollout?: EvalRuntimeMetadata["strategyRollout"];
 }): {
-  effectiveStrategyRollout?: RetrievalStrategyRolloutConfig;
+  effectiveStrategyRollout?: StrategyRolloutConfig;
   runtimeStrategyRollout?: EvalRuntimeMetadata["strategyRollout"];
 } {
   if (input.strategyRollout) {
-    assertRetrievalPromotionGateAllowsDefaultRollout({
+    assertStrategyPromotionGateAllowsDefaultRollout({
       rollout: input.strategyRollout,
     });
+
     return {
       effectiveStrategyRollout: input.strategyRollout,
       runtimeStrategyRollout: buildStrategyRolloutMetadata(input.strategyRollout),
@@ -317,22 +454,29 @@ function resolveEvalSuiteStrategyRollout(input: {
     return {};
   }
 
-  if (input.runtimeStrategyRollout.family !== "retrieval") {
-    throw new Error(
-      `runEvalSuite currently supports only retrieval strategy rollouts; received ${input.runtimeStrategyRollout.family}.`,
-    );
+  const runtimeStrategyRollout = normalizeStrategyRolloutMetadata(
+    input.runtimeStrategyRollout,
+  );
+  if (!runtimeStrategyRollout) {
+    return {};
+  }
+
+  if (runtimeStrategyRollout.family !== "retrieval") {
+    return {
+      runtimeStrategyRollout,
+    };
   }
 
   const effectiveStrategyRollout = buildRetrievalStrategyRolloutConfig(
-    input.runtimeStrategyRollout,
+    runtimeStrategyRollout,
   );
-  assertRetrievalPromotionGateAllowsDefaultRollout({
+  assertStrategyPromotionGateAllowsDefaultRollout({
     rollout: effectiveStrategyRollout,
   });
 
   return {
     effectiveStrategyRollout,
-    runtimeStrategyRollout: input.runtimeStrategyRollout,
+    runtimeStrategyRollout,
   };
 }
 
@@ -446,7 +590,7 @@ async function evaluateCase(input: {
   goodmemoryGenerator: EvalAnswerGenerator;
   judge: JudgeModel;
   rememberExtractionStrategy?: MemoryExtractionStrategy;
-  strategyRollout?: RetrievalStrategyRolloutConfig;
+  strategyRollout?: StrategyRolloutConfig;
 }): Promise<JudgedEvalCase> {
   const cleanups: Array<(() => Promise<void>) | undefined> = [];
   const cleanup = combineCleanups(cleanups);
@@ -460,6 +604,7 @@ async function evaluateCase(input: {
         persona: input.persona,
         scenario: input.scenario,
         scopeNamespace: input.scopeNamespace,
+        strategyRollout: input.strategyRollout,
       });
     } catch (error) {
       throw wrapCaseStageError("primary_setup", error);
@@ -481,6 +626,7 @@ async function evaluateCase(input: {
           persona: input.persona,
           scenario: input.scenario,
           scopeNamespace: shadowReplay.scopeNamespace,
+          strategyRollout: shadowReplay.strategyRollout,
         });
       } catch (error) {
         throw wrapCaseStageError("shadow_setup", error);
@@ -598,7 +744,7 @@ async function evaluateCaseWithRetries(input: {
   judge: JudgeModel;
   retryLimit: number;
   rememberExtractionStrategy?: MemoryExtractionStrategy;
-  strategyRollout?: RetrievalStrategyRolloutConfig;
+  strategyRollout?: StrategyRolloutConfig;
 }): Promise<
   | { judgedCase: JudgedEvalCase; failure?: undefined }
   | { judgedCase?: undefined; failure: EvalCaseExecutionFailure }

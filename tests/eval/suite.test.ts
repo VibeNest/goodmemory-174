@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createGoodMemory } from "../../src";
+import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 import {
   createFakeEmbeddingAdapter,
   createFakeLLMAdapter,
@@ -1061,6 +1062,11 @@ describe("eval suite", () => {
     const createMemoryCalls: Array<{
       caseId: string;
       scopeNamespace: string;
+      strategyRollout?: {
+        family?: string;
+        mode?: string;
+        promotedStrategy?: string;
+      };
     }> = [];
 
     try {
@@ -1075,8 +1081,12 @@ describe("eval suite", () => {
           mode: "observe",
           promotedStrategy: "rules-only",
         },
-        createMemory: ({ caseId, scopeNamespace }) => {
-          createMemoryCalls.push({ caseId, scopeNamespace });
+        createMemory: ({ caseId, scopeNamespace, strategyRollout }) => {
+          createMemoryCalls.push({
+            caseId,
+            scopeNamespace,
+            strategyRollout,
+          });
 
           return createGoodMemory({
             storage: { provider: "memory" },
@@ -1171,6 +1181,16 @@ describe("eval suite", () => {
       expect(createMemoryCalls[1]?.scopeNamespace).not.toBe(
         createMemoryCalls[0]?.scopeNamespace,
       );
+      expect(createMemoryCalls[0]?.strategyRollout).toMatchObject({
+        family: "retrieval",
+        mode: "observe",
+        promotedStrategy: "rules-only",
+      });
+      expect(createMemoryCalls[1]?.strategyRollout).toMatchObject({
+        family: "retrieval",
+        mode: "assist",
+        promotedStrategy: "rules-only",
+      });
       expect(result.cases[0]?.shadow?.strategyMode).toBe("assist");
       expect(result.cases[0]?.shadow?.candidateInfluencedExecution).toBe(true);
       expect(result.cases[0]?.shadow?.resolvedStrategyLabel).toBe("hybrid");
@@ -1437,71 +1457,506 @@ describe("eval suite", () => {
     }
   });
 
-  it("rejects non-retrieval runtime rollout metadata that cannot affect suite execution", async () => {
-    const workspace = await createTempWorkspace("goodmemory-suite-unsupported-runtime-rollout");
+  it("passes through non-retrieval runtime rollout metadata without changing executed behavior", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-runtime-rollout-metadata");
 
     try {
-      await expect(
-        runEvalSuite({
-          mode: "fallback",
-          personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
-          scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
-          outputDir: join(workspace.root, "reports"),
-          scenarioIds: ["scenario-complex-01"],
-          runtime: {
-            generationMode: "fallback",
-            judgeMode: "fallback",
-            strategyRollout: {
-              family: "reviewer",
-              mode: "observe",
-            },
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "reviewer",
+            mode: "observe",
           },
-          baselineGenerator: async () => ({
-            content: "baseline",
-          }),
-          goodmemoryGenerator: async (input) => ({
-            content: input.memoryContext ?? "missing memory context",
-          }),
-          judge: createFakeLLMAdapter([
-            {
-              content: JSON.stringify({
-                winner: "goodmemory",
-                scores: {
-                  factual_recall: 8,
-                  preference_consistency: 8,
-                  cross_domain_transfer: 8,
-                  contamination_penalty: 8,
-                  update_correctness: 8,
-                  personalization_usefulness: 8,
-                  provenance_explainability: 8,
-                },
-                baseline_scores: {
-                  factual_recall: 5,
-                  preference_consistency: 5,
-                  cross_domain_transfer: 5,
-                  contamination_penalty: 5,
-                  update_correctness: 5,
-                  personalization_usefulness: 5,
-                  provenance_explainability: 5,
-                },
-                goodmemory_scores: {
-                  factual_recall: 8,
-                  preference_consistency: 8,
-                  cross_domain_transfer: 8,
-                  contamination_penalty: 8,
-                  update_correctness: 8,
-                  personalization_usefulness: 8,
-                  provenance_explainability: 8,
-                },
-                reasoning: "not used",
-                failure_tags: [],
-              }),
-            },
-          ]),
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
         }),
-      ).rejects.toThrow(
-        "runEvalSuite currently supports only retrieval strategy rollouts; received reviewer.",
-      );
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "not used",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.cases).toHaveLength(1);
+      expect(result.runtime.strategyRollout).toEqual({
+        family: "reviewer",
+        mode: "observe",
+        promotedStrategyLabel: "rules-only",
+      });
+      expect(result.cases[0]?.metadata.strategyFamily).toBeUndefined();
+      expect(result.cases[0]?.metadata.strategyMode).toBeUndefined();
+      expect(result.summary.promotionGate).toMatchObject({
+        family: "reviewer",
+        mode: "observe",
+        decision: "delayed",
+        outcome: "review_required",
+        promotedStrategyLabel: "rules-only",
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("runs reviewer observe rollouts through an isolated shadow path while keeping rules-only on the executed path", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-reviewer-observe-rollout");
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        strategyRollout: {
+          family: "reviewer",
+          mode: "observe",
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "reviewer observe case",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.cases).toHaveLength(1);
+      expect(result.cases[0]?.metadata.strategyFamily).toBe("reviewer");
+      expect(result.cases[0]?.metadata.strategyMode).toBe("observe");
+      expect(result.cases[0]?.metadata.strategyLabel).toBe("assisted");
+      expect(result.cases[0]?.metadata.resolvedStrategyLabel).toBe("rules-only");
+      expect(result.cases[0]?.goodmemory.candidateInfluencedExecution).toBe(false);
+      expect(result.cases[0]?.shadow?.strategyFamily).toBe("reviewer");
+      expect(result.cases[0]?.shadow?.strategyMode).toBe("assist");
+      expect(result.cases[0]?.shadow?.strategyLabel).toBe("assisted");
+      expect(result.cases[0]?.shadow?.resolvedStrategyLabel).toBe("assisted");
+      expect(result.cases[0]?.shadow?.candidateInfluencedExecution).toBe(true);
+      expect(result.summary.shadowSummary).toMatchObject({
+        totalCases: 1,
+        byFamily: {
+          reviewer: 1,
+        },
+        byMode: {
+          observe: 1,
+        },
+        safeObserveCases: 1,
+        unknownObserveCases: 0,
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("passes strategyRollout into custom createMemory so reviewer shadow factories can build assisted memory", async () => {
+    const workspace = await createTempWorkspace(
+      "goodmemory-suite-reviewer-custom-memory-rollout",
+    );
+    const createMemoryCalls: Array<{
+      caseId: string;
+      strategyRollout?: {
+        family?: string;
+        mode?: string;
+        promotedStrategy?: string;
+      };
+    }> = [];
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        strategyRollout: {
+          family: "reviewer",
+          mode: "observe",
+        },
+        createMemory: ({ caseId, strategyRollout }) => {
+          createMemoryCalls.push({
+            caseId,
+            strategyRollout,
+          });
+
+          if (
+            strategyRollout?.family === "reviewer" &&
+            strategyRollout.mode === "assist"
+          ) {
+            return createInternalGoodMemory(
+              {
+                storage: { provider: "memory" },
+              },
+              {
+                assistedReviewer: true,
+              },
+            );
+          }
+
+          return createGoodMemory({
+            storage: { provider: "memory" },
+          });
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "reviewer custom memory case",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.cases).toHaveLength(1);
+      expect(result.cases[0]?.metadata.strategyFamily).toBe("reviewer");
+      expect(result.cases[0]?.shadow?.strategyMode).toBe("assist");
+      expect(createMemoryCalls).toMatchObject([
+        {
+          caseId: "scenario-complex-01",
+          strategyRollout: {
+            family: "reviewer",
+            mode: "observe",
+          },
+        },
+        {
+          caseId: "scenario-complex-01__shadow",
+          strategyRollout: {
+            family: "reviewer",
+            mode: "assist",
+            promotedStrategy: "rules-only",
+          },
+        },
+      ]);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("runs maintenance observe rollouts through an isolated shadow path while keeping default hygiene on the executed path", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-maintenance-observe-rollout");
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        strategyRollout: {
+          family: "maintenance",
+          mode: "observe",
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "maintenance observe case",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.cases).toHaveLength(1);
+      expect(result.cases[0]?.metadata.strategyFamily).toBe("maintenance");
+      expect(result.cases[0]?.metadata.strategyMode).toBe("observe");
+      expect(result.cases[0]?.metadata.strategyLabel).toBe("outcome-aware");
+      expect(result.cases[0]?.metadata.resolvedStrategyLabel).toBe("default-hygiene");
+      expect(result.cases[0]?.goodmemory.candidateInfluencedExecution).toBe(false);
+      expect(result.cases[0]?.shadow?.strategyFamily).toBe("maintenance");
+      expect(result.cases[0]?.shadow?.strategyMode).toBe("assist");
+      expect(result.cases[0]?.shadow?.strategyLabel).toBe("outcome-aware");
+      expect(result.cases[0]?.shadow?.resolvedStrategyLabel).toBe("outcome-aware");
+      expect(result.cases[0]?.shadow?.candidateInfluencedExecution).toBe(true);
+      expect(result.summary.shadowSummary).toMatchObject({
+        totalCases: 1,
+        byFamily: {
+          maintenance: 1,
+        },
+        byMode: {
+          observe: 1,
+        },
+        safeObserveCases: 1,
+        unknownObserveCases: 0,
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("allows reviewer promote mode to keep the family baseline without authorization", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-reviewer-promote-baseline");
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        strategyRollout: {
+          family: "reviewer",
+          mode: "promote",
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "reviewer baseline promote case",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.cases).toHaveLength(1);
+      expect(result.cases[0]?.metadata.strategyFamily).toBe("reviewer");
+      expect(result.cases[0]?.metadata.strategyMode).toBe("promote");
+      expect(result.cases[0]?.metadata.strategyLabel).toBe("rules-only");
+      expect(result.cases[0]?.metadata.promotedStrategyLabel).toBe("rules-only");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("allows maintenance promote mode to keep the family baseline without authorization", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-maintenance-promote-baseline");
+
+    try {
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-complex-01"],
+        strategyRollout: {
+          family: "maintenance",
+          mode: "promote",
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 8,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 8,
+                update_correctness: 8,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "maintenance baseline promote case",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.cases).toHaveLength(1);
+      expect(result.cases[0]?.metadata.strategyFamily).toBe("maintenance");
+      expect(result.cases[0]?.metadata.strategyMode).toBe("promote");
+      expect(result.cases[0]?.metadata.strategyLabel).toBe("default-hygiene");
+      expect(result.cases[0]?.metadata.promotedStrategyLabel).toBe("default-hygiene");
     } finally {
       await workspace.cleanup();
     }
@@ -1608,6 +2063,70 @@ describe("eval suite", () => {
         }),
       ).rejects.toThrow(
         "Retrieval strategy hybrid cannot become the promoted default because no trusted strategy-promotion authorization was supplied.",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("blocks reviewer promote rollouts without family-specific authorization evidence", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-reviewer-promote-gate");
+
+    try {
+      await expect(
+        runEvalSuite({
+          mode: "fallback",
+          personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+          scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+          outputDir: join(workspace.root, "reports"),
+          scenarioIds: ["scenario-complex-01"],
+          strategyRollout: {
+            family: "reviewer",
+            mode: "promote",
+            promotedStrategy: "assisted",
+          },
+          baselineGenerator: async () => ({
+            content: "baseline",
+          }),
+          goodmemoryGenerator: async () => ({
+            content: "not used",
+          }),
+          judge: createFakeLLMAdapter([]),
+        }),
+      ).rejects.toThrow(
+        "Reviewer strategy assisted cannot enter promote mode because no trusted reviewer strategy-promotion authorization was supplied.",
+      );
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("blocks maintenance promote rollouts without family-specific authorization evidence", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-maintenance-promote-gate");
+
+    try {
+      await expect(
+        runEvalSuite({
+          mode: "fallback",
+          personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+          scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+          outputDir: join(workspace.root, "reports"),
+          scenarioIds: ["scenario-complex-01"],
+          strategyRollout: {
+            family: "maintenance",
+            mode: "promote",
+            promotedStrategy: "outcome-aware",
+          },
+          baselineGenerator: async () => ({
+            content: "baseline",
+          }),
+          goodmemoryGenerator: async () => ({
+            content: "not used",
+          }),
+          judge: createFakeLLMAdapter([]),
+        }),
+      ).rejects.toThrow(
+        "Maintenance strategy outcome-aware cannot enter promote mode because no trusted maintenance strategy-promotion authorization was supplied.",
       );
     } finally {
       await workspace.cleanup();

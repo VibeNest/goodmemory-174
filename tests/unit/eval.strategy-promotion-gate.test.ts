@@ -4,8 +4,13 @@ import type {
   EvalSuiteSummary,
   JudgedEvalCase,
 } from "../../src/eval/contracts";
+import type {
+  MaintenanceStrategyPromotionAuthorization,
+  ReviewerStrategyPromotionAuthorization,
+} from "../../src/eval/strategy-rollout";
 import {
   assertRetrievalPromotionGateAllowsDefaultRollout,
+  assertStrategyPromotionGateAllowsDefaultRollout,
   createRetrievalPromotionAuthorization,
   evaluateStrategyPromotionGate,
 } from "../../src/eval/strategy-promotion-gate";
@@ -366,6 +371,56 @@ function buildPromotionAuthorization(
   });
 }
 
+function buildReviewerPromotionAuthorization(input?: {
+  expiresAt?: string;
+}): ReviewerStrategyPromotionAuthorization {
+  return {
+    expiresAt: input?.expiresAt ?? "2026-01-17T00:00:00.000Z",
+    family: "reviewer",
+    issuedAt: "2026-01-10T00:00:00.000Z",
+    promotionGate: {
+      decision: "accepted",
+      outcome: "passed",
+      promotedStrategyLabel: "assisted",
+      targetStrategyLabel: "assisted",
+    },
+    regressionDashboardSummary: {
+      executionFailureCount: 0,
+      totalBlockingCases: 0,
+    },
+    source: {
+      generatedBy: "tests",
+      runId: "reviewer-run",
+    },
+    targetStrategyLabel: "assisted",
+  };
+}
+
+function buildMaintenancePromotionAuthorization(input?: {
+  expiresAt?: string;
+}): MaintenanceStrategyPromotionAuthorization {
+  return {
+    expiresAt: input?.expiresAt ?? "2026-01-17T00:00:00.000Z",
+    family: "maintenance",
+    issuedAt: "2026-01-10T00:00:00.000Z",
+    promotionGate: {
+      decision: "accepted" as const,
+      outcome: "passed" as const,
+      promotedStrategyLabel: "outcome-aware",
+      targetStrategyLabel: "outcome-aware",
+    },
+    regressionDashboardSummary: {
+      executionFailureCount: 0,
+      totalBlockingCases: 0,
+    },
+    source: {
+      generatedBy: "tests",
+      runId: "maintenance-run",
+    },
+    targetStrategyLabel: "outcome-aware",
+  };
+}
+
 describe("eval strategy promotion gate", () => {
   it("returns undefined when no strategy rollout metadata exists", () => {
     expect(
@@ -443,7 +498,17 @@ describe("eval strategy promotion gate", () => {
           promotedStrategyLabel: "rules-only",
         },
       } satisfies EvalRuntimeMetadata,
-      summary: buildSummary(),
+      summary: buildSummary({
+        shadowSummary: {
+          totalCases: 1,
+          byFamily: { retrieval: 1 },
+          byMode: { assist: 1 },
+          candidateInfluencedCases: 1,
+          safeObserveCases: 0,
+          unknownObserveCases: 0,
+          regressionCases: [],
+        },
+      }),
     });
 
     expect(decision).toMatchObject({
@@ -454,6 +519,51 @@ describe("eval strategy promotion gate", () => {
       outcome: "passed",
     });
     expect(decision?.evidence.positivePrimaryUplift).toBe(true);
+  });
+
+  it("delays assist-mode promotion when the candidate never reaches the executed path", () => {
+    const decision = evaluateStrategyPromotionGate({
+      cases: [
+        buildCase({
+          strategyLabel: "hybrid",
+          resolvedStrategyLabel: "hybrid",
+          strategyMode: "assist",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: false,
+        }),
+      ],
+      runtime: {
+        generationMode: "fallback",
+        judgeMode: "fallback",
+        strategyRollout: {
+          family: "retrieval",
+          mode: "assist",
+          promotedStrategyLabel: "rules-only",
+        },
+      } satisfies EvalRuntimeMetadata,
+      summary: buildSummary({
+        shadowSummary: {
+          totalCases: 1,
+          byFamily: { retrieval: 1 },
+          byMode: { assist: 1 },
+          candidateInfluencedCases: 0,
+          safeObserveCases: 0,
+          unknownObserveCases: 0,
+          regressionCases: [],
+        },
+      }),
+    });
+
+    expect(decision).toMatchObject({
+      mode: "assist",
+      targetStrategyLabel: "hybrid",
+      decision: "delayed",
+      outcome: "review_required",
+      evidence: {
+        candidateInfluencedCases: 0,
+      },
+    });
+    expect(decision?.rationale).toContain("never reached the executed path");
   });
 
   it("delays assist-mode promotion when the eval run is incomplete", () => {
@@ -518,6 +628,15 @@ describe("eval strategy promotion gate", () => {
         },
       } satisfies EvalRuntimeMetadata,
       summary: buildSummary({
+        shadowSummary: {
+          totalCases: 1,
+          byFamily: { retrieval: 1 },
+          byMode: { assist: 1 },
+          candidateInfluencedCases: 1,
+          safeObserveCases: 0,
+          unknownObserveCases: 0,
+          regressionCases: ["case-1"],
+        },
         strategySummary: {
           byStrategy: {
             hybrid: {
@@ -696,5 +815,98 @@ describe("eval strategy promotion gate", () => {
     ).toThrow(
       "Trusted strategy-promotion authorization requires paired observe execution safety to be known for every case.",
     );
+  });
+
+  it("ignores non-retrieval rollout families when enforcing retrieval default-rollout guards", () => {
+    expect(() =>
+      assertRetrievalPromotionGateAllowsDefaultRollout({
+        rollout: {
+          family: "reviewer",
+          mode: "promote",
+          promotedStrategy: "assisted",
+        },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertRetrievalPromotionGateAllowsDefaultRollout({
+        rollout: {
+          family: "maintenance",
+          mode: "promote",
+          promotedStrategy: "outcome-aware",
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("blocks reviewer promote mode without a trusted reviewer authorization artifact", () => {
+    expect(() =>
+      assertStrategyPromotionGateAllowsDefaultRollout({
+        rollout: {
+          family: "reviewer",
+          mode: "promote",
+          promotedStrategy: "assisted",
+        },
+      }),
+    ).toThrow(
+      "Reviewer strategy assisted cannot enter promote mode because no trusted reviewer strategy-promotion authorization was supplied.",
+    );
+  });
+
+  it("allows reviewer and maintenance no-op promote modes to pass without authorization", () => {
+    expect(() =>
+      assertStrategyPromotionGateAllowsDefaultRollout({
+        rollout: {
+          family: "reviewer",
+          mode: "promote",
+        },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertStrategyPromotionGateAllowsDefaultRollout({
+        rollout: {
+          family: "maintenance",
+          mode: "promote",
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("blocks maintenance promote mode without a trusted maintenance authorization artifact", () => {
+    expect(() =>
+      assertStrategyPromotionGateAllowsDefaultRollout({
+        rollout: {
+          family: "maintenance",
+          mode: "promote",
+          promotedStrategy: "outcome-aware",
+        },
+      }),
+    ).toThrow(
+      "Maintenance strategy outcome-aware cannot enter promote mode because no trusted maintenance strategy-promotion authorization was supplied.",
+    );
+  });
+
+  it("accepts matching reviewer and maintenance promotion authorization artifacts", () => {
+    expect(() =>
+      assertStrategyPromotionGateAllowsDefaultRollout({
+        now: "2026-01-10T12:00:00.000Z",
+        rollout: {
+          family: "reviewer",
+          mode: "promote",
+          promotedStrategy: "assisted",
+          promotionAuthorization: buildReviewerPromotionAuthorization(),
+        },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertStrategyPromotionGateAllowsDefaultRollout({
+        now: "2026-01-10T12:00:00.000Z",
+        rollout: {
+          family: "maintenance",
+          mode: "promote",
+          promotedStrategy: "outcome-aware",
+          promotionAuthorization: buildMaintenancePromotionAuthorization(),
+        },
+      }),
+    ).not.toThrow();
   });
 });

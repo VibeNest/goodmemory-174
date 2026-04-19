@@ -130,6 +130,18 @@ bun run gate:phase-18
 
 The latest archived acceptance summary lives in [docs/GoodMemory-Phase-18-Quality-Gate.md](./docs/GoodMemory-Phase-18-Quality-Gate.md).
 
+Phase-19 rollout quality gates:
+
+```bash
+bun run gate:phase-19-reviewer
+bun run gate:phase-19-maintenance
+```
+
+The latest archived phase-19 acceptance summaries live in:
+
+- [docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md](./docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md)
+- [docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md](./docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md)
+
 ## Testing
 
 默认红绿灯：
@@ -211,6 +223,8 @@ Operator guidance:
 - TDD and evaluation strategy: [docs/GoodMemory-TDD-and-Evaluation-Strategy.md](./docs/GoodMemory-TDD-and-Evaluation-Strategy.md)
 - Phase 17 quality gate: [docs/GoodMemory-Phase-17-Quality-Gate.md](./docs/GoodMemory-Phase-17-Quality-Gate.md)
 - Phase 18 quality gate: [docs/GoodMemory-Phase-18-Quality-Gate.md](./docs/GoodMemory-Phase-18-Quality-Gate.md)
+- Phase 19 reviewer quality gate: [docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md](./docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md)
+- Phase 19 maintenance quality gate: [docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md](./docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md)
 - Strategy rollout guide: [docs/GoodMemory-Strategy-Rollout-Guide.md](./docs/GoodMemory-Strategy-Rollout-Guide.md)
 - Release checklist: [docs/GoodMemory-v1-Release-Checklist.md](./docs/GoodMemory-v1-Release-Checklist.md)
 

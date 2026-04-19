@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
+import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 import { createFactMemory } from "../../src/domain/records";
 import {
   createInMemoryDocumentStore,
@@ -47,6 +48,45 @@ describe("reflective reviewer integration", () => {
       ),
     ).toBe(true);
     expect(exported.durable.promotions[0]?.decision).toBe("accepted");
+  });
+
+  it("can run the assisted reviewer profile through the same proposal pipeline", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: {
+          documentStore,
+          sessionStore: createInMemorySessionStore(),
+        },
+      },
+      {
+        assistedReviewer: true,
+      },
+    );
+    const scope = { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" } as const;
+
+    await memory.feedback({
+      scope,
+      signal: "Use bullet points in summaries.",
+    });
+    await memory.feedback({
+      scope,
+      signal: "Use bullet points in summaries.",
+    });
+    await memory.feedback({
+      scope,
+      signal: "Use bullet points in summaries.",
+    });
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+    const proposal = exported.durable.proposals[0];
+
+    expect(proposal?.summary).toContain("[assisted reviewer]");
+    expect(proposal?.rationale).toContain("[assisted reviewer]");
+    expect(proposal?.modelInfluence).toBe("llm-assisted");
   });
 
   it("emits a maintenance proposal after a stale verification signal is observed and the turn completes", async () => {

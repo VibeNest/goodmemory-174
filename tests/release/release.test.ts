@@ -45,6 +45,12 @@ describe("release metadata and docs", () => {
       "bun run scripts/run-phase-17-live-memory.ts",
     );
     expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
+    expect(pkg.scripts?.["gate:phase-19-reviewer"]).toBe(
+      "bun run scripts/run-phase-19-reviewer-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-19-maintenance"]).toBe(
+      "bun run scripts/run-phase-19-maintenance-gate.ts",
+    );
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
 
@@ -101,6 +107,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("GoodMemory-OSS-Architecture-v1.md");
     expect(readme).toContain("GoodMemory-Phase-17-Quality-Gate.md");
     expect(readme).toContain("GoodMemory-Phase-18-Quality-Gate.md");
+    expect(readme).toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
+    expect(readme).toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
     expect(readme).toContain("GoodMemory-PRD.md");
     expect(readme).toContain("GoodMemory-TDD-and-Evaluation-Strategy.md");
     expect(readme).toContain("GoodMemory-Strategy-Rollout-Guide.md");
@@ -111,6 +119,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("eval:live");
     expect(readme).toContain("eval:phase-17-live-memory");
     expect(readme).toContain("gate:phase-18");
+    expect(readme).toContain("gate:phase-19-reviewer");
+    expect(readme).toContain("gate:phase-19-maintenance");
     expect(readme).toContain("observe -> assist -> promote");
     expect(readme).toContain("regression-dashboard.json");
     expect(readme).toContain("strategy-promotion-authorization.json");
@@ -142,7 +152,11 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("regression-dashboard.json");
     expect(checklist).toContain("public-surface-decision.json");
     expect(checklist).toContain("GoodMemory-Phase-17-Quality-Gate.md");
+    expect(checklist).toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
+    expect(checklist).toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
     expect(checklist).toContain("GoodMemory-Strategy-Rollout-Guide.md");
+    expect(checklist).toContain("gate:phase-19-reviewer");
+    expect(checklist).toContain("gate:phase-19-maintenance");
     expect(checklist).toContain("rules-only");
     expect(checklist).toContain("salvage hooks");
     expect(checklist).not.toContain("eval:full");

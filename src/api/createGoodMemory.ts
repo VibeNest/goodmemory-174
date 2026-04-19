@@ -6,6 +6,7 @@ import { createFeedbackMemory } from "../domain/records";
 import { createMemorySource } from "../domain/provenance";
 import { EVIDENCE_COLLECTION } from "../evidence/contracts";
 import { createProceduralPatternCompiler } from "../evolution/compiler";
+import type { LearningProposal } from "../evolution/contracts";
 import { createProposalGateProcessor } from "../evolution/gates";
 import { createRulesOnlyReviewer } from "../evolution/reviewer";
 import {
@@ -38,6 +39,7 @@ import type {
   GovernanceVectorPort,
 } from "../storage/ports";
 import { createSQLiteDocumentStore, createSQLiteSessionStore } from "../storage/sqlite";
+import { attachGoodMemoryEvalSupport } from "./evalSupport";
 import { createEvolutionRuntime } from "./evolutionRuntime";
 import { deleteVectorForCollection } from "./governance";
 import type {
@@ -83,6 +85,31 @@ const FORGETTABLE_COLLECTIONS = [
   PROMOTION_RECORDS_COLLECTION,
 ] as const;
 
+export interface InternalGoodMemoryOptions {
+  assistedReviewer?: boolean;
+}
+
+const ASSISTED_REVIEWER_PREFIX = "[assisted reviewer] ";
+
+function prefixAssistedReviewerText(value: string): string {
+  return value.startsWith(ASSISTED_REVIEWER_PREFIX)
+    ? value
+    : `${ASSISTED_REVIEWER_PREFIX}${value}`;
+}
+
+function annotateAssistedReviewerProposal(
+  proposal: LearningProposal,
+  timestamp: string,
+): LearningProposal {
+  return {
+    ...proposal,
+    summary: prefixAssistedReviewerText(proposal.summary),
+    rationale: prefixAssistedReviewerText(proposal.rationale),
+    modelInfluence: "llm-assisted",
+    updatedAt: timestamp,
+  };
+}
+
 function recordMatchesScope(record: ScopeBoundRecord, scope: ForgetInput["scope"]): boolean {
   if (record.userId !== scope.userId) {
     return false;
@@ -125,7 +152,10 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly language;
   private readonly now: () => Date;
 
-  constructor(private readonly config: GoodMemoryConfig) {
+  constructor(
+    private readonly config: GoodMemoryConfig,
+    internal?: InternalGoodMemoryOptions,
+  ) {
     if (config.storage.provider === "postgres" && !config.storage.url) {
       throw new Error(
         "Postgres storage provider requires storage.url to be configured.",
@@ -198,6 +228,18 @@ class GoodMemoryImpl implements GoodMemory {
     });
     const reviewer = createRulesOnlyReviewer({
       repositories,
+      ...(internal?.assistedReviewer
+        ? {
+            assistedReview: {
+              enabled: true,
+              annotate: async (proposal: LearningProposal) =>
+                annotateAssistedReviewerProposal(
+                  proposal,
+                  this.now().toISOString(),
+                ),
+            },
+          }
+        : {}),
     });
     const proposalGate = createProposalGateProcessor({
       repositories,
@@ -630,5 +672,20 @@ class GoodMemoryImpl implements GoodMemory {
 }
 
 export function createGoodMemory(config: GoodMemoryConfig): GoodMemory {
-  return new GoodMemoryImpl(config);
+  return createInternalGoodMemory(config);
+}
+
+export function createInternalGoodMemory(
+  config: GoodMemoryConfig,
+  internal?: InternalGoodMemoryOptions,
+): GoodMemory {
+  const memory = new GoodMemoryImpl(config, internal);
+
+  if (internal?.assistedReviewer) {
+    return attachGoodMemoryEvalSupport(memory, {
+      assistedReviewer: true,
+    });
+  }
+
+  return memory;
 }

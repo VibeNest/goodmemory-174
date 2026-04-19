@@ -1,0 +1,34 @@
+Phase 19.6: Public-Surface Re-evaluation and Guidance
+=====================================================
+
+[TODO] P19.6-T001 Re-run public-surface classification with reviewer and maintenance evidence
+[TODO] P19.6-T002 Keep advanced knobs internal unless phase-19 evidence is strong enough to justify exposure
+[TODO] P19.6-T003 Update operator and release guidance without widening the root public surface by default
+
+Why this exists
+---------------
+- phase-17 already decided that rollout config, promotion-gate runtime controls, and evolution namespace remain internal.
+- phase-19 should revisit that decision only after reviewer and maintenance evidence exists, not before.
+
+Write tests first
+-----------------
+- public-surface decision artifacts classify reviewer and maintenance controls explicitly
+- release/doc tests catch accidental public-surface widening
+- operator guidance stays aligned with the real supported behavior
+
+Implementation steps
+--------------------
+1. Extend public-surface decision artifacts with phase-19 evidence inputs.
+2. Keep `goodmemory/evolution`, rollout config, and promotion-gate runtime controls internal by default.
+3. Update README, release checklist, and operator guidance only for accepted phase-19 behavior.
+
+Acceptance
+----------
+- public-surface decisions stay evidence-based
+- unsupported advanced controls remain internal until explicitly earned
+
+Targeted Regression
+-------------------
+- release and public-surface decision tests touched by phase-19 evidence
+- reviewer and maintenance gate script tests
+- `bun run typecheck`

@@ -1,0 +1,38 @@
+Phase 19.2: Reviewer Rollout Family
+===================================
+
+[TODO] P19.2-T001 Define reviewer rollout candidates as `rules-only` baseline vs `assisted` candidate
+[TODO] P19.2-T002 Add reviewer family `observe` shadow execution with isolated state
+[TODO] P19.2-T003 Add reviewer family `assist` and `promote` gating without widening public runtime config
+
+Why this exists
+---------------
+- reviewer internals already exist, but they are not yet a controlled rollout family with inspectable observe/assist/promote behavior.
+- reviewer is the first non-retrieval family and should prove the shared rollout substrate before maintenance adds more moving parts.
+
+Write tests first
+-----------------
+- reviewer `observe` runs assisted reviewer logic in isolation and keeps the executed path on `rules-only`
+- reviewer `assist` lets assisted review influence eval-only proposal annotation or gate inputs
+- reviewer `promote` is blocked without a matching accepted reviewer gate artifact
+- reviewer rollout artifacts remain distinguishable from retrieval rollout artifacts
+
+Implementation steps
+--------------------
+1. Add reviewer family rollout decision logic over existing reviewer runtime seams instead of inventing a second review pipeline.
+2. Make `observe` use isolated shadow state so assisted reviewer output never becomes executed-path truth.
+3. Make `assist` affect eval-only execution while keeping the default runtime reviewer unchanged.
+4. Require reviewer-family gate evidence before any `promote` path can become default behavior.
+
+Acceptance
+----------
+- reviewer family has a full observe/assist/promote lifecycle
+- reviewer rollout evidence is explainable and family-specific
+- retrieval and host-adapter guarantees stay intact
+
+Targeted Regression
+-------------------
+- reviewer unit, integration, and eval tests added for phase-19 reviewer rollout
+- `bun test tests/integration/maintenance.api.test.ts`
+- retrieval rollout regression tests touched by phase-17 behavior
+- `bun run typecheck`

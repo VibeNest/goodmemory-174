@@ -6,7 +6,48 @@ import type {
 
 export type StrategyRolloutFamily = "retrieval" | "reviewer" | "maintenance";
 export type StrategyRolloutMode = "observe" | "assist" | "promote";
-type PromotedRecallRouterStrategy = Exclude<RecallRouterStrategy, "auto">;
+export type PromotedRecallRouterStrategy = Exclude<
+  RecallRouterStrategy,
+  "auto"
+>;
+export type ReviewerStrategyLabel = "rules-only" | "assisted";
+export type MaintenanceStrategyLabel = "default-hygiene" | "outcome-aware";
+export type StrategyRolloutLabel =
+  | PromotedRecallRouterStrategy
+  | ReviewerStrategyLabel
+  | MaintenanceStrategyLabel;
+export type EvalNonBaselineStrategyLabel = Exclude<StrategyRolloutLabel, "auto">;
+
+export interface FamilyStrategyPromotionAuthorization<
+  TFamily extends "reviewer" | "maintenance",
+  TLabel extends ReviewerStrategyLabel | MaintenanceStrategyLabel,
+> {
+  expiresAt: string;
+  family: TFamily;
+  issuedAt: string;
+  promotionGate: {
+    decision: PromotionDecision;
+    outcome: PromotionGateOutcome;
+    promotedStrategyLabel?: TLabel;
+    targetStrategyLabel?: TLabel;
+  };
+  regressionDashboardSummary: {
+    executionFailureCount: number;
+    totalBlockingCases: number;
+  };
+  source: {
+    generatedBy: string;
+    runDirectory?: string;
+    runId: string;
+  };
+  targetStrategyLabel: TLabel;
+}
+
+export type ReviewerStrategyPromotionAuthorization =
+  FamilyStrategyPromotionAuthorization<"reviewer", ReviewerStrategyLabel>;
+
+export type MaintenanceStrategyPromotionAuthorization =
+  FamilyStrategyPromotionAuthorization<"maintenance", MaintenanceStrategyLabel>;
 
 export interface RetrievalStrategyPromotionAuthorization {
   expiresAt: string;
@@ -67,7 +108,7 @@ export interface RetrievalStrategyPromotionAuthorization {
 export interface StrategyRolloutMetadata {
   family: StrategyRolloutFamily;
   mode: StrategyRolloutMode;
-  promotedStrategyLabel?: PromotedRecallRouterStrategy;
+  promotedStrategyLabel?: StrategyRolloutLabel;
 }
 
 export interface RetrievalStrategyRolloutConfig {
@@ -76,6 +117,25 @@ export interface RetrievalStrategyRolloutConfig {
   promotedStrategy?: PromotedRecallRouterStrategy;
   promotionAuthorization?: RetrievalStrategyPromotionAuthorization;
 }
+
+export interface ReviewerStrategyRolloutConfig {
+  family: "reviewer";
+  mode?: StrategyRolloutMode;
+  promotedStrategy?: ReviewerStrategyLabel;
+  promotionAuthorization?: ReviewerStrategyPromotionAuthorization;
+}
+
+export interface MaintenanceStrategyRolloutConfig {
+  family: "maintenance";
+  mode?: StrategyRolloutMode;
+  promotedStrategy?: MaintenanceStrategyLabel;
+  promotionAuthorization?: MaintenanceStrategyPromotionAuthorization;
+}
+
+export type StrategyRolloutConfig =
+  | RetrievalStrategyRolloutConfig
+  | ReviewerStrategyRolloutConfig
+  | MaintenanceStrategyRolloutConfig;
 
 export interface RetrievalStrategyRolloutDecision {
   family?: "retrieval";
@@ -87,20 +147,76 @@ export interface RetrievalStrategyRolloutDecision {
   candidateInfluencedExecution?: boolean;
 }
 
+export interface ReviewerStrategyRolloutDecision {
+  family: "reviewer";
+  mode: StrategyRolloutMode;
+  requestedStrategyLabel: ReviewerStrategyLabel;
+  promotedStrategyLabel: ReviewerStrategyLabel;
+  candidateStrategyLabel?: ReviewerStrategyLabel;
+  executedStrategyLabel: ReviewerStrategyLabel;
+  candidateInfluencedExecution?: boolean;
+}
+
+export interface MaintenanceStrategyRolloutDecision {
+  family: "maintenance";
+  mode: StrategyRolloutMode;
+  requestedStrategyLabel: MaintenanceStrategyLabel;
+  promotedStrategyLabel: MaintenanceStrategyLabel;
+  candidateStrategyLabel?: MaintenanceStrategyLabel;
+  executedStrategyLabel: MaintenanceStrategyLabel;
+  candidateInfluencedExecution?: boolean;
+}
+
 export const DEFAULT_PROMOTED_RETRIEVAL_STRATEGY = "rules-only";
+export const DEFAULT_PROMOTED_REVIEWER_STRATEGY = "rules-only";
+export const DEFAULT_PROMOTED_MAINTENANCE_STRATEGY = "default-hygiene";
+export const REVIEWER_CANDIDATE_STRATEGY = "assisted";
+export const MAINTENANCE_CANDIDATE_STRATEGY = "outcome-aware";
+
+function resolveDefaultPromotedStrategy(
+  family: StrategyRolloutFamily,
+): StrategyRolloutLabel {
+  if (family === "maintenance") {
+    return DEFAULT_PROMOTED_MAINTENANCE_STRATEGY;
+  }
+
+  if (family === "reviewer") {
+    return DEFAULT_PROMOTED_REVIEWER_STRATEGY;
+  }
+
+  return DEFAULT_PROMOTED_RETRIEVAL_STRATEGY;
+}
 
 export function buildStrategyRolloutMetadata(
-  rollout?: RetrievalStrategyRolloutConfig,
+  rollout?: StrategyRolloutConfig,
 ): StrategyRolloutMetadata | undefined {
   if (!rollout) {
     return undefined;
   }
 
+  const family = rollout.family ?? "retrieval";
+
   return {
-    family: rollout?.family ?? "retrieval",
-    mode: rollout?.mode ?? "promote",
+    family,
+    mode: rollout.mode ?? "promote",
     promotedStrategyLabel:
-      rollout?.promotedStrategy ?? DEFAULT_PROMOTED_RETRIEVAL_STRATEGY,
+      rollout.promotedStrategy ?? resolveDefaultPromotedStrategy(family),
+  };
+}
+
+export function normalizeStrategyRolloutMetadata(
+  metadata?: StrategyRolloutMetadata,
+): StrategyRolloutMetadata | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+
+  return {
+    family: metadata.family,
+    mode: metadata.mode,
+    promotedStrategyLabel:
+      metadata.promotedStrategyLabel ??
+      resolveDefaultPromotedStrategy(metadata.family),
   };
 }
 
@@ -114,7 +230,9 @@ export function buildRetrievalStrategyRolloutConfig(
   return {
     family: "retrieval",
     mode: metadata.mode,
-    promotedStrategy: metadata.promotedStrategyLabel,
+    promotedStrategy:
+      (metadata.promotedStrategyLabel as PromotedRecallRouterStrategy | undefined) ??
+      DEFAULT_PROMOTED_RETRIEVAL_STRATEGY,
   };
 }
 
@@ -130,18 +248,18 @@ export function resolveRetrievalStrategyRollout(input: {
     };
   }
 
-  const metadata = buildStrategyRolloutMetadata(input.rollout);
+  const mode = input.rollout.mode ?? "promote";
   const promotedStrategyLabel =
-    metadata?.promotedStrategyLabel ?? DEFAULT_PROMOTED_RETRIEVAL_STRATEGY;
+    input.rollout.promotedStrategy ?? DEFAULT_PROMOTED_RETRIEVAL_STRATEGY;
   const candidateStrategyLabel =
     input.requestedStrategy && input.requestedStrategy !== "auto"
       ? input.requestedStrategy
       : undefined;
 
-  if (metadata?.mode === "assist" && candidateStrategyLabel) {
+  if (mode === "assist" && candidateStrategyLabel) {
     return {
       family: "retrieval",
-      mode: metadata.mode,
+      mode,
       requestedStrategyLabel,
       promotedStrategyLabel,
       candidateStrategyLabel,
@@ -152,11 +270,114 @@ export function resolveRetrievalStrategyRollout(input: {
 
   return {
     family: "retrieval",
-    mode: metadata?.mode ?? "promote",
+    mode,
     requestedStrategyLabel,
     promotedStrategyLabel,
     candidateStrategyLabel,
     executedStrategy: promotedStrategyLabel,
     candidateInfluencedExecution: false,
+  };
+}
+
+function resolveCandidateLabel<TLabel extends StrategyRolloutLabel>(
+  promotedStrategyLabel: TLabel,
+  candidateStrategyLabel: TLabel,
+): TLabel | undefined {
+  return promotedStrategyLabel === candidateStrategyLabel
+    ? undefined
+    : candidateStrategyLabel;
+}
+
+function resolveRequestedStrategyLabel<TLabel extends StrategyRolloutLabel>(
+  mode: StrategyRolloutMode,
+  promotedStrategyLabel: TLabel,
+  candidateStrategyLabel?: TLabel,
+): TLabel {
+  if (mode === "promote" || !candidateStrategyLabel) {
+    return promotedStrategyLabel;
+  }
+
+  return candidateStrategyLabel;
+}
+
+function resolveExecutedStrategyLabel<TLabel extends StrategyRolloutLabel>(
+  mode: StrategyRolloutMode,
+  promotedStrategyLabel: TLabel,
+  candidateStrategyLabel?: TLabel,
+): TLabel {
+  if (mode === "assist" && candidateStrategyLabel) {
+    return candidateStrategyLabel;
+  }
+
+  return promotedStrategyLabel;
+}
+
+export function resolveReviewerStrategyRollout(
+  rollout?: ReviewerStrategyRolloutConfig,
+): ReviewerStrategyRolloutDecision | undefined {
+  if (!rollout) {
+    return undefined;
+  }
+
+  const mode = rollout.mode ?? "promote";
+  const promotedStrategyLabel =
+    rollout.promotedStrategy ?? DEFAULT_PROMOTED_REVIEWER_STRATEGY;
+  const candidateStrategyLabel = resolveCandidateLabel(
+    promotedStrategyLabel,
+    REVIEWER_CANDIDATE_STRATEGY,
+  );
+
+  return {
+    family: "reviewer",
+    mode,
+    requestedStrategyLabel: resolveRequestedStrategyLabel(
+      mode,
+      promotedStrategyLabel,
+      candidateStrategyLabel,
+    ),
+    promotedStrategyLabel,
+    candidateStrategyLabel,
+    executedStrategyLabel: resolveExecutedStrategyLabel(
+      mode,
+      promotedStrategyLabel,
+      candidateStrategyLabel,
+    ),
+    candidateInfluencedExecution:
+      mode === "assist" && candidateStrategyLabel ? true : false,
+  };
+}
+
+export function resolveMaintenanceStrategyRollout(
+  rollout?: MaintenanceStrategyRolloutConfig,
+): MaintenanceStrategyRolloutDecision | undefined {
+  if (!rollout) {
+    return undefined;
+  }
+
+  const mode = rollout.mode ?? "promote";
+  const promotedStrategyLabel =
+    rollout.promotedStrategy ?? DEFAULT_PROMOTED_MAINTENANCE_STRATEGY;
+  const candidateStrategyLabel = resolveCandidateLabel(
+    promotedStrategyLabel,
+    MAINTENANCE_CANDIDATE_STRATEGY,
+  );
+
+  return {
+    family: "maintenance",
+    mode,
+    requestedStrategyLabel: resolveRequestedStrategyLabel(
+      mode,
+      promotedStrategyLabel,
+      candidateStrategyLabel,
+    ),
+    promotedStrategyLabel,
+    candidateStrategyLabel,
+    executedStrategyLabel: resolveExecutedStrategyLabel(
+      mode,
+      promotedStrategyLabel,
+      candidateStrategyLabel,
+    ),
+    candidateInfluencedExecution:
+      mode === "assist" && candidateStrategyLabel ? true : false,
   };
 }

@@ -9,9 +9,17 @@ import type {
 } from "./contracts";
 import type { JudgeScores } from "./judge";
 import {
+  DEFAULT_PROMOTED_MAINTENANCE_STRATEGY,
+  DEFAULT_PROMOTED_REVIEWER_STRATEGY,
+  type MaintenanceStrategyPromotionAuthorization,
+  type MaintenanceStrategyRolloutConfig,
   DEFAULT_PROMOTED_RETRIEVAL_STRATEGY,
+  type PromotedRecallRouterStrategy,
   type RetrievalStrategyPromotionAuthorization,
   type RetrievalStrategyRolloutConfig,
+  type ReviewerStrategyPromotionAuthorization,
+  type ReviewerStrategyRolloutConfig,
+  type StrategyRolloutConfig,
   type StrategyRolloutMode,
 } from "./strategy-rollout";
 import type { EvalAnswerPackage } from "./runners";
@@ -240,13 +248,17 @@ function buildPairedObserveAuthorizationEvidence(input: {
       "Trusted strategy-promotion authorization cannot use auto strategy labels in paired observe evidence.",
     );
   }
+  const promotedStrategyLabel =
+    observeGate.promotedStrategyLabel as PromotedRecallRouterStrategy;
+  const targetStrategyLabel =
+    observeGate.targetStrategyLabel as PromotedRecallRouterStrategy;
 
   return {
     promotionGate: {
       decision: observeGate.decision,
       outcome: observeGate.outcome,
-      promotedStrategyLabel: observeGate.promotedStrategyLabel,
-      targetStrategyLabel: observeGate.targetStrategyLabel,
+      promotedStrategyLabel,
+      targetStrategyLabel,
     },
     source: {
       ...(input.observe.runDirectory
@@ -344,8 +356,10 @@ export function createRetrievalPromotionAuthorization(input: {
       "Trusted strategy-promotion authorization cannot be created from auto strategy labels.",
     );
   }
-  const promotedStrategyLabel = promotionGate.promotedStrategyLabel;
-  const targetStrategyLabel = promotionGate.targetStrategyLabel;
+  const promotedStrategyLabel =
+    promotionGate.promotedStrategyLabel as PromotedRecallRouterStrategy;
+  const targetStrategyLabel =
+    promotionGate.targetStrategyLabel as PromotedRecallRouterStrategy;
   const pairedObserve = buildPairedObserveAuthorizationEvidence({
     assistPromotionGate: promotionGate,
     observe: input.observe,
@@ -577,6 +591,34 @@ export function evaluateStrategyPromotionGate(input: {
     };
   }
 
+  const candidateRequiresExecutionEvidence =
+    rollout.promotedStrategyLabel !== undefined &&
+    targetStrategyLabel !== rollout.promotedStrategyLabel;
+  const candidateInfluencedCases =
+    input.summary.shadowSummary?.candidateInfluencedCases ?? 0;
+  if (candidateRequiresExecutionEvidence && candidateInfluencedCases <= 0) {
+    return {
+      family: rollout.family,
+      mode: rollout.mode,
+      targetStrategyLabel,
+      promotedStrategyLabel: rollout.promotedStrategyLabel,
+      decision: "delayed",
+      outcome: "review_required",
+      rationale:
+        "candidate rollout never reached the executed path, so family-specific execution evidence is still missing",
+      regressionCases: [],
+      thresholds: ACTIVE_THRESHOLDS,
+      evidence: {
+        totalCases: strategyBreakdown.totalCases,
+        completedCases: completion.completedCases,
+        executionFailures: completion.executionFailures,
+        assertionPassRate: input.summary.assertions.passRate,
+        candidateInfluencedCases,
+        positivePrimaryUplift: hasPositivePrimaryUplift(strategyBreakdown.uplift),
+      },
+    };
+  }
+
   if (
     input.summary.assertions.passRate < 1 ||
     strategyBreakdown.regressionCases.length > 0
@@ -648,15 +690,21 @@ export function evaluateStrategyPromotionGate(input: {
 
 export function assertRetrievalPromotionGateAllowsDefaultRollout(input: {
   now?: string;
-  rollout?: RetrievalStrategyRolloutConfig;
+  rollout?: StrategyRolloutConfig;
 }): void {
   if (!input.rollout) {
     return;
   }
 
-  const mode = input.rollout.mode ?? "promote";
+  if ((input.rollout.family ?? "retrieval") !== "retrieval") {
+    return;
+  }
+
+  const rollout = input.rollout as RetrievalStrategyRolloutConfig;
+
+  const mode = rollout.mode ?? "promote";
   const promotedStrategy =
-    input.rollout.promotedStrategy ?? DEFAULT_PROMOTED_RETRIEVAL_STRATEGY;
+    rollout.promotedStrategy ?? DEFAULT_PROMOTED_RETRIEVAL_STRATEGY;
 
   if (
     mode !== "promote" ||
@@ -665,7 +713,7 @@ export function assertRetrievalPromotionGateAllowsDefaultRollout(input: {
     return;
   }
 
-  const authorization = input.rollout.promotionAuthorization;
+  const authorization = rollout.promotionAuthorization;
   if (!authorization) {
     throw new Error(
       `Retrieval strategy ${promotedStrategy} cannot become the promoted default because no trusted strategy-promotion authorization was supplied.`,
@@ -795,4 +843,121 @@ export function assertRetrievalPromotionGateAllowsDefaultRollout(input: {
       `Retrieval strategy ${promotedStrategy} cannot become the promoted default because trusted strategy-promotion authorization expired at ${authorization.expiresAt}.`,
     );
   }
+}
+
+function assertFamilyPromotionAuthorizationAllowsPromoteMode(input: {
+  authorization?:
+    | ReviewerStrategyPromotionAuthorization
+    | MaintenanceStrategyPromotionAuthorization;
+  family: "reviewer" | "maintenance";
+  now?: string;
+  promotedStrategy: string;
+}): void {
+  const familyLabel =
+    input.family.charAt(0).toUpperCase() + input.family.slice(1);
+  const authorization = input.authorization;
+  if (!authorization) {
+    throw new Error(
+      `${familyLabel} strategy ${input.promotedStrategy} cannot enter promote mode because no trusted ${input.family} strategy-promotion authorization was supplied.`,
+    );
+  }
+  if (authorization.family !== input.family) {
+    throw new Error(
+      `${familyLabel} strategy ${input.promotedStrategy} cannot enter promote mode because trusted ${input.family} strategy-promotion authorization is for ${authorization.family}.`,
+    );
+  }
+  if (authorization.targetStrategyLabel !== input.promotedStrategy) {
+    throw new Error(
+      `${familyLabel} strategy ${input.promotedStrategy} cannot enter promote mode because trusted ${input.family} strategy-promotion authorization targets ${authorization.targetStrategyLabel}.`,
+    );
+  }
+  if (authorization.promotionGate.targetStrategyLabel !== input.promotedStrategy) {
+    throw new Error(
+      `${familyLabel} strategy ${input.promotedStrategy} cannot enter promote mode because the trusted ${input.family} promotion gate targets ${authorization.promotionGate.targetStrategyLabel ?? "unknown"}.`,
+    );
+  }
+  if (
+    authorization.promotionGate.decision !== "accepted" ||
+    authorization.promotionGate.outcome !== "passed"
+  ) {
+    throw new Error(
+      `${familyLabel} strategy ${input.promotedStrategy} cannot enter promote mode because the trusted ${input.family} promotion gate is ${authorization.promotionGate.decision}/${authorization.promotionGate.outcome}.`,
+    );
+  }
+  if (
+    authorization.regressionDashboardSummary.totalBlockingCases > 0 ||
+    authorization.regressionDashboardSummary.executionFailureCount > 0
+  ) {
+    throw new Error(
+      `${familyLabel} strategy ${input.promotedStrategy} cannot enter promote mode because trusted ${input.family} strategy-promotion authorization still has blocking cases or execution failures.`,
+    );
+  }
+
+  const nowMs = parseAuthorizationTimestamp(
+    "now",
+    input.now ?? new Date().toISOString(),
+  );
+  const expiresAtMs = parseAuthorizationTimestamp(
+    "expiresAt",
+    authorization.expiresAt,
+  );
+  if (nowMs > expiresAtMs) {
+    throw new Error(
+      `${familyLabel} strategy ${input.promotedStrategy} cannot enter promote mode because trusted ${input.family} strategy-promotion authorization expired at ${authorization.expiresAt}.`,
+    );
+  }
+}
+
+export function assertStrategyPromotionGateAllowsDefaultRollout(input: {
+  now?: string;
+  rollout?: StrategyRolloutConfig;
+}): void {
+  if (!input.rollout) {
+    return;
+  }
+
+  const family = input.rollout.family ?? "retrieval";
+  if (family === "retrieval") {
+    assertRetrievalPromotionGateAllowsDefaultRollout(input);
+    return;
+  }
+
+  if (family === "reviewer") {
+    const rollout = input.rollout as ReviewerStrategyRolloutConfig;
+    const mode = rollout.mode ?? "promote";
+    const promotedStrategy =
+      rollout.promotedStrategy ?? DEFAULT_PROMOTED_REVIEWER_STRATEGY;
+    if (
+      mode !== "promote" ||
+      promotedStrategy === DEFAULT_PROMOTED_REVIEWER_STRATEGY
+    ) {
+      return;
+    }
+
+    assertFamilyPromotionAuthorizationAllowsPromoteMode({
+      family,
+      now: input.now,
+      promotedStrategy,
+      authorization: rollout.promotionAuthorization,
+    });
+    return;
+  }
+
+  const rollout = input.rollout as MaintenanceStrategyRolloutConfig;
+  const mode = rollout.mode ?? "promote";
+  const promotedStrategy =
+    rollout.promotedStrategy ?? DEFAULT_PROMOTED_MAINTENANCE_STRATEGY;
+  if (
+    mode !== "promote" ||
+    promotedStrategy === DEFAULT_PROMOTED_MAINTENANCE_STRATEGY
+  ) {
+    return;
+  }
+
+  assertFamilyPromotionAuthorizationAllowsPromoteMode({
+    family,
+    now: input.now,
+    promotedStrategy,
+    authorization: rollout.promotionAuthorization,
+  });
 }

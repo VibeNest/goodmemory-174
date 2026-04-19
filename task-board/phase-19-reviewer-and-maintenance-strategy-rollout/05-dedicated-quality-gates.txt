@@ -1,0 +1,37 @@
+Phase 19.5: Dedicated Quality Gates
+===================================
+
+[TODO] P19.5-T001 Add dedicated reviewer quality-gate script and tests
+[TODO] P19.5-T002 Add dedicated maintenance quality-gate script and tests
+[TODO] P19.5-T003 Keep phase-17 retrieval and phase-18 host guarantees in both gate bundles
+
+Why this exists
+---------------
+- phase-19 needs acceptance artifacts equivalent in rigor to phase-17 and phase-18.
+- reviewer and maintenance rollout should be accepted independently so one family can close without masking the other.
+
+Write tests first
+-----------------
+- gate scripts write one accepted or blocked report with stable scope and command lists
+- gate scripts fail fast on regression failures
+- release metadata and docs remain aligned with the new gate commands
+
+Implementation steps
+--------------------
+1. Add `gate:phase-19-reviewer` and `gate:phase-19-maintenance`.
+2. Make each gate run typecheck, its family regression slice, phase-17 retrieval guarantee regressions, and phase-18 host regressions.
+3. Persist gate artifacts under separate reviewer and maintenance output roots.
+
+Acceptance
+----------
+- reviewer and maintenance have dedicated acceptance artifacts
+- family closure does not depend on a single mixed gate report
+
+Targeted Regression
+-------------------
+- reviewer gate script tests
+- maintenance gate script tests
+- `bun test tests/release/release.test.ts`
+- `bun run gate:phase-18`
+- `bun run gate:phase-19-reviewer`
+- `bun run gate:phase-19-maintenance`

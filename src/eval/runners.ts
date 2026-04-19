@@ -4,6 +4,7 @@ import type {
   GoodMemory,
   RecallResult,
 } from "../api/contracts";
+import { readGoodMemoryEvalSupport } from "../api/evalSupport";
 import type {
   ExperienceKind,
   ExperienceModelInfluence,
@@ -12,6 +13,7 @@ import type {
   PromotionDecision,
   PromotionGateOutcome,
 } from "../evolution/contracts";
+import type { MaintenanceJobName } from "../maintenance/runner";
 import type {
   PersonalizationTaskFamily,
   PersonaSpec,
@@ -21,10 +23,58 @@ import type {
   ScenarioTurn,
 } from "./dataset";
 import type { RecallRouterStrategy } from "../recall/router";
-import type { RetrievalStrategyRolloutConfig } from "./strategy-rollout";
+import type {
+  MaintenanceStrategyLabel,
+  RetrievalStrategyRolloutConfig,
+  StrategyRolloutConfig,
+  ReviewerStrategyLabel,
+} from "./strategy-rollout";
 import type { MemoryExtractionStrategy } from "../remember/candidates";
 import type { RememberResult as PublicRememberResult } from "../remember/contracts";
-import { resolveRetrievalStrategyRollout } from "./strategy-rollout";
+import {
+  resolveMaintenanceStrategyRollout,
+  resolveRetrievalStrategyRollout,
+  resolveReviewerStrategyRollout,
+} from "./strategy-rollout";
+
+const DEFAULT_HYGIENE_MAINTENANCE_JOBS = [
+  "dedupe",
+  "consolidation",
+  "embeddingRepair",
+] as const satisfies MaintenanceJobName[];
+
+const OUTCOME_AWARE_MAINTENANCE_JOBS = [
+  "dedupe",
+  "contradiction",
+  "consolidation",
+  "embeddingRepair",
+] as const satisfies MaintenanceJobName[];
+
+function resolveMaintenanceJobs(
+  strategyLabel: MaintenanceStrategyLabel,
+): MaintenanceJobName[] {
+  return strategyLabel === "outcome-aware"
+    ? [...OUTCOME_AWARE_MAINTENANCE_JOBS]
+    : [...DEFAULT_HYGIENE_MAINTENANCE_JOBS];
+}
+
+function assertReviewerExecutionSupport(input: {
+  executedStrategyLabel: ReviewerStrategyLabel;
+  memory: GoodMemory;
+}): void {
+  if (input.executedStrategyLabel !== "assisted") {
+    return;
+  }
+
+  const support = readGoodMemoryEvalSupport(input.memory);
+  if (support?.assistedReviewer) {
+    return;
+  }
+
+  throw new Error(
+    "Reviewer rollout strategy assisted requires eval memory with assisted reviewer support. When overriding createMemory, pass through strategyRollout and return createInternalGoodMemory(..., { assistedReviewer: true }) for assisted reviewer cases.",
+  );
+}
 
 export interface EvalAnswerGeneratorInput {
   persona: PersonaSpec;
@@ -125,11 +175,24 @@ export interface EvalMaintenanceDebugSummary {
 
 export interface EvalAnswerPackage {
   mode: "baseline" | "goodmemory";
-  strategyLabel: "baseline" | RecallRouterStrategy;
-  resolvedStrategyLabel?: RecallRouterStrategy;
+  strategyLabel:
+    | "baseline"
+    | RecallRouterStrategy
+    | ReviewerStrategyLabel
+    | MaintenanceStrategyLabel;
+  resolvedStrategyLabel?:
+    | RecallRouterStrategy
+    | ReviewerStrategyLabel
+    | MaintenanceStrategyLabel;
   strategyFamily?: "retrieval" | "reviewer" | "maintenance";
   strategyMode?: "observe" | "assist" | "promote";
-  promotedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+  promotedStrategyLabel?:
+    | "rules-only"
+    | "assisted"
+    | "hybrid"
+    | "llm-assisted"
+    | "default-hygiene"
+    | "outcome-aware";
   candidateInfluencedExecution?: boolean;
   personaId: string;
   scenarioId: string;
@@ -468,7 +531,7 @@ export async function runGoodMemoryScenario(input: {
   answerGenerator: EvalAnswerGenerator;
   retrievalProfile?: "general_chat" | "coding_agent";
   strategy?: RecallRouterStrategy;
-  strategyRollout?: RetrievalStrategyRolloutConfig;
+  strategyRollout?: StrategyRolloutConfig;
   rememberExtractionStrategy?: MemoryExtractionStrategy;
   ignoreMemory?: boolean;
   scopeNamespace?: string;
@@ -477,10 +540,30 @@ export async function runGoodMemoryScenario(input: {
   const evaluationPlan = buildEvaluationPlan(input.scenario);
   const evalUserId = buildEvalUserId(input.persona, input.scopeNamespace);
   const evalWorkspaceId = buildEvalWorkspaceId(input.persona, input.scopeNamespace);
-  const rollout = resolveRetrievalStrategyRollout({
+  const retrievalRollout =
+    !input.strategyRollout ||
+    (input.strategyRollout.family ?? "retrieval") === "retrieval"
+      ? (input.strategyRollout as RetrievalStrategyRolloutConfig | undefined)
+      : undefined;
+  const retrievalDecision = resolveRetrievalStrategyRollout({
     requestedStrategy: input.strategy,
-    rollout: input.strategyRollout,
+    rollout: retrievalRollout,
   });
+  const reviewerDecision =
+    input.strategyRollout?.family === "reviewer"
+      ? resolveReviewerStrategyRollout(input.strategyRollout)
+      : undefined;
+  const maintenanceDecision =
+    input.strategyRollout?.family === "maintenance"
+      ? resolveMaintenanceStrategyRollout(input.strategyRollout)
+      : undefined;
+
+  if (reviewerDecision) {
+    assertReviewerExecutionSupport({
+      executedStrategyLabel: reviewerDecision.executedStrategyLabel,
+      memory: input.memory,
+    });
+  }
 
   let feedbackEvents: EvalAnswerPackage["trace"]["feedbackEvents"];
   try {
@@ -511,6 +594,18 @@ export async function runGoodMemoryScenario(input: {
       signals: input.scenario.feedback_signals ?? [],
       scopeNamespace: input.scopeNamespace,
     });
+
+    if (maintenanceDecision) {
+      await input.memory.runMaintenance({
+        scope: {
+          userId: evalUserId,
+          workspaceId: evalWorkspaceId,
+        },
+        jobs: resolveMaintenanceJobs(
+          maintenanceDecision.executedStrategyLabel,
+        ),
+      });
+    }
   } catch (error) {
     throw wrapEvalGoodMemoryScenarioStageError("pre_recall", error);
   }
@@ -525,7 +620,7 @@ export async function runGoodMemoryScenario(input: {
       ),
       query: getEvaluationPrompt(input.scenario),
       retrievalProfile: input.retrievalProfile ?? "general_chat",
-      strategy: rollout.executedStrategy,
+      strategy: retrievalDecision.executedStrategy,
       ignoreMemory: input.ignoreMemory,
     });
   } catch (error) {
@@ -537,6 +632,7 @@ export async function runGoodMemoryScenario(input: {
   const prompt = getEvaluationPrompt(input.scenario);
   const transcript = renderTranscript(evaluationPlan.visibleTranscriptTurns);
   let answer: EvalAnswerGeneratorOutput;
+  let proposalLifecycle: EvalProposalLifecycleTrace;
   try {
     context = await input.memory.buildContext({
       recall,
@@ -556,18 +652,37 @@ export async function runGoodMemoryScenario(input: {
       transcript,
       memoryContext: context.content,
     });
+    proposalLifecycle = buildProposalLifecycleTrace(exported);
   } catch (error) {
     throw wrapEvalGoodMemoryScenarioStageError("recall_path", error);
   }
 
   return {
     mode: "goodmemory",
-    strategyLabel: rollout.requestedStrategyLabel,
-    resolvedStrategyLabel: recall.metadata.routingDecision.strategy,
-    strategyFamily: rollout.family,
-    strategyMode: rollout.mode,
-    promotedStrategyLabel: rollout.promotedStrategyLabel,
-    candidateInfluencedExecution: rollout.candidateInfluencedExecution,
+    strategyLabel:
+      reviewerDecision?.requestedStrategyLabel ??
+      maintenanceDecision?.requestedStrategyLabel ??
+      retrievalDecision.requestedStrategyLabel,
+    resolvedStrategyLabel:
+      reviewerDecision?.executedStrategyLabel ??
+      maintenanceDecision?.executedStrategyLabel ??
+      recall.metadata.routingDecision.strategy,
+    strategyFamily:
+      reviewerDecision?.family ??
+      maintenanceDecision?.family ??
+      retrievalDecision.family,
+    strategyMode:
+      reviewerDecision?.mode ??
+      maintenanceDecision?.mode ??
+      retrievalDecision.mode,
+    promotedStrategyLabel:
+      reviewerDecision?.promotedStrategyLabel ??
+      maintenanceDecision?.promotedStrategyLabel ??
+      retrievalDecision.promotedStrategyLabel,
+    candidateInfluencedExecution:
+      reviewerDecision?.candidateInfluencedExecution ??
+      maintenanceDecision?.candidateInfluencedExecution ??
+      retrievalDecision.candidateInfluencedExecution,
     personaId: input.persona.persona_id,
     scenarioId: input.scenario.scenario_id,
     taskFamily: input.scenario.task_family,
@@ -601,7 +716,7 @@ export async function runGoodMemoryScenario(input: {
       feedbackEvents,
       recall,
       context,
-      buildProposalLifecycleTrace(exported),
+      proposalLifecycle,
       buildMaintenanceDebugSummary(exported),
     ),
   };

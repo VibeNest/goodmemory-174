@@ -1,0 +1,39 @@
+Phase 19.1: Shared Rollout Substrate
+====================================
+
+[TODO] P19.1-T001 Generalize rollout config and metadata from retrieval-only to family-aware
+[TODO] P19.1-T002 Generalize suite dispatch, runtime metadata, and failure attribution without changing retrieval semantics
+[TODO] P19.1-T003 Keep non-retrieval families blocked from affecting execution until their family executors land
+
+Why this exists
+---------------
+- `runEvalSuite` currently rejects non-retrieval rollout metadata even though reviewer and maintenance are already valid rollout families in the shared vocabulary.
+- Phase 19 needs one shared substrate before the reviewer and maintenance families can be landed safely.
+
+Write tests first
+-----------------
+- family-aware rollout config is preserved in runtime and reporting metadata
+- suite dispatch no longer throws for reviewer or maintenance family metadata by itself
+- retrieval semantics remain unchanged for existing retrieval rollout tests
+- non-retrieval families still cannot silently change executed behavior before family-specific execution support lands
+
+Implementation steps
+--------------------
+1. Replace retrieval-only rollout typing in `src/eval/*` with family-aware discriminated rollout config and metadata.
+2. Split shared rollout metadata from family-specific execution decisions instead of reusing retrieval labels for reviewer or maintenance families.
+3. Keep retrieval `observe`, `assist`, and `promote` behavior byte-for-byte compatible with the current phase-17 path.
+4. Make non-retrieval rollout families pass through suite/runtime/reporting plumbing while remaining execution-neutral until their family-specific wiring lands.
+
+Acceptance
+----------
+- eval/runtime/reporting understand `retrieval`, `reviewer`, and `maintenance` as first-class rollout families
+- retrieval-first phase-17 behavior does not regress
+- phase-19 family wiring can proceed without redesigning the eval substrate again
+
+Targeted Regression
+-------------------
+- `bun test tests/eval/suite.test.ts`
+- `bun test tests/unit/eval.strategy-rollout.test.ts`
+- `bun test tests/unit/eval.strategy-promotion-gate.test.ts`
+- `bun test tests/eval/reporting.test.ts`
+- `bun run typecheck`
