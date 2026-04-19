@@ -6,6 +6,12 @@ Phase Goal
 Expose compiled memory artifacts to Claude/Codex-style hosts through adapters without changing GoodMemory's canonical truth model.
 
 
+Status Note
+-----------
+- Phase 18 is now implemented and accepted.
+- A dedicated host-adapter quality gate is archived in `docs/GoodMemory-Phase-18-Quality-Gate.md` and `reports/quality-gates/phase-18/run-20260419031141/phase-18-quality-gate.json`.
+
+
 Dependencies
 ------------
 - Phase 14 archive/evidence/artifact foundation complete
@@ -21,6 +27,7 @@ Primary Deliverables
 - Claude/Codex-style integration examples and docs
 - adapter safety rules for policy, scope, and provenance preservation
 - parsing and structured-delta writeback for selected artifact files
+- dedicated phase-18 host-adapter quality gate and archived acceptance evidence
 
 
 Definition of Done
@@ -30,6 +37,7 @@ Definition of Done
 - optional file-authoritative edit flows write back structured deltas instead of redefining core schema
 - adapter writes remain policy-aware, scope-aware, and provenance-preserving
 - core runtime remains usable without any host adapter
+- a dedicated phase-18 gate proves the supported host surfaces, writable subset, rollback path, and examples on the current public path
 
 
 Execution Strategy
@@ -64,6 +72,7 @@ Tasks
 [DONE] P18-T005 Add Claude/Codex-style integration examples and guidance
 [DONE] P18-T006 Add adapter safety, verification, and rollback tooling
 [DONE] P18-T002 Parse selected file edits into structured deltas safely
+[DONE] P18-T007 Add dedicated phase-18 quality gate and archived closure evidence
 
 
 Key Constraints
@@ -82,3 +91,10 @@ Exit Checklist
 - Claude/Codex-style examples exist
 - Adapter safety and rollback guidance exists
 - Structured delta writeback exists for supported files
+- Dedicated Phase 18 gate report exists and summarizes the supported host surface
+
+Phase-18 Closure Note
+---------------------
+- Phase 18 closes the host-integration layer on purpose: read-path adapter surfaces, coding-agent handoff projection, minimal playbook writeback, rollback guidance, dedicated examples, and an explicit quality gate now exist together.
+- The adapter layer remains optional and does not redefine GoodMemory's structured canonical truth model.
+- Reviewer and maintenance rollout remain deferred to the dedicated later phase after this host-adapter stabilization.

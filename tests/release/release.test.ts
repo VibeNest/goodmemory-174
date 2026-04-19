@@ -44,6 +44,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-17-live-memory"]).toBe(
       "bun run scripts/run-phase-17-live-memory.ts",
     );
+    expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
 
@@ -99,6 +100,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("GoodMemory-First-Principles-and-Reference-Architecture.md");
     expect(readme).toContain("GoodMemory-OSS-Architecture-v1.md");
     expect(readme).toContain("GoodMemory-Phase-17-Quality-Gate.md");
+    expect(readme).toContain("GoodMemory-Phase-18-Quality-Gate.md");
     expect(readme).toContain("GoodMemory-PRD.md");
     expect(readme).toContain("GoodMemory-TDD-and-Evaluation-Strategy.md");
     expect(readme).toContain("GoodMemory-Strategy-Rollout-Guide.md");
@@ -108,6 +110,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("eval:phase-17");
     expect(readme).toContain("eval:live");
     expect(readme).toContain("eval:phase-17-live-memory");
+    expect(readme).toContain("gate:phase-18");
     expect(readme).toContain("observe -> assist -> promote");
     expect(readme).toContain("regression-dashboard.json");
     expect(readme).toContain("strategy-promotion-authorization.json");
@@ -146,6 +149,40 @@ describe("release metadata and docs", () => {
     expect(checklist).not.toContain("goodmemory/evolution");
     expect(checklist).not.toContain("strategyRollout");
     expect(checklist).not.toContain("promotionGate");
+  });
+
+  it("phase-18 quality gate doc points to one canonical accepted report", async () => {
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-Phase-18-Quality-Gate.md"),
+      "utf8",
+    );
+    const referencedRunIds = [
+      ...qualityGateDoc.matchAll(/run-\d{14}/g),
+    ].map((match) => match[0]);
+
+    expect(referencedRunIds.length).toBeGreaterThan(0);
+    expect(new Set(referencedRunIds)).toEqual(
+      new Set(["run-20260419031141"]),
+    );
+
+    const [canonicalRunId] = referencedRunIds;
+    const report = JSON.parse(
+      await readFile(
+        join(
+          import.meta.dir,
+          `../../reports/quality-gates/phase-18/${canonicalRunId}/phase-18-quality-gate.json`,
+        ),
+        "utf8",
+      ),
+    ) as {
+      acceptance: {
+        decision: string;
+      };
+      runId: string;
+    };
+
+    expect(report.runId).toBe(canonicalRunId);
+    expect(report.acceptance.decision).toBe("accepted");
   });
 
   it("coding-agent example stays on the public path and avoids internal evolution imports", async () => {

@@ -1,0 +1,34 @@
+Phase 18.7: Dedicated Quality Gate
+==================================
+
+[DONE] P18.7-T001 Add a dedicated phase-18 verification command for host adapters
+[DONE] P18.7-T002 Archive a phase-18 quality gate summary under `docs/`
+[DONE] P18.7-T003 Update task-board sequencing once phase-18 closure evidence is in place
+
+Why this exists
+---------------
+- Phase 18 now has enough implementation surface that closure should not rely on scattered unit tests and README claims alone.
+- The phase needs one explicit acceptance path that proves read path, writable subset, rollback behavior, examples, and public-surface boundaries together.
+
+Write tests first
+-----------------
+- the gate command resolves one stable output directory and writes one deterministic summary artifact
+- the gate command fails fast when any required host-adapter regression command fails
+- the gate summary records the exact commands and artifacts that define phase-18 closure
+
+Implementation steps
+--------------------
+1. Add a dedicated phase-18 gate command that runs the supported host-adapter regression slice
+2. Persist one archived summary artifact with command list, scope, and acceptance decision
+3. Update task-board status only after the gate can be re-run cleanly on the current repo state
+
+Acceptance
+----------
+- operators can re-run one command to verify phase-18 closure
+- archived evidence says exactly what is in and out of scope for phase-18 host integration
+
+
+Implementation Notes
+--------------------
+- `bun run gate:phase-18` now runs the dedicated host-adapter regression slice plus the two public host examples.
+- The latest archived gate is `reports/quality-gates/phase-18/run-20260419031141/phase-18-quality-gate.json`, summarized in `docs/GoodMemory-Phase-18-Quality-Gate.md`.

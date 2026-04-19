@@ -122,6 +122,14 @@ Writable guardrails:
 
 Current host adapter examples stay in `file-assisted` mode because they are the recommended default path for Claude/Codex-style integration.
 
+Host-adapter quality gate:
+
+```bash
+bun run gate:phase-18
+```
+
+The latest archived acceptance summary lives in [docs/GoodMemory-Phase-18-Quality-Gate.md](./docs/GoodMemory-Phase-18-Quality-Gate.md).
+
 ## Testing
 
 默认红绿灯：
@@ -202,6 +210,7 @@ Operator guidance:
 - PRD: [docs/GoodMemory-PRD.md](./docs/GoodMemory-PRD.md)
 - TDD and evaluation strategy: [docs/GoodMemory-TDD-and-Evaluation-Strategy.md](./docs/GoodMemory-TDD-and-Evaluation-Strategy.md)
 - Phase 17 quality gate: [docs/GoodMemory-Phase-17-Quality-Gate.md](./docs/GoodMemory-Phase-17-Quality-Gate.md)
+- Phase 18 quality gate: [docs/GoodMemory-Phase-18-Quality-Gate.md](./docs/GoodMemory-Phase-18-Quality-Gate.md)
 - Strategy rollout guide: [docs/GoodMemory-Strategy-Rollout-Guide.md](./docs/GoodMemory-Strategy-Rollout-Guide.md)
 - Release checklist: [docs/GoodMemory-v1-Release-Checklist.md](./docs/GoodMemory-v1-Release-Checklist.md)
 

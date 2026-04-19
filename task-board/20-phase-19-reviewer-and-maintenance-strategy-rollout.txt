@@ -9,7 +9,7 @@ Apply the phase-17 lifecycle, gate, and dashboard machinery to reviewer and main
 Dependencies
 ------------
 - Phase 17 retrieval-first closure complete
-- Phase 18 host adapters complete enough to avoid mixing host-surface churn with rollout-gate churn
+- Phase 18 host adapters accepted and closed so rollout-gate work does not mix with host-surface churn
 - Phase 15/16 proposal and maintenance foundations remain stable under current regression suites
 
 

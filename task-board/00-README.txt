@@ -88,11 +88,11 @@ Read and execute files in this order:
 
 Current Sequencing Note
 -----------------------
-- Phase 15 and Phase 16 are closed. The active execution focus is now Phase 17 eval-gated promotion and strategy rollout.
-- Phase 17 should build on the completed procedural-promotion and outcome-aware maintenance gate, including the new `bun run eval:phase-16` fallback slice and archived Phase 16 quality gate evidence.
-- Phase 17 now closes retrieval-first on purpose: official CLI shape, dedicated fallback/live-memory gates, trusted promotion authorization, and public-surface evidence all belong inside this phase.
-- Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside Phase 17. They are deferred into a dedicated post-Phase-18 execution phase.
-- Phase 17 public-surface work must resolve the official OSS-facing CLI shape: memory-first commands at the root, eval inspection under `goodmemory eval ...`, and no premature public `goodmemory/evolution` surface before evidence exists.
+- Phase 15, Phase 16, Phase 17, and Phase 18 are now closed.
+- The active execution focus is now Phase 19 reviewer and maintenance strategy rollout.
+- Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
+- Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/GoodMemory-Phase-18-Quality-Gate.md`.
+- Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases. They are deferred into the dedicated post-Phase-18 execution phase.
 - Phase 15 through Phase 19 extend the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
@@ -104,15 +104,15 @@ Use these bands when choosing what to work on next:
 
 1. Immediate focus
    - Close any local WIP without widening scope
-   - Execute Phase 17 eval-gated promotion and strategy rollout
-   - Start with P17.1 lifecycle modes and P17.5 public-surface boundary decisions that unblock the official CLI direction
+   - Execute Phase 19 reviewer and maintenance strategy rollout
+   - Start with P19.1 reviewer rollout candidates and P19.3 reuse of shadow/gate/dashboard plumbing
 2. Near-term product differentiation
-   - Build validated promotion, demotion, and maintenance outcomes on top of the completed Phase 15 proposal substrate
-   - Keep proposal visibility and gate behavior regression-covered while Phase 16 outcome loops land
+   - Build non-retrieval rollout evidence on top of the completed Phase 15/16 proposal and maintenance substrate
+   - Keep retrieval-first and host-adapter guarantees regression-covered while reviewer and maintenance rollout land
 3. Medium-term system hardening
-   - Execute Phase 18 adapters and then Phase 19 reviewer/maintenance rollout
+   - Execute Phase 19 reviewer/maintenance rollout on top of the closed Phase 18 host surface
 4. Host integration track
-   - Execute Phase 18 adapters for Claude/Codex-style hosts only after canonical/archive/artifact surfaces are stable
+   - Keep the closed Phase 18 adapter surface stable while later rollout families land
 
 
 V1 Exit Criteria

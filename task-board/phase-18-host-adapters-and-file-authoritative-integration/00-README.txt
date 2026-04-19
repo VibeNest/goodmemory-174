@@ -18,6 +18,7 @@ Execution Order
 4. 05-claude-codex-integration-examples.txt
 5. 06-adapter-safety-and-rollback.txt
 6. 02-file-parse-and-structured-delta.txt
+7. 07-dedicated-quality-gate.txt
 
 
 Execution Rule
