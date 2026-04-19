@@ -1,9 +1,9 @@
 Phase 19.1: Shared Rollout Substrate
 ====================================
 
-[TODO] P19.1-T001 Generalize rollout config and metadata from retrieval-only to family-aware
-[TODO] P19.1-T002 Generalize suite dispatch, runtime metadata, and failure attribution without changing retrieval semantics
-[TODO] P19.1-T003 Keep non-retrieval families blocked from affecting execution until their family executors land
+[DONE] P19.1-T001 Generalize rollout config and metadata from retrieval-only to family-aware
+[DONE] P19.1-T002 Generalize suite dispatch, runtime metadata, and failure attribution without changing retrieval semantics
+[DONE] P19.1-T003 Keep non-retrieval families blocked from affecting execution until their family executors land
 
 Why this exists
 ---------------

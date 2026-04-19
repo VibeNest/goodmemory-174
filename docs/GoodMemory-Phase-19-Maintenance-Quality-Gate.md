@@ -1,6 +1,6 @@
 # GoodMemory Phase 19 Maintenance Quality Gate
 
-Canonical gate run: `run-20260419061145`
+Canonical gate run: `run-20260419101816`
 
 ## Commands Run
 
@@ -23,9 +23,9 @@ bun run gate:phase-19-maintenance
 ## Gate Report
 
 - Output root: `reports/quality-gates/phase-19-maintenance`
-- Canonical run: `run-20260419061145`
+- Canonical run: `run-20260419101816`
 - Summary artifact:
-  - `reports/quality-gates/phase-19-maintenance/run-20260419061145/phase-19-maintenance-quality-gate.json`
+  - `reports/quality-gates/phase-19-maintenance/run-20260419101816/phase-19-maintenance-quality-gate.json`
 
 ## Command Results
 
@@ -51,4 +51,4 @@ bun run gate:phase-19-maintenance
 ## Notes
 
 - This gate is deterministic and code-backed. It is not a live-model acceptance slice.
-- The canonical accepted report lives under `reports/quality-gates/phase-19-maintenance/run-20260419061145/`.
+- The canonical accepted report lives under `reports/quality-gates/phase-19-maintenance/run-20260419101816/`.

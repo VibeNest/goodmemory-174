@@ -1,9 +1,9 @@
 Phase 19.4: Family Shadow, Gate, and Dashboard Artifacts
 ========================================================
 
-[TODO] P19.4-T001 Persist family-specific shadow comparison artifacts for reviewer and maintenance
-[TODO] P19.4-T002 Persist family-specific promotion-gate and regression-dashboard artifacts
-[TODO] P19.4-T003 Keep artifact lineage and naming unambiguous across retrieval, reviewer, and maintenance runs
+[DONE] P19.4-T001 Persist family-specific shadow comparison artifacts for reviewer and maintenance
+[DONE] P19.4-T002 Persist family-specific promotion-gate and regression-dashboard artifacts
+[DONE] P19.4-T003 Keep artifact lineage and naming unambiguous across retrieval, reviewer, and maintenance runs
 
 Why this exists
 ---------------

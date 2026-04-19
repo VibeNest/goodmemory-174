@@ -1,9 +1,9 @@
 Phase 19.6: Public-Surface Re-evaluation and Guidance
 =====================================================
 
-[TODO] P19.6-T001 Re-run public-surface classification with reviewer and maintenance evidence
-[TODO] P19.6-T002 Keep advanced knobs internal unless phase-19 evidence is strong enough to justify exposure
-[TODO] P19.6-T003 Update operator and release guidance without widening the root public surface by default
+[DONE] P19.6-T001 Re-run public-surface classification with reviewer and maintenance evidence
+[DONE] P19.6-T002 Keep advanced knobs internal unless phase-19 evidence is strong enough to justify exposure
+[DONE] P19.6-T003 Update operator and release guidance without widening the root public surface by default
 
 Why this exists
 ---------------

@@ -88,12 +88,19 @@ Read and execute files in this order:
 
 Current Sequencing Note
 -----------------------
-- Phase 15, Phase 16, Phase 17, and Phase 18 are now closed.
-- The active execution focus is now Phase 19 reviewer and maintenance strategy rollout.
+- Phase 15, Phase 16, Phase 17, Phase 18, and Phase 19 are now closed.
+- Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
+  - `docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
+  - `docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
+  - `reports/quality-gates/phase-19-reviewer/run-20260419101816/phase-19-reviewer-quality-gate.json`
+  - `reports/quality-gates/phase-19-maintenance/run-20260419101816/phase-19-maintenance-quality-gate.json`
+- The task-board currently has no post-Phase-19 executable phase queued yet.
+- Any work after Phase 19 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/GoodMemory-Phase-18-Quality-Gate.md`.
-- Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases. They are deferred into the dedicated post-Phase-18 execution phase.
-- Phase 15 through Phase 19 extend the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
+- Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
+- Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases; that deferred scope is now closed in its dedicated phase.
+- Phase 15 through Phase 19 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
 
@@ -103,16 +110,16 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Close any local WIP without widening scope
-   - Execute Phase 19 reviewer and maintenance strategy rollout
-   - Start with P19.1 reviewer rollout candidates and P19.3 reuse of shadow/gate/dashboard plumbing
+   - Preserve the closed Phase 17, Phase 18, and Phase 19 guarantees while local changes land
+   - Close any local WIP without widening scope into an unplanned new phase
+   - If new post-v1 growth work starts, add a new executable phase before implementation
 2. Near-term product differentiation
-   - Build non-retrieval rollout evidence on top of the completed Phase 15/16 proposal and maintenance substrate
-   - Keep retrieval-first and host-adapter guarantees regression-covered while reviewer and maintenance rollout land
+   - Decide and document the next queued phase after the now-closed Phase 19 rollout family
+   - Keep retrieval-first, host-adapter, reviewer, and maintenance guarantees regression-covered while new scope is defined
 3. Medium-term system hardening
-   - Execute Phase 19 reviewer/maintenance rollout on top of the closed Phase 18 host surface
+   - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
 4. Host integration track
-   - Keep the closed Phase 18 adapter surface stable while later rollout families land
+   - Keep the closed Phase 18 adapter surface and closed Phase 19 rollout families stable while later work lands
 
 
 V1 Exit Criteria

@@ -15,8 +15,21 @@ function buildAnswerPackage(
   caseId: string,
   mode: "baseline" | "goodmemory",
   answer: string,
-  strategyLabel: "baseline" | "rules-only" | "hybrid" | "llm-assisted" = "baseline",
-  resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted",
+  strategyLabel:
+    | "baseline"
+    | "rules-only"
+    | "assisted"
+    | "hybrid"
+    | "llm-assisted"
+    | "default-hygiene"
+    | "outcome-aware" = "baseline",
+  resolvedStrategyLabel?:
+    | "rules-only"
+    | "assisted"
+    | "hybrid"
+    | "llm-assisted"
+    | "default-hygiene"
+    | "outcome-aware",
   candidateInfluencedExecution?: boolean,
   scenarioId = `scenario-${caseId}`,
 ): EvalAnswerPackage {
@@ -358,11 +371,29 @@ function buildJudgeResult(
 function buildCase(input: {
   caseId: string;
   scenarioId?: string;
-  strategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
-  resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+  strategyLabel?:
+    | "rules-only"
+    | "assisted"
+    | "hybrid"
+    | "llm-assisted"
+    | "default-hygiene"
+    | "outcome-aware";
+  resolvedStrategyLabel?:
+    | "rules-only"
+    | "assisted"
+    | "hybrid"
+    | "llm-assisted"
+    | "default-hygiene"
+    | "outcome-aware";
   strategyFamily?: "retrieval" | "reviewer" | "maintenance";
   strategyMode?: "observe" | "assist" | "promote";
-  promotedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+  promotedStrategyLabel?:
+    | "rules-only"
+    | "assisted"
+    | "hybrid"
+    | "llm-assisted"
+    | "default-hygiene"
+    | "outcome-aware";
   candidateInfluencedExecution?: boolean;
   taskFamily: JudgedEvalCase["metadata"]["taskFamily"];
   targetDomain: string;
@@ -377,8 +408,20 @@ function buildCase(input: {
   staleFindings?: string[];
   updateFindings?: string[];
   shadow?: {
-    strategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
-    resolvedStrategyLabel?: "rules-only" | "hybrid" | "llm-assisted";
+    strategyLabel?:
+      | "rules-only"
+      | "assisted"
+      | "hybrid"
+      | "llm-assisted"
+      | "default-hygiene"
+      | "outcome-aware";
+    resolvedStrategyLabel?:
+      | "rules-only"
+      | "assisted"
+      | "hybrid"
+      | "llm-assisted"
+      | "default-hygiene"
+      | "outcome-aware";
     candidateInfluencedExecution?: boolean;
   };
 }): JudgedEvalCase {
@@ -1596,6 +1639,192 @@ describe("eval reporting", () => {
         family: "reviewer",
         mode: "observe",
         promotedStrategyLabel: "rules-only",
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("persists reviewer-specific shadow, gate, and dashboard artifact aliases", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-reviewer-artifact-aliases");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-reviewer-alias",
+          scenarioId: "scenario-reviewer-alias",
+          strategyLabel: "assisted",
+          resolvedStrategyLabel: "rules-only",
+          strategyFamily: "reviewer",
+          strategyMode: "observe",
+          promotedStrategyLabel: "rules-only",
+          candidateInfluencedExecution: false,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-reviewer-aliases",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "reviewer",
+            mode: "observe",
+            promotedStrategyLabel: "rules-only",
+          },
+        },
+      });
+
+      const shadowArtifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "reviewer-shadow-executed-path-comparisons.json"),
+          "utf8",
+        ),
+      ) as {
+        strategyFamily?: string | null;
+        comparisons?: Array<{ strategyFamily?: string }>;
+      };
+      const gateArtifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "reviewer-strategy-promotion-gate.json"),
+          "utf8",
+        ),
+      ) as {
+        family?: string;
+        mode?: string;
+      };
+      const dashboardArtifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "reviewer-regression-dashboard.json"),
+          "utf8",
+        ),
+      ) as {
+        summary?: {
+          regressionDashboardSummary?: {
+            gate?: {
+              family?: string;
+              mode?: string;
+            };
+          };
+        };
+      };
+
+      expect(shadowArtifact.strategyFamily).toBe("reviewer");
+      expect(shadowArtifact.comparisons?.[0]?.strategyFamily).toBe("reviewer");
+      expect(gateArtifact).toMatchObject({
+        family: "reviewer",
+        mode: "observe",
+      });
+      expect(
+        dashboardArtifact.summary?.regressionDashboardSummary?.gate,
+      ).toMatchObject({
+        family: "reviewer",
+        mode: "observe",
+      });
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("persists maintenance-specific shadow, gate, and dashboard artifact aliases", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-maintenance-artifact-aliases");
+
+    try {
+      const outputDir = join(workspace.root, "reports");
+      const cases: JudgedEvalCase[] = [
+        buildCase({
+          caseId: "case-maintenance-alias",
+          scenarioId: "scenario-maintenance-alias",
+          strategyLabel: "outcome-aware",
+          resolvedStrategyLabel: "default-hygiene",
+          strategyFamily: "maintenance",
+          strategyMode: "observe",
+          promotedStrategyLabel: "default-hygiene",
+          candidateInfluencedExecution: false,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir,
+        runId: "run-maintenance-aliases",
+        cases,
+        summary: aggregateJudgedCases(cases),
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "maintenance",
+            mode: "observe",
+            promotedStrategyLabel: "default-hygiene",
+          },
+        },
+      });
+
+      const shadowArtifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "maintenance-shadow-executed-path-comparisons.json"),
+          "utf8",
+        ),
+      ) as {
+        strategyFamily?: string | null;
+        comparisons?: Array<{ strategyFamily?: string }>;
+      };
+      const gateArtifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "maintenance-strategy-promotion-gate.json"),
+          "utf8",
+        ),
+      ) as {
+        family?: string;
+        mode?: string;
+      };
+      const dashboardArtifact = JSON.parse(
+        await readFile(
+          join(result.runDirectory, "maintenance-regression-dashboard.json"),
+          "utf8",
+        ),
+      ) as {
+        summary?: {
+          regressionDashboardSummary?: {
+            gate?: {
+              family?: string;
+              mode?: string;
+            };
+          };
+        };
+      };
+
+      expect(shadowArtifact.strategyFamily).toBe("maintenance");
+      expect(shadowArtifact.comparisons?.[0]?.strategyFamily).toBe("maintenance");
+      expect(gateArtifact).toMatchObject({
+        family: "maintenance",
+        mode: "observe",
+      });
+      expect(
+        dashboardArtifact.summary?.regressionDashboardSummary?.gate,
+      ).toMatchObject({
+        family: "maintenance",
+        mode: "observe",
       });
     } finally {
       await workspace.cleanup();

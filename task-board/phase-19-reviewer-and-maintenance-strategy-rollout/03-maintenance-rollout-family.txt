@@ -1,9 +1,9 @@
 Phase 19.3: Maintenance Rollout Family
 ======================================
 
-[TODO] P19.3-T001 Define maintenance rollout candidates as `default-hygiene` baseline vs `outcome-aware` candidate
-[TODO] P19.3-T002 Add maintenance family `observe` with isolated candidate state
-[TODO] P19.3-T003 Add maintenance family `assist` and `promote` gating with low-risk-only default influence
+[DONE] P19.3-T001 Define maintenance rollout candidates as `default-hygiene` baseline vs `outcome-aware` candidate
+[DONE] P19.3-T002 Add maintenance family `observe` with isolated candidate state
+[DONE] P19.3-T003 Add maintenance family `assist` and `promote` gating with low-risk-only default influence
 
 Why this exists
 ---------------

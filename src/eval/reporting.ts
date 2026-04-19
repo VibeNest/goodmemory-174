@@ -1375,6 +1375,7 @@ export async function persistEvalArtifacts(input: {
     {
       mode: input.mode,
       runId: input.runId,
+      strategyFamily: input.runtime.strategyRollout?.family ?? null,
       comparisonTarget: "executed-path",
       totalCases: shadowComparisons.length,
       comparisons: shadowComparisons,
@@ -1395,27 +1396,52 @@ export async function persistEvalArtifacts(input: {
     "utf8",
   );
 
+  const promotionGatePayload = `${JSON.stringify(
+    summaryWithPublicSurface.promotionGate ?? null,
+    null,
+    2,
+  )}\n`;
   await writeFile(
     join(runDirectory, "strategy-promotion-gate.json"),
-    `${JSON.stringify(summaryWithPublicSurface.promotionGate ?? null, null, 2)}\n`,
+    promotionGatePayload,
     "utf8",
   );
 
+  const regressionDashboardPayload = `${JSON.stringify(
+    buildRegressionDashboardArtifact({
+      mode: input.mode,
+      runId: input.runId,
+      summary: summaryWithPublicSurface,
+      cases: input.cases,
+      executionFailures: input.executionFailures ?? [],
+    }),
+    null,
+    2,
+  )}\n`;
   await writeFile(
     join(runDirectory, "regression-dashboard.json"),
-    `${JSON.stringify(
-      buildRegressionDashboardArtifact({
-        mode: input.mode,
-        runId: input.runId,
-        summary: summaryWithPublicSurface,
-        cases: input.cases,
-        executionFailures: input.executionFailures ?? [],
-      }),
-      null,
-      2,
-    )}\n`,
+    regressionDashboardPayload,
     "utf8",
   );
+
+  const rolloutFamily = input.runtime.strategyRollout?.family;
+  if (rolloutFamily && rolloutFamily !== "retrieval") {
+    await writeFile(
+      join(runDirectory, `${rolloutFamily}-shadow-executed-path-comparisons.json`),
+      shadowComparisonPayload,
+      "utf8",
+    );
+    await writeFile(
+      join(runDirectory, `${rolloutFamily}-strategy-promotion-gate.json`),
+      promotionGatePayload,
+      "utf8",
+    );
+    await writeFile(
+      join(runDirectory, `${rolloutFamily}-regression-dashboard.json`),
+      regressionDashboardPayload,
+      "utf8",
+    );
+  }
 
   await writeFile(
     join(runDirectory, "public-surface-decision.json"),

@@ -1,9 +1,9 @@
 Phase 19.5: Dedicated Quality Gates
 ===================================
 
-[TODO] P19.5-T001 Add dedicated reviewer quality-gate script and tests
-[TODO] P19.5-T002 Add dedicated maintenance quality-gate script and tests
-[TODO] P19.5-T003 Keep phase-17 retrieval and phase-18 host guarantees in both gate bundles
+[DONE] P19.5-T001 Add dedicated reviewer quality-gate script and tests
+[DONE] P19.5-T002 Add dedicated maintenance quality-gate script and tests
+[DONE] P19.5-T003 Keep phase-17 retrieval and phase-18 host guarantees in both gate bundles
 
 Why this exists
 ---------------

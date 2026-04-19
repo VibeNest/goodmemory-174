@@ -6,6 +6,18 @@ Phase Goal
 Turn the already-landed reviewer and maintenance internals into controlled rollout families after phase-18 host stabilization, without widening the public surface or regressing retrieval-first and host-adapter guarantees.
 
 
+Status Snapshot
+---------------
+- Status: closed and accepted
+- Reviewer family closure is backed by `bun run gate:phase-19-reviewer` with accepted evidence in:
+  - `docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
+  - `reports/quality-gates/phase-19-reviewer/run-20260419101816/phase-19-reviewer-quality-gate.json`
+- Maintenance family closure is backed by `bun run gate:phase-19-maintenance` with accepted evidence in:
+  - `docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
+  - `reports/quality-gates/phase-19-maintenance/run-20260419101816/phase-19-maintenance-quality-gate.json`
+- Public-surface outcome: rollout controls remain internal-only; phase 19 closes family rollout behavior, not a new supported public config surface.
+
+
 Dependencies
 ------------
 - Phase 17 retrieval-first closure complete
@@ -35,12 +47,12 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P19-T001 Rewrite phase-19 task-board into executable subtask slices
-[TODO] P19-T002 Land shared family-aware rollout substrate before any new business-family wiring
-[TODO] P19-T003 Land reviewer rollout family end-to-end before maintenance rollout begins
-[TODO] P19-T004 Land maintenance rollout family on top of the shared substrate and closed reviewer path
-[TODO] P19-T005 Add dedicated family quality gates and regression bundles
-[TODO] P19-T006 Re-evaluate advanced/internal surface boundaries only after reviewer and maintenance evidence exists
+[DONE] P19-T001 Rewrite phase-19 task-board into executable subtask slices
+[DONE] P19-T002 Land shared family-aware rollout substrate before any new business-family wiring
+[DONE] P19-T003 Land reviewer rollout family end-to-end before maintenance rollout begins
+[DONE] P19-T004 Land maintenance rollout family on top of the shared substrate and closed reviewer path
+[DONE] P19-T005 Add dedicated family quality gates and regression bundles
+[DONE] P19-T006 Re-evaluate advanced/internal surface boundaries only after reviewer and maintenance evidence exists
 
 
 Execution Order
@@ -68,6 +80,7 @@ Per-Subtask Regression Rule
 - Every subtask starts with failing tests for the new behavior.
 - Every subtask ends with the targeted regression commands listed in its subtask file.
 - Do not begin the next subtask until the current subtask regressions pass.
+- Current repo status satisfies this rule via the accepted phase-19 reviewer and maintenance gate bundles recorded above.
 
 
 Key Constraints

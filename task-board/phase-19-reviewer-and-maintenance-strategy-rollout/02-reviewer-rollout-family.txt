@@ -1,9 +1,9 @@
 Phase 19.2: Reviewer Rollout Family
 ===================================
 
-[TODO] P19.2-T001 Define reviewer rollout candidates as `rules-only` baseline vs `assisted` candidate
-[TODO] P19.2-T002 Add reviewer family `observe` shadow execution with isolated state
-[TODO] P19.2-T003 Add reviewer family `assist` and `promote` gating without widening public runtime config
+[DONE] P19.2-T001 Define reviewer rollout candidates as `rules-only` baseline vs `assisted` candidate
+[DONE] P19.2-T002 Add reviewer family `observe` shadow execution with isolated state
+[DONE] P19.2-T003 Add reviewer family `assist` and `promote` gating without widening public runtime config
 
 Why this exists
 ---------------
