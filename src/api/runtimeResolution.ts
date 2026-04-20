@@ -7,6 +7,7 @@ export const DEFAULT_SQLITE_STORAGE_PATH = ".goodmemory/memory.sqlite";
 export const STORAGE_PROVIDER_ENV = "GOODMEMORY_STORAGE_PROVIDER";
 export const STORAGE_URL_ENV = "GOODMEMORY_STORAGE_URL";
 const EMBEDDING_ENV_PREFIX = "GOODMEMORY_EMBEDDING";
+const ASSISTED_EXTRACTOR_ENV_PREFIX = "GOODMEMORY_ASSISTED_EXTRACTOR";
 
 type EnvironmentMap = Record<string, string | undefined>;
 type ExplicitProvider = NonNullable<StorageConfig["provider"]>;
@@ -213,6 +214,57 @@ export function resolveEmbeddingModelConfigFromEnv(
     provider: resolvedProvider,
     model: resolvedModel,
     apiKey: resolvedApiKey,
+    baseURL,
+  };
+}
+
+export function resolveAssistedExtractorModelConfigFromEnv(
+  env: EnvironmentMap = process.env,
+): AISDKModelConfig | null {
+  const provider = normalizeNonEmpty(
+    env[`${ASSISTED_EXTRACTOR_ENV_PREFIX}_PROVIDER`],
+  );
+  const model = normalizeNonEmpty(env[`${ASSISTED_EXTRACTOR_ENV_PREFIX}_MODEL`]);
+  const apiKey = normalizeNonEmpty(
+    env[`${ASSISTED_EXTRACTOR_ENV_PREFIX}_API_KEY`],
+  );
+  const baseURL = normalizeNonEmpty(
+    env[`${ASSISTED_EXTRACTOR_ENV_PREFIX}_BASE_URL`],
+  );
+  const anyConfigured = Boolean(provider || model || apiKey || baseURL);
+
+  if (!anyConfigured) {
+    return null;
+  }
+
+  const missingVars = [
+    !provider ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_PROVIDER` : null,
+    !model ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_MODEL` : null,
+    !apiKey ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_API_KEY` : null,
+  ].filter(Boolean) as string[];
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Missing required ${ASSISTED_EXTRACTOR_ENV_PREFIX} environment variables: ${missingVars.join(", ")}`,
+    );
+  }
+
+  if (!provider || !model || !apiKey) {
+    throw new Error(
+      `Missing required ${ASSISTED_EXTRACTOR_ENV_PREFIX} environment variables: ${missingVars.join(", ")}`,
+    );
+  }
+
+  if (!isModelProviderId(provider)) {
+    throw new Error(
+      `Unsupported assisted extractor provider: ${provider}. Expected one of openai|anthropic.`,
+    );
+  }
+
+  return {
+    provider,
+    model,
+    apiKey,
     baseURL,
   };
 }

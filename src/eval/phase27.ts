@@ -45,10 +45,25 @@ export const PHASE_27_REPEATED_CORRECTION_SCENARIO_IDS = [
   "scenario-medium-13-reference-next-step",
 ] as const;
 
+export const PHASE_27_LIVE_CONTINUATION_OPEN_LOOP_SCENARIO_IDS = [
+  "scenario-medium-13",
+  "scenario-complex-01",
+] as const;
+
+export const PHASE_27_LIVE_REPEATED_CORRECTION_SCENARIO_IDS = [
+  "scenario-medium-11-reference-slot-zh",
+  "scenario-medium-13-reference-slot",
+] as const;
+
 export const PHASE_27_FALLBACK_SCENARIO_IDS = [
   ...PHASE_27_IDENTITY_BACKGROUND_SCENARIO_IDS,
   ...PHASE_27_CONTINUATION_OPEN_LOOP_SCENARIO_IDS,
   ...PHASE_27_REPEATED_CORRECTION_SCENARIO_IDS,
+] as const;
+
+export const PHASE_27_LIVE_SCENARIO_IDS = [
+  ...PHASE_27_LIVE_CONTINUATION_OPEN_LOOP_SCENARIO_IDS,
+  ...PHASE_27_LIVE_REPEATED_CORRECTION_SCENARIO_IDS,
 ] as const;
 
 export type Phase27ScenarioFamily =
@@ -123,6 +138,49 @@ export interface Phase27CodexHandoffSummary {
   totalCases: number;
 }
 
+export interface Phase27LiveFamilyCoverage {
+  family: "continuation_open_loop" | "repeated_correction";
+  goodmemoryWins: number;
+  baselineWins: number;
+  ties: number;
+  totalCases: number;
+  requiredCases: number;
+  passed: boolean;
+  threshold: string;
+  cases: Phase27ScenarioWinnerCase[];
+}
+
+export interface Phase27LiveWinnerSummary {
+  baselineWins: number;
+  goodmemoryWins: number;
+  passed: boolean;
+  threshold: string;
+  ties: number;
+  totalCases: number;
+}
+
+export interface Phase27LiveMemoryReport {
+  generatedAt: string;
+  generatedBy: string;
+  mode: "live-memory";
+  outputDir: string;
+  runDirectory: string;
+  runId: string;
+  suiteRunDirectory: string;
+  suiteSummary: EvalSuiteResult["summary"];
+  metrics: {
+    continuationOpenLoop: Phase27LiveFamilyCoverage;
+    liveWinnerSummary: Phase27LiveWinnerSummary;
+    repeatedCorrectionRate: Phase27RepeatedCorrectionMetric;
+  };
+  summary: {
+    accepted: boolean;
+    blockingMetrics: string[];
+    executionFailures: number;
+    totalScenarioCases: number;
+  };
+}
+
 export interface Phase27DeterministicReport {
   generatedAt: string;
   generatedBy: string;
@@ -158,6 +216,14 @@ export function resolvePhase27FallbackScenarioIds(explicit?: string[]): string[]
   }
 
   return uniqueScenarioIds(PHASE_27_FALLBACK_SCENARIO_IDS);
+}
+
+export function resolvePhase27LiveScenarioIds(explicit?: string[]): string[] {
+  if (explicit && explicit.length > 0) {
+    return uniqueScenarioIds(explicit);
+  }
+
+  return uniqueScenarioIds(PHASE_27_LIVE_SCENARIO_IDS);
 }
 
 export function createPhase27FallbackCreateMemory(): (
@@ -243,6 +309,44 @@ function buildWinnerMetric(input: {
     threshold: input.family === "identity_background"
       ? "GoodMemory wins at least 2 of 3 cases."
       : "GoodMemory posts at least 2 net wins and baseline wins at most 1 case.",
+    cases,
+  };
+}
+
+function buildLiveFamilyCoverage(input: {
+  family: "continuation_open_loop" | "repeated_correction";
+  requiredCases: number;
+  scenarioIds: readonly string[];
+  suiteResult: EvalSuiteResult;
+}): Phase27LiveFamilyCoverage {
+  const cases = input.suiteResult.cases
+    .filter((caseArtifact: JudgedEvalCase) =>
+      input.scenarioIds.includes(caseArtifact.goodmemory.scenarioId),
+    )
+    .map((caseArtifact: JudgedEvalCase) => ({
+      caseId: caseArtifact.caseId,
+      scenarioId: caseArtifact.goodmemory.scenarioId,
+      winner: caseArtifact.judge.winner,
+    }));
+  const goodmemoryWins = cases.filter(
+    (item: Phase27ScenarioWinnerCase) => item.winner === "goodmemory",
+  ).length;
+  const baselineWins = cases.filter(
+    (item: Phase27ScenarioWinnerCase) => item.winner === "baseline",
+  ).length;
+  const ties = cases.filter(
+    (item: Phase27ScenarioWinnerCase) => item.winner === "tie",
+  ).length;
+
+  return {
+    family: input.family,
+    goodmemoryWins,
+    baselineWins,
+    ties,
+    totalCases: cases.length,
+    requiredCases: input.requiredCases,
+    passed: cases.length >= input.requiredCases,
+    threshold: `Cover at least ${input.requiredCases} live cases in the ${input.family} family.`,
     cases,
   };
 }
@@ -710,6 +814,71 @@ export function buildPhase27DeterministicReport(input: {
       continuationOpenLoop,
       hostHandoffResumeSuccessRate: input.handoffSummary,
       identityBackground,
+      repeatedCorrectionRate,
+    },
+    summary: {
+      accepted: blockingMetrics.length === 0,
+      blockingMetrics,
+      executionFailures,
+      totalScenarioCases: input.suiteResult.cases.length,
+    },
+  };
+}
+
+export function buildPhase27LiveMemoryReport(input: {
+  generatedAt: string;
+  generatedBy: string;
+  outputDir: string;
+  runDirectory: string;
+  runId: string;
+  scenarios: readonly ScenarioFixture[];
+  suiteResult: EvalSuiteResult;
+}): Phase27LiveMemoryReport {
+  const executionFailures = input.suiteResult.summary.executionFailures ?? 0;
+  const continuationOpenLoop = buildLiveFamilyCoverage({
+    family: "continuation_open_loop",
+    requiredCases: 2,
+    scenarioIds: PHASE_27_LIVE_CONTINUATION_OPEN_LOOP_SCENARIO_IDS,
+    suiteResult: input.suiteResult,
+  });
+  const repeatedCorrectionRate = buildRepeatedCorrectionMetric({
+    requiredCases: 2,
+    scenarioIds: PHASE_27_LIVE_REPEATED_CORRECTION_SCENARIO_IDS,
+    scenarios: input.scenarios,
+    suiteResult: input.suiteResult,
+  });
+  const liveWinnerSummary = {
+    baselineWins: input.suiteResult.summary.winnerCounts.baseline,
+    goodmemoryWins: input.suiteResult.summary.winnerCounts.goodmemory,
+    passed:
+      input.suiteResult.cases.length >= 4 &&
+      input.suiteResult.summary.winnerCounts.goodmemory >
+        input.suiteResult.cases.length / 2 &&
+      input.suiteResult.summary.winnerCounts.baseline <= 1,
+    threshold:
+      "GoodMemory wins a strict majority of live cases and baseline wins at most 1 case.",
+    ties: input.suiteResult.summary.winnerCounts.tie,
+    totalCases: input.suiteResult.cases.length,
+  } satisfies Phase27LiveWinnerSummary;
+  const blockingMetrics = [
+    !continuationOpenLoop.passed ? "continuation_open_loop_coverage" : null,
+    !repeatedCorrectionRate.passed ? "repeated_correction_rate" : null,
+    !liveWinnerSummary.passed ? "live_winner_majority" : null,
+    executionFailures > 0 ? "execution_failures" : null,
+  ].filter((value): value is string => value !== null);
+
+  return {
+    generatedAt: input.generatedAt,
+    generatedBy: input.generatedBy,
+    mode: "live-memory",
+    outputDir: input.outputDir,
+    runDirectory: input.runDirectory,
+    runId: input.runId,
+    suiteRunDirectory: input.suiteResult.runDirectory,
+    suiteSummary: input.suiteResult.summary,
+    metrics: {
+      continuationOpenLoop,
+      liveWinnerSummary,
       repeatedCorrectionRate,
     },
     summary: {

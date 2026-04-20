@@ -47,7 +47,10 @@ import {
   createSQLiteSessionStore,
   createSQLiteVectorStore,
 } from "../storage/sqlite";
-import { createProviderEmbeddingAdapter } from "../provider/layer";
+import {
+  createProviderEmbeddingAdapter,
+  createProviderMemoryExtractor,
+} from "../provider/layer";
 import {
   attachGoodMemoryEvalSupport,
   type GoodMemoryEvalSupport,
@@ -76,6 +79,7 @@ import type {
   RunMaintenanceResult,
 } from "./contracts";
 import {
+  resolveAssistedExtractorModelConfigFromEnv,
   resolveEmbeddingModelConfigFromEnv,
   resolveStoragePlan,
 } from "./runtimeResolution";
@@ -193,6 +197,12 @@ class GoodMemoryImpl implements GoodMemory {
         const model = resolveEmbeddingModelConfigFromEnv();
         return model ? createProviderEmbeddingAdapter({ model }) : undefined;
       })();
+    const assistedExtractor =
+      config.adapters?.assistedExtractor ??
+      (() => {
+        const model = resolveAssistedExtractorModelConfigFromEnv();
+        return model ? createProviderMemoryExtractor({ model }) : undefined;
+      })();
     const documentStore =
       config.adapters?.documentStore ??
       (autoStorageAdapters
@@ -255,7 +265,7 @@ class GoodMemoryImpl implements GoodMemory {
     this.rememberEngine = createRememberEngine({
       repositories,
       vectorIndex: repositories.vectorIndex,
-      assistedExtractor: config.adapters?.assistedExtractor,
+      assistedExtractor,
       documentStore,
       embedding: embeddingAdapter,
       extractor:

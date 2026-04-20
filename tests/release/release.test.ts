@@ -278,6 +278,9 @@ describe("release metadata and docs", () => {
       "bun run scripts/run-phase-25-live-memory.ts",
     );
     expect(pkg.scripts?.["eval:phase-27"]).toBe("bun run scripts/run-phase-27-eval.ts");
+    expect(pkg.scripts?.["eval:phase-27-live-memory"]).toBe(
+      "bun run scripts/run-phase-27-live-memory.ts",
+    );
     expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
     expect(pkg.scripts?.["gate:phase-19-reviewer"]).toBe(
       "bun run scripts/run-phase-19-reviewer-gate.ts",

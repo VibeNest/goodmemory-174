@@ -5,6 +5,9 @@ import {
   PHASE_27_CONTINUATION_OPEN_LOOP_SCENARIO_IDS,
   PHASE_27_FALLBACK_SCENARIO_IDS,
   PHASE_27_IDENTITY_BACKGROUND_SCENARIO_IDS,
+  PHASE_27_LIVE_CONTINUATION_OPEN_LOOP_SCENARIO_IDS,
+  PHASE_27_LIVE_REPEATED_CORRECTION_SCENARIO_IDS,
+  PHASE_27_LIVE_SCENARIO_IDS,
   PHASE_27_REPEATED_CORRECTION_SCENARIO_IDS,
 } from "../../src/eval/phase27";
 import type { ScenarioFixture } from "../../src/eval/dataset";
@@ -13,6 +16,11 @@ import {
   resolvePhase27FallbackOutputDir,
   runPhase27FallbackEval,
 } from "../../scripts/run-phase-27-eval";
+import {
+  parsePhase27LiveMemoryCliOptions,
+  resolvePhase27LiveMemoryOutputDir,
+  runPhase27LiveMemoryEval,
+} from "../../scripts/run-phase-27-live-memory";
 
 function buildJudgeScores() {
   return {
@@ -28,6 +36,7 @@ function buildJudgeScores() {
 
 function buildSummary(
   totalCases: number,
+  overrides: Partial<EvalSuiteSummary> = {},
 ): EvalSuiteSummary {
   return {
     totalCases,
@@ -81,6 +90,7 @@ function buildSummary(
       embeddingImpact: null,
       routerImpact: null,
     },
+    ...overrides,
   };
 }
 
@@ -371,5 +381,313 @@ describe("run-phase-27 eval script", () => {
       "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/phase27-run/report.json",
     );
     expect(writes[0]?.content).toContain("\"accepted\": true");
+  });
+
+  it("resolves the dedicated live-memory output directory", () => {
+    expect(resolvePhase27LiveMemoryOutputDir("/tmp/goodmemory")).toBe(
+      "/tmp/goodmemory/reports/eval/live-memory/phase-27",
+    );
+  });
+
+  it("parses phase-27 live-memory cli flags", () => {
+    expect(
+      parsePhase27LiveMemoryCliOptions([
+        "bun",
+        "scripts/run-phase-27-live-memory.ts",
+        "--run-id",
+        "phase27-live",
+        "--output-dir",
+        "/tmp/live",
+        "--limit",
+        "4",
+        "--scenario-id",
+        "scenario-medium-13",
+        "--scenario-id=scenario-medium-13-reference-slot",
+      ]),
+    ).toEqual({
+      limit: 4,
+      outputDir: "/tmp/live",
+      runId: "phase27-live",
+      scenarioIds: [
+        "scenario-medium-13",
+        "scenario-medium-13-reference-slot",
+      ],
+    });
+  });
+
+  it("runs the phase-27 live-memory runner with the narrowed live adoption slice", async () => {
+    const originalEnv = { ...process.env };
+    const writes: Array<{ path: string; content: string }> = [];
+    const calls: Array<Record<string, unknown>> = [];
+    const providerAssertions: string[] = [];
+    const createMemoryCalls: Array<Record<string, unknown>> = [];
+    const cleanupCalls: Array<Record<string, unknown>> = [];
+    const scenarioIds = [...PHASE_27_LIVE_SCENARIO_IDS];
+    const scenarios = scenarioIds.map(buildScenarioFixture);
+    const cases: JudgedEvalCase[] = [
+      ...PHASE_27_LIVE_CONTINUATION_OPEN_LOOP_SCENARIO_IDS.map((scenarioId) =>
+        buildCase(
+          scenarioId,
+          "goodmemory",
+          "I need more context before I can answer reliably.",
+          "final verification",
+        )),
+      ...PHASE_27_LIVE_REPEATED_CORRECTION_SCENARIO_IDS.map((scenarioId, index) =>
+        buildCase(
+          scenarioId,
+          index === 0 ? "goodmemory" : "tie",
+          "docs/old-runbook.md",
+          "docs/current-runbook.md",
+        )),
+    ];
+
+    process.env.GOODMEMORY_TEST_POSTGRES_URL = "postgres://example/test";
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5.4";
+    process.env.GOODMEMORY_EVAL_API_KEY = "key";
+    process.env.GOODMEMORY_JUDGE_PROVIDER = "openai";
+    process.env.GOODMEMORY_JUDGE_MODEL = "gpt-5.4";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "key";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "key";
+
+    try {
+      const report = await runPhase27LiveMemoryEval(
+        {
+          runId: "phase27-live",
+        },
+        {
+          assertProviderBackedStorage: async (postgresUrl) => {
+            providerAssertions.push(postgresUrl);
+          },
+          createJudgeModel: () => ({
+            async complete() {
+              return {
+                content: JSON.stringify({
+                  winner: "goodmemory",
+                  scores: buildJudgeScores(),
+                  baseline_scores: buildJudgeScores(),
+                  goodmemory_scores: buildJudgeScores(),
+                  reasoning: "test",
+                  failure_tags: [],
+                  blocking_failure_tags: [],
+                }),
+              };
+            },
+          }),
+          createMemory: (config) => {
+            createMemoryCalls.push({
+              ...(config as unknown as Record<string, unknown>),
+              storageProviderEnv: process.env.GOODMEMORY_STORAGE_PROVIDER,
+              storageUrlEnv: process.env.GOODMEMORY_STORAGE_URL,
+            });
+
+            return {
+              async recall() {
+                throw new Error("not used");
+              },
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async remember() {
+                throw new Error("not used");
+              },
+              async forget() {
+                return { forgotten: false };
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory(input) {
+                cleanupCalls.push(input as unknown as Record<string, unknown>);
+                return {
+                  scope: input.scope,
+                  deleted: {
+                    profiles: 0,
+                    preferences: 0,
+                    references: 0,
+                    facts: 0,
+                    feedback: 0,
+                    episodes: 0,
+                    archives: 0,
+                    evidence: 0,
+                    experiences: 0,
+                    proposals: 0,
+                    promotions: 0,
+                    workingMemory: 0,
+                    journal: 0,
+                    artifactSpills: 0,
+                  },
+                };
+              },
+              async feedback() {
+                return { accepted: false };
+              },
+              async runMaintenance() {
+                return {
+                  compiledCount: 0,
+                  maintenance: null,
+                  promotionDecisionCounts: {},
+                  proposalCount: 0,
+                  ran: false,
+                  reason: "threshold" as const,
+                };
+              },
+            };
+          },
+          createTextGenerator: () => async () => ({
+            content: "final verification",
+          }),
+          ensureDir: async () => undefined,
+          loadScenarios: async () => scenarios,
+          now: () => "2026-04-21T12:30:00.000Z",
+          runSuite: async (input) => {
+            const created = input.createMemory?.({
+              caseId: "case-phase27-live",
+              persona: {
+                persona_id: "phase27-test-persona",
+                lifecycle_bucket: "medium",
+              } as never,
+              scenario: scenarios[0]!,
+              scopeNamespace: "phase27-live-scope",
+            });
+            const handle =
+              created && "memory" in created ? created : created ? { memory: created } : null;
+            await handle?.cleanup?.();
+
+            calls.push({
+              createMemory: typeof input.createMemory,
+              mode: input.mode,
+              outputDir: input.outputDir,
+              rememberExtractionStrategy: input.rememberExtractionStrategy,
+              runId: input.runId,
+              runtime: input.runtime,
+              scenarioIds: input.scenarioIds,
+              strategies: input.strategies,
+            });
+
+            return {
+              mode: "live",
+              runId: input.runId ?? "suite",
+              runDirectory: join(String(input.outputDir), String(input.runId ?? "suite")),
+              summary: buildSummary(cases.length, {
+                winnerCounts: {
+                  baseline: 0,
+                  goodmemory: 3,
+                  tie: 1,
+                },
+                strategySummary: {
+                  byStrategy: {
+                    "rules-only": {
+                      totalCases: cases.length,
+                      uniqueScenarios: cases.length,
+                      winnerCounts: {
+                        baseline: 0,
+                        goodmemory: 3,
+                        tie: 1,
+                      },
+                      uplift: buildJudgeScores(),
+                      regressionCases: [],
+                    },
+                  },
+                  embeddingImpact: null,
+                  routerImpact: null,
+                },
+              }),
+              runtime: input.runtime!,
+              cases,
+            };
+          },
+          writeTextFile: async (path, content) => {
+            writes.push({ path, content });
+          },
+        },
+      );
+
+      expect(report.mode).toBe("live-memory");
+      expect(report.summary.accepted).toBeTrue();
+      expect(report.metrics.liveWinnerSummary.goodmemoryWins).toBe(3);
+      expect(report.metrics.liveWinnerSummary.baselineWins).toBe(0);
+      expect(report.metrics.repeatedCorrectionRate.improvement).toBe(1);
+      expect(report.metrics.continuationOpenLoop.totalCases).toBe(2);
+      expect(calls[0]?.mode).toBe("live");
+      expect(calls[0]?.runId).toBe("suite");
+      expect(calls[0]?.createMemory).toBe("function");
+      expect(calls[0]?.scenarioIds).toEqual(scenarioIds);
+      expect(calls[0]?.strategies).toEqual(["rules-only"]);
+      expect(calls[0]?.rememberExtractionStrategy).toBe("auto");
+      expect(providerAssertions).toEqual(["postgres://example/test"]);
+      expect(createMemoryCalls).toEqual([
+        {
+          storageProviderEnv: "postgres",
+          storageUrlEnv: "postgres://example/test",
+        },
+      ]);
+      expect(cleanupCalls).toEqual([
+        {
+          scope: {
+            userId: "phase27-test-persona--eval-phase27-live-scope",
+            workspaceId: "eval-medium-phase27-live-scope",
+          },
+          includeRuntime: true,
+        },
+      ]);
+      expect((calls[0]?.runtime as { memoryBackend?: string })?.memoryBackend).toBe(
+        "provider-backed",
+      );
+      expect(writes).toHaveLength(1);
+      expect(writes[0]?.path).toBe(
+        "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-27/phase27-live/report.json",
+      );
+      expect(writes[0]?.content).toContain("\"mode\": \"live-memory\"");
+    } finally {
+      process.env = originalEnv;
+    }
+  });
+
+  it("fails before emitting provider-backed live metadata when postgres is not bootstrap-usable", async () => {
+    const originalEnv = { ...process.env };
+    let runSuiteCalled = false;
+
+    process.env.GOODMEMORY_TEST_POSTGRES_URL = "postgres://example/test";
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5.4";
+    process.env.GOODMEMORY_EVAL_API_KEY = "key";
+    process.env.GOODMEMORY_JUDGE_PROVIDER = "openai";
+    process.env.GOODMEMORY_JUDGE_MODEL = "gpt-5.4";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "key";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "key";
+
+    try {
+      await expect(
+        runPhase27LiveMemoryEval(
+          {
+            runId: "phase27-live",
+          },
+          {
+            assertProviderBackedStorage: async () => {
+              throw new Error("postgres bootstrap probe returned unusable");
+            },
+            ensureDir: async () => undefined,
+            runSuite: async () => {
+              runSuiteCalled = true;
+              throw new Error("runSuite should not be called");
+            },
+          },
+        ),
+      ).rejects.toThrow("postgres bootstrap probe returned unusable");
+      expect(runSuiteCalled).toBeFalse();
+    } finally {
+      process.env = originalEnv;
+    }
   });
 });

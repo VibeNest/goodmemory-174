@@ -1,8 +1,8 @@
 Phase 27.3: Live Adoption Evidence
 ==================================
 
-[TODO] P27.3-T001 Add `eval:phase-27-live-memory` for provider-backed adoption evidence
-[TODO] P27.3-T002 Reuse the deterministic baseline contract for the live path so only memory augmentation differs
+[DONE] P27.3-T001 Add `eval:phase-27-live-memory` for provider-backed adoption evidence
+[DONE] P27.3-T002 Reuse the deterministic baseline contract for the live path so only memory augmentation differs
 [TODO] P27.3-T003 Cover continuation/open-loop and repeated-correction families in at least one archived live run
 [TODO] P27.3-T004 Record one canonical archived live run and wire it into the Phase 27 closure evidence chain
 
@@ -20,10 +20,34 @@ Write tests first
 
 Implementation steps
 --------------------
-1. Add a Phase 27 live runner aligned to the deterministic baseline contract
-2. Restrict live coverage to continuation/open-loop plus repeated-correction
-3. Archive at least one live run for closure
-4. Sync the closure summary to cite the canonical live run only after it exists
+1. Add a Phase 27 live runner aligned to the deterministic baseline contract.
+2. Restrict the canonical live slice to 4 cases total:
+   - 2 continuation/open-loop
+   - 2 repeated-correction
+3. Archive at least one live run for closure once the required provider-backed env is available.
+4. Sync the closure summary to cite the canonical live run only after it exists.
+
+Implemented
+-----------
+- `scripts/run-phase-27-live-memory.ts`
+- `tests/unit/run-phase-27.script.test.ts`
+- `package.json`
+- `tests/release/release.test.ts`
+
+Regression run
+--------------
+- `bun run typecheck`
+- `bun test tests/unit/run-phase-27.script.test.ts tests/release/release.test.ts`
+
+Open blocker
+------------
+- The current environment does not expose the required live-memory vars:
+  - `GOODMEMORY_TEST_POSTGRES_URL`
+  - `GOODMEMORY_EVAL_*`
+  - `GOODMEMORY_JUDGE_*`
+  - `GOODMEMORY_EMBEDDING_*`
+  - `GOODMEMORY_ASSISTED_EXTRACTOR_*`
+- Because those vars are unset, this slice has a real runner and regression coverage, but it does not yet have a canonical archived live report.
 
 Acceptance
 ----------

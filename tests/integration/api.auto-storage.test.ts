@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { access, rm } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { createGoodMemory } from "../../src";
 import { createFactMemory } from "../../src/domain/records";
@@ -322,6 +322,187 @@ describe("auto storage runtime", () => {
       ).resolves.toBeNull();
     } finally {
       process.chdir(previousCwd);
+      await workspace.cleanup();
+    }
+  });
+
+  it("auto-resolves assisted extraction on the public default createGoodMemory({}) path", async () => {
+    const workspace = await createTempWorkspace("goodmemory-auto-assisted-extractor");
+    const previousCwd = process.cwd();
+    const originalFetch = globalThis.fetch;
+    const originalStorageProvider = process.env.GOODMEMORY_STORAGE_PROVIDER;
+    const originalStorageUrl = process.env.GOODMEMORY_STORAGE_URL;
+    const originalEmbeddingProvider = process.env.GOODMEMORY_EMBEDDING_PROVIDER;
+    const originalEmbeddingModel = process.env.GOODMEMORY_EMBEDDING_MODEL;
+    const originalEmbeddingApiKey = process.env.GOODMEMORY_EMBEDDING_API_KEY;
+    const originalEmbeddingBaseURL = process.env.GOODMEMORY_EMBEDDING_BASE_URL;
+    const originalExtractorProvider = process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER;
+    const originalExtractorModel = process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL;
+    const originalExtractorApiKey = process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY;
+    const originalExtractorBaseURL = process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL;
+    const requests: string[] = [];
+
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "test-key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL = "https://extractor.test/v1";
+    delete process.env.GOODMEMORY_STORAGE_PROVIDER;
+    delete process.env.GOODMEMORY_STORAGE_URL;
+    delete process.env.GOODMEMORY_EMBEDDING_PROVIDER;
+    delete process.env.GOODMEMORY_EMBEDDING_MODEL;
+    delete process.env.GOODMEMORY_EMBEDDING_API_KEY;
+    delete process.env.GOODMEMORY_EMBEDDING_BASE_URL;
+
+    globalThis.fetch = (async (input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+      requests.push(url);
+
+      return new Response(
+        JSON.stringify({
+          id: "chatcmpl-assisted-extractor",
+          object: "chat.completion",
+          model: "gpt-4o-mini",
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: JSON.stringify({
+                  candidates: [
+                    {
+                      id: "llm-1",
+                      kindHint: "fact",
+                      explicitness: "explicit",
+                      content: "The current blocker is prod verification.",
+                      sourceMessageIndex: 0,
+                      sourceRole: "user",
+                      metadata: {
+                        category: "project",
+                        factKind: "blocker",
+                      },
+                    },
+                  ],
+                  ignoredMessageCount: 0,
+                }),
+              },
+              finish_reason: "stop",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        },
+      );
+    }) as typeof fetch;
+
+    try {
+      process.chdir(workspace.root);
+
+      const memory = createGoodMemory({});
+      const scope = {
+        userId: "auto-user",
+        workspaceId: "workspace-a",
+        sessionId: "session-1",
+      };
+
+      const remembered = await memory.remember({
+        scope,
+        extractionStrategy: "auto",
+        messages: [
+          {
+            role: "user",
+            content:
+              "Remember that the current blocker is prod verification instead of QA sign-off.",
+          },
+        ],
+      });
+      const recalled = await memory.recall({
+        scope,
+        query: "What is the current blocker?",
+        retrievalProfile: "general_chat",
+      });
+      const deleted = await memory.deleteAllMemory({
+        scope,
+        includeRuntime: true,
+      });
+      const exported = await memory.exportMemory({
+        scope,
+        includeRuntime: true,
+      });
+
+      expect(remembered.metadata?.resolvedExtractionStrategy).toBe("llm-assisted");
+      expect(requests.some((url) => url.includes("/chat/completions"))).toBe(true);
+      expect(
+        recalled.facts.some((record) =>
+          record.content.includes("prod verification"),
+        ),
+      ).toBe(true);
+      expect(deleted.deleted.facts).toBeGreaterThan(0);
+      expect(exported.durable.facts).toHaveLength(0);
+      await expect(
+        access(join(workspace.root, ".goodmemory", "memory.sqlite")),
+      ).resolves.toBeNull();
+    } finally {
+      process.chdir(previousCwd);
+      globalThis.fetch = originalFetch;
+      if (originalStorageProvider === undefined) {
+        delete process.env.GOODMEMORY_STORAGE_PROVIDER;
+      } else {
+        process.env.GOODMEMORY_STORAGE_PROVIDER = originalStorageProvider;
+      }
+      if (originalStorageUrl === undefined) {
+        delete process.env.GOODMEMORY_STORAGE_URL;
+      } else {
+        process.env.GOODMEMORY_STORAGE_URL = originalStorageUrl;
+      }
+      if (originalEmbeddingProvider === undefined) {
+        delete process.env.GOODMEMORY_EMBEDDING_PROVIDER;
+      } else {
+        process.env.GOODMEMORY_EMBEDDING_PROVIDER = originalEmbeddingProvider;
+      }
+      if (originalEmbeddingModel === undefined) {
+        delete process.env.GOODMEMORY_EMBEDDING_MODEL;
+      } else {
+        process.env.GOODMEMORY_EMBEDDING_MODEL = originalEmbeddingModel;
+      }
+      if (originalEmbeddingApiKey === undefined) {
+        delete process.env.GOODMEMORY_EMBEDDING_API_KEY;
+      } else {
+        process.env.GOODMEMORY_EMBEDDING_API_KEY = originalEmbeddingApiKey;
+      }
+      if (originalEmbeddingBaseURL === undefined) {
+        delete process.env.GOODMEMORY_EMBEDDING_BASE_URL;
+      } else {
+        process.env.GOODMEMORY_EMBEDDING_BASE_URL = originalEmbeddingBaseURL;
+      }
+      if (originalExtractorProvider === undefined) {
+        delete process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER;
+      } else {
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = originalExtractorProvider;
+      }
+      if (originalExtractorModel === undefined) {
+        delete process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL;
+      } else {
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = originalExtractorModel;
+      }
+      if (originalExtractorApiKey === undefined) {
+        delete process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY;
+      } else {
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = originalExtractorApiKey;
+      }
+      if (originalExtractorBaseURL === undefined) {
+        delete process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL;
+      } else {
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL = originalExtractorBaseURL;
+      }
       await workspace.cleanup();
     }
   });

@@ -148,7 +148,8 @@ Current Sequencing Note
 - Phase 27 is now in progress:
   - public reference hardening is implemented and regression-covered
   - deterministic adoption eval is implemented and backed by `reports/eval/fallback/phase-27/run-phase27-local/report.json`
-  - live evidence and `gate:phase-27` closure remain open
+  - the provider-backed live runner exists through `eval:phase-27-live-memory`, but no canonical archived live run exists yet because the required env is not available in the current environment
+  - `gate:phase-27` closure remains open
 - Any work after the queued Phase 27 scope should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -170,9 +171,9 @@ Use these bands when choosing what to work on next:
 1. Immediate focus
    - Preserve the closed Phase 17 through Phase 26 guarantees while local changes land
    - Close the remaining Phase 27 slices without widening scope into installer, release-automation, or new-capability work
-   - Keep docs-as-written public-surface purity, deterministic adoption evidence, and the accepted Phase 26 local-first runtime guarantees regression-covered while live evidence and gate closure land
+   - Keep docs-as-written public-surface purity, deterministic adoption evidence, the live runner contract, and the accepted Phase 26 local-first runtime guarantees regression-covered while canonical live evidence and gate closure land
 2. Near-term product differentiation
-   - Add provider-backed adoption evidence on top of the now-hardened public reference path and deterministic Phase 27 report
+   - Add canonical provider-backed adoption evidence on top of the now-hardened public reference path and deterministic Phase 27 report
    - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, and phase-26 local-first runtime guarantees regression-covered while the remaining Phase 27 scope is executed
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence

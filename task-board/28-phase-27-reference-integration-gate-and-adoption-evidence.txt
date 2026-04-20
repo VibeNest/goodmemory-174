@@ -19,7 +19,8 @@ Current Status
 [WIP] Phase 27 is in progress.
 [DONE] Public reference hardening landed on top of the accepted Phase 26 local-first runtime.
 [DONE] Deterministic adoption eval now runs through `eval:phase-27` with thresholded identity/background, continuation/open-loop, repeated-correction, and Codex handoff reporting.
-[TODO] Live adoption evidence and `gate:phase-27` closure remain open.
+[WIP] Phase 27 live-memory runner now exists through `eval:phase-27-live-memory`, but no canonical archived live run exists yet in the current environment.
+[TODO] Canonical archived live evidence and `gate:phase-27` closure remain open.
 
 
 Dependencies
@@ -114,6 +115,9 @@ Implemented So Far
   - `scripts/run-phase-27-eval.ts`
   - `src/eval/phase27.ts`
   - `reports/eval/fallback/phase-27/run-phase27-local/report.json`
+- provider-backed live adoption runner contract now exists through:
+  - `scripts/run-phase-27-live-memory.ts`
+  - `tests/unit/run-phase-27.script.test.ts`
 - deterministic regression now locks the phase-27 runner through:
   - `tests/unit/run-phase-27.script.test.ts`
 
@@ -131,6 +135,7 @@ Evidence
 - `tests/consumers/reference-package-smoke/package.json`
 - `tests/consumers/reference-package-smoke/smoke.mjs`
 - `scripts/run-phase-27-eval.ts`
+- `scripts/run-phase-27-live-memory.ts`
 - `src/eval/phase27.ts`
 - `tests/unit/run-phase-27.script.test.ts`
 - `tests/examples/examples.test.ts`

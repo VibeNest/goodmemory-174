@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_SQLITE_STORAGE_PATH,
+  resolveAssistedExtractorModelConfigFromEnv,
   resolveEmbeddingModelConfigFromEnv,
   resolveStoragePlan,
 } from "../../src/api/runtimeResolution";
@@ -214,5 +215,36 @@ describe("runtime resolution", () => {
         GOODMEMORY_EMBEDDING_API_KEY: "secret",
       }),
     ).toThrow("Unsupported embedding provider");
+  });
+
+  it("returns null when assisted extractor env vars are absent", () => {
+    expect(resolveAssistedExtractorModelConfigFromEnv({})).toBeNull();
+  });
+
+  it("parses assisted extractor env vars when fully configured", () => {
+    expect(
+      resolveAssistedExtractorModelConfigFromEnv({
+        GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER: "openai",
+        GOODMEMORY_ASSISTED_EXTRACTOR_MODEL: "gpt-4o-mini",
+        GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY: "secret",
+        GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL: "https://openrouter.ai/api/v1",
+      }),
+    ).toEqual({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      apiKey: "secret",
+      baseURL: "https://openrouter.ai/api/v1",
+    });
+  });
+
+  it("rejects partial assisted extractor env configuration", () => {
+    expect(() =>
+      resolveAssistedExtractorModelConfigFromEnv({
+        GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER: "openai",
+        GOODMEMORY_ASSISTED_EXTRACTOR_MODEL: "gpt-4o-mini",
+      }),
+    ).toThrow(
+      "Missing required GOODMEMORY_ASSISTED_EXTRACTOR environment variables",
+    );
   });
 });
