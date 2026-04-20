@@ -277,6 +277,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-25-live-memory"]).toBe(
       "bun run scripts/run-phase-25-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-27"]).toBe("bun run scripts/run-phase-27-eval.ts");
     expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
     expect(pkg.scripts?.["gate:phase-19-reviewer"]).toBe(
       "bun run scripts/run-phase-19-reviewer-gate.ts",
@@ -700,11 +701,15 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("current sequencing note and phase-22 task board only cite git-tracked live eval reports", async () => {
-    await expectTrackedEvalReportsMentionedInFile("task-board/00-README.txt");
-    await expectTrackedEvalReportsMentionedInFile(
+  it("task-board sequencing and phase docs only cite git-tracked eval reports", async () => {
+    for (const relativePath of [
+      "task-board/00-README.txt",
       "task-board/23-phase-22-recall-router-provider-hardening-and-promotion-readiness.txt",
-    );
+      "task-board/28-phase-27-reference-integration-gate-and-adoption-evidence.txt",
+      "task-board/phase-27-reference-integration-gate-and-adoption-evidence/02-deterministic-adoption-eval.txt",
+    ] as const) {
+      await expectTrackedEvalReportsMentionedInFile(relativePath);
+    }
   });
 
   it("phase-20 canonical dependency summaries are checked in", async () => {

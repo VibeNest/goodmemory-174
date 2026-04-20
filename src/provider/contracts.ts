@@ -21,7 +21,7 @@ export interface ProviderRuntimeMetadata {
   judgeAdapter?: RuntimeAdapterId;
   judgeModelId?: string;
   judgeProviderId?: ModelProviderId;
-  memoryBackend?: "in-memory" | "provider-backed";
+  memoryBackend?: "in-memory" | "provider-backed" | "sqlite";
   embeddingEnabled?: boolean;
   assistedExtractionEnabled?: boolean;
   recallRouterModelId?: string;

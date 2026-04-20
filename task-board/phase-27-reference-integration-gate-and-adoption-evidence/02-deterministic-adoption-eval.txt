@@ -1,12 +1,12 @@
 Phase 27.2: Deterministic Adoption Eval
 =======================================
 
-[TODO] P27.2-T001 Freeze one deterministic baseline contract where only GoodMemory augmentation differs
-[TODO] P27.2-T002 Add a small identity/background family with 3 cases
-[TODO] P27.2-T003 Add a continuation/open-loop family with 6 cases
-[TODO] P27.2-T004 Add a repeated-correction family with 4 cases
-[TODO] P27.2-T005 Add a Codex handoff/resume family with 3 deterministic cases
-[TODO] P27.2-T006 Report thresholded adoption metrics and make `eval:phase-27` enforce them
+[DONE] P27.2-T001 Freeze one deterministic baseline contract where only GoodMemory augmentation differs
+[DONE] P27.2-T002 Add a small identity/background family with 3 cases
+[DONE] P27.2-T003 Add a continuation/open-loop family with 6 cases
+[DONE] P27.2-T004 Add a repeated-correction family with 4 cases
+[DONE] P27.2-T005 Add a Codex handoff/resume family with 3 deterministic cases
+[DONE] P27.2-T006 Report thresholded adoption metrics and make `eval:phase-27` enforce them
 
 Why this exists
 ---------------
@@ -24,10 +24,28 @@ Write tests first
 
 Implementation steps
 --------------------
-1. Define one canonical baseline contract for deterministic adoption eval
-2. Add the four deterministic families and their fixture sets
-3. Emit the six Phase 27 adoption metrics
-4. Fail the deterministic Phase 27 eval when thresholds are not met
+1. Define one canonical deterministic baseline contract that uses the same rule-shaped answer builder with visible-transcript-only context for baseline and memory-augmented context for GoodMemory.
+2. Curate three deterministic scenario families on top of the existing eval dataset:
+   - 3 identity/background scenarios
+   - 6 continuation/open-loop scenarios
+   - 4 repeated-correction scenarios
+3. Add one deterministic Codex handoff/resume family with 3 file-assisted cases.
+4. Emit thresholded Phase 27 metrics and fail the report when any metric is below threshold.
+
+Implemented
+-----------
+- `scripts/run-phase-27-eval.ts`
+- `src/eval/phase27.ts`
+- `tests/unit/run-phase-27.script.test.ts`
+- `package.json`
+- `tests/release/release.test.ts`
+- `reports/eval/fallback/phase-27/run-phase27-local/report.json`
+
+Regression run
+--------------
+- `bun run typecheck`
+- `bun test tests/unit/run-phase-27.script.test.ts tests/release/release.test.ts`
+- `bun run eval:phase-27 --run-id=run-phase27-local`
 
 Acceptance
 ----------

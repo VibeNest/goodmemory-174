@@ -18,7 +18,8 @@ Current Status
 --------------
 [WIP] Phase 27 is in progress.
 [DONE] Public reference hardening landed on top of the accepted Phase 26 local-first runtime.
-[TODO] Deterministic adoption eval, live adoption evidence, and Codex handoff gate remain open.
+[DONE] Deterministic adoption eval now runs through `eval:phase-27` with thresholded identity/background, continuation/open-loop, repeated-correction, and Codex handoff reporting.
+[TODO] Live adoption evidence and `gate:phase-27` closure remain open.
 
 
 Dependencies
@@ -83,7 +84,7 @@ Tasks
 [DONE] P27-T001 Add the canonical Phase 27 task-board phase file, breakdown folder, and queued sequencing references
 [DONE] P27-T002 Harden the public reference path around `createGoodMemory({})`, stable local-first runtime defaults, and package-boundary consumer smoke coverage
 [DONE] P27-T003 Add docs-as-written purity coverage and lock canonical examples/guides to public imports only
-[TODO] P27-T004 Add deterministic adoption eval families, frozen baseline contract, and metric reporting for identity/background, continuation/open-loop, repeated correction, and Codex handoff
+[DONE] P27-T004 Add deterministic adoption eval families, frozen baseline contract, and metric reporting for identity/background, continuation/open-loop, repeated correction, and Codex handoff
 [TODO] P27-T005 Add provider-backed Phase 27 live adoption runner and archive at least one canonical live run
 [TODO] P27-T006 Add `gate:phase-27`, archive canonical closure evidence, and sync current-status/task-board references after behavior and evidence are real
 
@@ -109,6 +110,12 @@ Implemented So Far
   - `tests/consumers/reference-package-smoke/`
 - release coverage now rejects `../src/*` / `../../src/*` in gated public-reference files
 - package-boundary smoke now runs in regression through `tests/release/release.test.ts`
+- deterministic adoption evidence now runs through:
+  - `scripts/run-phase-27-eval.ts`
+  - `src/eval/phase27.ts`
+  - `reports/eval/fallback/phase-27/run-phase27-local/report.json`
+- deterministic regression now locks the phase-27 runner through:
+  - `tests/unit/run-phase-27.script.test.ts`
 
 
 Evidence
@@ -123,8 +130,12 @@ Evidence
 - `docs/GoodMemory-Codex-Handoff-Setup-Guide.md`
 - `tests/consumers/reference-package-smoke/package.json`
 - `tests/consumers/reference-package-smoke/smoke.mjs`
+- `scripts/run-phase-27-eval.ts`
+- `src/eval/phase27.ts`
+- `tests/unit/run-phase-27.script.test.ts`
 - `tests/examples/examples.test.ts`
 - `tests/release/release.test.ts`
+- `reports/eval/fallback/phase-27/run-phase27-local/report.json`
 
 
 Key Constraints

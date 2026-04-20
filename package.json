@@ -45,6 +45,7 @@
     "eval:phase-24-live-memory": "bun run scripts/run-phase-24-live-memory.ts",
     "eval:phase-25": "bun run scripts/run-phase-25-eval.ts",
     "eval:phase-25-live-memory": "bun run scripts/run-phase-25-live-memory.ts",
+    "eval:phase-27": "bun run scripts/run-phase-27-eval.ts",
     "gate:phase-18": "bun run scripts/run-phase-18-gate.ts",
     "gate:phase-19-reviewer": "bun run scripts/run-phase-19-reviewer-gate.ts",
     "gate:phase-19-maintenance": "bun run scripts/run-phase-19-maintenance-gate.ts",

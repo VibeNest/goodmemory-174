@@ -5,7 +5,8 @@ Status
 ------
 - Phase 27 is in progress.
 - Slice 27.1 public reference hardening is implemented and regression-covered.
-- Slices 27.2 through 27.4 are not started.
+- Slice 27.2 deterministic adoption eval is implemented and regression-covered.
+- Slices 27.3 through 27.4 remain open.
 - Scope: prove the public reference path on top of the accepted Phase 26 local-first runtime:
   - `createGoodMemory({})` as the canonical default runtime entrypoint
   - public `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` imports only
@@ -44,7 +45,7 @@ Files in This Folder
   Convert canonical reference paths to public imports and stable local-first runtime defaults.
 
 - 02-deterministic-adoption-eval.txt
-  Add baseline-frozen deterministic adoption families and thresholded reporting.
+  Add baseline-frozen deterministic adoption families, thresholded reporting, and the canonical `eval:phase-27` runner.
 
 - 03-live-adoption-evidence.txt
   Add provider-backed live evidence for the reference integration path.

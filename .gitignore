@@ -111,6 +111,9 @@ reports/eval/live-memory/**
 !reports/eval/fallback/phase-25/
 !reports/eval/fallback/phase-25/run-1776673441250/
 !reports/eval/fallback/phase-25/run-1776673441250/report.json
+!reports/eval/fallback/phase-27/
+!reports/eval/fallback/phase-27/run-phase27-local/
+!reports/eval/fallback/phase-27/run-phase27-local/report.json
 !reports/eval/live-memory/phase-23/
 !reports/eval/live-memory/phase-23/run-1776658376536-observe/
 !reports/eval/live-memory/phase-23/run-1776658376536-observe/report.json
