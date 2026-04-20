@@ -21,6 +21,30 @@ export interface PostgresStorageConfig {
   vectorTablePrefix?: string;
 }
 
+export type PostgresVectorExtensionStatus =
+  | "available"
+  | "installed"
+  | "missing";
+
+export type ReadOnlyPostgresStorageProbeResult =
+  | "readable"
+  | "unusable"
+  | "inconclusive";
+
+export interface PostgresStorageBootstrapDependencies {
+  ensureStorageBackend?: (config: PostgresStorageConfig) => Promise<void>;
+  getVectorExtensionStatus?: (
+    config: PostgresStorageConfig,
+  ) => Promise<PostgresVectorExtensionStatus>;
+}
+
+export interface ReadOnlyPostgresStorageProbeDependencies {
+  getVectorExtensionStatus?: (
+    config: PostgresStorageConfig,
+  ) => Promise<PostgresVectorExtensionStatus>;
+  hasExistingStorageBackend?: (config: PostgresStorageConfig) => Promise<boolean>;
+}
+
 interface PostgresStoreOptions {
   readOnly?: boolean;
 }
@@ -699,19 +723,105 @@ export function createPostgresVectorStore(
   };
 }
 
-export async function canUsePostgresVectorExtension(
+export async function getPostgresVectorExtensionStatus(
   config: PostgresStorageConfig,
-): Promise<boolean> {
+): Promise<PostgresVectorExtensionStatus> {
   const runtime = createRuntime(config);
-  const rows = await runtime.sql.unsafe<Array<{ available: boolean }>>(
+  const rows = await runtime.sql.unsafe<
+    Array<{ available: boolean; installed: boolean }>
+  >(
     `
-      SELECT EXISTS (
-        SELECT 1
-        FROM pg_available_extensions
-        WHERE name = 'vector'
-      ) AS available
+      SELECT
+        EXISTS (
+          SELECT 1
+          FROM pg_extension
+          WHERE extname = 'vector'
+        ) AS installed,
+        EXISTS (
+          SELECT 1
+          FROM pg_available_extensions
+          WHERE name = 'vector'
+        ) AS available
     `,
   );
 
-  return Boolean(rows[0]?.available);
+  if (rows[0]?.installed) {
+    return "installed";
+  }
+
+  if (rows[0]?.available) {
+    return "available";
+  }
+
+  return "missing";
+}
+
+export async function ensurePostgresStorageBackend(
+  config: PostgresStorageConfig,
+): Promise<void> {
+  const runtime = createRuntime(config);
+  await runtime.ensureDocumentStore();
+  await runtime.ensureSessionStore();
+  await runtime.ensureVectorStore();
+}
+
+async function hasExistingPostgresStorageBackend(
+  config: PostgresStorageConfig,
+): Promise<boolean> {
+  const runtime = createRuntime(config);
+  const [hasDocumentStore, hasSessionStore, hasVectorStore] = await Promise.all([
+    runtime.hasDocumentStore(),
+    runtime.hasSessionStore(),
+    runtime.hasVectorStore(),
+  ]);
+
+  return hasDocumentStore && hasSessionStore && hasVectorStore;
+}
+
+export async function probeReadOnlyPostgresStorageBackend(
+  config: PostgresStorageConfig,
+  dependencies?: ReadOnlyPostgresStorageProbeDependencies,
+): Promise<ReadOnlyPostgresStorageProbeResult> {
+  const getVectorExtensionStatus =
+    dependencies?.getVectorExtensionStatus ?? getPostgresVectorExtensionStatus;
+  const hasExistingStorageBackend =
+    dependencies?.hasExistingStorageBackend ?? hasExistingPostgresStorageBackend;
+  const status = await getVectorExtensionStatus(config);
+
+  if (status === "missing") {
+    return "unusable";
+  }
+
+  if (status !== "installed") {
+    return "inconclusive";
+  }
+
+  return (await hasExistingStorageBackend(config))
+    ? "readable"
+    : "inconclusive";
+}
+
+export async function canBootstrapPostgresStorageBackend(
+  config: PostgresStorageConfig,
+  dependencies?: PostgresStorageBootstrapDependencies,
+): Promise<boolean> {
+  const getVectorExtensionStatus =
+    dependencies?.getVectorExtensionStatus ?? getPostgresVectorExtensionStatus;
+  const ensureStorageBackend =
+    dependencies?.ensureStorageBackend ?? ensurePostgresStorageBackend;
+  const status = await getVectorExtensionStatus(config);
+
+  if (status === "missing") {
+    return false;
+  }
+
+  await ensureStorageBackend(config);
+  return true;
+}
+
+export async function canUsePostgresVectorExtension(
+  config: PostgresStorageConfig,
+): Promise<boolean> {
+  const status = await getPostgresVectorExtensionStatus(config);
+  return status !== "missing";
 }

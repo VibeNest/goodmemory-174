@@ -1,8 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import {
+  canBootstrapPostgresStorageBackend,
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
+  probeReadOnlyPostgresStorageBackend,
 } from "../../src/storage/postgres";
 
 describe("postgres storage adapter", () => {
@@ -39,6 +41,128 @@ describe("postgres storage adapter", () => {
         url: "   ",
       }),
     ).toThrow("Postgres storage requires a non-empty url");
+  });
+
+  it("treats missing pgvector support as an unusable auto target", async () => {
+    const ensuredUrls: string[] = [];
+
+    await expect(
+      canBootstrapPostgresStorageBackend(
+        {
+          url: "postgres://localhost:5432/goodmemory",
+        },
+        {
+          getVectorExtensionStatus: async () => "missing",
+          ensureStorageBackend: async (config) => {
+            ensuredUrls.push(config.url);
+          },
+        },
+      ),
+    ).resolves.toBe(false);
+
+    expect(ensuredUrls).toEqual([]);
+  });
+
+  it("requires backend bootstrap before declaring a postgres auto target usable", async () => {
+    const calls: string[] = [];
+
+    await expect(
+      canBootstrapPostgresStorageBackend(
+        {
+          url: "postgres://localhost:5432/goodmemory",
+        },
+        {
+          getVectorExtensionStatus: async () => {
+            calls.push("status");
+            return "available";
+          },
+          ensureStorageBackend: async () => {
+            calls.push("ensure");
+          },
+        },
+      ),
+    ).resolves.toBe(true);
+
+    expect(calls).toEqual(["status", "ensure"]);
+  });
+
+  it("surfaces bootstrap failures even when pgvector is advertised", async () => {
+    await expect(
+      canBootstrapPostgresStorageBackend(
+        {
+          url: "postgres://localhost:5432/goodmemory",
+        },
+        {
+          getVectorExtensionStatus: async () => "installed",
+          ensureStorageBackend: async () => {
+            throw new Error("permission denied for schema public");
+          },
+        },
+      ),
+    ).rejects.toThrow("permission denied for schema public");
+  });
+
+  it("treats missing pgvector support as an unusable read-only postgres target", async () => {
+    const hasExistingCalls: string[] = [];
+
+    await expect(
+      probeReadOnlyPostgresStorageBackend(
+        {
+          url: "postgres://localhost:5432/goodmemory",
+        },
+        {
+          getVectorExtensionStatus: async () => "missing",
+          hasExistingStorageBackend: async () => {
+            hasExistingCalls.push("existing");
+            return true;
+          },
+        },
+      ),
+    ).resolves.toBe("unusable");
+
+    expect(hasExistingCalls).toEqual([]);
+  });
+
+  it("treats an installed existing backend as readable in read-only mode", async () => {
+    await expect(
+      probeReadOnlyPostgresStorageBackend(
+        {
+          url: "postgres://localhost:5432/goodmemory",
+        },
+        {
+          getVectorExtensionStatus: async () => "installed",
+          hasExistingStorageBackend: async () => true,
+        },
+      ),
+    ).resolves.toBe("readable");
+  });
+
+  it("treats an advertised but uninstalled vector extension as inconclusive in read-only mode", async () => {
+    await expect(
+      probeReadOnlyPostgresStorageBackend(
+        {
+          url: "postgres://localhost:5432/goodmemory",
+        },
+        {
+          getVectorExtensionStatus: async () => "available",
+          hasExistingStorageBackend: async () => true,
+        },
+      ),
+    ).resolves.toBe("inconclusive");
+  });
+
+  it("treats a partially initialized backend as inconclusive in read-only mode", async () => {
+    await expect(
+      probeReadOnlyPostgresStorageBackend(
+        {
+          url: "postgres://localhost:5432/goodmemory",
+        },
+        {
+          getVectorExtensionStatus: async () => "installed",
+          hasExistingStorageBackend: async () => false,
+        },
+      ),
+    ).resolves.toBe("inconclusive");
   });
 
   it("rejects document mutations in read-only mode before touching postgres", async () => {

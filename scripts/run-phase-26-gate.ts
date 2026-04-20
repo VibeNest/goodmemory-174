@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
@@ -74,13 +74,15 @@ const GENERATED_BY = "scripts/run-phase-26-gate.ts";
 const PHASE26_CANONICAL_RUN_ID = "run-20260420193000";
 const PHASE26_CANONICAL_REPORT_FILE_NAME = "phase-26-quality-gate.json";
 const PHASE26_CANONICAL_ARTIFACT_SHA256 =
-  "0951b1a92652df7f3320f24c3bdeff1d3bb8bbeab7347cc5516cea70e5290f6f";
+  "83a2950a7632394a5795f02328fd8af33ed5b5df4184e32cfbc085e9d75abb37";
 const PHASE26_IN_SCOPE = [
   "default storage resolution with explicit-over-auto precedence",
+  "explicit config/env storage sources do not cross-inherit provider/url fields",
   "automatic embedding enablement via GOODMEMORY_EMBEDDING_*",
   "durable local SQLite vector storage",
   "SQLite runtime guardrails and extension-assisted search path",
   "CLI/runtime storage-resolution alignment",
+  "auto/local SQLite governance regression coverage",
   "phase-26 closure contract for the gate script and canonical accepted evidence chain",
 ] as const;
 const PHASE26_OUT_OF_SCOPE = [
@@ -129,6 +131,17 @@ export function resolvePhase26CanonicalReportPath(root: string): string {
   );
 }
 
+export function resolvePhase26RunOutputDir(
+  root: string,
+  outputDir?: string,
+): string {
+  if (!outputDir) {
+    return resolvePhase26GateOutputDir(root);
+  }
+
+  return isAbsolute(outputDir) ? outputDir : resolve(root, outputDir);
+}
+
 export function buildPhase26GateCommands(root: string): Phase26GateCommand[] {
   return [
     {
@@ -144,6 +157,7 @@ export function buildPhase26GateCommands(root: string): Phase26GateCommand[] {
         "bun",
         "test",
         "tests/unit/runtime-resolution.test.ts",
+        "tests/unit/storage.postgres.test.ts",
         "tests/unit/sqlite.runtime.test.ts",
         "tests/unit/sqlite.vector-extension.search.test.ts",
         "tests/integration/api.smoke.test.ts",
@@ -245,7 +259,7 @@ async function validateArchivedCanonicalPhase26Report(
   return undefined;
 }
 
-function buildPhase26GateScope(): Phase26GateReport["scope"] {
+export function buildPhase26GateScope(): Phase26GateReport["scope"] {
   return {
     inScope: [...PHASE26_IN_SCOPE],
     outOfScope: [...PHASE26_OUT_OF_SCOPE],
@@ -272,7 +286,7 @@ export async function runPhase26QualityGate(
     (validatesArchivedCanonicalRun
       ? PHASE26_CANONICAL_RUN_ID
       : buildPhase26GateRunId(generatedAt));
-  const outputDir = input?.outputDir ?? resolvePhase26GateOutputDir(root);
+  const outputDir = resolvePhase26RunOutputDir(root, input?.outputDir);
   const runDirectory = join(outputDir, runId);
   const shouldPersistReport = !validatesArchivedCanonicalRun;
   const commandResults: Phase26GateExecutionResult[] = [];

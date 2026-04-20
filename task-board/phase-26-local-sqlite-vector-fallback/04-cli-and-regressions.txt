@@ -39,4 +39,5 @@ Current implementation notes
 - CLI/runtime alignment and regression coverage now live in:
   - `src/cli.ts`
   - `tests/cli/cli.test.ts`
+  - `tests/unit/storage.postgres.test.ts`
   - `tests/integration/api.auto-storage.test.ts`

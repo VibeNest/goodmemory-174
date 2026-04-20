@@ -11,6 +11,11 @@ const EMBEDDING_ENV_PREFIX = "GOODMEMORY_EMBEDDING";
 type EnvironmentMap = Record<string, string | undefined>;
 type ExplicitProvider = NonNullable<StorageConfig["provider"]>;
 
+interface ResolvedStorageSource {
+  provider?: ExplicitProvider;
+  url?: string;
+}
+
 export type ResolvedStorageConfig =
   | {
       provider: "memory";
@@ -45,10 +50,9 @@ function normalizeNonEmpty(value: string | undefined): string | undefined {
 }
 
 function resolveExplicitProvider(
-  storage: StorageConfig | undefined,
-  env: EnvironmentMap,
+  rawProvider: StorageConfig["provider"] | string | undefined,
 ): ExplicitProvider | undefined {
-  const provider = storage?.provider ?? normalizeNonEmpty(env[STORAGE_PROVIDER_ENV]);
+  const provider = rawProvider;
   if (
     provider === undefined ||
     provider === "memory" ||
@@ -61,6 +65,24 @@ function resolveExplicitProvider(
   throw new Error(
     `Unsupported storage provider: ${provider}. Expected memory|sqlite|postgres.`,
   );
+}
+
+function resolveStorageSource(
+  storage: StorageConfig | undefined,
+  env: EnvironmentMap,
+): ResolvedStorageSource {
+  const explicitUrl = normalizeNonEmpty(storage?.url);
+  if (storage?.provider !== undefined || explicitUrl !== undefined) {
+    return {
+      provider: resolveExplicitProvider(storage?.provider),
+      url: explicitUrl,
+    };
+  }
+
+  return {
+    provider: resolveExplicitProvider(normalizeNonEmpty(env[STORAGE_PROVIDER_ENV])),
+    url: normalizeNonEmpty(env[STORAGE_URL_ENV]),
+  };
 }
 
 export function isPostgresConnectionString(value: string): boolean {
@@ -86,8 +108,9 @@ export function resolveStoragePlan(input: {
 }): StoragePlan {
   const env = input.env ?? process.env;
   const cwd = input.cwd ?? process.cwd();
-  const explicitProvider = resolveExplicitProvider(input.storage, env);
-  const configuredUrl = normalizeNonEmpty(input.storage?.url ?? env[STORAGE_URL_ENV]);
+  const resolvedSource = resolveStorageSource(input.storage, env);
+  const explicitProvider = resolvedSource.provider;
+  const configuredUrl = resolvedSource.url;
 
   if (explicitProvider === "memory") {
     return {

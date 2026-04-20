@@ -13,10 +13,12 @@ import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
 import { resolveStoragePlan } from "./api/runtimeResolution";
 import {
-  canUsePostgresVectorExtension,
+  canBootstrapPostgresStorageBackend,
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
+  probeReadOnlyPostgresStorageBackend,
+  type ReadOnlyPostgresStorageProbeResult,
 } from "./storage/postgres";
 import {
   createSQLiteDocumentStore,
@@ -71,6 +73,15 @@ interface CLIStorageConfig {
 
 interface DiagnosticMemoryOptions {
   readOnlyStorage?: boolean;
+}
+
+export interface CLIStorageResolutionDependencies {
+  canBootstrapPostgresStorageBackend?: (config: { url: string }) => Promise<boolean>;
+  probeReadOnlyPostgresStorageBackend?: (
+    config: { url: string },
+  ) => Promise<ReadOnlyPostgresStorageProbeResult>;
+  mkdir?: typeof mkdir;
+  pathExists?: (path: string) => Promise<boolean>;
 }
 
 interface CLICommandOutput {
@@ -229,10 +240,19 @@ function describeStorageProbeError(error: unknown): string {
   return String(error);
 }
 
-async function resolveStorageConfig(
+export async function resolveStorageConfig(
   flags: ParsedFlags,
   options?: DiagnosticMemoryOptions,
+  dependencies?: CLIStorageResolutionDependencies,
 ): Promise<CLIStorageConfig> {
+  const pathExistsFn = dependencies?.pathExists ?? pathExists;
+  const mkdirFn = dependencies?.mkdir ?? mkdir;
+  const canBootstrapPostgresBackend =
+    dependencies?.canBootstrapPostgresStorageBackend ??
+    canBootstrapPostgresStorageBackend;
+  const probeReadOnlyPostgresBackend =
+    dependencies?.probeReadOnlyPostgresStorageBackend ??
+    probeReadOnlyPostgresStorageBackend;
   const plan = resolveStoragePlan({
     storage: {
       provider:
@@ -260,14 +280,14 @@ async function resolveStorageConfig(
     }
 
     const url = resolveSQLiteURL(plan.storage.url);
-    if (options?.readOnlyStorage && url !== ":memory:" && !(await pathExists(url))) {
+    if (options?.readOnlyStorage && url !== ":memory:" && !(await pathExistsFn(url))) {
       throw new Error(
         `Read-only CLI commands require an existing sqlite database at ${url}; they do not create local sqlite state implicitly.`,
       );
     }
 
     if (!options?.readOnlyStorage && url !== ":memory:") {
-      await mkdir(dirname(url), { recursive: true });
+      await mkdirFn(dirname(url), { recursive: true });
     }
 
     return {
@@ -278,40 +298,69 @@ async function resolveStorageConfig(
   }
 
   if (plan.postgresUrl) {
-    let usable = false;
-
     try {
-      usable = await canUsePostgresVectorExtension({
-        url: plan.postgresUrl,
-      });
+      if (options?.readOnlyStorage) {
+        const probe = await probeReadOnlyPostgresBackend({
+          url: plan.postgresUrl,
+        });
+
+        if (probe === "readable") {
+          return {
+            provider: "postgres",
+            url: plan.postgresUrl,
+            displayValue: "configured",
+          };
+        }
+
+        if (probe === "inconclusive") {
+          throw new Error(
+            [
+              "CLI auto storage could not safely determine whether the configured postgres backend remains the durable authority without mutating state.",
+              "Falling back to sqlite would inspect the wrong durable authority.",
+            ].join(" "),
+          );
+        }
+      } else if (
+        await canBootstrapPostgresBackend({
+          url: plan.postgresUrl,
+        })
+      ) {
+        return {
+          provider: "postgres",
+          url: plan.postgresUrl,
+          displayValue: "configured",
+        };
+      }
     } catch (error) {
+      if (options?.readOnlyStorage) {
+        throw new Error(
+          [
+            "CLI auto storage could not verify the configured postgres backend without mutating durable authority.",
+            "Falling back to sqlite would inspect the wrong durable authority.",
+            `Underlying error: ${describeStorageProbeError(error)}`,
+          ].join(" "),
+        );
+      }
+
       throw new Error(
         [
-          "CLI auto storage could not verify the configured postgres backend.",
+          "CLI auto storage could not establish the configured postgres backend as usable durable authority.",
           "Falling back to sqlite would inspect the wrong durable authority.",
           `Underlying error: ${describeStorageProbeError(error)}`,
         ].join(" "),
       );
     }
-
-    if (usable) {
-      return {
-        provider: "postgres",
-        url: plan.postgresUrl,
-        displayValue: "configured",
-      };
-    }
   }
 
   const url = resolveSQLiteURL(plan.sqliteUrl);
-  if (options?.readOnlyStorage && url !== ":memory:" && !(await pathExists(url))) {
+  if (options?.readOnlyStorage && url !== ":memory:" && !(await pathExistsFn(url))) {
     throw new Error(
       `Read-only CLI commands require an existing sqlite database at ${url}; they do not create local sqlite state implicitly.`,
     );
   }
 
   if (!options?.readOnlyStorage && url !== ":memory:") {
-    await mkdir(dirname(url), { recursive: true });
+    await mkdirFn(dirname(url), { recursive: true });
   }
 
   return {

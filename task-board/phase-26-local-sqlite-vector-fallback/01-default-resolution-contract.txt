@@ -34,8 +34,8 @@ Acceptance
 Current implementation notes
 ----------------------------
 - `storage` auto mode means:
-  - explicit provider absent
-  - prefer Postgres only when a connection target exists
+  - explicit config and env config resolve as separate sources; provider/url do not cross-inherit
+  - prefer Postgres only when a connection target is configured and the backend is actually usable
   - otherwise use local `sqlite`
 - embedding auto mode means:
   - create an embedding adapter only when `GOODMEMORY_EMBEDDING_*` is fully configured

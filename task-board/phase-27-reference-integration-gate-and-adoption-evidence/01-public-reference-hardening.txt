@@ -1,0 +1,35 @@
+Phase 27.1: Public Reference Hardening
+======================================
+
+[TODO] P27.1-T001 Convert the canonical AI SDK example to `createGoodMemory({})` and the accepted Phase 26 local-first runtime default
+[TODO] P27.1-T002 Keep the canonical no-embedding deterministic path explicit: local SQLite default storage plus `rules-only`
+[TODO] P27.1-T003 Add package-boundary consumer smoke coverage using package-name imports for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+[TODO] P27.1-T004 Add docs-as-written purity checks that reject `../src/*` and `../../src/*` in gated docs/examples/tests
+[TODO] P27.1-T005 Add dedicated reference guides for AI SDK integration and Codex handoff setup
+
+Why this exists
+---------------
+- Adoption evidence is weak if the canonical path still depends on repo-internal imports or test-only in-memory runtime shortcuts.
+- Phase 26 already closed the local-first runtime contract, so the canonical reference path should now prove that accepted default shape.
+- Running inside the same repo is not enough; the package boundary needs at least one smoke fixture that behaves like a real consumer.
+
+Write tests first
+-----------------
+- the canonical AI SDK guide path runs using `createGoodMemory({})`
+- the canonical deterministic path lands on local SQLite by default and stays `rules-only` without embedding env
+- the package-boundary consumer smoke fixture resolves the public exports successfully
+- gated docs/examples/tests fail if they import `../src/*` or `../../src/*`
+
+Implementation steps
+--------------------
+1. Promote one canonical AI SDK reference example to the Phase 26 runtime default path
+2. Add the package-boundary smoke fixture and wire it into the Phase 27 gate path
+3. Add purity assertions for gated docs/examples/tests
+4. Add public reference guides that match the commands and imports used in the gate
+
+Acceptance
+----------
+- the canonical reference path is public-surface-only
+- the canonical runtime path proves the accepted local-first default
+- the package-boundary smoke fixture passes without repo-internal imports
+- setup-surface and public-reference-purity metrics are executable rather than narrative

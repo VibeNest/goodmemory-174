@@ -1,0 +1,34 @@
+Phase 27.3: Live Adoption Evidence
+==================================
+
+[TODO] P27.3-T001 Add `eval:phase-27-live-memory` for provider-backed adoption evidence
+[TODO] P27.3-T002 Reuse the deterministic baseline contract for the live path so only memory augmentation differs
+[TODO] P27.3-T003 Cover continuation/open-loop and repeated-correction families in at least one archived live run
+[TODO] P27.3-T004 Record one canonical archived live run and wire it into the Phase 27 closure evidence chain
+
+Why this exists
+---------------
+- Deterministic evidence alone is not enough for an adoption-facing phase.
+- The live path should stay narrower than the deterministic suite so the phase remains practical.
+- Host handoff does not need to become a live-provider blocker in this phase; the live focus is the public reference integration path.
+
+Write tests first
+-----------------
+- the live runner reuses the same baseline contract fields as the deterministic path
+- live reporting distinguishes baseline and GoodMemory outcomes clearly
+- the closure path expects at least one canonical live run reference
+
+Implementation steps
+--------------------
+1. Add a Phase 27 live runner aligned to the deterministic baseline contract
+2. Restrict live coverage to continuation/open-loop plus repeated-correction
+3. Archive at least one live run for closure
+4. Sync the closure summary to cite the canonical live run only after it exists
+
+Acceptance
+----------
+- at least 1 archived live run exists for Phase 27
+- the live run covers continuation/open-loop plus repeated-correction cases
+- GoodMemory wins a strict majority of live cases
+- baseline wins at most 1 live case
+- the live evidence chain is cited by the archived Phase 27 quality-gate summary

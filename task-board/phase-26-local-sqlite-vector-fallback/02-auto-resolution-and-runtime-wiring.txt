@@ -36,6 +36,7 @@ Current implementation notes
 ----------------------------
 - Adapter injection remains the highest-priority override layer
 - Automatic embedding should remain opt-in through environment presence, not hidden magic in core config
+- “usable Postgres target” means GoodMemory can bootstrap the required document/session/vector backend, not merely observe that `pgvector` is advertised
 - Runtime wiring now lands in:
   - `src/api/createGoodMemory.ts`
   - `src/storage/auto.ts`

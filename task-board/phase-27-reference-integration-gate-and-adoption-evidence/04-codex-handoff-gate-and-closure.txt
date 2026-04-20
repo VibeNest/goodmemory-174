@@ -1,0 +1,37 @@
+Phase 27.4: Codex Handoff Gate and Closure
+==========================================
+
+[TODO] P27.4-T001 Make Codex file-assisted handoff/resume the only gate-blocking host path for Phase 27
+[TODO] P27.4-T002 Keep Claude in docs/example coverage without making it a second gate blocker
+[TODO] P27.4-T003 Add `gate:phase-27` with targeted reference, consumer-smoke, deterministic-eval, and Codex handoff coverage
+[TODO] P27.4-T004 Archive canonical deterministic and live evidence and sync task-board/current-status references
+
+Why this exists
+---------------
+- The host layer already has surface area; this phase should prove one canonical happy path, not broaden into dual-host perfection.
+- Codex handoff/resume is the clearest proof that compiled artifacts and file-assisted setup can restore working context.
+- Closure should follow the repo's normal dedicated-gate pattern and cite exactly one canonical evidence chain.
+
+Write tests first
+-----------------
+- Codex handoff/resume is regression-covered as a gated deterministic family
+- Claude example/doc coverage remains non-blocking
+- the Phase 27 gate command and closure references are locked by release-facing tests
+
+Implementation steps
+--------------------
+1. Freeze Codex file-assisted handoff/resume as the canonical host gate
+2. Keep Claude in auxiliary coverage only
+3. Add the dedicated Phase 27 gate command
+4. Archive the canonical deterministic and live evidence only after the gate is real
+
+Acceptance
+----------
+- Codex is the only host path that can block Phase 27 acceptance
+- Claude remains documented and example-covered without doubling gate scope
+- `gate:phase-27` enforces:
+  - public reference hardening
+  - package-boundary consumer smoke
+  - deterministic adoption thresholds
+  - Codex handoff/resume success
+- task-board and current-status references are synced only after the canonical evidence chain exists

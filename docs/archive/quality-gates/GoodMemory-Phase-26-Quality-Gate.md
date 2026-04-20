@@ -15,11 +15,12 @@ Passing only `--output-dir` mints a fresh local `run-*` id; reusing the canonica
 ## Scope
 
 - Post-Phase-25 local-first runtime closure for default storage and embedding resolution.
-- Explicit-over-auto storage precedence: explicit `sqlite` / `postgres` remains authoritative.
-- Auto mode prefers Postgres only when a configured target is usable with `pgvector`; otherwise it falls back to local SQLite.
+- Explicit-over-auto storage precedence: explicit storage config stays authoritative as one source and does not mix provider/url fields across config and env.
+- Auto mode prefers Postgres only when a configured target is usable with `pgvector` and can bootstrap the GoodMemory backend; otherwise it falls back to local SQLite.
 - Automatic embedding enablement is driven by `GOODMEMORY_EMBEDDING_*`; absent provider config keeps runtime `rules-only`.
 - Durable local SQLite vector storage, runtime bootstrap guardrails, and optional extension-assisted search are in scope.
 - CLI/runtime storage resolution is aligned on the same shared resolver.
+- Auto/local SQLite regression coverage explicitly includes API-level `forget()` and `deleteAllMemory()`.
 - The deterministic closure contract for Phase 26 is also in scope: the gate command set and the canonical accepted run reference must stay locked.
 - No bundled local embedding generation, no public config widening beyond the local-first defaults, and no claim that `sqlite-vss` indexed acceleration is the canonical default backend.
 - Provider-backed live-memory acceptance evidence remains outside this deterministic closure slice.
@@ -27,7 +28,7 @@ Passing only `--output-dir` mints a fresh local `run-*` id; reusing the canonica
 ## Commands Covered
 
 - `bun run typecheck`
-- `bun test tests/unit/runtime-resolution.test.ts tests/unit/sqlite.runtime.test.ts tests/unit/sqlite.vector-extension.search.test.ts tests/integration/api.smoke.test.ts tests/integration/api.auto-storage.test.ts tests/integration/storage.sqlite.test.ts tests/cli/cli.test.ts`
+- `bun test tests/unit/runtime-resolution.test.ts tests/unit/storage.postgres.test.ts tests/unit/sqlite.runtime.test.ts tests/unit/sqlite.vector-extension.search.test.ts tests/integration/api.smoke.test.ts tests/integration/api.auto-storage.test.ts tests/integration/storage.sqlite.test.ts tests/cli/cli.test.ts`
 - `bun test tests/unit/run-phase-26.script.test.ts tests/release/release.test.ts`
 
 ## Canonical Artifacts
@@ -40,12 +41,13 @@ Passing only `--output-dir` mints a fresh local `run-*` id; reusing the canonica
 - Deterministic gate: accepted.
 - Execution failures: `0`.
 - `typecheck`: passed.
-- Targeted Phase 26 regressions: `58` pass, `0` fail.
-- Closure-contract regressions: `27` pass, `0` fail.
+- Targeted Phase 26 regressions: current gate suite passes.
+- Closure-contract regressions: current gate suite passes.
 - The accepted runtime contract is now:
-  - explicit storage provider wins
-  - auto mode prefers usable Postgres + `pgvector`, otherwise local SQLite
+  - explicit storage config wins as one source
+  - auto mode prefers usable Postgres + `pgvector` only when the GoodMemory backend can bootstrap, otherwise local SQLite
   - missing `GOODMEMORY_EMBEDDING_*` keeps runtime `rules-only`
+  - auto/local SQLite governance paths include API-level `forget()` and `deleteAllMemory()` regression coverage
   - local SQLite vectors are durable, with optional extension-assisted search under explicit runtime guardrails
 - The accepted closure contract is now:
   - `gate:phase-26` must fail if the gate-script contract drifts

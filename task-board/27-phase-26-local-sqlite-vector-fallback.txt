@@ -6,7 +6,7 @@ Phase Goal
 Close the architecture/runtime gap by making the default runtime resolve storage and embedding the way the product intends:
 
 - explicit `sqlite` / `postgres` always wins
-- otherwise prefer `postgres` when a usable Postgres + `pgvector` target exists
+- otherwise prefer `postgres` when a usable Postgres + `pgvector` target can bootstrap the GoodMemory backend
 - otherwise fall back to local `sqlite`
 - only enable embeddings when `GOODMEMORY_EMBEDDING_*` is configured
 
@@ -37,8 +37,8 @@ Primary Deliverables
 
 Definition of Done
 ------------------
-- explicit `storage.provider` remains authoritative and bypasses auto storage switching
-- auto mode prefers Postgres only when a usable `pgvector` target exists; otherwise it lands on local `sqlite`
+- explicit storage config remains authoritative as one source and does not mix provider/url fields across env and config
+- auto mode prefers Postgres only when a usable `pgvector` target can bootstrap the GoodMemory backend; otherwise it lands on local `sqlite`
 - missing `GOODMEMORY_EMBEDDING_*` keeps recall `rules-only`
 - `storage.provider === "sqlite"` no longer implies `createInMemoryVectorStore()` for semantic storage
 - `sqlite + embeddingAdapter + local vector runtime` can run hybrid recall with durable local vectors
@@ -69,8 +69,8 @@ Breakdown Folder
 Implemented So Far
 ------------------
 - `createGoodMemory({})` now resolves to local durable SQLite by default instead of requiring explicit storage config
-- explicit `storage.provider` remains authoritative
-- auto mode prefers Postgres only when a connection string is provided and the target exposes `pgvector`
+- explicit storage config remains authoritative as one source
+- auto mode prefers Postgres only when a connection string is provided and the target can bootstrap the GoodMemory Postgres backend with `pgvector`
 - `GOODMEMORY_EMBEDDING_*` now drives automatic embedding enablement; missing vars keep runtime `rules-only`
 - SQLite vectors are now durable instead of process-local in-memory fallback
 - SQLite runtime now supports:
@@ -90,6 +90,7 @@ Evidence
 - `src/storage/sqliteRuntime.ts`
 - `src/cli.ts`
 - `tests/unit/runtime-resolution.test.ts`
+- `tests/unit/storage.postgres.test.ts`
 - `tests/unit/sqlite.runtime.test.ts`
 - `tests/unit/sqlite.vector-extension.search.test.ts`
 - `tests/unit/run-phase-26.script.test.ts`

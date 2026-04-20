@@ -1,0 +1,106 @@
+Phase 27: Reference Integration Gate and Adoption Evidence
+==========================================================
+
+Phase Goal
+----------
+Prove that GoodMemory's public reference path is adoptable and measurably useful on top of the accepted Phase 26 local-first runtime.
+
+This phase exists to harden and verify:
+
+- the public `goodmemory` + `goodmemory/ai-sdk` reference integration path
+- the public `goodmemory/host` Codex file-assisted handoff/resume path
+- deterministic and live adoption evidence for user-memory value
+
+This phase does not add new memory capability. It proves that the current public surface can be adopted through the stable local-first runtime shape that Phase 26 closed.
+
+
+Current Status
+--------------
+[TODO] Planned but not implemented.
+
+
+Dependencies
+------------
+- Phase 10 product eval foundation
+- Phase 11 examples and release surface alignment
+- Phase 18 host adapters and file-authoritative integration
+- Phase 20 integrated quality-gate and release-hardening closure
+- Phase 26 accepted local-first runtime closure guarantees
+
+
+Primary Deliverables
+--------------------
+- canonical public reference guides for AI SDK integration and Codex handoff setup
+- canonical examples that use public imports and the Phase 26 local-first default runtime
+- package-boundary consumer smoke fixture that imports `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+- deterministic adoption eval families for:
+  - identity/background understanding
+  - historical task/open-loop continuation
+  - repeated correction reduction
+  - Codex handoff/resume
+- provider-backed live adoption evidence for the reference integration path
+- dedicated `gate:phase-27` closure command and archived quality-gate summary
+
+
+Definition of Done
+------------------
+- the canonical AI SDK reference path uses `createGoodMemory({})` and the stable Phase 26 auto-storage default rather than `storage: { provider: "memory" }`
+- the canonical deterministic reference path runs with local SQLite default storage, no embedding env, and explicit `rules-only` behavior
+- gated docs/examples/tests import only:
+  - `goodmemory`
+  - `goodmemory/ai-sdk`
+  - `goodmemory/host`
+- no gated doc/example/test imports `../src/*` or `../../src/*`
+- the package-boundary consumer smoke fixture runs through package-name imports instead of repo-internal source paths
+- deterministic adoption eval freezes one baseline contract:
+  - same model
+  - same system prompt
+  - same messages/transcript
+  - same tool shape
+  - same host artifact input when relevant
+  - only memory augmentation differs
+- deterministic families include at least:
+  - 3 identity/background cases
+  - 6 continuation/open-loop cases
+  - 4 repeated-correction cases
+  - 3 Codex handoff/resume cases
+- deterministic acceptance thresholds are:
+  - identity/background: GoodMemory wins at least 2 of 3 cases
+  - continuation/open-loop: GoodMemory has at least 2 net wins and baseline wins at most 1 case
+  - repeated-correction: GoodMemory improves repeated-correction rate by at least 25 percentage points
+  - Codex handoff/resume: 3 of 3 cases pass
+  - setup and public-surface purity both pass
+- at least 1 provider-backed live run is archived for Phase 27
+- the live run covers continuation/open-loop and repeated-correction families and shows a strict majority of GoodMemory wins, with baseline winning at most 1 case
+- Codex is the only gate-blocking host path in this phase; Claude remains docs/example coverage only
+- no installer CLI, no `src/core` refactor, no package publish automation, and no new memory capability work lands inside this phase
+
+
+Tasks
+-----
+[TODO] P27-T001 Add the canonical Phase 27 task-board phase file, breakdown folder, and queued sequencing references
+[TODO] P27-T002 Harden the public reference path around `createGoodMemory({})`, stable local-first runtime defaults, and package-boundary consumer smoke coverage
+[TODO] P27-T003 Add docs-as-written purity coverage and lock canonical examples/guides to public imports only
+[TODO] P27-T004 Add deterministic adoption eval families, frozen baseline contract, and metric reporting for identity/background, continuation/open-loop, repeated correction, and Codex handoff
+[TODO] P27-T005 Add provider-backed Phase 27 live adoption runner and archive at least one canonical live run
+[TODO] P27-T006 Add `gate:phase-27`, archive canonical closure evidence, and sync current-status/task-board references after behavior and evidence are real
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-27-reference-integration-gate-and-adoption-evidence/00-README.txt`
+- `task-board/phase-27-reference-integration-gate-and-adoption-evidence/01-public-reference-hardening.txt`
+- `task-board/phase-27-reference-integration-gate-and-adoption-evidence/02-deterministic-adoption-eval.txt`
+- `task-board/phase-27-reference-integration-gate-and-adoption-evidence/03-live-adoption-evidence.txt`
+- `task-board/phase-27-reference-integration-gate-and-adoption-evidence/04-codex-handoff-gate-and-closure.txt`
+
+
+Key Constraints
+---------------
+- Phase 26 is already closed; this phase builds on its accepted local-first runtime contract and does not reopen it
+- the canonical adoption path must prove the stable post-Phase-26 runtime, not a test-only in-memory shortcut
+- docs-as-written evidence matters more than repo-internal example convenience
+- package-boundary smoke should get as close as possible to a real consumer without requiring public publish
+- Codex file-assisted handoff/resume is the only gate-blocking host path here
+- Claude stays in docs/example coverage and must not become a second blocker
+- do not expand scope into installer CLI, release marketing, package publish flow, or non-adoption capability work

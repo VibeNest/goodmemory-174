@@ -7,7 +7,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 ## Stable OSS Surface
 
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
-- `createGoodMemory({})` now defaults to auto storage resolution: explicit provider wins; otherwise Postgres is preferred only when a usable target is configured, and local SQLite is the fallback.
+- `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend, and local SQLite is the fallback.
 - The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
 - `sqlite` is now stable as the default local durable document/session/vector backend for the auto-storage path.
@@ -22,7 +22,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 - Phase 26 is now closed as the post-Phase-25 local-first runtime slice.
 - Accepted behavior:
-  - default storage resolution with explicit-over-auto precedence
+  - default storage resolution with explicit-over-auto precedence and no provider/url cross-source mixing
   - durable local SQLite vectors as the default local fallback
   - SQLite runtime bootstrap/guardrails and optional extension-assisted search
   - CLI/runtime storage-resolution alignment

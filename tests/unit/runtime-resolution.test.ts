@@ -61,11 +61,46 @@ describe("runtime resolution", () => {
     });
   });
 
+  it("does not inherit an env url when explicit sqlite storage omits one", () => {
+    const plan = resolveStoragePlan({
+      cwd: "/workspace/project",
+      env: {
+        GOODMEMORY_STORAGE_PROVIDER: "postgres",
+        GOODMEMORY_STORAGE_URL: "postgres://env-host/goodmemory",
+      },
+      storage: {
+        provider: "sqlite",
+      },
+    });
+
+    expect(plan).toEqual({
+      mode: "explicit",
+      storage: {
+        provider: "sqlite",
+        url: "/workspace/project/.goodmemory/memory.sqlite",
+      },
+    });
+  });
+
   it("requires a url for explicit postgres storage", () => {
     expect(() =>
       resolveStoragePlan({
         cwd: "/workspace/project",
         env: {},
+        storage: {
+          provider: "postgres",
+        },
+      }),
+    ).toThrow("Postgres storage provider requires storage.url");
+  });
+
+  it("does not inherit an env url when explicit postgres storage omits one", () => {
+    expect(() =>
+      resolveStoragePlan({
+        cwd: "/workspace/project",
+        env: {
+          GOODMEMORY_STORAGE_URL: "postgres://env-host/goodmemory",
+        },
         storage: {
           provider: "postgres",
         },
@@ -101,6 +136,24 @@ describe("runtime resolution", () => {
       mode: "auto",
       postgresUrl: "postgres://env-host/goodmemory",
       sqliteUrl: "/workspace/project/.goodmemory/memory.sqlite",
+    });
+  });
+
+  it("does not inherit an env provider when an explicit sqlite url is provided", () => {
+    const plan = resolveStoragePlan({
+      cwd: "/workspace/project",
+      env: {
+        GOODMEMORY_STORAGE_PROVIDER: "postgres",
+      },
+      storage: {
+        url: "./custom/local-memory.db",
+      },
+    });
+
+    expect(plan).toEqual({
+      mode: "auto",
+      postgresUrl: undefined,
+      sqliteUrl: "/workspace/project/custom/local-memory.db",
     });
   });
 

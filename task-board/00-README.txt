@@ -91,6 +91,7 @@ Read and execute files in this order:
 25. 25-phase-24-implicit-behavioral-adaptation-eval.txt
 26. 26-phase-25-behavioral-adaptation-closure.txt
 27. 27-phase-26-local-sqlite-vector-fallback.txt
+28. 28-phase-27-reference-integration-gate-and-adoption-evidence.txt
 
 
 Current Sequencing Note
@@ -139,7 +140,12 @@ Current Sequencing Note
 - Phase 26 is now closed as the local SQLite vector fallback slice:
   - `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
   - `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
-- Any work after Phase 26 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 27 is the next queued post-Phase-26 slice:
+  - reference integration gate and adoption evidence on top of the accepted local-first runtime
+  - docs-as-written public reference path over `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+  - deterministic identity/background, continuation/open-loop, repeated-correction, and Codex handoff evidence
+  - at least one archived live provider-backed adoption run
+- Any work after the queued Phase 27 scope should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -159,11 +165,12 @@ Use these bands when choosing what to work on next:
 
 1. Immediate focus
    - Preserve the closed Phase 17 through Phase 26 guarantees while local changes land
-   - Close any local WIP without widening scope into an unplanned post-Phase-26 capability track
-   - If work starts after Phase 26, add a new executable phase before implementation
+   - Execute the queued Phase 27 reference integration gate and adoption evidence slice without widening scope into installer, release-automation, or new-capability work
+   - Keep docs-as-written public-surface purity and the accepted Phase 26 local-first runtime guarantees regression-covered while Phase 27 lands
 2. Near-term product differentiation
-   - Define the next executable post-Phase-26 slice before widening capability scope
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, and phase-26 local-first runtime guarantees regression-covered while new scope is defined
+   - Prove the public reference path through `createGoodMemory({})`, `goodmemory/ai-sdk`, and `goodmemory/host`
+   - Add identity/background, continuation/open-loop, repeated-correction, and Codex handoff adoption evidence without changing the stable public API
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, and phase-26 local-first runtime guarantees regression-covered while Phase 27 scope is executed
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
 4. Host integration track
@@ -258,6 +265,9 @@ Files in This Folder
 
 - 17-phase-16-procedural-promotion-and-outcome-maintenance.txt
   Validated-pattern promotion, outcome-aware scoring, verify-driven demotion, and dream orchestration
+
+- 28-phase-27-reference-integration-gate-and-adoption-evidence.txt
+  Public reference hardening, adoption evidence, and Codex handoff gating on top of the stable local-first runtime
 
 - 18-phase-17-eval-gated-promotion-and-strategy-rollout.txt
   Shadow/assist/promote rollout, strategy comparison, eval gates, and public surface decisions

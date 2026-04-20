@@ -91,6 +91,84 @@ describe("auto storage runtime", () => {
     }
   });
 
+  it("supports forget and deleteAllMemory on the default auto sqlite path", async () => {
+    const workspace = await createTempWorkspace("goodmemory-auto-storage-governance");
+    const previousCwd = process.cwd();
+
+    try {
+      process.chdir(workspace.root);
+
+      const memory = createGoodMemory({});
+      const scope = {
+        userId: "auto-user",
+        workspaceId: "workspace-a",
+        sessionId: "session-1",
+      };
+      const rememberResult = await memory.remember({
+        scope,
+        messages: [
+          {
+            role: "user",
+            content:
+              "Remember that the current blocker is vendor approval for the release quality program.",
+          },
+        ],
+      });
+      await memory.feedback({
+        scope,
+        signal: "Use concise bullet points in rollout summaries.",
+      });
+
+      const factId = rememberResult.events.find(
+        (event) => event.memoryType === "fact" && event.memoryId,
+      )?.memoryId;
+
+      expect(factId).toBeTruthy();
+      await expect(
+        access(join(workspace.root, ".goodmemory", "memory.sqlite")),
+      ).resolves.toBeNull();
+
+      const forgotten = await memory.forget({
+        scope,
+        memoryId: factId,
+      });
+
+      expect(forgotten.forgotten).toBe(true);
+
+      const afterForget = await memory.recall({
+        scope,
+        query: "What is the current blocker and how should I summarize it?",
+      });
+
+      expect(afterForget.facts).toHaveLength(0);
+      expect(
+        afterForget.feedback.some(
+          (item) =>
+            item.lifecycle === "active" &&
+            item.rule.includes("concise bullet points"),
+        ),
+      ).toBe(true);
+
+      const deleted = await memory.deleteAllMemory({
+        scope,
+      });
+      const exported = await memory.exportMemory({
+        scope,
+        includeRuntime: true,
+      });
+
+      expect(deleted.deleted.facts).toBe(0);
+      expect(deleted.deleted.feedback).toBe(1);
+      expect(exported.durable.facts).toHaveLength(0);
+      expect(exported.durable.feedback).toHaveLength(0);
+      expect(exported.runtime?.workingMemory).toBeNull();
+      expect(exported.runtime?.journal).toBeNull();
+    } finally {
+      process.chdir(previousCwd);
+      await workspace.cleanup();
+    }
+  });
+
   it("supports durable local hybrid retrieval when storage is omitted and an embedding adapter is provided", async () => {
     const workspace = await createTempWorkspace("goodmemory-auto-storage-hybrid");
     const previousCwd = process.cwd();

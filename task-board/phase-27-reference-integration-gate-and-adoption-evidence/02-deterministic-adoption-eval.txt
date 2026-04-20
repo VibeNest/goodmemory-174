@@ -1,0 +1,38 @@
+Phase 27.2: Deterministic Adoption Eval
+=======================================
+
+[TODO] P27.2-T001 Freeze one deterministic baseline contract where only GoodMemory augmentation differs
+[TODO] P27.2-T002 Add a small identity/background family with 3 cases
+[TODO] P27.2-T003 Add a continuation/open-loop family with 6 cases
+[TODO] P27.2-T004 Add a repeated-correction family with 4 cases
+[TODO] P27.2-T005 Add a Codex handoff/resume family with 3 deterministic cases
+[TODO] P27.2-T006 Report thresholded adoption metrics and make `eval:phase-27` enforce them
+
+Why this exists
+---------------
+- The repo's main product priorities are identity/background understanding and historical task/open-loop continuation; Phase 27 must prove both.
+- “beats baseline” is not meaningful unless the baseline is frozen and the thresholds are explicit.
+- Adoption evidence should show that GoodMemory improves real user continuity, not just that wrappers and examples compile.
+
+Write tests first
+-----------------
+- baseline and GoodMemory runs share the same model, system prompt, messages/transcript, tool shape, and host artifact input
+- identity/background family distinguishes actual user-memory wins from noise
+- continuation/open-loop family measures blocker and open-loop carry-forward
+- repeated-correction family measures whether corrections stop recurring
+- Codex handoff family measures whether compiled artifacts resume the intended context
+
+Implementation steps
+--------------------
+1. Define one canonical baseline contract for deterministic adoption eval
+2. Add the four deterministic families and their fixture sets
+3. Emit the six Phase 27 adoption metrics
+4. Fail the deterministic Phase 27 eval when thresholds are not met
+
+Acceptance
+----------
+- identity/background: GoodMemory wins at least 2 of 3 cases
+- continuation/open-loop: GoodMemory has at least 2 net wins and baseline wins at most 1 case
+- repeated-correction: GoodMemory improves repeated-correction rate by at least 25 percentage points
+- Codex handoff/resume: all 3 cases pass
+- setup-surface and public-reference-purity metrics remain green in the same deterministic gate

@@ -8,7 +8,7 @@ import type {
   VectorStore,
 } from "./contracts";
 import {
-  canUsePostgresVectorExtension,
+  canBootstrapPostgresStorageBackend,
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
@@ -228,13 +228,13 @@ export function createAutoStorageAdapters(
           let usable = false;
 
           try {
-            usable = await canUsePostgresVectorExtension({
+            usable = await canBootstrapPostgresStorageBackend({
               url: config.postgresUrl,
             });
           } catch (error) {
             throw new Error(
               [
-                "Auto storage could not verify the configured postgres backend.",
+                "Auto storage could not establish the configured postgres backend as usable durable authority.",
                 "Falling back to sqlite would risk corrupting durable authority.",
                 `Underlying error: ${describeAutoStorageProbeError(error)}`,
               ].join(" "),

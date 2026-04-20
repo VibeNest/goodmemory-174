@@ -4,9 +4,12 @@ import { join } from "node:path";
 import {
   buildPhase26GateCommands,
   buildPhase26GateRunId,
+  buildPhase26GateScope,
   parsePhase26GateCliOptions,
   resolvePhase26CanonicalReportPath,
+  resolvePhase26CanonicalRunDirectory,
   resolvePhase26GateOutputDir,
+  resolvePhase26RunOutputDir,
   runPhase26GateCli,
   runPhase26QualityGate,
 } from "../../scripts/run-phase-26-gate";
@@ -35,6 +38,15 @@ describe("run-phase-26 gate script", () => {
     );
   });
 
+  it("normalizes relative output dirs against the repo root", () => {
+    expect(
+      resolvePhase26RunOutputDir(
+        "/tmp/goodmemory",
+        "reports/quality-gates/phase-26",
+      ),
+    ).toBe("/tmp/goodmemory/reports/quality-gates/phase-26");
+  });
+
   it("builds the canonical phase-26 gate command list", () => {
     expect(buildPhase26GateCommands("/tmp/goodmemory")).toEqual([
       {
@@ -50,6 +62,7 @@ describe("run-phase-26 gate script", () => {
           "bun",
           "test",
           "tests/unit/runtime-resolution.test.ts",
+          "tests/unit/storage.postgres.test.ts",
           "tests/unit/sqlite.runtime.test.ts",
           "tests/unit/sqlite.vector-extension.search.test.ts",
           "tests/integration/api.smoke.test.ts",
@@ -70,6 +83,35 @@ describe("run-phase-26 gate script", () => {
         ],
       },
     ]);
+  });
+
+  it("keeps the canonical accepted artifact aligned with the current command list and scope", async () => {
+    const canonicalReport = JSON.parse(
+      await readFile(CANONICAL_REPORT_PATH, "utf8"),
+    ) as {
+      commands: Array<{ command: string; label: string }>;
+      runDirectory: string;
+      scope: {
+        inScope: string[];
+        outOfScope: string[];
+      };
+    };
+
+    expect(
+      canonicalReport.commands.map((command) => ({
+        label: command.label,
+        command: command.command,
+      })),
+    ).toEqual(
+      buildPhase26GateCommands("/tmp/goodmemory").map((command) => ({
+        label: command.label,
+        command: command.args.join(" "),
+      })),
+    );
+    expect(canonicalReport.runDirectory).toBe(
+      resolvePhase26CanonicalRunDirectory(join(import.meta.dir, "../..")),
+    );
+    expect(canonicalReport.scope).toEqual(buildPhase26GateScope());
   });
 
   it("creates a deterministic run id from the generation timestamp", () => {

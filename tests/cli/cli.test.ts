@@ -15,7 +15,7 @@ import {
 } from "../../src/eval/reporting";
 import type { EvalAnswerPackage } from "../../src/eval/runners";
 import { createTempWorkspace } from "../../src/testing/utils";
-import { runCLI } from "../../src/cli";
+import { resolveStorageConfig, runCLI } from "../../src/cli";
 
 function buildAnswerPackage(
   caseId: string,
@@ -590,6 +590,148 @@ describe("goodmemory cli eval commands", () => {
 });
 
 describe("goodmemory cli root commands", () => {
+  it("uses a non-mutating postgres probe for read-only auto storage", async () => {
+    const calls: string[] = [];
+
+    const storage = await resolveStorageConfig(
+      {
+        "storage-url": "postgres://localhost:5432/goodmemory",
+      },
+      {
+        readOnlyStorage: true,
+      },
+      {
+        canBootstrapPostgresStorageBackend: async () => {
+          calls.push("bootstrap");
+          return true;
+        },
+        probeReadOnlyPostgresStorageBackend: async () => {
+          calls.push("read");
+          return "readable";
+        },
+        pathExists: async () => false,
+      },
+    );
+
+    expect(storage).toEqual({
+      provider: "postgres",
+      url: "postgres://localhost:5432/goodmemory",
+      displayValue: "configured",
+    });
+    expect(calls).toEqual(["read"]);
+  });
+
+  it("uses the bootstrap probe for writable auto postgres resolution", async () => {
+    const calls: string[] = [];
+
+    const storage = await resolveStorageConfig(
+      {
+        "storage-url": "postgres://localhost:5432/goodmemory",
+      },
+      undefined,
+      {
+        canBootstrapPostgresStorageBackend: async () => {
+          calls.push("bootstrap");
+          return true;
+        },
+        probeReadOnlyPostgresStorageBackend: async () => {
+          calls.push("read");
+          return "readable";
+        },
+        mkdir: async () => undefined,
+        pathExists: async () => false,
+      },
+    );
+
+    expect(storage).toEqual({
+      provider: "postgres",
+      url: "postgres://localhost:5432/goodmemory",
+      displayValue: "configured",
+    });
+    expect(calls).toEqual(["bootstrap"]);
+  });
+
+  it("reports read-only postgres probe failures without bootstrapping durable state", async () => {
+    await expect(
+      resolveStorageConfig(
+        {
+          "storage-url": "postgres://localhost:5432/goodmemory",
+        },
+        {
+          readOnlyStorage: true,
+        },
+        {
+          canBootstrapPostgresStorageBackend: async () => true,
+          probeReadOnlyPostgresStorageBackend: async () => {
+            throw new Error("permission denied");
+          },
+          pathExists: async () => false,
+        },
+      ),
+    ).rejects.toThrow("without mutating durable authority");
+  });
+
+  it("fails closed when the read-only postgres probe is inconclusive", async () => {
+    const calls: string[] = [];
+
+    await expect(
+      resolveStorageConfig(
+        {
+          "storage-url": "postgres://localhost:5432/goodmemory",
+        },
+        {
+          readOnlyStorage: true,
+        },
+        {
+          canBootstrapPostgresStorageBackend: async () => {
+            calls.push("bootstrap");
+            return true;
+          },
+          probeReadOnlyPostgresStorageBackend: async () => {
+            calls.push("read");
+            return "inconclusive";
+          },
+          pathExists: async () => {
+            calls.push("sqlite");
+            return true;
+          },
+        },
+      ),
+    ).rejects.toThrow("without mutating durable authority");
+
+    expect(calls).toEqual(["read"]);
+  });
+
+  it("allows sqlite fallback when the read-only postgres probe proves postgres is unusable", async () => {
+    const calls: string[] = [];
+
+    const storage = await resolveStorageConfig(
+      {
+        "storage-url": "postgres://localhost:5432/goodmemory",
+      },
+      {
+        readOnlyStorage: true,
+      },
+      {
+        canBootstrapPostgresStorageBackend: async () => {
+          calls.push("bootstrap");
+          return true;
+        },
+        probeReadOnlyPostgresStorageBackend: async () => {
+          calls.push("read");
+          return "unusable";
+        },
+        pathExists: async () => {
+          calls.push("sqlite");
+          return true;
+        },
+      },
+    );
+
+    expect(storage.provider).toBe("sqlite");
+    expect(calls).toEqual(["read", "sqlite"]);
+  });
+
   it("inspect summarizes scoped memory from sqlite storage", async () => {
     const workspace = await createTempWorkspace("goodmemory-cli-root-inspect");
 
