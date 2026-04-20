@@ -12,7 +12,9 @@ import {
   runPhase21FallbackEval,
 } from "../../scripts/run-phase-21-eval";
 import {
+  parsePhase21LiveMemoryCliOptions,
   resolvePhase21LiveMemoryOutputDir,
+  runPhase21LiveMemoryCli,
   runPhase21LiveMemoryEval,
 } from "../../scripts/run-phase-21-live-memory";
 
@@ -82,6 +84,18 @@ function buildEmptySuiteSummary() {
   };
 }
 
+function buildEmptyShadowSummary() {
+  return {
+    totalCases: 0,
+    byFamily: {},
+    byMode: {},
+    candidateInfluencedCases: 0,
+    safeObserveCases: 0,
+    unknownObserveCases: 0,
+    regressionCases: [],
+  };
+}
+
 describe("run-phase-21 scripts", () => {
   it("resolves phase-21 fallback output and default scenarios", () => {
     expect(resolvePhase21FallbackOutputDir("/tmp/goodmemory")).toBe(
@@ -137,8 +151,10 @@ describe("run-phase-21 scripts", () => {
     process.env.GOODMEMORY_TEST_POSTGRES_URL = "postgres://example/test";
     process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
     process.env.GOODMEMORY_EVAL_MODEL = "gpt-4o-mini";
+    process.env.GOODMEMORY_EVAL_API_KEY = "key";
     process.env.GOODMEMORY_JUDGE_PROVIDER = "openai";
     process.env.GOODMEMORY_JUDGE_MODEL = "gpt-4o-mini";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "key";
     process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
     process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
     process.env.GOODMEMORY_EMBEDDING_API_KEY = "key";
@@ -151,11 +167,15 @@ describe("run-phase-21 scripts", () => {
 
     const runSuiteCalls: Array<Record<string, unknown>> = [];
     const createMemoryCalls: Array<Record<string, unknown>> = [];
+    const deleteAllMemoryScopes: Array<Record<string, unknown>> = [];
 
     try {
       const report = await runPhase21LiveMemoryEval(
         {
+          limit: 2,
+          outputDir: "/tmp/goodmemory/custom-live-memory/phase-21",
           runId: "run-phase21-live",
+          scenarioIds: ["scenario-a", "scenario-a", "scenario-b"],
         },
         {
           createTextGenerator: () => async () => ({ content: "answer" }),
@@ -197,7 +217,8 @@ describe("run-phase-21 scripts", () => {
               async buildContext() {
                 throw new Error("unused");
               },
-              async deleteAllMemory() {
+              async deleteAllMemory(input) {
+                deleteAllMemoryScopes.push(input as unknown as Record<string, unknown>);
                 return {
                   deleted: {
                     profiles: 0,
@@ -242,7 +263,7 @@ describe("run-phase-21 scripts", () => {
           },
           runSuite: async (input) => {
             runSuiteCalls.push(input as unknown as Record<string, unknown>);
-            input.createMemory?.({
+            const created = input.createMemory?.({
               caseId: "case-1",
               persona: {
                 persona_id: "persona-1",
@@ -254,6 +275,9 @@ describe("run-phase-21 scripts", () => {
               scopeNamespace: "scope-1",
               strategyRollout: input.strategyRollout,
             });
+            if (created && "cleanup" in created) {
+              await created.cleanup?.();
+            }
 
             return {
               mode: "live",
@@ -281,6 +305,8 @@ describe("run-phase-21 scripts", () => {
           promotedStrategy: "rules-only",
         },
       ]);
+      expect(runSuiteCalls[0]?.limit).toBe(2);
+      expect(runSuiteCalls[0]?.scenarioIds).toEqual(["scenario-a", "scenario-b"]);
       expect(runSuiteCalls[0]?.runtime).toMatchObject({
         memoryBackend: "provider-backed",
         embeddingEnabled: true,
@@ -292,12 +318,123 @@ describe("run-phase-21 scripts", () => {
       expect(createMemoryCalls[0]?.internal).toMatchObject({
         assistedRecallRouter: expect.any(Object),
       });
+      expect(deleteAllMemoryScopes).toEqual([
+        {
+          includeRuntime: true,
+          scope: {
+            userId: "persona-1--eval-scope-1",
+            workspaceId: "eval-active-scope-1",
+          },
+        },
+        {
+          includeRuntime: true,
+          scope: {
+            userId: "persona-1--eval-scope-1",
+            workspaceId: "eval-active-scope-1",
+          },
+        },
+      ]);
+      expect(report.outputDir).toBe("/tmp/goodmemory/custom-live-memory/phase-21");
       expect(resolvePhase21LiveMemoryOutputDir("/tmp/goodmemory")).toBe(
         "/tmp/goodmemory/reports/eval/live-memory/phase-21",
       );
     } finally {
       process.env = originalEnv;
     }
+  });
+
+  it("parses phase-21 live-memory cli flags and prints a summarized report", async () => {
+    const argv = [
+      "bun",
+      "run",
+      "scripts/run-phase-21-live-memory.ts",
+      "--limit",
+      "3",
+      "--output-dir",
+      "/tmp/goodmemory/live-memory/phase-21",
+      "--run-id",
+      "run-phase21-cli",
+      "--scenario-id",
+      "scenario-1",
+      "--scenario-id",
+      "scenario-2",
+    ];
+    const logs: string[] = [];
+    const receivedOptions: Array<Record<string, unknown>> = [];
+
+    expect(parsePhase21LiveMemoryCliOptions(argv)).toEqual({
+      limit: 3,
+      outputDir: "/tmp/goodmemory/live-memory/phase-21",
+      runId: "run-phase21-cli",
+      scenarioIds: ["scenario-1", "scenario-2"],
+    });
+
+    const report = await runPhase21LiveMemoryCli({
+      argv,
+      log: (message) => {
+        logs.push(message);
+      },
+      runEval: async (options) => {
+        receivedOptions.push((options ?? {}) as Record<string, unknown>);
+
+        return {
+          assist: {
+            mode: "live",
+            runId: "run-phase21-cli-assist",
+            runDirectory: "/tmp/goodmemory/live-memory/phase-21/run-phase21-cli-assist",
+            summary: buildEmptySuiteSummary(),
+            runtime: {
+              memoryBackend: "provider-backed",
+            } as never,
+            cases: [],
+          },
+          observe: {
+            mode: "live",
+            runId: "run-phase21-cli-observe",
+            runDirectory: "/tmp/goodmemory/live-memory/phase-21/run-phase21-cli-observe",
+            summary: {
+              ...buildEmptySuiteSummary(),
+              shadowSummary: buildEmptyShadowSummary(),
+            },
+            runtime: {
+              memoryBackend: "provider-backed",
+            } as never,
+            cases: [],
+          },
+          outputDir: "/tmp/goodmemory/live-memory/phase-21",
+        };
+      },
+    });
+
+    expect(receivedOptions).toEqual([
+      {
+        limit: 3,
+        outputDir: "/tmp/goodmemory/live-memory/phase-21",
+        runId: "run-phase21-cli",
+        scenarioIds: ["scenario-1", "scenario-2"],
+      },
+    ]);
+    expect(report.assist.runId).toBe("run-phase21-cli-assist");
+    expect(report.observe.runId).toBe("run-phase21-cli-observe");
+    expect(report.outputDir).toBe("/tmp/goodmemory/live-memory/phase-21");
+    expect(JSON.parse(logs[0] ?? "{}")).toEqual({
+      assist: {
+        runDirectory: "/tmp/goodmemory/live-memory/phase-21/run-phase21-cli-assist",
+        runId: "run-phase21-cli-assist",
+        summary: {
+          totalCases: 0,
+        },
+      },
+      observe: {
+        runDirectory: "/tmp/goodmemory/live-memory/phase-21/run-phase21-cli-observe",
+        runId: "run-phase21-cli-observe",
+        summary: {
+          shadowSummary: buildEmptyShadowSummary(),
+          totalCases: 0,
+        },
+      },
+      outputDir: "/tmp/goodmemory/live-memory/phase-21",
+    });
   });
 
   it("builds the phase-21 gate command list and accepted report", async () => {

@@ -45,6 +45,15 @@ export interface Phase21LiveMemoryDependencies {
   runSuite?: typeof runEvalSuite;
 }
 
+export interface Phase21LiveMemoryCliDependencies {
+  argv?: readonly string[];
+  log?: (message: string) => void;
+  runEval?: (
+    options?: Phase21LiveMemoryOptions,
+    dependencies?: Phase21LiveMemoryDependencies,
+  ) => Promise<Phase21LiveMemoryReport>;
+}
+
 export interface Phase21LiveMemoryReport {
   assist: EvalSuiteResult;
   observe: EvalSuiteResult;
@@ -281,21 +290,30 @@ export async function runPhase21LiveMemoryEval(
   };
 }
 
-function parsePhase21LiveMemoryCliOptions(argv: string[]): Phase21LiveMemoryOptions {
-  const limitValue = resolveFlagValue(argv, "--limit");
+export function parsePhase21LiveMemoryCliOptions(
+  argv: readonly string[],
+): Phase21LiveMemoryOptions {
+  const args = [...argv];
+  const limitValue = resolveFlagValue(args, "--limit");
 
   return {
     limit: limitValue ? Number(limitValue) : undefined,
-    outputDir: resolveFlagValue(argv, "--output-dir"),
-    runId: resolveFlagValue(argv, "--run-id"),
-    scenarioIds: resolveRepeatedFlagValues(argv, "--scenario-id"),
+    outputDir: resolveFlagValue(args, "--output-dir"),
+    runId: resolveFlagValue(args, "--run-id"),
+    scenarioIds: resolveRepeatedFlagValues(args, "--scenario-id"),
   };
 }
 
-async function main(): Promise<void> {
-  const options = parsePhase21LiveMemoryCliOptions(process.argv);
-  const report = await runPhase21LiveMemoryEval(options);
-  console.log(
+export async function runPhase21LiveMemoryCli(
+  dependencies: Phase21LiveMemoryCliDependencies = {},
+): Promise<Phase21LiveMemoryReport> {
+  const argv = [...(dependencies.argv ?? process.argv)];
+  const log = dependencies.log ?? console.log;
+  const runEval = dependencies.runEval ?? runPhase21LiveMemoryEval;
+  const options = parsePhase21LiveMemoryCliOptions(argv);
+  const report = await runEval(options);
+
+  log(
     JSON.stringify(
       {
         assist: {
@@ -327,9 +345,10 @@ async function main(): Promise<void> {
       2,
     ),
   );
+  return report;
 }
 
 if (import.meta.main) {
-  await main();
+  await runPhase21LiveMemoryCli();
   process.exit(0);
 }

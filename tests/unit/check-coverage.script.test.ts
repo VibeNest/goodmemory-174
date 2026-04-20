@@ -66,4 +66,15 @@ describe("check-coverage script", () => {
     const result = evaluateCoverage(records);
     expect(result.failures).toContain("scripts/summarize-eval.ts line coverage 70.00% < 80.00%");
   });
+
+  it("fails when overall deterministic coverage drops below the release threshold", () => {
+    const records = buildCoverageRecords({
+      "src/eval/support.ts": { found: 10, covered: 6 },
+    });
+
+    const result = evaluateCoverage(records);
+    expect(result.failures).toContain(
+      "overall deterministic line coverage 92.72% < 93.00%",
+    );
+  });
 });

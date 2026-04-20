@@ -52,6 +52,15 @@ export interface Phase23LiveMemoryDependencies {
   writeFileImpl?: typeof writeFile;
 }
 
+export interface Phase23LiveMemoryCliDependencies {
+  argv?: readonly string[];
+  log?: (message: string) => void;
+  runEval?: (
+    options?: Phase23LiveMemoryOptions,
+    dependencies?: Phase23LiveMemoryDependencies,
+  ) => Promise<Phase23LiveMemoryReport>;
+}
+
 export interface Phase23LiveMemoryReport {
   assist: EvalSuiteResult;
   authorization: RetrievalStrategyPromotionAuthorization;
@@ -350,21 +359,30 @@ export async function runPhase23LiveMemoryEval(
   };
 }
 
-function parsePhase23LiveMemoryCliOptions(argv: string[]): Phase23LiveMemoryOptions {
-  const limitValue = resolveFlagValue(argv, "--limit");
+export function parsePhase23LiveMemoryCliOptions(
+  argv: readonly string[],
+): Phase23LiveMemoryOptions {
+  const args = [...argv];
+  const limitValue = resolveFlagValue(args, "--limit");
 
   return {
     limit: limitValue ? Number(limitValue) : undefined,
-    outputDir: resolveFlagValue(argv, "--output-dir"),
-    runId: resolveFlagValue(argv, "--run-id"),
-    scenarioIds: resolveRepeatedFlagValues(argv, "--scenario-id"),
+    outputDir: resolveFlagValue(args, "--output-dir"),
+    runId: resolveFlagValue(args, "--run-id"),
+    scenarioIds: resolveRepeatedFlagValues(args, "--scenario-id"),
   };
 }
 
-async function main(): Promise<void> {
-  const options = parsePhase23LiveMemoryCliOptions(process.argv);
-  const report = await runPhase23LiveMemoryEval(options);
-  console.log(
+export async function runPhase23LiveMemoryCli(
+  dependencies: Phase23LiveMemoryCliDependencies = {},
+): Promise<Phase23LiveMemoryReport> {
+  const argv = [...(dependencies.argv ?? process.argv)];
+  const log = dependencies.log ?? console.log;
+  const runEval = dependencies.runEval ?? runPhase23LiveMemoryEval;
+  const options = parsePhase23LiveMemoryCliOptions(argv);
+  const report = await runEval(options);
+
+  log(
     JSON.stringify(
       {
         authorizationPath: report.authorizationPath,
@@ -388,9 +406,10 @@ async function main(): Promise<void> {
       2,
     ),
   );
+  return report;
 }
 
 if (import.meta.main) {
-  await main();
+  await runPhase23LiveMemoryCli();
   process.exit(0);
 }

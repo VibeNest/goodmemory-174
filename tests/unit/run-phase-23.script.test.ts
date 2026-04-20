@@ -17,7 +17,9 @@ import {
   runPhase23FallbackEval,
 } from "../../scripts/run-phase-23-eval";
 import {
+  parsePhase23LiveMemoryCliOptions,
   resolvePhase23LiveMemoryOutputDir,
+  runPhase23LiveMemoryCli,
   runPhase23LiveMemoryEval,
 } from "../../scripts/run-phase-23-live-memory";
 
@@ -225,8 +227,10 @@ describe("run-phase-23 scripts", () => {
     process.env.GOODMEMORY_TEST_POSTGRES_URL = "postgres://example/test";
     process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
     process.env.GOODMEMORY_EVAL_MODEL = "gpt-5.4";
+    process.env.GOODMEMORY_EVAL_API_KEY = "key";
     process.env.GOODMEMORY_JUDGE_PROVIDER = "openai";
     process.env.GOODMEMORY_JUDGE_MODEL = "gpt-5.4";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "key";
     process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
     process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
     process.env.GOODMEMORY_EMBEDDING_API_KEY = "key";
@@ -239,11 +243,15 @@ describe("run-phase-23 scripts", () => {
 
     const runSuiteCalls: Array<Record<string, unknown>> = [];
     const writes: Array<{ path: string; content: string }> = [];
+    const deleteAllMemoryScopes: Array<Record<string, unknown>> = [];
 
     try {
       const report = await runPhase23LiveMemoryEval(
         {
+          limit: 6,
+          outputDir: "/tmp/goodmemory/custom-live-memory/phase-23",
           runId: "run-phase23-live",
+          scenarioIds: ["scenario-1", "scenario-1", "scenario-2"],
         },
         {
           createAuthorization: () => buildPromotionAuthorization(),
@@ -281,7 +289,8 @@ describe("run-phase-23 scripts", () => {
             async buildContext() {
               throw new Error("unused");
             },
-            async deleteAllMemory() {
+            async deleteAllMemory(input) {
+              deleteAllMemoryScopes.push(input as unknown as Record<string, unknown>);
               return {
                 deleted: {
                   profiles: 0,
@@ -325,6 +334,21 @@ describe("run-phase-23 scripts", () => {
           }),
           runSuite: async (input) => {
             runSuiteCalls.push(input as unknown as Record<string, unknown>);
+            const created = input.createMemory?.({
+              caseId: "case-1",
+              persona: {
+                persona_id: "persona-1",
+                lifecycle_bucket: "active",
+              } as never,
+              scenario: {
+                scenario_id: "scenario-1",
+              } as never,
+              scopeNamespace: "scope-1",
+              strategyRollout: input.strategyRollout,
+            });
+            if (created && "cleanup" in created) {
+              await created.cleanup?.();
+            }
             return {
               mode: "live",
               runId: String(input.runId),
@@ -364,6 +388,8 @@ describe("run-phase-23 scripts", () => {
           promotionAuthorization: buildPromotionAuthorization(),
         },
       ]);
+      expect(runSuiteCalls[0]?.limit).toBe(6);
+      expect(runSuiteCalls[0]?.scenarioIds).toEqual(["scenario-1", "scenario-2"]);
       expect(runSuiteCalls.map((call) => call.strategies)).toEqual([
         ["llm-assisted"],
         ["llm-assisted"],
@@ -375,15 +401,145 @@ describe("run-phase-23 scripts", () => {
         assistedExtractionEnabled: true,
         assistedRecallRouterEnabled: true,
       });
+      expect(deleteAllMemoryScopes).toEqual([
+        {
+          includeRuntime: true,
+          scope: {
+            userId: "persona-1--eval-scope-1",
+            workspaceId: "eval-active-scope-1",
+          },
+        },
+        {
+          includeRuntime: true,
+          scope: {
+            userId: "persona-1--eval-scope-1",
+            workspaceId: "eval-active-scope-1",
+          },
+        },
+        {
+          includeRuntime: true,
+          scope: {
+            userId: "persona-1--eval-scope-1",
+            workspaceId: "eval-active-scope-1",
+          },
+        },
+      ]);
       expect(writes[0]?.path).toContain(
         "run-phase23-live-assist/strategy-promotion-authorization.json",
       );
+      expect(report.outputDir).toBe("/tmp/goodmemory/custom-live-memory/phase-23");
       expect(resolvePhase23LiveMemoryOutputDir("/tmp/goodmemory")).toBe(
         "/tmp/goodmemory/reports/eval/live-memory/phase-23",
       );
     } finally {
       process.env = originalEnv;
     }
+  });
+
+  it("parses phase-23 live-memory cli flags and prints a summarized report", async () => {
+    const argv = [
+      "bun",
+      "run",
+      "scripts/run-phase-23-live-memory.ts",
+      "--limit",
+      "7",
+      "--output-dir",
+      "/tmp/goodmemory/live-memory/phase-23",
+      "--run-id",
+      "run-phase23-cli",
+      "--scenario-id",
+      "scenario-1",
+      "--scenario-id",
+      "scenario-2",
+    ];
+    const logs: string[] = [];
+    const receivedOptions: Array<Record<string, unknown>> = [];
+
+    expect(parsePhase23LiveMemoryCliOptions(argv)).toEqual({
+      limit: 7,
+      outputDir: "/tmp/goodmemory/live-memory/phase-23",
+      runId: "run-phase23-cli",
+      scenarioIds: ["scenario-1", "scenario-2"],
+    });
+
+    const report = await runPhase23LiveMemoryCli({
+      argv,
+      log: (message) => {
+        logs.push(message);
+      },
+      runEval: async (options) => {
+        receivedOptions.push((options ?? {}) as Record<string, unknown>);
+
+        return {
+          assist: {
+            mode: "live",
+            runId: "run-phase23-cli-assist",
+            runDirectory: "/tmp/goodmemory/live-memory/phase-23/run-phase23-cli-assist",
+            summary: buildEmptySuiteSummary(),
+            runtime: {
+              memoryBackend: "provider-backed",
+            } as never,
+            cases: [],
+          },
+          authorization: buildPromotionAuthorization(),
+          authorizationPath:
+            "/tmp/goodmemory/live-memory/phase-23/run-phase23-cli-assist/strategy-promotion-authorization.json",
+          observe: {
+            mode: "live",
+            runId: "run-phase23-cli-observe",
+            runDirectory: "/tmp/goodmemory/live-memory/phase-23/run-phase23-cli-observe",
+            summary: buildEmptySuiteSummary(),
+            runtime: {
+              memoryBackend: "provider-backed",
+            } as never,
+            cases: [],
+          },
+          outputDir: "/tmp/goodmemory/live-memory/phase-23",
+          promote: {
+            mode: "live",
+            runId: "run-phase23-cli-promote",
+            runDirectory: "/tmp/goodmemory/live-memory/phase-23/run-phase23-cli-promote",
+            summary: buildEmptySuiteSummary(),
+            runtime: {
+              memoryBackend: "provider-backed",
+            } as never,
+            cases: [],
+          },
+        };
+      },
+    });
+
+    expect(receivedOptions).toEqual([
+      {
+        limit: 7,
+        outputDir: "/tmp/goodmemory/live-memory/phase-23",
+        runId: "run-phase23-cli",
+        scenarioIds: ["scenario-1", "scenario-2"],
+      },
+    ]);
+    expect(report.assist.runId).toBe("run-phase23-cli-assist");
+    expect(report.observe.runId).toBe("run-phase23-cli-observe");
+    expect(report.promote.runId).toBe("run-phase23-cli-promote");
+    expect(report.outputDir).toBe("/tmp/goodmemory/live-memory/phase-23");
+    expect(JSON.parse(logs[0] ?? "{}")).toEqual({
+      authorizationPath:
+        "/tmp/goodmemory/live-memory/phase-23/run-phase23-cli-assist/strategy-promotion-authorization.json",
+      observe: {
+        runDirectory: "/tmp/goodmemory/live-memory/phase-23/run-phase23-cli-observe",
+        runId: "run-phase23-cli-observe",
+        summary: buildEmptySuiteSummary(),
+      },
+      assist: {
+        runDirectory: "/tmp/goodmemory/live-memory/phase-23/run-phase23-cli-assist",
+        runId: "run-phase23-cli-assist",
+        summary: buildEmptySuiteSummary(),
+      },
+      promote: {
+        runDirectory: "/tmp/goodmemory/live-memory/phase-23/run-phase23-cli-promote",
+        runId: "run-phase23-cli-promote",
+        summary: buildEmptySuiteSummary(),
+      },
+    });
   });
 
   it("creates a phase-23 fallback memory factory that consumes retrieval promotion rollout", async () => {

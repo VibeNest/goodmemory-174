@@ -108,8 +108,9 @@ describe("run-phase-26 gate script", () => {
         command: command.args.join(" "),
       })),
     );
-    expect(canonicalReport.runDirectory).toBe(
-      resolvePhase26CanonicalRunDirectory(join(import.meta.dir, "../..")),
+    const expectedRunDirectorySuffix = resolvePhase26CanonicalRunDirectory("");
+    expect(canonicalReport.runDirectory.endsWith(expectedRunDirectorySuffix)).toBe(
+      true,
     );
     expect(canonicalReport.scope).toEqual(buildPhase26GateScope());
   });

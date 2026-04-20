@@ -30,6 +30,8 @@ export interface CoverageResult {
   failures: string[];
 }
 
+const OVERALL_THRESHOLD = 93;
+
 export const GROUPS: ThresholdGroup[] = [
   {
     name: "src/domain",
@@ -164,8 +166,10 @@ export function evaluateCoverage(records: CoverageRecord[]): CoverageResult {
   const overallFound = overallRecords.reduce((sum, record) => sum + record.found, 0);
   const overallPercent = Number(formatPercent(overallCovered, overallFound));
 
-  if (overallPercent < 93) {
-    failures.push(`overall deterministic line coverage ${overallPercent.toFixed(2)}% < 93.00%`);
+  if (overallPercent < OVERALL_THRESHOLD) {
+    failures.push(
+      `overall deterministic line coverage ${overallPercent.toFixed(2)}% < ${OVERALL_THRESHOLD.toFixed(2)}%`,
+    );
   }
 
   const groups = GROUPS.map((group) => {
