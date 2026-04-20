@@ -33,6 +33,7 @@ Current implementation notes
 ----------------------------
 - Keep “durable local vectors” and “accelerated local vector extension” as separate claims
 - Treat the archived gate summary as the last step, not the first
+- Default `bun run gate:phase-26` should validate the archived canonical run, not create a second accepted endpoint
 - Canonical accepted run:
   - `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
   - `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`

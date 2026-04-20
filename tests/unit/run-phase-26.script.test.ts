@@ -1,12 +1,32 @@
 import { describe, expect, it } from "bun:test";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   buildPhase26GateCommands,
   buildPhase26GateRunId,
   parsePhase26GateCliOptions,
+  resolvePhase26CanonicalReportPath,
   resolvePhase26GateOutputDir,
   runPhase26GateCli,
   runPhase26QualityGate,
 } from "../../scripts/run-phase-26-gate";
+
+const EXPECTED_DETERMINISTIC_TEST_ENV = {
+  GOODMEMORY_EMBEDDING_API_KEY: "",
+  GOODMEMORY_EMBEDDING_BASE_URL: "",
+  GOODMEMORY_EMBEDDING_MODEL: "",
+  GOODMEMORY_EMBEDDING_PROVIDER: "",
+  GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH: "",
+  GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT: "",
+  GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH: "",
+  GOODMEMORY_SQLITE_VECTOR_MODE: "",
+  GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: "",
+  GOODMEMORY_STORAGE_PROVIDER: "",
+  GOODMEMORY_STORAGE_URL: "",
+};
+const CANONICAL_REPORT_PATH = resolvePhase26CanonicalReportPath(
+  join(import.meta.dir, "../.."),
+);
 
 describe("run-phase-26 gate script", () => {
   it("resolves the phase-26 gate output directory", () => {
@@ -25,6 +45,7 @@ describe("run-phase-26 gate script", () => {
       {
         label: "phase-26-targeted-regressions",
         cwd: "/tmp/goodmemory",
+        env: EXPECTED_DETERMINISTIC_TEST_ENV,
         args: [
           "bun",
           "test",
@@ -40,6 +61,7 @@ describe("run-phase-26 gate script", () => {
       {
         label: "phase-26-closure-contract",
         cwd: "/tmp/goodmemory",
+        env: EXPECTED_DETERMINISTIC_TEST_ENV,
         args: [
           "bun",
           "test",
@@ -53,6 +75,130 @@ describe("run-phase-26 gate script", () => {
   it("creates a deterministic run id from the generation timestamp", () => {
     expect(buildPhase26GateRunId("2026-04-20T10:21:32.123Z")).toBe(
       "run-20260420102132",
+    );
+  });
+
+  it("keeps the default gate run validation-only and does not persist a new report", async () => {
+    const writes: Array<{ content: string; path: string }> = [];
+    const directories: string[] = [];
+    const commands: string[] = [];
+    const report = await runPhase26QualityGate(undefined, {
+      ensureDir: async (path) => {
+        directories.push(path);
+      },
+      now: () => "2026-04-20T10:21:32.123Z",
+      readTextFile: async (path) => {
+        expect(path).toBe(CANONICAL_REPORT_PATH);
+        return readFile(path, "utf8");
+      },
+      runCommand: async (command) => {
+        commands.push(command.label);
+        return {
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: `${command.label} ok`,
+        };
+      },
+      writeTextFile: async (path, content) => {
+        writes.push({ path, content });
+      },
+    });
+
+    expect(report.acceptance.decision).toBe("accepted");
+    expect(report.runId).toBe("run-20260420193000");
+    expect(commands).toEqual([
+      "typecheck",
+      "phase-26-targeted-regressions",
+      "phase-26-closure-contract",
+    ]);
+    expect(directories).toEqual([]);
+    expect(writes).toEqual([]);
+  });
+
+  it("blocks the default gate when the archived canonical artifact is missing", async () => {
+    let ranCommands = false;
+    const report = await runPhase26QualityGate(undefined, {
+      now: () => "2026-04-20T10:21:32.123Z",
+      readTextFile: async () => {
+        throw new Error("ENOENT");
+      },
+      runCommand: async () => {
+        ranCommands = true;
+        return {
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: "ok",
+        };
+      },
+      writeTextFile: async () => {},
+    });
+
+    expect(report.acceptance.decision).toBe("blocked");
+    expect(report.acceptance.reason).toContain("missing or unreadable");
+    expect(report.commands).toEqual([]);
+    expect(ranCommands).toBe(false);
+  });
+
+  it("blocks the default gate when the archived canonical artifact drifts", async () => {
+    let ranCommands = false;
+    const canonicalReport = await readFile(CANONICAL_REPORT_PATH, "utf8");
+    const report = await runPhase26QualityGate(undefined, {
+      now: () => "2026-04-20T10:21:32.123Z",
+      readTextFile: async () => `${canonicalReport} `,
+      runCommand: async () => {
+        ranCommands = true;
+        return {
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: "ok",
+        };
+      },
+      writeTextFile: async () => {},
+    });
+
+    expect(report.acceptance.decision).toBe("blocked");
+    expect(report.acceptance.reason).toContain("drifted from the accepted snapshot");
+    expect(report.commands).toEqual([]);
+    expect(ranCommands).toBe(false);
+  });
+
+  it("writes an ad hoc report with a fresh run id when only outputDir is overridden", async () => {
+    const writes: Array<{ content: string; path: string }> = [];
+    const directories: string[] = [];
+    const report = await runPhase26QualityGate(
+      {
+        outputDir: "/tmp/goodmemory/reports/quality-gates/phase-26-reruns",
+      },
+      {
+        ensureDir: async (path) => {
+          directories.push(path);
+        },
+        now: () => "2026-04-20T10:21:32.123Z",
+        readTextFile: async () => {
+          throw new Error("should not read canonical artifact for ad hoc reruns");
+        },
+        runCommand: async (command) => ({
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: `${command.label} ok`,
+        }),
+        writeTextFile: async (path, content) => {
+          writes.push({ path, content });
+        },
+      },
+    );
+
+    expect(report.acceptance.decision).toBe("accepted");
+    expect(report.runId).toBe("run-20260420102132");
+    expect(directories).toEqual([
+      "/tmp/goodmemory/reports/quality-gates/phase-26-reruns/run-20260420102132",
+    ]);
+    expect(writes[0]?.path).toBe(
+      "/tmp/goodmemory/reports/quality-gates/phase-26-reruns/run-20260420102132/phase-26-quality-gate.json",
     );
   });
 

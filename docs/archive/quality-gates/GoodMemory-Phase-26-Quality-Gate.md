@@ -8,6 +8,10 @@ Canonical deterministic gate run: `run-20260420193000`
 bun run gate:phase-26
 ```
 
+Default invocation validates the archived canonical run in place and does not write a new accepted rerun artifact.
+Use explicit `--run-id` or `--output-dir` overrides only when you intentionally want an ad hoc local report.
+Passing only `--output-dir` mints a fresh local `run-*` id; reusing the canonical run id requires an explicit `--run-id`.
+
 ## Scope
 
 - Post-Phase-25 local-first runtime closure for default storage and embedding resolution.
