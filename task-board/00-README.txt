@@ -145,6 +145,9 @@ Current Sequencing Note
   - docs-as-written public reference path over `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
   - deterministic identity/background, continuation/open-loop, repeated-correction, and Codex handoff evidence
   - at least one archived live provider-backed adoption run
+- Phase 27 is now in progress:
+  - public reference hardening is implemented and regression-covered
+  - deterministic adoption eval, live evidence, and Codex gate closure remain open
 - Any work after the queued Phase 27 scope should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -165,12 +168,11 @@ Use these bands when choosing what to work on next:
 
 1. Immediate focus
    - Preserve the closed Phase 17 through Phase 26 guarantees while local changes land
-   - Execute the queued Phase 27 reference integration gate and adoption evidence slice without widening scope into installer, release-automation, or new-capability work
-   - Keep docs-as-written public-surface purity and the accepted Phase 26 local-first runtime guarantees regression-covered while Phase 27 lands
+   - Close the remaining Phase 27 slices without widening scope into installer, release-automation, or new-capability work
+   - Keep docs-as-written public-surface purity and the accepted Phase 26 local-first runtime guarantees regression-covered while deterministic adoption eval and live evidence land
 2. Near-term product differentiation
-   - Prove the public reference path through `createGoodMemory({})`, `goodmemory/ai-sdk`, and `goodmemory/host`
-   - Add identity/background, continuation/open-loop, repeated-correction, and Codex handoff adoption evidence without changing the stable public API
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, and phase-26 local-first runtime guarantees regression-covered while Phase 27 scope is executed
+   - Add identity/background, continuation/open-loop, repeated-correction, and Codex handoff adoption evidence on top of the now-hardened public reference path
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, and phase-26 local-first runtime guarantees regression-covered while the remaining Phase 27 scope is executed
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
 4. Host integration track

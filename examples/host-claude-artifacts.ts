@@ -1,55 +1,56 @@
-import type { HostArtifact } from "../src/host";
-import { createGoodMemory } from "../src";
-import { createHostAdapter } from "../src/host";
+import { createGoodMemory } from "goodmemory";
+import type { HostArtifact } from "goodmemory/host";
+import { createHostAdapter } from "goodmemory/host";
+
+import { withLocalDefaultRuntime } from "./support/local-default-runtime";
 
 export async function runClaudeArtifactExample(): Promise<{
   artifacts: HostArtifact[];
   summary: string;
 }> {
-  const memory = createGoodMemory({
-    storage: { provider: "memory" },
-  });
+  return withLocalDefaultRuntime("goodmemory-example-claude", async () => {
+    const memory = createGoodMemory({});
+    const scope = {
+      userId: "claude-user",
+      sessionId: "claude-s1",
+      workspaceId: "claude-workspace",
+    } as const;
 
-  const scope = {
-    userId: "claude-user",
-    sessionId: "claude-s1",
-    workspaceId: "claude-workspace",
-  } as const;
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content:
+            "My name is Lin. Remember that the migration rollout is blocked on prod verification.",
+        },
+        {
+          role: "assistant",
+          content: "Noted.",
+        },
+      ],
+    });
+    await memory.feedback({
+      scope,
+      signal: "Keep project updates short and scannable.",
+    });
 
-  await memory.remember({
-    scope,
-    messages: [
-      {
-        role: "user",
-        content:
-          "My name is Lin. Remember that the migration rollout is blocked on prod verification.",
-      },
-      {
-        role: "assistant",
-        content: "Noted.",
-      },
-    ],
-  });
-  await memory.feedback({
-    scope,
-    signal: "Keep project updates short and scannable.",
-  });
+    const adapter = createHostAdapter({
+      id: "claude-artifacts",
+      hostKind: "claude",
+      memory,
+      readableArtifactTypes: ["memory_index", "user_memory"],
+    });
+    const result = await adapter.readArtifacts({
+      scope,
+    });
 
-  const adapter = createHostAdapter({
-    id: "claude-artifacts",
-    hostKind: "claude",
-    memory,
-    readableArtifactTypes: ["memory_index", "user_memory"],
+    return {
+      artifacts: result.artifacts,
+      summary:
+        "Claude can read compiled memory artifacts through file-assisted mode without editing canonical GoodMemory state.",
+    };
   });
-  const result = await adapter.readArtifacts({
-    scope,
-  });
-
-  return {
-    artifacts: result.artifacts,
-    summary:
-      "Claude can read compiled memory artifacts through file-assisted mode without editing canonical GoodMemory state.",
-  };
 }
 
 if (import.meta.main) {

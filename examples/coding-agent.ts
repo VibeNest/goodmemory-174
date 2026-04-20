@@ -1,13 +1,11 @@
-import type {
-  MarkdownArtifactBundle,
-} from "../src";
+import type { MarkdownArtifactBundle } from "goodmemory";
 import {
   createGoodMemory,
   createInMemoryDocumentStore,
   createInMemorySessionStore,
   createRuntimeArchiveStore,
   createRuntimeContextService,
-} from "../src";
+} from "goodmemory";
 
 export async function runCodingAgentExample(): Promise<{
   artifacts: MarkdownArtifactBundle;

@@ -1,5 +1,5 @@
-import type { MarkdownArtifactBundle } from "../src";
-import { createGoodMemory } from "../src";
+import type { MarkdownArtifactBundle } from "goodmemory";
+import { createGoodMemory } from "goodmemory";
 
 export async function runBasicChatExample(): Promise<{
   artifacts: MarkdownArtifactBundle;

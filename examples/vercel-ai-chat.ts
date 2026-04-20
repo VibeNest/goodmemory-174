@@ -4,10 +4,12 @@ import type {
   SystemModelMessage,
 } from "@ai-sdk/provider-utils";
 
-import type { GoodMemoryAISDKEvent } from "../src/ai-sdk";
-import { createGoodMemoryAISDK } from "../src/ai-sdk";
-import type { MarkdownArtifactBundle } from "../src/index";
-import { createGoodMemory } from "../src/index";
+import type { MarkdownArtifactBundle } from "goodmemory";
+import { createGoodMemory } from "goodmemory";
+import type { GoodMemoryAISDKEvent } from "goodmemory/ai-sdk";
+import { createGoodMemoryAISDK } from "goodmemory/ai-sdk";
+
+import { withLocalDefaultRuntime } from "./support/local-default-runtime";
 
 function buildDeterministicStreamText(): typeof streamText {
   return ((input) => {
@@ -48,79 +50,79 @@ export async function runVercelAIChatExample(): Promise<{
   events: GoodMemoryAISDKEvent[];
   secondSystem?: string | SystemModelMessage | Array<SystemModelMessage>;
 }> {
-  const events: GoodMemoryAISDKEvent[] = [];
-  const seenSystems: Array<
-    string | SystemModelMessage | Array<SystemModelMessage> | undefined
-  > = [];
-  const memory = createGoodMemory({
-    storage: { provider: "memory" },
+  return withLocalDefaultRuntime("goodmemory-example-ai-sdk", async () => {
+    const events: GoodMemoryAISDKEvent[] = [];
+    const seenSystems: Array<
+      string | SystemModelMessage | Array<SystemModelMessage> | undefined
+    > = [];
+    const memory = createGoodMemory({});
+    const aiSDK = createGoodMemoryAISDK({
+      memory,
+      onMemoryEvent: async (event) => {
+        events.push(event);
+      },
+      dependencies: {
+        streamText: ((input) => {
+          seenSystems.push(input.system);
+          return buildDeterministicStreamText()(input);
+        }) as typeof streamText,
+      },
+    });
+
+    const firstMessages: ModelMessage[] = [
+      {
+        role: "user",
+        content:
+          "Remember that the migration rollout is blocked on prod verification.",
+      },
+    ];
+
+    const firstResult = aiSDK.streamText({
+      scope: {
+        userId: "vercel-ai-user",
+        workspaceId: "vercel-ai-workspace",
+        sessionId: "vercel-ai-s1",
+      },
+      system: "You are a concise product copilot.",
+      messages: firstMessages,
+      model: {} as never,
+    });
+    await firstResult.text;
+
+    const secondMessages: ModelMessage[] = [
+      {
+        role: "user",
+        content: "What is the current blocker?",
+      },
+    ];
+
+    const secondResult = aiSDK.streamText({
+      scope: {
+        userId: "vercel-ai-user",
+        workspaceId: "vercel-ai-workspace",
+        sessionId: "vercel-ai-s2",
+      },
+      system: "You are a concise product copilot.",
+      messages: secondMessages,
+      query: "migration rollout blocked on prod verification",
+      model: {} as never,
+    });
+    const answer = await secondResult.text;
+
+    const exported = await memory.exportMemory({
+      scope: {
+        userId: "vercel-ai-user",
+        workspaceId: "vercel-ai-workspace",
+      },
+    });
+
+    return {
+      answer,
+      artifacts: exported.artifacts,
+      events,
+      secondSystem: seenSystems[1],
+    };
   });
-  const aiSDK = createGoodMemoryAISDK({
-    memory,
-    onMemoryEvent: async (event) => {
-      events.push(event);
-    },
-    dependencies: {
-      streamText: ((input) => {
-        seenSystems.push(input.system);
-        return buildDeterministicStreamText()(input);
-      }) as typeof streamText,
-    },
-  });
-
-  const firstMessages: ModelMessage[] = [
-    {
-      role: "user",
-      content:
-        "Remember that the migration rollout is blocked on prod verification.",
-    },
-  ];
-
-  const firstResult = aiSDK.streamText({
-    scope: {
-      userId: "vercel-ai-user",
-      workspaceId: "vercel-ai-workspace",
-      sessionId: "vercel-ai-s1",
-    },
-    system: "You are a concise product copilot.",
-    messages: firstMessages,
-    model: {} as never,
-  });
-  await firstResult.text;
-
-  const secondMessages: ModelMessage[] = [
-    {
-      role: "user",
-      content: "What is the current blocker?",
-    },
-  ];
-
-  const secondResult = aiSDK.streamText({
-    scope: {
-      userId: "vercel-ai-user",
-      workspaceId: "vercel-ai-workspace",
-      sessionId: "vercel-ai-s2",
-    },
-    system: "You are a concise product copilot.",
-    messages: secondMessages,
-    query: "migration rollout blocked on prod verification",
-    model: {} as never,
-  });
-  const answer = await secondResult.text;
-
-  const exported = await memory.exportMemory({
-    scope: {
-      userId: "vercel-ai-user",
-      workspaceId: "vercel-ai-workspace",
-    },
-  });
-
-  return {
-    answer,
-    artifacts: exported.artifacts,
-    events,
-    secondSystem: seenSystems[1],
-  };
 }
 
 if (import.meta.main) {

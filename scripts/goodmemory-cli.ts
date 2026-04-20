@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { runCLI } from "../src/cli";
 
 async function main(): Promise<void> {

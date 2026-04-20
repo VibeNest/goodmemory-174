@@ -1,0 +1,11 @@
+{
+  "name": "goodmemory-reference-package-smoke",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "smoke": "bun run smoke.mjs"
+  },
+  "dependencies": {
+    "goodmemory": "file:__GOODMEMORY_ROOT__"
+  }
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -36,6 +37,55 @@ async function runGitCommand(args: string[]): Promise<{
   const stdout = await new Response(process.stdout).text();
   const stderr = await new Response(process.stderr).text();
   const exitCode = await process.exited;
+
+  return {
+    exitCode,
+    stderr,
+    stdout,
+  };
+}
+
+function createChildEnv(
+  overrides: Record<string, string | undefined> = {},
+): Record<string, string> {
+  const env: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) {
+      delete env[key];
+    } else {
+      env[key] = value;
+    }
+  }
+
+  return env;
+}
+
+async function runCommand(input: {
+  cmd: string[];
+  cwd: string;
+  env?: Record<string, string | undefined>;
+}): Promise<{
+  exitCode: number;
+  stderr: string;
+  stdout: string;
+}> {
+  const childProcess = Bun.spawn({
+    cmd: input.cmd,
+    cwd: input.cwd,
+    env: createChildEnv(input.env),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stdout = await new Response(childProcess.stdout).text();
+  const stderr = await new Response(childProcess.stderr).text();
+  const exitCode = await childProcess.exited;
 
   return {
     exitCode,
@@ -281,6 +331,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("examples/vercel-ai-chat.ts");
     expect(readme).toContain("examples/host-claude-artifacts.ts");
     expect(readme).toContain("examples/host-codex-handoff.ts");
+    expect(readme).toContain("GoodMemory-Reference-Integration-Guide.md");
+    expect(readme).toContain("GoodMemory-Codex-Handoff-Setup-Guide.md");
     expect(readme).toContain("bun run cli -- inspect");
     expect(readme).toContain("createGoodMemoryAISDK");
     expect(readme).toContain("goodmemory/ai-sdk");
@@ -325,6 +377,142 @@ describe("release metadata and docs", () => {
     expect(readme).not.toContain("goodmemory/evolution");
     expect(readme).not.toContain("strategyRollout");
     expect(readme).not.toContain("promotionGate");
+  });
+
+  it("phase-27 canonical guides and examples use public imports only", async () => {
+    const files = [
+      "README.md",
+      "docs/GoodMemory-Reference-Integration-Guide.md",
+      "docs/GoodMemory-Codex-Handoff-Setup-Guide.md",
+      "examples/basic-chat.ts",
+      "examples/coding-agent.ts",
+      "examples/host-claude-artifacts.ts",
+      "examples/host-codex-handoff.ts",
+      "examples/vercel-ai-chat.ts",
+      "tests/consumers/reference-package-smoke/smoke.mjs",
+    ] as const;
+
+    for (const relativePath of files) {
+      const content = await readFile(
+        join(import.meta.dir, "../../", relativePath),
+        "utf8",
+      );
+
+      expect(content).not.toContain("../src");
+      expect(content).not.toContain("../../src");
+    }
+
+    const referenceGuide = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-Reference-Integration-Guide.md",
+      ),
+      "utf8",
+    );
+    expect(referenceGuide).toContain('from "goodmemory"');
+    expect(referenceGuide).toContain('from "goodmemory/ai-sdk"');
+    expect(referenceGuide).toContain("createGoodMemory({})");
+
+    const codexGuide = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-Codex-Handoff-Setup-Guide.md",
+      ),
+      "utf8",
+    );
+    expect(codexGuide).toContain('from "goodmemory"');
+    expect(codexGuide).toContain('from "goodmemory/host"');
+  });
+
+  it("package-boundary reference consumer smoke uses package-name imports only", async () => {
+    const fixtureRoot = join(
+      import.meta.dir,
+      "../../tests/consumers/reference-package-smoke",
+    );
+    const smokeSource = await readFile(join(fixtureRoot, "smoke.mjs"), "utf8");
+    const importSpecifiers = [...smokeSource.matchAll(/from "([^"]+)"/g)].map(
+      (match) => match[1],
+    );
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-reference-consumer-"),
+    );
+    const rootPackagePath = join(import.meta.dir, "../../");
+
+    try {
+      expect(importSpecifiers).toEqual([
+        "goodmemory",
+        "goodmemory/ai-sdk",
+        "goodmemory/host",
+      ]);
+
+      await cp(fixtureRoot, workspaceRoot, { recursive: true });
+
+      const packageJsonPath = join(workspaceRoot, "package.json");
+      const packageJson = await readFile(packageJsonPath, "utf8");
+      await writeFile(
+        packageJsonPath,
+        packageJson.replace("__GOODMEMORY_ROOT__", rootPackagePath),
+        "utf8",
+      );
+
+      const install = await runCommand({
+        cmd: ["bun", "install"],
+        cwd: workspaceRoot,
+      });
+      expect(install.exitCode).toBe(0);
+
+      const smoke = await runCommand({
+        cmd: ["bun", "run", "smoke"],
+        cwd: workspaceRoot,
+        env: {
+          GOODMEMORY_STORAGE_PROVIDER: undefined,
+          GOODMEMORY_STORAGE_URL: undefined,
+          GOODMEMORY_EMBEDDING_PROVIDER: undefined,
+          GOODMEMORY_EMBEDDING_MODEL: undefined,
+          GOODMEMORY_EMBEDDING_API_KEY: undefined,
+          GOODMEMORY_EMBEDDING_BASE_URL: undefined,
+          GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH: undefined,
+          GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH: undefined,
+          GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT: undefined,
+          GOODMEMORY_SQLITE_VECTOR_MODE: undefined,
+          GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: undefined,
+        },
+      });
+      expect(smoke.exitCode).toBe(0);
+      expect(smoke.stdout).toContain('"ok":true');
+      expect(smoke.stdout).toContain("MEMORY.md");
+
+      const stats = await runCommand({
+        cmd: [
+          "./node_modules/.bin/goodmemory",
+          "stats",
+          "--json",
+          "--user-id",
+          "consumer-user",
+          "--workspace-id",
+          "consumer-workspace",
+        ],
+        cwd: workspaceRoot,
+        env: {
+          GOODMEMORY_STORAGE_PROVIDER: undefined,
+          GOODMEMORY_STORAGE_URL: undefined,
+          GOODMEMORY_EMBEDDING_PROVIDER: undefined,
+          GOODMEMORY_EMBEDDING_MODEL: undefined,
+          GOODMEMORY_EMBEDDING_API_KEY: undefined,
+          GOODMEMORY_EMBEDDING_BASE_URL: undefined,
+          GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH: undefined,
+          GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH: undefined,
+          GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT: undefined,
+          GOODMEMORY_SQLITE_VECTOR_MODE: undefined,
+          GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: undefined,
+        },
+      });
+      expect(stats.exitCode).toBe(0);
+      expect(stats.stdout).toContain('"provider": "sqlite"');
+      expect(stats.stdout).toContain('"facts": 1');
+    } finally {
+      await rm(workspaceRoot, { recursive: true, force: true });
+    }
   });
 
   it("release checklist exists and covers the final gate", async () => {

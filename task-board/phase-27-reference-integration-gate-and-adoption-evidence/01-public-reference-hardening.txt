@@ -1,11 +1,11 @@
 Phase 27.1: Public Reference Hardening
 ======================================
 
-[TODO] P27.1-T001 Convert the canonical AI SDK example to `createGoodMemory({})` and the accepted Phase 26 local-first runtime default
-[TODO] P27.1-T002 Keep the canonical no-embedding deterministic path explicit: local SQLite default storage plus `rules-only`
-[TODO] P27.1-T003 Add package-boundary consumer smoke coverage using package-name imports for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
-[TODO] P27.1-T004 Add docs-as-written purity checks that reject `../src/*` and `../../src/*` in gated docs/examples/tests
-[TODO] P27.1-T005 Add dedicated reference guides for AI SDK integration and Codex handoff setup
+[DONE] P27.1-T001 Convert the canonical AI SDK example to `createGoodMemory({})` and the accepted Phase 26 local-first runtime default
+[DONE] P27.1-T002 Keep the canonical no-embedding deterministic path explicit: local SQLite default storage plus `rules-only`
+[DONE] P27.1-T003 Add package-boundary consumer smoke coverage using package-name imports for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+[DONE] P27.1-T004 Add docs-as-written purity checks that reject `../src/*` and `../../src/*` in gated docs/examples/tests
+[DONE] P27.1-T005 Add dedicated reference guides for AI SDK integration and Codex handoff setup
 
 Why this exists
 ---------------
@@ -33,3 +33,23 @@ Acceptance
 - the canonical runtime path proves the accepted local-first default
 - the package-boundary smoke fixture passes without repo-internal imports
 - setup-surface and public-reference-purity metrics are executable rather than narrative
+
+Evidence
+--------
+- `examples/basic-chat.ts`
+- `examples/coding-agent.ts`
+- `examples/host-claude-artifacts.ts`
+- `examples/host-codex-handoff.ts`
+- `examples/vercel-ai-chat.ts`
+- `examples/support/local-default-runtime.ts`
+- `docs/GoodMemory-Reference-Integration-Guide.md`
+- `docs/GoodMemory-Codex-Handoff-Setup-Guide.md`
+- `tests/consumers/reference-package-smoke/package.json`
+- `tests/consumers/reference-package-smoke/smoke.mjs`
+- `tests/examples/examples.test.ts`
+- `tests/release/release.test.ts`
+
+Regression run
+--------------
+- `bun run typecheck`
+- `bun test tests/examples/examples.test.ts tests/release/release.test.ts`

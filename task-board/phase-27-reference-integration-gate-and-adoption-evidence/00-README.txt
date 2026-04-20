@@ -3,7 +3,9 @@ Phase 27 Breakdown
 
 Status
 ------
-- Phase 27 is queued and not started.
+- Phase 27 is in progress.
+- Slice 27.1 public reference hardening is implemented and regression-covered.
+- Slices 27.2 through 27.4 are not started.
 - Scope: prove the public reference path on top of the accepted Phase 26 local-first runtime:
   - `createGoodMemory({})` as the canonical default runtime entrypoint
   - public `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` imports only

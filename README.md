@@ -122,6 +122,11 @@ Writable guardrails:
 
 Current host adapter examples stay in `file-assisted` mode because they are the recommended default path for Claude/Codex-style integration.
 
+Reference docs:
+
+- [docs/GoodMemory-Reference-Integration-Guide.md](./docs/GoodMemory-Reference-Integration-Guide.md)
+- [docs/GoodMemory-Codex-Handoff-Setup-Guide.md](./docs/GoodMemory-Codex-Handoff-Setup-Guide.md)
+
 ## AI SDK Adapter
 
 GoodMemory also exposes a wrapper-first AI SDK adapter for server-side `ModelMessage[]` flows:
@@ -133,9 +138,7 @@ import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { createGoodMemory } from "goodmemory";
 import { createGoodMemoryAISDK } from "goodmemory/ai-sdk";
 
-const memory = createGoodMemory({
-  storage: { provider: "memory" },
-});
+const memory = createGoodMemory({});
 
 const aiSDK = createGoodMemoryAISDK({
   memory,
