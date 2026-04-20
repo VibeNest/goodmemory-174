@@ -236,6 +236,7 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-20"]).toBe("bun run scripts/run-phase-20-gate.ts");
     expect(pkg.scripts?.["gate:phase-25"]).toBe("bun run scripts/run-phase-25-gate.ts");
+    expect(pkg.scripts?.["gate:phase-26"]).toBe("bun run scripts/run-phase-26-gate.ts");
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
 
@@ -412,6 +413,7 @@ describe("release metadata and docs", () => {
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-22-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-23-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-25-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-26-Quality-Gate.md");
     expect(archivedQualityGates).toContain("README.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
@@ -423,6 +425,7 @@ describe("release metadata and docs", () => {
     expect(archivedQualityGates).toContain("GoodMemory-Phase-22-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-23-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-25-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-26-Quality-Gate.md");
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
@@ -485,6 +488,15 @@ describe("release metadata and docs", () => {
       phaseDirectory: "phase-25",
       reportFileName: "phase-25-quality-gate.json",
       runId: "run-20260420082358",
+    });
+  });
+
+  it("phase-26 quality gate doc points to one canonical accepted report", async () => {
+    await expectCanonicalAcceptedQualityGate({
+      docPath: `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-26-Quality-Gate.md`,
+      phaseDirectory: "phase-26",
+      reportFileName: "phase-26-quality-gate.json",
+      runId: "run-20260420193000",
     });
   });
 

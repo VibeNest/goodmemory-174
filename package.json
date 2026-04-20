@@ -54,6 +54,7 @@
     "gate:phase-23": "bun run scripts/run-phase-23-gate.ts",
     "gate:phase-24": "bun run scripts/run-phase-24-gate.ts",
     "gate:phase-25": "bun run scripts/run-phase-25-gate.ts",
+    "gate:phase-26": "bun run scripts/run-phase-26-gate.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",
     "eval:summary": "bun run scripts/summarize-eval.ts"

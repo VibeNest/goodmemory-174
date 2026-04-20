@@ -18,18 +18,18 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
 - Behavioral adaptation outcome telemetry and deterministic Layer D evidence are also internal evidence infrastructure; they do not change the stable OSS runtime surface.
 
-## In-Progress Next Slice
+## Latest Closed Slice
 
-- Phase 26 is in progress as the post-Phase-25 local-first runtime slice.
-- Implemented so far:
-  - default storage resolution
-  - durable local SQLite vectors
-  - SQLite runtime bootstrap/guardrails
+- Phase 26 is now closed as the post-Phase-25 local-first runtime slice.
+- Accepted behavior:
+  - default storage resolution with explicit-over-auto precedence
+  - durable local SQLite vectors as the default local fallback
+  - SQLite runtime bootstrap/guardrails and optional extension-assisted search
   - CLI/runtime storage-resolution alignment
-  - targeted resolver and integration regression coverage
-- Not yet accepted as canonical closure:
-  - release-facing Phase 26 summary/gate evidence
-  - final wording boundary between durable local vectors and future `sqlite-vss` acceleration claims
+  - automatic embeddings only when `GOODMEMORY_EMBEDDING_*` is configured; otherwise `rules-only`
+- Still outside the accepted Phase 26 claim:
+  - promoting `sqlite-vss` indexed acceleration as the canonical default backend
+  - provider-backed live-memory acceptance evidence for this local-first slice
 
 ## Current Canonical Evidence
 
@@ -55,6 +55,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic gate: `reports/quality-gates/phase-25/run-20260420082358/phase-25-quality-gate.json`
   - Deterministic fallback report: `reports/eval/fallback/phase-25/run-1776673441250/report.json`
   - Live-memory behavioral closure is not yet a canonical accepted artifact for this slice.
+- Local-first runtime closure evidence:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
+  - Deterministic gate: `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

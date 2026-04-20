@@ -3,7 +3,7 @@ Phase 26.5: Docs and Closure
 
 [DONE] P26.5-T001 Sync README and current-status docs once runtime behavior is real
 [DONE] P26.5-T002 Sync phase-level and board-level status without overstating local-vector acceleration
-[TODO] P26.5-T003 Define the quality-gate evidence expected for Phase 26 acceptance
+[DONE] P26.5-T003 Archive the canonical phase-26 quality-gate evidence and lock release-facing references to one accepted run
 
 Why this exists
 ---------------
@@ -13,14 +13,14 @@ Why this exists
 
 Write tests first
 -----------------
-- no dedicated code tests in this slice
-- closure depends on earlier regression suites staying green
+- dedicated closure tests lock the gate command set and the canonical accepted run reference
+- closure still depends on the earlier runtime, CLI, and storage regression suites staying green
 
 Implementation steps
 --------------------
 1. Update README examples and operational notes for the new default resolution rules
 2. Update current-status docs to explain what is stable and what is still future work
-3. Add or archive the phase gate summary only after the behavior and regressions are real
+3. Archive the phase gate summary only after the behavior and regressions are real, then lock release-facing references to the accepted run
 
 Acceptance
 ----------
@@ -33,6 +33,11 @@ Current implementation notes
 ----------------------------
 - Keep “durable local vectors” and “accelerated local vector extension” as separate claims
 - Treat the archived gate summary as the last step, not the first
+- Canonical accepted run:
+  - `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
+  - `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
+  - `tests/unit/run-phase-26.script.test.ts`
+  - `tests/release/release.test.ts`
 - Current sync scope:
   - `README.md`
   - `docs/GoodMemory-Current-Status-and-Evidence.md`

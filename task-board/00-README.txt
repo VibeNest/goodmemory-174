@@ -136,10 +136,10 @@ Current Sequencing Note
   - `docs/archive/quality-gates/GoodMemory-Phase-25-Quality-Gate.md`
   - `reports/quality-gates/phase-25/run-20260420082358/phase-25-quality-gate.json`
   - `reports/eval/fallback/phase-25/run-1776673441250/report.json`
-- Phase 26 is now in progress:
-  - default storage resolution, durable local SQLite vectors, SQLite runtime guardrails, and CLI alignment are implemented
-  - release-facing docs are being synced, but canonical phase-26 closure evidence is not accepted yet
-- Any work after Phase 25 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 26 is now closed as the local SQLite vector fallback slice:
+  - `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
+  - `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
+- Any work after Phase 26 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -148,7 +148,7 @@ Current Sequencing Note
 - Phase 24 added a first-action implicit behavioral adaptation eval harness with separate raw-experience and distilled-feedback profiles, while keeping runtime behavior unchanged.
 - Phase 25 added outcome-derived `tool_outcome` promotion and canonical Layer D deterministic behavioral evidence while keeping the surface area internal.
 - Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases; that deferred scope is now closed in its dedicated phase.
-- Phase 15 through Phase 25 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened, internally promotable, behaviorally measurable memory system".
+- Phase 15 through Phase 26 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened, internally promotable, behaviorally measurable, local-first memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
 
@@ -158,12 +158,12 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 25 guarantees while local changes land
-   - Close any local WIP without widening scope into an unplanned post-Phase-23 capability track
-   - If work starts after Phase 25, add a new executable phase before implementation
+   - Preserve the closed Phase 17 through Phase 26 guarantees while local changes land
+   - Close any local WIP without widening scope into an unplanned post-Phase-26 capability track
+   - If work starts after Phase 26, add a new executable phase before implementation
 2. Near-term product differentiation
-   - Execute the queued Phase 26 local SQLite vector fallback slice
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, and phase-25 deterministic behavioral-evidence guarantees regression-covered while new scope is defined
+   - Define the next executable post-Phase-26 slice before widening capability scope
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, and phase-26 local-first runtime guarantees regression-covered while new scope is defined
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
 4. Host integration track

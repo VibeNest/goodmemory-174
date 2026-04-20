@@ -13,8 +13,8 @@ Close the architecture/runtime gap by making the default runtime resolve storage
 
 Current Status
 --------------
-[WIP] Default resolution, durable local SQLite vectors, SQLite runtime guardrails, CLI alignment, and regression coverage are implemented.
-[TODO] Release-facing docs, canonical phase summary, and acceptance evidence are still open.
+[DONE] Phase 26 is closed and accepted as the local-first runtime slice.
+[DONE] Canonical closure evidence is archived and locked to one accepted gate run.
 
 
 Dependencies
@@ -55,7 +55,7 @@ Tasks
 [DONE] P26-T004 Implement SQLite vector store and extension bootstrap guardrails
 [DONE] P26-T005 Wire `createGoodMemory()` and local CLI resolution to prefer explicit provider, then auto Postgres, else SQLite
 [DONE] P26-T006 Add remember / recall / forget / governance regression coverage for SQLite local vectors and auto resolution
-[WIP] P26-T007 Sync README, current-status, and task-board docs after behavior is real
+[DONE] P26-T007 Sync README, current-status, task-board docs, and canonical phase-26 closure evidence after behavior is real
 
 Breakdown Folder
 ----------------
@@ -91,9 +91,15 @@ Evidence
 - `src/cli.ts`
 - `tests/unit/runtime-resolution.test.ts`
 - `tests/unit/sqlite.runtime.test.ts`
+- `tests/unit/sqlite.vector-extension.search.test.ts`
+- `tests/unit/run-phase-26.script.test.ts`
 - `tests/integration/api.auto-storage.test.ts`
 - `tests/integration/storage.sqlite.test.ts`
 - `tests/cli/cli.test.ts`
+- `tests/release/release.test.ts`
+- `scripts/run-phase-26-gate.ts`
+- `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
+- `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
 
 
 Key Constraints

@@ -3,9 +3,11 @@ Phase 26 Breakdown
 
 Status
 ------
-- Phase 26 is in progress.
-- Slices 26.1 through 26.4 are implemented and regression-covered.
-- Phase acceptance is still open because release-facing docs and canonical closure evidence are not fully synced yet.
+- Phase 26 is closed and accepted as the local-first runtime slice.
+- Slices 26.1 through 26.5 are implemented and regression-covered.
+- Accepted evidence:
+  - `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
+  - `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
 
 Execution Order
 ---------------
@@ -24,6 +26,7 @@ Acceptance
 - `sqlite + no embeddingAdapter` remains `rules-only`.
 - Boot failure is explicit when local semantic mode is required.
 - Postgres behavior and the stable public API stay compatible.
+- The stable claim remains “durable local vectors with optional extension-assisted search”, not default `sqlite-vss` indexed acceleration.
 
 Files in This Folder
 --------------------
