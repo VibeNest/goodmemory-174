@@ -71,6 +71,7 @@ CLI surface:
 
 - Basic chat integration: [examples/basic-chat.ts](./examples/basic-chat.ts)
 - Coding-agent flavored integration: [examples/coding-agent.ts](./examples/coding-agent.ts)
+- AI SDK wrapper integration: [examples/vercel-ai-chat.ts](./examples/vercel-ai-chat.ts)
 - Claude-style host artifact consumption: [examples/host-claude-artifacts.ts](./examples/host-claude-artifacts.ts)
 - Codex-style session handoff consumption: [examples/host-codex-handoff.ts](./examples/host-codex-handoff.ts)
 
@@ -79,6 +80,7 @@ CLI surface:
 ```bash
 bun run example:chat
 bun run example:coding-agent
+bun run example:vercel-ai
 bun run example:host-claude
 bun run example:host-codex
 ```
@@ -121,6 +123,46 @@ Writable guardrails:
 - failed writable operations return diagnostics with rollback guidance; the safe fallback is to recreate the adapter in `file-assisted` mode and inspect the compiled artifacts first
 
 Current host adapter examples stay in `file-assisted` mode because they are the recommended default path for Claude/Codex-style integration.
+
+## AI SDK Adapter
+
+GoodMemory also exposes a wrapper-first AI SDK adapter for server-side `ModelMessage[]` flows:
+
+```ts
+import { streamText } from "ai";
+import type { ModelMessage } from "@ai-sdk/provider-utils";
+
+import { createGoodMemory } from "goodmemory";
+import { createGoodMemoryAISDK } from "goodmemory/ai-sdk";
+
+const memory = createGoodMemory({
+  storage: { provider: "memory" },
+});
+
+const aiSDK = createGoodMemoryAISDK({
+  memory,
+});
+
+const messages: ModelMessage[] = [
+  {
+    role: "user",
+    content: "What is the current blocker?",
+  },
+];
+
+const result = aiSDK.streamText({
+  scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+  system: "You are a concise project copilot.",
+  messages,
+  model: {} as never,
+});
+```
+
+Notes:
+
+- the first cut is `ModelMessage`-first on the server integration path
+- the wrapper augments `system` via `recall()` + `buildContext()` and soft-fails if the memory layer errors
+- tool semantics are intentionally deferred in this public v1 slice; only text-bearing user/assistant turns are remembered
 
 ## Current Status
 

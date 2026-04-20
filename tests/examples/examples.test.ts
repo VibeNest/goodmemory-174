@@ -6,6 +6,9 @@ import {
   runCodingAgentExample,
 } from "../../examples/coding-agent";
 import {
+  runVercelAIChatExample,
+} from "../../examples/vercel-ai-chat";
+import {
   runClaudeArtifactExample,
 } from "../../examples/host-claude-artifacts";
 import {
@@ -36,6 +39,18 @@ describe("examples", () => {
     ).toContain("Current goal: Finish recall engine");
     expect(result.answer).toContain("Finish recall engine");
     expect(result.answer).toContain("wire buildContext output");
+  });
+
+  it("vercel ai example demonstrates wrapper-first recall injection and remember writeback", async () => {
+    const result = await runVercelAIChatExample();
+
+    expect(typeof result.secondSystem).toBe("string");
+    expect(result.secondSystem).toContain("You are a concise product copilot.");
+    expect(result.secondSystem).toContain("migration rollout is blocked on prod verification");
+    expect(result.answer).toContain("migration rollout is still blocked");
+    expect(result.events.some((event) => event.phase === "recall")).toBe(true);
+    expect(result.events.some((event) => event.phase === "remember")).toBe(true);
+    expect(result.artifacts.files.map((file) => file.relativePath)).toContain("MEMORY.md");
   });
 
   it("claude host example demonstrates read-only compiled artifact consumption", async () => {

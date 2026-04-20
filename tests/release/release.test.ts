@@ -192,11 +192,15 @@ describe("release metadata and docs", () => {
     expect(pkg.exports?.["."]).toBe("./src/index.ts");
     expect(pkg.exports?.["./cli"]).toBe("./src/cli.ts");
     expect(pkg.exports?.["./host"]).toBe("./src/host/index.ts");
+    expect(pkg.exports?.["./ai-sdk"]).toBe("./src/ai-sdk/index.ts");
     expect(Object.keys(pkg.exports ?? {})).not.toContain("./llm/ai-sdk");
     expect(pkg.scripts?.cli).toBe("bun run scripts/goodmemory-cli.ts");
     expect(pkg.scripts?.["example:chat"]).toBe("bun run examples/basic-chat.ts");
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
       "bun run examples/coding-agent.ts",
+    );
+    expect(pkg.scripts?.["example:vercel-ai"]).toBe(
+      "bun run examples/vercel-ai-chat.ts",
     );
     expect(pkg.scripts?.["example:host-claude"]).toBe(
       "bun run examples/host-claude-artifacts.ts",
@@ -255,6 +259,7 @@ describe("release metadata and docs", () => {
     expect(rootModule.createRuntimeArchiveStore).toBeDefined();
     expect(rootModule.createRuntimeContextService).toBeDefined();
     expect(rootModule.createHostAdapter).toBeUndefined();
+    expect(rootModule.createGoodMemoryAISDK).toBeUndefined();
     expect(rootModule.createMemoryRepositories).toBeUndefined();
     expect(rootModule.createRecallEngine).toBeUndefined();
     expect(rootModule.createRememberEngine).toBeUndefined();
@@ -267,9 +272,13 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("createGoodMemory");
     expect(readme).toContain("examples/basic-chat.ts");
     expect(readme).toContain("examples/coding-agent.ts");
+    expect(readme).toContain("examples/vercel-ai-chat.ts");
     expect(readme).toContain("examples/host-claude-artifacts.ts");
     expect(readme).toContain("examples/host-codex-handoff.ts");
     expect(readme).toContain("bun run cli -- inspect");
+    expect(readme).toContain("createGoodMemoryAISDK");
+    expect(readme).toContain("goodmemory/ai-sdk");
+    expect(readme).toContain("ModelMessage");
     expect(readme).toContain('createHostAdapter');
     expect(readme).toContain('goodmemory/host');
     expect(readme).toContain('file-assisted');
