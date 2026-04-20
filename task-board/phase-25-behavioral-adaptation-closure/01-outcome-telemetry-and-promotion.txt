@@ -1,0 +1,13 @@
+[DONE] Add internal `tool_outcome` telemetry recording through eval support.
+[DONE] Persist repeated failed-first-action lineage with optional evidence excerpts.
+[DONE] Extend reviewer and proposal gates to accept repeated tool-outcome lineage.
+[DONE] Compile accepted outcome-derived procedural proposals into active `validated_pattern` feedback without requiring a source feedback memory id.
+
+Evidence
+--------
+- `src/evolution/behavioralTelemetry.ts`
+- `src/api/evolutionRuntime.ts`
+- `src/evolution/reviewer.ts`
+- `src/evolution/gates.ts`
+- `src/evolution/compiler.ts`
+- `tests/integration/evolution.outcome-telemetry.test.ts`

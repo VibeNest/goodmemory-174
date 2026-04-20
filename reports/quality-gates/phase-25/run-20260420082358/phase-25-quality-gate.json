@@ -1,0 +1,101 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 25 internal outcome-telemetry runtime and canonical Layer D reporting are regression-covered on the deterministic gate path; provider-backed live-memory behavioral closure remains outside this gate."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2285,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-25-targeted-regressions",
+      "command": "bun test tests/unit/evolution.behavioral-telemetry.test.ts tests/unit/evolution.reviewer.test.ts tests/unit/evolution.gates.test.ts tests/unit/eval.behavioral-adaptation.test.ts tests/unit/run-phase-25.script.test.ts tests/integration/evolution.outcome-telemetry.test.ts",
+      "durationMs": 83,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) rules-only reviewer > does not merge tool outcome experiences that only share the action name [0.16ms]",
+        "(pass) rules-only reviewer > renders full action labels when outcome-derived guidance reuses the same command name [0.18ms]",
+        "",
+        "tests/unit/evolution.behavioral-telemetry.test.ts:",
+        "(pass) behavioral telemetry > normalizes tool outcome telemetry into an internal experience record [0.07ms]",
+        "(pass) behavioral telemetry > attaches internal compiled guidance without changing the public proposal shape [0.04ms]",
+        "",
+        "tests/unit/eval.behavioral-adaptation.test.ts:",
+        "(pass) behavioral adaptation eval > validates fixtures and rejects malformed paired priming cases [0.10ms]",
+        "(pass) behavioral adaptation eval > loads fixtures and produces canonical layer_d metrics with split profiles [12.39ms]",
+        "(pass) behavioral adaptation eval > does not accept an unrelated warning for conditioning first-action scoring [2.78ms]",
+        "",
+        "tests/integration/evolution.outcome-telemetry.test.ts:",
+        "(pass) outcome telemetry promotion chain > promotes repeated tool outcome failures into a validated pattern without explicit feedback memory [1.21ms]",
+        "(pass) outcome telemetry promotion chain > does not persist dangling evidence lineage when evidence storage fails [0.30ms]",
+        "",
+        " 30 pass",
+        " 0 fail",
+        " 128 expect() calls",
+        "Ran 30 tests across 6 files. [78.00ms]"
+      ]
+    },
+    {
+      "label": "phase-25-fallback-eval",
+      "command": "bun run eval:phase-25",
+      "durationMs": 83,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "        \"failedCases\": [",
+        "          \"procedural-copy-generalization\"",
+        "        ],",
+        "        \"passedCases\": 1,",
+        "        \"totalCases\": 2",
+        "      }",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"layer_d\": {",
+        "      \"first_attempt_policy_adherence\": 0.6,",
+        "      \"failure_avoidance_rate\": 0.6667,",
+        "      \"inhibition_success_rate\": 0.6667,",
+        "      \"procedure_generalization_rate\": 0.5,",
+        "      \"priming_delta\": 0.5,",
+        "      \"constraint_violation_rate\": 0",
+        "    },",
+        "    \"totalCases\": 9",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-25-eval.ts"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-20T09:05:44.113Z",
+  "generatedBy": "scripts/run-phase-25-gate.ts",
+  "phase": "phase-25",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-25/run-20260420082358",
+  "runId": "run-20260420082358",
+  "scope": {
+    "inScope": [
+      "tool_outcome telemetry to proposal/gate/compiler chain",
+      "canonical layer_d behavioral adaptation report contract",
+      "phase-25 deterministic fallback eval and gate"
+    ],
+    "outOfScope": [
+      "public API or public config widening",
+      "making priming a blocking release metric",
+      "changing README-level default runtime behavior",
+      "provider-backed live-memory behavioral closure"
+    ]
+  }
+}

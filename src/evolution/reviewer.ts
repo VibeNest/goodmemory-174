@@ -1,6 +1,7 @@
 import type {
   FactMemory,
   FeedbackMemory,
+  FeedbackKind,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { EvolutionRepositoryPort } from "../storage/ports";
@@ -10,6 +11,14 @@ import {
   type ExperienceRecord,
   type LearningProposal,
 } from "./contracts";
+import {
+  attachCompiledGuidance,
+  behavioralFirstActionsEqual,
+  formatBehavioralFirstAction,
+  isToolOutcomeExperience,
+  parseToolOutcomeMetadata,
+  serializeBehavioralFirstAction,
+} from "./behavioralTelemetry";
 import {
   refreshDelayedProposal,
   sameProposalContent,
@@ -67,11 +76,34 @@ function findEquivalentExistingProposal(
   candidate: LearningProposal,
 ): LearningProposal | undefined {
   return existing.find(
-    (proposal) =>
-      proposal.status !== "rejected" &&
-      proposal.proposalType === candidate.proposalType &&
-      sameStringSet(proposal.linkedMemoryIds, candidate.linkedMemoryIds) &&
-      sameStringSet(proposal.linkedArchiveIds, candidate.linkedArchiveIds),
+    (proposal) => {
+      if (
+        proposal.status === "rejected" ||
+        proposal.proposalType !== candidate.proposalType
+      ) {
+        return false;
+      }
+
+      const sameMemories = sameStringSet(
+        proposal.linkedMemoryIds,
+        candidate.linkedMemoryIds,
+      );
+      const sameArchives = sameStringSet(
+        proposal.linkedArchiveIds,
+        candidate.linkedArchiveIds,
+      );
+
+      if (
+        proposal.linkedMemoryIds.length === 0 &&
+        candidate.linkedMemoryIds.length === 0 &&
+        proposal.linkedArchiveIds.length === 0 &&
+        candidate.linkedArchiveIds.length === 0
+      ) {
+        return proposal.summary === candidate.summary;
+      }
+
+      return sameMemories && sameArchives;
+    },
   );
 }
 
@@ -232,6 +264,115 @@ function buildProceduralPatternProposal(input: {
   });
 }
 
+function resolveOutcomeGuidanceKind(): Exclude<FeedbackKind, "validated_pattern"> {
+  return "dont";
+}
+
+function toPluralFailureClass(value: string): string {
+  if (
+    value.endsWith("s") ||
+    value.endsWith("x") ||
+    value.endsWith("z") ||
+    value.endsWith("ch") ||
+    value.endsWith("sh")
+  ) {
+    return `${value}es`;
+  }
+
+  if (
+    value.endsWith("y") &&
+    value.length > 1 &&
+    !"aeiou".includes(value.at(-2)?.toLowerCase() ?? "")
+  ) {
+    return `${value.slice(0, -1)}ies`;
+  }
+
+  return `${value}s`;
+}
+
+function buildOutcomeGuidanceRule(input: {
+  cue: string;
+  failureClass: string;
+  firstActionLabel: string;
+  saferAlternativeLabel?: string;
+}): string {
+  const saferSegment = input.saferAlternativeLabel
+    ? ` and use ${input.saferAlternativeLabel} before proceeding.`
+    : " and warn before proceeding.";
+
+  return `When ${input.cue} previously caused ${input.firstActionLabel} ${toPluralFailureClass(
+    input.failureClass,
+  )}, avoid ${input.firstActionLabel} on the first action${saferSegment}`;
+}
+
+function buildToolOutcomePatternProposal(input: {
+  createId: () => string;
+  createTraceId: () => string;
+  experiences: ExperienceRecord[];
+  now: string;
+}): LearningProposal | null {
+  const sorted = sortExperiences(input.experiences);
+  const metadata = sorted.map((experience) => parseToolOutcomeMetadata(experience));
+  const [firstMetadata] = metadata;
+
+  if (
+    !firstMetadata ||
+    metadata.some(
+      (entry) =>
+        !entry ||
+        entry.cue !== firstMetadata.cue ||
+        entry.failureClass !== firstMetadata.failureClass ||
+        !behavioralFirstActionsEqual(entry.firstAction, firstMetadata.firstAction) ||
+        !behavioralFirstActionsEqual(
+          entry.saferAlternative,
+          firstMetadata.saferAlternative,
+        ),
+    )
+  ) {
+    return null;
+  }
+
+  const scope = resolveProposalScope(sorted);
+  const firstActionLabel = formatBehavioralFirstAction(firstMetadata.firstAction);
+  const saferAlternativeLabel = firstMetadata.saferAlternative
+    ? formatBehavioralFirstAction(firstMetadata.saferAlternative)
+    : undefined;
+  const proposal = createLearningProposal({
+    id: input.createId(),
+    userId: scope.userId,
+    tenantId: scope.tenantId,
+    workspaceId: scope.workspaceId,
+    agentId: scope.agentId,
+    sessionId: scope.sessionId,
+    proposalType: "procedural_pattern",
+    traceId: input.createTraceId(),
+    summary:
+      `Promote repeated unsafe first action into a governed procedural pattern: avoid ${firstActionLabel} for ${firstMetadata.cue}.`,
+    rationale:
+      `Rules-only reviewer saw ${sorted.length} repeated tool-outcome failures for cue "${firstMetadata.cue}" where the first action ${firstActionLabel} failed with ${firstMetadata.failureClass}. This is stable enough to promote into governed avoidance behavior.`,
+    sourceExperienceIds: sorted.map((experience) => experience.id),
+    linkedEvidenceIds: collectUniqueFromGroups(
+      sorted.map((experience) => experience.linkedEvidenceIds),
+    ),
+    modelInfluence: aggregateModelInfluence(sorted),
+    createdAt: input.now,
+    updatedAt: input.now,
+  });
+
+  return attachCompiledGuidance(proposal, {
+    rule: buildOutcomeGuidanceRule({
+      cue: firstMetadata.cue,
+      failureClass: firstMetadata.failureClass,
+      firstActionLabel,
+      saferAlternativeLabel,
+    }),
+    kind: resolveOutcomeGuidanceKind(),
+    appliesTo: "general_response",
+    confidence: 0.9,
+    why: "Repeated tool-outcome failures show the original first action is unsafe for this cue.",
+  });
+}
+
 export function createRulesOnlyReviewer(config: RulesOnlyReviewerConfig) {
   const now = config.now ?? (() => new Date().toISOString());
   const createId = config.createId ?? (() => crypto.randomUUID());
@@ -328,6 +469,52 @@ export function createRulesOnlyReviewer(config: RulesOnlyReviewerConfig) {
           memoryId,
           now: timestamp,
         });
+
+        const reconciled = reconcileCandidateProposal(existingProposals, candidate);
+
+        if (reconciled) {
+          proposals.push(reconciled);
+        }
+      }
+
+      const toolOutcomeGroups = new Map<string, ExperienceRecord[]>();
+      for (const experience of experiences) {
+        if (!isToolOutcomeExperience(experience)) {
+          continue;
+        }
+
+        const metadata = parseToolOutcomeMetadata(experience);
+        if (!metadata) {
+          continue;
+        }
+
+        const groupKey = [
+          metadata.cue,
+          metadata.failureClass,
+          serializeBehavioralFirstAction(metadata.firstAction),
+          metadata.saferAlternative
+            ? serializeBehavioralFirstAction(metadata.saferAlternative)
+            : "",
+        ].join("::");
+        const group = toolOutcomeGroups.get(groupKey) ?? [];
+        group.push(experience);
+        toolOutcomeGroups.set(groupKey, group);
+      }
+
+      for (const group of toolOutcomeGroups.values()) {
+        if (group.length < 2) {
+          continue;
+        }
+
+        const candidate = buildToolOutcomePatternProposal({
+          createId,
+          createTraceId,
+          experiences: group,
+          now: timestamp,
+        });
+        if (!candidate) {
+          continue;
+        }
 
         const reconciled = reconcileCandidateProposal(existingProposals, candidate);
 

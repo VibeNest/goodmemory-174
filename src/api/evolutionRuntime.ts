@@ -1,14 +1,21 @@
+import { createMemorySource } from "../domain/provenance";
 import type {
   FactMemory,
   FeedbackMemory,
 } from "../domain/records";
 import { scopeToKey } from "../domain/scope";
 import type { MemoryScope } from "../domain/scope";
+import { createEvidenceRecord } from "../evidence/contracts";
 import type {
   LearningProposal,
   PromotionDecision,
 } from "../evolution/contracts";
 import type { ExperienceRecord } from "../evolution/contracts";
+import {
+  buildBehavioralOutcomeExperienceRecord,
+  type BehavioralOutcomeObservationResult,
+  toStoredExperienceRecord,
+} from "../evolution/behavioralTelemetry";
 import {
   buildFeedbackExperienceRecord,
   buildRecallExperienceRecords,
@@ -312,6 +319,55 @@ export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
           createdAt: now(),
           createId: () => crypto.randomUUID(),
         }),
+      ]);
+      await runRulesOnlyReview(input.scope);
+    },
+
+    async handleBehavioralOutcome(input: {
+      result: BehavioralOutcomeObservationResult;
+      scope: MemoryScope;
+    }): Promise<void> {
+      const timestamp = now();
+      const traceId = crypto.randomUUID();
+      let linkedEvidenceIds: string[] = [];
+
+      if (input.result.evidenceExcerpt) {
+        const evidenceId = crypto.randomUUID();
+        try {
+          await config.governanceRepositories.evidence.add(
+            createEvidenceRecord({
+              id: evidenceId,
+              userId: input.scope.userId,
+              tenantId: input.scope.tenantId,
+              workspaceId: input.scope.workspaceId,
+              agentId: input.scope.agentId,
+              sessionId: input.scope.sessionId,
+              kind: "tool_result_excerpt",
+              excerpt: input.result.evidenceExcerpt,
+              source: createMemorySource({
+                method: "confirmed",
+                extractedAt: timestamp,
+                sessionId: input.scope.sessionId,
+              }),
+            }),
+          );
+          linkedEvidenceIds = [evidenceId];
+        } catch (error) {
+          console.error("Failed to persist behavioral outcome evidence", error);
+        }
+      }
+
+      await persistExperienceRecords([
+        toStoredExperienceRecord(
+          buildBehavioralOutcomeExperienceRecord({
+            scope: input.scope,
+            result: input.result,
+            traceId,
+            createdAt: timestamp,
+            linkedEvidenceIds,
+            createId: () => crypto.randomUUID(),
+          }),
+        ),
       ]);
       await runRulesOnlyReview(input.scope);
     },

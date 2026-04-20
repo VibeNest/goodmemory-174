@@ -1,6 +1,12 @@
 import type { MemoryScope } from "../domain/scope";
 import type { EvolutionRepositoryPort } from "../storage/ports";
 import type { FeedbackMemory } from "../domain/records";
+import {
+  behavioralFirstActionsEqual,
+  isToolOutcomeExperience,
+  parseToolOutcomeMetadata,
+  readCompiledGuidance,
+} from "./behavioralTelemetry";
 import { createPromotionRecord } from "./contracts";
 import type {
   ExperienceRecord,
@@ -41,6 +47,7 @@ interface ProposalGateContext {
 
 interface ProceduralPatternLineageAssessment {
   hasRepeatedFeedbackLineage: boolean;
+  hasRepeatedToolOutcomeLineage: boolean;
   missingExperienceIds: string[];
 }
 
@@ -150,6 +157,14 @@ function evaluateVerificationGate(
       };
     }
 
+    if (lineage.hasRepeatedToolOutcomeLineage) {
+      return {
+        outcome: "passed",
+        rationale:
+          "procedural proposal has repeated tool-outcome lineage over the same failed first action and cue",
+      };
+    }
+
     if (lineage.missingExperienceIds.length > 0) {
       return {
         outcome: "review_required",
@@ -208,6 +223,14 @@ function evaluateEvalGate(
           "repeated explicit feedback confirms existing guidance strongly enough for deterministic procedural promotion",
       };
     }
+
+    if (lineage.hasRepeatedToolOutcomeLineage) {
+      return {
+        outcome: "passed",
+        rationale:
+          "repeated tool-outcome failures confirm governed first-action avoidance strongly enough for deterministic procedural promotion",
+      };
+    }
   }
 
   return {
@@ -263,9 +286,34 @@ function assessProceduralPatternLineage(
         experience.linkedMemoryIds.length === 1 &&
         experience.linkedMemoryIds[0] === sourceFeedback?.id,
     );
+  const parsedToolOutcomeMetadata = sourceExperiences.map((experience) =>
+    parseToolOutcomeMetadata(experience),
+  );
+  const [firstToolOutcome] = parsedToolOutcomeMetadata;
+  const hasRepeatedToolOutcomeLineage =
+    Boolean(readCompiledGuidance(proposal)) &&
+    distinctSourceExperienceIds.length >= 2 &&
+    missingExperienceIds.length === 0 &&
+    sourceExperiences.every((experience) => isToolOutcomeExperience(experience)) &&
+    Boolean(firstToolOutcome) &&
+    parsedToolOutcomeMetadata.every(
+      (metadata) =>
+        Boolean(metadata) &&
+        metadata!.cue === firstToolOutcome!.cue &&
+        metadata!.failureClass === firstToolOutcome!.failureClass &&
+        behavioralFirstActionsEqual(
+          metadata!.firstAction,
+          firstToolOutcome!.firstAction,
+        ) &&
+        behavioralFirstActionsEqual(
+          metadata!.saferAlternative,
+          firstToolOutcome!.saferAlternative,
+        ),
+    );
 
   return {
     hasRepeatedFeedbackLineage,
+    hasRepeatedToolOutcomeLineage,
     missingExperienceIds,
   };
 }

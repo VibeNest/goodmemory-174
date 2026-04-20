@@ -1,0 +1,66 @@
+Phase 26: Local SQLite Vector Fallback
+=====================================
+
+Phase Goal
+----------
+Close the architecture/runtime gap by making the default runtime resolve storage and embedding the way the product intends:
+
+- explicit `sqlite` / `postgres` always wins
+- otherwise prefer `postgres` when a usable Postgres + `pgvector` target exists
+- otherwise fall back to local `sqlite`
+- only enable embeddings when `GOODMEMORY_EMBEDDING_*` is configured
+
+
+Current Status
+--------------
+[TODO] Planned but not implemented.
+
+
+Dependencies
+------------
+- Phase 3 storage contracts
+- Phase 12 embedding/vector/router plumbing
+- Phase 20 through Phase 25 closure guarantees and public-surface constraints
+
+
+Primary Deliverables
+--------------------
+- default storage resolver with explicit-over-auto precedence
+- default embedding resolver driven by `GOODMEMORY_EMBEDDING_*`
+- SQLite-backed vector store with shared contract parity
+- explicit runtime bootstrap rules for SQLite vector extension loading
+- `sqlite` storage resolution that prefers local durable vectors over in-memory vectors
+- rules-only fallback when no `embeddingAdapter` exists
+- regression coverage and installation/runtime docs for local semantic mode
+
+
+Definition of Done
+------------------
+- explicit `storage.provider` remains authoritative and bypasses auto storage switching
+- auto mode prefers Postgres only when a usable `pgvector` target exists; otherwise it lands on local `sqlite`
+- missing `GOODMEMORY_EMBEDDING_*` keeps recall `rules-only`
+- `storage.provider === "sqlite"` no longer implies `createInMemoryVectorStore()` for semantic storage
+- `sqlite + embeddingAdapter + local vector runtime` can run hybrid recall with durable local vectors
+- `sqlite + no embeddingAdapter` remains explicit `rules-only`
+- local vector boot failure either degrades explicitly or fails fast, depending on configured mode
+- Postgres behavior, trace semantics, and stable public API remain backward-compatible
+
+
+Tasks
+-----
+[TODO] P26-T001 Write the canonical default-resolution design note and lock storage-vs-embedding boundaries
+[TODO] P26-T002 Add failing resolver coverage for explicit provider, auto Postgres, auto SQLite, and rules-only embedding fallback
+[TODO] P26-T003 Add failing SQLite vector-store contract coverage
+[TODO] P26-T004 Implement SQLite vector store and extension bootstrap guardrails
+[TODO] P26-T005 Wire `createGoodMemory()` and local CLI resolution to prefer explicit provider, then auto Postgres, else SQLite
+[TODO] P26-T006 Add remember / recall / forget / governance regression coverage for SQLite local vectors and auto resolution
+[TODO] P26-T007 Sync README, current-status, and task-board docs after behavior is real
+
+
+Key Constraints
+---------------
+- This phase solves local default storage resolution and local vector storage fallback, not bundled local embedding generation
+- Do not reintroduce top-level `embedding` config into `GoodMemoryConfig`
+- Do not silently claim semantic retrieval when the local vector runtime is unavailable
+- On Bun/macOS, extension bootstrap must happen before the first SQLite database is opened
+- Keep rules-first explainability and typed vector hooks unchanged

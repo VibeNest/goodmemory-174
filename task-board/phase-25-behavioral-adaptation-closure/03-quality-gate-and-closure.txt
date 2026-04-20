@@ -1,0 +1,10 @@
+[DONE] Add `gate:phase-25`.
+[DONE] Run deterministic Phase 25 quality gate.
+[DONE] Archive deterministic gate evidence and sync current-status entrypoints without overstating live closure.
+
+Evidence
+--------
+- `reports/quality-gates/phase-25/run-20260420082358/phase-25-quality-gate.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-25-Quality-Gate.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `task-board/00-README.txt`

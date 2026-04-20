@@ -1,0 +1,30 @@
+[DONE] P25-T001 Add internal outcome-telemetry lineage for repeated failed first actions
+[DONE] P25-T002 Add canonical Layer D behavioral adaptation report contract and fixtures
+[DONE] P25-T003 Add phase-25 fallback/live-memory runners and deterministic quality gate
+[DONE] P25-T004 Archive gate evidence and sync current status/task-board docs
+
+Phase 25 scope
+--------------
+- Internal-only outcome-telemetry runtime and deterministic behavioral evidence after Phase 24
+- `tool_outcome` telemetry, evidence linkage, reviewer/gate/compiler support
+- Canonical `layer_d` report surface with exact behavioral metrics
+- Structured first-action scoring for procedural and conditioning cases
+- Paired priming experimental/control scoring with separate constraint violation accounting
+- No public API widening, no public config widening, and no README-level default behavior promotion
+- Provider-backed live-memory behavioral closure remains outside this deterministic slice
+
+Canonical deterministic gate
+----------------------------
+- `reports/quality-gates/phase-25/run-20260420082358/phase-25-quality-gate.json`
+
+Canonical eval evidence
+-----------------------
+- Fallback report: `reports/eval/fallback/phase-25/run-1776673441250/report.json`
+
+Closure note
+------------
+- Phase 25 is accepted as the deterministic runtime-and-evidence slice for outcome-derived behavioral adaptation.
+- `raw-experience` still exposes the current automatic-behavior gap.
+- `outcome-telemetry` proves repeated failed first actions can become governed `validated_pattern` memory without a source feedback memory id.
+- `distilled-feedback` remains the explicit-guidance upper bound.
+- Provider-backed live-memory behavioral closure is still unproven by the current accepted artifacts.

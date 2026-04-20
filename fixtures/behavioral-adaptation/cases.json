@@ -1,0 +1,255 @@
+[
+  {
+    "case_id": "conditioning-detailed-analysis-timeout",
+    "paradigm": "conditioning",
+    "task_name": "Conditioned DeepAnalyzer avoidance after timeout",
+    "learning_phase": [
+      {
+        "role": "user",
+        "content": "I need a detailed analysis of our server performance."
+      },
+      {
+        "role": "assistant",
+        "content": "Running detailed analysis with DeepAnalyzer..."
+      },
+      {
+        "role": "system",
+        "content": "Error: Timeout Error. DeepAnalyzer failed due to computational complexity."
+      },
+      {
+        "role": "user",
+        "content": "Can you provide a detailed analysis of the database metrics?"
+      },
+      {
+        "role": "assistant",
+        "content": "Running detailed analysis with DeepAnalyzer..."
+      },
+      {
+        "role": "system",
+        "content": "Error: Timeout Error. DeepAnalyzer cannot handle detailed analysis requests."
+      }
+    ],
+    "interference_phase": [
+      {
+        "role": "user",
+        "content": "How do I install Python?"
+      },
+      {
+        "role": "assistant",
+        "content": "Download Python from the official website and follow the installer."
+      }
+    ],
+    "test_probe": {
+      "role": "user",
+      "content": "I need a detailed analysis of our network traffic. Reply with only the first tool or warning you would use."
+    },
+    "expected_first_action": {
+      "kind": "tool_call",
+      "name": "QuickCheck",
+      "raw": "QuickCheck --network"
+    },
+    "forbidden_first_action": {
+      "kind": "tool_call",
+      "name": "DeepAnalyzer",
+      "raw": "DeepAnalyzer --detailed"
+    },
+    "feedback_signal": "When a detailed analysis request previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck before proceeding.",
+    "behavioral_outcomes": [
+      {
+        "cue": "detailed analysis",
+        "evidenceExcerpt": "Error: Timeout Error. DeepAnalyzer failed due to computational complexity.",
+        "failureClass": "timeout",
+        "firstAction": {
+          "kind": "tool_call",
+          "name": "DeepAnalyzer",
+          "raw": "DeepAnalyzer --detailed"
+        },
+        "saferAlternative": {
+          "kind": "tool_call",
+          "name": "QuickCheck",
+          "raw": "QuickCheck --network"
+        }
+      },
+      {
+        "cue": "detailed analysis",
+        "evidenceExcerpt": "Error: Timeout Error. DeepAnalyzer cannot handle detailed analysis requests.",
+        "failureClass": "timeout",
+        "firstAction": {
+          "kind": "tool_call",
+          "name": "DeepAnalyzer",
+          "raw": "DeepAnalyzer --detailed"
+        },
+        "saferAlternative": {
+          "kind": "tool_call",
+          "name": "QuickCheck",
+          "raw": "QuickCheck --network"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "priming-volcanic-naming",
+    "paradigm": "priming",
+    "task_name": "Volcanic theme creative naming",
+    "feedback_signal": "Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use.",
+    "experimental": {
+      "task_name": "Volcanic theme creative naming",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Please read this theme and write an evocative paragraph."
+        },
+        {
+          "role": "assistant",
+          "content": "A swollen cone holds its breath beneath gray light. Pressure climbs in the dark until ash, pumice, and molten glow spill into black rivers. After the surge, cooled fields slowly become fertile ground."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "Draft a neutral note on color management for print workflows."
+        },
+        {
+          "role": "assistant",
+          "content": "Calibrate displays at 6500 K and validate proof-to-press color tolerances."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Propose three codenames for a next-generation data compression library."
+      },
+      "priming_keywords": [
+        "ember",
+        "pressure",
+        "magma",
+        "ash",
+        "surge",
+        "basalt"
+      ],
+      "constraint_checks": [
+        {
+          "type": "output_shape",
+          "expectedLineCount": 3
+        },
+        {
+          "type": "no_prompt_quote_reuse",
+          "forbiddenPhrases": [
+            "a swollen cone holds its breath beneath gray light",
+            "pressure climbs in the dark until ash"
+          ]
+        },
+        {
+          "type": "task_format_compliance"
+        }
+      ]
+    },
+    "control": {
+      "task_name": "Neutral naming control",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Please read this neutral theme and write a paragraph."
+        },
+        {
+          "role": "assistant",
+          "content": "A clean workspace supports careful iteration. Labels are consistent, processes are documented, and change sets stay small enough to review."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "Draft a neutral note on color management for print workflows."
+        },
+        {
+          "role": "assistant",
+          "content": "Calibrate displays at 6500 K and validate proof-to-press color tolerances."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Propose three codenames for a next-generation data compression library."
+      },
+      "priming_keywords": [
+        "ember",
+        "pressure",
+        "magma",
+        "ash",
+        "surge",
+        "basalt"
+      ],
+      "constraint_checks": [
+        {
+          "type": "output_shape",
+          "expectedLineCount": 3
+        },
+        {
+          "type": "no_prompt_quote_reuse",
+          "forbiddenPhrases": [
+            "a swollen cone holds its breath beneath gray light",
+            "pressure climbs in the dark until ash"
+          ]
+        },
+        {
+          "type": "task_format_compliance"
+        }
+      ]
+    }
+  },
+  {
+    "case_id": "procedural-copy-generalization",
+    "paradigm": "procedural",
+    "task_name": "Reversed copy_file parameter order",
+    "generalization_case": true,
+    "learning_phase": [
+      {
+        "role": "user",
+        "content": "Can you explain how to use the copy_file utility here?"
+      },
+      {
+        "role": "assistant",
+        "content": "In this environment copy_file takes the destination path first and the source path second. Example: copy_file('/dest/path/file.txt', '/src/path/file.txt')."
+      }
+    ],
+    "interference_phase": [
+      {
+        "role": "user",
+        "content": "How do I resume an interrupted download?"
+      },
+      {
+        "role": "assistant",
+        "content": "Use wget -c with the original URL."
+      },
+      {
+        "role": "user",
+        "content": "How do I print the first 20 lines of a file?"
+      },
+      {
+        "role": "assistant",
+        "content": "Use head -n 20 file.txt."
+      }
+    ],
+    "test_probe": {
+      "role": "user",
+      "content": "During a practical exam, copy the file from '/data/reports/report.txt' into '/var/backup/reports/report.txt'. Reply with only the command."
+    },
+    "expected_first_action": {
+      "kind": "command",
+      "name": "copy_file",
+      "args": [
+        "/var/backup/reports/report.txt",
+        "/data/reports/report.txt"
+      ],
+      "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+    },
+    "forbidden_first_action": {
+      "kind": "command",
+      "name": "copy_file",
+      "args": [
+        "/data/reports/report.txt",
+        "/var/backup/reports/report.txt"
+      ],
+      "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+    },
+    "feedback_signal": "When using copy_file, answer with destination path first and source path second. Do not use the normal source-destination order."
+  }
+]

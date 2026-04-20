@@ -3,8 +3,9 @@ import { createMemorySource } from "../domain/provenance";
 import type { MemoryScope } from "../domain/scope";
 import type { LanguageService } from "../language";
 import type { EvolutionRepositoryPort } from "../storage/ports";
+import { readCompiledGuidance } from "./behavioralTelemetry";
 
-function feedbackLocale(feedback: FeedbackMemory): string | undefined {
+function feedbackLocale(feedback: Pick<FeedbackMemory, "source">): string | undefined {
   return feedback.source.locale;
 }
 
@@ -27,7 +28,7 @@ function feedbackMatchesScope(
 }
 
 function normalizeRule(
-  feedback: FeedbackMemory,
+  feedback: Pick<FeedbackMemory, "rule" | "source">,
   language: LanguageService,
 ): string {
   const locale =
@@ -79,31 +80,42 @@ export function createProceduralPatternCompiler(
 
       for (const proposal of acceptedProceduralProposals) {
         const sourceFeedbackId = proposal.linkedMemoryIds[0];
-        if (!sourceFeedbackId) {
+        const sourceFeedback = sourceFeedbackId
+          ? feedbackById.get(sourceFeedbackId)
+          : undefined;
+        const compiledGuidance = readCompiledGuidance(proposal);
+        const feedbackSeed =
+          sourceFeedback &&
+          sourceFeedback.kind !== "validated_pattern" &&
+          sourceFeedback.lifecycle === "active"
+            ? sourceFeedback
+            : compiledGuidance
+              ? {
+                  rule: compiledGuidance.rule,
+                  source: createMemorySource({
+                    method: "confirmed",
+                    extractedAt: now(),
+                    sessionId: proposal.sessionId,
+                  }),
+                }
+              : undefined;
+
+        if (!feedbackSeed) {
           continue;
         }
 
-        const sourceFeedback = feedbackById.get(sourceFeedbackId);
-        if (
-          !sourceFeedback ||
-          sourceFeedback.kind === "validated_pattern" ||
-          sourceFeedback.lifecycle !== "active"
-        ) {
-          continue;
-        }
-
-        const normalizedRule = normalizeRule(sourceFeedback, config.language);
+        const normalizedRule = normalizeRule(feedbackSeed, config.language);
         const existingValidatedPattern = feedback.find(
           (record) =>
             record.lifecycle === "active" &&
             record.kind === "validated_pattern" &&
-            record.appliesTo === sourceFeedback.appliesTo &&
+            record.appliesTo === (sourceFeedback?.appliesTo ?? compiledGuidance?.appliesTo) &&
             feedbackMatchesScope(record, proposal) &&
             normalizeRule(record, config.language) === normalizedRule,
         );
 
         if (existingValidatedPattern) {
-          if (sourceFeedback.lifecycle === "active") {
+          if (sourceFeedback?.lifecycle === "active") {
             const supersededSource = createFeedbackMemory({
               ...sourceFeedback,
               lifecycle: "superseded",
@@ -123,32 +135,35 @@ export function createProceduralPatternCompiler(
           tenantId: proposal.tenantId,
           workspaceId: proposal.workspaceId,
           agentId: proposal.agentId,
-          rule: sourceFeedback.rule,
+          rule: feedbackSeed.rule,
           kind: "validated_pattern",
-          appliesTo: sourceFeedback.appliesTo,
-          why: proposal.rationale,
+          appliesTo: sourceFeedback?.appliesTo ?? compiledGuidance?.appliesTo,
+          why: compiledGuidance?.why ?? proposal.rationale,
           evidence: proposal.linkedEvidenceIds,
-          confidence: sourceFeedback.confidence,
+          confidence: sourceFeedback?.confidence ?? compiledGuidance?.confidence,
           source: createMemorySource({
             method: "confirmed",
             extractedAt: timestamp,
             sessionId: proposal.sessionId,
-            locale: feedbackLocale(sourceFeedback),
+            locale: feedbackLocale(feedbackSeed),
           }),
-          lastUsedAt: sourceFeedback.lastUsedAt,
+          lastUsedAt: sourceFeedback?.lastUsedAt,
           updatedAt: timestamp,
         });
-        const supersededSource = createFeedbackMemory({
-          ...sourceFeedback,
-          lifecycle: "superseded",
-          supersededBy: compiledPattern.id,
-          updatedAt: timestamp,
-        });
+        if (sourceFeedback) {
+          const supersededSource = createFeedbackMemory({
+            ...sourceFeedback,
+            lifecycle: "superseded",
+            supersededBy: compiledPattern.id,
+            updatedAt: timestamp,
+          });
 
-        await config.repositories.feedback.upsert(supersededSource);
+          await config.repositories.feedback.upsert(supersededSource);
+          feedback.push(supersededSource);
+          feedbackById.set(supersededSource.id, supersededSource);
+        }
         await config.repositories.feedback.upsert(compiledPattern);
-        feedback.push(supersededSource, compiledPattern);
-        feedbackById.set(supersededSource.id, supersededSource);
+        feedback.push(compiledPattern);
         feedbackById.set(compiledPattern.id, compiledPattern);
         compiledCount += 1;
       }

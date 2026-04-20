@@ -9,8 +9,10 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
 - The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
+- `sqlite` is stable today as the local durable document/session backend; it does not yet auto-provide a local vector backend for hybrid recall.
 - Retrieval rollout controls, promotion gates, salvage hooks, and internal provider-router rollout controls remain implementation detail, not README-level product surface.
 - Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
+- Behavioral adaptation outcome telemetry and deterministic Layer D evidence are also internal evidence infrastructure; they do not change the stable OSS runtime surface.
 
 ## Current Canonical Evidence
 
@@ -31,6 +33,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-24-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-24/run-20260420154540-contrastive-fix/phase-24-quality-gate.json`
   - Deterministic fallback report: `reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix/report.json`
+- Behavioral adaptation deterministic runtime and outcome-telemetry evidence:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-25-Quality-Gate.md`
+  - Deterministic gate: `reports/quality-gates/phase-25/run-20260420082358/phase-25-quality-gate.json`
+  - Deterministic fallback report: `reports/eval/fallback/phase-25/run-1776673441250/report.json`
+  - Live-memory behavioral closure is not yet a canonical accepted artifact for this slice.
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

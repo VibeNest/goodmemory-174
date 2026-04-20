@@ -5,6 +5,7 @@ import type {
 import { createFeedbackMemory } from "../domain/records";
 import { createMemorySource } from "../domain/provenance";
 import { EVIDENCE_COLLECTION } from "../evidence/contracts";
+import type { BehavioralOutcomeObservationResult } from "../evolution/behavioralTelemetry";
 import { createProceduralPatternCompiler } from "../evolution/compiler";
 import type { LearningProposal } from "../evolution/contracts";
 import { createProposalGateProcessor } from "../evolution/gates";
@@ -41,7 +42,10 @@ import type {
   GovernanceVectorPort,
 } from "../storage/ports";
 import { createSQLiteDocumentStore, createSQLiteSessionStore } from "../storage/sqlite";
-import { attachGoodMemoryEvalSupport } from "./evalSupport";
+import {
+  attachGoodMemoryEvalSupport,
+  type GoodMemoryEvalSupport,
+} from "./evalSupport";
 import { createEvolutionRuntime } from "./evolutionRuntime";
 import { deleteVectorForCollection } from "./governance";
 import { wrapInternalRetrievalRolloutMemory } from "./internalRetrievalRollout";
@@ -91,6 +95,7 @@ const FORGETTABLE_COLLECTIONS = [
 export interface InternalGoodMemoryOptions {
   assistedRecallRouter?: RecallRouterAssistant;
   assistedReviewer?: boolean;
+  behavioralOutcomeRecorder?: boolean;
   retrievalStrategyRollout?: RetrievalStrategyRolloutConfig;
 }
 
@@ -685,8 +690,9 @@ export function createInternalGoodMemory(
   config: GoodMemoryConfig,
   internal?: InternalGoodMemoryOptions,
 ): GoodMemory {
+  const impl = new GoodMemoryImpl(config, internal);
   const memory = wrapInternalRetrievalRolloutMemory(
-    new GoodMemoryImpl(config, internal),
+    impl,
     {
       assistedRecallRouterEnabled: Boolean(internal?.assistedRecallRouter),
       config,
@@ -694,19 +700,42 @@ export function createInternalGoodMemory(
       rollout: internal?.retrievalStrategyRollout,
     },
   );
+  const implWithInternals = impl as unknown as {
+    evolutionRuntime: {
+      handleBehavioralOutcome: (input: {
+        result: BehavioralOutcomeObservationResult;
+        scope: ForgetInput["scope"];
+      }) => Promise<void>;
+    };
+  };
+  type BehavioralOutcomeSupportInput = Parameters<
+    Exclude<GoodMemoryEvalSupport["recordBehavioralOutcome"], undefined>
+  >[0];
+  const support = {
+    ...(internal?.assistedRecallRouter ? { assistedRecallRouter: true } : {}),
+    ...(internal?.assistedReviewer ? { assistedReviewer: true } : {}),
+    ...(internal?.behavioralOutcomeRecorder
+      ? {
+          recordBehavioralOutcome: (input: BehavioralOutcomeSupportInput) =>
+            implWithInternals.evolutionRuntime.handleBehavioralOutcome({
+              scope: input.scope,
+              result: {
+                cue: input.cue,
+                evidenceExcerpt: input.evidenceExcerpt,
+                failureClass: input.failureClass,
+                firstAction: input.firstAction,
+                modelInfluence: input.modelInfluence ?? "rules-only",
+                outcome: input.outcome,
+                saferAlternative: input.saferAlternative,
+              },
+            }),
+        }
+      : {}),
+  };
 
-  if (internal?.assistedReviewer) {
-    return attachGoodMemoryEvalSupport(memory, {
-      ...(internal.assistedRecallRouter ? { assistedRecallRouter: true } : {}),
-      assistedReviewer: true,
-    });
+  if (Object.keys(support).length === 0) {
+    return memory;
   }
 
-  if (internal?.assistedRecallRouter) {
-    return attachGoodMemoryEvalSupport(memory, {
-      assistedRecallRouter: true,
-    });
-  }
-
-  return memory;
+  return attachGoodMemoryEvalSupport(memory, support);
 }

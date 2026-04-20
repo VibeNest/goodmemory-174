@@ -1,0 +1,13 @@
+[DONE] Add dedicated Phase 25 fixture set under `fixtures/behavioral-adaptation/`.
+[DONE] Add canonical `layer_d` behavioral adaptation report contract.
+[DONE] Add three-profile Phase 25 eval runner with structured first-action scoring.
+[DONE] Add provider-backed live-memory runner contract for Phase 25.
+
+Evidence
+--------
+- `src/eval/behavioral-adaptation.ts`
+- `scripts/run-phase-25-eval.ts`
+- `scripts/run-phase-25-live-memory.ts`
+- `tests/unit/eval.behavioral-adaptation.test.ts`
+- `tests/unit/run-phase-25.script.test.ts`
+- `reports/eval/fallback/phase-25/run-1776673441250/report.json`

@@ -5,6 +5,11 @@ import {
   createExperienceRecord,
   createLearningProposal,
 } from "../../src/evolution/contracts";
+import {
+  attachCompiledGuidance,
+  buildBehavioralOutcomeExperienceRecord,
+  toStoredExperienceRecord,
+} from "../../src/evolution/behavioralTelemetry";
 import { createProposalGateProcessor } from "../../src/evolution/gates";
 import {
   createInMemoryDocumentStore,
@@ -251,6 +256,176 @@ describe("proposal gate processor", () => {
     expect(decisions[0]?.evalOutcome).toBe("review_required");
     expect((await repositories.proposals.get("proposal-1"))?.status).toBe("delayed");
     expect((await repositories.promotions.get("promotion-0001"))?.decision).toBe("delayed");
+  });
+
+  it("accepts outcome-derived procedural proposals when repeated tool-outcome lineage exists", async () => {
+    const { processor, repositories } = createFixture();
+
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope: { userId: "u-1", workspaceId: "workspace-a" },
+        traceId: "trace-tool-outcome-1",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-1",
+        result: {
+          cue: "detailed analysis",
+          failureClass: "timeout",
+          firstAction: {
+            kind: "tool_call",
+            name: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+          },
+          saferAlternative: {
+            kind: "tool_call",
+            name: "QuickCheck",
+            raw: "QuickCheck --network",
+          },
+          modelInfluence: "rules-only",
+        },
+      })),
+    );
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope: { userId: "u-1", workspaceId: "workspace-a" },
+        traceId: "trace-tool-outcome-2",
+        createdAt: "2026-04-15T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-2",
+        result: {
+          cue: "detailed analysis",
+          failureClass: "timeout",
+          firstAction: {
+            kind: "tool_call",
+            name: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+          },
+          saferAlternative: {
+            kind: "tool_call",
+            name: "QuickCheck",
+            raw: "QuickCheck --network",
+          },
+          modelInfluence: "rules-only",
+        },
+      })),
+    );
+
+    const proposal = attachCompiledGuidance(
+      createLearningProposal({
+        id: "proposal-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        proposalType: "procedural_pattern",
+        traceId: "proposal-trace-1",
+        summary: "Promote repeated unsafe DeepAnalyzer first actions into a governed pattern.",
+        rationale: "Repeated tool failures suggest a reusable avoidance policy.",
+        sourceExperienceIds: ["xp-tool-outcome-1", "xp-tool-outcome-2"],
+        linkedEvidenceIds: [],
+        modelInfluence: "rules-only",
+      }),
+      {
+        rule:
+          "When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding.",
+        kind: "dont",
+        appliesTo: "general_response",
+        confidence: 0.9,
+      },
+    );
+
+    const decisions = await processor.process({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      proposals: [proposal],
+    });
+
+    expect(decisions[0]?.decision).toBe("accepted");
+    expect(decisions[0]?.verificationOutcome).toBe("passed");
+    expect(decisions[0]?.evalOutcome).toBe("passed");
+    expect((await repositories.proposals.get("proposal-1"))?.status).toBe("accepted");
+  });
+
+  it("delays outcome-derived procedural proposals when tool outcomes only match by action name", async () => {
+    const { processor, repositories } = createFixture();
+
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope: { userId: "u-1", workspaceId: "workspace-a" },
+        traceId: "trace-tool-outcome-1",
+        createdAt: "2026-04-14T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-1",
+        result: {
+          cue: "copy the report",
+          failureClass: "mismatch",
+          firstAction: {
+            kind: "command",
+            name: "copy_file",
+            args: ["/backup/report.txt", "/src/report.txt"],
+            raw: "copy_file('/backup/report.txt', '/src/report.txt')",
+          },
+          saferAlternative: {
+            kind: "command",
+            name: "copy_file",
+            args: ["/src/report.txt", "/backup/report.txt"],
+            raw: "copy_file('/src/report.txt', '/backup/report.txt')",
+          },
+          modelInfluence: "rules-only",
+        },
+      })),
+    );
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope: { userId: "u-1", workspaceId: "workspace-a" },
+        traceId: "trace-tool-outcome-2",
+        createdAt: "2026-04-15T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-2",
+        result: {
+          cue: "copy the report",
+          failureClass: "mismatch",
+          firstAction: {
+            kind: "command",
+            name: "copy_file",
+            args: ["/src/report.txt", "/backup/report.txt"],
+            raw: "copy_file('/src/report.txt', '/backup/report.txt')",
+          },
+          saferAlternative: {
+            kind: "command",
+            name: "copy_file",
+            args: ["/backup/report.txt", "/src/report.txt"],
+            raw: "copy_file('/backup/report.txt', '/src/report.txt')",
+          },
+          modelInfluence: "rules-only",
+        },
+      })),
+    );
+
+    const proposal = attachCompiledGuidance(
+      createLearningProposal({
+        id: "proposal-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        proposalType: "procedural_pattern",
+        traceId: "proposal-trace-1",
+        summary: "Promote repeated unsafe copy_file first actions into a governed pattern.",
+        rationale: "Repeated tool failures suggest a reusable avoidance policy.",
+        sourceExperienceIds: ["xp-tool-outcome-1", "xp-tool-outcome-2"],
+        linkedEvidenceIds: [],
+        modelInfluence: "rules-only",
+      }),
+      {
+        rule:
+          "When copy the report previously caused copy_file(/backup/report.txt, /src/report.txt) mismatches, avoid copy_file(/backup/report.txt, /src/report.txt) on the first action and use copy_file(/src/report.txt, /backup/report.txt) before proceeding.",
+        kind: "dont",
+        appliesTo: "general_response",
+        confidence: 0.9,
+      },
+    );
+
+    const decisions = await processor.process({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      proposals: [proposal],
+    });
+
+    expect(decisions[0]?.decision).toBe("delayed");
+    expect(decisions[0]?.verificationOutcome).toBe("review_required");
+    expect(decisions[0]?.evalOutcome).toBe("review_required");
+    expect((await repositories.proposals.get("proposal-1"))?.status).toBe("delayed");
   });
 
   it("rolls back a finalized proposal when promotion persistence fails", async () => {

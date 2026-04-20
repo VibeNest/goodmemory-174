@@ -6,6 +6,11 @@ import {
 import {
   createExperienceRecord,
 } from "../../src/evolution/contracts";
+import {
+  buildBehavioralOutcomeExperienceRecord,
+  readCompiledGuidance,
+  toStoredExperienceRecord,
+} from "../../src/evolution/behavioralTelemetry";
 import { createRulesOnlyReviewer } from "../../src/evolution/reviewer";
 import {
   createInMemoryDocumentStore,
@@ -390,5 +395,212 @@ describe("rules-only reviewer", () => {
       "xp-feedback-3",
     ]);
     expect(proposals[0]?.rationale).toContain("3 successful feedback traces");
+  });
+
+  it("emits a procedural proposal from repeated tool outcome lineage with compiled guidance", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+    const reviewer = createRulesOnlyReviewer({
+      repositories,
+      now: () => "2026-04-20T00:00:00.000Z",
+      createId: () => "proposal-tool-outcome-1",
+      createTraceId: () => "review-trace-tool-outcome-1",
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope,
+        traceId: "trace-tool-outcome-1",
+        createdAt: "2026-04-19T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-1",
+        result: {
+          cue: "detailed analysis",
+          failureClass: "timeout",
+          firstAction: {
+            kind: "tool_call",
+            name: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+          },
+          saferAlternative: {
+            kind: "tool_call",
+            name: "QuickCheck",
+            raw: "QuickCheck --network",
+          },
+          modelInfluence: "rules-only",
+        },
+      })),
+    );
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope,
+        traceId: "trace-tool-outcome-2",
+        createdAt: "2026-04-20T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-2",
+        result: {
+          cue: "detailed analysis",
+          failureClass: "timeout",
+          firstAction: {
+            kind: "tool_call",
+            name: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+          },
+          saferAlternative: {
+            kind: "tool_call",
+            name: "QuickCheck",
+            raw: "QuickCheck --network",
+          },
+          modelInfluence: "rules-only",
+        },
+      })),
+    );
+
+    const proposals = await reviewer.review({ scope });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.proposalType).toBe("procedural_pattern");
+    expect(proposals[0]?.linkedMemoryIds).toEqual([]);
+    expect(proposals[0]?.sourceExperienceIds).toEqual([
+      "xp-tool-outcome-1",
+      "xp-tool-outcome-2",
+    ]);
+    expect(proposals[0]?.summary).toContain("DeepAnalyzer");
+    expect(readCompiledGuidance(proposals[0]!)).toEqual({
+      rule:
+        "When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding.",
+      kind: "dont",
+      appliesTo: "general_response",
+      confidence: 0.9,
+      why: "Repeated tool-outcome failures show the original first action is unsafe for this cue.",
+    });
+  });
+
+  it("does not merge tool outcome experiences that only share the action name", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+    const reviewer = createRulesOnlyReviewer({
+      repositories,
+      now: () => "2026-04-20T00:00:00.000Z",
+      createId: () => "proposal-tool-outcome-1",
+      createTraceId: () => "review-trace-tool-outcome-1",
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope,
+        traceId: "trace-tool-outcome-1",
+        createdAt: "2026-04-19T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-1",
+        result: {
+          cue: "copy the report",
+          failureClass: "mismatch",
+          firstAction: {
+            kind: "command",
+            name: "copy_file",
+            args: ["/backup/report.txt", "/src/report.txt"],
+            raw: "copy_file('/backup/report.txt', '/src/report.txt')",
+          },
+          saferAlternative: {
+            kind: "command",
+            name: "copy_file",
+            args: ["/src/report.txt", "/backup/report.txt"],
+            raw: "copy_file('/src/report.txt', '/backup/report.txt')",
+          },
+          modelInfluence: "rules-only",
+        },
+      })),
+    );
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope,
+        traceId: "trace-tool-outcome-2",
+        createdAt: "2026-04-20T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-2",
+        result: {
+          cue: "copy the report",
+          failureClass: "mismatch",
+          firstAction: {
+            kind: "command",
+            name: "copy_file",
+            args: ["/src/report.txt", "/backup/report.txt"],
+            raw: "copy_file('/src/report.txt', '/backup/report.txt')",
+          },
+          saferAlternative: {
+            kind: "command",
+            name: "copy_file",
+            args: ["/backup/report.txt", "/src/report.txt"],
+            raw: "copy_file('/backup/report.txt', '/src/report.txt')",
+          },
+          modelInfluence: "rules-only",
+        },
+      })),
+    );
+
+    const proposals = await reviewer.review({ scope });
+
+    expect(proposals).toHaveLength(0);
+  });
+
+  it("renders full action labels when outcome-derived guidance reuses the same command name", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+    const reviewer = createRulesOnlyReviewer({
+      repositories,
+      now: () => "2026-04-20T00:00:00.000Z",
+      createId: () => "proposal-tool-outcome-1",
+      createTraceId: () => "review-trace-tool-outcome-1",
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    const repeatedOutcome = {
+      cue: "copy the report",
+      failureClass: "mismatch",
+      firstAction: {
+        kind: "command" as const,
+        name: "copy_file",
+        args: ["/backup/report.txt", "/src/report.txt"],
+        raw: "copy_file('/backup/report.txt', '/src/report.txt')",
+      },
+      saferAlternative: {
+        kind: "command" as const,
+        name: "copy_file",
+        args: ["/src/report.txt", "/backup/report.txt"],
+        raw: "copy_file('/src/report.txt', '/backup/report.txt')",
+      },
+      modelInfluence: "rules-only" as const,
+    };
+
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope,
+        traceId: "trace-tool-outcome-1",
+        createdAt: "2026-04-19T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-1",
+        result: repeatedOutcome,
+      })),
+    );
+    await repositories.experiences.add(
+      toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+        scope,
+        traceId: "trace-tool-outcome-2",
+        createdAt: "2026-04-20T00:00:00.000Z",
+        createId: () => "xp-tool-outcome-2",
+        result: repeatedOutcome,
+      })),
+    );
+
+    const proposals = await reviewer.review({ scope });
+
+    expect(proposals).toHaveLength(1);
+    expect(readCompiledGuidance(proposals[0]!)?.rule).toBe(
+      "When copy the report previously caused copy_file(/backup/report.txt, /src/report.txt) mismatches, avoid copy_file(/backup/report.txt, /src/report.txt) on the first action and use copy_file(/src/report.txt, /backup/report.txt) before proceeding.",
+    );
   });
 });

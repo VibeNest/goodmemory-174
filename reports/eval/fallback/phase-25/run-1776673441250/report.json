@@ -1,0 +1,315 @@
+{
+  "generatedAt": "2026-04-20T09:05:13.156Z",
+  "generatedBy": "scripts/run-phase-25-eval.ts",
+  "mode": "fallback",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-25",
+  "profiles": {
+    "raw-experience": {
+      "behavioralRegressionCases": [
+        "raw-experience:conditioning-detailed-analysis-timeout",
+        "raw-experience:procedural-copy-generalization"
+      ],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [
+            "conditioning-detailed-analysis-timeout"
+          ],
+          "passedCases": 0,
+          "totalCases": 1
+        },
+        "procedural": {
+          "failedCases": [
+            "procedural-copy-generalization"
+          ],
+          "passedCases": 0,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "DeepAnalyzer --detailed",
+          "caseId": "conditioning-detailed-analysis-timeout",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "tool_call",
+            "name": "DeepAnalyzer",
+            "raw": "DeepAnalyzer --detailed"
+          },
+          "goodmemoryAnswer": "DeepAnalyzer --detailed",
+          "memoryContext": "Developer memory notes:",
+          "paradigm": "conditioning",
+          "profile": "raw-experience",
+          "taskName": "Conditioned DeepAnalyzer avoidance after timeout",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "first_action_matched_forbidden",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "VectorNest\nSignalWeave\nCompressionGrid",
+          "branch": "experimental",
+          "caseId": "priming-volcanic-naming",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "EmberVault\nPressureFold\nBasaltThread",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this theme and write an evocative paragraph.",
+          "paradigm": "priming",
+          "profile": "raw-experience",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0.5,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "VectorNest\nSignalWeave\nCompressionGrid",
+          "branch": "control",
+          "caseId": "priming-volcanic-naming",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "VectorNest\nSignalWeave\nCompressionGrid",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this neutral theme and write a paragraph.",
+          "paradigm": "priming",
+          "profile": "raw-experience",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "caseId": "procedural-copy-generalization",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "copy_file",
+            "args": [
+              "/data/reports/report.txt",
+              "/var/backup/reports/report.txt"
+            ],
+            "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+          },
+          "goodmemoryAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "memoryContext": "Developer memory notes:",
+          "paradigm": "procedural",
+          "profile": "raw-experience",
+          "taskName": "Reversed copy_file parameter order",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "first_action_matched_forbidden",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 0,
+        "failure_avoidance_rate": 0,
+        "inhibition_success_rate": 0,
+        "procedure_generalization_rate": 0,
+        "priming_delta": 0.5,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 4
+    },
+    "outcome-telemetry": {
+      "behavioralRegressionCases": [],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [],
+          "passedCases": 1,
+          "totalCases": 1
+        },
+        "procedural": {
+          "failedCases": [],
+          "passedCases": 0,
+          "totalCases": 0
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "DeepAnalyzer --detailed",
+          "caseId": "conditioning-detailed-analysis-timeout",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "tool_call",
+            "name": "QuickCheck",
+            "raw": "QuickCheck --network"
+          },
+          "goodmemoryAnswer": "QuickCheck --network",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding.",
+          "paradigm": "conditioning",
+          "profile": "outcome-telemetry",
+          "taskName": "Conditioned DeepAnalyzer avoidance after timeout",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 1,
+        "failure_avoidance_rate": 1,
+        "inhibition_success_rate": 1,
+        "procedure_generalization_rate": 0,
+        "priming_delta": 0,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 1
+    },
+    "distilled-feedback": {
+      "behavioralRegressionCases": [],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [],
+          "passedCases": 1,
+          "totalCases": 1
+        },
+        "procedural": {
+          "failedCases": [],
+          "passedCases": 1,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "DeepAnalyzer --detailed",
+          "caseId": "conditioning-detailed-analysis-timeout",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "tool_call",
+            "name": "QuickCheck",
+            "raw": "QuickCheck --network"
+          },
+          "goodmemoryAnswer": "QuickCheck --network",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When a detailed analysis request previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck before proceeding.",
+          "paradigm": "conditioning",
+          "profile": "distilled-feedback",
+          "taskName": "Conditioned DeepAnalyzer avoidance after timeout",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "VectorNest\nSignalWeave\nCompressionGrid",
+          "branch": "experimental",
+          "caseId": "priming-volcanic-naming",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "EmberVault\nPressureFold\nBasaltThread",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this theme and write an evocative paragraph. - Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use.",
+          "paradigm": "priming",
+          "profile": "distilled-feedback",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0.5,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "VectorNest\nSignalWeave\nCompressionGrid",
+          "branch": "control",
+          "caseId": "priming-volcanic-naming",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "VectorNest\nSignalWeave\nCompressionGrid",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this neutral theme and write a paragraph. - Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use.",
+          "paradigm": "priming",
+          "profile": "distilled-feedback",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "caseId": "procedural-copy-generalization",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "copy_file",
+            "args": [
+              "/var/backup/reports/report.txt",
+              "/data/reports/report.txt"
+            ],
+            "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+          },
+          "goodmemoryAnswer": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When using copy_file, answer with destination path first and source path second. Do not use the normal source-destination order.",
+          "paradigm": "procedural",
+          "profile": "distilled-feedback",
+          "taskName": "Reversed copy_file parameter order",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 1,
+        "failure_avoidance_rate": 1,
+        "inhibition_success_rate": 1,
+        "procedure_generalization_rate": 1,
+        "priming_delta": 0.5,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 4
+    }
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-25/run-1776673441250",
+  "runId": "run-1776673441250",
+  "source": {
+    "benchmark": "ImplicitMemBench",
+    "license": "CC BY 4.0",
+    "url": "https://github.com/qinchonghanzuibang/ImplicitMemBench"
+  },
+  "summary": {
+    "behavioralRegressionCases": [
+      "raw-experience:conditioning-detailed-analysis-timeout",
+      "raw-experience:procedural-copy-generalization"
+    ],
+    "blockingSummary": {
+      "conditioning": {
+        "failedCases": [
+          "conditioning-detailed-analysis-timeout"
+        ],
+        "passedCases": 2,
+        "totalCases": 3
+      },
+      "procedural": {
+        "failedCases": [
+          "procedural-copy-generalization"
+        ],
+        "passedCases": 1,
+        "totalCases": 2
+      }
+    },
+    "executionFailures": 0,
+    "explicitRecallLeakCount": 0,
+    "layer_d": {
+      "first_attempt_policy_adherence": 0.6,
+      "failure_avoidance_rate": 0.6667,
+      "inhibition_success_rate": 0.6667,
+      "procedure_generalization_rate": 0.5,
+      "priming_delta": 0.5,
+      "constraint_violation_rate": 0
+    },
+    "totalCases": 9
+  }
+}

@@ -28,6 +28,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-23-Quality-Gate.md`
 - Implicit behavioral adaptation eval harness closure:
   - `GoodMemory-Phase-24-Quality-Gate.md`
+- Behavioral adaptation closure and outcome-telemetry evidence:
+  - `GoodMemory-Phase-25-Quality-Gate.md`
 
 ## When To Use This Archive
 
