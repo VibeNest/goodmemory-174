@@ -13,6 +13,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - `sqlite` is now stable as the default local durable document/session/vector backend for the auto-storage path.
 - `GOODMEMORY_EMBEDDING_*` now controls automatic embedding enablement; when those variables are absent, runtime behavior stays `rules-only`.
 - Local SQLite runtime guardrails are available through `GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH`, `GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH`, and `GOODMEMORY_SQLITE_VECTOR_MODE=off|prefer|require`.
+- Configured SQLite vector extensions can now participate in the search path, but the stable product claim is still “durable local vectors with optional extension-assisted search”, not full `sqlite-vss` indexed acceleration by default.
 - Retrieval rollout controls, promotion gates, salvage hooks, and internal provider-router rollout controls remain implementation detail, not README-level product surface.
 - Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
 - Behavioral adaptation outcome telemetry and deterministic Layer D evidence are also internal evidence infrastructure; they do not change the stable OSS runtime surface.

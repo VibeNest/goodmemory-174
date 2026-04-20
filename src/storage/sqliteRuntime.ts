@@ -1,4 +1,5 @@
 export type SQLiteVectorExtensionMode = "off" | "prefer" | "require";
+export const DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION = "vss_inner_product";
 
 interface EnvironmentMap {
   [key: string]: string | undefined;
@@ -12,14 +13,12 @@ export interface SQLiteVectorExtensionConfig {
   entryPoint?: string;
   mode: SQLiteVectorExtensionMode;
   path?: string;
+  paths?: string[];
+  searchFunction: string;
 }
 
 export interface SQLiteRuntimeConfig extends SQLiteCustomLibraryConfig {
-  vectorExtension: {
-    entryPoint?: string;
-    mode: SQLiteVectorExtensionMode;
-    path?: string;
-  };
+  vectorExtension: SQLiteVectorExtensionConfig;
 }
 
 interface SQLiteLibraryController {
@@ -37,6 +36,28 @@ function normalizeNonEmpty(value: string | undefined): string | undefined {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeExtensionPaths(value: string | undefined): string[] {
+  const normalized = normalizeNonEmpty(value);
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function validateSearchFunction(value: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+    throw new Error(
+      `Unsupported GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: ${value}. Expected a valid SQLite function identifier.`,
+    );
+  }
+
+  return value;
 }
 
 function normalizeVectorMode(
@@ -82,16 +103,18 @@ export function loadSQLiteVectorExtension(
 ): void {
   if (
     config.mode === "off" ||
-    !config.path
+    !(config.paths?.length ?? 0)
   ) {
     return;
   }
 
   try {
-    loader.loadExtension(
-      config.path,
-      config.entryPoint,
-    );
+    for (const path of config.paths!) {
+      loader.loadExtension(
+        path,
+        config.entryPoint,
+      );
+    }
   } catch (error) {
     if (config.mode === "prefer") {
       return;
@@ -120,15 +143,22 @@ export function resolveSQLiteVectorExtensionConfig(
   const extensionPath = normalizeNonEmpty(
     env.GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH,
   );
+  const extensionPaths = normalizeExtensionPaths(
+    env.GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH,
+  );
   const extensionEntryPoint = normalizeNonEmpty(
     env.GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT,
   );
+  const searchFunction = validateSearchFunction(
+    normalizeNonEmpty(env.GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION) ??
+      DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
+  );
   const mode = normalizeVectorMode(
     normalizeNonEmpty(env.GOODMEMORY_SQLITE_VECTOR_MODE),
-    Boolean(extensionPath),
+    extensionPaths.length > 0,
   );
 
-  if (mode !== "off" && !extensionPath) {
+  if (mode !== "off" && extensionPaths.length === 0) {
     throw new Error(
       "GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH is required when GOODMEMORY_SQLITE_VECTOR_MODE is prefer or require.",
     );
@@ -137,6 +167,8 @@ export function resolveSQLiteVectorExtensionConfig(
   return {
     mode,
     path: extensionPath,
+    paths: extensionPaths,
     entryPoint: extensionEntryPoint,
+    searchFunction,
   };
 }

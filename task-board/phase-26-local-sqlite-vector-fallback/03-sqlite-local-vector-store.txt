@@ -4,7 +4,7 @@ Phase 26.3: SQLite Local Vector Store
 [DONE] P26.3-T001 Add SQLite vector-store contract coverage
 [DONE] P26.3-T002 Implement durable SQLite vector storage instead of in-memory fallback
 [DONE] P26.3-T003 Add bootstrap and platform guardrails for local vector runtime
-[TODO] P26.3-T004 Define the boundary between “durable local vectors” and future `sqlite-vss` acceleration
+[DONE] P26.3-T004 Define the boundary between “durable local vectors” and future `sqlite-vss` acceleration
 
 Why this exists
 ---------------
@@ -37,6 +37,13 @@ Current implementation notes
 - This slice is about durability and runtime correctness first
 - Local SQLite vectors now persist durably instead of falling back to process-local in-memory vectors
 - `GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH` can inject a custom SQLite library before database construction
+- `GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH` can now load one or more extensions in order, which unblocks `vector0 -> vss0` style setups
 - `GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH` plus optional `GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT` can enable extension loading
 - `GOODMEMORY_SQLITE_VECTOR_MODE=prefer` swallows extension-load failures, while `require` fails loudly
-- Actual `sqlite-vss` acceleration can be layered on top once bootstrap/install behavior is stable
+- When an extension is configured and successfully loaded, SQLite search can now use an extension-backed scoring path before falling back to durable local dot-product search
+- The current stable claim is:
+  - durable local vectors
+  - optional extension-assisted scoring/search path
+- The current non-claim is:
+  - full `sqlite-vss` virtual-table / Faiss-index acceleration as the canonical default backend
+- That stronger indexed acceleration can still be layered on top later without changing the stable durable fallback path

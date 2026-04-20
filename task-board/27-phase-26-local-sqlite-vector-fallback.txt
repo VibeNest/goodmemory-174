@@ -78,6 +78,7 @@ Implemented So Far
   - `GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH`
   - `GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT`
   - `GOODMEMORY_SQLITE_VECTOR_MODE=off|prefer|require`
+- Configured SQLite vector extensions now participate in the search path, with `prefer` fallback and `require` fail-fast semantics
 - CLI storage resolution now follows the same shared resolver as the library runtime
 
 Evidence

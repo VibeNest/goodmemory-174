@@ -21,6 +21,7 @@ import {
   shallowMergeDocument,
 } from "./contracts";
 import {
+  DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
   applySQLiteCustomLibrary,
   loadSQLiteVectorExtension,
   resolveSQLiteCustomLibraryConfig,
@@ -28,6 +29,8 @@ import {
   type SQLiteCustomLibraryConfig,
   type SQLiteVectorExtensionConfig,
 } from "./sqliteRuntime";
+
+type SQLiteBindingValue = string | number | boolean | null;
 
 interface DocumentRow {
   json: string;
@@ -46,6 +49,23 @@ interface VectorRow {
 
 interface SQLiteStoreOptions {
   readOnly?: boolean;
+}
+
+interface SQLiteVectorSearchRow extends VectorRow {
+  score: number;
+}
+
+interface SQLiteVectorStoreDependencies {
+  loadVectorExtension?: typeof loadSQLiteVectorExtension;
+  vectorExtensionConfig?: SQLiteVectorExtensionConfig;
+  runExtensionSearch?: (input: {
+    collection: string;
+    config: SQLiteVectorExtensionConfig;
+    database: Database;
+    filter?: Record<string, unknown>;
+    queryEmbedding: number[];
+    topK: number;
+  }) => VectorSearchResult[] | null;
 }
 
 let sqliteCustomLibraryConfig: SQLiteCustomLibraryConfig | null = null;
@@ -159,6 +179,125 @@ function scoreDotProduct(left: number[], right: number[]): number {
   }
 
   return score;
+}
+
+function canUseSQLiteJsonFilterValue(value: unknown): value is string | number | boolean | null {
+  return (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  );
+}
+
+function createSQLiteJsonFilterClause(input: {
+  alias: string;
+  keyParameterIndex: number;
+  value: SQLiteBindingValue;
+  valueParameterIndex?: number;
+}): string {
+  const { alias, keyParameterIndex, value, valueParameterIndex } = input;
+  const clausePrefix = `EXISTS (
+        SELECT 1
+        FROM json_each(metadata_json) AS ${alias}
+        WHERE ${alias}.key = ?${keyParameterIndex}`;
+
+  if (value === null) {
+    return `${clausePrefix}
+          AND ${alias}.type = 'null'
+      )`;
+  }
+
+  if (typeof value === "boolean") {
+    return `${clausePrefix}
+          AND ${alias}.type = '${value ? "true" : "false"}'
+      )`;
+  }
+
+  if (typeof value === "number") {
+    return `${clausePrefix}
+          AND ${alias}.type IN ('integer', 'real')
+          AND ${alias}.atom = ?${valueParameterIndex}
+      )`;
+  }
+
+  return `${clausePrefix}
+          AND ${alias}.type = 'text'
+          AND ${alias}.atom = ?${valueParameterIndex}
+      )`;
+}
+
+function searchSQLiteVectorsWithExtension(input: {
+  collection: string;
+  config: SQLiteVectorExtensionConfig;
+  database: Database;
+  filter?: Record<string, unknown>;
+  queryEmbedding: number[];
+  topK: number;
+}): VectorSearchResult[] | null {
+  const { collection, config, database, filter, queryEmbedding, topK } = input;
+  if (config.mode === "off" || !config.paths?.length) {
+    return null;
+  }
+
+  const values: SQLiteBindingValue[] = [collection, JSON.stringify(queryEmbedding)];
+  const filterClauses: string[] = [];
+
+  if (filter) {
+    for (const [key, value] of Object.entries(filter)) {
+      if (!canUseSQLiteJsonFilterValue(value)) {
+        return null;
+      }
+
+      values.push(key);
+      const keyParameterIndex = values.length;
+      const alias = `metadata_filter_${filterClauses.length + 1}`;
+
+      if (value === null || typeof value === "boolean") {
+        filterClauses.push(
+          createSQLiteJsonFilterClause({
+            alias,
+            keyParameterIndex,
+            value,
+          }),
+        );
+        continue;
+      }
+
+      values.push(value);
+      filterClauses.push(
+        createSQLiteJsonFilterClause({
+          alias,
+          keyParameterIndex,
+          value,
+          valueParameterIndex: values.length,
+        }),
+      );
+    }
+  }
+
+  values.push(topK);
+  const whereClauses = ["collection = ?1", ...filterClauses];
+  const searchStatement = database.query<SQLiteVectorSearchRow, SQLiteBindingValue[]>(
+    `SELECT
+        id,
+        embedding_json,
+        metadata_json,
+        content,
+        ${(config.searchFunction || DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION)}(embedding_json, ?2) AS score
+      FROM vectors
+      WHERE ${whereClauses.join(" AND ")}
+      ORDER BY score DESC, id ASC
+      LIMIT ?${values.length}`,
+  );
+
+  return searchStatement.all(...values).map((row) => ({
+    id: row.id,
+    embedding: parseJson<number[]>(row.embedding_json),
+    metadata: parseJson<Record<string, unknown>>(row.metadata_json),
+    content: row.content,
+    score: Number(row.score),
+  }));
 }
 
 export function createSQLiteDocumentStore(
@@ -333,13 +472,18 @@ export function createSQLiteSessionStore(
 export function createSQLiteVectorStore(
   path: string,
   options?: SQLiteStoreOptions,
+  dependencies?: SQLiteVectorStoreDependencies,
 ): VectorStore {
-  const vectorExtensionConfig = ensureSQLiteVectorExtensionConfigured();
+  const vectorExtensionConfig =
+    dependencies?.vectorExtensionConfig ?? ensureSQLiteVectorExtensionConfigured();
   const database = createDatabase(path, options);
   if (!options?.readOnly) {
     ensureVectorSchema(database);
   }
-  loadSQLiteVectorExtension(vectorExtensionConfig, database);
+  (dependencies?.loadVectorExtension ?? loadSQLiteVectorExtension)(
+    vectorExtensionConfig,
+    database,
+  );
   const hasVectorTable = !options?.readOnly || hasTable(database, "vectors");
 
   const upsertStatement = options?.readOnly
@@ -419,6 +563,38 @@ export function createSQLiteVectorStore(
 
       if (!hasVectorTable) {
         return [];
+      }
+
+      if (vectorExtensionConfig.mode !== "off" && vectorExtensionConfig.paths?.length) {
+        try {
+          const extensionResults = (
+            dependencies?.runExtensionSearch ?? searchSQLiteVectorsWithExtension
+          )({
+            collection,
+            config: vectorExtensionConfig,
+            database,
+            filter: input.filter,
+            queryEmbedding,
+            topK: input.topK,
+          });
+
+          if (extensionResults !== null) {
+            return extensionResults;
+          }
+
+          if (vectorExtensionConfig.mode === "require") {
+            throw new Error(
+              "SQLite vector extension search could not satisfy the current query without durable fallback.",
+            );
+          }
+        } catch (error) {
+          if (vectorExtensionConfig.mode === "require") {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(
+              `Failed to execute SQLite vector extension search for ${collection}: ${message}`,
+            );
+          }
+        }
       }
 
       return listStatement!

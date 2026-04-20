@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "bun:test";
 import {
+  DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
   applySQLiteCustomLibrary,
   loadSQLiteVectorExtension,
   resolveSQLiteRuntimeConfig,
@@ -58,6 +59,8 @@ describe("sqlite runtime config", () => {
         entryPoint: undefined,
         mode: "off",
         path: undefined,
+        paths: [],
+        searchFunction: DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
       },
     });
   });
@@ -73,6 +76,29 @@ describe("sqlite runtime config", () => {
         entryPoint: undefined,
         mode: "prefer",
         path: "/opt/sqlite/vector.dylib",
+        paths: ["/opt/sqlite/vector.dylib"],
+        searchFunction: DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
+      },
+    });
+  });
+
+  it("supports comma-separated extension load paths", () => {
+    expect(
+      resolveSQLiteRuntimeConfig({
+        GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH:
+          "/opt/sqlite/vector0.dylib, /opt/sqlite/vss0.dylib",
+      }),
+    ).toEqual({
+      customLibraryPath: undefined,
+      vectorExtension: {
+        entryPoint: undefined,
+        mode: "prefer",
+        path: "/opt/sqlite/vector0.dylib, /opt/sqlite/vss0.dylib",
+        paths: [
+          "/opt/sqlite/vector0.dylib",
+          "/opt/sqlite/vss0.dylib",
+        ],
+        searchFunction: DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
       },
     });
   });
@@ -199,6 +225,8 @@ describe("sqlite runtime hooks", () => {
         {
           mode: "prefer",
           path: "/opt/sqlite/vector.dylib",
+          paths: ["/opt/sqlite/vector.dylib"],
+          searchFunction: DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
         },
         {
           loadExtension(path: string, entryPoint?: string) {
@@ -209,9 +237,35 @@ describe("sqlite runtime hooks", () => {
       ),
     ).not.toThrow();
     expect(calls).toEqual([
+        {
+          path: "/opt/sqlite/vector.dylib",
+        },
+      ]);
+  });
+
+  it("loads multiple extensions in order when configured", () => {
+    const calls: Array<{ entryPoint?: string; path: string }> = [];
+
+    loadSQLiteVectorExtension(
       {
-        path: "/opt/sqlite/vector.dylib",
+        mode: "prefer",
+        path: "/opt/sqlite/vector0.dylib, /opt/sqlite/vss0.dylib",
+        paths: [
+          "/opt/sqlite/vector0.dylib",
+          "/opt/sqlite/vss0.dylib",
+        ],
+        searchFunction: DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
       },
+      {
+        loadExtension(path: string, entryPoint?: string) {
+          calls.push({ path, entryPoint });
+        },
+      },
+    );
+
+    expect(calls).toEqual([
+      { path: "/opt/sqlite/vector0.dylib", entryPoint: undefined },
+      { path: "/opt/sqlite/vss0.dylib", entryPoint: undefined },
     ]);
   });
 
@@ -221,7 +275,9 @@ describe("sqlite runtime hooks", () => {
         {
           mode: "require",
           path: "/opt/sqlite/vector.dylib",
+          paths: ["/opt/sqlite/vector.dylib"],
           entryPoint: "sqlite3_vector_init",
+          searchFunction: DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
         },
         {
           loadExtension() {
