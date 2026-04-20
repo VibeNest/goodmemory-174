@@ -580,8 +580,11 @@ export function resolveLiveModelConfig(prefix: "GOODMEMORY_EVAL" | "GOODMEMORY_J
   };
 }
 
-function resolveProviderBackedModelConfig(
-  prefix: "GOODMEMORY_EMBEDDING" | "GOODMEMORY_ASSISTED_EXTRACTOR",
+export function resolveProviderBackedModelConfig(
+  prefix:
+    | "GOODMEMORY_ASSISTED_EXTRACTOR"
+    | "GOODMEMORY_EMBEDDING"
+    | "GOODMEMORY_RECALL_ROUTER",
 ): AISDKModelConfig {
   const config = parseAISDKModelConfigFromEnv(prefix);
   const missingVars = [

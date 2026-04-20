@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { JudgeModel } from "../../src/eval/judge";
 import type { EmbeddingAdapter } from "../../src/embedding/contracts";
 import type { EvalAnswerGenerator } from "../../src/eval/runners";
+import type { RecallRouterAssistant } from "../../src/recall/assistant";
 import type { MemoryExtractor } from "../../src/remember/candidates";
 import {
   createFallbackAdapterDescriptor,
@@ -9,6 +10,7 @@ import {
   createProviderEmbeddingAdapter,
   createProviderJudgeModel,
   createProviderMemoryExtractor,
+  createProviderRecallRouter,
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
 } from "../../src/provider/layer";
@@ -171,6 +173,70 @@ describe("provider layer contract", () => {
     expect(embeddingCalls[0]?.model).toEqual({
       provider: "openai",
       model: "text-embedding-3-small",
+    });
+  });
+
+  it("routes provider-backed recall router creation through the same provider layer", async () => {
+    const routerCalls: Array<Record<string, unknown>> = [];
+
+    const router = createProviderRecallRouter({
+      model: {
+        provider: "openai",
+        model: "gpt-4o-mini",
+      },
+      createRecallRouter: (input) => {
+        routerCalls.push(input as unknown as Record<string, unknown>);
+        const recallRouter: RecallRouterAssistant = {
+          async plan() {
+            return {
+              querySummary: "refined query",
+              rationale: "provider-routed plan",
+            };
+          },
+          async rerank() {
+            return {
+              orderedCandidateIds: ["fact-1"],
+              rationale: "provider-routed rerank",
+            };
+          },
+        };
+
+        return recallRouter;
+      },
+    });
+
+    const plan = await router.plan({
+      locale: "en",
+      query: "what is the blocker",
+      routingDecision: {
+        retrievalProfile: "general_chat",
+        intent: "general_assistance",
+        strategy: "llm-assisted",
+        strategyExplanation: {
+          requestedStrategy: "llm-assisted",
+          resolvedStrategy: "llm-assisted",
+          summary: "llm assisted",
+          hardFloor: "lexical_runtime_procedural_priors",
+          semanticTieBreaking: false,
+          llmRefinement: true,
+        },
+        sourcePriorities: ["profile", "feedback", "fact", "episode"],
+        requestedSlots: ["blocker"],
+        supportSlots: [],
+        actionDriving: false,
+        referenceSeeking: false,
+        continuation: false,
+      },
+      runtime: {
+        hasJournal: false,
+        hasWorkingMemory: false,
+      },
+    });
+
+    expect(plan.querySummary).toBe("refined query");
+    expect(routerCalls[0]?.model).toEqual({
+      provider: "openai",
+      model: "gpt-4o-mini",
     });
   });
 });

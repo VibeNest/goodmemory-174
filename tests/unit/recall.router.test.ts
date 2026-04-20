@@ -157,6 +157,27 @@ describe("recall router", () => {
     expect(plan.strategyExplanation.llmRefinement).toBe(false);
   });
 
+  it("resolves llm-assisted when llm routing is available", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      strategy: "llm-assisted",
+      availability: {
+        semanticSearch: true,
+        llmRouting: true,
+      },
+      query: "Which runbook is the source of truth and what should I do next?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.strategy).toBe("llm-assisted");
+    expect(plan.strategyExplanation.requestedStrategy).toBe("llm-assisted");
+    expect(plan.strategyExplanation.resolvedStrategy).toBe("llm-assisted");
+    expect(plan.strategyExplanation.llmRefinement).toBe(true);
+  });
+
   it("detects Chinese continuation intent through the language service", () => {
     const plan = planRecall({
       retrievalProfile: "general_chat",

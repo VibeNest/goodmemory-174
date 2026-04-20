@@ -1,0 +1,10 @@
+[DONE] P21.1-T001 Add `RecallRouterAssistant`, `RecallAssistantPlan`, `RecallAssistantRerank`, and bounded helper utilities
+[DONE] P21.1-T002 Add internal provider factory `createProviderRecallRouter({ model })`
+[DONE] P21.1-T003 Wire `InternalGoodMemoryOptions.assistedRecallRouter` and `GoodMemoryEvalSupport.assistedRecallRouter`
+[DONE] P21.1-T004 Keep `planRecall()` as the deterministic hard floor and make all assistant failures fall back safely
+
+Regression
+----------
+- `bun test tests/unit/recall.assistant.test.ts`
+- `bun test tests/unit/provider.layer.test.ts tests/unit/model-adapters.test.ts tests/unit/recall.router.test.ts`
+- `bun test tests/integration/recall.api.test.ts`

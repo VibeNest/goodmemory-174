@@ -1,0 +1,18 @@
+[DONE] P21.3-T001 Add `scripts/run-phase-21-gate.ts`
+[DONE] P21.3-T002 Run the deterministic phase-21 gate and record the canonical accepted run
+[DONE] P21.3-T003 Run provider-backed live-memory observe/assist validation and sync docs/task-board with the real artifact paths
+
+Canonical accepted deterministic gate
+------------------------------------
+- `run-20260419174013`
+- `reports/quality-gates/phase-21/run-20260419174013/phase-21-quality-gate.json`
+
+Live-memory validation
+----------------------
+- Observe: `reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json`
+- Assist: `reports/eval/live-memory/phase-21/run-1776620091171-assist/report.json`
+
+Validation note
+---------------
+- The live provider confirms provider-backed `llm-assisted` retrieval execution and non-empty planner influence traces.
+- The current provider/model pairing still falls back on the rerank sub-step with `schema_invalid`, so promote/default rollout remains explicitly deferred.

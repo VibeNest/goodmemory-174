@@ -32,6 +32,13 @@ import {
   type MemoryPacket,
 } from "./contextBuilder";
 import {
+  applyRecallAssistantPlan,
+  applyRecallAssistantRerank,
+  buildRecallAssistantCandidates,
+  type RecallAssistantInfluence,
+  type RecallRouterAssistant,
+} from "./assistant";
+import {
   attachEvidenceIdsToCandidateTraces,
   buildEvidenceLinkIndex,
   buildHits,
@@ -124,6 +131,7 @@ export interface RecallResult {
   journal: SessionJournal | null;
   packet: MemoryPacket;
   metadata: {
+    assistantInfluence?: RecallAssistantInfluence;
     routingDecision: RoutingDecision;
     tokenCount: number;
     latencyMs: number;
@@ -139,6 +147,7 @@ export interface RecallResult {
 }
 
 export interface RecallEngineConfig {
+  assistedRouter?: RecallRouterAssistant;
   embedding?: EmbeddingAdapter;
   language?: LanguageService;
   repositories: RecallRepositoryPort & { vectorIndex?: RecallVectorSearchPort | null };
@@ -163,6 +172,102 @@ function buildEvidenceCountByMemoryId(
   return counts;
 }
 
+function buildEmptyAssistantInfluence(): RecallAssistantInfluence {
+  return {
+    addedRequestedSlots: [],
+    addedSupportSlots: [],
+    decisions: [],
+    planApplied: false,
+    rerankApplied: false,
+    rerankedCandidateIds: [],
+    suppressedCandidateIds: [],
+  };
+}
+
+function resolveAssistantFallbackReason(error: unknown): RecallAssistantInfluence["fallbackReason"] {
+  const message =
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : String(error).toLowerCase();
+
+  if (message.includes("schema validation failed")) {
+    return "schema_invalid";
+  }
+  if (message.includes("timeout") || message.includes("timed out")) {
+    return "timeout";
+  }
+
+  return "provider_error";
+}
+
+function appendAssistantTraceDetails(
+  traces: RecallCandidateTrace[],
+  influence?: RecallAssistantInfluence,
+): RecallCandidateTrace[] {
+  if (!influence) {
+    return traces;
+  }
+
+  const decisionsByCandidateId = new Map(
+    influence.decisions.map((decision) => [decision.candidateId, decision]),
+  );
+
+  return traces.map((trace) => {
+    const decision = decisionsByCandidateId.get(trace.memoryId);
+    if (!decision) {
+      return trace;
+    }
+
+    if (trace.returned) {
+      return {
+        ...trace,
+        whyReturned: trace.whyReturned
+          ? `${trace.whyReturned}, llmDecision=${decision.decision}:${decision.reason}`
+          : `llmDecision=${decision.decision}:${decision.reason}`,
+      };
+    }
+
+    if (decision.decision === "suppress") {
+      return {
+        ...trace,
+        whySuppressed: `llm-assisted suppress: ${decision.reason}`,
+      };
+    }
+
+    return trace;
+  });
+}
+
+function collectAssistantProtectedCandidateIds(
+  traceGroups: RecallCandidateTrace[][],
+): Set<string> {
+  const protectedCandidateIds = new Set<string>();
+
+  for (const traces of traceGroups) {
+    for (const trace of traces) {
+      if (trace.returned && trace.slot !== "generic") {
+        protectedCandidateIds.add(trace.memoryId);
+      }
+    }
+  }
+
+  return protectedCandidateIds;
+}
+
+function createAssistantSuppressionTraceReason(
+  suppressedCandidateIds: readonly string[],
+): (trace: RecallCandidateTrace) => string {
+  const suppressedIds = new Set(suppressedCandidateIds);
+
+  return (trace) =>
+    suppressedIds.has(trace.memoryId)
+      ? "llm-assisted suppress"
+      : "policy filtered";
+}
+
 export function createRecallEngine(config: RecallEngineConfig) {
   const language = config.language ?? createLanguageService();
   const now = config.now ?? Date.now;
@@ -183,7 +288,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const policyApplied = new Set<string>();
       const routerAvailability = {
         semanticSearch: Boolean(config.embedding && vectorIndex),
-        llmRouting: false,
+        llmRouting: Boolean(config.assistedRouter),
       };
 
       if (input.ignoreMemory) {
@@ -271,7 +376,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           : Promise.resolve(null),
       ]);
 
-      const routingDecision = planRecall({
+      let routingDecision = planRecall({
         retrievalProfile,
         strategy: input.strategy,
         availability: routerAvailability,
@@ -283,6 +388,40 @@ export function createRecallEngine(config: RecallEngineConfig) {
           hasJournal: Boolean(journalRaw),
         },
       });
+      let assistantInfluence =
+        routingDecision.strategy === "llm-assisted" && config.assistedRouter
+          ? buildEmptyAssistantInfluence()
+          : undefined;
+
+      if (
+        routingDecision.strategy === "llm-assisted" &&
+        config.assistedRouter &&
+        !assistantInfluence?.fallbackReason
+      ) {
+        try {
+          const assistantPlan = await config.assistedRouter.plan({
+            locale: resolvedLanguage.locale,
+            query: input.query,
+            routingDecision,
+            runtime: {
+              hasWorkingMemory: Boolean(workingMemoryRaw),
+              hasJournal: Boolean(journalRaw),
+            },
+          });
+          const assistedPlan = applyRecallAssistantPlan({
+            influence: assistantInfluence ?? buildEmptyAssistantInfluence(),
+            plan: assistantPlan,
+            routingDecision,
+          });
+          routingDecision = assistedPlan.routingDecision;
+          assistantInfluence = assistedPlan.influence;
+        } catch (error) {
+          assistantInfluence = {
+            ...(assistantInfluence ?? buildEmptyAssistantInfluence()),
+            fallbackReason: resolveAssistantFallbackReason(error),
+          };
+        }
+      }
       const currentReferenceTime = referenceTime();
       const visibleEvidencePool = await applyRecallPolicyToRecords(
         evidenceRaw,
@@ -344,7 +483,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         semanticScores?.facts,
         evidenceCountsByMemoryId,
       );
-      const facts = await applyRecallPolicyToRecords(
+      let facts = await applyRecallPolicyToRecords(
         selectedFacts.facts,
         "fact",
         {
@@ -379,7 +518,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         routingDecision,
         currentReferenceTime,
       );
-      const archives = await applyRecallPolicyToRecords(
+      let archives = await applyRecallPolicyToRecords(
         selectedArchives.archives,
         "archive",
         {
@@ -401,7 +540,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         currentReferenceTime,
         semanticScores?.episodes,
       );
-      const episodes = await applyRecallPolicyToRecords(
+      let episodes = await applyRecallPolicyToRecords(
         selectedEpisodes.episodes,
         "episode",
         {
@@ -424,7 +563,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         semanticScores?.references,
         evidenceCountsByMemoryId,
       );
-      const references = await applyRecallPolicyToRecords(
+      let references = await applyRecallPolicyToRecords(
         selectedReferences.references,
         "reference",
         {
@@ -437,6 +576,58 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
+      if (
+        routingDecision.strategy === "llm-assisted" &&
+        config.assistedRouter &&
+        !assistantInfluence?.fallbackReason
+      ) {
+        const rerankSelection = {
+          facts,
+          references,
+          archives,
+          episodes,
+        };
+        const protectedCandidateIds = collectAssistantProtectedCandidateIds([
+          selectedFacts.traces,
+          selectedReferences.traces,
+          selectedArchives.traces,
+          selectedEpisodes.traces,
+        ]);
+        const assistantCandidates = buildRecallAssistantCandidates(rerankSelection, {
+          protectedCandidateIds,
+        });
+
+        if (assistantCandidates.length > 0) {
+          try {
+            const rerank = await config.assistedRouter.rerank({
+              candidates: assistantCandidates,
+              locale: resolvedLanguage.locale,
+              query: input.query,
+              querySummary: assistantInfluence?.querySummary,
+              routingDecision,
+            });
+            const reranked = applyRecallAssistantRerank({
+              influence: assistantInfluence ?? buildEmptyAssistantInfluence(),
+              protectedCandidateIds,
+              rerank,
+              selection: rerankSelection,
+            });
+
+            assistantInfluence = reranked.influence;
+            ({
+              facts,
+              references,
+              archives,
+              episodes,
+            } = reranked.selection);
+          } catch (error) {
+            assistantInfluence = {
+              ...(assistantInfluence ?? buildEmptyAssistantInfluence()),
+              fallbackReason: resolveAssistantFallbackReason(error),
+            };
+          }
+        }
+      }
       const factTraceIds = collectTraceMemoryIds(selectedFacts.traces);
       const referenceTraceIds = collectTraceMemoryIds(selectedReferences.traces);
       const archiveTraceIds = collectTraceMemoryIds(selectedArchives.traces);
@@ -465,24 +656,37 @@ export function createRecallEngine(config: RecallEngineConfig) {
         ? selectEvidence(visibleLinkedEvidence)
         : [];
       const evidenceIndex = buildEvidenceLinkIndex(explainabilityLinkedEvidence);
-      const candidateTraces = attachEvidenceIdsToCandidateTraces([
-        ...reconcileCandidateTraces(
-          selectedFacts.traces,
-          new Set(facts.map((fact) => fact.id)),
+      const assistantSuppressionTraceReason = createAssistantSuppressionTraceReason(
+        assistantInfluence?.suppressedCandidateIds ?? [],
+      );
+      const candidateTraces = appendAssistantTraceDetails(
+        attachEvidenceIdsToCandidateTraces(
+          [
+            ...reconcileCandidateTraces(
+              selectedFacts.traces,
+              new Set(facts.map((fact) => fact.id)),
+              assistantSuppressionTraceReason,
+            ),
+            ...reconcileCandidateTraces(
+              selectedReferences.traces,
+              new Set(references.map((reference) => reference.id)),
+              assistantSuppressionTraceReason,
+            ),
+            ...reconcileCandidateTraces(
+              selectedArchives.traces,
+              new Set(archives.map((archive) => archive.id)),
+              assistantSuppressionTraceReason,
+            ),
+            ...reconcileCandidateTraces(
+              selectedEpisodes.traces,
+              new Set(episodes.map((episode) => episode.id)),
+              assistantSuppressionTraceReason,
+            ),
+          ],
+          evidenceIndex,
         ),
-        ...reconcileCandidateTraces(
-          selectedReferences.traces,
-          new Set(references.map((reference) => reference.id)),
-        ),
-        ...reconcileCandidateTraces(
-          selectedArchives.traces,
-          new Set(archives.map((archive) => archive.id)),
-        ),
-        ...reconcileCandidateTraces(
-          selectedEpisodes.traces,
-          new Set(episodes.map((episode) => episode.id)),
-        ),
-      ], evidenceIndex);
+        assistantInfluence,
+      );
       const workingMemory =
         retrievalProfile === "coding_agent" ? workingMemoryRaw : null;
       const journal = retrievalProfile === "coding_agent" ? journalRaw : null;
@@ -497,6 +701,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
         episodes,
         workingMemory,
         journal,
+        durableCandidateOrder: assistantInfluence?.rerankApplied
+          ? assistantInfluence.rerankedCandidateIds
+          : undefined,
         locale: resolvedLanguage.locale,
         routingDecision,
       });
@@ -514,6 +721,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         journal,
         packet,
         metadata: {
+          ...(assistantInfluence ? { assistantInfluence } : {}),
           routingDecision,
           tokenCount: packet.debug?.estimatedTokens ?? 0,
           latencyMs: now() - startedAt,

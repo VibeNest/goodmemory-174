@@ -85,12 +85,14 @@ Read and execute files in this order:
 19. 19-phase-18-host-adapters-and-file-authoritative-integration.txt
 20. 20-phase-19-reviewer-and-maintenance-strategy-rollout.txt
 21. 21-phase-20-integrated-quality-gate-and-release-hardening.txt
+22. 22-phase-21-recall-side-llm-router-rollout.txt
 
 
 Current Sequencing Note
 -----------------------
 - Phase 15, Phase 16, Phase 17, Phase 18, and Phase 19 are now closed.
 - Phase 20 is now closed and accepted as the integrated release-hardening slice.
+- Phase 21 is now closed as the internal recall-side LLM router v1 slice.
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
@@ -99,8 +101,11 @@ Current Sequencing Note
 - Phase 20 closure is backed by the accepted integrated gate:
   - `docs/GoodMemory-Phase-20-Quality-Gate.md`
   - `reports/quality-gates/phase-20/run-20260419164837/phase-20-quality-gate.json`
-- The task-board currently has no post-Phase-20 executable phase queued yet.
-- Any work after Phase 20 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 21 closure is backed by:
+  - `reports/quality-gates/phase-21/run-20260419174013/phase-21-quality-gate.json`
+  - `reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json`
+  - `reports/eval/live-memory/phase-21/run-1776620091171-assist/report.json`
+- Any work after Phase 21 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -115,12 +120,12 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17, Phase 18, Phase 19, and Phase 20 guarantees while local changes land
-   - Close any local WIP without widening scope into an unplanned post-Phase-20 capability track
-   - If work starts after Phase 20, add a new executable phase before implementation
+   - Preserve the closed Phase 17 through Phase 21 guarantees while local changes land
+   - Close any local WIP without widening scope into an unplanned post-Phase-21 capability track
+   - If work starts after Phase 21, add a new executable phase before implementation
 2. Near-term product differentiation
-   - Decide and document the next queued phase after the now-closed Phase 20 integrated gate
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, and release-hardening guarantees regression-covered while new scope is defined
+   - Decide and document the next queued phase after the now-closed Phase 21 internal recall-router landing
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, and internal recall-router guarantees regression-covered while new scope is defined
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
 4. Host integration track
@@ -224,3 +229,6 @@ Files in This Folder
 
 - 20-phase-19-reviewer-and-maintenance-strategy-rollout.txt
   Dedicated reviewer/maintenance rollout after retrieval-first phase-17 closure and host-adapter stabilization
+
+- 22-phase-21-recall-side-llm-router-rollout.txt
+  Internal recall-side LLM router v1 with bounded planning/rerank, observe/assist rollout, and dedicated phase-21 gate evidence

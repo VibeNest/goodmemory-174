@@ -30,6 +30,7 @@ import type {
   RecallCandidateTrace,
   RecallHit,
 } from "../recall/engine";
+import type { RecallAssistantInfluence } from "../recall/assistant";
 import type {
   RecallRouterStrategy,
   RoutingDecision,
@@ -90,6 +91,7 @@ export interface RecallResult {
   journal: SessionJournal | null;
   packet: MemoryPacket;
   metadata: {
+    assistantInfluence?: RecallAssistantInfluence;
     routingDecision: RoutingDecision;
     tokenCount: number;
     latencyMs: number;

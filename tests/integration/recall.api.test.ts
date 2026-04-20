@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
+import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 import {
   createEpisodeMemory,
   createFactMemory,
@@ -10,6 +11,7 @@ import {
 } from "../../src/domain/records";
 import { createEvidenceRecord } from "../../src/evidence/contracts";
 import { createSessionArchive } from "../../src/evolution/contracts";
+import { renderMemoryPacket } from "../../src/recall/contextBuilder";
 import {
   createRuntimeContextService,
 } from "../../src/runtime/contextService";
@@ -253,6 +255,246 @@ describe("public recall API", () => {
     expect(hybrid.metadata.routingDecision.strategy).toBe("hybrid");
     expect(hybrid.metadata.routingDecision.strategyExplanation.semanticTieBreaking).toBe(true);
     expect(hybrid.facts[0]?.id).toBe("fact-right");
+  });
+
+  it("allows an internal llm-assisted recall router to add bounded support hints and reorder durable candidates", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Migration runbook",
+        pointer: "docs/migration-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        factKind: "blocker",
+        content: "Service account rotation is the current blocker for the migration rollout.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: { documentStore, sessionStore },
+      },
+      {
+        assistedRecallRouter: {
+          async plan() {
+            return {
+              querySummary: "source of truth plus immediate blocker context",
+              rationale: "reference lookup also needs project-state support",
+              supportSlotAdditions: ["project_state_support"],
+              sourcePriorityOrder: [
+                "fact",
+                "profile",
+                "feedback",
+                "episode",
+                "working_memory",
+                "session_journal",
+              ],
+            };
+          },
+          async rerank() {
+            return {
+              orderedCandidateIds: ["ref-1", "fact-1"],
+              rationale: "runbook should lead before blocker detail",
+              decisions: [
+                {
+                  candidateId: "ref-1",
+                  decision: "promote",
+                  reason: "source_of_truth",
+                },
+              ],
+            };
+          },
+        },
+      },
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "Which runbook is the source of truth for the migration rollout?",
+      retrievalProfile: "general_chat",
+      strategy: "llm-assisted",
+    });
+
+    expect(result.metadata.routingDecision.strategy).toBe("llm-assisted");
+    expect(result.metadata.routingDecision.supportSlots).toContain(
+      "project_state_support",
+    );
+    expect(result.references[0]?.id).toBe("ref-1");
+    expect(result.facts[0]?.id).toBe("fact-1");
+    expect(result.metadata.assistantInfluence?.planApplied).toBe(true);
+    expect(result.metadata.assistantInfluence?.rerankApplied).toBe(true);
+    expect(result.metadata.assistantInfluence?.rerankedCandidateIds).toEqual([
+      "ref-1",
+      "fact-1",
+    ]);
+    const markdown = renderMemoryPacket(result.packet, "markdown");
+    expect(markdown.content.indexOf("Migration runbook")).toBeLessThan(
+      markdown.content.indexOf("Service account rotation"),
+    );
+    expect(
+      result.metadata.candidateTraces.find((trace) => trace.memoryId === "ref-1")?.whyReturned,
+    ).toContain("llmDecision=promote:source_of_truth");
+  });
+
+  it("attributes LLM suppress traces only to candidates the assistant actually suppressed", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-policy",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Migration rollout status policy note for customer messaging.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-suppress",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Migration rollout status stale optional detail for customer messaging.",
+        source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-keep",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Migration rollout status confirmed detail for customer messaging.",
+        source: { method: "explicit", extractedAt: "2026-01-03T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: { documentStore, sessionStore },
+        policy: {
+          shouldRecall(record) {
+            return !(record.memoryType === "fact" && record.id === "fact-policy");
+          },
+        },
+      },
+      {
+        assistedRecallRouter: {
+          async plan() {
+            return {
+              querySummary: "customer messaging status",
+              rationale: "deterministic route is sufficient",
+            };
+          },
+          async rerank(input) {
+            const orderedCandidateIds = input.candidates.map((candidate) => candidate.id);
+
+            return {
+              orderedCandidateIds,
+              rationale: "remove stale optional detail",
+              suppressCandidateIds: orderedCandidateIds.includes("fact-suppress")
+                ? ["fact-suppress"]
+                : [],
+            };
+          },
+        },
+      },
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "How should I reply to the user about migration rollout status?",
+      retrievalProfile: "general_chat",
+      strategy: "llm-assisted",
+    });
+
+    const policyTrace = result.metadata.candidateTraces.find(
+      (trace) => trace.memoryId === "fact-policy",
+    );
+    const suppressTrace = result.metadata.candidateTraces.find(
+      (trace) => trace.memoryId === "fact-suppress",
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual(["fact-keep"]);
+    expect(policyTrace?.returned).toBe(false);
+    expect(policyTrace?.whySuppressed).toBe("policy filtered");
+    expect(suppressTrace?.returned).toBe(false);
+    expect(suppressTrace?.whySuppressed).toBe("llm-assisted suppress");
+  });
+
+  it("falls back to deterministic recall when the internal llm-assisted router errors", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        factKind: "blocker",
+        content: "Service account rotation is the current blocker for the migration rollout.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: { documentStore, sessionStore },
+      },
+      {
+        assistedRecallRouter: {
+          async plan() {
+            throw new Error("Structured model response schema validation failed");
+          },
+          async rerank() {
+            throw new Error("should not run");
+          },
+        },
+      },
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "What is the current blocker?",
+      retrievalProfile: "general_chat",
+      strategy: "llm-assisted",
+    });
+
+    expect(result.metadata.routingDecision.strategy).toBe("llm-assisted");
+    expect(result.facts[0]?.id).toBe("fact-1");
+    expect(result.metadata.assistantInfluence?.fallbackReason).toBe("schema_invalid");
+    expect(result.metadata.assistantInfluence?.rerankApplied).toBe(false);
   });
 
   it("retrieves runtime continuity for coding-agent recalls and builds markdown context", async () => {

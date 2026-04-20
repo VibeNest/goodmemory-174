@@ -9,11 +9,13 @@ import type {
   EvalAnswerGenerator,
   EvalAnswerGeneratorInput,
 } from "../eval/runners";
+import type { RecallRouterAssistant } from "../recall/assistant";
 import type { MemoryExtractor } from "../remember/candidates";
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { AISDKModelConfig } from "./ai-sdk-runtime";
 import { createAISDKEmbeddingAdapter } from "./ai-sdk-runtime";
 import { createLLMMemoryExtractor } from "./memory-extractor";
+import { createLLMRecallRouter } from "./recall-router";
 import type {
   ModelProviderId,
   ProviderRuntimeMetadata,
@@ -46,6 +48,14 @@ interface ProviderEmbeddingAdapterFactory {
   (input: {
     model: AISDKModelConfig;
   }): EmbeddingAdapter;
+}
+
+interface ProviderRecallRouterFactory {
+  (input: {
+    model: AISDKModelConfig;
+    planSystem?: string;
+    rerankSystem?: string;
+  }): RecallRouterAssistant;
 }
 
 export interface ModelProviderDescriptorInput {
@@ -144,5 +154,18 @@ export function createProviderEmbeddingAdapter(input: {
 }): EmbeddingAdapter {
   return (input.createEmbeddingAdapter ?? createAISDKEmbeddingAdapter)({
     model: input.model,
+  });
+}
+
+export function createProviderRecallRouter(input: {
+  model: AISDKModelConfig;
+  createRecallRouter?: ProviderRecallRouterFactory;
+  planSystem?: string;
+  rerankSystem?: string;
+}): RecallRouterAssistant {
+  return (input.createRecallRouter ?? createLLMRecallRouter)({
+    model: input.model,
+    planSystem: input.planSystem,
+    rerankSystem: input.rerankSystem,
   });
 }

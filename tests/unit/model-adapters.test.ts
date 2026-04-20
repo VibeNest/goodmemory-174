@@ -17,6 +17,9 @@ import {
 import {
   createLLMMemoryExtractor as createAISDKMemoryExtractor,
 } from "../../src/provider/memory-extractor";
+import {
+  createLLMRecallRouter,
+} from "../../src/provider/recall-router";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -391,6 +394,124 @@ describe("model adapters", () => {
 
     expect(result).toEqual([[1, 0, 0], [0, 1, 0]]);
     expect(calls[0]?.values).toEqual(["alpha", "beta"]);
+  });
+
+  it("creates a structured recall router using generateObject", async () => {
+    const calls: Array<Record<string, unknown>> = [];
+    let invocation = 0;
+    const router = createLLMRecallRouter({
+      model: {
+        provider: "anthropic",
+        model: "claude-sonnet",
+      },
+      dependencies: {
+        resolveModel: (config) => ({ resolvedFrom: config.model }) as never,
+        generateObject: async (input) => {
+          calls.push(input as unknown as Record<string, unknown>);
+          invocation += 1;
+
+          if (invocation === 1) {
+            return {
+              object: {
+                querySummary: "migration blocker source of truth",
+                rationale: "reference lookup needs project-state support",
+                requestedSlotAdditions: ["reference"],
+                sourcePriorityOrder: ["fact", "profile", "feedback", "episode"],
+                supportSlotAdditions: ["project_state_support"],
+              },
+            } as never;
+          }
+
+          return {
+            object: {
+              orderedCandidateIds: ["ref-1", "fact-1"],
+              rationale: "runbook before blocker fact",
+              suppressCandidateIds: [],
+              decisions: [
+                {
+                  candidateId: "ref-1",
+                  decision: "promote",
+                  reason: "source_of_truth",
+                },
+              ],
+            },
+          } as never;
+        },
+      },
+    });
+
+    const plan = await router.plan({
+      locale: "en",
+      query: "which runbook is the source of truth",
+      routingDecision: {
+        retrievalProfile: "general_chat",
+        intent: "general_assistance",
+        strategy: "llm-assisted",
+        strategyExplanation: {
+          requestedStrategy: "llm-assisted",
+          resolvedStrategy: "llm-assisted",
+          summary: "llm-assisted routing enabled refinement",
+          hardFloor: "lexical_runtime_procedural_priors",
+          semanticTieBreaking: false,
+          llmRefinement: true,
+        },
+        sourcePriorities: ["profile", "feedback", "fact", "episode"],
+        requestedSlots: [],
+        supportSlots: [],
+        actionDriving: false,
+        referenceSeeking: true,
+        continuation: false,
+      },
+      runtime: {
+        hasJournal: false,
+        hasWorkingMemory: false,
+      },
+    });
+    const rerank = await router.rerank({
+      candidates: [
+        {
+          id: "fact-1",
+          protected: false,
+          summary: "Current blocker is service account rotation.",
+          type: "fact",
+        },
+        {
+          id: "ref-1",
+          protected: false,
+          summary: "Migration runbook docs/migration-runbook.md",
+          type: "reference",
+        },
+      ],
+      locale: "en",
+      query: "which runbook is the source of truth",
+      querySummary: plan.querySummary,
+      routingDecision: {
+        retrievalProfile: "general_chat",
+        intent: "general_assistance",
+        strategy: "llm-assisted",
+        strategyExplanation: {
+          requestedStrategy: "llm-assisted",
+          resolvedStrategy: "llm-assisted",
+          summary: "llm-assisted routing enabled refinement",
+          hardFloor: "lexical_runtime_procedural_priors",
+          semanticTieBreaking: false,
+          llmRefinement: true,
+        },
+        sourcePriorities: ["profile", "feedback", "fact", "episode"],
+        requestedSlots: ["reference"],
+        supportSlots: ["project_state_support"],
+        actionDriving: false,
+        referenceSeeking: true,
+        continuation: false,
+      },
+    });
+
+    expect(plan.querySummary).toContain("source of truth");
+    expect(plan.requestedSlotAdditions).toEqual(["reference"]);
+    expect(rerank.orderedCandidateIds).toEqual(["ref-1", "fact-1"]);
+    expect(rerank.decisions?.[0]?.reason).toBe("source_of_truth");
+    expect(calls[0]?.schema).toBeTruthy();
+    expect(calls[1]?.schema).toBeTruthy();
   });
 
   it("rejects anthropic embedding model resolution because embeddings are unsupported", () => {

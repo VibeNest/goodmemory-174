@@ -1,0 +1,10 @@
+[DONE] P21.2-T001 Add `scripts/run-phase-21-eval.ts` for deterministic observe rollout
+[DONE] P21.2-T002 Add `scripts/run-phase-21-live-memory.ts` for provider-backed observe/assist rollout
+[DONE] P21.2-T003 Add `eval:phase-21`, `eval:phase-21-live-memory`, and `gate:phase-21` package scripts
+[DONE] P21.2-T004 Persist provider-backed runtime metadata for recall-router runs without widening the public surface
+
+Regression
+----------
+- `bun test tests/unit/run-phase-21.script.test.ts`
+- `bun run eval:phase-21`
+- `bun run eval:phase-21-live-memory --limit=1 --scenario-id scenario-medium-13-reference-next-step`

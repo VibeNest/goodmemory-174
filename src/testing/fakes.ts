@@ -1,6 +1,7 @@
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { MemoryScope } from "../domain/scope";
 import { scopeToPrefix } from "../domain/scope";
+import type { RecallRouterAssistant } from "../recall/assistant";
 
 export interface FakeLLMRequest {
   purpose: string;
@@ -40,6 +41,63 @@ export function createFakeEmbeddingAdapter(): EmbeddingAdapter {
         const hash = hashString(text);
         return [hash % 997, (hash >> 3) % 997, (hash >> 7) % 997];
       });
+    },
+  };
+}
+
+export function createFakeRecallRouter(): RecallRouterAssistant {
+  return {
+    async plan(input) {
+      const query = input.query.toLowerCase();
+      const sourcePriorityOrder = [...input.routingDecision.sourcePriorities];
+      const factIndex = sourcePriorityOrder.indexOf("fact");
+
+      if (query.includes("runbook") || query.includes("source of truth")) {
+        sourcePriorityOrder.sort((left, right) => {
+          if (left === "fact") {
+            return 1;
+          }
+          if (right === "fact") {
+            return -1;
+          }
+          return 0;
+        });
+      } else if (factIndex > 0) {
+        sourcePriorityOrder.splice(factIndex, 1);
+        sourcePriorityOrder.unshift("fact");
+      }
+
+      return {
+        querySummary: input.query,
+        rationale: "fake recall router applied deterministic query alignment hints",
+        requestedSlotAdditions:
+          query.includes("source of truth") && !input.routingDecision.requestedSlots.includes("reference")
+            ? ["reference"]
+            : undefined,
+        sourcePriorityOrder,
+        supportSlotAdditions:
+          query.includes("next") && !input.routingDecision.supportSlots.includes("project_state_support")
+            ? ["project_state_support"]
+            : undefined,
+      };
+    },
+
+    async rerank(input) {
+      const orderedCandidateIds = [...input.candidates]
+        .sort((left, right) => {
+          const leftScore = left.summary.toLowerCase().includes("runbook") ? 1 : 0;
+          const rightScore = right.summary.toLowerCase().includes("runbook") ? 1 : 0;
+          if (leftScore !== rightScore) {
+            return rightScore - leftScore;
+          }
+          return left.id.localeCompare(right.id);
+        })
+        .map((candidate) => candidate.id);
+
+      return {
+        orderedCandidateIds,
+        rationale: "fake recall router reordered bounded candidates deterministically",
+      };
     },
   };
 }

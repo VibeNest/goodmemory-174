@@ -1,0 +1,100 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 21 recall-side LLM router observe/assist scope is regression-covered on the deterministic gate path."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2320,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-21-targeted-regressions",
+      "command": "bun test tests/unit/recall.assistant.test.ts tests/unit/provider.layer.test.ts tests/unit/model-adapters.test.ts tests/unit/recall.router.test.ts tests/unit/run-phase-21.script.test.ts tests/integration/recall.api.test.ts",
+      "durationMs": 5494,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) public recall API > keeps project-state facts for mixed role and next-step queries [0.39ms]",
+        "(pass) public recall API > falls back to a unique active state fact for mixed role and next-step queries without lexical overlap [0.38ms]",
+        "(pass) public recall API > does not treat generic project facts as project-state support for next-step queries [0.05ms]",
+        "(pass) public recall API > keeps project-state facts available to project-state support for next-step queries [0.50ms]",
+        "(pass) public recall API > recognizes legacy next-milestone facts as project-state support for next-step queries [0.21ms]",
+        "(pass) public recall API > does not guess among multiple state facts for mixed role and next-step queries without lexical overlap [0.31ms]",
+        "(pass) public recall API > keeps references primary and project-state support narrow for reference plus next-step queries [0.70ms]",
+        "(pass) public recall API > keeps corrected source-of-truth recall bound to the superseded project's subject across multiple projects [5.44ms]",
+        "(pass) public recall API > explains recalled preferences and references even when no profile exists [0.60ms]",
+        "(pass) public recall API > retrieves Chinese facts for Chinese queries without faking English lexical matches [2.09ms]",
+        "(pass) public recall API > keeps Chinese blocker-only queries inside the blocker slot [0.59ms]",
+        "(pass) public recall API > does not leak English facts into Chinese answer-style queries [0.26ms]",
+        "(pass) public recall API > does not fall back to English references for Chinese reference-seeking queries [0.20ms]",
+        "(pass) public recall API > retrieves Chinese-authored ASCII references for Chinese reference-seeking queries [0.82ms]",
+        "(pass) public recall API > does not surface English episodes for Chinese continuation queries [0.30ms]",
+        "",
+        " 94 pass",
+        " 0 fail",
+        " 329 expect() calls",
+        "Ran 94 tests across 6 files. [5.49s]"
+      ]
+    },
+    {
+      "label": "phase-21-fallback-eval",
+      "command": "bun run eval:phase-21",
+      "durationMs": 132,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "      \"totalCases\": 5,",
+        "      \"byFamily\": {",
+        "        \"retrieval\": 5",
+        "      },",
+        "      \"byMode\": {",
+        "        \"observe\": 5",
+        "      },",
+        "      \"candidateInfluencedCases\": 0,",
+        "      \"safeObserveCases\": 5,",
+        "      \"unknownObserveCases\": 0,",
+        "      \"regressionCases\": []",
+        "    },",
+        "    \"totalCases\": 5,",
+        "    \"winnerCounts\": {",
+        "      \"baseline\": 0,",
+        "      \"goodmemory\": 5,",
+        "      \"tie\": 0",
+        "    }",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-21-eval.ts"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-19T17:24:21.086Z",
+  "generatedBy": "scripts/run-phase-21-gate.ts",
+  "phase": "phase-21",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-21/run-20260419172421",
+  "runId": "run-20260419172421",
+  "scope": {
+    "inScope": [
+      "internal recall-side llm router contracts and bounded safety guards",
+      "deterministic recall regressions plus phase-21 observe eval entrypoint",
+      "phase-21 task-board and quality-gate artifact closure"
+    ],
+    "outOfScope": [
+      "promotion authorization or default rollout switching",
+      "public config widening for recall router",
+      "owner-managed live-provider validation beyond the dedicated phase-21 live-memory run"
+    ]
+  }
+}

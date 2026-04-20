@@ -12,6 +12,7 @@ export interface RuntimeTargetDescriptor {
 }
 
 export interface ProviderRuntimeMetadata {
+  assistedRecallRouterEnabled?: boolean;
   generationMode: ProviderExecutionMode;
   generationAdapter?: RuntimeAdapterId;
   generationModelId?: string;
@@ -23,4 +24,6 @@ export interface ProviderRuntimeMetadata {
   memoryBackend?: "in-memory" | "provider-backed";
   embeddingEnabled?: boolean;
   assistedExtractionEnabled?: boolean;
+  recallRouterModelId?: string;
+  recallRouterProviderId?: ModelProviderId;
 }

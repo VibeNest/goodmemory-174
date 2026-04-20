@@ -23,6 +23,7 @@ import {
 } from "../maintenance/dream";
 import { createMaintenanceRunner } from "../maintenance/runner";
 import { ARTIFACT_SPILL_COLLECTION } from "../runtime/spillover";
+import type { RecallRouterAssistant } from "../recall/assistant";
 import { renderMemoryPacket } from "../recall/contextBuilder";
 import { createRecallEngine } from "../recall/engine";
 import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
@@ -86,6 +87,7 @@ const FORGETTABLE_COLLECTIONS = [
 ] as const;
 
 export interface InternalGoodMemoryOptions {
+  assistedRecallRouter?: RecallRouterAssistant;
   assistedReviewer?: boolean;
 }
 
@@ -201,6 +203,7 @@ class GoodMemoryImpl implements GoodMemory {
     this.language = language;
     this.now = config.testing?.now ?? (() => new Date());
     this.recallEngine = createRecallEngine({
+      assistedRouter: internal?.assistedRecallRouter,
       repositories,
       runtime: sessionStore,
       vectorIndex: repositories.vectorIndex,
@@ -683,7 +686,14 @@ export function createInternalGoodMemory(
 
   if (internal?.assistedReviewer) {
     return attachGoodMemoryEvalSupport(memory, {
+      ...(internal.assistedRecallRouter ? { assistedRecallRouter: true } : {}),
       assistedReviewer: true,
+    });
+  }
+
+  if (internal?.assistedRecallRouter) {
+    return attachGoodMemoryEvalSupport(memory, {
+      assistedRecallRouter: true,
     });
   }
 

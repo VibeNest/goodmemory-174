@@ -112,7 +112,7 @@ export async function applyRecallPolicyToProfile(
 export function reconcileCandidateTraces(
   traces: RecallCandidateTrace[],
   finalSelectedIds: Set<string>,
-  reason = "policy filtered",
+  reason: string | ((trace: RecallCandidateTrace) => string) = "policy filtered",
 ): RecallCandidateTrace[] {
   return traces.map((trace) => {
     if (!trace.returned) {
@@ -126,7 +126,7 @@ export function reconcileCandidateTraces(
       ...trace,
       returned: false,
       whyReturned: undefined,
-      whySuppressed: reason,
+      whySuppressed: typeof reason === "function" ? reason(trace) : reason,
       fallback: "none",
     };
   });

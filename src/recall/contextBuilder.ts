@@ -17,6 +17,7 @@ import type { RoutingDecision } from "./router";
 export interface MemoryPacket {
   profileSummary?: string;
   activeContextSummary?: string;
+  durableMemorySummary?: string;
   preferenceSummary?: string;
   referenceSummary?: string;
   factSummary?: string;
@@ -43,6 +44,7 @@ export interface MemoryPacketInput {
   evidence: EvidenceRecord[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
+  durableCandidateOrder?: string[];
   locale?: string;
   routingDecision?: RoutingDecision;
 }
@@ -276,6 +278,57 @@ function summarizeArchives(archives: SessionArchive[]): string | undefined {
     .join("\n");
 }
 
+function summarizeDurableMemory(input: {
+  archives: SessionArchive[];
+  candidateOrder?: string[];
+  episodes: EpisodeMemory[];
+  facts: FactMemory[];
+  references: ReferenceMemory[];
+}): string | undefined {
+  if (!input.candidateOrder || input.candidateOrder.length === 0) {
+    return undefined;
+  }
+
+  const candidatesById = new Map<string, string>();
+  for (const fact of input.facts.filter((item) => item.lifecycle === "active")) {
+    candidatesById.set(fact.id, `Fact: ${fact.content}`);
+  }
+  for (const reference of input.references) {
+    candidatesById.set(
+      reference.id,
+      `Reference: ${reference.title} (${reference.pointer})`,
+    );
+  }
+  for (const archive of input.archives) {
+    candidatesById.set(archive.id, `Session archive: ${renderArchiveSummary(archive)}`);
+  }
+  for (const episode of input.episodes) {
+    candidatesById.set(episode.id, `Episode: ${episode.summary}`);
+  }
+
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const candidateId of input.candidateOrder) {
+    const candidate = candidatesById.get(candidateId);
+    if (!candidate || seen.has(candidateId)) {
+      continue;
+    }
+
+    ordered.push(`- ${candidate}`);
+    seen.add(candidateId);
+  }
+
+  for (const [candidateId, candidate] of candidatesById) {
+    if (seen.has(candidateId)) {
+      continue;
+    }
+
+    ordered.push(`- ${candidate}`);
+  }
+
+  return ordered.length > 0 ? ordered.join("\n") : undefined;
+}
+
 function summarizeEvidence(evidence: EvidenceRecord[]): string | undefined {
   if (evidence.length === 0) {
     return undefined;
@@ -324,6 +377,13 @@ export function buildMemoryPacket(input: MemoryPacketInput): MemoryPacket {
   const packet: MemoryPacket = {
     profileSummary: summarizeProfile(input.profile),
     activeContextSummary: summarizeActiveContext(input.profile),
+    durableMemorySummary: summarizeDurableMemory({
+      archives: input.archives,
+      candidateOrder: input.durableCandidateOrder,
+      episodes: input.episodes,
+      facts: input.facts,
+      references: input.references,
+    }),
     preferenceSummary: summarizePreferences(input.preferences),
     referenceSummary: summarizeReferences(input.references),
     factSummary: summarizeFacts(input.facts, input.locale, input.routingDecision),
@@ -378,6 +438,37 @@ function trimSections(
 }
 
 function buildRenderableSections(packet: MemoryPacket) {
+  const durableMemorySections = packet.durableMemorySummary
+    ? [
+        {
+          key: "durableMemorySummary" as const,
+          title: "Durable Memory",
+          body: packet.durableMemorySummary,
+        },
+      ]
+    : [
+        {
+          key: "factSummary" as const,
+          title: "Facts",
+          body: packet.factSummary,
+        },
+        {
+          key: "referenceSummary" as const,
+          title: "References",
+          body: packet.referenceSummary,
+        },
+        {
+          key: "episodeSummary" as const,
+          title: "Relevant Episodes",
+          body: packet.episodeSummary,
+        },
+        {
+          key: "archiveSummary" as const,
+          title: "Session Archive",
+          body: packet.archiveSummary,
+        },
+      ];
+
   return [
     {
       key: "profileSummary" as const,
@@ -389,16 +480,7 @@ function buildRenderableSections(packet: MemoryPacket) {
       title: "Active Context",
       body: packet.activeContextSummary,
     },
-    {
-      key: "factSummary" as const,
-      title: "Facts",
-      body: packet.factSummary,
-    },
-    {
-      key: "referenceSummary" as const,
-      title: "References",
-      body: packet.referenceSummary,
-    },
+    ...durableMemorySections,
     {
       key: "feedbackSummary" as const,
       title: "Procedural Memory",
@@ -408,16 +490,6 @@ function buildRenderableSections(packet: MemoryPacket) {
       key: "preferenceSummary" as const,
       title: "Preferences",
       body: packet.preferenceSummary,
-    },
-    {
-      key: "episodeSummary" as const,
-      title: "Relevant Episodes",
-      body: packet.episodeSummary,
-    },
-    {
-      key: "archiveSummary" as const,
-      title: "Session Archive",
-      body: packet.archiveSummary,
     },
     {
       key: "workingMemorySummary" as const,
@@ -441,6 +513,7 @@ function buildRenderableSections(packet: MemoryPacket) {
       key:
         | "profileSummary"
         | "activeContextSummary"
+        | "durableMemorySummary"
         | "feedbackSummary"
         | "preferenceSummary"
         | "referenceSummary"

@@ -1,0 +1,26 @@
+[DONE] P21-T001 Add internal recall-side LLM router contracts, provider factory, and bounded safety guards
+[DONE] P21-T002 Add phase-21 observe/assist eval runners and dedicated gate script
+[DONE] P21-T003 Run deterministic gate plus provider-backed live-memory validation and sync the board/docs
+
+Phase 21 scope
+--------------
+- Internal-only recall-side LLM router v1
+- Bounded planner refinement and bounded durable rerank/suppression
+- Observe/assist rollout only
+- No public config widening
+- No promote authorization
+
+Canonical deterministic gate
+----------------------------
+- `reports/quality-gates/phase-21/run-20260419174013/phase-21-quality-gate.json`
+
+Provider-backed live-memory evidence
+------------------------------------
+- Observe: `reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json`
+- Assist: `reports/eval/live-memory/phase-21/run-1776620091171-assist/report.json`
+
+Closure note
+------------
+- Phase 21 is accepted as an internal rollout landing, not as a public/default promotion slice.
+- The current live provider validates planner influence and `llm-assisted` assist execution, but the rerank sub-step still falls back to `schema_invalid` on the current provider/model pairing.
+- That limitation keeps promote/default switching explicitly out of scope for this phase and remains future hardening work, not unfinished public-surface debt inside phase 21.

@@ -215,6 +215,7 @@ export interface EvalAnswerPackage {
     episodes: RecallResult["episodes"];
     workingMemory: RecallResult["workingMemory"];
     journal: RecallResult["journal"];
+    assistantInfluence?: RecallResult["metadata"]["assistantInfluence"];
     routingDecision?: RecallResult["metadata"]["routingDecision"];
     hits: RecallResult["metadata"]["hits"];
     candidateTraces: RecallResult["metadata"]["candidateTraces"];
@@ -704,6 +705,9 @@ export async function runGoodMemoryScenario(input: {
       episodes: recall.episodes,
       workingMemory: recall.workingMemory,
       journal: recall.journal,
+      ...(recall.metadata.assistantInfluence
+        ? { assistantInfluence: recall.metadata.assistantInfluence }
+        : {}),
       routingDecision: recall.metadata.routingDecision,
       hits: recall.metadata.hits,
       candidateTraces: recall.metadata.candidateTraces,
