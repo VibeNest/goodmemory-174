@@ -20,6 +20,14 @@ import {
   matchesFilter,
   shallowMergeDocument,
 } from "./contracts";
+import {
+  applySQLiteCustomLibrary,
+  loadSQLiteVectorExtension,
+  resolveSQLiteCustomLibraryConfig,
+  resolveSQLiteVectorExtensionConfig,
+  type SQLiteCustomLibraryConfig,
+  type SQLiteVectorExtensionConfig,
+} from "./sqliteRuntime";
 
 interface DocumentRow {
   json: string;
@@ -40,6 +48,26 @@ interface SQLiteStoreOptions {
   readOnly?: boolean;
 }
 
+let sqliteCustomLibraryConfig: SQLiteCustomLibraryConfig | null = null;
+let sqliteVectorExtensionConfig: SQLiteVectorExtensionConfig | null = null;
+
+function ensureSQLiteCustomLibraryConfigured(): SQLiteCustomLibraryConfig {
+  if (!sqliteCustomLibraryConfig) {
+    sqliteCustomLibraryConfig = resolveSQLiteCustomLibraryConfig();
+    applySQLiteCustomLibrary(sqliteCustomLibraryConfig, Database);
+  }
+
+  return sqliteCustomLibraryConfig;
+}
+
+function ensureSQLiteVectorExtensionConfigured(): SQLiteVectorExtensionConfig {
+  if (!sqliteVectorExtensionConfig) {
+    sqliteVectorExtensionConfig = resolveSQLiteVectorExtensionConfig();
+  }
+
+  return sqliteVectorExtensionConfig;
+}
+
 function ensureParentDirectory(path: string, options?: SQLiteStoreOptions): void {
   if (options?.readOnly || path === ":memory:") {
     return;
@@ -54,6 +82,7 @@ function createDatabase(
   path: string,
   options?: SQLiteStoreOptions,
 ): Database {
+  ensureSQLiteCustomLibraryConfigured();
   ensureParentDirectory(path, options);
   return new Database(path, {
     create: options?.readOnly ? false : true,
@@ -305,10 +334,12 @@ export function createSQLiteVectorStore(
   path: string,
   options?: SQLiteStoreOptions,
 ): VectorStore {
+  const vectorExtensionConfig = ensureSQLiteVectorExtensionConfigured();
   const database = createDatabase(path, options);
   if (!options?.readOnly) {
     ensureVectorSchema(database);
   }
+  loadSQLiteVectorExtension(vectorExtensionConfig, database);
   const hasVectorTable = !options?.readOnly || hasTable(database, "vectors");
 
   const upsertStatement = options?.readOnly

@@ -16,9 +16,7 @@ GoodMemory 是一个面向 chatbox、copilot、AI agent 等 AI 应用的**可插
 ```ts
 import { createGoodMemory } from "goodmemory";
 
-const memory = createGoodMemory({
-  storage: { provider: "memory" },
-});
+const memory = createGoodMemory({});
 
 await memory.remember({
   scope: { userId: "u-1", sessionId: "s-1" },
@@ -44,7 +42,7 @@ const context = await memory.buildContext({
 
 ## CLI
 
-GoodMemory v1 自带一个只读 CLI。默认读取当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`，也可以通过 `--storage-provider` / `--storage-url` 或环境变量覆盖。根命令只会读取已有存储；如果默认 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。
+GoodMemory v1 自带一个只读 CLI。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。
 
 ```bash
 bun run cli -- inspect --user-id <user-id> --workspace-id <workspace-id>
@@ -167,6 +165,13 @@ Notes:
 ## Current Status
 
 GoodMemory 的稳定 OSS 入口是内存 API、只读 CLI、编译型导出产物，以及默认推荐的 `file-assisted` host adapter 路径。当前哪些能力已经稳定、哪些仍是内部 rollout 机制、以及现行证据该看哪里，统一收敛在 [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)。
+
+默认运行时现在遵循 local-first 自动解析：
+
+- 显式 `storage.provider` 优先
+- 没有显式 provider 时，只在可用 Postgres 目标存在时优先走 Postgres
+- 否则默认落到本地 `./.goodmemory/memory.sqlite`
+- 只有在 `GOODMEMORY_EMBEDDING_*` 完整配置时才自动开启 embeddings；否则保持 `rules-only`
 
 历史 phase closure 文档已经从顶层 docs 下沉到 [docs/archive/quality-gates/README.md](./docs/archive/quality-gates/README.md)。`README` 不再承担按 phase 讲述构建历史的职责；如果你要看执行顺序、闭环状态或 reopen 规则，入口是 [task-board/00-README.txt](./task-board/00-README.txt)。
 

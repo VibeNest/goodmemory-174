@@ -7,12 +7,28 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 ## Stable OSS Surface
 
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
+- `createGoodMemory({})` now defaults to auto storage resolution: explicit provider wins; otherwise Postgres is preferred only when a usable target is configured, and local SQLite is the fallback.
 - The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
-- `sqlite` is stable today as the local durable document/session backend; it does not yet auto-provide a local vector backend for hybrid recall.
+- `sqlite` is now stable as the default local durable document/session/vector backend for the auto-storage path.
+- `GOODMEMORY_EMBEDDING_*` now controls automatic embedding enablement; when those variables are absent, runtime behavior stays `rules-only`.
+- Local SQLite runtime guardrails are available through `GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH`, `GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH`, and `GOODMEMORY_SQLITE_VECTOR_MODE=off|prefer|require`.
 - Retrieval rollout controls, promotion gates, salvage hooks, and internal provider-router rollout controls remain implementation detail, not README-level product surface.
 - Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
 - Behavioral adaptation outcome telemetry and deterministic Layer D evidence are also internal evidence infrastructure; they do not change the stable OSS runtime surface.
+
+## In-Progress Next Slice
+
+- Phase 26 is in progress as the post-Phase-25 local-first runtime slice.
+- Implemented so far:
+  - default storage resolution
+  - durable local SQLite vectors
+  - SQLite runtime bootstrap/guardrails
+  - CLI/runtime storage-resolution alignment
+  - targeted resolver and integration regression coverage
+- Not yet accepted as canonical closure:
+  - release-facing Phase 26 summary/gate evidence
+  - final wording boundary between durable local vectors and future `sqlite-vss` acceleration claims
 
 ## Current Canonical Evidence
 

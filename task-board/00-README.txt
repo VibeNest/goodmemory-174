@@ -136,9 +136,9 @@ Current Sequencing Note
   - `docs/archive/quality-gates/GoodMemory-Phase-25-Quality-Gate.md`
   - `reports/quality-gates/phase-25/run-20260420082358/phase-25-quality-gate.json`
   - `reports/eval/fallback/phase-25/run-1776673441250/report.json`
-- Phase 26 is the next queued post-Phase-25 slice:
-  - local SQLite vector fallback for semantic retrieval without requiring Postgres
-  - keep embedding fallback separate and explicit instead of promising automatic local semantic mode
+- Phase 26 is now in progress:
+  - default storage resolution, durable local SQLite vectors, SQLite runtime guardrails, and CLI alignment are implemented
+  - release-facing docs are being synced, but canonical phase-26 closure evidence is not accepted yet
 - Any work after Phase 25 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.

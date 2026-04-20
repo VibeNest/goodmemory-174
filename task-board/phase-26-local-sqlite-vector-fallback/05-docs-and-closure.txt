@@ -1,8 +1,8 @@
 Phase 26.5: Docs and Closure
 ============================
 
-[TODO] P26.5-T001 Sync README and current-status docs once runtime behavior is real
-[TODO] P26.5-T002 Sync phase-level and board-level status without overstating local-vector acceleration
+[DONE] P26.5-T001 Sync README and current-status docs once runtime behavior is real
+[DONE] P26.5-T002 Sync phase-level and board-level status without overstating local-vector acceleration
 [TODO] P26.5-T003 Define the quality-gate evidence expected for Phase 26 acceptance
 
 Why this exists
@@ -33,3 +33,9 @@ Current implementation notes
 ----------------------------
 - Keep “durable local vectors” and “accelerated local vector extension” as separate claims
 - Treat the archived gate summary as the last step, not the first
+- Current sync scope:
+  - `README.md`
+  - `docs/GoodMemory-Current-Status-and-Evidence.md`
+  - `task-board/00-README.txt`
+  - `task-board/27-phase-26-local-sqlite-vector-fallback.txt`
+  - `task-board/phase-26-local-sqlite-vector-fallback/*`

@@ -1,10 +1,10 @@
 Phase 26.4: CLI and Regressions
 ===============================
 
-[TODO] P26.4-T001 Make CLI storage resolution match the library runtime
-[TODO] P26.4-T002 Preserve existing read-only CLI guarantees for missing local SQLite files
-[TODO] P26.4-T003 Add end-to-end regressions for remember, recall, forget, and governance under auto/local SQLite mode
-[TODO] P26.4-T004 Add regression coverage for default local hybrid recall when embeddings are configured
+[DONE] P26.4-T001 Make CLI storage resolution match the library runtime
+[DONE] P26.4-T002 Preserve existing read-only CLI guarantees for missing local SQLite files
+[DONE] P26.4-T003 Add end-to-end regressions for remember, recall, forget, and governance under auto/local SQLite mode
+[DONE] P26.4-T004 Add regression coverage for default local hybrid recall when embeddings are configured
 
 Why this exists
 ---------------
@@ -36,3 +36,7 @@ Current implementation notes
 ----------------------------
 - This slice should verify behavior through real SQLite files, not only mocks
 - Favor regression tests that exercise the actual public entrypoints
+- CLI/runtime alignment and regression coverage now live in:
+  - `src/cli.ts`
+  - `tests/cli/cli.test.ts`
+  - `tests/integration/api.auto-storage.test.ts`

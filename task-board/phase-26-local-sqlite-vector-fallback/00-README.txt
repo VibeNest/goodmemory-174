@@ -3,8 +3,9 @@ Phase 26 Breakdown
 
 Status
 ------
-- Phase 26 is decomposed into executable slices and ready for step-by-step development.
-- Phase acceptance is still open; use the files below in order.
+- Phase 26 is in progress.
+- Slices 26.1 through 26.4 are implemented and regression-covered.
+- Phase acceptance is still open because release-facing docs and canonical closure evidence are not fully synced yet.
 
 Execution Order
 ---------------

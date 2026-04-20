@@ -1,9 +1,9 @@
 Phase 26.1: Default Resolution Contract
 =======================================
 
-[TODO] P26.1-T001 Lock the storage resolution contract
-[TODO] P26.1-T002 Lock the embedding resolution contract
-[TODO] P26.1-T003 Add resolver tests for explicit provider, auto Postgres, auto SQLite, and rules-only fallback
+[DONE] P26.1-T001 Lock the storage resolution contract
+[DONE] P26.1-T002 Lock the embedding resolution contract
+[DONE] P26.1-T003 Add resolver tests for explicit provider, auto Postgres, auto SQLite, and rules-only fallback
 
 Why this exists
 ---------------
@@ -40,3 +40,6 @@ Current implementation notes
 - embedding auto mode means:
   - create an embedding adapter only when `GOODMEMORY_EMBEDDING_*` is fully configured
   - otherwise leave recall in `rules-only`
+- Contract coverage now lives in:
+  - `tests/unit/runtime-resolution.test.ts`
+  - `src/api/runtimeResolution.ts`

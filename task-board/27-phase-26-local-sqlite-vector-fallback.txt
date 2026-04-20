@@ -13,7 +13,8 @@ Close the architecture/runtime gap by making the default runtime resolve storage
 
 Current Status
 --------------
-[TODO] Planned but not implemented.
+[WIP] Default resolution, durable local SQLite vectors, SQLite runtime guardrails, CLI alignment, and regression coverage are implemented.
+[TODO] Release-facing docs, canonical phase summary, and acceptance evidence are still open.
 
 
 Dependencies
@@ -48,13 +49,13 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P26-T001 Write the canonical default-resolution design note and lock storage-vs-embedding boundaries
-[TODO] P26-T002 Add failing resolver coverage for explicit provider, auto Postgres, auto SQLite, and rules-only embedding fallback
-[TODO] P26-T003 Add failing SQLite vector-store contract coverage
-[TODO] P26-T004 Implement SQLite vector store and extension bootstrap guardrails
-[TODO] P26-T005 Wire `createGoodMemory()` and local CLI resolution to prefer explicit provider, then auto Postgres, else SQLite
-[TODO] P26-T006 Add remember / recall / forget / governance regression coverage for SQLite local vectors and auto resolution
-[TODO] P26-T007 Sync README, current-status, and task-board docs after behavior is real
+[DONE] P26-T001 Write the canonical default-resolution design note and lock storage-vs-embedding boundaries
+[DONE] P26-T002 Add failing resolver coverage for explicit provider, auto Postgres, auto SQLite, and rules-only embedding fallback
+[DONE] P26-T003 Add failing SQLite vector-store contract coverage
+[DONE] P26-T004 Implement SQLite vector store and extension bootstrap guardrails
+[DONE] P26-T005 Wire `createGoodMemory()` and local CLI resolution to prefer explicit provider, then auto Postgres, else SQLite
+[DONE] P26-T006 Add remember / recall / forget / governance regression coverage for SQLite local vectors and auto resolution
+[WIP] P26-T007 Sync README, current-status, and task-board docs after behavior is real
 
 Breakdown Folder
 ----------------
@@ -64,6 +65,34 @@ Breakdown Folder
 - `task-board/phase-26-local-sqlite-vector-fallback/03-sqlite-local-vector-store.txt`
 - `task-board/phase-26-local-sqlite-vector-fallback/04-cli-and-regressions.txt`
 - `task-board/phase-26-local-sqlite-vector-fallback/05-docs-and-closure.txt`
+
+Implemented So Far
+------------------
+- `createGoodMemory({})` now resolves to local durable SQLite by default instead of requiring explicit storage config
+- explicit `storage.provider` remains authoritative
+- auto mode prefers Postgres only when a connection string is provided and the target exposes `pgvector`
+- `GOODMEMORY_EMBEDDING_*` now drives automatic embedding enablement; missing vars keep runtime `rules-only`
+- SQLite vectors are now durable instead of process-local in-memory fallback
+- SQLite runtime now supports:
+  - `GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH`
+  - `GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH`
+  - `GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT`
+  - `GOODMEMORY_SQLITE_VECTOR_MODE=off|prefer|require`
+- CLI storage resolution now follows the same shared resolver as the library runtime
+
+Evidence
+--------
+- `src/api/runtimeResolution.ts`
+- `src/api/createGoodMemory.ts`
+- `src/storage/auto.ts`
+- `src/storage/sqlite.ts`
+- `src/storage/sqliteRuntime.ts`
+- `src/cli.ts`
+- `tests/unit/runtime-resolution.test.ts`
+- `tests/unit/sqlite.runtime.test.ts`
+- `tests/integration/api.auto-storage.test.ts`
+- `tests/integration/storage.sqlite.test.ts`
+- `tests/cli/cli.test.ts`
 
 
 Key Constraints

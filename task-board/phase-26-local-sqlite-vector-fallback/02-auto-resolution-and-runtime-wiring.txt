@@ -1,10 +1,10 @@
 Phase 26.2: Auto Resolution and Runtime Wiring
 ==============================================
 
-[TODO] P26.2-T001 Wire `createGoodMemory()` through the shared storage resolver
-[TODO] P26.2-T002 Keep explicit `memory` / `sqlite` / `postgres` behavior backward-compatible
-[TODO] P26.2-T003 Add automatic embedding adapter creation without widening the public config surface
-[TODO] P26.2-T004 Make auto Postgres degrade safely to local SQLite when the target is unusable
+[DONE] P26.2-T001 Wire `createGoodMemory()` through the shared storage resolver
+[DONE] P26.2-T002 Keep explicit `memory` / `sqlite` / `postgres` behavior backward-compatible
+[DONE] P26.2-T003 Add automatic embedding adapter creation without widening the public config surface
+[DONE] P26.2-T004 Make auto Postgres degrade safely to local SQLite when the target is unusable
 
 Why this exists
 ---------------
@@ -36,3 +36,8 @@ Current implementation notes
 ----------------------------
 - Adapter injection remains the highest-priority override layer
 - Automatic embedding should remain opt-in through environment presence, not hidden magic in core config
+- Runtime wiring now lands in:
+  - `src/api/createGoodMemory.ts`
+  - `src/storage/auto.ts`
+  - `tests/integration/api.smoke.test.ts`
+  - `tests/integration/api.auto-storage.test.ts`
