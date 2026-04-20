@@ -9,7 +9,7 @@ Close Phase 22 with one deterministic gate and separate live-memory evidence, wh
 Completed Work
 --------------
 - Added `gate:phase-22`, `eval:phase-22`, and `eval:phase-22-live-memory` scripts.
-- Added `docs/GoodMemory-Phase-22-Quality-Gate.md` as the canonical closure artifact.
+- Added `docs/archive/quality-gates/GoodMemory-Phase-22-Quality-Gate.md` as the canonical closure artifact.
 - Added phase-specific env placeholders to `.env.example` for `GOODMEMORY_RECALL_ROUTER_*`.
 - Preserved existing `eval:live` and `eval:live-memory` command semantics.
 

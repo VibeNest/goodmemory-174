@@ -10,10 +10,10 @@ Status Snapshot
 ---------------
 - Status: closed and accepted
 - Reviewer family closure is backed by `bun run gate:phase-19-reviewer` with accepted evidence in:
-  - `docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `reports/quality-gates/phase-19-reviewer/run-20260419101816/phase-19-reviewer-quality-gate.json`
 - Maintenance family closure is backed by `bun run gate:phase-19-maintenance` with accepted evidence in:
-  - `docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
   - `reports/quality-gates/phase-19-maintenance/run-20260419101816/phase-19-maintenance-quality-gate.json`
 - Public-surface outcome: rollout controls remain internal-only; phase 19 closes family rollout behavior, not a new supported public config surface.
 

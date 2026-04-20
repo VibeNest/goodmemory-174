@@ -9,7 +9,7 @@ Turn proposal and feedback signals into reusable validated patterns while making
 Status Note
 -----------
 - Phase 16 is now implemented and accepted.
-- A dedicated fallback quality gate is archived in `docs/GoodMemory-Phase-16-Quality-Gate.md` and `reports/eval/fallback/phase-16/run-1776441180237`.
+- A dedicated fallback quality gate is archived in `docs/archive/quality-gates/GoodMemory-Phase-16-Quality-Gate.md` and `reports/eval/fallback/phase-16/run-1776441180237`.
 
 
 Dependencies

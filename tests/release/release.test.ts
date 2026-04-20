@@ -3,6 +3,7 @@ import { access, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+const QUALITY_GATE_ARCHIVE_ROOT = "docs/archive/quality-gates";
 const CANONICAL_PHASE20_DEPENDENCY_SUMMARY_ARTIFACTS = [
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/public-surface-decision.json",
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/regression-dashboard.json",
@@ -278,31 +279,34 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory stats");
     expect(readme).toContain("goodmemory eval inspect");
     expect(readme).toContain("goodmemory eval export-case");
+    expect(readme).toContain("GoodMemory-Current-Status-and-Evidence.md");
     expect(readme).toContain("GoodMemory-First-Principles-and-Reference-Architecture.md");
     expect(readme).toContain("GoodMemory-OSS-Architecture-v1.md");
-    expect(readme).toContain("GoodMemory-Phase-17-Quality-Gate.md");
-    expect(readme).toContain("GoodMemory-Phase-18-Quality-Gate.md");
-    expect(readme).toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
-    expect(readme).toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
-    expect(readme).toContain("GoodMemory-Phase-20-Quality-Gate.md");
+    expect(readme).toContain("docs/archive/quality-gates/README.md");
     expect(readme).toContain("GoodMemory-PRD.md");
     expect(readme).toContain("GoodMemory-TDD-and-Evaluation-Strategy.md");
     expect(readme).toContain("GoodMemory-Strategy-Rollout-Guide.md");
     expect(readme).toContain("bun run test:coverage");
     expect(readme).toContain("bun run test:all");
     expect(readme).toContain("eval:fallback");
-    expect(readme).toContain("eval:phase-17");
     expect(readme).toContain("eval:live");
     expect(readme).toContain("eval:live-memory");
-    expect(readme).toContain("eval:phase-17-live-memory");
-    expect(readme).toContain("gate:phase-18");
-    expect(readme).toContain("gate:phase-19-reviewer");
-    expect(readme).toContain("gate:phase-19-maintenance");
-    expect(readme).toContain("gate:phase-20");
+    expect(readme).toContain("eval:summary");
     expect(readme).toContain("observe -> assist -> promote");
     expect(readme).toContain("regression-dashboard.json");
     expect(readme).toContain("strategy-promotion-authorization.json");
     expect(readme).not.toContain("eval:full");
+    expect(readme).not.toContain("GoodMemory-Phase-17-Quality-Gate.md");
+    expect(readme).not.toContain("GoodMemory-Phase-18-Quality-Gate.md");
+    expect(readme).not.toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
+    expect(readme).not.toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
+    expect(readme).not.toContain("GoodMemory-Phase-20-Quality-Gate.md");
+    expect(readme).not.toContain("eval:phase-17");
+    expect(readme).not.toContain("eval:phase-17-live-memory");
+    expect(readme).not.toContain("gate:phase-18");
+    expect(readme).not.toContain("gate:phase-19-reviewer");
+    expect(readme).not.toContain("gate:phase-19-maintenance");
+    expect(readme).not.toContain("gate:phase-20");
     expect(readme).not.toContain("goodmemory/evolution");
     expect(readme).not.toContain("strategyRollout");
     expect(readme).not.toContain("promotionGate");
@@ -322,32 +326,84 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("bun run test:coverage");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
-    expect(checklist).toContain("eval:phase-17");
-    expect(checklist).toContain("eval:phase-17-live-memory");
     expect(checklist).toContain("Strategy Rollout");
     expect(checklist).toContain("strategy-promotion-gate.json");
     expect(checklist).toContain("strategy-promotion-authorization.json");
     expect(checklist).toContain("regression-dashboard.json");
     expect(checklist).toContain("public-surface-decision.json");
-    expect(checklist).toContain("GoodMemory-Phase-17-Quality-Gate.md");
-    expect(checklist).toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
-    expect(checklist).toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
-    expect(checklist).toContain("GoodMemory-Phase-20-Quality-Gate.md");
+    expect(checklist).toContain("GoodMemory-Current-Status-and-Evidence.md");
+    expect(checklist).toContain("docs/archive/quality-gates/README.md");
     expect(checklist).toContain("GoodMemory-Strategy-Rollout-Guide.md");
-    expect(checklist).toContain("gate:phase-19-reviewer");
-    expect(checklist).toContain("gate:phase-19-maintenance");
-    expect(checklist).toContain("gate:phase-20");
     expect(checklist).toContain("rules-only");
     expect(checklist).toContain("salvage hooks");
     expect(checklist).not.toContain("eval:full");
+    expect(checklist).not.toContain("GoodMemory-Phase-17-Quality-Gate.md");
+    expect(checklist).not.toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
+    expect(checklist).not.toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
+    expect(checklist).not.toContain("GoodMemory-Phase-20-Quality-Gate.md");
+    expect(checklist).not.toContain("gate:phase-19-reviewer");
+    expect(checklist).not.toContain("gate:phase-19-maintenance");
+    expect(checklist).not.toContain("gate:phase-20");
     expect(checklist).not.toContain("goodmemory/evolution");
     expect(checklist).not.toContain("strategyRollout");
     expect(checklist).not.toContain("promotionGate");
   });
 
+  it("current status doc points to the stable evidence entrypoints and archive", async () => {
+    const currentStatus = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-Current-Status-and-Evidence.md",
+      ),
+      "utf8",
+    );
+
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-20-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-22-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-22/run-1776650772564-assist/report.json",
+    );
+    expect(currentStatus).toContain("task-board/00-README.txt");
+    expect(currentStatus).toContain("docs/archive/quality-gates/README.md");
+  });
+
+  it("phase quality gate docs live in the archive instead of the top-level docs folder", async () => {
+    const topLevelDocs = await readdir(
+      join(import.meta.dir, "../../docs"),
+    );
+    const archivedQualityGates = await readdir(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT),
+    );
+
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-16-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-17-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-18-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-20-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-21-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-22-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("README.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-18-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-19-Reviewer-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-19-Maintenance-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-20-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-21-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-22-Quality-Gate.md");
+  });
+
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
     await expectCanonicalAcceptedQualityGate({
-      docPath: "docs/GoodMemory-Phase-18-Quality-Gate.md",
+      docPath: `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-18-Quality-Gate.md`,
       phaseDirectory: "phase-18",
       reportFileName: "phase-18-quality-gate.json",
       runId: "run-20260419031141",
@@ -356,7 +412,7 @@ describe("release metadata and docs", () => {
 
   it("phase-19 reviewer quality gate doc points to one canonical accepted report", async () => {
     await expectCanonicalAcceptedQualityGate({
-      docPath: "docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md",
+      docPath: `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`,
       phaseDirectory: "phase-19-reviewer",
       reportFileName: "phase-19-reviewer-quality-gate.json",
       runId: "run-20260419101816",
@@ -365,7 +421,7 @@ describe("release metadata and docs", () => {
 
   it("phase-19 maintenance quality gate doc points to one canonical accepted report", async () => {
     await expectCanonicalAcceptedQualityGate({
-      docPath: "docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md",
+      docPath: `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`,
       phaseDirectory: "phase-19-maintenance",
       reportFileName: "phase-19-maintenance-quality-gate.json",
       runId: "run-20260419101816",
@@ -374,7 +430,7 @@ describe("release metadata and docs", () => {
 
   it("phase-20 quality gate doc points to one canonical accepted report", async () => {
     await expectCanonicalAcceptedQualityGate({
-      docPath: "docs/GoodMemory-Phase-20-Quality-Gate.md",
+      docPath: `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-20-Quality-Gate.md`,
       phaseDirectory: "phase-20",
       reportFileName: "phase-20-quality-gate.json",
       runId: "run-20260420023503",
@@ -383,7 +439,7 @@ describe("release metadata and docs", () => {
 
   it("phase-22 quality gate doc points to one canonical accepted report", async () => {
     await expectCanonicalAcceptedQualityGate({
-      docPath: "docs/GoodMemory-Phase-22-Quality-Gate.md",
+      docPath: `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-22-Quality-Gate.md`,
       phaseDirectory: "phase-22",
       reportFileName: "phase-22-quality-gate.json",
       runId: "run-20260420020541",
@@ -392,10 +448,10 @@ describe("release metadata and docs", () => {
 
   it("phase-21 and phase-22 closure docs only cite git-tracked live eval reports", async () => {
     await expectTrackedEvalReportsMentionedInFile(
-      "docs/GoodMemory-Phase-21-Quality-Gate.md",
+      `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-21-Quality-Gate.md`,
     );
     await expectTrackedEvalReportsMentionedInFile(
-      "docs/GoodMemory-Phase-22-Quality-Gate.md",
+      `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-22-Quality-Gate.md`,
     );
   });
 
@@ -408,7 +464,12 @@ describe("release metadata and docs", () => {
 
   it("phase-20 canonical dependency summaries are checked in", async () => {
     const qualityGateDoc = await readFile(
-      join(import.meta.dir, "../../docs/GoodMemory-Phase-20-Quality-Gate.md"),
+      join(
+        import.meta.dir,
+        "../../",
+        QUALITY_GATE_ARCHIVE_ROOT,
+        "GoodMemory-Phase-20-Quality-Gate.md",
+      ),
       "utf8",
     );
 

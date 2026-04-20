@@ -9,7 +9,7 @@ Expose compiled memory artifacts to Claude/Codex-style hosts through adapters wi
 Status Note
 -----------
 - Phase 18 is now implemented and accepted.
-- A dedicated host-adapter quality gate is archived in `docs/GoodMemory-Phase-18-Quality-Gate.md` and `reports/quality-gates/phase-18/run-20260419031141/phase-18-quality-gate.json`.
+- A dedicated host-adapter quality gate is archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md` and `reports/quality-gates/phase-18/run-20260419031141/phase-18-quality-gate.json`.
 
 
 Dependencies

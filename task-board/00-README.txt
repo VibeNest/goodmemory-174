@@ -96,25 +96,25 @@ Current Sequencing Note
 - Phase 21 is now closed as the internal recall-side LLM router v1 slice.
 - Phase 22 is now closed as the recall-router provider hardening and promotion-readiness evidence slice.
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
-  - `docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
-  - `docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
   - `reports/quality-gates/phase-19-reviewer/run-20260419101816/phase-19-reviewer-quality-gate.json`
   - `reports/quality-gates/phase-19-maintenance/run-20260419101816/phase-19-maintenance-quality-gate.json`
 - Phase 20 closure is backed by the accepted integrated gate:
-  - `docs/GoodMemory-Phase-20-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-20-Quality-Gate.md`
   - `reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json`
 - Phase 21 closure is backed by:
   - `reports/quality-gates/phase-21/run-20260419174013/phase-21-quality-gate.json`
   - `reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json`
   - `reports/eval/live-memory/phase-21/run-1776620091171-assist/report.json`
 - Phase 22 closure is backed by:
-  - `docs/GoodMemory-Phase-22-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-22-Quality-Gate.md`
   - `reports/quality-gates/phase-22/run-20260420020541/phase-22-quality-gate.json`
   - `reports/eval/live-memory/phase-22/run-1776650772564-observe/report.json`
   - `reports/eval/live-memory/phase-22/run-1776650772564-assist/report.json`
 - Any work after Phase 22 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
-- Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/GoodMemory-Phase-18-Quality-Gate.md`.
+- Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
 - Phase 22 hardened the internal recall-side LLM router provider path enough for promotion-readiness evaluation, while leaving promotion/default rollout deferred.
 - Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases; that deferred scope is now closed in its dedicated phase.

@@ -36,4 +36,4 @@ Implemented Notes
 - Persisted eval artifacts now carry the same maintenance summary fields through case traces and top-level report output.
 - Targeted eval replay now covers the scenario-level path where repeated explicit feedback inside the replay produces an accepted `procedural_pattern` promotion, compiles it before the final recall, and then reuses it as a `validated_pattern`.
 - `bun run eval:phase-16` now runs a dedicated five-scenario fallback gate with real replay-generated governed procedural promotions and formal outcome-loop metrics.
-- The latest archived gate is `reports/eval/fallback/phase-16/run-1776441180237`, summarized in `docs/GoodMemory-Phase-16-Quality-Gate.md`.
+- The latest archived gate is `reports/eval/fallback/phase-16/run-1776441180237`, summarized in `docs/archive/quality-gates/GoodMemory-Phase-16-Quality-Gate.md`.

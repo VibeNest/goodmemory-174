@@ -122,30 +122,11 @@ Writable guardrails:
 
 Current host adapter examples stay in `file-assisted` mode because they are the recommended default path for Claude/Codex-style integration.
 
-Host-adapter quality gate:
+## Current Status
 
-```bash
-bun run gate:phase-18
-```
+GoodMemory 的稳定 OSS 入口是内存 API、只读 CLI、编译型导出产物，以及默认推荐的 `file-assisted` host adapter 路径。当前哪些能力已经稳定、哪些仍是内部 rollout 机制、以及现行证据该看哪里，统一收敛在 [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)。
 
-The latest archived acceptance summary lives in [docs/GoodMemory-Phase-18-Quality-Gate.md](./docs/GoodMemory-Phase-18-Quality-Gate.md).
-
-Phase-19 rollout quality gates:
-
-```bash
-bun run gate:phase-19-reviewer
-bun run gate:phase-19-maintenance
-bun run gate:phase-20
-```
-
-The latest archived phase-19 acceptance summaries live in:
-
-- [docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md](./docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md)
-- [docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md](./docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md)
-
-The integrated post-phase-19 release-hardening summary lives in:
-
-- [docs/GoodMemory-Phase-20-Quality-Gate.md](./docs/GoodMemory-Phase-20-Quality-Gate.md)
+历史 phase closure 文档已经从顶层 docs 下沉到 [docs/archive/quality-gates/README.md](./docs/archive/quality-gates/README.md)。`README` 不再承担按 phase 讲述构建历史的职责；如果你要看执行顺序、闭环状态或 reopen 规则，入口是 [task-board/00-README.txt](./task-board/00-README.txt)。
 
 ## Testing
 
@@ -164,7 +145,7 @@ bun run test:coverage
 
 ## Eval
 
-Phase 9 评测链路支持：
+评测链路支持：
 
 - persona dataset
 - replay fixtures
@@ -177,20 +158,18 @@ Phase 9 评测链路支持：
 ```bash
 bun run eval:smoke
 bun run eval:fallback
-bun run eval:phase-17
 bun run eval:live
 bun run eval:live-memory
-bun run eval:phase-17-live-memory
+bun run eval:summary
 ```
 
 含义：
 
 - `eval:smoke`: 最小 harness 自检，不代表产品评测结果
 - `eval:fallback`: deterministic pipeline 验证，不调用真实模型，不可作为产品证据
-- `eval:phase-17`: retrieval-first phase 17 deterministic gate，验证 observe rollout artifact 完整性与 shadow safety
 - `eval:live`: 真实模型生成 + 真实模型 judge 的产品评测入口，使用 in-memory memory backend
 - `eval:live-memory`: 真实模型生成 + 真实模型 judge 的 provider-backed 产品评测入口，验证 Postgres + embedding + assisted extraction 的真实记忆链路
-- `eval:phase-17-live-memory`: phase 17 provider-backed gate，执行 observe + assist 两个 retrieval rollout 子运行并生成内部 promotion authorization artifact
+- `eval:summary`: 汇总已有 eval 运行目录，便于审阅当前证据
 
 `eval:live` 必须显式配置以下环境变量，否则会直接失败：
 
@@ -222,6 +201,8 @@ bun run eval:phase-17-live-memory
 - provider-backed live runs: `reports/eval/live-memory/run-*`
 - fallback runs: `reports/eval/fallback/run-*`
 
+历史 phase 专用 gate / eval 命令仍然存在，但它们已经被收口到 task board 和 quality-gate archive，而不再作为 `README` 的主入口。
+
 ## Strategy Rollout
 
 GoodMemory v1 keeps `rules-only` as the supported baseline. New retrieval behavior should move through `observe -> assist -> promote`, and non-default promotion should only happen after an `accepted/passed` promotion gate with no blocking regressions plus a trusted internal promotion authorization artifact.
@@ -235,17 +216,15 @@ Operator guidance:
 
 ## Key Docs
 
+- Current status and evidence: [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)
 - Canonical design: [docs/GoodMemory-First-Principles-and-Reference-Architecture.md](./docs/GoodMemory-First-Principles-and-Reference-Architecture.md)
 - v1 implementation architecture: [docs/GoodMemory-OSS-Architecture-v1.md](./docs/GoodMemory-OSS-Architecture-v1.md)
 - PRD: [docs/GoodMemory-PRD.md](./docs/GoodMemory-PRD.md)
 - TDD and evaluation strategy: [docs/GoodMemory-TDD-and-Evaluation-Strategy.md](./docs/GoodMemory-TDD-and-Evaluation-Strategy.md)
-- Phase 17 quality gate: [docs/GoodMemory-Phase-17-Quality-Gate.md](./docs/GoodMemory-Phase-17-Quality-Gate.md)
-- Phase 18 quality gate: [docs/GoodMemory-Phase-18-Quality-Gate.md](./docs/GoodMemory-Phase-18-Quality-Gate.md)
-- Phase 19 reviewer quality gate: [docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md](./docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md)
-- Phase 19 maintenance quality gate: [docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md](./docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md)
-- Phase 20 integrated quality gate: [docs/GoodMemory-Phase-20-Quality-Gate.md](./docs/GoodMemory-Phase-20-Quality-Gate.md)
 - Strategy rollout guide: [docs/GoodMemory-Strategy-Rollout-Guide.md](./docs/GoodMemory-Strategy-Rollout-Guide.md)
 - Release checklist: [docs/GoodMemory-v1-Release-Checklist.md](./docs/GoodMemory-v1-Release-Checklist.md)
+- Historical quality-gate archive: [docs/archive/quality-gates/README.md](./docs/archive/quality-gates/README.md)
+- Historical v1 quality-gate snapshot: [docs/GoodMemory-v1-Quality-Gate.md](./docs/GoodMemory-v1-Quality-Gate.md)
 
 ## Current Scope
 
@@ -253,7 +232,7 @@ Operator guidance:
 
 - semantic / episodic / procedural / runtime memory taxonomy
 - inspectable recall and eval artifacts
-- Phase 9 product evaluation pipeline
+- product evaluation pipeline
 - AI SDK based live eval path
 
 尚未在 v1 完成的内容仍以 task board 为准，入口见 [task-board/00-README.txt](./task-board/00-README.txt)。

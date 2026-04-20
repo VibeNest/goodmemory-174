@@ -4,8 +4,9 @@ Generated at: `2026-04-08 02:08:17 +0800`
 
 > Note:
 > This document is the historical phase-9 to phase-13 quality gate snapshot.
-> The current integrated post-phase-19 acceptance entrypoint is `bun run gate:phase-20`,
-> summarized in `docs/GoodMemory-Phase-20-Quality-Gate.md`.
+> The current repo-level status and evidence entrypoint is
+> `docs/GoodMemory-Current-Status-and-Evidence.md`, which links to the archived
+> integrated acceptance summary in `docs/archive/quality-gates/GoodMemory-Phase-20-Quality-Gate.md`.
 
 ## Commands Run
 
@@ -36,7 +37,7 @@ bun run eval:fallback -- --limit=1 --scenario-id=<scenario-id>
 ## Scope Notes
 
 - This quality gate intentionally focused on Phase 9 through Phase 13 deliverables.
-- Phase 16 now has a separate targeted gate in `docs/GoodMemory-Phase-16-Quality-Gate.md`.
+- Phase 16 now has a separate targeted gate in `docs/archive/quality-gates/GoodMemory-Phase-16-Quality-Gate.md`.
 - `bun test` is the canonical local/CI red-green path and is intentionally scoped to `tests/`.
 - `bun run test:all` remains available for broader vendor-tree sweeps, but it is not the default merge gate.
 - Postgres / pgvector environment-dependent validation remains owner-managed and is not part of this gate.

@@ -12,7 +12,7 @@ Status Snapshot
 - This phase exists because `docs/GoodMemory-v1-Quality-Gate.md` is still the historical 2026-04-08 snapshot for phase-9 through phase-13 work.
 - The integrated closure for the current repo state must combine release, examples, and the accepted dedicated gates from phase 16 through phase 19.
 - Accepted evidence:
-  - `docs/GoodMemory-Phase-20-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-20-Quality-Gate.md`
   - `reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json`
 
 
@@ -28,7 +28,7 @@ Primary Deliverables
 --------------------
 - a new integrated `gate:phase-20` script under `scripts/`
 - release and README references for the integrated gate
-- a dedicated `docs/GoodMemory-Phase-20-Quality-Gate.md` summary
+- a dedicated `docs/archive/quality-gates/GoodMemory-Phase-20-Quality-Gate.md` summary
 - phase-20 task-board breakdown and acceptance evidence
 
 

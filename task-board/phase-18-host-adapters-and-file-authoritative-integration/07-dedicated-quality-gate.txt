@@ -31,4 +31,4 @@ Acceptance
 Implementation Notes
 --------------------
 - `bun run gate:phase-18` now runs the dedicated host-adapter regression slice plus the two public host examples.
-- The latest archived gate is `reports/quality-gates/phase-18/run-20260419031141/phase-18-quality-gate.json`, summarized in `docs/GoodMemory-Phase-18-Quality-Gate.md`.
+- The latest archived gate is `reports/quality-gates/phase-18/run-20260419031141/phase-18-quality-gate.json`, summarized in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.

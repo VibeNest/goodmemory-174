@@ -14,8 +14,8 @@ Status Snapshot
 ---------------
 - Phase 19 is closed. All six phase-19 subtask files are currently marked `[DONE]`.
 - Closure evidence:
-  - `docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
-  - `docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
+  - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
   - `reports/quality-gates/phase-19-reviewer/run-20260419101816/phase-19-reviewer-quality-gate.json`
   - `reports/quality-gates/phase-19-maintenance/run-20260419101816/phase-19-maintenance-quality-gate.json`
 - Treat this folder as the historical execution record for Phase 19, not as the active queue.
