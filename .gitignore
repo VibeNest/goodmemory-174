@@ -76,8 +76,10 @@ reports/*
 # Commit only canonical eval report summaries cited by docs and the task board.
 reports/eval/*
 !reports/eval/.gitkeep
+!reports/eval/fallback/
 !reports/eval/live/
 !reports/eval/live-memory/
+reports/eval/fallback/**
 reports/eval/live/**
 reports/eval/live-memory/**
 !reports/eval/live-memory/phase-21/
@@ -93,6 +95,22 @@ reports/eval/live-memory/**
 !reports/eval/live-memory/phase-22-smoke/
 !reports/eval/live-memory/phase-22-smoke/run-1776651268822/
 !reports/eval/live-memory/phase-22-smoke/run-1776651268822/report.json
+!reports/eval/fallback/phase-23/
+!reports/eval/fallback/phase-23/run-1776658356917-observe/
+!reports/eval/fallback/phase-23/run-1776658356917-observe/report.json
+!reports/eval/fallback/phase-23/run-1776658356917-assist/
+!reports/eval/fallback/phase-23/run-1776658356917-assist/report.json
+!reports/eval/fallback/phase-23/run-1776658356917-assist/strategy-promotion-authorization.json
+!reports/eval/fallback/phase-23/run-1776658356917-promote/
+!reports/eval/fallback/phase-23/run-1776658356917-promote/report.json
+!reports/eval/live-memory/phase-23/
+!reports/eval/live-memory/phase-23/run-1776658376536-observe/
+!reports/eval/live-memory/phase-23/run-1776658376536-observe/report.json
+!reports/eval/live-memory/phase-23/run-1776658376536-assist/
+!reports/eval/live-memory/phase-23/run-1776658376536-assist/report.json
+!reports/eval/live-memory/phase-23/run-1776658376536-assist/strategy-promotion-authorization.json
+!reports/eval/live-memory/phase-23/run-1776658376536-promote/
+!reports/eval/live-memory/phase-23/run-1776658376536-promote/report.json
 !reports/eval/live/phase-22-smoke/
 !reports/eval/live/phase-22-smoke/run-1776651237720/
 !reports/eval/live/phase-22-smoke/run-1776651237720/report.json

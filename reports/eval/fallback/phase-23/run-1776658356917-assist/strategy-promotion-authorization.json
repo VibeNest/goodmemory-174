@@ -1,0 +1,76 @@
+{
+  "expiresAt": "2026-04-27T04:12:37.014Z",
+  "family": "retrieval",
+  "issuedAt": "2026-04-20T04:12:37.014Z",
+  "pairedObserve": {
+    "promotionGate": {
+      "decision": "delayed",
+      "outcome": "review_required",
+      "promotedStrategyLabel": "rules-only",
+      "targetStrategyLabel": "llm-assisted"
+    },
+    "source": {
+      "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-23/run-1776658356917-observe",
+      "runId": "run-1776658356917-observe"
+    },
+    "summary": {
+      "assertionPassRate": 1,
+      "completedCases": 5,
+      "executionFailures": 0,
+      "regressionCases": [],
+      "safeObserveCases": 5,
+      "totalCases": 5,
+      "unknownObserveCases": 0
+    }
+  },
+  "promotionGate": {
+    "decision": "accepted",
+    "outcome": "passed",
+    "promotedStrategyLabel": "rules-only",
+    "targetStrategyLabel": "llm-assisted"
+  },
+  "publicSurfaceDecision": {
+    "surfaces": [
+      {
+        "decision": "accepted",
+        "exposure": "public",
+        "surface": "core_config"
+      },
+      {
+        "decision": "accepted",
+        "exposure": "public",
+        "surface": "eval_artifact_cli"
+      },
+      {
+        "decision": "accepted",
+        "exposure": "public",
+        "surface": "official_memory_cli"
+      },
+      {
+        "decision": "delayed",
+        "exposure": "internal",
+        "surface": "strategy_rollout_config"
+      },
+      {
+        "decision": "delayed",
+        "exposure": "internal",
+        "surface": "promotion_gate_runtime"
+      },
+      {
+        "decision": "delayed",
+        "exposure": "internal",
+        "surface": "evolution_namespace"
+      }
+    ]
+  },
+  "regressionDashboardSummary": {
+    "executionFailureCount": 0,
+    "totalBlockingCases": 0
+  },
+  "source": {
+    "generatedBy": "scripts/run-phase-23-eval.ts",
+    "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-23/run-1776658356917-assist",
+    "runId": "run-1776658356917-assist"
+  },
+  "targetStrategyLabel": "llm-assisted"
+}

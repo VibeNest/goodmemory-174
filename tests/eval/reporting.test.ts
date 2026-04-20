@@ -17,6 +17,7 @@ function buildAnswerPackage(
   answer: string,
   strategyLabel:
     | "baseline"
+    | "auto"
     | "rules-only"
     | "assisted"
     | "hybrid"
@@ -372,6 +373,7 @@ function buildCase(input: {
   caseId: string;
   scenarioId?: string;
   strategyLabel?:
+    | "auto"
     | "rules-only"
     | "assisted"
     | "hybrid"
@@ -425,6 +427,10 @@ function buildCase(input: {
     candidateInfluencedExecution?: boolean;
   };
 }): JudgedEvalCase {
+  const resolvedStrategyLabel =
+    input.resolvedStrategyLabel ??
+    (input.strategyLabel === "auto" ? "rules-only" : input.strategyLabel) ??
+    "rules-only";
   const result: JudgedEvalCase = {
     caseId: input.caseId,
     metadata: {
@@ -433,8 +439,7 @@ function buildCase(input: {
       memorySourceDomains: input.memorySourceDomains,
       evaluationSetting: input.evaluationSetting,
       strategyLabel: input.strategyLabel ?? "rules-only",
-      resolvedStrategyLabel:
-        input.resolvedStrategyLabel ?? input.strategyLabel ?? "rules-only",
+      resolvedStrategyLabel,
       strategyFamily: input.strategyFamily,
       strategyMode: input.strategyMode,
       promotedStrategyLabel: input.promotedStrategyLabel,
@@ -453,7 +458,7 @@ function buildCase(input: {
       "goodmemory",
       `goodmemory-${input.caseId}`,
       input.strategyLabel ?? "rules-only",
-      input.resolvedStrategyLabel ?? input.strategyLabel ?? "rules-only",
+      resolvedStrategyLabel,
       input.candidateInfluencedExecution,
       input.scenarioId,
     ),
@@ -472,17 +477,17 @@ function buildCase(input: {
   };
 
   if (input.shadow) {
+    const shadowResolvedStrategyLabel =
+      input.shadow.resolvedStrategyLabel ??
+      input.shadow.strategyLabel ??
+      resolvedStrategyLabel;
     result.shadow = {
       ...buildAnswerPackage(
         `${input.caseId}__shadow`,
         "goodmemory",
         `shadow-${input.caseId}`,
         input.shadow.strategyLabel ?? input.strategyLabel ?? "rules-only",
-        input.shadow.resolvedStrategyLabel ??
-          input.shadow.strategyLabel ??
-          input.resolvedStrategyLabel ??
-          input.strategyLabel ??
-          "rules-only",
+        shadowResolvedStrategyLabel,
         input.shadow.candidateInfluencedExecution,
         input.scenarioId,
       ),
@@ -684,6 +689,115 @@ describe("eval reporting", () => {
     expect(summary.strategySummary.byStrategy["hybrid"]).toBeUndefined();
     expect(summary.strategySummary.embeddingImpact).toBeNull();
     expect(summary.strategySummary.routerImpact).toBeNull();
+  });
+
+  it("records promote-mode per-case strategy selectivity in report summaries", async () => {
+    const workspace = await createTempWorkspace("goodmemory-reporting-selectivity");
+
+    try {
+      const cases = [
+        buildCase({
+          caseId: "scenario-reference",
+          strategyLabel: "auto",
+          resolvedStrategyLabel: "llm-assisted",
+          strategyFamily: "retrieval",
+          strategyMode: "promote",
+          promotedStrategyLabel: "llm-assisted",
+          candidateInfluencedExecution: true,
+          taskFamily: "drift_override_lifelong_update",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 9,
+        }),
+        buildCase({
+          caseId: "scenario-role-only",
+          strategyLabel: "auto",
+          resolvedStrategyLabel: "rules-only",
+          strategyFamily: "retrieval",
+          strategyMode: "promote",
+          promotedStrategyLabel: "llm-assisted",
+          candidateInfluencedExecution: false,
+          taskFamily: "preference_continuation",
+          targetDomain: "work_ops",
+          memorySourceDomains: ["work_ops"],
+          evaluationSetting: "single_domain",
+          winner: "goodmemory",
+          baselineHistory: 4,
+          goodmemoryHistory: 8,
+        }),
+      ];
+      const summary = aggregateJudgedCases(cases);
+
+      expect(summary.strategySummary.runtimePromotionSelectivity).toMatchObject({
+        totalCases: 2,
+        promotedCases: 1,
+        defaultOrRequestedCases: 1,
+        cases: [
+          {
+            caseId: "scenario-reference",
+            requestedStrategyLabel: "auto",
+            executedStrategyLabel: "llm-assisted",
+            transition: "auto -> llm-assisted",
+            candidateInfluencedExecution: true,
+          },
+          {
+            caseId: "scenario-role-only",
+            requestedStrategyLabel: "auto",
+            executedStrategyLabel: "rules-only",
+            transition: "auto -> rules-only",
+            candidateInfluencedExecution: false,
+          },
+        ],
+      });
+
+      const result = await persistEvalArtifacts({
+        mode: "fallback",
+        outputDir: join(workspace.root, "reports"),
+        runId: "run-selectivity",
+        cases,
+        summary,
+        runtime: {
+          generationMode: "fallback",
+          judgeMode: "fallback",
+          strategyRollout: {
+            family: "retrieval",
+            mode: "promote",
+            promotedStrategyLabel: "llm-assisted",
+          },
+        },
+      });
+      const report = JSON.parse(
+        await readFile(join(result.runDirectory, "report.json"), "utf8"),
+      ) as {
+        summary: {
+          strategySummary?: {
+            runtimePromotionSelectivity?: {
+              cases: Array<{
+                caseId: string;
+                transition: string;
+              }>;
+            };
+          };
+        };
+      };
+
+      expect(
+        report.summary.strategySummary?.runtimePromotionSelectivity?.cases.map(
+          (item) => ({
+            caseId: item.caseId,
+            transition: item.transition,
+          }),
+        ),
+      ).toEqual([
+        { caseId: "scenario-reference", transition: "auto -> llm-assisted" },
+        { caseId: "scenario-role-only", transition: "auto -> rules-only" },
+      ]);
+    } finally {
+      await workspace.cleanup();
+    }
   });
 
   it("marks strategy comparison coverage as inconsistent when scenario sets differ", () => {

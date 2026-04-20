@@ -16,6 +16,7 @@ import {
   SESSION_ARCHIVES_COLLECTION,
 } from "../evolution/contracts";
 import { buildMarkdownArtifacts } from "../governance/markdownArtifacts";
+import type { RetrievalStrategyRolloutConfig } from "../governance/retrievalInternalRollout";
 import { createLanguageService } from "../language";
 import {
   createDreamMaintenanceGate,
@@ -43,6 +44,7 @@ import { createSQLiteDocumentStore, createSQLiteSessionStore } from "../storage/
 import { attachGoodMemoryEvalSupport } from "./evalSupport";
 import { createEvolutionRuntime } from "./evolutionRuntime";
 import { deleteVectorForCollection } from "./governance";
+import { wrapInternalRetrievalRolloutMemory } from "./internalRetrievalRollout";
 import type {
   BuildContextInput,
   BuildContextResult,
@@ -89,6 +91,7 @@ const FORGETTABLE_COLLECTIONS = [
 export interface InternalGoodMemoryOptions {
   assistedRecallRouter?: RecallRouterAssistant;
   assistedReviewer?: boolean;
+  retrievalStrategyRollout?: RetrievalStrategyRolloutConfig;
 }
 
 const ASSISTED_REVIEWER_PREFIX = "[assisted reviewer] ";
@@ -682,7 +685,15 @@ export function createInternalGoodMemory(
   config: GoodMemoryConfig,
   internal?: InternalGoodMemoryOptions,
 ): GoodMemory {
-  const memory = new GoodMemoryImpl(config, internal);
+  const memory = wrapInternalRetrievalRolloutMemory(
+    new GoodMemoryImpl(config, internal),
+    {
+      assistedRecallRouterEnabled: Boolean(internal?.assistedRecallRouter),
+      config,
+      now: config.testing?.now,
+      rollout: internal?.retrievalStrategyRollout,
+    },
+  );
 
   if (internal?.assistedReviewer) {
     return attachGoodMemoryEvalSupport(memory, {

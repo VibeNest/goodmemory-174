@@ -370,6 +370,12 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "reports/eval/live-memory/phase-22/run-1776650772564-assist/report.json",
     );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-23-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-23/run-1776658376536-promote/report.json",
+    );
     expect(currentStatus).toContain("task-board/00-README.txt");
     expect(currentStatus).toContain("docs/archive/quality-gates/README.md");
   });
@@ -390,6 +396,7 @@ describe("release metadata and docs", () => {
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-20-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-21-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-22-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-23-Quality-Gate.md");
     expect(archivedQualityGates).toContain("README.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
@@ -399,6 +406,7 @@ describe("release metadata and docs", () => {
     expect(archivedQualityGates).toContain("GoodMemory-Phase-20-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-21-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-22-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-23-Quality-Gate.md");
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
@@ -446,12 +454,24 @@ describe("release metadata and docs", () => {
     });
   });
 
-  it("phase-21 and phase-22 closure docs only cite git-tracked live eval reports", async () => {
+  it("phase-23 quality gate doc points to one canonical accepted report", async () => {
+    await expectCanonicalAcceptedQualityGate({
+      docPath: `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-23-Quality-Gate.md`,
+      phaseDirectory: "phase-23",
+      reportFileName: "phase-23-quality-gate.json",
+      runId: "run-20260420061039",
+    });
+  });
+
+  it("phase-21 through phase-23 closure docs only cite git-tracked live eval reports", async () => {
     await expectTrackedEvalReportsMentionedInFile(
       `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-21-Quality-Gate.md`,
     );
     await expectTrackedEvalReportsMentionedInFile(
       `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-22-Quality-Gate.md`,
+    );
+    await expectTrackedEvalReportsMentionedInFile(
+      `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-23-Quality-Gate.md`,
     );
   });
 

@@ -1,0 +1,267 @@
+{
+  "mode": "live",
+  "runId": "run-1776658376536-observe",
+  "summary": {
+    "totalCases": 5,
+    "completedCases": 5,
+    "executionFailures": 0,
+    "winnerCounts": {
+      "baseline": 0,
+      "goodmemory": 5,
+      "tie": 0
+    },
+    "baselineAverage": {
+      "factual_recall": 1.6,
+      "preference_consistency": 6,
+      "cross_domain_transfer": 2.4,
+      "contamination_penalty": 10,
+      "update_correctness": 1.8,
+      "personalization_usefulness": 2.2,
+      "provenance_explainability": 7
+    },
+    "goodmemoryAverage": {
+      "factual_recall": 9.4,
+      "preference_consistency": 8.8,
+      "cross_domain_transfer": 8.6,
+      "contamination_penalty": 9.8,
+      "update_correctness": 9.8,
+      "personalization_usefulness": 9,
+      "provenance_explainability": 8
+    },
+    "uplift": {
+      "factual_recall": 7.8,
+      "preference_consistency": 2.8,
+      "cross_domain_transfer": 6.2,
+      "contamination_penalty": -0.2,
+      "update_correctness": 8,
+      "personalization_usefulness": 6.8,
+      "provenance_explainability": 1
+    },
+    "layers": {
+      "baseline": {
+        "retrieval": 4.3,
+        "personalization": 4.48,
+        "runtime_governance": 6.27
+      },
+      "goodmemory": {
+        "retrieval": 8.7,
+        "personalization": 9.2,
+        "runtime_governance": 9.2
+      },
+      "uplift": {
+        "retrieval": 4.4,
+        "personalization": 4.72,
+        "runtime_governance": 2.93
+      }
+    },
+    "assertions": {
+      "totalCases": 5,
+      "passingCases": 5,
+      "passRate": 1,
+      "totalChecks": 30,
+      "passingChecks": 30,
+      "checkPassRate": 1,
+      "applicableUpdateCases": 5,
+      "updateWinCases": 5,
+      "updateWinRate": 1,
+      "applicableStaleSuppressionCases": 5,
+      "staleSuppressionCases": 5,
+      "staleSuppressionRate": 1,
+      "staleMisuseCases": 0,
+      "staleMisuseRate": 0,
+      "contaminationFailures": 0,
+      "updateFailures": 0
+    },
+    "outcomeLoopSummary": {
+      "acceptedProceduralPromotionCases": 1,
+      "applicableCorrectionCases": 5,
+      "applicableProceduralReuseCases": 5,
+      "applicableStaleSuppressionCases": 5,
+      "correctionWinCases": 5,
+      "correctionWinRate": 1,
+      "governedProceduralReuseCases": 1,
+      "governedProceduralReuseRate": 0.2,
+      "staleMisuseCases": 0,
+      "staleMisuseRate": 0,
+      "staleSuppressionCases": 5,
+      "staleSuppressionRate": 1
+    },
+    "shadowSummary": {
+      "totalCases": 5,
+      "byFamily": {
+        "retrieval": 5
+      },
+      "byMode": {
+        "observe": 5
+      },
+      "candidateInfluencedCases": 0,
+      "safeObserveCases": 5,
+      "unknownObserveCases": 0,
+      "regressionCases": []
+    },
+    "strategySummary": {
+      "byStrategy": {
+        "rules-only": {
+          "totalCases": 5,
+          "uniqueScenarios": 5,
+          "winnerCounts": {
+            "baseline": 0,
+            "goodmemory": 5,
+            "tie": 0
+          },
+          "uplift": {
+            "factual_recall": 7.8,
+            "preference_consistency": 2.8,
+            "cross_domain_transfer": 6.2,
+            "contamination_penalty": -0.2,
+            "update_correctness": 8,
+            "personalization_usefulness": 6.8,
+            "provenance_explainability": 1
+          },
+          "regressionCases": []
+        }
+      },
+      "embeddingImpact": null,
+      "routerImpact": null
+    },
+    "maintenanceSummary": {
+      "casesWithAcceptedProceduralPromotions": 1,
+      "casesWithCompiledProceduralReuse": 1,
+      "casesWithCorrectionRepairs": 0,
+      "casesWithProceduralReuse": 1,
+      "casesWithVerificationPressure": 0,
+      "casesWithDemotions": 0,
+      "averageActiveValidatedPatterns": 0.2,
+      "averageCompiledValidatedPatterns": 0.2,
+      "averageCorrectionRepairs": 0,
+      "averagePressuredFacts": 0,
+      "averageDemotedFacts": 0
+    },
+    "promotionGate": {
+      "family": "retrieval",
+      "mode": "observe",
+      "targetStrategyLabel": "llm-assisted",
+      "promotedStrategyLabel": "rules-only",
+      "decision": "delayed",
+      "outcome": "review_required",
+      "rationale": "observe rollout evidence is clean; the next step is assist, not direct promotion",
+      "regressionCases": [],
+      "thresholds": {
+        "requireKnownObserveSafety": true,
+        "requireNoRegressions": true,
+        "requirePassingAssertions": false,
+        "requirePositivePrimaryUplift": false
+      },
+      "evidence": {
+        "totalCases": 5,
+        "completedCases": 5,
+        "executionFailures": 0,
+        "assertionPassRate": 1,
+        "safeObserveCases": 5,
+        "unknownObserveCases": 0
+      }
+    },
+    "regressionDashboardSummary": {
+      "totalRegressionCases": 0,
+      "totalBlockingCases": 0,
+      "judgedRegressionCases": 0,
+      "executionFailureCount": 0,
+      "unattributedExecutionFailureCount": 0,
+      "strategyRegressions": [
+        {
+          "strategyLabel": "rules-only",
+          "totalCases": 5,
+          "attemptedCaseCount": 5,
+          "regressionCaseCount": 0,
+          "executionFailureCaseCount": 0,
+          "blockingCaseCount": 0,
+          "regressionRate": 0,
+          "blockingRate": 0,
+          "regressionCases": [],
+          "executionFailureCases": []
+        }
+      ],
+      "gate": {
+        "family": "retrieval",
+        "mode": "observe",
+        "targetStrategyLabel": "llm-assisted",
+        "promotedStrategyLabel": "rules-only",
+        "decision": "delayed",
+        "outcome": "review_required",
+        "regressionCaseCount": 0
+      }
+    },
+    "publicSurfaceDecision": {
+      "officialCliShape": {
+        "evalSubcommandsNested": true,
+        "memoryCommandsAtRoot": true,
+        "publicEvolutionNamespace": false
+      },
+      "surfaces": [
+        {
+          "surface": "core_config",
+          "exposure": "public",
+          "decision": "accepted",
+          "rationale": "GoodMemory core stays public through the minimal library config: storage, policy, language, adapters, and testing hooks."
+        },
+        {
+          "surface": "eval_artifact_cli",
+          "exposure": "public",
+          "decision": "accepted",
+          "rationale": "Read-only eval inspection is supported because report, shadow, promotion-gate, and regression-dashboard artifacts are now deterministic and inspectable."
+        },
+        {
+          "surface": "official_memory_cli",
+          "exposure": "advanced",
+          "decision": "delayed",
+          "rationale": "The official CLI shape is memory-facing commands at the root with eval nested underneath, but current rollout evidence only proves the eval artifact inspector path."
+        },
+        {
+          "surface": "strategy_rollout_config",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "Strategy rollout controls stay internal because rollout evidence is not yet strong enough to justify public config exposure."
+        },
+        {
+          "surface": "promotion_gate_runtime",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "Promotion gate runtime controls are evidence and governance machinery, not public application config."
+        },
+        {
+          "surface": "evolution_namespace",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "A public evolution namespace is not warranted while rollout evidence is incomplete or still blocking."
+        }
+      ],
+      "evidence": {
+        "totalRegressionCases": 0,
+        "executionFailureCount": 0,
+        "promotionGateDecision": "delayed",
+        "promotionGateOutcome": "review_required"
+      }
+    }
+  },
+  "runtime": {
+    "generationMode": "live",
+    "generationAdapter": "live-adapter",
+    "judgeMode": "live",
+    "judgeAdapter": "live-adapter",
+    "generationProviderId": "openai",
+    "generationModelId": "gpt-5.4",
+    "judgeProviderId": "openai",
+    "judgeModelId": "gpt-5.4",
+    "memoryBackend": "provider-backed",
+    "embeddingEnabled": true,
+    "assistedExtractionEnabled": true,
+    "assistedRecallRouterEnabled": true,
+    "recallRouterProviderId": "openai",
+    "recallRouterModelId": "gpt-5.4",
+    "strategyRollout": {
+      "family": "retrieval",
+      "mode": "observe",
+      "promotedStrategyLabel": "rules-only"
+    }
+  }
+}

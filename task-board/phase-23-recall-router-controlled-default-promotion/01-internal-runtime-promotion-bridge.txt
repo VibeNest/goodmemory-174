@@ -1,0 +1,21 @@
+[DONE] Internal runtime promotion bridge
+=======================================
+
+Goal
+----
+Let `createInternalGoodMemory()` consume a trusted retrieval promotion authorization and apply promoted `llm-assisted` recall only for authorized high-value auto queries.
+
+
+Completed Work
+--------------
+- Added an internal retrieval rollout wrapper on the internal runtime path instead of widening `GoodMemoryConfig`.
+- Reused trusted authorization validation before promote mode can execute.
+- High-value gating only promotes continuation, reference, blocker, open-loop, action-driving, and coding-agent queries.
+- Explicit retrieval strategy overrides remain intact; profile-only/procedural queries stay on rules-first behavior.
+
+
+Acceptance
+----------
+- Authorized high-value auto recall can execute as `llm-assisted`.
+- Role-only/procedural auto recall stays `rules-only`.
+- Invalid or expired authorization blocks non-default promote mode.

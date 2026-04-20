@@ -23,6 +23,11 @@ import {
 import {
   createMemoryRepositories,
 } from "../../src/storage/repositories";
+import type { RetrievalStrategyPromotionAuthorization } from "../../src/governance/retrievalInternalRollout";
+import {
+  createFakeEmbeddingAdapter,
+  createFakeRecallRouter,
+} from "../../src/testing/fakes";
 
 function seedMemory() {
   const documentStore = createInMemoryDocumentStore();
@@ -42,6 +47,83 @@ function seedMemory() {
     sessionStore,
     repositories,
     runtime,
+  };
+}
+
+function buildInternalRetrievalPromotionAuthorization(): RetrievalStrategyPromotionAuthorization {
+  return {
+    expiresAt: "2026-01-08T00:00:00.000Z",
+    family: "retrieval",
+    issuedAt: "2026-01-01T00:00:00.000Z",
+    pairedObserve: {
+      promotionGate: {
+        decision: "accepted",
+        outcome: "passed",
+        promotedStrategyLabel: "rules-only",
+        targetStrategyLabel: "llm-assisted",
+      },
+      source: {
+        runId: "run-observe",
+      },
+      summary: {
+        assertionPassRate: 1,
+        completedCases: 5,
+        executionFailures: 0,
+        regressionCases: [],
+        safeObserveCases: 5,
+        totalCases: 5,
+        unknownObserveCases: 0,
+      },
+    },
+    promotionGate: {
+      decision: "accepted",
+      outcome: "passed",
+      promotedStrategyLabel: "rules-only",
+      targetStrategyLabel: "llm-assisted",
+    },
+    publicSurfaceDecision: {
+      surfaces: [
+        {
+          decision: "accepted",
+          exposure: "public",
+          surface: "core_config",
+        },
+        {
+          decision: "accepted",
+          exposure: "public",
+          surface: "eval_artifact_cli",
+        },
+        {
+          decision: "accepted",
+          exposure: "public",
+          surface: "official_memory_cli",
+        },
+        {
+          decision: "delayed",
+          exposure: "internal",
+          surface: "strategy_rollout_config",
+        },
+        {
+          decision: "delayed",
+          exposure: "internal",
+          surface: "promotion_gate_runtime",
+        },
+        {
+          decision: "delayed",
+          exposure: "internal",
+          surface: "evolution_namespace",
+        },
+      ],
+    },
+    regressionDashboardSummary: {
+      executionFailureCount: 0,
+      totalBlockingCases: 0,
+    },
+    source: {
+      generatedBy: "tests",
+      runId: "run-assist",
+    },
+    targetStrategyLabel: "llm-assisted",
   };
 }
 
@@ -353,6 +435,218 @@ describe("public recall API", () => {
     expect(
       result.metadata.candidateTraces.find((trace) => trace.memoryId === "ref-1")?.whyReturned,
     ).toContain("llmDecision=promote:source_of_truth");
+  });
+
+  it("promotes auto recall to llm-assisted for authorized high-value queries in the internal runtime", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Migration runbook",
+        pointer: "docs/migration-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        factKind: "blocker",
+        content: "Service account rotation is the current blocker for the migration rollout.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: { documentStore, sessionStore },
+        testing: {
+          now: () => new Date("2026-01-01T00:00:00.000Z"),
+        },
+      },
+      {
+        assistedRecallRouter: createFakeRecallRouter(),
+        retrievalStrategyRollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "llm-assisted",
+          promotionAuthorization: buildInternalRetrievalPromotionAuthorization(),
+        },
+      },
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "Which runbook is the source of truth for the migration rollout?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.metadata.routingDecision.strategy).toBe("llm-assisted");
+    expect(result.metadata.routingDecision.strategyExplanation.requestedStrategy).toBe(
+      "auto",
+    );
+    expect(result.metadata.routingDecision.strategyExplanation.summary).toContain(
+      "internal promote rollout elevated auto recall to llm-assisted",
+    );
+    expect(result.metadata.assistantInfluence?.planApplied).toBe(true);
+  });
+
+  it("rechecks internal retrieval promotion authorization expiry when recall applies promotion", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+    let now = new Date("2026-01-01T00:00:00.000Z");
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Migration runbook",
+        pointer: "docs/migration-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: { documentStore, sessionStore },
+        testing: {
+          now: () => now,
+        },
+      },
+      {
+        assistedRecallRouter: createFakeRecallRouter(),
+        retrievalStrategyRollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "llm-assisted",
+          promotionAuthorization: buildInternalRetrievalPromotionAuthorization(),
+        },
+      },
+    );
+
+    now = new Date("2026-01-09T00:00:00.000Z");
+
+    await expect(
+      memory.recall({
+        scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+        query: "Which runbook is the source of truth for the migration rollout?",
+        retrievalProfile: "general_chat",
+      }),
+    ).rejects.toThrow(
+      "Retrieval strategy llm-assisted cannot become the promoted default because trusted strategy-promotion authorization expired at 2026-01-08T00:00:00.000Z.",
+    );
+  });
+
+  it("keeps profile-only auto queries on rules-only even when llm-assisted promotion is authorized", async () => {
+    const { documentStore, sessionStore, repositories } = seedMemory();
+
+    await repositories.profiles.upsert(
+      createUserProfile({
+        userId: "u-1",
+        identity: { name: "Lin", role: "Robotics engineer" },
+      }),
+    );
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: { documentStore, sessionStore },
+        testing: {
+          now: () => new Date("2026-01-01T00:00:00.000Z"),
+        },
+      },
+      {
+        assistedRecallRouter: createFakeRecallRouter(),
+        retrievalStrategyRollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "llm-assisted",
+          promotionAuthorization: buildInternalRetrievalPromotionAuthorization(),
+        },
+      },
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "What is my role?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.metadata.routingDecision.strategy).toBe("rules-only");
+    expect(result.metadata.assistantInfluence).toBeUndefined();
+  });
+
+  it("preserves explicit retrieval strategy overrides even when llm-assisted promotion is authorized", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.references.add(
+      createReferenceMemory({
+        id: "ref-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        title: "Migration runbook",
+        pointer: "docs/migration-runbook.md",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: {
+          documentStore,
+          embeddingAdapter: createFakeEmbeddingAdapter(),
+          sessionStore,
+        },
+        testing: {
+          now: () => new Date("2026-01-01T00:00:00.000Z"),
+        },
+      },
+      {
+        assistedRecallRouter: createFakeRecallRouter(),
+        retrievalStrategyRollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "llm-assisted",
+          promotionAuthorization: buildInternalRetrievalPromotionAuthorization(),
+        },
+      },
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "Which runbook is the source of truth for the migration rollout?",
+      retrievalProfile: "general_chat",
+      strategy: "hybrid",
+    });
+
+    expect(result.metadata.routingDecision.strategy).toBe("hybrid");
+    expect(result.metadata.routingDecision.strategyExplanation.requestedStrategy).toBe(
+      "hybrid",
+    );
+    expect(result.metadata.assistantInfluence).toBeUndefined();
   });
 
   it("does not emit contradictory llmDecision traces when provider decisions disagree with the executed rerank", async () => {

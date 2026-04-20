@@ -6,11 +6,69 @@ import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 import {
   createFakeEmbeddingAdapter,
   createFakeLLMAdapter,
+  createFakeRecallRouter,
 } from "../../src/testing/fakes";
 import { createTempWorkspace } from "../../src/testing/utils";
 import {
   runEvalSuite,
 } from "../../src/eval/suite";
+
+function buildRetrievalPromotionAuthorization() {
+  return {
+    expiresAt: "2026-12-31T00:00:00.000Z",
+    family: "retrieval" as const,
+    issuedAt: "2026-01-01T00:00:00.000Z",
+    pairedObserve: {
+      promotionGate: {
+        decision: "accepted" as const,
+        outcome: "passed" as const,
+        promotedStrategyLabel: "rules-only" as const,
+        targetStrategyLabel: "llm-assisted" as const,
+      },
+      source: {
+        runId: "observe-run",
+      },
+      summary: {
+        assertionPassRate: 1,
+        completedCases: 5,
+        executionFailures: 0,
+        regressionCases: [],
+        safeObserveCases: 5,
+        totalCases: 5,
+        unknownObserveCases: 0,
+      },
+    },
+    promotionGate: {
+      decision: "accepted" as const,
+      outcome: "passed" as const,
+      promotedStrategyLabel: "rules-only" as const,
+      targetStrategyLabel: "llm-assisted" as const,
+    },
+    publicSurfaceDecision: {
+      surfaces: [
+        {
+          decision: "delayed" as const,
+          exposure: "internal" as const,
+          surface: "strategy_rollout_config" as const,
+        },
+        {
+          decision: "delayed" as const,
+          exposure: "internal" as const,
+          surface: "promotion_gate_runtime" as const,
+        },
+      ],
+    },
+    regressionDashboardSummary: {
+      executionFailureCount: 0,
+      totalBlockingCases: 0,
+    },
+    source: {
+      generatedBy: "tests",
+      runId: "assist-run",
+    },
+    targetStrategyLabel: "llm-assisted" as const,
+  };
+}
 
 describe("eval suite", () => {
   it("runs a judged A/B suite over fixture-backed cases and persists a report", async () => {
@@ -1957,6 +2015,100 @@ describe("eval suite", () => {
       expect(result.cases[0]?.metadata.strategyMode).toBe("promote");
       expect(result.cases[0]?.metadata.strategyLabel).toBe("default-hygiene");
       expect(result.cases[0]?.metadata.promotedStrategyLabel).toBe("default-hygiene");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("lets promote-mode retrieval auto requests use internal runtime promotion for authorized llm-assisted rollout", async () => {
+    const workspace = await createTempWorkspace("goodmemory-suite-promote-runtime-applied");
+
+    try {
+      const promotionAuthorization = buildRetrievalPromotionAuthorization();
+      const result = await runEvalSuite({
+        mode: "fallback",
+        personaDir: join(import.meta.dir, "../../fixtures/personas/eval"),
+        scenarioDir: join(import.meta.dir, "../../fixtures/scenarios/eval"),
+        outputDir: join(workspace.root, "reports"),
+        scenarioIds: ["scenario-medium-13-reference-next-step"],
+        strategies: ["auto"],
+        strategyRollout: {
+          family: "retrieval",
+          mode: "promote",
+          promotedStrategy: "llm-assisted",
+          promotionAuthorization,
+        },
+        baselineGenerator: async () => ({
+          content: "baseline",
+        }),
+        createMemory: ({ strategyRollout }) =>
+          createInternalGoodMemory(
+            {
+              storage: { provider: "memory" },
+              adapters: {
+                embeddingAdapter: createFakeEmbeddingAdapter(),
+              },
+            },
+            {
+              assistedRecallRouter: createFakeRecallRouter(),
+              retrievalStrategyRollout: strategyRollout as {
+                family?: "retrieval";
+                mode?: "observe" | "assist" | "promote";
+                promotedStrategy?: "rules-only" | "hybrid" | "llm-assisted";
+                promotionAuthorization?: ReturnType<typeof buildRetrievalPromotionAuthorization>;
+              },
+            },
+          ),
+        goodmemoryGenerator: async (input) => ({
+          content: input.memoryContext ?? "missing memory context",
+        }),
+        judge: createFakeLLMAdapter([
+          {
+            content: JSON.stringify({
+              winner: "goodmemory",
+              scores: {
+                factual_recall: 9,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 9,
+                update_correctness: 9,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              baseline_scores: {
+                factual_recall: 5,
+                preference_consistency: 5,
+                cross_domain_transfer: 5,
+                contamination_penalty: 5,
+                update_correctness: 5,
+                personalization_usefulness: 5,
+                provenance_explainability: 5,
+              },
+              goodmemory_scores: {
+                factual_recall: 9,
+                preference_consistency: 8,
+                cross_domain_transfer: 8,
+                contamination_penalty: 9,
+                update_correctness: 9,
+                personalization_usefulness: 8,
+                provenance_explainability: 8,
+              },
+              reasoning: "runtime-applied promoted llm-assisted recall used the remembered runbook context",
+              failure_tags: [],
+            }),
+          },
+        ]),
+      });
+
+      expect(result.runtime.strategyRollout).toEqual({
+        family: "retrieval",
+        mode: "promote",
+        promotedStrategyLabel: "llm-assisted",
+      });
+      expect(result.cases[0]?.metadata.strategyLabel).toBe("auto");
+      expect(result.cases[0]?.metadata.resolvedStrategyLabel).toBe("llm-assisted");
+      expect(result.cases[0]?.metadata.promotedStrategyLabel).toBe("llm-assisted");
+      expect(result.cases[0]?.goodmemory.candidateInfluencedExecution).toBe(true);
     } finally {
       await workspace.cleanup();
     }

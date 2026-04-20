@@ -86,10 +86,32 @@ export interface EvalStrategySliceSummary {
   regressionCases: string[];
 }
 
+export interface EvalRuntimePromotionSelectivityCase {
+  caseId: string;
+  scenarioId: string;
+  requestedStrategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  resolvedStrategyLabel?: Exclude<
+    EvalAnswerPackage["resolvedStrategyLabel"],
+    "baseline"
+  >;
+  executedStrategyLabel: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  promotedStrategyLabel?: Exclude<EvalAnswerPackage["strategyLabel"], "baseline">;
+  candidateInfluencedExecution?: boolean;
+  transition: string;
+}
+
+export interface EvalRuntimePromotionSelectivitySummary {
+  totalCases: number;
+  promotedCases: number;
+  defaultOrRequestedCases: number;
+  cases: EvalRuntimePromotionSelectivityCase[];
+}
+
 export interface EvalStrategySummary {
   byStrategy: Record<string, EvalStrategyBreakdown>;
   embeddingImpact: EvalStrategySliceSummary | null;
   routerImpact: EvalStrategySliceSummary | null;
+  runtimePromotionSelectivity?: EvalRuntimePromotionSelectivitySummary;
 }
 
 export interface EvalStrategyRegressionSummary {

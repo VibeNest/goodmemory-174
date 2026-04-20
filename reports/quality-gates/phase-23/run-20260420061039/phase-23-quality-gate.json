@@ -1,0 +1,100 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 23 internal recall-router promotion path is regression-covered on the deterministic gate path."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2040,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-23-targeted-regressions",
+      "command": "bun test tests/unit/eval.strategy-rollout.test.ts tests/unit/eval.strategy-promotion-gate.test.ts tests/unit/run-phase-23.script.test.ts tests/integration/recall.api.test.ts tests/eval/reporting.test.ts tests/eval/runners.test.ts tests/eval/suite.test.ts tests/release/api-boundary.test.ts",
+      "durationMs": 622,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) eval suite > keeps observe shadow pre-recall failures unattributed before candidate recall starts [8.27ms]",
+        "(pass) eval suite > passes through non-retrieval runtime rollout metadata without changing executed behavior [11.29ms]",
+        "(pass) eval suite > runs reviewer observe rollouts through an isolated shadow path while keeping rules-only on the executed path [13.90ms]",
+        "(pass) eval suite > passes strategyRollout into custom createMemory so reviewer shadow factories can build assisted memory [12.98ms]",
+        "(pass) eval suite > runs maintenance observe rollouts through an isolated shadow path while keeping default hygiene on the executed path [15.88ms]",
+        "(pass) eval suite > allows reviewer promote mode to keep the family baseline without authorization [9.78ms]",
+        "(pass) eval suite > allows maintenance promote mode to keep the family baseline without authorization [10.96ms]",
+        "(pass) eval suite > lets promote-mode retrieval auto requests use internal runtime promotion for authorized llm-assisted rollout [8.52ms]",
+        "(pass) eval suite > blocks promote-mode retrieval defaults when no accepted promotion gate is supplied [2.39ms]",
+        "(pass) eval suite > keeps non-default promote rollouts blocked because no trusted authorization source exists yet [3.76ms]",
+        "(pass) eval suite > blocks reviewer promote rollouts without family-specific authorization evidence [3.00ms]",
+        "(pass) eval suite > blocks maintenance promote rollouts without family-specific authorization evidence [2.38ms]",
+        "(pass) eval suite > reuses the same baseline answer across strategy variants for one scenario [12.64ms]",
+        "(pass) eval suite > reuses a successful baseline across retries for the same case [11.94ms]",
+        "(pass) eval suite > supports rerunning a single failed strategy case by case id [9.62ms]",
+        "",
+        " 156 pass",
+        " 0 fail",
+        " 715 expect() calls",
+        "Ran 156 tests across 8 files. [614.00ms]"
+      ]
+    },
+    {
+      "label": "phase-23-fallback-eval",
+      "command": "bun run eval:phase-23",
+      "durationMs": 200,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "            \"decision\": \"delayed\",",
+        "            \"rationale\": \"Promotion gate runtime controls are evidence and governance machinery, not public application config.\"",
+        "          },",
+        "          {",
+        "            \"surface\": \"evolution_namespace\",",
+        "            \"exposure\": \"internal\",",
+        "            \"decision\": \"delayed\",",
+        "            \"rationale\": \"A public evolution namespace is still premature; successful rollout evidence does not by itself justify exposing proposal and promotion internals.\"",
+        "          }",
+        "        ],",
+        "        \"evidence\": {",
+        "          \"totalRegressionCases\": 0,",
+        "          \"executionFailureCount\": 0,",
+        "          \"promotionGateDecision\": \"accepted\",",
+        "          \"promotionGateOutcome\": \"passed\"",
+        "        }",
+        "      }",
+        "    }",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-23-eval.ts"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-20T06:10:39.343Z",
+  "generatedBy": "scripts/run-phase-23-gate.ts",
+  "phase": "phase-23",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-23/run-20260420061039",
+  "runId": "run-20260420061039",
+  "scope": {
+    "inScope": [
+      "internal retrieval promotion runtime bridge for authorized llm-assisted default rollout",
+      "phase-23 observe assist promote eval chain with trusted authorization generation",
+      "phase-23 fallback gate and board-doc closure"
+    ],
+    "outOfScope": [
+      "public config widening for rollout controls",
+      "README-level default llm-assisted guarantee",
+      "host-adapter specific rollout loading"
+    ]
+  }
+}

@@ -24,6 +24,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-21-Quality-Gate.md`
 - Recall-router provider hardening and promotion-readiness evidence:
   - `GoodMemory-Phase-22-Quality-Gate.md`
+- Internal recall-router controlled default-promotion closure:
+  - `GoodMemory-Phase-23-Quality-Gate.md`
 
 ## When To Use This Archive
 

@@ -76,6 +76,27 @@ function assertReviewerExecutionSupport(input: {
   );
 }
 
+function resolveRetrievalCandidateInfluencedExecution(input: {
+  recall: RecallResult;
+  retrievalDecision: ReturnType<typeof resolveRetrievalStrategyRollout>;
+}): boolean | undefined {
+  if (input.retrievalDecision.candidateInfluencedExecution !== undefined) {
+    return input.retrievalDecision.candidateInfluencedExecution;
+  }
+
+  if (
+    !input.retrievalDecision.runtimeAppliesPromotion ||
+    input.retrievalDecision.mode !== "promote"
+  ) {
+    return undefined;
+  }
+
+  return (
+    input.recall.metadata.routingDecision.strategy ===
+    input.retrievalDecision.promotedStrategyLabel
+  );
+}
+
 export interface EvalAnswerGeneratorInput {
   persona: PersonaSpec;
   scenario: ScenarioFixture;
@@ -627,6 +648,11 @@ export async function runGoodMemoryScenario(input: {
   } catch (error) {
     throw wrapEvalGoodMemoryScenarioStageError("recall_path", error);
   }
+  const retrievalCandidateInfluencedExecution =
+    resolveRetrievalCandidateInfluencedExecution({
+      recall,
+      retrievalDecision,
+    });
 
   let context;
   let exported: ExportMemoryResult;
@@ -683,7 +709,7 @@ export async function runGoodMemoryScenario(input: {
     candidateInfluencedExecution:
       reviewerDecision?.candidateInfluencedExecution ??
       maintenanceDecision?.candidateInfluencedExecution ??
-      retrievalDecision.candidateInfluencedExecution,
+      retrievalCandidateInfluencedExecution,
     personaId: input.persona.persona_id,
     scenarioId: input.scenario.scenario_id,
     taskFamily: input.scenario.task_family,

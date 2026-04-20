@@ -1,0 +1,22 @@
+[DONE] Quality gate and archived evidence
+=========================================
+
+Goal
+----
+Close Phase 23 with one deterministic gate, one provider-backed live-memory evidence family, and one archived quality-gate document.
+
+
+Completed Work
+--------------
+- Added `eval:phase-23`, `eval:phase-23-live-memory`, and `gate:phase-23`.
+- Archived the canonical quality-gate document under `docs/archive/quality-gates/`.
+- Locked the phase-23 gate doc into release tests so the canonical accepted report cannot drift silently.
+
+
+Acceptance
+----------
+- Canonical deterministic gate:
+  - `reports/quality-gates/phase-23/run-20260420061039/phase-23-quality-gate.json`
+- Canonical archived quality-gate doc:
+  - `docs/archive/quality-gates/GoodMemory-Phase-23-Quality-Gate.md`
+- Provider-backed observe/assist/promote evidence exists and stays separate from generic `eval:live-memory`.

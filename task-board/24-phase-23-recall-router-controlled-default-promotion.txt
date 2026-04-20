@@ -1,0 +1,31 @@
+[DONE] P23-T001 Add internal retrieval promotion runtime bridge with authorized high-value llm-assisted rollout
+[DONE] P23-T002 Add phase-23 observe/assist/promote eval runners plus trusted authorization generation
+[DONE] P23-T003 Run deterministic gate and provider-backed live-memory promote validation
+[DONE] P23-T004 Sync task-board, archived quality-gate docs, and release-facing evidence locks
+
+Phase 23 scope
+--------------
+- Internal-only controlled default promotion for recall-side `llm-assisted`
+- Explicit trusted authorization consumption in internal runtime
+- High-value-query runtime gating so role-only/procedural queries stay rules-first
+- Observe/assist/promote eval evidence for fallback and provider-backed live-memory runs
+- No public config widening and no README-level default llm-assisted commitment
+
+Canonical deterministic gate
+----------------------------
+- `reports/quality-gates/phase-23/run-20260420061039/phase-23-quality-gate.json`
+
+Canonical eval evidence
+-----------------------
+- Fallback observe: `reports/eval/fallback/phase-23/run-1776658356917-observe/report.json`
+- Fallback assist: `reports/eval/fallback/phase-23/run-1776658356917-assist/report.json`
+- Fallback promote: `reports/eval/fallback/phase-23/run-1776658356917-promote/report.json`
+- Live-memory observe: `reports/eval/live-memory/phase-23/run-1776658376536-observe/report.json`
+- Live-memory assist: `reports/eval/live-memory/phase-23/run-1776658376536-assist/report.json`
+- Live-memory promote: `reports/eval/live-memory/phase-23/run-1776658376536-promote/report.json`
+
+Closure note
+------------
+- Phase 23 is accepted as an internal rollout landing: trusted authorization is now consumable by internal runtime and high-value auto recall can execute on the promoted `llm-assisted` path.
+- Promote runs prove the intended selectivity: four high-value scenarios execute as `llm-assisted`, while the role-only negative case remains `rules-only`.
+- Public rollout controls remain internal and delayed; this phase does not expose rollout config on the OSS surface.

@@ -8,6 +8,7 @@ import type {
   EvalPublicSurfaceDecision,
   EvalRegressionDashboardSummary,
   EvalLayerScores,
+  EvalRuntimePromotionSelectivitySummary,
   EvalRuntimeMetadata,
   EvalShadowComparisonRow,
   EvalShadowSummary,
@@ -434,6 +435,53 @@ function buildStrategySummary(cases: JudgedEvalCase[]): EvalStrategySummary {
       "hybrid",
       "llm-assisted",
     ]),
+    runtimePromotionSelectivity: buildRuntimePromotionSelectivity(cases),
+  };
+}
+
+function isRuntimePromotionSelectivityCase(item: JudgedEvalCase): boolean {
+  return (
+    item.metadata.strategyFamily === "retrieval" &&
+    item.metadata.strategyMode === "promote" &&
+    item.metadata.promotedStrategyLabel !== undefined
+  );
+}
+
+function buildRuntimePromotionSelectivity(
+  cases: JudgedEvalCase[],
+): EvalRuntimePromotionSelectivitySummary | undefined {
+  const promotionCases = cases.filter(isRuntimePromotionSelectivityCase);
+  if (promotionCases.length === 0) {
+    return undefined;
+  }
+
+  const rows = promotionCases.map((item) => {
+    const requestedStrategyLabel = item.metadata.strategyLabel;
+    const executedStrategyLabel = resolveExecutedStrategyLabel(item);
+
+    return {
+      caseId: item.caseId,
+      scenarioId: item.goodmemory.scenarioId,
+      requestedStrategyLabel,
+      resolvedStrategyLabel: item.metadata.resolvedStrategyLabel,
+      executedStrategyLabel,
+      promotedStrategyLabel: item.metadata.promotedStrategyLabel,
+      candidateInfluencedExecution: item.goodmemory.candidateInfluencedExecution,
+      transition: `${requestedStrategyLabel} -> ${executedStrategyLabel}`,
+    };
+  });
+  const promotedCases = rows.filter(
+    (row) =>
+      row.candidateInfluencedExecution === true ||
+      (row.requestedStrategyLabel !== row.executedStrategyLabel &&
+        row.executedStrategyLabel === row.promotedStrategyLabel),
+  ).length;
+
+  return {
+    totalCases: rows.length,
+    promotedCases,
+    defaultOrRequestedCases: rows.length - promotedCases,
+    cases: rows,
   };
 }
 

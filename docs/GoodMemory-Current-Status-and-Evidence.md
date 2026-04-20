@@ -21,6 +21,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic report: `reports/quality-gates/phase-22/run-20260420020541/phase-22-quality-gate.json`
   - Live-memory observe report: `reports/eval/live-memory/phase-22/run-1776650772564-observe/report.json`
   - Live-memory assist report: `reports/eval/live-memory/phase-22/run-1776650772564-assist/report.json`
+- Internal recall-router controlled default-promotion evidence:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-23-Quality-Gate.md`
+  - Deterministic gate: `reports/quality-gates/phase-23/run-20260420061039/phase-23-quality-gate.json`
+  - Live-memory promote report: `reports/eval/live-memory/phase-23/run-1776658376536-promote/report.json`
+  - Deterministic fallback promote report: `reports/eval/fallback/phase-23/run-1776658356917-promote/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

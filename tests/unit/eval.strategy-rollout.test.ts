@@ -66,6 +66,39 @@ describe("eval strategy rollout", () => {
     expect(plan.candidateInfluencedExecution).toBe(false);
   });
 
+  it("keeps auto execution runtime-applied when a non-default promoted retrieval strategy is authorized", () => {
+    const plan = resolveRetrievalStrategyRollout({
+      rollout: {
+        mode: "promote",
+        promotedStrategy: "llm-assisted",
+      },
+    });
+
+    expect(plan.mode).toBe("promote");
+    expect(plan.requestedStrategyLabel).toBe("auto");
+    expect(plan.promotedStrategyLabel).toBe("llm-assisted");
+    expect(plan.executedStrategy).toBe("auto");
+    expect(plan.runtimeAppliesPromotion).toBe(true);
+    expect(plan.candidateInfluencedExecution).toBeUndefined();
+  });
+
+  it("preserves explicit retrieval overrides even when a non-default promoted strategy exists", () => {
+    const plan = resolveRetrievalStrategyRollout({
+      requestedStrategy: "hybrid",
+      rollout: {
+        mode: "promote",
+        promotedStrategy: "llm-assisted",
+      },
+    });
+
+    expect(plan.mode).toBe("promote");
+    expect(plan.requestedStrategyLabel).toBe("hybrid");
+    expect(plan.promotedStrategyLabel).toBe("llm-assisted");
+    expect(plan.executedStrategy).toBe("hybrid");
+    expect(plan.runtimeAppliesPromotion).toBe(false);
+    expect(plan.candidateInfluencedExecution).toBe(false);
+  });
+
   it("builds reviewer rollout metadata without inventing retrieval execution semantics", () => {
     const metadata = buildStrategyRolloutMetadata({
       family: "reviewer",

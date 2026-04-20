@@ -1,0 +1,23 @@
+[DONE] Observe/assist/promote eval chain
+========================================
+
+Goal
+----
+Prove the full Phase 23 chain from clean observe evidence, through assist evidence, into trusted authorization issuance and promote-mode runtime execution.
+
+
+Completed Work
+--------------
+- Added fallback and live-memory phase-23 runners.
+- Both runners now execute:
+  - observe with promoted baseline `rules-only`
+  - assist with candidate `llm-assisted`
+  - promote with trusted authorization and `auto` requests
+- Promote runs prove selective execution instead of static forced strategy switching.
+
+
+Acceptance
+----------
+- Observe remains clean and known-safe.
+- Assist remains accepted with zero regressions.
+- Promote runs show four high-value cases on `llm-assisted` and one role-only negative case on `rules-only`.
