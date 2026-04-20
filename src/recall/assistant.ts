@@ -19,6 +19,13 @@ export type RecallAssistantFallbackReason =
   | "timeout"
   | "unsafe_suppress";
 
+export type RecallAssistantFallbackStage = "plan" | "rerank";
+
+export type RecallRouterInfluenceStatus =
+  | "applied"
+  | "full_fallback"
+  | "partial_fallback";
+
 export type RecallAssistantDecisionReason =
   | "continuation_support"
   | "query_alignment"
@@ -82,16 +89,26 @@ export interface RecallRouterAssistant {
   rerank(input: RecallAssistantRerankInput): Promise<RecallAssistantRerank>;
 }
 
+export interface RecallAssistantProviderDiagnostic {
+  message: string;
+  reason: RecallAssistantFallbackReason;
+  stage: RecallAssistantFallbackStage;
+  validationIssueSummary?: string;
+}
+
 export interface RecallAssistantInfluence {
   addedRequestedSlots: RecallSlot[];
   addedSupportSlots: RecallSlot[];
   decisions: RecallAssistantRerankDecision[];
+  fallbackStage?: RecallAssistantFallbackStage;
   fallbackReason?: RecallAssistantFallbackReason;
   planApplied: boolean;
+  providerDiagnostics?: RecallAssistantProviderDiagnostic[];
   querySummary?: string;
   rationale?: string;
   rerankApplied: boolean;
   rerankedCandidateIds: string[];
+  routerInfluenceStatus?: RecallRouterInfluenceStatus;
   sourcePrioritiesAfter?: RecallSource[];
   sourcePrioritiesBefore?: RecallSource[];
   suppressedCandidateIds: string[];
@@ -170,6 +187,30 @@ function mergeSlots<TSlot extends RecallSlot>(
   return [...new Set([...existing, ...additions])];
 }
 
+export function resolveRecallRouterInfluenceStatus(
+  influence: Pick<
+    RecallAssistantInfluence,
+    "fallbackReason" | "planApplied" | "rerankApplied"
+  >,
+): RecallRouterInfluenceStatus {
+  if (influence.fallbackReason) {
+    return influence.planApplied || influence.rerankApplied
+      ? "partial_fallback"
+      : "full_fallback";
+  }
+
+  return "applied";
+}
+
+function withInfluenceStatus(
+  influence: RecallAssistantInfluence,
+): RecallAssistantInfluence {
+  return {
+    ...influence,
+    routerInfluenceStatus: resolveRecallRouterInfluenceStatus(influence),
+  };
+}
+
 export function applyRecallAssistantPlan(input: {
   influence: RecallAssistantInfluence;
   plan: RecallAssistantPlan;
@@ -208,7 +249,7 @@ export function applyRecallAssistantPlan(input: {
       sourcePriorities: reorderedSources.next,
       supportSlots,
     },
-    influence: {
+    influence: withInfluenceStatus({
       ...input.influence,
       addedRequestedSlots,
       addedSupportSlots,
@@ -223,7 +264,7 @@ export function applyRecallAssistantPlan(input: {
       sourcePrioritiesBefore: reorderedSources.changed
         ? input.routingDecision.sourcePriorities
         : undefined,
-    },
+    }),
   };
 }
 
@@ -347,6 +388,21 @@ function validateOrderedIds(
   return true;
 }
 
+function normalizeCandidateId(candidateId: string): string | undefined {
+  const normalized = candidateId.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeCandidateIdList(candidateIds: string[] | undefined): string[] {
+  if (!candidateIds) {
+    return [];
+  }
+
+  return candidateIds
+    .map((candidateId) => normalizeCandidateId(candidateId) ?? "")
+    .filter((candidateId) => candidateId.length > 0);
+}
+
 export function applyRecallAssistantRerank(input: {
   influence: RecallAssistantInfluence;
   protectedCandidateIds?: ReadonlySet<string>;
@@ -360,28 +416,30 @@ export function applyRecallAssistantRerank(input: {
     protectedCandidateIds: input.protectedCandidateIds,
   });
   const candidateIds = new Set(candidates.map((candidate) => candidate.id));
-  const orderedCandidateIds = input.rerank.orderedCandidateIds;
+  const orderedCandidateIds = normalizeCandidateIdList(input.rerank.orderedCandidateIds);
 
   if (!validateOrderedIds(orderedCandidateIds, candidateIds)) {
     return {
       selection: input.selection,
-      influence: {
+      influence: withInfluenceStatus({
         ...input.influence,
         fallbackReason: "invalid_rerank_candidates",
-      },
+        fallbackStage: "rerank",
+      }),
     };
   }
 
   const suppressCandidateIds = [
-    ...new Set(input.rerank.suppressCandidateIds ?? []),
+    ...new Set(normalizeCandidateIdList(input.rerank.suppressCandidateIds)),
   ];
   if (suppressCandidateIds.some((candidateId) => !candidateIds.has(candidateId))) {
     return {
       selection: input.selection,
-      influence: {
+      influence: withInfluenceStatus({
         ...input.influence,
         fallbackReason: "invalid_rerank_candidates",
-      },
+        fallbackStage: "rerank",
+      }),
     };
   }
   if (
@@ -392,12 +450,28 @@ export function applyRecallAssistantRerank(input: {
   ) {
     return {
       selection: input.selection,
-      influence: {
+      influence: withInfluenceStatus({
         ...input.influence,
         fallbackReason: "unsafe_suppress",
-      },
+        fallbackStage: "rerank",
+      }),
     };
   }
+
+  const decisions =
+    input.rerank.decisions
+      ?.map((decision) => {
+        const candidateId = normalizeCandidateId(decision.candidateId);
+        if (!candidateId || !candidateIds.has(candidateId)) {
+          return undefined;
+        }
+
+        return {
+          ...decision,
+          candidateId,
+        };
+      })
+      .filter((decision): decision is NonNullable<typeof decision> => Boolean(decision)) ?? [];
 
   const retainedIds = orderedCandidateIds.filter(
     (candidateId) => !suppressCandidateIds.includes(candidateId),
@@ -405,10 +479,11 @@ export function applyRecallAssistantRerank(input: {
   if (retainedIds.length === 0) {
     return {
       selection: input.selection,
-      influence: {
+      influence: withInfluenceStatus({
         ...input.influence,
         fallbackReason: "empty_rerank",
-      },
+        fallbackStage: "rerank",
+      }),
     };
   }
 
@@ -433,13 +508,13 @@ export function applyRecallAssistantRerank(input: {
       archives: reorderByIds(input.selection.archives),
       episodes: reorderByIds(input.selection.episodes),
     },
-    influence: {
+    influence: withInfluenceStatus({
       ...input.influence,
-      decisions: input.rerank.decisions ?? [],
+      decisions,
       rationale: input.rerank.rationale.trim() || input.influence.rationale,
       rerankApplied: true,
       rerankedCandidateIds: retainedIds,
       suppressedCandidateIds: suppressCandidateIds,
-    },
+    }),
   };
 }

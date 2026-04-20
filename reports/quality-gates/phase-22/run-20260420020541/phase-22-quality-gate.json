@@ -1,0 +1,100 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 22 recall-router provider hardening and promotion-readiness scope is regression-covered on the deterministic gate path."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2022,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-22-targeted-regressions",
+      "command": "bun test tests/unit/recall.assistant.test.ts tests/unit/provider.layer.test.ts tests/unit/model-adapters.test.ts tests/unit/recall.router.test.ts tests/unit/run-phase-22.script.test.ts tests/integration/recall.api.test.ts",
+      "durationMs": 5494,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) public recall API > keeps project-state facts for mixed role and next-step queries [0.86ms]",
+        "(pass) public recall API > falls back to a unique active state fact for mixed role and next-step queries without lexical overlap [0.46ms]",
+        "(pass) public recall API > does not treat generic project facts as project-state support for next-step queries [0.37ms]",
+        "(pass) public recall API > keeps project-state facts available to project-state support for next-step queries [0.58ms]",
+        "(pass) public recall API > recognizes legacy next-milestone facts as project-state support for next-step queries [0.84ms]",
+        "(pass) public recall API > does not guess among multiple state facts for mixed role and next-step queries without lexical overlap [0.75ms]",
+        "(pass) public recall API > keeps references primary and project-state support narrow for reference plus next-step queries [1.16ms]",
+        "(pass) public recall API > keeps corrected source-of-truth recall bound to the superseded project's subject across multiple projects [6.00ms]",
+        "(pass) public recall API > explains recalled preferences and references even when no profile exists [0.73ms]",
+        "(pass) public recall API > retrieves Chinese facts for Chinese queries without faking English lexical matches [2.05ms]",
+        "(pass) public recall API > keeps Chinese blocker-only queries inside the blocker slot [0.52ms]",
+        "(pass) public recall API > does not leak English facts into Chinese answer-style queries [0.45ms]",
+        "(pass) public recall API > does not fall back to English references for Chinese reference-seeking queries [0.25ms]",
+        "(pass) public recall API > retrieves Chinese-authored ASCII references for Chinese reference-seeking queries [1.56ms]",
+        "(pass) public recall API > does not surface English episodes for Chinese continuation queries [0.55ms]",
+        "",
+        " 99 pass",
+        " 0 fail",
+        " 368 expect() calls",
+        "Ran 99 tests across 6 files. [5.48s]"
+      ]
+    },
+    {
+      "label": "phase-22-fallback-eval",
+      "command": "bun run eval:phase-22",
+      "durationMs": 209,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "      \"totalCases\": 5,",
+        "      \"byFamily\": {",
+        "        \"retrieval\": 5",
+        "      },",
+        "      \"byMode\": {",
+        "        \"observe\": 5",
+        "      },",
+        "      \"candidateInfluencedCases\": 0,",
+        "      \"safeObserveCases\": 5,",
+        "      \"unknownObserveCases\": 0,",
+        "      \"regressionCases\": []",
+        "    },",
+        "    \"totalCases\": 5,",
+        "    \"winnerCounts\": {",
+        "      \"baseline\": 0,",
+        "      \"goodmemory\": 5,",
+        "      \"tie\": 0",
+        "    }",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-22-eval.ts"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-20T02:05:41.088Z",
+  "generatedBy": "scripts/run-phase-22-gate.ts",
+  "phase": "phase-22",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-22/run-20260420020541",
+  "runId": "run-20260420020541",
+  "scope": {
+    "inScope": [
+      "recall-router provider wire-shape hardening and redacted diagnostics",
+      "router influence status reporting for applied, partial fallback, and full fallback paths",
+      "phase-22 fallback eval and gate artifact closure"
+    ],
+    "outOfScope": [
+      "public config widening for recall router",
+      "default llm-assisted recall promotion",
+      "trusted promotion authorization generation"
+    ]
+  }
+}

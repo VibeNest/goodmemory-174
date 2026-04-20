@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export interface Phase19ReviewerGateCommand {
@@ -245,8 +246,19 @@ export async function runPhase19ReviewerQualityGate(
   return report;
 }
 
+function parsePhase19ReviewerGateCliOptions(
+  argv: readonly string[],
+): Phase19ReviewerGateOptions {
+  return {
+    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    runId: resolveCliFlagValue(argv, "--run-id"),
+  };
+}
+
 async function main(): Promise<void> {
-  const report = await runPhase19ReviewerQualityGate();
+  const report = await runPhase19ReviewerQualityGate(
+    parsePhase19ReviewerGateCliOptions(process.argv),
+  );
   console.log(JSON.stringify(report, null, 2));
 
   if (report.acceptance.decision !== "accepted") {

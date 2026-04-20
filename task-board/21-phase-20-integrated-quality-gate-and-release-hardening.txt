@@ -13,7 +13,7 @@ Status Snapshot
 - The integrated closure for the current repo state must combine release, examples, and the accepted dedicated gates from phase 16 through phase 19.
 - Accepted evidence:
   - `docs/GoodMemory-Phase-20-Quality-Gate.md`
-  - `reports/quality-gates/phase-20/run-20260419164837/phase-20-quality-gate.json`
+  - `reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json`
 
 
 Dependencies

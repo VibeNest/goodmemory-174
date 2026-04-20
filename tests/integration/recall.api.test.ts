@@ -315,7 +315,7 @@ describe("public recall API", () => {
               rationale: "runbook should lead before blocker detail",
               decisions: [
                 {
-                  candidateId: "ref-1",
+                  candidateId: " ref-1 ",
                   decision: "promote",
                   reason: "source_of_truth",
                 },
@@ -341,6 +341,7 @@ describe("public recall API", () => {
     expect(result.facts[0]?.id).toBe("fact-1");
     expect(result.metadata.assistantInfluence?.planApplied).toBe(true);
     expect(result.metadata.assistantInfluence?.rerankApplied).toBe(true);
+    expect(result.metadata.assistantInfluence?.routerInfluenceStatus).toBe("applied");
     expect(result.metadata.assistantInfluence?.rerankedCandidateIds).toEqual([
       "ref-1",
       "fact-1",
@@ -441,6 +442,7 @@ describe("public recall API", () => {
     );
 
     expect(result.facts.map((fact) => fact.id)).toEqual(["fact-keep"]);
+    expect(result.metadata.assistantInfluence?.routerInfluenceStatus).toBe("applied");
     expect(policyTrace?.returned).toBe(false);
     expect(policyTrace?.whySuppressed).toBe("policy filtered");
     expect(suppressTrace?.returned).toBe(false);
@@ -494,7 +496,76 @@ describe("public recall API", () => {
     expect(result.metadata.routingDecision.strategy).toBe("llm-assisted");
     expect(result.facts[0]?.id).toBe("fact-1");
     expect(result.metadata.assistantInfluence?.fallbackReason).toBe("schema_invalid");
+    expect(result.metadata.assistantInfluence?.fallbackStage).toBe("plan");
+    expect(result.metadata.assistantInfluence?.routerInfluenceStatus).toBe("full_fallback");
+    expect(result.metadata.assistantInfluence?.providerDiagnostics?.[0]).toMatchObject({
+      reason: "schema_invalid",
+      stage: "plan",
+    });
     expect(result.metadata.assistantInfluence?.rerankApplied).toBe(false);
+  });
+
+  it("keeps planner influence visible when rerank falls back after a successful plan", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "Migration rollout status depends on service account rotation.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: { documentStore, sessionStore },
+      },
+      {
+        assistedRecallRouter: {
+          async plan() {
+            return {
+              querySummary: "migration rollout status",
+              rationale: "prioritize fact source",
+              sourcePriorityOrder: [
+                "fact",
+                "profile",
+                "feedback",
+                "episode",
+                "working_memory",
+                "session_journal",
+              ],
+            };
+          },
+          async rerank() {
+            throw new Error("Structured model response schema validation failed");
+          },
+        },
+      },
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "What is the migration rollout status?",
+      retrievalProfile: "general_chat",
+      strategy: "llm-assisted",
+    });
+
+    expect(result.metadata.assistantInfluence?.planApplied).toBe(true);
+    expect(result.metadata.assistantInfluence?.rerankApplied).toBe(false);
+    expect(result.metadata.assistantInfluence?.fallbackStage).toBe("rerank");
+    expect(result.metadata.assistantInfluence?.fallbackReason).toBe("schema_invalid");
+    expect(result.metadata.assistantInfluence?.routerInfluenceStatus).toBe(
+      "partial_fallback",
+    );
   });
 
   it("retrieves runtime continuity for coding-agent recalls and builds markdown context", async () => {

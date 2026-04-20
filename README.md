@@ -179,6 +179,7 @@ bun run eval:smoke
 bun run eval:fallback
 bun run eval:phase-17
 bun run eval:live
+bun run eval:live-memory
 bun run eval:phase-17-live-memory
 ```
 
@@ -187,7 +188,8 @@ bun run eval:phase-17-live-memory
 - `eval:smoke`: 最小 harness 自检，不代表产品评测结果
 - `eval:fallback`: deterministic pipeline 验证，不调用真实模型，不可作为产品证据
 - `eval:phase-17`: retrieval-first phase 17 deterministic gate，验证 observe rollout artifact 完整性与 shadow safety
-- `eval:live`: 真实模型生成 + 真实模型 judge 的产品评测入口
+- `eval:live`: 真实模型生成 + 真实模型 judge 的产品评测入口，使用 in-memory memory backend
+- `eval:live-memory`: 真实模型生成 + 真实模型 judge 的 provider-backed 产品评测入口，验证 Postgres + embedding + assisted extraction 的真实记忆链路
 - `eval:phase-17-live-memory`: phase 17 provider-backed gate，执行 observe + assist 两个 retrieval rollout 子运行并生成内部 promotion authorization artifact
 
 `eval:live` 必须显式配置以下环境变量，否则会直接失败：
@@ -202,12 +204,23 @@ bun run eval:phase-17-live-memory
 - `GOODMEMORY_JUDGE_MODEL`
 - `GOODMEMORY_JUDGE_API_KEY`
 
+`eval:live-memory` 需要以上全部变量，另外还需要：
+
+- `GOODMEMORY_TEST_POSTGRES_URL`
+- `GOODMEMORY_EMBEDDING_PROVIDER`
+- `GOODMEMORY_EMBEDDING_BASE_URL` for OpenAI-compatible gateways
+- `GOODMEMORY_EMBEDDING_MODEL`
+- `GOODMEMORY_EMBEDDING_API_KEY`
+- `GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER`
+- `GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL` for OpenAI-compatible gateways
+- `GOODMEMORY_ASSISTED_EXTRACTOR_MODEL`
+- `GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY`
+
 产物目录：
 
 - live runs: `reports/eval/live/run-*`
+- provider-backed live runs: `reports/eval/live-memory/run-*`
 - fallback runs: `reports/eval/fallback/run-*`
-
-只有 `reports/eval/live/...` 应被视为产品评测证据。
 
 ## Strategy Rollout
 

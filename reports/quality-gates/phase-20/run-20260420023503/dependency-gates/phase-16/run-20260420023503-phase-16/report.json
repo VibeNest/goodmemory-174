@@ -1,0 +1,207 @@
+{
+  "mode": "fallback",
+  "runId": "run-20260420023503-phase-16",
+  "summary": {
+    "totalCases": 5,
+    "completedCases": 5,
+    "executionFailures": 0,
+    "winnerCounts": {
+      "baseline": 0,
+      "goodmemory": 5,
+      "tie": 0
+    },
+    "baselineAverage": {
+      "factual_recall": 0,
+      "preference_consistency": 0,
+      "cross_domain_transfer": 0,
+      "contamination_penalty": 8,
+      "update_correctness": 0,
+      "personalization_usefulness": 0,
+      "provenance_explainability": 2
+    },
+    "goodmemoryAverage": {
+      "factual_recall": 10,
+      "preference_consistency": 10,
+      "cross_domain_transfer": 8.4,
+      "contamination_penalty": 10,
+      "update_correctness": 10,
+      "personalization_usefulness": 10,
+      "provenance_explainability": 8
+    },
+    "uplift": {
+      "factual_recall": 10,
+      "preference_consistency": 10,
+      "cross_domain_transfer": 8.4,
+      "contamination_penalty": 2,
+      "update_correctness": 10,
+      "personalization_usefulness": 10,
+      "provenance_explainability": 6
+    },
+    "layers": {
+      "baseline": {
+        "retrieval": 1,
+        "personalization": 1.6,
+        "runtime_governance": 3.33
+      },
+      "goodmemory": {
+        "retrieval": 9,
+        "personalization": 9.68,
+        "runtime_governance": 9.33
+      },
+      "uplift": {
+        "retrieval": 8,
+        "personalization": 8.08,
+        "runtime_governance": 6
+      }
+    },
+    "assertions": {
+      "totalCases": 5,
+      "passingCases": 5,
+      "passRate": 1,
+      "totalChecks": 30,
+      "passingChecks": 30,
+      "checkPassRate": 1,
+      "applicableUpdateCases": 5,
+      "updateWinCases": 5,
+      "updateWinRate": 1,
+      "applicableStaleSuppressionCases": 5,
+      "staleSuppressionCases": 5,
+      "staleSuppressionRate": 1,
+      "staleMisuseCases": 0,
+      "staleMisuseRate": 0,
+      "contaminationFailures": 0,
+      "updateFailures": 0
+    },
+    "outcomeLoopSummary": {
+      "acceptedProceduralPromotionCases": 5,
+      "applicableCorrectionCases": 5,
+      "applicableProceduralReuseCases": 5,
+      "applicableStaleSuppressionCases": 5,
+      "correctionWinCases": 5,
+      "correctionWinRate": 1,
+      "governedProceduralReuseCases": 5,
+      "governedProceduralReuseRate": 1,
+      "staleMisuseCases": 0,
+      "staleMisuseRate": 0,
+      "staleSuppressionCases": 5,
+      "staleSuppressionRate": 1
+    },
+    "strategySummary": {
+      "byStrategy": {
+        "rules-only": {
+          "totalCases": 5,
+          "uniqueScenarios": 5,
+          "winnerCounts": {
+            "baseline": 0,
+            "goodmemory": 5,
+            "tie": 0
+          },
+          "uplift": {
+            "factual_recall": 10,
+            "preference_consistency": 10,
+            "cross_domain_transfer": 8.4,
+            "contamination_penalty": 2,
+            "update_correctness": 10,
+            "personalization_usefulness": 10,
+            "provenance_explainability": 6
+          },
+          "regressionCases": []
+        }
+      },
+      "embeddingImpact": null,
+      "routerImpact": null
+    },
+    "maintenanceSummary": {
+      "casesWithAcceptedProceduralPromotions": 5,
+      "casesWithCompiledProceduralReuse": 5,
+      "casesWithCorrectionRepairs": 0,
+      "casesWithProceduralReuse": 5,
+      "casesWithVerificationPressure": 0,
+      "casesWithDemotions": 0,
+      "averageActiveValidatedPatterns": 1,
+      "averageCompiledValidatedPatterns": 1,
+      "averageCorrectionRepairs": 0,
+      "averagePressuredFacts": 0,
+      "averageDemotedFacts": 0
+    },
+    "regressionDashboardSummary": {
+      "totalRegressionCases": 0,
+      "totalBlockingCases": 0,
+      "judgedRegressionCases": 0,
+      "executionFailureCount": 0,
+      "unattributedExecutionFailureCount": 0,
+      "strategyRegressions": [
+        {
+          "strategyLabel": "rules-only",
+          "totalCases": 5,
+          "attemptedCaseCount": 5,
+          "regressionCaseCount": 0,
+          "executionFailureCaseCount": 0,
+          "blockingCaseCount": 0,
+          "regressionRate": 0,
+          "blockingRate": 0,
+          "regressionCases": [],
+          "executionFailureCases": []
+        }
+      ]
+    },
+    "publicSurfaceDecision": {
+      "officialCliShape": {
+        "evalSubcommandsNested": true,
+        "memoryCommandsAtRoot": true,
+        "publicEvolutionNamespace": false
+      },
+      "surfaces": [
+        {
+          "surface": "core_config",
+          "exposure": "public",
+          "decision": "accepted",
+          "rationale": "GoodMemory core stays public through the minimal library config: storage, policy, language, adapters, and testing hooks."
+        },
+        {
+          "surface": "eval_artifact_cli",
+          "exposure": "public",
+          "decision": "accepted",
+          "rationale": "Read-only eval inspection is supported because report, shadow, promotion-gate, and regression-dashboard artifacts are now deterministic and inspectable."
+        },
+        {
+          "surface": "official_memory_cli",
+          "exposure": "advanced",
+          "decision": "delayed",
+          "rationale": "The official CLI shape is memory-facing commands at the root with eval nested underneath, but current rollout evidence only proves the eval artifact inspector path."
+        },
+        {
+          "surface": "strategy_rollout_config",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "Strategy rollout controls stay internal because rollout evidence is not yet strong enough to justify public config exposure."
+        },
+        {
+          "surface": "promotion_gate_runtime",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "Promotion gate runtime controls are evidence and governance machinery, not public application config."
+        },
+        {
+          "surface": "evolution_namespace",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "A public evolution namespace is not warranted while rollout evidence is incomplete or still blocking."
+        }
+      ],
+      "evidence": {
+        "totalRegressionCases": 0,
+        "executionFailureCount": 0
+      }
+    }
+  },
+  "runtime": {
+    "generationMode": "fallback",
+    "generationAdapter": "fallback",
+    "judgeMode": "fallback",
+    "judgeAdapter": "fallback",
+    "memoryBackend": "in-memory",
+    "embeddingEnabled": false,
+    "assistedExtractionEnabled": false
+  }
+}

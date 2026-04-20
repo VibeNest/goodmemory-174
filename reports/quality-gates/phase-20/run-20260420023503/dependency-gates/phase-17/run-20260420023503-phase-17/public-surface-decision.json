@@ -1,0 +1,51 @@
+{
+  "officialCliShape": {
+    "evalSubcommandsNested": true,
+    "memoryCommandsAtRoot": true,
+    "publicEvolutionNamespace": false
+  },
+  "surfaces": [
+    {
+      "surface": "core_config",
+      "exposure": "public",
+      "decision": "accepted",
+      "rationale": "GoodMemory core stays public through the minimal library config: storage, policy, language, adapters, and testing hooks."
+    },
+    {
+      "surface": "eval_artifact_cli",
+      "exposure": "public",
+      "decision": "accepted",
+      "rationale": "Read-only eval inspection is supported because report, shadow, promotion-gate, and regression-dashboard artifacts are now deterministic and inspectable."
+    },
+    {
+      "surface": "official_memory_cli",
+      "exposure": "advanced",
+      "decision": "delayed",
+      "rationale": "The official CLI shape is memory-facing commands at the root with eval nested underneath, but current rollout evidence only proves the eval artifact inspector path."
+    },
+    {
+      "surface": "strategy_rollout_config",
+      "exposure": "internal",
+      "decision": "delayed",
+      "rationale": "Strategy rollout controls stay internal because rollout evidence is not yet strong enough to justify public config exposure."
+    },
+    {
+      "surface": "promotion_gate_runtime",
+      "exposure": "internal",
+      "decision": "delayed",
+      "rationale": "Promotion gate runtime controls are evidence and governance machinery, not public application config."
+    },
+    {
+      "surface": "evolution_namespace",
+      "exposure": "internal",
+      "decision": "delayed",
+      "rationale": "A public evolution namespace is not warranted while rollout evidence is incomplete or still blocking."
+    }
+  ],
+  "evidence": {
+    "totalRegressionCases": 0,
+    "executionFailureCount": 0,
+    "promotionGateDecision": "delayed",
+    "promotionGateOutcome": "review_required"
+  }
+}

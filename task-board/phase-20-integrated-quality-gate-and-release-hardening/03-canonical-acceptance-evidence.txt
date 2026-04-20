@@ -4,5 +4,5 @@
 
 Canonical accepted run
 ----------------------
-- `run-20260419164837`
-- `reports/quality-gates/phase-20/run-20260419164837/phase-20-quality-gate.json`
+- `run-20260420023503`
+- `reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json`

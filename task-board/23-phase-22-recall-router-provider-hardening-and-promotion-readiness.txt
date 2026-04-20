@@ -1,0 +1,27 @@
+[DONE] P22-T001 Harden recall-router provider wire shape and alias normalization
+[DONE] P22-T002 Add router influence status, partial fallback visibility, and redacted diagnostics
+[DONE] P22-T003 Add phase-22 fallback/live-memory eval runners and dedicated gate script
+[DONE] P22-T004 Run deterministic gate plus provider-backed live-memory stress validation and sync the board/docs
+
+Phase 22 scope
+--------------
+- Internal recall-side LLM router provider hardening after Phase 21
+- Canonical and provider-alias normalization for planner/rerank outputs
+- Redacted diagnostics and explicit `applied` / `partial_fallback` / `full_fallback` router influence status
+- Observe/assist stress eval coverage for promotion-readiness evidence
+- No public config widening, no `auto` semantic change, and no default promotion
+
+Canonical deterministic gate
+----------------------------
+- `reports/quality-gates/phase-22/run-20260420020541/phase-22-quality-gate.json`
+
+Provider-backed live-memory evidence
+------------------------------------
+- Observe: `reports/eval/live-memory/phase-22/run-1776650772564-observe/report.json`
+- Assist: `reports/eval/live-memory/phase-22/run-1776650772564-assist/report.json`
+
+Closure note
+------------
+- Phase 22 is accepted as provider hardening plus promotion-readiness evidence, not as a public/default rollout decision.
+- The live-memory assist stress slice shows 5/5 completed cases, 0 regressions, provider-backed memory, and committed report-summary evidence for controlled `llm-assisted` execution.
+- Promotion remains deliberately deferred because this phase does not generate a trusted promotion authorization and does not change the public/default recall path.

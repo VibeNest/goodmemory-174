@@ -1,0 +1,22 @@
+[DONE] Observe/assist stress eval
+=================================
+
+Goal
+----
+Exercise the hardened provider path across more than one recall-router case while preserving the promoted baseline in observe mode.
+
+
+Completed Work
+--------------
+- Added phase-22 fallback eval runner for deterministic fake-router coverage.
+- Added phase-22 live-memory runner for provider-backed observe and assist stress slices.
+- Stress scenarios cover reference plus next-step, blocker, coding continuation, Chinese reference, and profile-only/procedural negative pressure.
+- Observe mode keeps execution on the promoted baseline while recording shadow evidence.
+- Assist mode executes `llm-assisted` in the controlled eval path and records router influence status.
+
+
+Acceptance
+----------
+- `eval:phase-22` passes on deterministic fallback artifacts.
+- `eval:phase-22-live-memory` produces separate observe and assist reports under `reports/eval/live-memory/phase-22/`.
+- Assist evidence shows provider-backed memory, committed report-summary coverage for controlled `llm-assisted` execution, and no regressions.

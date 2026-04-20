@@ -514,6 +514,279 @@ describe("model adapters", () => {
     expect(calls[1]?.schema).toBeTruthy();
   });
 
+  it("normalizes openai-compatible recall router alias payloads before schema validation", async () => {
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    let invocation = 0;
+    const router = createLLMRecallRouter({
+      model: {
+        provider: "openai",
+        model: "gpt-5.4",
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+      },
+      dependencies: {
+        fetch: async (url, init) => {
+          fetchCalls.push({ url: String(url), init });
+          invocation += 1;
+          const content =
+            invocation === 1
+              ? "{\"query_summary\":\"migration source\",\"requested_slots\":[\"source_of_truth\"],\"support_slots\":[\"project_state\"],\"source_priorities\":[\"fact\",\"profile\",\"feedback\",\"episode\"]}"
+              : "{\"ranked_ids\":[\"ref-1\",\"fact-1\"],\"suppressed_ids\":[\"episode-1\"]}";
+
+          return new Response(
+            [
+              "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\"},\"index\":0}]}",
+              `data: {\"choices\":[{\"delta\":{\"content\":${JSON.stringify(content)}},\"index\":0}]}`,
+              "data: [DONE]",
+            ].join("\n\n") + "\n\n",
+            {
+              status: 200,
+            },
+          );
+        },
+      },
+    });
+
+    const plan = await router.plan({
+      locale: "en",
+      query: "which runbook is the source of truth",
+      routingDecision: {
+        retrievalProfile: "general_chat",
+        intent: "general_assistance",
+        strategy: "llm-assisted",
+        strategyExplanation: {
+          requestedStrategy: "llm-assisted",
+          resolvedStrategy: "llm-assisted",
+          summary: "llm-assisted routing enabled refinement",
+          hardFloor: "lexical_runtime_procedural_priors",
+          semanticTieBreaking: false,
+          llmRefinement: true,
+        },
+        sourcePriorities: ["profile", "feedback", "fact", "episode"],
+        requestedSlots: [],
+        supportSlots: [],
+        actionDriving: false,
+        referenceSeeking: true,
+        continuation: false,
+      },
+      runtime: {
+        hasJournal: false,
+        hasWorkingMemory: false,
+      },
+    });
+    const rerank = await router.rerank({
+      candidates: [
+        {
+          id: "fact-1",
+          protected: false,
+          summary: "Current blocker is service account rotation.",
+          type: "fact",
+        },
+        {
+          id: "ref-1",
+          protected: false,
+          summary: "Migration runbook docs/migration-runbook.md",
+          type: "reference",
+        },
+        {
+          id: "episode-1",
+          protected: false,
+          summary: "Prior episode about the migration.",
+          type: "episode",
+        },
+      ],
+      locale: "en",
+      query: "which runbook is the source of truth",
+      querySummary: plan.querySummary,
+      routingDecision: {
+        retrievalProfile: "general_chat",
+        intent: "general_assistance",
+        strategy: "llm-assisted",
+        strategyExplanation: {
+          requestedStrategy: "llm-assisted",
+          resolvedStrategy: "llm-assisted",
+          summary: "llm-assisted routing enabled refinement",
+          hardFloor: "lexical_runtime_procedural_priors",
+          semanticTieBreaking: false,
+          llmRefinement: true,
+        },
+        sourcePriorities: ["fact", "profile", "feedback", "episode"],
+        requestedSlots: ["reference"],
+        supportSlots: ["project_state_support"],
+        actionDriving: false,
+        referenceSeeking: true,
+        continuation: false,
+      },
+    });
+
+    expect(plan.querySummary).toBe("migration source");
+    expect(plan.requestedSlotAdditions).toEqual(["reference"]);
+    expect(plan.supportSlotAdditions).toEqual(["project_state_support"]);
+    expect(plan.sourcePriorityOrder).toEqual(["fact", "profile", "feedback", "episode"]);
+    expect(rerank.orderedCandidateIds).toEqual(["ref-1", "fact-1"]);
+    expect(rerank.suppressCandidateIds).toEqual(["episode-1"]);
+    expect(rerank.decisions?.map((decision) => decision.decision)).toEqual([
+      "promote",
+      "promote",
+      "suppress",
+    ]);
+    expect(fetchCalls).toHaveLength(2);
+  });
+
+  it("normalizes openai-compatible recall router decision aliases and object candidate ids", async () => {
+    const router = createLLMRecallRouter({
+      model: {
+        provider: "openai",
+        model: "gpt-5.4",
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+      },
+      dependencies: {
+        fetch: async () =>
+          new Response(
+            [
+              "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\"},\"index\":0}]}",
+              "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"ordered_candidates\\\":[{\\\"candidate_id\\\":\\\" ref-1 \\\"},{\\\"id\\\":\\\"fact-1\\\"}],\\\"suppressed\\\":[{\\\"memory_id\\\":\\\"archive-1\\\"}],\\\"decisions\\\":[{\\\"candidate_id\\\":\\\" ref-1 \\\",\\\"decision\\\":\\\"prioritize\\\",\\\"rationale\\\":\\\"source_reference\\\"},{\\\"id\\\":\\\"fact-1\\\",\\\"decision\\\":\\\"demote\\\",\\\"reason\\\":\\\"blocker_priority\\\"},{\\\"id\\\":\\\"archive-1\\\",\\\"decision\\\":\\\"suppress\\\"}],\\\"reasoning\\\":\\\"rerank aliases\\\"}\"},\"index\":0}]}",
+              "data: [DONE]",
+              "",
+            ].join("\n\n"),
+            {
+              status: 200,
+              headers: {
+                "content-type": "text/event-stream",
+              },
+            },
+          ),
+      },
+    });
+
+    const rerank = await router.rerank({
+      candidates: [
+        {
+          id: "fact-1",
+          protected: false,
+          summary: "Current blocker is service account rotation.",
+          type: "fact",
+        },
+        {
+          id: "ref-1",
+          protected: false,
+          summary: "Migration runbook docs/migration-runbook.md",
+          type: "reference",
+        },
+        {
+          id: "archive-1",
+          protected: false,
+          summary: "Paused while waiting on the migration runbook confirmation.",
+          type: "archive",
+        },
+      ],
+      locale: "en",
+      query: "which runbook is the source of truth",
+      routingDecision: {
+        retrievalProfile: "general_chat",
+        intent: "general_assistance",
+        strategy: "llm-assisted",
+        strategyExplanation: {
+          requestedStrategy: "llm-assisted",
+          resolvedStrategy: "llm-assisted",
+          summary: "llm-assisted routing enabled refinement",
+          hardFloor: "lexical_runtime_procedural_priors",
+          semanticTieBreaking: false,
+          llmRefinement: true,
+        },
+        sourcePriorities: ["fact", "profile", "feedback", "episode"],
+        requestedSlots: ["reference"],
+        supportSlots: ["project_state_support"],
+        actionDriving: false,
+        referenceSeeking: true,
+        continuation: false,
+      },
+    });
+
+    expect(rerank.orderedCandidateIds).toEqual(["ref-1", "fact-1"]);
+    expect(rerank.suppressCandidateIds).toEqual(["archive-1"]);
+    expect(rerank.rationale).toBe("rerank aliases");
+    expect(rerank.decisions).toEqual([
+      {
+        candidateId: "ref-1",
+        decision: "promote",
+        reason: "source_of_truth",
+      },
+      {
+        candidateId: "fact-1",
+        decision: "suppress",
+        reason: "task_blocker",
+      },
+      {
+        candidateId: "archive-1",
+        decision: "suppress",
+        reason: "query_alignment",
+      },
+    ]);
+  });
+
+  it("falls back to undefined alias arrays when openai-compatible recall plan payload fields are not arrays", async () => {
+    const router = createLLMRecallRouter({
+      model: {
+        provider: "openai",
+        model: "gpt-5.4",
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+      },
+      dependencies: {
+        fetch: async () =>
+          new Response(
+            [
+              "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\"},\"index\":0}]}",
+              "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"query_summary\\\":\\\"migration source\\\",\\\"requested_slots\\\":[],\\\"support_slots\\\":\\\"project_state\\\",\\\"source_priorities\\\":\\\"fact\\\"}\"},\"index\":0}]}",
+              "data: [DONE]",
+              "",
+            ].join("\n\n"),
+            {
+              status: 200,
+              headers: {
+                "content-type": "text/event-stream",
+              },
+            },
+          ),
+      },
+    });
+
+    const plan = await router.plan({
+      locale: "en",
+      query: "which runbook is the source of truth",
+      routingDecision: {
+        retrievalProfile: "general_chat",
+        intent: "general_assistance",
+        strategy: "llm-assisted",
+        strategyExplanation: {
+          requestedStrategy: "llm-assisted",
+          resolvedStrategy: "llm-assisted",
+          summary: "llm-assisted routing enabled refinement",
+          hardFloor: "lexical_runtime_procedural_priors",
+          semanticTieBreaking: false,
+          llmRefinement: true,
+        },
+        sourcePriorities: ["profile", "feedback", "fact", "episode"],
+        requestedSlots: [],
+        supportSlots: [],
+        actionDriving: false,
+        referenceSeeking: true,
+        continuation: false,
+      },
+      runtime: {
+        hasJournal: false,
+        hasWorkingMemory: false,
+      },
+    });
+
+    expect(plan.querySummary).toBe("migration source");
+    expect(plan.requestedSlotAdditions).toBeUndefined();
+    expect(plan.supportSlotAdditions).toBeUndefined();
+    expect(plan.sourcePriorityOrder).toBeUndefined();
+  });
+
   it("rejects anthropic embedding model resolution because embeddings are unsupported", () => {
     expect(() =>
       resolveAISDKEmbeddingModel({

@@ -28,8 +28,6 @@ dev-debug.log
 # Coverage and generated reports
 coverage/
 .nyc_output/
-reports/eval/*
-!reports/eval/.gitkeep
 
 # Local databases
 *.db
@@ -72,3 +70,50 @@ sandbox/output/
 sandbox/tmp/
 
 third-party/
+reports/*
+!reports/eval/
+!reports/quality-gates/
+# Commit only canonical eval report summaries cited by docs and the task board.
+reports/eval/*
+!reports/eval/.gitkeep
+!reports/eval/live/
+!reports/eval/live-memory/
+reports/eval/live/**
+reports/eval/live-memory/**
+!reports/eval/live-memory/phase-21/
+!reports/eval/live-memory/phase-21/run-1776620091171-observe/
+!reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json
+!reports/eval/live-memory/phase-21/run-1776620091171-assist/
+!reports/eval/live-memory/phase-21/run-1776620091171-assist/report.json
+!reports/eval/live-memory/phase-22/
+!reports/eval/live-memory/phase-22/run-1776650772564-observe/
+!reports/eval/live-memory/phase-22/run-1776650772564-observe/report.json
+!reports/eval/live-memory/phase-22/run-1776650772564-assist/
+!reports/eval/live-memory/phase-22/run-1776650772564-assist/report.json
+!reports/eval/live-memory/phase-22-smoke/
+!reports/eval/live-memory/phase-22-smoke/run-1776651268822/
+!reports/eval/live-memory/phase-22-smoke/run-1776651268822/report.json
+!reports/eval/live/phase-22-smoke/
+!reports/eval/live/phase-22-smoke/run-1776651237720/
+!reports/eval/live/phase-22-smoke/run-1776651237720/report.json
+# Commit canonical phase quality gates plus the phase-20 dependency summaries.
+reports/quality-gates/**
+!reports/quality-gates/*/
+!reports/quality-gates/*/run-*/
+!reports/quality-gates/*/run-*/phase-*-quality-gate.json
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/*.json
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/run-20260420023503-phase-17/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/run-20260420023503-phase-17/*.json
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-18/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-18/run-20260420023503-phase-18/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-18/run-20260420023503-phase-18/*.json
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-19-reviewer/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-19-reviewer/run-20260420023503-phase-19-reviewer/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-19-reviewer/run-20260420023503-phase-19-reviewer/*.json
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-19-maintenance/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-19-maintenance/run-20260420023503-phase-19-maintenance/
+!reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-19-maintenance/run-20260420023503-phase-19-maintenance/*.json

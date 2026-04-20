@@ -38,6 +38,6 @@ bun run gate:phase-21
 ## Notes
 
 - Phase 21 is accepted as an internal observe/assist landing, not as a public/default rollout decision.
-- The provider-backed assist run proves `requestedStrategy = llm-assisted`, `resolvedStrategy = llm-assisted`, `memoryBackend = provider-backed`, and a non-empty planner influence trace at the case level.
+- The committed provider-backed observe/assist `report.json` summaries preserve the closed observe/assist landing; trace-level provider behavior stays regression-covered rather than canonical phase-closure proof.
 - The current `.env` did not yet define `GOODMEMORY_RECALL_ROUTER_*`, so the live-memory validation used a temporary shell-level mapping onto the already-configured live eval model while keeping repo-tracked files unchanged.
 - The current provider/model pairing still falls back on the rerank sub-step with `schema_invalid`, so promote/default rollout remains deferred and future hardening should target provider-rerank compatibility rather than public-surface changes.

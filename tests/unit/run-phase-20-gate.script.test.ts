@@ -99,6 +99,45 @@ describe("run-phase-20-gate script", () => {
     expect(buildPhase20GateRunId("not-a-date")).toBe("run-phase20");
   });
 
+  it("routes dependency gate artifacts under the phase-20 run directory", () => {
+    const commands = buildPhase20GateCommands("/tmp/goodmemory", {
+      runDirectory: "/tmp/goodmemory/reports/quality-gates/phase-20/run-phase20",
+      runId: "run-phase20",
+    });
+
+    expect(commands.find((command) => command.label === "phase-18-gate")?.args).toEqual([
+      "bun",
+      "run",
+      "gate:phase-18",
+      "--output-dir",
+      "/tmp/goodmemory/reports/quality-gates/phase-20/run-phase20/dependency-gates/phase-18",
+      "--run-id",
+      "run-phase20-phase-18",
+    ]);
+    expect(
+      commands.find((command) => command.label === "phase-19-reviewer-gate")?.args,
+    ).toEqual([
+      "bun",
+      "run",
+      "gate:phase-19-reviewer",
+      "--output-dir",
+      "/tmp/goodmemory/reports/quality-gates/phase-20/run-phase20/dependency-gates/phase-19-reviewer",
+      "--run-id",
+      "run-phase20-phase-19-reviewer",
+    ]);
+    expect(
+      commands.find((command) => command.label === "phase-19-maintenance-gate")?.args,
+    ).toEqual([
+      "bun",
+      "run",
+      "gate:phase-19-maintenance",
+      "--output-dir",
+      "/tmp/goodmemory/reports/quality-gates/phase-20/run-phase20/dependency-gates/phase-19-maintenance",
+      "--run-id",
+      "run-phase20-phase-19-maintenance",
+    ]);
+  });
+
   it("can run a real command with the default command runner", async () => {
     const result = await defaultRunPhase20GateCommand({
       label: "bun-version",

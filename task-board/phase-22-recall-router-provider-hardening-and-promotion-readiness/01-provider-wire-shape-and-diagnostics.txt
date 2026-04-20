@@ -1,0 +1,21 @@
+[DONE] Provider wire-shape hardening
+====================================
+
+Goal
+----
+Make the internal recall-router provider adapter robust against common OpenAI/OpenRouter-style structured-output variants without widening the public API.
+
+
+Completed Work
+--------------
+- Planner normalization accepts canonical fields plus aliases such as `requested_slots`, `source_priorities`, `support_slots`, and related snake/camel-case variants.
+- Rerank normalization accepts canonical `orderedCandidateIds` plus aliases such as `ranked_ids`, `rankedIds`, `ranked_candidate_ids`, `suppressed_ids`, and object-shaped candidate IDs.
+- Invalid candidate injection, unknown suppressions, empty rerank output, schema invalid output, provider errors, and timeout paths remain deterministic fallback paths.
+- Provider diagnostics are redacted: artifacts expose fallback stage, normalized field shape, and validation issue summaries rather than prompt or private input text.
+
+
+Acceptance
+----------
+- Canonical and alias parser coverage exists in unit tests.
+- Fallback reasons distinguish plan-stage and rerank-stage failures.
+- `auto` recall still does not run the LLM router.

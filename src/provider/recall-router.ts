@@ -125,7 +125,7 @@ const recallAssistantPlanSchema = z.object({
   supportSlotAdditions: z.array(z.enum(RECALL_SLOT_VALUES)).optional(),
 });
 
-const recallAssistantRerankSchema = z.object({
+export const recallAssistantRerankSchema = z.object({
   decisions: z
     .array(
       z.object({
@@ -172,6 +172,45 @@ function normalizeUniqueStringArray(value: unknown): string[] | undefined {
   return [...new Set(normalized)];
 }
 
+function normalizeCandidateId(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : undefined;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  return normalizeCandidateId(
+    record.id ??
+      record.candidateId ??
+      record.candidate_id ??
+      record.memoryId ??
+      record.memory_id,
+  );
+}
+
+function normalizeCandidateIdArray(value: unknown): string[] | undefined {
+  const single = normalizeCandidateId(value);
+  if (single) {
+    return [single];
+  }
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value
+    .map((item) => normalizeCandidateId(item) ?? "")
+    .filter((item) => item.length > 0);
+
+  if (normalized.length === 0) {
+    return undefined;
+  }
+
+  return [...new Set(normalized)];
+}
+
 function normalizeAliasKey(value: string): string {
   return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
@@ -197,11 +236,19 @@ function normalizeRecallAssistantPlanPayload(payload: unknown): unknown {
 
   const record = payload as Record<string, unknown>;
   const requestedSlots =
-    record.requestedSlotAdditions ?? record.requested_slots;
+    record.requestedSlotAdditions ??
+    record.requested_slot_additions ??
+    record.requested_slots;
   const sourcePriorities =
-    record.sourcePriorityOrder ?? record.source_priorities;
+    record.sourcePriorityOrder ??
+    record.source_priority_order ??
+    record.source_priorities ??
+    record.priority_sources ??
+    record.sources;
   const supportSlots =
-    record.supportSlotAdditions ?? record.support_slots;
+    record.supportSlotAdditions ??
+    record.support_slot_additions ??
+    record.support_slots;
 
   return {
     ...record,
@@ -239,22 +286,44 @@ function normalizeRecallAssistantRerankPayload(payload: unknown): unknown {
 
   const record = payload as Record<string, unknown>;
   const orderedCandidateIds =
-    record.orderedCandidateIds ?? record.ranked_ids ?? record.rankedIds;
+    record.orderedCandidateIds ??
+    record.ordered_candidate_ids ??
+    record.orderedCandidates ??
+    record.ordered_candidates ??
+    record.ranked_ids ??
+    record.rankedIds ??
+    record.rankedCandidateIds ??
+    record.ranked_candidate_ids ??
+    record.rankedCandidates ??
+    record.ranked_candidates ??
+    record.candidateOrder ??
+    record.candidate_order ??
+    record.candidates;
   const suppressCandidateIds =
-    record.suppressCandidateIds ?? record.suppressed_ids ?? record.suppressedIds;
+    record.suppressCandidateIds ??
+    record.suppress_candidate_ids ??
+    record.suppressed_ids ??
+    record.suppressedIds ??
+    record.suppressedCandidates ??
+    record.suppressed_candidates ??
+    record.suppressions ??
+    record.suppressed;
+  const normalizedOrderedIds = normalizeCandidateIdArray(orderedCandidateIds);
+  const normalizedSuppressIds = normalizeCandidateIdArray(suppressCandidateIds);
+  const normalizedDecisions = Array.isArray(record.decisions)
+    ? record.decisions
+        .filter(
+          (item): item is Record<string, unknown> =>
+            Boolean(item) && typeof item === "object" && !Array.isArray(item),
+        )
+        .map((decision) => {
+          const candidateId = normalizeCandidateId(decision);
+          if (!candidateId) {
+            return undefined;
+          }
 
-  return {
-    ...record,
-    orderedCandidateIds: normalizeUniqueStringArray(orderedCandidateIds),
-    suppressCandidateIds: normalizeUniqueStringArray(suppressCandidateIds),
-    decisions: Array.isArray(record.decisions)
-      ? record.decisions
-          .filter(
-            (item): item is Record<string, unknown> =>
-              Boolean(item) && typeof item === "object" && !Array.isArray(item),
-          )
-          .map((decision) => ({
-            candidateId: typeof decision.candidateId === "string" ? decision.candidateId : "",
+          return {
+            candidateId,
             decision:
               typeof decision.decision === "string"
                 ? (RECALL_RERANK_DECISION_ALIASES as Record<string, "promote" | "suppress">)[
@@ -269,9 +338,38 @@ function normalizeRecallAssistantRerankPayload(payload: unknown): unknown {
                     (typeof RECALL_RERANK_REASON_VALUES)[number]
                   >)[normalizeAliasKey(decision.reason)] ??
                   decision.reason
-                : decision.reason,
-          }))
-      : record.decisions,
+                : typeof decision.rationale === "string"
+                  ? (RECALL_RERANK_REASON_ALIASES as Record<
+                      string,
+                      (typeof RECALL_RERANK_REASON_VALUES)[number]
+                    >)[normalizeAliasKey(decision.rationale)] ??
+                    "query_alignment"
+                  : "query_alignment",
+          };
+        })
+        .filter((decision): decision is NonNullable<typeof decision> => Boolean(decision))
+    : undefined;
+  const synthesizedDecisions =
+    normalizedDecisions && normalizedDecisions.length > 0
+      ? normalizedDecisions
+      : [
+          ...(normalizedOrderedIds ?? []).map((candidateId) => ({
+            candidateId,
+            decision: "promote" as const,
+            reason: "query_alignment" as const,
+          })),
+          ...(normalizedSuppressIds ?? []).map((candidateId) => ({
+            candidateId,
+            decision: "suppress" as const,
+            reason: "query_alignment" as const,
+          })),
+        ];
+
+  return {
+    ...record,
+    orderedCandidateIds: normalizedOrderedIds,
+    suppressCandidateIds: normalizedSuppressIds,
+    decisions: synthesizedDecisions.length > 0 ? synthesizedDecisions : undefined,
     rationale:
       typeof record.rationale === "string"
         ? record.rationale
@@ -343,15 +441,27 @@ function finalizeRecallAssistantRerank(
   rerank: RecallAssistantRerank,
 ): RecallAssistantRerank {
   return {
-    decisions: rerank.decisions?.filter(
-      (decision) => decision.candidateId.trim().length > 0,
-    ),
-    orderedCandidateIds: rerank.orderedCandidateIds.map((candidateId) => candidateId.trim()),
+    decisions: rerank.decisions
+      ?.map((decision) => {
+        const candidateId = normalizeCandidateId(decision.candidateId);
+        if (!candidateId) {
+          return undefined;
+        }
+
+        return {
+          ...decision,
+          candidateId,
+        };
+      })
+      .filter((decision): decision is NonNullable<typeof decision> => Boolean(decision)),
+    orderedCandidateIds: rerank.orderedCandidateIds
+      .map((candidateId) => normalizeCandidateId(candidateId) ?? "")
+      .filter((candidateId) => candidateId.length > 0),
     rationale:
       rerank.rationale.trim() || "llm-assisted recall router reranked the bounded durable candidate set",
-    suppressCandidateIds: rerank.suppressCandidateIds?.map((candidateId) =>
-      candidateId.trim(),
-    ),
+    suppressCandidateIds: rerank.suppressCandidateIds
+      ?.map((candidateId) => normalizeCandidateId(candidateId) ?? "")
+      .filter((candidateId) => candidateId.length > 0),
   };
 }
 

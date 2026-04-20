@@ -1,0 +1,24 @@
+{
+  "family": "retrieval",
+  "mode": "observe",
+  "targetStrategyLabel": "hybrid",
+  "promotedStrategyLabel": "rules-only",
+  "decision": "delayed",
+  "outcome": "review_required",
+  "rationale": "observe rollout evidence is clean; the next step is assist, not direct promotion",
+  "regressionCases": [],
+  "thresholds": {
+    "requireKnownObserveSafety": true,
+    "requireNoRegressions": true,
+    "requirePassingAssertions": false,
+    "requirePositivePrimaryUplift": false
+  },
+  "evidence": {
+    "totalCases": 14,
+    "completedCases": 14,
+    "executionFailures": 0,
+    "assertionPassRate": 1,
+    "safeObserveCases": 14,
+    "unknownObserveCases": 0
+  }
+}

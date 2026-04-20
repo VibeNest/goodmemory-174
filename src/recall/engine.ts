@@ -35,8 +35,12 @@ import {
   applyRecallAssistantPlan,
   applyRecallAssistantRerank,
   buildRecallAssistantCandidates,
+  type RecallAssistantFallbackReason,
   type RecallAssistantInfluence,
+  type RecallAssistantFallbackStage,
+  type RecallAssistantProviderDiagnostic,
   type RecallRouterAssistant,
+  resolveRecallRouterInfluenceStatus,
 } from "./assistant";
 import {
   attachEvidenceIdsToCandidateTraces,
@@ -180,11 +184,12 @@ function buildEmptyAssistantInfluence(): RecallAssistantInfluence {
     planApplied: false,
     rerankApplied: false,
     rerankedCandidateIds: [],
+    routerInfluenceStatus: "full_fallback",
     suppressedCandidateIds: [],
   };
 }
 
-function resolveAssistantFallbackReason(error: unknown): RecallAssistantInfluence["fallbackReason"] {
+function resolveAssistantFallbackReason(error: unknown): RecallAssistantFallbackReason {
   const message =
     typeof error === "object" &&
     error !== null &&
@@ -201,6 +206,84 @@ function resolveAssistantFallbackReason(error: unknown): RecallAssistantInfluenc
   }
 
   return "provider_error";
+}
+
+function summarizeAssistantProviderError(error: unknown): string {
+  const rawMessage =
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+      ? error.message
+      : String(error);
+
+  return rawMessage.replace(/\s+/g, " ").trim().slice(0, 240);
+}
+
+function extractValidationIssueSummary(message: string): string | undefined {
+  const marker = "schema validation failed:";
+  const index = message.toLowerCase().indexOf(marker);
+  if (index === -1) {
+    return undefined;
+  }
+
+  return message.slice(index + marker.length).trim().slice(0, 240);
+}
+
+function buildAssistantProviderDiagnostic(input: {
+  error: unknown;
+  stage: RecallAssistantFallbackStage;
+}): RecallAssistantProviderDiagnostic {
+  const message = summarizeAssistantProviderError(input.error);
+  const reason = resolveAssistantFallbackReason(input.error);
+
+  return {
+    message,
+    reason,
+    stage: input.stage,
+    ...(reason === "schema_invalid"
+      ? { validationIssueSummary: extractValidationIssueSummary(message) }
+      : {}),
+  };
+}
+
+function withAssistantProviderFallback(input: {
+  error: unknown;
+  influence: RecallAssistantInfluence | undefined;
+  stage: RecallAssistantFallbackStage;
+}): RecallAssistantInfluence {
+  const current = input.influence ?? buildEmptyAssistantInfluence();
+  const diagnostic = buildAssistantProviderDiagnostic({
+    error: input.error,
+    stage: input.stage,
+  });
+  const next = {
+    ...current,
+    fallbackReason: diagnostic.reason,
+    fallbackStage: input.stage,
+    providerDiagnostics: [
+      ...(current.providerDiagnostics ?? []),
+      diagnostic,
+    ],
+  };
+
+  return {
+    ...next,
+    routerInfluenceStatus: resolveRecallRouterInfluenceStatus(next),
+  };
+}
+
+function finalizeAssistantInfluence(
+  influence: RecallAssistantInfluence | undefined,
+): RecallAssistantInfluence | undefined {
+  if (!influence) {
+    return undefined;
+  }
+
+  return {
+    ...influence,
+    routerInfluenceStatus: resolveRecallRouterInfluenceStatus(influence),
+  };
 }
 
 function appendAssistantTraceDetails(
@@ -416,10 +499,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
           routingDecision = assistedPlan.routingDecision;
           assistantInfluence = assistedPlan.influence;
         } catch (error) {
-          assistantInfluence = {
-            ...(assistantInfluence ?? buildEmptyAssistantInfluence()),
-            fallbackReason: resolveAssistantFallbackReason(error),
-          };
+          assistantInfluence = withAssistantProviderFallback({
+            error,
+            influence: assistantInfluence,
+            stage: "plan",
+          });
         }
       }
       const currentReferenceTime = referenceTime();
@@ -621,10 +705,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
               episodes,
             } = reranked.selection);
           } catch (error) {
-            assistantInfluence = {
-              ...(assistantInfluence ?? buildEmptyAssistantInfluence()),
-              fallbackReason: resolveAssistantFallbackReason(error),
-            };
+            assistantInfluence = withAssistantProviderFallback({
+              error,
+              influence: assistantInfluence,
+              stage: "rerank",
+            });
           }
         }
       }
@@ -721,7 +806,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
         journal,
         packet,
         metadata: {
-          ...(assistantInfluence ? { assistantInfluence } : {}),
+          ...(assistantInfluence
+            ? { assistantInfluence: finalizeAssistantInfluence(assistantInfluence)! }
+            : {}),
           routingDecision,
           tokenCount: packet.debug?.estimatedTokens ?? 0,
           latencyMs: now() - startedAt,

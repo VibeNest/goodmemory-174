@@ -1,6 +1,6 @@
 # GoodMemory Phase 20 Quality Gate
 
-Canonical gate run: `run-20260419164837`
+Canonical gate run: `run-20260420023503`
 
 ## Command
 
@@ -40,12 +40,13 @@ bun run gate:phase-20
 ## Canonical Artifacts
 
 - Output root: `reports/quality-gates/phase-20`
-- Canonical run: `run-20260419164837`
+- Canonical run: `run-20260420023503`
 - Accepted report:
-  - `reports/quality-gates/phase-20/run-20260419164837/phase-20-quality-gate.json`
+  - `reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json`
 
 ## Notes
 
 - This gate closes the current integrated release-hardening slice. It does not widen the public surface beyond the existing phase-19 decision.
+- The canonical accepted run archives dependency gate summary artifacts under `reports/quality-gates/phase-20/run-20260420023503/dependency-gates/` so integrated reruns do not pollute phase-16 through phase-19 top-level canonical evidence.
 - `docs/GoodMemory-v1-Quality-Gate.md` remains as the historical phase-9 through phase-13 snapshot rather than the current all-up acceptance record.
 - Phase 20 integrated release hardening is accepted on the current repo state.

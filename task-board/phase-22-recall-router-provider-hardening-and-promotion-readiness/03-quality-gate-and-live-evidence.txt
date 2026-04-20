@@ -1,0 +1,25 @@
+[DONE] Quality gate and live evidence
+=====================================
+
+Goal
+----
+Close Phase 22 with one deterministic gate and separate live-memory evidence, while explicitly deferring public/default promotion.
+
+
+Completed Work
+--------------
+- Added `gate:phase-22`, `eval:phase-22`, and `eval:phase-22-live-memory` scripts.
+- Added `docs/GoodMemory-Phase-22-Quality-Gate.md` as the canonical closure artifact.
+- Added phase-specific env placeholders to `.env.example` for `GOODMEMORY_RECALL_ROUTER_*`.
+- Preserved existing `eval:live` and `eval:live-memory` command semantics.
+
+
+Acceptance
+----------
+- Canonical deterministic gate:
+  - `reports/quality-gates/phase-22/run-20260420020541/phase-22-quality-gate.json`
+- Canonical provider-backed live-memory evidence:
+  - Observe: `reports/eval/live-memory/phase-22/run-1776650772564-observe/report.json`
+  - Assist: `reports/eval/live-memory/phase-22/run-1776650772564-assist/report.json`
+- No promotion authorization is generated.
+- No public API/default recall behavior is changed.

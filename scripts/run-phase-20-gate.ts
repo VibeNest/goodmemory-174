@@ -47,6 +47,11 @@ export interface Phase20GateOptions {
   runId?: string;
 }
 
+export interface Phase20GateCommandOptions {
+  runDirectory?: string;
+  runId?: string;
+}
+
 export interface Phase20GateDependencies {
   ensureDir?: (
     path: string,
@@ -83,7 +88,28 @@ export function resolvePhase20GateOutputDir(root: string): string {
   return join(root, "reports/quality-gates/phase-20");
 }
 
-export function buildPhase20GateCommands(root: string): Phase20GateCommand[] {
+function buildPhase20DependencyGateArgs(
+  args: string[],
+  dependency: string,
+  options?: Phase20GateCommandOptions,
+): string[] {
+  if (!options?.runDirectory || !options.runId) {
+    return args;
+  }
+
+  return [
+    ...args,
+    "--output-dir",
+    join(options.runDirectory, "dependency-gates", dependency),
+    "--run-id",
+    `${options.runId}-${dependency}`,
+  ];
+}
+
+export function buildPhase20GateCommands(
+  root: string,
+  options?: Phase20GateCommandOptions,
+): Phase20GateCommand[] {
   return [
     {
       label: "typecheck",
@@ -114,27 +140,47 @@ export function buildPhase20GateCommands(root: string): Phase20GateCommand[] {
     {
       label: "phase-16-gate",
       cwd: root,
-      args: ["bun", "run", "eval:phase-16"],
+      args: buildPhase20DependencyGateArgs(
+        ["bun", "run", "eval:phase-16"],
+        "phase-16",
+        options,
+      ),
     },
     {
       label: "phase-17-gate",
       cwd: root,
-      args: ["bun", "run", "eval:phase-17"],
+      args: buildPhase20DependencyGateArgs(
+        ["bun", "run", "eval:phase-17"],
+        "phase-17",
+        options,
+      ),
     },
     {
       label: "phase-18-gate",
       cwd: root,
-      args: ["bun", "run", "gate:phase-18"],
+      args: buildPhase20DependencyGateArgs(
+        ["bun", "run", "gate:phase-18"],
+        "phase-18",
+        options,
+      ),
     },
     {
       label: "phase-19-reviewer-gate",
       cwd: root,
-      args: ["bun", "run", "gate:phase-19-reviewer"],
+      args: buildPhase20DependencyGateArgs(
+        ["bun", "run", "gate:phase-19-reviewer"],
+        "phase-19-reviewer",
+        options,
+      ),
     },
     {
       label: "phase-19-maintenance-gate",
       cwd: root,
-      args: ["bun", "run", "gate:phase-19-maintenance"],
+      args: buildPhase20DependencyGateArgs(
+        ["bun", "run", "gate:phase-19-maintenance"],
+        "phase-19-maintenance",
+        options,
+      ),
     },
     {
       label: "chat-example",
@@ -205,7 +251,7 @@ export async function runPhase20QualityGate(
   const outputDir = input?.outputDir ?? resolvePhase20GateOutputDir(root);
   const runDirectory = join(outputDir, runId);
   const commandResults: Phase20GateExecutionResult[] = [];
-  const commands = buildPhase20GateCommands(root);
+  const commands = buildPhase20GateCommands(root, { runDirectory, runId });
 
   for (const command of commands) {
     const result = await runCommand(command);

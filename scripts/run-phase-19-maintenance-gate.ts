@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export interface Phase19MaintenanceGateCommand {
@@ -245,8 +246,19 @@ export async function runPhase19MaintenanceQualityGate(
   return report;
 }
 
+function parsePhase19MaintenanceGateCliOptions(
+  argv: readonly string[],
+): Phase19MaintenanceGateOptions {
+  return {
+    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    runId: resolveCliFlagValue(argv, "--run-id"),
+  };
+}
+
 async function main(): Promise<void> {
-  const report = await runPhase19MaintenanceQualityGate();
+  const report = await runPhase19MaintenanceQualityGate(
+    parsePhase19MaintenanceGateCliOptions(process.argv),
+  );
   console.log(JSON.stringify(report, null, 2));
 
   if (report.acceptance.decision !== "accepted") {

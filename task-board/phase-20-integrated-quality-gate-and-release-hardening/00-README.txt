@@ -11,7 +11,7 @@ Current Status
 - Phase 20 is closed and accepted.
 - It exists to replace the stale integrated closure gap left by the historical `docs/GoodMemory-v1-Quality-Gate.md` snapshot.
 - Canonical accepted run:
-  - `reports/quality-gates/phase-20/run-20260419164837/phase-20-quality-gate.json`
+  - `reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json`
 
 
 Execution Order

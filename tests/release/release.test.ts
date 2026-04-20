@@ -1,7 +1,89 @@
 import { describe, expect, it } from "bun:test";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+
+const CANONICAL_PHASE20_DEPENDENCY_SUMMARY_ARTIFACTS = [
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/public-surface-decision.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/regression-dashboard.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/report.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/shadow-comparisons.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/shadow-executed-path-comparisons.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/strategy-promotion-gate.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/run-20260420023503-phase-17/public-surface-decision.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/run-20260420023503-phase-17/regression-dashboard.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/run-20260420023503-phase-17/report.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/run-20260420023503-phase-17/shadow-comparisons.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/run-20260420023503-phase-17/shadow-executed-path-comparisons.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-17/run-20260420023503-phase-17/strategy-promotion-gate.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-18/run-20260420023503-phase-18/phase-18-quality-gate.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-19-maintenance/run-20260420023503-phase-19-maintenance/phase-19-maintenance-quality-gate.json",
+  "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-19-reviewer/run-20260420023503-phase-19-reviewer/phase-19-reviewer-quality-gate.json",
+] as const;
+
+async function runGitCommand(args: string[]): Promise<{
+  exitCode: number;
+  stderr: string;
+  stdout: string;
+}> {
+  const process = Bun.spawn({
+    cmd: ["git", ...args],
+    cwd: join(import.meta.dir, "../../"),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stdout = await new Response(process.stdout).text();
+  const stderr = await new Response(process.stderr).text();
+  const exitCode = await process.exited;
+
+  return {
+    exitCode,
+    stderr,
+    stdout,
+  };
+}
+
+async function expectGitTrackedRepoArtifact(relativePath: string) {
+  await access(join(import.meta.dir, "../../", relativePath));
+
+  const tracked = await runGitCommand([
+    "ls-files",
+    "--error-unmatch",
+    relativePath,
+  ]);
+  expect(tracked.exitCode).toBe(0);
+  expect(tracked.stdout.trim()).toBe(relativePath);
+
+  const ignored = await runGitCommand([
+    "check-ignore",
+    "-v",
+    "--no-index",
+    relativePath,
+  ]);
+  expect(ignored.exitCode).toBe(0);
+  expect(ignored.stdout).toContain("\t" + relativePath);
+  expect(ignored.stdout).toContain("!");
+}
+
+async function expectTrackedEvalReportsMentionedInFile(relativePath: string) {
+  const content = await readFile(
+    join(import.meta.dir, "../../", relativePath),
+    "utf8",
+  );
+  const reportPaths = [
+    ...new Set(
+      [...content.matchAll(/reports\/eval\/[^\s`]+\/report\.json/g)].map(
+        (match) => match[0],
+      ),
+    ),
+  ];
+
+  expect(reportPaths.length).toBeGreaterThan(0);
+
+  for (const reportPath of reportPaths) {
+    await expectGitTrackedRepoArtifact(reportPath);
+  }
+}
 
 async function expectCanonicalAcceptedQualityGate(input: {
   docPath: string;
@@ -21,11 +103,12 @@ async function expectCanonicalAcceptedQualityGate(input: {
   expect(new Set(referencedRunIds)).toEqual(new Set([input.runId]));
 
   const [canonicalRunId] = referencedRunIds;
+  const relativeReportPath = `reports/quality-gates/${input.phaseDirectory}/${canonicalRunId}/${input.reportFileName}`;
   const report = JSON.parse(
     await readFile(
       join(
         import.meta.dir,
-        `../../reports/quality-gates/${input.phaseDirectory}/${canonicalRunId}/${input.reportFileName}`,
+        `../../${relativeReportPath}`,
       ),
       "utf8",
     ),
@@ -38,6 +121,60 @@ async function expectCanonicalAcceptedQualityGate(input: {
 
   expect(report.runId).toBe(canonicalRunId);
   expect(report.acceptance.decision).toBe("accepted");
+
+  const tracked = await runGitCommand([
+    "ls-files",
+    "--error-unmatch",
+    relativeReportPath,
+  ]);
+  expect(tracked.exitCode).toBe(0);
+  expect(tracked.stdout.trim()).toBe(relativeReportPath);
+
+  const ignored = await runGitCommand([
+    "check-ignore",
+    "-v",
+    "--no-index",
+    relativeReportPath,
+  ]);
+  expect(ignored.exitCode).toBe(0);
+  expect(ignored.stdout).toContain(
+    "!reports/quality-gates/*/run-*/phase-*-quality-gate.json",
+  );
+
+  const reportRoot = join(
+    import.meta.dir,
+    "../../reports/quality-gates",
+    input.phaseDirectory,
+  );
+  const entries = await readdir(reportRoot, { withFileTypes: true });
+  const acceptedRunIds: string[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith("run-")) {
+      continue;
+    }
+
+    const candidateReportContent = await readFile(
+      join(reportRoot, entry.name, input.reportFileName),
+      "utf8",
+    ).catch(() => undefined);
+    if (!candidateReportContent) {
+      continue;
+    }
+
+    const candidateReport = JSON.parse(candidateReportContent) as {
+      acceptance: {
+        decision: string;
+      };
+      runId: string;
+    };
+
+    if (candidateReport.acceptance.decision === "accepted") {
+      acceptedRunIds.push(candidateReport.runId);
+    }
+  }
+
+  expect(new Set(acceptedRunIds)).toEqual(new Set([input.runId]));
 }
 
 describe("release metadata and docs", () => {
@@ -156,6 +293,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("eval:fallback");
     expect(readme).toContain("eval:phase-17");
     expect(readme).toContain("eval:live");
+    expect(readme).toContain("eval:live-memory");
     expect(readme).toContain("eval:phase-17-live-memory");
     expect(readme).toContain("gate:phase-18");
     expect(readme).toContain("gate:phase-19-reviewer");
@@ -216,13 +354,71 @@ describe("release metadata and docs", () => {
     });
   });
 
+  it("phase-19 reviewer quality gate doc points to one canonical accepted report", async () => {
+    await expectCanonicalAcceptedQualityGate({
+      docPath: "docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md",
+      phaseDirectory: "phase-19-reviewer",
+      reportFileName: "phase-19-reviewer-quality-gate.json",
+      runId: "run-20260419101816",
+    });
+  });
+
+  it("phase-19 maintenance quality gate doc points to one canonical accepted report", async () => {
+    await expectCanonicalAcceptedQualityGate({
+      docPath: "docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md",
+      phaseDirectory: "phase-19-maintenance",
+      reportFileName: "phase-19-maintenance-quality-gate.json",
+      runId: "run-20260419101816",
+    });
+  });
+
   it("phase-20 quality gate doc points to one canonical accepted report", async () => {
     await expectCanonicalAcceptedQualityGate({
       docPath: "docs/GoodMemory-Phase-20-Quality-Gate.md",
       phaseDirectory: "phase-20",
       reportFileName: "phase-20-quality-gate.json",
-      runId: "run-20260419164837",
+      runId: "run-20260420023503",
     });
+  });
+
+  it("phase-22 quality gate doc points to one canonical accepted report", async () => {
+    await expectCanonicalAcceptedQualityGate({
+      docPath: "docs/GoodMemory-Phase-22-Quality-Gate.md",
+      phaseDirectory: "phase-22",
+      reportFileName: "phase-22-quality-gate.json",
+      runId: "run-20260420020541",
+    });
+  });
+
+  it("phase-21 and phase-22 closure docs only cite git-tracked live eval reports", async () => {
+    await expectTrackedEvalReportsMentionedInFile(
+      "docs/GoodMemory-Phase-21-Quality-Gate.md",
+    );
+    await expectTrackedEvalReportsMentionedInFile(
+      "docs/GoodMemory-Phase-22-Quality-Gate.md",
+    );
+  });
+
+  it("current sequencing note and phase-22 task board only cite git-tracked live eval reports", async () => {
+    await expectTrackedEvalReportsMentionedInFile("task-board/00-README.txt");
+    await expectTrackedEvalReportsMentionedInFile(
+      "task-board/23-phase-22-recall-router-provider-hardening-and-promotion-readiness.txt",
+    );
+  });
+
+  it("phase-20 canonical dependency summaries are checked in", async () => {
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-Phase-20-Quality-Gate.md"),
+      "utf8",
+    );
+
+    expect(qualityGateDoc).toContain(
+      "archives dependency gate summary artifacts under `reports/quality-gates/phase-20/run-20260420023503/dependency-gates/`",
+    );
+
+    for (const relativePath of CANONICAL_PHASE20_DEPENDENCY_SUMMARY_ARTIFACTS) {
+      await expectGitTrackedRepoArtifact(relativePath);
+    }
   });
 
   it("coding-agent example stays on the public path and avoids internal evolution imports", async () => {

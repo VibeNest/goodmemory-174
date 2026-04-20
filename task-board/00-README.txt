@@ -86,6 +86,7 @@ Read and execute files in this order:
 20. 20-phase-19-reviewer-and-maintenance-strategy-rollout.txt
 21. 21-phase-20-integrated-quality-gate-and-release-hardening.txt
 22. 22-phase-21-recall-side-llm-router-rollout.txt
+23. 23-phase-22-recall-router-provider-hardening-and-promotion-readiness.txt
 
 
 Current Sequencing Note
@@ -93,6 +94,7 @@ Current Sequencing Note
 - Phase 15, Phase 16, Phase 17, Phase 18, and Phase 19 are now closed.
 - Phase 20 is now closed and accepted as the integrated release-hardening slice.
 - Phase 21 is now closed as the internal recall-side LLM router v1 slice.
+- Phase 22 is now closed as the recall-router provider hardening and promotion-readiness evidence slice.
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
@@ -100,17 +102,23 @@ Current Sequencing Note
   - `reports/quality-gates/phase-19-maintenance/run-20260419101816/phase-19-maintenance-quality-gate.json`
 - Phase 20 closure is backed by the accepted integrated gate:
   - `docs/GoodMemory-Phase-20-Quality-Gate.md`
-  - `reports/quality-gates/phase-20/run-20260419164837/phase-20-quality-gate.json`
+  - `reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json`
 - Phase 21 closure is backed by:
   - `reports/quality-gates/phase-21/run-20260419174013/phase-21-quality-gate.json`
   - `reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json`
   - `reports/eval/live-memory/phase-21/run-1776620091171-assist/report.json`
-- Any work after Phase 21 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 22 closure is backed by:
+  - `docs/GoodMemory-Phase-22-Quality-Gate.md`
+  - `reports/quality-gates/phase-22/run-20260420020541/phase-22-quality-gate.json`
+  - `reports/eval/live-memory/phase-22/run-1776650772564-observe/report.json`
+  - `reports/eval/live-memory/phase-22/run-1776650772564-assist/report.json`
+- Any work after Phase 22 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
+- Phase 22 hardened the internal recall-side LLM router provider path enough for promotion-readiness evaluation, while leaving promotion/default rollout deferred.
 - Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases; that deferred scope is now closed in its dedicated phase.
-- Phase 15 through Phase 19 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated memory system".
+- Phase 15 through Phase 22 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
 
@@ -120,11 +128,11 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 21 guarantees while local changes land
-   - Close any local WIP without widening scope into an unplanned post-Phase-21 capability track
-   - If work starts after Phase 21, add a new executable phase before implementation
+   - Preserve the closed Phase 17 through Phase 22 guarantees while local changes land
+   - Close any local WIP without widening scope into an unplanned post-Phase-22 capability track
+   - If work starts after Phase 22, add a new executable phase before implementation
 2. Near-term product differentiation
-   - Decide and document the next queued phase after the now-closed Phase 21 internal recall-router landing
+   - Decide and document the next queued phase after the now-closed Phase 22 recall-router provider hardening slice
    - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, and internal recall-router guarantees regression-covered while new scope is defined
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
@@ -232,3 +240,6 @@ Files in This Folder
 
 - 22-phase-21-recall-side-llm-router-rollout.txt
   Internal recall-side LLM router v1 with bounded planning/rerank, observe/assist rollout, and dedicated phase-21 gate evidence
+
+- 23-phase-22-recall-router-provider-hardening-and-promotion-readiness.txt
+  Recall-router provider wire-shape hardening, influence diagnostics, stress eval, and promotion-readiness evidence without default promotion
