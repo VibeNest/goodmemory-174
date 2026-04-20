@@ -1,3 +1,4 @@
+import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import { access, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -390,6 +391,36 @@ async function seedSQLiteMemory(sqlitePath: string) {
   };
 }
 
+function hasSQLiteTable(sqlitePath: string, tableName: string): boolean {
+  const database = new Database(sqlitePath, {
+    readonly: true,
+    create: false,
+    strict: true,
+  });
+
+  try {
+    const row = database.query<{ name: string }, [string]>(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?1`,
+    ).get(tableName);
+
+    return row !== null && row !== undefined;
+  } finally {
+    database.close();
+  }
+}
+
+function dropSQLiteTable(sqlitePath: string, tableName: string): void {
+  const database = new Database(sqlitePath, {
+    strict: true,
+  });
+
+  try {
+    database.exec(`DROP TABLE IF EXISTS ${tableName}`);
+  } finally {
+    database.close();
+  }
+}
+
 describe("goodmemory cli eval commands", () => {
   it("eval inspect returns a human-readable case summary", async () => {
     const workspace = await createTempWorkspace("goodmemory-cli");
@@ -586,6 +617,33 @@ describe("goodmemory cli root commands", () => {
       expect(result.stdout).toContain("docs/release-quality-runbook.md");
       expect(result.stdout).toContain("Top Feedback");
       expect(result.stdout).toContain("Use concise bullet points in summaries.");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("inspect does not create a vectors table in read-only sqlite mode", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-root-inspect-read-only");
+
+    try {
+      const sqlitePath = join(workspace.root, "memory.sqlite");
+      await seedSQLiteMemory(sqlitePath);
+      dropSQLiteTable(sqlitePath, "vectors");
+
+      expect(hasSQLiteTable(sqlitePath, "vectors")).toBe(false);
+
+      const result = await runCLI([
+        "inspect",
+        "--user-id",
+        "cli-user",
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        sqlitePath,
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(hasSQLiteTable(sqlitePath, "vectors")).toBe(false);
     } finally {
       await workspace.cleanup();
     }

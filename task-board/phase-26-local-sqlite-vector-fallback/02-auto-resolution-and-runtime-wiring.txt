@@ -1,0 +1,38 @@
+Phase 26.2: Auto Resolution and Runtime Wiring
+==============================================
+
+[TODO] P26.2-T001 Wire `createGoodMemory()` through the shared storage resolver
+[TODO] P26.2-T002 Keep explicit `memory` / `sqlite` / `postgres` behavior backward-compatible
+[TODO] P26.2-T003 Add automatic embedding adapter creation without widening the public config surface
+[TODO] P26.2-T004 Make auto Postgres degrade safely to local SQLite when the target is unusable
+
+Why this exists
+---------------
+- The phase is not real until `createGoodMemory({})` behaves the way the product intends.
+- The shared resolver has to be used by runtime construction, not just by docs or tests.
+- The public API should stay simple; the intelligence belongs in the bootstrap path.
+
+Write tests first
+-----------------
+- `createGoodMemory({})` creates a working local memory instance
+- explicit Postgres still requires a URL and remains lazy at construction time
+- auto Postgres does not break the existing Postgres code path
+- automatic embeddings do not require reintroducing top-level `embedding` config
+
+Implementation steps
+--------------------
+1. Resolve storage plan before constructing stores
+2. Resolve embedding plan before constructing remember/recall engines
+3. Keep adapters override-first so tests and advanced callers can still inject stores directly
+4. Use safe fallback when auto Postgres is unavailable
+
+Acceptance
+----------
+- The library runtime and the contract tests agree about default behavior
+- Backward-compatible explicit modes still work
+- Auto mode is bootstrap logic, not a new public configuration surface
+
+Current implementation notes
+----------------------------
+- Adapter injection remains the highest-priority override layer
+- Automatic embedding should remain opt-in through environment presence, not hidden magic in core config

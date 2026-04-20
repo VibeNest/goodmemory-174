@@ -698,3 +698,20 @@ export function createPostgresVectorStore(
     },
   };
 }
+
+export async function canUsePostgresVectorExtension(
+  config: PostgresStorageConfig,
+): Promise<boolean> {
+  const runtime = createRuntime(config);
+  const rows = await runtime.sql.unsafe<Array<{ available: boolean }>>(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM pg_available_extensions
+        WHERE name = 'vector'
+      ) AS available
+    `,
+  );
+
+  return Boolean(rows[0]?.available);
+}

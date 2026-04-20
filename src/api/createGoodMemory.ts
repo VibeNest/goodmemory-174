@@ -31,6 +31,7 @@ import { createRecallEngine } from "../recall/engine";
 import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
 import { createRememberEngine } from "../remember/engine";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "../storage/memory";
+import { createAutoStorageAdapters } from "../storage/auto";
 import {
   createPostgresDocumentStore,
   createPostgresSessionStore,
@@ -41,7 +42,12 @@ import type {
   GovernanceRepositoryPort,
   GovernanceVectorPort,
 } from "../storage/ports";
-import { createSQLiteDocumentStore, createSQLiteSessionStore } from "../storage/sqlite";
+import {
+  createSQLiteDocumentStore,
+  createSQLiteSessionStore,
+  createSQLiteVectorStore,
+} from "../storage/sqlite";
+import { createProviderEmbeddingAdapter } from "../provider/layer";
 import {
   attachGoodMemoryEvalSupport,
   type GoodMemoryEvalSupport,
@@ -69,6 +75,10 @@ import type {
   RunMaintenanceInput,
   RunMaintenanceResult,
 } from "./contracts";
+import {
+  resolveEmbeddingModelConfigFromEnv,
+  resolveStoragePlan,
+} from "./runtimeResolution";
 
 type ScopeBoundRecord = {
   userId: string;
@@ -166,37 +176,56 @@ class GoodMemoryImpl implements GoodMemory {
     private readonly config: GoodMemoryConfig,
     internal?: InternalGoodMemoryOptions,
   ) {
-    if (config.storage.provider === "postgres" && !config.storage.url) {
-      throw new Error(
-        "Postgres storage provider requires storage.url to be configured.",
-      );
-    }
-
+    const storagePlan = resolveStoragePlan({
+      storage: config.storage,
+    });
+    const explicitStorage = storagePlan.mode === "explicit" ? storagePlan.storage : null;
+    const autoStorageAdapters =
+      storagePlan.mode === "auto"
+        ? createAutoStorageAdapters({
+            postgresUrl: storagePlan.postgresUrl,
+            sqliteUrl: storagePlan.sqliteUrl,
+          })
+        : null;
+    const embeddingAdapter =
+      config.adapters?.embeddingAdapter ??
+      (() => {
+        const model = resolveEmbeddingModelConfigFromEnv();
+        return model ? createProviderEmbeddingAdapter({ model }) : undefined;
+      })();
     const documentStore =
       config.adapters?.documentStore ??
-      (config.storage.provider === "sqlite"
-        ? createSQLiteDocumentStore(config.storage.url ?? ":memory:")
-        : config.storage.provider === "postgres"
+      (autoStorageAdapters
+        ? autoStorageAdapters.documentStore
+        : explicitStorage?.provider === "sqlite"
+        ? createSQLiteDocumentStore(explicitStorage.url)
+        : explicitStorage?.provider === "postgres"
           ? createPostgresDocumentStore({
-              url: config.storage.url!,
+              url: explicitStorage.url,
             })
           : createInMemoryDocumentStore());
     const sessionStore =
       config.adapters?.sessionStore ??
-      (config.storage.provider === "sqlite"
-        ? createSQLiteSessionStore(config.storage.url ?? ":memory:")
-        : config.storage.provider === "postgres"
+      (autoStorageAdapters
+        ? autoStorageAdapters.sessionStore
+        : explicitStorage?.provider === "sqlite"
+        ? createSQLiteSessionStore(explicitStorage.url)
+        : explicitStorage?.provider === "postgres"
           ? createPostgresSessionStore({
-              url: config.storage.url!,
+              url: explicitStorage.url,
             })
           : createInMemorySessionStore());
     const vectorStore =
       config.adapters?.vectorStore ??
-      (config.storage.provider === "postgres"
+      (autoStorageAdapters
+        ? autoStorageAdapters.vectorStore
+        : explicitStorage?.provider === "postgres"
         ? createPostgresVectorStore({
-            url: config.storage.url!,
+            url: explicitStorage.url,
           })
-        : createInMemoryVectorStore());
+        : explicitStorage?.provider === "sqlite"
+          ? createSQLiteVectorStore(explicitStorage.url)
+          : createInMemoryVectorStore());
     const repositories = createMemoryRepositories({
       documentStore,
       sessionStore,
@@ -215,7 +244,7 @@ class GoodMemoryImpl implements GoodMemory {
       repositories,
       runtime: sessionStore,
       vectorIndex: repositories.vectorIndex,
-      embedding: config.adapters?.embeddingAdapter,
+      embedding: embeddingAdapter,
       now: config.testing?.now ? () => config.testing!.now!().getTime() : undefined,
       referenceTime: config.testing?.now
         ? () => config.testing!.now!().toISOString()
@@ -228,7 +257,7 @@ class GoodMemoryImpl implements GoodMemory {
       vectorIndex: repositories.vectorIndex,
       assistedExtractor: config.adapters?.assistedExtractor,
       documentStore,
-      embedding: config.adapters?.embeddingAdapter,
+      embedding: embeddingAdapter,
       extractor:
         config.testing?.extractor ??
         createDeterministicMemoryExtractor({
@@ -263,7 +292,7 @@ class GoodMemoryImpl implements GoodMemory {
     const maintenanceRunner = createMaintenanceRunner({
       repositories,
       vectorIndex: repositories.vectorIndex,
-      embedding: config.adapters?.embeddingAdapter,
+      embedding: embeddingAdapter,
       language,
       now: () => this.now().toISOString(),
     });

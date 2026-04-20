@@ -1,0 +1,38 @@
+Phase 26.3: SQLite Local Vector Store
+=====================================
+
+[TODO] P26.3-T001 Add SQLite vector-store contract coverage
+[TODO] P26.3-T002 Implement durable SQLite vector storage instead of in-memory fallback
+[TODO] P26.3-T003 Add bootstrap and platform guardrails for local vector runtime
+[TODO] P26.3-T004 Define the boundary between “durable local vectors” and future `sqlite-vss` acceleration
+
+Why this exists
+---------------
+- Auto SQLite is not enough if semantic storage still disappears between process runs.
+- The current architecture promise is about local durable capability, not only about local document/session persistence.
+- Platform-specific extension loading is risky enough that it needs its own slice.
+
+Write tests first
+-----------------
+- SQLite vector store passes the shared `VectorStore` contract
+- vector rows survive across separate memory instances
+- enabling local vectors does not regress rules-only recall when embeddings are absent
+- read-only contexts do not mutate local SQLite state
+
+Implementation steps
+--------------------
+1. Add a real SQLite vector store
+2. Make auto SQLite choose the durable vector store rather than in-memory vectors
+3. Add any extension/bootstrap guards needed for future `sqlite-vss` loading
+4. Keep the implementation explainable and testable without assuming platform-specific binaries
+
+Acceptance
+----------
+- Local SQLite semantic storage is durable
+- SQLite semantic behavior no longer depends on process-local in-memory vectors
+- The design leaves a clean upgrade path to `sqlite-vss` / accelerated local search later
+
+Current implementation notes
+----------------------------
+- This slice is about durability and runtime correctness first
+- Actual `sqlite-vss` acceleration can be layered on top once bootstrap/install behavior is stable

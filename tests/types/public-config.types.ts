@@ -1,5 +1,7 @@
 import type { GoodMemoryConfig } from "../../src";
 
+const defaultConfig: GoodMemoryConfig = {};
+
 const minimalConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },
 };
@@ -44,6 +46,7 @@ const assistedExtractorConfig: GoodMemoryConfig = {
   },
 };
 
+void defaultConfig;
 void minimalConfig;
 void testingConfig;
 void languageConfig;

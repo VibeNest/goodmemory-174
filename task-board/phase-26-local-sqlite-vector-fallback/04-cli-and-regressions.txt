@@ -1,0 +1,38 @@
+Phase 26.4: CLI and Regressions
+===============================
+
+[TODO] P26.4-T001 Make CLI storage resolution match the library runtime
+[TODO] P26.4-T002 Preserve existing read-only CLI guarantees for missing local SQLite files
+[TODO] P26.4-T003 Add end-to-end regressions for remember, recall, forget, and governance under auto/local SQLite mode
+[TODO] P26.4-T004 Add regression coverage for default local hybrid recall when embeddings are configured
+
+Why this exists
+---------------
+- A product surface is wrong if the CLI and the library runtime resolve storage differently.
+- This phase changes defaults, so regression coverage matters more than isolated unit correctness.
+- The CLI is part of the repo’s public evidence surface and has to stay trustworthy.
+
+Write tests first
+-----------------
+- CLI default mode still uses cwd `.goodmemory/memory.sqlite`
+- read-only CLI commands still refuse to create missing SQLite state implicitly
+- auto/local SQLite survives across separate invocations
+- local hybrid retrieval works only when embeddings are available
+
+Implementation steps
+--------------------
+1. Reuse the shared storage resolver in CLI code paths
+2. Preserve the current read-only protections around missing local stores
+3. Add integration tests that prove default local state is durable and reusable
+4. Add regression tests around local semantic recall
+
+Acceptance
+----------
+- CLI and library runtime no longer disagree about default storage selection
+- Existing CLI read-only semantics remain intact
+- End-to-end regression coverage exists for the new default path
+
+Current implementation notes
+----------------------------
+- This slice should verify behavior through real SQLite files, not only mocks
+- Favor regression tests that exercise the actual public entrypoints

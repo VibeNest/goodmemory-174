@@ -69,7 +69,11 @@ import {
   createPostgresSessionStore,
   createPostgresVectorStore,
 } from "./storage/postgres";
-import { createSQLiteDocumentStore, createSQLiteSessionStore } from "./storage/sqlite";
+import {
+  createSQLiteDocumentStore,
+  createSQLiteSessionStore,
+  createSQLiteVectorStore,
+} from "./storage/sqlite";
 import type {
   DocumentStore,
   SessionStore,
@@ -182,6 +186,7 @@ export {
 export {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
+  createSQLiteVectorStore,
 } from "./storage/sqlite";
 export type { PostgresStorageConfig } from "./storage/postgres";
 export {

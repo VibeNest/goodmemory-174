@@ -3,22 +3,16 @@ Phase 26 Breakdown
 
 Status
 ------
-- Phase 26 is queued and not started.
-- Scope: add the intended default runtime resolution:
-  - explicit `sqlite` / `postgres` wins
-  - auto Postgres when usable
-  - otherwise local SQLite
-  - embeddings only when `GOODMEMORY_EMBEDDING_*` exists
+- Phase 26 is decomposed into executable slices and ready for step-by-step development.
+- Phase acceptance is still open; use the files below in order.
 
-Tasks
------
-[TODO] P26-T001 Define the default storage and embedding resolution contract
-[TODO] P26-T002 Add resolver tests for explicit provider, auto Postgres, auto SQLite, and rules-only fallback
-[TODO] P26-T003 Add SQLite vector-store contract tests
-[TODO] P26-T004 Implement SQLite vector storage and runtime bootstrap handling
-[TODO] P26-T005 Wire runtime selection so auto SQLite no longer falls back to in-memory vectors
-[TODO] P26-T006 Add end-to-end regressions for remember, recall, forget, and governance
-[TODO] P26-T007 Sync docs only after runtime behavior and tests are real
+Execution Order
+---------------
+1. 01-default-resolution-contract.txt
+2. 02-auto-resolution-and-runtime-wiring.txt
+3. 03-sqlite-local-vector-store.txt
+4. 04-cli-and-regressions.txt
+5. 05-docs-and-closure.txt
 
 Acceptance
 ----------
@@ -29,3 +23,20 @@ Acceptance
 - `sqlite + no embeddingAdapter` remains `rules-only`.
 - Boot failure is explicit when local semantic mode is required.
 - Postgres behavior and the stable public API stay compatible.
+
+Files in This Folder
+--------------------
+- 01-default-resolution-contract.txt
+  Lock the product contract for explicit-vs-auto storage and embedding fallback.
+
+- 02-auto-resolution-and-runtime-wiring.txt
+  Implement the shared resolver and runtime factory behavior.
+
+- 03-sqlite-local-vector-store.txt
+  Land durable SQLite vector storage and any extension/bootstrap guardrails.
+
+- 04-cli-and-regressions.txt
+  Align CLI behavior and add end-to-end regression coverage.
+
+- 05-docs-and-closure.txt
+  Sync release-facing docs and define closure evidence for the phase.

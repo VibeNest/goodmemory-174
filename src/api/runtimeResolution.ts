@@ -1,0 +1,195 @@
+import { resolve } from "node:path";
+import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
+import { isModelProviderId } from "../provider/model-provider";
+import type { StorageConfig } from "./contracts";
+
+export const DEFAULT_SQLITE_STORAGE_PATH = ".goodmemory/memory.sqlite";
+export const STORAGE_PROVIDER_ENV = "GOODMEMORY_STORAGE_PROVIDER";
+export const STORAGE_URL_ENV = "GOODMEMORY_STORAGE_URL";
+const EMBEDDING_ENV_PREFIX = "GOODMEMORY_EMBEDDING";
+
+type EnvironmentMap = Record<string, string | undefined>;
+type ExplicitProvider = NonNullable<StorageConfig["provider"]>;
+
+export type ResolvedStorageConfig =
+  | {
+      provider: "memory";
+    }
+  | {
+      provider: "sqlite";
+      url: string;
+    }
+  | {
+      provider: "postgres";
+      url: string;
+    };
+
+export type StoragePlan =
+  | {
+      mode: "explicit";
+      storage: ResolvedStorageConfig;
+    }
+  | {
+      mode: "auto";
+      postgresUrl?: string;
+      sqliteUrl: string;
+    };
+
+function normalizeNonEmpty(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveExplicitProvider(
+  storage: StorageConfig | undefined,
+  env: EnvironmentMap,
+): ExplicitProvider | undefined {
+  const provider = storage?.provider ?? normalizeNonEmpty(env[STORAGE_PROVIDER_ENV]);
+  if (
+    provider === undefined ||
+    provider === "memory" ||
+    provider === "sqlite" ||
+    provider === "postgres"
+  ) {
+    return provider;
+  }
+
+  throw new Error(
+    `Unsupported storage provider: ${provider}. Expected memory|sqlite|postgres.`,
+  );
+}
+
+export function isPostgresConnectionString(value: string): boolean {
+  return /^(?:postgres|postgresql):\/\//i.test(value.trim());
+}
+
+export function resolveSQLiteStorageUrl(
+  rawPath: string | undefined,
+  cwd = process.cwd(),
+): string {
+  const normalized = normalizeNonEmpty(rawPath);
+  if (!normalized) {
+    return resolve(cwd, DEFAULT_SQLITE_STORAGE_PATH);
+  }
+
+  return normalized === ":memory:" ? normalized : resolve(cwd, normalized);
+}
+
+export function resolveStoragePlan(input: {
+  storage?: StorageConfig;
+  env?: EnvironmentMap;
+  cwd?: string;
+}): StoragePlan {
+  const env = input.env ?? process.env;
+  const cwd = input.cwd ?? process.cwd();
+  const explicitProvider = resolveExplicitProvider(input.storage, env);
+  const configuredUrl = normalizeNonEmpty(input.storage?.url ?? env[STORAGE_URL_ENV]);
+
+  if (explicitProvider === "memory") {
+    return {
+      mode: "explicit",
+      storage: {
+        provider: "memory",
+      },
+    };
+  }
+
+  if (explicitProvider === "sqlite") {
+    return {
+      mode: "explicit",
+      storage: {
+        provider: "sqlite",
+        url: resolveSQLiteStorageUrl(configuredUrl, cwd),
+      },
+    };
+  }
+
+  if (explicitProvider === "postgres") {
+    if (!configuredUrl) {
+      throw new Error(
+        "Postgres storage provider requires storage.url to be configured.",
+      );
+    }
+
+    return {
+      mode: "explicit",
+      storage: {
+        provider: "postgres",
+        url: configuredUrl,
+      },
+    };
+  }
+
+  if (configuredUrl && isPostgresConnectionString(configuredUrl)) {
+    return {
+      mode: "auto",
+      postgresUrl: configuredUrl,
+      sqliteUrl: resolveSQLiteStorageUrl(undefined, cwd),
+    };
+  }
+
+  return {
+    mode: "auto",
+    postgresUrl: undefined,
+    sqliteUrl: resolveSQLiteStorageUrl(configuredUrl, cwd),
+  };
+}
+
+export function resolveEmbeddingModelConfigFromEnv(
+  env: EnvironmentMap = process.env,
+): AISDKModelConfig | null {
+  const provider = normalizeNonEmpty(env[`${EMBEDDING_ENV_PREFIX}_PROVIDER`]);
+  const model = normalizeNonEmpty(env[`${EMBEDDING_ENV_PREFIX}_MODEL`]);
+  const apiKey = normalizeNonEmpty(env[`${EMBEDDING_ENV_PREFIX}_API_KEY`]);
+  const baseURL = normalizeNonEmpty(env[`${EMBEDDING_ENV_PREFIX}_BASE_URL`]);
+  const anyConfigured = Boolean(provider || model || apiKey || baseURL);
+
+  if (!anyConfigured) {
+    return null;
+  }
+
+  const missingVars = [
+    !provider ? `${EMBEDDING_ENV_PREFIX}_PROVIDER` : null,
+    !model ? `${EMBEDDING_ENV_PREFIX}_MODEL` : null,
+    !apiKey ? `${EMBEDDING_ENV_PREFIX}_API_KEY` : null,
+  ].filter(Boolean) as string[];
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Missing required ${EMBEDDING_ENV_PREFIX} environment variables: ${missingVars.join(", ")}`,
+    );
+  }
+
+  if (!provider || !model || !apiKey) {
+    throw new Error(
+      `Missing required ${EMBEDDING_ENV_PREFIX} environment variables: ${missingVars.join(", ")}`,
+    );
+  }
+
+  if (!isModelProviderId(provider)) {
+    throw new Error(
+      `Unsupported embedding provider: ${provider}. Expected one of openai.`,
+    );
+  }
+
+  if (provider !== "openai") {
+    throw new Error(
+      `Unsupported embedding provider: ${provider}. GoodMemory currently supports openai embeddings only.`,
+    );
+  }
+
+  const resolvedProvider = provider;
+  const resolvedModel = model;
+  const resolvedApiKey = apiKey;
+
+  return {
+    provider: resolvedProvider,
+    model: resolvedModel,
+    apiKey: resolvedApiKey,
+    baseURL,
+  };
+}

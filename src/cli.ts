@@ -11,7 +11,9 @@ import type {
 import { normalizeScope, type MemoryScope } from "./domain/scope";
 import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
+import { resolveStoragePlan } from "./api/runtimeResolution";
 import {
+  canUsePostgresVectorExtension,
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
@@ -19,6 +21,7 @@ import {
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
+  createSQLiteVectorStore,
 } from "./storage/sqlite";
 
 interface CLIResult {
@@ -61,7 +64,7 @@ interface ProposalLifecycleTrace {
 }
 
 interface CLIStorageConfig {
-  provider: GoodMemoryConfig["storage"]["provider"];
+  provider: NonNullable<GoodMemoryConfig["storage"]>["provider"];
   url?: string;
   displayValue: string;
 }
@@ -101,8 +104,6 @@ interface InternalDiagnosticGoodMemory extends GoodMemory {
 
 const TOP_RECORD_LIMIT = 3;
 const TRACE_SUPPRESSED_LIMIT = 8;
-const STORAGE_PROVIDER_ENV = "GOODMEMORY_STORAGE_PROVIDER";
-const STORAGE_URL_ENV = "GOODMEMORY_STORAGE_URL";
 
 function parseArgs(argv: string[]): ParsedArgs {
   const commands: string[] = [];
@@ -212,26 +213,6 @@ function formatScope(scope: MemoryScope): string {
   return parts.join(", ");
 }
 
-function resolveStorageProvider(
-  flags: ParsedFlags,
-): CLIStorageConfig["provider"] {
-  const requested =
-    flags["storage-provider"] ??
-    process.env[STORAGE_PROVIDER_ENV] ??
-    "sqlite";
-  if (
-    requested === "memory" ||
-    requested === "postgres" ||
-    requested === "sqlite"
-  ) {
-    return requested;
-  }
-
-  throw new Error(
-    `Unsupported storage provider: ${requested}. Expected memory|sqlite|postgres.`,
-  );
-}
-
 function resolveSQLiteURL(rawPath: string | undefined): string {
   if (!rawPath || rawPath.trim().length === 0) {
     return resolve(".goodmemory/memory.sqlite");
@@ -240,35 +221,89 @@ function resolveSQLiteURL(rawPath: string | undefined): string {
   return rawPath === ":memory:" ? rawPath : resolve(rawPath);
 }
 
+function describeStorageProbeError(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
 async function resolveStorageConfig(
   flags: ParsedFlags,
   options?: DiagnosticMemoryOptions,
 ): Promise<CLIStorageConfig> {
-  const provider = resolveStorageProvider(flags);
-  const configuredURL = flags["storage-url"] ?? process.env[STORAGE_URL_ENV];
+  const plan = resolveStoragePlan({
+    storage: {
+      provider:
+        flags["storage-provider"] === undefined
+          ? undefined
+          : (flags["storage-provider"] as CLIStorageConfig["provider"]),
+      url: flags["storage-url"],
+    },
+  });
 
-  if (provider === "postgres") {
-    if (!configuredURL) {
+  if (plan.mode === "explicit") {
+    if (plan.storage.provider === "postgres") {
+      return {
+        provider: "postgres",
+        url: plan.storage.url,
+        displayValue: "configured",
+      };
+    }
+
+    if (plan.storage.provider === "memory") {
+      return {
+        provider: "memory",
+        displayValue: "in-memory",
+      };
+    }
+
+    const url = resolveSQLiteURL(plan.storage.url);
+    if (options?.readOnlyStorage && url !== ":memory:" && !(await pathExists(url))) {
       throw new Error(
-        "Postgres storage requires --storage-url or GOODMEMORY_STORAGE_URL.",
+        `Read-only CLI commands require an existing sqlite database at ${url}; they do not create local sqlite state implicitly.`,
       );
     }
 
+    if (!options?.readOnlyStorage && url !== ":memory:") {
+      await mkdir(dirname(url), { recursive: true });
+    }
+
     return {
-      provider,
-      url: configuredURL,
-      displayValue: "configured",
+      provider: "sqlite",
+      url,
+      displayValue: url,
     };
   }
 
-  if (provider === "memory") {
-    return {
-      provider,
-      displayValue: "in-memory",
-    };
+  if (plan.postgresUrl) {
+    let usable = false;
+
+    try {
+      usable = await canUsePostgresVectorExtension({
+        url: plan.postgresUrl,
+      });
+    } catch (error) {
+      throw new Error(
+        [
+          "CLI auto storage could not verify the configured postgres backend.",
+          "Falling back to sqlite would inspect the wrong durable authority.",
+          `Underlying error: ${describeStorageProbeError(error)}`,
+        ].join(" "),
+      );
+    }
+
+    if (usable) {
+      return {
+        provider: "postgres",
+        url: plan.postgresUrl,
+        displayValue: "configured",
+      };
+    }
   }
 
-  const url = resolveSQLiteURL(configuredURL);
+  const url = resolveSQLiteURL(plan.sqliteUrl);
   if (options?.readOnlyStorage && url !== ":memory:" && !(await pathExists(url))) {
     throw new Error(
       `Read-only CLI commands require an existing sqlite database at ${url}; they do not create local sqlite state implicitly.`,
@@ -280,7 +315,7 @@ async function resolveStorageConfig(
   }
 
   return {
-    provider,
+    provider: "sqlite",
     url,
     displayValue: url,
   };
@@ -304,6 +339,9 @@ async function createDiagnosticMemory(
             readOnly: true,
           }),
           sessionStore: createSQLiteSessionStore(storage.url, {
+            readOnly: true,
+          }),
+          vectorStore: createSQLiteVectorStore(storage.url, {
             readOnly: true,
           }),
         }

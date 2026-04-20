@@ -48,12 +48,12 @@ import type {
 import type { VerificationHint } from "../verify/policy";
 
 export interface StorageConfig {
-  provider: "memory" | "sqlite" | "postgres";
+  provider?: "memory" | "sqlite" | "postgres";
   url?: string;
 }
 
 export interface GoodMemoryConfig {
-  storage: StorageConfig;
+  storage?: StorageConfig;
   policy?: GoodMemoryPolicyHooks;
   language?: LanguageConfig;
   adapters?: {

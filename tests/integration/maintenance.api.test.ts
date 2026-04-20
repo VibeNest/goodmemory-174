@@ -10,6 +10,7 @@ import {
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
+  createInMemoryVectorStore,
 } from "../../src/storage/memory";
 
 describe("public maintenance API", () => {
@@ -275,5 +276,129 @@ describe("public maintenance API", () => {
     expect(leftResult.reason).toBe("completed");
     expect(rightResult.ran).toBe(true);
     expect(rightResult.reason).toBe("completed");
+  });
+
+  it("propagates env-resolved embedding adapters into maintenance jobs", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const originalFetch = globalThis.fetch;
+    const originalProvider = process.env.GOODMEMORY_EMBEDDING_PROVIDER;
+    const originalModel = process.env.GOODMEMORY_EMBEDDING_MODEL;
+    const originalApiKey = process.env.GOODMEMORY_EMBEDDING_API_KEY;
+    const originalBaseURL = process.env.GOODMEMORY_EMBEDDING_BASE_URL;
+    const requests: string[] = [];
+
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "test-key";
+    process.env.GOODMEMORY_EMBEDDING_BASE_URL = "https://embedding.test/v1";
+
+    globalThis.fetch = (async (input, init) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+      requests.push(url);
+
+      const payload = init?.body ? JSON.parse(String(init.body)) as { input?: string | string[] } : {};
+      const values = Array.isArray(payload.input)
+        ? payload.input
+        : payload.input
+          ? [payload.input]
+          : [];
+
+      return new Response(
+        JSON.stringify({
+          object: "list",
+          data: values.map((value, index) => ({
+            object: "embedding",
+            index,
+            embedding: value.includes("vendor approval") ? [1, 0, 0] : [0, 0, 1],
+          })),
+          model: "text-embedding-3-small",
+          usage: {
+            prompt_tokens: values.length,
+            total_tokens: values.length,
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        },
+      );
+    }) as typeof fetch;
+
+    try {
+      const memory = createGoodMemory({
+        storage: { provider: "memory" },
+        adapters: {
+          documentStore,
+          sessionStore,
+          vectorStore,
+        },
+        testing: {
+          now: () => new Date("2026-04-17T00:00:00.000Z"),
+        },
+      });
+      const scope = { userId: "u-env-maintenance", workspaceId: "workspace-a" } as const;
+
+      await documentStore.set(
+        "facts",
+        "fact-env-maintenance",
+        createFactMemory({
+          id: "fact-env-maintenance",
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+          category: "project",
+          content: "Runtime rollout is blocked on vendor approval.",
+          source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+          createdAt: "2026-04-01T00:00:00.000Z",
+          updatedAt: "2026-04-01T00:00:00.000Z",
+        }),
+      );
+
+      const result = await memory.runMaintenance({
+        scope,
+        jobs: ["embeddingRepair"],
+      });
+
+      expect(result.ran).toBe(true);
+      expect(result.reason).toBe("completed");
+      expect(result.maintenance?.jobs).toEqual([{ name: "embeddingRepair", applied: 1 }]);
+      expect(requests.some((url) => url.includes("/embeddings"))).toBe(true);
+      expect(await vectorStore.get("facts", "fact-env-maintenance")).toEqual(
+        expect.objectContaining({
+          id: "fact-env-maintenance",
+          embedding: [1, 0, 0],
+        }),
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalProvider === undefined) {
+        delete process.env.GOODMEMORY_EMBEDDING_PROVIDER;
+      } else {
+        process.env.GOODMEMORY_EMBEDDING_PROVIDER = originalProvider;
+      }
+      if (originalModel === undefined) {
+        delete process.env.GOODMEMORY_EMBEDDING_MODEL;
+      } else {
+        process.env.GOODMEMORY_EMBEDDING_MODEL = originalModel;
+      }
+      if (originalApiKey === undefined) {
+        delete process.env.GOODMEMORY_EMBEDDING_API_KEY;
+      } else {
+        process.env.GOODMEMORY_EMBEDDING_API_KEY = originalApiKey;
+      }
+      if (originalBaseURL === undefined) {
+        delete process.env.GOODMEMORY_EMBEDDING_BASE_URL;
+      } else {
+        process.env.GOODMEMORY_EMBEDDING_BASE_URL = originalBaseURL;
+      }
+    }
   });
 });

@@ -1,0 +1,42 @@
+Phase 26.1: Default Resolution Contract
+=======================================
+
+[TODO] P26.1-T001 Lock the storage resolution contract
+[TODO] P26.1-T002 Lock the embedding resolution contract
+[TODO] P26.1-T003 Add resolver tests for explicit provider, auto Postgres, auto SQLite, and rules-only fallback
+
+Why this exists
+---------------
+- The product intent is local-first, not infrastructure-first.
+- Default behavior has to be unambiguous before runtime wiring starts.
+- Storage selection and embedding selection are related, but they are not the same decision.
+
+Write tests first
+-----------------
+- explicit `storage.provider` always overrides automatic selection
+- missing explicit provider defaults to local `sqlite`
+- a Postgres connection string without explicit provider enables auto Postgres preference
+- missing `GOODMEMORY_EMBEDDING_*` keeps runtime `rules-only`
+- partial embedding env configuration fails loudly instead of silently downgrading
+
+Implementation steps
+--------------------
+1. Define one canonical resolver for storage mode
+2. Define one canonical resolver for embedding mode
+3. Keep resolver outputs narrow enough that CLI and library runtime can share them
+
+Acceptance
+----------
+- There is exactly one authoritative rule set for explicit-vs-auto storage
+- There is exactly one authoritative rule set for embedding-on vs rules-only
+- Resolver tests document the product behavior in executable form
+
+Current implementation notes
+----------------------------
+- `storage` auto mode means:
+  - explicit provider absent
+  - prefer Postgres only when a connection target exists
+  - otherwise use local `sqlite`
+- embedding auto mode means:
+  - create an embedding adapter only when `GOODMEMORY_EMBEDDING_*` is fully configured
+  - otherwise leave recall in `rules-only`

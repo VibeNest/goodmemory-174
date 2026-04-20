@@ -1,4 +1,6 @@
 import { Database } from "bun:sqlite";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type {
   SessionBuffer,
   SessionJournal,
@@ -10,6 +12,9 @@ import type {
   DocumentStore,
   SessionStore,
   StorageDocument,
+  VectorRecord,
+  VectorSearchResult,
+  VectorStore,
 } from "./contracts";
 import {
   matchesFilter,
@@ -24,14 +29,32 @@ interface SessionRow {
   json: string;
 }
 
+interface VectorRow {
+  id: string;
+  content: string;
+  embedding_json: string;
+  metadata_json: string;
+}
+
 interface SQLiteStoreOptions {
   readOnly?: boolean;
+}
+
+function ensureParentDirectory(path: string, options?: SQLiteStoreOptions): void {
+  if (options?.readOnly || path === ":memory:") {
+    return;
+  }
+
+  mkdirSync(dirname(path), {
+    recursive: true,
+  });
 }
 
 function createDatabase(
   path: string,
   options?: SQLiteStoreOptions,
 ): Database {
+  ensureParentDirectory(path, options);
   return new Database(path, {
     create: options?.readOnly ? false : true,
     readonly: options?.readOnly ?? false,
@@ -69,8 +92,44 @@ function ensureSessionSchema(database: Database): void {
   `);
 }
 
+function ensureVectorSchema(database: Database): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS vectors (
+      collection TEXT NOT NULL,
+      id TEXT NOT NULL,
+      embedding_json TEXT NOT NULL,
+      metadata_json TEXT NOT NULL,
+      content TEXT NOT NULL,
+      PRIMARY KEY (collection, id)
+    );
+  `);
+}
+
 function parseJson<TValue>(json: string): TValue {
   return JSON.parse(json) as TValue;
+}
+
+function hasTable(database: Database, tableName: string): boolean {
+  const row = database.query<{ name: string }, [string]>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?1`,
+  ).get(tableName);
+
+  return row !== null && row !== undefined;
+}
+
+function createReadOnlyMutationError(store: string): Error {
+  return new Error(`SQLite ${store} store is read-only in this context.`);
+}
+
+function scoreDotProduct(left: number[], right: number[]): number {
+  const length = Math.min(left.length, right.length);
+  let score = 0;
+
+  for (let index = 0; index < length; index += 1) {
+    score += left[index]! * right[index]!;
+  }
+
+  return score;
 }
 
 export function createSQLiteDocumentStore(
@@ -238,6 +297,129 @@ export function createSQLiteSessionStore(
 
     deleteJournalsByScope(scope) {
       return journals.deleteByScope(scope);
+    },
+  };
+}
+
+export function createSQLiteVectorStore(
+  path: string,
+  options?: SQLiteStoreOptions,
+): VectorStore {
+  const database = createDatabase(path, options);
+  if (!options?.readOnly) {
+    ensureVectorSchema(database);
+  }
+  const hasVectorTable = !options?.readOnly || hasTable(database, "vectors");
+
+  const upsertStatement = options?.readOnly
+    ? null
+    : database.query(
+        `INSERT INTO vectors (
+            collection,
+            id,
+            embedding_json,
+            metadata_json,
+            content
+          ) VALUES (?1, ?2, ?3, ?4, ?5)
+          ON CONFLICT(collection, id) DO UPDATE SET
+            embedding_json = excluded.embedding_json,
+            metadata_json = excluded.metadata_json,
+            content = excluded.content`,
+      );
+  const getStatement = hasVectorTable
+    ? database.query<VectorRow, [string, string]>(
+        `SELECT id, embedding_json, metadata_json, content
+         FROM vectors
+         WHERE collection = ?1 AND id = ?2`,
+      )
+    : null;
+  const listStatement = hasVectorTable
+    ? database.query<VectorRow, [string]>(
+        `SELECT id, embedding_json, metadata_json, content
+         FROM vectors
+         WHERE collection = ?1`,
+      )
+    : null;
+  const deleteStatement = options?.readOnly
+    ? null
+    : database.query(
+        `DELETE FROM vectors WHERE collection = ?1 AND id = ?2`,
+      );
+
+  return {
+    async upsert(collection, records) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("vector");
+      }
+
+      for (const record of records) {
+        upsertStatement!.run(
+          collection,
+          record.id,
+          JSON.stringify(record.embedding),
+          JSON.stringify(record.metadata),
+          record.content,
+        );
+      }
+    },
+
+    async get(collection, id) {
+      if (!hasVectorTable) {
+        return null;
+      }
+
+      const row = getStatement!.get(collection, id);
+      if (!row) {
+        return null;
+      }
+
+      return {
+        id: row.id,
+        embedding: parseJson<number[]>(row.embedding_json),
+        metadata: parseJson<Record<string, unknown>>(row.metadata_json),
+        content: row.content,
+      };
+    },
+
+    async search(collection, queryEmbedding, input) {
+      if (input.topK <= 0 || queryEmbedding.length === 0) {
+        return [];
+      }
+
+      if (!hasVectorTable) {
+        return [];
+      }
+
+      return listStatement!
+        .all(collection)
+        .map<VectorSearchResult>((row) => {
+          const embedding = parseJson<number[]>(row.embedding_json);
+          const metadata = parseJson<Record<string, unknown>>(row.metadata_json);
+          return {
+            id: row.id,
+            embedding,
+            metadata,
+            content: row.content,
+            score: scoreDotProduct(embedding, queryEmbedding),
+          };
+        })
+        .filter((record) => matchesFilter(record.metadata, input.filter))
+        .sort((left, right) => {
+          if (right.score !== left.score) {
+            return right.score - left.score;
+          }
+
+          return left.id.localeCompare(right.id);
+        })
+        .slice(0, input.topK);
+    },
+
+    async delete(collection, id) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("vector");
+      }
+
+      deleteStatement!.run(collection, id);
     },
   };
 }

@@ -56,6 +56,15 @@ Tasks
 [TODO] P26-T006 Add remember / recall / forget / governance regression coverage for SQLite local vectors and auto resolution
 [TODO] P26-T007 Sync README, current-status, and task-board docs after behavior is real
 
+Breakdown Folder
+----------------
+- `task-board/phase-26-local-sqlite-vector-fallback/00-README.txt`
+- `task-board/phase-26-local-sqlite-vector-fallback/01-default-resolution-contract.txt`
+- `task-board/phase-26-local-sqlite-vector-fallback/02-auto-resolution-and-runtime-wiring.txt`
+- `task-board/phase-26-local-sqlite-vector-fallback/03-sqlite-local-vector-store.txt`
+- `task-board/phase-26-local-sqlite-vector-fallback/04-cli-and-regressions.txt`
+- `task-board/phase-26-local-sqlite-vector-fallback/05-docs-and-closure.txt`
+
 
 Key Constraints
 ---------------
