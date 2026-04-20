@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export interface Phase22GateCommand {
@@ -60,9 +61,10 @@ export interface Phase22GateDependencies {
 }
 
 export interface Phase22GateCliDependencies {
+  argv?: readonly string[];
   exit?: (code: number) => void;
   log?: (message: string) => void;
-  runGate?: () => Promise<Phase22GateReport>;
+  runGate?: (options: Phase22GateOptions) => Promise<Phase22GateReport>;
 }
 
 const GENERATED_BY = "scripts/run-phase-22-gate.ts";
@@ -221,10 +223,12 @@ export async function runPhase22QualityGate(
 export async function runPhase22GateCli(
   dependencies?: Phase22GateCliDependencies,
 ): Promise<Phase22GateReport> {
+  const argv = dependencies?.argv ?? process.argv;
   const exit = dependencies?.exit ?? process.exit;
   const log = dependencies?.log ?? console.log;
-  const runGate = dependencies?.runGate ?? (() => runPhase22QualityGate());
-  const report = await runGate();
+  const runGate =
+    dependencies?.runGate ?? ((options) => runPhase22QualityGate(options));
+  const report = await runGate(parsePhase22GateCliOptions(argv));
   log(JSON.stringify(report, null, 2));
 
   if (report.acceptance.decision !== "accepted") {
@@ -232,6 +236,15 @@ export async function runPhase22GateCli(
   }
 
   return report;
+}
+
+export function parsePhase22GateCliOptions(
+  argv: readonly string[],
+): Phase22GateOptions {
+  return {
+    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    runId: resolveCliFlagValue(argv, "--run-id"),
+  };
 }
 
 if (import.meta.main) {

@@ -403,6 +403,41 @@ function normalizeCandidateIdList(candidateIds: string[] | undefined): string[] 
     .filter((candidateId) => candidateId.length > 0);
 }
 
+function alignExecutedRerankDecisions(input: {
+  decisions: RecallAssistantRerankDecision[];
+  retainedCandidateIds: readonly string[];
+  suppressedCandidateIds: readonly string[];
+}): RecallAssistantRerankDecision[] {
+  if (input.decisions.length === 0) {
+    return [];
+  }
+
+  const retainedCandidateIds = new Set(input.retainedCandidateIds);
+  const suppressedCandidateIds = new Set(input.suppressedCandidateIds);
+  const alignedDecisions: RecallAssistantRerankDecision[] = [];
+  const seenCandidateIds = new Set<string>();
+
+  for (const decision of input.decisions) {
+    if (seenCandidateIds.has(decision.candidateId)) {
+      continue;
+    }
+
+    const executedDecision = suppressedCandidateIds.has(decision.candidateId)
+      ? "suppress"
+      : retainedCandidateIds.has(decision.candidateId)
+        ? "promote"
+        : undefined;
+    if (!executedDecision || decision.decision !== executedDecision) {
+      continue;
+    }
+
+    alignedDecisions.push(decision);
+    seenCandidateIds.add(decision.candidateId);
+  }
+
+  return alignedDecisions;
+}
+
 export function applyRecallAssistantRerank(input: {
   influence: RecallAssistantInfluence;
   protectedCandidateIds?: ReadonlySet<string>;
@@ -458,21 +493,6 @@ export function applyRecallAssistantRerank(input: {
     };
   }
 
-  const decisions =
-    input.rerank.decisions
-      ?.map((decision) => {
-        const candidateId = normalizeCandidateId(decision.candidateId);
-        if (!candidateId || !candidateIds.has(candidateId)) {
-          return undefined;
-        }
-
-        return {
-          ...decision,
-          candidateId,
-        };
-      })
-      .filter((decision): decision is NonNullable<typeof decision> => Boolean(decision)) ?? [];
-
   const retainedIds = orderedCandidateIds.filter(
     (candidateId) => !suppressCandidateIds.includes(candidateId),
   );
@@ -486,6 +506,25 @@ export function applyRecallAssistantRerank(input: {
       }),
     };
   }
+
+  const decisions = alignExecutedRerankDecisions({
+    decisions:
+      input.rerank.decisions
+        ?.map((decision) => {
+          const candidateId = normalizeCandidateId(decision.candidateId);
+          if (!candidateId || !candidateIds.has(candidateId)) {
+            return undefined;
+          }
+
+          return {
+            ...decision,
+            candidateId,
+          };
+        })
+        .filter((decision): decision is NonNullable<typeof decision> => Boolean(decision)) ?? [],
+    retainedCandidateIds: retainedIds,
+    suppressedCandidateIds: suppressCandidateIds,
+  });
 
   const order = new Map(retainedIds.map((candidateId, index) => [candidateId, index]));
   const reorderByIds = <TRecord extends { id: string }>(records: TRecord[]) =>

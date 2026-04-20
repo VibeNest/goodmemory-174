@@ -305,6 +305,10 @@ function appendAssistantTraceDetails(
     }
 
     if (trace.returned) {
+      if (decision.decision !== "promote") {
+        return trace;
+      }
+
       return {
         ...trace,
         whyReturned: trace.whyReturned

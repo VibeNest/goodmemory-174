@@ -223,6 +223,88 @@ describe("recall assistant helpers", () => {
     expect(reranked.influence.suppressedCandidateIds).toEqual(["archive-1"]);
   });
 
+  it("drops explainability decisions that do not match the executed rerank outcome", () => {
+    const fact = createFactMemory({
+      id: "fact-1",
+      userId: "u-1",
+      content: "Current blocker is service account rotation.",
+      category: "project",
+      factKind: "blocker",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+    });
+    const reference = createReferenceMemory({
+      id: "ref-1",
+      userId: "u-1",
+      title: "Migration runbook",
+      pointer: "docs/migration-runbook.md",
+      referenceKind: "source_of_truth",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+    });
+    const archive = createSessionArchive({
+      id: "archive-1",
+      userId: "u-1",
+      sessionId: "s-1",
+      summary: "Paused while waiting for the runbook confirmation.",
+      archivedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const reranked = applyRecallAssistantRerank({
+      influence: {
+        addedRequestedSlots: [],
+        addedSupportSlots: [],
+        decisions: [],
+        planApplied: true,
+        rerankApplied: false,
+        rerankedCandidateIds: [],
+        suppressedCandidateIds: [],
+      },
+      rerank: {
+        orderedCandidateIds: ["ref-1", "fact-1", "archive-1"],
+        rationale: "runbook should lead before blocker detail",
+        suppressCandidateIds: ["archive-1"],
+        decisions: [
+          {
+            candidateId: "ref-1",
+            decision: "promote",
+            reason: "source_of_truth",
+          },
+          {
+            candidateId: "fact-1",
+            decision: "suppress",
+            reason: "query_alignment",
+          },
+          {
+            candidateId: "archive-1",
+            decision: "suppress",
+            reason: "query_alignment",
+          },
+        ],
+      },
+      selection: {
+        facts: [fact],
+        references: [reference],
+        archives: [archive],
+        episodes: [],
+      },
+    });
+
+    expect(reranked.selection.references.map((item) => item.id)).toEqual(["ref-1"]);
+    expect(reranked.selection.facts.map((item) => item.id)).toEqual(["fact-1"]);
+    expect(reranked.selection.archives).toEqual([]);
+    expect(reranked.influence.decisions).toEqual([
+      {
+        candidateId: "ref-1",
+        decision: "promote",
+        reason: "source_of_truth",
+      },
+      {
+        candidateId: "archive-1",
+        decision: "suppress",
+        reason: "query_alignment",
+      },
+    ]);
+  });
+
   it("rejects assistant suppression of deterministic hard-floor candidates", () => {
     const fact = createFactMemory({
       id: "fact-1",

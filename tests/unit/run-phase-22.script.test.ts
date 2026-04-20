@@ -4,7 +4,9 @@ import { createPhase22FallbackCreateMemory } from "../../src/eval/phase22";
 import {
   buildPhase22GateCommands,
   buildPhase22GateRunId,
+  parsePhase22GateCliOptions,
   resolvePhase22GateOutputDir,
+  runPhase22GateCli,
   runPhase22QualityGate,
 } from "../../scripts/run-phase-22-gate";
 import {
@@ -345,5 +347,77 @@ describe("run-phase-22 scripts", () => {
         "phase-22-quality-gate.json",
       ),
     );
+  });
+
+  it("parses phase-22 gate cli options", () => {
+    expect(
+      parsePhase22GateCliOptions([
+        "bun",
+        "scripts/run-phase-22-gate.ts",
+        "--output-dir",
+        "/tmp/goodmemory/reports/quality-gates/phase-20/run-phase20/dependency-gates/phase-22",
+        "--run-id",
+        "run-phase20-phase-22",
+      ]),
+    ).toEqual({
+      outputDir:
+        "/tmp/goodmemory/reports/quality-gates/phase-20/run-phase20/dependency-gates/phase-22",
+      runId: "run-phase20-phase-22",
+    });
+  });
+
+  it("passes parsed cli options into the phase-22 gate entrypoint", async () => {
+    const logs: string[] = [];
+    const exits: number[] = [];
+    const receivedOptions: Array<Record<string, unknown>> = [];
+
+    const report = await runPhase22GateCli({
+      argv: [
+        "bun",
+        "scripts/run-phase-22-gate.ts",
+        "--output-dir",
+        "/tmp/goodmemory/reports/quality-gates/phase-20/run-phase20/dependency-gates/phase-22",
+        "--run-id",
+        "run-phase20-phase-22",
+      ],
+      log: (message) => {
+        logs.push(message);
+      },
+      exit: (code) => {
+        exits.push(code);
+      },
+      runGate: async (options) => {
+        receivedOptions.push(options as unknown as Record<string, unknown>);
+
+        return {
+          acceptance: {
+            decision: "accepted",
+            reason: "ok",
+          },
+          commands: [],
+          generatedAt: "2026-04-20T10:00:00.000Z",
+          generatedBy: "scripts/run-phase-22-gate.ts",
+          phase: "phase-22",
+          runDirectory:
+            "/tmp/goodmemory/reports/quality-gates/phase-22/run-phase20-phase-22",
+          runId: "run-phase20-phase-22",
+          scope: {
+            inScope: [],
+            outOfScope: [],
+          },
+        };
+      },
+    });
+
+    expect(receivedOptions).toEqual([
+      {
+        outputDir:
+          "/tmp/goodmemory/reports/quality-gates/phase-20/run-phase20/dependency-gates/phase-22",
+        runId: "run-phase20-phase-22",
+      },
+    ]);
+    expect(report.acceptance.decision).toBe("accepted");
+    expect(exits).toEqual([]);
+    expect(logs).toHaveLength(1);
   });
 });

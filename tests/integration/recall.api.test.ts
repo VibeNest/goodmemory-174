@@ -355,6 +355,79 @@ describe("public recall API", () => {
     ).toContain("llmDecision=promote:source_of_truth");
   });
 
+  it("does not emit contradictory llmDecision traces when provider decisions disagree with the executed rerank", async () => {
+    const { documentStore, sessionStore, repositories, runtime } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        factKind: "blocker",
+        content: "Service account rotation is the current blocker for the migration rollout.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        adapters: { documentStore, sessionStore },
+      },
+      {
+        assistedRecallRouter: {
+          async plan() {
+            return {
+              querySummary: "migration blocker context",
+              rationale: "keep the blocker fact in focus",
+            };
+          },
+          async rerank() {
+            return {
+              orderedCandidateIds: ["fact-1"],
+              rationale: "keep blocker detail",
+              decisions: [
+                {
+                  candidateId: "fact-1",
+                  decision: "suppress",
+                  reason: "query_alignment",
+                },
+              ],
+            };
+          },
+        },
+      },
+    );
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "What is the migration rollout status?",
+      retrievalProfile: "general_chat",
+      strategy: "llm-assisted",
+    });
+
+    const blockerTrace = result.metadata.candidateTraces.find(
+      (trace) => trace.memoryId === "fact-1",
+    );
+
+    expect(result.facts[0]?.id).toBe("fact-1");
+    expect(result.metadata.assistantInfluence?.rerankApplied).toBe(true);
+    expect(result.metadata.assistantInfluence?.rerankedCandidateIds).toEqual([
+      "fact-1",
+    ]);
+    expect(result.metadata.assistantInfluence?.suppressedCandidateIds).toEqual([]);
+    expect(result.metadata.assistantInfluence?.decisions).toEqual([]);
+    expect(blockerTrace?.returned).toBe(true);
+    expect(blockerTrace?.whyReturned).toBeDefined();
+    expect(blockerTrace?.whyReturned).not.toContain("llmDecision=");
+  });
+
   it("attributes LLM suppress traces only to candidates the assistant actually suppressed", async () => {
     const { documentStore, sessionStore, repositories, runtime } = seedMemory();
 
