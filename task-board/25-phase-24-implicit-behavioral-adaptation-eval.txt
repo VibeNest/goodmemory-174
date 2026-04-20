@@ -1,0 +1,27 @@
+[DONE] P24-T001 Add implicit behavioral fixture layer with attribution
+[DONE] P24-T002 Add first-action scoring, split-profile eval runner, and fallback report
+[DONE] P24-T003 Add phase-24 live-memory runner contract and deterministic quality gate
+[DONE] P24-T004 Archive gate evidence and sync current status/task-board docs
+
+Phase 24 scope
+--------------
+- Internal-only implicit behavioral adaptation eval harness
+- Procedural, conditioning, and priming fixture support inspired by ImplicitMemBench
+- First-action scoring after learning/interference replay
+- Separate `raw-experience` and `distilled-feedback` profiles
+- Deterministic fallback gate and optional provider-backed live-memory runner
+- No public API widening, no public config widening, and no default runtime promotion
+
+Canonical deterministic gate
+----------------------------
+- `reports/quality-gates/phase-24/run-20260420154540-contrastive-fix/phase-24-quality-gate.json`
+
+Canonical eval evidence
+-----------------------
+- Fallback report: `reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix/report.json`
+
+Closure note
+------------
+- Phase 24 is accepted as an eval-harness slice, not as proof that raw experience already becomes durable procedural behavior automatically.
+- `raw-experience` intentionally exposes current gaps in first-action procedural adherence and failure avoidance.
+- `distilled-feedback` proves the harness can detect first-action behavior once procedural guidance has been explicitly distilled through `feedback()`.

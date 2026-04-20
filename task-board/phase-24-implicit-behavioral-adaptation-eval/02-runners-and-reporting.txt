@@ -1,0 +1,9 @@
+[DONE] Add deterministic fallback runner `scripts/run-phase-24-eval.ts`.
+[DONE] Add provider-backed live-memory runner contract `scripts/run-phase-24-live-memory.ts`.
+[DONE] Add split-profile report shape with `raw-experience` and `distilled-feedback`.
+[DONE] Report first-attempt pass rate, procedural adherence, failure avoidance, inhibition, priming influence, explicit recall leaks, and behavioral regression cases.
+
+Evidence
+--------
+- `reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix/report.json`
+- `tests/unit/run-phase-24.script.test.ts`

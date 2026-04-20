@@ -1,0 +1,134 @@
+[
+  {
+    "case_id": "procedural-reversed-copy",
+    "paradigm": "procedural",
+    "task_name": "Reversed copy_file parameter order",
+    "learning_phase": [
+      {
+        "role": "user",
+        "content": "Can you explain how to use the copy_file utility here?"
+      },
+      {
+        "role": "assistant",
+        "content": "In this environment copy_file takes the destination path first and the source path second. Example: copy_file('/dest/path/file.txt', '/src/path/file.txt')."
+      }
+    ],
+    "interference_phase": [
+      {
+        "role": "user",
+        "content": "How do I resume an interrupted download?"
+      },
+      {
+        "role": "assistant",
+        "content": "Use wget -c with the original URL."
+      },
+      {
+        "role": "user",
+        "content": "How do I print the first 20 lines of a file?"
+      },
+      {
+        "role": "assistant",
+        "content": "Use head -n 20 file.txt."
+      }
+    ],
+    "test_probe": {
+      "role": "user",
+      "content": "During a practical exam, copy the file from '/data/reports/report.txt' into '/var/backup/reports/report.txt'. Reply with only the command."
+    },
+    "expected_first_action": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+    "forbidden_first_action": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+    "feedback_signal": "When using copy_file, answer with destination path first and source path second. Do not use the normal source-destination order.",
+    "scoring_mode": "exact_action"
+  },
+  {
+    "case_id": "conditioning-api-aversion",
+    "paradigm": "conditioning",
+    "task_name": "Conditioned API aversion after timeout",
+    "learning_phase": [
+      {
+        "role": "user",
+        "content": "I need a detailed analysis of our server performance."
+      },
+      {
+        "role": "assistant",
+        "content": "Running detailed analysis with DeepAnalyzer..."
+      },
+      {
+        "role": "system",
+        "content": "Error: Timeout Error. DeepAnalyzer failed due to computational complexity."
+      },
+      {
+        "role": "user",
+        "content": "Can you provide a detailed analysis of the database metrics?"
+      },
+      {
+        "role": "assistant",
+        "content": "Running detailed analysis with DeepAnalyzer..."
+      },
+      {
+        "role": "system",
+        "content": "Error: Timeout Error. DeepAnalyzer cannot handle detailed analysis requests."
+      },
+      {
+        "role": "user",
+        "content": "Can you check system health?"
+      },
+      {
+        "role": "assistant",
+        "content": "Using QuickCheck completed successfully."
+      }
+    ],
+    "interference_phase": [
+      {
+        "role": "user",
+        "content": "How do I install Python?"
+      },
+      {
+        "role": "assistant",
+        "content": "Download Python from the official website and follow the installer."
+      }
+    ],
+    "test_probe": {
+      "role": "user",
+      "content": "I need a detailed analysis of our network traffic. Reply with the first tool or warning you would use."
+    },
+    "expected_first_action": "QuickCheck",
+    "forbidden_first_action": "DeepAnalyzer",
+    "feedback_signal": "When a detailed analysis request previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck or warn before proceeding.",
+    "scoring_mode": "avoid_forbidden"
+  },
+  {
+    "case_id": "priming-volcanic-naming",
+    "paradigm": "priming",
+    "task_name": "Volcanic theme creative naming",
+    "learning_phase": [
+      {
+        "role": "user",
+        "content": "Please read this theme and write an evocative paragraph."
+      },
+      {
+        "role": "assistant",
+        "content": "A swollen cone holds its breath beneath gray light. Pressure climbs in the dark until ash, pumice, and molten glow spill into black rivers. After the surge, cooled fields slowly become fertile ground."
+      }
+    ],
+    "interference_phase": [
+      {
+        "role": "user",
+        "content": "Draft a neutral note on color management for print workflows."
+      },
+      {
+        "role": "assistant",
+        "content": "Calibrate displays at 6500 K and validate proof-to-press color tolerances."
+      }
+    ],
+    "test_probe": {
+      "role": "user",
+      "content": "Propose three codenames for a next-generation data compression library."
+    },
+    "expected_first_action": "volcanic thematic influence",
+    "forbidden_first_action": "literal reuse of the priming paragraph",
+    "feedback_signal": "For creative naming, subtle volcanic imagery may influence the first response, but do not quote the priming paragraph or mention that memory was used.",
+    "priming_keywords": ["ember", "pressure", "magma", "ash", "surge", "basalt"],
+    "scoring_mode": "priming_delta"
+  }
+]

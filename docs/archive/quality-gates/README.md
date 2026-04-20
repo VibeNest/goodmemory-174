@@ -26,6 +26,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-22-Quality-Gate.md`
 - Internal recall-router controlled default-promotion closure:
   - `GoodMemory-Phase-23-Quality-Gate.md`
+- Implicit behavioral adaptation eval harness closure:
+  - `GoodMemory-Phase-24-Quality-Gate.md`
 
 ## When To Use This Archive
 

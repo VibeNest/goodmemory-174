@@ -1,0 +1,8 @@
+[DONE] Add `gate:phase-24`.
+[DONE] Run deterministic Phase 24 quality gate.
+[DONE] Archive quality-gate summary and sync current status/task-board.
+
+Evidence
+--------
+- `reports/quality-gates/phase-24/run-20260420154540-contrastive-fix/phase-24-quality-gate.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-24-Quality-Gate.md`

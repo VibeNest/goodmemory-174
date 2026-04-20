@@ -1,0 +1,10 @@
+[DONE] Add `fixtures/implicit-behavioral/` with a curated adapted subset inspired by ImplicitMemBench.
+[DONE] Include attribution and CC BY 4.0 source notes without vendoring the upstream repository.
+[DONE] Implement fixture validation for procedural, conditioning, and priming paradigms.
+[DONE] Implement first-action extraction so later self-corrections cannot rescue a failed first action.
+[DONE] Implement procedural exact-action scoring, conditioning avoidance scoring, and non-blocking priming scoring.
+
+Evidence
+--------
+- `src/eval/implicit-behavior.ts`
+- `tests/unit/eval.implicit-behavior.test.ts`

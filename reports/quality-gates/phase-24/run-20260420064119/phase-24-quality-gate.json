@@ -1,0 +1,99 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 24 implicit behavioral adaptation eval harness is regression-covered on the deterministic gate path."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2655,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-24-targeted-regressions",
+      "command": "bun test tests/unit/eval.implicit-behavior.test.ts tests/unit/run-phase-24.script.test.ts",
+      "durationMs": 130,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "",
+        "tests/unit/eval.implicit-behavior.test.ts:",
+        "(pass) implicit behavioral eval > loads valid fixtures and rejects incomplete cases [6.23ms]",
+        "(pass) implicit behavioral eval > scores only the first actionable line, not later self-corrections [0.80ms]",
+        "(pass) implicit behavioral eval > accepts exact procedural first actions and rejects reversed order [0.05ms]",
+        "(pass) implicit behavioral eval > scores conditioning as first-action avoidance instead of explicit recall [0.21ms]",
+        "(pass) implicit behavioral eval > keeps priming as non-blocking report-only scoring [0.55ms]",
+        "",
+        "tests/unit/run-phase-24.script.test.ts:",
+        "(pass) run-phase-24 scripts > resolves phase-24 output directories [0.11ms]",
+        "(pass) run-phase-24 scripts > runs phase-24 fallback eval with split profiles [0.29ms]",
+        "(pass) run-phase-24 scripts > runs phase-24 live-memory eval through the same report contract [1.45ms]",
+        "(pass) run-phase-24 scripts > builds the phase-24 gate command list and accepted report [0.74ms]",
+        "(pass) run-phase-24 scripts > parses phase-24 gate cli flags and exits cleanly [0.41ms]",
+        "",
+        " 10 pass",
+        " 0 fail",
+        " 28 expect() calls",
+        "Ran 10 tests across 2 files. [122.00ms]"
+      ]
+    },
+    {
+      "label": "phase-24-fallback-eval",
+      "command": "bun run eval:phase-24",
+      "durationMs": 85,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "        \"totalCases\": 2",
+        "      },",
+        "      \"procedural\": {",
+        "        \"failedCases\": [",
+        "          \"procedural-reversed-copy\"",
+        "        ],",
+        "        \"passedCases\": 1,",
+        "        \"totalCases\": 2",
+        "      }",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"failureAvoidanceRate\": 0.5,",
+        "    \"firstAttemptPassRate\": 0.5,",
+        "    \"inhibitionPassRate\": 0.5,",
+        "    \"primingInfluenceScore\": 25,",
+        "    \"proceduralAdherenceRate\": 0.5,",
+        "    \"totalCases\": 6",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-24-eval.ts"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-20T06:41:19.865Z",
+  "generatedBy": "scripts/run-phase-24-gate.ts",
+  "phase": "phase-24",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-24/run-20260420064119",
+  "runId": "run-20260420064119",
+  "scope": {
+    "inScope": [
+      "implicit behavioral fixture loader and first-action scoring",
+      "raw-experience and distilled-feedback eval profiles",
+      "phase-24 deterministic report and quality gate"
+    ],
+    "outOfScope": [
+      "public API or public config widening",
+      "default runtime behavioral adaptation promotion",
+      "using priming as a blocking release gate"
+    ]
+  }
+}

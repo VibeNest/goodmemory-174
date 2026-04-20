@@ -7,19 +7,22 @@ Treat this file as a routing layer, not the final authority. The design corpus i
 ```text
 README.md
 docs/
+├── GoodMemory-Current-Status-and-Evidence.md                     # stable entrypoint for current public surface and canonical evidence
 ├── GoodMemory-First-Principles-and-Reference-Architecture.md  # canonical design, core beliefs, operating principles
+├── GoodMemory-Implicit-Behavioral-Adaptation-Eval.md          # Phase 24 internal eval design and scoring reference
 ├── GoodMemory-OSS-Architecture-v1.md                          # top-level map of domains, packages, and boundaries
 ├── GoodMemory-PRD.md                                          # product scope and behavior contract
 ├── GoodMemory-TDD-and-Evaluation-Strategy.md                  # test pyramid, eval design, fixture strategy
-├── GoodMemory-v1-Quality-Gate.md                              # latest recorded verification snapshot
+├── GoodMemory-v1-Quality-Gate.md                              # historical v1 verification snapshot
 ├── GoodMemory-v1-Release-Checklist.md                         # release readiness checklist
 ├── GoodMemory-Unified-Self-Evolving-Roadmap.md                # canonical roadmap after the v1 core
+├── archive/quality-gates/README.md                            # archived phase closure summaries and gate index
 ├── GoodMemory-记忆数据分层设计.md                               # layering and storage reference
 └── documents/                                                 # research/reference corpus
 
 task-board/
 ├── 00-README.txt                                              # canonical execution order, status markers, working rules
-├── 01-phase-0-...txt -> 19-phase-18-...txt                    # phase-level execution plan
+├── 01-phase-0-...txt -> 25-phase-24-...txt                    # phase-level execution plan
 └── phase-*/00-README.txt                                      # per-phase breakdown and acceptance criteria
 
 adr/
@@ -29,8 +32,9 @@ adr/
 └── ADR-004-maintenance-engine.txt
 
 src/
-├── index.ts                                                   # public package surface
-├── api/                                                       # createGoodMemory entrypoint and API contracts
+├── index.ts                                                   # package root exports
+├── api/                                                       # createGoodMemory surface plus internal runtime/governance wiring
+├── ai-sdk/                                                    # AI SDK-facing public exports and contracts
 ├── domain/                                                    # taxonomy, scope, provenance, core records
 ├── remember/                                                  # write path: extraction, classification, candidate handling
 ├── recall/                                                    # retrieval planning, scoring, selection, context assembly
@@ -39,8 +43,9 @@ src/
 ├── verify/                                                    # verification policy for stale or inferred memory
 ├── storage/                                                   # in-memory, sqlite, postgres, and repository adapters
 ├── eval/                                                      # eval runners, judge integration, reporting
-├── evidence/ evolution/ governance/                           # evidence, archive, proposal, and governance layers
-├── embedding/ provider/                                       # provider-backed adapters and model plumbing
+├── evidence/ evolution/ governance/                           # evidence records, proposal flow, and governance helpers
+├── embedding/ provider/                                       # vector write plumbing and provider-backed model adapters
+├── host/                                                      # host-facing integration surface and exported contracts
 ├── language/                                                  # locale-aware extraction and normalization
 ├── policy/ testing/                                           # policy hooks and shared test helpers
 └── cli.ts                                                     # CLI entrypoint exposed via package exports
@@ -55,6 +60,10 @@ fixtures/
 ├── conversations/ personas/ rubrics/ scenarios/               # supporting fixture sources
 └── ...
 
+reports/quality-gates/
+├── phase-*/                                                   # accepted phase gate artifacts
+└── ...
+
 reports/eval/
 ├── fallback/                                                  # deterministic validation artifacts
 ├── live/                                                      # live model eval artifacts with in-memory memory backend
@@ -63,7 +72,7 @@ reports/eval/
 scripts/ and examples/ hold developer utilities, CLI/eval runners, and reference integrations.
 ```
 
-Use `docs/GoodMemory-First-Principles-and-Reference-Architecture.md` for product principles, `docs/GoodMemory-OSS-Architecture-v1.md` for module boundaries, `task-board/00-README.txt` for execution order, and `docs/GoodMemory-v1-Quality-Gate.md` plus `reports/eval/` for verification evidence. Scored quality and gap tracking live in the phase board and generated eval artifacts, not in `AGENTS.md`.
+Use `docs/GoodMemory-Current-Status-and-Evidence.md` for the current stable repo view, `docs/GoodMemory-First-Principles-and-Reference-Architecture.md` for product principles, `docs/GoodMemory-OSS-Architecture-v1.md` for module boundaries, `task-board/00-README.txt` for execution order, and `docs/archive/quality-gates/README.md` plus `reports/quality-gates/` and `reports/eval/` for verification evidence. Scored quality and gap tracking live in the phase board and generated eval artifacts, not in `AGENTS.md`.
 
 ## Build, Test, and Development Commands
 
@@ -77,6 +86,8 @@ Use `docs/GoodMemory-First-Principles-and-Reference-Architecture.md` for product
 - `bun run eval:live`: run the live generator + live judge eval path with the in-memory memory backend and write reports to `reports/eval/live/`.
 - `bun run eval:live-memory`: run the provider-backed live eval path with Postgres storage, embeddings, and assisted extraction; write reports to `reports/eval/live-memory/`. This needs the live eval/judge env vars plus `GOODMEMORY_TEST_POSTGRES_URL`, `GOODMEMORY_EMBEDDING_*`, and `GOODMEMORY_ASSISTED_EXTRACTOR_*`.
 - `bun run eval:summary`: summarize existing eval output directories.
+- `bun run eval:phase-24`: run the implicit behavioral adaptation deterministic eval slice and write reports under `reports/eval/fallback/phase-24/`.
+- `bun run gate:phase-24`: validate the accepted Phase 24 quality gate and write the gate artifact under `reports/quality-gates/phase-24/`.
 - `bun run fixtures:generate`: regenerate eval fixtures under `fixtures/`.
 
 There is no separate build step today; contributors work directly against Bun + TypeScript sources.
@@ -91,4 +102,4 @@ TDD is mandatory here: add a failing test first, then implement. Put pure logic 
 
 ## Commit & Pull Request Guidelines
 
-Recent history uses imperative, scoped commit subjects, for example `Enhance evaluation framework with strategy support and reporting improvements` and `Implement router strategy framework and enhance recall decision-making`. Keep new subjects similarly specific. PRs should include a concise summary, linked task-board item or ADR when relevant, and the commands you ran. If a change touches Postgres, fixtures, or eval output, note the environment used and whether `reports/eval/` changes are intentional.
+Recent history mixes scoped English subjects and short milestone commits, for example `Enhance AI SDK integration and examples` and `phase 23完成`. Keep new subjects specific and easy to scan. PRs should include a concise summary, linked task-board item or ADR when relevant, and the commands you ran. If a change touches Postgres, fixtures, or eval output, note the environment used and whether `reports/eval/` or `reports/quality-gates/` changes are intentional.

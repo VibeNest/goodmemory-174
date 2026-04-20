@@ -1,0 +1,100 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 24 implicit behavioral adaptation eval harness is regression-covered on the deterministic gate path."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 3202,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-24-targeted-regressions",
+      "command": "bun test tests/unit/eval.implicit-behavior.test.ts tests/unit/run-phase-24.script.test.ts",
+      "durationMs": 67,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) implicit behavioral eval > scores only the first actionable line, not later self-corrections [0.42ms]",
+        "(pass) implicit behavioral eval > preserves negation context when extracting a first action line [0.25ms]",
+        "(pass) implicit behavioral eval > accepts exact procedural first actions and rejects reversed order [0.05ms]",
+        "(pass) implicit behavioral eval > scores conditioning as first-action avoidance instead of explicit recall [0.32ms]",
+        "(pass) implicit behavioral eval > keeps priming as non-blocking report-only scoring [0.06ms]",
+        "(pass) implicit behavioral eval > rejects priming answers that directly reuse the learned paragraph [0.10ms]",
+        "(pass) implicit behavioral eval > reports fixture-derived references instead of synthetic baseline answers [6.71ms]",
+        "(pass) implicit behavioral eval > counts execution failures per case without aborting the full report [4.02ms]",
+        "",
+        "tests/unit/run-phase-24.script.test.ts:",
+        "(pass) run-phase-24 scripts > resolves phase-24 output directories [0.03ms]",
+        "(pass) run-phase-24 scripts > runs phase-24 fallback eval with split profiles [0.12ms]",
+        "(pass) run-phase-24 scripts > runs phase-24 live-memory eval through the same report contract [0.57ms]",
+        "(pass) run-phase-24 scripts > builds the phase-24 gate command list and accepted report [0.04ms]",
+        "(pass) run-phase-24 scripts > parses phase-24 gate cli flags and exits cleanly [0.28ms]",
+        "",
+        " 14 pass",
+        " 0 fail",
+        " 49 expect() calls",
+        "Ran 14 tests across 2 files. [61.00ms]"
+      ]
+    },
+    {
+      "label": "phase-24-fallback-eval",
+      "command": "bun run eval:phase-24",
+      "durationMs": 72,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "        \"totalCases\": 2",
+        "      },",
+        "      \"procedural\": {",
+        "        \"failedCases\": [",
+        "          \"procedural-reversed-copy\"",
+        "        ],",
+        "        \"passedCases\": 1,",
+        "        \"totalCases\": 2",
+        "      }",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"failureAvoidanceRate\": 0.5,",
+        "    \"firstAttemptPassRate\": 0.5,",
+        "    \"inhibitionPassRate\": 0.5,",
+        "    \"primingInfluenceScore\": 25,",
+        "    \"proceduralAdherenceRate\": 0.5,",
+        "    \"totalCases\": 6",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-24-eval.ts"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-20T07:50:15.230Z",
+  "generatedBy": "scripts/run-phase-24-gate.ts",
+  "phase": "phase-24",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-24/run-20260420154540-contrastive-fix",
+  "runId": "run-20260420154540-contrastive-fix",
+  "scope": {
+    "inScope": [
+      "implicit behavioral fixture loader and first-action scoring",
+      "raw-experience and distilled-feedback eval profiles",
+      "phase-24 deterministic report and quality gate"
+    ],
+    "outOfScope": [
+      "public API or public config widening",
+      "default runtime behavioral adaptation promotion",
+      "using priming as a blocking release gate"
+    ]
+  }
+}

@@ -88,6 +88,7 @@ Read and execute files in this order:
 22. 22-phase-21-recall-side-llm-router-rollout.txt
 23. 23-phase-22-recall-router-provider-hardening-and-promotion-readiness.txt
 24. 24-phase-23-recall-router-controlled-default-promotion.txt
+25. 25-phase-24-implicit-behavioral-adaptation-eval.txt
 
 
 Current Sequencing Note
@@ -97,6 +98,7 @@ Current Sequencing Note
 - Phase 21 is now closed as the internal recall-side LLM router v1 slice.
 - Phase 22 is now closed as the recall-router provider hardening and promotion-readiness evidence slice.
 - Phase 23 is now closed as the internal recall-router controlled default-promotion slice.
+- Phase 24 is now closed as the implicit behavioral adaptation eval-harness slice.
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
@@ -123,14 +125,19 @@ Current Sequencing Note
   - `reports/eval/live-memory/phase-23/run-1776658376536-observe/report.json`
   - `reports/eval/live-memory/phase-23/run-1776658376536-assist/report.json`
   - `reports/eval/live-memory/phase-23/run-1776658376536-promote/report.json`
-- Any work after Phase 23 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 24 closure is backed by:
+  - `docs/archive/quality-gates/GoodMemory-Phase-24-Quality-Gate.md`
+  - `reports/quality-gates/phase-24/run-20260420154540-contrastive-fix/phase-24-quality-gate.json`
+  - `reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix/report.json`
+- Any work after Phase 24 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
 - Phase 22 hardened the internal recall-side LLM router provider path enough for promotion-readiness evaluation, while leaving promotion/default rollout deferred.
 - Phase 23 landed internal-only controlled default promotion for `llm-assisted` recall, with trusted authorization consumption and high-value-query runtime gating while keeping public rollout controls internal.
+- Phase 24 added a first-action implicit behavioral adaptation eval harness with separate raw-experience and distilled-feedback profiles, while keeping runtime behavior unchanged.
 - Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases; that deferred scope is now closed in its dedicated phase.
-- Phase 15 through Phase 23 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened, internally promotable memory system".
+- Phase 15 through Phase 24 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened, internally promotable, behaviorally measurable memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
 
@@ -140,12 +147,12 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 23 guarantees while local changes land
+   - Preserve the closed Phase 17 through Phase 24 guarantees while local changes land
    - Close any local WIP without widening scope into an unplanned post-Phase-23 capability track
-   - If work starts after Phase 23, add a new executable phase before implementation
+   - If work starts after Phase 24, add a new executable phase before implementation
 2. Near-term product differentiation
-   - Decide and document the next queued phase after the now-closed Phase 23 internal recall-router promotion slice
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, and internal recall-router guarantees regression-covered while new scope is defined
+   - Decide and document the next queued phase after the now-closed Phase 24 implicit behavioral eval slice
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, and implicit-behavioral-eval guarantees regression-covered while new scope is defined
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
 4. Host integration track
@@ -258,3 +265,6 @@ Files in This Folder
 
 - 24-phase-23-recall-router-controlled-default-promotion.txt
   Internal-only trusted authorization consumption, high-value llm-assisted promote path, and dedicated phase-23 observe/assist/promote evidence
+
+- 25-phase-24-implicit-behavioral-adaptation-eval.txt
+  Internal implicit behavioral adaptation eval harness with first-action scoring and split raw/distilled profiles

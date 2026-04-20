@@ -10,6 +10,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
 - Retrieval rollout controls, promotion gates, salvage hooks, and internal provider-router rollout controls remain implementation detail, not README-level product surface.
+- Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
 
 ## Current Canonical Evidence
 
@@ -26,6 +27,10 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic gate: `reports/quality-gates/phase-23/run-20260420061039/phase-23-quality-gate.json`
   - Live-memory promote report: `reports/eval/live-memory/phase-23/run-1776658376536-promote/report.json`
   - Deterministic fallback promote report: `reports/eval/fallback/phase-23/run-1776658356917-promote/report.json`
+- Implicit behavioral adaptation eval-harness evidence:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-24-Quality-Gate.md`
+  - Deterministic gate: `reports/quality-gates/phase-24/run-20260420154540-contrastive-fix/phase-24-quality-gate.json`
+  - Deterministic fallback report: `reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

@@ -1,0 +1,212 @@
+{
+  "generatedAt": "2026-04-20T07:45:47.603Z",
+  "generatedBy": "scripts/run-phase-24-eval.ts",
+  "mode": "fallback",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-24",
+  "profiles": {
+    "raw-experience": {
+      "behavioralRegressionCases": [
+        "raw-experience:conditioning-api-aversion",
+        "raw-experience:procedural-reversed-copy"
+      ],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [
+            "conditioning-api-aversion"
+          ],
+          "passedCases": 0,
+          "totalCases": 1
+        },
+        "procedural": {
+          "failedCases": [
+            "procedural-reversed-copy"
+          ],
+          "passedCases": 0,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "blocking": true,
+          "explicitRecallLeak": false,
+          "firstAction": "DeepAnalyzer --network-traffic",
+          "passed": false,
+          "reason": "first_action_matched_forbidden",
+          "caseId": "conditioning-api-aversion",
+          "expectedFirstAction": "QuickCheck",
+          "fixtureReferenceAnswer": "DeepAnalyzer --detailed",
+          "forbiddenFirstAction": "DeepAnalyzer",
+          "goodmemoryAnswer": "DeepAnalyzer --network-traffic",
+          "memoryContext": "",
+          "paradigm": "conditioning",
+          "profile": "raw-experience",
+          "scoreReason": "first_action_matched_forbidden",
+          "scoringMode": "avoid_forbidden",
+          "taskName": "Conditioned API aversion after timeout"
+        },
+        {
+          "blocking": false,
+          "explicitRecallLeak": false,
+          "firstAction": "Atlas",
+          "passed": false,
+          "primingInfluenceScore": 0,
+          "reason": "priming_keywords_absent",
+          "caseId": "priming-volcanic-naming",
+          "expectedFirstAction": "volcanic thematic influence",
+          "fixtureReferenceAnswer": "Atlas\nNimbus\nLattice",
+          "forbiddenFirstAction": "literal reuse of the priming paragraph",
+          "goodmemoryAnswer": "Atlas\nNimbus\nLattice",
+          "memoryContext": "## Procedural Memory\n- Please read this theme and write an evocative paragraph.",
+          "paradigm": "priming",
+          "profile": "raw-experience",
+          "scoreReason": "priming_keywords_absent",
+          "scoringMode": "priming_delta",
+          "taskName": "Volcanic theme creative naming"
+        },
+        {
+          "blocking": true,
+          "explicitRecallLeak": false,
+          "firstAction": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "passed": false,
+          "reason": "first_action_matched_forbidden",
+          "caseId": "procedural-reversed-copy",
+          "expectedFirstAction": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "fixtureReferenceAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "forbiddenFirstAction": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "goodmemoryAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "memoryContext": "",
+          "paradigm": "procedural",
+          "profile": "raw-experience",
+          "scoreReason": "first_action_matched_forbidden",
+          "scoringMode": "exact_action",
+          "taskName": "Reversed copy_file parameter order"
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "failureAvoidanceRate": 0,
+      "firstAttemptPassRate": 0,
+      "inhibitionPassRate": 0,
+      "primingInfluenceScore": 0,
+      "proceduralAdherenceRate": 0,
+      "totalCases": 3
+    },
+    "distilled-feedback": {
+      "behavioralRegressionCases": [],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [],
+          "passedCases": 1,
+          "totalCases": 1
+        },
+        "procedural": {
+          "failedCases": [],
+          "passedCases": 1,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "blocking": true,
+          "explicitRecallLeak": false,
+          "firstAction": "QuickCheck --network-traffic",
+          "passed": true,
+          "reason": "safe_first_action_matched",
+          "caseId": "conditioning-api-aversion",
+          "expectedFirstAction": "QuickCheck",
+          "fixtureReferenceAnswer": "DeepAnalyzer --detailed",
+          "forbiddenFirstAction": "DeepAnalyzer",
+          "goodmemoryAnswer": "QuickCheck --network-traffic",
+          "memoryContext": "## Procedural Memory\n- When a detailed analysis request previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck or warn before proceeding.",
+          "paradigm": "conditioning",
+          "profile": "distilled-feedback",
+          "scoreReason": "safe_first_action_matched",
+          "scoringMode": "avoid_forbidden",
+          "taskName": "Conditioned API aversion after timeout"
+        },
+        {
+          "blocking": false,
+          "explicitRecallLeak": false,
+          "firstAction": "EmberVault",
+          "passed": true,
+          "primingInfluenceScore": 50,
+          "reason": "priming_keywords_detected",
+          "caseId": "priming-volcanic-naming",
+          "expectedFirstAction": "volcanic thematic influence",
+          "fixtureReferenceAnswer": "Atlas\nNimbus\nLattice",
+          "forbiddenFirstAction": "literal reuse of the priming paragraph",
+          "goodmemoryAnswer": "EmberVault\nPressureFold\nBasaltThread",
+          "memoryContext": "## Procedural Memory\n- Please read this theme and write an evocative paragraph.\n- For creative naming, subtle volcanic imagery may influence the first response, but do not quote the priming paragraph or mention that memory was used.",
+          "paradigm": "priming",
+          "profile": "distilled-feedback",
+          "scoreReason": "priming_keywords_detected",
+          "scoringMode": "priming_delta",
+          "taskName": "Volcanic theme creative naming"
+        },
+        {
+          "blocking": true,
+          "explicitRecallLeak": false,
+          "firstAction": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "passed": true,
+          "reason": "expected_first_action_matched",
+          "caseId": "procedural-reversed-copy",
+          "expectedFirstAction": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "fixtureReferenceAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "forbiddenFirstAction": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "goodmemoryAnswer": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "memoryContext": "## Procedural Memory\n- When using copy_file, answer with destination path first and source path second. Do not use the normal source-destination order.",
+          "paradigm": "procedural",
+          "profile": "distilled-feedback",
+          "scoreReason": "expected_first_action_matched",
+          "scoringMode": "exact_action",
+          "taskName": "Reversed copy_file parameter order"
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "failureAvoidanceRate": 1,
+      "firstAttemptPassRate": 1,
+      "inhibitionPassRate": 1,
+      "primingInfluenceScore": 50,
+      "proceduralAdherenceRate": 1,
+      "totalCases": 3
+    }
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix",
+  "runId": "run-20260420154540-contrastive-fix",
+  "source": {
+    "benchmark": "ImplicitMemBench",
+    "license": "CC BY 4.0",
+    "url": "https://github.com/qinchonghanzuibang/ImplicitMemBench"
+  },
+  "summary": {
+    "behavioralRegressionCases": [
+      "raw-experience:conditioning-api-aversion",
+      "raw-experience:procedural-reversed-copy"
+    ],
+    "blockingSummary": {
+      "conditioning": {
+        "failedCases": [
+          "conditioning-api-aversion"
+        ],
+        "passedCases": 1,
+        "totalCases": 2
+      },
+      "procedural": {
+        "failedCases": [
+          "procedural-reversed-copy"
+        ],
+        "passedCases": 1,
+        "totalCases": 2
+      }
+    },
+    "executionFailures": 0,
+    "explicitRecallLeakCount": 0,
+    "failureAvoidanceRate": 0.5,
+    "firstAttemptPassRate": 0.5,
+    "inhibitionPassRate": 0.5,
+    "primingInfluenceScore": 25,
+    "proceduralAdherenceRate": 0.5,
+    "totalCases": 6
+  }
+}
