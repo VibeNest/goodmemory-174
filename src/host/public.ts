@@ -36,6 +36,7 @@ import type {
 import {
   HostAdapterWriteError,
 } from "./contracts";
+import { createHostBehavioralTraceRecorder } from "./behavioralTraceRecorder";
 import { attachHostEvalSupport } from "./evalSupport";
 import { recordBehavioralTrace as recordHostBehavioralTrace } from "./behavioralTraceBridge";
 
@@ -1212,20 +1213,50 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
     },
   } satisfies HostAdapter;
 
-  if (hostKind === "codex" && hasBehavioralOutcomeRecorder(input.memory)) {
-    const behavioralMemory = input.memory;
-    attachHostEvalSupport(adapter, {
-      recordBehavioralTrace: async ({ scope, trace }) => {
-        const result = await recordHostBehavioralTrace({
-          memory: behavioralMemory,
-          scope,
-          trace,
-        });
+  if (hostKind === "codex") {
+    const behavioralMemory = hasBehavioralOutcomeRecorder(input.memory)
+      ? input.memory
+      : undefined;
 
-        return {
-          recorded: result.recorded,
-        };
-      },
+    attachHostEvalSupport(adapter, {
+      createBehavioralTraceRecorder: ({ cue, scope, traceId }) =>
+        createHostBehavioralTraceRecorder({
+          cue,
+          hostKind: "codex",
+          traceId: traceId ?? `host-trace-${createId()}`,
+          onClose: async (trace) => {
+            if (!behavioralMemory) {
+              return {
+                recorded: false,
+              };
+            }
+
+            const result = await recordHostBehavioralTrace({
+              memory: behavioralMemory,
+              scope,
+              trace,
+            });
+
+            return {
+              recorded: result.recorded,
+            };
+          },
+        }),
+      ...(behavioralMemory
+        ? {
+            recordBehavioralTrace: async ({ scope, trace }) => {
+              const result = await recordHostBehavioralTrace({
+                memory: behavioralMemory,
+                scope,
+                trace,
+              });
+
+              return {
+                recorded: result.recorded,
+              };
+            },
+          }
+        : {}),
     });
   }
 

@@ -13,6 +13,7 @@ import {
   createWorkingMemorySnapshot,
 } from "../../src";
 import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
+import { attachGoodMemoryEvalSupport } from "../../src/api/evalSupport";
 import { createHostAdapter } from "../../src/host";
 import type { HostArtifactType } from "../../src/host";
 import { readHostEvalSupport } from "../../src/host/evalSupport";
@@ -567,6 +568,7 @@ describe("host adapter contract", () => {
     });
     const support = readHostEvalSupport(adapter);
 
+    expect(support?.createBehavioralTraceRecorder).toBeDefined();
     expect(support?.recordBehavioralTrace).toBeDefined();
 
     const result = await support!.recordBehavioralTrace!({
@@ -614,7 +616,138 @@ describe("host adapter contract", () => {
     ).toBeTrue();
   });
 
-  it("does not expose a Codex trace helper when the memory instance cannot record behavioral outcomes", () => {
+  it("captures runtime Codex behavioral traces incrementally and records telemetry on close", async () => {
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        testing: {
+          now: () => new Date("2026-04-21T00:00:00.000Z"),
+        },
+      },
+      {
+        behavioralOutcomeRecorder: true,
+      },
+    );
+    const adapter = createHostAdapter({
+      createId: (() => {
+        let counter = 0;
+        return () => `trace-id-${++counter}`;
+      })(),
+      id: "codex-runtime-trace-helper",
+      hostKind: "codex",
+      readableArtifactTypes: ["session_memory"],
+      memory,
+    });
+    const support = readHostEvalSupport(adapter);
+    const recorder = support?.createBehavioralTraceRecorder?.({
+      cue: "detailed analysis",
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+    });
+
+    expect(recorder).toBeDefined();
+
+    recorder!.appendEvent({
+      actionKind: "tool_call",
+      actionName: "DeepAnalyzer",
+      raw: "DeepAnalyzer --detailed",
+      evidenceExcerpt: "DeepAnalyzer timed out on detailed analysis.",
+      outcome: "timeout",
+    });
+    recorder!.appendEvent({
+      actionKind: "tool_call",
+      actionName: "QuickCheck",
+      raw: "QuickCheck --network",
+      correctionOfStepIndex: 0,
+      outcome: "success",
+    });
+
+    const result = await recorder!.close();
+
+    expect(result.recorded).toBe(true);
+    expect(result.trace?.traceId).toBe("host-trace-trace-id-1");
+    expect(result.trace?.events[0]?.stepIndex).toBe(0);
+    expect(result.trace?.events[1]?.stepIndex).toBe(1);
+
+    const exported = await memory.exportMemory({
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+    });
+    expect(
+      exported.durable.experiences.some(
+        (experience) => (experience.kind as string) === "tool_outcome",
+      ),
+    ).toBeTrue();
+  });
+
+  it("promotes repeated runtime Codex trace failures through the same validated-pattern path", async () => {
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        testing: {
+          now: () => new Date("2026-04-21T00:00:00.000Z"),
+        },
+      },
+      {
+        behavioralOutcomeRecorder: true,
+      },
+    );
+    const adapter = createHostAdapter({
+      id: "codex-runtime-trace-promotion",
+      hostKind: "codex",
+      readableArtifactTypes: ["session_memory"],
+      memory,
+    });
+    const support = readHostEvalSupport(adapter);
+
+    for (const traceId of ["runtime-trace-1", "runtime-trace-2"]) {
+      const recorder = support!.createBehavioralTraceRecorder!({
+        cue: "detailed analysis",
+        scope: {
+          userId: "u-1",
+          workspaceId: "ws-1",
+        },
+        traceId,
+      });
+
+      recorder.appendEvent({
+        actionKind: "tool_call",
+        actionName: "DeepAnalyzer",
+        raw: "DeepAnalyzer --detailed",
+        evidenceExcerpt: "DeepAnalyzer timed out on detailed analysis.",
+        outcome: "timeout",
+      });
+      recorder.appendEvent({
+        actionKind: "tool_call",
+        actionName: "QuickCheck",
+        raw: "QuickCheck --network",
+        correctionOfStepIndex: 0,
+        outcome: "success",
+      });
+
+      const result = await recorder.close();
+      expect(result.recorded).toBe(true);
+    }
+
+    const exported = await memory.exportMemory({
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+    });
+    expect(
+      exported.durable.feedback.some(
+        (feedback) =>
+          feedback.kind === "validated_pattern" && feedback.lifecycle === "active",
+      ),
+    ).toBeTrue();
+  });
+
+  it("still exposes a Codex trace helper when the memory instance cannot record behavioral outcomes", () => {
     const adapter = createHostAdapter({
       id: "codex-trace-helper-missing-recorder",
       hostKind: "codex",
@@ -623,8 +756,86 @@ describe("host adapter contract", () => {
         storage: { provider: "memory" },
       }),
     });
+    const support = readHostEvalSupport(adapter);
 
-    expect(readHostEvalSupport(adapter)?.recordBehavioralTrace).toBeUndefined();
+    expect(support?.createBehavioralTraceRecorder).toBeDefined();
+    expect(support?.recordBehavioralTrace).toBeUndefined();
+  });
+
+  it("still emits a Codex runtime trace when behavioral telemetry recording is unavailable", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+    const adapter = createHostAdapter({
+      id: "codex-runtime-trace-no-recorder",
+      hostKind: "codex",
+      readableArtifactTypes: ["session_memory"],
+      memory,
+    });
+    const support = readHostEvalSupport(adapter);
+    const recorder = support?.createBehavioralTraceRecorder?.({
+      cue: "production deploy",
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+      traceId: "codex-trace-no-recorder",
+    });
+
+    recorder!.appendEvent({
+      actionKind: "warning",
+      actionName: "approval_required",
+      raw: "Warning: request production approval before deploy --prod 512.",
+      outcome: "success",
+    });
+
+    const result = await recorder!.close();
+
+    expect(result.recorded).toBe(false);
+    expect(result.trace?.traceId).toBe("codex-trace-no-recorder");
+    expect(result.trace?.events[0]?.actionKind).toBe("warning");
+  });
+
+  it("does not let Codex runtime trace close fail when telemetry recording throws", async () => {
+    const memory = attachGoodMemoryEvalSupport(
+      createGoodMemory({
+        storage: { provider: "memory" },
+      }),
+      {
+        recordBehavioralOutcome: async () => {
+          throw new Error("telemetry backend unavailable");
+        },
+      },
+    );
+    const adapter = createHostAdapter({
+      id: "codex-runtime-trace-recording-failure",
+      hostKind: "codex",
+      readableArtifactTypes: ["session_memory"],
+      memory,
+    });
+    const support = readHostEvalSupport(adapter);
+    const recorder = support?.createBehavioralTraceRecorder?.({
+      cue: "production deploy",
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+      traceId: "codex-trace-recording-failure",
+    });
+
+    recorder!.appendEvent({
+      actionKind: "tool_call",
+      actionName: "DeployProd",
+      raw: "DeployProd --prod",
+      evidenceExcerpt: "DeployProd timed out waiting for production approval.",
+      outcome: "timeout",
+    });
+
+    const result = await recorder!.close();
+
+    expect(result.recorded).toBe(false);
+    expect(result.trace?.traceId).toBe("codex-trace-recording-failure");
+    expect(result.error?.message).toBe("telemetry backend unavailable");
   });
 
   it("fails fast on unsupported or not-yet-implemented writes", async () => {

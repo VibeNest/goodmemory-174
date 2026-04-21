@@ -1,10 +1,18 @@
 import type { MemoryScope } from "../domain/scope";
 import type { HostBehavioralTrace } from "./behavioralTrace";
+import type {
+  HostBehavioralTraceRecorder,
+} from "./behavioralTraceRecorder";
 import type { HostAdapter } from "./contracts";
 
 export const GOODMEMORY_HOST_EVAL_SUPPORT = Symbol.for("goodmemory.host.eval.support");
 
 export interface HostEvalSupport {
+  createBehavioralTraceRecorder?: (input: {
+    cue: string;
+    scope: MemoryScope;
+    traceId?: string;
+  }) => HostBehavioralTraceRecorder;
   recordBehavioralTrace?: (input: {
     scope: MemoryScope;
     trace: HostBehavioralTrace;
