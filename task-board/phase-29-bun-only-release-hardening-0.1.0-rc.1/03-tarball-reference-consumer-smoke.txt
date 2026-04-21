@@ -1,0 +1,6 @@
+Phase 29.3: Tarball Reference Consumer Smoke
+============================================
+
+[DONE] Replace the canonical release smoke from repo-root `file:` install to tarball install from `bun pm pack`.
+[DONE] Keep the smoke restricted to public package imports only.
+[DONE] Prove direct `remember` / `recall`, AI SDK wrapper usage, and host adapter artifact read from the installed tarball.

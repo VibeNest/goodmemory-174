@@ -1,0 +1,103 @@
+Phase 29: Bun-only Release Hardening for 0.1.0-rc.1
+====================================================
+
+Phase Goal
+----------
+Turn GoodMemory from a repo-proven system into a Bun-only, installable, verifiable, releasable `0.1.0-rc.1` without widening the memory surface.
+
+This phase exists to harden and verify:
+
+- the Bun-only prerelease package contract
+- tarball-first installability for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+- installed CLI usage instead of repo-local-only CLI invocation
+- release workflow and RC dry-run evidence on top of the accepted Phase 27 and Phase 28 closure
+
+This phase does not add new memory capability, does not start `src/core` refactors, and does not widen gate-blocking host coverage beyond the accepted Codex-only Phase 27 path.
+
+
+Current Status
+--------------
+[DONE] Phase 29 is closed and accepted as the Bun-only release-hardening slice for `0.1.0-rc.1`.
+[DONE] `package.json` is now a real prerelease package with release metadata, a strict tarball allowlist, and a real `LICENSE`.
+[DONE] Release verification now runs through tarball-installed consumer smoke and installed CLI smoke instead of repo-root-only `file:` installation.
+[DONE] `gate:phase-29` is accepted and the archive/current-status/task-board evidence chain is synchronized.
+[DONE] A canonical RC dry run is archived for a fresh Bun workspace using the packed tarball artifact.
+
+
+Dependencies
+------------
+- Phase 20 integrated release-hardening closure
+- Phase 27 accepted reference-integration and adoption-evidence closure
+- Phase 28 accepted canonical local sqlite-vss backend closure
+
+
+Primary Deliverables
+--------------------
+- Bun-only `0.1.0-rc.1` package metadata and tarball allowlist
+- installed-package-first docs for `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, and the CLI
+- tarball-installed consumer smoke proving public imports plus local-first default runtime
+- installed CLI smoke proving read-only commands work from the packaged binary path
+- dedicated `gate:phase-29` closure command and `release.yml` workflow
+- archived RC dry-run report and archived quality-gate summary
+
+
+Definition of Done
+------------------
+- `package.json` is no longer private and uses version `0.1.0-rc.1`
+- Bun-only support is explicit in README, the reference guide, current-status, and the release checklist
+- the canonical release artifact is the tarball produced by `bun pm pack`
+- a fresh Bun consumer installs the tarball and uses only:
+  - `goodmemory`
+  - `goodmemory/ai-sdk`
+  - `goodmemory/host`
+- the installed CLI works through `bun run goodmemory -- ...` and a strict installed-binary smoke also passes
+- tarball contents include the Bun-native source export model, docs, and CLI entrypoint without pulling in repo-only payload
+- the release workflow supports:
+  - `workflow_dispatch` dry runs
+  - tag-triggered RC release upload
+- deterministic release hardening reruns local checks while accepted Phase 27 live evidence remains archived by reference
+- the canonical RC dry-run report records artifact identity, install command, runtime mode, CLI success, sqlite-vss asset/fallback outcome, and elapsed time
+
+
+Tasks
+-----
+[DONE] P29-T001 Freeze the Bun-only `0.1.0-rc.1` public contract in package metadata, README, reference docs, current-status, and release checklist
+[DONE] P29-T002 Make the package publishable as a prerelease tarball without widening the API or adding a build layer
+[DONE] P29-T003 Upgrade release verification from repo-root `file:` smoke to tarball-installed public-reference smoke
+[DONE] P29-T004 Add installed CLI smoke and lock the installed-package usage contract
+[DONE] P29-T005 Add `gate:phase-29` plus a release workflow that uploads the canonical tarball artifact
+[DONE] P29-T006 Run and archive a canonical RC dry run in a fresh Bun workspace
+[DONE] P29-T007 Archive the canonical Phase 29 quality-gate summary and sync current-status/task-board references
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-29-bun-only-release-hardening-0.1.0-rc.1/00-README.txt`
+- `task-board/phase-29-bun-only-release-hardening-0.1.0-rc.1/01-freeze-bun-only-v1-contract.txt`
+- `task-board/phase-29-bun-only-release-hardening-0.1.0-rc.1/02-make-package-publishable.txt`
+- `task-board/phase-29-bun-only-release-hardening-0.1.0-rc.1/03-tarball-reference-consumer-smoke.txt`
+- `task-board/phase-29-bun-only-release-hardening-0.1.0-rc.1/04-installed-cli-smoke.txt`
+- `task-board/phase-29-bun-only-release-hardening-0.1.0-rc.1/05-add-release-workflow.txt`
+- `task-board/phase-29-bun-only-release-hardening-0.1.0-rc.1/06-rewrite-readme-install-quickstart.txt`
+- `task-board/phase-29-bun-only-release-hardening-0.1.0-rc.1/07-cut-0.1.0-rc.1.txt`
+
+
+Evidence
+--------
+- `package.json`
+- `LICENSE`
+- `README.md`
+- `docs/GoodMemory-Reference-Integration-Guide.md`
+- `docs/GoodMemory-Codex-Handoff-Setup-Guide.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `docs/GoodMemory-v1-Release-Checklist.md`
+- `.github/workflows/release.yml`
+- `tests/consumers/reference-package-smoke/package.json`
+- `tests/consumers/reference-package-smoke/smoke.mjs`
+- `tests/release/release.test.ts`
+- `tests/unit/run-phase-29.script.test.ts`
+- `scripts/run-phase-29-gate.ts`
+- `scripts/run-phase-29-rc-dry-run.ts`
+- `reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json`
+- `reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md`

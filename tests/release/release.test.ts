@@ -1,10 +1,37 @@
 import { describe, expect, it } from "bun:test";
 import { access, cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const QUALITY_GATE_ARCHIVE_ROOT = "docs/archive/quality-gates";
+const ROOT_PACKAGE_PATH = join(import.meta.dir, "../../");
+const RELEASE_TEST_ENV = {
+  GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY: undefined,
+  GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL: undefined,
+  GOODMEMORY_ASSISTED_EXTRACTOR_MODEL: undefined,
+  GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER: undefined,
+  GOODMEMORY_EMBEDDING_API_KEY: undefined,
+  GOODMEMORY_EMBEDDING_BASE_URL: undefined,
+  GOODMEMORY_EMBEDDING_MODEL: undefined,
+  GOODMEMORY_EMBEDDING_PROVIDER: undefined,
+  GOODMEMORY_JUDGE_API_KEY: undefined,
+  GOODMEMORY_JUDGE_BASE_URL: undefined,
+  GOODMEMORY_JUDGE_MODEL: undefined,
+  GOODMEMORY_JUDGE_PROVIDER: undefined,
+  GOODMEMORY_RECALL_ROUTER_API_KEY: undefined,
+  GOODMEMORY_RECALL_ROUTER_BASE_URL: undefined,
+  GOODMEMORY_RECALL_ROUTER_MODEL: undefined,
+  GOODMEMORY_RECALL_ROUTER_PROVIDER: undefined,
+  GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH: undefined,
+  GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT: undefined,
+  GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH: undefined,
+  GOODMEMORY_SQLITE_VECTOR_MODE: undefined,
+  GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: undefined,
+  GOODMEMORY_STORAGE_PROVIDER: undefined,
+  GOODMEMORY_STORAGE_URL: undefined,
+  GOODMEMORY_TEST_POSTGRES_URL: undefined,
+} as const;
 const CANONICAL_PHASE20_DEPENDENCY_SUMMARY_ARTIFACTS = [
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/public-surface-decision.json",
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/regression-dashboard.json",
@@ -30,7 +57,7 @@ async function runGitCommand(args: string[]): Promise<{
 }> {
   const process = Bun.spawn({
     cmd: ["git", ...args],
-    cwd: join(import.meta.dir, "../../"),
+    cwd: ROOT_PACKAGE_PATH,
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -92,6 +119,58 @@ async function runCommand(input: {
     stderr,
     stdout,
   };
+}
+
+function extractJsonObject<T>(value: string): T {
+  const start = value.indexOf("{");
+  const end = value.lastIndexOf("}");
+
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error("Expected JSON output but none was found.");
+  }
+
+  return JSON.parse(value.slice(start, end + 1)) as T;
+}
+
+async function packReleaseTarball(outputDir: string): Promise<{
+  tarballName: string;
+  tarballPath: string;
+}> {
+  const pack = await runCommand({
+    cmd: ["bun", "pm", "pack", "--destination", outputDir, "--quiet"],
+    cwd: ROOT_PACKAGE_PATH,
+  });
+
+  expect(pack.exitCode).toBe(0);
+  const tarballOutput = pack.stdout.trim();
+  const tarballName =
+    tarballOutput.length > 0
+      ? basename(tarballOutput)
+      : "goodmemory-0.1.0-rc.1.tgz";
+  const tarballPath =
+    tarballOutput.length === 0
+      ? join(outputDir, tarballName)
+      : tarballOutput.includes("/")
+        ? tarballOutput
+        : join(outputDir, tarballOutput);
+
+  return {
+    tarballName,
+    tarballPath,
+  };
+}
+
+async function listTarballEntries(tarballPath: string): Promise<string[]> {
+  const list = await runCommand({
+    cmd: ["tar", "-tzf", tarballPath],
+    cwd: ROOT_PACKAGE_PATH,
+  });
+  expect(list.exitCode).toBe(0);
+
+  return list.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
 
 async function expectGitTrackedRepoArtifact(relativePath: string) {
@@ -259,11 +338,59 @@ describe("release metadata and docs", () => {
     const pkg = JSON.parse(
       await readFile(join(import.meta.dir, "../../package.json"), "utf8"),
     ) as {
+      bugs?: {
+        url?: string;
+      };
       bin?: Record<string, string>;
+      description?: string;
+      engines?: Record<string, string>;
       exports?: Record<string, string | { import?: string }>;
+      files?: string[];
+      homepage?: string;
+      keywords?: string[];
+      license?: string;
+      packageManager?: string;
+      private?: boolean;
+      publishConfig?: Record<string, string>;
+      repository?: {
+        type?: string;
+        url?: string;
+      };
       scripts?: Record<string, string>;
+      version?: string;
     };
 
+    expect(pkg.version).toBe("0.1.0-rc.1");
+    expect(pkg.private).toBeUndefined();
+    expect(pkg.description).toBe(
+      "Bun-only memory layer for chat, copilot, and agent applications.",
+    );
+    expect(pkg.license).toBe("MIT");
+    expect(pkg.homepage).toBe("https://github.com/hjqcan/GoodMomery#readme");
+    expect(pkg.repository).toEqual({
+      type: "git",
+      url: "git+https://github.com/hjqcan/GoodMomery.git",
+    });
+    expect(pkg.bugs?.url).toBe("https://github.com/hjqcan/GoodMomery/issues");
+    expect(pkg.keywords).toEqual([
+      "agents",
+      "ai",
+      "bun",
+      "copilot",
+      "llm",
+      "memory",
+    ]);
+    expect(pkg.packageManager).toBe("bun@1.3.0");
+    expect(pkg.engines?.bun).toBe(">=1.3.0");
+    expect(pkg.publishConfig?.access).toBe("public");
+    expect(pkg.files).toEqual([
+      "LICENSE",
+      "README.md",
+      "docs",
+      "package.json",
+      "scripts/goodmemory-cli.ts",
+      "src",
+    ]);
     expect(pkg.bin?.goodmemory).toBe("./scripts/goodmemory-cli.ts");
     expect(pkg.exports?.["."]).toBe("./src/index.ts");
     expect(pkg.exports?.["./cli"]).toBe("./src/cli.ts");
@@ -319,7 +446,18 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-26"]).toBe("bun run scripts/run-phase-26-gate.ts");
     expect(pkg.scripts?.["gate:phase-27"]).toBe("bun run scripts/run-phase-27-gate.ts");
     expect(pkg.scripts?.["gate:phase-28"]).toBe("bun run scripts/run-phase-28-gate.ts");
+    expect(pkg.scripts?.["gate:phase-29"]).toBe("bun run scripts/run-phase-29-gate.ts");
+    expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
+      "bun run scripts/run-phase-29-rc-dry-run.ts",
+    );
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
+  });
+
+  it("package metadata includes a real MIT license file", async () => {
+    const license = await readFile(join(import.meta.dir, "../../LICENSE"), "utf8");
+
+    expect(license).toContain("MIT License");
+    expect(license).toContain("Permission is hereby granted");
   });
 
   it("package export targets resolve to files that still exist", async () => {
@@ -337,6 +475,38 @@ describe("release metadata and docs", () => {
       await access(join(import.meta.dir, "../../", target));
     }
   });
+
+  it("packs a tarball that keeps the Bun-native release surface and omits repo-only payload", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "goodmemory-phase29-pack-"));
+
+    try {
+      const dryRun = await runCommand({
+        cmd: ["bun", "pm", "pack", "--dry-run"],
+        cwd: ROOT_PACKAGE_PATH,
+      });
+      expect(dryRun.exitCode).toBe(0);
+
+      const { tarballPath } = await packReleaseTarball(outputDir);
+      const entries = await listTarballEntries(tarballPath);
+
+      expect(entries).toContain("package/package.json");
+      expect(entries).toContain("package/README.md");
+      expect(entries).toContain("package/LICENSE");
+      expect(entries).toContain("package/src/index.ts");
+      expect(entries).toContain("package/src/ai-sdk/index.ts");
+      expect(entries).toContain("package/src/host/index.ts");
+      expect(entries).toContain("package/src/storage/sqliteRuntime.ts");
+      expect(entries).toContain("package/scripts/goodmemory-cli.ts");
+      expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
+      expect(entries).toContain("package/docs/GoodMemory-Codex-Handoff-Setup-Guide.md");
+      expect(entries).not.toContain("package/tests/release/release.test.ts");
+      expect(entries).not.toContain("package/task-board/00-README.txt");
+      expect(entries).not.toContain("package/reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json");
+      expect(entries).not.toContain("package/.github/workflows/ci.yml");
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 20_000);
 
   it("phase-28 sqlite-vss integration test uses portable runtime detection", async () => {
     const content = await readFile(
@@ -369,6 +539,10 @@ describe("release metadata and docs", () => {
     const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
 
     expect(readme).toContain("createGoodMemory");
+    expect(readme).toContain("0.1.0-rc.1");
+    expect(readme).toContain("Bun-only");
+    expect(readme).toContain("bun add goodmemory@0.1.0-rc.1");
+    expect(readme).toContain("bun add ./goodmemory-0.1.0-rc.1.tgz");
     expect(readme).toContain("examples/basic-chat.ts");
     expect(readme).toContain("examples/coding-agent.ts");
     expect(readme).toContain("examples/vercel-ai-chat.ts");
@@ -376,7 +550,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("examples/host-codex-handoff.ts");
     expect(readme).toContain("GoodMemory-Reference-Integration-Guide.md");
     expect(readme).toContain("GoodMemory-Codex-Handoff-Setup-Guide.md");
-    expect(readme).toContain("bun run cli -- inspect");
+    expect(readme).toContain("bun run goodmemory -- inspect");
     expect(readme).toContain("createGoodMemoryAISDK");
     expect(readme).toContain("goodmemory/ai-sdk");
     expect(readme).toContain("ModelMessage");
@@ -420,6 +594,7 @@ describe("release metadata and docs", () => {
     expect(readme).not.toContain("goodmemory/evolution");
     expect(readme).not.toContain("strategyRollout");
     expect(readme).not.toContain("promotionGate");
+    expect(readme).not.toContain("bun run cli -- inspect");
   });
 
   it("phase-27 canonical guides and examples use public imports only", async () => {
@@ -455,6 +630,9 @@ describe("release metadata and docs", () => {
     expect(referenceGuide).toContain('from "goodmemory"');
     expect(referenceGuide).toContain('from "goodmemory/ai-sdk"');
     expect(referenceGuide).toContain("createGoodMemory({})");
+    expect(referenceGuide).toContain("bun add goodmemory@0.1.0-rc.1");
+    expect(referenceGuide).toContain("bun add ./goodmemory-0.1.0-rc.1.tgz");
+    expect(referenceGuide).toContain("Bun-only");
 
     const codexGuide = await readFile(
       join(
@@ -465,6 +643,7 @@ describe("release metadata and docs", () => {
     );
     expect(codexGuide).toContain('from "goodmemory"');
     expect(codexGuide).toContain('from "goodmemory/host"');
+    expect(codexGuide).toContain("bun add goodmemory@0.1.0-rc.1");
   });
 
   it("package-boundary reference consumer smoke uses package-name imports only", async () => {
@@ -479,7 +658,9 @@ describe("release metadata and docs", () => {
     const workspaceRoot = await mkdtemp(
       join(tmpdir(), "goodmemory-reference-consumer-"),
     );
-    const rootPackagePath = join(import.meta.dir, "../../");
+    const packOutputDir = await mkdtemp(
+      join(tmpdir(), "goodmemory-reference-pack-"),
+    );
 
     try {
       expect(importSpecifiers).toEqual([
@@ -488,13 +669,17 @@ describe("release metadata and docs", () => {
         "goodmemory/host",
       ]);
 
+      const { tarballPath } = await packReleaseTarball(packOutputDir);
       await cp(fixtureRoot, workspaceRoot, { recursive: true });
 
       const packageJsonPath = join(workspaceRoot, "package.json");
       const packageJson = await readFile(packageJsonPath, "utf8");
       await writeFile(
         packageJsonPath,
-        packageJson.replace("__GOODMEMORY_ROOT__", rootPackagePath),
+        packageJson.replace(
+          "__GOODMEMORY_PACKAGE_SPEC__",
+          `file:${tarballPath}`,
+        ),
         "utf8",
       );
 
@@ -507,23 +692,19 @@ describe("release metadata and docs", () => {
       const smoke = await runCommand({
         cmd: ["bun", "run", "smoke"],
         cwd: workspaceRoot,
-        env: {
-          GOODMEMORY_STORAGE_PROVIDER: undefined,
-          GOODMEMORY_STORAGE_URL: undefined,
-          GOODMEMORY_EMBEDDING_PROVIDER: undefined,
-          GOODMEMORY_EMBEDDING_MODEL: undefined,
-          GOODMEMORY_EMBEDDING_API_KEY: undefined,
-          GOODMEMORY_EMBEDDING_BASE_URL: undefined,
-          GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH: undefined,
-          GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH: undefined,
-          GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT: undefined,
-          GOODMEMORY_SQLITE_VECTOR_MODE: undefined,
-          GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: undefined,
-        },
+        env: { ...RELEASE_TEST_ENV },
       });
       expect(smoke.exitCode).toBe(0);
-      expect(smoke.stdout).toContain('"ok":true');
-      expect(smoke.stdout).toContain("MEMORY.md");
+      const smokeJson = extractJsonObject<{
+        artifactPaths: string[];
+        contextIncludesBlocker: boolean;
+        ok: boolean;
+        recallHitCount: number;
+      }>(smoke.stdout);
+      expect(smokeJson.ok).toBe(true);
+      expect(smokeJson.contextIncludesBlocker).toBe(true);
+      expect(smokeJson.recallHitCount).toBeGreaterThan(0);
+      expect(smokeJson.artifactPaths).toContain("MEMORY.md");
 
       const stats = await runCommand({
         cmd: [
@@ -536,27 +717,46 @@ describe("release metadata and docs", () => {
           "consumer-workspace",
         ],
         cwd: workspaceRoot,
-        env: {
-          GOODMEMORY_STORAGE_PROVIDER: undefined,
-          GOODMEMORY_STORAGE_URL: undefined,
-          GOODMEMORY_EMBEDDING_PROVIDER: undefined,
-          GOODMEMORY_EMBEDDING_MODEL: undefined,
-          GOODMEMORY_EMBEDDING_API_KEY: undefined,
-          GOODMEMORY_EMBEDDING_BASE_URL: undefined,
-          GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH: undefined,
-          GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH: undefined,
-          GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT: undefined,
-          GOODMEMORY_SQLITE_VECTOR_MODE: undefined,
-          GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: undefined,
-        },
+        env: { ...RELEASE_TEST_ENV },
       });
       expect(stats.exitCode).toBe(0);
-      expect(stats.stdout).toContain('"provider": "sqlite"');
-      expect(stats.stdout).toContain('"facts": 1');
+      const statsJson = extractJsonObject<{
+        counts?: {
+          facts?: number;
+        };
+        storage?: {
+          provider?: string;
+        };
+      }>(stats.stdout);
+      expect(statsJson.storage?.provider).toBe("sqlite");
+      expect(statsJson.counts?.facts).toBeGreaterThan(0);
+
+      const bunRunStats = await runCommand({
+        cmd: [
+          "bun",
+          "run",
+          "goodmemory",
+          "--",
+          "stats",
+          "--json",
+          "--user-id",
+          "consumer-user",
+          "--workspace-id",
+          "consumer-workspace",
+        ],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(bunRunStats.exitCode).toBe(0);
+      expect(
+        extractJsonObject<{ storage?: { provider?: string } }>(bunRunStats.stdout).storage
+          ?.provider,
+      ).toBe("sqlite");
     } finally {
+      await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });
     }
-  }, 15_000);
+  }, 30_000);
 
   it("release checklist exists and covers the final gate", async () => {
     const checklist = await readFile(
@@ -568,8 +768,14 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("Examples");
     expect(checklist).toContain("Eval");
     expect(checklist).toContain("Quality Gate");
+    expect(checklist).toContain("RC Contract");
     expect(checklist).toContain("bun test");
     expect(checklist).toContain("bun run test:coverage");
+    expect(checklist).toContain("bun pm pack --dry-run");
+    expect(checklist).toContain("0.1.0-rc.1");
+    expect(checklist).toContain("Bun-only");
+    expect(checklist).toContain("gate:phase-29");
+    expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
     expect(checklist).toContain("Strategy Rollout");
@@ -624,6 +830,33 @@ describe("release metadata and docs", () => {
     );
     expect(currentStatus).toContain("task-board/00-README.txt");
     expect(currentStatus).toContain("docs/archive/quality-gates/README.md");
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json",
+    );
+    expect(currentStatus).toContain("Bun-only prerelease contract");
+  });
+
+  it("release workflow uses manual plus tag triggers, gate:phase-29, and tarball artifact upload", async () => {
+    const workflow = await readFile(
+      join(import.meta.dir, "../../.github/workflows/release.yml"),
+      "utf8",
+    );
+
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("tags:");
+    expect(workflow).toContain("v0.1.0-rc.*");
+    expect(workflow).toContain("bun run gate:phase-29");
+    expect(workflow).toContain("TAG_VERSION=\"${GITHUB_REF_NAME#v}\"");
+    expect(workflow).toContain("[[ \"$TAG_VERSION\" != \"$VERSION\" ]]");
+    expect(workflow).toContain("bun pm pack");
+    expect(workflow).toContain("actions/upload-artifact@v4");
+    expect(workflow).toContain("softprops/action-gh-release@v2");
   });
 
   it("phase quality gate docs live in the archive instead of the top-level docs folder", async () => {
@@ -646,6 +879,7 @@ describe("release metadata and docs", () => {
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-25-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-26-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-28-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-29-Quality-Gate.md");
     expect(archivedQualityGates).toContain("README.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
@@ -659,6 +893,7 @@ describe("release metadata and docs", () => {
     expect(archivedQualityGates).toContain("GoodMemory-Phase-25-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-26-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-28-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-29-Quality-Gate.md");
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
@@ -768,6 +1003,28 @@ describe("release metadata and docs", () => {
     );
     await expectGitTrackedRepoArtifact(
       "reports/eval/live-memory/phase-27/run-20260421170500/report.json",
+    );
+  });
+
+  it("phase-29 quality gate doc points to the canonical gate plus RC dry-run evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-29-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-29",
+      reportFileName: "phase-29-quality-gate.json",
+      runId: "run-20260421213000",
+    });
+
+    expect(qualityGateDoc).toContain(
+      "reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json",
+    );
+    await expectGitTrackedPath(
+      "reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json",
     );
   });
 

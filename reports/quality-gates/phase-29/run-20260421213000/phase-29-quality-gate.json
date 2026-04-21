@@ -1,0 +1,106 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 29 Bun-only release hardening is regression-covered, the canonical tarball-installed RC dry run is accepted, and the release artifact is ready to cut as 0.1.0-rc.1."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2405,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-29-targeted-regressions",
+      "command": "bun test tests/unit/run-phase-29.script.test.ts tests/release/release.test.ts",
+      "durationMs": 3021,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) release metadata and docs > phase-19 maintenance quality gate doc points to one canonical accepted report [98.01ms]",
+        "(pass) release metadata and docs > phase-20 quality gate doc points to one canonical accepted report [83.19ms]",
+        "(pass) release metadata and docs > phase-22 quality gate doc points to one canonical accepted report [27.82ms]",
+        "(pass) release metadata and docs > phase-23 quality gate doc points to one canonical accepted report [27.15ms]",
+        "(pass) release metadata and docs > phase-25 quality gate doc points to one canonical accepted report [27.85ms]",
+        "(pass) release metadata and docs > phase-26 quality gate doc points to one canonical accepted report [53.01ms]",
+        "(pass) release metadata and docs > phase-28 quality gate doc points to one canonical accepted report [27.50ms]",
+        "(pass) release metadata and docs > phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence [88.15ms]",
+        "(pass) release metadata and docs > phase-29 quality gate doc points to the canonical gate plus RC dry-run evidence [44.85ms]",
+        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [213.53ms]",
+        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [384.55ms]",
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [579.40ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [262.57ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.19ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.33ms]",
+        "",
+        " 49 pass",
+        " 0 fail",
+        " 806 expect() calls",
+        "Ran 49 tests across 2 files. [3.01s]"
+      ]
+    },
+    {
+      "label": "phase-28-gate",
+      "command": "bun run gate:phase-28",
+      "durationMs": 2512,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "  \"generatedAt\": \"2026-04-21T07:48:30.827Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-28-gate.ts\",",
+        "  \"phase\": \"phase-28\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-28/run-20260421074830\",",
+        "  \"runId\": \"run-20260421074830\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"real sqlite-vss indexed local backend on supported runtimes\",",
+        "      \"automatic bundled sqlite-vss runtime detection and explicit fallback diagnostics\",",
+        "      \"durable fallback and rules-only regressions preserved under the upgraded local backend\",",
+        "      \"phase-28 gate and canonical closure evidence\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"bundled local embedding generation\",",
+        "      \"installer CLI or package publish automation\",",
+        "      \"reopening phase-26 storage-resolution semantics\",",
+        "      \"claiming accelerated local support on unsupported runtimes\"",
+        "    ]",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-28-gate.ts"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-21T07:48:25.373Z",
+  "generatedBy": "scripts/run-phase-29-gate.ts",
+  "phase": "phase-29",
+  "prerequisiteArtifacts": {
+    "rcDryRunReport": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json"
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421213000",
+  "runId": "run-20260421213000",
+  "scope": {
+    "inScope": [
+      "bun-only package metadata and tarball-first release contract for 0.1.0-rc.1",
+      "tarball-installed public-reference smoke for goodmemory, goodmemory/ai-sdk, and goodmemory/host",
+      "installed CLI verification through the packaged Bun binary path",
+      "phase-28 compatibility and supported local sqlite-vss runtime honesty preserved under the release surface",
+      "phase-29 gate and archived RC dry-run evidence"
+    ],
+    "outOfScope": [
+      "new memory capability work",
+      "Node runtime compatibility",
+      "installer CLI",
+      "widening gate-blocking host coverage beyond the accepted Codex path"
+    ]
+  }
+}

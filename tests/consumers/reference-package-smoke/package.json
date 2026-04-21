@@ -6,6 +6,6 @@
     "smoke": "bun run smoke.mjs"
   },
   "dependencies": {
-    "goodmemory": "file:__GOODMEMORY_ROOT__"
+    "goodmemory": "__GOODMEMORY_PACKAGE_SPEC__"
   }
 }

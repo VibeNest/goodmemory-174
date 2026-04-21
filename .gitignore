@@ -133,6 +133,7 @@ reports/quality-gates/**
 !reports/quality-gates/*/
 !reports/quality-gates/*/run-*/
 !reports/quality-gates/*/run-*/phase-*-quality-gate.json
+!reports/quality-gates/*/run-*/phase-*-rc-dry-run.json
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/

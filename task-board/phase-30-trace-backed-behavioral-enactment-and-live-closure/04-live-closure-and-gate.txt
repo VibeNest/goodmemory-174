@@ -1,0 +1,14 @@
+Phase 30.4: Live Closure and Gate
+=================================
+
+[TODO] Add `gate:phase-30`.
+[TODO] Make one canonical accepted provider-backed live-memory behavioral report a gate requirement.
+[TODO] Keep deterministic trace-backed regressions in the gate command list.
+[TODO] Fail the gate if live behavioral closure is missing, rejected, or not trace-backed.
+
+Acceptance
+----------
+- `bun run gate:phase-30` cannot pass with deterministic evidence only.
+- The live report proves a strict majority of GoodMemory wins on blocking trace-backed behavioral cases.
+- Baseline wins are bounded and visible in the report.
+- The gate does not reopen Phase 29 release packaging or Phase 28 local backend scope.

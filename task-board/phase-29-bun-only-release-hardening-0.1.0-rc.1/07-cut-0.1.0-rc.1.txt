@@ -1,0 +1,6 @@
+Phase 29.7: Cut 0.1.0-rc.1
+===========================
+
+[DONE] Archive one canonical RC dry-run report from a fresh Bun workspace.
+[DONE] Freeze the tarball-first release artifact contract around `goodmemory-0.1.0-rc.1.tgz`.
+[DONE] Sync current-status, archive, and task-board references to the canonical gate and RC dry-run evidence.

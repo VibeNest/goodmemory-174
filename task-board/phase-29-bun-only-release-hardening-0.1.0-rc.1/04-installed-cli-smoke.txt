@@ -1,0 +1,6 @@
+Phase 29.4: Installed CLI Smoke
+===============================
+
+[DONE] Verify the installed package exposes a working CLI binary.
+[DONE] Verify installed-package docs can use `bun run goodmemory -- ...`.
+[DONE] Keep strict smoke coverage on the installed binary path as the harder verification boundary.

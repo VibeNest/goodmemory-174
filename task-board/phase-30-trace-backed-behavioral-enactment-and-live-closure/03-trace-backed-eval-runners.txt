@@ -1,0 +1,13 @@
+Phase 30.3: Trace-Backed Eval Runners
+=====================================
+
+[TODO] Add a deterministic Phase 30 eval runner that consumes trace fixtures.
+[TODO] Add a provider-backed live-memory Phase 30 runner that records actual host traces.
+[TODO] Reuse Phase 25 `layer_d` metrics without renaming or adding release-blocking priming metrics.
+[TODO] Report baseline trace, GoodMemory trace, memory context, first-action parse, score reason, and outcome telemetry lineage per case.
+
+Acceptance
+----------
+- Deterministic trace-backed cases cover procedural generalization, conditioning avoidance, timeout aversion, explicit user correction, and safe-warning behavior.
+- Coding-agent behavioral cases never score from model-returned JSON `first_action`.
+- Priming remains research-only and non-blocking.

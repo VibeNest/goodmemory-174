@@ -1,0 +1,141 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Packed tarball installed cleanly in a fresh Bun workspace, public imports worked, and the installed CLI succeeded on the default local-first runtime."
+  },
+  "artifact": {
+    "packageSpec": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421214500/goodmemory-0.1.0-rc.1.tgz",
+    "tarballName": "goodmemory-0.1.0-rc.1.tgz",
+    "tarballPath": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421214500/goodmemory-0.1.0-rc.1.tgz"
+  },
+  "commands": [
+    {
+      "label": "create-workspace-package-json",
+      "command": "write package.json",
+      "durationMs": 0,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "package.json written"
+      ],
+      "stderrTail": []
+    },
+    {
+      "label": "pack-tarball",
+      "command": "bun pm pack --destination /Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421214500 --quiet",
+      "durationMs": 628,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "",
+        "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421214500/goodmemory-0.1.0-rc.1.tgz"
+      ],
+      "stderrTail": [
+        "[0.02ms] \".env\""
+      ]
+    },
+    {
+      "label": "install-tarball",
+      "command": "bun add /Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421214500/goodmemory-0.1.0-rc.1.tgz",
+      "durationMs": 213,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun add v1.3.11 (af24e281)",
+        "",
+        "installed goodmemory@/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421214500/goodmemory-0.1.0-rc.1.tgz with binaries:",
+        " - goodmemory",
+        "",
+        "16 packages installed [207.00ms]"
+      ],
+      "stderrTail": [
+        "Resolving dependencies",
+        "Resolved, downloaded and extracted [1]",
+        "Saved lockfile"
+      ]
+    },
+    {
+      "label": "write-smoke-script",
+      "command": "write smoke.mjs",
+      "durationMs": 0,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "smoke.mjs written"
+      ],
+      "stderrTail": []
+    },
+    {
+      "label": "public-reference-smoke",
+      "command": "bun run smoke.mjs",
+      "durationMs": 125,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "{",
+        "  \"artifactPaths\": [",
+        "    \"MEMORY.md\"",
+        "  ],",
+        "  \"contextIncludesBlocker\": true,",
+        "  \"ok\": true,",
+        "  \"recallHitCount\": 2",
+        "}"
+      ],
+      "stderrTail": []
+    },
+    {
+      "label": "installed-cli-stats",
+      "command": "bun run goodmemory -- stats --json --user-id consumer-user --workspace-id consumer-workspace",
+      "durationMs": 371,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "    \"factsActive\": 2,",
+        "    \"feedback\": 0,",
+        "    \"feedbackActive\": 0,",
+        "    \"preferences\": 1,",
+        "    \"profile\": 0,",
+        "    \"promotions\": 0,",
+        "    \"proposals\": 0,",
+        "    \"references\": 0,",
+        "    \"referencesActive\": 0",
+        "  },",
+        "  \"runtime\": null,",
+        "  \"scope\": {",
+        "    \"userId\": \"consumer-user\",",
+        "    \"workspaceId\": \"consumer-workspace\"",
+        "  },",
+        "  \"storage\": {",
+        "    \"location\": \"/private/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase29-rc-dry-run-dQgFfE/.goodmemory/memory.sqlite\",",
+        "    \"provider\": \"sqlite\"",
+        "  }",
+        "}"
+      ],
+      "stderrTail": []
+    }
+  ],
+  "elapsedMs": 1344,
+  "generatedAt": "2026-04-21T07:41:19.530Z",
+  "generatedBy": "scripts/run-phase-29-rc-dry-run.ts",
+  "phase": "phase-29",
+  "releaseContract": {
+    "distribution": "tarball-first",
+    "runtime": "bun-only",
+    "version": "0.1.0-rc.1"
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-29/run-20260421214500",
+  "runId": "run-20260421214500",
+  "verification": {
+    "artifactPaths": [
+      "MEMORY.md"
+    ],
+    "cliCommand": "bun run goodmemory -- stats --json --user-id consumer-user --workspace-id consumer-workspace",
+    "cliProvider": "sqlite",
+    "contextIncludesBlocker": true,
+    "docsInstallCommand": "bun add ./goodmemory-0.1.0-rc.1.tgz",
+    "recallHitCount": 2,
+    "runtimeMode": "rules-only",
+    "smokeOk": true,
+    "sqliteRuntimeOutcome": "bundled sqlite-vss runtime detected; dry run remained rules-only because GOODMEMORY_EMBEDDING_* was unset"
+  }
+}

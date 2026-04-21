@@ -93,6 +93,8 @@ Read and execute files in this order:
 27. 27-phase-26-local-sqlite-vector-fallback.txt
 28. 28-phase-27-reference-integration-gate-and-adoption-evidence.txt
 29. 29-phase-28-canonical-sqlite-vss-local-backend.txt
+30. 30-phase-29-bun-only-release-hardening-0.1.0-rc.1.txt
+31. 31-phase-30-trace-backed-behavioral-enactment-and-live-closure.txt
 
 
 Current Sequencing Note
@@ -149,7 +151,12 @@ Current Sequencing Note
 - Phase 28 is now closed as the canonical local sqlite-vss backend slice:
   - `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`
   - `reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json`
-- Any work after Phase 28 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 29 is now closed as the Bun-only release-hardening slice for `0.1.0-rc.1`:
+  - `docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md`
+  - `reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json`
+  - `reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json`
+- Phase 30 is queued as the trace-backed behavioral enactment and live closure slice; it is not implemented or accepted yet.
+- Any work outside queued Phase 30 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -158,7 +165,7 @@ Current Sequencing Note
 - Phase 24 added a first-action implicit behavioral adaptation eval harness with separate raw-experience and distilled-feedback profiles, while keeping runtime behavior unchanged.
 - Phase 25 added outcome-derived `tool_outcome` promotion and canonical Layer D deterministic behavioral evidence while keeping the surface area internal.
 - Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases; that deferred scope is now closed in its dedicated phase.
-- Phase 15 through Phase 28 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened, internally promotable, behaviorally measurable, local-first, adoption-proven, and sqlite-vss-accelerated memory system".
+- Phase 15 through Phase 29 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened, internally promotable, behaviorally measurable, local-first, adoption-proven, sqlite-vss-accelerated, and Bun-releasable memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
 
@@ -168,12 +175,12 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 28 guarantees while local changes land
-   - Keep the accepted Phase 27 adoption evidence and accepted Phase 28 supported local acceleration guarantees regression-covered while future work lands
-   - Start new work through a new explicit phase file rather than reopening closed Phase 27 or Phase 28 work implicitly
+   - Preserve the closed Phase 17 through Phase 29 guarantees while local changes land
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, and accepted Phase 29 Bun-only release boundary regression-covered while future work lands
+   - Execute queued Phase 30 through trace-backed behavioral evidence rather than reopening closed Phase 25 or Phase 29 work implicitly
 2. Near-term product differentiation
-   - Define the next executable post-Phase-28 slice instead of broadening the accepted local-acceleration claim ad hoc
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, and Phase 28 supported local acceleration regression-covered while later phases execute
+   - Use Phase 30 to prove real first-action behavioral enactment on the accepted Codex host path
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, and Phase 29 Bun-only release hardening regression-covered while later phases execute
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
 4. Host integration track
@@ -301,3 +308,9 @@ Files in This Folder
 
 - 27-phase-26-local-sqlite-vector-fallback.txt
   Local SQLite vector fallback, runtime bootstrap rules, and semantic-storage parity for non-Postgres deployments
+
+- 30-phase-29-bun-only-release-hardening-0.1.0-rc.1.txt
+  Bun-only `0.1.0-rc.1` packaging, tarball-installed consumer smoke, installed CLI smoke, release workflow, and RC dry-run evidence
+
+- 31-phase-30-trace-backed-behavioral-enactment-and-live-closure.txt
+  Trace-backed first-action behavioral enactment on the accepted Codex host path with provider-backed live-memory closure

@@ -1,0 +1,7 @@
+Phase 29.2: Make Package Publishable
+====================================
+
+[DONE] Move package metadata from `0.0.0` / private to `0.1.0-rc.1` prerelease form.
+[DONE] Add release metadata, Bun engine declaration, tarball allowlist, and MIT license.
+[DONE] Keep the Bun-native source export model; do not introduce a `dist/` build layer in this phase.
+[DONE] Keep sqlite-vss runtime honesty explicit through tarball packaging and fallback verification.

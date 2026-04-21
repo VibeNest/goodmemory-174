@@ -7,8 +7,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 ## Stable OSS Surface
 
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
+- `0.1.0-rc.1` is now frozen as a Bun-only prerelease contract. The canonical installable unit is the tarball produced by `bun pm pack`; registry publish is not a blocking claim for this RC.
 - `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend, and local SQLite is the fallback.
-- The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands.
+- The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package usage contract is `bun run goodmemory -- ...`.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
 - `sqlite` is now stable as the default local durable document/session/vector backend for the auto-storage path.
 - `GOODMEMORY_EMBEDDING_*` now controls automatic embedding enablement; when those variables are absent, runtime behavior stays `rules-only`.
@@ -20,16 +21,17 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 28 is now closed as the canonical local `sqlite-vss` backend slice built on the accepted Phase 26 local-first runtime.
+- Phase 29 is now closed as the Bun-only release-hardening slice that turns the accepted Phase 27 and Phase 28 runtime/public-surface work into an installable `0.1.0-rc.1`.
 - Accepted behavior:
-  - supported machines can auto-detect bundled `sqlite-vss` assets plus a compatible custom SQLite library and use a real indexed local semantic backend
-  - unsupported machines degrade explicitly to the accepted durable fallback path unless acceleration is required
-  - `GOODMEMORY_SQLITE_VECTOR_MODE=prefer|require` now distinguishes fallback vs fail-fast behavior around accelerated local mode
-  - CLI read-only diagnostics stay lightweight and do not eagerly initialize the accelerated backend when semantic search is not needed
-- Still outside the accepted Phase 28 claim:
+  - the prerelease package is Bun-only and not marked private
+  - the tarball produced by `bun pm pack` is the canonical installable release artifact for this RC
+  - a fresh Bun consumer can install the tarball, use only public imports, and run the installed CLI against the default local-first runtime
+  - supported machines still auto-detect bundled `sqlite-vss` assets plus a compatible custom SQLite library; unsupported machines stay on explicit durable fallback semantics
+- Still outside the accepted Phase 29 claim:
+  - Node compatibility
+  - installer CLI
+  - registry publish automation or automatic release marketing
   - bundled local embedding generation
-  - installer CLI or package publishing automation
-  - claiming accelerated local support on unsupported runtimes
 
 ## Current Canonical Evidence
 
@@ -66,6 +68,10 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Canonical local sqlite-vss backend closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json`
+- Bun-only release-hardening closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md`
+  - Deterministic gate: `reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json`
+  - RC dry run report: `reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

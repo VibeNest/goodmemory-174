@@ -1,0 +1,13 @@
+Phase 30.2: Host-to-Telemetry Bridge
+====================================
+
+[TODO] Emit behavioral traces from the accepted Codex host path.
+[TODO] Convert failed first-action traces into the existing internal `recordBehavioralOutcome(...)` path.
+[TODO] Persist evidence excerpts for timeout, tool failure, and explicit user-correction events.
+[TODO] Keep all new behavior internal; do not add public `GoodMemory` methods.
+
+Acceptance
+----------
+- A failed first Codex trace creates a `tool_outcome` experience with linked evidence.
+- Repeated failed traces can generate a `procedural_pattern` proposal.
+- Accepted proposals compile into active `validated_pattern` feedback without a source feedback memory id.

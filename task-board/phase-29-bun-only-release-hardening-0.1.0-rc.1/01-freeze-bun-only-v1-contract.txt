@@ -1,0 +1,11 @@
+Phase 29.1: Freeze Bun-only v1 RC Contract
+==========================================
+
+[DONE] Freeze `0.1.0-rc.1` as a Bun-only prerelease.
+[DONE] Keep the public surface limited to `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, and the current CLI commands.
+[DONE] Document the default runtime as `createGoodMemory({})` with local-first auto resolution.
+[DONE] Document the non-goals:
+- no new memory capability
+- no Node compatibility
+- no installer CLI
+- no extra gate-blocking host path

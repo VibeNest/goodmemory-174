@@ -21,6 +21,21 @@ for (const key of LOCAL_DEFAULT_RUNTIME_ENV_KEYS) {
 }
 
 const memory = createGoodMemory({});
+
+await memory.remember({
+  scope: {
+    userId: "consumer-user",
+    workspaceId: "consumer-workspace",
+    sessionId: "consumer-s0",
+  },
+  messages: [
+    {
+      role: "user",
+      content: "Remember that I prefer concise release checklists.",
+    },
+  ],
+});
+
 const aiSDK = createGoodMemoryAISDK({
   memory,
   dependencies: {
@@ -55,6 +70,21 @@ await aiSDK.streamText({
   model: {},
 }).text;
 
+const recall = await memory.recall({
+  scope: {
+    userId: "consumer-user",
+    workspaceId: "consumer-workspace",
+    sessionId: "consumer-s2",
+  },
+  query: "What is the blocker and how should I answer this user?",
+  retrievalProfile: "general_chat",
+});
+const context = await memory.buildContext({
+  recall,
+  output: "markdown",
+  maxTokens: 160,
+});
+
 const adapter = createHostAdapter({
   id: "consumer-host",
   hostKind: "claude",
@@ -73,6 +103,8 @@ const artifacts = await adapter.readArtifacts({
 console.log(
   JSON.stringify({
     artifactPaths: artifacts.artifacts.map((artifact) => artifact.relativePath),
+    contextIncludesBlocker: context.content.includes("prod verification"),
     ok: true,
+    recallHitCount: recall.metadata.hits.length,
   }),
 );

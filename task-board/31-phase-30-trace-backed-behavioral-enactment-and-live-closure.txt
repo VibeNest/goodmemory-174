@@ -1,0 +1,75 @@
+Phase 30: Trace-Backed Behavioral Enactment and Live Closure
+============================================================
+
+Phase Goal
+----------
+Close the remaining gap between Phase 25 deterministic behavioral evidence and real agent behavior by making behavioral scoring consume the first executable host/runtime trace event, not model self-reported `first_action` JSON.
+
+This phase proves that GoodMemory can change the first real action taken by the accepted Codex coding-agent path, and that provider-backed live-memory behavioral closure is accepted as evidence.
+
+
+Current Status
+--------------
+[TODO] Phase 30 is queued and not implemented.
+[TODO] No Phase 30 deterministic gate, live-memory behavioral report, or archive closure exists yet.
+
+
+Dependencies
+------------
+- Phase 18 host adapters and file-authoritative integration
+- Phase 24 implicit behavioral eval harness
+- Phase 25 outcome-telemetry runtime and canonical Layer D metrics
+- Phase 27 Codex handoff/adoption evidence
+- Phase 29 Bun-only release boundary and package surface guarantees
+
+
+Primary Deliverables
+--------------------
+- internal host/runtime trace schema for first executable behavioral action
+- Codex host trace capture for tool calls, shell commands, warnings/aborts, failures, timeouts, and user corrections
+- trace-to-outcome bridge that feeds the existing internal `recordBehavioralOutcome(...)` path
+- Phase 30 deterministic trace-backed behavioral eval runner
+- Phase 30 provider-backed live-memory behavioral eval runner
+- dedicated `gate:phase-30` that requires deterministic regressions plus one canonical accepted live-memory behavioral report
+- archive/current-status/task-board closure evidence after behavior and live evidence are real
+
+
+Definition of Done
+------------------
+- coding-agent behavioral cases score from the first executable trace event only
+- later actions, model explanations, and self-corrections cannot repair a failed first action score
+- deterministic trace fixtures prove procedural generalization, conditioning avoidance, timeout aversion, explicit user correction, and safe-warning behavior
+- failed first actions from host traces create `tool_outcome` telemetry with evidence lineage
+- repeated host-trace failures produce accepted `procedural_pattern` proposals and compile into active `validated_pattern` feedback
+- provider-backed live-memory Phase 30 report is archived and accepted before `gate:phase-30` can pass
+- Phase 25 `layer_d` metric names remain unchanged
+- no public `GoodMemory` API widening, no README-level default behavior change, and no reopening of the Phase 29 release boundary
+
+
+Tasks
+-----
+[TODO] P30-T001 Define the internal first-action trace contract and add parser/extractor regressions
+[TODO] P30-T002 Wire the accepted Codex host path to emit first-action behavioral traces
+[TODO] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
+[TODO] P30-T004 Add deterministic trace-backed behavioral eval and report contract
+[TODO] P30-T005 Add provider-backed live-memory behavioral eval and make it gate-required
+[TODO] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-30-trace-backed-behavioral-enactment-and-live-closure/00-README.txt`
+- `task-board/phase-30-trace-backed-behavioral-enactment-and-live-closure/01-trace-contract-and-source-of-truth.txt`
+- `task-board/phase-30-trace-backed-behavioral-enactment-and-live-closure/02-host-to-telemetry-bridge.txt`
+- `task-board/phase-30-trace-backed-behavioral-enactment-and-live-closure/03-trace-backed-eval-runners.txt`
+- `task-board/phase-30-trace-backed-behavioral-enactment-and-live-closure/04-live-closure-and-gate.txt`
+- `task-board/phase-30-trace-backed-behavioral-enactment-and-live-closure/05-docs-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase upgrades behavioral evidence from self-reported action envelopes to trace-backed first actions.
+- This phase does not add a new public durable memory type; continue to reuse `validated_pattern`.
+- This phase does not make Claude a gate-blocking host path.
+- This phase does not add installer automation, publish automation, or a new release workflow.
+- This phase does not change the accepted Phase 28 local backend contract or Phase 29 Bun-only RC release boundary.

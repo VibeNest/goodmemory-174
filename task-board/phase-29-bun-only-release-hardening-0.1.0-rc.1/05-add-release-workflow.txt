@@ -1,0 +1,9 @@
+Phase 29.5: Add Release Workflow
+================================
+
+[DONE] Add `gate:phase-29`.
+[DONE] Make the release workflow rerun deterministic release checks, tarball packing, and artifact upload.
+[DONE] Support:
+- `workflow_dispatch` for dry runs
+- tag push for RC release upload
+[DONE] Keep Phase 27 live evidence archived by reference instead of rerunning it on every release job.

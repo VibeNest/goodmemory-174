@@ -1,8 +1,40 @@
 {
   "name": "goodmemory",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0-rc.1",
+  "description": "Bun-only memory layer for chat, copilot, and agent applications.",
+  "license": "MIT",
+  "homepage": "https://github.com/hjqcan/GoodMomery#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hjqcan/GoodMomery.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hjqcan/GoodMomery/issues"
+  },
+  "keywords": [
+    "agents",
+    "ai",
+    "bun",
+    "copilot",
+    "llm",
+    "memory"
+  ],
   "type": "module",
+  "packageManager": "bun@1.3.0",
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "docs",
+    "package.json",
+    "scripts/goodmemory-cli.ts",
+    "src"
+  ],
   "bin": {
     "goodmemory": "./scripts/goodmemory-cli.ts"
   },
@@ -59,6 +91,8 @@
     "gate:phase-26": "bun run scripts/run-phase-26-gate.ts",
     "gate:phase-27": "bun run scripts/run-phase-27-gate.ts",
     "gate:phase-28": "bun run scripts/run-phase-28-gate.ts",
+    "gate:phase-29": "bun run scripts/run-phase-29-gate.ts",
+    "release:rc-dry-run": "bun run scripts/run-phase-29-rc-dry-run.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",
     "eval:summary": "bun run scripts/summarize-eval.ts"

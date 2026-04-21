@@ -36,6 +36,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-27-Quality-Gate.md`
 - Canonical local sqlite-vss backend closure:
   - `GoodMemory-Phase-28-Quality-Gate.md`
+- Bun-only release-hardening and RC installability closure:
+  - `GoodMemory-Phase-29-Quality-Gate.md`
 
 ## When To Use This Archive
 
