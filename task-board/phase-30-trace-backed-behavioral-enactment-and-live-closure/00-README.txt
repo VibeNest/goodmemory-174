@@ -5,8 +5,10 @@ Status
 ------
 - Phase 30 is in progress.
 - P30-T001 is complete and regression-covered.
+- P30-T002 is complete and regression-covered for the accepted Codex host path.
 - P30-T003 is complete and regression-covered for deterministic replay.
 - P30-T004 is complete and regression-covered for deterministic trace-backed eval/report output.
+- P30-T005 is complete and regression-covered for the provider-backed live-memory runner.
 - No deterministic gate, live-memory behavioral report, or archive closure exists yet.
 
 
@@ -20,10 +22,10 @@ The accepted Phase 25 contract already proves deterministic outcome telemetry an
 Tasks
 -----
 [DONE] P30-T001 Define the internal first-action trace contract and add parser/extractor regressions
-[TODO] P30-T002 Wire the accepted Codex host path to emit first-action behavioral traces
+[DONE] P30-T002 Wire the accepted Codex host path to emit first-action behavioral traces
 [DONE] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
 [DONE] P30-T004 Add deterministic trace-backed behavioral eval and report contract
-[TODO] P30-T005 Add provider-backed live-memory behavioral eval and make it gate-required
+[DONE] P30-T005 Add provider-backed live-memory behavioral eval runner
 [TODO] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
 
 

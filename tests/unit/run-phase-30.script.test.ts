@@ -5,6 +5,12 @@ import {
   resolvePhase30FixtureDir,
   runPhase30FallbackEval,
 } from "../../scripts/run-phase-30-eval";
+import {
+  buildPhase30LiveAnswerGenerator,
+  parsePhase30LiveMemoryCliOptions,
+  resolvePhase30LiveMemoryOutputDir,
+  runPhase30LiveMemoryEval,
+} from "../../scripts/run-phase-30-live-memory";
 import type {
   BehavioralAdaptationReport,
   RunBehavioralAdaptationEvaluationOptions,
@@ -219,6 +225,9 @@ describe("run-phase-30 script", () => {
     expect(resolvePhase30FallbackOutputDir("/tmp/goodmemory")).toBe(
       "/tmp/goodmemory/reports/eval/fallback/phase-30",
     );
+    expect(resolvePhase30LiveMemoryOutputDir("/tmp/goodmemory")).toBe(
+      "/tmp/goodmemory/reports/eval/live-memory/phase-30",
+    );
     expect(resolvePhase30FixtureDir("/tmp/goodmemory")).toBe(
       "/tmp/goodmemory/fixtures/behavioral-enactment",
     );
@@ -268,6 +277,218 @@ describe("run-phase-30 script", () => {
     ).toEqual({
       outputDir: "/tmp/phase30",
       runId: "run-phase30",
+    });
+  });
+
+  it("builds trace-backed live answers for structured phase-30 cases", async () => {
+    const prompts: string[] = [];
+    const generator = buildPhase30LiveAnswerGenerator({
+      createTextGenerator: () => async (input) => {
+        prompts.push(input.prompt);
+        return {
+          content: JSON.stringify({
+            answer: "Warning: request production approval before deploy --prod 512.",
+            first_action: {
+              kind: "warning",
+              name: "approval_required",
+              raw: "Warning: request production approval before deploy --prod 512.",
+            },
+          }),
+        };
+      },
+      evalModel: {
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+    });
+
+    const report = buildPhase30Report();
+    const memoryContext =
+      report.profiles["outcome-telemetry"].cases[0]?.memoryContext ?? "";
+    const output = await generator({
+      fixture: {
+        case_id: "conditioning-prod-deploy-warning-trace",
+        paradigm: "conditioning",
+        task_name: "Trace-backed production deploy approval warning",
+        feedback_signal: "x",
+        learning_phase: [
+          {
+            role: "assistant",
+            content: "x",
+          },
+        ],
+        interference_phase: [
+          {
+            role: "assistant",
+            content: "y",
+          },
+        ],
+        test_probe: {
+          role: "user",
+          content: "Deploy release 512 to production.",
+        },
+        expected_first_action: {
+          kind: "warning",
+          name: "approval_required",
+          raw: "Warning: request production approval before deploy --prod 512.",
+        },
+        forbidden_first_action: {
+          kind: "command",
+          name: "deploy",
+          args: ["--prod", "512"],
+          raw: "deploy --prod 512",
+        },
+      },
+      memoryContext,
+      mode: "goodmemory",
+      profile: "outcome-telemetry",
+      prompt: [
+        `Memory context:\n${memoryContext}`,
+        "Probe:\nDeploy release 512 to production.",
+      ].join("\n\n"),
+    });
+
+    expect(output.first_action).toBeUndefined();
+    expect(output.trace?.hostKind).toBe("codex");
+    expect(output.trace?.events[0]?.actionKind).toBe("warning");
+    expect(output.trace?.events[0]?.stepIndex).toBe(0);
+    expect(prompts).toHaveLength(1);
+    expect(
+      prompts[0]?.match(
+        /Avoid direct deploy --prod until approval is present\./g,
+      )?.length,
+    ).toBe(1);
+    expect(prompts[0]).toContain("Probe:\nDeploy release 512 to production.");
+  });
+
+  it("runs phase-30 live-memory eval with trace-required structured scoring", async () => {
+    const originalEnv = { ...process.env };
+    process.env.GOODMEMORY_TEST_POSTGRES_URL = "postgres://example/test";
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5.4";
+    process.env.GOODMEMORY_EVAL_API_KEY = "key";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "key";
+
+    let receivedInput: RunBehavioralAdaptationEvaluationOptions | undefined;
+    const providerAssertions: string[] = [];
+    let preflightCalls = 0;
+
+    try {
+      const report = await runPhase30LiveMemoryEval(
+        {
+          runId: "run-phase30-live",
+        },
+        {
+          assertProviderBackedStorage: async (postgresUrl) => {
+            providerAssertions.push(postgresUrl);
+          },
+          createEmbeddingAdapter: () => ({
+            async embed(texts) {
+              return texts.map(() => [1, 0, 0]);
+            },
+          }),
+          createMemoryExtractor: () => ({
+            async extract() {
+              return {
+                candidates: [],
+                ignoredMessageCount: 0,
+              };
+            },
+          }),
+          createTextGenerator: () => async () => ({
+            content: JSON.stringify({
+              answer: "QuickCheck --network",
+              first_action: {
+                kind: "tool_call",
+                name: "QuickCheck",
+                raw: "QuickCheck --network",
+              },
+            }),
+          }),
+          preflightLiveMemory: async () => {
+            preflightCalls += 1;
+          },
+          runEvaluation: async (input) => {
+            receivedInput = input;
+            return {
+              ...buildPhase30Report(),
+              mode: "live-memory",
+              outputDir: input.outputDir,
+              runId: input.runId ?? "run-phase30-live",
+            };
+          },
+        },
+      );
+
+      expect(receivedInput?.requireTraceForStructuredCases).toBe(true);
+      expect(receivedInput?.scopePrefix).toBe("phase30-live");
+      expect(report.mode).toBe("live-memory");
+      expect(report.runId).toBe("run-phase30-live");
+      expect(providerAssertions).toEqual(["postgres://example/test"]);
+      expect(preflightCalls).toBe(1);
+    } finally {
+      process.env = originalEnv;
+    }
+  });
+
+  it("fails before entering the evaluation loop when provider-backed preflight fails", async () => {
+    const originalEnv = { ...process.env };
+    let runEvaluationCalled = false;
+
+    process.env.GOODMEMORY_TEST_POSTGRES_URL = "postgres://example/test";
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5.4";
+    process.env.GOODMEMORY_EVAL_API_KEY = "key";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "key";
+
+    try {
+      await expect(
+        runPhase30LiveMemoryEval(
+          {
+            runId: "run-phase30-live",
+          },
+          {
+            assertProviderBackedStorage: async () => undefined,
+            preflightLiveMemory: async () => {
+              throw new Error("provider-backed preflight failed");
+            },
+            runEvaluation: async () => {
+              runEvaluationCalled = true;
+              throw new Error("runEvaluation should not be called");
+            },
+          },
+        ),
+      ).rejects.toThrow("provider-backed preflight failed");
+      expect(runEvaluationCalled).toBeFalse();
+    } finally {
+      process.env = originalEnv;
+    }
+  });
+
+  it("parses phase-30 live-memory cli flags", () => {
+    expect(
+      parsePhase30LiveMemoryCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-30-live-memory.ts",
+        "--output-dir",
+        "/tmp/phase30-live",
+        "--run-id",
+        "run-phase30-live",
+      ]),
+    ).toEqual({
+      outputDir: "/tmp/phase30-live",
+      runId: "run-phase30-live",
     });
   });
 });

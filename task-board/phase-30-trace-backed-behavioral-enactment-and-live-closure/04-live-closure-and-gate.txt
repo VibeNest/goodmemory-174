@@ -1,6 +1,7 @@
 Phase 30.4: Live Closure and Gate
 =================================
 
+[DONE] Add a provider-backed Phase 30 live-memory behavioral eval runner.
 [TODO] Add `gate:phase-30`.
 [TODO] Make one canonical accepted provider-backed live-memory behavioral report a gate requirement.
 [TODO] Keep deterministic trace-backed regressions in the gate command list.
@@ -12,3 +13,9 @@ Acceptance
 - The live report proves a strict majority of GoodMemory wins on blocking trace-backed behavioral cases.
 - Baseline wins are bounded and visible in the report.
 - The gate does not reopen Phase 29 release packaging or Phase 28 local backend scope.
+
+Evidence
+--------
+- `scripts/run-phase-30-live-memory.ts`
+- `tests/unit/run-phase-30.script.test.ts`
+- `tests/release/release.test.ts`
