@@ -1,0 +1,29 @@
+Phase 28.2: Real Indexed Backend
+================================
+
+[TODO] P28.2-T001 Add failing coverage for real `sqlite-vss` indexed storage/search behavior
+[TODO] P28.2-T002 Implement the canonical accelerated local backend on top of `sqlite-vss`
+[TODO] P28.2-T003 Preserve the accepted durable fallback path when accelerated mode is unavailable
+
+Why this exists
+---------------
+- Extension-assisted scoring over the plain durable table is not the same thing as a real indexed backend.
+- The original stronger local-SQLite design is only truly satisfied once the accelerated path is real and testable.
+
+Write tests first
+-----------------
+- accelerated local search uses real indexed storage/search semantics
+- the accelerated path is proven without synthetic scoring shims standing in for the backend
+- fallback still returns correct results when acceleration is disabled or unavailable
+
+Acceptance
+----------
+- the accelerated local backend is real, not rhetorical
+- fallback behavior remains safe and durable
+- storage/search behavior stays explainable under trace and diagnostics
+
+Current implementation notes
+----------------------------
+- Keep the current durable vectors table only if it still serves the fallback path or migration story cleanly
+- Do not delete the Phase 26 fallback path until the accelerated path is proven and regression-covered
+- Prefer an implementation that keeps the accelerated path and fallback path explicit in code, not mixed behind opaque branching

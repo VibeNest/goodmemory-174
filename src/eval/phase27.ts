@@ -17,11 +17,13 @@ import {
   createRuntimeArchiveStore,
   createRuntimeContextService,
 } from "../runtime/public";
+import { createInMemoryVectorStore } from "../storage/memory";
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
 } from "../storage/sqlite";
 import type { EvalSuiteResult } from "./suite";
+import type { MemoryExtractor } from "../remember/candidates";
 
 export const PHASE_27_IDENTITY_BACKGROUND_SCENARIO_IDS = [
   "scenario-medium-13-role-slot",
@@ -64,6 +66,13 @@ export const PHASE_27_FALLBACK_SCENARIO_IDS = [
 export const PHASE_27_LIVE_SCENARIO_IDS = [
   ...PHASE_27_LIVE_CONTINUATION_OPEN_LOOP_SCENARIO_IDS,
   ...PHASE_27_LIVE_REPEATED_CORRECTION_SCENARIO_IDS,
+] as const;
+
+const PHASE_27_RULES_ONLY_EMBEDDING_ENV_KEYS = [
+  "GOODMEMORY_EMBEDDING_API_KEY",
+  "GOODMEMORY_EMBEDDING_BASE_URL",
+  "GOODMEMORY_EMBEDDING_MODEL",
+  "GOODMEMORY_EMBEDDING_PROVIDER",
 ] as const;
 
 export type Phase27ScenarioFamily =
@@ -210,6 +219,64 @@ function uniqueScenarioIds(
   return [...new Set(ids)];
 }
 
+function withEnvCleared<TValue>(
+  keys: readonly string[],
+  run: () => TValue,
+): TValue {
+  const previousValues = keys.map((key) => [key, process.env[key]] as const);
+
+  for (const [key] of previousValues) {
+    delete process.env[key];
+  }
+
+  try {
+    return run();
+  } finally {
+    for (const [key, value] of previousValues) {
+      if (value === undefined) {
+        delete process.env[key];
+        continue;
+      }
+
+      process.env[key] = value;
+    }
+  }
+}
+
+function createPhase27RulesOnlySQLiteMemory(sqlitePath: string) {
+  const documentStore = createSQLiteDocumentStore(sqlitePath);
+  const sessionStore = createSQLiteSessionStore(sqlitePath);
+  const vectorStore = createInMemoryVectorStore();
+  const noopAssistedExtractor: MemoryExtractor = {
+    async extract() {
+      return {
+        candidates: [],
+        ignoredMessageCount: 0,
+      };
+    },
+  };
+
+  return {
+    documentStore,
+    memory: withEnvCleared(
+      PHASE_27_RULES_ONLY_EMBEDDING_ENV_KEYS,
+      () => createGoodMemory({
+        storage: {
+          provider: "sqlite",
+          url: sqlitePath,
+        },
+        adapters: {
+          documentStore,
+          assistedExtractor: noopAssistedExtractor,
+          sessionStore,
+          vectorStore,
+        },
+      }),
+    ),
+    sessionStore,
+  };
+}
+
 export function resolvePhase27FallbackScenarioIds(explicit?: string[]): string[] {
   if (explicit && explicit.length > 0) {
     return uniqueScenarioIds(explicit);
@@ -232,20 +299,9 @@ export function createPhase27FallbackCreateMemory(): (
   return () => {
     const root = mkdtempSync(join(tmpdir(), "goodmemory-phase27-sqlite-"));
     const sqlitePath = join(root, ".goodmemory", "memory.sqlite");
-    const documentStore = createSQLiteDocumentStore(sqlitePath);
-    const sessionStore = createSQLiteSessionStore(sqlitePath);
 
     return {
-      memory: createGoodMemory({
-        storage: {
-          provider: "sqlite",
-          url: sqlitePath,
-        },
-        adapters: {
-          documentStore,
-          sessionStore,
-        },
-      }),
+      memory: createPhase27RulesOnlySQLiteMemory(sqlitePath).memory,
       cleanup: async () => {
         await rm(root, {
           force: true,
@@ -476,23 +532,13 @@ async function runCodexBasicResumeCase(): Promise<void> {
     join(tmpdir(), "goodmemory-phase27-handoff-basic-"),
   );
   const sqlitePath = join(workspace, ".goodmemory", "memory.sqlite");
-  const documentStore = createSQLiteDocumentStore(sqlitePath);
-  const sessionStore = createSQLiteSessionStore(sqlitePath);
+  const { documentStore, memory, sessionStore } =
+    createPhase27RulesOnlySQLiteMemory(sqlitePath);
   const runtime = createRuntimeContextService({
     archiveStore: createRuntimeArchiveStore({ documentStore }),
     maxBufferedMessages: 2,
     now: () => "2026-04-21T00:00:00.000Z",
     sessionStore,
-  });
-  const memory = createGoodMemory({
-    storage: {
-      provider: "sqlite",
-      url: sqlitePath,
-    },
-    adapters: {
-      documentStore,
-      sessionStore,
-    },
   });
 
   const scope = {
@@ -555,23 +601,13 @@ async function runCodexRefreshCase(): Promise<void> {
     join(tmpdir(), "goodmemory-phase27-handoff-refresh-"),
   );
   const sqlitePath = join(workspace, ".goodmemory", "memory.sqlite");
-  const documentStore = createSQLiteDocumentStore(sqlitePath);
-  const sessionStore = createSQLiteSessionStore(sqlitePath);
+  const { documentStore, memory, sessionStore } =
+    createPhase27RulesOnlySQLiteMemory(sqlitePath);
   const runtime = createRuntimeContextService({
     archiveStore: createRuntimeArchiveStore({ documentStore }),
     maxBufferedMessages: 2,
     now: () => "2026-04-21T00:00:00.000Z",
     sessionStore,
-  });
-  const memory = createGoodMemory({
-    storage: {
-      provider: "sqlite",
-      url: sqlitePath,
-    },
-    adapters: {
-      documentStore,
-      sessionStore,
-    },
   });
 
   const scope = {

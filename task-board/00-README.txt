@@ -92,6 +92,7 @@ Read and execute files in this order:
 26. 26-phase-25-behavioral-adaptation-closure.txt
 27. 27-phase-26-local-sqlite-vector-fallback.txt
 28. 28-phase-27-reference-integration-gate-and-adoption-evidence.txt
+29. 29-phase-28-canonical-sqlite-vss-local-backend.txt
 
 
 Current Sequencing Note
@@ -140,17 +141,16 @@ Current Sequencing Note
 - Phase 26 is now closed as the local SQLite vector fallback slice:
   - `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
   - `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
-- Phase 27 is the next queued post-Phase-26 slice:
-  - reference integration gate and adoption evidence on top of the accepted local-first runtime
-  - docs-as-written public reference path over `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
-  - deterministic identity/background, continuation/open-loop, repeated-correction, and Codex handoff evidence
-  - at least one archived live provider-backed adoption run
-- Phase 27 is now in progress:
-  - public reference hardening is implemented and regression-covered
-  - deterministic adoption eval is implemented and backed by `reports/eval/fallback/phase-27/run-phase27-local/report.json`
-  - the provider-backed live runner exists through `eval:phase-27-live-memory`, but no canonical archived live run exists yet because the required env is not available in the current environment
-  - `gate:phase-27` closure remains open
-- Any work after the queued Phase 27 scope should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 27 is now closed as the reference-integration gate and adoption-evidence slice:
+  - deterministic adoption evidence: `reports/eval/fallback/phase-27/run-20260420165836/report.json`
+  - live-memory adoption evidence: `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+  - quality gate: `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
+- Phase 28 is now queued as the next post-Phase-27 local acceleration slice:
+  - upgrade the accepted Phase 26 SQLite path from durable fallback plus optional extension-assisted scoring into a real, regression-proven `sqlite-vss` indexed backend on supported local runtimes
+  - preserve Phase 26 explicit-over-auto storage resolution, Postgres compatibility, and `rules-only` fallback when `GOODMEMORY_EMBEDDING_*` is absent
+  - keep “real accelerated backend” and “safe durable fallback” as separate runtime states rather than silently claiming acceleration everywhere
+- Any work after the queued Phase 28 scope should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -159,7 +159,7 @@ Current Sequencing Note
 - Phase 24 added a first-action implicit behavioral adaptation eval harness with separate raw-experience and distilled-feedback profiles, while keeping runtime behavior unchanged.
 - Phase 25 added outcome-derived `tool_outcome` promotion and canonical Layer D deterministic behavioral evidence while keeping the surface area internal.
 - Reviewer and maintenance rollout no longer sit as implicit unfinished scope inside earlier phases; that deferred scope is now closed in its dedicated phase.
-- Phase 15 through Phase 26 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened, internally promotable, behaviorally measurable, local-first memory system".
+- Phase 15 through Phase 27 extended the board from "usable memory core" into "proposal-driven, eval-gated, host-integrated, provider-hardened, internally promotable, behaviorally measurable, local-first and adoption-proven memory system".
 - Dependency-matrix tests now act as a merge gate for archive/evidence/proposal and future host-adapter changes.
 - Historical filenames for Phase 12 and Phase 13 are preserved to avoid churn; follow the execution order above rather than filename numbering.
 
@@ -169,12 +169,12 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 26 guarantees while local changes land
-   - Close the remaining Phase 27 slices without widening scope into installer, release-automation, or new-capability work
-   - Keep docs-as-written public-surface purity, deterministic adoption evidence, the live runner contract, and the accepted Phase 26 local-first runtime guarantees regression-covered while canonical live evidence and gate closure land
+   - Preserve the closed Phase 17 through Phase 27 guarantees while local changes land
+   - Keep the accepted Phase 27 public reference path, deterministic/live adoption evidence, and Codex-only host gate regression-covered while future work lands
+   - Start new work through the queued Phase 28 slice or a new explicit phase file rather than reopening closed adoption work implicitly
 2. Near-term product differentiation
-   - Add canonical provider-backed adoption evidence on top of the now-hardened public reference path and deterministic Phase 27 report
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, and phase-26 local-first runtime guarantees regression-covered while the remaining Phase 27 scope is executed
+   - Queue the dedicated Phase 28 sqlite-vss backend slice instead of reopening accepted Phase 26 closure semantics or accepted Phase 27 adoption closure
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, and Phase 27 adoption evidence regression-covered while later phases execute
 3. Medium-term system hardening
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
 4. Host integration track
@@ -272,6 +272,9 @@ Files in This Folder
 
 - 28-phase-27-reference-integration-gate-and-adoption-evidence.txt
   Public reference hardening, adoption evidence, and Codex handoff gating on top of the stable local-first runtime
+
+- 29-phase-28-canonical-sqlite-vss-local-backend.txt
+  Real sqlite-vss indexed local backend, runtime asset/bootstrap contract, and closure of the remaining gap between Phase 26 durable fallback and the stronger original local-SQLite design
 
 - 18-phase-17-eval-gated-promotion-and-strategy-rollout.txt
   Shadow/assist/promote rollout, strategy comparison, eval gates, and public surface decisions

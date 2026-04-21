@@ -1,0 +1,29 @@
+Phase 28.3: Runtime Bootstrap and Assets
+========================================
+
+[TODO] P28.3-T001 Define the supported local runtime/asset contract for `sqlite-vss`
+[TODO] P28.3-T002 Add failing coverage for asset loading, capability detection, and explicit failure modes
+[TODO] P28.3-T003 Implement the bootstrap/diagnostic path for supported local runtimes
+
+Why this exists
+---------------
+- A canonical accelerated backend is not real if the runtime/bootstrap story is fragile, implicit, or unverifiable.
+- The repo needs an honest answer to “what must exist on the machine for accelerated local mode to be supported?”
+
+Write tests first
+-----------------
+- supported runtime assets load in the required order
+- unsupported environments fail clearly in `require` mode
+- `prefer` mode degrades to the accepted durable fallback without corrupting data or silently claiming acceleration
+
+Acceptance
+----------
+- supported accelerated local mode has an explicit bootstrap contract
+- fallback and failure states are diagnosable
+- the repo can describe supported local acceleration without hand-waving
+
+Current implementation notes
+----------------------------
+- Keep Bun/macOS ordering constraints explicit if they still matter
+- If multiple assets are required, document and test their load order
+- The goal is runtime honesty, not magical auto-detection that hides unsupported states

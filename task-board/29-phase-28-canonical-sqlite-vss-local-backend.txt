@@ -1,0 +1,87 @@
+Phase 28: Canonical SQLite VSS Local Backend
+============================================
+
+Phase Goal
+----------
+Close the remaining gap between the accepted Phase 26 local-first runtime and the stronger original local-SQLite design by making `SQLite + sqlite-vss` a real, regression-proven accelerated local semantic backend on supported runtimes.
+
+This phase exists to harden and verify:
+
+- real `sqlite-vss` indexed search for the local SQLite semantic path
+- explicit runtime/asset bootstrap rules for supported local environments
+- a clean separation between:
+  - accelerated local semantic mode
+  - durable local fallback mode
+  - `rules-only` mode when `GOODMEMORY_EMBEDDING_*` is absent
+
+This phase does not add bundled local embedding generation. It only upgrades the local semantic backend when embeddings are already configured and the supported local vector runtime is actually available.
+
+
+Current Status
+--------------
+[TODO] Phase 28 is queued.
+[TODO] No executable work in this phase has started yet.
+[TODO] Phase 27 is closed and accepted; Phase 28 is the next dedicated follow-up for the remaining local-SQLite acceleration gap.
+
+
+Dependencies
+------------
+- Phase 3 storage contracts
+- Phase 12 embedding/vector/router plumbing
+- Phase 20 release-hardening closure guarantees
+- Phase 26 accepted local-first runtime closure guarantees
+- Phase 27 public-reference work may reuse the accepted Phase 26 defaults, but this phase does not depend on Phase 27 live adoption evidence to define its storage/runtime contract
+
+
+Primary Deliverables
+--------------------
+- canonical Phase 28 contract for when local SQLite is:
+  - accelerated with real `sqlite-vss`
+  - durable but non-accelerated fallback
+  - explicit `rules-only`
+- real SQLite vector/index implementation that uses `sqlite-vss` as the accelerated backend instead of only extension-assisted scoring over the plain `vectors` table
+- supported runtime/asset bootstrap contract for loading the required local SQLite vector extensions
+- capability detection and diagnostics that make “accelerated” vs “fallback” explicit
+- regression coverage that proves real indexed local retrieval instead of mocked or synthetic extension semantics
+- dedicated `gate:phase-28` closure command and archived quality-gate summary once the runtime and evidence are real
+
+
+Definition of Done
+------------------
+- when `GOODMEMORY_EMBEDDING_*` is configured and the supported local vector runtime is available, the local SQLite semantic path uses a real `sqlite-vss` indexed backend
+- the stable local accelerated claim is backed by at least one real runtime path, not only mocked SQL functions or injected unit-test shims
+- accelerated local mode and durable fallback mode are both explicit in runtime behavior and diagnostics
+- `GOODMEMORY_SQLITE_VECTOR_MODE=prefer|require` continues to behave predictably:
+  - `prefer` can degrade to the accepted durable fallback path
+  - `require` fails loudly when accelerated local mode cannot be established
+- missing `GOODMEMORY_EMBEDDING_*` still keeps runtime `rules-only`
+- explicit `sqlite` / `postgres` selection and Phase 26 auto-resolution rules remain backward-compatible
+- the stable product claim can distinguish supported accelerated local SQLite from the accepted non-accelerated durable fallback without overclaiming unsupported environments
+
+
+Tasks
+-----
+[DONE] P28-T001 Add the canonical Phase 28 task-board phase file, breakdown folder, and queued sequencing references
+[TODO] P28-T002 Write the accelerated-vs-fallback runtime contract and lock the non-goals
+[TODO] P28-T003 Add failing coverage for real `sqlite-vss` indexed local retrieval and runtime capability reporting
+[TODO] P28-T004 Implement the canonical local `sqlite-vss` indexed backend and bootstrap/asset contract
+[TODO] P28-T005 Add end-to-end regressions for accelerated local mode, fallback mode, and `rules-only` mode
+[TODO] P28-T006 Add `gate:phase-28`, archive canonical closure evidence, and sync current-status/task-board references after behavior is real
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-28-canonical-sqlite-vss-local-backend/00-README.txt`
+- `task-board/phase-28-canonical-sqlite-vss-local-backend/01-runtime-contract-and-boundary.txt`
+- `task-board/phase-28-canonical-sqlite-vss-local-backend/02-real-indexed-backend.txt`
+- `task-board/phase-28-canonical-sqlite-vss-local-backend/03-runtime-bootstrap-and-assets.txt`
+- `task-board/phase-28-canonical-sqlite-vss-local-backend/04-regressions-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase upgrades the local semantic backend; it does not reopen the accepted Phase 26 storage-resolution contract
+- This phase does not add bundled local embedding generation
+- This phase does not add installer CLI, package publish flow, or platform-wide release automation
+- This phase does not change the public API shape unless a narrower diagnostics surface is strictly required
+- If a supported accelerated backend cannot be established honestly, the docs and gate must preserve the durable fallback claim instead of pretending Phase 28 is done

@@ -9,6 +9,7 @@ import {
   PHASE_27_LIVE_REPEATED_CORRECTION_SCENARIO_IDS,
   PHASE_27_LIVE_SCENARIO_IDS,
   PHASE_27_REPEATED_CORRECTION_SCENARIO_IDS,
+  createPhase27FallbackCreateMemory,
 } from "../../src/eval/phase27";
 import type { ScenarioFixture } from "../../src/eval/dataset";
 import {
@@ -282,6 +283,96 @@ describe("run-phase-27 eval script", () => {
         "scenario-medium-13-reference-slot",
       ],
     });
+  });
+
+  it("keeps the deterministic fallback memory rules-only even when provider and vector env vars are present", async () => {
+    const originalEnv = { ...process.env };
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "key";
+    process.env.GOODMEMORY_SQLITE_VECTOR_MODE = "require";
+    delete process.env.GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH;
+
+    const createMemory = createPhase27FallbackCreateMemory();
+    const handle = createMemory({
+      caseId: "phase27-rules-only",
+      persona: {
+        persona_id: "phase27-test-persona",
+        name: "Noah",
+        age_range: "30-39",
+        locale: "en-US",
+        profession: "data scientist",
+        expertise: ["workflow reliability"],
+        background: "Works on workflow reliability dashboard.",
+        communication_preferences: ["concise"],
+        work_style_preferences: ["written decisions"],
+        long_term_goals: ["ship reliable systems"],
+        current_projects: ["workflow reliability dashboard"],
+        growth_path: ["staff engineer"],
+        known_relationships: ["platform lead"],
+        memory_risks: ["stale references"],
+        domains: ["work_ops"],
+        stable_preferences: ["concise bullet points"],
+        domain_specific_preferences: ["risk-first summaries"],
+        drift_events: ["runbook correction"],
+        negative_personalization_risks: ["reference spill"],
+        lifecycle_bucket: "medium",
+        scenario_ids: [],
+      },
+      scenario: buildScenarioFixture("scenario-medium-13-role-slot"),
+      scopeNamespace: "phase27-rules-only",
+    });
+    const memory = "memory" in handle ? handle.memory : handle;
+
+    try {
+      const remember = await memory.remember({
+        scope: {
+          userId: "phase27-user",
+          workspaceId: "phase27-workspace",
+          sessionId: "phase27-session",
+        },
+        extractionStrategy: "auto",
+        messages: [
+          {
+            role: "user",
+            content:
+              "My name is Noah. I'm a data scientist in Singapore. Remember that the open loop is final verification for workflow reliability dashboard.",
+          },
+          {
+            role: "assistant",
+            content: "Noted.",
+          },
+        ],
+      });
+
+      expect(remember.accepted).toBeGreaterThan(0);
+
+      const recall = await memory.recall({
+        scope: {
+          userId: "phase27-user",
+          workspaceId: "phase27-workspace",
+          sessionId: "phase27-session",
+        },
+        query: "What is my role and open loop for workflow reliability dashboard?",
+        retrievalProfile: "general_chat",
+        strategy: "rules-only",
+      });
+
+      expect(recall.profile?.identity.role).toBe("data scientist");
+      expect(
+        recall.facts.some((fact) =>
+          fact.content.includes("open loop is final verification for workflow reliability dashboard"),
+        ),
+      ).toBeTrue();
+    } finally {
+      if ("cleanup" in handle && typeof handle.cleanup === "function") {
+        await handle.cleanup();
+      }
+      process.env = originalEnv;
+    }
   });
 
   it("runs the deterministic phase-27 eval with curated scenarios and thresholded adoption metrics", async () => {

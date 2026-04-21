@@ -116,6 +116,18 @@ async function expectGitTrackedRepoArtifact(relativePath: string) {
   expect(ignored.stdout).toContain("!");
 }
 
+async function expectGitTrackedPath(relativePath: string) {
+  await access(join(import.meta.dir, "../../", relativePath));
+
+  const tracked = await runGitCommand([
+    "ls-files",
+    "--error-unmatch",
+    relativePath,
+  ]);
+  expect(tracked.exitCode).toBe(0);
+  expect(tracked.stdout.trim()).toBe(relativePath);
+}
+
 async function expectTrackedEvalReportsMentionedInFile(relativePath: string) {
   const content = await readFile(
     join(import.meta.dir, "../../", relativePath),
@@ -146,9 +158,13 @@ async function expectCanonicalAcceptedQualityGate(input: {
     join(import.meta.dir, "../../", input.docPath),
     "utf8",
   );
-  const referencedRunIds = [
-    ...qualityGateDoc.matchAll(/run-\d{14}/g),
-  ].map((match) => match[0]);
+  const canonicalRunIds = [
+    ...qualityGateDoc.matchAll(/Canonical accepted gate run:\s*`(run-\d{14})`/g),
+  ].map((match) => match[1]!);
+  const referencedRunIds =
+    canonicalRunIds.length > 0
+      ? canonicalRunIds
+      : [...qualityGateDoc.matchAll(/run-\d{14}/g)].map((match) => match[0]);
 
   expect(referencedRunIds.length).toBeGreaterThan(0);
   expect(new Set(referencedRunIds)).toEqual(new Set([input.runId]));
@@ -202,6 +218,16 @@ async function expectCanonicalAcceptedQualityGate(input: {
 
   for (const entry of entries) {
     if (!entry.isDirectory() || !entry.name.startsWith("run-")) {
+      continue;
+    }
+
+    const relativeCandidateReportPath = `reports/quality-gates/${input.phaseDirectory}/${entry.name}/${input.reportFileName}`;
+    const tracked = await runGitCommand([
+      "ls-files",
+      "--error-unmatch",
+      relativeCandidateReportPath,
+    ]);
+    if (tracked.exitCode !== 0) {
       continue;
     }
 
@@ -291,6 +317,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-20"]).toBe("bun run scripts/run-phase-20-gate.ts");
     expect(pkg.scripts?.["gate:phase-25"]).toBe("bun run scripts/run-phase-25-gate.ts");
     expect(pkg.scripts?.["gate:phase-26"]).toBe("bun run scripts/run-phase-26-gate.ts");
+    expect(pkg.scripts?.["gate:phase-27"]).toBe("bun run scripts/run-phase-27-gate.ts");
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
 
@@ -517,7 +544,7 @@ describe("release metadata and docs", () => {
     } finally {
       await rm(workspaceRoot, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it("release checklist exists and covers the final gate", async () => {
     const checklist = await readFile(
@@ -692,6 +719,35 @@ describe("release metadata and docs", () => {
     });
   });
 
+  it("phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-27-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-27",
+      reportFileName: "phase-27-quality-gate.json",
+      runId: "run-20260421011515",
+    });
+
+    expect(qualityGateDoc).toContain(
+      "reports/eval/fallback/phase-27/run-20260420165836/report.json",
+    );
+    expect(qualityGateDoc).toContain(
+      "reports/eval/live-memory/phase-27/run-20260420175513/report.json",
+    );
+
+    await expectGitTrackedRepoArtifact(
+      "reports/eval/fallback/phase-27/run-20260420165836/report.json",
+    );
+    await expectGitTrackedRepoArtifact(
+      "reports/eval/live-memory/phase-27/run-20260420175513/report.json",
+    );
+  });
+
   it("phase-21 through phase-23 closure docs only cite git-tracked live eval reports", async () => {
     await expectTrackedEvalReportsMentionedInFile(
       `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-21-Quality-Gate.md`,
@@ -704,12 +760,48 @@ describe("release metadata and docs", () => {
     );
   });
 
+  it("canonical task-board ordering only references git-tracked phase artifacts", async () => {
+    const board = await readFile(
+      join(import.meta.dir, "../../task-board/00-README.txt"),
+      "utf8",
+    );
+    const phaseFiles = [
+      ...board.matchAll(/^\d+\.\s+([^\s]+\.txt)$/gm),
+    ].map((match) => `task-board/${match[1]}`);
+
+    expect(phaseFiles.length).toBeGreaterThan(0);
+
+    const breakdownReadmes = new Set<string>();
+
+    for (const phaseFile of phaseFiles) {
+      await expectGitTrackedPath(phaseFile);
+      const phaseContent = await readFile(
+        join(import.meta.dir, "../../", phaseFile),
+        "utf8",
+      );
+      for (const match of phaseContent.matchAll(
+        /task-board\/(phase-[^/\s`]+\/00-README\.txt)/g,
+      )) {
+        breakdownReadmes.add(`task-board/${match[1]}`);
+      }
+    }
+
+    expect(breakdownReadmes.size).toBeGreaterThan(0);
+
+    for (const breakdownReadme of breakdownReadmes) {
+      await expectGitTrackedPath(breakdownReadme);
+    }
+  });
+
   it("task-board sequencing and phase docs only cite git-tracked eval reports", async () => {
     for (const relativePath of [
+      "docs/GoodMemory-Current-Status-and-Evidence.md",
       "task-board/00-README.txt",
       "task-board/23-phase-22-recall-router-provider-hardening-and-promotion-readiness.txt",
       "task-board/28-phase-27-reference-integration-gate-and-adoption-evidence.txt",
       "task-board/phase-27-reference-integration-gate-and-adoption-evidence/02-deterministic-adoption-eval.txt",
+      "task-board/phase-27-reference-integration-gate-and-adoption-evidence/03-live-adoption-evidence.txt",
+      "task-board/phase-27-reference-integration-gate-and-adoption-evidence/04-codex-handoff-gate-and-closure.txt",
     ] as const) {
       await expectTrackedEvalReportsMentionedInFile(relativePath);
     }

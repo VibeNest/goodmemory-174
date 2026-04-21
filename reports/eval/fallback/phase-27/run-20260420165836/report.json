@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-04-20T16:58:36.893Z",
+  "generatedAt": "2026-04-20T18:02:27.772Z",
   "generatedBy": "scripts/run-phase-27-eval.ts",
   "mode": "fallback",
   "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27",
-  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/run-phase27-local",
-  "runId": "run-phase27-local",
-  "suiteRunDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/run-phase27-local/suite",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/run-20260420165836",
+  "runId": "run-20260420165836",
+  "suiteRunDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/run-20260420165836/suite",
   "suiteSummary": {
     "totalCases": 13,
     "completedCases": 13,

@@ -20,16 +20,18 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 26 is now closed as the post-Phase-25 local-first runtime slice.
+- Phase 27 is now closed as the reference-integration gate and adoption-evidence slice built on the accepted Phase 26 local-first runtime.
 - Accepted behavior:
-  - default storage resolution with explicit-over-auto precedence and no provider/url cross-source mixing
-  - durable local SQLite vectors as the default local fallback
-  - SQLite runtime bootstrap/guardrails and optional extension-assisted search
-  - CLI/runtime storage-resolution alignment
-  - automatic embeddings only when `GOODMEMORY_EMBEDDING_*` is configured; otherwise `rules-only`
-- Still outside the accepted Phase 26 claim:
-  - promoting `sqlite-vss` indexed acceleration as the canonical default backend
-  - provider-backed live-memory acceptance evidence for this local-first slice
+  - canonical AI SDK public path uses `createGoodMemory({})` on the stable auto-storage/local-first runtime
+  - canonical public guides/examples/tests stay on `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+  - package-boundary consumer smoke proves package-name imports work inside the repo boundary
+  - deterministic adoption evidence proves identity/background, continuation/open-loop, repeated-correction, and Codex handoff outcomes against a frozen no-memory baseline
+  - provider-backed live adoption evidence proves continuation/open-loop plus repeated-correction wins without making host handoff a live-provider blocker
+  - Codex file-assisted handoff/resume is the only gate-blocking host path in this slice; Claude remains docs/example coverage only
+- Still outside the accepted Phase 27 claim:
+  - installer CLI or package publishing automation
+  - `src/core` / facade-first inward refactors
+  - new memory capabilities beyond the accepted local-first runtime
 
 ## Current Canonical Evidence
 
@@ -58,6 +60,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Local-first runtime closure evidence:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
+- Reference-integration and adoption-evidence closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
+  - Deterministic gate: `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+  - Deterministic adoption eval: `reports/eval/fallback/phase-27/run-20260420165836/report.json`
+  - Live-memory adoption eval: `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

@@ -32,6 +32,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-25-Quality-Gate.md`
 - Local-first SQLite runtime closure:
   - `GoodMemory-Phase-26-Quality-Gate.md`
+- Reference integration gate and adoption-evidence closure:
+  - `GoodMemory-Phase-27-Quality-Gate.md`
 
 ## When To Use This Archive
 

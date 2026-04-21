@@ -3,11 +3,11 @@ Phase 27 Breakdown
 
 Status
 ------
-- Phase 27 is in progress.
+- Phase 27 is closed and accepted.
 - Slice 27.1 public reference hardening is implemented and regression-covered.
 - Slice 27.2 deterministic adoption eval is implemented and regression-covered.
-- Slice 27.3 live runner contract is implemented and regression-covered, but no canonical archived live run exists yet in the current environment.
-- Slice 27.4 remains open.
+- Slice 27.3 live adoption evidence is implemented and backed by one canonical archived live run.
+- Slice 27.4 Codex handoff gate and closure artifacts are implemented.
 - Scope: prove the public reference path on top of the accepted Phase 26 local-first runtime:
   - `createGoodMemory({})` as the canonical default runtime entrypoint
   - public `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` imports only
@@ -39,6 +39,13 @@ Acceptance
 - setup-surface and public-reference-purity metrics both pass
 - at least 1 archived live run exists for continuation/open-loop plus repeated-correction, with a strict majority of GoodMemory wins and baseline winning at most 1 case
 - Claude remains non-gating docs/example coverage only
+
+Canonical Closure Evidence
+--------------------------
+- `reports/eval/fallback/phase-27/run-20260420165836/report.json`
+- `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+- `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
 
 Files in This Folder
 --------------------

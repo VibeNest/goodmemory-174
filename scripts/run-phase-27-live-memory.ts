@@ -284,6 +284,10 @@ async function main(): Promise<void> {
     parsePhase27LiveMemoryCliOptions(process.argv),
   );
   console.log(JSON.stringify(report, null, 2));
+
+  if (!report.summary.accepted) {
+    process.exit(1);
+  }
 }
 
 if (import.meta.main) {

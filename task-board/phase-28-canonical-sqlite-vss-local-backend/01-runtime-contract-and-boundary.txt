@@ -1,0 +1,31 @@
+Phase 28.1: Runtime Contract and Boundary
+=========================================
+
+[TODO] P28.1-T001 Write the canonical accelerated-vs-fallback-vs-rules-only contract
+[TODO] P28.1-T002 Add failing resolver/runtime coverage for supported accelerated mode and explicit fallback diagnostics
+[TODO] P28.1-T003 Lock the non-goals so Phase 28 does not widen into local embedding generation or installer work
+
+Why this exists
+---------------
+- Phase 26 closed the durable local baseline, but it intentionally stopped short of claiming `sqlite-vss` as the canonical accelerated backend.
+- Phase 28 needs one authoritative contract for when local SQLite is truly accelerated versus merely durable.
+- The runtime must not silently blur “accelerated”, “fallback”, and “rules-only”.
+
+Write tests first
+-----------------
+- supported local accelerated mode is distinguishable from durable fallback mode
+- unsupported accelerated mode surfaces clear diagnostics
+- missing `GOODMEMORY_EMBEDDING_*` still resolves to `rules-only`
+- explicit provider and auto-resolution behavior remain backward-compatible
+
+Acceptance
+----------
+- there is one clear contract for accelerated local mode
+- fallback behavior is explicit, not implicit marketing
+- Phase 26 storage-resolution guarantees remain intact
+
+Current implementation notes
+----------------------------
+- Do not reopen the accepted Phase 26 statement that durable local vectors are already real
+- Phase 28 should only promote the stronger accelerated claim when the runtime proof is real
+- If diagnostics need a public surface addition, keep it narrow and release-facing only

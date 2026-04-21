@@ -16,11 +16,11 @@ This phase does not add new memory capability. It proves that the current public
 
 Current Status
 --------------
-[WIP] Phase 27 is in progress.
+[DONE] Phase 27 is closed and accepted.
 [DONE] Public reference hardening landed on top of the accepted Phase 26 local-first runtime.
 [DONE] Deterministic adoption eval now runs through `eval:phase-27` with thresholded identity/background, continuation/open-loop, repeated-correction, and Codex handoff reporting.
-[WIP] Phase 27 live-memory runner now exists through `eval:phase-27-live-memory`, but no canonical archived live run exists yet in the current environment.
-[TODO] Canonical archived live evidence and `gate:phase-27` closure remain open.
+[DONE] Canonical live adoption evidence now exists through `eval:phase-27-live-memory` at `reports/eval/live-memory/phase-27/run-20260420175513/report.json`.
+[DONE] `gate:phase-27` is accepted and the archive/current-status/task-board evidence chain is now synchronized.
 
 
 Dependencies
@@ -86,8 +86,8 @@ Tasks
 [DONE] P27-T002 Harden the public reference path around `createGoodMemory({})`, stable local-first runtime defaults, and package-boundary consumer smoke coverage
 [DONE] P27-T003 Add docs-as-written purity coverage and lock canonical examples/guides to public imports only
 [DONE] P27-T004 Add deterministic adoption eval families, frozen baseline contract, and metric reporting for identity/background, continuation/open-loop, repeated correction, and Codex handoff
-[TODO] P27-T005 Add provider-backed Phase 27 live adoption runner and archive at least one canonical live run
-[TODO] P27-T006 Add `gate:phase-27`, archive canonical closure evidence, and sync current-status/task-board references after behavior and evidence are real
+[DONE] P27-T005 Add provider-backed Phase 27 live adoption runner and archive at least one canonical live run
+[DONE] P27-T006 Add `gate:phase-27`, archive canonical closure evidence, and sync current-status/task-board references after behavior and evidence are real
 
 
 Breakdown Folder
@@ -114,12 +114,16 @@ Implemented So Far
 - deterministic adoption evidence now runs through:
   - `scripts/run-phase-27-eval.ts`
   - `src/eval/phase27.ts`
-  - `reports/eval/fallback/phase-27/run-phase27-local/report.json`
+  - `reports/eval/fallback/phase-27/run-20260420165836/report.json`
 - provider-backed live adoption runner contract now exists through:
   - `scripts/run-phase-27-live-memory.ts`
   - `tests/unit/run-phase-27.script.test.ts`
+  - `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
 - deterministic regression now locks the phase-27 runner through:
   - `tests/unit/run-phase-27.script.test.ts`
+- canonical phase-27 closure is now archived through:
+  - `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+  - `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
 
 
 Evidence
@@ -140,7 +144,11 @@ Evidence
 - `tests/unit/run-phase-27.script.test.ts`
 - `tests/examples/examples.test.ts`
 - `tests/release/release.test.ts`
-- `reports/eval/fallback/phase-27/run-phase27-local/report.json`
+- `reports/eval/fallback/phase-27/run-20260420165836/report.json`
+- `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+- `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
 
 
 Key Constraints

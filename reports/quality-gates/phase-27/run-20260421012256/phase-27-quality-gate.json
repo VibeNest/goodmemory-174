@@ -1,0 +1,103 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 27 public reference hardening, deterministic adoption evidence, canonical live adoption evidence, and Codex-only host gating are regression-covered and closure-ready."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2372,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-27-targeted-regressions",
+      "command": "bun test tests/unit/run-phase-27.script.test.ts tests/unit/run-phase-27.gate.test.ts tests/examples/examples.test.ts tests/release/release.test.ts",
+      "durationMs": 6231,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) release metadata and docs > phase-26 quality gate doc points to one canonical accepted report [71.34ms]",
+        "(pass) release metadata and docs > phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence [107.92ms]",
+        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [234.56ms]",
+        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [311.16ms]",
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [546.51ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [266.20ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.19ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.83ms]",
+        "",
+        "tests/examples/examples.test.ts:",
+        "(pass) examples > basic chat example demonstrates the minimal integration path [3.43ms]",
+        "(pass) examples > coding-agent example demonstrates runtime continuity and procedural memory [2.05ms]",
+        "(pass) examples > vercel ai example demonstrates wrapper-first recall injection and remember writeback [6.64ms]",
+        "(pass) examples > claude host example demonstrates read-only compiled artifact consumption [4.04ms]",
+        "(pass) examples > codex host example demonstrates session handoff consumption [4.73ms]",
+        "",
+        " 47 pass",
+        " 0 fail",
+        " 747 expect() calls",
+        "Ran 47 tests across 4 files. [6.22s]"
+      ]
+    },
+    {
+      "label": "phase-27-fallback-eval",
+      "command": "bun run eval:phase-27",
+      "durationMs": 308,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "          \"goodmemoryRepeated\": false,",
+        "          \"scenarioId\": \"scenario-medium-13-reference-slot\",",
+        "          \"winner\": \"goodmemory\"",
+        "        }",
+        "      ],",
+        "      \"goodmemoryRepeatedCorrectionRate\": 0,",
+        "      \"improvement\": 1,",
+        "      \"passed\": true,",
+        "      \"requiredCases\": 4,",
+        "      \"threshold\": \"GoodMemory reduces repeated-correction rate by at least 25 percentage points.\",",
+        "      \"totalCases\": 4",
+        "    }",
+        "  },",
+        "  \"summary\": {",
+        "    \"accepted\": true,",
+        "    \"blockingMetrics\": [],",
+        "    \"executionFailures\": 0,",
+        "    \"totalScenarioCases\": 13",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-27-eval.ts"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-21T01:22:56.301Z",
+  "generatedBy": "scripts/run-phase-27-gate.ts",
+  "phase": "phase-27",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-27/run-20260421012256",
+  "runId": "run-20260421012256",
+  "scope": {
+    "inScope": [
+      "public reference hardening over createGoodMemory({}) and public-only imports",
+      "package-boundary consumer smoke for goodmemory, goodmemory/ai-sdk, and goodmemory/host",
+      "deterministic adoption evidence for identity/background, continuation/open-loop, repeated correction, and Codex handoff",
+      "canonical provider-backed live adoption evidence for continuation/open-loop and repeated correction",
+      "Codex-only host gate and phase-27 closure command"
+    ],
+    "outOfScope": [
+      "installer CLI or package publishing automation",
+      "src/core or facade-first refactors",
+      "new memory capabilities beyond the accepted local-first runtime",
+      "making Claude a second gate-blocking host path"
+    ]
+  }
+}

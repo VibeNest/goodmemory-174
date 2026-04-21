@@ -1,0 +1,28 @@
+Phase 28.4: Regressions and Closure
+===================================
+
+[TODO] P28.4-T001 Add end-to-end regressions for accelerated local mode, fallback mode, and rules-only mode
+[TODO] P28.4-T002 Add `gate:phase-28` and a matching unit test
+[TODO] P28.4-T003 Archive the canonical Phase 28 quality-gate evidence and sync task-board/current-status docs
+
+Why this exists
+---------------
+- Phase 28 changes the strength of the local semantic-storage claim, so closure has to be evidence-backed.
+- This repo treats “code landed” and “phase accepted” as different things.
+
+Write tests first
+-----------------
+- end-to-end regressions prove accelerated local mode on a real supported path
+- fallback and rules-only regressions remain green
+- release/closure tests lock one canonical accepted run reference
+
+Acceptance
+----------
+- Phase 28 has one canonical quality-gate chain
+- accelerated local claims are backed by real runtime evidence
+- docs do not conflate accelerated mode with fallback mode
+
+Current implementation notes
+----------------------------
+- Reuse the repo’s dedicated-gate pattern: gate script, unit test, real run, archived summary, then board/doc sync
+- Do not call Phase 28 done if only the fallback path is green

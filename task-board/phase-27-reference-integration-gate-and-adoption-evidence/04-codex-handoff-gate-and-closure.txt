@@ -1,10 +1,10 @@
 Phase 27.4: Codex Handoff Gate and Closure
 ==========================================
 
-[TODO] P27.4-T001 Make Codex file-assisted handoff/resume the only gate-blocking host path for Phase 27
-[TODO] P27.4-T002 Keep Claude in docs/example coverage without making it a second gate blocker
-[TODO] P27.4-T003 Add `gate:phase-27` with targeted reference, consumer-smoke, deterministic-eval, and Codex handoff coverage
-[TODO] P27.4-T004 Archive canonical deterministic and live evidence and sync task-board/current-status references
+[DONE] P27.4-T001 Make Codex file-assisted handoff/resume the only gate-blocking host path for Phase 27
+[DONE] P27.4-T002 Keep Claude in docs/example coverage without making it a second gate blocker
+[DONE] P27.4-T003 Add `gate:phase-27` with targeted reference, consumer-smoke, deterministic-eval, and Codex handoff coverage
+[DONE] P27.4-T004 Archive canonical deterministic and live evidence and sync task-board/current-status references
 
 Why this exists
 ---------------
@@ -20,10 +20,37 @@ Write tests first
 
 Implementation steps
 --------------------
-1. Freeze Codex file-assisted handoff/resume as the canonical host gate
-2. Keep Claude in auxiliary coverage only
-3. Add the dedicated Phase 27 gate command
-4. Archive the canonical deterministic and live evidence only after the gate is real
+1. Freeze Codex file-assisted handoff/resume as the canonical host gate.
+2. Keep Claude in auxiliary coverage only.
+3. Add the dedicated Phase 27 gate command.
+4. Archive the canonical deterministic and live evidence and sync the stable docs/task-board entrypoints.
+
+Implemented
+-----------
+- `scripts/run-phase-27-gate.ts`
+- `tests/unit/run-phase-27.gate.test.ts`
+- `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `task-board/00-README.txt`
+- `task-board/28-phase-27-reference-integration-gate-and-adoption-evidence.txt`
+- `task-board/phase-27-reference-integration-gate-and-adoption-evidence/00-README.txt`
+
+Regression run
+--------------
+- `bun run typecheck`
+- `bun test tests/unit/run-phase-27.script.test.ts tests/unit/run-phase-27.gate.test.ts tests/release/release.test.ts`
+- `bun run scripts/run-phase-27-gate.ts`
+
+Canonical Closure Evidence
+--------------------------
+- Deterministic adoption eval:
+  - `reports/eval/fallback/phase-27/run-20260420165836/report.json`
+- Live-memory adoption eval:
+  - `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+- Quality gate:
+  - `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+- Archive summary:
+  - `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
 
 Acceptance
 ----------
