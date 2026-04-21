@@ -3,7 +3,8 @@ Phase 30 Breakdown
 
 Status
 ------
-- Phase 30 is queued and not implemented.
+- Phase 30 is in progress.
+- P30-T001 is complete and regression-covered.
 - No deterministic gate, live-memory behavioral report, or archive closure exists yet.
 
 
@@ -16,7 +17,7 @@ The accepted Phase 25 contract already proves deterministic outcome telemetry an
 
 Tasks
 -----
-[TODO] P30-T001 Define the internal first-action trace contract and add parser/extractor regressions
+[DONE] P30-T001 Define the internal first-action trace contract and add parser/extractor regressions
 [TODO] P30-T002 Wire the accepted Codex host path to emit first-action behavioral traces
 [TODO] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
 [TODO] P30-T004 Add deterministic trace-backed behavioral eval and report contract

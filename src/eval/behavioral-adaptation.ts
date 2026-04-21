@@ -9,6 +9,12 @@ import type {
   BehavioralOutcomeRecordInput,
 } from "../evolution/behavioralTelemetry";
 import { behavioralFirstActionsEqual } from "../evolution/behavioralTelemetry";
+import {
+  extractFirstBehavioralTraceAction,
+  toBehavioralFirstAction,
+  type HostBehavioralTrace,
+  validateBehavioralTrace,
+} from "../host/behavioralTrace";
 
 export type BehavioralAdaptationParadigm =
   | "conditioning"
@@ -74,6 +80,7 @@ export type BehavioralAdaptationFixture =
 export interface BehavioralGeneratedAnswer {
   answer: string;
   first_action?: BehavioralFirstAction;
+  trace?: HostBehavioralTrace;
 }
 
 export interface BehavioralLayerD {
@@ -491,6 +498,24 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
       return {
         answer: actionToAnswer(fixture.forbidden_first_action),
         first_action: fixture.forbidden_first_action,
+        trace: {
+          hostKind: "codex",
+          traceId: `baseline-${fixture.case_id}`,
+          events: [
+            {
+              stepIndex: 0,
+              actionKind: fixture.forbidden_first_action.kind,
+              actionName: fixture.forbidden_first_action.name,
+              ...(fixture.forbidden_first_action.args
+                ? { args: fixture.forbidden_first_action.args }
+                : {}),
+              ...(fixture.forbidden_first_action.raw
+                ? { raw: fixture.forbidden_first_action.raw }
+                : {}),
+              outcome: "failure",
+            },
+          ],
+        },
       };
     }
 
@@ -499,10 +524,46 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
         ? {
             answer: actionToAnswer(fixture.expected_first_action),
             first_action: fixture.expected_first_action,
+            trace: {
+              hostKind: "codex",
+              traceId: `${profile}-${fixture.case_id}`,
+              events: [
+                {
+                  stepIndex: 0,
+                  actionKind: fixture.expected_first_action.kind,
+                  actionName: fixture.expected_first_action.name,
+                  ...(fixture.expected_first_action.args
+                    ? { args: fixture.expected_first_action.args }
+                    : {}),
+                  ...(fixture.expected_first_action.raw
+                    ? { raw: fixture.expected_first_action.raw }
+                    : {}),
+                  outcome: "success",
+                },
+              ],
+            },
           }
         : {
             answer: actionToAnswer(fixture.forbidden_first_action),
             first_action: fixture.forbidden_first_action,
+            trace: {
+              hostKind: "codex",
+              traceId: `${profile}-${fixture.case_id}`,
+              events: [
+                {
+                  stepIndex: 0,
+                  actionKind: fixture.forbidden_first_action.kind,
+                  actionName: fixture.forbidden_first_action.name,
+                  ...(fixture.forbidden_first_action.args
+                    ? { args: fixture.forbidden_first_action.args }
+                    : {}),
+                  ...(fixture.forbidden_first_action.raw
+                    ? { raw: fixture.forbidden_first_action.raw }
+                    : {}),
+                  outcome: "failure",
+                },
+              ],
+            },
           };
     }
 
@@ -510,12 +571,66 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
       ? {
           answer: actionToAnswer(fixture.expected_first_action),
           first_action: fixture.expected_first_action,
+          trace: {
+            hostKind: "codex",
+            traceId: `${profile}-${fixture.case_id}`,
+            events: [
+              {
+                stepIndex: 0,
+                actionKind: fixture.expected_first_action.kind,
+                actionName: fixture.expected_first_action.name,
+                ...(fixture.expected_first_action.args
+                  ? { args: fixture.expected_first_action.args }
+                  : {}),
+                ...(fixture.expected_first_action.raw
+                  ? { raw: fixture.expected_first_action.raw }
+                  : {}),
+                outcome: "success",
+              },
+            ],
+          },
         }
       : {
           answer: actionToAnswer(fixture.forbidden_first_action),
           first_action: fixture.forbidden_first_action,
+          trace: {
+            hostKind: "codex",
+            traceId: `${profile}-${fixture.case_id}`,
+            events: [
+              {
+                stepIndex: 0,
+                actionKind: fixture.forbidden_first_action.kind,
+                actionName: fixture.forbidden_first_action.name,
+                ...(fixture.forbidden_first_action.args
+                  ? { args: fixture.forbidden_first_action.args }
+                  : {}),
+                ...(fixture.forbidden_first_action.raw
+                  ? { raw: fixture.forbidden_first_action.raw }
+                  : {}),
+                outcome: "failure",
+              },
+            ],
+          },
         };
   };
+}
+
+function resolveScoredFirstAction(
+  generated: BehavioralGeneratedAnswer,
+): BehavioralFirstAction | undefined {
+  if (!generated.trace) {
+    return generated.first_action;
+  }
+
+  let trace: HostBehavioralTrace;
+  try {
+    trace = validateBehavioralTrace(generated.trace, "generated.trace");
+  } catch {
+    return undefined;
+  }
+  const firstTraceEvent = extractFirstBehavioralTraceAction(trace);
+
+  return firstTraceEvent ? toBehavioralFirstAction(firstTraceEvent) : undefined;
 }
 
 function buildPrompt(input: {
@@ -942,8 +1057,9 @@ async function executeStructuredCase(input: {
         memoryContext,
       }),
     });
+    const firstAction = resolveScoredFirstAction(generated);
     const scored = scoreFirstActionCase({
-      actual: generated.first_action,
+      actual: firstAction,
       expected: input.fixture.expected_first_action,
       forbidden: input.fixture.forbidden_first_action,
       paradigm: input.fixture.paradigm,
@@ -953,7 +1069,7 @@ async function executeStructuredCase(input: {
       baselineAnswer: baseline.answer,
       caseId: input.fixture.case_id,
       explicitRecallLeak: countExplicitRecallLeaks(generated.answer),
-      firstAction: generated.first_action,
+      firstAction,
       goodmemoryAnswer: generated.answer,
       memoryContext,
       paradigm: input.fixture.paradigm,

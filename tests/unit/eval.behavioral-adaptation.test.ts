@@ -389,4 +389,118 @@ describe("behavioral adaptation eval", () => {
     );
     expect(report.profiles["outcome-telemetry"].layer_d.failure_avoidance_rate).toBe(0);
   });
+
+  it("prefers trace-backed first actions over self-reported first_action", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-phase30-trace-first-"));
+    await writeFile(
+      join(root, "cases.json"),
+      `${JSON.stringify([buildFixtures()[1]], null, 2)}\n`,
+    );
+
+    const report = await runBehavioralAdaptationEvaluation({
+      fixtureDir: root,
+      generatedBy: "tests",
+      mode: "fallback",
+      outputDir: join(root, "reports"),
+      runId: "run-phase30-trace-first",
+      answerGenerator: async (input) => {
+        if (input.mode === "baseline") {
+          return {
+            answer: input.fixture.paradigm === "priming"
+              ? "VectorNest\nSignalWeave\nCompressionGrid"
+              : input.fixture.forbidden_first_action.raw!,
+            first_action: input.fixture.paradigm === "priming"
+              ? undefined
+              : input.fixture.forbidden_first_action,
+          };
+        }
+
+        return {
+          answer: "QuickCheck --network",
+          first_action: {
+            kind: "tool_call",
+            name: "QuickCheck",
+            raw: "QuickCheck --network",
+          },
+          trace: {
+            hostKind: "codex",
+            traceId: "trace-cond-1",
+            events: [
+              {
+                stepIndex: 0,
+                actionKind: "tool_call",
+                actionName: "DeepAnalyzer",
+                raw: "DeepAnalyzer --detailed",
+                outcome: "timeout",
+              },
+              {
+                stepIndex: 1,
+                actionKind: "tool_call",
+                actionName: "QuickCheck",
+                raw: "QuickCheck --network",
+                outcome: "success",
+              },
+            ],
+          },
+        };
+      },
+    });
+
+    expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(false);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.scoreReason).toBe(
+      "first_action_matched_forbidden",
+    );
+  });
+
+  it("fails closed when trace data is present but malformed", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-phase30-trace-invalid-"));
+    await writeFile(
+      join(root, "cases.json"),
+      `${JSON.stringify([buildFixtures()[1]], null, 2)}\n`,
+    );
+
+    const report = await runBehavioralAdaptationEvaluation({
+      fixtureDir: root,
+      generatedBy: "tests",
+      mode: "fallback",
+      outputDir: join(root, "reports"),
+      runId: "run-phase30-trace-invalid",
+      answerGenerator: async (input) => {
+        if (input.mode === "baseline") {
+          return {
+            answer: input.fixture.paradigm === "priming"
+              ? "VectorNest\nSignalWeave\nCompressionGrid"
+              : input.fixture.forbidden_first_action.raw!,
+            first_action: input.fixture.paradigm === "priming"
+              ? undefined
+              : input.fixture.forbidden_first_action,
+          };
+        }
+
+        return {
+          answer: "QuickCheck --network",
+          first_action: {
+            kind: "tool_call",
+            name: "QuickCheck",
+            raw: "QuickCheck --network",
+          },
+          trace: {
+            hostKind: "codex",
+            traceId: "trace-cond-invalid",
+            events: [],
+          },
+        };
+      },
+    });
+
+    expect(report.profiles["outcome-telemetry"].executionFailures).toBe(0);
+    expect(report.profiles["outcome-telemetry"].totalCases).toBe(1);
+    expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.firstAction).toBeUndefined();
+    expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(false);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.scoreReason).toBe(
+      "missing_first_action",
+    );
+  });
 });
