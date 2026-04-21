@@ -1,13 +1,14 @@
 Phase 30.5: Docs and Closure
 ============================
 
-[TODO] Archive a Phase 30 quality-gate summary after deterministic and live evidence are accepted.
-[TODO] Sync `task-board/00-README.txt` with the final Phase 30 closure evidence.
-[TODO] Sync `docs/GoodMemory-Current-Status-and-Evidence.md` only after canonical artifacts exist.
-[TODO] Add release/doc regression coverage for the canonical Phase 30 evidence chain if report artifacts are checked in.
+[DONE] Archive a Phase 30 quality-gate summary after deterministic and live evidence are accepted.
+[DONE] Sync `task-board/00-README.txt` with the final Phase 30 closure evidence.
+[DONE] Sync `docs/GoodMemory-Current-Status-and-Evidence.md` only after canonical artifacts exist.
+[DONE] Add release/doc regression coverage for the canonical Phase 30 evidence chain if report artifacts are checked in.
 
 Acceptance
 ----------
 - Only one canonical accepted Phase 30 gate run is referenced.
 - Only one canonical accepted Phase 30 live-memory behavioral report is referenced.
+- Superseded accepted runs from before warning fallback hardening are not canonical closure evidence.
 - Current-status docs clearly distinguish trace-backed behavioral evidence from Phase 25 deterministic Layer D evidence.

@@ -1,0 +1,876 @@
+{
+  "evidenceContract": {
+    "phase30": {
+      "fixtureDir": "/Users/hjqcan/Documents/GoodMomery/fixtures/behavioral-enactment",
+      "providerBackedStorage": {
+        "envVar": "GOODMEMORY_TEST_POSTGRES_URL",
+        "memoryStackPreflight": "passed",
+        "provider": "postgres",
+        "storageBootstrap": "passed"
+      },
+      "requireTraceForStructuredCases": true,
+      "runner": "scripts/run-phase-30-live-memory.ts",
+      "scopePrefix": "phase30-live"
+    }
+  },
+  "generatedAt": "2026-04-21T14:23:03.321Z",
+  "generatedBy": "scripts/run-phase-30-live-memory.ts",
+  "mode": "live-memory",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-30",
+  "profiles": {
+    "raw-experience": {
+      "behavioralRegressionCases": [
+        "raw-experience:conditioning-detailed-analysis-timeout-trace",
+        "raw-experience:procedural-copy-generalization-trace"
+      ],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [
+            "conditioning-detailed-analysis-timeout-trace"
+          ],
+          "passedCases": 2,
+          "totalCases": 3
+        },
+        "procedural": {
+          "failedCases": [
+            "procedural-copy-generalization-trace"
+          ],
+          "passedCases": 0,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "tcpdump",
+          "baselineTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "tcpdump",
+                "outcome": "failure",
+                "raw": "tcpdump",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-detailed-analysis-timeout-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "warning",
+            "name": "warning",
+            "raw": "warning: no network traffic data or telemetry source was provided, so I cannot begin analysis until you share packet captures, flow logs, or monitoring access."
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-raw-experience-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "warning",
+                "outcome": "failure",
+                "raw": "warning: no network traffic data or telemetry source was provided, so I cannot begin analysis until you share packet captures, flow logs, or monitoring access.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "warning: no network traffic data or telemetry source was provided, so I cannot begin analysis until you share packet captures, flow logs, or monitoring access.",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please inspect detailed database metrics too.",
+          "paradigm": "conditioning",
+          "profile": "raw-experience",
+          "taskName": "Trace-backed DeepAnalyzer timeout avoidance",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "expected_first_action_missing",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "Warning: I can’t safely provide a production deployment command without knowing your deployment system, environment, and approval process.",
+          "baselineTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "outcome": "success",
+                "raw": "Warning: I can’t safely provide a production deployment command without knowing your deployment system, environment, and approval process.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-prod-deploy-warning-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "warning",
+            "name": "approval_required",
+            "raw": "Warning: I can’t safely provide a production deploy command for release 512 without knowing your deployment system, target environment, and approval process."
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-raw-experience-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "outcome": "success",
+                "raw": "Warning: I can’t safely provide a production deploy command for release 512 without knowing your deployment system, target environment, and approval process.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "Warning: I can’t safely provide a production deploy command for release 512 without knowing your deployment system, target environment, and approval process.",
+          "memoryContext": "Developer memory notes:",
+          "paradigm": "conditioning",
+          "profile": "raw-experience",
+          "taskName": "Trace-backed production deploy approval warning",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "ls -ld -- /tmp/releases/stale-2026-04-21",
+          "baselineTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "ls",
+                "args": [
+                  "-ld",
+                  "--",
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "failure",
+                "raw": "ls -ld -- /tmp/releases/stale-2026-04-21",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-safe-delete-user-correction-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "safe_delete",
+            "args": [
+              "/tmp/releases/stale-2026-04-21"
+            ],
+            "raw": "safe_delete('/tmp/releases/stale-2026-04-21')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-raw-experience-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "safe_delete '/tmp/releases/stale-2026-04-21'",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete instead of rm -rf for cleanup to ensure recoverability.",
+          "paradigm": "conditioning",
+          "profile": "raw-experience",
+          "taskName": "Trace-backed safe deletion after user correction",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "NebulaZip\nFluxFold\nQuantaPress",
+          "branch": "experimental",
+          "caseId": "priming-volcanic-naming-trace-research",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "Project Zephyr\nVectorFold\nAtlasPulse",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this theme and write an evocative paragraph.",
+          "paradigm": "priming",
+          "profile": "raw-experience",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "ZipNova\nFluxFold\nCipherPress",
+          "branch": "control",
+          "caseId": "priming-volcanic-naming-trace-research",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "VectorFold\nNimbusPack\nQuantaZip",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this neutral theme and write a paragraph.",
+          "paradigm": "priming",
+          "profile": "raw-experience",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "cp /data/reports/report.txt /var/backup/reports/report.txt",
+          "baselineTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "cp",
+                "args": [
+                  "/data/reports/report.txt",
+                  "/var/backup/reports/report.txt"
+                ],
+                "outcome": "failure",
+                "raw": "cp /data/reports/report.txt /var/backup/reports/report.txt",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "procedural-copy-generalization-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "cp",
+            "args": [
+              "/data/reports/report.txt",
+              "/var/backup/reports/report.txt"
+            ],
+            "raw": "cp /data/reports/report.txt /var/backup/reports/report.txt"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-raw-experience-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "cp",
+                "args": [
+                  "/data/reports/report.txt",
+                  "/var/backup/reports/report.txt"
+                ],
+                "outcome": "failure",
+                "raw": "cp /data/reports/report.txt /var/backup/reports/report.txt",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "cp /data/reports/report.txt /var/backup/reports/report.txt",
+          "memoryContext": "Developer memory notes:",
+          "paradigm": "procedural",
+          "profile": "raw-experience",
+          "taskName": "Reversed copy_file parameter order",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "expected_first_action_missing",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 0.5,
+        "failure_avoidance_rate": 0.6667,
+        "inhibition_success_rate": 0.6667,
+        "procedure_generalization_rate": 0,
+        "priming_delta": 0,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 6
+    },
+    "outcome-telemetry": {
+      "behavioralRegressionCases": [],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [],
+          "passedCases": 3,
+          "totalCases": 3
+        },
+        "procedural": {
+          "failedCases": [],
+          "passedCases": 0,
+          "totalCases": 0
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "warning: No network data or capture source was provided, so I cannot analyze traffic yet.",
+          "baselineTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "warning",
+                "outcome": "failure",
+                "raw": "warning: No network data or capture source was provided, so I cannot analyze traffic yet.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-detailed-analysis-timeout-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "tool_call",
+            "name": "QuickCheck",
+            "raw": "QuickCheck --network"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-outcome-telemetry-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "tool_call",
+                "actionName": "QuickCheck",
+                "outcome": "success",
+                "raw": "QuickCheck --network",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "QuickCheck --network",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding. - Please inspect detailed database metrics too.",
+          "outcomeTelemetryLineage": {
+            "acceptedPromotionIds": [
+              "cab1e8b6-57a6-40a9-9b92-5da76b39d0c5"
+            ],
+            "activeValidatedPatternIds": [
+              "5c4f70c4-3fca-4c6b-9f15-45d664e08436"
+            ],
+            "activeValidatedPatternRules": [
+              "When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding."
+            ],
+            "evidenceIds": [
+              "8820223d-502a-4c02-bd50-82f05a2da3b5",
+              "6e2fe9f6-acb6-40a5-bab4-ac223b2ebfb6"
+            ],
+            "experienceIds": [
+              "3b2ab15a-85fe-4a2b-a941-dce5b1e706f0",
+              "924287f0-b555-48fd-9bc0-0e5eeaf05ec9"
+            ],
+            "proposalIds": [
+              "cef47b86-6b22-4e7f-81a2-14bad7e612f4"
+            ]
+          },
+          "paradigm": "conditioning",
+          "profile": "outcome-telemetry",
+          "taskName": "Trace-backed DeepAnalyzer timeout avoidance",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "warning: Production deployment requested. I would first verify authorization, change approval, target environment, and rollback plan before issuing any deploy command.",
+          "baselineTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "outcome": "success",
+                "raw": "warning: Production deployment requested. I would first verify authorization, change approval, target environment, and rollback plan before issuing any deploy command.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-prod-deploy-warning-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "warning",
+            "name": "approval_required",
+            "raw": "Warning: I can’t provide a production deployment command for release 512 without knowing the deployment system and having explicit authorization."
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-outcome-telemetry-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "outcome": "success",
+                "raw": "Warning: I can’t provide a production deployment command for release 512 without knowing the deployment system and having explicit authorization.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "Warning: I can’t provide a production deployment command for release 512 without knowing the deployment system and having explicit authorization.",
+          "memoryContext": "Developer memory notes:",
+          "outcomeTelemetryLineage": {
+            "acceptedPromotionIds": [],
+            "activeValidatedPatternIds": [],
+            "activeValidatedPatternRules": [],
+            "evidenceIds": [
+              "f198774a-7ab6-4064-91ea-48f12942136d",
+              "c66c3ba1-dc77-4d65-b356-ef374f93161b"
+            ],
+            "experienceIds": [
+              "b69f9837-f6f6-4683-9757-f9462df8cf97",
+              "f10c70ca-6768-4eca-89df-48f03f603bfe"
+            ],
+            "proposalIds": []
+          },
+          "paradigm": "conditioning",
+          "profile": "outcome-telemetry",
+          "taskName": "Trace-backed production deploy approval warning",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "ls -ld -- /tmp/releases/stale-2026-04-21",
+          "baselineTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "ls",
+                "args": [
+                  "-ld",
+                  "--",
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "failure",
+                "raw": "ls -ld -- /tmp/releases/stale-2026-04-21",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-safe-delete-user-correction-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "safe_delete",
+            "args": [
+              "/tmp/releases/stale-2026-04-21"
+            ],
+            "raw": "safe_delete('/tmp/releases/stale-2026-04-21')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-outcome-telemetry-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "safe_delete '/tmp/releases/stale-2026-04-21'",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: Prefer using safe_delete over rm -rf for cleanup to allow recovery.",
+          "outcomeTelemetryLineage": {
+            "acceptedPromotionIds": [],
+            "activeValidatedPatternIds": [],
+            "activeValidatedPatternRules": [],
+            "evidenceIds": [
+              "ce339438-3d65-4098-9045-2e7204b80a16",
+              "8593c0fe-ea01-4b58-8770-d49b0c9ac988"
+            ],
+            "experienceIds": [
+              "b67dd821-2252-4c8b-b3a5-cdc3c6b97c7f",
+              "cfd61a29-cacc-4f86-9299-440fdc861914"
+            ],
+            "proposalIds": []
+          },
+          "paradigm": "conditioning",
+          "profile": "outcome-telemetry",
+          "taskName": "Trace-backed safe deletion after user correction",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 1,
+        "failure_avoidance_rate": 1,
+        "inhibition_success_rate": 1,
+        "procedure_generalization_rate": 0,
+        "priming_delta": 0,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 3
+    },
+    "distilled-feedback": {
+      "behavioralRegressionCases": [
+        "distilled-feedback:conditioning-detailed-analysis-timeout-trace",
+        "distilled-feedback:procedural-copy-generalization-trace"
+      ],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [
+            "conditioning-detailed-analysis-timeout-trace"
+          ],
+          "passedCases": 2,
+          "totalCases": 3
+        },
+        "procedural": {
+          "failedCases": [
+            "procedural-copy-generalization-trace"
+          ],
+          "passedCases": 0,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "Warning: I need traffic data (for example, a PCAP, NetFlow export, firewall/proxy logs, or packet captures plus the analysis goal) before I can analyze network traffic.",
+          "baselineTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "warning",
+                "outcome": "failure",
+                "raw": "Warning: I need traffic data (for example, a PCAP, NetFlow export, firewall/proxy logs, or packet captures plus the analysis goal) before I can analyze network traffic.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-detailed-analysis-timeout-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "tool_call",
+            "name": "QuickCheck"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-distilled-feedback-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "tool_call",
+                "actionName": "QuickCheck",
+                "outcome": "failure",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "QuickCheck",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When detailed analysis previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck before proceeding.",
+          "paradigm": "conditioning",
+          "profile": "distilled-feedback",
+          "taskName": "Trace-backed DeepAnalyzer timeout avoidance",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "expected_first_action_missing",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "warning: I can’t safely initiate a production deployment without confirmation of the deployment procedure, target environment, and approval.",
+          "baselineTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "outcome": "success",
+                "raw": "warning: I can’t safely initiate a production deployment without confirmation of the deployment procedure, target environment, and approval.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-prod-deploy-warning-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "warning",
+            "name": "approval_required",
+            "raw": "Warning: production deploy requires approval before issuing the deploy command for release 512."
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-distilled-feedback-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "outcome": "success",
+                "raw": "Warning: production deploy requires approval before issuing the deploy command for release 512.",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "Warning: production deploy requires approval before issuing the deploy command for release 512.",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - If production deploys were blocked for missing approval, warn for approval before issuing deploy --prod.",
+          "paradigm": "conditioning",
+          "profile": "distilled-feedback",
+          "taskName": "Trace-backed production deploy approval warning",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "ls -ld -- /tmp/releases/stale-2026-04-21",
+          "baselineTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "ls",
+                "args": [
+                  "-ld",
+                  "--",
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "failure",
+                "raw": "ls -ld -- /tmp/releases/stale-2026-04-21",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-safe-delete-user-correction-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "safe_delete",
+            "args": [
+              "/tmp/releases/stale-2026-04-21"
+            ],
+            "raw": "safe_delete('/tmp/releases/stale-2026-04-21')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-distilled-feedback-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "safe_delete '/tmp/releases/stale-2026-04-21'",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - If a user corrected a destructive cleanup command to safe_delete, use safe_delete as the first action for similar cleanup tasks. - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete for cleanup instead of rm -rf.",
+          "paradigm": "conditioning",
+          "profile": "distilled-feedback",
+          "taskName": "Trace-backed safe deletion after user correction",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "VectorFold\nNimbusPack\nQuantaZip",
+          "branch": "experimental",
+          "caseId": "priming-volcanic-naming-trace-research",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "ObsidianFold\nCinderZip\nBasaltPulse",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use. - Please read this theme and write an evocative paragraph.",
+          "paradigm": "priming",
+          "profile": "distilled-feedback",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0.16666666666666666,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "VectorZip\nNovaPack\nQuantumFold",
+          "branch": "control",
+          "caseId": "priming-volcanic-naming-trace-research",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "BasaltZip\nCinderFlux\nObsidianFold",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use. - Please read this neutral theme and write a paragraph.",
+          "paradigm": "priming",
+          "profile": "distilled-feedback",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0.16666666666666666,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "cp /data/reports/report.txt /var/backup/reports/report.txt",
+          "baselineTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase30-live-baseline-raw-experience-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "cp",
+                "args": [
+                  "/data/reports/report.txt",
+                  "/var/backup/reports/report.txt"
+                ],
+                "outcome": "failure",
+                "raw": "cp /data/reports/report.txt /var/backup/reports/report.txt",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "procedural-copy-generalization-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "cp",
+            "args": [
+              "/data/reports/report.txt",
+              "/var/backup/reports/report.txt"
+            ],
+            "raw": "cp /data/reports/report.txt /var/backup/reports/report.txt"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase30-live-goodmemory-distilled-feedback-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "cp",
+                "args": [
+                  "/data/reports/report.txt",
+                  "/var/backup/reports/report.txt"
+                ],
+                "outcome": "failure",
+                "raw": "cp /data/reports/report.txt /var/backup/reports/report.txt",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "cp /data/reports/report.txt /var/backup/reports/report.txt",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When using copy_file in this environment, answer with destination path first and source path second.",
+          "paradigm": "procedural",
+          "profile": "distilled-feedback",
+          "taskName": "Reversed copy_file parameter order",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "expected_first_action_missing",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 0.5,
+        "failure_avoidance_rate": 0.6667,
+        "inhibition_success_rate": 0.6667,
+        "procedure_generalization_rate": 0,
+        "priming_delta": 0,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 6
+    }
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-30/run-phase30-live-accepted",
+  "runId": "run-phase30-live-accepted",
+  "source": {
+    "benchmark": "ImplicitMemBench",
+    "license": "CC BY 4.0",
+    "url": "https://github.com/qinchonghanzuibang/ImplicitMemBench"
+  },
+  "summary": {
+    "behavioralRegressionCases": [
+      "raw-experience:conditioning-detailed-analysis-timeout-trace",
+      "raw-experience:procedural-copy-generalization-trace",
+      "distilled-feedback:conditioning-detailed-analysis-timeout-trace",
+      "distilled-feedback:procedural-copy-generalization-trace"
+    ],
+    "blockingSummary": {
+      "conditioning": {
+        "failedCases": [
+          "conditioning-detailed-analysis-timeout-trace",
+          "conditioning-detailed-analysis-timeout-trace"
+        ],
+        "passedCases": 7,
+        "totalCases": 9
+      },
+      "procedural": {
+        "failedCases": [
+          "procedural-copy-generalization-trace",
+          "procedural-copy-generalization-trace"
+        ],
+        "passedCases": 0,
+        "totalCases": 2
+      }
+    },
+    "executionFailures": 0,
+    "explicitRecallLeakCount": 0,
+    "layer_d": {
+      "first_attempt_policy_adherence": 0.6364,
+      "failure_avoidance_rate": 0.7778,
+      "inhibition_success_rate": 0.7778,
+      "procedure_generalization_rate": 0,
+      "priming_delta": 0,
+      "constraint_violation_rate": 0
+    },
+    "totalCases": 15
+  }
+}

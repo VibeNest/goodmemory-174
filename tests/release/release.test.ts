@@ -855,6 +855,15 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json",
     );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-30-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
+    );
     expect(currentStatus).toContain("Bun-only prerelease contract");
     expect(currentStatus).toContain("runLiveMemoryEval()");
     expect(currentStatus).toContain("eval:live-provider-memory");
@@ -945,6 +954,7 @@ describe("release metadata and docs", () => {
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-26-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-28-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-29-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-30-Quality-Gate.md");
     expect(archivedQualityGates).toContain("README.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
@@ -959,6 +969,7 @@ describe("release metadata and docs", () => {
     expect(archivedQualityGates).toContain("GoodMemory-Phase-26-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-28-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-29-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-30-Quality-Gate.md");
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
@@ -1090,6 +1101,28 @@ describe("release metadata and docs", () => {
     );
     await expectGitTrackedPath(
       "reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json",
+    );
+  });
+
+  it("phase-30 quality gate doc points to the canonical gate plus trace-backed live evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-30-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-30",
+      reportFileName: "phase-30-quality-gate.json",
+      runId: "run-20260421153410",
+    });
+
+    expect(qualityGateDoc).toContain(
+      "reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
+    );
+    await expectGitTrackedRepoArtifact(
+      "reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
     );
   });
 

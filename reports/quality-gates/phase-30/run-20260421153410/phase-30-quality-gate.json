@@ -1,0 +1,114 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 30 deterministic regressions and a trace-backed provider live-memory behavioral report are accepted."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2409,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-30-targeted-regressions",
+      "command": "bun test tests/unit/host.behavioral-trace.test.ts tests/unit/host.behavioral-trace-recorder.test.ts tests/unit/host.behavioral-trace-bridge.test.ts tests/unit/host.adapter.test.ts tests/unit/eval.behavioral-adaptation.test.ts tests/unit/run-phase-30.script.test.ts tests/unit/run-phase-30.gate.test.ts tests/integration/evolution.outcome-telemetry.test.ts",
+      "durationMs": 143,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) behavioral adaptation eval > does not accept an unrelated warning for conditioning first-action scoring [5.09ms]",
+        "(pass) behavioral adaptation eval > accepts approval warning variants without requiring exact warning prose [4.56ms]",
+        "(pass) behavioral adaptation eval > rejects approval warning variants that negate the required approval condition [15.01ms]",
+        "(pass) behavioral adaptation eval > does not accept raw-only same-name tool calls with different flags [2.01ms]",
+        "(pass) behavioral adaptation eval > prefers trace-backed first actions over self-reported first_action [2.30ms]",
+        "(pass) behavioral adaptation eval > replays behavioral_trace_replays through outcome telemetry before scoring the probe [2.71ms]",
+        "(pass) behavioral adaptation eval > fails closed when trace-backed scoring is required but only self-reported first_action is present [1.93ms]",
+        "(pass) behavioral adaptation eval > fails closed when trace data is present but malformed [3.24ms]",
+        "(pass) behavioral adaptation eval > preserves baseline trace parse failures in the case evidence [2.10ms]",
+        "",
+        "tests/integration/evolution.outcome-telemetry.test.ts:",
+        "(pass) outcome telemetry promotion chain > promotes repeated tool outcome failures into a validated pattern without explicit feedback memory [0.79ms]",
+        "(pass) outcome telemetry promotion chain > does not persist dangling evidence lineage when evidence storage fails [0.29ms]",
+        "(pass) outcome telemetry promotion chain > promotes repeated failed Codex traces into a validated pattern through the same telemetry chain [0.50ms]",
+        "(pass) outcome telemetry promotion chain > does not compile a failed targeted correction into durable guidance when a later safer action succeeds [0.41ms]",
+        "",
+        " 65 pass",
+        " 0 fail",
+        " 270 expect() calls",
+        "Ran 65 tests across 8 files. [135.00ms]"
+      ]
+    },
+    {
+      "label": "phase-30-fallback-eval",
+      "command": "bun run eval:phase-30",
+      "durationMs": 8834,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "        \"failedCases\": [",
+        "          \"procedural-copy-generalization-trace\"",
+        "        ],",
+        "        \"passedCases\": 1,",
+        "        \"totalCases\": 2",
+        "      }",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"layer_d\": {",
+        "      \"first_attempt_policy_adherence\": 0.6364,",
+        "      \"failure_avoidance_rate\": 0.6667,",
+        "      \"inhibition_success_rate\": 0.6667,",
+        "      \"procedure_generalization_rate\": 0.5,",
+        "      \"priming_delta\": 0.5,",
+        "      \"constraint_violation_rate\": 0",
+        "    },",
+        "    \"totalCases\": 15",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-30-eval.ts"
+      ]
+    }
+  ],
+  "evidence": {
+    "liveMemoryReport": {
+      "blockingCases": 11,
+      "canonicalLiveReportPath": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
+      "firstAttemptPolicyAdherence": 0.6364,
+      "liveReportPath": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
+      "passedBlockingCases": 7,
+      "reason": "Phase 30 live-memory behavioral report is trace-backed and accepted.",
+      "status": "accepted",
+      "traceBackedBlockingCases": 11
+    }
+  },
+  "generatedAt": "2026-04-21T15:34:10.528Z",
+  "generatedBy": "scripts/run-phase-30-gate.ts",
+  "phase": "phase-30",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-30/run-20260421153410",
+  "runId": "run-20260421153410",
+  "scope": {
+    "inScope": [
+      "trace-backed first-action scoring",
+      "accepted Codex host runtime trace emission",
+      "phase-30 deterministic behavioral eval",
+      "phase-30 provider-backed live-memory behavioral report validation"
+    ],
+    "outOfScope": [
+      "public GoodMemory API or public config widening",
+      "making Claude a gate-blocking host path",
+      "Phase 28 local backend contract changes",
+      "Phase 29 release packaging changes"
+    ]
+  }
+}

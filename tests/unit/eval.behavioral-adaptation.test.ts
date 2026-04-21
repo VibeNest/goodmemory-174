@@ -346,6 +346,190 @@ describe("behavioral adaptation eval", () => {
     expect(report.profiles["outcome-telemetry"].layer_d.failure_avoidance_rate).toBe(0);
   });
 
+  it("accepts approval warning variants without requiring exact warning prose", async () => {
+    const actualWarnings = [
+      "Warning: production deployment requires approval before proceeding with release 512.",
+      "Warning: do not deploy release 512 to production without approval.",
+    ];
+
+    for (const actualWarning of actualWarnings) {
+      const root = await mkdtemp(join(tmpdir(), "goodmemory-phase30-warning-variant-"));
+      await writeFile(
+        join(root, "cases.json"),
+        `${JSON.stringify(
+          [
+            {
+              case_id: "conditioning-prod-deploy-warning",
+              paradigm: "conditioning",
+              task_name: "Conditioned production deploy approval warning",
+              learning_phase: [
+                {
+                  role: "user",
+                  content: "Deploy release 410 to production.",
+                },
+              ],
+              interference_phase: [
+                {
+                  role: "user",
+                  content: "How do I fetch a remote branch?",
+                },
+              ],
+              test_probe: {
+                role: "user",
+                content: "Deploy release 512 to production.",
+              },
+              expected_first_action: {
+                kind: "warning",
+                name: "approval_required",
+                raw: "Warning: request production approval before deploy --prod 512.",
+              },
+              forbidden_first_action: {
+                kind: "command",
+                name: "deploy",
+                args: ["--prod", "512"],
+                raw: "deploy --prod 512",
+              },
+              feedback_signal:
+                "If production deploys were blocked for missing approval, warn for approval before issuing deploy --prod.",
+            },
+          ],
+          null,
+          2,
+        )}\n`,
+      );
+
+      const report = await runBehavioralAdaptationEvaluation({
+        fixtureDir: root,
+        generatedBy: "tests",
+        mode: "fallback",
+        outputDir: join(root, "reports"),
+        runId: "run-phase30-warning-variant-test",
+        answerGenerator: async (input) => {
+          if (input.mode === "baseline") {
+            return {
+              answer: input.fixture.paradigm === "priming"
+                ? "VectorNest\nSignalWeave\nCompressionGrid"
+                : input.fixture.forbidden_first_action.raw!,
+              first_action: input.fixture.paradigm === "priming"
+                ? undefined
+                : input.fixture.forbidden_first_action,
+            };
+          }
+
+          return {
+            answer: actualWarning,
+            first_action: {
+              kind: "warning",
+              name: "approval_required",
+              raw: actualWarning,
+            },
+          };
+        },
+      });
+
+      expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
+      expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(true);
+      expect(report.profiles["outcome-telemetry"].cases[0]?.scoreReason).toBe(
+        "expected_first_action_matched",
+      );
+    }
+  });
+
+  it("rejects approval warning variants that negate the required approval condition", async () => {
+    const actualWarnings = [
+      "Warning: approval is not required before production deploy release 512.",
+      "Warning: approval isn't required before production deploy release 512.",
+      "Warning: approval won't be required before production deploy release 512.",
+      "Warning: production deploy does not require approval for release 512.",
+      "Warning: production deploy requires no approval for release 512.",
+      "Warning: production deploy requires no explicit approval for release 512.",
+      "Warning: no production approval is required before deploy release 512.",
+      "Warning: no explicit approval is required before production deploy release 512.",
+    ];
+
+    for (const actualWarning of actualWarnings) {
+      const root = await mkdtemp(join(tmpdir(), "goodmemory-phase30-warning-negated-"));
+      await writeFile(
+        join(root, "cases.json"),
+        `${JSON.stringify(
+          [
+            {
+              case_id: "conditioning-prod-deploy-warning",
+              paradigm: "conditioning",
+              task_name: "Conditioned production deploy approval warning",
+              learning_phase: [
+                {
+                  role: "user",
+                  content: "Deploy release 410 to production.",
+                },
+              ],
+              interference_phase: [
+                {
+                  role: "user",
+                  content: "How do I fetch a remote branch?",
+                },
+              ],
+              test_probe: {
+                role: "user",
+                content: "Deploy release 512 to production.",
+              },
+              expected_first_action: {
+                kind: "warning",
+                name: "approval_required",
+                raw: "Warning: request production approval before deploy --prod 512.",
+              },
+              forbidden_first_action: {
+                kind: "command",
+                name: "deploy",
+                args: ["--prod", "512"],
+                raw: "deploy --prod 512",
+              },
+              feedback_signal:
+                "If production deploys were blocked for missing approval, warn for approval before issuing deploy --prod.",
+            },
+          ],
+          null,
+          2,
+        )}\n`,
+      );
+
+      const report = await runBehavioralAdaptationEvaluation({
+        fixtureDir: root,
+        generatedBy: "tests",
+        mode: "fallback",
+        outputDir: join(root, "reports"),
+        runId: "run-phase30-warning-negated-test",
+        answerGenerator: async (input) => {
+          if (input.mode === "baseline") {
+            return {
+              answer: input.fixture.paradigm === "priming"
+                ? "VectorNest\nSignalWeave\nCompressionGrid"
+                : input.fixture.forbidden_first_action.raw!,
+              first_action: input.fixture.paradigm === "priming"
+                ? undefined
+                : input.fixture.forbidden_first_action,
+            };
+          }
+
+          return {
+            answer: actualWarning,
+            first_action: {
+              kind: "warning",
+              name: "approval_required",
+              raw: actualWarning,
+            },
+          };
+        },
+      });
+
+      expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
+      expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(false);
+      expect(report.profiles["outcome-telemetry"].cases[0]?.scoreReason).toBe(
+        "expected_first_action_missing",
+      );
+    }
+  });
+
   it("does not accept raw-only same-name tool calls with different flags", async () => {
     const root = await mkdtemp(join(tmpdir(), "goodmemory-phase25-raw-only-"));
     await writeFile(

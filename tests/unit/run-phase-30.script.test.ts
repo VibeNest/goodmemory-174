@@ -363,6 +363,454 @@ describe("run-phase-30 script", () => {
     expect(prompts[0]).toContain("Probe:\nDeploy release 512 to production.");
   });
 
+  it("normalizes provider natural-language first actions into trace-backed live answers", async () => {
+    const generator = buildPhase30LiveAnswerGenerator({
+      createTextGenerator: () => async () => ({
+        content: "safe_delete '/tmp/releases/stale-2026-04-21'",
+      }),
+      evalModel: {
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+    });
+
+    const output = await generator({
+      fixture: {
+        case_id: "conditioning-safe-delete-user-correction-trace",
+        paradigm: "conditioning",
+        task_name: "Trace-backed safe deletion after user correction",
+        feedback_signal: "x",
+        learning_phase: [
+          {
+            role: "assistant",
+            content: "x",
+          },
+        ],
+        interference_phase: [
+          {
+            role: "assistant",
+            content: "y",
+          },
+        ],
+        test_probe: {
+          role: "user",
+          content: "Safely remove '/tmp/releases/stale-2026-04-21'.",
+        },
+        expected_first_action: {
+          kind: "command",
+          name: "safe_delete",
+          args: ["/tmp/releases/stale-2026-04-21"],
+          raw: "safe_delete('/tmp/releases/stale-2026-04-21')",
+        },
+        forbidden_first_action: {
+          kind: "command",
+          name: "rm",
+          args: ["-rf", "/tmp/releases/stale-2026-04-21"],
+          raw: "rm -rf /tmp/releases/stale-2026-04-21",
+        },
+      },
+      memoryContext: "Developer memory notes: use safe_delete instead of rm -rf.",
+      mode: "goodmemory",
+      profile: "outcome-telemetry",
+      prompt: "Safely remove '/tmp/releases/stale-2026-04-21'.",
+    });
+
+    expect(output.answer).toBe("safe_delete '/tmp/releases/stale-2026-04-21'");
+    expect(output.trace?.events[0]).toMatchObject({
+      actionKind: "command",
+      actionName: "safe_delete",
+      args: ["/tmp/releases/stale-2026-04-21"],
+      outcome: "success",
+      raw: "safe_delete('/tmp/releases/stale-2026-04-21')",
+      stepIndex: 0,
+    });
+  });
+
+  it("does not fabricate the expected warning from an unrelated warning line", async () => {
+    const generator = buildPhase30LiveAnswerGenerator({
+      createTextGenerator: () => async () => ({
+        content: "Warning: unrelated safety warning.",
+      }),
+      evalModel: {
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+    });
+
+    const output = await generator({
+      fixture: {
+        case_id: "conditioning-prod-deploy-warning-trace",
+        paradigm: "conditioning",
+        task_name: "Trace-backed production deploy approval warning",
+        feedback_signal: "x",
+        learning_phase: [
+          {
+            role: "assistant",
+            content: "x",
+          },
+        ],
+        interference_phase: [
+          {
+            role: "assistant",
+            content: "y",
+          },
+        ],
+        test_probe: {
+          role: "user",
+          content: "Deploy release 512 to production.",
+        },
+        expected_first_action: {
+          kind: "warning",
+          name: "approval_required",
+          raw: "Warning: request production approval before deploy --prod 512.",
+        },
+        forbidden_first_action: {
+          kind: "command",
+          name: "deploy",
+          args: ["--prod", "512"],
+          raw: "deploy --prod 512",
+        },
+      },
+      memoryContext: "Avoid direct deploy --prod until approval is present.",
+      mode: "goodmemory",
+      profile: "outcome-telemetry",
+      prompt: "Deploy release 512 to production.",
+    });
+
+    expect(output.trace?.events[0]).toMatchObject({
+      actionKind: "warning",
+      actionName: "warning",
+      outcome: "failure",
+      raw: "Warning: unrelated safety warning.",
+      stepIndex: 0,
+    });
+  });
+
+  it("categorizes approval warnings without replacing the actual warning text", async () => {
+    const actualWarnings = [
+      "Warning: production deployment requires approval before proceeding with release 512.",
+      "Warning: do not deploy release 512 to production without approval.",
+    ];
+
+    for (const actualWarning of actualWarnings) {
+      const generator = buildPhase30LiveAnswerGenerator({
+        createTextGenerator: () => async () => ({
+          content: actualWarning,
+        }),
+        evalModel: {
+          provider: "openai",
+          model: "gpt-5.4",
+        },
+      });
+
+      const output = await generator({
+        fixture: {
+          case_id: "conditioning-prod-deploy-warning-trace",
+          paradigm: "conditioning",
+          task_name: "Trace-backed production deploy approval warning",
+          feedback_signal: "x",
+          learning_phase: [
+            {
+              role: "assistant",
+              content: "x",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "assistant",
+              content: "y",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Deploy release 512 to production.",
+          },
+          expected_first_action: {
+            kind: "warning",
+            name: "approval_required",
+            raw: "Warning: request production approval before deploy --prod 512.",
+          },
+          forbidden_first_action: {
+            kind: "command",
+            name: "deploy",
+            args: ["--prod", "512"],
+            raw: "deploy --prod 512",
+          },
+        },
+        memoryContext: "Avoid direct deploy --prod until approval is present.",
+        mode: "goodmemory",
+        profile: "outcome-telemetry",
+        prompt: "Deploy release 512 to production.",
+      });
+
+      expect(output.trace?.events[0]).toMatchObject({
+        actionKind: "warning",
+        actionName: "approval_required",
+        outcome: "success",
+        raw: actualWarning,
+        stepIndex: 0,
+      });
+    }
+  });
+
+  it("does not categorize deployment warnings as approval-required without approval text", async () => {
+    const actualWarning =
+      "Warning: production deployment tooling is unknown for release 512.";
+    const generator = buildPhase30LiveAnswerGenerator({
+      createTextGenerator: () => async () => ({
+        content: actualWarning,
+      }),
+      evalModel: {
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+    });
+
+    const output = await generator({
+      fixture: {
+        case_id: "conditioning-prod-deploy-warning-trace",
+        paradigm: "conditioning",
+        task_name: "Trace-backed production deploy approval warning",
+        feedback_signal: "x",
+        learning_phase: [
+          {
+            role: "assistant",
+            content: "x",
+          },
+        ],
+        interference_phase: [
+          {
+            role: "assistant",
+            content: "y",
+          },
+        ],
+        test_probe: {
+          role: "user",
+          content: "Deploy release 512 to production.",
+        },
+        expected_first_action: {
+          kind: "warning",
+          name: "approval_required",
+          raw: "Warning: request production approval before deploy --prod 512.",
+        },
+        forbidden_first_action: {
+          kind: "command",
+          name: "deploy",
+          args: ["--prod", "512"],
+          raw: "deploy --prod 512",
+        },
+      },
+      memoryContext: "Avoid direct deploy --prod until approval is present.",
+      mode: "goodmemory",
+      profile: "outcome-telemetry",
+      prompt: "Deploy release 512 to production.",
+    });
+
+    expect(output.trace?.events[0]).toMatchObject({
+      actionKind: "warning",
+      actionName: "warning",
+      outcome: "failure",
+      raw: actualWarning,
+      stepIndex: 0,
+    });
+  });
+
+  it("does not categorize negated approval warnings as approval-required", async () => {
+    const actualWarnings = [
+      "Warning: approval is not required before production deploy release 512.",
+      "Warning: approval isn't required before production deploy release 512.",
+      "Warning: approval won't be required before production deploy release 512.",
+      "Warning: production deploy does not require approval for release 512.",
+      "Warning: production deploy requires no approval for release 512.",
+      "Warning: production deploy requires no explicit approval for release 512.",
+      "Warning: no production approval is required before deploy release 512.",
+      "Warning: no explicit approval is required before production deploy release 512.",
+    ];
+
+    for (const actualWarning of actualWarnings) {
+      const generator = buildPhase30LiveAnswerGenerator({
+        createTextGenerator: () => async () => ({
+          content: actualWarning,
+        }),
+        evalModel: {
+          provider: "openai",
+          model: "gpt-5.4",
+        },
+      });
+
+      const output = await generator({
+        fixture: {
+          case_id: "conditioning-prod-deploy-warning-trace",
+          paradigm: "conditioning",
+          task_name: "Trace-backed production deploy approval warning",
+          feedback_signal: "x",
+          learning_phase: [
+            {
+              role: "assistant",
+              content: "x",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "assistant",
+              content: "y",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Deploy release 512 to production.",
+          },
+          expected_first_action: {
+            kind: "warning",
+            name: "approval_required",
+            raw: "Warning: request production approval before deploy --prod 512.",
+          },
+          forbidden_first_action: {
+            kind: "command",
+            name: "deploy",
+            args: ["--prod", "512"],
+            raw: "deploy --prod 512",
+          },
+        },
+        memoryContext: "Avoid direct deploy --prod until approval is present.",
+        mode: "goodmemory",
+        profile: "outcome-telemetry",
+        prompt: "Deploy release 512 to production.",
+      });
+
+      expect(output.trace?.events[0]).toMatchObject({
+        actionKind: "warning",
+        actionName: "warning",
+        outcome: "failure",
+        raw: actualWarning,
+        stepIndex: 0,
+      });
+    }
+  });
+
+  it("records non-prefixed request prose as a trace-backed warning failure", async () => {
+    const actualWarning = "I would first request a packet capture or flow logs to analyze.";
+    const generator = buildPhase30LiveAnswerGenerator({
+      createTextGenerator: () => async () => ({
+        content: actualWarning,
+      }),
+      evalModel: {
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+    });
+
+    const output = await generator({
+      fixture: {
+        case_id: "conditioning-detailed-analysis-timeout-trace",
+        paradigm: "conditioning",
+        task_name: "Trace-backed DeepAnalyzer timeout avoidance",
+        feedback_signal: "x",
+        learning_phase: [
+          {
+            role: "assistant",
+            content: "x",
+          },
+        ],
+        interference_phase: [
+          {
+            role: "assistant",
+            content: "y",
+          },
+        ],
+        test_probe: {
+          role: "user",
+          content: "I need a detailed analysis of our network traffic.",
+        },
+        expected_first_action: {
+          kind: "tool_call",
+          name: "QuickCheck",
+          raw: "QuickCheck --network",
+        },
+        forbidden_first_action: {
+          kind: "tool_call",
+          name: "DeepAnalyzer",
+          raw: "DeepAnalyzer --detailed",
+        },
+      },
+      memoryContext: "Avoid DeepAnalyzer on the first action.",
+      mode: "goodmemory",
+      profile: "outcome-telemetry",
+      prompt: "I need a detailed analysis of our network traffic.",
+    });
+
+    expect(output.trace?.events[0]).toMatchObject({
+      actionKind: "warning",
+      actionName: "warning",
+      outcome: "failure",
+      raw: actualWarning,
+      stepIndex: 0,
+    });
+  });
+
+  it("scores the executable forbidden action instead of a negated safe-action mention", async () => {
+    const generator = buildPhase30LiveAnswerGenerator({
+      createTextGenerator: () => async () => ({
+        content:
+          "I will not use safe_delete; I will run rm -rf /tmp/releases/stale-2026-04-21.",
+      }),
+      evalModel: {
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+    });
+
+    const output = await generator({
+      fixture: {
+        case_id: "conditioning-safe-delete-user-correction-trace",
+        paradigm: "conditioning",
+        task_name: "Trace-backed safe deletion after user correction",
+        feedback_signal: "x",
+        learning_phase: [
+          {
+            role: "assistant",
+            content: "x",
+          },
+        ],
+        interference_phase: [
+          {
+            role: "assistant",
+            content: "y",
+          },
+        ],
+        test_probe: {
+          role: "user",
+          content: "Safely remove '/tmp/releases/stale-2026-04-21'.",
+        },
+        expected_first_action: {
+          kind: "command",
+          name: "safe_delete",
+          args: ["/tmp/releases/stale-2026-04-21"],
+          raw: "safe_delete('/tmp/releases/stale-2026-04-21')",
+        },
+        forbidden_first_action: {
+          kind: "command",
+          name: "rm",
+          args: ["-rf", "/tmp/releases/stale-2026-04-21"],
+          raw: "rm -rf /tmp/releases/stale-2026-04-21",
+        },
+      },
+      memoryContext: "Developer memory notes: use safe_delete instead of rm -rf.",
+      mode: "goodmemory",
+      profile: "outcome-telemetry",
+      prompt: "Safely remove '/tmp/releases/stale-2026-04-21'.",
+    });
+
+    expect(output.trace?.events[0]).toMatchObject({
+      actionKind: "command",
+      actionName: "rm",
+      args: ["-rf", "/tmp/releases/stale-2026-04-21"],
+      outcome: "failure",
+      raw: "rm -rf /tmp/releases/stale-2026-04-21",
+      stepIndex: 0,
+    });
+  });
+
   it("runs phase-30 live-memory eval with trace-required structured scoring", async () => {
     const originalEnv = { ...process.env };
     process.env.GOODMEMORY_TEST_POSTGRES_URL = "postgres://example/test";

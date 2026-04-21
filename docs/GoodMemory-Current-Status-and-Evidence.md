@@ -22,20 +22,23 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Retrieval rollout controls, promotion gates, salvage hooks, and internal provider-router rollout controls remain implementation detail, not README-level product surface.
 - Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
 - Behavioral adaptation outcome telemetry and deterministic Layer D evidence are also internal evidence infrastructure; they do not change the stable OSS runtime surface.
+- Trace-backed behavioral enactment and provider-backed live-memory behavioral closure are internal evidence infrastructure for the accepted Codex host path; they do not widen the public `GoodMemory` API, public config, or README-level default behavior.
 
 ## Latest Closed Slice
 
-- Phase 29 is now closed as the Bun-only release-hardening slice that turns the accepted Phase 27 and Phase 28 runtime/public-surface work into an installable `0.1.0-rc.1`.
+- Phase 30 is now closed as the trace-backed behavioral enactment and live closure slice over the accepted Codex host path.
 - Accepted behavior:
-  - the prerelease package is Bun-only and not marked private
-  - the tarball produced by `bun pm pack` is the canonical installable release artifact for this RC
-  - a fresh Bun consumer can install the tarball, use only public imports, and run the installed CLI against the default local-first runtime
-  - supported machines still auto-detect bundled `sqlite-vss` assets plus a compatible custom SQLite library; unsupported machines stay on explicit durable fallback semantics
-- Still outside the accepted Phase 29 claim:
-  - Node compatibility
-  - installer CLI
-  - registry publish automation or automatic release marketing
-  - bundled local embedding generation
+  - coding-agent behavioral cases score from the first executable host-style trace event, not model prose or self-reported JSON alone
+  - warning traces preserve the model's actual warning text; only warning text that matches the expected warning category can score as that category
+  - the accepted Codex host path can emit internal runtime behavioral traces without widening the public host adapter contract
+  - failed first actions from host traces feed the existing outcome-telemetry path
+  - deterministic Phase 30 eval remains trace-backed
+  - provider-backed live-memory Phase 30 evidence is accepted only when it is trace-backed and passes the canonical gate
+- Still outside the accepted Phase 30 claim:
+  - public API or public config widening
+  - making Claude a gate-blocking host path
+  - making priming a release-blocking behavioral metric
+  - changing the Phase 28 local backend contract or Phase 29 Bun-only release boundary
 
 ## Current Canonical Evidence
 
@@ -76,6 +79,10 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json`
   - RC dry run report: `reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json`
+- Trace-backed behavioral enactment and live closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-30-Quality-Gate.md`
+  - Deterministic/live gate: `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
+  - Provider-backed live-memory behavioral report: `reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

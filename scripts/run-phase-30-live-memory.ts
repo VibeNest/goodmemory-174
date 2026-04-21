@@ -8,9 +8,11 @@ import type {
   BehavioralAnswerGenerator,
   RunBehavioralAdaptationEvaluationOptions,
 } from "../src/eval/behavioral-adaptation";
-import { runBehavioralAdaptationEvaluation } from "../src/eval/behavioral-adaptation";
+import {
+  behavioralFirstActionMatchesExpectedForScoring,
+  runBehavioralAdaptationEvaluation,
+} from "../src/eval/behavioral-adaptation";
 import type { BehavioralFirstAction } from "../src/evolution/behavioralTelemetry";
-import { behavioralFirstActionsEqual } from "../src/evolution/behavioralTelemetry";
 import { createHostBehavioralTraceRecorder } from "../src/host/behavioralTraceRecorder";
 import {
   createProviderEmbeddingAdapter,
@@ -239,8 +241,12 @@ function buildLivePrompt(input: Parameters<BehavioralAnswerGenerator>[0]): strin
 
 function parseStructuredBehavioralResponse(
   value: string,
-): ParsedStructuredBehavioralResponse {
-  return JSON.parse(value) as ParsedStructuredBehavioralResponse;
+): ParsedStructuredBehavioralResponse | null {
+  try {
+    return JSON.parse(value) as ParsedStructuredBehavioralResponse;
+  } catch {
+    return null;
+  }
 }
 
 function toBehavioralFirstAction(
@@ -258,6 +264,343 @@ function toBehavioralFirstAction(
   };
 }
 
+function firstNonEmptyLine(value: string): string {
+  return value
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0) ?? value.trim();
+}
+
+function tokenizeCommandLine(value: string): string[] {
+  return [...value.matchAll(/'([^']*)'|"([^"]*)"|(\S+)/gu)]
+    .map((match) => match[1] ?? match[2] ?? match[3] ?? "")
+    .filter((token) => token.length > 0);
+}
+
+function startsWithWarning(value: string): boolean {
+  return /^(warning|warn|caution|stop|abort)\b\s*[:：-]?/iu.test(value.trim());
+}
+
+function looksLikeWarningStatement(value: string): boolean {
+  return /^(?:i\s+(?:would\s+)?(?:first\s+)?(?:request|need|would\s+need|can't|cannot|can’t)|need\b|please\s+provide\b|unable\b)/iu.test(
+    value.trim(),
+  );
+}
+
+function normalizeExecutableText(value: string): string {
+  return value.trim().replace(/\s+/gu, " ").toLowerCase();
+}
+
+function trimCommandSentencePunctuation(value: string): string {
+  return value.trim().replace(/[.。]+$/u, "").trim();
+}
+
+function actionNamesEqual(left: string, right: string): boolean {
+  return left.toLowerCase() === right.toLowerCase();
+}
+
+function actionArgsEqual(
+  left: readonly string[] | undefined,
+  right: readonly string[] | undefined,
+): boolean {
+  if (!left || !right || left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
+function actionMatchesParsedFirstAction(
+  parsed: BehavioralFirstAction,
+  action: BehavioralFirstAction,
+): boolean {
+  if (parsed.kind === "warning" && action.kind === "warning") {
+    return behavioralFirstActionMatchesExpectedForScoring(parsed, action);
+  }
+
+  if (parsed.kind !== action.kind || !actionNamesEqual(parsed.name, action.name)) {
+    return false;
+  }
+
+  if (action.args) {
+    return actionArgsEqual(parsed.args, action.args);
+  }
+
+  if (action.raw && parsed.raw) {
+    return normalizeExecutableText(parsed.raw) === normalizeExecutableText(action.raw);
+  }
+
+  return true;
+}
+
+function resolveFixtureActionForParsedFirstAction(input: {
+  expected: BehavioralFirstAction;
+  forbidden: BehavioralFirstAction;
+  parsed: BehavioralFirstAction;
+}): BehavioralFirstAction | undefined {
+  for (const action of [input.forbidden, input.expected]) {
+    if (actionMatchesParsedFirstAction(input.parsed, action)) {
+      if (action.kind === "warning" && input.parsed.kind === "warning") {
+        return {
+          ...action,
+          ...(input.parsed.raw ? { raw: input.parsed.raw } : {}),
+        };
+      }
+
+      return action;
+    }
+  }
+
+  return undefined;
+}
+
+function resolveKnownActionKind(input: {
+  expected: BehavioralFirstAction;
+  forbidden: BehavioralFirstAction;
+  name: string;
+  raw: string;
+}): BehavioralFirstAction["kind"] {
+  const knownAction = [input.expected, input.forbidden].find((action) =>
+    actionNamesEqual(action.name, input.name),
+  );
+
+  return knownAction?.kind ?? (input.raw.includes("(") ? "tool_call" : "command");
+}
+
+function parseFunctionCallAction(input: {
+  expected: BehavioralFirstAction;
+  forbidden: BehavioralFirstAction;
+  value: string;
+}): BehavioralFirstAction | undefined {
+  const raw = trimCommandSentencePunctuation(input.value);
+  const match = /^([A-Za-z_][\w.-]*)\s*\((.*)\)$/u.exec(raw);
+  if (!match) {
+    return undefined;
+  }
+
+  const args = [...match[2].matchAll(/\s*(?:'([^']*)'|"([^"]*)"|([^,]+?))\s*(?:,|$)/gu)]
+    .map((argMatch) => (argMatch[1] ?? argMatch[2] ?? argMatch[3] ?? "").trim())
+    .filter((arg) => arg.length > 0);
+  const name = match[1];
+
+  return {
+    kind: resolveKnownActionKind({
+      expected: input.expected,
+      forbidden: input.forbidden,
+      name,
+      raw,
+    }),
+    name,
+    ...(args.length > 0 ? { args } : {}),
+    raw,
+  };
+}
+
+function stripExecutableLeadIn(value: string): string {
+  return value
+    .trim()
+    .replace(
+      /^(?:(?:i|we)\s+(?:will|would|should|can)\s+)?(?:run|running|use|execute|call|invoke|issue|start|launch)\s+/iu,
+      "",
+    )
+    .trim();
+}
+
+function startsLikeProse(value: string): boolean {
+  const firstToken = tokenizeCommandLine(value)[0]?.toLowerCase();
+  if (!firstToken) {
+    return true;
+  }
+
+  return [
+    "i",
+    "we",
+    "please",
+    "the",
+    "this",
+    "that",
+    "it",
+    "use",
+    "run",
+    "running",
+  ].includes(firstToken);
+}
+
+function parseDirectExecutableAction(input: {
+  allowUnknown: boolean;
+  expected: BehavioralFirstAction;
+  forbidden: BehavioralFirstAction;
+  value: string;
+}): BehavioralFirstAction | undefined {
+  const raw = trimCommandSentencePunctuation(stripExecutableLeadIn(input.value));
+  const functionCall = parseFunctionCallAction({
+    expected: input.expected,
+    forbidden: input.forbidden,
+    value: raw,
+  });
+  if (functionCall) {
+    return (
+      resolveFixtureActionForParsedFirstAction({
+        expected: input.expected,
+        forbidden: input.forbidden,
+        parsed: functionCall,
+      }) ?? functionCall
+    );
+  }
+
+  const tokens = tokenizeCommandLine(raw);
+  const commandName = tokens[0];
+  if (!commandName) {
+    return undefined;
+  }
+
+  const parsed: BehavioralFirstAction = {
+    kind: resolveKnownActionKind({
+      expected: input.expected,
+      forbidden: input.forbidden,
+      name: commandName,
+      raw,
+    }),
+    name: commandName,
+    ...(tokens.length > 1 ? { args: tokens.slice(1) } : {}),
+    raw,
+  };
+  const fixtureAction = resolveFixtureActionForParsedFirstAction({
+    expected: input.expected,
+    forbidden: input.forbidden,
+    parsed,
+  });
+  if (fixtureAction) {
+    return fixtureAction;
+  }
+
+  const mentionsKnownAction = [input.expected, input.forbidden].some((action) =>
+    actionNamesEqual(action.name, commandName),
+  );
+  if (mentionsKnownAction || (input.allowUnknown && !startsLikeProse(input.value))) {
+    return parsed;
+  }
+
+  return undefined;
+}
+
+function splitExecutableClauses(value: string): string[] {
+  return value
+    .split(/(?:;|\.\s+|。)+/u)
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length > 0);
+}
+
+function clauseNegatesAction(clause: string, action: BehavioralFirstAction): boolean {
+  const actionIndex = clause.toLowerCase().indexOf(action.name.toLowerCase());
+  if (actionIndex < 0) {
+    return false;
+  }
+
+  const beforeAction = clause.slice(0, actionIndex).toLowerCase();
+  return /\b(?:do\s+not|don't|will\s+not|won't|not|never|avoid|instead\s+of|rather\s+than|without)\b/u.test(
+    beforeAction,
+  );
+}
+
+function resolveKnownExecutableActionFromLine(input: {
+  expected: BehavioralFirstAction;
+  forbidden: BehavioralFirstAction;
+  firstLine: string;
+}): BehavioralFirstAction | undefined {
+  for (const clause of splitExecutableClauses(input.firstLine)) {
+    const parsed = parseDirectExecutableAction({
+      allowUnknown: false,
+      expected: input.expected,
+      forbidden: input.forbidden,
+      value: clause,
+    });
+
+    if (!parsed || clauseNegatesAction(clause, parsed)) {
+      continue;
+    }
+
+    return parsed;
+  }
+
+  return undefined;
+}
+
+function resolveWarningFirstAction(input: {
+  expected: BehavioralFirstAction;
+  firstLine: string;
+  forbidden: BehavioralFirstAction;
+}): BehavioralFirstAction {
+  const parsed: BehavioralFirstAction = {
+    kind: "warning",
+    name: "warning",
+    raw: input.firstLine,
+  };
+  for (const action of [input.forbidden, input.expected]) {
+    if (action.kind !== "warning") {
+      continue;
+    }
+
+    const categorized: BehavioralFirstAction = {
+      ...parsed,
+      name: action.name,
+    };
+    if (behavioralFirstActionMatchesExpectedForScoring(categorized, action)) {
+      return categorized;
+    }
+  }
+
+  return (
+    resolveFixtureActionForParsedFirstAction({
+      expected: input.expected,
+      forbidden: input.forbidden,
+      parsed,
+    }) ?? parsed
+  );
+}
+
+function resolveLiveFirstActionFromAnswer(input: {
+  answer: string;
+  payload: Parameters<BehavioralAnswerGenerator>[0];
+  structuredFirstAction?: BehavioralFirstAction;
+}): BehavioralFirstAction | undefined {
+  if (input.structuredFirstAction) {
+    return input.structuredFirstAction;
+  }
+  if (input.payload.fixture.paradigm === "priming") {
+    return undefined;
+  }
+
+  const firstLine = firstNonEmptyLine(input.answer);
+  const lowerFirstLine = firstLine.toLowerCase();
+  const expected = input.payload.fixture.expected_first_action;
+  const forbidden = input.payload.fixture.forbidden_first_action;
+
+  if (startsWithWarning(firstLine) || looksLikeWarningStatement(firstLine)) {
+    return resolveWarningFirstAction({
+      expected,
+      firstLine,
+      forbidden,
+    });
+  }
+
+  const knownExecutableAction = resolveKnownExecutableActionFromLine({
+    expected,
+    firstLine,
+    forbidden,
+  });
+  if (knownExecutableAction) {
+    return knownExecutableAction;
+  }
+
+  return parseDirectExecutableAction({
+    allowUnknown: true,
+    expected,
+    forbidden,
+    value: lowerFirstLine.includes("(") ? firstLine : trimCommandSentencePunctuation(firstLine),
+  });
+}
+
 function resolveActionOutcome(input: {
   action: BehavioralFirstAction;
   payload: Parameters<BehavioralAnswerGenerator>[0];
@@ -266,7 +609,7 @@ function resolveActionOutcome(input: {
     return "success";
   }
 
-  return behavioralFirstActionsEqual(
+  return behavioralFirstActionMatchesExpectedForScoring(
     input.action,
     input.payload.fixture.expected_first_action,
   )
@@ -301,11 +644,16 @@ export function buildPhase30LiveAnswerGenerator(input: {
     }
 
     const parsed = parseStructuredBehavioralResponse(result.content);
-    const firstAction = toBehavioralFirstAction(parsed.first_action);
+    const answer = parsed?.answer ?? result.content.trim();
+    const firstAction = resolveLiveFirstActionFromAnswer({
+      answer,
+      payload,
+      structuredFirstAction: toBehavioralFirstAction(parsed?.first_action),
+    });
 
     if (!firstAction) {
       return {
-        answer: parsed.answer ?? result.content.trim(),
+        answer,
       };
     }
 
@@ -334,12 +682,12 @@ export function buildPhase30LiveAnswerGenerator(input: {
 
     if (!closeResult.trace) {
       return {
-        answer: parsed.answer ?? result.content.trim(),
+        answer,
       };
     }
 
     return {
-      answer: parsed.answer ?? result.content.trim(),
+      answer,
       trace: closeResult.trace,
     };
   };

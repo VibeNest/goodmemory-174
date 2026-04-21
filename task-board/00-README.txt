@@ -160,8 +160,12 @@ Current Sequencing Note
   - `docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md`
   - `reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json`
   - `reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json`
-- Phase 30 is now in progress as the trace-backed behavioral enactment and live closure slice; P30-T001 through P30-T005 have landed, `gate:phase-30` is implemented and regression-covered, and canonical accepted provider-backed live-memory evidence plus archive closure are still pending.
-- Any work outside in-progress Phase 30 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 30 is now closed as the trace-backed behavioral enactment and provider-backed live closure slice:
+  - live-memory behavioral evidence: `reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json`
+  - quality gate: `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
+  - warning fallback hardening is regression-covered: unrelated warning prose no longer fabricates `approval_required`, while approval-warning variants keep their actual raw text
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-30-Quality-Gate.md`
+- Any work after Phase 30 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
