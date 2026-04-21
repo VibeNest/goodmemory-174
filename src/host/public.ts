@@ -1,7 +1,9 @@
 import type {
   ExportMemoryInput,
   ExportMemoryResult,
+  GoodMemory,
 } from "../api/contracts";
+import { readGoodMemoryEvalSupport } from "../api/evalSupport";
 import {
   createFeedbackMemory,
 } from "../domain/records";
@@ -34,6 +36,8 @@ import type {
 import {
   HostAdapterWriteError,
 } from "./contracts";
+import { attachHostEvalSupport } from "./evalSupport";
+import { recordBehavioralTrace as recordHostBehavioralTrace } from "./behavioralTraceBridge";
 
 export type {
   CreateHostAdapterInput,
@@ -189,6 +193,12 @@ function assertWritableNegotiation(input: {
       );
     }
   }
+}
+
+function hasBehavioralOutcomeRecorder(
+  memory: CreateHostAdapterInput["memory"],
+): memory is GoodMemory {
+  return Boolean(readGoodMemoryEvalSupport(memory as GoodMemory)?.recordBehavioralOutcome);
 }
 
 function renderSessionScopeLines(exported: ExportMemoryResult, sessionId: string): string[] {
@@ -1151,7 +1161,7 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
   });
   const hostKind = input.hostKind ?? "generic";
 
-  return Object.freeze({
+  const adapter = {
     id: input.id,
     hostKind,
     capabilities,
@@ -1200,5 +1210,24 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
 
       return writeUnsupported(writableArtifactTypesSnapshot, writeInput, diagnostics);
     },
-  });
+  } satisfies HostAdapter;
+
+  if (hostKind === "codex" && hasBehavioralOutcomeRecorder(input.memory)) {
+    const behavioralMemory = input.memory;
+    attachHostEvalSupport(adapter, {
+      recordBehavioralTrace: async ({ scope, trace }) => {
+        const result = await recordHostBehavioralTrace({
+          memory: behavioralMemory,
+          scope,
+          trace,
+        });
+
+        return {
+          recorded: result.recorded,
+        };
+      },
+    });
+  }
+
+  return Object.freeze(adapter);
 }

@@ -12,6 +12,7 @@ Current Status
 --------------
 [IN PROGRESS] Phase 30 has started.
 [DONE] P30-T001 trace contract and deterministic trace-backed scoring are implemented and regression-covered.
+[DONE] P30-T003 internal trace-to-outcome bridge is implemented and regression-covered for deterministic replay.
 [TODO] No Phase 30 deterministic gate, live-memory behavioral report, or archive closure exists yet.
 
 
@@ -51,7 +52,7 @@ Tasks
 -----
 [DONE] P30-T001 Define the internal first-action trace contract and add parser/extractor regressions
 [TODO] P30-T002 Wire the accepted Codex host path to emit first-action behavioral traces
-[TODO] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
+[DONE] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
 [TODO] P30-T004 Add deterministic trace-backed behavioral eval and report contract
 [TODO] P30-T005 Add provider-backed live-memory behavioral eval and make it gate-required
 [TODO] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
@@ -81,14 +82,20 @@ Implemented So Far
 - internal Codex-style behavioral trace contract now exists under `src/host/behavioralTrace.ts`
 - deterministic behavioral scoring now prefers the first executable trace event over self-reported `first_action`
 - later repaired actions in the same trace do not repair a failed first-action score
+- failed trace-first Codex events can now be converted into internal outcome telemetry through `src/host/behavioralTraceBridge.ts`
+- the accepted Codex host adapter now exposes an internal trace-recording helper; automatic runtime emission is still pending
+- repeated failed Codex traces now promote through the existing telemetry/proposal/compiler chain into active `validated_pattern` feedback
+- deterministic behavioral eval fixtures can now replay `behavioral_trace_replays` through the outcome-telemetry profile
 - Phase 25 behavioral eval regressions still pass after the trace-priority change
 
 
 Evidence
 --------
 - `src/host/behavioralTrace.ts`
+- `src/host/behavioralTraceBridge.ts`
 - `src/eval/behavioral-adaptation.ts`
 - `tests/unit/host.behavioral-trace.test.ts`
+- `tests/unit/host.behavioral-trace-bridge.test.ts`
 - `tests/unit/eval.behavioral-adaptation.test.ts`
 - `tests/unit/run-phase-25.script.test.ts`
 - `tests/integration/evolution.outcome-telemetry.test.ts`

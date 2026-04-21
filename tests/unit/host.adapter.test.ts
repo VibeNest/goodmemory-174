@@ -4,6 +4,7 @@ import type {
   ExportMemoryResult,
 } from "../../src";
 import {
+  createGoodMemory,
   createInMemoryDocumentStore,
   createFeedbackMemory,
   createMemorySource,
@@ -11,8 +12,10 @@ import {
   createSessionJournal,
   createWorkingMemorySnapshot,
 } from "../../src";
+import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 import { createHostAdapter } from "../../src/host";
 import type { HostArtifactType } from "../../src/host";
+import { readHostEvalSupport } from "../../src/host/evalSupport";
 
 function createExportResult(
   extraFiles: ExportMemoryResult["artifacts"]["files"] = [],
@@ -542,6 +545,86 @@ describe("host adapter contract", () => {
     expect(result.artifacts[0]?.content).not.toContain("Use yarn.");
     expect(result.artifacts[0]?.content).toContain("docs/runtime-runbook.md");
     expect(result.artifacts[0]?.content).not.toContain("docs/runtime-runbook-v1.md");
+  });
+
+  it("exposes an internal trace-recording helper on the accepted Codex host path", async () => {
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        testing: {
+          now: () => new Date("2026-04-21T00:00:00.000Z"),
+        },
+      },
+      {
+        behavioralOutcomeRecorder: true,
+      },
+    );
+    const adapter = createHostAdapter({
+      id: "codex-trace-helper",
+      hostKind: "codex",
+      readableArtifactTypes: ["session_memory"],
+      memory,
+    });
+    const support = readHostEvalSupport(adapter);
+
+    expect(support?.recordBehavioralTrace).toBeDefined();
+
+    const result = await support!.recordBehavioralTrace!({
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+      trace: {
+        cue: "detailed analysis",
+        hostKind: "codex",
+        traceId: "codex-trace-1",
+        events: [
+          {
+            stepIndex: 0,
+            actionKind: "tool_call",
+            actionName: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+            evidenceExcerpt: "DeepAnalyzer timed out on detailed analysis.",
+            outcome: "timeout",
+          },
+          {
+            stepIndex: 1,
+            actionKind: "tool_call",
+            actionName: "QuickCheck",
+            raw: "QuickCheck --network",
+            correctionOfStepIndex: 0,
+            outcome: "success",
+          },
+        ],
+      },
+    });
+
+    expect(result.recorded).toBe(true);
+
+    const exported = await memory.exportMemory({
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+    });
+    expect(
+      exported.durable.experiences.some(
+        (experience) => (experience.kind as string) === "tool_outcome",
+      ),
+    ).toBeTrue();
+  });
+
+  it("does not expose a Codex trace helper when the memory instance cannot record behavioral outcomes", () => {
+    const adapter = createHostAdapter({
+      id: "codex-trace-helper-missing-recorder",
+      hostKind: "codex",
+      readableArtifactTypes: ["session_memory"],
+      memory: createGoodMemory({
+        storage: { provider: "memory" },
+      }),
+    });
+
+    expect(readHostEvalSupport(adapter)?.recordBehavioralTrace).toBeUndefined();
   });
 
   it("fails fast on unsupported or not-yet-implemented writes", async () => {

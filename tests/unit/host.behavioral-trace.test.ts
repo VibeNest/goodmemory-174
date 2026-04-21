@@ -9,6 +9,7 @@ describe("host behavioral trace", () => {
   it("validates a codex behavioral trace and rejects malformed events", () => {
     expect(
       validateBehavioralTrace({
+        cue: "detailed analysis",
         hostKind: "codex",
         traceId: "trace-1",
         events: [
@@ -22,6 +23,7 @@ describe("host behavioral trace", () => {
         ],
       }),
     ).toEqual({
+      cue: "detailed analysis",
       hostKind: "codex",
       traceId: "trace-1",
       events: [
@@ -37,6 +39,7 @@ describe("host behavioral trace", () => {
 
     expect(() =>
       validateBehavioralTrace({
+        cue: "detailed analysis",
         hostKind: "codex",
         traceId: "trace-2",
         events: [
@@ -53,6 +56,7 @@ describe("host behavioral trace", () => {
 
   it("extracts the first executable action by step index and ignores later repaired actions", () => {
     const trace = validateBehavioralTrace({
+      cue: "detailed analysis",
       hostKind: "codex",
       traceId: "trace-1",
       events: [
@@ -92,6 +96,7 @@ describe("host behavioral trace", () => {
   it("rejects ambiguous step ordering in the source-of-truth trace", () => {
     expect(() =>
       validateBehavioralTrace({
+        cue: "detailed analysis",
         hostKind: "codex",
         traceId: "trace-duplicate-step",
         events: [
@@ -115,6 +120,7 @@ describe("host behavioral trace", () => {
 
     expect(() =>
       validateBehavioralTrace({
+        cue: "detailed analysis",
         hostKind: "codex",
         traceId: "trace-fractional-step",
         events: [

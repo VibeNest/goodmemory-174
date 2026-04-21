@@ -5,6 +5,8 @@ import {
   type GoodMemoryEvalSupport,
 } from "../../src/api/evalSupport";
 import { EVIDENCE_COLLECTION } from "../../src/evidence/contracts";
+import { recordBehavioralTrace } from "../../src/host/behavioralTraceBridge";
+import { validateBehavioralTrace } from "../../src/host/behavioralTrace";
 import {
   createInMemoryDocumentStore,
 } from "../../src/storage/memory";
@@ -160,5 +162,182 @@ describe("outcome telemetry promotion chain", () => {
     expect(exported.durable.evidence).toHaveLength(0);
     expect(toolOutcomeExperiences).toHaveLength(1);
     expect(toolOutcomeExperiences[0]?.linkedEvidenceIds).toEqual([]);
+  });
+
+  it("promotes repeated failed Codex traces into a validated pattern through the same telemetry chain", async () => {
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        testing: {
+          now: () => new Date("2026-04-21T00:00:00.000Z"),
+        },
+      },
+      {
+        behavioralOutcomeRecorder: true,
+      },
+    );
+
+    await recordBehavioralTrace({
+      memory,
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      trace: validateBehavioralTrace({
+        cue: "detailed analysis",
+        hostKind: "codex",
+        traceId: "trace-codex-1",
+        events: [
+          {
+            stepIndex: 0,
+            actionKind: "tool_call",
+            actionName: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+            evidenceExcerpt: "DeepAnalyzer timed out on detailed analysis.",
+            outcome: "timeout",
+          },
+          {
+            stepIndex: 1,
+            actionKind: "tool_call",
+            actionName: "QuickCheck",
+            raw: "QuickCheck --network",
+            correctionOfStepIndex: 0,
+            outcome: "success",
+          },
+        ],
+      }),
+    });
+    await recordBehavioralTrace({
+      memory,
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      trace: validateBehavioralTrace({
+        cue: "detailed analysis",
+        hostKind: "codex",
+        traceId: "trace-codex-2",
+        events: [
+          {
+            stepIndex: 0,
+            actionKind: "tool_call",
+            actionName: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+            evidenceExcerpt: "DeepAnalyzer timed out again on detailed analysis.",
+            outcome: "timeout",
+          },
+          {
+            stepIndex: 1,
+            actionKind: "tool_call",
+            actionName: "QuickCheck",
+            raw: "QuickCheck --network",
+            correctionOfStepIndex: 0,
+            outcome: "success",
+          },
+        ],
+      }),
+    });
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+    const validatedPatterns = exported.durable.feedback.filter(
+      (feedback) =>
+        feedback.kind === "validated_pattern" && feedback.lifecycle === "active",
+    );
+
+    expect(validatedPatterns).toHaveLength(1);
+    expect(validatedPatterns[0]?.rule).toContain("avoid DeepAnalyzer");
+    expect(validatedPatterns[0]?.rule).toContain("QuickCheck");
+  });
+
+  it("does not compile a failed targeted correction into durable guidance when a later safer action succeeds", async () => {
+    const memory = createInternalGoodMemory(
+      {
+        storage: { provider: "memory" },
+        testing: {
+          now: () => new Date("2026-04-21T00:00:00.000Z"),
+        },
+      },
+      {
+        behavioralOutcomeRecorder: true,
+      },
+    );
+
+    await recordBehavioralTrace({
+      memory,
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      trace: validateBehavioralTrace({
+        cue: "detailed analysis",
+        hostKind: "codex",
+        traceId: "trace-codex-fallback-1",
+        events: [
+          {
+            stepIndex: 0,
+            actionKind: "tool_call",
+            actionName: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+            evidenceExcerpt: "DeepAnalyzer timed out on detailed analysis.",
+            outcome: "timeout",
+          },
+          {
+            stepIndex: 1,
+            actionKind: "tool_call",
+            actionName: "QuickCheck",
+            raw: "QuickCheck --network",
+            correctionOfStepIndex: 0,
+            outcome: "failure",
+          },
+          {
+            stepIndex: 2,
+            actionKind: "tool_call",
+            actionName: "SafeCheck",
+            raw: "SafeCheck --summary",
+            outcome: "success",
+          },
+        ],
+      }),
+    });
+    await recordBehavioralTrace({
+      memory,
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      trace: validateBehavioralTrace({
+        cue: "detailed analysis",
+        hostKind: "codex",
+        traceId: "trace-codex-fallback-2",
+        events: [
+          {
+            stepIndex: 0,
+            actionKind: "tool_call",
+            actionName: "DeepAnalyzer",
+            raw: "DeepAnalyzer --detailed",
+            evidenceExcerpt: "DeepAnalyzer timed out again on detailed analysis.",
+            outcome: "timeout",
+          },
+          {
+            stepIndex: 1,
+            actionKind: "tool_call",
+            actionName: "QuickCheck",
+            raw: "QuickCheck --network",
+            correctionOfStepIndex: 0,
+            outcome: "failure",
+          },
+          {
+            stepIndex: 2,
+            actionKind: "tool_call",
+            actionName: "SafeCheck",
+            raw: "SafeCheck --summary",
+            outcome: "success",
+          },
+        ],
+      }),
+    });
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+    const validatedPatterns = exported.durable.feedback.filter(
+      (feedback) =>
+        feedback.kind === "validated_pattern" && feedback.lifecycle === "active",
+    );
+
+    expect(validatedPatterns).toHaveLength(1);
+    expect(validatedPatterns[0]?.rule).toContain("avoid DeepAnalyzer");
+    expect(validatedPatterns[0]?.rule).toContain("SafeCheck");
+    expect(validatedPatterns[0]?.rule).not.toContain("QuickCheck");
   });
 });

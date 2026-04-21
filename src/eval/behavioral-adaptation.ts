@@ -11,10 +11,11 @@ import type {
 import { behavioralFirstActionsEqual } from "../evolution/behavioralTelemetry";
 import {
   extractFirstBehavioralTraceAction,
-  toBehavioralFirstAction,
   type HostBehavioralTrace,
+  toBehavioralFirstAction,
   validateBehavioralTrace,
 } from "../host/behavioralTrace";
+import { recordBehavioralTrace } from "../host/behavioralTraceBridge";
 
 export type BehavioralAdaptationParadigm =
   | "conditioning"
@@ -52,6 +53,7 @@ export interface BehavioralOutcomeFixture extends BehavioralOutcomeRecordInput {
 
 export interface ProceduralOrConditioningFixture {
   behavioral_outcomes?: BehavioralOutcomeFixture[];
+  behavioral_trace_replays?: HostBehavioralTrace[];
   case_id: string;
   expected_first_action: BehavioralFirstAction;
   feedback_signal: string;
@@ -372,6 +374,14 @@ export function validateBehavioralAdaptationFixture(
   ) {
     throw new Error(`${path}.behavioral_outcomes must be an object array`);
   }
+  const behavioralTraceReplays = value.behavioral_trace_replays;
+  if (
+    behavioralTraceReplays !== undefined &&
+    (!Array.isArray(behavioralTraceReplays) ||
+      behavioralTraceReplays.some((entry) => !isRecord(entry)))
+  ) {
+    throw new Error(`${path}.behavioral_trace_replays must be an object array`);
+  }
 
   return {
     case_id: assertString(value.case_id, `${path}.case_id`),
@@ -400,6 +410,12 @@ export function validateBehavioralAdaptationFixture(
       validateBehavioralOutcomeFixture(
         entry,
         `${path}.behavioral_outcomes[${index}]`,
+      ),
+    ),
+    behavioral_trace_replays: behavioralTraceReplays?.map((entry, index) =>
+      validateBehavioralTrace(
+        entry,
+        `${path}.behavioral_trace_replays[${index}]`,
       ),
     ),
   };
@@ -496,11 +512,12 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
 
     if (mode === "baseline") {
       return {
-        answer: actionToAnswer(fixture.forbidden_first_action),
-        first_action: fixture.forbidden_first_action,
-        trace: {
-          hostKind: "codex",
-          traceId: `baseline-${fixture.case_id}`,
+            answer: actionToAnswer(fixture.forbidden_first_action),
+            first_action: fixture.forbidden_first_action,
+            trace: {
+              cue: fixture.task_name,
+              hostKind: "codex",
+              traceId: `baseline-${fixture.case_id}`,
           events: [
             {
               stepIndex: 0,
@@ -525,6 +542,7 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
             answer: actionToAnswer(fixture.expected_first_action),
             first_action: fixture.expected_first_action,
             trace: {
+              cue: fixture.task_name,
               hostKind: "codex",
               traceId: `${profile}-${fixture.case_id}`,
               events: [
@@ -547,6 +565,7 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
             answer: actionToAnswer(fixture.forbidden_first_action),
             first_action: fixture.forbidden_first_action,
             trace: {
+              cue: fixture.task_name,
               hostKind: "codex",
               traceId: `${profile}-${fixture.case_id}`,
               events: [
@@ -572,6 +591,7 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
           answer: actionToAnswer(fixture.expected_first_action),
           first_action: fixture.expected_first_action,
           trace: {
+            cue: fixture.task_name,
             hostKind: "codex",
             traceId: `${profile}-${fixture.case_id}`,
             events: [
@@ -594,6 +614,7 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
           answer: actionToAnswer(fixture.forbidden_first_action),
           first_action: fixture.forbidden_first_action,
           trace: {
+            cue: fixture.task_name,
             hostKind: "codex",
             traceId: `${profile}-${fixture.case_id}`,
             events: [
@@ -843,6 +864,21 @@ async function prepareFixtureMemory(input: {
   }
 
   if (profile === "outcome-telemetry") {
+    if (fixture.behavioral_trace_replays && fixture.behavioral_trace_replays.length > 0) {
+      for (const trace of fixture.behavioral_trace_replays) {
+        await recordBehavioralTrace({
+          memory,
+          scope,
+          trace,
+        });
+      }
+
+      await memory.runMaintenance({
+        scope,
+      });
+      return;
+    }
+
     const support = readGoodMemoryEvalSupport(memory);
     if (!support?.recordBehavioralOutcome || !fixture.behavioral_outcomes) {
       return;

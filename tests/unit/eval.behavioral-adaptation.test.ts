@@ -423,6 +423,7 @@ describe("behavioral adaptation eval", () => {
             raw: "QuickCheck --network",
           },
           trace: {
+            cue: "detailed analysis",
             hostKind: "codex",
             traceId: "trace-cond-1",
             events: [
@@ -450,6 +451,111 @@ describe("behavioral adaptation eval", () => {
     expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(false);
     expect(report.profiles["outcome-telemetry"].cases[0]?.scoreReason).toBe(
       "first_action_matched_forbidden",
+    );
+  });
+
+  it("replays behavioral_trace_replays through outcome telemetry before scoring the probe", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-phase30-trace-replay-"));
+    const conditioningFixture = {
+      ...buildFixtures()[1]!,
+      behavioral_outcomes: undefined,
+      behavioral_trace_replays: [
+        {
+          cue: "detailed analysis",
+          hostKind: "codex",
+          traceId: "trace-1",
+          events: [
+            {
+              stepIndex: 0,
+              actionKind: "tool_call",
+              actionName: "DeepAnalyzer",
+              raw: "DeepAnalyzer --detailed",
+              evidenceExcerpt: "DeepAnalyzer timed out on detailed analysis.",
+              outcome: "timeout",
+            },
+            {
+              stepIndex: 1,
+              actionKind: "tool_call",
+              actionName: "QuickCheck",
+              raw: "QuickCheck --network",
+              correctionOfStepIndex: 0,
+              outcome: "success",
+            },
+          ],
+        },
+        {
+          cue: "detailed analysis",
+          hostKind: "codex",
+          traceId: "trace-2",
+          events: [
+            {
+              stepIndex: 0,
+              actionKind: "tool_call",
+              actionName: "DeepAnalyzer",
+              raw: "DeepAnalyzer --detailed",
+              evidenceExcerpt: "DeepAnalyzer timed out again on detailed analysis.",
+              outcome: "timeout",
+            },
+            {
+              stepIndex: 1,
+              actionKind: "tool_call",
+              actionName: "QuickCheck",
+              raw: "QuickCheck --network",
+              correctionOfStepIndex: 0,
+              outcome: "success",
+            },
+          ],
+        },
+      ],
+    };
+    await writeFile(
+      join(root, "cases.json"),
+      `${JSON.stringify([conditioningFixture], null, 2)}\n`,
+    );
+
+    const report = await runBehavioralAdaptationEvaluation({
+      fixtureDir: root,
+      generatedBy: "tests",
+      mode: "fallback",
+      outputDir: join(root, "reports"),
+      runId: "run-phase30-trace-replay",
+      answerGenerator: async (input) => {
+        if (input.mode === "baseline") {
+          return {
+            answer: input.fixture.paradigm === "priming"
+              ? "VectorNest\nSignalWeave\nCompressionGrid"
+              : input.fixture.forbidden_first_action.raw!,
+            first_action: input.fixture.paradigm === "priming"
+              ? undefined
+              : input.fixture.forbidden_first_action,
+          };
+        }
+
+        const hasAvoidanceRule = input.memoryContext.includes("avoid DeepAnalyzer");
+        return hasAvoidanceRule
+          ? {
+              answer: "QuickCheck --network",
+              first_action: {
+                kind: "tool_call",
+                name: "QuickCheck",
+                raw: "QuickCheck --network",
+              },
+            }
+          : {
+              answer: "DeepAnalyzer --detailed",
+              first_action: {
+                kind: "tool_call",
+                name: "DeepAnalyzer",
+                raw: "DeepAnalyzer --detailed",
+              },
+            };
+      },
+    });
+
+    expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(true);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.memoryContext).toContain(
+      "avoid DeepAnalyzer",
     );
   });
 
@@ -486,6 +592,7 @@ describe("behavioral adaptation eval", () => {
             raw: "QuickCheck --network",
           },
           trace: {
+            cue: "detailed analysis",
             hostKind: "codex",
             traceId: "trace-cond-invalid",
             events: [],

@@ -21,6 +21,7 @@ export interface HostBehavioralTraceEvent {
 }
 
 export interface HostBehavioralTrace {
+  cue: string;
   events: HostBehavioralTraceEvent[];
   hostKind: "codex";
   traceId: string;
@@ -149,6 +150,7 @@ export function validateBehavioralTrace(
   }
 
   return {
+    cue: assertString(value.cue, `${path}.cue`),
     hostKind,
     traceId: assertString(value.traceId, `${path}.traceId`),
     events: validatedEvents,
