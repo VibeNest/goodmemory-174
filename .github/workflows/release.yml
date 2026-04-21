@@ -84,15 +84,30 @@ jobs:
             exit 0
           fi
           NPM_USER="$(npm whoami)"
-          npm publish --tag rc --access public "${{ steps.pack.outputs.artifact_path }}"
-          PUBLISHED_VERSION="$(npm view goodmemory@${VERSION} version)"
-          if [ "$PUBLISHED_VERSION" != "$VERSION" ]; then
-            echo "::error::npm registry verification failed: expected $VERSION, got ${PUBLISHED_VERSION:-<empty>}"
+          if npm view "goodmemory@${VERSION}" version >/tmp/goodmemory-published-version.txt 2>/dev/null; then
+            PUBLISHED_VERSION="$(cat /tmp/goodmemory-published-version.txt)"
+            echo "goodmemory@$VERSION already exists on npm; skipping publish."
+          else
+            npm publish --tag rc --access public "${{ steps.pack.outputs.artifact_path }}"
+          fi
+          PUBLISHED_VERSION=""
+          RC_VERSION=""
+          for attempt in {1..12}; do
+            PUBLISHED_VERSION="$(npm view "goodmemory@${VERSION}" version 2>/dev/null || true)"
+            RC_VERSION="$(npm view goodmemory@rc version 2>/dev/null || true)"
+            if [ "$PUBLISHED_VERSION" = "$VERSION" ] && [ "$RC_VERSION" = "$VERSION" ]; then
+              break
+            fi
+            echo "Waiting for npm registry visibility for goodmemory@$VERSION (attempt $attempt/12)..."
+            sleep 10
+          done
+          if [ "$PUBLISHED_VERSION" != "$VERSION" ] || [ "$RC_VERSION" != "$VERSION" ]; then
+            echo "::error::npm registry verification failed: expected version and rc tag $VERSION, got version=${PUBLISHED_VERSION:-<empty>} rc=${RC_VERSION:-<empty>}"
             exit 1
           fi
           {
             echo "## npm publish"
-            echo "- Published: goodmemory@$VERSION"
-            echo "- Dist tag: rc"
+            echo "- Verified: goodmemory@$VERSION"
+            echo "- Verified dist tag: rc -> $RC_VERSION"
             echo "- npm user: $NPM_USER"
           } >> "$GITHUB_STEP_SUMMARY"
