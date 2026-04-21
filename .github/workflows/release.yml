@@ -69,6 +69,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
+          VERSION="$(bun -e 'import { readFileSync } from "node:fs"; const pkg = JSON.parse(readFileSync("package.json", "utf8")); console.log(pkg.version);')"
           if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
             {
               echo "## npm publish"
@@ -78,3 +79,13 @@ jobs:
             exit 0
           fi
           bun publish --tag rc --access public --tolerate-republish "${{ steps.pack.outputs.artifact_path }}"
+          PUBLISHED_VERSION="$(bun pm view goodmemory@${VERSION} version)"
+          if [ "$PUBLISHED_VERSION" != "$VERSION" ]; then
+            echo "::error::npm registry verification failed: expected $VERSION, got ${PUBLISHED_VERSION:-<empty>}"
+            exit 1
+          fi
+          {
+            echo "## npm publish"
+            echo "- Published: goodmemory@$VERSION"
+            echo "- Dist tag: rc"
+          } >> "$GITHUB_STEP_SUMMARY"

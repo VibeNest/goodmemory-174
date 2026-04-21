@@ -863,6 +863,8 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("Skipped: NPM_TOKEN secret is not configured.");
     expect(workflow).toContain("does not block the tarball-first RC release contract");
     expect(workflow).toContain("bun publish --tag rc --access public");
+    expect(workflow).toContain("bun pm view goodmemory@${VERSION} version");
+    expect(workflow).toContain("npm registry verification failed");
   });
 
   it("phase quality gate docs live in the archive instead of the top-level docs folder", async () => {
