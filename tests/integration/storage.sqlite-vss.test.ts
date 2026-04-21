@@ -31,6 +31,7 @@ maybeDescribe("sqlite-vss indexed local backend", () => {
       tmpdir(),
       `goodmemory-sqlitevss-${Date.now()}-${Math.random()}.db`,
     );
+    let db: Database | null = null;
 
     try {
       const first = createSQLiteVectorStore(path);
@@ -61,7 +62,7 @@ maybeDescribe("sqlite-vss indexed local backend", () => {
         filter: { userId: "u-1" },
       });
 
-      const db = new Database(path, { strict: true });
+      db = new Database(path, { strict: true });
       loadSQLiteVssExtensions(db);
       const vssTable = db.query<{ name: string }, []>(
         "select name from sqlite_master where type = 'table' and name = 'vss_vectors_facts_dim_3'",
@@ -74,6 +75,7 @@ maybeDescribe("sqlite-vss indexed local backend", () => {
       expect(rows.length).toBe(3);
       expect(results.map((record) => record.id)).toEqual(["fact-2", "fact-3"]);
     } finally {
+      db?.close();
       await rm(path, { force: true });
     }
   });
@@ -83,6 +85,7 @@ maybeDescribe("sqlite-vss indexed local backend", () => {
       tmpdir(),
       `goodmemory-sqlitevss-reconcile-${Date.now()}-${Math.random()}.db`,
     );
+    let db: Database | null = null;
 
     try {
       const accelerated = createSQLiteVectorStore(path);
@@ -138,7 +141,7 @@ maybeDescribe("sqlite-vss indexed local backend", () => {
         filter: { userId: "u-1" },
       });
 
-      const db = new Database(path, { strict: true });
+      db = new Database(path, { strict: true });
       loadSQLiteVssExtensions(db);
       const rows = db
         .query<{ rowid: number }, []>("select rowid from vss_vectors_facts_dim_3")
@@ -154,6 +157,7 @@ maybeDescribe("sqlite-vss indexed local backend", () => {
       expect(readOnlyResults.map((record) => record.id)).toEqual(["fact-new"]);
       expect(results.map((record) => record.id)).toEqual(["fact-new"]);
     } finally {
+      db?.close();
       await rm(path, { force: true });
     }
   });
@@ -189,6 +193,97 @@ maybeDescribe("sqlite-vss indexed local backend", () => {
       });
 
       expect(results.map((record) => record.id)).toEqual(["target"]);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+
+  it("removes stale vss rows when vector dimensions change and records are deleted", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlitevss-dimension-change-${Date.now()}-${Math.random()}.db`,
+    );
+    let db: Database | null = null;
+
+    try {
+      const store = createSQLiteVectorStore(path);
+      await store.upsert("facts", [
+        {
+          id: "fact-1",
+          embedding: [1, 0, 0],
+          metadata: { userId: "u-1" },
+          content: "first dimension",
+        },
+      ]);
+      await store.upsert("facts", [
+        {
+          id: "fact-1",
+          embedding: [0, 1],
+          metadata: { userId: "u-1" },
+          content: "second dimension",
+        },
+      ]);
+
+      const dimensionThreeResults = await store.search("facts", [1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-1" },
+      });
+      const dimensionTwoResults = await store.search("facts", [0, 1], {
+        topK: 1,
+        filter: { userId: "u-1" },
+      });
+
+      expect(dimensionThreeResults).toEqual([]);
+      expect(dimensionTwoResults.map((record) => record.id)).toEqual(["fact-1"]);
+
+      db = new Database(path, { strict: true });
+      loadSQLiteVssExtensions(db);
+      expect(
+        db.query<{ rowid: number }, []>("select rowid from vss_vectors_facts_dim_3").all(),
+      ).toHaveLength(0);
+      expect(
+        db.query<{ rowid: number }, []>("select rowid from vss_vectors_facts_dim_2").all(),
+      ).toHaveLength(1);
+
+      await store.delete("facts", "fact-1");
+      expect(
+        db.query<{ rowid: number }, []>("select rowid from vss_vectors_facts_dim_2").all(),
+      ).toHaveLength(0);
+    } finally {
+      db?.close();
+      await rm(path, { force: true });
+    }
+  });
+
+  it("uses a clean read-only vss table across repeated searches", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlitevss-readonly-${Date.now()}-${Math.random()}.db`,
+    );
+
+    try {
+      const writable = createSQLiteVectorStore(path);
+      await writable.upsert("facts", [
+        {
+          id: "fact-1",
+          embedding: [1, 0, 0],
+          metadata: { userId: "u-1" },
+          content: "first",
+        },
+      ]);
+
+      const readOnly = createSQLiteVectorStore(path, { readOnly: true });
+      const first = await readOnly.search("facts", [1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-1" },
+      });
+      const second = await readOnly.search("facts", [1, 0, 0], {
+        topK: 1,
+        filter: { userId: "u-1" },
+      });
+
+      expect(first.map((record) => record.id)).toEqual(["fact-1"]);
+      expect(second.map((record) => record.id)).toEqual(["fact-1"]);
     } finally {
       await rm(path, { force: true });
     }

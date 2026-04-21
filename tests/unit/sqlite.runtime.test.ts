@@ -5,8 +5,11 @@ import {
   applySQLiteCustomLibrary,
   detectBundledSQLiteVssRuntime,
   loadSQLiteVectorExtension,
+  probeBundledSQLiteVssRuntime,
+  resolveSQLiteCustomLibraryConfig,
   resolveSQLiteRuntimeConfig,
   resolveSQLiteRuntimeResolution,
+  resolveSQLiteVectorExtensionConfig,
 } from "../../src/storage/sqliteRuntime";
 
 interface ChildProcessResult {
@@ -108,12 +111,46 @@ describe("sqlite runtime config", () => {
     });
   });
 
+  it("resolves custom library and vector extension config helpers from env", () => {
+    expect(
+      resolveSQLiteCustomLibraryConfig({
+        GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH: " /opt/sqlite/libsqlite3.dylib ",
+      }),
+    ).toEqual({
+      customLibraryPath: "/opt/sqlite/libsqlite3.dylib",
+    });
+    expect(
+      resolveSQLiteVectorExtensionConfig({
+        GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT: "sqlite3_vector_init",
+        GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH:
+          "/opt/sqlite/vector0.dylib,/opt/sqlite/vss0.dylib",
+        GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: "vss_cosine_similarity",
+      }),
+    ).toEqual({
+      backend: "sql-function",
+      entryPoint: "sqlite3_vector_init",
+      mode: "prefer",
+      path: "/opt/sqlite/vector0.dylib,/opt/sqlite/vss0.dylib",
+      paths: ["/opt/sqlite/vector0.dylib", "/opt/sqlite/vss0.dylib"],
+      searchFunction: "vss_cosine_similarity",
+    });
+  });
+
   it("rejects invalid vector extension modes", () => {
     expect(() =>
       resolveSQLiteRuntimeConfig({
         GOODMEMORY_SQLITE_VECTOR_MODE: "invalid",
       }),
     ).toThrow("Unsupported GOODMEMORY_SQLITE_VECTOR_MODE");
+  });
+
+  it("rejects invalid vector search function identifiers", () => {
+    expect(() =>
+      resolveSQLiteRuntimeConfig({
+        GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH: "/opt/sqlite/vector0.dylib",
+        GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION: "vss-inner-product",
+      }),
+    ).toThrow("Unsupported GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION");
   });
 
   it("requires an extension path when vector mode is prefer or require", () => {
@@ -251,6 +288,34 @@ describe("sqlite runtime config", () => {
       },
     });
   });
+
+  it("reports bundled sqlite-vss probe failures as unavailable in implicit auto mode", () => {
+    const resolution = resolveSQLiteRuntimeResolution(
+      {},
+      {
+        inspectBundledSQLiteVssRuntime: () => ({
+          runtime: null,
+          unavailableReason: "missing libgomp",
+        }),
+      },
+    );
+
+    expect(resolution).toMatchObject({
+      config: {
+        vectorExtension: {
+          backend: "none",
+          mode: "off",
+        },
+      },
+      diagnostics: {
+        available: false,
+        backend: "none",
+        requestedMode: "prefer",
+        source: "unavailable",
+        reason: "missing libgomp",
+      },
+    });
+  });
 });
 
 describe("sqlite runtime hooks", () => {
@@ -266,6 +331,106 @@ describe("sqlite runtime hooks", () => {
     expect(runtime.paths).toHaveLength(2);
     expect(runtime.paths[0]).toContain("vector0");
     expect(runtime.paths[1]).toContain("vss0");
+  });
+
+  it("does not mark bundled sqlite-vss as available when the runtime probe fails", () => {
+    const runtime = detectBundledSQLiteVssRuntime({
+      exists: () => true,
+      getVectorLoadablePath: () => "/tmp/vector0.so",
+      getVssLoadablePath: () => "/tmp/vss0.so",
+      libraryCandidatePaths: ["/tmp/libsqlite3.so"],
+      probeRuntime: () => ({
+        loadable: false,
+        reason: "missing libgomp",
+      }),
+    });
+
+    expect(runtime).toBeNull();
+  });
+
+  it("detects bundled sqlite-vss only after the runtime probe succeeds", () => {
+    const runtime = detectBundledSQLiteVssRuntime({
+      exists: () => true,
+      getVectorLoadablePath: () => "/tmp/vector0.so",
+      getVssLoadablePath: () => "/tmp/vss0.so",
+      libraryCandidatePaths: ["/tmp/libsqlite3.so"],
+      probeRuntime: () => ({
+        loadable: true,
+      }),
+    });
+
+    expect(runtime).toEqual({
+      customLibraryPath: "/tmp/libsqlite3.so",
+      paths: ["/tmp/vector0.so", "/tmp/vss0.so"],
+    });
+  });
+
+  it("does not detect bundled sqlite-vss without a usable sqlite library path", () => {
+    const runtime = detectBundledSQLiteVssRuntime({
+      exists: () => false,
+      getVectorLoadablePath: () => "/tmp/vector0.so",
+      getVssLoadablePath: () => "/tmp/vss0.so",
+      libraryCandidatePaths: ["/tmp/libsqlite3.so"],
+      probeRuntime: () => ({
+        loadable: true,
+      }),
+    });
+
+    expect(runtime).toBeNull();
+  });
+
+  it("does not detect bundled sqlite-vss without module path accessors", () => {
+    const runtime = detectBundledSQLiteVssRuntime({
+      exists: () => true,
+      getVectorLoadablePath: undefined,
+      getVssLoadablePath: undefined,
+      libraryCandidatePaths: ["/tmp/libsqlite3.so"],
+      probeRuntime: () => ({
+        loadable: true,
+      }),
+    });
+
+    expect(runtime).toBeNull();
+  });
+
+  it("does not detect bundled sqlite-vss when loadable assets are missing", () => {
+    const runtime = detectBundledSQLiteVssRuntime({
+      exists: (path) => path === "/tmp/libsqlite3.so",
+      getVectorLoadablePath: () => "/tmp/vector0.so",
+      getVssLoadablePath: () => "/tmp/vss0.so",
+      libraryCandidatePaths: ["/tmp/libsqlite3.so"],
+      probeRuntime: () => ({
+        loadable: true,
+      }),
+    });
+
+    expect(runtime).toBeNull();
+  });
+
+  it("does not detect bundled sqlite-vss when path discovery throws", () => {
+    const runtime = detectBundledSQLiteVssRuntime({
+      exists: () => true,
+      getVectorLoadablePath: () => {
+        throw new Error("broken package");
+      },
+      getVssLoadablePath: () => "/tmp/vss0.so",
+      libraryCandidatePaths: ["/tmp/libsqlite3.so"],
+      probeRuntime: () => ({
+        loadable: true,
+      }),
+    });
+
+    expect(runtime).toBeNull();
+  });
+
+  it("passes all runtime paths into the sqlite-vss probe subprocess", () => {
+    const result = probeBundledSQLiteVssRuntime({
+      customLibraryPath: "/tmp/goodmemory-missing-sqlite",
+      paths: ["/tmp/goodmemory-missing-vector0", "/tmp/goodmemory-missing-vss0"],
+    });
+
+    expect(result.loadable).toBeFalse();
+    expect(result.reason).toContain("/tmp/goodmemory-missing-");
   });
 
   it("keeps vector bootstrap out of document and session store factories", () => {
@@ -343,8 +508,10 @@ describe("sqlite runtime hooks", () => {
       },
     );
 
-    if (!result.output.includes("accelerated")) {
-      expect(result.status).toBe(1);
+    if (!detectBundledSQLiteVssRuntime()) {
+      expect(result.status).toBe(0);
+      expect(result.output).toContain('"accelerated":false');
+      expect(result.output).toContain('"resultId":"fact-2"');
       return;
     }
 
@@ -405,9 +572,15 @@ describe("sqlite runtime hooks", () => {
       },
     );
 
-    expect(result.status).toBe(1);
-    expect(result.output).toContain("dlopen(");
-    expect(result.output).not.toContain("SQLite already loaded");
+    if (process.platform === "darwin") {
+      expect(result.status).toBe(1);
+      expect(result.output).toContain("dlopen(");
+      expect(result.output).not.toContain("SQLite already loaded");
+      return;
+    }
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain("ok");
   });
 
   it("applies a custom sqlite library path when configured", () => {
@@ -426,6 +599,43 @@ describe("sqlite runtime hooks", () => {
     );
 
     expect(calls).toEqual(["/opt/homebrew/lib/libsqlite3.dylib"]);
+  });
+
+  it("does not apply a custom sqlite library when no path is configured", () => {
+    const calls: string[] = [];
+
+    applySQLiteCustomLibrary(
+      {},
+      {
+        setCustomSQLite(path: string) {
+          calls.push(path);
+          return true;
+        },
+      },
+    );
+
+    expect(calls).toEqual([]);
+  });
+
+  it("reports vector extension loading as disabled when mode is off", () => {
+    const calls: string[] = [];
+    const result = loadSQLiteVectorExtension(
+      {
+        backend: "none",
+        mode: "off",
+        paths: [],
+        searchFunction: DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
+      },
+      {
+        loadExtension(path: string) {
+          calls.push(path);
+        },
+      },
+    );
+
+    expect(result.loaded).toBeFalse();
+    expect(result.reason).toContain("disabled");
+    expect(calls).toEqual([]);
   });
 
   it("swallows vector extension load failures in prefer mode", () => {

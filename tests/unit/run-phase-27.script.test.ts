@@ -522,9 +522,7 @@ describe("run-phase-27 eval script", () => {
   });
 
   it("derives the phase-27 reference setup metric from the shared runtime resolver", () => {
-    const metric = buildPhase27ReferenceSetupMetric(
-      "/Users/hjqcan/Documents/GoodMomery",
-    );
+    const metric = buildPhase27ReferenceSetupMetric(process.cwd());
 
     expect(metric.passed).toBeTrue();
     expect(metric.runtimeStorage).toBe("local-default-sqlite");
@@ -572,6 +570,7 @@ describe("run-phase-27 eval script", () => {
 
     const report = await runPhase27FallbackEval(
       {
+        outputDir: "/tmp/phase27-fallback",
         runId: "phase27-run",
       },
       {
@@ -649,12 +648,12 @@ describe("run-phase-27 eval script", () => {
     expect(calls[0]?.strategies).toEqual(["rules-only"]);
     expect(calls[0]?.rememberExtractionStrategy).toBe("auto");
     expect(calls[0]?.outputDir).toBe(
-      "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/phase27-run",
+      "/tmp/phase27-fallback/phase27-run",
     );
     expect((calls[0]?.runtime as { memoryBackend?: string })?.memoryBackend).toBe("sqlite");
     expect(writes).toHaveLength(1);
     expect(writes[0]?.path).toBe(
-      "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/phase27-run/report.json",
+      "/tmp/phase27-fallback/phase27-run/report.json",
     );
     expect(writes[0]?.content).toContain("\"accepted\": true");
   });
@@ -749,6 +748,7 @@ describe("run-phase-27 eval script", () => {
     try {
       const report = await runPhase27LiveMemoryEval(
         {
+          outputDir: "/tmp/phase27-live",
           runId: "phase27-live",
         },
         {
@@ -941,7 +941,7 @@ describe("run-phase-27 eval script", () => {
       );
       expect(writes).toHaveLength(1);
       expect(writes[0]?.path).toBe(
-        "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-27/phase27-live/report.json",
+        "/tmp/phase27-live/phase27-live/report.json",
       );
       expect(writes[0]?.content).toContain("\"mode\": \"live-memory\"");
     } finally {

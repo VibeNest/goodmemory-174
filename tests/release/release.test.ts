@@ -933,6 +933,39 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("npm registry verification failed");
   });
 
+  it("github workflows pin Bun to the package manager version", async () => {
+    const pkg = JSON.parse(
+      await readFile(join(import.meta.dir, "../../package.json"), "utf8"),
+    ) as {
+      packageManager?: string;
+    };
+    const bunVersion = pkg.packageManager?.replace(/^bun@/, "");
+
+    expect(bunVersion).toBe("1.3.0");
+    for (const workflowPath of [
+      ".github/workflows/ci.yml",
+      ".github/workflows/eval.yml",
+      ".github/workflows/release.yml",
+    ]) {
+      const workflow = await readFile(join(import.meta.dir, "../../", workflowPath), "utf8");
+      expect(workflow).toContain(`bun-version: ${bunVersion}`);
+      expect(workflow).not.toContain("bun-version: latest");
+    }
+  });
+
+  it("ci workflow installs sqlite-vss Linux prerequisites before dependency install", async () => {
+    const workflow = await readFile(
+      join(import.meta.dir, "../../.github/workflows/ci.yml"),
+      "utf8",
+    );
+
+    expect(workflow).toContain("Install sqlite-vss Linux prerequisites");
+    expect(workflow).toContain("sudo apt-get install -y libgomp1 libatlas-base-dev liblapack-dev");
+    expect(workflow.indexOf("Install sqlite-vss Linux prerequisites")).toBeLessThan(
+      workflow.indexOf("Install dependencies"),
+    );
+  });
+
   it("phase quality gate docs live in the archive instead of the top-level docs folder", async () => {
     const topLevelDocs = await readdir(
       join(import.meta.dir, "../../docs"),

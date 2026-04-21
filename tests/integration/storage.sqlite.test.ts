@@ -42,3 +42,45 @@ runVectorStoreContract("sqlite vector store contract", () => {
     cleanup: () => rm(path, { force: true }),
   };
 });
+
+describe("sqlite vector store read-only mode", () => {
+  it("rejects vector mutations when opened read-only", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-vector-readonly-${Date.now()}-${Math.random()}.db`,
+    );
+
+    try {
+      const writable = createSQLiteVectorStore(path);
+      await writable.upsert("vectors", [
+        {
+          id: "vector-1",
+          embedding: [1, 0, 0],
+          metadata: { userId: "u-1" },
+          content: "first",
+        },
+      ]);
+
+      const readOnly = createSQLiteVectorStore(path, { readOnly: true });
+
+      await expect(
+        readOnly.upsert("vectors", [
+          {
+            id: "vector-2",
+            embedding: [0, 1, 0],
+            metadata: { userId: "u-1" },
+            content: "second",
+          },
+        ]),
+      ).rejects.toThrow("read-only");
+      await expect(readOnly.delete("vectors", "vector-1")).rejects.toThrow(
+        "read-only",
+      );
+      await expect(readOnly.get("vectors", "vector-1")).resolves.toMatchObject({
+        id: "vector-1",
+      });
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+});

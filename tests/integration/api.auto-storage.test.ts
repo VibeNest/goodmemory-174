@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { createGoodMemory } from "../../src";
 import { createFactMemory } from "../../src/domain/records";
 import { createMemorySource } from "../../src/domain/provenance";
+import { createAutoStorageAdapters } from "../../src/storage/auto";
 import { createMemoryRepositories } from "../../src/storage/repositories";
 import {
   createSQLiteDocumentStore,
@@ -540,6 +541,71 @@ describe("auto storage runtime", () => {
       ).rejects.toThrow();
     } finally {
       process.chdir(previousCwd);
+      await workspace.cleanup();
+    }
+  });
+
+  it("uses postgres as the durable authority when auto storage can bootstrap it", async () => {
+    const postgresUrl = process.env.GOODMEMORY_TEST_POSTGRES_URL;
+    if (!postgresUrl) {
+      expect(postgresUrl).toBeUndefined();
+      return;
+    }
+
+    const workspace = await createTempWorkspace("goodmemory-auto-storage-postgres");
+    const sqliteUrl = join(workspace.root, "fallback.sqlite");
+    const adapters = createAutoStorageAdapters({
+      postgresUrl,
+      sqliteUrl,
+    });
+    const collection = `auto_postgres_${Date.now()}_${Math.random()}`;
+    const scope = {
+      userId: `auto-postgres-user-${Date.now()}`,
+      workspaceId: "workspace-a",
+      sessionId: "session-1",
+    };
+
+    try {
+      await adapters.documentStore.set(collection, "doc-1", {
+        id: "doc-1",
+        kind: "fact",
+        value: "postgres",
+      });
+      await adapters.vectorStore.upsert(collection, [
+        {
+          id: "vector-1",
+          embedding: [1, 0, 0],
+          metadata: { userId: scope.userId },
+          content: "postgres vector",
+        },
+      ]);
+      await adapters.sessionStore.saveBuffer(scope, {
+        sessionId: scope.sessionId,
+        userId: scope.userId,
+        messages: [],
+        summary: null,
+        summaryUpToIndex: 0,
+        createdAt: "2026-04-21T00:00:00.000Z",
+        lastActiveAt: "2026-04-21T00:00:00.000Z",
+      });
+
+      expect(await adapters.documentStore.get(collection, "doc-1")).toMatchObject({
+        value: "postgres",
+      });
+      expect(
+        await adapters.vectorStore.search(collection, [1, 0, 0], {
+          topK: 1,
+          filter: { userId: scope.userId },
+        }),
+      ).toHaveLength(1);
+      expect((await adapters.sessionStore.getBuffer(scope))?.sessionId).toBe(
+        "session-1",
+      );
+      await expect(access(sqliteUrl)).rejects.toThrow();
+    } finally {
+      await adapters.vectorStore.delete(collection, "vector-1");
+      await adapters.documentStore.delete(collection, "doc-1");
+      await adapters.sessionStore.deleteBuffersByScope(scope);
       await workspace.cleanup();
     }
   });

@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -265,6 +265,12 @@ function withPhase27LocalDefaultRuntime<TValue>(
   root: string,
   run: () => TValue,
 ): TValue {
+  if (!existsSync(root)) {
+    throw new Error(
+      `Phase 27 local-default runtime root does not exist: ${root}`,
+    );
+  }
+
   const previousCwd = process.cwd();
   const previousValues = PHASE_27_LOCAL_DEFAULT_RUNTIME_ENV_KEYS.map((key) =>
     [key, process.env[key]] as const

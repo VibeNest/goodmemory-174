@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import * as sqliteVss from "sqlite-vss";
 
@@ -45,8 +46,27 @@ export interface BundledSQLiteVssRuntime {
   paths: string[];
 }
 
+export interface SQLiteVssRuntimeProbeResult {
+  loadable: boolean;
+  reason?: string;
+}
+
+export interface SQLiteVssRuntimeDetectionDependencies {
+  exists?: (path: string) => boolean;
+  getVectorLoadablePath?: () => string;
+  getVssLoadablePath?: () => string;
+  libraryCandidatePaths?: readonly string[];
+  probeRuntime?: (
+    runtime: BundledSQLiteVssRuntime,
+  ) => SQLiteVssRuntimeProbeResult;
+}
+
 export interface SQLiteRuntimeDependencies {
   detectBundledSQLiteVssRuntime?: () => BundledSQLiteVssRuntime | null;
+  inspectBundledSQLiteVssRuntime?: () => {
+    runtime: BundledSQLiteVssRuntime | null;
+    unavailableReason?: string;
+  };
 }
 
 export interface SQLiteExtensionLoadResult {
@@ -70,6 +90,29 @@ const SQLITE_LIBRARY_CANDIDATE_PATHS = [
   "/usr/lib64/libsqlite3.so",
   "/usr/lib/libsqlite3.so",
 ] as const;
+
+const SQLITE_VSS_RUNTIME_PROBE_SOURCE = `
+  import { Database } from "bun:sqlite";
+
+  const [customLibraryPath, vectorPath, vssPath] = process.argv.slice(1);
+  if (!customLibraryPath || !vectorPath || !vssPath) {
+    throw new Error("Missing sqlite-vss probe paths.");
+  }
+
+  Database.setCustomSQLite(customLibraryPath);
+  const database = new Database(":memory:", { strict: true });
+
+  try {
+    database.loadExtension(vectorPath);
+    database.loadExtension(vssPath);
+    database.query("select vss_version() as version").get();
+    database.exec(
+      "CREATE VIRTUAL TABLE __goodmemory_vss_probe USING vss0(embedding(3)); DROP TABLE __goodmemory_vss_probe;",
+    );
+  } finally {
+    database.close();
+  }
+`;
 
 function normalizeNonEmpty(value: string | undefined): string | undefined {
   if (!value) {
@@ -176,13 +219,59 @@ function buildDisabledResolution(input: {
   };
 }
 
-export function detectBundledSQLiteVssRuntime(): BundledSQLiteVssRuntime | null {
-  const customLibraryPath = SQLITE_LIBRARY_CANDIDATE_PATHS.find((path) =>
-    existsSync(path),
+export function probeBundledSQLiteVssRuntime(
+  runtime: BundledSQLiteVssRuntime,
+): SQLiteVssRuntimeProbeResult {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "-e",
+      SQLITE_VSS_RUNTIME_PROBE_SOURCE,
+      "--",
+      runtime.customLibraryPath,
+      ...runtime.paths,
+    ],
+    {
+      encoding: "utf8",
+      timeout: 10_000,
+    },
   );
 
+  if (result.error) {
+    return {
+      loadable: false,
+      reason: result.error.message,
+    };
+  }
+
+  if (result.status !== 0) {
+    const output = `${result.stdout}${result.stderr}`.trim();
+    return {
+      loadable: false,
+      reason: output || `sqlite-vss probe exited with status ${result.status}`,
+    };
+  }
+
+  return {
+    loadable: true,
+  };
+}
+
+function inspectBundledSQLiteVssRuntime(
+  dependencies: SQLiteVssRuntimeDetectionDependencies = {},
+): {
+  runtime: BundledSQLiteVssRuntime | null;
+  unavailableReason?: string;
+} {
+  const exists = dependencies.exists ?? existsSync;
+  const customLibraryPath = (
+    dependencies.libraryCandidatePaths ?? SQLITE_LIBRARY_CANDIDATE_PATHS
+  ).find((path) => exists(path));
+
   if (!customLibraryPath) {
-    return null;
+    return {
+      runtime: null,
+    };
   }
 
   try {
@@ -190,23 +279,64 @@ export function detectBundledSQLiteVssRuntime(): BundledSQLiteVssRuntime | null 
       getVectorLoadablePath?: () => string;
       getVssLoadablePath?: () => string;
     };
-    if (!module.getVectorLoadablePath || !module.getVssLoadablePath) {
-      return null;
+    const getVectorLoadablePath = Object.hasOwn(
+      dependencies,
+      "getVectorLoadablePath",
+    )
+      ? dependencies.getVectorLoadablePath
+      : module.getVectorLoadablePath;
+    const getVssLoadablePath = Object.hasOwn(
+      dependencies,
+      "getVssLoadablePath",
+    )
+      ? dependencies.getVssLoadablePath
+      : module.getVssLoadablePath;
+    if (!getVectorLoadablePath || !getVssLoadablePath) {
+      return {
+        runtime: null,
+      };
     }
-    const vectorPath = module.getVectorLoadablePath();
-    const vssPath = module.getVssLoadablePath();
+    const vectorPath = getVectorLoadablePath();
+    const vssPath = getVssLoadablePath();
 
-    if (!existsSync(vectorPath) || !existsSync(vssPath)) {
-      return null;
+    if (!exists(vectorPath) || !exists(vssPath)) {
+      return {
+        runtime: null,
+      };
     }
 
-    return {
+    const runtime = {
       customLibraryPath,
       paths: [vectorPath, vssPath],
     };
-  } catch {
-    return null;
+    const probe = (dependencies.probeRuntime ?? probeBundledSQLiteVssRuntime)(
+      runtime,
+    );
+
+    if (!probe.loadable) {
+      return {
+        runtime: null,
+        unavailableReason:
+          probe.reason ?? "Bundled sqlite-vss runtime probe failed.",
+      };
+    }
+
+    return {
+      runtime,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      runtime: null,
+      unavailableReason: `Failed to inspect bundled sqlite-vss runtime: ${message}`,
+    };
   }
+}
+
+export function detectBundledSQLiteVssRuntime(
+  dependencies: SQLiteVssRuntimeDetectionDependencies = {},
+): BundledSQLiteVssRuntime | null {
+  return inspectBundledSQLiteVssRuntime(dependencies).runtime;
 }
 
 export function resolveSQLiteRuntimeConfig(
@@ -273,12 +403,23 @@ export function resolveSQLiteRuntimeResolution(
   const entryPoint = normalizeNonEmpty(
     env.GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT,
   );
-  const bundledRuntime =
-    dependencies?.detectBundledSQLiteVssRuntime ??
-    detectBundledSQLiteVssRuntime;
-  const detectedRuntime = bundledRuntime();
+  const bundledRuntimeInspection = dependencies?.inspectBundledSQLiteVssRuntime
+    ? dependencies.inspectBundledSQLiteVssRuntime()
+    : dependencies?.detectBundledSQLiteVssRuntime
+      ? {
+          runtime: dependencies.detectBundledSQLiteVssRuntime(),
+        }
+      : inspectBundledSQLiteVssRuntime();
+  const detectedRuntime = bundledRuntimeInspection.runtime;
+  const bundledRuntimeUnavailableReason =
+    bundledRuntimeInspection.unavailableReason;
   const requestedMode =
-    explicitMode ?? (extensionPaths.length > 0 || detectedRuntime ? "prefer" : "off");
+    explicitMode ??
+    (extensionPaths.length > 0 ||
+    detectedRuntime ||
+    bundledRuntimeUnavailableReason
+      ? "prefer"
+      : "off");
 
   if (requestedMode === "off") {
     return buildDisabledResolution({
@@ -339,6 +480,7 @@ export function resolveSQLiteRuntimeResolution(
     searchFunction,
     source: "unavailable",
     reason:
+      bundledRuntimeUnavailableReason ??
       "SQLite vector acceleration was requested, but no supported sqlite-vss runtime assets were detected and no manual GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH was configured.",
   });
 }

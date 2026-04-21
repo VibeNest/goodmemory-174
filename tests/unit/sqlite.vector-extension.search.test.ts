@@ -32,6 +32,48 @@ function createStoreForExtensionSqlSemantics(
 }
 
 describe("sqlite vector extension search path", () => {
+  it("falls back immediately when extension search is disabled", async () => {
+    const calls: string[] = [];
+    const store = createSQLiteVectorStore(
+      ":memory:",
+      undefined,
+      {
+        loadVectorExtension() {
+          calls.push("load");
+        },
+        vectorExtensionConfig: {
+          backend: "none",
+          mode: "off",
+          paths: [],
+          searchFunction: DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
+        },
+      },
+    );
+
+    await store.upsert("facts", [
+      {
+        id: "fact-b",
+        embedding: [1, 0, 0],
+        metadata: { userId: "u-1" },
+        content: "second",
+      },
+      {
+        id: "fact-a",
+        embedding: [1, 0, 0],
+        metadata: { userId: "u-1" },
+        content: "first",
+      },
+    ]);
+
+    const results = await store.search("facts", [1, 0, 0], {
+      topK: 2,
+      filter: { userId: "u-1" },
+    });
+
+    expect(calls).toEqual([]);
+    expect(results.map((record) => record.id)).toEqual(["fact-a", "fact-b"]);
+  });
+
   it("uses the extension-backed search path when configured", async () => {
     const calls: Array<{
       collection: string;
@@ -173,6 +215,32 @@ describe("sqlite vector extension search path", () => {
     const result = await store.search("facts", [1, 0, 0], {
       topK: 10,
       filter: { pinned: true },
+    });
+
+    expect(result.map((record) => record.id)).toEqual(["fact-1"]);
+  });
+
+  it("keeps numeric filters type-strict in the extension SQL path", async () => {
+    const store = createStoreForExtensionSqlSemantics();
+
+    await store.upsert("facts", [
+      {
+        id: "fact-1",
+        embedding: [1, 0, 0],
+        metadata: { priority: 1 },
+        content: "first",
+      },
+      {
+        id: "fact-2",
+        embedding: [0, 1, 0],
+        metadata: { priority: "1" },
+        content: "second",
+      },
+    ]);
+
+    const result = await store.search("facts", [1, 0, 0], {
+      topK: 10,
+      filter: { priority: 1 },
     });
 
     expect(result.map((record) => record.id)).toEqual(["fact-1"]);
