@@ -8,7 +8,10 @@ import type {
   BehavioralFirstAction,
   BehavioralOutcomeRecordInput,
 } from "../evolution/behavioralTelemetry";
-import { behavioralFirstActionsEqual } from "../evolution/behavioralTelemetry";
+import {
+  behavioralFirstActionsEqual,
+  isToolOutcomeExperience,
+} from "../evolution/behavioralTelemetry";
 import {
   extractFirstBehavioralTraceAction,
   type HostBehavioralTrace,
@@ -85,6 +88,15 @@ export interface BehavioralGeneratedAnswer {
   trace?: HostBehavioralTrace;
 }
 
+export interface BehavioralOutcomeTelemetryLineage {
+  acceptedPromotionIds: string[];
+  activeValidatedPatternIds: string[];
+  activeValidatedPatternRules: string[];
+  evidenceIds: string[];
+  experienceIds: string[];
+  proposalIds: string[];
+}
+
 export interface BehavioralLayerD {
   constraint_violation_rate: number;
   failure_avoidance_rate: number;
@@ -96,6 +108,8 @@ export interface BehavioralLayerD {
 
 export interface BehavioralCaseResult {
   baselineAnswer: string;
+  baselineTrace?: HostBehavioralTrace;
+  baselineTraceParseError?: string;
   blocking: boolean;
   branch?: PrimingBranchName;
   caseId: string;
@@ -103,8 +117,13 @@ export interface BehavioralCaseResult {
   constraintViolations: string[];
   explicitRecallLeak: boolean;
   firstAction?: BehavioralFirstAction;
+  firstActionSource?: "missing" | "self_reported" | "trace";
+  firstActionTraceParseError?: string;
+  goodmemoryTrace?: HostBehavioralTrace;
+  goodmemoryTraceParseError?: string;
   goodmemoryAnswer: string;
   memoryContext: string;
+  outcomeTelemetryLineage?: BehavioralOutcomeTelemetryLineage;
   paradigm: BehavioralAdaptationParadigm;
   passed: boolean;
   primingScore?: number;
@@ -179,7 +198,9 @@ export interface RunBehavioralAdaptationEvaluationOptions {
   generatedBy: string;
   mode: "fallback" | "live-memory";
   outputDir: string;
+  requireTraceForStructuredCases?: boolean;
   runId?: string;
+  scopePrefix?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -636,22 +657,70 @@ function createDefaultFallbackAnswerGenerator(): BehavioralAnswerGenerator {
   };
 }
 
+function resolveReportTrace(
+  trace: HostBehavioralTrace | undefined,
+  path: string,
+): {
+  parseError?: string;
+  trace?: HostBehavioralTrace;
+} {
+  if (!trace) {
+    return {};
+  }
+
+  try {
+    return {
+      trace: validateBehavioralTrace(trace, path),
+    };
+  } catch (error) {
+    return {
+      parseError: error instanceof Error ? error.message : `${path} failed to validate`,
+    };
+  }
+}
+
 function resolveScoredFirstAction(
   generated: BehavioralGeneratedAnswer,
-): BehavioralFirstAction | undefined {
-  if (!generated.trace) {
-    return generated.first_action;
+  options?: {
+    requireTrace?: boolean;
+  },
+): {
+  action?: BehavioralFirstAction;
+  source: "missing" | "self_reported" | "trace";
+  traceParseError?: string;
+} {
+  const traceResult = resolveReportTrace(generated.trace, "generated.trace");
+
+  if (!traceResult.trace) {
+    if (traceResult.parseError) {
+      return {
+        source: "missing",
+        traceParseError: traceResult.parseError,
+      };
+    }
+
+    if (options?.requireTrace) {
+      return {
+        source: "missing",
+      };
+    }
+
+    return {
+      action: generated.first_action,
+      source: generated.first_action ? "self_reported" : "missing",
+    };
   }
 
-  let trace: HostBehavioralTrace;
-  try {
-    trace = validateBehavioralTrace(generated.trace, "generated.trace");
-  } catch {
-    return undefined;
-  }
-  const firstTraceEvent = extractFirstBehavioralTraceAction(trace);
+  const firstTraceEvent = extractFirstBehavioralTraceAction(traceResult.trace);
 
-  return firstTraceEvent ? toBehavioralFirstAction(firstTraceEvent) : undefined;
+  return firstTraceEvent
+    ? {
+        action: toBehavioralFirstAction(firstTraceEvent),
+        source: "trace",
+      }
+    : {
+        source: "missing",
+      };
 }
 
 function buildPrompt(input: {
@@ -682,12 +751,13 @@ function buildScope(
   fixture: BehavioralAdaptationFixture,
   profile: BehavioralAdaptationProfile,
   branch?: PrimingBranchName,
+  scopePrefix = "behavioral-adaptation",
 ): MemoryScope {
   return {
-    userId: `phase25-${profile}-${fixture.case_id}`,
+    userId: `${scopePrefix}-${profile}-${fixture.case_id}`,
     workspaceId: branch
-      ? `phase25-${fixture.case_id}-${branch}`
-      : `phase25-${fixture.case_id}`,
+      ? `${scopePrefix}-${fixture.case_id}-${branch}`
+      : `${scopePrefix}-${fixture.case_id}`,
   };
 }
 
@@ -835,6 +905,54 @@ async function buildMemoryContext(
   });
 
   return built.content;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+async function buildOutcomeTelemetryLineage(
+  memory: GoodMemory,
+  scope: MemoryScope,
+): Promise<BehavioralOutcomeTelemetryLineage | undefined> {
+  const exported = await memory.exportMemory({
+    scope,
+  });
+  const toolOutcomeExperiences = exported.durable.experiences.filter((experience) =>
+    isToolOutcomeExperience(experience),
+  );
+  const proposals = exported.durable.proposals.filter(
+    (proposal) => proposal.proposalType === "procedural_pattern",
+  );
+  const proposalIds = new Set(proposals.map((proposal) => proposal.id));
+  const acceptedPromotions = exported.durable.promotions.filter(
+    (promotion) => proposalIds.has(promotion.proposalId) && promotion.decision === "accepted",
+  );
+  const activeValidatedPatterns = exported.durable.feedback.filter(
+    (feedback) => feedback.kind === "validated_pattern" && feedback.lifecycle === "active",
+  );
+
+  if (
+    toolOutcomeExperiences.length === 0 &&
+    proposals.length === 0 &&
+    acceptedPromotions.length === 0 &&
+    activeValidatedPatterns.length === 0
+  ) {
+    return undefined;
+  }
+
+  return {
+    acceptedPromotionIds: acceptedPromotions.map((promotion) => promotion.id),
+    activeValidatedPatternIds: activeValidatedPatterns.map((feedback) => feedback.id),
+    activeValidatedPatternRules: activeValidatedPatterns.map((feedback) => feedback.rule),
+    evidenceIds: uniqueStrings([
+      ...toolOutcomeExperiences.flatMap((experience) => experience.linkedEvidenceIds),
+      ...proposals.flatMap((proposal) => proposal.linkedEvidenceIds),
+      ...acceptedPromotions.flatMap((promotion) => promotion.linkedEvidenceIds),
+    ]),
+    experienceIds: toolOutcomeExperiences.map((experience) => experience.id),
+    proposalIds: proposals.map((proposal) => proposal.id),
+  };
 }
 
 async function prepareFixtureMemory(input: {
@@ -1050,12 +1168,19 @@ async function executeStructuredCase(input: {
   createMemory: BehavioralAdaptationMemoryFactory;
   fixture: ProceduralOrConditioningFixture;
   profile: BehavioralAdaptationProfile;
+  requireTraceForStructuredCases?: boolean;
+  scopePrefix?: string;
 }): Promise<BehavioralCaseResult | null> {
   if (input.profile === "outcome-telemetry" && input.fixture.paradigm !== "conditioning") {
     return null;
   }
 
-  const scope = buildScope(input.fixture, input.profile);
+  const scope = buildScope(
+    input.fixture,
+    input.profile,
+    undefined,
+    input.scopePrefix,
+  );
   const handle = normalizeMemoryHandle(
     input.createMemory({
       fixture: input.fixture,
@@ -1071,6 +1196,9 @@ async function executeStructuredCase(input: {
       profile: input.profile,
       scope,
     });
+    const outcomeTelemetryLineage = input.profile === "outcome-telemetry"
+      ? await buildOutcomeTelemetryLineage(handle.memory, scope)
+      : undefined;
     const memoryContext = await buildMemoryContext(
       handle.memory,
       scope,
@@ -1093,21 +1221,38 @@ async function executeStructuredCase(input: {
         memoryContext,
       }),
     });
-    const firstAction = resolveScoredFirstAction(generated);
+    const firstAction = resolveScoredFirstAction(generated, {
+      requireTrace: input.requireTraceForStructuredCases,
+    });
     const scored = scoreFirstActionCase({
-      actual: firstAction,
+      actual: firstAction.action,
       expected: input.fixture.expected_first_action,
       forbidden: input.fixture.forbidden_first_action,
       paradigm: input.fixture.paradigm,
     });
+    const baselineTrace = resolveReportTrace(baseline.trace, "baseline.trace");
+    const goodmemoryTrace = resolveReportTrace(generated.trace, "generated.trace");
 
     return {
       baselineAnswer: baseline.answer,
+      ...(baselineTrace.trace ? { baselineTrace: baselineTrace.trace } : {}),
+      ...(baselineTrace.parseError
+        ? { baselineTraceParseError: baselineTrace.parseError }
+        : {}),
       caseId: input.fixture.case_id,
       explicitRecallLeak: countExplicitRecallLeaks(generated.answer),
-      firstAction,
+      firstAction: firstAction.action,
+      firstActionSource: firstAction.source,
+      ...(firstAction.traceParseError
+        ? { firstActionTraceParseError: firstAction.traceParseError }
+        : {}),
+      ...(goodmemoryTrace.trace ? { goodmemoryTrace: goodmemoryTrace.trace } : {}),
+      ...(goodmemoryTrace.parseError
+        ? { goodmemoryTraceParseError: goodmemoryTrace.parseError }
+        : {}),
       goodmemoryAnswer: generated.answer,
       memoryContext,
+      outcomeTelemetryLineage,
       paradigm: input.fixture.paradigm,
       profile: input.profile,
       taskName: input.fixture.task_name,
@@ -1123,6 +1268,7 @@ async function executePrimingCase(input: {
   createMemory: BehavioralAdaptationMemoryFactory;
   fixture: PrimingFixture;
   profile: BehavioralAdaptationProfile;
+  scopePrefix?: string;
 }): Promise<BehavioralCaseResult[]> {
   if (input.profile === "outcome-telemetry") {
     return [];
@@ -1131,7 +1277,12 @@ async function executePrimingCase(input: {
   const results: BehavioralCaseResult[] = [];
 
   for (const branch of ["experimental", "control"] as const) {
-    const scope = buildScope(input.fixture, input.profile, branch);
+    const scope = buildScope(
+      input.fixture,
+      input.profile,
+      branch,
+      input.scopePrefix,
+    );
     const handle = normalizeMemoryHandle(
       input.createMemory({
         fixture: input.fixture,
@@ -1211,6 +1362,7 @@ export async function runBehavioralAdaptationEvaluation(
 ): Promise<BehavioralAdaptationReport> {
   const answerGenerator = input.answerGenerator ?? createDefaultFallbackAnswerGenerator();
   const createMemory = input.createMemory ?? createDefaultMemoryFactory();
+  const scopePrefix = input.scopePrefix ?? "behavioral-adaptation";
   const fixtures = await listBehavioralAdaptationFixtures(input.fixtureDir);
   const profiles: Record<BehavioralAdaptationProfile, BehavioralCaseResult[]> = {
     "raw-experience": [],
@@ -1229,20 +1381,23 @@ export async function runBehavioralAdaptationEvaluation(
         if (fixture.paradigm === "priming") {
           profiles[profile].push(
             ...(await executePrimingCase({
-              answerGenerator,
-              createMemory,
-              fixture,
-              profile,
-            })),
-          );
-          continue;
-        }
+            answerGenerator,
+            createMemory,
+            fixture,
+            profile,
+            scopePrefix,
+          })),
+        );
+        continue;
+      }
 
         const result = await executeStructuredCase({
           answerGenerator,
           createMemory,
           fixture,
           profile,
+          requireTraceForStructuredCases: input.requireTraceForStructuredCases,
+          scopePrefix,
         });
         if (result) {
           profiles[profile].push(result);

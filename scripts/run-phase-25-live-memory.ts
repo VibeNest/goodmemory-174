@@ -203,6 +203,7 @@ export async function runPhase25LiveMemoryEval(
     mode: "live-memory",
     outputDir: input?.outputDir ?? resolvePhase25LiveMemoryOutputDir(root),
     runId: input?.runId,
+    scopePrefix: "phase25",
   });
 }
 

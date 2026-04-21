@@ -449,6 +449,9 @@ describe("behavioral adaptation eval", () => {
 
     expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
     expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(false);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.firstActionSource).toBe(
+      "trace",
+    );
     expect(report.profiles["outcome-telemetry"].cases[0]?.scoreReason).toBe(
       "first_action_matched_forbidden",
     );
@@ -519,6 +522,8 @@ describe("behavioral adaptation eval", () => {
       mode: "fallback",
       outputDir: join(root, "reports"),
       runId: "run-phase30-trace-replay",
+      requireTraceForStructuredCases: true,
+      scopePrefix: "phase30",
       answerGenerator: async (input) => {
         if (input.mode === "baseline") {
           return {
@@ -528,6 +533,22 @@ describe("behavioral adaptation eval", () => {
             first_action: input.fixture.paradigm === "priming"
               ? undefined
               : input.fixture.forbidden_first_action,
+            trace: input.fixture.paradigm === "priming"
+              ? undefined
+              : {
+                  cue: "detailed analysis",
+                  hostKind: "codex",
+                  traceId: "baseline-trace",
+                  events: [
+                    {
+                      stepIndex: 0,
+                      actionKind: "tool_call",
+                      actionName: "DeepAnalyzer",
+                      raw: "DeepAnalyzer --detailed",
+                      outcome: "timeout",
+                    },
+                  ],
+                },
           };
         }
 
@@ -540,6 +561,20 @@ describe("behavioral adaptation eval", () => {
                 name: "QuickCheck",
                 raw: "QuickCheck --network",
               },
+              trace: {
+                cue: "detailed analysis",
+                hostKind: "codex",
+                traceId: "goodmemory-trace",
+                events: [
+                  {
+                    stepIndex: 0,
+                    actionKind: "tool_call",
+                    actionName: "QuickCheck",
+                    raw: "QuickCheck --network",
+                    outcome: "success",
+                  },
+                ],
+              },
             }
           : {
               answer: "DeepAnalyzer --detailed",
@@ -548,14 +583,95 @@ describe("behavioral adaptation eval", () => {
                 name: "DeepAnalyzer",
                 raw: "DeepAnalyzer --detailed",
               },
+              trace: {
+                cue: "detailed analysis",
+                hostKind: "codex",
+                traceId: "goodmemory-trace",
+                events: [
+                  {
+                    stepIndex: 0,
+                    actionKind: "tool_call",
+                    actionName: "DeepAnalyzer",
+                    raw: "DeepAnalyzer --detailed",
+                    outcome: "timeout",
+                  },
+                ],
+              },
             };
       },
     });
 
     expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
     expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(true);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.firstActionSource).toBe(
+      "trace",
+    );
+    expect(report.profiles["outcome-telemetry"].cases[0]?.baselineTrace?.traceId).toBe(
+      "baseline-trace",
+    );
+    expect(report.profiles["outcome-telemetry"].cases[0]?.goodmemoryTrace?.traceId).toBe(
+      "goodmemory-trace",
+    );
+    expect(
+      report.profiles["outcome-telemetry"].cases[0]?.outcomeTelemetryLineage?.experienceIds.length,
+    ).toBe(2);
+    expect(
+      report.profiles["outcome-telemetry"].cases[0]?.outcomeTelemetryLineage?.proposalIds.length,
+    ).toBe(1);
+    expect(
+      report.profiles["outcome-telemetry"].cases[0]?.outcomeTelemetryLineage?.acceptedPromotionIds.length,
+    ).toBe(1);
     expect(report.profiles["outcome-telemetry"].cases[0]?.memoryContext).toContain(
       "avoid DeepAnalyzer",
+    );
+  });
+
+  it("fails closed when trace-backed scoring is required but only self-reported first_action is present", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-phase30-trace-required-"));
+    await writeFile(
+      join(root, "cases.json"),
+      `${JSON.stringify([buildFixtures()[1]], null, 2)}\n`,
+    );
+
+    const report = await runBehavioralAdaptationEvaluation({
+      fixtureDir: root,
+      generatedBy: "tests",
+      mode: "fallback",
+      outputDir: join(root, "reports"),
+      runId: "run-phase30-trace-required",
+      requireTraceForStructuredCases: true,
+      scopePrefix: "phase30",
+      answerGenerator: async (input) => {
+        if (input.mode === "baseline") {
+          return {
+            answer: input.fixture.paradigm === "priming"
+              ? "VectorNest\nSignalWeave\nCompressionGrid"
+              : input.fixture.forbidden_first_action.raw!,
+            first_action: input.fixture.paradigm === "priming"
+              ? undefined
+              : input.fixture.forbidden_first_action,
+          };
+        }
+
+        return {
+          answer: "QuickCheck --network",
+          first_action: {
+            kind: "tool_call",
+            name: "QuickCheck",
+            raw: "QuickCheck --network",
+          },
+        };
+      },
+    });
+
+    expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.firstAction).toBeUndefined();
+    expect(report.profiles["outcome-telemetry"].cases[0]?.firstActionSource).toBe(
+      "missing",
+    );
+    expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(false);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.scoreReason).toBe(
+      "missing_first_action",
     );
   });
 
@@ -605,9 +721,86 @@ describe("behavioral adaptation eval", () => {
     expect(report.profiles["outcome-telemetry"].totalCases).toBe(1);
     expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
     expect(report.profiles["outcome-telemetry"].cases[0]?.firstAction).toBeUndefined();
+    expect(
+      report.profiles["outcome-telemetry"].cases[0]?.firstActionTraceParseError,
+    ).toBe("generated.trace.events must be a non-empty array");
+    expect(report.profiles["outcome-telemetry"].cases[0]?.goodmemoryTrace).toBeUndefined();
+    expect(
+      report.profiles["outcome-telemetry"].cases[0]?.goodmemoryTraceParseError,
+    ).toBe("generated.trace.events must be a non-empty array");
     expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(false);
     expect(report.profiles["outcome-telemetry"].cases[0]?.scoreReason).toBe(
       "missing_first_action",
     );
+  });
+
+  it("preserves baseline trace parse failures in the case evidence", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-phase30-baseline-trace-invalid-"));
+    await writeFile(
+      join(root, "cases.json"),
+      `${JSON.stringify([buildFixtures()[1]], null, 2)}\n`,
+    );
+
+    const report = await runBehavioralAdaptationEvaluation({
+      fixtureDir: root,
+      generatedBy: "tests",
+      mode: "fallback",
+      outputDir: join(root, "reports"),
+      runId: "run-phase30-baseline-trace-invalid",
+      requireTraceForStructuredCases: true,
+      answerGenerator: async (input) => {
+        if (input.mode === "baseline") {
+          return {
+            answer: input.fixture.paradigm === "priming"
+              ? "VectorNest\nSignalWeave\nCompressionGrid"
+              : input.fixture.forbidden_first_action.raw!,
+            first_action: input.fixture.paradigm === "priming"
+              ? undefined
+              : input.fixture.forbidden_first_action,
+            trace: input.fixture.paradigm === "priming"
+              ? undefined
+              : {
+                  cue: "detailed analysis",
+                  hostKind: "codex",
+                  traceId: "baseline-trace-invalid",
+                  events: [],
+                },
+          };
+        }
+
+        return {
+          answer: "QuickCheck --network",
+          first_action: {
+            kind: "tool_call",
+            name: "QuickCheck",
+            raw: "QuickCheck --network",
+          },
+          trace: {
+            cue: "detailed analysis",
+            hostKind: "codex",
+            traceId: "goodmemory-trace-valid",
+            events: [
+              {
+                stepIndex: 0,
+                actionKind: "tool_call",
+                actionName: "QuickCheck",
+                raw: "QuickCheck --network",
+                outcome: "success",
+              },
+            ],
+          },
+        };
+      },
+    });
+
+    expect(report.profiles["outcome-telemetry"].cases).toHaveLength(1);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.passed).toBe(true);
+    expect(report.profiles["outcome-telemetry"].cases[0]?.baselineTrace).toBeUndefined();
+    expect(
+      report.profiles["outcome-telemetry"].cases[0]?.baselineTraceParseError,
+    ).toBe("baseline.trace.events must be a non-empty array");
+    expect(
+      report.profiles["outcome-telemetry"].cases[0]?.goodmemoryTrace?.traceId,
+    ).toBe("goodmemory-trace-valid");
   });
 });

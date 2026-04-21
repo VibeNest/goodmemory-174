@@ -13,6 +13,7 @@ Current Status
 [IN PROGRESS] Phase 30 has started.
 [DONE] P30-T001 trace contract and deterministic trace-backed scoring are implemented and regression-covered.
 [DONE] P30-T003 internal trace-to-outcome bridge is implemented and regression-covered for deterministic replay.
+[DONE] P30-T004 deterministic trace-backed behavioral eval runner, fixture set, and report evidence contract are implemented and regression-covered.
 [TODO] No Phase 30 deterministic gate, live-memory behavioral report, or archive closure exists yet.
 
 
@@ -53,7 +54,7 @@ Tasks
 [DONE] P30-T001 Define the internal first-action trace contract and add parser/extractor regressions
 [TODO] P30-T002 Wire the accepted Codex host path to emit first-action behavioral traces
 [DONE] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
-[TODO] P30-T004 Add deterministic trace-backed behavioral eval and report contract
+[DONE] P30-T004 Add deterministic trace-backed behavioral eval and report contract
 [TODO] P30-T005 Add provider-backed live-memory behavioral eval and make it gate-required
 [TODO] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
 
@@ -86,6 +87,9 @@ Implemented So Far
 - the accepted Codex host adapter now exposes an internal trace-recording helper; automatic runtime emission is still pending
 - repeated failed Codex traces now promote through the existing telemetry/proposal/compiler chain into active `validated_pattern` feedback
 - deterministic behavioral eval fixtures can now replay `behavioral_trace_replays` through the outcome-telemetry profile
+- a dedicated Phase 30 deterministic runner now reads `fixtures/behavioral-enactment/` and writes `reports/eval/fallback/phase-30/<run-id>/report.json`
+- structured cases can now require trace-backed scoring, so self-reported `first_action` JSON fails closed when a Phase 30 runner demands host traces
+- per-case Phase 30 evidence now includes baseline trace, GoodMemory trace, first-action source/parse, memory context, score reason, and outcome-telemetry lineage
 - Phase 25 behavioral eval regressions still pass after the trace-priority change
 
 
@@ -94,8 +98,12 @@ Evidence
 - `src/host/behavioralTrace.ts`
 - `src/host/behavioralTraceBridge.ts`
 - `src/eval/behavioral-adaptation.ts`
+- `fixtures/behavioral-enactment/README.md`
+- `fixtures/behavioral-enactment/cases.json`
+- `scripts/run-phase-30-eval.ts`
 - `tests/unit/host.behavioral-trace.test.ts`
 - `tests/unit/host.behavioral-trace-bridge.test.ts`
 - `tests/unit/eval.behavioral-adaptation.test.ts`
+- `tests/unit/run-phase-30.script.test.ts`
 - `tests/unit/run-phase-25.script.test.ts`
 - `tests/integration/evolution.outcome-telemetry.test.ts`
