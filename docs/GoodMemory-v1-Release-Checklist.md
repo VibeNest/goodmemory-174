@@ -45,7 +45,8 @@
 - `bun run eval:smoke` passes
 - `bun run eval:fallback` produces a deterministic validation report
 - `bun run eval:live` produces a live report
-- `bun run eval:live-memory` produces a provider-backed live report
+- `bun run eval:live-memory` produces an auto-storage live memory report
+- `bun run eval:live-provider-memory` produces a provider-backed live memory report
 - `raw-recall.json` exists for GoodMemory cases
 - report shows top-level `mode`
 - report shows `runtime.generationMode` and `runtime.judgeMode`
@@ -96,6 +97,6 @@
 - installed-package docs use `bun add goodmemory` / tarball install before repo-local example commands
 - examples still reflect the recommended integration path
 - latest live eval report is archived under `reports/eval/live/`
-- latest provider-backed live eval report is archived under `reports/eval/live-memory/`
+- latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
 - the canonical Phase 29 gate and RC dry-run reports are archived under `reports/quality-gates/phase-29/`

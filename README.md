@@ -249,6 +249,8 @@ bun run eval:smoke
 bun run eval:fallback
 bun run eval:live
 bun run eval:live-memory
+bun run eval:live-auto-memory
+bun run eval:live-provider-memory
 bun run eval:summary
 ```
 
@@ -257,7 +259,9 @@ bun run eval:summary
 - `eval:smoke`: 最小 harness 自检，不代表产品评测结果
 - `eval:fallback`: deterministic pipeline 验证，不调用真实模型，不可作为产品证据
 - `eval:live`: 真实模型生成 + 真实模型 judge 的产品评测入口，使用 in-memory memory backend
-- `eval:live-memory`: 真实模型生成 + 真实模型 judge 的 provider-backed 产品评测入口，验证 Postgres + embedding + assisted extraction 的真实记忆链路
+- `eval:live-memory`: 真实模型生成 + 真实模型 judge 的 auto-storage 记忆评测入口；没有 `GOODMEMORY_STORAGE_PROVIDER` / `GOODMEMORY_STORAGE_URL` 时走本地 SQLite，配置 Postgres storage URL 时才走 provider-backed
+- `eval:live-auto-memory`: `eval:live-memory` 的显式别名，适合需要强调 auto-storage 语义的脚本
+- `eval:live-provider-memory`: provider-backed 产品评测入口，强制验证 Postgres + embedding + assisted extraction 的真实记忆链路；不会静默 fallback 到 SQLite
 - `eval:summary`: 汇总已有 eval 运行目录，便于审阅当前证据
 
 `eval:live` 必须显式配置以下环境变量，否则会直接失败：
@@ -272,9 +276,8 @@ bun run eval:summary
 - `GOODMEMORY_JUDGE_MODEL`
 - `GOODMEMORY_JUDGE_API_KEY`
 
-`eval:live-memory` 需要以上全部变量，另外还需要：
+`eval:live-memory` / `eval:live-auto-memory` 需要以上全部变量，另外还需要 embedding 和 assisted extractor 配置。它们不读取 `GOODMEMORY_TEST_POSTGRES_URL`；storage 按正常 runtime 规则解析，默认本地 SQLite：
 
-- `GOODMEMORY_TEST_POSTGRES_URL`
 - `GOODMEMORY_EMBEDDING_PROVIDER`
 - `GOODMEMORY_EMBEDDING_BASE_URL` for OpenAI-compatible gateways
 - `GOODMEMORY_EMBEDDING_MODEL`
@@ -284,10 +287,15 @@ bun run eval:summary
 - `GOODMEMORY_ASSISTED_EXTRACTOR_MODEL`
 - `GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY`
 
+`eval:live-provider-memory` 需要 `eval:live-memory` 的全部变量，另外还需要：
+
+- `GOODMEMORY_TEST_POSTGRES_URL`
+
 产物目录：
 
 - live runs: `reports/eval/live/run-*`
-- provider-backed live runs: `reports/eval/live-memory/run-*`
+- auto-storage live memory runs: `reports/eval/live-memory/run-*`
+- provider-backed live memory runs: `reports/eval/live-provider-memory/run-*`
 - fallback runs: `reports/eval/fallback/run-*`
 
 历史 phase 专用 gate / eval 命令仍然存在，但它们已经被收口到 task board 和 quality-gate archive，而不再作为 `README` 的主入口。

@@ -68,4 +68,5 @@ Exit Checklist
 - LLM-assisted features are optional, not mandatory
 - Docs and examples explain when to stay rules-only
 - Public defaults now resolve `strategy` / `extractionStrategy` through `auto`
-- `eval:live-memory` exercises Postgres + embeddings + assisted extraction without changing legacy `eval:live`
+- Historical note: Phase 12 introduced provider-backed live-memory evaluation on the then-current generic `eval:live-memory` path.
+- Current repo contract later split that surface into `eval:live-memory` for auto-storage and `eval:live-provider-memory` for explicit provider-backed evidence.

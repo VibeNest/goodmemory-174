@@ -11,7 +11,7 @@ import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   resolveFlagValue,
   resolveRepeatedFlagValues,
-  runLiveMemoryEval,
+  runLiveProviderMemoryEval,
 } from "./run-eval";
 
 export interface Phase17LiveMemoryOptions extends FixtureEvalOptions {
@@ -20,7 +20,7 @@ export interface Phase17LiveMemoryOptions extends FixtureEvalOptions {
 
 export interface Phase17LiveMemoryDependencies {
   createAuthorization?: typeof createRetrievalPromotionAuthorization;
-  runEval?: typeof runLiveMemoryEval;
+  runEval?: typeof runLiveProviderMemoryEval;
   writeFileImpl?: typeof writeFile;
 }
 
@@ -503,7 +503,7 @@ export async function runPhase17LiveMemoryGate(
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = input?.outputDir ?? resolvePhase17LiveMemoryOutputDir(root);
   const baseRunId = resolvePhase17BaseRunId(input?.runId);
-  const runEval = dependencies?.runEval ?? runLiveMemoryEval;
+  const runEval = dependencies?.runEval ?? runLiveProviderMemoryEval;
   const createAuthorization =
     dependencies?.createAuthorization ?? createRetrievalPromotionAuthorization;
   const writeFileImpl = dependencies?.writeFileImpl ?? writeFile;

@@ -56,6 +56,10 @@ bun run gate:phase-22
 - Existing `eval:live-memory` semantics preserved:
   - `reports/eval/live-memory/phase-22-smoke/run-1776651268822/report.json`
   - 2 completed provider-backed strategy cases (`rules-only` + `hybrid`), 0 execution failures
+- Current note:
+  - this Phase 22 document records the then-current generic `eval:live-memory` behavior
+  - the current generic CLI contract later moved to auto-storage `eval:live-memory`
+  - explicit provider-backed generic runs now use `eval:live-provider-memory`
 
 ## Notes
 

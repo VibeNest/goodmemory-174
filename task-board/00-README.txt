@@ -99,6 +99,11 @@ Read and execute files in this order:
 
 Current Sequencing Note
 -----------------------
+- Current generic eval command semantics are:
+  - `eval:live` = in-memory live baseline
+  - `eval:live-memory` = auto-storage live memory, aligned with the normal runtime storage resolver
+  - `eval:live-provider-memory` = explicit provider-backed live memory when Postgres-backed evidence is required
+  - dedicated phase `*-live-memory` runners may still write provider-backed evidence into `reports/eval/live-memory/phase-*`; those historical phase paths do not redefine the generic CLI contract
 - Phase 15, Phase 16, Phase 17, Phase 18, and Phase 19 are now closed.
 - Phase 20 is now closed and accepted as the integrated release-hardening slice.
 - Phase 21 is now closed as the internal recall-side LLM router v1 slice.

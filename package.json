@@ -95,6 +95,8 @@
     "release:rc-dry-run": "bun run scripts/run-phase-29-rc-dry-run.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",
+    "eval:live-auto-memory": "bun run scripts/run-eval.ts --mode=live-auto-memory",
+    "eval:live-provider-memory": "bun run scripts/run-eval.ts --mode=live-provider-memory",
     "eval:summary": "bun run scripts/summarize-eval.ts"
   },
   "devDependencies": {

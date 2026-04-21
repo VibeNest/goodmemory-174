@@ -423,6 +423,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:live-memory"]).toBe(
       "bun run scripts/run-eval.ts --mode=live-memory",
     );
+    expect(pkg.scripts?.["eval:live-auto-memory"]).toBe(
+      "bun run scripts/run-eval.ts --mode=live-auto-memory",
+    );
+    expect(pkg.scripts?.["eval:live-provider-memory"]).toBe(
+      "bun run scripts/run-eval.ts --mode=live-provider-memory",
+    );
     expect(pkg.scripts?.["eval:phase-17-live-memory"]).toBe(
       "bun run scripts/run-phase-17-live-memory.ts",
     );
@@ -575,6 +581,10 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("eval:fallback");
     expect(readme).toContain("eval:live");
     expect(readme).toContain("eval:live-memory");
+    expect(readme).toContain("eval:live-auto-memory");
+    expect(readme).toContain("eval:live-provider-memory");
+    expect(readme).toContain("auto-storage");
+    expect(readme).toContain("GOODMEMORY_TEST_POSTGRES_URL");
     expect(readme).toContain("eval:summary");
     expect(readme).toContain("observe -> assist -> promote");
     expect(readme).toContain("regression-dashboard.json");
@@ -778,6 +788,7 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
+    expect(checklist).toContain("eval:live-provider-memory");
     expect(checklist).toContain("Strategy Rollout");
     expect(checklist).toContain("strategy-promotion-gate.json");
     expect(checklist).toContain("strategy-promotion-authorization.json");
@@ -840,6 +851,40 @@ describe("release metadata and docs", () => {
       "reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json",
     );
     expect(currentStatus).toContain("Bun-only prerelease contract");
+    expect(currentStatus).toContain("runLiveMemoryEval()");
+    expect(currentStatus).toContain("eval:live-provider-memory");
+    expect(currentStatus).toContain("reports/eval/live-memory/phase-*");
+  });
+
+  it("task-board current note documents the generic eval command contract", async () => {
+    const taskBoard = await readFile(
+      join(import.meta.dir, "../../task-board/00-README.txt"),
+      "utf8",
+    );
+
+    expect(taskBoard).toContain("eval:live-memory");
+    expect(taskBoard).toContain("auto-storage live memory");
+    expect(taskBoard).toContain("eval:live-provider-memory");
+    expect(taskBoard).toContain("reports/eval/live-memory/phase-*");
+  });
+
+  it("AGENTS.md keeps repository instructions aligned with the current eval contract", async () => {
+    const agents = await readFile(
+      join(import.meta.dir, "../../AGENTS.md"),
+      "utf8",
+    );
+
+    expect(agents).toContain("eval:live-memory");
+    expect(agents).toContain("auto-storage memory resolution");
+    expect(agents).toContain("GOODMEMORY_STORAGE_PROVIDER");
+    expect(agents).toContain("GOODMEMORY_STORAGE_URL");
+    expect(agents).toContain("eval:live-auto-memory");
+    expect(agents).toContain("eval:live-provider-memory");
+    expect(agents).toContain("GOODMEMORY_TEST_POSTGRES_URL");
+    expect(agents).toContain("phase-specific `*-live-memory` runners");
+    expect(agents).not.toContain(
+      "eval:live-memory`: run the provider-backed live eval path with Postgres storage",
+    );
   });
 
   it("release workflow uses manual plus tag triggers, gate:phase-29, and tarball artifact upload", async () => {

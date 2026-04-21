@@ -84,7 +84,9 @@ Use `docs/GoodMemory-Current-Status-and-Evidence.md` for the current stable repo
 - `bun run eval:smoke`: verify eval wiring without live model calls.
 - `bun run eval:fallback`: run the deterministic fixture-based eval path and write reports to `reports/eval/fallback/`.
 - `bun run eval:live`: run the live generator + live judge eval path with the in-memory memory backend and write reports to `reports/eval/live/`.
-- `bun run eval:live-memory`: run the provider-backed live eval path with Postgres storage, embeddings, and assisted extraction; write reports to `reports/eval/live-memory/`. This needs the live eval/judge env vars plus `GOODMEMORY_TEST_POSTGRES_URL`, `GOODMEMORY_EMBEDDING_*`, and `GOODMEMORY_ASSISTED_EXTRACTOR_*`.
+- `bun run eval:live-memory`: run the live generator + live judge eval path with auto-storage memory resolution and write reports to `reports/eval/live-memory/`. This needs the live eval/judge env vars plus `GOODMEMORY_EMBEDDING_*` and `GOODMEMORY_ASSISTED_EXTRACTOR_*`. Storage follows the normal runtime resolver: default local SQLite, or provider-backed when `GOODMEMORY_STORAGE_PROVIDER` / `GOODMEMORY_STORAGE_URL` resolve to Postgres.
+- `bun run eval:live-auto-memory`: explicit alias of `eval:live-memory` for scripts that want to emphasize auto-storage semantics.
+- `bun run eval:live-provider-memory`: run the explicit provider-backed live eval path with Postgres storage, embeddings, and assisted extraction; write reports to `reports/eval/live-provider-memory/`. This needs the live eval/judge env vars plus `GOODMEMORY_TEST_POSTGRES_URL`, `GOODMEMORY_EMBEDDING_*`, and `GOODMEMORY_ASSISTED_EXTRACTOR_*`.
 - `bun run eval:summary`: summarize existing eval output directories.
 - `bun run eval:phase-24`: run the implicit behavioral adaptation deterministic eval slice and write reports under `reports/eval/fallback/phase-24/`.
 - `bun run gate:phase-24`: validate the accepted Phase 24 quality gate and write the gate artifact under `reports/quality-gates/phase-24/`.
@@ -98,7 +100,7 @@ Use TypeScript with ESM imports, strict typing, and ASCII by default. Follow the
 
 ## Testing Guidelines
 
-TDD is mandatory here: add a failing test first, then implement. Put pure logic in `tests/unit/`, API and storage flows in `tests/integration/`, replay coverage in `tests/scenarios/`, product-level regressions in `tests/eval/`, and CLI/package/type-surface checks in `tests/cli/`, `tests/examples/`, `tests/release/`, and `tests/types/`. Live Postgres coverage requires `GOODMEMORY_TEST_POSTGRES_URL`; otherwise those suites are skipped. Provider-backed live-memory evals also require the embedding and assisted-extractor env vars described above. Run `bun test` and `bun run typecheck` before opening a PR; use `bun run test:coverage` for release-facing changes.
+TDD is mandatory here: add a failing test first, then implement. Put pure logic in `tests/unit/`, API and storage flows in `tests/integration/`, replay coverage in `tests/scenarios/`, product-level regressions in `tests/eval/`, and CLI/package/type-surface checks in `tests/cli/`, `tests/examples/`, `tests/release/`, and `tests/types/`. Live Postgres coverage requires `GOODMEMORY_TEST_POSTGRES_URL`; otherwise those suites are skipped. Generic `eval:live-memory` runs require the live eval/judge env vars plus `GOODMEMORY_EMBEDDING_*` and `GOODMEMORY_ASSISTED_EXTRACTOR_*`, while explicit provider-backed runs such as `eval:live-provider-memory` and phase-specific `*-live-memory` runners also require `GOODMEMORY_TEST_POSTGRES_URL`. Run `bun test` and `bun run typecheck` before opening a PR; use `bun run test:coverage` for release-facing changes.
 
 ## Commit & Pull Request Guidelines
 

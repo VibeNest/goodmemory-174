@@ -16,6 +16,7 @@ import type { JudgeScores } from "../src/eval/judge";
 import type { EvalRuntimeMetadata } from "../src/eval/contracts";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import { parseAISDKModelConfigFromEnv } from "../src/provider/ai-sdk-runtime";
+import { resolveStoragePlan } from "../src/api/runtimeResolution";
 import type { RecallRouterStrategy } from "../src/recall/router";
 import type { MemoryExtractionStrategy } from "../src/remember/candidates";
 import {
@@ -34,7 +35,12 @@ import {
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export type EvalMode = "live" | "fallback";
-export type EvalCLIExecutionMode = EvalMode | "live-memory" | "smoke";
+export type EvalCLIExecutionMode =
+  | EvalMode
+  | "live-auto-memory"
+  | "live-memory"
+  | "live-provider-memory"
+  | "smoke";
 
 export interface SmokeEvalCase {
   caseId: string;
@@ -521,11 +527,13 @@ export function parseCliOptionsFromArgv(argv: string[]): CLIOptions {
   if (
     mode !== "live" &&
     mode !== "fallback" &&
+    mode !== "live-auto-memory" &&
     mode !== "live-memory" &&
+    mode !== "live-provider-memory" &&
     mode !== "smoke"
   ) {
     throw new Error(
-      "Missing or invalid required flag --mode=smoke|fallback|live|live-memory",
+      "Missing or invalid required flag --mode=smoke|fallback|live|live-memory|live-auto-memory|live-provider-memory",
     );
   }
 
@@ -618,6 +626,23 @@ export function resolveEvalMaxConcurrency(
   }
 
   return parsed;
+}
+
+function resolveAutoStorageMemoryBackend():
+  | "in-memory"
+  | "provider-backed"
+  | "sqlite" {
+  const storagePlan = resolveStoragePlan({});
+
+  if (storagePlan.mode === "explicit") {
+    return storagePlan.storage.provider === "memory"
+      ? "in-memory"
+      : storagePlan.storage.provider === "postgres"
+        ? "provider-backed"
+        : "sqlite";
+  }
+
+  return storagePlan.postgresUrl ? "provider-backed" : "sqlite";
 }
 
 async function readPersistedEvalReport(runDirectory: string): Promise<PersistedEvalReport> {
@@ -908,6 +933,116 @@ export async function runLiveMemoryEval(
   const extractorModel = resolveProviderBackedModelConfig(
     "GOODMEMORY_ASSISTED_EXTRACTOR",
   );
+
+  const strategyRollout = input?.strategyRollout ?? {
+    family: "retrieval",
+    mode: "assist",
+    promotedStrategy: "rules-only",
+  };
+  const runtimeStrategyRollout =
+    buildStrategyRolloutMetadata(strategyRollout) satisfies
+      EvalRuntimeMetadata["strategyRollout"] | undefined;
+
+  return runSuite({
+    mode: "live",
+    personaDir: join(root, "fixtures/personas/eval"),
+    scenarioDir: join(root, "fixtures/scenarios/eval"),
+    outputDir: input?.outputDir ?? resolveDefaultCLIOutputDir(root, "live-memory"),
+    runId: input?.runId,
+    limit: input?.limit,
+    scenarioIds,
+    caseIds,
+    baselineGenerator: createTextGenerator({
+      model: evalModel,
+      system:
+        "Answer using only the visible transcript. If critical history is missing, say that you need more context.",
+    }),
+    goodmemoryGenerator: createTextGenerator({
+      model: evalModel,
+      system: buildLiveGoodMemorySystemPrompt(),
+    }),
+    judge: createJudgeModel({
+      model: judgeModel,
+    }),
+    createMemory: ({ persona, scopeNamespace }) => {
+      const memory = (dependencies?.createMemory ?? createGoodMemory)({
+        adapters: {
+          embeddingAdapter: createEmbeddingAdapter({
+            model: embeddingModel,
+          }),
+          assistedExtractor: createMemoryExtractor({
+            model: extractorModel,
+          }),
+        },
+      });
+
+      return {
+        memory,
+        cleanup: async () => {
+          await memory.deleteAllMemory({
+            scope: {
+              userId: buildEvalUserId(persona, scopeNamespace),
+              workspaceId: buildEvalWorkspaceId(persona, scopeNamespace),
+            },
+            includeRuntime: true,
+          });
+        },
+      };
+    },
+    maxConcurrency: resolveEvalMaxConcurrency(),
+    strategies: input?.strategies ?? ["rules-only", "hybrid"],
+    rememberExtractionStrategy:
+      input?.rememberExtractionStrategy ?? "auto",
+    strategyRollout,
+    runtime: {
+      ...createProviderRuntimeMetadata({
+        generation: createLiveAdapterDescriptor({
+          providerId: evalModel.provider,
+          modelId: evalModel.model,
+        }),
+        judge: createLiveAdapterDescriptor({
+          providerId: judgeModel.provider,
+          modelId: judgeModel.model,
+        }),
+      }),
+      memoryBackend: resolveAutoStorageMemoryBackend(),
+      embeddingEnabled: true,
+      assistedExtractionEnabled: true,
+      ...(runtimeStrategyRollout
+        ? { strategyRollout: runtimeStrategyRollout }
+        : {}),
+    },
+  });
+}
+
+// Explicit alias for callers that want to emphasize auto-storage semantics.
+export const runLiveAutoMemoryEval = runLiveMemoryEval;
+
+export async function runLiveProviderMemoryEval(
+  input?: FixtureEvalOptions,
+  dependencies?: LiveMemoryEvalDependencies,
+): Promise<EvalSuiteResult> {
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
+  const createTextGenerator =
+    dependencies?.createTextGenerator ?? createProviderTextGenerator;
+  const createJudgeModel =
+    dependencies?.createJudgeModel ?? createProviderJudgeModel;
+  const createEmbeddingAdapter =
+    dependencies?.createEmbeddingAdapter ?? createProviderEmbeddingAdapter;
+  const createMemoryExtractor =
+    dependencies?.createMemoryExtractor ?? createProviderMemoryExtractor;
+  const runSuite = dependencies?.runSuite ?? runEvalSuite;
+  const failedCaseIds = input?.failuresFrom
+    ? await resolveFailedCaseIds(input.failuresFrom, "live")
+    : [];
+  const scenarioIds = mergeScenarioIds(input?.scenarioIds, []);
+  const caseIds = mergeCaseIds(input?.caseIds, failedCaseIds);
+  const evalModel = resolveLiveModelConfig("GOODMEMORY_EVAL");
+  const judgeModel = resolveLiveModelConfig("GOODMEMORY_JUDGE");
+  const embeddingModel = resolveProviderBackedModelConfig("GOODMEMORY_EMBEDDING");
+  const extractorModel = resolveProviderBackedModelConfig(
+    "GOODMEMORY_ASSISTED_EXTRACTOR",
+  );
   const postgresUrl = process.env.GOODMEMORY_TEST_POSTGRES_URL;
 
   if (!isNonEmpty(postgresUrl)) {
@@ -930,7 +1065,7 @@ export async function runLiveMemoryEval(
     personaDir: join(root, "fixtures/personas/eval"),
     scenarioDir: join(root, "fixtures/scenarios/eval"),
     outputDir:
-      input?.outputDir ?? resolveDefaultCLIOutputDir(root, "live-memory"),
+      input?.outputDir ?? resolveDefaultCLIOutputDir(root, "live-provider-memory"),
     runId: input?.runId,
     limit: input?.limit,
     scenarioIds,
@@ -1010,27 +1145,40 @@ async function main(): Promise<void> {
     return;
   }
 
-  const report =
-    options.mode === "live"
-      ? await runLiveEval({
-          limit: options.limit,
-          scenarioIds: options.scenarioIds,
-          outputDir: options.outputDir,
-          failuresFrom: options.failuresFrom,
-        })
-      : options.mode === "live-memory"
-        ? await runLiveMemoryEval({
-            limit: options.limit,
-            scenarioIds: options.scenarioIds,
-            outputDir: options.outputDir,
-            failuresFrom: options.failuresFrom,
-          })
-        : await runFallbackEval({
-            limit: options.limit,
-            scenarioIds: options.scenarioIds,
-            outputDir: options.outputDir,
-            failuresFrom: options.failuresFrom,
-          });
+  let report: EvalSuiteResult;
+
+  if (options.mode === "live") {
+    report = await runLiveEval({
+      limit: options.limit,
+      scenarioIds: options.scenarioIds,
+      outputDir: options.outputDir,
+      failuresFrom: options.failuresFrom,
+    });
+  } else if (
+    options.mode === "live-memory" ||
+    options.mode === "live-auto-memory"
+  ) {
+    report = await runLiveMemoryEval({
+      limit: options.limit,
+      scenarioIds: options.scenarioIds,
+      outputDir: options.outputDir,
+      failuresFrom: options.failuresFrom,
+    });
+  } else if (options.mode === "live-provider-memory") {
+    report = await runLiveProviderMemoryEval({
+      limit: options.limit,
+      scenarioIds: options.scenarioIds,
+      outputDir: options.outputDir,
+      failuresFrom: options.failuresFrom,
+    });
+  } else {
+    report = await runFallbackEval({
+      limit: options.limit,
+      scenarioIds: options.scenarioIds,
+      outputDir: options.outputDir,
+      failuresFrom: options.failuresFrom,
+    });
+  }
 
   console.log(JSON.stringify(report, null, 2));
 }

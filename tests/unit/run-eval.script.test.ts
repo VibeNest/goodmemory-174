@@ -13,8 +13,10 @@ import {
   resolveLiveModelConfig,
   resolveRepeatedFlagValues,
   runFallbackEval,
+  runLiveAutoMemoryEval,
   runLiveEval,
   runLiveMemoryEval,
+  runLiveProviderMemoryEval,
   runSmokeEval,
 } from "../../scripts/run-eval";
 
@@ -119,7 +121,7 @@ describe("run-eval script", () => {
     });
 
     expect(() => parseCliOptionsFromArgv(["bun", "scripts/run-eval.ts"])).toThrow(
-      "Missing or invalid required flag --mode=smoke|fallback|live|live-memory",
+      "Missing or invalid required flag --mode=smoke|fallback|live|live-memory|live-auto-memory|live-provider-memory",
     );
   });
 
@@ -170,6 +172,34 @@ describe("run-eval script", () => {
       outputDir: undefined,
       failuresFrom: undefined,
     });
+
+    expect(
+      parseCliOptionsFromArgv([
+        "bun",
+        "scripts/run-eval.ts",
+        "--mode=live-auto-memory",
+      ]),
+    ).toEqual({
+      mode: "live-auto-memory",
+      limit: undefined,
+      scenarioIds: [],
+      outputDir: undefined,
+      failuresFrom: undefined,
+    });
+
+    expect(
+      parseCliOptionsFromArgv([
+        "bun",
+        "scripts/run-eval.ts",
+        "--mode=live-provider-memory",
+      ]),
+    ).toEqual({
+      mode: "live-provider-memory",
+      limit: undefined,
+      scenarioIds: [],
+      outputDir: undefined,
+      failuresFrom: undefined,
+    });
   });
 
   it("parses live eval max concurrency from environment", () => {
@@ -180,6 +210,10 @@ describe("run-eval script", () => {
     expect(() => resolveEvalMaxConcurrency()).toThrow(
       "GOODMEMORY_EVAL_MAX_CONCURRENCY must be a positive integer",
     );
+  });
+
+  it("keeps the explicit auto-memory helper as an alias of the generic live-memory helper", () => {
+    expect(runLiveAutoMemoryEval).toBe(runLiveMemoryEval);
   });
 
   it("instructs live-memory generation to prioritize risk-first structure over field order", () => {
@@ -943,6 +977,220 @@ describe("run-eval script", () => {
     }
   });
 
+  it("builds auto-storage live memory eval without requiring the provider-backed postgres test url", async () => {
+    const workspace = await createTempWorkspace("goodmemory-run-eval-auto-memory");
+    const createEmbeddingCalls: Array<Record<string, unknown>> = [];
+    const createExtractorCalls: Array<Record<string, unknown>> = [];
+    const createMemoryCalls: Array<Record<string, unknown>> = [];
+    const cleanupCalls: Array<Record<string, unknown>> = [];
+    const runSuiteCalls: Array<Record<string, unknown>> = [];
+
+    delete process.env.GOODMEMORY_TEST_POSTGRES_URL;
+    delete process.env.GOODMEMORY_STORAGE_PROVIDER;
+    delete process.env.GOODMEMORY_STORAGE_URL;
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";
+    process.env.GOODMEMORY_EVAL_API_KEY = "eval-key";
+    process.env.GOODMEMORY_JUDGE_PROVIDER = "anthropic";
+    process.env.GOODMEMORY_JUDGE_MODEL = "claude-sonnet";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "judge-key";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "openai/text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "embedding-key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "openai/gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "extractor-key";
+
+    try {
+      const result = await runLiveMemoryEval(
+        {
+          scenarioIds: ["scenario-medium-01"],
+          outputDir: join(workspace.root, "reports"),
+        },
+        {
+          createTextGenerator: () => async () => ({ content: "live-answer" }),
+          createJudgeModel: () => ({
+            async complete() {
+              return {
+                content: JSON.stringify({
+                  winner: "tie",
+                  scores: {
+                    factual_recall: 7,
+                    preference_consistency: 7,
+                    cross_domain_transfer: 7,
+                    contamination_penalty: 7,
+                    update_correctness: 7,
+                    personalization_usefulness: 7,
+                    provenance_explainability: 7,
+                  },
+                  reasoning: "live comparison",
+                  failure_tags: [],
+                }),
+              };
+            },
+          }),
+          createEmbeddingAdapter: (input) => {
+            createEmbeddingCalls.push(input as unknown as Record<string, unknown>);
+            return {
+              async embed(texts) {
+                return texts.map(() => [1, 0, 0]);
+              },
+            };
+          },
+          createMemoryExtractor: (input) => {
+            createExtractorCalls.push(input as unknown as Record<string, unknown>);
+            return {
+              async extract() {
+                return {
+                  candidates: [],
+                  ignoredMessageCount: 0,
+                };
+              },
+            };
+          },
+          createMemory: (config) => {
+            createMemoryCalls.push(config as unknown as Record<string, unknown>);
+            return {
+              async recall() {
+                throw new Error("not used");
+              },
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async remember() {
+                throw new Error("not used");
+              },
+              async forget() {
+                return { forgotten: false };
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory(input) {
+                cleanupCalls.push(input as unknown as Record<string, unknown>);
+                return {
+                  scope: { userId: "u-1" },
+                  deleted: {
+                    profiles: 0,
+                    preferences: 0,
+                    references: 0,
+                    facts: 0,
+                    feedback: 0,
+                    episodes: 0,
+                    archives: 0,
+                    evidence: 0,
+                    experiences: 0,
+                    proposals: 0,
+                    promotions: 0,
+                    workingMemory: 0,
+                    journal: 0,
+                    artifactSpills: 0,
+                  },
+                };
+              },
+              async feedback() {
+                return { accepted: false };
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            };
+          },
+          runSuite: async (input) => {
+            const persona = {
+              persona_id: "persona-medium-01",
+              lifecycle_bucket: "medium",
+            } as never;
+            const scenario = {
+              scenario_id: "scenario-medium-01",
+            } as never;
+            const memoryHandle = input.createMemory?.({
+              caseId: "scenario-medium-01__hybrid",
+              persona,
+              scenario,
+              scopeNamespace: "run-live-memory-scenario-medium-01__hybrid",
+            });
+            if (memoryHandle && "memory" in memoryHandle) {
+              await memoryHandle.cleanup?.();
+            }
+
+            runSuiteCalls.push({
+              mode: input.mode,
+              outputDir: input.outputDir,
+              strategies: input.strategies,
+              rememberExtractionStrategy: input.rememberExtractionStrategy,
+              runtime: input.runtime,
+              hasMemoryHandle: Boolean(memoryHandle),
+            });
+
+            return {
+              mode: input.mode,
+              runId: "run-live-memory",
+              runDirectory: join(workspace.root, "reports/run-live-memory"),
+              summary: buildEmptySuiteSummary(),
+              runtime: input.runtime!,
+              cases: [],
+            };
+          },
+        },
+      );
+
+      expect(result.mode).toBe("live");
+      expect(runSuiteCalls[0]?.outputDir).toBe(join(workspace.root, "reports"));
+      expect(runSuiteCalls[0]?.runtime).toMatchObject({
+        memoryBackend: "sqlite",
+        embeddingEnabled: true,
+        assistedExtractionEnabled: true,
+      });
+      expect(createMemoryCalls[0]?.storage).toBeUndefined();
+      expect(
+        (createMemoryCalls[0]?.adapters as Record<string, unknown> | undefined)
+          ?.embeddingAdapter,
+      ).toBeTruthy();
+      expect(
+        (createMemoryCalls[0]?.adapters as Record<string, unknown> | undefined)
+          ?.assistedExtractor,
+      ).toBeTruthy();
+      expect(createEmbeddingCalls).toHaveLength(1);
+      expect(createExtractorCalls).toHaveLength(1);
+      expect(cleanupCalls).toHaveLength(1);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("fails live-memory preflight when storage env is invalid for the real runtime resolver", async () => {
+    delete process.env.GOODMEMORY_TEST_POSTGRES_URL;
+    delete process.env.GOODMEMORY_STORAGE_URL;
+    process.env.GOODMEMORY_STORAGE_PROVIDER = "postgres";
+    process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
+    process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";
+    process.env.GOODMEMORY_EVAL_API_KEY = "eval-key";
+    process.env.GOODMEMORY_JUDGE_PROVIDER = "anthropic";
+    process.env.GOODMEMORY_JUDGE_MODEL = "claude-sonnet";
+    process.env.GOODMEMORY_JUDGE_API_KEY = "judge-key";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "openai/text-embedding-3-small";
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "embedding-key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "openai/gpt-4o-mini";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "extractor-key";
+
+    await expect(
+      runLiveMemoryEval(
+        {
+          scenarioIds: ["scenario-medium-01"],
+          outputDir: "/tmp/goodmemory-invalid-storage",
+        },
+        {
+          runSuite: async () => {
+            throw new Error("runSuite should not execute for invalid storage");
+          },
+        },
+      ),
+    ).rejects.toThrow("Postgres storage provider requires storage.url");
+  });
+
   it("builds provider-backed live memory eval with postgres, embeddings, and assisted extraction", async () => {
     const workspace = await createTempWorkspace("goodmemory-run-eval-live-memory");
     const createEmbeddingCalls: Array<Record<string, unknown>> = [];
@@ -968,7 +1216,7 @@ describe("run-eval script", () => {
     process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL = "https://openrouter.ai/api/v1";
 
     try {
-      const result = await runLiveMemoryEval(
+      const result = await runLiveProviderMemoryEval(
         {
           scenarioIds: ["scenario-medium-01"],
           outputDir: join(workspace.root, "reports"),

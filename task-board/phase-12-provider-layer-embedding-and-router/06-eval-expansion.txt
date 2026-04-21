@@ -40,4 +40,5 @@ Current implementation notes
 - report summaries now include `strategySummary.byStrategy` plus `embeddingImpact` and `routerImpact` comparison slices with scenario-coverage checks
 - strategy regressions are summarized directly in report artifacts, so provider-backed retrieval changes can be judged by strategy instead of anecdote
 - eval replay traces now retain `remember().metadata`, so `requestedExtractionStrategy=auto` and resolved write-path behavior stay visible in artifacts
-- `eval:live-memory` now runs provider-backed memory on Postgres with embeddings and assisted extraction, while legacy `eval:live` remains the in-memory/rules-first baseline
+- Historical note: at Phase 12 time, `eval:live-memory` was the generic provider-backed path, while legacy `eval:live` remained the in-memory/rules-first baseline.
+- Current repo contract later split the generic surface into auto-storage `eval:live-memory` plus explicit provider-backed `eval:live-provider-memory`.
