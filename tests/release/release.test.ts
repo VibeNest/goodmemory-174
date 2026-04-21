@@ -856,16 +856,18 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("[[ \"$TAG_VERSION\" != \"$VERSION\" ]]");
     expect(workflow).toContain("bun pm pack");
     expect(workflow).toContain("actions/upload-artifact@v4");
+    expect(workflow).toContain("actions/setup-node@v4");
+    expect(workflow).toContain("node-version: 24");
+    expect(workflow).toContain("registry-url: https://registry.npmjs.org");
     expect(workflow).toContain("softprops/action-gh-release@v2");
     expect(workflow).toContain("prerelease: true");
     expect(workflow).toContain("make_latest: false");
     expect(workflow).toContain("NPM_TOKEN");
     expect(workflow).toContain("Skipped: NPM_TOKEN secret is not configured.");
     expect(workflow).toContain("does not block the tarball-first RC release contract");
-    expect(workflow).toContain("//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}");
-    expect(workflow).toContain("NPM_USER=\"$(bun pm whoami)\"");
-    expect(workflow).toContain("bun publish --tag rc --access public");
-    expect(workflow).toContain("bun pm view goodmemory@${VERSION} version");
+    expect(workflow).toContain("NPM_USER=\"$(npm whoami)\"");
+    expect(workflow).toContain("npm publish --tag rc --access public");
+    expect(workflow).toContain("npm view goodmemory@${VERSION} version");
     expect(workflow).toContain("npm registry verification failed");
   });
 
