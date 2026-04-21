@@ -366,12 +366,12 @@ describe("release metadata and docs", () => {
       "Bun-only memory layer for chat, copilot, and agent applications.",
     );
     expect(pkg.license).toBe("MIT");
-    expect(pkg.homepage).toBe("https://github.com/hjqcan/GoodMomery#readme");
+    expect(pkg.homepage).toBe("https://github.com/hjqcan/GoodMemory#readme");
     expect(pkg.repository).toEqual({
       type: "git",
-      url: "git+https://github.com/hjqcan/GoodMomery.git",
+      url: "git+https://github.com/hjqcan/GoodMemory.git",
     });
-    expect(pkg.bugs?.url).toBe("https://github.com/hjqcan/GoodMomery/issues");
+    expect(pkg.bugs?.url).toBe("https://github.com/hjqcan/GoodMemory/issues");
     expect(pkg.keywords).toEqual([
       "agents",
       "ai",
@@ -860,6 +860,8 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("prerelease: true");
     expect(workflow).toContain("make_latest: false");
     expect(workflow).toContain("NPM_TOKEN");
+    expect(workflow).toContain("Skipped: NPM_TOKEN secret is not configured.");
+    expect(workflow).toContain("does not block the tarball-first RC release contract");
     expect(workflow).toContain("bun publish --tag rc --access public");
   });
 

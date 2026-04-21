@@ -3,13 +3,13 @@
   "version": "0.1.0-rc.1",
   "description": "Bun-only memory layer for chat, copilot, and agent applications.",
   "license": "MIT",
-  "homepage": "https://github.com/hjqcan/GoodMomery#readme",
+  "homepage": "https://github.com/hjqcan/GoodMemory#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hjqcan/GoodMomery.git"
+    "url": "git+https://github.com/hjqcan/GoodMemory.git"
   },
   "bugs": {
-    "url": "https://github.com/hjqcan/GoodMomery/issues"
+    "url": "https://github.com/hjqcan/GoodMemory/issues"
   },
   "keywords": [
     "agents",

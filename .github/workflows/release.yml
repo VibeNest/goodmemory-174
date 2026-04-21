@@ -70,7 +70,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "Missing required NPM_TOKEN secret for registry publish." >&2
-            exit 1
+            {
+              echo "## npm publish"
+              echo "- Skipped: NPM_TOKEN secret is not configured."
+              echo "- This does not block the tarball-first RC release contract."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
           bun publish --tag rc --access public --tolerate-republish "${{ steps.pack.outputs.artifact_path }}"
