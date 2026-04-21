@@ -8,6 +8,7 @@ import type {
 
 import {
   buildPhase29GateCommands,
+  buildPhase29GateCommandsForOptions,
   buildPhase29GateRunId,
   buildPhase29GateScope,
   parsePhase29GateCliOptions,
@@ -225,10 +226,12 @@ describe("run-phase-29 release scripts", () => {
         "/tmp/phase29",
         "--run-id",
         "run-custom-gate",
+        "--skip-phase-28-rerun",
       ]),
     ).toEqual({
       outputDir: "/tmp/phase29",
       runId: "run-custom-gate",
+      skipPhase28Rerun: true,
     });
   });
 
@@ -393,6 +396,14 @@ describe("run-phase-29 release scripts", () => {
         args: ["bun", "run", "gate:phase-28"],
       },
     ]);
+  });
+
+  it("can skip the environment-sensitive phase-28 rerun for remote release workflow execution", () => {
+    expect(
+      buildPhase29GateCommandsForOptions(ROOT, {
+        skipPhase28Rerun: true,
+      }).map((command) => command.label),
+    ).toEqual(["typecheck", "phase-29-targeted-regressions"]);
   });
 
   it("describes the accepted phase-29 scope", () => {

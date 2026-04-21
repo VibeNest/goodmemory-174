@@ -851,7 +851,7 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("tags:");
     expect(workflow).toContain("v0.1.0-rc.*");
-    expect(workflow).toContain("bun run gate:phase-29");
+    expect(workflow).toContain("bun run gate:phase-29 -- --skip-phase-28-rerun");
     expect(workflow).toContain("TAG_VERSION=\"${GITHUB_REF_NAME#v}\"");
     expect(workflow).toContain("[[ \"$TAG_VERSION\" != \"$VERSION\" ]]");
     expect(workflow).toContain("bun pm pack");

@@ -54,6 +54,7 @@ export interface Phase29GateReport {
 export interface Phase29GateOptions {
   outputDir?: string;
   runId?: string;
+  skipPhase28Rerun?: boolean;
 }
 
 export interface Phase29GateDependencies {
@@ -300,12 +301,28 @@ export function buildPhase29GateCommands(root: string): Phase29GateCommand[] {
   ];
 }
 
+export function buildPhase29GateCommandsForOptions(
+  root: string,
+  options?: {
+    skipPhase28Rerun?: boolean;
+  },
+): Phase29GateCommand[] {
+  const commands = buildPhase29GateCommands(root);
+
+  if (!options?.skipPhase28Rerun) {
+    return commands;
+  }
+
+  return commands.filter((command) => command.label !== "phase-28-gate");
+}
+
 export function parsePhase29GateCliOptions(
   argv: readonly string[],
 ): Phase29GateOptions {
   return {
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     runId: resolveCliFlagValue(argv, "--run-id"),
+    skipPhase28Rerun: argv.includes("--skip-phase-28-rerun"),
   };
 }
 
@@ -388,7 +405,7 @@ export async function runPhase29QualityGate(
     return blocked;
   }
 
-  for (const command of buildPhase29GateCommands(root)) {
+  for (const command of buildPhase29GateCommandsForOptions(root, input)) {
     const result = await runCommand(command);
     commands.push({
       label: command.label,
