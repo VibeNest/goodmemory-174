@@ -60,9 +60,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic gate: `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
 - Reference-integration and adoption-evidence closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
-  - Deterministic gate: `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
-  - Deterministic adoption eval: `reports/eval/fallback/phase-27/run-20260420165836/report.json`
-  - Live-memory adoption eval: `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+  - Deterministic gate: `reports/quality-gates/phase-27/run-20260421172000/phase-27-quality-gate.json`
+  - Deterministic adoption eval: `reports/eval/fallback/phase-27/run-20260421165000/report.json`
+  - Live-memory adoption eval: `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
 - Canonical local sqlite-vss backend closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json`

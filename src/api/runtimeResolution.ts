@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
 import { isModelProviderId } from "../provider/model-provider";
-import type { StorageConfig } from "./contracts";
+import type { GoodMemoryConfig, StorageConfig } from "./contracts";
 
 export const DEFAULT_SQLITE_STORAGE_PATH = ".goodmemory/memory.sqlite";
 export const STORAGE_PROVIDER_ENV = "GOODMEMORY_STORAGE_PROVIDER";
@@ -41,6 +41,16 @@ export type StoragePlan =
       sqliteUrl: string;
     };
 
+export interface GoodMemoryRuntimeResolution {
+  assistedExtractionEnabled: boolean;
+  assistedExtractorModelConfig: AISDKModelConfig | null;
+  embeddingEnabled: boolean;
+  embeddingModelConfig: AISDKModelConfig | null;
+  explicitAdaptersConfigured: boolean;
+  explicitStorageConfigured: boolean;
+  storagePlan: StoragePlan;
+}
+
 function normalizeNonEmpty(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
@@ -48,6 +58,24 @@ function normalizeNonEmpty(value: string | undefined): string | undefined {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function hasExplicitStorageConfigured(storage: StorageConfig | undefined): boolean {
+  return (
+    storage?.provider !== undefined || normalizeNonEmpty(storage?.url) !== undefined
+  );
+}
+
+function hasExplicitAdaptersConfigured(
+  adapters: GoodMemoryConfig["adapters"] | undefined,
+): boolean {
+  return Boolean(
+    adapters?.assistedExtractor ||
+      adapters?.documentStore ||
+      adapters?.embeddingAdapter ||
+      adapters?.sessionStore ||
+      adapters?.vectorStore,
+  );
 }
 
 function resolveExplicitProvider(
@@ -160,6 +188,38 @@ export function resolveStoragePlan(input: {
     mode: "auto",
     postgresUrl: undefined,
     sqliteUrl: resolveSQLiteStorageUrl(configuredUrl, cwd),
+  };
+}
+
+export function resolveGoodMemoryRuntimeResolution(input: {
+  config: Pick<GoodMemoryConfig, "adapters" | "storage">;
+  env?: EnvironmentMap;
+  cwd?: string;
+}): GoodMemoryRuntimeResolution {
+  const env = input.env ?? process.env;
+  const embeddingModelConfig = input.config.adapters?.embeddingAdapter
+    ? null
+    : resolveEmbeddingModelConfigFromEnv(env);
+  const assistedExtractorModelConfig = input.config.adapters?.assistedExtractor
+    ? null
+    : resolveAssistedExtractorModelConfigFromEnv(env);
+
+  return {
+    assistedExtractionEnabled: Boolean(
+      input.config.adapters?.assistedExtractor || assistedExtractorModelConfig,
+    ),
+    assistedExtractorModelConfig,
+    embeddingEnabled: Boolean(
+      input.config.adapters?.embeddingAdapter || embeddingModelConfig,
+    ),
+    embeddingModelConfig,
+    explicitAdaptersConfigured: hasExplicitAdaptersConfigured(input.config.adapters),
+    explicitStorageConfigured: hasExplicitStorageConfigured(input.config.storage),
+    storagePlan: resolveStoragePlan({
+      storage: input.config.storage,
+      env,
+      cwd: input.cwd,
+    }),
   };
 }
 

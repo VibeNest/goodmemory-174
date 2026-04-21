@@ -11,8 +11,9 @@ import {
   PHASE_27_REPEATED_CORRECTION_SCENARIO_IDS,
   createPhase27FallbackCreateMemory,
 } from "../../src/eval/phase27";
-import type { ScenarioFixture } from "../../src/eval/dataset";
+import type { PersonaSpec, ScenarioFixture } from "../../src/eval/dataset";
 import {
+  buildPhase27ReferenceSetupMetric,
   parsePhase27EvalCliOptions,
   resolvePhase27FallbackOutputDir,
   runPhase27FallbackEval,
@@ -170,6 +171,78 @@ function buildScenarioFixture(
   };
 }
 
+function buildPersonaFixture(): PersonaSpec {
+  return {
+    persona_id: "phase27-test-persona",
+    name: "Noah",
+    age_range: "30-39",
+    locale: "en-US",
+    profession: "data scientist",
+    expertise: ["workflow reliability"],
+    background: "Works on workflow reliability dashboard.",
+    communication_preferences: ["concise"],
+    work_style_preferences: ["written decisions"],
+    long_term_goals: ["ship reliable systems"],
+    current_projects: ["workflow reliability dashboard"],
+    growth_path: ["staff engineer"],
+    known_relationships: ["platform lead"],
+    memory_risks: ["stale references"],
+    domains: ["work_ops"],
+    stable_preferences: ["concise bullet points"],
+    domain_specific_preferences: ["risk-first summaries"],
+    drift_events: ["runbook correction"],
+    negative_personalization_risks: ["reference spill"],
+    lifecycle_bucket: "medium",
+    scenario_ids: [],
+  };
+}
+
+function buildVisibleTranscriptScenarioFixture(): ScenarioFixture {
+  return {
+    scenario_id: "scenario-medium-13",
+    persona_id: "phase27-test-persona",
+    lifecycle_bucket: "medium",
+    task_family: "preference_continuation",
+    domain: "work_ops",
+    memory_source_domains: ["work_ops"],
+    evaluation_setting: "single_domain",
+    required_phenomena: [
+      "identity_reveal",
+      "historical_task_continuation",
+      "open_loop",
+      "correction",
+      "confirmation",
+      "stale_info",
+    ],
+    sessions: [],
+    evaluation: {
+      prompt:
+        "Please confirm the updated runbook, my role, and the open loop before proposing the next step for workflow reliability dashboard.",
+      rubric_focus: ["identity_background", "history_open_loop"],
+      expected_identity_signals: [
+        "Data scientist",
+        "Singapore",
+        "concise bullet points",
+      ],
+      expected_history_signals: [
+        "docs/workflow-reliability-dashboard-runbook-v2.md",
+        "final verification for workflow reliability dashboard",
+        "workflow reliability dashboard",
+      ],
+      expected_transfer_signals: ["concise bullet points"],
+      expected_non_transfer_signals: [],
+      expected_update_wins: ["docs/workflow-reliability-dashboard-runbook-v2.md"],
+      expected_stale_suppression: ["docs/workflow-reliability-dashboard-runbook-v1.md"],
+      wrong_personalization_signals: [],
+      improvement_hypothesis:
+        "GoodMemory should beat baseline by combining the corrected runbook and open loop.",
+      user_satisfaction_hypothesis:
+        "The answer should preserve the user's confirmed style while continuing the task.",
+    },
+    feedback_signals: [],
+  };
+}
+
 function buildCase(
   scenarioId: string,
   winner: "baseline" | "goodmemory" | "tie",
@@ -299,29 +372,7 @@ describe("run-phase-27 eval script", () => {
     const createMemory = createPhase27FallbackCreateMemory();
     const handle = createMemory({
       caseId: "phase27-rules-only",
-      persona: {
-        persona_id: "phase27-test-persona",
-        name: "Noah",
-        age_range: "30-39",
-        locale: "en-US",
-        profession: "data scientist",
-        expertise: ["workflow reliability"],
-        background: "Works on workflow reliability dashboard.",
-        communication_preferences: ["concise"],
-        work_style_preferences: ["written decisions"],
-        long_term_goals: ["ship reliable systems"],
-        current_projects: ["workflow reliability dashboard"],
-        growth_path: ["staff engineer"],
-        known_relationships: ["platform lead"],
-        memory_risks: ["stale references"],
-        domains: ["work_ops"],
-        stable_preferences: ["concise bullet points"],
-        domain_specific_preferences: ["risk-first summaries"],
-        drift_events: ["runbook correction"],
-        negative_personalization_risks: ["reference spill"],
-        lifecycle_bucket: "medium",
-        scenario_ids: [],
-      },
+      persona: buildPersonaFixture(),
       scenario: buildScenarioFixture("scenario-medium-13-role-slot"),
       scopeNamespace: "phase27-rules-only",
     });
@@ -373,6 +424,120 @@ describe("run-phase-27 eval script", () => {
       }
       process.env = originalEnv;
     }
+  });
+
+  it("keeps the deterministic baseline on visible transcript context instead of starving it when memoryContext is absent", async () => {
+    const visibleScenario = buildVisibleTranscriptScenarioFixture();
+    const transcript = [
+      "user: Correction: docs/workflow-reliability-dashboard-runbook-v2.md is now the source of truth, not docs/workflow-reliability-dashboard-runbook-v1.md. Please update that.",
+      "assistant: Updated. I will use the newer runbook going forward.",
+      "user: Please confirm the updated runbook, my role, and the open loop before proposing the next step for workflow reliability dashboard.",
+    ].join("\n");
+    let baselineAnswer = "";
+    let goodmemoryAnswer = "";
+
+    await runPhase27FallbackEval(
+      {
+        runId: "phase27-visible-context",
+        scenarioIds: [visibleScenario.scenario_id],
+      },
+      {
+        ensureDir: async () => undefined,
+        loadScenarios: async () => [visibleScenario],
+        buildPublicSurfacePurityMetric: async () => ({
+          allowedImports: ["goodmemory", "goodmemory/ai-sdk", "goodmemory/host"],
+          checkedFiles: [],
+          checks: [],
+          packageBoundarySmoke: "package-name-imports",
+          passed: true,
+          threshold: "test",
+        }),
+        buildReferenceSetupMetric: () => ({
+          assistedExtractionEnabled: false,
+          checks: [],
+          createMemoryEntrypoint: "createGoodMemory({})",
+          embeddingEnabled: false,
+          explicitAdaptersConfigured: false,
+          explicitStorageConfigured: false,
+          passed: true,
+          runtimeStorage: "local-default-sqlite",
+          threshold: "test",
+        }),
+        runCodexHandoffFamily: async () => ({
+          cases: [],
+          passed: true,
+          passedCases: 0,
+          requiredCases: 0,
+          successRate: 1,
+          threshold: "test",
+          totalCases: 0,
+        }),
+        runSuite: async (input) => {
+          baselineAnswer = (
+            await input.baselineGenerator({
+              persona: buildPersonaFixture(),
+              scenario: visibleScenario,
+              prompt: visibleScenario.evaluation.prompt,
+              transcript,
+            })
+          ).content;
+          goodmemoryAnswer = (
+            await input.goodmemoryGenerator({
+              persona: buildPersonaFixture(),
+              scenario: visibleScenario,
+              prompt: visibleScenario.evaluation.prompt,
+              transcript,
+              memoryContext:
+                "docs/workflow-reliability-dashboard-runbook-v2.md\nNoah is a data scientist in Singapore.\nOpen loop: final verification for workflow reliability dashboard.",
+            })
+          ).content;
+
+          return {
+            cases: [
+              buildCase(
+                visibleScenario.scenario_id,
+                "goodmemory",
+                baselineAnswer,
+                goodmemoryAnswer,
+              ),
+            ],
+            mode: "fallback",
+            runDirectory: "/tmp/phase27-visible-context/suite",
+            runId: input.runId ?? "suite",
+            runtime: input.runtime!,
+            summary: buildSummary(1),
+          };
+        },
+        writeTextFile: async () => {},
+      },
+    );
+
+    expect(baselineAnswer).toContain("Visible transcript context:");
+    expect(baselineAnswer).toContain(
+      "docs/workflow-reliability-dashboard-runbook-v2.md",
+    );
+    expect(baselineAnswer).not.toContain("missing remembered context");
+    expect(goodmemoryAnswer).toContain("Confirmed from memory:");
+  });
+
+  it("derives the phase-27 reference setup metric from the shared runtime resolver", () => {
+    const metric = buildPhase27ReferenceSetupMetric(
+      "/Users/hjqcan/Documents/GoodMomery",
+    );
+
+    expect(metric.passed).toBeTrue();
+    expect(metric.runtimeStorage).toBe("local-default-sqlite");
+    expect(metric.checks.map((check) => check.name)).toEqual([
+      "public-default-entrypoint",
+      "no-explicit-storage",
+      "no-explicit-adapters",
+      "local-default-sqlite",
+      "rules-only-defaults",
+    ]);
+    expect(
+      metric.checks.find((check) => check.name === "local-default-sqlite")
+        ?.details,
+    ).toContain(".goodmemory/memory.sqlite");
   });
 
   it("runs the deterministic phase-27 eval with curated scenarios and thresholded adoption metrics", async () => {
@@ -457,6 +622,25 @@ describe("run-phase-27 eval script", () => {
     expect(report.metrics.continuationOpenLoop.passed).toBeTrue();
     expect(report.metrics.repeatedCorrectionRate.improvement).toBe(1);
     expect(report.metrics.hostHandoffResumeSuccessRate.successRate).toBe(1);
+    expect(report.metrics.referenceSetup.passed).toBeTrue();
+    expect(report.metrics.referenceSetup.checks.map((check) => check.name)).toEqual([
+      "public-default-entrypoint",
+      "no-explicit-storage",
+      "no-explicit-adapters",
+      "local-default-sqlite",
+      "rules-only-defaults",
+    ]);
+    expect(report.metrics.referenceSetup.createMemoryEntrypoint).toBe(
+      "createGoodMemory({})",
+    );
+    expect(report.metrics.referenceSetup.explicitStorageConfigured).toBeFalse();
+    expect(report.metrics.referenceSetup.explicitAdaptersConfigured).toBeFalse();
+    expect(report.metrics.publicSurfacePurity.passed).toBeTrue();
+    expect(report.metrics.publicSurfacePurity.allowedImports).toEqual([
+      "goodmemory",
+      "goodmemory/ai-sdk",
+      "goodmemory/host",
+    ]);
     expect(calls[0]?.mode).toBe("fallback");
     expect(calls[0]?.runId).toBe("suite");
     expect(calls[0]?.createMemory).toBe("function");
@@ -513,6 +697,7 @@ describe("run-phase-27 eval script", () => {
     const providerAssertions: string[] = [];
     const createMemoryCalls: Array<Record<string, unknown>> = [];
     const cleanupCalls: Array<Record<string, unknown>> = [];
+    const textGeneratorConfigs: Array<Record<string, unknown>> = [];
     const scenarioIds = [...PHASE_27_LIVE_SCENARIO_IDS];
     const scenarios = scenarioIds.map(buildScenarioFixture);
     const cases: JudgedEvalCase[] = [
@@ -630,9 +815,13 @@ describe("run-phase-27 eval script", () => {
               },
             };
           },
-          createTextGenerator: () => async () => ({
-            content: "final verification",
-          }),
+          createTextGenerator: (config) => {
+            textGeneratorConfigs.push(config as unknown as Record<string, unknown>);
+
+            return async () => ({
+              content: "final verification",
+            });
+          },
           ensureDir: async () => undefined,
           loadScenarios: async () => scenarios,
           now: () => "2026-04-21T12:30:00.000Z",
@@ -712,6 +901,11 @@ describe("run-phase-27 eval script", () => {
       expect(calls[0]?.strategies).toEqual(["rules-only"]);
       expect(calls[0]?.rememberExtractionStrategy).toBe("auto");
       expect(providerAssertions).toEqual(["postgres://example/test"]);
+      expect(textGeneratorConfigs).toHaveLength(2);
+      expect(textGeneratorConfigs[0]?.system).toBe(textGeneratorConfigs[1]?.system);
+      expect(String(textGeneratorConfigs[0]?.system)).not.toContain(
+        "visible transcript",
+      );
       expect(createMemoryCalls).toEqual([
         {
           storageProviderEnv: "postgres",

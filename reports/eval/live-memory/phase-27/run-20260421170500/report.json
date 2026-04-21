@@ -1,76 +1,76 @@
 {
-  "generatedAt": "2026-04-20T18:02:27.772Z",
-  "generatedBy": "scripts/run-phase-27-eval.ts",
-  "mode": "fallback",
-  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27",
-  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/run-20260420165836",
-  "runId": "run-20260420165836",
-  "suiteRunDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/run-20260420165836/suite",
+  "generatedAt": "2026-04-21T03:19:10.591Z",
+  "generatedBy": "scripts/run-phase-27-live-memory.ts",
+  "mode": "live-memory",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-27",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-27/run-20260421170500",
+  "runId": "run-20260421170500",
+  "suiteRunDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-27/run-20260421170500/suite",
   "suiteSummary": {
-    "totalCases": 13,
-    "completedCases": 13,
+    "totalCases": 4,
+    "completedCases": 4,
     "executionFailures": 0,
     "winnerCounts": {
       "baseline": 0,
-      "goodmemory": 13,
+      "goodmemory": 4,
       "tie": 0
     },
     "baselineAverage": {
-      "factual_recall": 3.69,
-      "preference_consistency": 1.38,
-      "cross_domain_transfer": 2.62,
-      "contamination_penalty": 9.38,
-      "update_correctness": 4.92,
-      "personalization_usefulness": 3,
-      "provenance_explainability": 4.77
+      "factual_recall": 2.5,
+      "preference_consistency": 7,
+      "cross_domain_transfer": 5.25,
+      "contamination_penalty": 10,
+      "update_correctness": 3.5,
+      "personalization_usefulness": 3.25,
+      "provenance_explainability": 6.5
     },
     "goodmemoryAverage": {
-      "factual_recall": 9.77,
-      "preference_consistency": 10,
-      "cross_domain_transfer": 8,
+      "factual_recall": 9.75,
+      "preference_consistency": 9,
+      "cross_domain_transfer": 8.75,
       "contamination_penalty": 10,
-      "update_correctness": 10,
-      "personalization_usefulness": 10,
+      "update_correctness": 9.75,
+      "personalization_usefulness": 9.25,
       "provenance_explainability": 8
     },
     "uplift": {
-      "factual_recall": 6.08,
-      "preference_consistency": 8.62,
-      "cross_domain_transfer": 5.38,
-      "contamination_penalty": 0.62,
-      "update_correctness": 5.08,
-      "personalization_usefulness": 7,
-      "provenance_explainability": 3.23
+      "factual_recall": 7.25,
+      "preference_consistency": 2,
+      "cross_domain_transfer": 3.5,
+      "contamination_penalty": 0,
+      "update_correctness": 6.25,
+      "personalization_usefulness": 6,
+      "provenance_explainability": 1.5
     },
     "layers": {
       "baseline": {
-        "retrieval": 4.23,
-        "personalization": 4.26,
-        "runtime_governance": 6.36
+        "retrieval": 4.5,
+        "personalization": 5.8,
+        "runtime_governance": 6.67
       },
       "goodmemory": {
         "retrieval": 8.88,
-        "personalization": 9.6,
-        "runtime_governance": 9.33
+        "personalization": 9.35,
+        "runtime_governance": 9.25
       },
       "uplift": {
-        "retrieval": 4.65,
-        "personalization": 5.34,
-        "runtime_governance": 2.97
+        "retrieval": 4.38,
+        "personalization": 3.55,
+        "runtime_governance": 2.58
       }
     },
     "assertions": {
-      "totalCases": 13,
-      "passingCases": 13,
+      "totalCases": 4,
+      "passingCases": 4,
       "passRate": 1,
-      "totalChecks": 78,
-      "passingChecks": 78,
+      "totalChecks": 24,
+      "passingChecks": 24,
       "checkPassRate": 1,
-      "applicableUpdateCases": 13,
-      "updateWinCases": 13,
+      "applicableUpdateCases": 4,
+      "updateWinCases": 4,
       "updateWinRate": 1,
-      "applicableStaleSuppressionCases": 13,
-      "staleSuppressionCases": 13,
+      "applicableStaleSuppressionCases": 4,
+      "staleSuppressionCases": 4,
       "staleSuppressionRate": 1,
       "staleMisuseCases": 0,
       "staleMisuseRate": 0,
@@ -78,37 +78,37 @@
       "updateFailures": 0
     },
     "outcomeLoopSummary": {
-      "acceptedProceduralPromotionCases": 4,
-      "applicableCorrectionCases": 13,
-      "applicableProceduralReuseCases": 13,
-      "applicableStaleSuppressionCases": 13,
-      "correctionWinCases": 13,
+      "acceptedProceduralPromotionCases": 1,
+      "applicableCorrectionCases": 4,
+      "applicableProceduralReuseCases": 4,
+      "applicableStaleSuppressionCases": 4,
+      "correctionWinCases": 4,
       "correctionWinRate": 1,
-      "governedProceduralReuseCases": 4,
-      "governedProceduralReuseRate": 0.31,
+      "governedProceduralReuseCases": 1,
+      "governedProceduralReuseRate": 0.25,
       "staleMisuseCases": 0,
       "staleMisuseRate": 0,
-      "staleSuppressionCases": 13,
+      "staleSuppressionCases": 4,
       "staleSuppressionRate": 1
     },
     "strategySummary": {
       "byStrategy": {
         "rules-only": {
-          "totalCases": 13,
-          "uniqueScenarios": 13,
+          "totalCases": 4,
+          "uniqueScenarios": 4,
           "winnerCounts": {
             "baseline": 0,
-            "goodmemory": 13,
+            "goodmemory": 4,
             "tie": 0
           },
           "uplift": {
-            "factual_recall": 6.08,
-            "preference_consistency": 8.62,
-            "cross_domain_transfer": 5.38,
-            "contamination_penalty": 0.62,
-            "update_correctness": 5.08,
-            "personalization_usefulness": 7,
-            "provenance_explainability": 3.23
+            "factual_recall": 7.25,
+            "preference_consistency": 2,
+            "cross_domain_transfer": 3.5,
+            "contamination_penalty": 0,
+            "update_correctness": 6.25,
+            "personalization_usefulness": 6,
+            "provenance_explainability": 1.5
           },
           "regressionCases": []
         }
@@ -117,14 +117,14 @@
       "routerImpact": null
     },
     "maintenanceSummary": {
-      "casesWithAcceptedProceduralPromotions": 4,
-      "casesWithCompiledProceduralReuse": 4,
+      "casesWithAcceptedProceduralPromotions": 1,
+      "casesWithCompiledProceduralReuse": 1,
       "casesWithCorrectionRepairs": 0,
-      "casesWithProceduralReuse": 8,
+      "casesWithProceduralReuse": 2,
       "casesWithVerificationPressure": 0,
       "casesWithDemotions": 0,
-      "averageActiveValidatedPatterns": 0.62,
-      "averageCompiledValidatedPatterns": 0.31,
+      "averageActiveValidatedPatterns": 0.5,
+      "averageCompiledValidatedPatterns": 0.25,
       "averageCorrectionRepairs": 0,
       "averagePressuredFacts": 0,
       "averageDemotedFacts": 0
@@ -138,8 +138,8 @@
       "strategyRegressions": [
         {
           "strategyLabel": "rules-only",
-          "totalCases": 13,
-          "attemptedCaseCount": 13,
+          "totalCases": 4,
+          "attemptedCaseCount": 4,
           "regressionCaseCount": 0,
           "executionFailureCaseCount": 0,
           "blockingCaseCount": 0,
@@ -203,13 +203,13 @@
   "metrics": {
     "continuationOpenLoop": {
       "family": "continuation_open_loop",
-      "goodmemoryWins": 6,
+      "goodmemoryWins": 2,
       "baselineWins": 0,
       "ties": 0,
-      "totalCases": 6,
-      "requiredCases": 6,
+      "totalCases": 2,
+      "requiredCases": 2,
       "passed": true,
-      "threshold": "GoodMemory posts at least 2 net wins and baseline wins at most 1 case.",
+      "threshold": "Cover at least 2 live cases in the continuation_open_loop family.",
       "cases": [
         {
           "caseId": "scenario-complex-01",
@@ -217,106 +217,28 @@
           "winner": "goodmemory"
         },
         {
-          "caseId": "scenario-complex-05",
-          "scenarioId": "scenario-complex-05",
-          "winner": "goodmemory"
-        },
-        {
-          "caseId": "scenario-long-03",
-          "scenarioId": "scenario-long-03",
-          "winner": "goodmemory"
-        },
-        {
-          "caseId": "scenario-medium-01",
-          "scenarioId": "scenario-medium-01",
-          "winner": "goodmemory"
-        },
-        {
           "caseId": "scenario-medium-13",
           "scenarioId": "scenario-medium-13",
           "winner": "goodmemory"
-        },
-        {
-          "caseId": "scenario-medium-17",
-          "scenarioId": "scenario-medium-17",
-          "winner": "goodmemory"
         }
       ]
     },
-    "hostHandoffResumeSuccessRate": {
-      "cases": [
-        {
-          "caseId": "codex-basic-session-handoff",
-          "details": "passed",
-          "passed": true
-        },
-        {
-          "caseId": "codex-handoff-refresh",
-          "details": "passed",
-          "passed": true
-        },
-        {
-          "caseId": "codex-active-only-projection",
-          "details": "passed",
-          "passed": true
-        }
-      ],
-      "passed": true,
-      "passedCases": 3,
-      "requiredCases": 3,
-      "successRate": 1,
-      "threshold": "All 3 Codex handoff/resume cases must pass.",
-      "totalCases": 3
-    },
-    "identityBackground": {
-      "family": "identity_background",
-      "goodmemoryWins": 3,
+    "liveWinnerSummary": {
       "baselineWins": 0,
-      "ties": 0,
-      "totalCases": 3,
-      "requiredCases": 3,
+      "goodmemoryWins": 4,
       "passed": true,
-      "threshold": "GoodMemory wins at least 2 of 3 cases.",
-      "cases": [
-        {
-          "caseId": "scenario-long-01",
-          "scenarioId": "scenario-long-01",
-          "winner": "goodmemory"
-        },
-        {
-          "caseId": "scenario-long-02",
-          "scenarioId": "scenario-long-02",
-          "winner": "goodmemory"
-        },
-        {
-          "caseId": "scenario-medium-13-role-slot",
-          "scenarioId": "scenario-medium-13-role-slot",
-          "winner": "goodmemory"
-        }
-      ]
+      "threshold": "GoodMemory wins a strict majority of live cases and baseline wins at most 1 case.",
+      "ties": 0,
+      "totalCases": 4
     },
     "repeatedCorrectionRate": {
       "baselineRepeatedCorrectionRate": 1,
       "cases": [
         {
           "baselineRepeated": true,
-          "caseId": "scenario-medium-11-blocker-slot-zh",
-          "goodmemoryRepeated": false,
-          "scenarioId": "scenario-medium-11-blocker-slot-zh",
-          "winner": "goodmemory"
-        },
-        {
-          "baselineRepeated": true,
           "caseId": "scenario-medium-11-reference-slot-zh",
           "goodmemoryRepeated": false,
           "scenarioId": "scenario-medium-11-reference-slot-zh",
-          "winner": "goodmemory"
-        },
-        {
-          "baselineRepeated": true,
-          "caseId": "scenario-medium-13-reference-next-step",
-          "goodmemoryRepeated": false,
-          "scenarioId": "scenario-medium-13-reference-next-step",
           "winner": "goodmemory"
         },
         {
@@ -330,15 +252,15 @@
       "goodmemoryRepeatedCorrectionRate": 0,
       "improvement": 1,
       "passed": true,
-      "requiredCases": 4,
+      "requiredCases": 2,
       "threshold": "GoodMemory reduces repeated-correction rate by at least 25 percentage points.",
-      "totalCases": 4
+      "totalCases": 2
     }
   },
   "summary": {
     "accepted": true,
     "blockingMetrics": [],
     "executionFailures": 0,
-    "totalScenarioCases": 13
+    "totalScenarioCases": 4
   }
 }

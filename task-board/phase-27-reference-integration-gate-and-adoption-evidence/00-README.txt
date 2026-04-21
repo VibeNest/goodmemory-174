@@ -42,9 +42,9 @@ Acceptance
 
 Canonical Closure Evidence
 --------------------------
-- `reports/eval/fallback/phase-27/run-20260420165836/report.json`
-- `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
-- `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+- `reports/eval/fallback/phase-27/run-20260421165000/report.json`
+- `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
+- `reports/quality-gates/phase-27/run-20260421172000/phase-27-quality-gate.json`
 - `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
 
 Files in This Folder

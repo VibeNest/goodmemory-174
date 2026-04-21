@@ -79,9 +79,8 @@ import type {
   RunMaintenanceResult,
 } from "./contracts";
 import {
+  resolveGoodMemoryRuntimeResolution,
   resolveAssistedExtractorModelConfigFromEnv,
-  resolveEmbeddingModelConfigFromEnv,
-  resolveStoragePlan,
 } from "./runtimeResolution";
 
 type ScopeBoundRecord = {
@@ -180,9 +179,10 @@ class GoodMemoryImpl implements GoodMemory {
     private readonly config: GoodMemoryConfig,
     internal?: InternalGoodMemoryOptions,
   ) {
-    const storagePlan = resolveStoragePlan({
-      storage: config.storage,
+    const runtimeResolution = resolveGoodMemoryRuntimeResolution({
+      config,
     });
+    const storagePlan = runtimeResolution.storagePlan;
     const explicitStorage = storagePlan.mode === "explicit" ? storagePlan.storage : null;
     const autoStorageAdapters =
       storagePlan.mode === "auto"
@@ -193,16 +193,18 @@ class GoodMemoryImpl implements GoodMemory {
         : null;
     const embeddingAdapter =
       config.adapters?.embeddingAdapter ??
-      (() => {
-        const model = resolveEmbeddingModelConfigFromEnv();
-        return model ? createProviderEmbeddingAdapter({ model }) : undefined;
-      })();
+      (runtimeResolution.embeddingModelConfig
+        ? createProviderEmbeddingAdapter({
+            model: runtimeResolution.embeddingModelConfig,
+          })
+        : undefined);
     const assistedExtractor =
       config.adapters?.assistedExtractor ??
-      (() => {
-        const model = resolveAssistedExtractorModelConfigFromEnv();
-        return model ? createProviderMemoryExtractor({ model }) : undefined;
-      })();
+      (runtimeResolution.assistedExtractorModelConfig
+        ? createProviderMemoryExtractor({
+            model: runtimeResolution.assistedExtractorModelConfig,
+          })
+        : undefined);
     const documentStore =
       config.adapters?.documentStore ??
       (autoStorageAdapters

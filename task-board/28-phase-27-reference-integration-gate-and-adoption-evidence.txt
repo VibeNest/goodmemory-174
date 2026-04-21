@@ -19,7 +19,7 @@ Current Status
 [DONE] Phase 27 is closed and accepted.
 [DONE] Public reference hardening landed on top of the accepted Phase 26 local-first runtime.
 [DONE] Deterministic adoption eval now runs through `eval:phase-27` with thresholded identity/background, continuation/open-loop, repeated-correction, and Codex handoff reporting.
-[DONE] Canonical live adoption evidence now exists through `eval:phase-27-live-memory` at `reports/eval/live-memory/phase-27/run-20260420175513/report.json`.
+[DONE] Canonical live adoption evidence now exists through `eval:phase-27-live-memory` at `reports/eval/live-memory/phase-27/run-20260421170500/report.json`.
 [DONE] `gate:phase-27` is accepted and the archive/current-status/task-board evidence chain is now synchronized.
 
 
@@ -106,7 +106,7 @@ Implemented So Far
   - `docs/GoodMemory-Codex-Handoff-Setup-Guide.md`
 - canonical public examples now import package surfaces instead of `../src/*`
 - the canonical AI SDK example now proves `createGoodMemory({})` on the accepted Phase 26 local-first runtime
-- the Codex handoff example now runs on local SQLite-backed stores instead of in-memory-only scaffolding
+- the Codex handoff example now uses `createGoodMemory({})` on the local-first default runtime while runtime stores share the default SQLite path
 - package-boundary consumer smoke now exists under:
   - `tests/consumers/reference-package-smoke/`
 - release coverage now rejects `../src/*` / `../../src/*` in gated public-reference files
@@ -114,15 +114,16 @@ Implemented So Far
 - deterministic adoption evidence now runs through:
   - `scripts/run-phase-27-eval.ts`
   - `src/eval/phase27.ts`
-  - `reports/eval/fallback/phase-27/run-20260420165836/report.json`
+  - `reports/eval/fallback/phase-27/run-20260421165000/report.json`
+- deterministic adoption reporting now explicitly exposes `referenceSetup` and `publicSurfacePurity` metrics, and the canonical baseline contract keeps model/system/transcript/tool shape fixed except for memory augmentation
 - provider-backed live adoption runner contract now exists through:
   - `scripts/run-phase-27-live-memory.ts`
   - `tests/unit/run-phase-27.script.test.ts`
-  - `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+  - `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
 - deterministic regression now locks the phase-27 runner through:
   - `tests/unit/run-phase-27.script.test.ts`
 - canonical phase-27 closure is now archived through:
-  - `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+  - `reports/quality-gates/phase-27/run-20260421172000/phase-27-quality-gate.json`
   - `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
 
 
@@ -144,9 +145,9 @@ Evidence
 - `tests/unit/run-phase-27.script.test.ts`
 - `tests/examples/examples.test.ts`
 - `tests/release/release.test.ts`
-- `reports/eval/fallback/phase-27/run-20260420165836/report.json`
-- `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
-- `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+- `reports/eval/fallback/phase-27/run-20260421165000/report.json`
+- `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
+- `reports/quality-gates/phase-27/run-20260421172000/phase-27-quality-gate.json`
 - `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
 - `docs/GoodMemory-Current-Status-and-Evidence.md`
 

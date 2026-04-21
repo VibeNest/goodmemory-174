@@ -26,16 +26,7 @@ export async function runCodexHandoffExample(): Promise<{
       now: () => "2026-04-19T00:00:00.000Z",
       maxBufferedMessages: 2,
     });
-    const memory = createGoodMemory({
-      storage: {
-        provider: "sqlite",
-        url: sqlitePath,
-      },
-      adapters: {
-        documentStore,
-        sessionStore,
-      },
-    });
+    const memory = createGoodMemory({});
 
     const scope = {
       userId: "codex-user",

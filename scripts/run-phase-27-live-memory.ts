@@ -2,12 +2,13 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createGoodMemory } from "goodmemory";
 import type { EvalRuntimeMetadata } from "../src/eval/contracts";
-import { listScenarioFixtures, type ScenarioFixture } from "../src/eval/dataset";
+import { listScenarioFixtures } from "../src/eval/dataset";
+import type { ScenarioFixture } from "../src/eval/dataset";
 import {
   buildPhase27LiveMemoryReport,
   resolvePhase27LiveScenarioIds,
-  type Phase27LiveMemoryReport,
 } from "../src/eval/phase27";
+import type { Phase27LiveMemoryReport } from "../src/eval/phase27";
 import {
   buildEvalUserId,
   buildEvalWorkspaceId,
@@ -48,6 +49,7 @@ export interface Phase27LiveMemoryDependencies {
 }
 
 const GENERATED_BY = "scripts/run-phase-27-live-memory.ts";
+const PHASE27_LIVE_SHARED_SYSTEM_PROMPT = buildLiveGoodMemorySystemPrompt();
 
 function resolvePostgresUrl(): string {
   const postgresUrl = process.env.GOODMEMORY_TEST_POSTGRES_URL;
@@ -224,12 +226,11 @@ export async function runPhase27LiveMemoryEval(
       rememberExtractionStrategy: input?.rememberExtractionStrategy ?? "auto",
       baselineGenerator: createTextGenerator({
         model: evalModel,
-        system:
-          "Answer using only the visible transcript. If critical history is missing, say that you need more context.",
+        system: PHASE27_LIVE_SHARED_SYSTEM_PROMPT,
       }),
       goodmemoryGenerator: createTextGenerator({
         model: evalModel,
-        system: buildLiveGoodMemorySystemPrompt(),
+        system: PHASE27_LIVE_SHARED_SYSTEM_PROMPT,
       }),
       judge: createJudgeModel({
         model: judgeModel,

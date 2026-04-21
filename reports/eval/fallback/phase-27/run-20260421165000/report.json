@@ -1,0 +1,454 @@
+{
+  "generatedAt": "2026-04-21T06:03:45.147Z",
+  "generatedBy": "scripts/run-phase-27-eval.ts",
+  "mode": "fallback",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/run-20260421165000",
+  "runId": "run-20260421165000",
+  "suiteRunDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/run-20260421165000/suite",
+  "suiteSummary": {
+    "totalCases": 13,
+    "completedCases": 13,
+    "executionFailures": 0,
+    "winnerCounts": {
+      "baseline": 0,
+      "goodmemory": 13,
+      "tie": 0
+    },
+    "baselineAverage": {
+      "factual_recall": 3.69,
+      "preference_consistency": 1.38,
+      "cross_domain_transfer": 2.62,
+      "contamination_penalty": 9.38,
+      "update_correctness": 4.92,
+      "personalization_usefulness": 3,
+      "provenance_explainability": 4.77
+    },
+    "goodmemoryAverage": {
+      "factual_recall": 9.77,
+      "preference_consistency": 10,
+      "cross_domain_transfer": 8,
+      "contamination_penalty": 10,
+      "update_correctness": 10,
+      "personalization_usefulness": 10,
+      "provenance_explainability": 8
+    },
+    "uplift": {
+      "factual_recall": 6.08,
+      "preference_consistency": 8.62,
+      "cross_domain_transfer": 5.38,
+      "contamination_penalty": 0.62,
+      "update_correctness": 5.08,
+      "personalization_usefulness": 7,
+      "provenance_explainability": 3.23
+    },
+    "layers": {
+      "baseline": {
+        "retrieval": 4.23,
+        "personalization": 4.26,
+        "runtime_governance": 6.36
+      },
+      "goodmemory": {
+        "retrieval": 8.88,
+        "personalization": 9.6,
+        "runtime_governance": 9.33
+      },
+      "uplift": {
+        "retrieval": 4.65,
+        "personalization": 5.34,
+        "runtime_governance": 2.97
+      }
+    },
+    "assertions": {
+      "totalCases": 13,
+      "passingCases": 13,
+      "passRate": 1,
+      "totalChecks": 78,
+      "passingChecks": 78,
+      "checkPassRate": 1,
+      "applicableUpdateCases": 13,
+      "updateWinCases": 13,
+      "updateWinRate": 1,
+      "applicableStaleSuppressionCases": 13,
+      "staleSuppressionCases": 13,
+      "staleSuppressionRate": 1,
+      "staleMisuseCases": 0,
+      "staleMisuseRate": 0,
+      "contaminationFailures": 0,
+      "updateFailures": 0
+    },
+    "outcomeLoopSummary": {
+      "acceptedProceduralPromotionCases": 4,
+      "applicableCorrectionCases": 13,
+      "applicableProceduralReuseCases": 13,
+      "applicableStaleSuppressionCases": 13,
+      "correctionWinCases": 13,
+      "correctionWinRate": 1,
+      "governedProceduralReuseCases": 4,
+      "governedProceduralReuseRate": 0.31,
+      "staleMisuseCases": 0,
+      "staleMisuseRate": 0,
+      "staleSuppressionCases": 13,
+      "staleSuppressionRate": 1
+    },
+    "strategySummary": {
+      "byStrategy": {
+        "rules-only": {
+          "totalCases": 13,
+          "uniqueScenarios": 13,
+          "winnerCounts": {
+            "baseline": 0,
+            "goodmemory": 13,
+            "tie": 0
+          },
+          "uplift": {
+            "factual_recall": 6.08,
+            "preference_consistency": 8.62,
+            "cross_domain_transfer": 5.38,
+            "contamination_penalty": 0.62,
+            "update_correctness": 5.08,
+            "personalization_usefulness": 7,
+            "provenance_explainability": 3.23
+          },
+          "regressionCases": []
+        }
+      },
+      "embeddingImpact": null,
+      "routerImpact": null
+    },
+    "maintenanceSummary": {
+      "casesWithAcceptedProceduralPromotions": 4,
+      "casesWithCompiledProceduralReuse": 4,
+      "casesWithCorrectionRepairs": 0,
+      "casesWithProceduralReuse": 8,
+      "casesWithVerificationPressure": 0,
+      "casesWithDemotions": 0,
+      "averageActiveValidatedPatterns": 0.62,
+      "averageCompiledValidatedPatterns": 0.31,
+      "averageCorrectionRepairs": 0,
+      "averagePressuredFacts": 0,
+      "averageDemotedFacts": 0
+    },
+    "regressionDashboardSummary": {
+      "totalRegressionCases": 0,
+      "totalBlockingCases": 0,
+      "judgedRegressionCases": 0,
+      "executionFailureCount": 0,
+      "unattributedExecutionFailureCount": 0,
+      "strategyRegressions": [
+        {
+          "strategyLabel": "rules-only",
+          "totalCases": 13,
+          "attemptedCaseCount": 13,
+          "regressionCaseCount": 0,
+          "executionFailureCaseCount": 0,
+          "blockingCaseCount": 0,
+          "regressionRate": 0,
+          "blockingRate": 0,
+          "regressionCases": [],
+          "executionFailureCases": []
+        }
+      ]
+    },
+    "publicSurfaceDecision": {
+      "officialCliShape": {
+        "evalSubcommandsNested": true,
+        "memoryCommandsAtRoot": true,
+        "publicEvolutionNamespace": false
+      },
+      "surfaces": [
+        {
+          "surface": "core_config",
+          "exposure": "public",
+          "decision": "accepted",
+          "rationale": "GoodMemory core stays public through the minimal library config: storage, policy, language, adapters, and testing hooks."
+        },
+        {
+          "surface": "eval_artifact_cli",
+          "exposure": "public",
+          "decision": "accepted",
+          "rationale": "Read-only eval inspection is supported because report, shadow, promotion-gate, and regression-dashboard artifacts are now deterministic and inspectable."
+        },
+        {
+          "surface": "official_memory_cli",
+          "exposure": "advanced",
+          "decision": "delayed",
+          "rationale": "The official CLI shape is memory-facing commands at the root with eval nested underneath, but current rollout evidence only proves the eval artifact inspector path."
+        },
+        {
+          "surface": "strategy_rollout_config",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "Strategy rollout controls stay internal because rollout evidence is not yet strong enough to justify public config exposure."
+        },
+        {
+          "surface": "promotion_gate_runtime",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "Promotion gate runtime controls are evidence and governance machinery, not public application config."
+        },
+        {
+          "surface": "evolution_namespace",
+          "exposure": "internal",
+          "decision": "delayed",
+          "rationale": "A public evolution namespace is not warranted while rollout evidence is incomplete or still blocking."
+        }
+      ],
+      "evidence": {
+        "totalRegressionCases": 0,
+        "executionFailureCount": 0
+      }
+    }
+  },
+  "metrics": {
+    "continuationOpenLoop": {
+      "family": "continuation_open_loop",
+      "goodmemoryWins": 6,
+      "baselineWins": 0,
+      "ties": 0,
+      "totalCases": 6,
+      "requiredCases": 6,
+      "passed": true,
+      "threshold": "GoodMemory posts at least 2 net wins and baseline wins at most 1 case.",
+      "cases": [
+        {
+          "caseId": "scenario-complex-01",
+          "scenarioId": "scenario-complex-01",
+          "winner": "goodmemory"
+        },
+        {
+          "caseId": "scenario-complex-05",
+          "scenarioId": "scenario-complex-05",
+          "winner": "goodmemory"
+        },
+        {
+          "caseId": "scenario-long-03",
+          "scenarioId": "scenario-long-03",
+          "winner": "goodmemory"
+        },
+        {
+          "caseId": "scenario-medium-01",
+          "scenarioId": "scenario-medium-01",
+          "winner": "goodmemory"
+        },
+        {
+          "caseId": "scenario-medium-13",
+          "scenarioId": "scenario-medium-13",
+          "winner": "goodmemory"
+        },
+        {
+          "caseId": "scenario-medium-17",
+          "scenarioId": "scenario-medium-17",
+          "winner": "goodmemory"
+        }
+      ]
+    },
+    "hostHandoffResumeSuccessRate": {
+      "cases": [
+        {
+          "caseId": "codex-basic-session-handoff",
+          "details": "passed",
+          "passed": true
+        },
+        {
+          "caseId": "codex-handoff-refresh",
+          "details": "passed",
+          "passed": true
+        },
+        {
+          "caseId": "codex-active-only-projection",
+          "details": "passed",
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "passedCases": 3,
+      "requiredCases": 3,
+      "successRate": 1,
+      "threshold": "All 3 Codex handoff/resume cases must pass.",
+      "totalCases": 3
+    },
+    "identityBackground": {
+      "family": "identity_background",
+      "goodmemoryWins": 3,
+      "baselineWins": 0,
+      "ties": 0,
+      "totalCases": 3,
+      "requiredCases": 3,
+      "passed": true,
+      "threshold": "GoodMemory wins at least 2 of 3 cases.",
+      "cases": [
+        {
+          "caseId": "scenario-long-01",
+          "scenarioId": "scenario-long-01",
+          "winner": "goodmemory"
+        },
+        {
+          "caseId": "scenario-long-02",
+          "scenarioId": "scenario-long-02",
+          "winner": "goodmemory"
+        },
+        {
+          "caseId": "scenario-medium-13-role-slot",
+          "scenarioId": "scenario-medium-13-role-slot",
+          "winner": "goodmemory"
+        }
+      ]
+    },
+    "publicSurfacePurity": {
+      "allowedImports": [
+        "goodmemory",
+        "goodmemory/ai-sdk",
+        "goodmemory/host"
+      ],
+      "checkedFiles": [
+        "README.md",
+        "docs/GoodMemory-Reference-Integration-Guide.md",
+        "docs/GoodMemory-Codex-Handoff-Setup-Guide.md",
+        "examples/basic-chat.ts",
+        "examples/coding-agent.ts",
+        "examples/host-claude-artifacts.ts",
+        "examples/host-codex-handoff.ts",
+        "examples/vercel-ai-chat.ts",
+        "tests/consumers/reference-package-smoke/smoke.mjs"
+      ],
+      "checks": [
+        {
+          "details": "README.md stays on public package/docs paths.",
+          "name": "public-imports:README.md",
+          "passed": true
+        },
+        {
+          "details": "docs/GoodMemory-Reference-Integration-Guide.md stays on public package/docs paths.",
+          "name": "public-imports:docs/GoodMemory-Reference-Integration-Guide.md",
+          "passed": true
+        },
+        {
+          "details": "docs/GoodMemory-Codex-Handoff-Setup-Guide.md stays on public package/docs paths.",
+          "name": "public-imports:docs/GoodMemory-Codex-Handoff-Setup-Guide.md",
+          "passed": true
+        },
+        {
+          "details": "examples/basic-chat.ts stays on public package/docs paths.",
+          "name": "public-imports:examples/basic-chat.ts",
+          "passed": true
+        },
+        {
+          "details": "examples/coding-agent.ts stays on public package/docs paths.",
+          "name": "public-imports:examples/coding-agent.ts",
+          "passed": true
+        },
+        {
+          "details": "examples/host-claude-artifacts.ts stays on public package/docs paths.",
+          "name": "public-imports:examples/host-claude-artifacts.ts",
+          "passed": true
+        },
+        {
+          "details": "examples/host-codex-handoff.ts stays on public package/docs paths.",
+          "name": "public-imports:examples/host-codex-handoff.ts",
+          "passed": true
+        },
+        {
+          "details": "examples/vercel-ai-chat.ts stays on public package/docs paths.",
+          "name": "public-imports:examples/vercel-ai-chat.ts",
+          "passed": true
+        },
+        {
+          "details": "tests/consumers/reference-package-smoke/smoke.mjs stays on public package/docs paths.",
+          "name": "public-imports:tests/consumers/reference-package-smoke/smoke.mjs",
+          "passed": true
+        },
+        {
+          "details": "Package-boundary smoke imports: goodmemory, goodmemory/ai-sdk, goodmemory/host",
+          "name": "package-boundary-imports",
+          "passed": true
+        }
+      ],
+      "packageBoundarySmoke": "package-name-imports",
+      "passed": true,
+      "threshold": "Canonical Phase 27 docs, examples, and consumer smoke must stay on public package imports and avoid repo-internal source paths."
+    },
+    "referenceSetup": {
+      "assistedExtractionEnabled": false,
+      "checks": [
+        {
+          "details": "Deterministic createMemory entrypoint: createGoodMemory({}).",
+          "name": "public-default-entrypoint",
+          "passed": true
+        },
+        {
+          "details": "Deterministic createMemory passes no explicit storage config.",
+          "name": "no-explicit-storage",
+          "passed": true
+        },
+        {
+          "details": "Deterministic createMemory passes no explicit adapters.",
+          "name": "no-explicit-adapters",
+          "passed": true
+        },
+        {
+          "details": "Resolved runtime storage: local-default-sqlite at /Users/hjqcan/Documents/GoodMomery/.goodmemory/memory.sqlite.",
+          "name": "local-default-sqlite",
+          "passed": true
+        },
+        {
+          "details": "Embedding enabled: false; assisted extraction enabled: false.",
+          "name": "rules-only-defaults",
+          "passed": true
+        }
+      ],
+      "createMemoryEntrypoint": "createGoodMemory({})",
+      "embeddingEnabled": false,
+      "explicitAdaptersConfigured": false,
+      "explicitStorageConfigured": false,
+      "passed": true,
+      "runtimeStorage": "local-default-sqlite",
+      "threshold": "Deterministic Phase 27 setup must use createGoodMemory({}) on the local-first default runtime with rules-only behavior."
+    },
+    "repeatedCorrectionRate": {
+      "baselineRepeatedCorrectionRate": 1,
+      "cases": [
+        {
+          "baselineRepeated": true,
+          "caseId": "scenario-medium-11-blocker-slot-zh",
+          "goodmemoryRepeated": false,
+          "scenarioId": "scenario-medium-11-blocker-slot-zh",
+          "winner": "goodmemory"
+        },
+        {
+          "baselineRepeated": true,
+          "caseId": "scenario-medium-11-reference-slot-zh",
+          "goodmemoryRepeated": false,
+          "scenarioId": "scenario-medium-11-reference-slot-zh",
+          "winner": "goodmemory"
+        },
+        {
+          "baselineRepeated": true,
+          "caseId": "scenario-medium-13-reference-next-step",
+          "goodmemoryRepeated": false,
+          "scenarioId": "scenario-medium-13-reference-next-step",
+          "winner": "goodmemory"
+        },
+        {
+          "baselineRepeated": true,
+          "caseId": "scenario-medium-13-reference-slot",
+          "goodmemoryRepeated": false,
+          "scenarioId": "scenario-medium-13-reference-slot",
+          "winner": "goodmemory"
+        }
+      ],
+      "goodmemoryRepeatedCorrectionRate": 0,
+      "improvement": 1,
+      "passed": true,
+      "requiredCases": 4,
+      "threshold": "GoodMemory reduces repeated-correction rate by at least 25 percentage points.",
+      "totalCases": 4
+    }
+  },
+  "summary": {
+    "accepted": true,
+    "blockingMetrics": [],
+    "executionFailures": 0,
+    "totalScenarioCases": 13
+  }
+}

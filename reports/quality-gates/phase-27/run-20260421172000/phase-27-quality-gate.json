@@ -7,7 +7,7 @@
     {
       "label": "typecheck",
       "command": "bun run typecheck",
-      "durationMs": 3227,
+      "durationMs": 2479,
       "exitCode": 0,
       "status": "passed",
       "stdoutTail": [],
@@ -18,39 +18,39 @@
     {
       "label": "phase-27-targeted-regressions",
       "command": "bun test tests/unit/run-phase-27.script.test.ts tests/unit/run-phase-27.gate.test.ts tests/examples/examples.test.ts tests/release/release.test.ts",
-      "durationMs": 6891,
+      "durationMs": 7649,
       "exitCode": 0,
       "status": "passed",
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)"
       ],
       "stderrTail": [
-        "(pass) release metadata and docs > phase-26 quality gate doc points to one canonical accepted report [64.46ms]",
-        "(pass) release metadata and docs > phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence [70.90ms]",
-        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [259.78ms]",
-        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [367.66ms]",
-        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [755.30ms]",
-        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [348.31ms]",
-        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.19ms]",
-        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.40ms]",
+        "(pass) release metadata and docs > phase-28 quality gate doc points to one canonical accepted report [29.85ms]",
+        "(pass) release metadata and docs > phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence [95.70ms]",
+        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [223.63ms]",
+        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [302.15ms]",
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [551.41ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [277.24ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.24ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.93ms]",
         "",
         "tests/examples/examples.test.ts:",
-        "(pass) examples > basic chat example demonstrates the minimal integration path [4.56ms]",
-        "(pass) examples > coding-agent example demonstrates runtime continuity and procedural memory [1.88ms]",
-        "(pass) examples > vercel ai example demonstrates wrapper-first recall injection and remember writeback [8.42ms]",
-        "(pass) examples > claude host example demonstrates read-only compiled artifact consumption [5.69ms]",
-        "(pass) examples > codex host example demonstrates session handoff consumption [4.48ms]",
+        "(pass) examples > basic chat example demonstrates the minimal integration path [3.83ms]",
+        "(pass) examples > coding-agent example demonstrates runtime continuity and procedural memory [2.20ms]",
+        "(pass) examples > vercel ai example demonstrates wrapper-first recall injection and remember writeback [7.72ms]",
+        "(pass) examples > claude host example demonstrates read-only compiled artifact consumption [5.07ms]",
+        "(pass) examples > codex host example demonstrates session handoff consumption [4.57ms]",
         "",
-        " 47 pass",
+        " 52 pass",
         " 0 fail",
-        " 744 expect() calls",
-        "Ran 47 tests across 4 files. [6.88s]"
+        " 783 expect() calls",
+        "Ran 52 tests across 4 files. [7.64s]"
       ]
     },
     {
       "label": "phase-27-fallback-eval",
       "command": "bun run eval:phase-27",
-      "durationMs": 314,
+      "durationMs": 355,
       "exitCode": 0,
       "status": "passed",
       "stdoutTail": [
@@ -80,11 +80,11 @@
       ]
     }
   ],
-  "generatedAt": "2026-04-21T01:15:15.720Z",
+  "generatedAt": "2026-04-21T06:03:45.157Z",
   "generatedBy": "scripts/run-phase-27-gate.ts",
   "phase": "phase-27",
-  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-27/run-20260421011515",
-  "runId": "run-20260421011515",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-27/run-20260421172000",
+  "runId": "run-20260421172000",
   "scope": {
     "inScope": [
       "public reference hardening over createGoodMemory({}) and public-only imports",

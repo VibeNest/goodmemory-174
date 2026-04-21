@@ -3,7 +3,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createGoodMemory } from "../api/createGoodMemory";
-import type { ExportMemoryResult, GoodMemory } from "../api/contracts";
+import type { ExportMemoryResult, GoodMemory, GoodMemoryConfig } from "../api/contracts";
+import {
+  DEFAULT_SQLITE_STORAGE_PATH,
+  resolveGoodMemoryRuntimeResolution,
+} from "../api/runtimeResolution";
 import {
   createFeedbackMemory,
   createReferenceMemory,
@@ -17,13 +21,11 @@ import {
   createRuntimeArchiveStore,
   createRuntimeContextService,
 } from "../runtime/public";
-import { createInMemoryVectorStore } from "../storage/memory";
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
 } from "../storage/sqlite";
 import type { EvalSuiteResult } from "./suite";
-import type { MemoryExtractor } from "../remember/candidates";
 
 export const PHASE_27_IDENTITY_BACKGROUND_SCENARIO_IDS = [
   "scenario-medium-13-role-slot",
@@ -68,11 +70,22 @@ export const PHASE_27_LIVE_SCENARIO_IDS = [
   ...PHASE_27_LIVE_REPEATED_CORRECTION_SCENARIO_IDS,
 ] as const;
 
-const PHASE_27_RULES_ONLY_EMBEDDING_ENV_KEYS = [
+const PHASE_27_LOCAL_DEFAULT_RUNTIME_ENV_KEYS = [
+  "GOODMEMORY_STORAGE_PROVIDER",
+  "GOODMEMORY_STORAGE_URL",
+  "GOODMEMORY_EMBEDDING_PROVIDER",
+  "GOODMEMORY_EMBEDDING_MODEL",
   "GOODMEMORY_EMBEDDING_API_KEY",
   "GOODMEMORY_EMBEDDING_BASE_URL",
-  "GOODMEMORY_EMBEDDING_MODEL",
-  "GOODMEMORY_EMBEDDING_PROVIDER",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_MODEL",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL",
+  "GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH",
+  "GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH",
+  "GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT",
+  "GOODMEMORY_SQLITE_VECTOR_MODE",
+  "GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION",
 ] as const;
 
 export type Phase27ScenarioFamily =
@@ -168,6 +181,33 @@ export interface Phase27LiveWinnerSummary {
   totalCases: number;
 }
 
+export interface Phase27ContractCheck {
+  details: string;
+  name: string;
+  passed: boolean;
+}
+
+export interface Phase27ReferenceSetupMetric {
+  assistedExtractionEnabled: boolean;
+  createMemoryEntrypoint: string;
+  embeddingEnabled: boolean;
+  explicitAdaptersConfigured: boolean;
+  explicitStorageConfigured: boolean;
+  passed: boolean;
+  runtimeStorage: string;
+  threshold: string;
+  checks: Phase27ContractCheck[];
+}
+
+export interface Phase27PublicSurfacePurityMetric {
+  allowedImports: string[];
+  checkedFiles: string[];
+  packageBoundarySmoke: "package-name-imports";
+  passed: boolean;
+  threshold: string;
+  checks: Phase27ContractCheck[];
+}
+
 export interface Phase27LiveMemoryReport {
   generatedAt: string;
   generatedBy: string;
@@ -203,6 +243,8 @@ export interface Phase27DeterministicReport {
     continuationOpenLoop: Phase27WinnerMetric;
     hostHandoffResumeSuccessRate: Phase27CodexHandoffSummary;
     identityBackground: Phase27WinnerMetric;
+    publicSurfacePurity: Phase27PublicSurfacePurityMetric;
+    referenceSetup: Phase27ReferenceSetupMetric;
     repeatedCorrectionRate: Phase27RepeatedCorrectionMetric;
   };
   summary: {
@@ -219,19 +261,26 @@ function uniqueScenarioIds(
   return [...new Set(ids)];
 }
 
-function withEnvCleared<TValue>(
-  keys: readonly string[],
+function withPhase27LocalDefaultRuntime<TValue>(
+  root: string,
   run: () => TValue,
 ): TValue {
-  const previousValues = keys.map((key) => [key, process.env[key]] as const);
+  const previousCwd = process.cwd();
+  const previousValues = PHASE_27_LOCAL_DEFAULT_RUNTIME_ENV_KEYS.map((key) =>
+    [key, process.env[key]] as const
+  );
 
   for (const [key] of previousValues) {
     delete process.env[key];
   }
 
+  process.chdir(root);
+
   try {
     return run();
   } finally {
+    process.chdir(previousCwd);
+
     for (const [key, value] of previousValues) {
       if (value === undefined) {
         delete process.env[key];
@@ -243,38 +292,78 @@ function withEnvCleared<TValue>(
   }
 }
 
-function createPhase27RulesOnlySQLiteMemory(sqlitePath: string) {
-  const documentStore = createSQLiteDocumentStore(sqlitePath);
-  const sessionStore = createSQLiteSessionStore(sqlitePath);
-  const vectorStore = createInMemoryVectorStore();
-  const noopAssistedExtractor: MemoryExtractor = {
-    async extract() {
-      return {
-        candidates: [],
-        ignoredMessageCount: 0,
-      };
-    },
-  };
+function buildPhase27FallbackMemoryConfig(): GoodMemoryConfig {
+  return {};
+}
 
-  return {
-    documentStore,
-    memory: withEnvCleared(
-      PHASE_27_RULES_ONLY_EMBEDDING_ENV_KEYS,
-      () => createGoodMemory({
-        storage: {
-          provider: "sqlite",
-          url: sqlitePath,
-        },
-        adapters: {
-          documentStore,
-          assistedExtractor: noopAssistedExtractor,
-          sessionStore,
-          vectorStore,
-        },
-      }),
-    ),
-    sessionStore,
-  };
+interface Phase27ReferenceSetupObservation {
+  assistedExtractionEnabled: boolean;
+  createMemoryEntrypoint: "createGoodMemory({})";
+  embeddingEnabled: boolean;
+  explicitAdaptersConfigured: boolean;
+  explicitStorageConfigured: boolean;
+  resolvedSqliteUrl: string | null;
+  runtimeStorage: "local-default-sqlite" | "other";
+}
+
+export function inspectPhase27FallbackReferenceSetup(
+  root: string,
+): Phase27ReferenceSetupObservation {
+  return withPhase27LocalDefaultRuntime(root, () => {
+    const config = buildPhase27FallbackMemoryConfig();
+    const runtimeResolution = resolveGoodMemoryRuntimeResolution({
+      config,
+      cwd: process.cwd(),
+    });
+    const resolvedSqliteUrl =
+      runtimeResolution.storagePlan.mode === "auto"
+        ? runtimeResolution.storagePlan.sqliteUrl
+        : runtimeResolution.storagePlan.storage.provider === "sqlite"
+          ? runtimeResolution.storagePlan.storage.url
+          : null;
+    const runtimeStorage =
+      runtimeResolution.storagePlan.mode === "auto" &&
+      runtimeResolution.storagePlan.postgresUrl === undefined &&
+      resolvedSqliteUrl?.endsWith(DEFAULT_SQLITE_STORAGE_PATH) === true
+        ? "local-default-sqlite"
+        : "other";
+
+    return {
+      assistedExtractionEnabled: runtimeResolution.assistedExtractionEnabled,
+      createMemoryEntrypoint: "createGoodMemory({})",
+      embeddingEnabled: runtimeResolution.embeddingEnabled,
+      explicitAdaptersConfigured: runtimeResolution.explicitAdaptersConfigured,
+      explicitStorageConfigured: runtimeResolution.explicitStorageConfigured,
+      resolvedSqliteUrl,
+      runtimeStorage,
+    };
+  });
+}
+
+function createPhase27LocalDefaultRuntimeMemory(root: string) {
+  return withPhase27LocalDefaultRuntime(root, () => {
+    const config = buildPhase27FallbackMemoryConfig();
+    const runtimeResolution = resolveGoodMemoryRuntimeResolution({
+      config,
+      cwd: process.cwd(),
+    });
+    const sqliteUrl =
+      runtimeResolution.storagePlan.mode === "auto"
+        ? runtimeResolution.storagePlan.sqliteUrl
+        : runtimeResolution.storagePlan.storage.provider === "sqlite"
+          ? runtimeResolution.storagePlan.storage.url
+          : null;
+
+    if (!sqliteUrl) {
+      throw new Error("Phase 27 fallback runtime must resolve to a local sqlite backend.");
+    }
+
+    return {
+      documentStore: createSQLiteDocumentStore(sqliteUrl),
+      memory: createGoodMemory(config),
+      sessionStore: createSQLiteSessionStore(sqliteUrl),
+    };
+  });
 }
 
 export function resolvePhase27FallbackScenarioIds(explicit?: string[]): string[] {
@@ -297,11 +386,10 @@ export function createPhase27FallbackCreateMemory(): (
   input: Phase27CreateMemoryInput,
 ) => Phase27CreateMemoryResult {
   return () => {
-    const root = mkdtempSync(join(tmpdir(), "goodmemory-phase27-sqlite-"));
-    const sqlitePath = join(root, ".goodmemory", "memory.sqlite");
+    const root = mkdtempSync(join(tmpdir(), "goodmemory-phase27-default-"));
 
     return {
-      memory: createPhase27RulesOnlySQLiteMemory(sqlitePath).memory,
+      memory: createPhase27LocalDefaultRuntimeMemory(root).memory,
       cleanup: async () => {
         await rm(root, {
           force: true,
@@ -531,9 +619,8 @@ async function runCodexBasicResumeCase(): Promise<void> {
   const workspace = await mkdtemp(
     join(tmpdir(), "goodmemory-phase27-handoff-basic-"),
   );
-  const sqlitePath = join(workspace, ".goodmemory", "memory.sqlite");
   const { documentStore, memory, sessionStore } =
-    createPhase27RulesOnlySQLiteMemory(sqlitePath);
+    createPhase27LocalDefaultRuntimeMemory(workspace);
   const runtime = createRuntimeContextService({
     archiveStore: createRuntimeArchiveStore({ documentStore }),
     maxBufferedMessages: 2,
@@ -600,9 +687,8 @@ async function runCodexRefreshCase(): Promise<void> {
   const workspace = await mkdtemp(
     join(tmpdir(), "goodmemory-phase27-handoff-refresh-"),
   );
-  const sqlitePath = join(workspace, ".goodmemory", "memory.sqlite");
   const { documentStore, memory, sessionStore } =
-    createPhase27RulesOnlySQLiteMemory(sqlitePath);
+    createPhase27LocalDefaultRuntimeMemory(workspace);
   const runtime = createRuntimeContextService({
     archiveStore: createRuntimeArchiveStore({ documentStore }),
     maxBufferedMessages: 2,
@@ -805,6 +891,8 @@ export function buildPhase27DeterministicReport(input: {
   generatedBy: string;
   handoffSummary: Phase27CodexHandoffSummary;
   outputDir: string;
+  publicSurfacePurity: Phase27PublicSurfacePurityMetric;
+  referenceSetup: Phase27ReferenceSetupMetric;
   runDirectory: string;
   runId: string;
   scenarios: readonly ScenarioFixture[];
@@ -834,6 +922,8 @@ export function buildPhase27DeterministicReport(input: {
     !continuationOpenLoop.passed ? "continuation_open_loop_score" : null,
     !repeatedCorrectionRate.passed ? "repeated_correction_rate" : null,
     !input.handoffSummary.passed ? "host_handoff_resume_success_rate" : null,
+    !input.referenceSetup.passed ? "reference_setup" : null,
+    !input.publicSurfacePurity.passed ? "public_surface_purity" : null,
     executionFailures > 0 ? "execution_failures" : null,
   ].filter((value): value is string => value !== null);
 
@@ -850,6 +940,8 @@ export function buildPhase27DeterministicReport(input: {
       continuationOpenLoop,
       hostHandoffResumeSuccessRate: input.handoffSummary,
       identityBackground,
+      publicSurfacePurity: input.publicSurfacePurity,
+      referenceSetup: input.referenceSetup,
       repeatedCorrectionRate,
     },
     summary: {

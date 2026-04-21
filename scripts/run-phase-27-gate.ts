@@ -70,8 +70,8 @@ export interface Phase27GateCliDependencies {
 }
 
 const GENERATED_BY = "scripts/run-phase-27-gate.ts";
-const PHASE27_CANONICAL_DETERMINISTIC_RUN_ID = "run-20260420165836";
-const PHASE27_CANONICAL_LIVE_RUN_ID = "run-20260420175513";
+const PHASE27_CANONICAL_DETERMINISTIC_RUN_ID = "run-20260421165000";
+const PHASE27_CANONICAL_LIVE_RUN_ID = "run-20260421170500";
 const PHASE27_DETERMINISTIC_TEST_ENV = {
   GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY: "",
   GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL: "",
@@ -242,6 +242,14 @@ async function validateCanonicalPhase27EvalReport(input: {
   }
 
   let report: {
+    metrics?: {
+      publicSurfacePurity?: {
+        passed?: boolean;
+      };
+      referenceSetup?: {
+        passed?: boolean;
+      };
+    };
     mode?: string;
     runId?: string;
     summary?: {
@@ -269,6 +277,15 @@ async function validateCanonicalPhase27EvalReport(input: {
 
   if (report.summary?.totalScenarioCases !== input.expectedTotalCases) {
     return `Canonical Phase 27 ${input.expectedMode} report has the wrong case count: ${input.path}`;
+  }
+
+  if (input.expectedMode === "fallback") {
+    if (report.metrics?.referenceSetup?.passed !== true) {
+      return `Canonical Phase 27 fallback report is missing a passing referenceSetup metric: ${input.path}`;
+    }
+    if (report.metrics?.publicSurfacePurity?.passed !== true) {
+      return `Canonical Phase 27 fallback report is missing a passing publicSurfacePurity metric: ${input.path}`;
+    }
   }
 
   return undefined;

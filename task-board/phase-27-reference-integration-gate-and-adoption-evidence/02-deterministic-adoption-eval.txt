@@ -39,13 +39,13 @@ Implemented
 - `tests/unit/run-phase-27.script.test.ts`
 - `package.json`
 - `tests/release/release.test.ts`
-- `reports/eval/fallback/phase-27/run-20260420165836/report.json`
+- `reports/eval/fallback/phase-27/run-20260421165000/report.json`
 
 Regression run
 --------------
 - `bun run typecheck`
 - `bun test tests/unit/run-phase-27.script.test.ts tests/release/release.test.ts`
-- `bun run eval:phase-27 --run-id=run-20260420165836`
+- `bun run eval:phase-27 --run-id=run-20260421165000`
 
 Acceptance
 ----------

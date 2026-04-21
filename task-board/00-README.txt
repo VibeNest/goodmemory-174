@@ -142,9 +142,9 @@ Current Sequencing Note
   - `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
   - `reports/quality-gates/phase-26/run-20260420193000/phase-26-quality-gate.json`
 - Phase 27 is now closed as the reference-integration gate and adoption-evidence slice:
-  - deterministic adoption evidence: `reports/eval/fallback/phase-27/run-20260420165836/report.json`
-  - live-memory adoption evidence: `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
-  - quality gate: `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
+  - deterministic adoption evidence: `reports/eval/fallback/phase-27/run-20260421165000/report.json`
+  - live-memory adoption evidence: `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
+  - quality gate: `reports/quality-gates/phase-27/run-20260421172000/phase-27-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
 - Phase 28 is now closed as the canonical local sqlite-vss backend slice:
   - `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`

@@ -3,6 +3,7 @@ import {
   DEFAULT_SQLITE_STORAGE_PATH,
   resolveAssistedExtractorModelConfigFromEnv,
   resolveEmbeddingModelConfigFromEnv,
+  resolveGoodMemoryRuntimeResolution,
   resolveStoragePlan,
 } from "../../src/api/runtimeResolution";
 
@@ -176,6 +177,28 @@ describe("runtime resolution", () => {
 
   it("exports the canonical default sqlite path constant", () => {
     expect(DEFAULT_SQLITE_STORAGE_PATH).toBe(".goodmemory/memory.sqlite");
+  });
+
+  it("derives the shared public default runtime contract from the same resolver used by createGoodMemory", () => {
+    expect(
+      resolveGoodMemoryRuntimeResolution({
+        config: {},
+        cwd: "/workspace/project",
+        env: {},
+      }),
+    ).toEqual({
+      assistedExtractionEnabled: false,
+      assistedExtractorModelConfig: null,
+      embeddingEnabled: false,
+      embeddingModelConfig: null,
+      explicitAdaptersConfigured: false,
+      explicitStorageConfigured: false,
+      storagePlan: {
+        mode: "auto",
+        postgresUrl: undefined,
+        sqliteUrl: "/workspace/project/.goodmemory/memory.sqlite",
+      },
+    });
   });
 
   it("returns null when embedding env vars are absent", () => {

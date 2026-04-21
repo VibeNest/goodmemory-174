@@ -46,6 +46,34 @@ const CANONICAL_DETERMINISTIC_REPORT_PATH = resolvePhase27CanonicalDeterministic
 );
 const CANONICAL_LIVE_REPORT_PATH = resolvePhase27CanonicalLiveReportPath(ROOT);
 
+function buildAcceptedCanonicalDeterministicReport(
+  metrics: Record<string, unknown> = {
+    publicSurfacePurity: { passed: true },
+    referenceSetup: { passed: true },
+  },
+): string {
+  return JSON.stringify({
+    metrics,
+    mode: "fallback",
+    runId: "run-20260421165000",
+    summary: {
+      accepted: true,
+      totalScenarioCases: 13,
+    },
+  });
+}
+
+function buildAcceptedCanonicalLiveReport(): string {
+  return JSON.stringify({
+    mode: "live-memory",
+    runId: "run-20260421170500",
+    summary: {
+      accepted: true,
+      totalScenarioCases: 4,
+    },
+  });
+}
+
 describe("run-phase-27 gate script", () => {
   it("resolves the phase-27 gate output directory", () => {
     expect(resolvePhase27GateOutputDir("/tmp/goodmemory")).toBe(
@@ -111,10 +139,10 @@ describe("run-phase-27 gate script", () => {
       summary: { accepted: boolean; totalScenarioCases: number };
     };
 
-    expect(deterministicReport.runId).toBe("run-20260420165836");
+    expect(deterministicReport.runId).toBe("run-20260421165000");
     expect(deterministicReport.summary.accepted).toBe(true);
     expect(deterministicReport.summary.totalScenarioCases).toBe(13);
-    expect(liveReport.runId).toBe("run-20260420175513");
+    expect(liveReport.runId).toBe("run-20260421170500");
     expect(liveReport.summary.accepted).toBe(true);
     expect(liveReport.summary.totalScenarioCases).toBe(4);
     expect(buildPhase27GateScope().inScope).toContain(
@@ -137,10 +165,10 @@ describe("run-phase-27 gate script", () => {
         now: () => "2026-04-20T18:10:00.000Z",
         readTextFile: async (path) => {
           if (path === CANONICAL_DETERMINISTIC_REPORT_PATH) {
-            return readFile(path, "utf8");
+            return buildAcceptedCanonicalDeterministicReport();
           }
           if (path === CANONICAL_LIVE_REPORT_PATH) {
-            return readFile(path, "utf8");
+            return buildAcceptedCanonicalLiveReport();
           }
           throw new Error(`Unexpected read: ${path}`);
         },
@@ -172,7 +200,7 @@ describe("run-phase-27 gate script", () => {
       now: () => "2026-04-20T18:10:00.000Z",
       readTextFile: async (path) => {
         if (path === CANONICAL_DETERMINISTIC_REPORT_PATH) {
-          return readFile(path, "utf8");
+          return buildAcceptedCanonicalDeterministicReport();
         }
         throw new Error("ENOENT");
       },
@@ -190,6 +218,32 @@ describe("run-phase-27 gate script", () => {
     expect(report.commands).toEqual([]);
   });
 
+  it("blocks when the canonical fallback artifact lacks explicit setup and purity metrics", async () => {
+    const report = await runPhase27QualityGate(undefined, {
+      now: () => "2026-04-20T18:10:00.000Z",
+      readTextFile: async (path) => {
+        if (path === CANONICAL_DETERMINISTIC_REPORT_PATH) {
+          return buildAcceptedCanonicalDeterministicReport({});
+        }
+        if (path === CANONICAL_LIVE_REPORT_PATH) {
+          return buildAcceptedCanonicalLiveReport();
+        }
+        throw new Error(`Unexpected read: ${path}`);
+      },
+      runCommand: async () => ({
+        durationMs: 10,
+        exitCode: 0,
+        stderr: "",
+        stdout: "ok",
+      }),
+      writeTextFile: async () => {},
+    });
+
+    expect(report.acceptance.decision).toBe("blocked");
+    expect(report.acceptance.reason).toContain("referenceSetup");
+    expect(report.commands).toEqual([]);
+  });
+
   it("blocks when a required command fails", async () => {
     const report = await runPhase27QualityGate(
       {
@@ -201,10 +255,10 @@ describe("run-phase-27 gate script", () => {
         now: () => "2026-04-20T18:10:00.000Z",
         readTextFile: async (path) => {
           if (path === CANONICAL_DETERMINISTIC_REPORT_PATH) {
-            return readFile(path, "utf8");
+            return buildAcceptedCanonicalDeterministicReport();
           }
           if (path === CANONICAL_LIVE_REPORT_PATH) {
-            return readFile(path, "utf8");
+            return buildAcceptedCanonicalLiveReport();
           }
           throw new Error(`Unexpected read: ${path}`);
         },

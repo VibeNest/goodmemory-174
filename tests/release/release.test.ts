@@ -753,21 +753,21 @@ describe("release metadata and docs", () => {
       docPath,
       phaseDirectory: "phase-27",
       reportFileName: "phase-27-quality-gate.json",
-      runId: "run-20260421011515",
+      runId: "run-20260421172000",
     });
 
     expect(qualityGateDoc).toContain(
-      "reports/eval/fallback/phase-27/run-20260420165836/report.json",
+      "reports/eval/fallback/phase-27/run-20260421165000/report.json",
     );
     expect(qualityGateDoc).toContain(
-      "reports/eval/live-memory/phase-27/run-20260420175513/report.json",
+      "reports/eval/live-memory/phase-27/run-20260421170500/report.json",
     );
 
     await expectGitTrackedRepoArtifact(
-      "reports/eval/fallback/phase-27/run-20260420165836/report.json",
+      "reports/eval/fallback/phase-27/run-20260421165000/report.json",
     );
     await expectGitTrackedRepoArtifact(
-      "reports/eval/live-memory/phase-27/run-20260420175513/report.json",
+      "reports/eval/live-memory/phase-27/run-20260421170500/report.json",
     );
   });
 

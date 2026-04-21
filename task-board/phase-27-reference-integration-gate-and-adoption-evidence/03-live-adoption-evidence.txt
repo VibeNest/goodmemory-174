@@ -33,17 +33,17 @@ Implemented
 - `tests/unit/run-phase-27.script.test.ts`
 - `package.json`
 - `tests/release/release.test.ts`
-- `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+- `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
 
 Regression run
 --------------
 - `bun run typecheck`
 - `bun test tests/unit/run-phase-27.script.test.ts tests/release/release.test.ts`
-- `bun run eval:phase-27-live-memory --run-id=run-20260420175513`
+- `bun run eval:phase-27-live-memory --run-id=run-20260421170500`
 
 Canonical Live Evidence
 -----------------------
-- `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+- `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
 - Scope:
   - continuation/open-loop: 2 cases
   - repeated-correction: 2 cases
