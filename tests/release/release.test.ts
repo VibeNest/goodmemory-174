@@ -857,6 +857,8 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("bun pm pack");
     expect(workflow).toContain("actions/upload-artifact@v4");
     expect(workflow).toContain("softprops/action-gh-release@v2");
+    expect(workflow).toContain("prerelease: true");
+    expect(workflow).toContain("make_latest: false");
     expect(workflow).toContain("NPM_TOKEN");
     expect(workflow).toContain("bun publish --tag rc --access public");
   });
