@@ -318,6 +318,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-25"]).toBe("bun run scripts/run-phase-25-gate.ts");
     expect(pkg.scripts?.["gate:phase-26"]).toBe("bun run scripts/run-phase-26-gate.ts");
     expect(pkg.scripts?.["gate:phase-27"]).toBe("bun run scripts/run-phase-27-gate.ts");
+    expect(pkg.scripts?.["gate:phase-28"]).toBe("bun run scripts/run-phase-28-gate.ts");
     expect(pkg.scripts?.["eval:full"]).toBeUndefined();
   });
 
@@ -335,6 +336,17 @@ describe("release metadata and docs", () => {
 
       await access(join(import.meta.dir, "../../", target));
     }
+  });
+
+  it("phase-28 sqlite-vss integration test uses portable runtime detection", async () => {
+    const content = await readFile(
+      join(import.meta.dir, "../../tests/integration/storage.sqlite-vss.test.ts"),
+      "utf8",
+    );
+
+    expect(content).toContain("detectBundledSQLiteVssRuntime");
+    expect(content).not.toContain("/Users/hjqcan/Documents/GoodMomery");
+    expect(content).not.toContain("node_modules/sqlite-vss-darwin-arm64");
   });
 
   it("root exports stay aligned with the declared public surface", async () => {
@@ -633,6 +645,7 @@ describe("release metadata and docs", () => {
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-23-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-25-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-26-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-28-Quality-Gate.md");
     expect(archivedQualityGates).toContain("README.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
@@ -645,6 +658,7 @@ describe("release metadata and docs", () => {
     expect(archivedQualityGates).toContain("GoodMemory-Phase-23-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-25-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-26-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-28-Quality-Gate.md");
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
@@ -716,6 +730,15 @@ describe("release metadata and docs", () => {
       phaseDirectory: "phase-26",
       reportFileName: "phase-26-quality-gate.json",
       runId: "run-20260420193000",
+    });
+  });
+
+  it("phase-28 quality gate doc points to one canonical accepted report", async () => {
+    await expectCanonicalAcceptedQualityGate({
+      docPath: `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-28-Quality-Gate.md`,
+      phaseDirectory: "phase-28",
+      reportFileName: "phase-28-quality-gate.json",
+      runId: "run-20260421093000",
     });
   });
 

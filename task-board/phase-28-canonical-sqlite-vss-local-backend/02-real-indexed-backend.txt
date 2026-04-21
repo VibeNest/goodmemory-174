@@ -1,9 +1,9 @@
 Phase 28.2: Real Indexed Backend
 ================================
 
-[TODO] P28.2-T001 Add failing coverage for real `sqlite-vss` indexed storage/search behavior
-[TODO] P28.2-T002 Implement the canonical accelerated local backend on top of `sqlite-vss`
-[TODO] P28.2-T003 Preserve the accepted durable fallback path when accelerated mode is unavailable
+[DONE] P28.2-T001 Add failing coverage for real `sqlite-vss` indexed storage/search behavior
+[DONE] P28.2-T002 Implement the canonical accelerated local backend on top of `sqlite-vss`
+[DONE] P28.2-T003 Preserve the accepted durable fallback path when accelerated mode is unavailable
 
 Why this exists
 ---------------
@@ -27,3 +27,6 @@ Current implementation notes
 - Keep the current durable vectors table only if it still serves the fallback path or migration story cleanly
 - Do not delete the Phase 26 fallback path until the accelerated path is proven and regression-covered
 - Prefer an implementation that keeps the accelerated path and fallback path explicit in code, not mixed behind opaque branching
+- The accepted indexed backend is now locked by:
+  - `tests/integration/storage.sqlite-vss.test.ts`
+  - `src/storage/sqlite.ts`

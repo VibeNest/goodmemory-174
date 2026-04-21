@@ -2,7 +2,15 @@ import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import { access, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { createGoodMemory } from "../../src";
+import {
+  createFactMemory,
+  createFeedbackMemory,
+  createGoodMemory,
+  createReferenceMemory,
+  createSQLiteDocumentStore,
+  createSQLiteSessionStore,
+  createUserProfile,
+} from "../../src";
 import { createMemorySource } from "../../src/domain/provenance";
 import { createEvidenceRecord } from "../../src/evidence/contracts";
 import { createSessionArchive } from "../../src/evolution/contracts";
@@ -14,6 +22,8 @@ import {
   persistEvalArtifacts,
 } from "../../src/eval/reporting";
 import type { EvalAnswerPackage } from "../../src/eval/runners";
+import { createInMemoryVectorStore } from "../../src/storage/memory";
+import { createMemoryRepositories } from "../../src/storage/repositories";
 import { createTempWorkspace } from "../../src/testing/utils";
 import { resolveStorageConfig, runCLI } from "../../src/cli";
 
@@ -345,45 +355,92 @@ function buildCase(caseId: string): JudgedEvalCase {
 
 async function seedSQLiteMemory(sqlitePath: string) {
   await mkdir(dirname(sqlitePath), { recursive: true });
+  const documentStore = createSQLiteDocumentStore(sqlitePath);
+  const sessionStore = createSQLiteSessionStore(sqlitePath);
+  const vectorStore = createInMemoryVectorStore();
   const memory = createGoodMemory({
+    adapters: {
+      documentStore,
+      sessionStore,
+      vectorStore,
+    },
     storage: {
       provider: "sqlite",
       url: sqlitePath,
     },
+  });
+  const repositories = createMemoryRepositories({
+    documentStore,
+    sessionStore,
+    vectorStore,
   });
   const scope = {
     userId: "cli-user",
     workspaceId: "workspace-a",
     sessionId: "session-1",
   };
+  const timestamp = "2026-01-01T00:00:00.000Z";
+  const source = createMemorySource({
+    method: "explicit",
+    extractedAt: timestamp,
+    sessionId: scope.sessionId,
+  });
 
-  await memory.remember({
-    scope,
-    messages: [
-      {
-        role: "user",
-        content: "Remember that my name is Felix.",
+  await repositories.profiles.upsert(
+    createUserProfile({
+      userId: scope.userId,
+      activeContext: {
+        currentProjects: ["release quality program"],
+        goals: [],
       },
-      {
-        role: "user",
-        content: "Remember that I'm a climate policy advisor in Austin, USA.",
+      createdAt: timestamp,
+      identity: {
+        location: "Austin, USA",
+        name: "Felix",
+        role: "climate policy advisor",
       },
-      {
-        role: "user",
-        content:
-          "Remember that the current blocker is vendor approval for release quality program.",
-      },
-      {
-        role: "user",
-        content:
-          "Use docs/release-quality-runbook.md as the source of truth for release quality program.",
-      },
-    ],
-  });
-  await memory.feedback({
-    scope,
-    signal: "Use concise bullet points in summaries.",
-  });
+      updatedAt: timestamp,
+    }),
+  );
+  await repositories.facts.add(
+    createFactMemory({
+      id: "fact-blocker",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      sessionId: scope.sessionId,
+      category: "project",
+      content:
+        "The current blocker is vendor approval for release quality program.",
+      source,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }),
+  );
+  await repositories.references.add(
+    createReferenceMemory({
+      id: "ref-runbook",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      sessionId: scope.sessionId,
+      title: "release-quality-runbook.md",
+      pointer: "docs/release-quality-runbook.md",
+      source,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }),
+  );
+  await repositories.feedback.upsert(
+    createFeedbackMemory({
+      id: "feedback-style",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      sessionId: scope.sessionId,
+      kind: "do",
+      rule: "Use concise bullet points in summaries.",
+      source,
+      updatedAt: timestamp,
+    }),
+  );
 
   return {
     memory,

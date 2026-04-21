@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { Buffer } from "node:buffer";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type {
@@ -24,9 +25,11 @@ import {
   DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
   applySQLiteCustomLibrary,
   loadSQLiteVectorExtension,
-  resolveSQLiteCustomLibraryConfig,
-  resolveSQLiteVectorExtensionConfig,
+  resolveSQLiteRuntimeResolution,
+  type SQLiteExtensionLoadResult,
   type SQLiteCustomLibraryConfig,
+  type SQLiteRuntimeDiagnostics,
+  type SQLiteRuntimeResolution,
   type SQLiteVectorExtensionConfig,
 } from "./sqliteRuntime";
 
@@ -55,8 +58,30 @@ interface SQLiteVectorSearchRow extends VectorRow {
   score: number;
 }
 
+interface SQLiteVectorIdentityRow {
+  embedding_json: string;
+  rowid: number;
+}
+
+interface SQLiteVectorIndexStateRow {
+  dirty: number;
+}
+
+interface SQLiteVectorRowWithRowId extends VectorRow {
+  rowid: number;
+}
+
+interface SQLiteVssSearchRow {
+  distance: number;
+  rowid: number;
+}
+
 interface SQLiteVectorStoreDependencies {
-  loadVectorExtension?: typeof loadSQLiteVectorExtension;
+  loadVectorExtension?: (
+    config: SQLiteVectorExtensionConfig,
+    loader: Database,
+  ) => SQLiteExtensionLoadResult | void;
+  runtimeResolution?: SQLiteRuntimeResolution;
   vectorExtensionConfig?: SQLiteVectorExtensionConfig;
   runExtensionSearch?: (input: {
     collection: string;
@@ -69,23 +94,26 @@ interface SQLiteVectorStoreDependencies {
 }
 
 let sqliteCustomLibraryConfig: SQLiteCustomLibraryConfig | null = null;
-let sqliteVectorExtensionConfig: SQLiteVectorExtensionConfig | null = null;
+let sqliteRuntimeResolution: SQLiteRuntimeResolution | null = null;
 
 function ensureSQLiteCustomLibraryConfigured(): SQLiteCustomLibraryConfig {
   if (!sqliteCustomLibraryConfig) {
-    sqliteCustomLibraryConfig = resolveSQLiteCustomLibraryConfig();
+    const runtimeResolution = ensureSQLiteRuntimeResolution();
+    sqliteCustomLibraryConfig = {
+      customLibraryPath: runtimeResolution.config.customLibraryPath,
+    };
     applySQLiteCustomLibrary(sqliteCustomLibraryConfig, Database);
   }
 
   return sqliteCustomLibraryConfig;
 }
 
-function ensureSQLiteVectorExtensionConfigured(): SQLiteVectorExtensionConfig {
-  if (!sqliteVectorExtensionConfig) {
-    sqliteVectorExtensionConfig = resolveSQLiteVectorExtensionConfig();
+function ensureSQLiteRuntimeResolution(): SQLiteRuntimeResolution {
+  if (!sqliteRuntimeResolution) {
+    sqliteRuntimeResolution = resolveSQLiteRuntimeResolution();
   }
 
-  return sqliteVectorExtensionConfig;
+  return sqliteRuntimeResolution;
 }
 
 function ensureParentDirectory(path: string, options?: SQLiteStoreOptions): void {
@@ -150,6 +178,13 @@ function ensureVectorSchema(database: Database): void {
       metadata_json TEXT NOT NULL,
       content TEXT NOT NULL,
       PRIMARY KEY (collection, id)
+    );
+
+    CREATE TABLE IF NOT EXISTS vector_index_state (
+      table_name TEXT PRIMARY KEY,
+      collection TEXT NOT NULL,
+      dimension INTEGER NOT NULL,
+      dirty INTEGER NOT NULL
     );
   `);
 }
@@ -225,6 +260,48 @@ function createSQLiteJsonFilterClause(input: {
           AND ${alias}.type = 'text'
           AND ${alias}.atom = ?${valueParameterIndex}
       )`;
+}
+
+function quoteSQLiteIdentifier(identifier: string): string {
+  return `"${identifier.replaceAll("\"", "\"\"")}"`;
+}
+
+function encodeSQLiteVssCollectionName(collection: string): string {
+  if (/^[A-Za-z0-9]+$/.test(collection)) {
+    return collection;
+  }
+
+  return `x_${Buffer.from(collection, "utf8").toString("hex")}`;
+}
+
+function createSQLiteVssTableName(collection: string, dimension: number): string {
+  return `vss_vectors_${encodeSQLiteVssCollectionName(collection)}_dim_${dimension}`;
+}
+
+function executeSQLiteVssDelete(
+  database: Database,
+  tableName: string,
+  rowid: number,
+): void {
+  database
+    .query(`DELETE FROM ${quoteSQLiteIdentifier(tableName)} WHERE rowid = ?1`)
+    .run(rowid);
+}
+
+function executeSQLiteVssUpsert(input: {
+  database: Database;
+  embeddingJson: string;
+  rowid: number;
+  tableName: string;
+}): void {
+  const { database, embeddingJson, rowid, tableName } = input;
+  executeSQLiteVssDelete(database, tableName, rowid);
+  database
+    .query(
+      `INSERT INTO ${quoteSQLiteIdentifier(tableName)} (rowid, embedding)
+       VALUES (?1, json(?2))`,
+    )
+    .run(rowid, embeddingJson);
 }
 
 function searchSQLiteVectorsWithExtension(input: {
@@ -474,17 +551,25 @@ export function createSQLiteVectorStore(
   options?: SQLiteStoreOptions,
   dependencies?: SQLiteVectorStoreDependencies,
 ): VectorStore {
+  const runtimeResolution =
+    dependencies?.runtimeResolution ?? ensureSQLiteRuntimeResolution();
   const vectorExtensionConfig =
-    dependencies?.vectorExtensionConfig ?? ensureSQLiteVectorExtensionConfigured();
+    dependencies?.vectorExtensionConfig ?? runtimeResolution.config.vectorExtension;
+  const runtimeDiagnostics: SQLiteRuntimeDiagnostics =
+    dependencies?.runtimeResolution?.diagnostics ?? runtimeResolution.diagnostics;
   const database = createDatabase(path, options);
   if (!options?.readOnly) {
     ensureVectorSchema(database);
   }
-  (dependencies?.loadVectorExtension ?? loadSQLiteVectorExtension)(
-    vectorExtensionConfig,
-    database,
-  );
+  if (runtimeDiagnostics.requestedMode === "require" && !runtimeDiagnostics.available) {
+    throw new Error(
+      runtimeDiagnostics.reason ??
+        "SQLite vector acceleration is required but no supported runtime is available.",
+    );
+  }
   const hasVectorTable = !options?.readOnly || hasTable(database, "vectors");
+  const vssTables = new Set<string>();
+  let extensionLoadResult: SQLiteExtensionLoadResult | null = null;
 
   const upsertStatement = options?.readOnly
     ? null
@@ -515,11 +600,301 @@ export function createSQLiteVectorStore(
          WHERE collection = ?1`,
       )
     : null;
+  const listWithRowIdStatement = hasVectorTable
+    ? database.query<SQLiteVectorRowWithRowId, [string]>(
+        `SELECT rowid, id, embedding_json, metadata_json, content
+         FROM vectors
+         WHERE collection = ?1`,
+      )
+    : null;
+  const rowIdentityStatement = hasVectorTable
+    ? database.query<SQLiteVectorIdentityRow, [string, string]>(
+        `SELECT rowid, embedding_json
+         FROM vectors
+         WHERE collection = ?1 AND id = ?2`,
+      )
+    : null;
+  const rowByRowIdStatement = hasVectorTable
+    ? database.query<
+        VectorRow & { rowid: number },
+        [string, number]
+      >(
+        `SELECT rowid, id, embedding_json, metadata_json, content
+         FROM vectors
+         WHERE collection = ?1 AND rowid = ?2`,
+      )
+    : null;
   const deleteStatement = options?.readOnly
     ? null
     : database.query(
         `DELETE FROM vectors WHERE collection = ?1 AND id = ?2`,
       );
+  const hasIndexStateTable =
+    !options?.readOnly || hasTable(database, "vector_index_state");
+  const getIndexStateStatement = hasIndexStateTable
+    ? database.query<SQLiteVectorIndexStateRow, [string]>(
+        `SELECT dirty
+         FROM vector_index_state
+         WHERE table_name = ?1`,
+      )
+    : null;
+  const markIndexDirtyStatement = options?.readOnly
+    ? null
+    : database.query(
+        `INSERT INTO vector_index_state (table_name, collection, dimension, dirty)
+         VALUES (?1, ?2, ?3, 1)
+         ON CONFLICT(table_name) DO UPDATE SET
+           collection = excluded.collection,
+           dimension = excluded.dimension,
+           dirty = 1`,
+      );
+  const markIndexCleanStatement = options?.readOnly
+    ? null
+    : database.query(
+        `INSERT INTO vector_index_state (table_name, collection, dimension, dirty)
+         VALUES (?1, ?2, ?3, 0)
+         ON CONFLICT(table_name) DO UPDATE SET
+           collection = excluded.collection,
+           dimension = excluded.dimension,
+           dirty = 0`,
+      );
+
+  function ensureVectorExtensionLoaded(): SQLiteExtensionLoadResult {
+    if (extensionLoadResult) {
+      return extensionLoadResult;
+    }
+
+    const rawResult = (
+      dependencies?.loadVectorExtension ?? loadSQLiteVectorExtension
+    )(
+      vectorExtensionConfig,
+      database,
+    );
+    extensionLoadResult =
+      rawResult &&
+      typeof rawResult === "object" &&
+      "loaded" in rawResult
+        ? rawResult
+        : {
+            loaded:
+              vectorExtensionConfig.mode !== "off" &&
+              Boolean(vectorExtensionConfig.paths?.length),
+          };
+
+    return extensionLoadResult;
+  }
+
+  function hasAcceleratedSQLiteVss(): boolean {
+    return (
+      vectorExtensionConfig.backend === "sqlite-vss" &&
+      ensureVectorExtensionLoaded().loaded
+    );
+  }
+
+  function markSQLiteVssIndexDirty(
+    collection: string,
+    dimension: number,
+  ): void {
+    const tableName = createSQLiteVssTableName(collection, dimension);
+    markIndexDirtyStatement!.run(tableName, collection, dimension);
+  }
+
+  function markSQLiteVssIndexClean(input: {
+    collection: string;
+    dimension: number;
+    tableName: string;
+  }): void {
+    markIndexCleanStatement!.run(
+      input.tableName,
+      input.collection,
+      input.dimension,
+    );
+  }
+
+  function shouldSynchronizeSQLiteVssTable(input: {
+    existed: boolean;
+    tableName: string;
+  }): boolean {
+    if (!input.existed) {
+      return true;
+    }
+
+    const state = getIndexStateStatement!.get(input.tableName);
+    return !state || state.dirty !== 0;
+  }
+
+  function canUseReadOnlySQLiteVssTable(tableName: string): boolean {
+    const state = getIndexStateStatement?.get(tableName);
+    return state?.dirty === 0;
+  }
+
+  function synchronizeSQLiteVssTable(
+    collection: string,
+    dimension: number,
+    tableName: string,
+  ): void {
+    const durableRows = listWithRowIdStatement!.all(collection).filter((row) => {
+      const embedding = parseJson<number[]>(row.embedding_json);
+      return embedding.length === dimension;
+    });
+    const durableRowIds = new Set(durableRows.map((row) => row.rowid));
+    const indexedRows = database
+      .query<{ rowid: number }, []>(
+        `SELECT rowid FROM ${quoteSQLiteIdentifier(tableName)}`,
+      )
+      .all();
+
+    for (const row of indexedRows) {
+      if (!durableRowIds.has(row.rowid)) {
+        executeSQLiteVssDelete(database, tableName, row.rowid);
+      }
+    }
+
+    for (const row of durableRows) {
+      executeSQLiteVssUpsert({
+        database,
+        embeddingJson: row.embedding_json,
+        rowid: row.rowid,
+        tableName,
+      });
+    }
+
+    markSQLiteVssIndexClean({
+      collection,
+      dimension,
+      tableName,
+    });
+  }
+
+  function ensureSQLiteVssTable(
+    collection: string,
+    dimension: number,
+  ): string | null {
+    if (!hasAcceleratedSQLiteVss()) {
+      return null;
+    }
+
+    const tableName = createSQLiteVssTableName(collection, dimension);
+    if (vssTables.has(tableName)) {
+      if (options?.readOnly) {
+        if (!canUseReadOnlySQLiteVssTable(tableName)) {
+          vssTables.delete(tableName);
+          return null;
+        }
+        return tableName;
+      }
+
+      if (
+        shouldSynchronizeSQLiteVssTable({
+          existed: true,
+          tableName,
+        })
+      ) {
+        synchronizeSQLiteVssTable(collection, dimension, tableName);
+      }
+      return tableName;
+    }
+
+    if (options?.readOnly) {
+      if (!hasTable(database, tableName)) {
+        return null;
+      }
+      if (!canUseReadOnlySQLiteVssTable(tableName)) {
+        return null;
+      }
+      vssTables.add(tableName);
+      return tableName;
+    }
+
+    const existed = hasTable(database, tableName);
+    database.exec(
+      `CREATE VIRTUAL TABLE IF NOT EXISTS ${quoteSQLiteIdentifier(tableName)}
+       USING vss0(embedding(${dimension}))`,
+    );
+    if (
+      shouldSynchronizeSQLiteVssTable({
+        existed,
+        tableName,
+      })
+    ) {
+      synchronizeSQLiteVssTable(collection, dimension, tableName);
+    }
+    vssTables.add(tableName);
+    return tableName;
+  }
+
+  function searchSQLiteVectorsWithVss(input: {
+    collection: string;
+    filter?: Record<string, unknown>;
+    queryEmbedding: number[];
+    topK: number;
+  }): VectorSearchResult[] | null {
+    const { collection, filter, queryEmbedding, topK } = input;
+    const dimension = queryEmbedding.length;
+    const tableName = ensureSQLiteVssTable(collection, dimension);
+
+    if (!tableName) {
+      return null;
+    }
+
+    const totalRows = listStatement!.all(collection).filter((row) => {
+      const embedding = parseJson<number[]>(row.embedding_json);
+      return embedding.length === dimension;
+    }).length;
+    if (totalRows === 0) {
+      return [];
+    }
+
+    const queryJson = JSON.stringify(queryEmbedding);
+    let candidateLimit = Math.min(
+      totalRows,
+      Math.max(topK, filter ? topK * 4 : topK),
+    );
+
+    while (candidateLimit > 0) {
+      const candidateRows = database
+        .query<SQLiteVssSearchRow, [string, number]>(
+          `SELECT rowid, distance
+           FROM ${quoteSQLiteIdentifier(tableName)}
+           WHERE vss_search(embedding, vss_search_params(json(?1), ?2))`,
+        )
+        .all(queryJson, candidateLimit);
+
+      const matches: VectorSearchResult[] = [];
+      for (const candidate of candidateRows) {
+        const row = rowByRowIdStatement!.get(collection, candidate.rowid);
+        if (!row) {
+          continue;
+        }
+
+        const embedding = parseJson<number[]>(row.embedding_json);
+        const metadata = parseJson<Record<string, unknown>>(row.metadata_json);
+        if (!matchesFilter(metadata, filter)) {
+          continue;
+        }
+
+        matches.push({
+          id: row.id,
+          embedding,
+          metadata,
+          content: row.content,
+          score: 1 / (1 + Number(candidate.distance)),
+        });
+      }
+
+      if (
+        !filter ||
+        matches.length >= topK ||
+        candidateLimit >= totalRows
+      ) {
+        return matches.slice(0, topK);
+      }
+
+      candidateLimit = Math.min(totalRows, candidateLimit * 2);
+    }
+
+    return [];
+  }
 
   return {
     async upsert(collection, records) {
@@ -527,15 +902,76 @@ export function createSQLiteVectorStore(
         throw createReadOnlyMutationError("vector");
       }
 
-      for (const record of records) {
-        upsertStatement!.run(
-          collection,
-          record.id,
-          JSON.stringify(record.embedding),
-          JSON.stringify(record.metadata),
-          record.content,
-        );
-      }
+      const transaction = database.transaction((batched: VectorRecord[]) => {
+        const acceleratedSQLiteVss = hasAcceleratedSQLiteVss();
+        for (const record of batched) {
+          const previousIdentity = rowIdentityStatement!.get(collection, record.id);
+          const previousDimension = previousIdentity
+            ? parseJson<number[]>(previousIdentity.embedding_json).length
+            : null;
+          const nextEmbeddingJson = JSON.stringify(record.embedding);
+
+          upsertStatement!.run(
+            collection,
+            record.id,
+            nextEmbeddingJson,
+            JSON.stringify(record.metadata),
+            record.content,
+          );
+
+          if (!acceleratedSQLiteVss) {
+            if (
+              previousIdentity &&
+              previousDimension !== null &&
+              previousDimension !== record.embedding.length
+            ) {
+              markSQLiteVssIndexDirty(collection, previousDimension);
+            }
+            markSQLiteVssIndexDirty(collection, record.embedding.length);
+            continue;
+          }
+
+          const nextIdentity = rowIdentityStatement!.get(collection, record.id);
+          if (!nextIdentity) {
+            continue;
+          }
+
+          if (
+            previousIdentity &&
+            previousDimension !== null &&
+            previousDimension !== record.embedding.length
+          ) {
+            const previousTable = ensureSQLiteVssTable(
+              collection,
+              previousDimension,
+            );
+            if (previousTable) {
+              executeSQLiteVssDelete(
+                database,
+                previousTable,
+                previousIdentity.rowid,
+              );
+            }
+          }
+
+          const nextTable = ensureSQLiteVssTable(
+            collection,
+            record.embedding.length,
+          );
+          if (!nextTable) {
+            continue;
+          }
+
+          executeSQLiteVssUpsert({
+            database,
+            embeddingJson: nextEmbeddingJson,
+            rowid: nextIdentity.rowid,
+            tableName: nextTable,
+          });
+        }
+      });
+
+      transaction(records);
     },
 
     async get(collection, id) {
@@ -565,18 +1001,31 @@ export function createSQLiteVectorStore(
         return [];
       }
 
-      if (vectorExtensionConfig.mode !== "off" && vectorExtensionConfig.paths?.length) {
+      if (
+        vectorExtensionConfig.mode !== "off" &&
+        vectorExtensionConfig.paths?.length &&
+        ensureVectorExtensionLoaded().loaded
+      ) {
         try {
-          const extensionResults = (
-            dependencies?.runExtensionSearch ?? searchSQLiteVectorsWithExtension
-          )({
-            collection,
-            config: vectorExtensionConfig,
-            database,
-            filter: input.filter,
-            queryEmbedding,
-            topK: input.topK,
-          });
+          const extensionResults =
+            vectorExtensionConfig.backend === "sqlite-vss"
+              ? searchSQLiteVectorsWithVss({
+                  collection,
+                  filter: input.filter,
+                  queryEmbedding,
+                  topK: input.topK,
+                })
+              : (
+                  dependencies?.runExtensionSearch ??
+                  searchSQLiteVectorsWithExtension
+                )({
+                  collection,
+                  config: vectorExtensionConfig,
+                  database,
+                  filter: input.filter,
+                  queryEmbedding,
+                  topK: input.topK,
+                });
 
           if (extensionResults !== null) {
             return extensionResults;
@@ -626,7 +1075,32 @@ export function createSQLiteVectorStore(
         throw createReadOnlyMutationError("vector");
       }
 
-      deleteStatement!.run(collection, id);
+      const transaction = database.transaction(() => {
+        const current = rowIdentityStatement!.get(collection, id);
+        const acceleratedSQLiteVss = hasAcceleratedSQLiteVss();
+        if (
+          current &&
+          acceleratedSQLiteVss
+        ) {
+          const dimension = parseJson<number[]>(current.embedding_json).length;
+          const tableName = ensureSQLiteVssTable(collection, dimension);
+          if (tableName) {
+            executeSQLiteVssDelete(database, tableName, current.rowid);
+          }
+        }
+
+        if (
+          current &&
+          !acceleratedSQLiteVss
+        ) {
+          const dimension = parseJson<number[]>(current.embedding_json).length;
+          markSQLiteVssIndexDirty(collection, dimension);
+        }
+
+        deleteStatement!.run(collection, id);
+      });
+
+      transaction();
     },
   };
 }

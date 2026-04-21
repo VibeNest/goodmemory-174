@@ -1,9 +1,9 @@
 Phase 28.4: Regressions and Closure
 ===================================
 
-[TODO] P28.4-T001 Add end-to-end regressions for accelerated local mode, fallback mode, and rules-only mode
-[TODO] P28.4-T002 Add `gate:phase-28` and a matching unit test
-[TODO] P28.4-T003 Archive the canonical Phase 28 quality-gate evidence and sync task-board/current-status docs
+[DONE] P28.4-T001 Add end-to-end regressions for accelerated local mode, fallback mode, and rules-only mode
+[DONE] P28.4-T002 Add `gate:phase-28` and a matching unit test
+[DONE] P28.4-T003 Archive the canonical Phase 28 quality-gate evidence and sync task-board/current-status docs
 
 Why this exists
 ---------------
@@ -26,3 +26,8 @@ Current implementation notes
 ----------------------------
 - Reuse the repo’s dedicated-gate pattern: gate script, unit test, real run, archived summary, then board/doc sync
 - Do not call Phase 28 done if only the fallback path is green
+- Canonical accepted run:
+  - `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`
+  - `reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json`
+  - `tests/unit/run-phase-28.script.test.ts`
+  - `tests/release/release.test.ts`

@@ -1,9 +1,9 @@
 Phase 28.1: Runtime Contract and Boundary
 =========================================
 
-[TODO] P28.1-T001 Write the canonical accelerated-vs-fallback-vs-rules-only contract
-[TODO] P28.1-T002 Add failing resolver/runtime coverage for supported accelerated mode and explicit fallback diagnostics
-[TODO] P28.1-T003 Lock the non-goals so Phase 28 does not widen into local embedding generation or installer work
+[DONE] P28.1-T001 Write the canonical accelerated-vs-fallback-vs-rules-only contract
+[DONE] P28.1-T002 Add failing resolver/runtime coverage for supported accelerated mode and explicit fallback diagnostics
+[DONE] P28.1-T003 Lock the non-goals so Phase 28 does not widen into local embedding generation or installer work
 
 Why this exists
 ---------------
@@ -29,3 +29,6 @@ Current implementation notes
 - Do not reopen the accepted Phase 26 statement that durable local vectors are already real
 - Phase 28 should only promote the stronger accelerated claim when the runtime proof is real
 - If diagnostics need a public surface addition, keep it narrow and release-facing only
+- The accepted runtime contract is now locked by:
+  - `tests/unit/sqlite.runtime.test.ts`
+  - `src/storage/sqliteRuntime.ts`

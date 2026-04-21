@@ -13,25 +13,23 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - `sqlite` is now stable as the default local durable document/session/vector backend for the auto-storage path.
 - `GOODMEMORY_EMBEDDING_*` now controls automatic embedding enablement; when those variables are absent, runtime behavior stays `rules-only`.
 - Local SQLite runtime guardrails are available through `GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH`, `GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH`, and `GOODMEMORY_SQLITE_VECTOR_MODE=off|prefer|require`.
-- Configured SQLite vector extensions can now participate in the search path, but the stable product claim is still “durable local vectors with optional extension-assisted search”, not full `sqlite-vss` indexed acceleration by default.
+- Supported local runtimes can now auto-upgrade the SQLite semantic path to a real `sqlite-vss` indexed backend; unsupported runtimes stay on the accepted durable fallback path and must not claim acceleration.
 - Retrieval rollout controls, promotion gates, salvage hooks, and internal provider-router rollout controls remain implementation detail, not README-level product surface.
 - Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
 - Behavioral adaptation outcome telemetry and deterministic Layer D evidence are also internal evidence infrastructure; they do not change the stable OSS runtime surface.
 
 ## Latest Closed Slice
 
-- Phase 27 is now closed as the reference-integration gate and adoption-evidence slice built on the accepted Phase 26 local-first runtime.
+- Phase 28 is now closed as the canonical local `sqlite-vss` backend slice built on the accepted Phase 26 local-first runtime.
 - Accepted behavior:
-  - canonical AI SDK public path uses `createGoodMemory({})` on the stable auto-storage/local-first runtime
-  - canonical public guides/examples/tests stay on `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
-  - package-boundary consumer smoke proves package-name imports work inside the repo boundary
-  - deterministic adoption evidence proves identity/background, continuation/open-loop, repeated-correction, and Codex handoff outcomes against a frozen no-memory baseline
-  - provider-backed live adoption evidence proves continuation/open-loop plus repeated-correction wins without making host handoff a live-provider blocker
-  - Codex file-assisted handoff/resume is the only gate-blocking host path in this slice; Claude remains docs/example coverage only
-- Still outside the accepted Phase 27 claim:
+  - supported machines can auto-detect bundled `sqlite-vss` assets plus a compatible custom SQLite library and use a real indexed local semantic backend
+  - unsupported machines degrade explicitly to the accepted durable fallback path unless acceleration is required
+  - `GOODMEMORY_SQLITE_VECTOR_MODE=prefer|require` now distinguishes fallback vs fail-fast behavior around accelerated local mode
+  - CLI read-only diagnostics stay lightweight and do not eagerly initialize the accelerated backend when semantic search is not needed
+- Still outside the accepted Phase 28 claim:
+  - bundled local embedding generation
   - installer CLI or package publishing automation
-  - `src/core` / facade-first inward refactors
-  - new memory capabilities beyond the accepted local-first runtime
+  - claiming accelerated local support on unsupported runtimes
 
 ## Current Canonical Evidence
 
@@ -65,6 +63,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic gate: `reports/quality-gates/phase-27/run-20260421011515/phase-27-quality-gate.json`
   - Deterministic adoption eval: `reports/eval/fallback/phase-27/run-20260420165836/report.json`
   - Live-memory adoption eval: `reports/eval/live-memory/phase-27/run-20260420175513/report.json`
+- Canonical local sqlite-vss backend closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`
+  - Deterministic gate: `reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

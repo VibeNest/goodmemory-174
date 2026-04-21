@@ -1,0 +1,70 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 28 real sqlite-vss local acceleration, explicit fallback diagnostics, and Phase 26 compatibility guarantees are regression-covered on a supported runtime."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2599,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-28-targeted-regressions",
+      "command": "bun test tests/unit/sqlite.runtime.test.ts tests/unit/sqlite.vector-extension.search.test.ts tests/unit/run-phase-28.script.test.ts tests/integration/storage.sqlite.test.ts tests/integration/storage.sqlite-vss.test.ts tests/integration/api.auto-storage.test.ts tests/cli/cli.test.ts",
+      "durationMs": 3229,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) goodmemory cli root commands > uses a non-mutating postgres probe for read-only auto storage [0.10ms]",
+        "(pass) goodmemory cli root commands > uses the bootstrap probe for writable auto postgres resolution [0.19ms]",
+        "(pass) goodmemory cli root commands > reports read-only postgres probe failures without bootstrapping durable state [0.14ms]",
+        "(pass) goodmemory cli root commands > fails closed when the read-only postgres probe is inconclusive [0.05ms]",
+        "(pass) goodmemory cli root commands > allows sqlite fallback when the read-only postgres probe proves postgres is unusable [0.03ms]",
+        "(pass) goodmemory cli root commands > inspect summarizes scoped memory from sqlite storage [3.61ms]",
+        "(pass) goodmemory cli root commands > inspect does not create a vectors table in read-only sqlite mode [3.42ms]",
+        "(pass) goodmemory cli root commands > inspect hides superseded references from the top summary [2930.55ms]",
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [14.57ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [7.30ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [8.98ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [5.52ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.79ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.45ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.49ms]",
+        "",
+        " 63 pass",
+        " 0 fail",
+        " 201 expect() calls",
+        "Ran 63 tests across 7 files. [3.22s]"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-21T02:32:59.448Z",
+  "generatedBy": "scripts/run-phase-28-gate.ts",
+  "phase": "phase-28",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-28/run-20260421093000",
+  "runId": "run-20260421093000",
+  "scope": {
+    "inScope": [
+      "real sqlite-vss indexed local backend on supported runtimes",
+      "automatic bundled sqlite-vss runtime detection and explicit fallback diagnostics",
+      "durable fallback and rules-only regressions preserved under the upgraded local backend",
+      "phase-28 gate and canonical closure evidence"
+    ],
+    "outOfScope": [
+      "bundled local embedding generation",
+      "installer CLI or package publish automation",
+      "reopening phase-26 storage-resolution semantics",
+      "claiming accelerated local support on unsupported runtimes"
+    ]
+  }
+}

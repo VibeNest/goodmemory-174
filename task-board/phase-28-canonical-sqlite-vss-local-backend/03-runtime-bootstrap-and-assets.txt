@@ -1,9 +1,9 @@
 Phase 28.3: Runtime Bootstrap and Assets
 ========================================
 
-[TODO] P28.3-T001 Define the supported local runtime/asset contract for `sqlite-vss`
-[TODO] P28.3-T002 Add failing coverage for asset loading, capability detection, and explicit failure modes
-[TODO] P28.3-T003 Implement the bootstrap/diagnostic path for supported local runtimes
+[DONE] P28.3-T001 Define the supported local runtime/asset contract for `sqlite-vss`
+[DONE] P28.3-T002 Add failing coverage for asset loading, capability detection, and explicit failure modes
+[DONE] P28.3-T003 Implement the bootstrap/diagnostic path for supported local runtimes
 
 Why this exists
 ---------------
@@ -27,3 +27,7 @@ Current implementation notes
 - Keep Bun/macOS ordering constraints explicit if they still matter
 - If multiple assets are required, document and test their load order
 - The goal is runtime honesty, not magical auto-detection that hides unsupported states
+- The accepted supported-runtime path is now:
+  - bundled `sqlite-vss` assets
+  - compatible custom SQLite library
+  - explicit `prefer|require` diagnostics

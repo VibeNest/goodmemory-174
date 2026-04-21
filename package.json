@@ -58,6 +58,7 @@
     "gate:phase-25": "bun run scripts/run-phase-25-gate.ts",
     "gate:phase-26": "bun run scripts/run-phase-26-gate.ts",
     "gate:phase-27": "bun run scripts/run-phase-27-gate.ts",
+    "gate:phase-28": "bun run scripts/run-phase-28-gate.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",
     "eval:summary": "bun run scripts/summarize-eval.ts"
@@ -71,6 +72,7 @@
     "@ai-sdk/openai": "^3.0.49",
     "@ai-sdk/openai-compatible": "^2.0.40",
     "ai": "^6.0.143",
+    "sqlite-vss": "0.1.2",
     "zod": "^4.3.6"
   }
 }

@@ -25,6 +25,7 @@ import {
   createSQLiteSessionStore,
   createSQLiteVectorStore,
 } from "./storage/sqlite";
+import { createInMemoryVectorStore } from "./storage/memory";
 
 interface CLIResult {
   stdout: string;
@@ -72,6 +73,7 @@ interface CLIStorageConfig {
 }
 
 interface DiagnosticMemoryOptions {
+  includeVectorStore?: boolean;
   readOnlyStorage?: boolean;
 }
 
@@ -390,9 +392,12 @@ async function createDiagnosticMemory(
           sessionStore: createSQLiteSessionStore(storage.url, {
             readOnly: true,
           }),
-          vectorStore: createSQLiteVectorStore(storage.url, {
-            readOnly: true,
-          }),
+          vectorStore:
+            options?.includeVectorStore === false
+              ? createInMemoryVectorStore()
+              : createSQLiteVectorStore(storage.url, {
+                  readOnly: true,
+                }),
         }
       : undefined;
   const readOnlyPostgresAdapters =
@@ -408,10 +413,13 @@ async function createDiagnosticMemory(
             { url: storage.url },
             { readOnly: true },
           ),
-          vectorStore: createPostgresVectorStore(
-            { url: storage.url },
-            { readOnly: true },
-          ),
+          vectorStore:
+            options?.includeVectorStore === false
+              ? createInMemoryVectorStore()
+              : createPostgresVectorStore(
+                  { url: storage.url },
+                  { readOnly: true },
+                ),
         }
       : undefined;
 
@@ -1221,6 +1229,7 @@ async function handleInspect(flags: ParsedFlags): Promise<CLICommandOutput> {
   const scope = resolveScopeFromFlags(flags);
   const includeRuntime = shouldIncludeRuntime(flags, scope);
   const { memory, storage } = await createDiagnosticMemory(flags, {
+    includeVectorStore: false,
     readOnlyStorage: true,
   });
   const result = await memory.exportMemory({
@@ -1242,6 +1251,7 @@ async function handleStats(flags: ParsedFlags): Promise<CLICommandOutput> {
   const scope = resolveScopeFromFlags(flags);
   const includeRuntime = shouldIncludeRuntime(flags, scope);
   const { memory, storage } = await createDiagnosticMemory(flags, {
+    includeVectorStore: false,
     readOnlyStorage: true,
   });
   const result = await memory.exportMemory({
@@ -1296,6 +1306,7 @@ async function handleExportMemory(
   const outputPath = resolve(requireFlag(flags, "output"));
   const force = flagEnabled(flags, "force");
   const { memory, storage } = await createDiagnosticMemory(flags, {
+    includeVectorStore: false,
     readOnlyStorage: true,
   });
   const result = await memory.exportMemory({

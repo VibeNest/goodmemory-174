@@ -6,6 +6,7 @@ import {
 } from "../../src/storage/sqliteRuntime";
 
 const extensionSqlSemanticsConfig: SQLiteVectorExtensionConfig = {
+  backend: "sql-function",
   mode: "prefer",
   path: "/opt/sqlite/vss0.dylib",
   paths: ["/opt/sqlite/vss0.dylib"],
@@ -43,6 +44,7 @@ describe("sqlite vector extension search path", () => {
       {
         loadVectorExtension() {},
         vectorExtensionConfig: {
+          backend: "sql-function",
           mode: "prefer",
           path: "/opt/sqlite/vss0.dylib",
           paths: ["/opt/sqlite/vss0.dylib"],
@@ -205,6 +207,7 @@ describe("sqlite vector extension search path", () => {
       {
         loadVectorExtension() {},
         vectorExtensionConfig: {
+          backend: "sql-function",
           mode: "prefer",
           path: "/opt/sqlite/vss0.dylib",
           paths: ["/opt/sqlite/vss0.dylib"],
@@ -247,6 +250,7 @@ describe("sqlite vector extension search path", () => {
       {
         loadVectorExtension() {},
         vectorExtensionConfig: {
+          backend: "sql-function",
           mode: "require",
           path: "/opt/sqlite/vss0.dylib",
           paths: ["/opt/sqlite/vss0.dylib"],

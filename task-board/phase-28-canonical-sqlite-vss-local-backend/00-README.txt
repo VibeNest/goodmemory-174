@@ -3,8 +3,10 @@ Phase 28 Breakdown
 
 Status
 ------
-- Phase 28 is queued.
-- Phase 27 is closed and accepted.
+- Phase 28 is closed and accepted as the canonical local sqlite-vss backend slice.
+- Accepted evidence:
+  - `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`
+  - `reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json`
 - Scope: turn the accepted Phase 26 durable local SQLite baseline into a real, supported `sqlite-vss` accelerated backend when embeddings are configured and the local runtime is actually available.
 
 Execution Order
