@@ -163,6 +163,12 @@ function createAsyncIterableStream<T>(
   });
 }
 
+async function* createAsyncIterable<T>(chunks: T[]): AsyncIterable<T> {
+  for (const chunk of chunks) {
+    yield chunk;
+  }
+}
+
 function flushAsyncWork(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -349,6 +355,150 @@ describe("goodmemory ai-sdk adapter", () => {
     expect(seenSystem).toBe(
       "You are a concise copilot.\n\n## Facts\n- migration blocker",
     );
+  });
+
+  it("appends the built memory fragment to structured system prompts", async () => {
+    const seenSystems: unknown[] = [];
+    const memory = createGoodMemoryStub({
+      buildContext: async () => createBuildContextResult("## Facts\n- structured"),
+    });
+    const aiSDK = createGoodMemoryAISDK({
+      memory,
+      dependencies: {
+        generateText: createGenerateTextDependency({
+          onCall: (payload) => {
+            seenSystems.push(payload.system);
+          },
+        }),
+      },
+    });
+
+    await aiSDK.generateText({
+      scope: {
+        userId: "u-1",
+      },
+      system: {
+        role: "system",
+        content: "Base system",
+      },
+      messages: [
+        {
+          role: "user",
+          content: "What should I remember?",
+        },
+      ],
+      model: {} as never,
+    });
+    await aiSDK.generateText({
+      scope: {
+        userId: "u-1",
+      },
+      system: [
+        {
+          role: "system",
+          content: "First system",
+        },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: "What should I remember next?",
+        },
+      ],
+      model: {} as never,
+    });
+
+    expect(seenSystems[0]).toEqual([
+      {
+        role: "system",
+        content: "Base system",
+      },
+      {
+        role: "system",
+        content: "## Facts\n- structured",
+      },
+    ]);
+    expect(seenSystems[1]).toEqual([
+      {
+        role: "system",
+        content: "First system",
+      },
+      {
+        role: "system",
+        content: "## Facts\n- structured",
+      },
+    ]);
+  });
+
+  it("emits skip events for empty context and non-text conversations", async () => {
+    const originalConsoleError = console.error;
+    const events: GoodMemoryAISDKEvent[] = [];
+    console.error = () => {};
+
+    try {
+      const aiSDK = createGoodMemoryAISDK({
+        memory: createGoodMemoryStub({
+          buildContext: async () => createBuildContextResult("   "),
+        }),
+        onMemoryEvent: async (event) => {
+          events.push(event);
+          throw new Error("callback failure should not fail generation");
+        },
+        dependencies: {
+          generateText: createGenerateTextDependency(),
+        },
+      });
+
+      await aiSDK.generateText({
+        scope: {
+          userId: "u-1",
+        },
+        messages: [
+          {
+            role: "user",
+            content: "What is the release blocker?",
+          },
+        ],
+        model: {} as never,
+      });
+      await aiSDK.generateText({
+        scope: {
+          userId: "u-1",
+        },
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image: new URL("https://example.com/screenshot.png"),
+              },
+            ],
+          },
+        ],
+        model: {} as never,
+      });
+    } finally {
+      console.error = originalConsoleError;
+    }
+
+    expect(events).toContainEqual({
+      phase: "recall",
+      status: "skipped",
+      reason: "empty_context",
+      retrievalProfile: "general_chat",
+      scope: {
+        userId: "u-1",
+      },
+    });
+    expect(events).toContainEqual({
+      phase: "remember",
+      status: "skipped",
+      reason: "no_text_messages",
+      scope: {
+        userId: "u-1",
+      },
+    });
   });
 
   it("soft-fails recall and leaves the caller input untouched", async () => {
@@ -561,6 +711,87 @@ describe("goodmemory ai-sdk adapter", () => {
     expect(await response.text()).toBe("Tracked answer");
     expect(streamTextCalls).toBe(1);
     expect(accessed).toEqual(["textStream"]);
+  });
+
+  it("defers stream promise properties, async iterables, and methods", async () => {
+    const accessed: string[] = [];
+    let consumed = false;
+    let streamTextCalls = 0;
+
+    const memory = createGoodMemoryStub();
+    const aiSDK = createGoodMemoryAISDK({
+      memory,
+      dependencies: {
+        streamText: ((payload) => {
+          streamTextCalls += 1;
+          void payload.onFinish?.({
+            text: "Deferred answer",
+          } as never);
+
+          return {
+            get text() {
+              accessed.push("text");
+              return Promise.resolve("Deferred answer");
+            },
+            get finishReason() {
+              accessed.push("finishReason");
+              return Promise.resolve("stop");
+            },
+            get textStream() {
+              accessed.push("textStream");
+              return createAsyncIterable(["part-a", "part-b"]);
+            },
+            toUIMessageStream(options: unknown) {
+              accessed.push(`toUIMessageStream:${JSON.stringify(options)}`);
+              return createAsyncIterable(["ui-part"]);
+            },
+            async consumeStream() {
+              consumed = true;
+            },
+          } as never;
+        }) as typeof streamText,
+      },
+    });
+
+    const result = aiSDK.streamText({
+      scope: {
+        userId: "u-1",
+      },
+      messages: [
+        {
+          role: "user",
+          content: "Stream this lazily",
+        },
+      ],
+      model: {} as never,
+    });
+
+    expect(streamTextCalls).toBe(0);
+    expect(await result.text).toBe("Deferred answer");
+    expect(await result.finishReason).toBe("stop");
+
+    const chunks: string[] = [];
+    for await (const chunk of result.textStream as AsyncIterable<string>) {
+      chunks.push(chunk);
+    }
+    const uiChunks: string[] = [];
+    for await (const chunk of result.toUIMessageStream({
+      sendStart: false,
+    }) as AsyncIterable<string>) {
+      uiChunks.push(chunk);
+    }
+    await result.consumeStream();
+
+    expect(chunks).toEqual(["part-a", "part-b"]);
+    expect(uiChunks).toEqual(["ui-part"]);
+    expect(consumed).toBeTrue();
+    expect(streamTextCalls).toBe(1);
+    expect(accessed).toEqual([
+      "text",
+      "finishReason",
+      "textStream",
+      "toUIMessageStream:{\"sendStart\":false}",
+    ]);
   });
 
   it("remembers before the caller onFinish runs", async () => {

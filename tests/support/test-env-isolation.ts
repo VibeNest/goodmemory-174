@@ -1,11 +1,22 @@
 const PRESERVED_PREFIXES = ["GOODMEMORY_TEST_"] as const;
 
+function normalizeEnvKey(key: string): string {
+  return key.toUpperCase();
+}
+
 function shouldPreserveGoodMemoryEnv(key: string): boolean {
-  return PRESERVED_PREFIXES.some((prefix) => key.startsWith(prefix));
+  const normalizedKey = normalizeEnvKey(key);
+  return PRESERVED_PREFIXES.some((prefix) =>
+    normalizedKey.startsWith(prefix),
+  );
 }
 
 export function shouldIsolateTestEnvKey(key: string): boolean {
-  return key.startsWith("GOODMEMORY_") && !shouldPreserveGoodMemoryEnv(key);
+  const normalizedKey = normalizeEnvKey(key);
+  return (
+    normalizedKey.startsWith("GOODMEMORY_") &&
+    !shouldPreserveGoodMemoryEnv(key)
+  );
 }
 
 export function buildIsolatedTestEnv(

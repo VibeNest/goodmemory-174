@@ -10,6 +10,7 @@ import {
   PHASE_27_LIVE_SCENARIO_IDS,
   PHASE_27_REPEATED_CORRECTION_SCENARIO_IDS,
   createPhase27FallbackCreateMemory,
+  runPhase27CodexHandoffFamily,
 } from "../../src/eval/phase27";
 import type { PersonaSpec, ScenarioFixture } from "../../src/eval/dataset";
 import {
@@ -656,6 +657,20 @@ describe("run-phase-27 eval script", () => {
       "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-27/phase27-run/report.json",
     );
     expect(writes[0]?.content).toContain("\"accepted\": true");
+  });
+
+  it("runs the Codex handoff family through real session artifacts", async () => {
+    const summary = await runPhase27CodexHandoffFamily();
+
+    expect(summary.passed).toBeTrue();
+    expect(summary.successRate).toBe(1);
+    expect(summary.passedCases).toBe(3);
+    expect(summary.cases.map((item) => item.caseId)).toEqual([
+      "codex-basic-session-handoff",
+      "codex-handoff-refresh",
+      "codex-active-only-projection",
+    ]);
+    expect(summary.cases.every((item) => item.details === "passed")).toBeTrue();
   });
 
   it("resolves the dedicated live-memory output directory", () => {

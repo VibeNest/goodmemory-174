@@ -43,4 +43,19 @@ describe("test env isolation", () => {
     expect(shouldIsolateTestEnvKey("GOODMEMORY_TEST_POSTGRES_URL")).toBe(false);
     expect(shouldIsolateTestEnvKey("PATH")).toBe(false);
   });
+
+  it("matches GoodMemory env keys case-insensitively", () => {
+    const isolated = buildIsolatedTestEnv({
+      goodmemory_storage_url: "postgres://runtime/goodmemory",
+      GoodMemory_Test_Custom: "keep-me",
+      PATH: "/usr/bin",
+    });
+
+    expect(shouldIsolateTestEnvKey("goodmemory_storage_url")).toBe(true);
+    expect(shouldIsolateTestEnvKey("GoodMemory_Test_Custom")).toBe(false);
+
+    expect(isolated.goodmemory_storage_url).toBeUndefined();
+    expect(isolated.GoodMemory_Test_Custom).toBe("keep-me");
+    expect(isolated.PATH).toBe("/usr/bin");
+  });
 });
