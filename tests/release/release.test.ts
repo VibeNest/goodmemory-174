@@ -862,6 +862,8 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("NPM_TOKEN");
     expect(workflow).toContain("Skipped: NPM_TOKEN secret is not configured.");
     expect(workflow).toContain("does not block the tarball-first RC release contract");
+    expect(workflow).toContain("//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}");
+    expect(workflow).toContain("NPM_USER=\"$(bun pm whoami)\"");
     expect(workflow).toContain("bun publish --tag rc --access public");
     expect(workflow).toContain("bun pm view goodmemory@${VERSION} version");
     expect(workflow).toContain("npm registry verification failed");

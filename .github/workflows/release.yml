@@ -78,6 +78,12 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          {
+            echo "registry=https://registry.npmjs.org/"
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}"
+            echo "always-auth=true"
+          } > "$HOME/.npmrc"
+          NPM_USER="$(bun pm whoami)"
           bun publish --tag rc --access public --tolerate-republish "${{ steps.pack.outputs.artifact_path }}"
           PUBLISHED_VERSION="$(bun pm view goodmemory@${VERSION} version)"
           if [ "$PUBLISHED_VERSION" != "$VERSION" ]; then
@@ -88,4 +94,5 @@ jobs:
             echo "## npm publish"
             echo "- Published: goodmemory@$VERSION"
             echo "- Dist tag: rc"
+            echo "- npm user: $NPM_USER"
           } >> "$GITHUB_STEP_SUMMARY"
