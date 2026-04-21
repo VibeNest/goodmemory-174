@@ -2,10 +2,11 @@ Phase 30.4: Live Closure and Gate
 =================================
 
 [DONE] Add a provider-backed Phase 30 live-memory behavioral eval runner.
-[TODO] Add `gate:phase-30`.
-[TODO] Make one canonical accepted provider-backed live-memory behavioral report a gate requirement.
-[TODO] Keep deterministic trace-backed regressions in the gate command list.
-[TODO] Fail the gate if live behavioral closure is missing, rejected, or not trace-backed.
+[DONE] Add `gate:phase-30`.
+[DONE] Make one canonical accepted provider-backed live-memory behavioral report a gate requirement.
+[DONE] Keep deterministic trace-backed regressions in the gate command list.
+[DONE] Fail the gate if live behavioral closure is missing, rejected, or not trace-backed.
+[TODO] Produce one canonical accepted provider-backed live-memory behavioral report and archive closure evidence.
 
 Acceptance
 ----------
@@ -17,5 +18,7 @@ Acceptance
 Evidence
 --------
 - `scripts/run-phase-30-live-memory.ts`
+- `scripts/run-phase-30-gate.ts`
 - `tests/unit/run-phase-30.script.test.ts`
+- `tests/unit/run-phase-30.gate.test.ts`
 - `tests/release/release.test.ts`

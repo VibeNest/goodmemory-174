@@ -7,6 +7,8 @@ import {
 } from "../../scripts/run-phase-30-eval";
 import {
   buildPhase30LiveAnswerGenerator,
+  PHASE30_CANONICAL_LIVE_RUN_ID,
+  PHASE30_LIVE_MEMORY_GENERATED_BY,
   parsePhase30LiveMemoryCliOptions,
   resolvePhase30LiveMemoryOutputDir,
   runPhase30LiveMemoryEval,
@@ -380,9 +382,7 @@ describe("run-phase-30 script", () => {
 
     try {
       const report = await runPhase30LiveMemoryEval(
-        {
-          runId: "run-phase30-live",
-        },
+        undefined,
         {
           assertProviderBackedStorage: async (postgresUrl) => {
             providerAssertions.push(postgresUrl);
@@ -419,7 +419,7 @@ describe("run-phase-30 script", () => {
               ...buildPhase30Report(),
               mode: "live-memory",
               outputDir: input.outputDir,
-              runId: input.runId ?? "run-phase30-live",
+              runId: input.runId ?? "missing-run-id",
             };
           },
         },
@@ -427,8 +427,15 @@ describe("run-phase-30 script", () => {
 
       expect(receivedInput?.requireTraceForStructuredCases).toBe(true);
       expect(receivedInput?.scopePrefix).toBe("phase30-live");
+      expect(receivedInput?.runId).toBe(PHASE30_CANONICAL_LIVE_RUN_ID);
+      expect(receivedInput?.evidenceContract?.phase30?.runner).toBe(
+        PHASE30_LIVE_MEMORY_GENERATED_BY,
+      );
+      expect(
+        receivedInput?.evidenceContract?.phase30?.providerBackedStorage.provider,
+      ).toBe("postgres");
       expect(report.mode).toBe("live-memory");
-      expect(report.runId).toBe("run-phase30-live");
+      expect(report.runId).toBe(PHASE30_CANONICAL_LIVE_RUN_ID);
       expect(providerAssertions).toEqual(["postgres://example/test"]);
       expect(preflightCalls).toBe(1);
     } finally {

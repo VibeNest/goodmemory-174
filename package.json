@@ -94,6 +94,7 @@
     "gate:phase-27": "bun run scripts/run-phase-27-gate.ts",
     "gate:phase-28": "bun run scripts/run-phase-28-gate.ts",
     "gate:phase-29": "bun run scripts/run-phase-29-gate.ts",
+    "gate:phase-30": "bun run scripts/run-phase-30-gate.ts",
     "release:rc-dry-run": "bun run scripts/run-phase-29-rc-dry-run.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",

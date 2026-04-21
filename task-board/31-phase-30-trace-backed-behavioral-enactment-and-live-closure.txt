@@ -16,7 +16,8 @@ Current Status
 [DONE] P30-T003 internal trace-to-outcome bridge is implemented and regression-covered for deterministic replay.
 [DONE] P30-T004 deterministic trace-backed behavioral eval runner, fixture set, and report evidence contract are implemented and regression-covered.
 [DONE] P30-T005 provider-backed live-memory behavioral eval runner is implemented and regression-covered.
-[TODO] No Phase 30 deterministic gate, live-memory behavioral report, or archive closure exists yet.
+[DONE] `gate:phase-30` is implemented and regression-covered; it correctly blocks deterministic-only closure when canonical live evidence is missing.
+[TODO] No canonical accepted Phase 30 live-memory behavioral report or archive closure exists yet.
 
 
 Dependencies
@@ -92,6 +93,7 @@ Implemented So Far
 - deterministic behavioral eval fixtures can now replay `behavioral_trace_replays` through the outcome-telemetry profile
 - a dedicated Phase 30 deterministic runner now reads `fixtures/behavioral-enactment/` and writes `reports/eval/fallback/phase-30/<run-id>/report.json`
 - a dedicated Phase 30 provider-backed live-memory runner now writes `reports/eval/live-memory/phase-30/<run-id>/report.json`
+- `gate:phase-30` now runs typecheck, targeted trace/eval regressions, `eval:phase-30`, and then requires a canonical trace-backed live-memory report before it can accept
 - structured cases can now require trace-backed scoring, so self-reported `first_action` JSON fails closed when a Phase 30 runner demands host traces
 - the Phase 30 live runner now converts provider-returned structured first actions into host-style Codex traces before scoring
 - per-case Phase 30 evidence now includes baseline trace, GoodMemory trace, first-action source/parse, memory context, score reason, and outcome-telemetry lineage
@@ -108,11 +110,13 @@ Evidence
 - `fixtures/behavioral-enactment/cases.json`
 - `scripts/run-phase-30-eval.ts`
 - `scripts/run-phase-30-live-memory.ts`
+- `scripts/run-phase-30-gate.ts`
 - `tests/unit/host.behavioral-trace-recorder.test.ts`
 - `tests/unit/host.behavioral-trace.test.ts`
 - `tests/unit/host.behavioral-trace-bridge.test.ts`
 - `tests/unit/eval.behavioral-adaptation.test.ts`
 - `tests/unit/run-phase-30.script.test.ts`
+- `tests/unit/run-phase-30.gate.test.ts`
 - `tests/unit/run-phase-25.script.test.ts`
 - `examples/host-codex-handoff.ts`
 - `tests/integration/evolution.outcome-telemetry.test.ts`

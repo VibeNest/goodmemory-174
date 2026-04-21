@@ -2,34 +2,31 @@ import { join } from "node:path";
 import { createInternalGoodMemory } from "../src/api/createGoodMemory";
 import type { GoodMemoryConfig } from "../src/api/contracts";
 import type {
+  BehavioralAdaptationEvidenceContract,
   BehavioralAdaptationMemoryFactory,
   BehavioralAdaptationReport,
   BehavioralAnswerGenerator,
   RunBehavioralAdaptationEvaluationOptions,
 } from "../src/eval/behavioral-adaptation";
-import {
-  behavioralFirstActionsEqual,
-  type BehavioralFirstAction,
-} from "../src/evolution/behavioralTelemetry";
-import { createHostBehavioralTraceRecorder } from "../src/host/behavioralTraceRecorder";
 import { runBehavioralAdaptationEvaluation } from "../src/eval/behavioral-adaptation";
+import type { BehavioralFirstAction } from "../src/evolution/behavioralTelemetry";
+import { behavioralFirstActionsEqual } from "../src/evolution/behavioralTelemetry";
+import { createHostBehavioralTraceRecorder } from "../src/host/behavioralTraceRecorder";
 import {
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
   createProviderTextGenerator,
 } from "../src/provider/layer";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
+import { canBootstrapPostgresStorageBackend } from "../src/storage/postgres";
 import {
   resolveFlagValue,
   resolveLiveModelConfig,
   resolveProviderBackedModelConfig,
 } from "./run-eval";
-import {
-  resolvePhase30FixtureDir,
-  type Phase30EvalOptions,
-} from "./run-phase-30-eval";
+import type { Phase30EvalOptions } from "./run-phase-30-eval";
+import { resolvePhase30FixtureDir } from "./run-phase-30-eval";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
-import { canBootstrapPostgresStorageBackend } from "../src/storage/postgres";
 
 export interface Phase30LiveMemoryDependencies {
   assertProviderBackedStorage?: (postgresUrl: string) => Promise<void>;
@@ -53,7 +50,9 @@ interface ParsedStructuredBehavioralResponse {
   };
 }
 
-const GENERATED_BY = "scripts/run-phase-30-live-memory.ts";
+export const PHASE30_CANONICAL_LIVE_RUN_ID = "run-phase30-live-accepted";
+export const PHASE30_LIVE_MEMORY_GENERATED_BY =
+  "scripts/run-phase-30-live-memory.ts";
 const PHASE30_LIVE_PREFLIGHT_SCOPE = {
   userId: "phase30-live-preflight",
   workspaceId: "phase30-live-preflight",
@@ -61,6 +60,25 @@ const PHASE30_LIVE_PREFLIGHT_SCOPE = {
 
 export function resolvePhase30LiveMemoryOutputDir(root: string): string {
   return join(root, "reports/eval/live-memory/phase-30");
+}
+
+export function buildPhase30LiveMemoryEvidenceContract(
+  fixtureDir: string,
+): BehavioralAdaptationEvidenceContract {
+  return {
+    phase30: {
+      fixtureDir,
+      providerBackedStorage: {
+        envVar: "GOODMEMORY_TEST_POSTGRES_URL",
+        memoryStackPreflight: "passed",
+        provider: "postgres",
+        storageBootstrap: "passed",
+      },
+      requireTraceForStructuredCases: true,
+      runner: PHASE30_LIVE_MEMORY_GENERATED_BY,
+      scopePrefix: "phase30-live",
+    },
+  };
 }
 
 function resolvePostgresUrl(): string {
@@ -394,6 +412,7 @@ export async function runPhase30LiveMemoryEval(
         postgresUrl,
       }));
   const runEvaluation = dependencies?.runEvaluation ?? runBehavioralAdaptationEvaluation;
+  const fixtureDir = resolvePhase30FixtureDir(root);
 
   await assertProviderBackedStorage(postgresUrl);
   await preflightLiveMemory();
@@ -411,12 +430,13 @@ export async function runPhase30LiveMemoryEval(
       extractorModel,
       postgresUrl,
     }),
-    fixtureDir: resolvePhase30FixtureDir(root),
-    generatedBy: GENERATED_BY,
+    evidenceContract: buildPhase30LiveMemoryEvidenceContract(fixtureDir),
+    fixtureDir,
+    generatedBy: PHASE30_LIVE_MEMORY_GENERATED_BY,
     mode: "live-memory",
     outputDir: input?.outputDir ?? resolvePhase30LiveMemoryOutputDir(root),
     requireTraceForStructuredCases: true,
-    runId: input?.runId,
+    runId: input?.runId ?? PHASE30_CANONICAL_LIVE_RUN_ID,
     scopePrefix: "phase30-live",
   });
 }

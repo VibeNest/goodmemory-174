@@ -457,6 +457,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-27"]).toBe("bun run scripts/run-phase-27-gate.ts");
     expect(pkg.scripts?.["gate:phase-28"]).toBe("bun run scripts/run-phase-28-gate.ts");
     expect(pkg.scripts?.["gate:phase-29"]).toBe("bun run scripts/run-phase-29-gate.ts");
+    expect(pkg.scripts?.["gate:phase-30"]).toBe("bun run scripts/run-phase-30-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );

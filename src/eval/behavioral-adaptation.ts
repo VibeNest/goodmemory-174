@@ -155,7 +155,23 @@ export interface BehavioralProfileSummary {
   totalCases: number;
 }
 
+export interface BehavioralAdaptationEvidenceContract {
+  phase30?: {
+    fixtureDir: string;
+    providerBackedStorage: {
+      envVar: "GOODMEMORY_TEST_POSTGRES_URL";
+      memoryStackPreflight: "passed";
+      provider: "postgres";
+      storageBootstrap: "passed";
+    };
+    requireTraceForStructuredCases: true;
+    runner: "scripts/run-phase-30-live-memory.ts";
+    scopePrefix: "phase30-live";
+  };
+}
+
 export interface BehavioralAdaptationReport {
+  evidenceContract?: BehavioralAdaptationEvidenceContract;
   generatedAt: string;
   generatedBy: string;
   mode: "fallback" | "live-memory";
@@ -194,6 +210,7 @@ export type BehavioralAdaptationMemoryFactory = (input: {
 export interface RunBehavioralAdaptationEvaluationOptions {
   answerGenerator?: BehavioralAnswerGenerator;
   createMemory?: BehavioralAdaptationMemoryFactory;
+  evidenceContract?: BehavioralAdaptationEvidenceContract;
   fixtureDir: string;
   generatedBy: string;
   mode: "fallback" | "live-memory";
@@ -1426,6 +1443,7 @@ export async function runBehavioralAdaptationEvaluation(
   } satisfies Record<BehavioralAdaptationProfile, BehavioralProfileSummary>;
 
   const report: BehavioralAdaptationReport = {
+    ...(input.evidenceContract ? { evidenceContract: input.evidenceContract } : {}),
     generatedAt: new Date().toISOString(),
     generatedBy: input.generatedBy,
     mode: input.mode,

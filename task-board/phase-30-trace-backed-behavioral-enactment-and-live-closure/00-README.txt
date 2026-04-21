@@ -9,7 +9,8 @@ Status
 - P30-T003 is complete and regression-covered for deterministic replay.
 - P30-T004 is complete and regression-covered for deterministic trace-backed eval/report output.
 - P30-T005 is complete and regression-covered for the provider-backed live-memory runner.
-- No deterministic gate, live-memory behavioral report, or archive closure exists yet.
+- `gate:phase-30` is implemented and regression-covered; it blocks until canonical live-memory behavioral evidence exists.
+- No canonical accepted live-memory behavioral report or archive closure exists yet.
 
 
 Goal
