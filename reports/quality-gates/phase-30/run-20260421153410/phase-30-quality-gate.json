@@ -7,7 +7,7 @@
     {
       "label": "typecheck",
       "command": "bun run typecheck",
-      "durationMs": 2170,
+      "durationMs": 2818,
       "exitCode": 0,
       "status": "passed",
       "stdoutTail": [],
@@ -18,39 +18,39 @@
     {
       "label": "phase-30-targeted-regressions",
       "command": "bun test tests/unit/host.behavioral-trace.test.ts tests/unit/host.behavioral-trace-recorder.test.ts tests/unit/host.behavioral-trace-bridge.test.ts tests/unit/host.adapter.test.ts tests/unit/eval.behavioral-adaptation.test.ts tests/unit/run-phase-30.script.test.ts tests/unit/run-phase-30.gate.test.ts tests/integration/evolution.outcome-telemetry.test.ts",
-      "durationMs": 120,
+      "durationMs": 149,
       "exitCode": 0,
       "status": "passed",
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)"
       ],
       "stderrTail": [
-        "(pass) behavioral adaptation eval > does not accept an unrelated warning for conditioning first-action scoring [3.37ms]",
-        "(pass) behavioral adaptation eval > accepts approval warning variants without requiring exact warning prose [4.44ms]",
-        "(pass) behavioral adaptation eval > rejects approval warning variants that negate the required approval condition [10.62ms]",
-        "(pass) behavioral adaptation eval > does not accept raw-only same-name tool calls with different flags [1.87ms]",
-        "(pass) behavioral adaptation eval > prefers trace-backed first actions over self-reported first_action [2.14ms]",
-        "(pass) behavioral adaptation eval > replays behavioral_trace_replays through outcome telemetry before scoring the probe [2.24ms]",
-        "(pass) behavioral adaptation eval > fails closed when trace-backed scoring is required but only self-reported first_action is present [2.51ms]",
-        "(pass) behavioral adaptation eval > fails closed when trace data is present but malformed [1.80ms]",
-        "(pass) behavioral adaptation eval > preserves baseline trace parse failures in the case evidence [1.66ms]",
+        "(pass) behavioral adaptation eval > does not accept an unrelated warning for conditioning first-action scoring [2.75ms]",
+        "(pass) behavioral adaptation eval > accepts approval warning variants without requiring exact warning prose [5.40ms]",
+        "(pass) behavioral adaptation eval > rejects approval warning variants that negate the required approval condition [11.14ms]",
+        "(pass) behavioral adaptation eval > does not accept raw-only same-name tool calls with different flags [2.02ms]",
+        "(pass) behavioral adaptation eval > prefers trace-backed first actions over self-reported first_action [1.86ms]",
+        "(pass) behavioral adaptation eval > replays behavioral_trace_replays through outcome telemetry before scoring the probe [3.68ms]",
+        "(pass) behavioral adaptation eval > fails closed when trace-backed scoring is required but only self-reported first_action is present [2.75ms]",
+        "(pass) behavioral adaptation eval > fails closed when trace data is present but malformed [1.84ms]",
+        "(pass) behavioral adaptation eval > preserves baseline trace parse failures in the case evidence [1.93ms]",
         "",
         "tests/integration/evolution.outcome-telemetry.test.ts:",
-        "(pass) outcome telemetry promotion chain > promotes repeated tool outcome failures into a validated pattern without explicit feedback memory [0.58ms]",
-        "(pass) outcome telemetry promotion chain > does not persist dangling evidence lineage when evidence storage fails [0.12ms]",
-        "(pass) outcome telemetry promotion chain > promotes repeated failed Codex traces into a validated pattern through the same telemetry chain [0.51ms]",
-        "(pass) outcome telemetry promotion chain > does not compile a failed targeted correction into durable guidance when a later safer action succeeds [0.37ms]",
+        "(pass) outcome telemetry promotion chain > promotes repeated tool outcome failures into a validated pattern without explicit feedback memory [0.53ms]",
+        "(pass) outcome telemetry promotion chain > does not persist dangling evidence lineage when evidence storage fails [0.30ms]",
+        "(pass) outcome telemetry promotion chain > promotes repeated failed Codex traces into a validated pattern through the same telemetry chain [0.10ms]",
+        "(pass) outcome telemetry promotion chain > does not compile a failed targeted correction into durable guidance when a later safer action succeeds [0.66ms]",
         "",
-        " 66 pass",
+        " 67 pass",
         " 0 fail",
-        " 273 expect() calls",
-        "Ran 66 tests across 8 files. [115.00ms]"
+        " 275 expect() calls",
+        "Ran 67 tests across 8 files. [143.00ms]"
       ]
     },
     {
       "label": "phase-30-fallback-eval",
       "command": "bun run eval:phase-30",
-      "durationMs": 7950,
+      "durationMs": 7861,
       "exitCode": 0,
       "status": "passed",
       "stdoutTail": [
@@ -92,7 +92,7 @@
       "traceBackedBlockingCases": 12
     }
   },
-  "generatedAt": "2026-04-22T01:49:32.426Z",
+  "generatedAt": "2026-04-22T02:32:32.456Z",
   "generatedBy": "scripts/run-phase-30-gate.ts",
   "phase": "phase-30",
   "runDirectory": "reports/quality-gates/phase-30/run-20260421153410",

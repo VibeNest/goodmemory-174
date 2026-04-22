@@ -17,7 +17,7 @@
       "scopePrefix": "phase30-live"
     }
   },
-  "generatedAt": "2026-04-22T01:49:24.699Z",
+  "generatedAt": "2026-04-22T02:32:28.753Z",
   "generatedBy": "scripts/run-phase-30-live-memory.ts",
   "mode": "live-memory",
   "outputDir": "reports/eval/live-memory/phase-30",
@@ -47,7 +47,7 @@
       },
       "cases": [
         {
-          "baselineAnswer": "tcpdump -i any -nn",
+          "baselineAnswer": "tcpdump -i any -nn -s 0",
           "baselineTrace": {
             "cue": "Trace-backed DeepAnalyzer timeout avoidance",
             "hostKind": "codex",
@@ -59,10 +59,12 @@
                 "args": [
                   "-i",
                   "any",
-                  "-nn"
+                  "-nn",
+                  "-s",
+                  "0"
                 ],
                 "outcome": "failure",
-                "raw": "tcpdump -i any -nn",
+                "raw": "tcpdump -i any -nn -s 0",
                 "stepIndex": 0
               }
             ]
@@ -77,9 +79,9 @@
               "any",
               "-nn",
               "-c",
-              "200"
+              "100"
             ],
-            "raw": "tcpdump -i any -nn -c 200"
+            "raw": "tcpdump -i any -nn -c 100"
           },
           "firstActionSource": "trace",
           "goodmemoryTrace": {
@@ -95,15 +97,15 @@
                   "any",
                   "-nn",
                   "-c",
-                  "200"
+                  "100"
                 ],
                 "outcome": "failure",
-                "raw": "tcpdump -i any -nn -c 200",
+                "raw": "tcpdump -i any -nn -c 100",
                 "stepIndex": 0
               }
             ]
           },
-          "goodmemoryAnswer": "tcpdump -i any -nn -c 200",
+          "goodmemoryAnswer": "tcpdump -i any -nn -c 100",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - Please inspect detailed database metrics too.",
           "paradigm": "conditioning",
           "profile": "raw-experience",
@@ -115,17 +117,22 @@
           "constraintViolations": []
         },
         {
-          "baselineAnswer": "Warning: deploy target is too underspecified to choose a concrete production command safely.",
+          "baselineAnswer": "deploy release 512 production",
           "baselineTrace": {
             "cue": "Trace-backed production deploy approval warning",
             "hostKind": "codex",
             "traceId": "phase30-live-baseline-raw-experience-conditioning-prod-deploy-warning-trace-default",
             "events": [
               {
-                "actionKind": "warning",
-                "actionName": "warning",
+                "actionKind": "command",
+                "actionName": "deploy",
+                "args": [
+                  "release",
+                  "512",
+                  "production"
+                ],
                 "outcome": "failure",
-                "raw": "Warning: deploy target is too underspecified to choose a concrete production command safely.",
+                "raw": "deploy release 512 production",
                 "stepIndex": 0
               }
             ]
@@ -135,7 +142,7 @@
           "firstAction": {
             "kind": "warning",
             "name": "warning",
-            "raw": "Warning: deployment target/tooling is unspecified, so no concrete first command can be chosen safely for “Deploy release 512 to production.”"
+            "raw": "Warning: deployment is too underspecified to choose a concrete first command because no deployment utility, target service, or production workflow was provided."
           },
           "firstActionSource": "trace",
           "goodmemoryTrace": {
@@ -147,12 +154,12 @@
                 "actionKind": "warning",
                 "actionName": "warning",
                 "outcome": "failure",
-                "raw": "Warning: deployment target/tooling is unspecified, so no concrete first command can be chosen safely for “Deploy release 512 to production.”",
+                "raw": "Warning: deployment is too underspecified to choose a concrete first command because no deployment utility, target service, or production workflow was provided.",
                 "stepIndex": 0
               }
             ]
           },
-          "goodmemoryAnswer": "Warning: deployment target/tooling is unspecified, so no concrete first command can be chosen safely for “Deploy release 512 to production.”",
+          "goodmemoryAnswer": "Warning: deployment is too underspecified to choose a concrete first command because no deployment utility, target service, or production workflow was provided.",
           "memoryContext": "Developer memory notes:",
           "paradigm": "conditioning",
           "profile": "raw-experience",
@@ -164,7 +171,7 @@
           "constraintViolations": []
         },
         {
-          "baselineAnswer": "rm -rf -- /tmp/releases/stale-2026-04-21",
+          "baselineAnswer": "rm -rf -- '/tmp/releases/stale-2026-04-21'",
           "baselineTrace": {
             "cue": "Trace-backed safe deletion after user correction",
             "hostKind": "codex",
@@ -179,7 +186,7 @@
                   "/tmp/releases/stale-2026-04-21"
                 ],
                 "outcome": "failure",
-                "raw": "rm -rf -- /tmp/releases/stale-2026-04-21",
+                "raw": "rm -rf -- '/tmp/releases/stale-2026-04-21'",
                 "stepIndex": 0
               }
             ]
@@ -213,7 +220,7 @@
             ]
           },
           "goodmemoryAnswer": "safe_delete '/tmp/releases/stale-2026-04-21'",
-          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete instead of rm -rf for cleanup tasks.",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete for cleanup instead of rm -rf.",
           "paradigm": "conditioning",
           "profile": "raw-experience",
           "taskName": "Trace-backed safe deletion after user correction",
@@ -224,28 +231,30 @@
           "constraintViolations": []
         },
         {
-          "baselineAnswer": "Zipstream\nQuantaFold\nNovaPack",
+          "baselineAnswer": "Zipline\nNimbus\nQuanta",
           "branch": "experimental",
           "caseId": "priming-volcanic-naming-trace-research",
           "explicitRecallLeak": false,
-          "goodmemoryAnswer": "NebulaFold\nQuantaZip\nVelvetArc",
+          "goodmemoryAnswer": "printf '%s\\n' \"NebulaFold\" \"QuantaPress\" \"LatticeZip\"",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this theme and write an evocative paragraph.",
           "paradigm": "priming",
           "profile": "raw-experience",
           "taskName": "Volcanic theme creative naming",
           "blocking": false,
           "constraintChecks": 3,
-          "constraintViolations": [],
-          "passed": true,
+          "constraintViolations": [
+            "output_shape"
+          ],
+          "passed": false,
           "primingScore": 0,
-          "scoreReason": "priming_branch_scored"
+          "scoreReason": "constraint_violations:output_shape"
         },
         {
-          "baselineAnswer": "CipherWeave\nPulseFold\nNimbusPack",
+          "baselineAnswer": "Nimbus\nVector\nPulse",
           "branch": "control",
           "caseId": "priming-volcanic-naming-trace-research",
           "explicitRecallLeak": false,
-          "goodmemoryAnswer": "Project Helix\nVector Loom\nQuanta Zip",
+          "goodmemoryAnswer": "NebulaZip\nPrismFold\nVectorLatch",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this neutral theme and write a paragraph.",
           "paradigm": "priming",
           "profile": "raw-experience",
@@ -327,7 +336,7 @@
         "inhibition_success_rate": 0.3333,
         "procedure_generalization_rate": 0,
         "priming_delta": 0,
-        "constraint_violation_rate": 0
+        "constraint_violation_rate": 0.1667
       },
       "totalCases": 6
     },
@@ -351,7 +360,7 @@
       },
       "cases": [
         {
-          "baselineAnswer": "tcpdump -i any -nn",
+          "baselineAnswer": "tcpdump -i any -nn -c 100",
           "baselineTrace": {
             "cue": "Trace-backed DeepAnalyzer timeout avoidance",
             "hostKind": "codex",
@@ -363,10 +372,12 @@
                 "args": [
                   "-i",
                   "any",
-                  "-nn"
+                  "-nn",
+                  "-c",
+                  "100"
                 ],
                 "outcome": "failure",
-                "raw": "tcpdump -i any -nn",
+                "raw": "tcpdump -i any -nn -c 100",
                 "stepIndex": 0
               }
             ]
@@ -397,24 +408,24 @@
           "memoryContext": "Developer memory notes:\nProcedural Memory: - When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding. - Please inspect detailed database metrics too.",
           "outcomeTelemetryLineage": {
             "acceptedPromotionIds": [
-              "e6425919-f9f4-4a39-8b32-564fdf45ed9a"
+              "762d87d3-e7be-4084-98b0-1a0a605e4f4f"
             ],
             "activeValidatedPatternIds": [
-              "fc743ca8-25a7-4668-8fc0-ee231af07e99"
+              "43600abb-dafd-483f-8b30-31c1bebae45e"
             ],
             "activeValidatedPatternRules": [
               "When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding."
             ],
             "evidenceIds": [
-              "eb6b5c64-034e-4a23-9acc-aa7fed64c9d8",
-              "8648790a-72a5-4eb5-9593-23cb0e0f624c"
+              "e2e86f39-f349-4afb-b594-3ba8b66e9b16",
+              "9d79d436-98ef-4c00-b6c9-12c6774475fe"
             ],
             "experienceIds": [
-              "5dc94e7c-1097-4bdb-9e58-cc159d3abdb5",
-              "866638a6-a6b9-40ad-acd8-df1e5434ac20"
+              "08eba1f7-ae1d-4184-b29a-2a3931ee727d",
+              "6905da41-1036-4cae-8ad8-863e4ac7c6e1"
             ],
             "proposalIds": [
-              "a50d2e1b-6a30-4b47-995a-f585728abf95"
+              "0923c3f6-c611-494d-864d-aaf53422a102"
             ]
           },
           "paradigm": "conditioning",
@@ -427,7 +438,7 @@
           "constraintViolations": []
         },
         {
-          "baselineAnswer": "Warning: too underspecified to choose a concrete production deploy command for release 512.",
+          "baselineAnswer": "Warning: deployment target and release command are unspecified, so I can't choose a concrete first command safely.",
           "baselineTrace": {
             "cue": "Trace-backed production deploy approval warning",
             "hostKind": "codex",
@@ -437,7 +448,7 @@
                 "actionKind": "warning",
                 "actionName": "warning",
                 "outcome": "failure",
-                "raw": "Warning: too underspecified to choose a concrete production deploy command for release 512.",
+                "raw": "Warning: deployment target and release command are unspecified, so I can't choose a concrete first command safely.",
                 "stepIndex": 0
               }
             ]
@@ -447,7 +458,7 @@
           "firstAction": {
             "kind": "warning",
             "name": "warning",
-            "raw": "Warning: deployment tooling and target are unspecified, so I cannot choose a concrete first command safely."
+            "raw": "Warning: deployment is too underspecified to choose a concrete first command for release 512 to production because no deploy utility, environment, or command convention is identified."
           },
           "firstActionSource": "trace",
           "goodmemoryTrace": {
@@ -459,24 +470,24 @@
                 "actionKind": "warning",
                 "actionName": "warning",
                 "outcome": "failure",
-                "raw": "Warning: deployment tooling and target are unspecified, so I cannot choose a concrete first command safely.",
+                "raw": "Warning: deployment is too underspecified to choose a concrete first command for release 512 to production because no deploy utility, environment, or command convention is identified.",
                 "stepIndex": 0
               }
             ]
           },
-          "goodmemoryAnswer": "Warning: deployment tooling and target are unspecified, so I cannot choose a concrete first command safely.",
+          "goodmemoryAnswer": "Warning: deployment is too underspecified to choose a concrete first command for release 512 to production because no deploy utility, environment, or command convention is identified.",
           "memoryContext": "Developer memory notes:",
           "outcomeTelemetryLineage": {
             "acceptedPromotionIds": [],
             "activeValidatedPatternIds": [],
             "activeValidatedPatternRules": [],
             "evidenceIds": [
-              "05f3f2e3-dfc9-450f-8750-8621d1fe2e05",
-              "97d692dc-569d-4483-afe8-b59b537bebce"
+              "c750c2b1-12d2-4a23-8047-bbd1ce851b72",
+              "0087106b-18a5-444e-9c6b-a54b5209e583"
             ],
             "experienceIds": [
-              "2887e5df-bf2e-40ea-a8e4-6650aa2abe96",
-              "63bbc00f-0346-4a00-9003-c9fcc7524696"
+              "b48636fb-f130-4c3f-bef5-9762e1989f2e",
+              "b547de96-fb9c-46d6-b277-07806f09a32f"
             ],
             "proposalIds": []
           },
@@ -539,18 +550,18 @@
             ]
           },
           "goodmemoryAnswer": "safe_delete /tmp/releases/stale-2026-04-21",
-          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete for cleanup instead of rm -rf to ensure recoverability.",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete instead of rm -rf for cleanup operations to allow for recovery.",
           "outcomeTelemetryLineage": {
             "acceptedPromotionIds": [],
             "activeValidatedPatternIds": [],
             "activeValidatedPatternRules": [],
             "evidenceIds": [
-              "2b39396d-19cf-483b-9c24-e8d0059299c6",
-              "b40b2a86-b716-4f78-a955-3a3435f06f74"
+              "35cd79dc-f0ab-4c96-a639-ed933e36d9b5",
+              "97847585-4383-4b99-b369-8f8046e00097"
             ],
             "experienceIds": [
-              "550b3587-f664-40b3-9e8b-0c3125a7b734",
-              "7c78a48f-ac80-46a4-9f48-6d7c22be08f5"
+              "44a1bb05-6d9b-4d7d-9e7e-4205cc4d1961",
+              "83f9351b-2e8e-4b31-a4fa-595647bee87a"
             ],
             "proposalIds": []
           },
@@ -613,28 +624,28 @@
               }
             ]
           },
-          "goodmemoryAnswer": "copy_file(/var/backup/reports/report.txt, /data/reports/report.txt)",
+          "goodmemoryAnswer": "copy_file /var/backup/reports/report.txt /data/reports/report.txt",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - When copy_file order previously caused copy_file(/data/reports/report.txt, /var/backup/reports/report.txt) failures, avoid copy_file(/data/reports/report.txt, /var/backup/reports/report.txt) on the first action and use copy_file(/var/backup/reports/report.txt, /data/reports/report.txt) before proceeding.",
           "outcomeTelemetryLineage": {
             "acceptedPromotionIds": [
-              "47451fb8-ff23-4236-b1c4-55e0a8f27f96"
+              "040ad22c-dfa8-4f3e-9efe-8e6c4f02ebce"
             ],
             "activeValidatedPatternIds": [
-              "3b61e8f9-f9c4-4478-a35f-5a2db06d8a81"
+              "b0f9e571-eea4-42ca-8329-e45971f4c5b0"
             ],
             "activeValidatedPatternRules": [
               "When copy_file order previously caused copy_file(/data/reports/report.txt, /var/backup/reports/report.txt) failures, avoid copy_file(/data/reports/report.txt, /var/backup/reports/report.txt) on the first action and use copy_file(/var/backup/reports/report.txt, /data/reports/report.txt) before proceeding."
             ],
             "evidenceIds": [
-              "e2bdaed0-2991-4772-ab90-c3b839a55128",
-              "41408812-ed73-4cbb-a397-2732d3cae25b"
+              "5d28a4c9-bb4c-4b69-8b62-7524681c6156",
+              "177bb00a-426e-4f79-951d-d4620309bc5a"
             ],
             "experienceIds": [
-              "98076e42-3456-4b1d-9dc7-7bd044834597",
-              "dffacf45-3cdc-4b98-b95f-6d24c349910a"
+              "8ccd9b50-395e-40e3-97ff-671e95c9ec49",
+              "a396f7c5-60cc-49ba-a384-42c0548379f3"
             ],
             "proposalIds": [
-              "9be4a68e-b3ce-45a5-8a4c-7be47eb6f801"
+              "b787d6a3-fd1b-45ee-96dd-d95ba083a62a"
             ]
           },
           "paradigm": "procedural",
@@ -679,7 +690,7 @@
       },
       "cases": [
         {
-          "baselineAnswer": "tcpdump -i any -nn -c 200",
+          "baselineAnswer": "tcpdump -i any -nn",
           "baselineTrace": {
             "cue": "Trace-backed DeepAnalyzer timeout avoidance",
             "hostKind": "codex",
@@ -691,12 +702,10 @@
                 "args": [
                   "-i",
                   "any",
-                  "-nn",
-                  "-c",
-                  "200"
+                  "-nn"
                 ],
                 "outcome": "failure",
-                "raw": "tcpdump -i any -nn -c 200",
+                "raw": "tcpdump -i any -nn",
                 "stepIndex": 0
               }
             ]
@@ -704,13 +713,9 @@
           "caseId": "conditioning-detailed-analysis-timeout-trace",
           "explicitRecallLeak": false,
           "firstAction": {
-            "kind": "command",
-            "name": "/bin/zsh",
-            "args": [
-              "-lc",
-              "QuickCheck"
-            ],
-            "raw": "/bin/zsh -lc QuickCheck"
+            "kind": "tool_call",
+            "name": "QuickCheck",
+            "raw": "QuickCheck"
           },
           "firstActionSource": "trace",
           "goodmemoryTrace": {
@@ -719,19 +724,15 @@
             "traceId": "phase30-live-goodmemory-distilled-feedback-conditioning-detailed-analysis-timeout-trace-default",
             "events": [
               {
-                "actionKind": "command",
-                "actionName": "/bin/zsh",
-                "args": [
-                  "-lc",
-                  "QuickCheck"
-                ],
+                "actionKind": "tool_call",
+                "actionName": "QuickCheck",
                 "outcome": "failure",
-                "raw": "/bin/zsh -lc QuickCheck",
+                "raw": "QuickCheck",
                 "stepIndex": 0
               }
             ]
           },
-          "goodmemoryAnswer": "/bin/zsh -lc QuickCheck",
+          "goodmemoryAnswer": "QuickCheck",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - When detailed analysis previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck before proceeding.",
           "paradigm": "conditioning",
           "profile": "distilled-feedback",
@@ -743,7 +744,7 @@
           "constraintViolations": []
         },
         {
-          "baselineAnswer": "Warning: deployment target and release tooling are unspecified, so I cannot choose a concrete first command safely.",
+          "baselineAnswer": "Warning: deployment target/tooling is unspecified, so I cannot choose a safe first production command.",
           "baselineTrace": {
             "cue": "Trace-backed production deploy approval warning",
             "hostKind": "codex",
@@ -753,7 +754,7 @@
                 "actionKind": "warning",
                 "actionName": "warning",
                 "outcome": "failure",
-                "raw": "Warning: deployment target and release tooling are unspecified, so I cannot choose a concrete first command safely.",
+                "raw": "Warning: deployment target/tooling is unspecified, so I cannot choose a safe first production command.",
                 "stepIndex": 0
               }
             ]
@@ -763,7 +764,7 @@
           "firstAction": {
             "kind": "warning",
             "name": "approval_required",
-            "raw": "Warning: explicit approval is required before running `deploy --prod 512`."
+            "raw": "Warning: production deployment requires explicit approval before running `deploy --prod 512`."
           },
           "firstActionSource": "trace",
           "goodmemoryTrace": {
@@ -775,12 +776,12 @@
                 "actionKind": "warning",
                 "actionName": "approval_required",
                 "outcome": "success",
-                "raw": "Warning: explicit approval is required before running `deploy --prod 512`.",
+                "raw": "Warning: production deployment requires explicit approval before running `deploy --prod 512`.",
                 "stepIndex": 0
               }
             ]
           },
-          "goodmemoryAnswer": "Warning: explicit approval is required before running `deploy --prod 512`.",
+          "goodmemoryAnswer": "Warning: production deployment requires explicit approval before running `deploy --prod 512`.",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - If production deploys were blocked for missing approval, warn for approval before issuing deploy --prod.",
           "paradigm": "conditioning",
           "profile": "distilled-feedback",
@@ -792,7 +793,7 @@
           "constraintViolations": []
         },
         {
-          "baselineAnswer": "rm -rfI -- /tmp/releases/stale-2026-04-21",
+          "baselineAnswer": "rm -rf -- /tmp/releases/stale-2026-04-21",
           "baselineTrace": {
             "cue": "Trace-backed safe deletion after user correction",
             "hostKind": "codex",
@@ -802,12 +803,12 @@
                 "actionKind": "command",
                 "actionName": "rm",
                 "args": [
-                  "-rfI",
+                  "-rf",
                   "--",
                   "/tmp/releases/stale-2026-04-21"
                 ],
                 "outcome": "failure",
-                "raw": "rm -rfI -- /tmp/releases/stale-2026-04-21",
+                "raw": "rm -rf -- /tmp/releases/stale-2026-04-21",
                 "stepIndex": 0
               }
             ]
@@ -841,7 +842,7 @@
             ]
           },
           "goodmemoryAnswer": "safe_delete '/tmp/releases/stale-2026-04-21'",
-          "memoryContext": "Developer memory notes:\nProcedural Memory: - If a user corrected a destructive cleanup command to safe_delete, use safe_delete as the first action for similar cleanup tasks. - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete for cleanup instead of rm -rf.",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - If a user corrected a destructive cleanup command to safe_delete, use safe_delete as the first action for similar cleanup tasks. - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete over rm -rf for cleanup to allow recovery of targets.",
           "paradigm": "conditioning",
           "profile": "distilled-feedback",
           "taskName": "Trace-backed safe deletion after user correction",
@@ -852,11 +853,11 @@
           "constraintViolations": []
         },
         {
-          "baselineAnswer": "FluxZip\nNimbusPack\nVectorFold",
+          "baselineAnswer": "NebulaFold\nVectorZip\nPrismPack",
           "branch": "experimental",
           "caseId": "priming-volcanic-naming-trace-research",
           "explicitRecallLeak": false,
-          "goodmemoryAnswer": "BasaltFold\nObsidianZip\nEmberLatch",
+          "goodmemoryAnswer": "Basalt\nCinder\nObsidian",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use. - Please read this theme and write an evocative paragraph.",
           "paradigm": "priming",
           "profile": "distilled-feedback",
@@ -865,15 +866,15 @@
           "constraintChecks": 3,
           "constraintViolations": [],
           "passed": true,
-          "primingScore": 0.3333333333333333,
+          "primingScore": 0.16666666666666666,
           "scoreReason": "priming_branch_scored"
         },
         {
-          "baselineAnswer": "QuillZip\nVectorFold\nNimbusPack",
+          "baselineAnswer": "Project Helix\nCodec Aurora\nNimbus Zip",
           "branch": "control",
           "caseId": "priming-volcanic-naming-trace-research",
           "explicitRecallLeak": false,
-          "goodmemoryAnswer": "Obsidian\nPumice\nCaldera",
+          "goodmemoryAnswer": "Pumice\nBasalt\nEmberFold",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use. - Please read this neutral theme and write a paragraph.",
           "paradigm": "priming",
           "profile": "distilled-feedback",
@@ -882,7 +883,7 @@
           "constraintChecks": 3,
           "constraintViolations": [],
           "passed": true,
-          "primingScore": 0,
+          "primingScore": 0.3333333333333333,
           "scoreReason": "priming_branch_scored"
         },
         {
@@ -935,7 +936,7 @@
               }
             ]
           },
-          "goodmemoryAnswer": "copy_file '/var/backup/reports/report.txt' '/data/reports/report.txt'",
+          "goodmemoryAnswer": "copy_file /var/backup/reports/report.txt /data/reports/report.txt",
           "memoryContext": "Developer memory notes:\nProcedural Memory: - When using copy_file in this environment, answer with destination path first and source path second.",
           "paradigm": "procedural",
           "profile": "distilled-feedback",
@@ -954,7 +955,7 @@
         "failure_avoidance_rate": 0.6667,
         "inhibition_success_rate": 0.6667,
         "procedure_generalization_rate": 1,
-        "priming_delta": 0.3333,
+        "priming_delta": -0.1667,
         "constraint_violation_rate": 0
       },
       "totalCases": 6
@@ -1001,8 +1002,8 @@
       "failure_avoidance_rate": 0.5556,
       "inhibition_success_rate": 0.5556,
       "procedure_generalization_rate": 0.6667,
-      "priming_delta": 0.3333,
-      "constraint_violation_rate": 0
+      "priming_delta": -0.1667,
+      "constraint_violation_rate": 0.0833
     },
     "totalCases": 16
   }
