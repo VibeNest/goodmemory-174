@@ -1,17 +1,17 @@
 Phase 32.5: Codex and Claude Bootstrap on the Installed Surface
 ===============================================================
 
-[TODO] Add installed-package bootstrap commands on the Bun CLI for:
+[DONE] Add installed-package bootstrap commands on the Bun CLI for:
 - Codex
 - Claude Code
-[TODO] Keep bootstrap repo-local and package-boundary-safe:
+[DONE] Keep bootstrap repo-local and package-boundary-safe:
 - no repo-internal imports
 - no machine-global hidden dependency on this repo checkout
-[TODO] Generate or patch the minimum external host artifacts needed for a canonical setup:
+[DONE] Generate or patch the minimum external host artifacts needed for a canonical setup:
 - Codex guidance/config snippets
 - Claude Code guidance/config snippets
 - public-package wiring examples
-[TODO] Add installed-package docs, examples, and consumer smoke for both hosts.
+[DONE] Add installed-package docs, examples, and consumer smoke for both hosts.
 
 Bootstrap Contract
 ------------------
@@ -37,3 +37,26 @@ Evidence To Add
 - installed CLI regressions
 - package-boundary consumer smoke
 - updated reference/setup guides
+
+Implemented
+-----------
+- `src/bootstrap/hostBootstrap.ts` now owns repo-local, marker-based bootstrap scaffolding for Codex and Claude Code.
+- `src/cli.ts` now exposes `goodmemory codex bootstrap` and `goodmemory claude bootstrap` without widening the root package surface beyond this explicit bootstrap path.
+- bootstrap writes only:
+  - `AGENTS.md` or `CLAUDE.md` marker sections
+  - `.goodmemory/bootstrap/<host>-export.mjs` public-package export scripts
+- generated export scripts use only `goodmemory` and `goodmemory/host`, export compiled artifacts into `.goodmemory/hosts/<host>/`, and never create canonical memory state on bootstrap.
+- installed-package docs now cover both hosts:
+  - `docs/GoodMemory-Codex-Handoff-Setup-Guide.md`
+  - `docs/GoodMemory-Claude-Code-Setup-Guide.md`
+- package-boundary consumer smoke now proves:
+  - tarball install
+  - bootstrap command execution
+  - seed memory through public imports
+  - Codex and Claude artifact export through generated scripts
+
+Regression Run
+--------------
+- `bun test tests/cli/cli.test.ts`
+- `bun test tests/release/release.test.ts`
+- `bun run typecheck`

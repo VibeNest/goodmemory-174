@@ -6,6 +6,7 @@ Status
 - Phase 32 is in progress.
 - Slice 32.2 adapter-level agent-event contracts is complete and regression-covered.
 - Slice 32.3 selective event compilation is complete and regression-covered.
+- Slice 32.5 installed-package Codex/Claude bootstrap is complete and regression-covered.
 - Scope: turn the accepted Codex host path and the accepted public reference path into one external product line for `coding_agent`.
 - Canonical line:
   - `goodmemory`
@@ -47,6 +48,7 @@ Canonical Inputs
 - `docs/开发安排.md`
 - `docs/GoodMemory-Reference-Integration-Guide.md`
 - `docs/GoodMemory-Codex-Handoff-Setup-Guide.md`
+- `docs/GoodMemory-Claude-Code-Setup-Guide.md`
 - `docs/GoodMemory-Current-Status-and-Evidence.md`
 - `task-board/28-phase-27-reference-integration-gate-and-adoption-evidence.txt`
 - `task-board/31-phase-30-trace-backed-behavioral-enactment-and-live-closure.txt`

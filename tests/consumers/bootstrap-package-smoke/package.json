@@ -1,0 +1,11 @@
+{
+  "name": "goodmemory-bootstrap-package-smoke",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "bun run seed.mjs"
+  },
+  "dependencies": {
+    "goodmemory": "__GOODMEMORY_PACKAGE_SPEC__"
+  }
+}

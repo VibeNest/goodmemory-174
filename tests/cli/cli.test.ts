@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
-import { access, mkdir, readFile, rm } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   createFactMemory,
@@ -26,6 +26,42 @@ import { createInMemoryVectorStore } from "../../src/storage/memory";
 import { createMemoryRepositories } from "../../src/storage/repositories";
 import { createTempWorkspace } from "../../src/testing/utils";
 import { resolveStorageConfig, runCLI } from "../../src/cli";
+
+async function withCwd<T>(cwd: string, callback: () => Promise<T>): Promise<T> {
+  const previous = process.cwd();
+  process.chdir(cwd);
+  try {
+    return await callback();
+  } finally {
+    process.chdir(previous);
+  }
+}
+
+async function runBunScript(input: {
+  args?: string[];
+  cwd: string;
+  scriptPath: string;
+}): Promise<{
+  exitCode: number;
+  stderr: string;
+  stdout: string;
+}> {
+  const childProcess = Bun.spawn({
+    cmd: ["bun", input.scriptPath, ...(input.args ?? [])],
+    cwd: input.cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stdout = await new Response(childProcess.stdout).text();
+  const stderr = await new Response(childProcess.stderr).text();
+  const exitCode = await childProcess.exited;
+
+  return {
+    exitCode,
+    stderr,
+    stdout,
+  };
+}
 
 function buildAnswerPackage(
   caseId: string,
@@ -655,6 +691,8 @@ describe("goodmemory cli help and routing", () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("GoodMemory CLI");
       expect(result.stdout).toContain("inspect         Inspect scope-bounded memory");
+      expect(result.stdout).toContain("codex           Bootstrap repo-local Codex wiring");
+      expect(result.stdout).toContain("claude          Bootstrap repo-local Claude Code wiring");
       expect(result.stdout).toContain("goodmemory eval --help");
       expect(result.stderr).toBe("");
     }
@@ -679,6 +717,10 @@ describe("goodmemory cli help and routing", () => {
     const stats = await runCLI(["stats", "--help"]);
     const exportMemory = await runCLI(["export-memory", "--help"]);
     const evalInspect = await runCLI(["eval", "inspect", "--help"]);
+    const codex = await runCLI(["codex", "--help"]);
+    const codexBootstrap = await runCLI(["codex", "bootstrap", "--help"]);
+    const claude = await runCLI(["claude", "--help"]);
+    const claudeBootstrap = await runCLI(["claude", "bootstrap", "--help"]);
 
     expect(inspect.exitCode).toBe(0);
     expect(inspect.stdout).toContain("GoodMemory Inspect");
@@ -695,11 +737,25 @@ describe("goodmemory cli help and routing", () => {
     expect(evalInspect.exitCode).toBe(0);
     expect(evalInspect.stdout).toContain("GoodMemory Eval Inspect");
     expect(evalInspect.stdout).toContain("--run-dir <path>");
+    expect(codex.exitCode).toBe(0);
+    expect(codex.stdout).toContain("GoodMemory Codex Bootstrap CLI");
+    expect(codex.stdout).toContain("goodmemory codex bootstrap --user-id <id>");
+    expect(codexBootstrap.exitCode).toBe(0);
+    expect(codexBootstrap.stdout).toContain("GoodMemory Codex Bootstrap");
+    expect(codexBootstrap.stdout).toContain("--workspace-root <path>");
+    expect(claude.exitCode).toBe(0);
+    expect(claude.stdout).toContain("GoodMemory Claude Bootstrap CLI");
+    expect(claude.stdout).toContain("goodmemory claude bootstrap --user-id <id>");
+    expect(claudeBootstrap.exitCode).toBe(0);
+    expect(claudeBootstrap.stdout).toContain("GoodMemory Claude Bootstrap");
+    expect(claudeBootstrap.stdout).toContain("--workspace-root <path>");
   });
 
   it("returns help hints for unknown root and eval commands", async () => {
     const unknownRoot = await runCLI(["unknown"]);
     const unknownEval = await runCLI(["eval", "unknown"]);
+    const unknownCodex = await runCLI(["codex", "unknown"]);
+    const unknownClaude = await runCLI(["claude", "unknown"]);
 
     expect(unknownRoot.exitCode).toBe(1);
     expect(unknownRoot.stderr).toContain("Unknown command: unknown.");
@@ -707,6 +763,265 @@ describe("goodmemory cli help and routing", () => {
     expect(unknownEval.exitCode).toBe(1);
     expect(unknownEval.stderr).toContain("Unknown eval command: unknown.");
     expect(unknownEval.stderr).toContain("goodmemory eval --help");
+    expect(unknownCodex.exitCode).toBe(1);
+    expect(unknownCodex.stderr).toContain("Unknown Codex command: unknown.");
+    expect(unknownCodex.stderr).toContain("goodmemory codex --help");
+    expect(unknownClaude.exitCode).toBe(1);
+    expect(unknownClaude.stderr).toContain("Unknown Claude command: unknown.");
+    expect(unknownClaude.stderr).toContain("goodmemory claude --help");
+  });
+});
+
+describe("goodmemory cli host bootstrap", () => {
+  it("bootstraps Codex wiring idempotently without creating canonical memory state", async () => {
+    const workspace = await createTempWorkspace("goodmemory-codex-bootstrap");
+
+    try {
+      await writeFile(join(workspace.root, "AGENTS.md"), "# Existing Workspace Notes\n", "utf8");
+
+      const first = await withCwd(workspace.root, async () =>
+        runCLI([
+          "codex",
+          "bootstrap",
+          "--user-id",
+          "codex-user",
+          "--workspace-id",
+          "codex-workspace",
+          "--json",
+        ]),
+      );
+
+      expect(first.exitCode).toBe(0);
+      const payload = JSON.parse(first.stdout) as {
+        changes: Array<{
+          action: "created" | "unchanged" | "updated";
+          relativePath: string;
+        }>;
+        host: string;
+        workspaceId: string;
+      };
+      expect(payload.host).toBe("codex");
+      expect(payload.workspaceId).toBe("codex-workspace");
+      expect(
+        payload.changes.map(({ action, relativePath }) => ({
+          action,
+          relativePath,
+        })),
+      ).toEqual([
+        { action: "updated", relativePath: "AGENTS.md" },
+        {
+          action: "created",
+          relativePath: ".goodmemory/bootstrap/codex-export.mjs",
+        },
+      ]);
+
+      const agents = await readFile(join(workspace.root, "AGENTS.md"), "utf8");
+      expect(agents).toContain("# Existing Workspace Notes");
+      expect(agents).toContain("## GoodMemory Codex Bootstrap");
+      expect(agents).toContain(
+        "bun ./.goodmemory/bootstrap/codex-export.mjs --session-id <session-id>",
+      );
+      expect(agents).toContain(".goodmemory/hosts/codex/session-memory/current.md");
+      expect(
+        agents.match(/GOODMEMORY-BOOTSTRAP:CODEX START/g)?.length ?? 0,
+      ).toBe(1);
+
+      const script = await readFile(
+        join(workspace.root, ".goodmemory/bootstrap/codex-export.mjs"),
+        "utf8",
+      );
+      expect(script).toContain('from "goodmemory"');
+      expect(script).toContain('from "goodmemory/host"');
+      expect(script).toContain("session-memory/current.md");
+      expect(script).not.toContain('"codex-active"');
+      expect(script).not.toContain("../src");
+      expect(script).not.toContain("../../src");
+
+      let storageExists = true;
+      try {
+        await access(join(workspace.root, ".goodmemory", "memory.sqlite"));
+      } catch {
+        storageExists = false;
+      }
+      expect(storageExists).toBe(false);
+
+      const second = await withCwd(workspace.root, async () =>
+        runCLI([
+          "codex",
+          "bootstrap",
+          "--user-id",
+          "codex-user",
+          "--workspace-id",
+          "codex-workspace",
+          "--json",
+        ]),
+      );
+      const secondPayload = JSON.parse(second.stdout) as typeof payload;
+      expect(
+        secondPayload.changes.map(({ action, relativePath }) => ({
+          action,
+          relativePath,
+        })),
+      ).toEqual([
+        { action: "unchanged", relativePath: "AGENTS.md" },
+        {
+          action: "unchanged",
+          relativePath: ".goodmemory/bootstrap/codex-export.mjs",
+        },
+      ]);
+
+      const updatedAgents = await readFile(join(workspace.root, "AGENTS.md"), "utf8");
+      expect(
+        updatedAgents.match(/GOODMEMORY-BOOTSTRAP:CODEX START/g)?.length ?? 0,
+      ).toBe(1);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("requires an explicit session id for generated Codex exports", async () => {
+    const workspace = await createTempWorkspace("goodmemory-codex-bootstrap-session-required");
+
+    try {
+      await withCwd(workspace.root, async () =>
+        runCLI([
+          "codex",
+          "bootstrap",
+          "--user-id",
+          "codex-user",
+          "--workspace-id",
+          "codex-workspace",
+          "--json",
+        ]),
+      );
+
+      const result = await runBunScript({
+        cwd: workspace.root,
+        scriptPath: join(workspace.root, ".goodmemory/bootstrap/codex-export.mjs"),
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(
+        "Codex export requires --session-id <session-id> to target a real session handoff.",
+      );
+      await expect(
+        access(join(workspace.root, ".goodmemory/hosts/codex/export-manifest.json")),
+      ).rejects.toThrow();
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("anchors generated Codex exports to the bootstrapped workspace root", async () => {
+    const workspace = await createTempWorkspace("goodmemory-codex-bootstrap-anchor");
+    const caller = await createTempWorkspace("goodmemory-codex-bootstrap-caller");
+
+    try {
+      await withCwd(workspace.root, async () =>
+        runCLI([
+          "codex",
+          "bootstrap",
+          "--user-id",
+          "codex-user",
+          "--workspace-id",
+          "workspace-a",
+          "--json",
+        ]),
+      );
+      const { scope } = await seedSQLiteMemory(
+        join(workspace.root, ".goodmemory", "memory.sqlite"),
+      );
+
+      const result = await runBunScript({
+        args: ["--session-id", scope.sessionId],
+        cwd: caller.root,
+        scriptPath: join(workspace.root, ".goodmemory/bootstrap/codex-export.mjs"),
+      });
+
+      expect(result.exitCode).toBe(0);
+
+      const manifest = JSON.parse(
+        await readFile(
+          join(workspace.root, ".goodmemory/hosts/codex/export-manifest.json"),
+          "utf8",
+        ),
+      ) as {
+        outputRoot: string;
+        scope: {
+          sessionId?: string;
+          workspaceId?: string;
+        };
+      };
+      expect(manifest.outputRoot).toEndWith("/.goodmemory/hosts/codex");
+      expect(manifest.outputRoot).toContain(
+        (workspace.root.split("/").at(-1) ?? "goodmemory-codex-bootstrap-anchor"),
+      );
+      expect(manifest.scope.workspaceId).toBe("workspace-a");
+      expect(manifest.scope.sessionId).toBe(scope.sessionId);
+
+      await expect(
+        access(join(caller.root, ".goodmemory/hosts/codex/export-manifest.json")),
+      ).rejects.toThrow();
+    } finally {
+      await caller.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("bootstraps Claude wiring with a derived workspace id", async () => {
+    const workspace = await createTempWorkspace("goodmemory-claude-bootstrap");
+
+    try {
+      const result = await withCwd(workspace.root, async () =>
+        runCLI(["claude", "bootstrap", "--user-id", "claude-user", "--json"]),
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout) as {
+        changes: Array<{
+          action: "created" | "unchanged" | "updated";
+          relativePath: string;
+        }>;
+        host: string;
+        workspaceId: string;
+      };
+      const expectedWorkspaceId =
+        workspace.root.split("/").at(-1) ?? "goodmemory-claude-bootstrap";
+      expect(payload.host).toBe("claude");
+      expect(payload.workspaceId).toBe(expectedWorkspaceId);
+      expect(
+        payload.changes.map(({ action, relativePath }) => ({
+          action,
+          relativePath,
+        })),
+      ).toEqual([
+        { action: "created", relativePath: "CLAUDE.md" },
+        {
+          action: "created",
+          relativePath: ".goodmemory/bootstrap/claude-export.mjs",
+        },
+      ]);
+
+      const instructions = await readFile(join(workspace.root, "CLAUDE.md"), "utf8");
+      expect(instructions).toContain("## GoodMemory Claude Code Bootstrap");
+      expect(instructions).toContain("bun ./.goodmemory/bootstrap/claude-export.mjs");
+      expect(instructions).toContain(".goodmemory/hosts/claude/user.md");
+      expect(
+        instructions.match(/GOODMEMORY-BOOTSTRAP:CLAUDE START/g)?.length ?? 0,
+      ).toBe(1);
+
+      const script = await readFile(
+        join(workspace.root, ".goodmemory/bootstrap/claude-export.mjs"),
+        "utf8",
+      );
+      expect(script).toContain('from "goodmemory"');
+      expect(script).toContain('from "goodmemory/host"');
+      expect(script).not.toContain('"claude-active"');
+      expect(script).toContain('readTextFlag(flags, "session-id")');
+      expect(script).not.toContain("../src");
+    } finally {
+      await workspace.cleanup();
+    }
   });
 });
 

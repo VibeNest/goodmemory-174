@@ -8,6 +8,7 @@ import type {
   RecallInput,
   RecallResult,
 } from "./api/contracts";
+import { bootstrapHostWorkspace, type BootstrapHostKind } from "./bootstrap/hostBootstrap";
 import { normalizeScope, type MemoryScope } from "./domain/scope";
 import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
@@ -128,12 +129,16 @@ const ROOT_HELP_TEXT = [
   "  trace           Run read-only recall diagnostics for a scope and query",
   "  export-memory   Export a memory snapshot plus Markdown artifacts",
   "  stats           Show scope-bounded counts and storage metadata",
+  "  codex           Bootstrap repo-local Codex wiring",
+  "  claude          Bootstrap repo-local Claude Code wiring",
   "  eval            Inspect eval run artifacts",
   "",
   "Help",
   "  goodmemory --help",
   "  goodmemory <command> --help",
   "  goodmemory eval --help",
+  "  goodmemory codex --help",
+  "  goodmemory claude --help",
 ].join("\n");
 const EVAL_HELP_TEXT = [
   "GoodMemory Eval CLI",
@@ -256,6 +261,48 @@ const EVAL_EXPORT_CASE_HELP_TEXT = [
   "",
   "Usage",
   "  goodmemory eval export-case --run-dir <path> --case-id <id> --output <path> [--force] [--json]",
+].join("\n");
+const CODEX_HELP_TEXT = [
+  "GoodMemory Codex Bootstrap CLI",
+  "",
+  "Usage",
+  "  goodmemory codex bootstrap --user-id <id> [options]",
+  "",
+  "Commands",
+  "  bootstrap     Generate repo-local Codex wiring on the installed package surface",
+  "",
+  "Options",
+  "  --user-id <id>            Required",
+  "  --workspace-id <id>       Optional, defaults to the workspace folder name",
+  "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --json",
+].join("\n");
+const CLAUDE_HELP_TEXT = [
+  "GoodMemory Claude Bootstrap CLI",
+  "",
+  "Usage",
+  "  goodmemory claude bootstrap --user-id <id> [options]",
+  "",
+  "Commands",
+  "  bootstrap     Generate repo-local Claude Code wiring on the installed package surface",
+  "",
+  "Options",
+  "  --user-id <id>            Required",
+  "  --workspace-id <id>       Optional, defaults to the workspace folder name",
+  "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --json",
+].join("\n");
+const CODEX_BOOTSTRAP_HELP_TEXT = [
+  "GoodMemory Codex Bootstrap",
+  "",
+  "Usage",
+  "  goodmemory codex bootstrap --user-id <id> [--workspace-id <id>] [--workspace-root <path>] [--json]",
+].join("\n");
+const CLAUDE_BOOTSTRAP_HELP_TEXT = [
+  "GoodMemory Claude Bootstrap",
+  "",
+  "Usage",
+  "  goodmemory claude bootstrap --user-id <id> [--workspace-id <id>] [--workspace-root <path>] [--json]",
 ].join("\n");
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -1393,6 +1440,33 @@ function renderOutput(
   };
 }
 
+function renderBootstrapPayload(payload: {
+  changes: Array<{
+    action: "created" | "unchanged" | "updated";
+    relativePath: string;
+  }>;
+  exportRootPath: string;
+  host: BootstrapHostKind;
+  instructionPath: string;
+  scriptPath: string;
+  workspaceId: string;
+  workspaceRoot: string;
+}): string {
+  const hostLabel = payload.host === "codex" ? "Codex" : "Claude Code";
+  const changeLines = payload.changes.map(
+    (change) => `- ${change.relativePath} (${change.action})`,
+  );
+
+  return [
+    `Bootstrapped ${hostLabel} workspace at ${payload.workspaceRoot}`,
+    `- workspaceId: ${payload.workspaceId}`,
+    `- instructions: ${payload.instructionPath}`,
+    `- script: ${payload.scriptPath}`,
+    `- export root: ${payload.exportRootPath}`,
+    ...changeLines,
+  ].join("\n");
+}
+
 async function handleInspect(flags: ParsedFlags): Promise<CLICommandOutput> {
   const scope = resolveScopeFromFlags(flags);
   const includeRuntime = shouldIncludeRuntime(flags, scope);
@@ -1562,6 +1636,37 @@ async function handleEvalExportCase(
   };
 }
 
+async function handleHostBootstrap(
+  host: BootstrapHostKind,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  const result = await bootstrapHostWorkspace({
+    host,
+    userId: requireFlag(flags, "user-id"),
+    workspaceId: flags["workspace-id"],
+    workspaceRoot: flags["workspace-root"],
+  });
+  const payload = {
+    changes: result.changes.map((change) => ({
+      action: change.action,
+      path: change.path,
+      relativePath: change.relativePath,
+    })),
+    exportRootPath: result.exportRootPath,
+    host: result.host,
+    instructionPath: result.instructionPath,
+    scriptPath: result.scriptPath,
+    userId: result.userId,
+    workspaceId: result.workspaceId,
+    workspaceRoot: result.workspaceRoot,
+  };
+
+  return {
+    json: payload,
+    text: renderBootstrapPayload(payload),
+  };
+}
+
 export async function runCLI(argv: string[]): Promise<CLIResult> {
   try {
     const { commands, flags } = parseArgs(argv);
@@ -1604,6 +1709,32 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
       if (primary === "export-memory") {
         return helpResult(EXPORT_MEMORY_HELP_TEXT);
       }
+      if (primary === "codex") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(CODEX_HELP_TEXT);
+        }
+        if (secondary === "bootstrap") {
+          return helpResult(CODEX_BOOTSTRAP_HELP_TEXT);
+        }
+
+        return errorResult(
+          `Unknown Codex command: ${secondary}. Run 'goodmemory codex --help'.`,
+        );
+      }
+      if (primary === "claude") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(CLAUDE_HELP_TEXT);
+        }
+        if (secondary === "bootstrap") {
+          return helpResult(CLAUDE_BOOTSTRAP_HELP_TEXT);
+        }
+
+        return errorResult(
+          `Unknown Claude command: ${secondary}. Run 'goodmemory claude --help'.`,
+        );
+      }
 
       return errorResult(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
     }
@@ -1624,6 +1755,28 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
       }
 
       throw new Error(`Unknown eval command: ${secondary}. Run 'goodmemory eval --help'.`);
+    }
+    if (primary === "codex") {
+      const secondary = commands[1];
+      if (!secondary) {
+        return helpResult(CODEX_HELP_TEXT);
+      }
+      if (secondary === "bootstrap") {
+        return renderOutput(await handleHostBootstrap("codex", flags), flags);
+      }
+
+      throw new Error(`Unknown Codex command: ${secondary}. Run 'goodmemory codex --help'.`);
+    }
+    if (primary === "claude") {
+      const secondary = commands[1];
+      if (!secondary) {
+        return helpResult(CLAUDE_HELP_TEXT);
+      }
+      if (secondary === "bootstrap") {
+        return renderOutput(await handleHostBootstrap("claude", flags), flags);
+      }
+
+      throw new Error(`Unknown Claude command: ${secondary}. Run 'goodmemory claude --help'.`);
     }
 
     if (primary === "inspect") {

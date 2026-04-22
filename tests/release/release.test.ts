@@ -529,6 +529,7 @@ describe("release metadata and docs", () => {
       expect(entries).toContain("package/scripts/goodmemory-cli.ts");
       expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Codex-Handoff-Setup-Guide.md");
+      expect(entries).toContain("package/docs/GoodMemory-Claude-Code-Setup-Guide.md");
       expect(entries).not.toContain("package/tests/release/release.test.ts");
       expect(entries).not.toContain("package/task-board/00-README.txt");
       expect(entries).not.toContain("package/reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json");
@@ -582,7 +583,10 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("examples/host-codex-handoff.ts");
     expect(readme).toContain("GoodMemory-Reference-Integration-Guide.md");
     expect(readme).toContain("GoodMemory-Codex-Handoff-Setup-Guide.md");
+    expect(readme).toContain("GoodMemory-Claude-Code-Setup-Guide.md");
     expect(readme).toContain("./node_modules/.bin/goodmemory inspect");
+    expect(readme).toContain("./node_modules/.bin/goodmemory codex bootstrap");
+    expect(readme).toContain("./node_modules/.bin/goodmemory claude bootstrap");
     expect(readme).toContain("createGoodMemoryAISDK");
     expect(readme).toContain("goodmemory/ai-sdk");
     expect(readme).toContain("ModelMessage");
@@ -684,6 +688,8 @@ describe("release metadata and docs", () => {
       expect(binHelp.exitCode).toBe(0);
       expect(binHelp.stdout).toContain("GoodMemory CLI");
       expect(binHelp.stdout).toContain("inspect         Inspect scope-bounded memory");
+      expect(binHelp.stdout).toContain("codex           Bootstrap repo-local Codex wiring");
+      expect(binHelp.stdout).toContain("claude          Bootstrap repo-local Claude Code wiring");
       expect(binHelp.stdout).toContain("eval            Inspect eval run artifacts");
     } finally {
       await rm(packOutputDir, { recursive: true, force: true });
@@ -747,6 +753,7 @@ describe("release metadata and docs", () => {
       "README.md",
       "docs/GoodMemory-Reference-Integration-Guide.md",
       "docs/GoodMemory-Codex-Handoff-Setup-Guide.md",
+      "docs/GoodMemory-Claude-Code-Setup-Guide.md",
       "examples/basic-chat.ts",
       "examples/coding-agent.ts",
       "examples/host-claude-artifacts.ts",
@@ -754,6 +761,7 @@ describe("release metadata and docs", () => {
       "examples/vercel-ai-chat.ts",
       "tests/consumers/reference-package-smoke/smoke.mjs",
       "tests/consumers/reference-package-smoke/smoke-types.ts",
+      "tests/consumers/bootstrap-package-smoke/seed.mjs",
     ] as const;
 
     for (const relativePath of files) {
@@ -790,6 +798,17 @@ describe("release metadata and docs", () => {
     expect(codexGuide).toContain('from "goodmemory"');
     expect(codexGuide).toContain('from "goodmemory/host"');
     expect(codexGuide).toContain("bun add goodmemory@0.1.0-rc.1");
+
+    const claudeGuide = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-Claude-Code-Setup-Guide.md",
+      ),
+      "utf8",
+    );
+    expect(claudeGuide).toContain('from "goodmemory"');
+    expect(claudeGuide).toContain('from "goodmemory/host"');
+    expect(claudeGuide).toContain("bun add goodmemory@0.1.0-rc.1");
   });
 
   it("package-boundary reference consumer smoke uses package-name imports only", async () => {
@@ -923,6 +942,194 @@ describe("release metadata and docs", () => {
       expect(statsJson.storage?.provider).toBe("sqlite");
       expect(statsJson.counts?.facts).toBeGreaterThan(0);
 
+    } finally {
+      await rm(packOutputDir, { recursive: true, force: true });
+      await rm(workspaceRoot, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("package-boundary bootstrap consumer smoke scaffolds and exports Codex and Claude artifacts", async () => {
+    const fixtureRoot = join(
+      import.meta.dir,
+      "../../tests/consumers/bootstrap-package-smoke",
+    );
+    const seedSource = await readFile(join(fixtureRoot, "seed.mjs"), "utf8");
+    const seedImportSpecifiers = [...seedSource.matchAll(/from "([^"]+)"/g)].map(
+      (match) => match[1],
+    );
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-bootstrap-consumer-"),
+    );
+    const packOutputDir = await mkdtemp(
+      join(tmpdir(), "goodmemory-bootstrap-pack-"),
+    );
+
+    try {
+      expect(seedImportSpecifiers).toEqual(["node:path", "goodmemory"]);
+
+      const { tarballPath } = await packReleaseTarball(packOutputDir);
+      await cp(fixtureRoot, workspaceRoot, { recursive: true });
+
+      const packageJsonPath = join(workspaceRoot, "package.json");
+      const packageJson = await readFile(packageJsonPath, "utf8");
+      await writeFile(
+        packageJsonPath,
+        packageJson.replace(
+          "__GOODMEMORY_PACKAGE_SPEC__",
+          `file:${tarballPath}`,
+        ),
+        "utf8",
+      );
+
+      const install = await runCommand({
+        cmd: ["bun", "install"],
+        cwd: workspaceRoot,
+      });
+      expect(install.exitCode).toBe(0);
+
+      const seed = await runCommand({
+        cmd: ["bun", "run", "seed"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(seed.exitCode).toBe(0);
+
+      const codexBootstrap = await runCommand({
+        cmd: [
+          "./node_modules/.bin/goodmemory",
+          "codex",
+          "bootstrap",
+          "--user-id",
+          "consumer-user",
+          "--workspace-id",
+          "consumer-workspace",
+          "--json",
+        ],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(codexBootstrap.exitCode).toBe(0);
+      const codexBootstrapJson = extractJsonObject<{
+        changes: Array<{ relativePath: string }>;
+        host: string;
+      }>(codexBootstrap.stdout);
+      expect(codexBootstrapJson.host).toBe("codex");
+      expect(codexBootstrapJson.changes.some((change) => change.relativePath === "AGENTS.md")).toBe(
+        true,
+      );
+
+      const claudeBootstrap = await runCommand({
+        cmd: [
+          "./node_modules/.bin/goodmemory",
+          "claude",
+          "bootstrap",
+          "--user-id",
+          "consumer-user",
+          "--workspace-id",
+          "consumer-workspace",
+          "--json",
+        ],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(claudeBootstrap.exitCode).toBe(0);
+      const claudeBootstrapJson = extractJsonObject<{
+        changes: Array<{ relativePath: string }>;
+        host: string;
+      }>(claudeBootstrap.stdout);
+      expect(claudeBootstrapJson.host).toBe("claude");
+      expect(
+        claudeBootstrapJson.changes.some((change) => change.relativePath === "CLAUDE.md"),
+      ).toBe(true);
+
+      const codexScript = await readFile(
+        join(workspaceRoot, ".goodmemory/bootstrap/codex-export.mjs"),
+        "utf8",
+      );
+      expect(codexScript).toContain('from "goodmemory"');
+      expect(codexScript).toContain('from "goodmemory/host"');
+      expect(codexScript).not.toContain("../src");
+      expect(codexScript).not.toContain("../../src");
+
+      const claudeScript = await readFile(
+        join(workspaceRoot, ".goodmemory/bootstrap/claude-export.mjs"),
+        "utf8",
+      );
+      expect(claudeScript).toContain('from "goodmemory"');
+      expect(claudeScript).toContain('from "goodmemory/host"');
+      expect(claudeScript).not.toContain("../src");
+      expect(claudeScript).not.toContain("../../src");
+
+      const codexExport = await runCommand({
+        cmd: [
+          "bun",
+          "./.goodmemory/bootstrap/codex-export.mjs",
+          "--session-id",
+          "consumer-session",
+        ],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(codexExport.exitCode).toBe(0);
+      const codexExportJson = extractJsonObject<{
+        artifactCount: number;
+      }>(codexExport.stdout);
+      expect(codexExportJson.artifactCount).toBeGreaterThan(0);
+
+      const claudeExport = await runCommand({
+        cmd: ["bun", "./.goodmemory/bootstrap/claude-export.mjs"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(claudeExport.exitCode).toBe(0);
+      const claudeExportJson = extractJsonObject<{
+        artifactCount: number;
+      }>(claudeExport.stdout);
+      expect(claudeExportJson.artifactCount).toBeGreaterThan(0);
+
+      const sessionHandoff = await readFile(
+        join(
+          workspaceRoot,
+          ".goodmemory/hosts/codex/session-memory/current.md",
+        ),
+        "utf8",
+      );
+      expect(sessionHandoff).toContain("Finish the bootstrap smoke path");
+      expect(sessionHandoff).toContain("Verify exported session handoff");
+
+      const claudeMemory = await readFile(
+        join(workspaceRoot, ".goodmemory/hosts/claude/MEMORY.md"),
+        "utf8",
+      );
+      expect(claudeMemory).toContain("smoke verification");
+
+      const codexManifest = JSON.parse(
+        await readFile(
+          join(workspaceRoot, ".goodmemory/hosts/codex/export-manifest.json"),
+          "utf8",
+        ),
+      ) as {
+        host: string;
+        scope: {
+          sessionId?: string;
+        };
+      };
+      expect(codexManifest.host).toBe("codex");
+      expect(codexManifest.scope.sessionId).toBe("consumer-session");
+
+      const claudeManifest = JSON.parse(
+        await readFile(
+          join(workspaceRoot, ".goodmemory/hosts/claude/export-manifest.json"),
+          "utf8",
+        ),
+      ) as {
+        host: string;
+        scope: {
+          workspaceId?: string;
+        };
+      };
+      expect(claudeManifest.host).toBe("claude");
+      expect(claudeManifest.scope.workspaceId).toBe("consumer-workspace");
     } finally {
       await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });

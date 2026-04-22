@@ -78,6 +78,8 @@ GoodMemory `0.1.0-rc.1` 自带一个 Bun-only、只读的已安装 CLI。显式 
 ./node_modules/.bin/goodmemory trace --user-id <user-id> --workspace-id <workspace-id> --query "Which runbook is the source of truth?"
 ./node_modules/.bin/goodmemory export-memory --user-id <user-id> --workspace-id <workspace-id> --output ./tmp/export
 ./node_modules/.bin/goodmemory stats --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory claude bootstrap --user-id <user-id> --workspace-id <workspace-id>
 
 ./node_modules/.bin/goodmemory eval inspect --run-dir reports/eval/live/<run-id> --case-id <case-id>
 ./node_modules/.bin/goodmemory eval trace --run-dir reports/eval/live/<run-id> --case-id <case-id>
@@ -90,6 +92,8 @@ CLI surface:
 - `goodmemory trace`
 - `goodmemory export-memory`
 - `goodmemory stats`
+- `goodmemory codex bootstrap`
+- `goodmemory claude bootstrap`
 - `goodmemory eval inspect`
 - `goodmemory eval trace`
 - `goodmemory eval export-case`
@@ -106,6 +110,7 @@ Installed-package quickstart and integration guidance:
 - Bun-only install and quickstart: this `README`
 - Reference integration guide: [docs/GoodMemory-Reference-Integration-Guide.md](./docs/GoodMemory-Reference-Integration-Guide.md)
 - Codex handoff setup guide: [docs/GoodMemory-Codex-Handoff-Setup-Guide.md](./docs/GoodMemory-Codex-Handoff-Setup-Guide.md)
+- Claude Code setup guide: [docs/GoodMemory-Claude-Code-Setup-Guide.md](./docs/GoodMemory-Claude-Code-Setup-Guide.md)
 
 Repo-local developer examples:
 
@@ -166,6 +171,7 @@ Reference docs:
 
 - [docs/GoodMemory-Reference-Integration-Guide.md](./docs/GoodMemory-Reference-Integration-Guide.md)
 - [docs/GoodMemory-Codex-Handoff-Setup-Guide.md](./docs/GoodMemory-Codex-Handoff-Setup-Guide.md)
+- [docs/GoodMemory-Claude-Code-Setup-Guide.md](./docs/GoodMemory-Claude-Code-Setup-Guide.md)
 
 ## AI SDK Adapter
 
