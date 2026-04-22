@@ -5,7 +5,10 @@ import type {
 } from "../domain/records";
 import { scopeToKey } from "../domain/scope";
 import type { MemoryScope } from "../domain/scope";
-import { createEvidenceRecord } from "../evidence/contracts";
+import {
+  createEvidenceRecord,
+  type EvidenceRecord,
+} from "../evidence/contracts";
 import type {
   LearningProposal,
   PromotionDecision,
@@ -247,6 +250,14 @@ export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
     }
   }
 
+  async function persistExperienceRecordsStrict(
+    records: ExperienceRecord[],
+  ): Promise<void> {
+    for (const record of records) {
+      await config.governanceRepositories.experiences.add(record);
+    }
+  }
+
   async function runRulesOnlyReview(scope: MemoryScope): Promise<void> {
     try {
       const proposals = await config.reviewer.review({ scope });
@@ -310,16 +321,21 @@ export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
     async handleFeedback(input: {
       result: FeedbackResult;
       scope: FeedbackInput["scope"];
+      strict?: boolean;
+      traceId?: string;
     }): Promise<void> {
-      await persistExperienceRecords([
-        buildFeedbackExperienceRecord({
-          scope: input.scope,
-          result: toFeedbackObservationResult(input.result),
-          traceId: crypto.randomUUID(),
-          createdAt: now(),
-          createId: () => crypto.randomUUID(),
-        }),
-      ]);
+      const feedbackExperience = buildFeedbackExperienceRecord({
+        scope: input.scope,
+        result: toFeedbackObservationResult(input.result),
+        traceId: input.traceId ?? crypto.randomUUID(),
+        createdAt: now(),
+        createId: () => crypto.randomUUID(),
+      });
+      if (input.strict) {
+        await persistExperienceRecordsStrict([feedbackExperience]);
+      } else {
+        await persistExperienceRecords([feedbackExperience]);
+      }
       await runRulesOnlyReview(input.scope);
     },
 
@@ -370,6 +386,24 @@ export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
         ),
       ]);
       await runRulesOnlyReview(input.scope);
+    },
+
+    async handleAgentEvent(input: {
+      evidence?: EvidenceRecord;
+      experience?: ExperienceRecord;
+      scope: MemoryScope;
+    }): Promise<void> {
+      if (input.evidence) {
+        await config.governanceRepositories.evidence.add(input.evidence);
+      }
+
+      if (input.experience) {
+        await persistExperienceRecordsStrict([input.experience]);
+      }
+
+      if (input.evidence || input.experience) {
+        await runRulesOnlyReview(input.scope);
+      }
     },
 
     async runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult> {

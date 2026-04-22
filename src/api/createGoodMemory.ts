@@ -42,6 +42,7 @@ import type {
   GovernanceRepositoryPort,
   GovernanceVectorPort,
 } from "../storage/ports";
+import type { DocumentStore } from "../storage/contracts";
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
@@ -55,6 +56,11 @@ import {
   attachGoodMemoryEvalSupport,
   type GoodMemoryEvalSupport,
 } from "./evalSupport";
+import {
+  attachGoodMemoryIntegrationSupport,
+  type GoodMemoryIntegrationSupport,
+} from "./integrationSupport";
+import { createAgentEventIngestor } from "./agentEventIngestion";
 import { createEvolutionRuntime } from "./evolutionRuntime";
 import { deleteVectorForCollection } from "./governance";
 import { wrapInternalRetrievalRolloutMemory } from "./internalRetrievalRollout";
@@ -82,6 +88,8 @@ import {
   resolveGoodMemoryRuntimeResolution,
   resolveAssistedExtractorModelConfigFromEnv,
 } from "./runtimeResolution";
+import type { EvidenceRecord } from "../evidence/contracts";
+import type { ExperienceRecord } from "../evolution/contracts";
 
 type ScopeBoundRecord = {
   userId: string;
@@ -162,6 +170,186 @@ function isPureUserScope(scope: ForgetInput["scope"]): boolean {
     scope.agentId === undefined &&
     scope.sessionId === undefined
   );
+}
+
+async function resolveFeedbackSignalState(input: {
+  feedbackRepository: GovernanceRepositoryPort["feedback"];
+  language: ReturnType<typeof createLanguageService>;
+  locale?: string;
+  scope: FeedbackInput["scope"];
+  signal: string;
+}): Promise<{
+  duplicate?: FeedbackMemory;
+  existing: FeedbackMemory[];
+  kind: ReturnType<ReturnType<typeof createLanguageService>["deriveFeedbackKind"]>;
+  normalizedRule: string;
+  resolvedLanguage: ReturnType<ReturnType<typeof createLanguageService>["resolveFromText"]>;
+  superseded?: FeedbackMemory;
+}> {
+  const resolvedLanguage = input.language.resolveFromText({
+    locale: input.locale,
+    text: input.signal,
+  });
+  const existing = await input.feedbackRepository.listByScope(input.scope);
+  const kind = input.language.deriveFeedbackKind(input.signal, resolvedLanguage);
+  const normalizedRule = input.language.normalizeForEquality(
+    input.signal,
+    resolvedLanguage,
+  );
+  const duplicate = existing.find(
+    (record) =>
+      record.lifecycle === "active" &&
+      record.kind === kind &&
+      input.language.normalizeForEquality(record.rule, resolvedLanguage) ===
+        normalizedRule,
+  );
+  const superseded = existing.find(
+    (record) =>
+      record.lifecycle === "active" &&
+      record.appliesTo === "general_response" &&
+      record.kind === kind,
+  );
+
+  return {
+    duplicate,
+    existing,
+    kind,
+    normalizedRule,
+    resolvedLanguage,
+    superseded,
+  };
+}
+
+async function writeFeedbackSignal(input: {
+  evolutionRuntime: {
+    handleFeedback(input: {
+      result: FeedbackResult;
+      scope: FeedbackInput["scope"];
+      strict?: boolean;
+      traceId?: string;
+    }): Promise<void>;
+  };
+  feedbackRepository: GovernanceRepositoryPort["feedback"];
+  language: ReturnType<typeof createLanguageService>;
+  locale?: string;
+  scope: FeedbackInput["scope"];
+  signal: string;
+  strictExperience?: boolean;
+  traceId?: string;
+}): Promise<FeedbackResult> {
+  const {
+    duplicate,
+    kind,
+    resolvedLanguage,
+    superseded,
+  } = await resolveFeedbackSignalState({
+    feedbackRepository: input.feedbackRepository,
+    language: input.language,
+    locale: input.locale,
+    scope: input.scope,
+    signal: input.signal,
+  });
+
+  if (!duplicate) {
+    const timestamp = new Date().toISOString();
+    const nextRecord = createFeedbackMemory({
+      id: crypto.randomUUID(),
+      userId: input.scope.userId,
+      tenantId: input.scope.tenantId,
+      workspaceId: input.scope.workspaceId,
+      agentId: input.scope.agentId,
+      sessionId: input.scope.sessionId,
+      rule: input.signal,
+      kind,
+      appliesTo: "general_response",
+      source: createMemorySource({
+        method: "explicit",
+        extractedAt: timestamp,
+        sessionId: input.scope.sessionId,
+        locale: resolvedLanguage.locale,
+      }),
+      updatedAt: timestamp,
+    });
+
+    if (superseded) {
+      await input.feedbackRepository.upsert(
+        createFeedbackMemory({
+          ...superseded,
+          lifecycle: "superseded",
+          supersededBy: nextRecord.id,
+          updatedAt: timestamp,
+        }),
+      );
+
+      await input.feedbackRepository.upsert(nextRecord);
+      const result: FeedbackResult = {
+        accepted: true,
+        outcome: "superseded",
+        memoryId: nextRecord.id,
+        kind,
+        metadata: {
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+          adapterId: resolvedLanguage.adapterId,
+          analysisMode: resolvedLanguage.analysisMode,
+        },
+      };
+
+      await input.evolutionRuntime.handleFeedback({
+        scope: input.scope,
+        result,
+        ...(input.traceId ? { traceId: input.traceId } : {}),
+        ...(input.strictExperience ? { strict: true } : {}),
+      });
+
+      return result;
+    }
+
+    await input.feedbackRepository.upsert(nextRecord);
+    const result: FeedbackResult = {
+      accepted: true,
+      outcome: "written",
+      memoryId: nextRecord.id,
+      kind,
+      metadata: {
+        locale: resolvedLanguage.locale,
+        localeSource: resolvedLanguage.localeSource,
+        adapterId: resolvedLanguage.adapterId,
+        analysisMode: resolvedLanguage.analysisMode,
+      },
+    };
+
+    await input.evolutionRuntime.handleFeedback({
+      scope: input.scope,
+      result,
+      ...(input.traceId ? { traceId: input.traceId } : {}),
+      ...(input.strictExperience ? { strict: true } : {}),
+    });
+
+    return result;
+  }
+
+  const result: FeedbackResult = {
+    accepted: true,
+    outcome: "merged",
+    memoryId: duplicate.id,
+    kind,
+    metadata: {
+      locale: resolvedLanguage.locale,
+      localeSource: resolvedLanguage.localeSource,
+      adapterId: resolvedLanguage.adapterId,
+      analysisMode: resolvedLanguage.analysisMode,
+    },
+  };
+
+  await input.evolutionRuntime.handleFeedback({
+    scope: input.scope,
+    result,
+    ...(input.traceId ? { traceId: input.traceId } : {}),
+    ...(input.strictExperience ? { strict: true } : {}),
+  });
+
+  return result;
 }
 
 class GoodMemoryImpl implements GoodMemory {
@@ -599,123 +787,14 @@ class GoodMemoryImpl implements GoodMemory {
   }
 
   async feedback(input: FeedbackInput): Promise<FeedbackResult> {
-    const resolvedLanguage = this.language.resolveFromText({
+    return writeFeedbackSignal({
+      evolutionRuntime: this.evolutionRuntime,
+      feedbackRepository: this.governanceRepositories.feedback,
+      language: this.language,
       locale: input.locale,
-      text: input.signal,
-    });
-    const existing = await this.governanceRepositories.feedback.listByScope(input.scope);
-    const kind = this.language.deriveFeedbackKind(input.signal, resolvedLanguage);
-    const normalizedRule = this.language.normalizeForEquality(
-      input.signal,
-      resolvedLanguage,
-    );
-    const duplicate = existing.find(
-      (record: FeedbackMemory) =>
-        record.lifecycle === "active" &&
-        record.kind === kind &&
-        this.language.normalizeForEquality(record.rule, resolvedLanguage) === normalizedRule,
-    );
-
-    if (!duplicate) {
-      const superseded = existing.find(
-        (record: FeedbackMemory) =>
-          record.lifecycle === "active" &&
-          record.appliesTo === "general_response" &&
-          record.kind === kind,
-      );
-      const timestamp = new Date().toISOString();
-      const nextRecord = createFeedbackMemory({
-        id: crypto.randomUUID(),
-        userId: input.scope.userId,
-        tenantId: input.scope.tenantId,
-        workspaceId: input.scope.workspaceId,
-        agentId: input.scope.agentId,
-        sessionId: input.scope.sessionId,
-        rule: input.signal,
-        kind,
-        appliesTo: "general_response",
-        source: createMemorySource({
-          method: "explicit",
-          extractedAt: timestamp,
-          sessionId: input.scope.sessionId,
-          locale: resolvedLanguage.locale,
-        }),
-        updatedAt: timestamp,
-      });
-
-      if (superseded) {
-        await this.governanceRepositories.feedback.upsert(
-          createFeedbackMemory({
-            ...superseded,
-            lifecycle: "superseded",
-            supersededBy: nextRecord.id,
-            updatedAt: timestamp,
-          }),
-        );
-
-        await this.governanceRepositories.feedback.upsert(nextRecord);
-        const result: FeedbackResult = {
-          accepted: true,
-          outcome: "superseded",
-          memoryId: nextRecord.id,
-          kind,
-          metadata: {
-            locale: resolvedLanguage.locale,
-            localeSource: resolvedLanguage.localeSource,
-            adapterId: resolvedLanguage.adapterId,
-            analysisMode: resolvedLanguage.analysisMode,
-          },
-        };
-
-        await this.evolutionRuntime.handleFeedback({
-          scope: input.scope,
-          result,
-        });
-
-        return result;
-      }
-
-      await this.governanceRepositories.feedback.upsert(nextRecord);
-      const result: FeedbackResult = {
-        accepted: true,
-        outcome: "written",
-        memoryId: nextRecord.id,
-        kind,
-        metadata: {
-          locale: resolvedLanguage.locale,
-          localeSource: resolvedLanguage.localeSource,
-          adapterId: resolvedLanguage.adapterId,
-          analysisMode: resolvedLanguage.analysisMode,
-        },
-      };
-
-      await this.evolutionRuntime.handleFeedback({
-        scope: input.scope,
-        result,
-      });
-
-      return result;
-    }
-
-    const result: FeedbackResult = {
-      accepted: true,
-      outcome: "merged",
-      memoryId: duplicate.id,
-      kind,
-      metadata: {
-        locale: resolvedLanguage.locale,
-        localeSource: resolvedLanguage.localeSource,
-        adapterId: resolvedLanguage.adapterId,
-        analysisMode: resolvedLanguage.analysisMode,
-      },
-    };
-
-    await this.evolutionRuntime.handleFeedback({
       scope: input.scope,
-      result,
+      signal: input.signal,
     });
-
-    return result;
   }
 
   async runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult> {
@@ -742,16 +821,82 @@ export function createInternalGoodMemory(
     },
   );
   const implWithInternals = impl as unknown as {
+    documentStore: DocumentStore;
     evolutionRuntime: {
+      handleAgentEvent: (input: {
+        evidence?: EvidenceRecord;
+        experience?: ExperienceRecord;
+        scope: ForgetInput["scope"];
+      }) => Promise<void>;
       handleBehavioralOutcome: (input: {
         result: BehavioralOutcomeObservationResult;
         scope: ForgetInput["scope"];
       }) => Promise<void>;
+      handleFeedback: (input: {
+        result: FeedbackResult;
+        scope: FeedbackInput["scope"];
+        strict?: boolean;
+        traceId?: string;
+      }) => Promise<void>;
     };
+    governanceRepositories: GovernanceRepositoryPort;
+    feedback: GoodMemory["feedback"];
+    language: ReturnType<typeof createLanguageService>;
+    now: () => Date;
   };
   type BehavioralOutcomeSupportInput = Parameters<
     Exclude<GoodMemoryEvalSupport["recordBehavioralOutcome"], undefined>
   >[0];
+  const integrationSupport: GoodMemoryIntegrationSupport = {
+    ingestAgentInputEvent: ({ event }) =>
+      createAgentEventIngestor({
+        documentStore: implWithInternals.documentStore,
+        feedback: (input) =>
+          writeFeedbackSignal({
+            evolutionRuntime: implWithInternals.evolutionRuntime,
+            feedbackRepository: implWithInternals.governanceRepositories.feedback,
+            language: implWithInternals.language,
+            locale: input.locale,
+            scope: input.scope,
+            signal: input.signal,
+            strictExperience: true,
+            ...(input.traceId ? { traceId: input.traceId } : {}),
+          }),
+        language: implWithInternals.language,
+        now: implWithInternals.now,
+        policy: config.policy,
+        persist: ({ evidence, experience, scope }) =>
+          implWithInternals.evolutionRuntime.handleAgentEvent({
+            scope,
+            ...(evidence ? { evidence } : {}),
+            ...(experience ? { experience } : {}),
+          }),
+      }).ingest(event),
+    ingestHostAgentEvent: ({ event }) =>
+      createAgentEventIngestor({
+        documentStore: implWithInternals.documentStore,
+        feedback: (input) =>
+          writeFeedbackSignal({
+            evolutionRuntime: implWithInternals.evolutionRuntime,
+            feedbackRepository: implWithInternals.governanceRepositories.feedback,
+            language: implWithInternals.language,
+            locale: input.locale,
+            scope: input.scope,
+            signal: input.signal,
+            strictExperience: true,
+            ...(input.traceId ? { traceId: input.traceId } : {}),
+          }),
+        language: implWithInternals.language,
+        now: implWithInternals.now,
+        policy: config.policy,
+        persist: ({ evidence, experience, scope }) =>
+          implWithInternals.evolutionRuntime.handleAgentEvent({
+            scope,
+            ...(evidence ? { evidence } : {}),
+            ...(experience ? { experience } : {}),
+          }),
+      }).ingest(event),
+  };
   const support = {
     ...(internal?.assistedRecallRouter ? { assistedRecallRouter: true } : {}),
     ...(internal?.assistedReviewer ? { assistedReviewer: true } : {}),
@@ -775,8 +920,11 @@ export function createInternalGoodMemory(
   };
 
   if (Object.keys(support).length === 0) {
-    return memory;
+    return attachGoodMemoryIntegrationSupport(memory, integrationSupport);
   }
 
-  return attachGoodMemoryEvalSupport(memory, support);
+  return attachGoodMemoryEvalSupport(
+    attachGoodMemoryIntegrationSupport(memory, integrationSupport),
+    support,
+  );
 }

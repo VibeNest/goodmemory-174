@@ -6,6 +6,7 @@ import type {
 import type { ModelMessage, SystemModelMessage } from "@ai-sdk/provider-utils";
 
 import type { GoodMemory } from "../api/contracts";
+import type { AgentEventIngestResult } from "../api/integrationSupport";
 import type { MemoryScope } from "../domain/scope";
 import type {
   AgentEventHostKind,
@@ -23,6 +24,7 @@ const DEFAULT_STREAM_TEXT = streamText;
 
 export type {
   AgentEventHostKind,
+  AgentEventIngestResult,
   AgentEventIdentity,
   AgentEventKind,
   AgentEventScope,

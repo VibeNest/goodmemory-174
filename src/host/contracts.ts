@@ -2,6 +2,7 @@ import type {
   ExportMemoryInput,
   GoodMemory,
 } from "../api/contracts";
+import type { AgentEventIngestResult } from "../api/integrationSupport";
 import type {
   AgentEventHostKind,
   AgentEventIdentity,
@@ -16,6 +17,7 @@ import type { MemoryScope } from "../domain/scope";
 import type { MarkdownArtifactFile } from "../governance/markdownArtifacts";
 
 export type {
+  AgentEventIngestResult,
   AgentEventHostKind,
   AgentEventIdentity,
   AgentEventKind,

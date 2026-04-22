@@ -1,12 +1,12 @@
 Phase 32.3: Selective Evidence and Proposal Compilation
 =======================================================
 
-[TODO] Normalize accepted external agent events into selective evidence and experiences.
-[TODO] Feed those experiences into the existing proposal/reviewer/compiler chain.
-[TODO] Keep the automatic path proposal-driven:
+[DONE] Normalize accepted external agent events into selective evidence and experiences.
+[DONE] Feed those experiences into the existing proposal/reviewer/compiler chain.
+[DONE] Keep the automatic path proposal-driven:
 - no direct canonical durable-memory mutation from host events
 - no bypass around existing gates and promotion decisions
-[TODO] Preserve `feedback()` as the explicit human-confirmation path.
+[DONE] Preserve `feedback()` as the explicit human-confirmation path.
 
 Guardrails
 ----------
@@ -29,3 +29,21 @@ Evidence To Add
 - integration coverage around event -> evidence -> proposal plumbing
 - export-memory/assertion regressions proving selective storage
 - proposal/promotion lineage tests on external host events
+
+Implemented
+-----------
+- integration support now hangs off `createGoodMemory()` through `src/api/integrationSupport.ts`
+- public helpers now exist on:
+  - `goodmemory/ai-sdk` via `ingestAgentInputEvent(...)`
+  - `goodmemory/host` via `ingestHostAgentEvent(...)`
+- selective event persistence now lives in `src/api/agentEventIngestion.ts`
+- `tool_result`, `verify_result`, `file_edit`, `task_transition`, and selective `tool_call` inputs can persist bounded evidence/experience records
+- `user_correction` now persists bounded correction evidence and then reuses the existing explicit `feedback()` path, so repeated corrections flow into the existing reviewer/compiler pipeline instead of bypassing canonical governance
+- duplicate event ids now fail closed at the ingestion layer before evidence/experience duplication occurs
+
+Regression Run
+--------------
+- `bun test tests/integration/agent-events.ingestion.test.ts`
+- `bun test tests/unit/agent-events.contracts.test.ts`
+- `bun run typecheck`
+- `bun test tests/release/release.test.ts`

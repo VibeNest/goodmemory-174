@@ -16,6 +16,7 @@ Current Status
 [TODO] Phase 31 already proved native Codex host traces can carry host-lifecycle outcomes plus targeted correction lineage, but that path is still internal evidence infrastructure.
 [TODO] External users still do not have one canonical installed-package bootstrap path for Codex or Claude Code, and public adapter surfaces do not yet accept normalized agent events.
 [DONE] P32-T002 public adapter-level agent-event contracts are now implemented and regression-covered on `goodmemory/ai-sdk` and `goodmemory/host`.
+[DONE] P32-T003 selective event -> evidence/experience/proposal-input compilation is now implemented and regression-covered, with `user_correction` routed through the existing explicit `feedback()` path.
 
 
 Dependencies
@@ -93,7 +94,7 @@ Tasks
 -----
 [TODO] P32-T001 Freeze the canonical external product line and public boundary for Codex/Claude Code integration
 [DONE] P32-T002 Add thin adapter-level public agent-event contracts on `goodmemory/ai-sdk` and `goodmemory/host`
-[TODO] P32-T003 Compile normalized agent events into selective evidence, experiences, and proposal inputs without transcript-dump regressions
+[DONE] P32-T003 Compile normalized agent events into selective evidence, experiences, and proposal inputs without transcript-dump regressions
 [TODO] P32-T004 Upgrade `coding_agent` recall/context assembly to consume accepted event-backed procedural patterns on the external path
 [TODO] P32-T005 Ship installed-package bootstrap commands, guides, and consumer smoke for Codex and Claude Code
 [TODO] P32-T006 Add `gate:phase-32`, archive canonical external-host evidence, and sync current-status/task-board docs after the evidence is real

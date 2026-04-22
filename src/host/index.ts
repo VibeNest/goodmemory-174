@@ -1,4 +1,5 @@
 export type {
+  AgentEventIngestResult,
   AgentEventHostKind,
   AgentEventIdentity,
   AgentEventKind,
@@ -22,6 +23,7 @@ export type {
   HostWriteVerificationOutcome,
   HostWriteVerificationResult,
 } from "./contracts";
+export { ingestHostAgentEvent } from "./agentEvents";
 export {
   isHostAgentEvent,
   validateHostAgentEvent,

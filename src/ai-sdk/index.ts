@@ -1,5 +1,6 @@
 export type {
   AgentEventHostKind,
+  AgentEventIngestResult,
   AgentEventIdentity,
   AgentEventKind,
   AgentEventScope,
@@ -22,6 +23,7 @@ export type {
   GoodMemoryRecallSkipReason,
   GoodMemoryStreamTextInput,
 } from "./contracts";
+export { ingestAgentInputEvent } from "./agentEvents";
 export {
   isAgentInputEvent,
   validateAgentInputEvent,
