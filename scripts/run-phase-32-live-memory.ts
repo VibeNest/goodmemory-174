@@ -105,16 +105,14 @@ export interface Phase32LiveMemoryReport {
       textOnly: "frozen-pre-phase31-public-text-only";
     };
     cases: Array<{
-      artifactReadCommands: string[];
       caseId:
         | "continuity-open-loop"
         | "procedure-adherence"
         | "repeated-correction";
-      hostExitCode: number;
+      eventBacked: Phase32MeasuredLiveVariant;
       nonRegressionAgainstTextOnly: boolean;
-      observedResponse: Record<string, string>;
-      traceBacked: boolean;
-      traceEventCount: number;
+      noMemory: Phase32MeasuredLiveVariant;
+      textOnly: Phase32MeasuredLiveVariant;
       winOverNoMemory: boolean;
     }>;
   };
@@ -159,6 +157,17 @@ export interface Phase32LiveMemoryReport {
   runId: string;
 }
 
+type Phase32LiveVariant = "event-backed" | "no-memory" | "text-only";
+
+export interface Phase32MeasuredLiveVariant {
+  artifactReadCommands: string[];
+  hostExitCode: number;
+  matchedExpectedFieldCount: number;
+  observedResponse: Record<string, string>;
+  traceBacked: boolean;
+  traceEventCount: number;
+}
+
 const GENERATED_BY = "scripts/run-phase-32-live-memory.ts";
 const PHASE32_CANONICAL_LIVE_RUN_ID = "run-phase32-live-current";
 const PHASE32_CLI_ENV = {
@@ -192,19 +201,22 @@ const PHASE32_EXPECTED_RESPONSE = {
   openLoop: "Verify exported session handoff",
 } as const;
 const PHASE32_NATIVE_PROMPT = [
-  "Without editing files, inspect the workspace guidance and reply with ONLY a JSON object.",
+  "Without editing files, inspect ONLY the exported guidance under .goodmemory/hosts/codex and reply with ONLY a JSON object.",
   "Use exactly these keys: currentGoal and openLoop.",
-  "Use the exact wording from the exported guidance files.",
+  'If a requested value is absent from the exported guidance, return "none" for that key.',
+  "When a value exists, use the exact wording from the exported guidance files.",
 ].join(" ");
 const PHASE32_SUMMARY_RULE_PROMPT = [
-  "Without editing files, inspect the workspace guidance and reply with ONLY a JSON object.",
+  "Without editing files, inspect ONLY the exported guidance under .goodmemory/hosts/codex and reply with ONLY a JSON object.",
   "Use exactly this key: summaryRule.",
-  "Use the exact wording for the summary-formatting rule from the exported guidance files.",
+  'If the exported guidance does not contain a summary-formatting rule, return {"summaryRule":"none"}.',
+  "When the rule exists, return only the rule text itself and strip markdown bullets or leading tags such as [do].",
 ].join(" ");
 const PHASE32_BOOTSTRAP_RULE_PROMPT = [
-  "Without editing files, inspect the workspace guidance and reply with ONLY a JSON object.",
+  "Without editing files, inspect ONLY the exported guidance under .goodmemory/hosts/codex and reply with ONLY a JSON object.",
   "Use exactly these keys: bootstrapRule and blocker.",
-  "Use the exact wording from the exported guidance files.",
+  'If a requested value is absent from the exported guidance, return "none" for that key.',
+  "When a value exists, use the exact wording from the exported guidance files.",
 ].join(" ");
 const CODEX_HOST_TURN_TIMEOUT_MS = 90_000;
 const PHASE32_SUMMARY_RULE =
@@ -232,6 +244,7 @@ interface Phase32LiveCaseSpec {
     | "procedure-adherence"
     | "repeated-correction";
   expected: Record<string, string>;
+  expectedFieldCount: number;
   prompt: string;
   requiredArtifactPaths: readonly string[];
 }
@@ -240,15 +253,18 @@ interface Phase32EvaluatedLiveCase {
   artifactReadCommands: string[];
   caseId: Phase32LiveCaseSpec["caseId"];
   hostExitCode: number;
+  matchedExpectedFieldCount: number;
   observedResponse: Record<string, string>;
   traceBacked: boolean;
   traceEventCount: number;
+  variant: Phase32LiveVariant;
 }
 
 const PHASE32_LIVE_CASES: readonly Phase32LiveCaseSpec[] = [
   {
     caseId: "continuity-open-loop",
     expected: { ...PHASE32_EXPECTED_RESPONSE },
+    expectedFieldCount: 2,
     prompt: PHASE32_NATIVE_PROMPT,
     requiredArtifactPaths: [PHASE32_SESSION_MEMORY_ARTIFACT_PATH],
   },
@@ -257,6 +273,7 @@ const PHASE32_LIVE_CASES: readonly Phase32LiveCaseSpec[] = [
     expected: {
       summaryRule: PHASE32_SUMMARY_RULE,
     },
+    expectedFieldCount: 1,
     prompt: PHASE32_SUMMARY_RULE_PROMPT,
     requiredArtifactPaths: [PHASE32_MEMORY_ARTIFACT_PATH],
   },
@@ -266,6 +283,7 @@ const PHASE32_LIVE_CASES: readonly Phase32LiveCaseSpec[] = [
       blocker: PHASE32_BLOCKER,
       bootstrapRule: PHASE32_BOOTSTRAP_RULE,
     },
+    expectedFieldCount: 2,
     prompt: PHASE32_BOOTSTRAP_RULE_PROMPT,
     requiredArtifactPaths: [
       PHASE32_MEMORY_ARTIFACT_PATH,
@@ -273,6 +291,12 @@ const PHASE32_LIVE_CASES: readonly Phase32LiveCaseSpec[] = [
     ],
   },
 ] as const;
+
+const PHASE32_LIVE_VARIANTS = [
+  "event-backed",
+  "text-only",
+  "no-memory",
+] as const satisfies readonly Phase32LiveVariant[];
 
 function tailLines(value: string, count = 20): string[] {
   if (value.trim().length === 0) {
@@ -437,7 +461,7 @@ function collectArtifactReadCommands(input: {
       continue;
     }
     const referencedArtifactPath = PHASE32_TRACKED_ARTIFACT_PATHS.find((artifactPath) =>
-      sanitizedCommand.includes(artifactPath)
+      commandTargetsArtifact(sanitizedCommand, artifactPath)
     );
     if (!referencedArtifactPath) {
       continue;
@@ -459,12 +483,32 @@ function isExactExpectedResponse(input: {
   );
 }
 
+function commandTargetsArtifact(command: string, artifactPath: string): boolean {
+  if (command.includes(artifactPath)) {
+    return true;
+  }
+  if (!command.includes(".goodmemory/hosts/codex")) {
+    return false;
+  }
+  if (artifactPath === PHASE32_MEMORY_ARTIFACT_PATH) {
+    return /\bMEMORY\.md\b/u.test(command);
+  }
+  if (artifactPath === PHASE32_SESSION_MEMORY_ARTIFACT_PATH) {
+    return /\bcurrent\.md\b/u.test(command);
+  }
+  if (artifactPath === PHASE32_MANIFEST_PATH) {
+    return /\bexport-manifest\.json\b/u.test(command);
+  }
+
+  return false;
+}
+
 function requiresGuidanceArtifactRead(
   commands: readonly string[],
   requiredArtifactPaths: readonly string[],
 ): boolean {
   return requiredArtifactPaths.every((artifactPath) =>
-    commands.some((command) => command.includes(artifactPath))
+    commands.some((command) => commandTargetsArtifact(command, artifactPath))
   );
 }
 
@@ -479,6 +523,164 @@ function extractObservedResponse(agentMessages: readonly string[]): Record<strin
   } catch {
     return {};
   }
+}
+
+function countMatchedExpectedFields(
+  observed: Record<string, string>,
+  expected: Record<string, string>,
+): number {
+  return Object.entries(expected).reduce(
+    (count, [key, value]) => count + (observed[key] === value ? 1 : 0),
+    0,
+  );
+}
+
+function buildPhase32SeedScript(variant: Phase32LiveVariant): string {
+  const imports = [
+    'import { join } from "node:path";',
+    'import {',
+    "  createGoodMemory,",
+    "  createRuntimeArchiveStore,",
+    "  createRuntimeContextService,",
+    "  createSQLiteDocumentStore,",
+    "  createSQLiteSessionStore,",
+    '} from "goodmemory";',
+    ...(variant === "event-backed"
+      ? [
+          'import { ingestAgentInputEvent } from "goodmemory/ai-sdk";',
+          'import { ingestHostAgentEvent } from "goodmemory/host";',
+        ]
+      : []),
+    "",
+  ];
+  const base = [
+    "const scope = {",
+    '  userId: "consumer-user",',
+    '  workspaceId: "consumer-workspace",',
+    '  sessionId: "consumer-session",',
+    "};",
+    'const sqlitePath = join(process.cwd(), ".goodmemory", "memory.sqlite");',
+    "const documentStore = createSQLiteDocumentStore(sqlitePath);",
+    "const sessionStore = createSQLiteSessionStore(sqlitePath);",
+    "const runtime = createRuntimeContextService({",
+    "  sessionStore,",
+    "  archiveStore: createRuntimeArchiveStore({ documentStore }),",
+    '  now: () => "2026-04-22T00:00:00.000Z",',
+    "  maxBufferedMessages: 2,",
+    "});",
+    "const memory = createGoodMemory({});",
+    "",
+  ];
+  const variantLines =
+    variant === "event-backed"
+      ? [
+          "await memory.remember({",
+          "  scope,",
+          "  messages: [",
+          "    {",
+          '      role: "user",',
+          '      content: "Remember that the deploy is blocked on smoke verification.",',
+          "    },",
+          "    {",
+          '      role: "assistant",',
+          '      content: "Noted.",',
+          "    },",
+          "  ],",
+          "});",
+          "await runtime.startSession(scope);",
+          "await runtime.updateWorkingMemory(scope, {",
+          '  currentGoal: "Finish the bootstrap smoke path",',
+          '  openLoops: ["Verify exported session handoff"],',
+          '  temporaryDecisions: ["Use packaged CLI bootstrap only."],',
+          "});",
+          "await runtime.updateSessionJournal(scope, {",
+          '  currentState: "Bootstrap scripts generated.",',
+          '  workflow: ["Run codex export", "Run claude export"],',
+          '  appendWorklog: ["Seeded runtime continuity for external-host smoke."],',
+          "});",
+          "await ingestAgentInputEvent(memory, {",
+          '  surface: "ai-sdk",',
+          '  kind: "user_correction",',
+          '  eventId: "phase32-event-1",',
+          '  runId: "phase32-live",',
+          '  turnId: "phase32-turn-1",',
+          "  sequence: 0,",
+          '  occurredAt: "2026-04-22T00:00:01.000Z",',
+          '  hostKind: "codex",',
+          "  scope,",
+          `  correction: ${JSON.stringify(PHASE32_SUMMARY_RULE)},`,
+          "});",
+          "await ingestHostAgentEvent(memory, {",
+          '  surface: "host",',
+          '  kind: "task_transition",',
+          '  eventId: "phase32-event-2",',
+          '  runId: "phase32-live",',
+          '  turnId: "phase32-turn-2",',
+          "  sequence: 1,",
+          '  occurredAt: "2026-04-22T00:00:02.000Z",',
+          '  hostKind: "codex",',
+          "  scope,",
+          '  previousState: "bootstrap-generated",',
+          '  nextState: "export-session-guidance",',
+          '  summary: "Archive the exported Codex session handoff before the final closeout.",',
+          "});",
+          "await ingestHostAgentEvent(memory, {",
+          '  surface: "host",',
+          '  kind: "verify_result",',
+          '  eventId: "phase32-event-3",',
+          '  runId: "phase32-live",',
+          '  turnId: "phase32-turn-3",',
+          "  sequence: 2,",
+          '  occurredAt: "2026-04-22T00:00:03.000Z",',
+          '  hostKind: "codex",',
+          "  scope,",
+          '  checkName: "phase32-closeout-review",',
+          '  outcome: "failed",',
+          `  summary: ${JSON.stringify("Verification failed: draft missed bullet points.")},`,
+          "});",
+        ]
+      : variant === "text-only"
+        ? [
+            "await memory.remember({",
+            "  scope,",
+            "  messages: [",
+            "    {",
+            '      role: "user",',
+            '      content: "Remember that the deploy is blocked on smoke verification.",',
+            "    },",
+            "    {",
+            '      role: "assistant",',
+            '      content: "Noted.",',
+            "    },",
+            "  ],",
+            "});",
+            "await memory.feedback({",
+            "  scope,",
+            `  signal: ${JSON.stringify(PHASE32_SUMMARY_RULE)},`,
+            "});",
+            "await runtime.startSession(scope);",
+            "await runtime.updateWorkingMemory(scope, {",
+            '  currentGoal: "Finish the bootstrap smoke path",',
+            '  openLoops: ["Verify exported session handoff"],',
+            '  temporaryDecisions: ["Use packaged CLI bootstrap only."],',
+            "});",
+            "await runtime.updateSessionJournal(scope, {",
+            '  currentState: "Bootstrap scripts generated.",',
+            '  workflow: ["Run codex export", "Run claude export"],',
+            '  appendWorklog: ["Seeded runtime continuity for external-host smoke."],',
+            "});",
+          ]
+        : ["await runtime.startSession(scope);"];
+
+  return [
+    ...imports,
+    ...base,
+    ...variantLines,
+    'console.log(JSON.stringify({ ok: true, scope, sqlitePath, variant: ' +
+      JSON.stringify(variant) +
+      " }));",
+    "",
+  ].join("\n");
 }
 
 function matchesExpectedFields(
@@ -674,164 +876,229 @@ export async function runPhase32LiveMemoryEvaluation(
     if (installResult.exitCode !== 0) {
       throw new Error("Failed to install the packed Phase 32 tarball.");
     }
+    const seedScriptPath = join(workspaceRoot, "seed.mjs");
+    const liveCasesByVariant = new Map<Phase32LiveVariant, Phase32EvaluatedLiveCase[]>();
+    let eventBackedExportedArtifactPaths: string[] = [];
 
-    const seedCommand: Phase32LiveMemoryCommand = {
-      args: ["bun", "run", "seed"],
-      cwd: workspaceRoot,
-      env: PHASE32_CLI_ENV,
-      label: "seed-memory",
-    };
-    const seedResult = await runCommand(seedCommand);
-    commands.push(toExecutionResult(seedCommand, seedResult, replacements));
-    if (seedResult.exitCode !== 0) {
-      throw new Error("Failed to seed the bootstrap consumer workspace.");
-    }
+    for (const variant of PHASE32_LIVE_VARIANTS) {
+      await removeDir(join(workspaceRoot, ".goodmemory"), {
+        force: true,
+        recursive: true,
+      });
+      await writeTextFile(seedScriptPath, buildPhase32SeedScript(variant));
 
-    const bootstrapCommand: Phase32LiveMemoryCommand = {
-      args: [
-        "./node_modules/.bin/goodmemory",
-        "codex",
-        "bootstrap",
-        "--user-id",
-        "consumer-user",
-        "--workspace-id",
-        "consumer-workspace",
-        "--json",
-      ],
-      cwd: workspaceRoot,
-      env: PHASE32_CLI_ENV,
-      label: "codex-bootstrap",
-    };
-    const bootstrapResult = await runCommand(bootstrapCommand);
-    commands.push(toExecutionResult(bootstrapCommand, bootstrapResult, replacements));
-    if (bootstrapResult.exitCode !== 0) {
-      throw new Error("Failed to bootstrap Codex in the Phase 32 consumer workspace.");
-    }
-
-    const exportCommand: Phase32LiveMemoryCommand = {
-      args: [
-        "bun",
-        "./.goodmemory/bootstrap/codex-export.mjs",
-        "--session-id",
-        "consumer-session",
-      ],
-      cwd: workspaceRoot,
-      env: PHASE32_CLI_ENV,
-      label: "codex-export",
-    };
-    const exportResult = await runCommand(exportCommand);
-    commands.push(toExecutionResult(exportCommand, exportResult, replacements));
-    if (exportResult.exitCode !== 0) {
-      throw new Error("Failed to export Codex GoodMemory artifacts in the consumer workspace.");
-    }
-
-    const manifestPath = join(
-      workspaceRoot,
-      ".goodmemory/hosts/codex/export-manifest.json",
-    );
-    const manifest = JSON.parse(
-      await readTextFile(manifestPath),
-    ) as {
-      artifacts?: Array<{ relativePath?: string }>;
-    };
-    const exportedArtifactPaths = [
-      ...new Set(
-        (manifest.artifacts ?? [])
-          .flatMap((artifact) =>
-            typeof artifact.relativePath === "string" ? [artifact.relativePath] : []
-          )
-          .map((relativePath) =>
-            `.goodmemory/hosts/codex/${relativePath.replace(/^\.\//u, "")}`
-          ),
-      ),
-    ].sort();
-
-    for (const requiredPath of PHASE32_REQUIRED_MANIFEST_ARTIFACT_PATHS) {
-      if (!exportedArtifactPaths.includes(requiredPath)) {
-        throw new Error(
-          `Exported Codex artifacts did not include the required manifest path: ${requiredPath}`,
-        );
+      const seedCommand: Phase32LiveMemoryCommand = {
+        args: ["bun", "run", "seed"],
+        cwd: workspaceRoot,
+        env: PHASE32_CLI_ENV,
+        label: `seed-memory:${variant}`,
+      };
+      const seedResult = await runCommand(seedCommand);
+      commands.push(toExecutionResult(seedCommand, seedResult, replacements));
+      if (seedResult.exitCode !== 0) {
+        throw new Error(`Failed to seed the ${variant} Phase 32 consumer workspace.`);
       }
-    }
 
-    const liveCases: Phase32EvaluatedLiveCase[] = [];
+      const bootstrapCommand: Phase32LiveMemoryCommand = {
+        args: [
+          "./node_modules/.bin/goodmemory",
+          "codex",
+          "bootstrap",
+          "--user-id",
+          "consumer-user",
+          "--workspace-id",
+          "consumer-workspace",
+          "--json",
+        ],
+        cwd: workspaceRoot,
+        env: PHASE32_CLI_ENV,
+        label: `codex-bootstrap:${variant}`,
+      };
+      const bootstrapResult = await runCommand(bootstrapCommand);
+      commands.push(toExecutionResult(bootstrapCommand, bootstrapResult, replacements));
+      if (bootstrapResult.exitCode !== 0) {
+        throw new Error(`Failed to bootstrap Codex in the ${variant} consumer workspace.`);
+      }
 
-    for (const liveCase of PHASE32_LIVE_CASES) {
-      const caseStartedAt = Date.now();
-      const turn = await runCodexHostTurn({
-        env: commandEnv,
-        prompt: liveCase.prompt,
-        workspaceRoot,
-      });
-      const hostExitCode = turn.timedOut
-        ? 124
-        : typeof turn.exitCode === "number"
-          ? turn.exitCode
-          : 1;
-      const sanitizedTurnStdout = sanitizeText(turn.stdout, replacements);
-      const sanitizedTurnStderr = sanitizeText(turn.stderr, replacements);
-      commands.push({
-        command: `codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <${liveCase.caseId}>`,
-        durationMs: Date.now() - caseStartedAt,
-        exitCode: hostExitCode,
-        label: `codex-native-host:${liveCase.caseId}`,
-        status: hostExitCode === 0 ? "passed" : "failed",
-        stderrTail: tailLines(sanitizedTurnStderr),
-        stdoutTail: tailLines(sanitizedTurnStdout),
-      });
-      const agentMessages = collectAgentMessages(turn.events);
-      const artifactReadCommands = collectArtifactReadCommands({
-        events: turn.events,
-        replacements,
-      });
+      const exportCommand: Phase32LiveMemoryCommand = {
+        args: [
+          "bun",
+          "./.goodmemory/bootstrap/codex-export.mjs",
+          "--session-id",
+          "consumer-session",
+        ],
+        cwd: workspaceRoot,
+        env: PHASE32_CLI_ENV,
+        label: `codex-export:${variant}`,
+      };
+      const exportResult = await runCommand(exportCommand);
+      commands.push(toExecutionResult(exportCommand, exportResult, replacements));
+      if (exportResult.exitCode !== 0) {
+        throw new Error(`Failed to export Codex artifacts in the ${variant} consumer workspace.`);
+      }
 
-      liveCases.push({
-        artifactReadCommands,
-        caseId: liveCase.caseId,
-        hostExitCode,
-        observedResponse: extractObservedResponse(agentMessages),
-        traceBacked: hostExitCode === 0 && requiresGuidanceArtifactRead(
+      const manifestPath = join(workspaceRoot, PHASE32_MANIFEST_PATH);
+      const manifest = JSON.parse(
+        await readTextFile(manifestPath),
+      ) as {
+        artifacts?: Array<{ relativePath?: string }>;
+      };
+      const exportedArtifactPaths = [
+        ...new Set(
+          (manifest.artifacts ?? [])
+            .flatMap((artifact) =>
+              typeof artifact.relativePath === "string" ? [artifact.relativePath] : []
+            )
+            .map((relativePath) =>
+              `.goodmemory/hosts/codex/${relativePath.replace(/^\.\//u, "")}`
+            ),
+        ),
+      ].sort();
+
+      if (variant === "event-backed") {
+        for (const requiredPath of PHASE32_REQUIRED_MANIFEST_ARTIFACT_PATHS) {
+          if (!exportedArtifactPaths.includes(requiredPath)) {
+            throw new Error(
+              `Exported Codex artifacts did not include the required manifest path: ${requiredPath}`,
+            );
+          }
+        }
+        eventBackedExportedArtifactPaths = exportedArtifactPaths;
+      }
+
+      const variantLiveCases: Phase32EvaluatedLiveCase[] = [];
+
+      for (const liveCase of PHASE32_LIVE_CASES) {
+        const caseStartedAt = Date.now();
+        const turn = await runCodexHostTurn({
+          env: commandEnv,
+          prompt: liveCase.prompt,
+          workspaceRoot,
+        });
+        const hostExitCode = turn.timedOut
+          ? 124
+          : typeof turn.exitCode === "number"
+            ? turn.exitCode
+            : 1;
+        const sanitizedTurnStdout = sanitizeText(turn.stdout, replacements);
+        const sanitizedTurnStderr = sanitizeText(turn.stderr, replacements);
+        commands.push({
+          command: `codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <${variant}:${liveCase.caseId}>`,
+          durationMs: Date.now() - caseStartedAt,
+          exitCode: hostExitCode,
+          label: `codex-native-host:${variant}:${liveCase.caseId}`,
+          status: hostExitCode === 0 ? "passed" : "failed",
+          stderrTail: tailLines(sanitizedTurnStderr),
+          stdoutTail: tailLines(sanitizedTurnStdout),
+        });
+        const agentMessages = collectAgentMessages(turn.events);
+        const artifactReadCommands = collectArtifactReadCommands({
+          events: turn.events,
+          replacements,
+        });
+        const observedResponse = extractObservedResponse(agentMessages);
+        const traceBacked = hostExitCode === 0 && requiresGuidanceArtifactRead(
           artifactReadCommands,
           liveCase.requiredArtifactPaths,
-        ),
-        traceEventCount: turn.events.length,
-      });
+        );
+
+        variantLiveCases.push({
+          artifactReadCommands,
+          caseId: liveCase.caseId,
+          hostExitCode,
+          matchedExpectedFieldCount: countMatchedExpectedFields(
+            observedResponse,
+            liveCase.expected,
+          ),
+          observedResponse,
+          traceBacked,
+          traceEventCount: turn.events.length,
+          variant,
+        });
+      }
+
+      liveCasesByVariant.set(variant, variantLiveCases);
     }
 
-    const continuityCase = liveCases.find(
+    const eventBackedCases = liveCasesByVariant.get("event-backed");
+    const textOnlyCases = liveCasesByVariant.get("text-only");
+    const noMemoryCases = liveCasesByVariant.get("no-memory");
+    if (!eventBackedCases || !textOnlyCases || !noMemoryCases) {
+      throw new Error("Phase 32 live runner did not produce all required live baseline variants.");
+    }
+
+    const comparisonCases = PHASE32_LIVE_CASES.map((liveCase) => {
+      const eventBacked = eventBackedCases.find(
+        (candidate) => candidate.caseId === liveCase.caseId,
+      );
+      const textOnly = textOnlyCases.find(
+        (candidate) => candidate.caseId === liveCase.caseId,
+      );
+      const noMemory = noMemoryCases.find(
+        (candidate) => candidate.caseId === liveCase.caseId,
+      );
+      if (!eventBacked || !textOnly || !noMemory) {
+        throw new Error(`Phase 32 live runner is missing measured baselines for ${liveCase.caseId}.`);
+      }
+
+      return {
+        caseId: liveCase.caseId,
+        eventBacked: {
+          artifactReadCommands: [...eventBacked.artifactReadCommands],
+          hostExitCode: eventBacked.hostExitCode,
+          matchedExpectedFieldCount: eventBacked.matchedExpectedFieldCount,
+          observedResponse: { ...eventBacked.observedResponse },
+          traceBacked: eventBacked.traceBacked,
+          traceEventCount: eventBacked.traceEventCount,
+        },
+        textOnly: {
+          artifactReadCommands: [...textOnly.artifactReadCommands],
+          hostExitCode: textOnly.hostExitCode,
+          matchedExpectedFieldCount: textOnly.matchedExpectedFieldCount,
+          observedResponse: { ...textOnly.observedResponse },
+          traceBacked: textOnly.traceBacked,
+          traceEventCount: textOnly.traceEventCount,
+        },
+        noMemory: {
+          artifactReadCommands: [...noMemory.artifactReadCommands],
+          hostExitCode: noMemory.hostExitCode,
+          matchedExpectedFieldCount: noMemory.matchedExpectedFieldCount,
+          observedResponse: { ...noMemory.observedResponse },
+          traceBacked: noMemory.traceBacked,
+          traceEventCount: noMemory.traceEventCount,
+        },
+        nonRegressionAgainstTextOnly:
+          eventBacked.hostExitCode === 0 &&
+          textOnly.hostExitCode === 0 &&
+          eventBacked.traceBacked &&
+          textOnly.traceBacked &&
+          eventBacked.matchedExpectedFieldCount >= textOnly.matchedExpectedFieldCount,
+        winOverNoMemory:
+          eventBacked.hostExitCode === 0 &&
+          noMemory.hostExitCode === 0 &&
+          eventBacked.traceBacked &&
+          noMemory.traceBacked &&
+          eventBacked.matchedExpectedFieldCount > noMemory.matchedExpectedFieldCount,
+      };
+    });
+
+    const continuityCase = comparisonCases.find(
       (liveCase) => liveCase.caseId === "continuity-open-loop",
     );
     if (!continuityCase) {
       throw new Error("Phase 32 live runner did not produce the continuity case.");
     }
 
-    const artifactReadCommands = [...continuityCase.artifactReadCommands];
+    const artifactReadCommands = [...continuityCase.eventBacked.artifactReadCommands];
     const observedResponse = {
-      currentGoal: continuityCase.observedResponse.currentGoal ?? "",
-      openLoop: continuityCase.observedResponse.openLoop ?? "",
+      currentGoal: continuityCase.eventBacked.observedResponse.currentGoal ?? "",
+      openLoop: continuityCase.eventBacked.observedResponse.openLoop ?? "",
     };
-    const guidanceReadFromArtifacts = continuityCase.traceBacked;
+    const guidanceReadFromArtifacts = continuityCase.eventBacked.traceBacked;
     const responseMatched = isExactExpectedResponse(observedResponse);
-    const comparisonCases = liveCases.map((liveCase) => {
-      const expected = PHASE32_LIVE_CASES.find(
-        (candidate) => candidate.caseId === liveCase.caseId,
-      )!.expected;
-      const matched = liveCase.hostExitCode === 0 &&
-        liveCase.traceBacked &&
-        matchesExpectedFields(liveCase.observedResponse, expected);
-
-      return {
-        artifactReadCommands: [...liveCase.artifactReadCommands],
-        caseId: liveCase.caseId,
-        hostExitCode: liveCase.hostExitCode,
-        nonRegressionAgainstTextOnly: matched,
-        observedResponse: { ...liveCase.observedResponse },
-        traceBacked: liveCase.traceBacked,
-        traceEventCount: liveCase.traceEventCount,
-        winOverNoMemory: matched,
-      };
-    });
-    const failedHostCase = comparisonCases.find((caseResult) => caseResult.hostExitCode !== 0);
+    const failedHostCase = comparisonCases.find(
+      (caseResult) => caseResult.eventBacked.hostExitCode !== 0,
+    );
     const comparisonAccepted = comparisonCases.every(
       (caseResult) =>
         caseResult.nonRegressionAgainstTextOnly && caseResult.winOverNoMemory,
@@ -868,14 +1135,14 @@ export async function runPhase32LiveMemoryEvaluation(
         host: {
           artifactReadCommands,
           expectedResponse: { ...PHASE32_EXPECTED_RESPONSE },
-          exportedArtifactPaths,
+          exportedArtifactPaths: eventBackedExportedArtifactPaths,
           guidanceReadFromArtifacts,
           installedPackageBootstrap: true,
           kind: "codex",
           manifestPath: PHASE32_MANIFEST_PATH,
           observedResponse,
-          traceBacked: guidanceReadFromArtifacts,
-          traceEventCount: continuityCase.traceEventCount,
+          traceBacked: continuityCase.eventBacked.traceBacked,
+          traceEventCount: continuityCase.eventBacked.traceEventCount,
         },
         releaseContract: {
           distribution: "tarball-first",

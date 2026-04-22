@@ -6,12 +6,12 @@
   "commands": [
     {
       "command": "bun pm pack --destination <packdir> --quiet",
-      "durationMs": 218,
+      "durationMs": 747,
       "exitCode": 0,
       "label": "pack-tarball",
       "status": "passed",
       "stderrTail": [
-        "[0.05ms] \".env\""
+        "[0.04ms] \".env\""
       ],
       "stdoutTail": [
         "",
@@ -20,13 +20,13 @@
     },
     {
       "command": "bun install",
-      "durationMs": 100,
+      "durationMs": 1396,
       "exitCode": 0,
       "label": "install-tarball",
       "status": "passed",
       "stderrTail": [
         "Resolving dependencies",
-        "Resolved, downloaded and extracted [1]",
+        "Resolved, downloaded and extracted [9]",
         "Saved lockfile"
       ],
       "stdoutTail": [
@@ -34,27 +34,27 @@
         "",
         "+ goodmemory@<packdir>/goodmemory-0.1.0-rc.1.tgz",
         "",
-        "16 packages installed [93.00ms]"
+        "16 packages installed [1391.00ms]"
       ]
     },
     {
       "command": "bun run seed",
-      "durationMs": 602,
+      "durationMs": 847,
       "exitCode": 0,
-      "label": "seed-memory",
+      "label": "seed-memory:event-backed",
       "status": "passed",
       "stderrTail": [
         "$ bun run seed.mjs"
       ],
       "stdoutTail": [
-        "{\"ok\":true,\"scope\":{\"userId\":\"consumer-user\",\"workspaceId\":\"consumer-workspace\",\"sessionId\":\"consumer-session\"},\"sqlitePath\":\"<workspace>/.goodmemory/memory.sqlite\"}"
+        "{\"ok\":true,\"scope\":{\"userId\":\"consumer-user\",\"workspaceId\":\"consumer-workspace\",\"sessionId\":\"consumer-session\"},\"sqlitePath\":\"<workspace>/.goodmemory/memory.sqlite\",\"variant\":\"event-backed\"}"
       ]
     },
     {
       "command": "./node_modules/.bin/goodmemory codex bootstrap --user-id consumer-user --workspace-id consumer-workspace --json",
-      "durationMs": 256,
+      "durationMs": 330,
       "exitCode": 0,
-      "label": "codex-bootstrap",
+      "label": "codex-bootstrap:event-backed",
       "status": "passed",
       "stderrTail": [],
       "stdoutTail": [
@@ -82,9 +82,9 @@
     },
     {
       "command": "bun ./.goodmemory/bootstrap/codex-export.mjs --session-id consumer-session",
-      "durationMs": 142,
+      "durationMs": 77,
       "exitCode": 0,
-      "label": "codex-export",
+      "label": "codex-export:event-backed",
       "status": "passed",
       "stderrTail": [],
       "stdoutTail": [
@@ -99,7 +99,7 @@
         "      \"relativePath\": \"session-memory/current.md\"",
         "    }",
         "  ],",
-        "  \"exportedAt\": \"2026-04-22T09:26:22.793Z\",",
+        "  \"exportedAt\": \"2026-04-22T10:25:44.426Z\",",
         "  \"host\": \"codex\",",
         "  \"outputRoot\": \"<workspace>/.goodmemory/hosts/codex\",",
         "  \"scope\": {",
@@ -111,31 +111,248 @@
       ]
     },
     {
-      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <continuity-open-loop>",
-      "durationMs": 32577,
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <event-backed:continuity-open-loop>",
+      "durationMs": 33975,
       "exitCode": 0,
-      "label": "codex-native-host:continuity-open-loop",
+      "label": "codex-native-host:event-backed:continuity-open-loop",
+      "status": "passed",
+      "stderrTail": [
+        "          />",
+        "        </svg>",
+        "      </div>",
+        "      <div class=\"data\"><div class=\"main-wrapper\" role=\"main\"><div class=\"main-content\"><noscript><div class=\"h2\"><span id=\"challenge-error-text\">Enable JavaScript and cookies to continue</span></div></noscript></div></div><script>(function(){window._cf_chl_opt = {cFPWv: 'b',cH: '.bkNtT9vUY9ZpQcAJuZWp1F0INOcf8oxrA4L...",
+        "    </div>",
+        "  </body>",
+        "</html>",
+        "",
+        "2026-04-22T10:25:45.772731Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:25:45.774697Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:25:49.897120Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:25:49.897350Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:25:51.819034Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:25:51.819234Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:04.793640Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:04.795233Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:12.789844Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:12.792916Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:17.002942Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82429: No such process (os error 3)",
+        "2026-04-22T10:26:17.003375Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82430: No such process (os error 3)"
+      ],
+      "stdoutTail": [
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4b9-6ead-7c31-819f-73b429dadbf8\"}",
+        "{\"type\":\"turn.started\"}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Inspecting only `.goodmemory/hosts/codex` and extracting `currentGoal` / `openLoop` exactly from the exported guidance.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/export-manifest.json\\n.goodmemory/hosts/codex/MEMORY.md\\n.goodmemory/hosts/codex/session-memory/current.md\\n.goodmemory/hosts/codex/sess...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"currentGoal|openLoop|current goal|open loop|Goal|Loop\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"currentGoal|openLoop|current goal|open loop|Goal|Loop\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/session-memory/consumer-session.md:8:## Current Goal\\n.goodmemory/hosts/codex/sessi...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"I found the goal/open-loop sections in the exported session-memory files and am reading those exact lines now.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,80p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,80p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consum...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,80p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,80p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionI...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"agent_message\",\"text\":\"{\\\"currentGoal\\\":\\\"Finish the bootstrap smoke path\\\",\\\"openLoop\\\":\\\"Verify exported session handoff\\\"}\"}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":89668,\"cached_input_tokens\":63232,\"output_tokens\":1006}}"
+      ]
+    },
+    {
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <event-backed:repeated-correction>",
+      "durationMs": 34284,
+      "exitCode": 0,
+      "label": "codex-native-host:event-backed:repeated-correction",
+      "status": "passed",
+      "stderrTail": [
+        "          />",
+        "        </svg>",
+        "      </div>",
+        "      <div class=\"data\"><div class=\"main-wrapper\" role=\"main\"><div class=\"main-content\"><noscript><div class=\"h2\"><span id=\"challenge-error-text\">Enable JavaScript and cookies to continue</span></div></noscript></div></div><script>(function(){window._cf_chl_opt = {cFPWv: 'b',cH: 'pyGV1SAEgxDNXkoTryXDr77Q6ImaN_LS4mOk...",
+        "    </div>",
+        "  </body>",
+        "</html>",
+        "",
+        "2026-04-22T10:26:19.545548Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:19.545896Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:22.831285Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:22.831491Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:24.720078Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:24.720276Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:38.970176Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:38.971935Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:48.651095Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:48.652915Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:51.630972Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82526: No such process (os error 3)",
+        "2026-04-22T10:26:51.643146Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82528: No such process (os error 3)"
+      ],
+      "stdoutTail": [
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4b9-f34f-7190-b4f0-523649c9cc9c\"}",
+        "{\"type\":\"turn.started\"}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n -i \\\"summary|format\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n -i \\\"summary|format\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":1,\"status\":\"failed\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/export-manifest.json\\n.goodmemory/hosts/codex/MEMORY.md\\n.goodmemory/hosts/codex/session-memory/current.md\\n.goodmemory/hosts/codex/sess...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"Reading the exported Codex guidance files now to extract the summary-formatting rule, if one exists.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- session...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"{\\n  \\\"artifactCount\\\": 3,\\n  \\\"artifacts\\\": [\\n    {\\n      \\\"artifactType\\\": \\\"memory_index\\\",\\n      \\\"relativePath\\\": \\\"MEMORY.m...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"agent_message\",\"text\":\"{\\\"summaryRule\\\":\\\"Keep coding summaries short and list explicit next steps.\\\"}\"}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":90555,\"cached_input_tokens\":63488,\"output_tokens\":1258}}"
+      ]
+    },
+    {
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <event-backed:procedure-adherence>",
+      "durationMs": 42960,
+      "exitCode": 0,
+      "label": "codex-native-host:event-backed:procedure-adherence",
       "status": "passed",
       "stderrTail": [
         "Reading additional input from stdin...",
-        "2026-04-22T09:26:23.001928Z  WARN codex_features: unknown feature key in config: plan_tool",
-        "2026-04-22T09:26:23.002099Z  WARN codex_features: unknown feature key in config: view_image_tool",
-        "2026-04-22T09:26:23.647343Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"<home>/.codex/shell_snapshots/019db483-17e4-7ed3-85b8-d7c772ea8397.tmp-1776849983488005000\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
-        "2026-04-22T09:26:24.231792Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:24.233952Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:27.818765Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:27.818988Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:30.105755Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:30.105979Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:47.839499Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:47.841366Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:54.245033Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 37865: No such process (os error 3)",
-        "2026-04-22T09:26:54.251120Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 37864: No such process (os error 3)"
+        "2026-04-22T10:26:52.742270Z  WARN codex_features: unknown feature key in config: plan_tool",
+        "2026-04-22T10:26:52.742292Z  WARN codex_features: unknown feature key in config: view_image_tool",
+        "2026-04-22T10:26:52.935432Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"<home>/.codex/shell_snapshots/019db4ba-793c-7ea3-844a-617e6ec22825.tmp-1776853612882109000\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+        "2026-04-22T10:26:53.934495Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:53.934821Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:59.099329Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:26:59.099574Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:01.040857Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:01.041056Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:13.867631Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:13.869259Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:25.351842Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:25.353553Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:34.599037Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82627: No such process (os error 3)",
+        "2026-04-22T10:27:34.608747Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82628: No such process (os error 3)"
       ],
       "stdoutTail": [
-        "{\"type\":\"thread.started\",\"thread_id\":\"019db483-17e4-7ed3-85b8-d7c772ea8397\"}",
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4ba-793c-7ea3-844a-617e6ec22825\"}",
         "{\"type\":\"turn.started\"}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Inspecting the exported GoodMemory guidance now. I’ll read the Codex host memory files and extract the exact `currentGoal` and `openLoop` wording without modifying the workspace.\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’m checking only the exported guidance under `.goodmemory/hosts/codex` and will extract the exact wording if `bootstrapRule` or `blocker` appears there.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/export-manifest.json\\n.goodmemory/hosts/codex/MEMORY.md\\n.goodmemory/hosts/codex/session-memory/current.md\\n.goodmemory/hosts/codex/sess...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"bootstrapRule|blocker|bootstrap rule|blocker\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"bootstrapRule|blocker|bootstrap rule|blocker\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":1,\"status\":\"failed\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"I found four exported files under the allowed path. Next I’m reading them directly and looking for the exact phrases or fields that supply `bootstrapRule` and `blocker`.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"{\\n  \\\"artifactCount\\\": 3,\\n  \\\"artifacts\\\": [\\n    {\\n      \\\"artifactType\\\": \\\"memory_index\\\",\\n      \\\"relativePath\\\": \\\"MEMORY.m...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- session...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"agent_message\",\"text\":\"{\\\"bootstrapRule\\\":\\\"Use packaged CLI bootstrap only.\\\",\\\"blocker\\\":\\\"the deploy is blocked on smoke verification.\\\"}\"}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":90057,\"cached_input_tokens\":63104,\"output_tokens\":1366}}"
+      ]
+    },
+    {
+      "command": "bun run seed",
+      "durationMs": 145,
+      "exitCode": 0,
+      "label": "seed-memory:text-only",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run seed.mjs"
+      ],
+      "stdoutTail": [
+        "{\"ok\":true,\"scope\":{\"userId\":\"consumer-user\",\"workspaceId\":\"consumer-workspace\",\"sessionId\":\"consumer-session\"},\"sqlitePath\":\"<workspace>/.goodmemory/memory.sqlite\",\"variant\":\"text-only\"}"
+      ]
+    },
+    {
+      "command": "./node_modules/.bin/goodmemory codex bootstrap --user-id consumer-user --workspace-id consumer-workspace --json",
+      "durationMs": 64,
+      "exitCode": 0,
+      "label": "codex-bootstrap:text-only",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "  \"changes\": [",
+        "    {",
+        "      \"action\": \"unchanged\",",
+        "      \"path\": \"<workspace>/AGENTS.md\",",
+        "      \"relativePath\": \"AGENTS.md\"",
+        "    },",
+        "    {",
+        "      \"action\": \"created\",",
+        "      \"path\": \"<workspace>/.goodmemory/bootstrap/codex-export.mjs\",",
+        "      \"relativePath\": \".goodmemory/bootstrap/codex-export.mjs\"",
+        "    }",
+        "  ],",
+        "  \"exportRootPath\": \"<workspace>/.goodmemory/hosts/codex\",",
+        "  \"host\": \"codex\",",
+        "  \"instructionPath\": \"<workspace>/AGENTS.md\",",
+        "  \"scriptPath\": \"<workspace>/.goodmemory/bootstrap/codex-export.mjs\",",
+        "  \"userId\": \"consumer-user\",",
+        "  \"workspaceId\": \"consumer-workspace\",",
+        "  \"workspaceRoot\": \"<workspace>\"",
+        "}"
+      ]
+    },
+    {
+      "command": "bun ./.goodmemory/bootstrap/codex-export.mjs --session-id consumer-session",
+      "durationMs": 76,
+      "exitCode": 0,
+      "label": "codex-export:text-only",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "      \"relativePath\": \"MEMORY.md\"",
+        "    },",
+        "    {",
+        "      \"artifactType\": \"session_memory\",",
+        "      \"relativePath\": \"session-memory/consumer-session.md\"",
+        "    },",
+        "    {",
+        "      \"artifactType\": \"session_memory\",",
+        "      \"relativePath\": \"session-memory/current.md\"",
+        "    }",
+        "  ],",
+        "  \"exportedAt\": \"2026-04-22T10:27:35.935Z\",",
+        "  \"host\": \"codex\",",
+        "  \"outputRoot\": \"<workspace>/.goodmemory/hosts/codex\",",
+        "  \"scope\": {",
+        "    \"userId\": \"consumer-user\",",
+        "    \"workspaceId\": \"consumer-workspace\",",
+        "    \"sessionId\": \"consumer-session\"",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <text-only:continuity-open-loop>",
+      "durationMs": 25213,
+      "exitCode": 0,
+      "label": "codex-native-host:text-only:continuity-open-loop",
+      "status": "passed",
+      "stderrTail": [
+        "            d=\"M37.5324 16.8707C37.9808 15.5241 38.1363 14.0974 37.9886 12.6859C37.8409 11.2744 37.3934 9.91076 36.676 8.68622C35.6126 6.83404 33.9882 5.3676 32.0373 4.4985C30.0864 3.62941 27.9098 3.40259 25.8215 3.85078C24.8796 2.7893 23.7219 1.94125 22.4257 1.36341C21.1295 0.785575 19.7249 0.491269 18.3058 0.50019...",
+        "            fill=\"currentColor\"",
+        "          />",
+        "        </svg>",
+        "      </div>",
+        "      <div class=\"data\"><div class=\"main-wrapper\" role=\"main\"><div class=\"main-content\"><noscript><div class=\"h2\"><span id=\"challenge-error-text\">Enable JavaScript and cookies to continue</span></div></noscript></div></div><script>(function(){window._cf_chl_opt = {cFPWv: 'b',cH: 'h9P7qlNw5eNvgjE00CFYsDy2ZaAWHrkcMQg5...",
+        "    </div>",
+        "  </body>",
+        "</html>",
+        "",
+        "2026-04-22T10:27:37.168280Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:37.170211Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:40.538965Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:40.539171Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:42.467242Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:42.467469Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:54.396121Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:27:54.397834Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:00.034838Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82730: No such process (os error 3)",
+        "2026-04-22T10:28:00.040684Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82731: No such process (os error 3)"
+      ],
+      "stdoutTail": [
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4bb-221b-75d3-b20d-20b67c3acd03\"}",
+        "{\"type\":\"turn.started\"}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’m checking only `.goodmemory/hosts/codex` and will extract `currentGoal` and `openLoop` exactly as written there, returning `\\\"none\\\"` when absent.\"}}",
         "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
         "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
         "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
@@ -143,95 +360,311 @@
         "{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
         "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
         "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"agent_message\",\"text\":\"{\\\"currentGoal\\\":\\\"Finish the bootstrap smoke path\\\",\\\"openLoop\\\":\\\"Verify exported session handoff\\\"}\"}}",
-        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":59540,\"cached_input_tokens\":33280,\"output_tokens\":938}}"
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":59365,\"cached_input_tokens\":33024,\"output_tokens\":791}}"
       ]
     },
     {
-      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <repeated-correction>",
-      "durationMs": 33415,
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <text-only:repeated-correction>",
+      "durationMs": 34099,
       "exitCode": 0,
-      "label": "codex-native-host:repeated-correction",
+      "label": "codex-native-host:text-only:repeated-correction",
+      "status": "passed",
+      "stderrTail": [
+        "Reading additional input from stdin...",
+        "2026-04-22T10:28:01.204164Z  WARN codex_features: unknown feature key in config: plan_tool",
+        "2026-04-22T10:28:01.204188Z  WARN codex_features: unknown feature key in config: view_image_tool",
+        "2026-04-22T10:28:01.412487Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"<home>/.codex/shell_snapshots/019db4bb-84b9-75b1-8660-dae2e41c1674.tmp-1776853681359898000\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+        "2026-04-22T10:28:02.392019Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:02.394005Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:06.025443Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:06.025642Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:07.984152Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:07.984356Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:21.476281Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:21.476465Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:30.246324Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:30.246509Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:34.023528Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82821: No such process (os error 3)",
+        "2026-04-22T10:28:34.028263Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82819: No such process (os error 3)"
+      ],
+      "stdoutTail": [
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4bb-84b9-75b1-8660-dae2e41c1674\"}",
+        "{\"type\":\"turn.started\"}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Inspecting `.goodmemory/hosts/codex` only. I’m locating any exported summary-formatting rule and will return just the extracted rule text or `none`.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/export-manifest.json\\n.goodmemory/hosts/codex/MEMORY.md\\n.goodmemory/hosts/codex/session-memory/current.md\\n.goodmemory/hosts/codex/sess...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n -i \\\"summary|format|formatting|rule\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n -i \\\"summary|format|formatting|rule\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":1,\"status\":\"failed\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"The export contains a small set of guidance files. I’m reading those directly now because the rule does not appear in a simple keyword scan.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- session...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"agent_message\",\"text\":\"{\\\"summaryRule\\\":\\\"Keep coding summaries short and list explicit next steps.\\\"}\"}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":89899,\"cached_input_tokens\":63232,\"output_tokens\":1104}}"
+      ]
+    },
+    {
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <text-only:procedure-adherence>",
+      "durationMs": 48599,
+      "exitCode": 0,
+      "label": "codex-native-host:text-only:procedure-adherence",
+      "status": "passed",
+      "stderrTail": [
+        "Reading additional input from stdin...",
+        "2026-04-22T10:28:35.324202Z  WARN codex_features: unknown feature key in config: plan_tool",
+        "2026-04-22T10:28:35.324247Z  WARN codex_features: unknown feature key in config: view_image_tool",
+        "2026-04-22T10:28:35.526089Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"<home>/.codex/shell_snapshots/019db4bc-09f8-7e81-9c90-6a1233168b41.tmp-1776853715472816000\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+        "2026-04-22T10:28:36.519688Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:36.520050Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:39.717246Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:39.717544Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:41.653654Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:41.653849Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:53.952611Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:28:53.954317Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:03.315184Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:03.316861Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:22.716656Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82915: No such process (os error 3)",
+        "2026-04-22T10:29:22.718561Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 82914: No such process (os error 3)"
+      ],
+      "stdoutTail": [
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4bc-09f8-7e81-9c90-6a1233168b41\"}",
+        "{\"type\":\"turn.started\"}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’m checking only `.goodmemory/hosts/codex` and extracting the requested values from the exported guidance files without touching anything.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/export-manifest.json\\n.goodmemory/hosts/codex/MEMORY.md\\n.goodmemory/hosts/codex/session-memory/current.md\\n.goodmemory/hosts/codex/sess...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"bootstrapRule|blocker|bootstrap rule|blocker:\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"bootstrapRule|blocker|bootstrap rule|blocker:\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":1,\"status\":\"failed\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"I found four exported files under `.goodmemory/hosts/codex`; now I’m reading them directly to locate the exact wording, if any, for `bootstrapRule` and `blocker`.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,240p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,240p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- session...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,240p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,240p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"{\\n  \\\"artifactCount\\\": 3,\\n  \\\"artifacts\\\": [\\n    {\\n      \\\"artifactType\\\": \\\"memory_index\\\",\\n      \\\"relativePath\\\": \\\"MEMORY.m...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"agent_message\",\"text\":\"{\\\"bootstrapRule\\\":\\\"Use packaged CLI bootstrap only.\\\",\\\"blocker\\\":\\\"[active] the deploy is blocked on smoke verification.\\\"}\"}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":90061,\"cached_input_tokens\":63104,\"output_tokens\":1852}}"
+      ]
+    },
+    {
+      "command": "bun run seed",
+      "durationMs": 136,
+      "exitCode": 0,
+      "label": "seed-memory:no-memory",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run seed.mjs"
+      ],
+      "stdoutTail": [
+        "{\"ok\":true,\"scope\":{\"userId\":\"consumer-user\",\"workspaceId\":\"consumer-workspace\",\"sessionId\":\"consumer-session\"},\"sqlitePath\":\"<workspace>/.goodmemory/memory.sqlite\",\"variant\":\"no-memory\"}"
+      ]
+    },
+    {
+      "command": "./node_modules/.bin/goodmemory codex bootstrap --user-id consumer-user --workspace-id consumer-workspace --json",
+      "durationMs": 65,
+      "exitCode": 0,
+      "label": "codex-bootstrap:no-memory",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "  \"changes\": [",
+        "    {",
+        "      \"action\": \"unchanged\",",
+        "      \"path\": \"<workspace>/AGENTS.md\",",
+        "      \"relativePath\": \"AGENTS.md\"",
+        "    },",
+        "    {",
+        "      \"action\": \"created\",",
+        "      \"path\": \"<workspace>/.goodmemory/bootstrap/codex-export.mjs\",",
+        "      \"relativePath\": \".goodmemory/bootstrap/codex-export.mjs\"",
+        "    }",
+        "  ],",
+        "  \"exportRootPath\": \"<workspace>/.goodmemory/hosts/codex\",",
+        "  \"host\": \"codex\",",
+        "  \"instructionPath\": \"<workspace>/AGENTS.md\",",
+        "  \"scriptPath\": \"<workspace>/.goodmemory/bootstrap/codex-export.mjs\",",
+        "  \"userId\": \"consumer-user\",",
+        "  \"workspaceId\": \"consumer-workspace\",",
+        "  \"workspaceRoot\": \"<workspace>\"",
+        "}"
+      ]
+    },
+    {
+      "command": "bun ./.goodmemory/bootstrap/codex-export.mjs --session-id consumer-session",
+      "durationMs": 72,
+      "exitCode": 0,
+      "label": "codex-export:no-memory",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "      \"relativePath\": \"MEMORY.md\"",
+        "    },",
+        "    {",
+        "      \"artifactType\": \"session_memory\",",
+        "      \"relativePath\": \"session-memory/consumer-session.md\"",
+        "    },",
+        "    {",
+        "      \"artifactType\": \"session_memory\",",
+        "      \"relativePath\": \"session-memory/current.md\"",
+        "    }",
+        "  ],",
+        "  \"exportedAt\": \"2026-04-22T10:29:24.123Z\",",
+        "  \"host\": \"codex\",",
+        "  \"outputRoot\": \"<workspace>/.goodmemory/hosts/codex\",",
+        "  \"scope\": {",
+        "    \"userId\": \"consumer-user\",",
+        "    \"workspaceId\": \"consumer-workspace\",",
+        "    \"sessionId\": \"consumer-session\"",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <no-memory:continuity-open-loop>",
+      "durationMs": 35828,
+      "exitCode": 0,
+      "label": "codex-native-host:no-memory:continuity-open-loop",
       "status": "passed",
       "stderrTail": [
         "          />",
         "        </svg>",
         "      </div>",
-        "      <div class=\"data\"><div class=\"main-wrapper\" role=\"main\"><div class=\"main-content\"><noscript><div class=\"h2\"><span id=\"challenge-error-text\">Enable JavaScript and cookies to continue</span></div></noscript></div></div><script>(function(){window._cf_chl_opt = {cFPWv: 'b',cH: 'aoiBT6flDUHCYZi.LwSWB1QfsYz0vso4gonS...",
+        "      <div class=\"data\"><div class=\"main-wrapper\" role=\"main\"><div class=\"main-content\"><noscript><div class=\"h2\"><span id=\"challenge-error-text\">Enable JavaScript and cookies to continue</span></div></noscript></div></div><script>(function(){window._cf_chl_opt = {cFPWv: 'b',cH: 'bpGcKFyhgL1G59cSGTwRohnN9CgRiF0udoDG...",
         "    </div>",
         "  </body>",
         "</html>",
         "",
-        "2026-04-22T09:26:56.371886Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:26:56.373831Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:00.397166Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:00.397371Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:02.578959Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:02.579145Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:15.404440Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:15.406173Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:24.506152Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:24.507921Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:27.528679Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 38602: No such process (os error 3)",
-        "2026-04-22T09:27:27.531065Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 38601: No such process (os error 3)"
+        "2026-04-22T10:29:25.276431Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:25.278433Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:28.584671Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:28.584865Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:31.527119Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:31.527315Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:44.445266Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:44.446958Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:55.587541Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:55.589274Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:29:58.815680Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 83021: No such process (os error 3)",
+        "2026-04-22T10:29:58.817832Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 83022: No such process (os error 3)"
       ],
       "stdoutTail": [
-        "{\"type\":\"thread.started\",\"thread_id\":\"019db483-955b-7863-9ac0-d097c4760c6e\"}",
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4bc-c8bc-7a91-92b8-391d0d327e46\"}",
         "{\"type\":\"turn.started\"}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Inspecting the exported GoodMemory guidance files now to locate the exact summary-formatting rule, then I’ll return only the requested JSON.\"}}",
-        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'ls -R ./.goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'ls -R ./.goodmemory/hosts/codex'\",\"aggregated_output\":\"MEMORY.md\\nexport-manifest.json\\nsession-memory\\n\\n./.goodmemory/hosts/codex/session-memory:\\nconsumer-session.md\\ncurrent.md\\n\",\"exit_code\":0,\"status\":\"completed\"}}",
-        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"rg -n \\\\\\\"summary|format\\\\\\\" ./.goodmemory/hosts/codex -g '*.md'\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"rg -n \\\\\\\"summary|format\\\\\\\" ./.goodmemory/hosts/codex -g '*.md'\\\"\",\"aggregated_output\":\"\",\"exit_code\":1,\"status\":\"failed\"}}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"The export only includes `MEMORY.md` and `session-memory/*.md` here, so I’m reading those directly for the exact rule text.\"}}",
-        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
-        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: con...",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\...",
-        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessi...",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"agent_message\",\"text\":\"{\\\"summaryRule\\\":\\\"Keep coding summaries short and list explicit next steps.\\\"}\"}}",
-        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":89728,\"cached_input_tokens\":63104,\"output_tokens\":1068}}"
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Inspecting `./.goodmemory/hosts/codex` only. I’m locating the exported guidance files and extracting the exact `currentGoal` and `openLoop` wording if present.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/export-manifest.json\\n.goodmemory/hosts/codex/MEMORY.md\\n.goodmemory/hosts/codex/session-memory/current.md\\n.goodmemory/hosts/codex/sess...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"currentGoal|openLoop|current goal|open loop\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"currentGoal|openLoop|current goal|open loop\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":1,\"status\":\"failed\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"The key names weren’t directly indexed, so I’m reading the exported files themselves and will return the exact text if those fields are present.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"{\\n  \\\"artifactCount\\\": 3,\\n  \\\"artifacts\\\": [\\n    {\\n      \\\"artifactType\\\": \\\"memory_index\\\",\\n      \\\"relativePath\\\": \\\"MEMORY.m...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- session...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"agent_message\",\"text\":\"{\\\"currentGoal\\\":\\\"none\\\",\\\"openLoop\\\":\\\"none\\\"}\"}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":89810,\"cached_input_tokens\":63104,\"output_tokens\":1033}}"
       ]
     },
     {
-      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <procedure-adherence>",
-      "durationMs": 36716,
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <no-memory:repeated-correction>",
+      "durationMs": 49795,
       "exitCode": 0,
-      "label": "codex-native-host:procedure-adherence",
+      "label": "codex-native-host:no-memory:repeated-correction",
+      "status": "passed",
+      "stderrTail": [
+        "    </div>",
+        "  </body>",
+        "</html>",
+        "",
+        "2026-04-22T10:30:01.100954Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:01.102792Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:06.307774Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:06.307970Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:08.236744Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:08.236933Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:22.896451Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:22.898207Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:31.988603Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:31.990367Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:39.451011Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:39.452640Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:46.135052Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:46.135238Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:48.623420Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 83122: No such process (os error 3)",
+        "2026-04-22T10:30:48.632692Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 83123: No such process (os error 3)"
+      ],
+      "stdoutTail": [
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4bd-54c0-7cc0-9724-c8ddd499bc70\"}",
+        "{\"type\":\"turn.started\"}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"rg -n -i --hidden --glob 'current.md' --glob 'MEMORY.md' --glob '*.md' 'summary|format' .goodmemory/hosts/codex\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"rg -n -i --hidden --glob 'current.md' --glob 'MEMORY.md' --glob '*.md' 'summary|format' .goodmemory/hosts/codex\\\"\",\"aggregated_output\":\"\",\"exit_code\":1,\"status\":\"failed\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'ls -la .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'ls -la .goodmemory/hosts/codex'\",\"aggregated_output\":\"total 16\\ndrwxr-xr-x@ 5 hjqcan  staff  160 Apr 22 18:29 .\\ndrwxr-xr-x@ 3 hjqcan  staff   96 Apr 22 18:29 ..\\n-rw-r--r--@ 1 hjqcan  staff  437 Apr 22 18:29 MEMORY.md...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/export-manifest.json\\n.goodmemory/hosts/codex/MEMORY.md\\n.goodmemory/hosts/codex/session-memory/current.md\\n.goodmemory/hosts/codex/sess...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- session...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"{\\n  \\\"artifactCount\\\": 3,\\n  \\\"artifacts\\\": [\\n    {\\n      \\\"artifactType\\\": \\\"memory_index\\\",\\n      \\\"relativePath\\\": \\\"MEMORY.m...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"agent_message\",\"text\":\"{\\\"summaryRule\\\":\\\"none\\\"}\"}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":151768,\"cached_input_tokens\":124672,\"output_tokens\":1386}}"
+      ]
+    },
+    {
+      "command": "codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral -C <workspace> <no-memory:procedure-adherence>",
+      "durationMs": 35603,
+      "exitCode": 0,
+      "label": "codex-native-host:no-memory:procedure-adherence",
       "status": "passed",
       "stderrTail": [
         "Reading additional input from stdin...",
-        "2026-04-22T09:27:28.851327Z  WARN codex_features: unknown feature key in config: plan_tool",
-        "2026-04-22T09:27:28.851350Z  WARN codex_features: unknown feature key in config: view_image_tool",
-        "2026-04-22T09:27:29.087965Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"<home>/.codex/shell_snapshots/019db484-17d7-76d1-bfd2-1ae0b8776ae8.tmp-1776850049003870000\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
-        "2026-04-22T09:27:29.802147Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:29.802531Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:33.353526Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:33.353725Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:35.412647Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:35.413057Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:50.409463Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:50.411354Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:57.456839Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
-        "2026-04-22T09:27:57.457098Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
-        "2026-04-22T09:28:04.394068Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 39034: No such process (os error 3)",
-        "2026-04-22T09:28:04.396611Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 39032: No such process (os error 3)"
+        "2026-04-22T10:30:49.803547Z  WARN codex_features: unknown feature key in config: plan_tool",
+        "2026-04-22T10:30:49.803569Z  WARN codex_features: unknown feature key in config: view_image_tool",
+        "2026-04-22T10:30:50.042991Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"<home>/.codex/shell_snapshots/019db4be-1754-7010-b333-bd95f27ec649.tmp-1776853849965300000\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+        "2026-04-22T10:30:50.786391Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:50.786919Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:54.058430Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:54.058638Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:55.952736Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:30:55.953160Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:31:08.689922Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:31:08.691598Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:31:20.520876Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: prompt must be at most 128 characters path=<home>/.codex/.tmp/plugins/plugins/build-ios-apps/.codex-plugin/plugin.json",
+        "2026-04-22T10:31:20.522518Z  WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=<home>/.codex/.tmp/plugins/plugins/plugin-eval/.codex-plugin/plugin.json",
+        "2026-04-22T10:31:24.233760Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 83286: No such process (os error 3)",
+        "2026-04-22T10:31:24.235126Z  WARN codex_rmcp_client::stdio_server_launcher: Failed to terminate MCP process group 83285: No such process (os error 3)"
       ],
       "stdoutTail": [
-        "{\"type\":\"thread.started\",\"thread_id\":\"019db484-17d7-76d1-bfd2-1ae0b8776ae8\"}",
+        "{\"type\":\"thread.started\",\"thread_id\":\"019db4be-1754-7010-b333-bd95f27ec649\"}",
         "{\"type\":\"turn.started\"}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Inspecting the exported GoodMemory guidance now. I’ll read the compiled host files under `.goodmemory/hosts/codex` and extract the exact wording for the bootstrap rule and any blocker.\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Inspecting the exported Codex guidance under `.goodmemory/hosts/codex` and extracting the exact `bootstrapRule` and `blocker` wording if present.\"}}",
         "{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
         "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg --files .goodmemory/hosts/codex'\",\"aggregated_output\":\".goodmemory/hosts/codex/export-manifest.json\\n.goodmemory/hosts/codex/MEMORY.md\\n.goodmemory/hosts/codex/session-memory/current.md\\n.goodmemory/hosts/codex/sess...",
-        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
-        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"agent_message\",\"text\":\"I found the exported host files. I’m checking the manifest too to make sure I’m using the exact exported guidance wording and not paraphrasing it.\"}}",
-        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,260p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"{\\n  \\\"artifactCount\\\": 3,\\n  \\\"artifacts\\\": [\\n    {\\n      \\\"artifactType\\\": \\\"memory_index\\\",\\n      \\\"relativePath\\\": \\\"MEMORY.m...",
-        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"agent_message\",\"text\":\"{\\\"bootstrapRule\\\":\\\"Use packaged CLI bootstrap only.\\\",\\\"blocker\\\":\\\"the deploy is blocked on smoke verification.\\\"}\"}}",
-        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":90305,\"cached_input_tokens\":63616,\"output_tokens\":1325}}"
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"bootstrapRule|blocker\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"bootstrapRule|blocker\\\" .goodmemory/hosts/codex'\",\"aggregated_output\":\"\",\"exit_code\":1,\"status\":\"failed\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"The exported guidance does not expose literal `bootstrapRule` or `blocker` matches on a direct search, so I’m reading the exported files themselves to verify whether those values exist under different formatting.\"}}",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json\\\"\",\"aggregated_output\":\"{\\n  \\\"artifactCount\\\": 3,\\n  \\\"artifacts\\\": [\\n    {\\n      \\\"artifactType\\\": \\\"memory_index\\\",\\n      \\\"relativePath\\\": \\\"MEMORY.m...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md\\\"\",\"aggregated_output\":\"# MEMORY\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- scoped sessionId: consumer-session\\n\\n## Profile\\n- none\\n\\...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- sessionId: consu...",
+        "{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' .goodmemory/hosts/codex/session-memory/consumer-session.md\\\"\",\"aggregated_output\":\"# Session Handoff: consumer-session\\n\\n## Scope\\n- userId: consumer-user\\n- workspaceId: consumer-workspace\\n- session...",
+        "{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"agent_message\",\"text\":\"{\\\"bootstrapRule\\\":\\\"none\\\",\\\"blocker\\\":\\\"none\\\"}\"}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":89922,\"cached_input_tokens\":37120,\"output_tokens\":1104}}"
       ]
     }
   ],
@@ -242,51 +675,146 @@
     },
     "cases": [
       {
-        "artifactReadCommands": [
-          "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md",
-          "sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md"
-        ],
         "caseId": "continuity-open-loop",
-        "hostExitCode": 0,
-        "nonRegressionAgainstTextOnly": true,
-        "observedResponse": {
-          "currentGoal": "Finish the bootstrap smoke path",
-          "openLoop": "Verify exported session handoff"
+        "eventBacked": {
+          "artifactReadCommands": [
+            "sed -n '1,80p' .goodmemory/hosts/codex/session-memory/current.md"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 2,
+          "observedResponse": {
+            "currentGoal": "Finish the bootstrap smoke path",
+            "openLoop": "Verify exported session handoff"
+          },
+          "traceBacked": true,
+          "traceEventCount": 14
         },
-        "traceBacked": true,
-        "traceEventCount": 11,
+        "textOnly": {
+          "artifactReadCommands": [
+            "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md",
+            "sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 2,
+          "observedResponse": {
+            "currentGoal": "Finish the bootstrap smoke path",
+            "openLoop": "Verify exported session handoff"
+          },
+          "traceBacked": true,
+          "traceEventCount": 11
+        },
+        "noMemory": {
+          "artifactReadCommands": [
+            "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md",
+            "sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md",
+            "sed -n '1,260p' .goodmemory/hosts/codex/export-manifest.json"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 0,
+          "observedResponse": {
+            "currentGoal": "none",
+            "openLoop": "none"
+          },
+          "traceBacked": true,
+          "traceEventCount": 18
+        },
+        "nonRegressionAgainstTextOnly": true,
         "winOverNoMemory": true
       },
       {
-        "artifactReadCommands": [
-          "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
-          "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md"
-        ],
         "caseId": "repeated-correction",
-        "hostExitCode": 0,
-        "nonRegressionAgainstTextOnly": true,
-        "observedResponse": {
-          "summaryRule": "Keep coding summaries short and list explicit next steps."
+        "eventBacked": {
+          "artifactReadCommands": [
+            "sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md",
+            "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md",
+            "sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 1,
+          "observedResponse": {
+            "summaryRule": "Keep coding summaries short and list explicit next steps."
+          },
+          "traceBacked": true,
+          "traceEventCount": 17
         },
-        "traceBacked": true,
-        "traceEventCount": 16,
+        "textOnly": {
+          "artifactReadCommands": [
+            "sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md",
+            "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 1,
+          "observedResponse": {
+            "summaryRule": "Keep coding summaries short and list explicit next steps."
+          },
+          "traceBacked": true,
+          "traceEventCount": 16
+        },
+        "noMemory": {
+          "artifactReadCommands": [
+            "sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md",
+            "sed -n '1,260p' .goodmemory/hosts/codex/session-memory/current.md",
+            "sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 0,
+          "observedResponse": {
+            "summaryRule": "none"
+          },
+          "traceBacked": true,
+          "traceEventCount": 18
+        },
+        "nonRegressionAgainstTextOnly": true,
         "winOverNoMemory": true
       },
       {
-        "artifactReadCommands": [
-          "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md",
-          "sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md",
-          "sed -n '1,260p' .goodmemory/hosts/codex/export-manifest.json"
-        ],
         "caseId": "procedure-adherence",
-        "hostExitCode": 0,
-        "nonRegressionAgainstTextOnly": true,
-        "observedResponse": {
-          "bootstrapRule": "Use packaged CLI bootstrap only.",
-          "blocker": "the deploy is blocked on smoke verification."
+        "eventBacked": {
+          "artifactReadCommands": [
+            "sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md",
+            "sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json",
+            "sed -n '1,260p' .goodmemory/hosts/codex/session-memory/current.md"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 2,
+          "observedResponse": {
+            "bootstrapRule": "Use packaged CLI bootstrap only.",
+            "blocker": "the deploy is blocked on smoke verification."
+          },
+          "traceBacked": true,
+          "traceEventCount": 18
         },
-        "traceBacked": true,
-        "traceEventCount": 14,
+        "textOnly": {
+          "artifactReadCommands": [
+            "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md",
+            "sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md",
+            "sed -n '1,240p' .goodmemory/hosts/codex/export-manifest.json"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 1,
+          "observedResponse": {
+            "bootstrapRule": "Use packaged CLI bootstrap only.",
+            "blocker": "[active] the deploy is blocked on smoke verification."
+          },
+          "traceBacked": true,
+          "traceEventCount": 18
+        },
+        "noMemory": {
+          "artifactReadCommands": [
+            "sed -n '1,220p' .goodmemory/hosts/codex/export-manifest.json",
+            "sed -n '1,220p' .goodmemory/hosts/codex/MEMORY.md",
+            "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md"
+          ],
+          "hostExitCode": 0,
+          "matchedExpectedFieldCount": 0,
+          "observedResponse": {
+            "bootstrapRule": "none",
+            "blocker": "none"
+          },
+          "traceBacked": true,
+          "traceEventCount": 18
+        },
+        "nonRegressionAgainstTextOnly": true,
         "winOverNoMemory": true
       }
     ]
@@ -294,8 +822,7 @@
   "evidence": {
     "host": {
       "artifactReadCommands": [
-        "sed -n '1,220p' .goodmemory/hosts/codex/session-memory/current.md",
-        "sed -n '1,260p' .goodmemory/hosts/codex/MEMORY.md"
+        "sed -n '1,80p' .goodmemory/hosts/codex/session-memory/current.md"
       ],
       "expectedResponse": {
         "currentGoal": "Finish the bootstrap smoke path",
@@ -315,7 +842,7 @@
         "openLoop": "Verify exported session handoff"
       },
       "traceBacked": true,
-      "traceEventCount": 11
+      "traceEventCount": 14
     },
     "releaseContract": {
       "distribution": "tarball-first",
@@ -330,7 +857,7 @@
       "runner": "scripts/run-phase-32-live-memory.ts"
     }
   },
-  "generatedAt": "2026-04-22T09:28:05.506Z",
+  "generatedAt": "2026-04-22T10:31:25.354Z",
   "generatedBy": "scripts/run-phase-32-live-memory.ts",
   "mode": "live-external-host",
   "outputDir": "reports/eval/live-memory/phase-32",

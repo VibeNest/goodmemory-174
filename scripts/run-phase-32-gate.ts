@@ -135,8 +135,10 @@ interface ValidatedPhase32LiveReport {
     };
     cases: Array<{
       caseId: string;
-      hostExitCode: number;
+      eventBacked: ValidatedPhase32MeasuredLiveVariant;
       nonRegressionAgainstTextOnly: boolean;
+      noMemory: ValidatedPhase32MeasuredLiveVariant;
+      textOnly: ValidatedPhase32MeasuredLiveVariant;
       winOverNoMemory: boolean;
     }>;
   };
@@ -164,6 +166,15 @@ interface ValidatedPhase32LiveReport {
   runId: string;
 }
 
+interface ValidatedPhase32MeasuredLiveVariant {
+  artifactReadCommands: string[];
+  hostExitCode: number;
+  matchedExpectedFieldCount: number;
+  observedResponse: Record<string, string>;
+  traceBacked: boolean;
+  traceEventCount: number;
+}
+
 const GENERATED_BY = "scripts/run-phase-32-gate.ts";
 const PHASE32_CANONICAL_DETERMINISTIC_RUN_ID = "run-20260422173045";
 const PHASE32_CANONICAL_LIVE_RUN_ID = "run-phase32-live-current";
@@ -174,6 +185,41 @@ const PHASE32_REQUIRED_LIVE_CASE_IDS = [
   "repeated-correction",
   "procedure-adherence",
 ] as const;
+const PHASE32_EXPECTED_RESPONSE = {
+  currentGoal: "Finish the bootstrap smoke path",
+  openLoop: "Verify exported session handoff",
+} as const;
+const PHASE32_SUMMARY_RULE =
+  "Keep coding summaries short and list explicit next steps.";
+const PHASE32_BOOTSTRAP_RULE = "Use packaged CLI bootstrap only.";
+const PHASE32_BLOCKER = "the deploy is blocked on smoke verification.";
+const PHASE32_MEMORY_ARTIFACT_PATH = ".goodmemory/hosts/codex/MEMORY.md";
+const PHASE32_SESSION_MEMORY_ARTIFACT_PATH =
+  ".goodmemory/hosts/codex/session-memory/current.md";
+const PHASE32_LIVE_CASE_EXPECTATIONS = {
+  "continuity-open-loop": { ...PHASE32_EXPECTED_RESPONSE },
+  "procedure-adherence": {
+    blocker: PHASE32_BLOCKER,
+    bootstrapRule: PHASE32_BOOTSTRAP_RULE,
+  },
+  "repeated-correction": {
+    summaryRule: PHASE32_SUMMARY_RULE,
+  },
+} as const satisfies Record<
+  (typeof PHASE32_REQUIRED_LIVE_CASE_IDS)[number],
+  Record<string, string>
+>;
+const PHASE32_LIVE_CASE_REQUIRED_ARTIFACT_PATHS = {
+  "continuity-open-loop": [PHASE32_SESSION_MEMORY_ARTIFACT_PATH],
+  "procedure-adherence": [
+    PHASE32_MEMORY_ARTIFACT_PATH,
+    PHASE32_SESSION_MEMORY_ARTIFACT_PATH,
+  ],
+  "repeated-correction": [PHASE32_MEMORY_ARTIFACT_PATH],
+} as const satisfies Record<
+  (typeof PHASE32_REQUIRED_LIVE_CASE_IDS)[number],
+  readonly string[]
+>;
 const PHASE32_IN_SCOPE = [
   "phase-32 deterministic coding-agent eval against the frozen text-only and no-memory baselines",
   "installed-package bootstrap and package-boundary regression coverage for Codex and Claude Code",
@@ -214,6 +260,89 @@ function pathsMatch(root: string, left: string, right: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return (
+    isRecord(value) &&
+    Object.values(value).every((entry) => typeof entry === "string")
+  );
+}
+
+function countMatchedExpectedFields(
+  observed: Record<string, string>,
+  expected: Record<string, string>,
+): number {
+  return Object.entries(expected).reduce(
+    (count, [key, value]) => count + (observed[key] === value ? 1 : 0),
+    0,
+  );
+}
+
+function provesRequiredArtifactReads(
+  artifactReadCommands: readonly string[],
+  requiredArtifactPaths: readonly string[],
+): boolean {
+  return requiredArtifactPaths.every((artifactPath) =>
+    artifactReadCommands.some((command) => command.includes(artifactPath))
+  );
+}
+
+function assertMeasuredLiveVariant(
+  value: unknown,
+  label: string,
+): ValidatedPhase32MeasuredLiveVariant {
+  if (!isRecord(value)) {
+    throw new Error(
+      `Canonical Phase 32 live external-host report is missing measured ${label} evidence.`,
+    );
+  }
+  if (!isStringArray(value.artifactReadCommands)) {
+    throw new Error(
+      `Canonical Phase 32 live external-host report is missing measured ${label} artifact reads.`,
+    );
+  }
+  if (typeof value.hostExitCode !== "number") {
+    throw new Error(
+      `Canonical Phase 32 live external-host report is missing the measured ${label} host exit code.`,
+    );
+  }
+  if (
+    typeof value.matchedExpectedFieldCount !== "number" ||
+    value.matchedExpectedFieldCount < 0
+  ) {
+    throw new Error(
+      `Canonical Phase 32 live external-host report is missing the measured ${label} field-match count.`,
+    );
+  }
+  if (!isStringRecord(value.observedResponse)) {
+    throw new Error(
+      `Canonical Phase 32 live external-host report is missing the measured ${label} observed response.`,
+    );
+  }
+  if (typeof value.traceBacked !== "boolean") {
+    throw new Error(
+      `Canonical Phase 32 live external-host report is missing the measured ${label} trace-backed flag.`,
+    );
+  }
+  if (typeof value.traceEventCount !== "number") {
+    throw new Error(
+      `Canonical Phase 32 live external-host report is missing the measured ${label} trace event count.`,
+    );
+  }
+
+  return {
+    artifactReadCommands: value.artifactReadCommands,
+    hostExitCode: value.hostExitCode,
+    matchedExpectedFieldCount: value.matchedExpectedFieldCount,
+    observedResponse: value.observedResponse,
+    traceBacked: value.traceBacked,
+    traceEventCount: value.traceEventCount,
+  };
 }
 
 function assertPhase32DeterministicReport(
@@ -387,11 +516,86 @@ function assertPhase32LiveReport(
         "Canonical Phase 32 live external-host report contains an invalid comparison case.",
       );
     }
+    if (!PHASE32_REQUIRED_LIVE_CASE_IDS.includes(caseResult.caseId as never)) {
+      throw new Error(
+        "Canonical Phase 32 live external-host report contains an unexpected comparison case.",
+      );
+    }
     remainingCaseIds.delete(caseResult.caseId);
+    const expected = PHASE32_LIVE_CASE_EXPECTATIONS[
+      caseResult.caseId as keyof typeof PHASE32_LIVE_CASE_EXPECTATIONS
+    ];
+    const requiredArtifactPaths = PHASE32_LIVE_CASE_REQUIRED_ARTIFACT_PATHS[
+      caseResult.caseId as keyof typeof PHASE32_LIVE_CASE_REQUIRED_ARTIFACT_PATHS
+    ];
+    const eventBacked = assertMeasuredLiveVariant(
+      caseResult.eventBacked,
+      `${caseResult.caseId} event-backed`,
+    );
+    const textOnly = assertMeasuredLiveVariant(
+      caseResult.textOnly,
+      `${caseResult.caseId} text-only`,
+    );
+    const noMemory = assertMeasuredLiveVariant(
+      caseResult.noMemory,
+      `${caseResult.caseId} no-memory`,
+    );
+    const eventBackedMatchedCount = countMatchedExpectedFields(
+      eventBacked.observedResponse,
+      expected,
+    );
+    const textOnlyMatchedCount = countMatchedExpectedFields(
+      textOnly.observedResponse,
+      expected,
+    );
+    const noMemoryMatchedCount = countMatchedExpectedFields(
+      noMemory.observedResponse,
+      expected,
+    );
     if (
-      caseResult.hostExitCode !== 0 ||
-      caseResult.nonRegressionAgainstTextOnly !== true ||
-      caseResult.winOverNoMemory !== true
+      eventBacked.matchedExpectedFieldCount !== eventBackedMatchedCount ||
+      textOnly.matchedExpectedFieldCount !== textOnlyMatchedCount ||
+      noMemory.matchedExpectedFieldCount !== noMemoryMatchedCount
+    ) {
+      throw new Error(
+        "Canonical Phase 32 live external-host report contains measured field-match counts that do not match the observed responses.",
+      );
+    }
+    const eventBackedTraceBacked =
+      eventBacked.traceBacked &&
+      provesRequiredArtifactReads(
+        eventBacked.artifactReadCommands,
+        requiredArtifactPaths,
+      );
+    const textOnlyTraceBacked =
+      textOnly.traceBacked &&
+      provesRequiredArtifactReads(
+        textOnly.artifactReadCommands,
+        requiredArtifactPaths,
+      );
+    const noMemoryTraceBacked =
+      noMemory.traceBacked &&
+      provesRequiredArtifactReads(
+        noMemory.artifactReadCommands,
+        requiredArtifactPaths,
+      );
+    const preservesNonRegression =
+      eventBacked.hostExitCode === 0 &&
+      textOnly.hostExitCode === 0 &&
+      eventBackedTraceBacked &&
+      textOnlyTraceBacked &&
+      eventBackedMatchedCount >= textOnlyMatchedCount;
+    const preservesWinOverNoMemory =
+      eventBacked.hostExitCode === 0 &&
+      noMemory.hostExitCode === 0 &&
+      eventBackedTraceBacked &&
+      noMemoryTraceBacked &&
+      eventBackedMatchedCount > noMemoryMatchedCount;
+    if (
+      caseResult.nonRegressionAgainstTextOnly !== preservesNonRegression ||
+      caseResult.winOverNoMemory !== preservesWinOverNoMemory ||
+      !preservesNonRegression ||
+      !preservesWinOverNoMemory
     ) {
       throw new Error(
         "Canonical Phase 32 live external-host report does not preserve the required dual-baseline comparison semantics.",

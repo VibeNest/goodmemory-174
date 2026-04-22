@@ -1,0 +1,116 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 32 deterministic regressions, deterministic dual-baseline evidence, and one canonical Codex external-host evidence chain are accepted."
+  },
+  "commands": [
+    {
+      "label": "typecheck",
+      "command": "bun run typecheck",
+      "durationMs": 2399,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [],
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ]
+    },
+    {
+      "label": "phase-32-targeted-regressions",
+      "command": "bun test tests/unit/context-builder.outputs.test.ts tests/unit/recall.evidence.test.ts tests/unit/run-phase-32.script.test.ts tests/unit/run-phase-32.gate.test.ts tests/unit/run-phase-32.live-memory.test.ts tests/integration/agent-events.ingestion.test.ts tests/eval/phase32.external-coding-agent.test.ts tests/cli/cli.test.ts tests/release/release.test.ts",
+      "durationMs": 8949,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ],
+      "stderrTail": [
+        "(pass) goodmemory cli root commands > inspect hides superseded references from the top summary [6.95ms]",
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [5.28ms]",
+        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [4.10ms]",
+        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [3.57ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [2.88ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [4.60ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [2.89ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.34ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.25ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.31ms]",
+        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.36ms]",
+        "",
+        "tests/eval/phase32.external-coding-agent.test.ts:",
+        "(pass) phase 32 external coding-agent deterministic baselines > keeps the event-backed public path at least as strong as text-only and clearly above no-memory [2.77ms]",
+        "(pass) phase 32 external coding-agent deterministic baselines > keeps coding-agent context output stable after recall serialization [0.48ms]",
+        "",
+        " 120 pass",
+        " 0 fail",
+        " 1433 expect() calls",
+        "Ran 120 tests across 9 files. [8.94s]"
+      ]
+    },
+    {
+      "label": "phase-32-fallback-eval",
+      "command": "bun run eval:phase-32",
+      "durationMs": 77,
+      "exitCode": 0,
+      "status": "passed",
+      "stdoutTail": [
+        "        \"score\": 3",
+        "      }",
+        "    }",
+        "  ],",
+        "  \"generatedAt\": \"2026-04-22T11:03:38.021Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-32-eval.ts\",",
+        "  \"mode\": \"fallback\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-32\",",
+        "  \"phase\": \"phase-32\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-32/run-20260422110338\",",
+        "  \"runId\": \"run-20260422110338\",",
+        "  \"summary\": {",
+        "    \"eventBackedAverageScore\": 3.6667,",
+        "    \"eventBackedClearWinCount\": 3,",
+        "    \"eventBackedNonRegressionPassCount\": 3,",
+        "    \"noMemoryAverageScore\": 0,",
+        "    \"textOnlyAverageScore\": 2.6667,",
+        "    \"totalCases\": 3",
+        "  }",
+        "}"
+      ],
+      "stderrTail": [
+        "$ bun run scripts/run-phase-32-eval.ts"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "reason": "Phase 32 deterministic dual-baseline report is accepted.",
+      "reportPath": "reports/eval/fallback/phase-32/run-20260422173045/report.json",
+      "status": "accepted"
+    },
+    "liveExternalHost": {
+      "hostKind": "codex",
+      "liveReportPath": "reports/eval/live-memory/phase-32/run-phase32-live-current/report.json",
+      "reason": "Phase 32 installed-package Codex external-host evidence is trace-backed and accepted.",
+      "status": "accepted",
+      "traceBacked": true
+    }
+  },
+  "generatedAt": "2026-04-22T11:03:26.605Z",
+  "generatedBy": "scripts/run-phase-32-gate.ts",
+  "phase": "phase-32",
+  "runDirectory": "reports/quality-gates/phase-32/run-20260422110326",
+  "runId": "run-20260422110326",
+  "scope": {
+    "inScope": [
+      "phase-32 deterministic coding-agent eval against the frozen text-only and no-memory baselines",
+      "installed-package bootstrap and package-boundary regression coverage for Codex and Claude Code",
+      "one canonical trace-backed Codex external-host evidence chain on the installed-package path",
+      "phase-32 quality-gate report generation and fail-closed closure validation"
+    ],
+    "outOfScope": [
+      "reopening the root public API boundary",
+      "making Claude a second live gate blocker",
+      "claiming phase-32 is accepted without one canonical Codex external-host report",
+      "new memory capability work beyond the accepted external coding-agent line"
+    ]
+  }
+}

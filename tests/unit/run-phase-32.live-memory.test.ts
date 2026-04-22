@@ -17,6 +17,24 @@ import {
 
 const ROOT = "/tmp/goodmemory";
 
+function createMeasuredVariant(input: {
+  artifactReadCommands: string[];
+  hostExitCode?: number;
+  matchedExpectedFieldCount: number;
+  observedResponse: Record<string, string>;
+  traceBacked?: boolean;
+  traceEventCount?: number;
+}) {
+  return {
+    artifactReadCommands: input.artifactReadCommands,
+    hostExitCode: input.hostExitCode ?? 0,
+    matchedExpectedFieldCount: input.matchedExpectedFieldCount,
+    observedResponse: input.observedResponse,
+    traceBacked: input.traceBacked ?? true,
+    traceEventCount: input.traceEventCount ?? 4,
+  };
+}
+
 describe("run-phase-32 live-memory script", () => {
   it("resolves the phase-32 live-memory output directory", () => {
     expect(resolvePhase32LiveMemoryOutputDir(ROOT)).toBe(
@@ -99,7 +117,7 @@ describe("run-phase-32 live-memory script", () => {
               };
             }
 
-            if (command.label === "codex-export") {
+            if (command.label.startsWith("codex-export")) {
               const manifestPath = join(
                 workspaceRoot,
                 ".goodmemory/hosts/codex/export-manifest.json",
@@ -140,7 +158,10 @@ describe("run-phase-32 live-memory script", () => {
           },
           runCodexHostTurn: async () => {
             turnIndex += 1;
-            if (turnIndex === 1) {
+            const caseIndex = (turnIndex - 1) % 3;
+            const variantIndex = Math.floor((turnIndex - 1) / 3);
+
+            if (caseIndex === 0) {
               return {
                 events: [
                   {
@@ -149,7 +170,7 @@ describe("run-phase-32 live-memory script", () => {
                       id: "item_1",
                       type: "command_execution",
                       command:
-                        "/bin/zsh -lc \"sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md\"",
+                        "/bin/zsh -lc \"rg -n --hidden --glob 'current.md' --glob 'MEMORY.md' '' ./.goodmemory/hosts/codex\"",
                       exit_code: 0,
                     },
                   },
@@ -158,10 +179,14 @@ describe("run-phase-32 live-memory script", () => {
                     item: {
                       id: "item_2",
                       type: "agent_message",
-                      text: JSON.stringify({
-                        currentGoal: "Finish the bootstrap smoke path",
-                        openLoop: "Verify exported session handoff",
-                      }),
+                      text: JSON.stringify(
+                        variantIndex === 2
+                          ? {}
+                          : {
+                              currentGoal: "Finish the bootstrap smoke path",
+                              openLoop: "Verify exported session handoff",
+                            },
+                      ),
                     },
                   },
                 ],
@@ -171,7 +196,7 @@ describe("run-phase-32 live-memory script", () => {
               };
             }
 
-            if (turnIndex === 2) {
+            if (caseIndex === 1) {
               return {
                 events: [
                   {
@@ -189,9 +214,14 @@ describe("run-phase-32 live-memory script", () => {
                     item: {
                       id: "item_4",
                       type: "agent_message",
-                      text: JSON.stringify({
-                        summaryRule: "Keep coding summaries short and list explicit next steps.",
-                      }),
+                      text: JSON.stringify(
+                        variantIndex === 2
+                          ? {}
+                          : {
+                              summaryRule:
+                                "Keep coding summaries short and list explicit next steps.",
+                            },
+                      ),
                     },
                   },
                 ],
@@ -228,10 +258,14 @@ describe("run-phase-32 live-memory script", () => {
                   item: {
                     id: "item_7",
                     type: "agent_message",
-                    text: JSON.stringify({
-                      blocker: "the deploy is blocked on smoke verification.",
-                      bootstrapRule: "Use packaged CLI bootstrap only.",
-                    }),
+                    text: JSON.stringify(
+                      variantIndex === 2
+                        ? {}
+                        : {
+                            blocker: "the deploy is blocked on smoke verification.",
+                            bootstrapRule: "Use packaged CLI bootstrap only.",
+                          },
+                    ),
                   },
                 },
               ],
@@ -266,7 +300,12 @@ describe("run-phase-32 live-memory script", () => {
         ].sort(),
       );
       expect(
-        report.comparison.cases.every((caseResult) => caseResult.hostExitCode === 0),
+        report.comparison.cases.every(
+          (caseResult) =>
+            caseResult.eventBacked.hostExitCode === 0 &&
+            caseResult.textOnly.hostExitCode === 0 &&
+            caseResult.noMemory.hostExitCode === 0,
+        ),
       ).toBe(true);
       expect(writes.at(-1)).toBe(
         join(outputDir, "run-phase32-live-test", "report.json"),
@@ -334,7 +373,7 @@ describe("run-phase-32 live-memory script", () => {
               };
             }
 
-            if (command.label === "codex-export") {
+            if (command.label.startsWith("codex-export")) {
               const manifestPath = join(
                 workspaceRoot,
                 ".goodmemory/hosts/codex/export-manifest.json",
@@ -375,7 +414,9 @@ describe("run-phase-32 live-memory script", () => {
           },
           runCodexHostTurn: async () => {
             turnIndex += 1;
-            if (turnIndex === 1) {
+            const caseIndex = (turnIndex - 1) % 3;
+
+            if (caseIndex === 0) {
               return {
                 events: [
                   {
@@ -405,7 +446,7 @@ describe("run-phase-32 live-memory script", () => {
               };
             }
 
-            if (turnIndex === 2) {
+            if (caseIndex === 1) {
               return {
                 events: [
                   {
@@ -471,6 +512,267 @@ describe("run-phase-32 live-memory script", () => {
       expect(report.acceptance.decision).toBe("blocked");
       expect(report.acceptance.reason).toContain("did not prove a read");
       expect(report.evidence.host.traceBacked).toBe(false);
+    } finally {
+      await rm(packRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+      await rm(outputDir, { force: true, recursive: true });
+    }
+  });
+
+  it("measures live text-only and no-memory baselines instead of synthesizing comparison booleans", async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-phase32-live-measured-"),
+    );
+    const packRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-phase32-live-measured-pack-"),
+    );
+    const outputDir = await mkdtemp(
+      join(tmpdir(), "goodmemory-phase32-live-measured-output-"),
+    );
+    const turnCalls: string[] = [];
+
+    try {
+      await writeFile(
+        join(workspaceRoot, "package.json"),
+        JSON.stringify(
+          {
+            name: "goodmemory-bootstrap-package-smoke",
+            private: true,
+            dependencies: {
+              goodmemory: "__GOODMEMORY_PACKAGE_SPEC__",
+            },
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await mkdir(join(workspaceRoot, ".goodmemory", "hosts", "codex"), {
+        recursive: true,
+      });
+
+      const report = await runPhase32LiveMemoryEvaluation(
+        {
+          outputDir,
+          runId: "run-phase32-live-test",
+        },
+        {
+          copyDir: async () => {},
+          ensureDir: async (path) => {
+            await mkdir(path, { recursive: true });
+          },
+          makeTempDir: async (prefix) =>
+            prefix.includes("pack") ? packRoot : workspaceRoot,
+          now: () => "2026-04-22T19:00:00.000Z",
+          readTextFile: async (path) => readFile(path, "utf8"),
+          removeDir: async () => {},
+          runCommand: async (command) => {
+            if (command.label === "pack-tarball") {
+              return {
+                durationMs: 10,
+                exitCode: 0,
+                stderr: "",
+                stdout: "/tmp/pack/goodmemory-0.1.0-rc.1.tgz\n",
+              };
+            }
+
+            if (command.label.startsWith("codex-export")) {
+              await mkdir(join(workspaceRoot, ".goodmemory/hosts/codex/session-memory"), {
+                recursive: true,
+              });
+              await writeFile(
+                join(workspaceRoot, ".goodmemory/hosts/codex/export-manifest.json"),
+                JSON.stringify(
+                  {
+                    artifacts: [
+                      { relativePath: "MEMORY.md" },
+                      { relativePath: "session-memory/current.md" },
+                    ],
+                  },
+                  null,
+                  2,
+                ) + "\n",
+                "utf8",
+              );
+              return {
+                durationMs: 10,
+                exitCode: 0,
+                stderr: "",
+                stdout: JSON.stringify({
+                  artifactCount: 2,
+                }),
+              };
+            }
+
+            return {
+              durationMs: 10,
+              exitCode: 0,
+              stderr: "",
+              stdout: "ok",
+            };
+          },
+          runCodexHostTurn: async () => {
+            const turnIndex = turnCalls.length;
+            const caseIndex = turnIndex % 3;
+            const variantIndex = Math.floor(turnIndex / 3);
+            turnCalls.push(`turn-${turnIndex}`);
+
+            if (caseIndex === 0) {
+              return {
+                events: [
+                  {
+                    type: "item.completed",
+                    item: {
+                      id: `item-${turnCalls.length}`,
+                      type: "command_execution",
+                      command:
+                        "/bin/zsh -lc \"sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md\"",
+                      exit_code: 0,
+                    },
+                  },
+                  {
+                    type: "item.completed",
+                    item: {
+                      id: `message-${turnCalls.length}`,
+                      type: "agent_message",
+                      text: JSON.stringify(
+                        variantIndex === 0
+                          ? {
+                              currentGoal: "Finish the bootstrap smoke path",
+                              openLoop: "Verify exported session handoff",
+                            }
+                          : variantIndex === 1
+                            ? {
+                                currentGoal: "Finish the bootstrap smoke path",
+                              }
+                            : {},
+                      ),
+                    },
+                  },
+                ],
+                exitCode: 0,
+                stderr: "",
+                stdout: "{\"type\":\"item.completed\"}\n",
+              };
+            }
+
+            if (caseIndex === 1) {
+              return {
+                events: [
+                  {
+                    type: "item.completed",
+                    item: {
+                      id: `item-${turnCalls.length}`,
+                      type: "command_execution",
+                      command:
+                        "/bin/zsh -lc \"sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md\"",
+                      exit_code: 0,
+                    },
+                  },
+                  {
+                    type: "item.completed",
+                    item: {
+                      id: `message-${turnCalls.length}`,
+                      type: "agent_message",
+                      text: JSON.stringify(
+                        variantIndex === 2
+                          ? {}
+                          : {
+                              summaryRule:
+                                "Keep coding summaries short and list explicit next steps.",
+                            },
+                      ),
+                    },
+                  },
+                ],
+                exitCode: 0,
+                stderr: "",
+                stdout: "{\"type\":\"item.completed\"}\n",
+              };
+            }
+
+            return {
+              events: [
+                {
+                  type: "item.completed",
+                  item: {
+                    id: `item-${turnCalls.length}`,
+                    type: "command_execution",
+                    command:
+                      "/bin/zsh -lc \"sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md\"",
+                    exit_code: 0,
+                  },
+                },
+                {
+                  type: "item.completed",
+                  item: {
+                    id: `item-memory-${turnCalls.length}`,
+                    type: "command_execution",
+                    command:
+                      "/bin/zsh -lc \"sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md\"",
+                    exit_code: 0,
+                  },
+                },
+                {
+                  type: "item.completed",
+                  item: {
+                    id: `message-${turnCalls.length}`,
+                    type: "agent_message",
+                    text: JSON.stringify(
+                      variantIndex === 0
+                        ? {
+                            blocker: "the deploy is blocked on smoke verification.",
+                            bootstrapRule: "Use packaged CLI bootstrap only.",
+                          }
+                        : variantIndex === 1
+                          ? {
+                              bootstrapRule: "Use packaged CLI bootstrap only.",
+                            }
+                          : {},
+                    ),
+                  },
+                },
+              ],
+              exitCode: 0,
+              stderr: "",
+              stdout: "{\"type\":\"item.completed\"}\n",
+            };
+          },
+          writeTextFile: async (path, content) => {
+            await writeFile(path, content, "utf8");
+          },
+        },
+      );
+
+      expect(turnCalls).toHaveLength(9);
+      expect(report.comparison.cases[0]).toMatchObject({
+        caseId: "continuity-open-loop",
+        eventBacked: {
+          matchedExpectedFieldCount: 2,
+        },
+        nonRegressionAgainstTextOnly: true,
+        noMemory: {
+          matchedExpectedFieldCount: 0,
+        },
+        textOnly: {
+          matchedExpectedFieldCount: 1,
+        },
+        winOverNoMemory: true,
+      });
+      expect(report.comparison.cases[1]).toMatchObject({
+        caseId: "repeated-correction",
+        eventBacked: {
+          matchedExpectedFieldCount: 1,
+        },
+        textOnly: {
+          matchedExpectedFieldCount: 1,
+        },
+        noMemory: {
+          matchedExpectedFieldCount: 0,
+        },
+        nonRegressionAgainstTextOnly: true,
+        winOverNoMemory: true,
+      });
     } finally {
       await rm(packRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
@@ -544,7 +846,7 @@ describe("run-phase-32 live-memory script", () => {
                 };
               }
 
-              if (command.label === "codex-export") {
+              if (command.label.startsWith("codex-export")) {
                 await writeFile(
                   join(workspaceRoot, ".goodmemory/hosts/codex/export-manifest.json"),
                   JSON.stringify(
@@ -645,12 +947,12 @@ describe("run-phase-32 live-memory script", () => {
               };
             }
 
-            if (command.label === "codex-export") {
-              await mkdir(join(workspaceRoot, ".goodmemory/hosts/codex/session-memory"), {
-                recursive: true,
-              });
-              await writeFile(
-                join(workspaceRoot, ".goodmemory/hosts/codex/export-manifest.json"),
+              if (command.label.startsWith("codex-export")) {
+                await mkdir(join(workspaceRoot, ".goodmemory/hosts/codex/session-memory"), {
+                  recursive: true,
+                });
+                await writeFile(
+                  join(workspaceRoot, ".goodmemory/hosts/codex/export-manifest.json"),
                 JSON.stringify(
                   {
                     artifacts: [
@@ -720,7 +1022,7 @@ describe("run-phase-32 live-memory script", () => {
         .toBe(1);
       expect(report.commands.find((command) => command.label.startsWith("codex-native-host:"))?.status)
         .toBe("failed");
-      expect(report.comparison.cases[0]?.hostExitCode).toBe(1);
+      expect(report.comparison.cases[0]?.eventBacked.hostExitCode).toBe(1);
     } finally {
       await rm(packRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
@@ -761,48 +1063,98 @@ describe("run-phase-32 live-memory script", () => {
           },
           cases: [
             {
-              artifactReadCommands: [
-                "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
-              ],
               caseId: "continuity-open-loop",
-              hostExitCode: 0,
+              eventBacked: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+                ],
+                matchedExpectedFieldCount: 2,
+                observedResponse: {
+                  currentGoal: "Finish the bootstrap smoke path",
+                  openLoop: "Verify exported session handoff",
+                },
+              }),
               nonRegressionAgainstTextOnly: true,
-              observedResponse: {
-                currentGoal: "Finish the bootstrap smoke path",
-                openLoop: "Verify exported session handoff",
-              } as Record<string, string>,
-              traceBacked: true,
-              traceEventCount: 4,
+              noMemory: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+                ],
+                matchedExpectedFieldCount: 0,
+                observedResponse: {},
+              }),
+              textOnly: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+                ],
+                matchedExpectedFieldCount: 1,
+                observedResponse: {
+                  currentGoal: "Finish the bootstrap smoke path",
+                },
+              }),
               winOverNoMemory: true,
             },
             {
-              artifactReadCommands: [
-                "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
-              ],
               caseId: "repeated-correction",
-              hostExitCode: 0,
+              eventBacked: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+                ],
+                matchedExpectedFieldCount: 1,
+                observedResponse: {
+                  summaryRule: "Keep coding summaries short and list explicit next steps.",
+                },
+              }),
               nonRegressionAgainstTextOnly: true,
-              observedResponse: {
-                summaryRule: "Keep coding summaries short and list explicit next steps.",
-              } as Record<string, string>,
-              traceBacked: true,
-              traceEventCount: 4,
+              noMemory: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+                ],
+                matchedExpectedFieldCount: 0,
+                observedResponse: {},
+              }),
+              textOnly: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+                ],
+                matchedExpectedFieldCount: 1,
+                observedResponse: {
+                  summaryRule: "Keep coding summaries short and list explicit next steps.",
+                },
+              }),
               winOverNoMemory: true,
             },
             {
-              artifactReadCommands: [
-                "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
-                "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
-              ],
               caseId: "procedure-adherence",
-              hostExitCode: 0,
+              eventBacked: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+                ],
+                matchedExpectedFieldCount: 2,
+                observedResponse: {
+                  blocker: "the deploy is blocked on smoke verification.",
+                  bootstrapRule: "Use packaged CLI bootstrap only.",
+                },
+              }),
               nonRegressionAgainstTextOnly: true,
-              observedResponse: {
-                blocker: "the deploy is blocked on smoke verification.",
-                bootstrapRule: "Use packaged CLI bootstrap only.",
-              } as Record<string, string>,
-              traceBacked: true,
-              traceEventCount: 4,
+              noMemory: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+                ],
+                matchedExpectedFieldCount: 0,
+                observedResponse: {},
+              }),
+              textOnly: createMeasuredVariant({
+                artifactReadCommands: [
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+                  "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+                ],
+                matchedExpectedFieldCount: 1,
+                observedResponse: {
+                  bootstrapRule: "Use packaged CLI bootstrap only.",
+                },
+              }),
               winOverNoMemory: true,
             },
           ],

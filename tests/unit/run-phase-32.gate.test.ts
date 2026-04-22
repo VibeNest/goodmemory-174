@@ -16,6 +16,21 @@ const ROOT = "/tmp/goodmemory";
 const LIVE_CONTRACT = buildPhase32LiveReportContract(ROOT);
 const REPO_LIVE_CONTRACT = buildPhase32LiveReportContract(process.cwd());
 
+function createMeasuredVariant(input: {
+  artifactReadCommands: string[];
+  matchedExpectedFieldCount: number;
+  observedResponse: Record<string, string>;
+}) {
+  return {
+    artifactReadCommands: input.artifactReadCommands,
+    hostExitCode: 0,
+    matchedExpectedFieldCount: input.matchedExpectedFieldCount,
+    observedResponse: input.observedResponse,
+    traceBacked: true,
+    traceEventCount: 4,
+  };
+}
+
 function createAcceptedPhase32DeterministicReport(): string {
   return JSON.stringify({
     acceptance: {
@@ -75,20 +90,97 @@ function createAcceptedPhase32LiveReport(): string {
       cases: [
         {
           caseId: "continuity-open-loop",
-          hostExitCode: 0,
+          eventBacked: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+            ],
+            matchedExpectedFieldCount: 2,
+            observedResponse: {
+              currentGoal: "Finish the bootstrap smoke path",
+              openLoop: "Verify exported session handoff",
+            },
+          }),
           nonRegressionAgainstTextOnly: true,
+          noMemory: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+            ],
+            matchedExpectedFieldCount: 0,
+            observedResponse: {},
+          }),
+          textOnly: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+            ],
+            matchedExpectedFieldCount: 1,
+            observedResponse: {
+              currentGoal: "Finish the bootstrap smoke path",
+            },
+          }),
           winOverNoMemory: true,
         },
         {
           caseId: "repeated-correction",
-          hostExitCode: 0,
+          eventBacked: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+            ],
+            matchedExpectedFieldCount: 1,
+            observedResponse: {
+              summaryRule: "Keep coding summaries short and list explicit next steps.",
+            },
+          }),
           nonRegressionAgainstTextOnly: true,
+          noMemory: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+            ],
+            matchedExpectedFieldCount: 0,
+            observedResponse: {},
+          }),
+          textOnly: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+            ],
+            matchedExpectedFieldCount: 1,
+            observedResponse: {
+              summaryRule: "Keep coding summaries short and list explicit next steps.",
+            },
+          }),
           winOverNoMemory: true,
         },
         {
           caseId: "procedure-adherence",
-          hostExitCode: 0,
+          eventBacked: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+            ],
+            matchedExpectedFieldCount: 2,
+            observedResponse: {
+              blocker: "the deploy is blocked on smoke verification.",
+              bootstrapRule: "Use packaged CLI bootstrap only.",
+            },
+          }),
           nonRegressionAgainstTextOnly: true,
+          noMemory: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+            ],
+            matchedExpectedFieldCount: 0,
+            observedResponse: {},
+          }),
+          textOnly: createMeasuredVariant({
+            artifactReadCommands: [
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/MEMORY.md",
+              "sed -n '1,220p' ./.goodmemory/hosts/codex/session-memory/current.md",
+            ],
+            matchedExpectedFieldCount: 1,
+            observedResponse: {
+              bootstrapRule: "Use packaged CLI bootstrap only.",
+            },
+          }),
           winOverNoMemory: true,
         },
       ],
@@ -325,13 +417,31 @@ describe("run-phase-32 gate", () => {
       comparison: {
         cases: Array<{
           caseId: string;
+          eventBacked: {
+            matchedExpectedFieldCount: number;
+          };
           nonRegressionAgainstTextOnly: boolean;
+          noMemory: {
+            matchedExpectedFieldCount: number;
+            observedResponse?: Record<string, string>;
+          };
+          textOnly: {
+            matchedExpectedFieldCount: number;
+          };
           winOverNoMemory: boolean;
         }>;
       };
     };
     parsed.comparison.cases[2] = {
       ...parsed.comparison.cases[2]!,
+      noMemory: {
+        ...parsed.comparison.cases[2]!.noMemory,
+        matchedExpectedFieldCount: 2,
+        observedResponse: {
+          blocker: "the deploy is blocked on smoke verification.",
+          bootstrapRule: "Use packaged CLI bootstrap only.",
+        },
+      },
       winOverNoMemory: false,
     };
 
@@ -364,6 +474,52 @@ describe("run-phase-32 gate", () => {
     expect(report.acceptance.decision).toBe("blocked");
     expect(report.evidence.liveExternalHost.status).toBe("blocked");
     expect(report.evidence.liveExternalHost.reason).toContain("dual-baseline comparison semantics");
+  });
+
+  it("blocks live external-host reports that omit measured live baseline observations", async () => {
+    const parsed = JSON.parse(createAcceptedPhase32LiveReport()) as {
+      comparison: {
+        cases: Array<{
+          caseId: string;
+          eventBacked?: unknown;
+          nonRegressionAgainstTextOnly: boolean;
+          noMemory?: unknown;
+          textOnly?: unknown;
+          winOverNoMemory: boolean;
+        }>;
+      };
+    };
+    delete parsed.comparison.cases[0]!.textOnly;
+
+    const report = await runPhase32QualityGate(
+      {
+        outputDir: "/tmp/goodmemory/reports/quality-gates/phase-32",
+        runId: "run-phase32-gate",
+        liveReportPath: REPO_LIVE_CONTRACT.canonicalLiveReportPath,
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-22T18:15:30.000Z",
+        readTextFile: async (path) => {
+          if (path === REPO_LIVE_CONTRACT.canonicalLiveReportPath) {
+            return JSON.stringify(parsed);
+          }
+
+          return createAcceptedPhase32DeterministicReport();
+        },
+        runCommand: async () => ({
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: "ok",
+        }),
+        writeTextFile: async () => {},
+      },
+    );
+
+    expect(report.acceptance.decision).toBe("blocked");
+    expect(report.evidence.liveExternalHost.status).toBe("blocked");
+    expect(report.evidence.liveExternalHost.reason).toContain("measured");
   });
 
   it("blocks when the canonical live external-host evidence chain is missing", async () => {
