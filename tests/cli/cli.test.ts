@@ -30,6 +30,8 @@ import { createMemoryRepositories } from "../../src/storage/repositories";
 import { createTempWorkspace } from "../../src/testing/utils";
 import { resolveStorageConfig, runCLI } from "../../src/cli";
 
+const TEXT_DECODER = new TextDecoder();
+
 async function withCwd<T>(cwd: string, callback: () => Promise<T>): Promise<T> {
   const previous = process.cwd();
   process.chdir(cwd);
@@ -78,6 +80,38 @@ async function runBunScript(input: {
     stderr,
     stdout,
   };
+}
+
+async function packCurrentPackage(input: {
+  outputDir: string;
+  packageRoot: string;
+}): Promise<string> {
+  await rm(input.outputDir, { force: true, recursive: true });
+  await mkdir(input.outputDir, { recursive: true });
+
+  const pack = Bun.spawnSync({
+    cmd: ["bun", "pm", "pack", "--destination", input.outputDir, "--quiet"],
+    cwd: input.packageRoot,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  if (pack.exitCode !== 0) {
+    throw new Error(
+      [
+        "Failed to pack the current GoodMemory package for an installed-package CLI test.",
+        TEXT_DECODER.decode(pack.stderr).trim(),
+      ]
+        .filter((line) => line.length > 0)
+        .join("\n"),
+    );
+  }
+
+  const stdout = TEXT_DECODER.decode(pack.stdout).trim();
+  if (stdout.length === 0) {
+    throw new Error("Expected bun pm pack to print the generated tarball path.");
+  }
+
+  return stdout.includes("/") ? stdout : join(input.outputDir, stdout);
 }
 
 function buildAnswerPackage(
@@ -1261,6 +1295,10 @@ describe("goodmemory cli host bootstrap", () => {
     const workspace = await createTempWorkspace("goodmemory-codex-hook-policy");
     const sessionId = "consumer-session";
     const packageRoot = join(import.meta.dir, "../..");
+    const tarballPath = await packCurrentPackage({
+      outputDir: join(workspace.root, ".pack"),
+      packageRoot,
+    });
 
     try {
       await withCwd(workspace.root, async () =>
@@ -1281,7 +1319,7 @@ describe("goodmemory cli host bootstrap", () => {
             name: "goodmemory-codex-hook-policy",
             private: true,
             dependencies: {
-              goodmemory: `file:${packageRoot}`,
+              goodmemory: `file:${tarballPath}`,
             },
           },
           null,
@@ -1353,6 +1391,10 @@ describe("goodmemory cli host bootstrap", () => {
     const sqlitePath = join(workspace.root, ".goodmemory", "memory.sqlite");
     const toolsDir = join(workspace.root, "tools");
     const packageRoot = join(import.meta.dir, "../..");
+    const tarballPath = await packCurrentPackage({
+      outputDir: join(workspace.root, ".pack"),
+      packageRoot,
+    });
 
     try {
       await withCwd(workspace.root, async () =>
@@ -1373,7 +1415,7 @@ describe("goodmemory cli host bootstrap", () => {
             name: "goodmemory-codex-action-gate",
             private: true,
             dependencies: {
-              goodmemory: `file:${packageRoot}`,
+              goodmemory: `file:${tarballPath}`,
             },
           },
           null,
@@ -1492,6 +1534,10 @@ describe("goodmemory cli host bootstrap", () => {
     const workspace = await createTempWorkspace("goodmemory-codex-action-gate-shell");
     const packageRoot = join(import.meta.dir, "../..");
     const stubShellPath = join(workspace.root, "fake-shell");
+    const tarballPath = await packCurrentPackage({
+      outputDir: join(workspace.root, ".pack"),
+      packageRoot,
+    });
 
     try {
       await withCwd(workspace.root, async () =>
@@ -1512,7 +1558,7 @@ describe("goodmemory cli host bootstrap", () => {
             name: "goodmemory-codex-action-gate-shell",
             private: true,
             dependencies: {
-              goodmemory: `file:${packageRoot}`,
+              goodmemory: `file:${tarballPath}`,
             },
           },
           null,
@@ -1577,6 +1623,10 @@ describe("goodmemory cli host bootstrap", () => {
     const sessionId = "consumer-session";
     const sqlitePath = join(workspace.root, ".goodmemory", "memory.sqlite");
     const packageRoot = join(import.meta.dir, "../..");
+    const tarballPath = await packCurrentPackage({
+      outputDir: join(workspace.root, ".pack"),
+      packageRoot,
+    });
 
     try {
       await withCwd(workspace.root, async () =>
@@ -1597,7 +1647,7 @@ describe("goodmemory cli host bootstrap", () => {
             name: "goodmemory-codex-action-gate-fail-closed",
             private: true,
             dependencies: {
-              goodmemory: `file:${packageRoot}`,
+              goodmemory: `file:${tarballPath}`,
             },
           },
           null,
