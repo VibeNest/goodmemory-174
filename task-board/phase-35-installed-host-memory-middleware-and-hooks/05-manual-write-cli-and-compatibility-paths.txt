@@ -1,0 +1,40 @@
+Phase 35.5: Manual Write CLI and Compatibility Paths
+====================================================
+
+[TODO] Add explicit write CLI for installed-host users.
+[TODO] Keep the accepted Phase 32 bootstrap/export path working as a lower-level compatibility layer.
+[TODO] Avoid hidden automatic durable writes in the middleware milestone.
+
+CLI Surface
+-----------
+- `goodmemory remember`
+- `goodmemory feedback`
+- `goodmemory forget`
+
+Behavior
+--------
+- `remember`
+  - explicit durable fact/event seeding for installed-host users
+- `feedback`
+  - explicit preference/style/correction seeding for installed-host users
+- `forget`
+  - explicit deletion by id or scoped target
+
+Compatibility Rules
+-------------------
+- Phase 32 bootstrap/export remains valid for artifact-first consumers
+- Phase 35 install/enable may reuse the accepted bootstrap scaffolds instead of replacing them with a second artifact system
+- manual write CLI should work against the installed-host storage default without changing the accepted repo-local CLI defaults for ordinary library usage
+
+Acceptance
+----------
+- explicit write commands are memory-first and scope-aware
+- explicit write commands work on the installed-host storage path
+- write commands do not require a repo checkout of GoodMemory
+- compatibility with the accepted bootstrap/export flow remains regression-covered
+
+Evidence To Add
+---------------
+- CLI tests for remember/feedback/forget
+- installed-package smoke covering write -> hook recall -> MCP deep read
+- docs showing how host users seed and correct memory explicitly

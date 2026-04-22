@@ -1,0 +1,117 @@
+Phase 35: Installed Host Memory Middleware and Hooks
+====================================================
+
+Phase Goal
+----------
+Turn the accepted external host line from "repo-local bootstrap plus compiled artifacts" into "global install, repo opt-in, always-on recall middleware" for Codex and Claude Code without widening the root `GoodMemory` API.
+
+This phase exists to make GoodMemory feel closer to a real host-native memory layer through:
+
+- `goodmemory-mcp`
+- `goodmemory install codex`
+- `goodmemory install claude`
+- a thin generated `AGENTS.md` / `CLAUDE.md` rules layer
+- `SessionStart` and `UserPromptSubmit` hooks that inject compressed recall from the existing GoodMemory core before the host takes the next step
+
+
+Current Status
+--------------
+[TODO] Phase 35 is queued.
+[DONE] Phase 32 already proved the installed-package external host line on `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`.
+[DONE] Phase 33 already froze the formal Node-compatible package boundary for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`.
+[DONE] Phase 34 already proved host pre-action policy and veto behavior on the explicit `goodmemory/host` seam.
+[TODO] External users still do not have one canonical global-install, repo-opt-in, hook-injected GoodMemory middleware path for Codex or Claude Code.
+[TODO] `goodmemory-mcp` does not yet exist as a distributable server or installed entrypoint.
+[TODO] `goodmemory install codex` / `goodmemory install claude` do not yet exist; the accepted external path still starts from repo-local `bootstrap`.
+[TODO] Hook-driven automatic recall injection is not yet the canonical live path; exported artifacts are still the main accepted external read path.
+
+
+Dependencies
+------------
+- Phase 32 external host integration productization
+- Phase 33 formal Node-compatible package boundary and Node-first integration
+- Phase 34 host pre-action policy and veto contract
+- `docs/开发安排.md`
+
+
+Primary Deliverables
+--------------------
+- one canonical host-middleware product line layered on the accepted external surface:
+  - `goodmemory`
+  - `goodmemory/ai-sdk`
+  - `goodmemory/host`
+  - installed CLI and installed hook/MCP runtime
+- global install commands:
+  - `goodmemory install codex`
+  - `goodmemory install claude`
+  - matching `uninstall`, `enable`, and `disable` flows
+- repo-opt-in config for host middleware:
+  - Codex
+  - Claude Code
+- canonical hook handlers for:
+  - `SessionStart`
+  - `UserPromptSubmit`
+- read-only `goodmemory-mcp` / `goodmemory mcp serve`
+- explicit write CLI for installed-host users:
+  - `goodmemory remember`
+  - `goodmemory feedback`
+  - `goodmemory forget`
+- one canonical Codex live evidence chain proving hook-injected recall on the installed global path
+
+
+Definition of Done
+------------------
+- the canonical product line remains `goodmemory + goodmemory/ai-sdk + goodmemory/host`; no new root `GoodMemory` API is added
+- no public `goodmemory/evolution` entrypoint is introduced
+- installed-host middleware stays `Hook + MCP` mixed:
+  - hooks handle always-on automatic recall injection
+  - MCP handles deep read, debug, and artifact browsing
+- `goodmemory install codex` and `goodmemory install claude` are idempotent and only write documented user-level config plus repo-local opt-in scaffolds
+- repo opt-in is explicit and host-scoped; install alone does not silently activate every repository
+- hook handlers use the existing `recall()` + `buildContext()` path and do not invent a second memory engine
+- hook handlers fail open:
+  - opt-in missing
+  - parse/config failure
+  - empty memory
+  - recall/buildContext failure
+  - any of the above returns no injected context rather than blocking the host
+- default hook retrieval profile is `coding_agent`
+- the installed-host middleware path uses a dedicated user-level SQLite default such as `~/.goodmemory/memory.sqlite` without changing the accepted repo-local CLI default
+- explicit write commands are available for durable host-user seeding and correction, but Phase 35 does not add automatic writeback or transcript persistence
+- Codex is the only live gate-blocking host path
+- Claude Code reaches install/hook/docs/package-smoke parity without becoming a second live blocker
+- one canonical Codex live report proves:
+  - `SessionStart` continuity injection
+  - `UserPromptSubmit` dynamic recall injection
+  - installed-package global config plus repo opt-in behavior
+  - MCP registration on the installed path
+
+
+Tasks
+-----
+[TODO] P35-T001 Freeze the canonical middleware contract and CLI boundary for installed host memory
+[TODO] P35-T002 Add global install/uninstall plus repo enable/disable for Codex and Claude Code
+[TODO] P35-T003 Add hook payload contracts and lifecycle handlers for automatic recall injection
+[TODO] P35-T004 Ship `goodmemory-mcp` and the read-only MCP tool surface
+[TODO] P35-T005 Add explicit write CLI plus compatibility wiring from the accepted Phase 32 bootstrap path
+[TODO] P35-T006 Add dedicated evals, gate, archive summary, and closure sync for the canonical installed-host middleware path
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-35-installed-host-memory-middleware-and-hooks/00-README.txt`
+- `task-board/phase-35-installed-host-memory-middleware-and-hooks/01-freeze-canonical-middleware-contract.txt`
+- `task-board/phase-35-installed-host-memory-middleware-and-hooks/02-global-installers-and-repo-opt-in.txt`
+- `task-board/phase-35-installed-host-memory-middleware-and-hooks/03-hook-lifecycle-and-context-injection.txt`
+- `task-board/phase-35-installed-host-memory-middleware-and-hooks/04-goodmemory-mcp-and-read-only-tools.txt`
+- `task-board/phase-35-installed-host-memory-middleware-and-hooks/05-manual-write-cli-and-compatibility-paths.txt`
+- `task-board/phase-35-installed-host-memory-middleware-and-hooks/06-phase-35-evals-gate-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase productizes the accepted external host line; it does not reopen the root API.
+- This phase does not turn evidence or hook payloads into a transcript database.
+- This phase does not add automatic writeback, automatic maintenance, or a `Stop` hook.
+- This phase keeps Phase 34 pre-action veto behavior separate; recall middleware must layer on top of the accepted host boundary instead of replacing it.
+- This phase does not make Claude a second live blocker.

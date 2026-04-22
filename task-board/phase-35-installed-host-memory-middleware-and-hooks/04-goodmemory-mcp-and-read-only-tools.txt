@@ -1,0 +1,35 @@
+Phase 35.4: goodmemory-mcp and Read-Only Tools
+==============================================
+
+[TODO] Ship `goodmemory-mcp` as a distributable installed entrypoint.
+[TODO] Add `goodmemory mcp serve` as the canonical CLI form.
+[TODO] Keep the first MCP surface read-only.
+[TODO] Register MCP during host install without making MCP the default recall transport.
+
+Minimum Tool Surface
+--------------------
+- `goodmemory_get_context`
+- `goodmemory_inspect_memory`
+- `goodmemory_trace_recall`
+- `goodmemory_read_artifacts`
+- `goodmemory_stats`
+
+Contract
+--------
+- `goodmemory_get_context` reuses `recall()` + `buildContext()`
+- `goodmemory_read_artifacts` reuses the accepted `createHostAdapter()` artifact path
+- tools are debug/deep-read helpers and do not replace hook-time injection
+- no write tools in v1
+
+Acceptance
+----------
+- installed package exposes one documented MCP server entrypoint
+- Codex install registers the MCP server on the supported host config path
+- Claude install registers the MCP server on the supported host config path
+- MCP tools are read-only and respect the same scope/config resolution as the installed middleware path
+
+Evidence To Add
+---------------
+- MCP tool contract tests
+- installed-config registration tests
+- integration tests proving tool output matches the underlying public APIs

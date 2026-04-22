@@ -101,6 +101,8 @@ Read and execute files in this order:
 32. 32-phase-31-native-host-outcome-and-correction-closure.txt
 33. 33-phase-32-external-host-integration-productization.txt
 34. 34-phase-33-node-compatible-package-boundary-and-node-first-integration.txt
+35. 35-phase-34-host-pre-action-policy-and-veto-contract.txt
+36. 36-phase-35-installed-host-memory-middleware-and-hooks.txt
 
 
 Current Sequencing Note
@@ -195,7 +197,13 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-34-Quality-Gate.md`
   - `goodmemory/host` now exposes `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and the execution-plan bridge for pre-action rewrite/veto outcomes
   - the canonical live enforcement path is the installed-package Codex action-gate wrapper, while `.codex/hooks.json` and `codex/rules/goodmemory.rules` remain parity scaffolds instead of the live blocker
-- Any work after Phase 34 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 35 is now queued as the installed host-memory middleware and hooks slice:
+  - ship `goodmemory-mcp`
+  - add `goodmemory install codex` and `goodmemory install claude`
+  - add explicit repo opt-in through `enable` / `disable`
+  - make `SessionStart` and `UserPromptSubmit` the canonical automatic recall path through hook-injected context
+  - keep Codex as the only live blocker while Claude reaches install/hook/package-smoke parity
+- Any work after Phase 35 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -217,7 +225,7 @@ Use these bands when choosing what to work on next:
    - Preserve the closed Phase 17 through Phase 34 guarantees while future work lands
    - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, and accepted Phase 34 host pre-action policy evidence regression-covered while future work lands
    - If new Phase 30, Phase 31, Phase 32, Phase 33, or Phase 34 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute any follow-up host work on top of the accepted public/package/runtime/external-host boundary instead of widening the core API or reintroducing repo-internal integration paths
+   - Execute Phase 35 on top of the accepted public/package/runtime/external-host boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
    - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, and Phase 31 native-host outcome/correction guarantees regression-covered while later phases execute
@@ -360,3 +368,9 @@ Files in This Folder
 
 - 34-phase-33-node-compatible-package-boundary-and-node-first-integration.txt
   Formal Node-compatible dist/types package boundary, Bun-runtime isolation, Node/Bun consumer matrix, and one canonical plain AI SDK server integration path
+
+- 35-phase-34-host-pre-action-policy-and-veto-contract.txt
+  Host-level pre-action assessment, veto/rewrite policy, Codex action-gate wrapper, and canonical live enforcement evidence
+
+- 36-phase-35-installed-host-memory-middleware-and-hooks.txt
+  Global install, repo opt-in, hook-injected recall, `goodmemory-mcp`, and manual write CLI for Codex/Claude host middleware productization

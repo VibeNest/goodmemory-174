@@ -1,0 +1,46 @@
+Phase 35.3: Hook Lifecycle and Context Injection
+================================================
+
+[TODO] Add canonical hook handlers for `SessionStart` and `UserPromptSubmit`.
+[TODO] Make hook injection use `recall()` plus `buildContext()` instead of inventing a parallel memory path.
+[TODO] Define the installed-host hook payload and fail-open behavior.
+[TODO] Keep automatic writeback out of scope.
+
+Runtime Commands
+----------------
+- `goodmemory codex hook session-start`
+- `goodmemory codex hook user-prompt-submit`
+- `goodmemory claude hook session-start`
+- `goodmemory claude hook user-prompt-submit`
+
+Default Behavior
+----------------
+- `SessionStart`
+  - derive `userId`, `workspaceId`, `agentId`, and `sessionId`
+  - inject compact continuity/open-loop context when the repo is enabled
+- `UserPromptSubmit`
+  - derive the current prompt and recall scope
+  - call `recall()`
+  - call `buildContext(output="developer_prompt_fragment")`
+  - return compressed context to the host hook surface
+
+Guardrails
+----------
+- default retrieval profile is `coding_agent`
+- no full transcript persistence
+- no large raw tool-output persistence
+- any missing config, parse failure, empty memory, or recall failure returns no injected context instead of blocking the host
+
+Acceptance
+----------
+- hook handlers are explicit installed CLI commands, not hidden internal scripts
+- repo opt-in controls whether hooks inject anything
+- hook output is compact and bounded by configured token limits
+- hook output is projection, not canonical truth
+- Phase 35 does not add `Stop` hook or automatic remember-on-exit behavior
+
+Evidence To Add
+---------------
+- unit tests for scope derivation and fail-open behavior
+- integration tests for hook JSON input/output
+- installed consumer smoke proving injected context reaches Codex on the live path

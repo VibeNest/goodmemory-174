@@ -1,0 +1,40 @@
+Phase 35.2: Global Installers and Repo Opt-In
+=============================================
+
+[TODO] Add global install/uninstall commands for Codex and Claude Code.
+[TODO] Add repo enable/disable commands so activation is explicit and reversible.
+[TODO] Merge user-level host config instead of overwriting it.
+[TODO] Use a dedicated installed-host storage default such as `~/.goodmemory/memory.sqlite`.
+
+CLI Surface
+-----------
+- `goodmemory install codex`
+- `goodmemory install claude`
+- `goodmemory uninstall codex`
+- `goodmemory uninstall claude`
+- `goodmemory enable codex`
+- `goodmemory enable claude`
+- `goodmemory disable codex`
+- `goodmemory disable claude`
+
+Contract
+--------
+- global install writes only documented user-level config and MCP/hook registrations
+- repo enable writes only repo-local opt-in config plus a thin `AGENTS.md` / `CLAUDE.md` block
+- install without repo enable does not silently turn every repository on
+- uninstall removes only GoodMemory-owned entries or clearly managed blocks
+- enable/disable is idempotent
+
+Acceptance
+----------
+- Codex global install merges the supported user-level Codex config surface rather than replacing it
+- Claude Code global install merges the supported user-level Claude config surface rather than replacing it
+- repo enable creates host-scoped opt-in files and the minimal rules-layer block
+- repo disable removes or disables only the GoodMemory-managed host block
+- installed-host storage resolution for the middleware path is isolated from the accepted repo-local CLI default
+
+Evidence To Add
+---------------
+- CLI idempotence tests
+- config merge tests
+- repo opt-in/disable file-management tests

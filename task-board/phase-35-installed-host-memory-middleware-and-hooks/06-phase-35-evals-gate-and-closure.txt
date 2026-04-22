@@ -1,0 +1,50 @@
+Phase 35.6: Phase 35 Evals, Gate, and Closure
+=============================================
+
+[TODO] Add dedicated deterministic and live evidence for the installed-host middleware path.
+[TODO] Add `gate:phase-35`.
+[TODO] Archive one canonical Codex global-install plus repo-opt-in hook/MCP evidence chain.
+[TODO] Sync current-status, archive docs, and task-board entrypoints only after the evidence is real.
+
+Gate Shape
+----------
+- installed-package CLI and config merge regressions
+- repo enable/disable regressions
+- hook payload and fail-open regressions
+- MCP server/tool regressions
+- deterministic middleware comparison against:
+  - accepted Phase 32 bootstrap/file-assisted path
+  - no-memory baseline
+- one canonical Codex live report proving:
+  - global install
+  - repo opt-in
+  - `SessionStart` continuity injection
+  - `UserPromptSubmit` prompt-time recall injection
+  - MCP registration and deep-read availability
+- no second live gate for Claude
+
+Acceptance
+----------
+- `gate:phase-35` fails if install/uninstall/enable/disable drifts from the documented contract
+- `gate:phase-35` fails if hook injection regresses below the accepted Phase 32 external-host baseline
+- `gate:phase-35` fails if the installed middleware path does not clearly beat the no-memory baseline
+- `gate:phase-35` fails without one canonical Codex global-install live evidence chain
+- closure docs cite one exact canonical gate run and one exact canonical Codex live report
+
+Canonical Closure Evidence To Produce
+-------------------------------------
+- one deterministic Phase 35 report
+- one canonical Codex global-install live report
+- one accepted Phase 35 quality-gate report
+- one archived quality-gate summary doc
+
+Regression Run
+--------------
+- `bun test tests/cli/...`
+- `bun test tests/unit/...`
+- `bun test tests/integration/...`
+- `bun test tests/release/release.test.ts`
+- `bun run typecheck`
+- `bun run eval:phase-35`
+- `bun run eval:phase-35-live-memory`
+- `bun run gate:phase-35`
