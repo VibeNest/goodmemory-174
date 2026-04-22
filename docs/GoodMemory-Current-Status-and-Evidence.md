@@ -32,7 +32,8 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 33 is now closed as the formal Node-compatible package-boundary and Node-first integration slice.
 - Accepted behavior:
   - `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` now ship through compiled `dist/` outputs plus `.d.ts` declarations instead of direct `src/*.ts` exports
-  - Node package-boundary consumers can install the packed artifact and run the canonical `createGoodMemory({})` + `goodmemory/ai-sdk` + `goodmemory/host` path successfully on the packaged surface
+  - Node package-boundary consumers can install the packed artifact and run the canonical plain AI SDK server path successfully on the packaged surface
+  - the canonical Node-first integration is now a plain `Request -> Response` handler built from `createGoodMemory({})` plus `createGoodMemoryAISDK()` and AI SDK response helpers
   - Bun keeps the zero-config local SQLite durable default; Node zero-config runtime falls back honestly to in-memory when the built-in local SQLite adapter is unavailable
   - the installed `goodmemory` bin is Node-safe at the package boundary while remaining explicitly Bun-backed for execution
   - the Bun core gate is now paired with a dedicated Node 20/22 package-boundary CI matrix
@@ -97,7 +98,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Codex external-host live report: `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
 - Node-compatible package-boundary and Node-first integration closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
-  - Quality gate: `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
+  - Quality gate: `reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

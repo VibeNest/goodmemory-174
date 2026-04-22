@@ -11,7 +11,7 @@ This phase exists to harden and verify:
 - package metadata and export maps that no longer point the public library surface directly at `src/*.ts`
 - clear isolation of Bun-only CLI behavior and Bun-local sqlite/sqlite-vss runtime paths from the Node-compatible library contract
 - Node LTS plus Bun installed-package consumer smoke and CI matrix
-- one canonical Node-first integration path built from `createGoodMemory()` plus `goodmemory/ai-sdk`
+- one canonical Node-first plain AI SDK server path built from `createGoodMemory()` plus `goodmemory/ai-sdk`
 
 
 Current Status
@@ -21,13 +21,13 @@ Current Status
 [DONE] Phase 32 external host productization remains accepted and now rides on top of the widened package boundary instead of a Bun-only install surface.
 [DONE] The public package contract no longer points `goodmemory`, `goodmemory/ai-sdk`, or `goodmemory/host` exports at `src/*.ts`.
 [DONE] The repo now emits compiled `dist/` plus declaration outputs for the canonical public packages.
-[DONE] Node package-boundary smoke now proves `createGoodMemory({})` + `goodmemory/ai-sdk` + `goodmemory/host` on the packaged install surface.
+[DONE] Node package-boundary smoke now proves the canonical plain AI SDK server path plus `goodmemory/host` on the packaged install surface.
 [DONE] Bun-only CLI execution is now isolated behind a Node-safe package bin wrapper.
 [DONE] CI now carries a dedicated Node 20/22 package-boundary matrix in addition to the Bun core gate.
 [DONE] The PRD and architecture corpus now align with an OSS-first TypeScript library whose default adoption path is low-friction, framework-neutral, and vendor-neutral on the packaged install surface.
 [DONE] Canonical closure evidence is now archived in:
 - `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
-- `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
+- `reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json`
 
 
 Dependencies
@@ -53,7 +53,7 @@ Primary Deliverables
   - Bun-local sqlite and sqlite-vss probing/helpers
 - Node LTS plus Bun installed-package consumer smoke, type smoke, and CI matrix
 - one canonical Node-first integration:
-  - framework-light AI SDK server path
+  - framework-light plain AI SDK server path
   - public imports only
   - 15-20 minute copyable setup path
 - dedicated `gate:phase-33` and archived package-boundary evidence
@@ -90,7 +90,7 @@ Tasks
 [DONE] P33-T002 Produce `dist/` plus declarations for the canonical public packages and move exports off `src/*.ts`
 [DONE] P33-T003 Isolate Bun-only CLI and Bun-local sqlite/sqlite-vss runtime code from the Node-compatible library surface
 [DONE] P33-T004 Add Node LTS plus Bun consumer smoke, type smoke, and CI matrix for installed-package verification
-[DONE] P33-T005 Ship one canonical Node-first AI SDK integration path and rewrite adoption docs around it
+[DONE] P33-T005 Ship one canonical plain AI SDK server integration path and rewrite adoption docs around it
 [DONE] P33-T006 Add `gate:phase-33`, archive canonical package-boundary evidence, and sync current-status/release/task-board docs
 
 

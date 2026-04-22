@@ -443,6 +443,9 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
       "bun run examples/coding-agent.ts",
     );
+    expect(pkg.scripts?.["example:ai-sdk-server"]).toBe(
+      "bun run examples/plain-ai-sdk-server.ts",
+    );
     expect(pkg.scripts?.["example:vercel-ai"]).toBe(
       "bun run examples/vercel-ai-chat.ts",
     );
@@ -633,6 +636,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("npm install ./goodmemory-0.1.0-rc.1.tgz");
     expect(readme).toContain("examples/basic-chat.ts");
     expect(readme).toContain("examples/coding-agent.ts");
+    expect(readme).toContain("examples/plain-ai-sdk-server.ts");
     expect(readme).toContain("examples/vercel-ai-chat.ts");
     expect(readme).toContain("examples/host-claude-artifacts.ts");
     expect(readme).toContain("examples/host-codex-handoff.ts");
@@ -645,6 +649,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("createGoodMemoryAISDK");
     expect(readme).toContain("goodmemory/ai-sdk");
     expect(readme).toContain("ModelMessage");
+    expect(readme).toContain("toTextStreamResponse");
+    expect(readme).toContain("Request");
     expect(readme).toContain('createHostAdapter');
     expect(readme).toContain('goodmemory/host');
     expect(readme).toContain('file-assisted');
@@ -812,6 +818,7 @@ describe("release metadata and docs", () => {
       "docs/GoodMemory-Claude-Code-Setup-Guide.md",
       "examples/basic-chat.ts",
       "examples/coding-agent.ts",
+      "examples/plain-ai-sdk-server.ts",
       "examples/host-claude-artifacts.ts",
       "examples/host-codex-handoff.ts",
       "examples/vercel-ai-chat.ts",
@@ -840,6 +847,9 @@ describe("release metadata and docs", () => {
     expect(referenceGuide).toContain('from "goodmemory"');
     expect(referenceGuide).toContain('from "goodmemory/ai-sdk"');
     expect(referenceGuide).toContain("createGoodMemory({})");
+    expect(referenceGuide).toContain("Request");
+    expect(referenceGuide).toContain("toTextStreamResponse");
+    expect(referenceGuide).toContain("plain-ai-sdk-server");
     expect(referenceGuide).toContain("npm install goodmemory@0.1.0-rc.1");
     expect(referenceGuide).toContain("bun add goodmemory@0.1.0-rc.1");
     expect(referenceGuide).toContain("npm install ./goodmemory-0.1.0-rc.1.tgz");
@@ -952,16 +962,26 @@ describe("release metadata and docs", () => {
       });
       expect(smoke.exitCode).toBe(0);
       const smokeJson = extractJsonObject<{
+        aiSDKResponseText: string;
         artifactPaths: string[];
-        contextIncludesBlocker: boolean;
+        contextIncludesChecklist: boolean;
+        invalidScopeError?: string;
+        invalidScopeStatus: number;
         ok: boolean;
         recallHitCount: number;
+        serverRecallApplied: boolean;
+        serverRememberSucceeded: boolean;
         validatedFileEditPath?: string;
         validatedToolPayloadShape?: string;
       }>(smoke.stdout);
       expect(smokeJson.ok).toBe(true);
-      expect(smokeJson.contextIncludesBlocker).toBe(true);
+      expect(smokeJson.aiSDKResponseText).toContain("Noted.");
+      expect(smokeJson.contextIncludesChecklist).toBe(true);
+      expect(smokeJson.invalidScopeStatus).toBe(400);
+      expect(smokeJson.invalidScopeError).toContain("scope.userId");
       expect(smokeJson.recallHitCount).toBeGreaterThan(0);
+      expect(smokeJson.serverRecallApplied).toBe(true);
+      expect(smokeJson.serverRememberSucceeded).toBe(true);
       expect(smokeJson.artifactPaths).toContain("MEMORY.md");
       expect(smokeJson.validatedToolPayloadShape).toBe("object");
       expect(smokeJson.validatedFileEditPath).toBe(
@@ -986,9 +1006,9 @@ describe("release metadata and docs", () => {
           "stats",
           "--json",
           "--user-id",
-          "consumer-user",
+          "consumer-memory-user",
           "--workspace-id",
-          "consumer-workspace",
+          "consumer-memory-workspace",
         ],
         cwd: workspaceRoot,
         env: { ...RELEASE_TEST_ENV },
@@ -1323,7 +1343,7 @@ describe("release metadata and docs", () => {
       "docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md",
     );
     expect(currentStatus).toContain(
-      "reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json",
+      "reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json",
     );
     expect(currentStatus).toContain("compiled `dist/` artifacts");
     expect(currentStatus).toContain("Bun-backed today");
@@ -1729,7 +1749,7 @@ describe("release metadata and docs", () => {
       "utf8",
     );
     const relativeReportPath =
-      "reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json";
+      "reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json";
     const gateReport = JSON.parse(
       await readFile(
         join(import.meta.dir, "../../", relativeReportPath),
@@ -1742,10 +1762,11 @@ describe("release metadata and docs", () => {
       runId: string;
     };
 
-    expect(qualityGateDoc).toContain("run-20260422120359");
+    expect(qualityGateDoc).toContain("run-20260422212752");
     expect(qualityGateDoc).toContain("tests/release/node-package-boundary.test.ts");
+    expect(qualityGateDoc).toContain("plain AI SDK server");
     expect(qualityGateDoc).toContain("Node-compatible packaged library boundary");
-    expect(gateReport.runId).toBe("run-20260422120359");
+    expect(gateReport.runId).toBe("run-20260422212752");
     expect(gateReport.acceptance.decision).toBe("accepted");
     await expectGitTrackedPath(relativeReportPath);
   });

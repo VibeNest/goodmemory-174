@@ -159,8 +159,9 @@ describe("node package boundary", () => {
       });
       expect(smoke.exitCode).toBe(0);
       const smokeJson = extractJsonObject<{
+        aiSDKResponseText: string;
         artifactPaths: string[];
-        contextIncludesBlocker: boolean;
+        contextIncludesChecklist: boolean;
         explicitPostgresRememberError?: string;
         explicitPostgresRuntimeInfo?: {
           assistedExtractionEnabled: boolean;
@@ -198,6 +199,8 @@ describe("node package boundary", () => {
             unavailableReason?: "runtime_without_builtin_sqlite";
           };
         };
+        invalidScopeError?: string;
+        invalidScopeStatus: number;
         ok: boolean;
         recallHitCount: number;
         runtimeInfo?: {
@@ -217,12 +220,29 @@ describe("node package boundary", () => {
             primaryProvider: "memory" | "postgres" | "sqlite";
           };
         };
+        serverFirstResponseText: string;
+        serverRecallApplied: boolean;
+        serverRememberSucceeded: boolean;
+        serverSecondResponseText: string;
+        serverSecondSystem?: string;
         validatedFileEditPath?: string;
         validatedToolPayloadShape?: string;
       }>(smoke.stdout);
       expect(smokeJson.ok).toBe(true);
-      expect(smokeJson.contextIncludesBlocker).toBe(true);
+      expect(smokeJson.aiSDKResponseText).toContain("Noted.");
+      expect(smokeJson.contextIncludesChecklist).toBe(true);
+      expect(smokeJson.invalidScopeStatus).toBe(400);
+      expect(smokeJson.invalidScopeError).toContain("scope.userId");
       expect(smokeJson.recallHitCount).toBeGreaterThan(0);
+      expect(smokeJson.serverFirstResponseText).toContain("Noted.");
+      expect(smokeJson.serverRecallApplied).toBe(true);
+      expect(smokeJson.serverRememberSucceeded).toBe(true);
+      expect(smokeJson.serverSecondResponseText).toContain(
+        "The blocker is still prod verification.",
+      );
+      expect(smokeJson.serverSecondSystem).toContain(
+        "blocker is prod verification",
+      );
       expect(smokeJson.explicitSqliteRememberError).toContain(
         "GoodMemory built-in SQLite storage is unavailable in this runtime.",
       );

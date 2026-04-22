@@ -1,6 +1,6 @@
 # GoodMemory Phase 33 Quality Gate
 
-Canonical gate run: `run-20260422120359`
+Canonical gate run: `run-20260422212752`
 
 ## Command
 
@@ -32,7 +32,7 @@ Out of scope:
 ## Canonical Artifacts
 
 - Quality gate:
-  - `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
+  - `reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json`
 
 ## Results
 
@@ -41,16 +41,17 @@ Out of scope:
   - `bun run typecheck` passed
   - `bun run build` emitted compiled package artifacts and declarations successfully
   - `tests/unit/runtime-resolution.test.ts` proves Node runtimes without the built-in local SQLite adapter fall back to in-memory instead of pretending local durable SQLite exists
-  - `tests/release/node-package-boundary.test.ts` proves a packed artifact installs through `npm install`, then runs `createGoodMemory({})` + `goodmemory/ai-sdk` + `goodmemory/host` successfully under Node on the packaged surface
+  - `tests/examples/examples.test.ts` proves the canonical plain AI SDK server example parses requests, injects recall into `system`, and returns a consumable `Response`
+  - `tests/release/node-package-boundary.test.ts` proves a packed artifact installs through `npm install`, then runs the canonical plain AI SDK server path plus `goodmemory/host` successfully under Node on the packaged surface
   - `tests/release/release.test.ts` proves the package metadata, tarball contents, docs, workflow wiring, and Bun/Node package-boundary contract all stay synchronized
   - the installed `goodmemory` bin is Node-safe on the package boundary while remaining honestly Bun-backed for command execution
   - the public package boundary no longer points `goodmemory`, `goodmemory/ai-sdk`, or `goodmemory/host` at `src/*.ts`
 
 ## Canonical Evidence Rule
 
-Only the gate run above is canonical for Phase 33. Earlier local runs built before the final release-workflow repoint, archive summary, and task-board/current-status synchronization are superseded. Later local reruns are validation artifacts only and must not be checked in as another canonical Phase 33 chain unless the archive doc, current-status doc, task-board references, and release tests are intentionally repointed together.
+Only the gate run above is canonical for Phase 33. The earlier accepted run `run-20260422120359` is now superseded because it closed before the canonical plain AI SDK server integration was locked into the evidence chain. Later local reruns are validation artifacts only and must not be checked in as another canonical Phase 33 chain unless the archive doc, current-status doc, task-board references, and release tests are intentionally repointed together.
 
 ## Decision
 
 Phase 33 is accepted.
-GoodMemory now has a formal Node-compatible packaged library boundary for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`, with Bun-specific runtime behavior isolated honestly and guarded by release, consumer, CI, and gate coverage.
+GoodMemory now has a formal Node-compatible packaged library boundary for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`, plus a canonical plain AI SDK server integration whose installed-package path is guarded by release, consumer, CI, and gate coverage.

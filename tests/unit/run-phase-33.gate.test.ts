@@ -56,6 +56,7 @@ describe("run-phase-33 gate", () => {
         args: [
           "bun",
           "test",
+          "tests/examples/examples.test.ts",
           "tests/unit/runtime-resolution.test.ts",
           "tests/release/node-package-boundary.test.ts",
           "tests/release/release.test.ts",
@@ -94,7 +95,7 @@ describe("run-phase-33 gate", () => {
     expect(report.acceptance).toEqual({
       decision: "accepted",
       reason:
-        "Build output, runtime fallback, and Bun/Node package-boundary regressions all passed.",
+        "Build output, canonical plain server integration, runtime fallback, and Bun/Node package-boundary regressions all passed.",
     });
     expect(report.commands).toHaveLength(3);
     expect(createdDirs).toEqual([

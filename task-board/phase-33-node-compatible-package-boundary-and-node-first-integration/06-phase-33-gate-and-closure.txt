@@ -2,5 +2,5 @@ Phase 33.6: Phase 33 Gate and Closure
 =====================================
 
 [DONE] Add `gate:phase-33` to verify build outputs, export maps, Node/Bun consumer smoke, docs, and canonical artifacts.
-[DONE] Archive one canonical Node-first installed-consumer evidence chain through the accepted phase-33 gate run `run-20260422120359`.
+[DONE] Archive one canonical plain AI SDK server installed-consumer evidence chain through the accepted phase-33 gate run `run-20260422212752`.
 [DONE] Sync `README.md`, `docs/GoodMemory-Reference-Integration-Guide.md`, `docs/GoodMemory-Current-Status-and-Evidence.md`, `docs/GoodMemory-v1-Release-Checklist.md`, and `task-board/00-README.txt` after the evidence is real.

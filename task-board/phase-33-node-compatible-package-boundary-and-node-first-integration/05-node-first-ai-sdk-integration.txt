@@ -1,6 +1,6 @@
-Phase 33.5: Node-First AI SDK Integration
-=========================================
+Phase 33.5: Node-First AI SDK Server Integration
+================================================
 
-[DONE] Ship one canonical Node-first integration built around `createGoodMemory()` plus `createGoodMemoryAISDK(...)`.
+[DONE] Ship one canonical plain AI SDK server integration built around `createGoodMemory()` plus `createGoodMemoryAISDK(...)`.
 [DONE] Prefer a framework-light AI SDK server path; Next.js route-handler material can stay secondary parity documentation.
-[DONE] Rewrite the reference integration path so an external engineer can copy the Node setup without repo-internal imports or Bun-only assumptions.
+[DONE] Rewrite the reference integration path so an external engineer can copy the Node `Request -> Response` setup without repo-internal imports or Bun-only assumptions.

@@ -183,11 +183,11 @@ Current Sequencing Note
   - quality gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-32-Quality-Gate.md`
 - Phase 33 is now closed as the formal Node-compatible package-boundary and Node-first integration slice:
-  - quality gate: `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
+  - quality gate: `reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
   - public package boundary now ships `dist/` plus `.d.ts` outputs for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
   - Bun-only CLI execution and Bun-local sqlite/sqlite-vss runtime behavior are now isolated from the Node-compatible library contract
-  - Node 20/22 package-boundary CI and canonical Node-first AI SDK integration are now part of the accepted package boundary
+  - Node 20/22 package-boundary CI and canonical plain AI SDK server integration are now part of the accepted package boundary
 - Any work after Phase 33 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -352,4 +352,4 @@ Files in This Folder
   External Codex/Claude Code productization on the canonical `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host` line with thin public event ingestion and installed-package bootstrap
 
 - 34-phase-33-node-compatible-package-boundary-and-node-first-integration.txt
-  Formal Node-compatible dist/types package boundary, Bun-runtime isolation, Node/Bun consumer matrix, and one canonical Node-first AI SDK integration path
+  Formal Node-compatible dist/types package boundary, Bun-runtime isolation, Node/Bun consumer matrix, and one canonical plain AI SDK server integration path

@@ -71,6 +71,7 @@ const GENERATED_BY = "scripts/run-phase-33-gate.ts";
 const PHASE33_IN_SCOPE = [
   "compiled dist and declaration outputs for goodmemory, goodmemory/ai-sdk, and goodmemory/host",
   "node-safe packaged library imports with runtime fallback coverage for createGoodMemory({})",
+  "canonical plain AI SDK server integration on the installed-package surface",
   "bun-backed installed CLI isolation behind a node-safe package bin wrapper",
   "release and consumer package-boundary regression coverage for Bun and Node installs",
 ] as const;
@@ -150,6 +151,7 @@ export function buildPhase33GateCommands(root: string): Phase33GateCommand[] {
       args: [
         "bun",
         "test",
+        "tests/examples/examples.test.ts",
         "tests/unit/runtime-resolution.test.ts",
         "tests/release/node-package-boundary.test.ts",
         "tests/release/release.test.ts",
@@ -204,7 +206,7 @@ export async function runPhase33QualityGate(
       : {
           decision: "accepted",
           reason:
-            "Build output, runtime fallback, and Bun/Node package-boundary regressions all passed.",
+            "Build output, canonical plain server integration, runtime fallback, and Bun/Node package-boundary regressions all passed.",
         },
     commands: results,
     generatedAt: now(),

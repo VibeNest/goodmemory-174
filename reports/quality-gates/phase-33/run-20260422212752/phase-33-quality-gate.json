@@ -1,0 +1,84 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Build output, canonical plain server integration, runtime fallback, and Bun/Node package-boundary regressions all passed."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 2681,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun run build",
+      "durationMs": 1542,
+      "exitCode": 0,
+      "label": "build",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run clean && bun run build:js && bun run build:types",
+        "$ rm -rf dist",
+        "$ bun run scripts/build-package.ts",
+        "$ bunx tsc -p tsconfig.package.json"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/examples/examples.test.ts tests/unit/runtime-resolution.test.ts tests/release/node-package-boundary.test.ts tests/release/release.test.ts",
+      "durationMs": 22264,
+      "exitCode": 0,
+      "label": "package-boundary-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [714.79ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [300.35ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.34ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.31ms]",
+        "",
+        "tests/release/node-package-boundary.test.ts:",
+        "(pass) node package boundary > installs from the packed artifact in npm and runs the canonical public library path under Node [3860.06ms]",
+        "",
+        "tests/examples/examples.test.ts:",
+        "(pass) examples > basic chat example demonstrates the minimal integration path [11.36ms]",
+        "(pass) examples > coding-agent example demonstrates runtime continuity and procedural memory [2.69ms]",
+        "(pass) examples > vercel ai example demonstrates wrapper-first recall injection and remember writeback [32.96ms]",
+        "(pass) examples > plain ai sdk server example demonstrates request parsing, recall injection, and response generation [8.86ms]",
+        "(pass) examples > claude host example demonstrates read-only compiled artifact consumption [3.16ms]",
+        "(pass) examples > codex host example demonstrates session handoff consumption [20.86ms]",
+        "",
+        " 77 pass",
+        " 0 fail",
+        " 1138 expect() calls",
+        "Ran 77 tests across 4 files. [22.26s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-22T13:33:37.590Z",
+  "generatedBy": "scripts/run-phase-33-gate.ts",
+  "phase": "phase-33",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-33/run-20260422212752",
+  "runId": "run-20260422212752",
+  "scope": {
+    "inScope": [
+      "compiled dist and declaration outputs for goodmemory, goodmemory/ai-sdk, and goodmemory/host",
+      "node-safe packaged library imports with runtime fallback coverage for createGoodMemory({})",
+      "canonical plain AI SDK server integration on the installed-package surface",
+      "bun-backed installed CLI isolation behind a node-safe package bin wrapper",
+      "release and consumer package-boundary regression coverage for Bun and Node installs"
+    ],
+    "outOfScope": [
+      "declaring built-in Bun-specific storage adapters universally available in every runtime",
+      "new memory capability expansion or dashboard/admin product work",
+      "claiming phase-33 is fully closed without dedicated archive evidence and synchronized closure docs"
+    ]
+  }
+}

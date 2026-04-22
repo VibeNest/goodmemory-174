@@ -9,6 +9,10 @@ import {
   runVercelAIChatExample,
 } from "../../examples/vercel-ai-chat";
 import {
+  createPlainAISDKServerHandler,
+  runPlainAISDKServerExample,
+} from "../../examples/plain-ai-sdk-server";
+import {
   runClaudeArtifactExample,
 } from "../../examples/host-claude-artifacts";
 import {
@@ -68,6 +72,92 @@ describe("examples", () => {
           previousSearchFunction;
       }
     }
+  });
+
+  it("plain ai sdk server example demonstrates request parsing, recall injection, and response generation", async () => {
+    const previousSearchFunction =
+      process.env.GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION;
+    process.env.GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION = "bad-name!";
+
+    try {
+      const result = await runPlainAISDKServerExample();
+
+      expect(result.firstResponseText).toContain("Noted.");
+      expect(result.secondResponseText).toContain(
+        "migration rollout is still blocked on prod verification",
+      );
+      expect(typeof result.secondSystem).toBe("string");
+      expect(result.secondSystem).toContain("You are a concise product copilot.");
+      expect(result.secondSystem).toContain(
+        "migration rollout is blocked on prod verification",
+      );
+      expect(result.events.some((event) => event.phase === "recall")).toBe(true);
+      expect(result.events.some((event) => event.phase === "remember")).toBe(true);
+      expect(result.artifacts.files.map((file) => file.relativePath)).toContain(
+        "MEMORY.md",
+      );
+    } finally {
+      if (previousSearchFunction === undefined) {
+        delete process.env.GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION;
+      } else {
+        process.env.GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION =
+          previousSearchFunction;
+      }
+    }
+  });
+
+  it("plain ai sdk server handler rejects malformed request scope at the HTTP boundary", async () => {
+    const handler = createPlainAISDKServerHandler({
+      memory: {
+        async recall() {
+          throw new Error("should not be called");
+        },
+        async buildContext() {
+          throw new Error("should not be called");
+        },
+        async remember() {
+          throw new Error("should not be called");
+        },
+        async forget() {
+          throw new Error("should not be called");
+        },
+        async exportMemory() {
+          throw new Error("should not be called");
+        },
+        async deleteAllMemory() {
+          throw new Error("should not be called");
+        },
+        async feedback() {
+          throw new Error("should not be called");
+        },
+        async runMaintenance() {
+          throw new Error("should not be called");
+        },
+      } as never,
+    });
+
+    const response = await handler(
+      new Request("http://localhost/api/memory-chat", {
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "user",
+              content: "What is the blocker?",
+            },
+          ],
+          scope: "server-user",
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Expected a request body with a messages array and scope.userId.",
+    });
   });
 
   it("claude host example demonstrates read-only compiled artifact consumption", async () => {

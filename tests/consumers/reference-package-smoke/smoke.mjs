@@ -26,8 +26,158 @@ for (const key of LOCAL_DEFAULT_RUNTIME_ENV_KEYS) {
   delete process.env[key];
 }
 
+function createSingleChunkStream(value) {
+  return {
+    async *[Symbol.asyncIterator]() {
+      yield value;
+    },
+  };
+}
+
+function serializeSystemPrompt(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return JSON.stringify(value);
+}
+
+function buildDeterministicStreamText() {
+  return (input) => {
+    const messages = input.messages ?? [];
+    let lastUserMessage;
+
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message?.role === "user") {
+        lastUserMessage = message;
+        break;
+      }
+    }
+
+    const userText =
+      lastUserMessage && typeof lastUserMessage.content === "string"
+        ? lastUserMessage.content
+        : "What should I know?";
+    const systemText = serializeSystemPrompt(input.system)?.toLowerCase() ?? "";
+    const responseText = /remember/i.test(userText)
+      ? "Noted. The blocker is prod verification."
+      : systemText.includes("prod verification")
+        ? "The blocker is still prod verification."
+        : "I do not have a stored blocker yet.";
+    const finishPromise = Promise.resolve(
+      input.onFinish?.({
+        text: responseText,
+      }),
+    );
+
+    return {
+      finishReason: Promise.resolve("stop"),
+      text: finishPromise.then(() => responseText),
+      textStream: {
+        async *[Symbol.asyncIterator]() {
+          await finishPromise;
+          yield* createSingleChunkStream(responseText);
+        },
+      },
+    };
+  };
+}
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isOptionalNonEmptyString(value) {
+  return value === undefined || isNonEmptyString(value);
+}
+
+function isPlainServerScope(value) {
+  return !!value
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && isNonEmptyString(value.userId)
+    && isOptionalNonEmptyString(value.tenantId)
+    && isOptionalNonEmptyString(value.workspaceId)
+    && isOptionalNonEmptyString(value.agentId)
+    && isOptionalNonEmptyString(value.sessionId);
+}
+
+function isPlainServerRequestBody(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value)
+    && isPlainServerScope(value.scope) && Array.isArray(value.messages);
+}
+
+function createPlainAISDKServerHandler({ memory, onMemoryEvent, seenSystems }) {
+  const aiSDK = createGoodMemoryAISDK({
+    memory,
+    onMemoryEvent,
+    dependencies: {
+      streamText: (input) => {
+        seenSystems?.push(serializeSystemPrompt(input.system));
+        return buildDeterministicStreamText()(input);
+      },
+    },
+  });
+
+  return async (request) => {
+    const payload = await request.json();
+    if (!isPlainServerRequestBody(payload)) {
+      return new Response(
+        JSON.stringify({
+          error: "Expected a request body with a messages array and scope.userId.",
+        }),
+        {
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+          },
+          status: 400,
+        },
+      );
+    }
+
+    const result = aiSDK.streamText({
+      ...payload,
+      model: {},
+    });
+
+    return result.toTextStreamResponse({
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+      },
+      status: 200,
+    });
+  };
+}
+
+const memoryScope = {
+  userId: "consumer-memory-user",
+  workspaceId: "consumer-memory-workspace",
+};
+const aiSDKScope = {
+  userId: "consumer-ai-sdk-user",
+  workspaceId: "consumer-ai-sdk-workspace",
+};
+const serverScope = {
+  userId: "consumer-server-user",
+  workspaceId: "consumer-server-workspace",
+};
+
 const memory = createGoodMemory({});
 const runtimeInfo = inspectGoodMemoryRuntime(memory);
+const serverEvents = [];
+const serverSeenSystems = [];
+const serverHandler = createPlainAISDKServerHandler({
+  memory,
+  onMemoryEvent: async (event) => {
+    serverEvents.push(event);
+  },
+  seenSystems: serverSeenSystems,
+});
 
 const explicitSqliteMemory = createGoodMemory({
   storage: {
@@ -87,9 +237,8 @@ try {
 
 await memory.remember({
   scope: {
-    userId: "consumer-user",
-    workspaceId: "consumer-workspace",
-    sessionId: "consumer-s0",
+    ...memoryScope,
+    sessionId: "consumer-memory-s0",
   },
   messages: [
     {
@@ -102,18 +251,7 @@ await memory.remember({
 const aiSDK = createGoodMemoryAISDK({
   memory,
   dependencies: {
-    streamText: ((input) => {
-      const finishPromise = Promise.resolve(
-        input.onFinish?.({
-          text: "The blocker is still prod verification.",
-        }),
-      );
-
-      return {
-        text: finishPromise.then(() => "The blocker is still prod verification."),
-        finishReason: Promise.resolve("stop"),
-      };
-    }),
+    streamText: buildDeterministicStreamText(),
   },
 });
 
@@ -127,9 +265,8 @@ const validatedToolEvent = validateAgentInputEvent({
   occurredAt: "2026-04-22T00:00:00.000Z",
   hostKind: "codex",
   scope: {
-    userId: "consumer-user",
-    workspaceId: "consumer-workspace",
-    sessionId: "consumer-s1",
+    ...memoryScope,
+    sessionId: "consumer-memory-s1",
   },
   toolName: "QuickCheck",
   payload: {
@@ -149,20 +286,18 @@ const validatedFileEditEvent = validateHostAgentEvent({
   parentEventId: "consumer-event-1",
   hostKind: "claude",
   scope: {
-    userId: "consumer-user",
-    workspaceId: "consumer-workspace",
-    sessionId: "consumer-s1",
+    ...memoryScope,
+    sessionId: "consumer-memory-s1",
   },
   operation: "update",
   relativePath: "playbooks/consumer-checklist.md",
   summary: "Capture the installed-package smoke edit shape.",
 });
 
-await aiSDK.streamText({
+const aiSDKResponseText = await aiSDK.streamText({
   scope: {
-    userId: "consumer-user",
-    workspaceId: "consumer-workspace",
-    sessionId: "consumer-s1",
+    ...aiSDKScope,
+    sessionId: "consumer-ai-sdk-s1",
   },
   messages: [
     {
@@ -174,13 +309,81 @@ await aiSDK.streamText({
   model: {},
 }).text;
 
+const firstServerResponse = await serverHandler(
+  new Request("http://localhost/api/memory-chat", {
+    body: JSON.stringify({
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the blocker is prod verification.",
+        },
+      ],
+      scope: {
+        ...serverScope,
+        sessionId: "consumer-server-s1",
+      },
+      system: "You are a concise project copilot.",
+    }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  }),
+);
+const serverFirstResponseText = await firstServerResponse.text();
+
+const secondServerResponse = await serverHandler(
+  new Request("http://localhost/api/memory-chat", {
+    body: JSON.stringify({
+      messages: [
+        {
+          role: "user",
+          content: "What is the blocker?",
+        },
+      ],
+      query: "blocker prod verification",
+      scope: {
+        ...serverScope,
+        sessionId: "consumer-server-s2",
+      },
+      system: "You are a concise project copilot.",
+    }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  }),
+);
+const serverSecondResponseText = await secondServerResponse.text();
+
+const invalidScopeResponse = await serverHandler(
+  new Request("http://localhost/api/memory-chat", {
+    body: JSON.stringify({
+      messages: [
+        {
+          role: "user",
+          content: "What is the blocker?",
+        },
+      ],
+      scope: "consumer-server-user",
+    }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  }),
+);
+const invalidScopeStatus = invalidScopeResponse.status;
+const invalidScopeError = invalidScopeStatus === 400
+  ? JSON.parse(await invalidScopeResponse.text()).error
+  : undefined;
+
 const recall = await memory.recall({
   scope: {
-    userId: "consumer-user",
-    workspaceId: "consumer-workspace",
-    sessionId: "consumer-s2",
+    ...memoryScope,
+    sessionId: "consumer-memory-s2",
   },
-  query: "What is the blocker and how should I answer this user?",
+  query: "What do I prefer in release communication?",
   retrievalProfile: "general_chat",
 });
 const context = await memory.buildContext({
@@ -198,16 +401,18 @@ const adapter = createHostAdapter({
 
 const artifacts = await adapter.readArtifacts({
   scope: {
-    userId: "consumer-user",
-    workspaceId: "consumer-workspace",
-    sessionId: "consumer-s1",
+    ...memoryScope,
+    sessionId: "consumer-memory-s1",
   },
 });
 
 console.log(
   JSON.stringify({
+    aiSDKResponseText,
     artifactPaths: artifacts.artifacts.map((artifact) => artifact.relativePath),
-    contextIncludesBlocker: context.content.includes("prod verification"),
+    contextIncludesChecklist: context.content.includes("concise release checklists"),
+    invalidScopeError,
+    invalidScopeStatus,
     validatedFileEditPath:
       validatedFileEditEvent.kind === "file_edit"
         ? validatedFileEditEvent.relativePath
@@ -225,5 +430,14 @@ console.log(
     explicitSqliteRememberError,
     explicitSqliteRuntimeInfo,
     runtimeInfo,
+    serverFirstResponseText,
+    serverRecallApplied: serverEvents.some(
+      (event) => event.phase === "recall" && event.status === "applied",
+    ),
+    serverRememberSucceeded: serverEvents.some(
+      (event) => event.phase === "remember" && event.status === "succeeded",
+    ),
+    serverSecondResponseText,
+    serverSecondSystem: serverSeenSystems[1],
   }),
 );

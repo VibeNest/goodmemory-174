@@ -14,7 +14,7 @@ Status
 - The compiled package boundary, Bun-backed CLI wrapper isolation, Node consumer smoke, and CI matrix are now landed.
 - Canonical closure evidence:
   - `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
-  - `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
+  - `reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json`
 
 
 Execution Order
@@ -35,7 +35,7 @@ Acceptance
 - Bun-only runtime paths remain available only through explicit runtime-specific boundaries
 - installed-package consumer smoke and type smoke pass in Node LTS and Bun
 - CI enforces the public package boundary in Node 20, Node 22, and Bun
-- one canonical Node-first AI SDK integration path is documented with public imports only
+- one canonical plain AI SDK server integration path is documented with public imports only
 - closure evidence archives one canonical Node-first installed-consumer run plus synchronized gate/docs/task-board state
 
 
@@ -65,7 +65,7 @@ Files in This Folder
   Expand installed-package verification into Node LTS plus Bun runtime/type/CI coverage.
 
 - 05-node-first-ai-sdk-integration.txt
-  Ship the canonical Node-first AI SDK integration path and adoption docs.
+  Ship the canonical plain AI SDK server integration path and adoption docs.
 
 - 06-phase-33-gate-and-closure.txt
   Add the dedicated Phase 33 gate, archive canonical package-boundary evidence, and sync stable board/docs entrypoints.

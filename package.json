@@ -77,6 +77,7 @@
     "fixtures:generate": "bun run scripts/generate-eval-fixtures.ts",
     "example:chat": "bun run examples/basic-chat.ts",
     "example:coding-agent": "bun run examples/coding-agent.ts",
+    "example:ai-sdk-server": "bun run examples/plain-ai-sdk-server.ts",
     "example:vercel-ai": "bun run examples/vercel-ai-chat.ts",
     "example:host-claude": "bun run examples/host-claude-artifacts.ts",
     "example:host-codex": "bun run examples/host-codex-handoff.ts",
