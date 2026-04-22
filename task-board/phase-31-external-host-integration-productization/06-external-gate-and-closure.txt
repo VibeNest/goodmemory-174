@@ -10,14 +10,17 @@ Gate Shape
 ----------
 - installed-package bootstrap smoke
 - public-surface and release regressions
-- deterministic external-host eval for continuity, repeated correction, and procedure adherence
+- deterministic external-host eval for continuity, repeated correction, and procedure adherence against a frozen dual baseline:
+  - pre-Phase-31 public text-only adapter path
+  - no-memory baseline
 - one canonical Codex live/native-host run
 - no second live gate for Claude
 
 Acceptance
 ----------
 - `gate:phase-31` fails if bootstrap/docs/reference coverage drifts from the packaged CLI contract
-- `gate:phase-31` fails if the external event-backed path regresses against the frozen deterministic baseline
+- `gate:phase-31` fails if the external event-backed path regresses against the frozen pre-Phase-31 public text-only path
+- `gate:phase-31` fails if the external event-backed path does not show a clear win over the no-memory baseline
 - `gate:phase-31` fails without one archived canonical Codex external-host evidence chain
 - closure docs cite one exact canonical evidence chain and do not overstate Claude parity as live-proven
 

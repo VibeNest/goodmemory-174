@@ -15,9 +15,13 @@ Phase 31.5: Codex and Claude Bootstrap on the Installed Surface
 
 Bootstrap Contract
 ------------------
+- this is the only allowed CLI contract widening in Phase 31
 - the bootstrap path must run from the packaged CLI (`bun run goodmemory -- ...`)
 - generated guidance must point to public package usage only
 - bootstrap operations must be idempotent and marker-based so reruns do not duplicate sections
+- bootstrap commands may only generate or patch host config, host instructions, and public-package wiring scaffolds
+- bootstrap commands must not implicitly create canonical memory state
+- bootstrap commands must not depend on a repo checkout or hidden machine-global prerequisites outside the documented setup
 - Codex is the canonical product path; Claude bootstrap exists for parity and external usability, not as a second live blocker
 
 Acceptance
@@ -26,6 +30,7 @@ Acceptance
 - a fresh Bun consumer can install the packed artifact and bootstrap one Claude workspace end to end
 - docs-as-written reflect the installed-package bootstrap flow instead of repo-local-only example execution
 - consumer-smoke fixtures prove the bootstrap commands and generated public-package wiring work
+- the installed CLI remains memory-first/read-first outside this explicit bootstrap widening
 
 Evidence To Add
 ---------------

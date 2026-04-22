@@ -35,6 +35,7 @@ Primary Deliverables
   - `goodmemory/ai-sdk`
   - `goodmemory/host`
 - thin public agent-event ingestion contracts on adapter surfaces instead of a new `goodmemory/evolution` public API
+  - keep them explicitly separate from the existing `GoodMemoryAISDKEvent` memory-lifecycle telemetry family
 - selective event-to-evidence and event-to-experience compilation that feeds the existing proposal/promotion pipeline without becoming a transcript database
 - coding-agent recall/context upgrades that can consume accepted outcome-backed procedural patterns from those host events
 - installed-package bootstrap commands and guides for:
@@ -55,10 +56,18 @@ Definition of Done
   - `verify_result`
   - `task_transition`
   - `user_correction`
+- adapter-level public event contracts use a distinct `*AgentEvent` family and carry stable dedupe/lineage keys:
+  - `eventId`
+  - `runId` or `attemptId`
+  - `turnId`
+  - `sequence`
+  - `occurredAt`
+  - optional `parentEventId`
 - automatic event ingestion stores only selective evidence, outcome telemetry, and proposal inputs:
   - no full transcript dump
   - no raw large tool-output persistence by default
   - no direct canonical durable-memory mutation outside the existing explicit `feedback()` path and existing gated proposal/promotion chain
+- event excerpts pass through redaction and policy evaluation before they can enter evidence, proposal inputs, or exported artifacts
 - coding-agent recall can consume accepted outcome-backed procedural patterns together with runtime continuity without injecting raw traces or oversized evidence blobs
 - installed-package bootstrap works through the packaged Bun CLI and public imports only
 - Codex has one canonical bootstrap path and is the only gate-blocking live host path
@@ -67,6 +76,14 @@ Definition of Done
   - continuity/open-loop restoration
   - repeated-correction avoidance
   - procedure adherence on the accepted coding-agent path
+- deterministic and live evidence both use a frozen dual-baseline comparison:
+  - frozen pre-Phase-31 public text-only adapter path
+  - no-memory baseline
+- the installed-package bootstrap commands are the only allowed CLI contract widening in this phase
+- bootstrap commands only generate or patch host config and wiring scaffolds:
+  - no implicit canonical memory creation
+  - no dependency on a repo checkout
+  - no hidden machine-global prerequisite outside the documented host/runtime setup
 - at least one canonical installed-package or tarball-based Codex run is archived as real external-host evidence
 - no reopening of the Phase 29 Bun-only boundary, no all-host expansion, and no claim that every host now supports behavior learning equally
 

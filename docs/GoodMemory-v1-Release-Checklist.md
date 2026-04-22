@@ -86,7 +86,7 @@
   - `goodmemory`
   - `goodmemory/ai-sdk`
   - `goodmemory/host`
-- the installed CLI works through `bun run goodmemory -- ...`
+- the installed CLI works through `./node_modules/.bin/goodmemory ...`
 - README links canonical docs, current status, eval strategy, archive index, and release checklist
 
 ## Manual Review
@@ -94,7 +94,7 @@
 - public API surface matches current product story
 - Bun-only wording is explicit and not hidden behind implied compatibility
 - governance controls match PRD and v1 architecture requirements
-- installed-package docs use `bun add goodmemory` / tarball install before repo-local example commands
+- installed-package docs use `bun add goodmemory` / tarball install before any repo-local development notes
 - examples still reflect the recommended integration path
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory

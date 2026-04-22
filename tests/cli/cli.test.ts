@@ -646,6 +646,70 @@ describe("goodmemory cli eval commands", () => {
   });
 });
 
+describe("goodmemory cli help and routing", () => {
+  it("returns root help for no args and --help", async () => {
+    const noArgs = await runCLI([]);
+    const help = await runCLI(["--help"]);
+
+    for (const result of [noArgs, help]) {
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("GoodMemory CLI");
+      expect(result.stdout).toContain("inspect         Inspect scope-bounded memory");
+      expect(result.stdout).toContain("goodmemory eval --help");
+      expect(result.stderr).toBe("");
+    }
+  });
+
+  it("returns eval namespace help for bare eval and eval --help", async () => {
+    const bareEval = await runCLI(["eval"]);
+    const evalHelp = await runCLI(["eval", "--help"]);
+
+    for (const result of [bareEval, evalHelp]) {
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("GoodMemory Eval CLI");
+      expect(result.stdout).toContain("inspect       Summarize one eval case");
+      expect(result.stdout).toContain("export-case   Copy one eval case artifact");
+      expect(result.stderr).toBe("");
+    }
+  });
+
+  it("returns subcommand help before validating required flags", async () => {
+    const inspect = await runCLI(["inspect", "--help"]);
+    const trace = await runCLI(["trace", "--help"]);
+    const stats = await runCLI(["stats", "--help"]);
+    const exportMemory = await runCLI(["export-memory", "--help"]);
+    const evalInspect = await runCLI(["eval", "inspect", "--help"]);
+
+    expect(inspect.exitCode).toBe(0);
+    expect(inspect.stdout).toContain("GoodMemory Inspect");
+    expect(inspect.stdout).toContain("--user-id <id>");
+    expect(trace.exitCode).toBe(0);
+    expect(trace.stdout).toContain("GoodMemory Trace");
+    expect(trace.stdout).toContain("--ignore-memory");
+    expect(trace.stdout).toContain("--strategy <auto|rules-only|hybrid|llm-assisted>");
+    expect(stats.exitCode).toBe(0);
+    expect(stats.stdout).toContain("GoodMemory Stats");
+    expect(exportMemory.exitCode).toBe(0);
+    expect(exportMemory.stdout).toContain("GoodMemory Export Memory");
+    expect(exportMemory.stdout).toContain("--output <path>");
+    expect(evalInspect.exitCode).toBe(0);
+    expect(evalInspect.stdout).toContain("GoodMemory Eval Inspect");
+    expect(evalInspect.stdout).toContain("--run-dir <path>");
+  });
+
+  it("returns help hints for unknown root and eval commands", async () => {
+    const unknownRoot = await runCLI(["unknown"]);
+    const unknownEval = await runCLI(["eval", "unknown"]);
+
+    expect(unknownRoot.exitCode).toBe(1);
+    expect(unknownRoot.stderr).toContain("Unknown command: unknown.");
+    expect(unknownRoot.stderr).toContain("goodmemory --help");
+    expect(unknownEval.exitCode).toBe(1);
+    expect(unknownEval.stderr).toContain("Unknown eval command: unknown.");
+    expect(unknownEval.stderr).toContain("goodmemory eval --help");
+  });
+});
+
 describe("goodmemory cli root commands", () => {
   it("uses a non-mutating postgres probe for read-only auto storage", async () => {
     const calls: string[] = [];
@@ -953,6 +1017,92 @@ describe("goodmemory cli root commands", () => {
     }
   });
 
+  it("trace supports ignore-memory for read-only policy diagnostics", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-root-trace-ignore-memory");
+
+    try {
+      const sqlitePath = join(workspace.root, "memory.sqlite");
+      const { scope } = await seedSQLiteMemory(sqlitePath);
+
+      const result = await runCLI([
+        "trace",
+        "--user-id",
+        scope.userId,
+        "--workspace-id",
+        scope.workspaceId!,
+        "--session-id",
+        scope.sessionId!,
+        "--query",
+        "Which runbook is the source of truth and what is the blocker?",
+        "--ignore-memory",
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        sqlitePath,
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Storage: memory (ignored (--ignore-memory))");
+      expect(result.stdout).toContain("Hits");
+      expect(result.stdout).toContain("Returned Candidate Traces");
+      expect(result.stdout).toContain("Suppressed Candidate Traces");
+      expect(result.stdout).toContain("Policy Applied");
+      expect(result.stdout).toContain("- ignore_memory");
+      expect(result.stdout).toContain("- none");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
+  it("trace exposes structured diagnostics with --json", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-root-trace-json");
+
+    try {
+      const sqlitePath = join(workspace.root, "memory.sqlite");
+      const { scope } = await seedSQLiteMemory(sqlitePath);
+
+      const result = await runCLI([
+        "trace",
+        "--user-id",
+        scope.userId,
+        "--workspace-id",
+        scope.workspaceId!,
+        "--session-id",
+        scope.sessionId!,
+        "--query",
+        "Which runbook is the source of truth and what is the blocker?",
+        "--strategy",
+        "rules-only",
+        "--json",
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        sqlitePath,
+      ]);
+
+      const payload = JSON.parse(result.stdout) as {
+        candidateTraceCount: number;
+        candidateTraces: unknown[];
+        hits: unknown[];
+        policyApplied: string[];
+        routingDecision: {
+          strategy: string;
+        };
+        verificationHints: unknown[];
+      };
+
+      expect(result.exitCode).toBe(0);
+      expect(payload.routingDecision.strategy).toBe("rules-only");
+      expect(payload.hits.length).toBeGreaterThan(0);
+      expect(payload.candidateTraces.length).toBeGreaterThan(0);
+      expect(payload.candidateTraceCount).toBe(payload.candidateTraces.length);
+      expect(payload.verificationHints.length).toBeGreaterThan(0);
+      expect(Array.isArray(payload.policyApplied)).toBe(true);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   it("stats reports scope-bounded counts and backend metadata", async () => {
     const workspace = await createTempWorkspace("goodmemory-cli-root-stats");
 
@@ -1125,6 +1275,35 @@ describe("goodmemory cli root commands", () => {
       expect(result.stderr).toContain(
         "Read-only CLI commands require an existing sqlite database",
       );
+      await expect(
+        access(join(workspace.root, ".goodmemory", "memory.sqlite")),
+      ).rejects.toThrow();
+    } finally {
+      process.chdir(previousCwd);
+      await workspace.cleanup();
+    }
+  });
+
+  it("trace --ignore-memory bypasses default sqlite resolution in an empty workspace", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-trace-ignore-memory-missing-store");
+    const previousCwd = process.cwd();
+
+    try {
+      process.chdir(workspace.root);
+
+      const result = await runCLI([
+        "trace",
+        "--user-id",
+        "review-user",
+        "--query",
+        "What should I do next?",
+        "--ignore-memory",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Storage: memory (ignored (--ignore-memory))");
+      expect(result.stdout).toContain("Policy Applied");
+      expect(result.stdout).toContain("- ignore_memory");
       await expect(
         access(join(workspace.root, ".goodmemory", "memory.sqlite")),
       ).rejects.toThrow();

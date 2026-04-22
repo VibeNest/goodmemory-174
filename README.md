@@ -71,17 +71,17 @@ The default runtime contract stays local-first:
 
 ## CLI
 
-GoodMemory `0.1.0-rc.1` 自带一个 Bun-only、只读的已安装 CLI。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。
+GoodMemory `0.1.0-rc.1` 自带一个 Bun-only、只读的已安装 CLI。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。唯一的策略诊断例外是 `trace --ignore-memory`：它会把 recall 视为空集并直接跳过存储解析。
 
 ```bash
-bun run goodmemory -- inspect --user-id <user-id> --workspace-id <workspace-id>
-bun run goodmemory -- trace --user-id <user-id> --workspace-id <workspace-id> --query "Which runbook is the source of truth?"
-bun run goodmemory -- export-memory --user-id <user-id> --workspace-id <workspace-id> --output ./tmp/export
-bun run goodmemory -- stats --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory inspect --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory trace --user-id <user-id> --workspace-id <workspace-id> --query "Which runbook is the source of truth?"
+./node_modules/.bin/goodmemory export-memory --user-id <user-id> --workspace-id <workspace-id> --output ./tmp/export
+./node_modules/.bin/goodmemory stats --user-id <user-id> --workspace-id <workspace-id>
 
-bun run goodmemory -- eval inspect --run-dir reports/eval/live/<run-id> --case-id <case-id>
-bun run goodmemory -- eval trace --run-dir reports/eval/live/<run-id> --case-id <case-id>
-bun run goodmemory -- eval export-case --run-dir reports/eval/live/<run-id> --case-id <case-id> --output /tmp/case.json
+./node_modules/.bin/goodmemory eval inspect --run-dir reports/eval/live/<run-id> --case-id <case-id>
+./node_modules/.bin/goodmemory eval trace --run-dir reports/eval/live/<run-id> --case-id <case-id>
+./node_modules/.bin/goodmemory eval export-case --run-dir reports/eval/live/<run-id> --case-id <case-id> --output /tmp/case.json
 ```
 
 CLI surface:
@@ -94,7 +94,10 @@ CLI surface:
 - `goodmemory eval trace`
 - `goodmemory eval export-case`
 
-Repo-local development can still use `bun run cli -- ...`, but the installed-package path above is the canonical RC contract.
+The public CLI contract is the package bin `goodmemory`. In a local Bun
+consumer, invoke it as `./node_modules/.bin/goodmemory ...`. This repo also
+keeps a repo-local script alias for development, but that alias is not part of
+the installed-package contract.
 
 ## Examples
 

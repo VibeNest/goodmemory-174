@@ -55,7 +55,7 @@
     "test:ci": "bun run typecheck && bun run test:coverage",
     "test:watch": "bun test --watch",
     "typecheck": "bunx tsc --noEmit",
-    "cli": "bun run scripts/goodmemory-cli.ts",
+    "goodmemory": "bun run scripts/goodmemory-cli.ts",
     "fixtures:generate": "bun run scripts/generate-eval-fixtures.ts",
     "example:chat": "bun run examples/basic-chat.ts",
     "example:coding-agent": "bun run examples/coding-agent.ts",

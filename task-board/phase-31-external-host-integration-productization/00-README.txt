@@ -28,9 +28,14 @@ Acceptance
 ----------
 - public package boundaries stay frozen to `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
 - adapter-level public event input exists and remains optional
+- adapter-level public event input uses a distinct `*AgentEvent` family with stable event identity and lineage keys
 - event ingestion is selective and proposal-driven rather than transcript-dump-driven
+- event excerpts pass redaction/policy checks before they can enter evidence, proposal inputs, or exported artifacts
 - coding-agent recall/context uses accepted event-backed procedural patterns without raw trace injection
 - installed-package bootstrap works for Codex and Claude Code without repo-internal imports
+- deterministic/live evaluation uses a frozen dual baseline:
+  - pre-Phase-31 public text-only adapter path
+  - no-memory baseline
 - Codex has one canonical passing external-host evidence chain and remains the only live gate blocker
 - Claude reaches bootstrap/reference parity and package-smoke coverage
 

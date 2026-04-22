@@ -1041,12 +1041,13 @@ interface MemoryPolicyHooks {
 ### 16.1 v0.1 必须有的 CLI
 
 ```bash
-npx goodmemory inspect <userId>
-npx goodmemory inspect <userId> --facts
-npx goodmemory inspect <userId> --episodes
-npx goodmemory trace <userId> <sessionId>
-npx goodmemory export <userId>
-npx goodmemory stats
+./node_modules/.bin/goodmemory inspect --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory trace --user-id <user-id> --workspace-id <workspace-id> --query "Which runbook is the source of truth?"
+./node_modules/.bin/goodmemory export-memory --user-id <user-id> --workspace-id <workspace-id> --output ./tmp/export
+./node_modules/.bin/goodmemory stats --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory eval inspect --run-dir reports/eval/live/<run-id> --case-id <case-id>
+./node_modules/.bin/goodmemory eval trace --run-dir reports/eval/live/<run-id> --case-id <case-id>
+./node_modules/.bin/goodmemory eval export-case --run-dir reports/eval/live/<run-id> --case-id <case-id> --output /tmp/case.json
 ```
 
 ### 16.2 日志字段

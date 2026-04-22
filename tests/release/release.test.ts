@@ -401,7 +401,8 @@ describe("release metadata and docs", () => {
     expect(pkg.exports?.["./host"]).toBe("./src/host/index.ts");
     expect(pkg.exports?.["./ai-sdk"]).toBe("./src/ai-sdk/index.ts");
     expect(Object.keys(pkg.exports ?? {})).not.toContain("./llm/ai-sdk");
-    expect(pkg.scripts?.cli).toBe("bun run scripts/goodmemory-cli.ts");
+    expect(pkg.scripts?.goodmemory).toBe("bun run scripts/goodmemory-cli.ts");
+    expect(pkg.scripts?.cli).toBeUndefined();
     expect(pkg.scripts?.["example:chat"]).toBe("bun run examples/basic-chat.ts");
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
       "bun run examples/coding-agent.ts",
@@ -565,7 +566,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("examples/host-codex-handoff.ts");
     expect(readme).toContain("GoodMemory-Reference-Integration-Guide.md");
     expect(readme).toContain("GoodMemory-Codex-Handoff-Setup-Guide.md");
-    expect(readme).toContain("bun run goodmemory -- inspect");
+    expect(readme).toContain("./node_modules/.bin/goodmemory inspect");
     expect(readme).toContain("createGoodMemoryAISDK");
     expect(readme).toContain("goodmemory/ai-sdk");
     expect(readme).toContain("ModelMessage");
@@ -614,6 +615,115 @@ describe("release metadata and docs", () => {
     expect(readme).not.toContain("strategyRollout");
     expect(readme).not.toContain("promotionGate");
     expect(readme).not.toContain("bun run cli -- inspect");
+  });
+
+  it("installed-package CLI contract stays on the published bin path", async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-cli-contract-consumer-"),
+    );
+    const packOutputDir = await mkdtemp(
+      join(tmpdir(), "goodmemory-cli-contract-pack-"),
+    );
+
+    try {
+      const { tarballPath } = await packReleaseTarball(packOutputDir);
+      await writeFile(
+        join(workspaceRoot, "package.json"),
+        JSON.stringify(
+          {
+            name: "goodmemory-cli-contract-consumer",
+            private: true,
+            dependencies: {
+              goodmemory: `file:${tarballPath}`,
+            },
+            scripts: {
+              goodmemory: "echo consumer-script",
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const install = await runCommand({
+        cmd: ["bun", "install"],
+        cwd: workspaceRoot,
+      });
+      expect(install.exitCode).toBe(0);
+
+      const shadowed = await runCommand({
+        cmd: ["bun", "run", "goodmemory", "--", "--help"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(shadowed.exitCode).toBe(0);
+      expect(shadowed.stdout).toContain("consumer-script --help");
+
+      const binHelp = await runCommand({
+        cmd: ["./node_modules/.bin/goodmemory", "--help"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(binHelp.exitCode).toBe(0);
+      expect(binHelp.stdout).toContain("GoodMemory CLI");
+      expect(binHelp.stdout).toContain("inspect         Inspect scope-bounded memory");
+      expect(binHelp.stdout).toContain("eval            Inspect eval run artifacts");
+    } finally {
+      await rm(packOutputDir, { recursive: true, force: true });
+      await rm(workspaceRoot, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("current top-level docs use the package-bin memory-first CLI contract", async () => {
+    const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
+    const architecture = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-OSS-Architecture-v1.md"),
+      "utf8",
+    );
+    const claudeArchitecture = await readFile(
+      join(import.meta.dir, "../../docs/claude-GoodMemory-Architecture-v0.1.md"),
+      "utf8",
+    );
+    const currentStatus = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-Current-Status-and-Evidence.md"),
+      "utf8",
+    );
+    const checklist = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-v1-Release-Checklist.md"),
+      "utf8",
+    );
+
+    for (const content of [
+      readme,
+      architecture,
+      claudeArchitecture,
+      currentStatus,
+      checklist,
+    ]) {
+      expect(content).not.toContain("bun run cli --");
+      expect(content).not.toContain("bun run goodmemory --");
+      expect(content).not.toContain("npx goodmemory inspect <userId>");
+      expect(content).not.toContain("npx goodmemory trace <userId> <sessionId>");
+      expect(content).not.toContain("npx goodmemory export <userId>");
+    }
+
+    expect(readme).toContain("./node_modules/.bin/goodmemory inspect --user-id");
+    expect(readme).toContain("./node_modules/.bin/goodmemory eval inspect");
+    expect(architecture).toContain("./node_modules/.bin/goodmemory inspect --user-id");
+    expect(architecture).toContain("./node_modules/.bin/goodmemory export-memory");
+    expect(architecture).toContain("./node_modules/.bin/goodmemory eval inspect");
+    expect(claudeArchitecture).toContain(
+      "./node_modules/.bin/goodmemory inspect --user-id",
+    );
+    expect(claudeArchitecture).toContain("./node_modules/.bin/goodmemory export-memory");
+    expect(claudeArchitecture).toContain("./node_modules/.bin/goodmemory eval inspect");
+    expect(currentStatus).toContain(
+      "installed-package invocation path is `./node_modules/.bin/goodmemory ...`",
+    );
+    expect(checklist).toContain(
+      "the installed CLI works through `./node_modules/.bin/goodmemory ...`",
+    );
   });
 
   it("phase-27 canonical guides and examples use public imports only", async () => {
@@ -750,27 +860,6 @@ describe("release metadata and docs", () => {
       expect(statsJson.storage?.provider).toBe("sqlite");
       expect(statsJson.counts?.facts).toBeGreaterThan(0);
 
-      const bunRunStats = await runCommand({
-        cmd: [
-          "bun",
-          "run",
-          "goodmemory",
-          "--",
-          "stats",
-          "--json",
-          "--user-id",
-          "consumer-user",
-          "--workspace-id",
-          "consumer-workspace",
-        ],
-        cwd: workspaceRoot,
-        env: { ...RELEASE_TEST_ENV },
-      });
-      expect(bunRunStats.exitCode).toBe(0);
-      expect(
-        extractJsonObject<{ storage?: { provider?: string } }>(bunRunStats.stdout).storage
-          ?.provider,
-      ).toBe("sqlite");
     } finally {
       await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });

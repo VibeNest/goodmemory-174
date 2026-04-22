@@ -3,6 +3,7 @@ Phase 31.2: Adapter-Level Agent Event Contracts
 
 [TODO] Add optional public event-ingestion types and helper entrypoints on `goodmemory/ai-sdk`.
 [TODO] Add optional public event-ingestion types and helper entrypoints on `goodmemory/host`.
+[TODO] Use a distinct `*AgentEvent` naming family, for example `AgentInputEvent` / `HostAgentEvent`, so it cannot be confused with the existing `GoodMemoryAISDKEvent` memory-lifecycle telemetry types.
 [TODO] Support at least these normalized event kinds:
 - `tool_call`
 - `tool_result`
@@ -22,8 +23,16 @@ Acceptance
 ----------
 - event input is package-public and Bun-installable
 - adapter-level event input carries `scope`, host identity, and per-turn provenance
+- every public agent event carries stable dedupe/lineage keys:
+  - `eventId`
+  - `runId` or `attemptId`
+  - `turnId`
+  - `sequence`
+  - `occurredAt`
+  - optional `parentEventId`
 - event input can be omitted with zero behavior change to the accepted pre-Phase-31 path
 - event input does not require the user to instantiate internal reviewer/proposal/runtime objects directly
+- public naming keeps agent-input events distinct from the existing recall/remember telemetry event family
 
 Evidence To Add
 ---------------

@@ -14,8 +14,8 @@ Generated at: `2026-04-08 02:08:17 +0800`
 bun test
 bun run test:coverage
 bun run typecheck
-bun run cli -- inspect --run-dir <latest-fallback-run-dir> --case-id <latest-case-id>
-bun run cli -- trace --run-dir <latest-fallback-run-dir> --case-id <latest-case-id>
+bun run goodmemory -- eval inspect --run-dir <latest-fallback-run-dir> --case-id <latest-case-id>
+bun run goodmemory -- eval trace --run-dir <latest-fallback-run-dir> --case-id <latest-case-id>
 bun run example:chat
 bun run example:coding-agent
 bun run eval:smoke

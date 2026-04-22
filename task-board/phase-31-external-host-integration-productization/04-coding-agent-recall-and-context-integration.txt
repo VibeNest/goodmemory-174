@@ -19,7 +19,10 @@ Acceptance
 ----------
 - external event-backed patterns can affect `coding_agent` recall/context on the public path
 - `buildContext()` emits compact, action-oriented continuity rather than raw trace dumps
-- repeated-correction and procedure-adherence eval families improve over the frozen no-event / no-memory baseline
+- repeated-correction and procedure-adherence eval families are scored against a frozen dual baseline:
+  - pre-Phase-31 public text-only adapter path
+  - no-memory baseline
+- the event-backed public path must not regress against the frozen pre-Phase-31 public text-only path and must show a clear win over the no-memory baseline
 - existing general-chat behavior stays regression-covered and does not inherit coding-agent-only heuristics by accident
 
 Evidence To Add

@@ -869,12 +869,13 @@ When retrieved content exceeds budget:
 ### 14.1 Memory Inspector CLI
 
 ```bash
-npx goodmemory inspect <userId>           # View profile + top facts + recent episodes
-npx goodmemory inspect <userId> --facts    # List all active facts with scores
-npx goodmemory inspect <userId> --episodes # List all episodes
-npx goodmemory trace <userId> <sessionId>  # Show routing decisions for a session
-npx goodmemory export <userId>             # Export all memory as JSON (GDPR)
-npx goodmemory stats                       # Storage usage, cost estimates
+./node_modules/.bin/goodmemory inspect --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory trace --user-id <user-id> --workspace-id <workspace-id> --query "Which runbook is the source of truth?"
+./node_modules/.bin/goodmemory export-memory --user-id <user-id> --workspace-id <workspace-id> --output ./tmp/export
+./node_modules/.bin/goodmemory stats --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory eval inspect --run-dir reports/eval/live/<run-id> --case-id <case-id>
+./node_modules/.bin/goodmemory eval trace --run-dir reports/eval/live/<run-id> --case-id <case-id>
+./node_modules/.bin/goodmemory eval export-case --run-dir reports/eval/live/<run-id> --case-id <case-id> --output /tmp/case.json
 ```
 
 ### 14.2 Structured Logging

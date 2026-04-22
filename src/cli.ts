@@ -117,6 +117,146 @@ interface InternalDiagnosticGoodMemory extends GoodMemory {
 
 const TOP_RECORD_LIMIT = 3;
 const TRACE_SUPPRESSED_LIMIT = 8;
+const ROOT_HELP_TEXT = [
+  "GoodMemory CLI",
+  "",
+  "Usage",
+  "  goodmemory <command> [options]",
+  "",
+  "Commands",
+  "  inspect         Inspect scope-bounded memory from durable storage",
+  "  trace           Run read-only recall diagnostics for a scope and query",
+  "  export-memory   Export a memory snapshot plus Markdown artifacts",
+  "  stats           Show scope-bounded counts and storage metadata",
+  "  eval            Inspect eval run artifacts",
+  "",
+  "Help",
+  "  goodmemory --help",
+  "  goodmemory <command> --help",
+  "  goodmemory eval --help",
+].join("\n");
+const EVAL_HELP_TEXT = [
+  "GoodMemory Eval CLI",
+  "",
+  "Usage",
+  "  goodmemory eval <command> [options]",
+  "",
+  "Commands",
+  "  inspect       Summarize one eval case from a run directory",
+  "  trace         Render recall/write/assertion traces for one eval case",
+  "  export-case   Copy one eval case artifact to a target path",
+  "",
+  "Help",
+  "  goodmemory eval --help",
+  "  goodmemory eval <command> --help",
+].join("\n");
+const INSPECT_HELP_TEXT = [
+  "GoodMemory Inspect",
+  "",
+  "Usage",
+  "  goodmemory inspect --user-id <id> [scope flags] [storage flags] [output flags]",
+  "",
+  "Scope Flags",
+  "  --user-id <id>          Required",
+  "  --tenant-id <id>",
+  "  --workspace-id <id>",
+  "  --agent-id <id>",
+  "  --session-id <id>",
+  "",
+  "Storage Flags",
+  "  --storage-provider <memory|sqlite|postgres>",
+  "  --storage-url <path-or-url>",
+  "",
+  "Output Flags",
+  "  --include-runtime",
+  "  --json",
+].join("\n");
+const TRACE_HELP_TEXT = [
+  "GoodMemory Trace",
+  "",
+  "Usage",
+  "  goodmemory trace --user-id <id> --query <text> [scope flags] [diagnostic flags] [storage flags]",
+  "",
+  "Scope Flags",
+  "  --user-id <id>          Required",
+  "  --tenant-id <id>",
+  "  --workspace-id <id>",
+  "  --agent-id <id>",
+  "  --session-id <id>",
+  "",
+  "Diagnostic Flags",
+  "  --query <text>          Required",
+  "  --retrieval-profile <general_chat|coding_agent>",
+  "  --strategy <auto|rules-only|hybrid|llm-assisted>",
+  "  --locale <locale>",
+  "  --ignore-memory         Treat recall as an empty set and skip storage lookup",
+  "  --json",
+  "",
+  "Storage Flags",
+  "  --storage-provider <memory|sqlite|postgres>",
+  "  --storage-url <path-or-url>",
+].join("\n");
+const EXPORT_MEMORY_HELP_TEXT = [
+  "GoodMemory Export Memory",
+  "",
+  "Usage",
+  "  goodmemory export-memory --user-id <id> --output <path> [scope flags] [storage flags] [options]",
+  "",
+  "Scope Flags",
+  "  --user-id <id>          Required",
+  "  --tenant-id <id>",
+  "  --workspace-id <id>",
+  "  --agent-id <id>",
+  "  --session-id <id>",
+  "",
+  "Storage Flags",
+  "  --storage-provider <memory|sqlite|postgres>",
+  "  --storage-url <path-or-url>",
+  "",
+  "Options",
+  "  --output <path>         Required",
+  "  --include-runtime",
+  "  --force",
+].join("\n");
+const STATS_HELP_TEXT = [
+  "GoodMemory Stats",
+  "",
+  "Usage",
+  "  goodmemory stats --user-id <id> [scope flags] [storage flags] [output flags]",
+  "",
+  "Scope Flags",
+  "  --user-id <id>          Required",
+  "  --tenant-id <id>",
+  "  --workspace-id <id>",
+  "  --agent-id <id>",
+  "  --session-id <id>",
+  "",
+  "Storage Flags",
+  "  --storage-provider <memory|sqlite|postgres>",
+  "  --storage-url <path-or-url>",
+  "",
+  "Output Flags",
+  "  --include-runtime",
+  "  --json",
+].join("\n");
+const EVAL_INSPECT_HELP_TEXT = [
+  "GoodMemory Eval Inspect",
+  "",
+  "Usage",
+  "  goodmemory eval inspect --run-dir <path> --case-id <id> [--json]",
+].join("\n");
+const EVAL_TRACE_HELP_TEXT = [
+  "GoodMemory Eval Trace",
+  "",
+  "Usage",
+  "  goodmemory eval trace --run-dir <path> --case-id <id> [--json]",
+].join("\n");
+const EVAL_EXPORT_CASE_HELP_TEXT = [
+  "GoodMemory Eval Export Case",
+  "",
+  "Usage",
+  "  goodmemory eval export-case --run-dir <path> --case-id <id> --output <path> [--force] [--json]",
+].join("\n");
 
 function parseArgs(argv: string[]): ParsedArgs {
   const commands: string[] = [];
@@ -160,6 +300,10 @@ function flagEnabled(flags: ParsedFlags, name: string): boolean {
   return flags[name] === "true";
 }
 
+function helpRequested(flags: ParsedFlags): boolean {
+  return flagEnabled(flags, "help");
+}
+
 function requireFlag(flags: ParsedFlags, name: string): string {
   const value = flags[name];
   if (!value) {
@@ -169,13 +313,20 @@ function requireFlag(flags: ParsedFlags, name: string): string {
   return value;
 }
 
-function requireCommand(commands: string[], index: number): string {
-  const command = commands[index];
-  if (!command) {
-    throw new Error("Missing command");
-  }
+function helpResult(text: string): CLIResult {
+  return {
+    exitCode: 0,
+    stderr: "",
+    stdout: `${text}\n`,
+  };
+}
 
-  return command;
+function errorResult(message: string): CLIResult {
+  return {
+    exitCode: 1,
+    stderr: message,
+    stdout: "",
+  };
 }
 
 function clipText(content: string, maxLength = 100): string {
@@ -432,6 +583,23 @@ async function createDiagnosticMemory(
       },
     }) as InternalDiagnosticGoodMemory,
     storage,
+  };
+}
+
+function createIgnoredDiagnosticMemory(): {
+  memory: InternalDiagnosticGoodMemory;
+  storage: CLIStorageConfig;
+} {
+  return {
+    memory: createGoodMemory({
+      storage: {
+        provider: "memory",
+      },
+    }) as InternalDiagnosticGoodMemory,
+    storage: {
+      provider: "memory",
+      displayValue: "ignored (--ignore-memory)",
+    },
   };
 }
 
@@ -1274,11 +1442,14 @@ async function handleTrace(flags: ParsedFlags): Promise<CLICommandOutput> {
   const query = requireFlag(flags, "query");
   const retrievalProfile = parseRetrievalProfile(flags);
   const strategy = parseRecallStrategy(flags);
-  const { memory, storage } = await createDiagnosticMemory(flags, {
-    readOnlyStorage: true,
-  });
+  const ignoreMemory = flagEnabled(flags, "ignore-memory");
+  const { memory, storage } = ignoreMemory
+    ? createIgnoredDiagnosticMemory()
+    : await createDiagnosticMemory(flags, {
+        readOnlyStorage: true,
+      });
   const recall = await memory.diagnoseRecall({
-    ignoreMemory: false,
+    ignoreMemory,
     locale: flags.locale,
     query,
     retrievalProfile,
@@ -1394,10 +1565,54 @@ async function handleEvalExportCase(
 export async function runCLI(argv: string[]): Promise<CLIResult> {
   try {
     const { commands, flags } = parseArgs(argv);
-    const primary = requireCommand(commands, 0);
+    if (commands.length === 0) {
+      return helpResult(ROOT_HELP_TEXT);
+    }
+
+    const primary = commands[0]!;
+
+    if (helpRequested(flags)) {
+      if (primary === "eval") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(EVAL_HELP_TEXT);
+        }
+        if (secondary === "inspect") {
+          return helpResult(EVAL_INSPECT_HELP_TEXT);
+        }
+        if (secondary === "trace") {
+          return helpResult(EVAL_TRACE_HELP_TEXT);
+        }
+        if (secondary === "export-case") {
+          return helpResult(EVAL_EXPORT_CASE_HELP_TEXT);
+        }
+
+        return errorResult(
+          `Unknown eval command: ${secondary}. Run 'goodmemory eval --help'.`,
+        );
+      }
+
+      if (primary === "inspect") {
+        return helpResult(INSPECT_HELP_TEXT);
+      }
+      if (primary === "trace") {
+        return helpResult(TRACE_HELP_TEXT);
+      }
+      if (primary === "stats") {
+        return helpResult(STATS_HELP_TEXT);
+      }
+      if (primary === "export-memory") {
+        return helpResult(EXPORT_MEMORY_HELP_TEXT);
+      }
+
+      return errorResult(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
+    }
 
     if (primary === "eval") {
-      const secondary = requireCommand(commands, 1);
+      const secondary = commands[1];
+      if (!secondary) {
+        return helpResult(EVAL_HELP_TEXT);
+      }
       if (secondary === "inspect") {
         return renderOutput(await handleEvalInspect(flags), flags);
       }
@@ -1408,7 +1623,7 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
         return renderOutput(await handleEvalExportCase(flags), flags);
       }
 
-      throw new Error(`Unknown eval command: ${secondary}`);
+      throw new Error(`Unknown eval command: ${secondary}. Run 'goodmemory eval --help'.`);
     }
 
     if (primary === "inspect") {
@@ -1424,7 +1639,7 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
       return renderOutput(await handleExportMemory(flags), flags);
     }
 
-    throw new Error(`Unknown command: ${primary}`);
+    throw new Error(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
   } catch (error) {
     return {
       exitCode: 1,

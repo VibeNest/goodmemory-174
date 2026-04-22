@@ -9,7 +9,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
 - `0.1.0-rc.1` is now frozen as a Bun-only prerelease contract. The canonical installable unit is the tarball produced by `bun pm pack`; registry publish is not a blocking claim for this RC.
 - `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend, and local SQLite is the fallback.
-- The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package usage contract is `bun run goodmemory -- ...`.
+- The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
 - `sqlite` is now stable as the default local durable document/session/vector backend for the auto-storage path.
 - Generic live-memory eval semantics are now auto-storage aligned across both CLI and script helpers:
