@@ -1,9 +1,9 @@
 Phase 33.1: Freeze Formal Node-Compatible Contract
 ==================================================
 
-[TODO] Replace the Bun-only RC framing with a formal Node-compatible library contract for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`.
-[TODO] Keep the product promise anchored on fast adoption: 15-20 minute integration, framework-neutral use, and vendor-neutral memory layering.
-[TODO] Document the non-goals:
+[DONE] Replace the Bun-only RC framing with a formal Node-compatible library contract for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`.
+[DONE] Keep the product promise anchored on fast adoption: 15-20 minute integration, framework-neutral use, and vendor-neutral memory layering.
+[DONE] Document the non-goals:
 - no new memory capability
 - no dashboard or admin UI
 - no new public `goodmemory/evolution` module

@@ -1,4 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   buildCodexBehavioralTrace,
   parseCodexExecEventLine,
@@ -57,7 +60,7 @@ describe("host codex exec behavioral trace", () => {
     );
   });
 
-  it("resolves runtime binaries from env overrides first and PATH/process fallback second", () => {
+  it("resolves runtime binaries from env overrides first, injected lookup second, and PATH fallback when Bun.which is unavailable", async () => {
     expect(
       resolveCodexExecRuntime({
         env: {
@@ -83,13 +86,65 @@ describe("host codex exec behavioral trace", () => {
       nodeBinary: "/opt/bun/bin/bun",
     });
 
-    expect(() =>
-      resolveCodexExecRuntime({
-        env: {},
-        processExecPath: "",
-        which: () => undefined,
-      }),
-    ).toThrow("Could not resolve the Codex binary");
+    const originalBunWhich = Bun.which;
+    const pathDir = await mkdtemp(join(tmpdir(), "goodmemory-codex-bin-"));
+    const codexBinary = join(
+      pathDir,
+      process.platform === "win32" ? "codex.cmd" : "codex",
+    );
+
+    try {
+      await writeFile(
+        codexBinary,
+        process.platform === "win32"
+          ? "@echo off\r\necho codex\r\n"
+          : "#!/bin/sh\necho codex\n",
+        "utf8",
+      );
+
+      if (process.platform !== "win32") {
+        await chmod(codexBinary, 0o755);
+      }
+
+      Bun.which = undefined as unknown as typeof Bun.which;
+
+      expect(
+        resolveCodexExecRuntime({
+          env: {
+            PATH: pathDir,
+            ...(process.platform === "win32"
+              ? {
+                  PATHEXT: ".CMD;.EXE",
+                }
+              : {}),
+          },
+          processExecPath: "/opt/node/bin/node",
+        }),
+      ).toEqual({
+        codexBinary,
+        nodeBinary: "/opt/node/bin/node",
+      });
+    } finally {
+      Bun.which = originalBunWhich;
+      await rm(pathDir, { recursive: true, force: true });
+    }
+
+    const finalBunWhich = Bun.which;
+
+    try {
+      Bun.which = undefined as unknown as typeof Bun.which;
+
+      expect(() =>
+        resolveCodexExecRuntime({
+          env: {
+            PATH: "",
+          },
+          processExecPath: "/opt/node/bin/node",
+        }),
+      ).toThrow("Could not resolve the Codex binary");
+    } finally {
+      Bun.which = finalBunWhich;
+    }
   });
 
   it("maps native command lifecycle events to host-lifecycle success/failure trace events", () => {

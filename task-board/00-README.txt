@@ -182,10 +182,12 @@ Current Sequencing Note
   - live external-host evidence: `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
   - quality gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-32-Quality-Gate.md`
-- Phase 33 is now queued as the formal Node-compatible package-boundary and Node-first integration slice:
-  - ship `dist/` plus `.d.ts` outputs for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` instead of direct `src/*.ts` exports
-  - isolate Bun-only CLI and Bun-local sqlite/sqlite-vss runtime behavior from the Node-compatible library contract
-  - add Node LTS plus Bun consumer smoke/CI and one canonical Node-first AI SDK integration path
+- Phase 33 is now closed as the formal Node-compatible package-boundary and Node-first integration slice:
+  - quality gate: `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
+  - public package boundary now ships `dist/` plus `.d.ts` outputs for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+  - Bun-only CLI execution and Bun-local sqlite/sqlite-vss runtime behavior are now isolated from the Node-compatible library contract
+  - Node 20/22 package-boundary CI and canonical Node-first AI SDK integration are now part of the accepted package boundary
 - Any work after Phase 33 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -205,11 +207,10 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 32 guarantees while local changes land
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 Bun-only release boundary, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, and accepted Phase 32 external-host evidence regression-covered while future work lands
-   - If new Phase 30, Phase 31, or Phase 32 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute Phase 33 on top of the accepted public/package/runtime/external-host boundaries instead of widening the core API or reintroducing repo-internal integration paths
-   - Queue Phase 33 as the package-boundary upgrade to mainstream Node/TypeScript adoption without adding new memory capability, dashboard scope, or rollout-family expansion
+   - Preserve the closed Phase 17 through Phase 33 guarantees while local changes land
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, and accepted Phase 33 package-boundary evidence regression-covered while future work lands
+   - If new Phase 30, Phase 31, Phase 32, or Phase 33 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - Any post-Phase-33 work should start from the accepted public/package/runtime/external-host boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
    - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, and Phase 31 native-host outcome/correction guarantees regression-covered while later phases execute

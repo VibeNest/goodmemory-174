@@ -1,0 +1,83 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Build output, runtime fallback, and Bun/Node package-boundary regressions all passed."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 2467,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun run build",
+      "durationMs": 1465,
+      "exitCode": 0,
+      "label": "build",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run clean && bun run build:js && bun run build:types",
+        "$ rm -rf dist",
+        "$ bun run scripts/build-package.ts",
+        "$ bunx tsc -p tsconfig.package.json"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/runtime-resolution.test.ts tests/release/node-package-boundary.test.ts tests/release/release.test.ts",
+      "durationMs": 18797,
+      "exitCode": 0,
+      "label": "package-boundary-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) release metadata and docs > phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence [101.74ms]",
+        "(pass) release metadata and docs > phase-29 quality gate doc points to the canonical gate plus RC dry-run evidence [50.70ms]",
+        "(pass) release metadata and docs > phase-30 quality gate doc points to the canonical gate plus trace-backed live evidence [29.83ms]",
+        "(pass) release metadata and docs > phase-31 quality gate doc points to the canonical gate plus native host live evidence [30.43ms]",
+        "(pass) release metadata and docs > phase-32 quality gate doc points to the canonical gate plus external-host live evidence [50.43ms]",
+        "(pass) release metadata and docs > phase-33 quality gate doc points to the canonical gate plus package-boundary evidence [10.01ms]",
+        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [230.03ms]",
+        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [409.05ms]",
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [691.67ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [289.28ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.36ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.96ms]",
+        "",
+        "tests/release/node-package-boundary.test.ts:",
+        "(pass) node package boundary > installs from the packed artifact in npm and runs the canonical public library path under Node [3657.51ms]",
+        "",
+        " 67 pass",
+        " 0 fail",
+        " 1080 expect() calls",
+        "Ran 67 tests across 3 files. [18.79s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-22T12:31:36.071Z",
+  "generatedBy": "scripts/run-phase-33-gate.ts",
+  "phase": "phase-33",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-33/run-20260422120359",
+  "runId": "run-20260422120359",
+  "scope": {
+    "inScope": [
+      "compiled dist and declaration outputs for goodmemory, goodmemory/ai-sdk, and goodmemory/host",
+      "node-safe packaged library imports with runtime fallback coverage for createGoodMemory({})",
+      "bun-backed installed CLI isolation behind a node-safe package bin wrapper",
+      "release and consumer package-boundary regression coverage for Bun and Node installs"
+    ],
+    "outOfScope": [
+      "declaring built-in Bun-specific storage adapters universally available in every runtime",
+      "new memory capability expansion or dashboard/admin product work",
+      "claiming phase-33 is fully closed without dedicated archive evidence and synchronized closure docs"
+    ]
+  }
+}

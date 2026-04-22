@@ -44,6 +44,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-31-Quality-Gate.md`
 - External host-integration productization closure:
   - `GoodMemory-Phase-32-Quality-Gate.md`
+- Node-compatible package-boundary and Node-first integration closure:
+  - `GoodMemory-Phase-33-Quality-Gate.md`
 
 ## When To Use This Archive
 

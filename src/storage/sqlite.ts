@@ -449,11 +449,28 @@ export function createSQLiteDocumentStore(
 function createSQLiteScopedStore<TValue>(
   database: Database,
   tableName: "session_buffers" | "session_working_memory" | "session_journals",
+  options?: SQLiteStoreOptions,
 ): {
   set(scope: MemoryScope, value: TValue): Promise<void>;
   get(scope: MemoryScope): Promise<TValue | null>;
   deleteByScope(scope: MemoryScope): Promise<number>;
 } {
+  if (options?.readOnly && !hasTable(database, tableName)) {
+    return {
+      async set() {
+        throw createReadOnlyMutationError("session");
+      },
+
+      async get() {
+        return null;
+      },
+
+      async deleteByScope() {
+        throw createReadOnlyMutationError("session");
+      },
+    };
+  }
+
   const upsertStatement = database.query(
     `INSERT INTO ${tableName} (scope_key, json)
      VALUES (?1, ?2)
@@ -500,12 +517,21 @@ export function createSQLiteSessionStore(
     ensureSessionSchema(database);
   }
 
-  const buffers = createSQLiteScopedStore<SessionBuffer>(database, "session_buffers");
+  const buffers = createSQLiteScopedStore<SessionBuffer>(
+    database,
+    "session_buffers",
+    options,
+  );
   const workingMemory = createSQLiteScopedStore<WorkingMemorySnapshot>(
     database,
     "session_working_memory",
+    options,
   );
-  const journals = createSQLiteScopedStore<SessionJournal>(database, "session_journals");
+  const journals = createSQLiteScopedStore<SessionJournal>(
+    database,
+    "session_journals",
+    options,
+  );
 
   return {
     saveBuffer(scope, buffer) {

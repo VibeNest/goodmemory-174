@@ -1,6 +1,6 @@
 Phase 33.2: Build Dist and Declarations
 =======================================
 
-[TODO] Add a standard build pipeline that emits `dist/` JavaScript and `.d.ts` declarations for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`.
-[TODO] Replace direct `src/*.ts` public exports with built-artifact exports and stable type metadata.
-[TODO] Keep the internal source layout and Bun repo tooling separate from the installed-package consumer contract.
+[DONE] Add a standard build pipeline that emits `dist/` JavaScript and `.d.ts` declarations for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`.
+[DONE] Replace direct `src/*.ts` public exports with built-artifact exports and stable type metadata.
+[DONE] Keep the internal source layout and Bun repo tooling separate from the installed-package consumer contract.

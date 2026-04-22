@@ -84,3 +84,32 @@ describe("sqlite vector store read-only mode", () => {
     }
   });
 });
+
+describe("sqlite session store read-only mode", () => {
+  it("treats missing session tables as empty runtime state", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-session-readonly-${Date.now()}-${Math.random()}.db`,
+    );
+
+    try {
+      const documentStore = createSQLiteDocumentStore(path);
+      await documentStore.set("documents", "doc-1", {
+        content: "durable only",
+      });
+
+      const readOnly = createSQLiteSessionStore(path, { readOnly: true });
+      const scope = {
+        userId: "u-1",
+        workspaceId: "workspace-1",
+        sessionId: "session-1",
+      };
+
+      await expect(readOnly.getBuffer(scope)).resolves.toBeNull();
+      await expect(readOnly.getWorkingMemory(scope)).resolves.toBeNull();
+      await expect(readOnly.getJournal(scope)).resolves.toBeNull();
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+});

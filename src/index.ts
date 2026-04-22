@@ -68,12 +68,12 @@ import {
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
-} from "./storage/postgres";
+} from "./storage/postgresPublic";
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
   createSQLiteVectorStore,
-} from "./storage/sqlite";
+} from "./storage/sqlitePublic";
 import type {
   DocumentStore,
   SessionStore,
@@ -187,13 +187,13 @@ export {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
   createSQLiteVectorStore,
-} from "./storage/sqlite";
-export type { PostgresStorageConfig } from "./storage/postgres";
+} from "./storage/sqlitePublic";
+export type { PostgresStorageConfig } from "./storage/postgresPublic";
 export {
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
-} from "./storage/postgres";
+} from "./storage/postgresPublic";
 export type { MemoryPacket } from "./recall/contextBuilder";
 export {
   buildMemoryPacket,
@@ -295,3 +295,11 @@ export type {
   StorageConfig,
 } from "./api/contracts";
 export { createGoodMemory } from "./api/createGoodMemory";
+export type {
+  GoodMemoryRuntimeInfo,
+  GoodMemoryStorageRuntimeInfo,
+} from "./api/runtimeInfo";
+export {
+  inspectGoodMemoryRuntime,
+  resolveGoodMemoryRuntimeInfo,
+} from "./api/runtimeInfo";

@@ -1,7 +1,7 @@
 {
   "name": "goodmemory",
   "version": "0.1.0-rc.1",
-  "description": "Bun-only memory layer for chat, copilot, and agent applications.",
+  "description": "Memory layer for chat, copilot, and agent applications.",
   "license": "MIT",
   "homepage": "https://github.com/hjqcan/GoodMemory#readme",
   "repository": {
@@ -17,12 +17,14 @@
     "bun",
     "copilot",
     "llm",
-    "memory"
+    "memory",
+    "node",
+    "typescript"
   ],
   "type": "module",
-  "packageManager": "bun@1.3.0",
   "engines": {
-    "bun": ">=1.3.0"
+    "bun": ">=1.3.0",
+    "node": ">=20.0.0"
   },
   "publishConfig": {
     "access": "public"
@@ -30,21 +32,37 @@
   "files": [
     "LICENSE",
     "README.md",
+    "dist",
     "docs",
     "package.json",
+    "scripts/goodmemory-cli.js",
     "scripts/goodmemory-cli.ts",
     "src"
   ],
   "bin": {
-    "goodmemory": "./scripts/goodmemory-cli.ts"
+    "goodmemory": "./scripts/goodmemory-cli.js"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./cli": "./src/cli.ts",
-    "./host": "./src/host/index.ts",
-    "./ai-sdk": "./src/ai-sdk/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./host": {
+      "types": "./dist/host/index.d.ts",
+      "import": "./dist/host/index.js"
+    },
+    "./ai-sdk": {
+      "types": "./dist/ai-sdk/index.d.ts",
+      "import": "./dist/ai-sdk/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
+    "clean": "rm -rf dist",
+    "build:js": "bun run scripts/build-package.ts",
+    "build:types": "bunx tsc -p tsconfig.package.json",
+    "build": "bun run clean && bun run build:js && bun run build:types",
     "test": "bun test",
     "test:all": "bun --config=bunfig.all.toml test tests third-party",
     "test:unit": "bun test tests/unit",
@@ -101,12 +119,14 @@
     "gate:phase-30": "bun run scripts/run-phase-30-gate.ts",
     "gate:phase-31": "bun run scripts/run-phase-31-gate.ts",
     "gate:phase-32": "bun run scripts/run-phase-32-gate.ts",
+    "gate:phase-33": "bun run scripts/run-phase-33-gate.ts",
     "release:rc-dry-run": "bun run scripts/run-phase-29-rc-dry-run.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",
     "eval:live-auto-memory": "bun run scripts/run-eval.ts --mode=live-auto-memory",
     "eval:live-provider-memory": "bun run scripts/run-eval.ts --mode=live-provider-memory",
-    "eval:summary": "bun run scripts/summarize-eval.ts"
+    "eval:summary": "bun run scripts/summarize-eval.ts",
+    "prepack": "bun run build"
   },
   "devDependencies": {
     "@types/bun": "^1.3.0",

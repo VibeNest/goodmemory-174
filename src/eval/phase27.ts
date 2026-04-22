@@ -323,7 +323,9 @@ export function inspectPhase27FallbackReferenceSetup(
     });
     const resolvedSqliteUrl =
       runtimeResolution.storagePlan.mode === "auto"
-        ? runtimeResolution.storagePlan.sqliteUrl
+        ? "sqliteUrl" in runtimeResolution.storagePlan
+          ? runtimeResolution.storagePlan.sqliteUrl
+          : null
         : runtimeResolution.storagePlan.storage.provider === "sqlite"
           ? runtimeResolution.storagePlan.storage.url
           : null;
@@ -355,7 +357,9 @@ function createPhase27LocalDefaultRuntimeMemory(root: string) {
     });
     const sqliteUrl =
       runtimeResolution.storagePlan.mode === "auto"
-        ? runtimeResolution.storagePlan.sqliteUrl
+        ? "sqliteUrl" in runtimeResolution.storagePlan
+          ? runtimeResolution.storagePlan.sqliteUrl
+          : null
         : runtimeResolution.storagePlan.storage.provider === "sqlite"
           ? runtimeResolution.storagePlan.storage.url
           : null;

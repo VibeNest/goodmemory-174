@@ -1,4 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import { createGoodMemory } from "../../src/api/createGoodMemory";
+import {
+  inspectGoodMemoryRuntime,
+  resolveGoodMemoryRuntimeInfo,
+} from "../../src/api/runtimeInfo";
 import {
   DEFAULT_SQLITE_STORAGE_PATH,
   resolveAssistedExtractorModelConfigFromEnv,
@@ -6,12 +11,20 @@ import {
   resolveGoodMemoryRuntimeResolution,
   resolveStoragePlan,
 } from "../../src/api/runtimeResolution";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+  createInMemoryVectorStore,
+} from "../../src/storage/memory";
 
 describe("runtime resolution", () => {
   it("defaults to local sqlite when no explicit storage is provided", () => {
     const plan = resolveStoragePlan({
       cwd: "/workspace/project",
       env: {},
+      runtimeCapabilities: {
+        localDefaultSQLite: true,
+      },
     });
 
     expect(plan).toEqual({
@@ -114,6 +127,9 @@ describe("runtime resolution", () => {
     const plan = resolveStoragePlan({
       cwd: "/workspace/project",
       env: {},
+      runtimeCapabilities: {
+        localDefaultSQLite: true,
+      },
       storage: {
         url: "postgres://localhost:5432/goodmemory",
       },
@@ -132,6 +148,9 @@ describe("runtime resolution", () => {
       env: {
         GOODMEMORY_STORAGE_URL: "postgres://env-host/goodmemory",
       },
+      runtimeCapabilities: {
+        localDefaultSQLite: true,
+      },
     });
 
     expect(plan).toEqual({
@@ -146,6 +165,9 @@ describe("runtime resolution", () => {
       cwd: "/workspace/project",
       env: {
         GOODMEMORY_STORAGE_PROVIDER: "postgres",
+      },
+      runtimeCapabilities: {
+        localDefaultSQLite: true,
       },
       storage: {
         url: "./custom/local-memory.db",
@@ -163,6 +185,9 @@ describe("runtime resolution", () => {
     const plan = resolveStoragePlan({
       cwd: "/workspace/project",
       env: {},
+      runtimeCapabilities: {
+        localDefaultSQLite: true,
+      },
       storage: {
         url: "./custom/local-memory.db",
       },
@@ -185,6 +210,9 @@ describe("runtime resolution", () => {
         config: {},
         cwd: "/workspace/project",
         env: {},
+        runtimeCapabilities: {
+          localDefaultSQLite: true,
+        },
       }),
     ).toEqual({
       assistedExtractionEnabled: false,
@@ -193,10 +221,250 @@ describe("runtime resolution", () => {
       embeddingModelConfig: null,
       explicitAdaptersConfigured: false,
       explicitStorageConfigured: false,
+      runtimeCapabilities: {
+        builtInPostgres: true,
+        builtInSQLite: true,
+        localDefaultSQLite: true,
+      },
+      storageAdapterOverrides: [],
       storagePlan: {
         mode: "auto",
         postgresUrl: undefined,
         sqliteUrl: "/workspace/project/.goodmemory/memory.sqlite",
+      },
+    });
+  });
+
+  it("falls back to in-memory auto storage when the runtime lacks the local sqlite default", () => {
+    const plan = resolveStoragePlan({
+      cwd: "/workspace/project",
+      env: {},
+      runtimeCapabilities: {
+        localDefaultSQLite: false,
+      },
+    });
+
+    expect(plan).toEqual({
+      mode: "auto",
+      fallbackProvider: "memory",
+      postgresUrl: undefined,
+    });
+  });
+
+  it("keeps an explicit local sqlite path authoritative even when the runtime lacks the sqlite default", () => {
+    const plan = resolveStoragePlan({
+      cwd: "/workspace/project",
+      env: {},
+      runtimeCapabilities: {
+        localDefaultSQLite: false,
+      },
+      storage: {
+        url: "./custom/local-memory.db",
+      },
+    });
+
+    expect(plan).toEqual({
+      mode: "auto",
+      postgresUrl: undefined,
+      sqliteUrl: "/workspace/project/custom/local-memory.db",
+    });
+  });
+
+  it("uses in-memory fallback for the shared runtime resolution when local sqlite is unavailable", () => {
+    expect(
+      resolveGoodMemoryRuntimeResolution({
+        config: {},
+        cwd: "/workspace/project",
+        env: {},
+        runtimeCapabilities: {
+          localDefaultSQLite: false,
+        },
+      }),
+    ).toEqual({
+      assistedExtractionEnabled: false,
+      assistedExtractorModelConfig: null,
+      embeddingEnabled: false,
+      embeddingModelConfig: null,
+      explicitAdaptersConfigured: false,
+      explicitStorageConfigured: false,
+      runtimeCapabilities: {
+        builtInPostgres: true,
+        builtInSQLite: false,
+        localDefaultSQLite: false,
+      },
+      storageAdapterOverrides: [],
+      storagePlan: {
+        mode: "auto",
+        fallbackProvider: "memory",
+        postgresUrl: undefined,
+      },
+    });
+  });
+
+  it("makes the zero-config Node-style memory fallback observable", () => {
+    expect(
+      resolveGoodMemoryRuntimeInfo({
+        config: {},
+        cwd: "/workspace/project",
+        env: {},
+        runtimeCapabilities: {
+          localDefaultSQLite: false,
+        },
+      }),
+    ).toEqual({
+      assistedExtractionEnabled: false,
+      embeddingEnabled: false,
+      explicitAdaptersConfigured: false,
+      explicitStorageConfigured: false,
+      storage: {
+        mode: "auto",
+        primaryProvider: "memory",
+        durability: "ephemeral",
+        fallbackReason: "runtime_without_local_sqlite",
+        postgresConfigured: false,
+      },
+    });
+  });
+
+  it("marks explicit sqlite storage as unavailable when the runtime lacks the built-in sqlite adapter", () => {
+    expect(
+      resolveGoodMemoryRuntimeInfo({
+        config: {
+          storage: {
+            provider: "sqlite",
+            url: "./state/local.db",
+          },
+        },
+        cwd: "/workspace/project",
+        env: {},
+        runtimeCapabilities: {
+          builtInSQLite: false,
+          localDefaultSQLite: false,
+        },
+      }),
+    ).toEqual({
+      assistedExtractionEnabled: false,
+      embeddingEnabled: false,
+      explicitAdaptersConfigured: false,
+      explicitStorageConfigured: true,
+      storage: {
+        mode: "explicit",
+        primaryProvider: "sqlite",
+        durability: "unavailable",
+        postgresConfigured: false,
+        sqliteUrl: "/workspace/project/state/local.db",
+        unavailableReason: "runtime_without_builtin_sqlite",
+      },
+    });
+  });
+
+  it("marks an explicit sqlite path override as unavailable when the runtime lacks the built-in sqlite adapter", () => {
+    expect(
+      resolveGoodMemoryRuntimeInfo({
+        config: {
+          storage: {
+            url: "./state/local.db",
+          },
+        },
+        cwd: "/workspace/project",
+        env: {},
+        runtimeCapabilities: {
+          builtInSQLite: false,
+          localDefaultSQLite: false,
+        },
+      }),
+    ).toEqual({
+      assistedExtractionEnabled: false,
+      embeddingEnabled: false,
+      explicitAdaptersConfigured: false,
+      explicitStorageConfigured: true,
+      storage: {
+        mode: "auto",
+        primaryProvider: "sqlite",
+        durability: "unavailable",
+        postgresConfigured: false,
+        sqliteUrl: "/workspace/project/state/local.db",
+        unavailableReason: "runtime_without_builtin_sqlite",
+      },
+    });
+  });
+
+  it("marks explicit postgres storage as unavailable when the runtime lacks the built-in postgres adapter", () => {
+    expect(
+      resolveGoodMemoryRuntimeInfo({
+        config: {
+          storage: {
+            provider: "postgres",
+            url: "postgres://localhost:5432/goodmemory",
+          },
+        },
+        cwd: "/workspace/project",
+        env: {},
+        runtimeCapabilities: {
+          builtInPostgres: false,
+          builtInSQLite: false,
+          localDefaultSQLite: false,
+        },
+      }),
+    ).toEqual({
+      assistedExtractionEnabled: false,
+      embeddingEnabled: false,
+      explicitAdaptersConfigured: false,
+      explicitStorageConfigured: true,
+      storage: {
+        mode: "explicit",
+        primaryProvider: "postgres",
+        durability: "unavailable",
+        postgresConfigured: true,
+        unavailableReason: "runtime_without_builtin_postgres",
+      },
+    });
+  });
+
+  it("reports adapter-defined storage when storage adapters override the built-in plan", () => {
+    const memory = createGoodMemory({
+      storage: {
+        provider: "sqlite",
+        url: "./state/local.db",
+      },
+      adapters: {
+        documentStore: createInMemoryDocumentStore(),
+        sessionStore: createInMemorySessionStore(),
+        vectorStore: createInMemoryVectorStore(),
+      },
+    });
+
+    expect(inspectGoodMemoryRuntime(memory)).toEqual({
+      assistedExtractionEnabled: false,
+      embeddingEnabled: false,
+      explicitAdaptersConfigured: true,
+      explicitStorageConfigured: true,
+      storage: {
+        mode: "adapter",
+        primaryProvider: "adapter",
+        durability: "adapter_defined",
+        overriddenStores: ["documentStore", "sessionStore", "vectorStore"],
+      },
+    });
+  });
+
+  it("attaches runtime info to created memory instances", () => {
+    const memory = createGoodMemory({
+      storage: {
+        provider: "memory",
+      },
+    });
+
+    expect(inspectGoodMemoryRuntime(memory)).toEqual({
+      assistedExtractionEnabled: false,
+      embeddingEnabled: false,
+      explicitAdaptersConfigured: false,
+      explicitStorageConfigured: true,
+      storage: {
+        mode: "explicit",
+        primaryProvider: "memory",
+        durability: "ephemeral",
+        postgresConfigured: false,
       },
     });
   });

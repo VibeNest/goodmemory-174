@@ -42,15 +42,21 @@ const context = await memory.buildContext({
 
 ## Install
 
-GoodMemory `0.1.0-rc.1` is a **Bun-only** prerelease. This RC freezes the
-public package surface at:
+GoodMemory `0.1.0-rc.1` now exposes a Node-compatible packaged library boundary for:
 
 - `goodmemory`
 - `goodmemory/ai-sdk`
 - `goodmemory/host`
-- the current read-first CLI commands
+
+The installed CLI remains Bun-backed today.
 
 Published install:
+
+```bash
+npm install goodmemory@0.1.0-rc.1
+```
+
+Bun install:
 
 ```bash
 bun add goodmemory@0.1.0-rc.1
@@ -59,19 +65,33 @@ bun add goodmemory@0.1.0-rc.1
 Tarball verification for release rehearsal before publish:
 
 ```bash
-bun add ./goodmemory-0.1.0-rc.1.tgz
+npm install ./goodmemory-0.1.0-rc.1.tgz
 ```
 
-The default runtime contract stays local-first:
+The default runtime contract stays low-friction:
 
 - `createGoodMemory({})`
 - explicit storage config still wins when provided
-- without explicit storage, GoodMemory prefers a bootstrappable Postgres target and otherwise falls back to `./.goodmemory/memory.sqlite`
+- without explicit storage, GoodMemory prefers a bootstrappable Postgres target
+- on Bun, the zero-config local durable fallback remains `./.goodmemory/memory.sqlite`
+- on Node runtimes without the built-in local SQLite adapter, the zero-config fallback is in-memory
+- explicit built-in `sqlite` / `postgres` storage on unsupported runtimes is reported as unavailable, not durable
+- when `documentStore` / `sessionStore` / `vectorStore` are injected, runtime inspection reports adapter-defined storage instead of guessing built-in durability
 - without `GOODMEMORY_EMBEDDING_*`, runtime stays `rules-only`
+
+If your integration cares about durability, inspect the resolved runtime after
+construction instead of assuming Bun-style local persistence:
+
+```ts
+import { createGoodMemory, inspectGoodMemoryRuntime } from "goodmemory";
+
+const memory = createGoodMemory({});
+const runtime = inspectGoodMemoryRuntime(memory);
+```
 
 ## CLI
 
-GoodMemory `0.1.0-rc.1` 自带一个 Bun-only、只读的已安装 CLI。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。唯一的策略诊断例外是 `trace --ignore-memory`：它会把 recall 视为空集并直接跳过存储解析。
+GoodMemory `0.1.0-rc.1` 自带一个 Bun-backed、只读的已安装 CLI。包里的 `goodmemory` bin 现在可以在 Node 包安装场景下安全暴露；真正执行命令时会委托给 Bun。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则在 Bun 运行时回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。唯一的策略诊断例外是 `trace --ignore-memory`：它会把 recall 视为空集并直接跳过存储解析。
 
 ```bash
 ./node_modules/.bin/goodmemory inspect --user-id <user-id> --workspace-id <workspace-id>
@@ -107,7 +127,7 @@ the installed-package contract.
 
 Installed-package quickstart and integration guidance:
 
-- Bun-only install and quickstart: this `README`
+- Node + Bun install and library quickstart: this `README`
 - Reference integration guide: [docs/GoodMemory-Reference-Integration-Guide.md](./docs/GoodMemory-Reference-Integration-Guide.md)
 - Codex handoff setup guide: [docs/GoodMemory-Codex-Handoff-Setup-Guide.md](./docs/GoodMemory-Codex-Handoff-Setup-Guide.md)
 - Claude Code setup guide: [docs/GoodMemory-Claude-Code-Setup-Guide.md](./docs/GoodMemory-Claude-Code-Setup-Guide.md)
@@ -213,16 +233,17 @@ Notes:
 
 ## Current Status
 
-GoodMemory 的稳定 OSS 入口是内存 API、Bun-only 已安装 CLI、编译型导出产物，以及默认推荐的 `file-assisted` host adapter 路径。当前哪些能力已经稳定、哪些仍是内部 rollout 机制、以及现行证据该看哪里，统一收敛在 [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)。
+GoodMemory 的稳定 OSS 入口是内存 API、Node-compatible 编译型包边界、Bun-backed 已安装 CLI，以及默认推荐的 `file-assisted` host adapter 路径。当前哪些能力已经稳定、哪些仍是内部 rollout 机制、以及现行证据该看哪里，统一收敛在 [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)。
 
 默认运行时现在遵循 local-first 自动解析：
 
 - 显式 `storage.provider` 优先
 - 没有显式 provider 时，只在可用 Postgres 目标存在时优先走 Postgres
-- 否则默认落到本地 `./.goodmemory/memory.sqlite`
+- 在 Bun 上默认落到本地 `./.goodmemory/memory.sqlite`
+- 在不具备内建本地 sqlite adapter 的 Node 运行时上，零配置默认回落到 in-memory
 - 只有在 `GOODMEMORY_EMBEDDING_*` 完整配置时才自动开启 embeddings；否则保持 `rules-only`
 - 在支持的本地运行时上，sqlite 语义检索现在会自动升级到真实 `sqlite-vss` indexed backend；如果运行时不支持，则明确保持 durable fallback，不会假装已经加速
-- `0.1.0-rc.1` 的发布合同是 Bun-only、tarball-first；registry publish 不是这个 RC 的 blocking claim
+- `0.1.0-rc.1` 当前的包边界合同是 `goodmemory` / `goodmemory/ai-sdk` / `goodmemory/host` 走编译型 `dist/` 导出；CLI 仍然是 Bun-backed 的运行时附加面
 
 历史 phase closure 文档已经从顶层 docs 下沉到 [docs/archive/quality-gates/README.md](./docs/archive/quality-gates/README.md)。`README` 不再承担按 phase 讲述构建历史的职责；如果你要看执行顺序、闭环状态或 reopen 规则，入口是 [task-board/00-README.txt](./task-board/00-README.txt)。
 

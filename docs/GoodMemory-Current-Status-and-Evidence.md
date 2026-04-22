@@ -7,13 +7,14 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 ## Stable OSS Surface
 
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
-- `0.1.0-rc.1` is now frozen as a Bun-only prerelease contract. The canonical installable unit is the tarball produced by `bun pm pack`; registry publish is not a blocking claim for this RC.
-- `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend, and local SQLite is the fallback.
-- The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`.
+- `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` now resolve through compiled `dist/` artifacts and emitted type declarations on the packaged install surface.
+- `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend; Bun keeps local SQLite as the zero-config durable fallback; Node zero-config runtime falls back to in-memory when the built-in local SQLite adapter is unavailable.
+- `inspectGoodMemoryRuntime(memory)` now exposes the sanitized resolved storage/runtime plan so Node zero-config in-memory fallback is observable through the public API instead of being silent, unsupported built-in `sqlite` / `postgres` selections are reported as unavailable instead of durable, and injected storage adapters are reported as adapter-defined execution instead of being mislabeled as the configured built-in plan.
+- The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`. The package bin is Node-safe, but command execution is still Bun-backed today.
 - Installed-package external host wiring is now part of the accepted OSS surface through `goodmemory codex bootstrap` and `goodmemory claude bootstrap`; those commands only generate or patch repo-local host scaffolds and do not create canonical memory state.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
 - Optional adapter-level agent-event ingestion now exists on `goodmemory/ai-sdk` and `goodmemory/host`; no new root `goodmemory/evolution` module was added.
-- `sqlite` is now stable as the default local durable document/session/vector backend for the auto-storage path.
+- `sqlite` remains the stable default local durable document/session/vector backend on Bun.
 - Generic live-memory eval semantics are now auto-storage aligned across both CLI and script helpers:
   - `bun run eval:live-memory` and `runLiveMemoryEval()` follow the normal runtime storage resolver, so default local SQLite remains valid and configured Postgres becomes provider-backed.
   - `bun run eval:live-provider-memory` and `runLiveProviderMemoryEval()` are the explicit provider-backed entrypoints when silent fallback would invalidate evidence.
@@ -28,18 +29,19 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 32 is now closed as the external host-integration productization slice for the accepted `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host` line.
+- Phase 33 is now closed as the formal Node-compatible package-boundary and Node-first integration slice.
 - Accepted behavior:
-  - installed-package `goodmemory codex bootstrap` and `goodmemory claude bootstrap` now generate repo-local host wiring through public imports only
-  - `goodmemory/ai-sdk` and `goodmemory/host` now expose optional adapter-level `*AgentEvent` inputs without widening the root API
-  - external `coding_agent` recall/context now consumes accepted event-backed procedural patterns, runtime continuity, and evidence lineage on the public path
-  - the canonical Codex external-host live report now proves continuity/open-loop restoration, repeated-correction summary-rule recall, and procedure-adherence rule/blocker recall from exported host artifacts
-  - Claude Code reached bootstrap/docs/package-smoke parity, while Codex remained the only live gate blocker
-- Still outside the accepted Phase 32 claim:
+  - `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` now ship through compiled `dist/` outputs plus `.d.ts` declarations instead of direct `src/*.ts` exports
+  - Node package-boundary consumers can install the packed artifact and run the canonical `createGoodMemory({})` + `goodmemory/ai-sdk` + `goodmemory/host` path successfully on the packaged surface
+  - Bun keeps the zero-config local SQLite durable default; Node zero-config runtime falls back honestly to in-memory when the built-in local SQLite adapter is unavailable
+  - the installed `goodmemory` bin is Node-safe at the package boundary while remaining explicitly Bun-backed for execution
+  - the Bun core gate is now paired with a dedicated Node 20/22 package-boundary CI matrix
+  - the accepted external host product line from Phase 32 remains intact on top of the widened package boundary
+- Still outside the accepted Phase 33 claim:
+  - claiming built-in Bun-specific storage adapters behave identically in every runtime
   - public `goodmemory/evolution`
-  - making Claude a second live gate blocker
-  - transcript-database behavior or raw tool-output persistence as a new truth source
-  - changing the Phase 28 local backend contract or Phase 29 Bun-only release boundary
+  - dashboard/admin UI or new memory capability work
+  - making Claude a second live gate blocker or widening host evidence beyond the accepted external line
 
 ## Current Canonical Evidence
 
@@ -76,7 +78,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Canonical local sqlite-vss backend closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json`
-- Bun-only release-hardening closure:
+- Historical Bun-only release-hardening closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json`
   - RC dry run report: `reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json`
@@ -93,6 +95,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic/live gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
   - Deterministic fallback report: `reports/eval/fallback/phase-32/run-20260422173045/report.json`
   - Codex external-host live report: `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
+- Node-compatible package-boundary and Node-first integration closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
+  - Quality gate: `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

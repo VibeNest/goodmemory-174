@@ -1,3 +1,5 @@
+import type { GoodMemory, GoodMemoryRuntimeInfo } from "goodmemory";
+import { inspectGoodMemoryRuntime } from "goodmemory";
 import type {
   AgentEventStructuredValue,
   AgentInputEvent,
@@ -17,6 +19,10 @@ const toolPayload: AgentEventStructuredValue = {
     limit: 2,
   },
 };
+
+declare const memory: GoodMemory;
+
+const runtimeInfo: GoodMemoryRuntimeInfo | undefined = inspectGoodMemoryRuntime(memory);
 
 const aiEvent = {
   surface: "ai-sdk",
@@ -93,3 +99,4 @@ void (0 as unknown as RootAgentInputEvent);
 void (0 as unknown as RootHostAgentEvent);
 void rootValidateAgentInputEvent;
 void rootValidateHostAgentEvent;
+void runtimeInfo;

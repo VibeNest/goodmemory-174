@@ -12,6 +12,23 @@ const ASSISTED_EXTRACTOR_ENV_PREFIX = "GOODMEMORY_ASSISTED_EXTRACTOR";
 type EnvironmentMap = Record<string, string | undefined>;
 type ExplicitProvider = NonNullable<StorageConfig["provider"]>;
 
+export interface GoodMemoryRuntimeCapabilitiesInput {
+  builtInPostgres?: boolean;
+  builtInSQLite?: boolean;
+  localDefaultSQLite?: boolean;
+}
+
+export interface GoodMemoryRuntimeCapabilities {
+  builtInPostgres: boolean;
+  builtInSQLite: boolean;
+  localDefaultSQLite: boolean;
+}
+
+export type GoodMemoryStorageAdapterOverride =
+  | "documentStore"
+  | "sessionStore"
+  | "vectorStore";
+
 interface ResolvedStorageSource {
   provider?: ExplicitProvider;
   url?: string;
@@ -39,6 +56,11 @@ export type StoragePlan =
       mode: "auto";
       postgresUrl?: string;
       sqliteUrl: string;
+    }
+  | {
+      mode: "auto";
+      fallbackProvider: "memory";
+      postgresUrl?: string;
     };
 
 export interface GoodMemoryRuntimeResolution {
@@ -48,6 +70,8 @@ export interface GoodMemoryRuntimeResolution {
   embeddingModelConfig: AISDKModelConfig | null;
   explicitAdaptersConfigured: boolean;
   explicitStorageConfigured: boolean;
+  runtimeCapabilities: GoodMemoryRuntimeCapabilities;
+  storageAdapterOverrides: GoodMemoryStorageAdapterOverride[];
   storagePlan: StoragePlan;
 }
 
@@ -76,6 +100,26 @@ function hasExplicitAdaptersConfigured(
       adapters?.sessionStore ||
       adapters?.vectorStore,
   );
+}
+
+function resolveStorageAdapterOverrides(
+  adapters: GoodMemoryConfig["adapters"] | undefined,
+): GoodMemoryStorageAdapterOverride[] {
+  const overrides: GoodMemoryStorageAdapterOverride[] = [];
+
+  if (adapters?.documentStore) {
+    overrides.push("documentStore");
+  }
+
+  if (adapters?.sessionStore) {
+    overrides.push("sessionStore");
+  }
+
+  if (adapters?.vectorStore) {
+    overrides.push("vectorStore");
+  }
+
+  return overrides;
 }
 
 function resolveExplicitProvider(
@@ -114,6 +158,35 @@ function resolveStorageSource(
   };
 }
 
+function supportsBuiltInSQLiteRuntime(): boolean {
+  return typeof (globalThis as { Bun?: unknown }).Bun !== "undefined";
+}
+
+function supportsBuiltInPostgresRuntime(): boolean {
+  return typeof (globalThis as { Bun?: unknown }).Bun !== "undefined";
+}
+
+function resolveRuntimeCapabilities(
+  input: GoodMemoryRuntimeCapabilitiesInput | undefined,
+): GoodMemoryRuntimeCapabilities {
+  const builtInSQLite =
+    input?.builtInSQLite ??
+    input?.localDefaultSQLite ??
+    supportsBuiltInSQLiteRuntime();
+  const builtInPostgres =
+    input?.builtInPostgres ??
+    supportsBuiltInPostgresRuntime();
+  const localDefaultSQLite =
+    input?.localDefaultSQLite ??
+    builtInSQLite;
+
+  return {
+    builtInPostgres,
+    builtInSQLite,
+    localDefaultSQLite,
+  };
+}
+
 export function isPostgresConnectionString(value: string): boolean {
   return /^(?:postgres|postgresql):\/\//i.test(value.trim());
 }
@@ -134,9 +207,13 @@ export function resolveStoragePlan(input: {
   storage?: StorageConfig;
   env?: EnvironmentMap;
   cwd?: string;
+  runtimeCapabilities?: GoodMemoryRuntimeCapabilitiesInput;
 }): StoragePlan {
   const env = input.env ?? process.env;
   const cwd = input.cwd ?? process.cwd();
+  const localDefaultSQLite = resolveRuntimeCapabilities(
+    input.runtimeCapabilities,
+  ).localDefaultSQLite;
   const resolvedSource = resolveStorageSource(input.storage, env);
   const explicitProvider = resolvedSource.provider;
   const configuredUrl = resolvedSource.url;
@@ -177,10 +254,26 @@ export function resolveStoragePlan(input: {
   }
 
   if (configuredUrl && isPostgresConnectionString(configuredUrl)) {
+    if (!localDefaultSQLite) {
+      return {
+        mode: "auto",
+        fallbackProvider: "memory",
+        postgresUrl: configuredUrl,
+      };
+    }
+
     return {
       mode: "auto",
       postgresUrl: configuredUrl,
       sqliteUrl: resolveSQLiteStorageUrl(undefined, cwd),
+    };
+  }
+
+  if (!configuredUrl && !localDefaultSQLite) {
+    return {
+      mode: "auto",
+      fallbackProvider: "memory",
+      postgresUrl: undefined,
     };
   }
 
@@ -195,8 +288,10 @@ export function resolveGoodMemoryRuntimeResolution(input: {
   config: Pick<GoodMemoryConfig, "adapters" | "storage">;
   env?: EnvironmentMap;
   cwd?: string;
+  runtimeCapabilities?: GoodMemoryRuntimeCapabilitiesInput;
 }): GoodMemoryRuntimeResolution {
   const env = input.env ?? process.env;
+  const runtimeCapabilities = resolveRuntimeCapabilities(input.runtimeCapabilities);
   const embeddingModelConfig = input.config.adapters?.embeddingAdapter
     ? null
     : resolveEmbeddingModelConfigFromEnv(env);
@@ -215,10 +310,13 @@ export function resolveGoodMemoryRuntimeResolution(input: {
     embeddingModelConfig,
     explicitAdaptersConfigured: hasExplicitAdaptersConfigured(input.config.adapters),
     explicitStorageConfigured: hasExplicitStorageConfigured(input.config.storage),
+    runtimeCapabilities,
+    storageAdapterOverrides: resolveStorageAdapterOverrides(input.config.adapters),
     storagePlan: resolveStoragePlan({
       storage: input.config.storage,
       env,
       cwd: input.cwd,
+      runtimeCapabilities,
     }),
   };
 }

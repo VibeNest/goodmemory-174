@@ -12,12 +12,17 @@ import {
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
-} from "./postgres";
+} from "./postgresPublic";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+  createInMemoryVectorStore,
+} from "./memory";
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
   createSQLiteVectorStore,
-} from "./sqlite";
+} from "./sqlitePublic";
 import type { MemoryScope } from "../domain/scope";
 import type {
   SessionBuffer,
@@ -25,10 +30,15 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 
-interface AutoStorageConfig {
-  postgresUrl?: string;
-  sqliteUrl: string;
-}
+type AutoStorageConfig =
+  | {
+      postgresUrl?: string;
+      sqliteUrl: string;
+    }
+  | {
+      fallbackProvider: "memory";
+      postgresUrl?: string;
+    };
 
 interface ResolvedStorageBackend {
   documentStore: DocumentStore;
@@ -179,11 +189,30 @@ export function createAutoStorageAdapters(
   sessionStore: SessionStore;
   vectorStore: VectorStore;
 } {
+  let inMemoryBackend: ResolvedStorageBackend | null = null;
   let sqliteBackend: ResolvedStorageBackend | null = null;
   let postgresBackend: ResolvedStorageBackend | null = null;
   let resolution: Promise<ResolvedStorageBackend> | null = null;
 
+  function getInMemoryBackend(): ResolvedStorageBackend {
+    if (inMemoryBackend) {
+      return inMemoryBackend;
+    }
+
+    inMemoryBackend = {
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+      vectorStore: createInMemoryVectorStore(),
+    };
+
+    return inMemoryBackend;
+  }
+
   function getSQLiteBackend(): ResolvedStorageBackend {
+    if (!("sqliteUrl" in config)) {
+      return getInMemoryBackend();
+    }
+
     if (sqliteBackend) {
       return sqliteBackend;
     }
@@ -246,7 +275,9 @@ export function createAutoStorageAdapters(
           }
         }
 
-        return getSQLiteBackend();
+        return "sqliteUrl" in config
+          ? getSQLiteBackend()
+          : getInMemoryBackend();
       })();
     }
 

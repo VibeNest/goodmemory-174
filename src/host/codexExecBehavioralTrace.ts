@@ -1,3 +1,5 @@
+import { accessSync, constants } from "node:fs";
+import { delimiter, extname, join } from "node:path";
 import type { BehavioralFirstAction } from "../evolution/behavioralTelemetry";
 import {
   type HostBehavioralTrace,
@@ -106,12 +108,94 @@ function normalizePathBinary(value: string | undefined): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function resolveBunWhich():
+  | ((binary: string) => string | null | undefined)
+  | undefined {
+  const runtime = globalThis as {
+    Bun?: {
+      which?: (binary: string) => string | null | undefined;
+    };
+  };
+
+  return runtime.Bun?.which;
+}
+
+function resolveWindowsExecutableExtensions(
+  value: string | undefined,
+): string[] {
+  const configured = value
+    ?.split(";")
+    .map((extension) => extension.trim())
+    .filter((extension) => extension.length > 0);
+
+  if (configured && configured.length > 0) {
+    return configured;
+  }
+
+  return [".exe", ".cmd", ".bat", ".com"];
+}
+
+function isExecutableFile(path: string): boolean {
+  try {
+    accessSync(
+      path,
+      process.platform === "win32" ? constants.F_OK : constants.X_OK,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveBinaryOnPath(
+  binary: string,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  const pathValue = normalizePathBinary(env.PATH);
+  if (!pathValue) {
+    return undefined;
+  }
+
+  const windows = process.platform === "win32";
+  const needsWindowsExtension =
+    windows &&
+    extname(binary).length === 0;
+  const executableExtensions = windows
+    ? resolveWindowsExecutableExtensions(env.PATHEXT)
+    : [""];
+
+  for (const directory of pathValue.split(delimiter)) {
+    const normalizedDirectory = directory.trim();
+    if (!normalizedDirectory) {
+      continue;
+    }
+
+    const candidates = needsWindowsExtension
+      ? executableExtensions.map((extension) =>
+          join(normalizedDirectory, `${binary}${extension}`)
+        )
+      : [join(normalizedDirectory, binary)];
+
+    for (const candidate of candidates) {
+      if (isExecutableFile(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 export function resolveCodexExecRuntime(
   input: CodexExecRuntimeResolutionInput = {},
 ): CodexExecRuntimeResolution {
   const env = input.env ?? process.env;
-  const which = input.which ?? Bun.which;
-  const codexBinary = normalizePathBinary(env.GOODMEMORY_CODEX_BINARY) ?? which("codex");
+  const bunWhich = resolveBunWhich();
+  const codexBinary =
+    normalizePathBinary(env.GOODMEMORY_CODEX_BINARY) ??
+    input.which?.("codex") ??
+    bunWhich?.("codex") ??
+    resolveBinaryOnPath("codex", env);
 
   if (!codexBinary) {
     throw new Error(

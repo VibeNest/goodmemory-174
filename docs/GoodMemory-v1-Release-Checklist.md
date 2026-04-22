@@ -1,16 +1,16 @@
 # GoodMemory v1 Release Checklist
 
-## RC Contract
+## Package Boundary
 
-- `0.1.0-rc.1` is Bun-only
-- registry publish is not a blocking requirement for this RC
-- `bun pm pack` tarball is the canonical installable release artifact
+- `0.1.0-rc.1` packages `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` through compiled `dist/` outputs plus declarations
+- registry publish is still not a blocking requirement for this RC
+- `bun pm pack` tarball remains a canonical installable release artifact
 - public package surface remains:
   - `goodmemory`
   - `goodmemory/ai-sdk`
   - `goodmemory/host`
-  - current CLI commands
-- no new memory capability, no Node runtime expansion, no installer CLI inside this release-hardening slice
+- the installed CLI remains a Bun-backed runtime add-on
+- no new memory capability, no dashboard/admin UI, and no new public `goodmemory/evolution` module in this slice
 
 ## CLI
 
@@ -67,7 +67,7 @@
 
 - `bun test` passes on the canonical `tests/` suite
 - `bun run test:coverage` passes and enforces script/source coverage gates
-- `bun run gate:phase-29` passes
+- `bun run gate:phase-33` passes
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
@@ -76,13 +76,13 @@
 
 - `package.json` exposes `bin`, `exports`, and example scripts
 - `package.json` is not private and uses version `0.1.0-rc.1`
-- `package.json` declares Bun runtime support and release metadata
+- `package.json` declares Node and Bun runtime support for the packaged boundary
 - `LICENSE` exists and matches package metadata
-- CLI wrapper exists at `scripts/goodmemory-cli.ts`
+- CLI wrapper exists at `scripts/goodmemory-cli.js`
 - `bun pm pack --dry-run` succeeds
-- the tarball contains the Bun-native source exports, CLI entrypoint, docs, and license
+- the tarball contains compiled `dist/` exports, the CLI entrypoint, docs, and license
 - the tarball omits repo-only payload such as tests, task-board files, and reports
-- a fresh Bun consumer can install the tarball and use only:
+- a fresh Node or Bun consumer can install the tarball and use only:
   - `goodmemory`
   - `goodmemory/ai-sdk`
   - `goodmemory/host`
@@ -92,11 +92,12 @@
 ## Manual Review
 
 - public API surface matches current product story
-- Bun-only wording is explicit and not hidden behind implied compatibility
+- Node-compatible library wording is explicit, and Bun-backed CLI/runtime-specific local storage wording is also explicit
 - governance controls match PRD and v1 architecture requirements
-- installed-package docs use `bun add goodmemory` / tarball install before any repo-local development notes
+- installed-package docs show Node-compatible install plus Bun-specific runtime notes before any repo-local development notes
 - examples still reflect the recommended integration path
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
-- the canonical Phase 29 gate and RC dry-run reports are archived under `reports/quality-gates/phase-29/`
+- the active package-boundary gate report lives under `reports/quality-gates/phase-33/`
+- the historical Phase 29 gate and RC dry-run reports remain archived under `reports/quality-gates/phase-29/`

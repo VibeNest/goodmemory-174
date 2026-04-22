@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "smoke": "bun run smoke.mjs"
+    "smoke": "bun run smoke.mjs",
+    "smoke:node": "node smoke.mjs"
   },
   "dependencies": {
     "goodmemory": "__GOODMEMORY_PACKAGE_SPEC__"

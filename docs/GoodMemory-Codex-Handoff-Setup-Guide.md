@@ -1,10 +1,16 @@
 # GoodMemory Codex Handoff Setup Guide
 
-This is the canonical Bun-only `0.1.0-rc.1` Codex bootstrap path on the installed package surface.
+This is the canonical installed-package `0.1.0-rc.1` Codex bootstrap path.
 
 ## Install
 
-Published RC install:
+Published install:
+
+```bash
+npm install goodmemory@0.1.0-rc.1
+```
+
+Bun install:
 
 ```bash
 bun add goodmemory@0.1.0-rc.1
@@ -13,7 +19,7 @@ bun add goodmemory@0.1.0-rc.1
 Tarball verification of the same release artifact before publish:
 
 ```bash
-bun add ./goodmemory-0.1.0-rc.1.tgz
+npm install ./goodmemory-0.1.0-rc.1.tgz
 ```
 
 ## Bootstrap
@@ -60,7 +66,8 @@ import { createHostAdapter } from "goodmemory/host";
 
 ## Stable Contract
 
-- `0.1.0-rc.1` is Bun-only.
+- `goodmemory` and `goodmemory/host` now resolve through compiled package artifacts on both Node and Bun.
+- The installed bootstrap CLI remains Bun-backed today.
 - Codex remains the only live gate-blocking host path for Phase 32.
 - The generated bootstrap path keeps the recommended `file-assisted` read flow.
 - The host path should use only:

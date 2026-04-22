@@ -1,10 +1,16 @@
 # GoodMemory Claude Code Setup Guide
 
-This is the canonical Bun-only `0.1.0-rc.1` Claude Code bootstrap path on the installed package surface.
+This is the canonical installed-package `0.1.0-rc.1` Claude Code bootstrap path.
 
 ## Install
 
-Published RC install:
+Published install:
+
+```bash
+npm install goodmemory@0.1.0-rc.1
+```
+
+Bun install:
 
 ```bash
 bun add goodmemory@0.1.0-rc.1
@@ -13,7 +19,7 @@ bun add goodmemory@0.1.0-rc.1
 Tarball verification of the same release artifact before publish:
 
 ```bash
-bun add ./goodmemory-0.1.0-rc.1.tgz
+npm install ./goodmemory-0.1.0-rc.1.tgz
 ```
 
 ## Bootstrap
@@ -58,7 +64,8 @@ import { createHostAdapter } from "goodmemory/host";
 
 ## Stable Contract
 
-- `0.1.0-rc.1` is Bun-only.
+- `goodmemory` and `goodmemory/host` now resolve through compiled package artifacts on both Node and Bun.
+- The installed bootstrap CLI remains Bun-backed today.
 - Claude Code bootstrap is supported for external usability and package-boundary parity.
 - Codex remains the only live gate-blocking host path for Phase 32.
 - The host bootstrap path should use only:

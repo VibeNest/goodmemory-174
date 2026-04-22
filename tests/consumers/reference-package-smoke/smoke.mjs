@@ -1,4 +1,4 @@
-import { createGoodMemory } from "goodmemory";
+import { createGoodMemory, inspectGoodMemoryRuntime } from "goodmemory";
 import {
   createGoodMemoryAISDK,
   validateAgentInputEvent,
@@ -27,6 +27,63 @@ for (const key of LOCAL_DEFAULT_RUNTIME_ENV_KEYS) {
 }
 
 const memory = createGoodMemory({});
+const runtimeInfo = inspectGoodMemoryRuntime(memory);
+
+const explicitSqliteMemory = createGoodMemory({
+  storage: {
+    provider: "sqlite",
+    url: "./consumer-node.sqlite",
+  },
+});
+const explicitSqliteRuntimeInfo = inspectGoodMemoryRuntime(explicitSqliteMemory);
+
+let explicitSqliteRememberError;
+
+try {
+  await explicitSqliteMemory.remember({
+    scope: {
+      userId: "consumer-user",
+      workspaceId: "consumer-workspace",
+      sessionId: "consumer-explicit-sqlite",
+    },
+    messages: [
+      {
+        role: "user",
+        content: "Remember that explicit sqlite should not pretend to be durable on unsupported runtimes.",
+      },
+    ],
+  });
+} catch (error) {
+  explicitSqliteRememberError = error instanceof Error ? error.message : String(error);
+}
+
+const explicitPostgresMemory = createGoodMemory({
+  storage: {
+    provider: "postgres",
+    url: "postgres://localhost:5432/goodmemory",
+  },
+});
+const explicitPostgresRuntimeInfo = inspectGoodMemoryRuntime(explicitPostgresMemory);
+
+let explicitPostgresRememberError;
+
+try {
+  await explicitPostgresMemory.remember({
+    scope: {
+      userId: "consumer-user",
+      workspaceId: "consumer-workspace",
+      sessionId: "consumer-explicit-postgres",
+    },
+    messages: [
+      {
+        role: "user",
+        content: "Remember that explicit postgres should not pretend to be durable on unsupported runtimes.",
+      },
+    ],
+  });
+} catch (error) {
+  explicitPostgresRememberError = error instanceof Error ? error.message : String(error);
+}
 
 await memory.remember({
   scope: {
@@ -163,5 +220,10 @@ console.log(
         : "missing",
     ok: true,
     recallHitCount: recall.metadata.hits.length,
+    explicitPostgresRememberError,
+    explicitPostgresRuntimeInfo,
+    explicitSqliteRememberError,
+    explicitSqliteRuntimeInfo,
+    runtimeInfo,
   }),
 );

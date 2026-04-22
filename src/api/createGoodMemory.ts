@@ -40,7 +40,7 @@ import {
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
-} from "../storage/postgres";
+} from "../storage/postgresPublic";
 import { createMemoryRepositories } from "../storage/repositories";
 import type {
   GovernanceRepositoryPort,
@@ -51,7 +51,7 @@ import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
   createSQLiteVectorStore,
-} from "../storage/sqlite";
+} from "../storage/sqlitePublic";
 import {
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
@@ -64,6 +64,10 @@ import {
   attachGoodMemoryIntegrationSupport,
   type GoodMemoryIntegrationSupport,
 } from "./integrationSupport";
+import {
+  attachGoodMemoryRuntimeInfo,
+  buildGoodMemoryRuntimeInfo,
+} from "./runtimeInfo";
 import { createAgentEventIngestor } from "./agentEventIngestion";
 import { createEvolutionRuntime } from "./evolutionRuntime";
 import { deleteVectorForCollection } from "./governance";
@@ -89,6 +93,7 @@ import type {
   RunMaintenanceResult,
 } from "./contracts";
 import {
+  type GoodMemoryRuntimeResolution,
   resolveGoodMemoryRuntimeResolution,
   resolveAssistedExtractorModelConfigFromEnv,
 } from "./runtimeResolution";
@@ -376,6 +381,7 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly sessionStore;
   private readonly governanceRepositories: GovernanceRepositoryPort;
   private readonly governanceVectors: GovernanceVectorPort | null;
+  private readonly runtimeResolution: GoodMemoryRuntimeResolution;
   private readonly recallEngine;
   private readonly rememberEngine;
   private readonly evolutionRuntime: ReturnType<typeof createEvolutionRuntime>;
@@ -389,14 +395,22 @@ class GoodMemoryImpl implements GoodMemory {
     const runtimeResolution = resolveGoodMemoryRuntimeResolution({
       config,
     });
+    this.runtimeResolution = runtimeResolution;
     const storagePlan = runtimeResolution.storagePlan;
     const explicitStorage = storagePlan.mode === "explicit" ? storagePlan.storage : null;
     const autoStorageAdapters =
       storagePlan.mode === "auto"
-        ? createAutoStorageAdapters({
-            postgresUrl: storagePlan.postgresUrl,
-            sqliteUrl: storagePlan.sqliteUrl,
-          })
+        ? createAutoStorageAdapters(
+            "sqliteUrl" in storagePlan
+              ? {
+                  postgresUrl: storagePlan.postgresUrl,
+                  sqliteUrl: storagePlan.sqliteUrl,
+                }
+              : {
+                  fallbackProvider: "memory",
+                  postgresUrl: storagePlan.postgresUrl,
+                },
+          )
         : null;
     const embeddingAdapter =
       config.adapters?.embeddingAdapter ??
@@ -867,6 +881,7 @@ export function createInternalGoodMemory(
     feedback: GoodMemory["feedback"];
     language: ReturnType<typeof createLanguageService>;
     now: () => Date;
+    runtimeResolution: GoodMemoryRuntimeResolution;
   };
   type BehavioralOutcomeSupportInput = Parameters<
     Exclude<GoodMemoryEvalSupport["recordBehavioralOutcome"], undefined>
@@ -944,13 +959,15 @@ export function createInternalGoodMemory(
         }
       : {}),
   };
+  const runtimeInfo = buildGoodMemoryRuntimeInfo(implWithInternals.runtimeResolution);
+  const runtimeAwareMemory = attachGoodMemoryRuntimeInfo(memory, runtimeInfo);
 
   if (Object.keys(support).length === 0) {
-    return attachGoodMemoryIntegrationSupport(memory, integrationSupport);
+    return attachGoodMemoryIntegrationSupport(runtimeAwareMemory, integrationSupport);
   }
 
   return attachGoodMemoryEvalSupport(
-    attachGoodMemoryIntegrationSupport(memory, integrationSupport),
+    attachGoodMemoryIntegrationSupport(runtimeAwareMemory, integrationSupport),
     support,
   );
 }

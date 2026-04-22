@@ -552,7 +552,9 @@ export async function resolveStorageConfig(
     }
   }
 
-  const url = resolveSQLiteURL(plan.sqliteUrl);
+  const url = resolveSQLiteURL(
+    "sqliteUrl" in plan ? plan.sqliteUrl : undefined,
+  );
   if (options?.readOnlyStorage && url !== ":memory:" && !(await pathExistsFn(url))) {
     throw new Error(
       `Read-only CLI commands require an existing sqlite database at ${url}; they do not create local sqlite state implicitly.`,

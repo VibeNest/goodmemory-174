@@ -68,6 +68,11 @@ const PHASE27_ALLOWED_PACKAGE_IMPORTS = [
   "goodmemory/ai-sdk",
   "goodmemory/host",
 ] as const;
+const PHASE27_ALLOWED_TYPE_PACKAGE_IMPORTS = [
+  "goodmemory",
+  "goodmemory/ai-sdk",
+  "goodmemory/host",
+] as const;
 
 function uniqueSignals(signals: readonly string[]): string[] {
   return [...new Set(signals)];
@@ -244,7 +249,7 @@ export async function buildPhase27PublicSurfacePurityMetric(
     buildCheck(
       "package-boundary-type-imports",
       JSON.stringify(uniqueSmokeTypeImportSpecifiers) ===
-        JSON.stringify(PHASE27_ALLOWED_PACKAGE_IMPORTS.slice(1)),
+        JSON.stringify(PHASE27_ALLOWED_TYPE_PACKAGE_IMPORTS),
       `Package-boundary type smoke imports: ${uniqueSmokeTypeImportSpecifiers.join(", ")}`,
     ),
   );

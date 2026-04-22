@@ -16,11 +16,18 @@ This phase exists to harden and verify:
 
 Current Status
 --------------
-[TODO] Phase 33 is queued.
-[TODO] Phase 29 intentionally froze `0.1.0-rc.1` as a Bun-only release boundary; Phase 33 must now replace that RC boundary deliberately rather than blur it by implication.
-[TODO] Phase 32 is still productizing the external host line on top of the accepted Bun-facing package surface.
-[TODO] The current package contract still exposes Bun-only signals through metadata, direct `src/*.ts` exports, the installed CLI path, and Bun-specific runtime imports.
-[TODO] The PRD and architecture corpus still define GoodMemory as an OSS-first TypeScript library whose default adoption path should be low-friction, framework-neutral, and vendor-neutral.
+[DONE] Phase 33 is closed and accepted as the formal Node-compatible package-boundary and Node-first integration slice.
+[DONE] Phase 29 intentionally froze `0.1.0-rc.1` as a Bun-only release boundary; Phase 33 now supersedes that boundary as the accepted packaged library contract while preserving Phase 29 as historical RC hardening evidence.
+[DONE] Phase 32 external host productization remains accepted and now rides on top of the widened package boundary instead of a Bun-only install surface.
+[DONE] The public package contract no longer points `goodmemory`, `goodmemory/ai-sdk`, or `goodmemory/host` exports at `src/*.ts`.
+[DONE] The repo now emits compiled `dist/` plus declaration outputs for the canonical public packages.
+[DONE] Node package-boundary smoke now proves `createGoodMemory({})` + `goodmemory/ai-sdk` + `goodmemory/host` on the packaged install surface.
+[DONE] Bun-only CLI execution is now isolated behind a Node-safe package bin wrapper.
+[DONE] CI now carries a dedicated Node 20/22 package-boundary matrix in addition to the Bun core gate.
+[DONE] The PRD and architecture corpus now align with an OSS-first TypeScript library whose default adoption path is low-friction, framework-neutral, and vendor-neutral on the packaged install surface.
+[DONE] Canonical closure evidence is now archived in:
+- `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
+- `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
 
 
 Dependencies
@@ -79,12 +86,12 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P33-T001 Freeze the formal Node-compatible library contract and scope boundary
-[TODO] P33-T002 Produce `dist/` plus declarations for the canonical public packages and move exports off `src/*.ts`
-[TODO] P33-T003 Isolate Bun-only CLI and Bun-local sqlite/sqlite-vss runtime code from the Node-compatible library surface
-[TODO] P33-T004 Add Node LTS plus Bun consumer smoke, type smoke, and CI matrix for installed-package verification
-[TODO] P33-T005 Ship one canonical Node-first AI SDK integration path and rewrite adoption docs around it
-[TODO] P33-T006 Add `gate:phase-33`, archive canonical package-boundary evidence, and sync current-status/release/task-board docs
+[DONE] P33-T001 Freeze the formal Node-compatible library contract and scope boundary
+[DONE] P33-T002 Produce `dist/` plus declarations for the canonical public packages and move exports off `src/*.ts`
+[DONE] P33-T003 Isolate Bun-only CLI and Bun-local sqlite/sqlite-vss runtime code from the Node-compatible library surface
+[DONE] P33-T004 Add Node LTS plus Bun consumer smoke, type smoke, and CI matrix for installed-package verification
+[DONE] P33-T005 Ship one canonical Node-first AI SDK integration path and rewrite adoption docs around it
+[DONE] P33-T006 Add `gate:phase-33`, archive canonical package-boundary evidence, and sync current-status/release/task-board docs
 
 
 Breakdown Folder

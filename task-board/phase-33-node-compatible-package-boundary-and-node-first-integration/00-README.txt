@@ -3,7 +3,7 @@ Phase 33 Breakdown
 
 Status
 ------
-- Phase 33 is queued.
+- Phase 33 is closed and accepted.
 - Scope: replace the Bun-only RC package boundary with a formal Node-compatible library contract for mainstream Node/TypeScript adopters.
 - Canonical public packages:
   - `goodmemory`
@@ -11,6 +11,10 @@ Status
   - `goodmemory/host`
 - Bun remains the canonical repo-local development and gate runner, but Node LTS becomes a gate-blocking public consumer/runtime boundary in this phase.
 - Bun-only CLI behavior and Bun-local sqlite/sqlite-vss runtime code must be isolated instead of leaking through the default package contract.
+- The compiled package boundary, Bun-backed CLI wrapper isolation, Node consumer smoke, and CI matrix are now landed.
+- Canonical closure evidence:
+  - `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
+  - `reports/quality-gates/phase-33/run-20260422120359/phase-33-quality-gate.json`
 
 
 Execution Order
