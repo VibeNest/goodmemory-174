@@ -101,6 +101,9 @@ reports/eval/live-memory/**
 !reports/eval/live-memory/phase-32/
 !reports/eval/live-memory/phase-32/run-phase32-live-current/
 !reports/eval/live-memory/phase-32/run-phase32-live-current/report.json
+!reports/eval/live-memory/phase-34/
+!reports/eval/live-memory/phase-34/run-phase34-live-current/
+!reports/eval/live-memory/phase-34/run-phase34-live-current/report.json
 !reports/eval/live-memory/phase-22-smoke/
 !reports/eval/live-memory/phase-22-smoke/run-1776651268822/
 !reports/eval/live-memory/phase-22-smoke/run-1776651268822/report.json
@@ -126,6 +129,9 @@ reports/eval/live-memory/**
 !reports/eval/fallback/phase-32/
 !reports/eval/fallback/phase-32/run-20260422173045/
 !reports/eval/fallback/phase-32/run-20260422173045/report.json
+!reports/eval/fallback/phase-34/
+!reports/eval/fallback/phase-34/run-20260422213045/
+!reports/eval/fallback/phase-34/run-20260422213045/report.json
 !reports/eval/live-memory/phase-23/
 !reports/eval/live-memory/phase-23/run-1776658376536-observe/
 !reports/eval/live-memory/phase-23/run-1776658376536-observe/report.json

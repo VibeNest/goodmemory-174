@@ -80,7 +80,7 @@ describe("public feedback API", () => {
     ).toHaveLength(1);
   });
 
-  it("keeps public feedback() decoupled from evolution receipts even when promotion happens", async () => {
+  it("surfaces proposal and promotion receipts on public feedback() when evolution produces them", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({
       storage: { provider: "memory" },
@@ -104,10 +104,18 @@ describe("public feedback API", () => {
       scope: { userId: "u-1", workspaceId: "workspace-a" },
     });
 
-    expect("proposalReceipts" in first).toBe(false);
-    expect("promotionReceipts" in first).toBe(false);
-    expect("proposalReceipts" in second).toBe(false);
-    expect("promotionReceipts" in second).toBe(false);
+    const receiptBearingResult = [first, second].find(
+      (result) =>
+        (result.proposalReceipts?.length ?? 0) > 0 ||
+        (result.promotionReceipts?.length ?? 0) > 0,
+    );
+
+    expect(receiptBearingResult?.proposalReceipts).toHaveLength(1);
+    expect(receiptBearingResult?.proposalReceipts?.[0]?.proposalType).toBe(
+      "procedural_pattern",
+    );
+    expect(receiptBearingResult?.promotionReceipts).toHaveLength(1);
+    expect(receiptBearingResult?.promotionReceipts?.[0]?.decision).toBe("accepted");
     expect(exported.durable.proposals).toHaveLength(1);
     expect(exported.durable.promotions).toHaveLength(1);
   });

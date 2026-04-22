@@ -1,13 +1,16 @@
 Phase 34.4: Codex Runtime Rewrite and Claude Parity
 ===================================================
 
-[TODO] Insert `adapter.assessAction()` into the canonical Codex runtime path before planned tool/file/command execution.
-[TODO] Make `review_required` rewrite the first executable step to the recommended safe step.
-[TODO] Preserve the original `actionId` as lineage when later realized host events are emitted.
-[TODO] Keep Claude to bootstrap/docs/package-smoke parity only.
+[DONE] Insert `adapter.assessAction()` into the canonical Codex runtime path through the installed-package Codex action-gate wrapper before risky command execution.
+[DONE] Make `review_required` rewrite the first executable step to the recommended safe step when the recommendation is executable, and fail closed otherwise.
+[DONE] Added an internal execution-plan bridge so assessed actions deterministically resolve to `execute now` / `rewrite first step` / `blocked` while preserving `realizedEventParentId = actionId`.
+[DONE] Preserve the original `actionId` as lineage when later realized host events are emitted.
+[DONE] Keep Claude to bootstrap/docs/package-smoke parity only.
+[DONE] Keep `.codex/hooks.json` and `codex/rules/goodmemory.rules` as parity scaffolds instead of claiming they are the canonical live blocker.
 
 Acceptance
 ----------
 - Codex runtime evaluates the first planned action before execution
 - `review_required` changes the first step instead of only attaching passive guidance
+- installed-package Codex action-gate evidence proves executable rewrite and destructive veto behavior while keeping `parentEventId = actionId`
 - Claude does not become a second live gate blocker

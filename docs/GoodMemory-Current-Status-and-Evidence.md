@@ -13,6 +13,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`. The package bin is Node-safe, but command execution is still Bun-backed today.
 - Installed-package external host wiring is now part of the accepted OSS surface through `goodmemory codex bootstrap` and `goodmemory claude bootstrap`; those commands only generate or patch repo-local host scaffolds and do not create canonical memory state.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
+- `goodmemory/host` now includes an explicit pre-action contract through `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()`.
 - Optional adapter-level agent-event ingestion now exists on `goodmemory/ai-sdk` and `goodmemory/host`; no new root `goodmemory/evolution` module was added.
 - `sqlite` remains the stable default local durable document/session/vector backend on Bun.
 - Generic live-memory eval semantics are now auto-storage aligned across both CLI and script helpers:
@@ -29,20 +30,25 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 33 is now closed as the formal Node-compatible package-boundary and Node-first integration slice.
+- Phase 34 is now closed as the host pre-action policy and veto-contract slice.
 - Accepted behavior:
-  - `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` now ship through compiled `dist/` outputs plus `.d.ts` declarations instead of direct `src/*.ts` exports
-  - Node package-boundary consumers can install the packed artifact and run the canonical plain AI SDK server path successfully on the packaged surface
-  - the canonical Node-first integration is now a plain `Request -> Response` handler built from `createGoodMemory({})` plus `createGoodMemoryAISDK()` and AI SDK response helpers
-  - Bun keeps the zero-config local SQLite durable default; Node zero-config runtime falls back honestly to in-memory when the built-in local SQLite adapter is unavailable
-  - the installed `goodmemory` bin is Node-safe at the package boundary while remaining explicitly Bun-backed for execution
-  - the Bun core gate is now paired with a dedicated Node 20/22 package-boundary CI matrix
-  - the accepted external host product line from Phase 32 remains intact on top of the widened package boundary
-- Still outside the accepted Phase 33 claim:
-  - claiming built-in Bun-specific storage adapters behave identically in every runtime
+  - `goodmemory/host` now publicly ships `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()` on the packaged surface
+  - pre-action assessment deterministically consumes active `validated_pattern`, linked evidence, working memory, and session journal instead of inventing a second policy database
+  - assessed actions can record auditable internal experiences keyed by `actionId`, and later realized host events keep `parentEventId = actionId`
+  - external `user_correction` now lands as `coding_agent`-scoped procedural guidance on the adapter/event path, and adapter-event receipts expose the proposal/promotion lineage triggered by that feedback experience
+  - repeated procedural-rule rendering in the final coding-agent context is deduped instead of surfacing the same rule multiple times
+  - installed-package `goodmemory codex bootstrap` now emits the Codex action-gate wrapper plus repo-local hook/rules parity scaffolds through public imports only:
+    - `.goodmemory/bootstrap/codex-action.mjs`
+    - `.codex/hooks.json`
+    - `.codex/config.toml`
+    - `codex/rules/goodmemory.rules`
+  - the canonical live enforcement path is the installed-package Codex action-gate wrapper; `.codex/hooks.json` and `codex/rules/goodmemory.rules` are parity scaffolds and are not treated as the canonical live blocker
+  - the accepted external host product line from Phase 32 and the Node-compatible package boundary from Phase 33 remain intact underneath the new host pre-action slice
+- Still outside the accepted Phase 34 claim:
+  - claiming native Codex hook interception is the canonical live blocker without direct evidence from the current runtime
   - public `goodmemory/evolution`
   - dashboard/admin UI or new memory capability work
-  - making Claude a second live gate blocker or widening host evidence beyond the accepted external line
+  - making Claude a second live gate blocker
 
 ## Current Canonical Evidence
 
@@ -99,6 +105,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Node-compatible package-boundary and Node-first integration closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
   - Quality gate: `reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json`
+- Host pre-action policy and veto-contract closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-34-Quality-Gate.md`
+  - Deterministic/live gate: `reports/quality-gates/phase-34/run-20260422235930/phase-34-quality-gate.json`
+  - Deterministic fallback report: `reports/eval/fallback/phase-34/run-20260422213045/report.json`
+  - Codex action-gate live report: `reports/eval/live-memory/phase-34/run-phase34-live-current/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

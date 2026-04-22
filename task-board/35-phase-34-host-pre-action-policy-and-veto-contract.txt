@@ -10,16 +10,17 @@ This phase exists to add one public host-level pre-action seam for the canonical
 
 Current Status
 --------------
-[DOING] Phase 34 is in progress.
+[DONE] Phase 34 is closed.
 [DONE] P34-T001 Freeze the Phase 34 public boundary on `goodmemory/host` without widening the root API.
 [DONE] P34-T002 Add explicit `HostActionIntent` / `HostActionAssessmentResult` / `HostActionDecision` contracts plus `HostAdapter.assessAction()`.
 [DONE] P34-T003 Implement deterministic pre-action policy compilation from active validated patterns, correction/verification/tool-result evidence, working memory, and session journal, with internal audit recording.
 [DONE] External `user_correction` now lands as `coding_agent`-scoped procedural guidance on the adapter/event path instead of defaulting back to broad `general_response`.
 [DONE] Adapter/event feedback receipts now expose proposal/promotion lineage for the feedback experience that directly triggered reviewer/gate work.
 [DONE] Final `Procedural Memory` rendering now dedupes same-rule guidance instead of surfacing repeated copies in the Phase 32 repeated-correction path.
-[TODO] P34-T004 Wire the Codex runtime path so `review_required` can rewrite the first executable step while keeping lineage tied to the assessed `actionId`.
-[TODO] P34-T005 Add dedicated Phase 34 deterministic/live eval runners and one canonical Codex live gate.
-[TODO] P34-T006 Sync package scripts, docs, and closure artifacts only after Phase 34 evidence is real.
+[DONE] Added a dedicated deterministic `eval:phase-34` runner comparing `policy-backed` vs `phase-32-soft-guard` vs `no-memory`, with interception/non-regression metrics.
+[DONE] P34-T004 Wire the Codex runtime path through the installed-package Codex action-gate wrapper so `review_required` can rewrite the first executable step while keeping lineage tied to the assessed `actionId`.
+[DONE] P34-T005 Add dedicated Phase 34 deterministic/live eval runners plus `gate:phase-34`.
+[DONE] P34-T006 Sync package scripts, docs, and closure artifacts after the canonical evidence chain exists.
 
 
 Dependencies
@@ -50,6 +51,7 @@ Primary Deliverables
 - deterministic/live Phase 34 evidence against:
   - current Phase 32 soft-guard path
   - no-memory baseline
+- installed-package Codex action-gate wrapper as the canonical live enforcement path, with `.codex/hooks.json` and `codex/rules/goodmemory.rules` kept as parity scaffolds rather than the live blocker
 
 
 Definition of Done
@@ -69,9 +71,9 @@ Tasks
 [DONE] P34-T001 Freeze the canonical public boundary for pre-action policy and veto behavior
 [DONE] P34-T002 Add host pre-action contracts, validation helpers, and adapter wiring
 [DONE] P34-T003 Record auditable host action assessments through the existing internal integration path
-[TODO] P34-T004 Wire the Codex runtime rewrite path and action lineage closure
-[TODO] P34-T005 Add Phase 34 deterministic/live evals plus `gate:phase-34`
-[TODO] P34-T006 Sync docs, package scripts, and closure artifacts once canonical evidence exists
+[DONE] P34-T004 Wire the Codex runtime rewrite path and action lineage closure
+[DONE] P34-T005 Add the remaining Phase 34 live eval/gate closure on top of the landed deterministic runner plus `gate:phase-34`
+[DONE] P34-T006 Sync docs, package scripts, and closure artifacts once canonical evidence exists
 
 
 Breakdown Folder
@@ -90,4 +92,4 @@ Scope Boundary
 - This phase grows `goodmemory/host`; it does not reopen the root API.
 - This phase does not reopen Phase 32 acceptance or pretend Claude is now live-gated.
 - This phase does not turn evidence storage into a transcript database or raw tool-output archive.
-- This phase does not claim closure until deterministic/live evidence and synced docs exist.
+- This phase closes on the installed-package Codex action-gate wrapper path; repo-local hooks and rules are generated as parity scaffolds, not treated as the canonical live blocker.

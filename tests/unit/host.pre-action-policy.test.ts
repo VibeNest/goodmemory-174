@@ -195,6 +195,144 @@ describe("host pre-action policy", () => {
     });
   });
 
+  it("rewrites to an executable QuickCheck path when the original command resolves a sibling executable", async () => {
+    const source = createMemorySource({
+      method: "explicit",
+      extractedAt: "2026-04-22T00:00:00.000Z",
+      sessionId: "s-1",
+    });
+    const adapter = createHostAdapter({
+      id: "codex-deepanalyzer",
+      hostKind: "codex",
+      memory: {
+        async exportMemory() {
+          return createExportResult({
+            feedback: [
+              createFeedbackMemory({
+                id: "feedback-deepanalyzer-1",
+                userId: "u-1",
+                workspaceId: "ws-1",
+                sessionId: "s-1",
+                kind: "validated_pattern",
+                appliesTo: "coding_agent",
+                rule: "Rather than DeepAnalyzer, use QuickCheck first.",
+                evidence: ["evidence-deepanalyzer-1"],
+                source,
+              }),
+            ],
+            evidence: [
+              createEvidenceRecord({
+                id: "evidence-deepanalyzer-1",
+                userId: "u-1",
+                workspaceId: "ws-1",
+                sessionId: "s-1",
+                kind: "correction_context",
+                excerpt: "DeepAnalyzer detailed scan failed because QuickCheck had not run first.",
+                source,
+                sourceMessageIds: ["deepanalyzer-1"],
+              }),
+            ],
+          });
+        },
+      },
+    });
+
+    const result = await adapter.assessAction({
+      actionId: "action-deepanalyzer-1",
+      runId: "run-1",
+      turnId: "turn-1",
+      sequence: 0,
+      occurredAt: "2026-04-22T00:00:00.000Z",
+      hostKind: "codex",
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+        sessionId: "s-1",
+      },
+      action: {
+        kind: "command",
+        command: "./tools/DeepAnalyzer --detailed",
+      },
+    });
+
+    expect(result.decision).toBe("review_required");
+    expect(result.requiredPreconditions).toEqual(["run QuickCheck first"]);
+    expect(result.recommendedFirstStep).toEqual({
+      kind: "tool_call",
+      toolName: "QuickCheck",
+      raw: "./tools/QuickCheck",
+      summary: "Run QuickCheck before the original action.",
+    });
+  });
+
+  it("fails closed to a warning when QuickCheck is only referenced by bare command name", async () => {
+    const source = createMemorySource({
+      method: "explicit",
+      extractedAt: "2026-04-22T00:00:00.000Z",
+      sessionId: "s-1",
+    });
+    const adapter = createHostAdapter({
+      id: "codex-deepanalyzer-bare",
+      hostKind: "codex",
+      memory: {
+        async exportMemory() {
+          return createExportResult({
+            feedback: [
+              createFeedbackMemory({
+                id: "feedback-deepanalyzer-bare-1",
+                userId: "u-1",
+                workspaceId: "ws-1",
+                sessionId: "s-1",
+                kind: "validated_pattern",
+                appliesTo: "coding_agent",
+                rule: "Rather than DeepAnalyzer, use QuickCheck first.",
+                evidence: ["evidence-deepanalyzer-bare-1"],
+                source,
+              }),
+            ],
+            evidence: [
+              createEvidenceRecord({
+                id: "evidence-deepanalyzer-bare-1",
+                userId: "u-1",
+                workspaceId: "ws-1",
+                sessionId: "s-1",
+                kind: "correction_context",
+                excerpt: "DeepAnalyzer detailed scan failed because QuickCheck had not run first.",
+                source,
+                sourceMessageIds: ["deepanalyzer-bare-1"],
+              }),
+            ],
+          });
+        },
+      },
+    });
+
+    const result = await adapter.assessAction({
+      actionId: "action-deepanalyzer-bare-1",
+      runId: "run-1",
+      turnId: "turn-1",
+      sequence: 0,
+      occurredAt: "2026-04-22T00:00:00.000Z",
+      hostKind: "codex",
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+        sessionId: "s-1",
+      },
+      action: {
+        kind: "command",
+        command: "DeepAnalyzer --detailed",
+      },
+    });
+
+    expect(result.decision).toBe("review_required");
+    expect(result.requiredPreconditions).toEqual(["run QuickCheck first"]);
+    expect(result.recommendedFirstStep).toEqual({
+      kind: "warning",
+      message: "run QuickCheck first",
+    });
+  });
+
   it("blocks destructive file deletes when a matched validated pattern vetoes the action", async () => {
     const source = createMemorySource({
       method: "explicit",

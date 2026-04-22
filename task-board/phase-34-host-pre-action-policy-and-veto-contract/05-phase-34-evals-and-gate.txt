@@ -1,11 +1,11 @@
 Phase 34.5: Phase 34 Evals and Gate
 ===================================
 
-[TODO] Add a dedicated deterministic Phase 34 report against:
+[DONE] Add a dedicated deterministic Phase 34 report against:
 - current Phase 32 soft-guard behavior
 - no-memory baseline
-[TODO] Add one canonical Codex live report for first-action interception behavior.
-[TODO] Add `gate:phase-34`.
+[DONE] Add one canonical Codex live report for first-action interception behavior on the installed-package action-gate wrapper path.
+[DONE] Add `gate:phase-34`.
 
 Acceptance
 ----------
@@ -15,3 +15,4 @@ Acceptance
   - `false_block_rate`
   - `completion_non_regression`
 - live Codex evidence proves at least one high-risk first action was rewritten or blocked by memory-backed policy rather than only being mentioned in context
+- live Codex evidence proves at least one executable first-step rewrite, one destructive veto, and one low-risk non-regression case on the installed-package action-gate wrapper path

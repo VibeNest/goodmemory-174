@@ -29,6 +29,10 @@ void memory.recall(recallInput);
 async function assertGovernanceShapes() {
   const exported = await memory.exportMemory(exportInput);
   const deleted = await memory.deleteAllMemory(deleteInput);
+  const feedback = await memory.feedback({
+    scope: { userId: "user-1" },
+    signal: "Use bullet points in summaries.",
+  });
 
   void exported.durable.archives;
   void exported.durable.evidence;
@@ -42,6 +46,8 @@ async function assertGovernanceShapes() {
   void deleted.deleted.experiences;
   void deleted.deleted.proposals;
   void deleted.deleted.promotions;
+  void feedback.proposalReceipts;
+  void feedback.promotionReceipts;
 }
 
 void assertGovernanceShapes();

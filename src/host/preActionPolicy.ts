@@ -53,6 +53,7 @@ const PRECONDITION_MARKERS = [
   "verify",
 ];
 const HIGH_RISK_COMMAND_MARKERS = [
+  "deepanalyzer",
   "deploy",
   "drop",
   "git push",
@@ -322,8 +323,42 @@ function extractPreconditions(values: readonly string[]): string[] {
   return uniqueStrings(preconditions);
 }
 
+function extractExecutableToken(action: HostPlannedAction): string | undefined {
+  const rawCommand = action.kind === "command"
+    ? action.command
+    : action.kind === "tool_call"
+      ? action.raw
+      : undefined;
+  const trimmed = rawCommand?.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const [firstToken] = trimmed.split(/\s+/u);
+  return firstToken?.trim() || undefined;
+}
+
+function resolveSiblingExecutablePath(
+  executableToken: string | undefined,
+  siblingName: string,
+): string | undefined {
+  const normalized = executableToken?.trim();
+  if (!normalized || !normalized.includes("/")) {
+    return undefined;
+  }
+
+  const lastSlashIndex = normalized.lastIndexOf("/");
+  if (lastSlashIndex < 0) {
+    return undefined;
+  }
+
+  return `${normalized.slice(0, lastSlashIndex + 1)}${siblingName}`;
+}
+
 function buildRecommendedFirstStep(
   preconditions: readonly string[],
+  action: HostPlannedAction,
 ): HostRecommendedFirstStep | undefined {
   const first = preconditions[0];
   if (!first) {
@@ -332,10 +367,22 @@ function buildRecommendedFirstStep(
 
   const normalized = normalizeForMatch(first);
   if (normalized.includes("quickcheck")) {
+    const quickCheckPath = resolveSiblingExecutablePath(
+      extractExecutableToken(action),
+      "QuickCheck",
+    );
+    if (quickCheckPath) {
+      return {
+        kind: "tool_call",
+        toolName: "QuickCheck",
+        raw: quickCheckPath,
+        summary: "Run QuickCheck before the original action.",
+      };
+    }
+
     return {
-      kind: "tool_call",
-      toolName: "QuickCheck",
-      summary: "Run QuickCheck before the original action.",
+      kind: "warning",
+      message: first,
     };
   }
 
@@ -445,7 +492,10 @@ export function assessHostAction(input: {
   let recommendedFirstStep: HostRecommendedFirstStep | undefined;
 
   if (memoryBacked && highRisk && (negativeSignal || requiredPreconditions.length > 0)) {
-    recommendedFirstStep = buildRecommendedFirstStep(requiredPreconditions);
+    recommendedFirstStep = buildRecommendedFirstStep(
+      requiredPreconditions,
+      input.intent.action,
+    );
     if (shouldBlockIrrecoverably(input.intent.action) && !recommendedFirstStep) {
       decision = "blocked";
       reason = "Matched memory-backed veto blocks this destructive action before execution.";

@@ -39,8 +39,8 @@
       "caseId": "repeated-correction",
       "focus": "repeated_correction",
       "eventBacked": {
-        "context": "## Procedural Memory\n- Use bullet points in summaries. (appliesTo: general_response)\n- Use bullet points in summaries. (appliesTo: general_response)\n\n## Working Memory\nCurrent goal: Polish the phase 32 closeout\nOpen loops: keep the final summary in bullets\n\n## Evidence\n- Correction: Use bullet points in summaries.",
-        "estimatedTokens": 79,
+        "context": "## Procedural Memory\n- Use bullet points in summaries.\n\n## Working Memory\nCurrent goal: Polish the phase 32 closeout\nOpen loops: keep the final summary in bullets\n\n## Evidence\n- Correction: Use bullet points in summaries.",
+        "estimatedTokens": 56,
         "matchedExpectations": [
           "procedural-rule",
           "goal",
@@ -96,12 +96,12 @@
       }
     }
   ],
-  "generatedAt": "2026-04-22T09:11:23.313Z",
+  "generatedAt": "2026-04-22T16:40:18.482Z",
   "generatedBy": "scripts/run-phase-32-eval.ts",
   "mode": "fallback",
-  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-32",
+  "outputDir": "reports/eval/fallback/phase-32",
   "phase": "phase-32",
-  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-32/run-20260422173045",
+  "runDirectory": "reports/eval/fallback/phase-32/run-20260422173045",
   "runId": "run-20260422173045",
   "summary": {
     "eventBackedAverageScore": 3.6667,

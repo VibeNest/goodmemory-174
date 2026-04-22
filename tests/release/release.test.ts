@@ -496,6 +496,10 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-32-live-memory"]).toBe(
       "bun run scripts/run-phase-32-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-34"]).toBe("bun run scripts/run-phase-34-eval.ts");
+    expect(pkg.scripts?.["eval:phase-34-live-memory"]).toBe(
+      "bun run scripts/run-phase-34-live-memory.ts",
+    );
     expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
     expect(pkg.scripts?.["gate:phase-19-reviewer"]).toBe(
       "bun run scripts/run-phase-19-reviewer-gate.ts",
@@ -513,6 +517,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-31"]).toBe("bun run scripts/run-phase-31-gate.ts");
     expect(pkg.scripts?.["gate:phase-32"]).toBe("bun run scripts/run-phase-32-gate.ts");
     expect(pkg.scripts?.["gate:phase-33"]).toBe("bun run scripts/run-phase-33-gate.ts");
+    expect(pkg.scripts?.["gate:phase-34"]).toBe("bun run scripts/run-phase-34-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -1100,6 +1105,26 @@ describe("release metadata and docs", () => {
       expect(codexBootstrapJson.changes.some((change) => change.relativePath === "AGENTS.md")).toBe(
         true,
       );
+      expect(
+        codexBootstrapJson.changes.some(
+          (change) => change.relativePath === ".goodmemory/bootstrap/codex-action.mjs",
+        ),
+      ).toBe(true);
+      expect(
+        codexBootstrapJson.changes.some(
+          (change) => change.relativePath === ".codex/hooks.json",
+        ),
+      ).toBe(true);
+      expect(
+        codexBootstrapJson.changes.some(
+          (change) => change.relativePath === ".codex/config.toml",
+        ),
+      ).toBe(true);
+      expect(
+        codexBootstrapJson.changes.some(
+          (change) => change.relativePath === "codex/rules/goodmemory.rules",
+        ),
+      ).toBe(true);
 
       const claudeBootstrap = await runCommand({
         cmd: [
@@ -1133,6 +1158,33 @@ describe("release metadata and docs", () => {
       expect(codexScript).toContain('from "goodmemory/host"');
       expect(codexScript).not.toContain("../src");
       expect(codexScript).not.toContain("../../src");
+      const codexActionScript = await readFile(
+        join(workspaceRoot, ".goodmemory/bootstrap/codex-action.mjs"),
+        "utf8",
+      );
+      expect(codexActionScript).toContain('from "goodmemory"');
+      expect(codexActionScript).toContain('from "goodmemory/host"');
+      expect(codexActionScript).toContain("resolveHostActionExecutionPlan");
+      expect(codexActionScript).not.toContain("../src");
+      expect(codexActionScript).not.toContain("../../src");
+      const codexHooksConfig = await readFile(
+        join(workspaceRoot, ".codex/hooks.json"),
+        "utf8",
+      );
+      expect(codexHooksConfig).toContain("PreToolUse");
+      expect(codexHooksConfig).toContain("codex-action.mjs");
+      const codexHooksToml = await readFile(
+        join(workspaceRoot, ".codex/config.toml"),
+        "utf8",
+      );
+      expect(codexHooksToml).toContain("[features]");
+      expect(codexHooksToml).toContain("codex_hooks = true");
+      const codexRules = await readFile(
+        join(workspaceRoot, "codex/rules/goodmemory.rules"),
+        "utf8",
+      );
+      expect(codexRules).toContain('pattern = ["deploy"]');
+      expect(codexRules).toContain('pattern = ["rm", "-rf"]');
 
       const claudeScript = await readFile(
         join(workspaceRoot, ".goodmemory/bootstrap/claude-export.mjs"),
@@ -1344,6 +1396,18 @@ describe("release metadata and docs", () => {
     );
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-33/run-20260422212752/phase-33-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-34-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/fallback/phase-34/run-20260422213045/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-34/run-phase34-live-current/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-34/run-20260422235930/phase-34-quality-gate.json",
     );
     expect(currentStatus).toContain("compiled `dist/` artifacts");
     expect(currentStatus).toContain("Bun-backed today");

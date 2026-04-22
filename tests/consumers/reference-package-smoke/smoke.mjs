@@ -5,6 +5,7 @@ import {
 } from "goodmemory/ai-sdk";
 import {
   createHostAdapter,
+  resolveHostActionExecutionPlan,
   validateHostActionIntent,
   validateHostAgentEvent,
 } from "goodmemory/host";
@@ -423,6 +424,10 @@ const artifacts = await adapter.readArtifacts({
   },
 });
 const assessment = await adapter.assessAction(validatedHostActionIntent);
+const executionPlan = resolveHostActionExecutionPlan({
+  assessment,
+  intent: validatedHostActionIntent,
+});
 
 console.log(
   JSON.stringify({
@@ -430,6 +435,8 @@ console.log(
     assessmentDecision: assessment.decision,
     artifactPaths: artifacts.artifacts.map((artifact) => artifact.relativePath),
     contextIncludesChecklist: context.content.includes("concise release checklists"),
+    executionPlanParentEventId: executionPlan.realizedEventParentId,
+    executionPlanRewritten: executionPlan.rewritten,
     invalidScopeError,
     invalidScopeStatus,
     validatedFileEditPath:

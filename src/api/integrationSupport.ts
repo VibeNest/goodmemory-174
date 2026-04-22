@@ -1,12 +1,12 @@
 import type { AgentInputEvent, HostAgentEvent } from "../agentEvents";
 import type { MemoryScope } from "../domain/scope";
-import type {
-  LearningProposalStatus,
-  LearningProposalType,
-  PromotionDecision,
-} from "../evolution/contracts";
 import type { HostActionDecision, HostKind } from "../host/contracts";
-import type { FeedbackResult, GoodMemory } from "./contracts";
+import type {
+  FeedbackPromotionReceipt,
+  FeedbackProposalReceipt,
+  FeedbackResult,
+  GoodMemory,
+} from "./contracts";
 
 export const GOODMEMORY_INTEGRATION_SUPPORT = Symbol.for(
   "goodmemory.integration.support",
@@ -18,17 +18,9 @@ export type AgentEventIngestSkipReason =
   | "policy_blocked"
   | "unsupported_memory";
 
-export interface AgentEventProposalReceipt {
-  proposalId: string;
-  proposalType: LearningProposalType;
-  status: LearningProposalStatus;
-}
+export type AgentEventProposalReceipt = FeedbackProposalReceipt;
 
-export interface AgentEventPromotionReceipt {
-  decision: PromotionDecision;
-  promotionId: string;
-  proposalId: string;
-}
+export type AgentEventPromotionReceipt = FeedbackPromotionReceipt;
 
 export interface AgentEventFeedbackResult extends FeedbackResult {
   proposalReceipts?: AgentEventProposalReceipt[];

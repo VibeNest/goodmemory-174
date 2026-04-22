@@ -29,11 +29,13 @@ export type {
   HostWriteVerificationOutcome,
   HostWriteVerificationResult,
 } from "./contracts";
+export type { HostActionExecutionPlan } from "./actionExecution";
 export { ingestHostAgentEvent } from "./agentEvents";
 export {
   isHostActionIntent,
   validateHostActionIntent,
 } from "./actionIntents";
+export { resolveHostActionExecutionPlan } from "./actionExecution";
 export {
   isHostAgentEvent,
   validateHostAgentEvent,

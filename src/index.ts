@@ -281,6 +281,8 @@ export type {
   ExportMemoryInput,
   ExportMemoryResult,
   FeedbackInput,
+  FeedbackPromotionReceipt,
+  FeedbackProposalReceipt,
   FeedbackResult,
   ForgetInput,
   ForgetResult,

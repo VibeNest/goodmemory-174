@@ -2,10 +2,12 @@ import type { GoodMemory } from "../../src";
 import { createHostAdapter } from "../../src/host";
 import type {
   HostAdapter,
+  HostActionExecutionPlan,
   HostActionIntent,
   HostAdapterMode,
   HostArtifactType,
 } from "../../src/host";
+import { resolveHostActionExecutionPlan } from "../../src/host";
 
 type Expect<T extends true> = T;
 
@@ -55,6 +57,12 @@ const actionIntent = {
 } satisfies HostActionIntent;
 
 void adapter.assessAction(actionIntent);
+declare const assessedAction: Awaited<ReturnType<HostAdapter["assessAction"]>>;
+const executionPlan: HostActionExecutionPlan = resolveHostActionExecutionPlan({
+  assessment: assessedAction,
+  intent: actionIntent,
+});
+void executionPlan;
 
 void adapter.writeArtifact({
   scope: {

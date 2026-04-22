@@ -3,15 +3,17 @@ Phase 34 Breakdown
 
 Status
 ------
-- Phase 34 is in progress.
+- Phase 34 is closed.
 - Scope: add explicit host pre-action policy and veto behavior on `goodmemory/host` for the canonical `coding_agent + goodmemory + goodmemory/host + Codex` line.
 - Root `goodmemory` API stays unchanged.
-- Current landed code covers:
+- Canonical landed code covers:
   - public `HostActionIntent` and `HostActionAssessmentResult`
   - `HostAdapter.assessAction()`
   - deterministic policy compilation
   - internal audit recording for assessed actions
-- Remaining work is runtime rewrite wiring, eval/gate scaffolding, and closure sync.
+  - installed-package Codex action-gate runtime rewrite/block behavior
+  - deterministic/live Phase 34 evidence and `gate:phase-34`
+  - synchronized package, task-board, current-status, and archive closure artifacts
 
 
 Execution Order
@@ -30,6 +32,7 @@ Acceptance
 - veto/rewrite logic remains scoped to `goodmemory/host`
 - `actionId` becomes the durable lineage anchor for later realized host events
 - Codex runtime can switch the first step from the original action to the recommended safe first step
+- the installed-package Codex action-gate wrapper is the canonical live enforcement path, while `.codex/hooks.json` and `codex/rules/goodmemory.rules` stay parity-only scaffolds
 - Phase 34 closure uses a dedicated deterministic/live gate against the Phase 32 soft-guard path and the no-memory baseline
 
 

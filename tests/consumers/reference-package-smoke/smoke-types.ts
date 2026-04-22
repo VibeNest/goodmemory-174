@@ -8,10 +8,12 @@ import {
   validateAgentInputEvent,
 } from "goodmemory/ai-sdk";
 import type {
+  HostActionExecutionPlan,
   HostActionIntent,
   HostAgentEvent,
 } from "goodmemory/host";
 import {
+  resolveHostActionExecutionPlan,
   validateHostActionIntent,
   validateHostAgentEvent,
 } from "goodmemory/host";
@@ -87,6 +89,13 @@ const hostActionIntent = {
 void validateAgentInputEvent(aiEvent);
 void validateHostAgentEvent(hostEvent);
 void validateHostActionIntent(hostActionIntent);
+declare const assessedAction: Awaited<
+  ReturnType<import("goodmemory/host").HostAdapter["assessAction"]>
+>;
+const hostExecutionPlan: HostActionExecutionPlan = resolveHostActionExecutionPlan({
+  assessment: assessedAction,
+  intent: hostActionIntent,
+});
 
 const legacyArgsEvent: AgentInputEvent = {
   surface: "ai-sdk",
@@ -130,4 +139,5 @@ void (0 as unknown as RootHostActionIntent);
 void rootValidateAgentInputEvent;
 void rootValidateHostAgentEvent;
 void rootValidateHostActionIntent;
+void hostExecutionPlan;
 void runtimeInfo;

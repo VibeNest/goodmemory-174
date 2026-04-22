@@ -17,6 +17,8 @@ import type { EvidenceRecord } from "../evidence/contracts";
 import type {
   ExperienceRecord,
   LearningProposal,
+  LearningProposalStatus,
+  LearningProposalType,
   PromotionDecision,
   PromotionRecord,
   SessionArchive,
@@ -209,12 +211,26 @@ export interface FeedbackInput {
   locale?: string;
 }
 
+export interface FeedbackProposalReceipt {
+  proposalId: string;
+  proposalType: LearningProposalType;
+  status: LearningProposalStatus;
+}
+
+export interface FeedbackPromotionReceipt {
+  decision: PromotionDecision;
+  promotionId: string;
+  proposalId: string;
+}
+
 export interface FeedbackResult {
   accepted: boolean;
   evidenceIds?: string[];
   outcome?: "written" | "merged" | "superseded";
   memoryId?: string;
   kind?: FeedbackKind;
+  proposalReceipts?: FeedbackProposalReceipt[];
+  promotionReceipts?: FeedbackPromotionReceipt[];
   metadata?: {
     locale: string;
     localeSource: "explicit" | "detected" | "default";

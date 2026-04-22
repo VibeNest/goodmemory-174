@@ -986,16 +986,16 @@ class GoodMemoryImpl implements GoodMemory {
   }
 
   async feedback(input: FeedbackInput): Promise<FeedbackResult> {
-    return (
-      await writeFeedbackSignal({
-        evolutionRuntime: this.evolutionRuntime,
-        feedbackRepository: this.governanceRepositories.feedback,
-        language: this.language,
-        locale: input.locale,
-        scope: input.scope,
-        signal: input.signal,
-      })
-    ).result;
+    const { receipts, result } = await writeFeedbackSignal({
+      evolutionRuntime: this.evolutionRuntime,
+      feedbackRepository: this.governanceRepositories.feedback,
+      language: this.language,
+      locale: input.locale,
+      scope: input.scope,
+      signal: input.signal,
+    });
+
+    return withAgentEventFeedbackReceipts(result, receipts);
   }
 
   async runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult> {
