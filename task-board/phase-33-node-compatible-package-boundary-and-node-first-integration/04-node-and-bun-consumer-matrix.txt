@@ -1,0 +1,6 @@
+Phase 33.4: Node and Bun Consumer Matrix
+========================================
+
+[TODO] Expand consumer smoke beyond fresh Bun workspaces to a dual Node plus Bun installed-package matrix.
+[TODO] Add consumer type-smoke coverage against emitted declarations in those workspaces.
+[TODO] Wire CI so Node LTS and Bun both verify the public package boundary even if the full internal suite remains Bun-first.

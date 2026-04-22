@@ -1,17 +1,17 @@
 Phase 32.2: Adapter-Level Agent Event Contracts
 ===============================================
 
-[TODO] Add optional public event-ingestion types and helper entrypoints on `goodmemory/ai-sdk`.
-[TODO] Add optional public event-ingestion types and helper entrypoints on `goodmemory/host`.
-[TODO] Use a distinct `*AgentEvent` naming family, for example `AgentInputEvent` / `HostAgentEvent`, so it cannot be confused with the existing `GoodMemoryAISDKEvent` memory-lifecycle telemetry types.
-[TODO] Support at least these normalized event kinds:
+[DONE] Add optional public event-ingestion types and helper entrypoints on `goodmemory/ai-sdk`.
+[DONE] Add optional public event-ingestion types and helper entrypoints on `goodmemory/host`.
+[DONE] Use a distinct `*AgentEvent` naming family, for example `AgentInputEvent` / `HostAgentEvent`, so it cannot be confused with the existing `GoodMemoryAISDKEvent` memory-lifecycle telemetry types.
+[DONE] Support at least these normalized event kinds:
 - `tool_call`
 - `tool_result`
 - `file_edit`
 - `verify_result`
 - `task_transition`
 - `user_correction`
-[TODO] Keep root `GoodMemory` API unchanged; event input must stay adapter-scoped and optional.
+[DONE] Keep root `GoodMemory` API unchanged; event input must stay adapter-scoped and optional.
 
 Write tests first
 -----------------
@@ -39,3 +39,16 @@ Evidence To Add
 - `tests/types/*`
 - installed consumer smoke fixture updates
 - adapter-level unit tests
+
+Implemented
+-----------
+- shared adapter-event contract now lives in `src/agentEvents.ts`
+- `goodmemory/ai-sdk` now exports `AgentInputEvent` plus runtime validation helpers
+- `goodmemory/host` now exports `HostAgentEvent` plus runtime validation helpers
+- root `goodmemory` barrel still does not export these adapter-level helpers
+
+Regression Run
+--------------
+- `bun test tests/unit/agent-events.contracts.test.ts`
+- `bun run typecheck`
+- `bun test tests/release/release.test.ts`

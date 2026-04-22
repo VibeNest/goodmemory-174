@@ -19,20 +19,23 @@ This is the build order, task breakdown, and definition of done for engineering.
 
 Working Rules
 -------------
-1. Runtime and language are fixed:
-   - Bun
+1. Language is fixed:
    - TypeScript
 
-2. Development style is fixed:
+2. Runtime support is phase-bound:
+   - Bun remains the canonical repo-local development, eval, and gate runner
+   - starting in Phase 33, Node LTS becomes a gate-blocking public consumer/runtime boundary for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+
+3. Development style is fixed:
    - TDD first
    - Every feature starts with failing tests
    - Every phase ends with targeted regression runs
 
-3. Product evaluation is mandatory:
+4. Product evaluation is mandatory:
    - Unit/integration/scenario tests are not enough
    - Product eval suite is a core deliverable
 
-4. Public API simplicity is mandatory:
+5. Public API simplicity is mandatory:
    - createGoodMemory
    - recall
    - buildContext
@@ -42,10 +45,10 @@ Working Rules
    - exportMemory
    - deleteAllMemory
 
-5. Procedural memory is first-class:
+6. Procedural memory is first-class:
    - It is not merged into preference or fact
 
-6. Main product priorities are fixed:
+7. Main product priorities are fixed:
    - Better identity/background understanding
    - Better historical task/open-loop continuation
 
@@ -97,6 +100,7 @@ Read and execute files in this order:
 31. 31-phase-30-trace-backed-behavioral-enactment-and-live-closure.txt
 32. 32-phase-31-native-host-outcome-and-correction-closure.txt
 33. 33-phase-32-external-host-integration-productization.txt
+34. 34-phase-33-node-compatible-package-boundary-and-node-first-integration.txt
 
 
 Current Sequencing Note
@@ -178,7 +182,11 @@ Current Sequencing Note
   - add thin adapter-level agent-event ingestion instead of a new heavy `goodmemory/evolution` public API
   - keep Codex as the only gate-blocking live host path while bringing Claude Code to bootstrap/reference parity
   - ship installed-package bootstrap guidance and tooling so external users can wire GoodMemory into Codex/Claude Code without repo-internal imports
-- Any work after Phase 32 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 33 is now queued as the formal Node-compatible package-boundary and Node-first integration slice:
+  - ship `dist/` plus `.d.ts` outputs for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` instead of direct `src/*.ts` exports
+  - isolate Bun-only CLI and Bun-local sqlite/sqlite-vss runtime behavior from the Node-compatible library contract
+  - add Node LTS plus Bun consumer smoke/CI and one canonical Node-first AI SDK integration path
+- Any work after Phase 33 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -201,6 +209,7 @@ Use these bands when choosing what to work on next:
    - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 Bun-only release boundary, accepted Phase 30 behavioral evidence, and accepted Phase 31 native-host evidence regression-covered while future work lands
    - If new Phase 30 or Phase 31 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
    - Execute Phase 32 on top of the accepted public/package/runtime boundaries instead of widening the core API or reintroducing repo-internal integration paths
+   - Queue Phase 33 as the package-boundary upgrade to mainstream Node/TypeScript adoption without adding new memory capability, dashboard scope, or rollout-family expansion
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
    - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, and Phase 31 native-host outcome/correction guarantees regression-covered while later phases execute
@@ -214,7 +223,7 @@ V1 Exit Criteria
 ----------------
 GoodMemory v1 is not complete until all of the following are true:
 
-- Bun + TypeScript project boots cleanly
+- TypeScript package boots cleanly in the Bun repo/dev path and in the public Node/Bun install boundary
 - Public API exists and is stable
 - Core logic has unit coverage
 - Main API chain has integration coverage
@@ -338,5 +347,8 @@ Files in This Folder
 - 31-phase-30-trace-backed-behavioral-enactment-and-live-closure.txt
   Trace-backed first-action behavioral enactment on the accepted Codex host path with provider-backed live-memory closure
 
-- 32-phase-31-external-host-integration-productization.txt
+- 33-phase-32-external-host-integration-productization.txt
   External Codex/Claude Code productization on the canonical `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host` line with thin public event ingestion and installed-package bootstrap
+
+- 34-phase-33-node-compatible-package-boundary-and-node-first-integration.txt
+  Formal Node-compatible dist/types package boundary, Bun-runtime isolation, Node/Bun consumer matrix, and one canonical Node-first AI SDK integration path

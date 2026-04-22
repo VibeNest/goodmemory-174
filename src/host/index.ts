@@ -1,5 +1,11 @@
 export type {
+  AgentEventHostKind,
+  AgentEventIdentity,
+  AgentEventKind,
+  AgentEventScope,
+  AgentEventStructuredValue,
   CreateHostAdapterInput,
+  HostAgentEvent,
   HostAdapter,
   HostAdapterCapabilities,
   HostAdapterMode,
@@ -16,4 +22,8 @@ export type {
   HostWriteVerificationOutcome,
   HostWriteVerificationResult,
 } from "./contracts";
+export {
+  isHostAgentEvent,
+  validateHostAgentEvent,
+} from "../agentEvents";
 export { HostAdapterWriteError, createHostAdapter } from "./public";

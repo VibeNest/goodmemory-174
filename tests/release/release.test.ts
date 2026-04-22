@@ -1,5 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { access, cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -550,6 +559,8 @@ describe("release metadata and docs", () => {
     expect(rootModule.createRuntimeContextService).toBeDefined();
     expect(rootModule.createHostAdapter).toBeUndefined();
     expect(rootModule.createGoodMemoryAISDK).toBeUndefined();
+    expect(rootModule.validateAgentInputEvent).toBeUndefined();
+    expect(rootModule.validateHostAgentEvent).toBeUndefined();
     expect(rootModule.createMemoryRepositories).toBeUndefined();
     expect(rootModule.createRecallEngine).toBeUndefined();
     expect(rootModule.createRememberEngine).toBeUndefined();
@@ -742,6 +753,7 @@ describe("release metadata and docs", () => {
       "examples/host-codex-handoff.ts",
       "examples/vercel-ai-chat.ts",
       "tests/consumers/reference-package-smoke/smoke.mjs",
+      "tests/consumers/reference-package-smoke/smoke-types.ts",
     ] as const;
 
     for (const relativePath of files) {
@@ -789,6 +801,14 @@ describe("release metadata and docs", () => {
     const importSpecifiers = [...smokeSource.matchAll(/from "([^"]+)"/g)].map(
       (match) => match[1],
     );
+    const smokeTypesSource = await readFile(
+      join(fixtureRoot, "smoke-types.ts"),
+      "utf8",
+    );
+    const smokeTypeImportSpecifiers = [
+      ...smokeTypesSource.matchAll(/from "([^"]+)"/g),
+    ].map((match) => match[1]);
+    const uniqueSmokeTypeImportSpecifiers = [...new Set(smokeTypeImportSpecifiers)];
     const workspaceRoot = await mkdtemp(
       join(tmpdir(), "goodmemory-reference-consumer-"),
     );
@@ -799,6 +819,10 @@ describe("release metadata and docs", () => {
     try {
       expect(importSpecifiers).toEqual([
         "goodmemory",
+        "goodmemory/ai-sdk",
+        "goodmemory/host",
+      ]);
+      expect(uniqueSmokeTypeImportSpecifiers).toEqual([
         "goodmemory/ai-sdk",
         "goodmemory/host",
       ]);
@@ -822,6 +846,22 @@ describe("release metadata and docs", () => {
         cwd: workspaceRoot,
       });
       expect(install.exitCode).toBe(0);
+      await mkdir(join(workspaceRoot, "node_modules/@types"), { recursive: true });
+      await cp(
+        join(ROOT_PACKAGE_PATH, "node_modules/@types/bun"),
+        join(workspaceRoot, "node_modules/@types/bun"),
+        { recursive: true },
+      );
+      await cp(
+        join(ROOT_PACKAGE_PATH, "node_modules/@types/node"),
+        join(workspaceRoot, "node_modules/@types/node"),
+        { recursive: true },
+      );
+      await cp(
+        join(ROOT_PACKAGE_PATH, "node_modules/bun-types"),
+        join(workspaceRoot, "node_modules/bun-types"),
+        { recursive: true },
+      );
 
       const smoke = await runCommand({
         cmd: ["bun", "run", "smoke"],
@@ -834,11 +874,29 @@ describe("release metadata and docs", () => {
         contextIncludesBlocker: boolean;
         ok: boolean;
         recallHitCount: number;
+        validatedFileEditPath?: string;
+        validatedToolPayloadShape?: string;
       }>(smoke.stdout);
       expect(smokeJson.ok).toBe(true);
       expect(smokeJson.contextIncludesBlocker).toBe(true);
       expect(smokeJson.recallHitCount).toBeGreaterThan(0);
       expect(smokeJson.artifactPaths).toContain("MEMORY.md");
+      expect(smokeJson.validatedToolPayloadShape).toBe("object");
+      expect(smokeJson.validatedFileEditPath).toBe(
+        "playbooks/consumer-checklist.md",
+      );
+
+      const typeSmoke = await runCommand({
+        cmd: [
+          join(ROOT_PACKAGE_PATH, "node_modules/.bin/tsc"),
+          "-p",
+          "tsconfig.json",
+          "--noEmit",
+        ],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(typeSmoke.exitCode).toBe(0);
 
       const stats = await runCommand({
         cmd: [

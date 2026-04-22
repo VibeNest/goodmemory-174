@@ -1,6 +1,12 @@
 import { createGoodMemory } from "goodmemory";
-import { createGoodMemoryAISDK } from "goodmemory/ai-sdk";
-import { createHostAdapter } from "goodmemory/host";
+import {
+  createGoodMemoryAISDK,
+  validateAgentInputEvent,
+} from "goodmemory/ai-sdk";
+import {
+  createHostAdapter,
+  validateHostAgentEvent,
+} from "goodmemory/host";
 
 const LOCAL_DEFAULT_RUNTIME_ENV_KEYS = [
   "GOODMEMORY_STORAGE_PROVIDER",
@@ -54,6 +60,47 @@ const aiSDK = createGoodMemoryAISDK({
   },
 });
 
+const validatedToolEvent = validateAgentInputEvent({
+  surface: "ai-sdk",
+  kind: "tool_call",
+  eventId: "consumer-event-1",
+  runId: "consumer-run-1",
+  turnId: "consumer-turn-1",
+  sequence: 0,
+  occurredAt: "2026-04-22T00:00:00.000Z",
+  hostKind: "codex",
+  scope: {
+    userId: "consumer-user",
+    workspaceId: "consumer-workspace",
+    sessionId: "consumer-s1",
+  },
+  toolName: "QuickCheck",
+  payload: {
+    checks: ["network"],
+    dryRun: true,
+  },
+});
+
+const validatedFileEditEvent = validateHostAgentEvent({
+  surface: "host",
+  kind: "file_edit",
+  eventId: "consumer-event-2",
+  attemptId: "consumer-attempt-1",
+  turnId: "consumer-turn-1",
+  sequence: 1,
+  occurredAt: "2026-04-22T00:00:01.000Z",
+  parentEventId: "consumer-event-1",
+  hostKind: "claude",
+  scope: {
+    userId: "consumer-user",
+    workspaceId: "consumer-workspace",
+    sessionId: "consumer-s1",
+  },
+  operation: "update",
+  relativePath: "playbooks/consumer-checklist.md",
+  summary: "Capture the installed-package smoke edit shape.",
+});
+
 await aiSDK.streamText({
   scope: {
     userId: "consumer-user",
@@ -104,6 +151,16 @@ console.log(
   JSON.stringify({
     artifactPaths: artifacts.artifacts.map((artifact) => artifact.relativePath),
     contextIncludesBlocker: context.content.includes("prod verification"),
+    validatedFileEditPath:
+      validatedFileEditEvent.kind === "file_edit"
+        ? validatedFileEditEvent.relativePath
+        : undefined,
+    validatedToolPayloadShape:
+      validatedToolEvent.kind === "tool_call" &&
+      validatedToolEvent.payload &&
+      !Array.isArray(validatedToolEvent.payload)
+        ? typeof validatedToolEvent.payload
+        : "missing",
     ok: true,
     recallHitCount: recall.metadata.hits.length,
   }),

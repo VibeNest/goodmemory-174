@@ -1,4 +1,10 @@
 export type {
+  AgentEventHostKind,
+  AgentEventIdentity,
+  AgentEventKind,
+  AgentEventScope,
+  AgentEventStructuredValue,
+  AgentInputEvent,
   AISDKGenerateTextInput,
   AISDKGenerateTextResult,
   AISDKStreamTextInput,
@@ -16,4 +22,8 @@ export type {
   GoodMemoryRecallSkipReason,
   GoodMemoryStreamTextInput,
 } from "./contracts";
+export {
+  isAgentInputEvent,
+  validateAgentInputEvent,
+} from "../agentEvents";
 export { createGoodMemoryAISDK } from "./public";

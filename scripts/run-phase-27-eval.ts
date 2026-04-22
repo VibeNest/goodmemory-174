@@ -61,6 +61,7 @@ const PHASE27_PUBLIC_SURFACE_FILES = [
   "examples/host-codex-handoff.ts",
   "examples/vercel-ai-chat.ts",
   "tests/consumers/reference-package-smoke/smoke.mjs",
+  "tests/consumers/reference-package-smoke/smoke-types.ts",
 ] as const;
 const PHASE27_ALLOWED_PACKAGE_IMPORTS = [
   "goodmemory",
@@ -221,12 +222,30 @@ export async function buildPhase27PublicSurfacePurityMetric(
   const importSpecifiers = [...smokeSource.matchAll(/from "([^"]+)"/g)].map(
     (match) => match[1],
   );
+  const smokeTypesSource = await readFile(
+    join(root, "tests/consumers/reference-package-smoke/smoke-types.ts"),
+    "utf8",
+  );
+  const smokeTypeImportSpecifiers = [
+    ...smokeTypesSource.matchAll(/from "([^"]+)"/g),
+  ].map((match) => match[1]);
+  const uniqueSmokeTypeImportSpecifiers = [
+    ...new Set(smokeTypeImportSpecifiers),
+  ];
   checks.push(
     buildCheck(
       "package-boundary-imports",
       JSON.stringify(importSpecifiers) ===
         JSON.stringify(PHASE27_ALLOWED_PACKAGE_IMPORTS),
       `Package-boundary smoke imports: ${importSpecifiers.join(", ")}`,
+    ),
+  );
+  checks.push(
+    buildCheck(
+      "package-boundary-type-imports",
+      JSON.stringify(uniqueSmokeTypeImportSpecifiers) ===
+        JSON.stringify(PHASE27_ALLOWED_PACKAGE_IMPORTS.slice(1)),
+      `Package-boundary type smoke imports: ${uniqueSmokeTypeImportSpecifiers.join(", ")}`,
     ),
   );
 

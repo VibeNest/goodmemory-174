@@ -1,0 +1,106 @@
+Phase 33: Node-Compatible Package Boundary and Node-First Integration
+=====================================================================
+
+Phase Goal
+----------
+Turn GoodMemory from a Bun-only, tarball-first RC into a formal Node-compatible library boundary that mainstream Node/TypeScript teams can install and integrate in 15-20 minutes without widening the memory surface.
+
+This phase exists to harden and verify:
+
+- standard `dist/` plus declaration outputs for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
+- package metadata and export maps that no longer point the public library surface directly at `src/*.ts`
+- clear isolation of Bun-only CLI behavior and Bun-local sqlite/sqlite-vss runtime paths from the Node-compatible library contract
+- Node LTS plus Bun installed-package consumer smoke and CI matrix
+- one canonical Node-first integration path built from `createGoodMemory()` plus `goodmemory/ai-sdk`
+
+
+Current Status
+--------------
+[TODO] Phase 33 is queued.
+[TODO] Phase 29 intentionally froze `0.1.0-rc.1` as a Bun-only release boundary; Phase 33 must now replace that RC boundary deliberately rather than blur it by implication.
+[TODO] Phase 32 is still productizing the external host line on top of the accepted Bun-facing package surface.
+[TODO] The current package contract still exposes Bun-only signals through metadata, direct `src/*.ts` exports, the installed CLI path, and Bun-specific runtime imports.
+[TODO] The PRD and architecture corpus still define GoodMemory as an OSS-first TypeScript library whose default adoption path should be low-friction, framework-neutral, and vendor-neutral.
+
+
+Dependencies
+------------
+- Phase 27 reference integration and adoption evidence
+- Phase 28 canonical sqlite-vss local backend
+- Phase 29 Bun-only release hardening for `0.1.0-rc.1`
+- Phase 32 external host integration productization
+- `docs/GoodMemory-PRD.md`
+- `docs/GoodMemory-First-Principles-and-Reference-Architecture.md`
+- `docs/GoodMemory-OSS-Architecture-v1.md`
+
+
+Primary Deliverables
+--------------------
+- standard build outputs and type declarations for:
+  - `goodmemory`
+  - `goodmemory/ai-sdk`
+  - `goodmemory/host`
+- package metadata and exports that resolve to built artifacts and do not require Bun-native source execution to consume the public library surface
+- explicit runtime isolation for:
+  - Bun-only installed CLI behavior
+  - Bun-local sqlite and sqlite-vss probing/helpers
+- Node LTS plus Bun installed-package consumer smoke, type smoke, and CI matrix
+- one canonical Node-first integration:
+  - framework-light AI SDK server path
+  - public imports only
+  - 15-20 minute copyable setup path
+- dedicated `gate:phase-33` and archived package-boundary evidence
+
+
+Definition of Done
+------------------
+- `package.json` no longer describes the main library contract as Bun-only
+- `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` resolve through built artifacts plus `.d.ts` declarations rather than direct `src/*.ts` exports
+- Node import of the canonical public surfaces does not statically pull `bun:sqlite`, `Bun.*`, or Bun-only CLI code
+- Bun-only runtime concerns are isolated behind explicit runtime-specific boundaries and are not part of the gate-blocking Node library contract
+- the canonical installed-package path works in:
+  - Bun
+  - Node LTS
+- consumer smoke covers:
+  - install from a packed or registry-equivalent artifact
+  - runtime import and minimal remember/recall flow
+  - `goodmemory/ai-sdk`
+  - `goodmemory/host`
+  - typecheck against emitted declarations
+- CI has a public-package matrix that runs at least:
+  - Node 20 LTS
+  - Node 22 LTS
+  - Bun current supported version
+- the canonical Node-first guide and example use only public imports and no repo checkout assumptions
+- canonical docs are rewritten so Bun-only CLI and Bun-local sqlite-vss support are described as runtime-specific add-ons, not as the whole product boundary
+- no new memory capability, no dashboard/admin UI, no new public `goodmemory/evolution` module, and no claim of full Bun feature parity on Node where that parity is not yet real
+- at least one canonical Node-first installed-consumer artifact is archived as external adoption evidence
+
+
+Tasks
+-----
+[TODO] P33-T001 Freeze the formal Node-compatible library contract and scope boundary
+[TODO] P33-T002 Produce `dist/` plus declarations for the canonical public packages and move exports off `src/*.ts`
+[TODO] P33-T003 Isolate Bun-only CLI and Bun-local sqlite/sqlite-vss runtime code from the Node-compatible library surface
+[TODO] P33-T004 Add Node LTS plus Bun consumer smoke, type smoke, and CI matrix for installed-package verification
+[TODO] P33-T005 Ship one canonical Node-first AI SDK integration path and rewrite adoption docs around it
+[TODO] P33-T006 Add `gate:phase-33`, archive canonical package-boundary evidence, and sync current-status/release/task-board docs
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-33-node-compatible-package-boundary-and-node-first-integration/00-README.txt`
+- `task-board/phase-33-node-compatible-package-boundary-and-node-first-integration/01-freeze-formal-node-compatible-contract.txt`
+- `task-board/phase-33-node-compatible-package-boundary-and-node-first-integration/02-build-dist-and-declarations.txt`
+- `task-board/phase-33-node-compatible-package-boundary-and-node-first-integration/03-isolate-bun-runtime-specifics.txt`
+- `task-board/phase-33-node-compatible-package-boundary-and-node-first-integration/04-node-and-bun-consumer-matrix.txt`
+- `task-board/phase-33-node-compatible-package-boundary-and-node-first-integration/05-node-first-ai-sdk-integration.txt`
+- `task-board/phase-33-node-compatible-package-boundary-and-node-first-integration/06-phase-33-gate-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase upgrades the package/runtime boundary; it does not add new memory behavior, dashboard product surfaces, or deeper rollout families.
+- This phase does not reopen accepted behavioral or host-evidence phases except where package-boundary changes require regression coverage.
+- This phase does not promise Node parity for Bun-only CLI or Bun-local sqlite-vss internals before those runtime-specific paths are honestly isolated and separately documented.
+- This phase keeps the canonical public memory surface centered on `createGoodMemory()` plus `goodmemory/ai-sdk` and `goodmemory/host`.

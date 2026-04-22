@@ -2,10 +2,27 @@ import type {
   ExportMemoryInput,
   GoodMemory,
 } from "../api/contracts";
+import type {
+  AgentEventHostKind,
+  AgentEventIdentity,
+  AgentEventKind,
+  AgentEventScope,
+  AgentEventStructuredValue,
+  HostAgentEvent,
+} from "../agentEvents";
 import type { GoodMemoryPolicyHooks } from "../policy/hooks";
 import type { DocumentStore } from "../storage/contracts";
 import type { MemoryScope } from "../domain/scope";
 import type { MarkdownArtifactFile } from "../governance/markdownArtifacts";
+
+export type {
+  AgentEventHostKind,
+  AgentEventIdentity,
+  AgentEventKind,
+  AgentEventScope,
+  AgentEventStructuredValue,
+  HostAgentEvent,
+};
 
 export type HostArtifactType =
   | "memory_index"

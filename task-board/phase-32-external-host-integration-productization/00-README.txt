@@ -3,7 +3,8 @@ Phase 32 Breakdown
 
 Status
 ------
-- Phase 32 is queued and not started.
+- Phase 32 is in progress.
+- Slice 32.2 adapter-level agent-event contracts is complete and regression-covered.
 - Scope: turn the accepted Codex host path and the accepted public reference path into one external product line for `coding_agent`.
 - Canonical line:
   - `goodmemory`

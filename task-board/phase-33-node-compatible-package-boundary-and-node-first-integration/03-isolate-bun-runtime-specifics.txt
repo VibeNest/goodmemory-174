@@ -1,0 +1,6 @@
+Phase 33.3: Isolate Bun Runtime Specifics
+=========================================
+
+[TODO] Move or guard Bun-only installed CLI behavior so Node library consumers are not blocked by Bun runtime assumptions.
+[TODO] Split Bun-local sqlite and sqlite-vss runtime probing/helpers away from the canonical Node-compatible import graph.
+[TODO] Ensure canonical Node imports do not statically depend on `bun:sqlite`, `Bun.which`, or other Bun globals.
