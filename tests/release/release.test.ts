@@ -1163,27 +1163,13 @@ describe("release metadata and docs", () => {
 
     expect(qualityGateDoc).toContain("run-20260421153410");
     expect(gateReport.runId).toBe("run-20260421153410");
-    expect(gateReport.acceptance.decision).toBe("blocked");
+    expect(gateReport.acceptance.decision).toBe("accepted");
     await expectGitTrackedPath(relativeReportPath);
 
     expect(qualityGateDoc).toContain(
       "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
     );
-    await access(
-      join(
-        import.meta.dir,
-        "../../",
-        "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
-      ),
-    );
-    const ignored = await runGitCommand([
-      "check-ignore",
-      "-v",
-      "--no-index",
-      "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
-    ]);
-    expect(ignored.exitCode).toBe(0);
-    expect(ignored.stdout).toContain(
+    await expectGitTrackedRepoArtifact(
       "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
     );
   });

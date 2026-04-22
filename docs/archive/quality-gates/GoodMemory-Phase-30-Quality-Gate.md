@@ -35,8 +35,8 @@ Out of scope:
 ## Results
 
 - Deterministic gate command set: accepted.
-- Provider-backed live-memory behavioral report: blocked.
-- `gate:phase-30` currently proves:
+- Provider-backed live-memory behavioral report: accepted.
+- `gate:phase-30` proves:
   - `bun run typecheck` passed
   - targeted trace/eval/telemetry regressions passed
   - `bun run eval:phase-30` passed
@@ -44,12 +44,12 @@ Out of scope:
   - the canonical live-memory report no longer leaks machine-local absolute paths
   - provider-backed Postgres storage bootstrap passed
   - memory-stack preflight passed
-  - live-memory `first_attempt_policy_adherence` is `0.4167`
-  - only 5 of 12 blocking live-memory cases passed on the GoodMemory path
-  - live procedural generalization passes only 1 of 3 blocking cases
-- The current blocking gaps are:
-  - native host live evidence does not yet show a strict majority of GoodMemory first-action wins
-  - procedural generalization is still not live-proven strongly enough to satisfy the tightened family-level gate
+  - live-memory `first_attempt_policy_adherence` is `0.5833`
+  - 7 of 12 blocking live-memory cases passed on the GoodMemory path
+  - live procedural generalization passes 2 of 3 blocking cases
+- The accepted live-memory report additionally proves:
+  - native Codex host trace capture is sufficient to produce a strict majority of GoodMemory first-action wins
+  - the tightened procedural-family gate now passes
 
 ## Canonical Evidence Rule
 
@@ -57,5 +57,5 @@ Only the current gate run and current live-memory report above are canonical for
 
 ## Decision
 
-Phase 30 is currently reopened, not accepted.
-The deterministic trace-backed work remains real, and the live runner now consumes native Codex host events instead of model-returned `first_action` JSON, but the canonical live report still fails the tightened gate because live wins are not yet a strict majority and procedural generalization remains under-proven.
+Phase 30 is accepted.
+The deterministic trace-backed work remains real, the live runner now consumes native Codex host events instead of model-returned `first_action` JSON, and the canonical native-host live report now clears both the overall strict-majority gate and the tightened procedural-family gate.

@@ -10,13 +10,13 @@ This phase proves that GoodMemory can change the first real action taken by the 
 
 Current Status
 --------------
-[WIP] Phase 30 is reopened after the native Codex host live report blocked closure.
+[DONE] Phase 30 is closed.
 [DONE] P30-T001 trace contract and deterministic trace-backed scoring are implemented and regression-covered.
 [DONE] P30-T002 accepted Codex host path now emits incremental first-action behavioral traces through internal runtime support and regression-covered close semantics.
 [DONE] P30-T003 internal trace-to-outcome bridge is implemented and regression-covered for deterministic replay.
 [DONE] P30-T004 deterministic trace-backed behavioral eval runner, fixture set, and report evidence contract are implemented and regression-covered.
 [DONE] P30-T005 provider-backed live-memory behavioral eval runner is implemented and regression-covered.
-[WIP] P30-T006 gate/docs closure remains open because the current canonical native-host live report is blocked.
+[DONE] P30-T006 gate/docs closure is complete with accepted native-host live evidence.
 
 
 Dependencies
@@ -65,7 +65,7 @@ Tasks
 [DONE] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
 [DONE] P30-T004 Add deterministic trace-backed behavioral eval and report contract
 [DONE] P30-T005 Add provider-backed live-memory behavioral eval runner
-[WIP] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
+[DONE] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
 
 
 Breakdown Folder

@@ -1,0 +1,32 @@
+Phase 31.2: Adapter-Level Agent Event Contracts
+===============================================
+
+[TODO] Add optional public event-ingestion types and helper entrypoints on `goodmemory/ai-sdk`.
+[TODO] Add optional public event-ingestion types and helper entrypoints on `goodmemory/host`.
+[TODO] Support at least these normalized event kinds:
+- `tool_call`
+- `tool_result`
+- `file_edit`
+- `verify_result`
+- `task_transition`
+- `user_correction`
+[TODO] Keep root `GoodMemory` API unchanged; event input must stay adapter-scoped and optional.
+
+Write tests first
+-----------------
+- public type-surface tests prove event input is available only on the intended adapter packages
+- invalid or partial event payloads fail closed
+- installed-package consumer smoke can import the new adapter-level types/helpers without `src/*`
+
+Acceptance
+----------
+- event input is package-public and Bun-installable
+- adapter-level event input carries `scope`, host identity, and per-turn provenance
+- event input can be omitted with zero behavior change to the accepted pre-Phase-31 path
+- event input does not require the user to instantiate internal reviewer/proposal/runtime objects directly
+
+Evidence To Add
+---------------
+- `tests/types/*`
+- installed consumer smoke fixture updates
+- adapter-level unit tests

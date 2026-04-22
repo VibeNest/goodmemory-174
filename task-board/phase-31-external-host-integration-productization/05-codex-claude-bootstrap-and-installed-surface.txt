@@ -1,0 +1,34 @@
+Phase 31.5: Codex and Claude Bootstrap on the Installed Surface
+===============================================================
+
+[TODO] Add installed-package bootstrap commands on the Bun CLI for:
+- Codex
+- Claude Code
+[TODO] Keep bootstrap repo-local and package-boundary-safe:
+- no repo-internal imports
+- no machine-global hidden dependency on this repo checkout
+[TODO] Generate or patch the minimum external host artifacts needed for a canonical setup:
+- Codex guidance/config snippets
+- Claude Code guidance/config snippets
+- public-package wiring examples
+[TODO] Add installed-package docs, examples, and consumer smoke for both hosts.
+
+Bootstrap Contract
+------------------
+- the bootstrap path must run from the packaged CLI (`bun run goodmemory -- ...`)
+- generated guidance must point to public package usage only
+- bootstrap operations must be idempotent and marker-based so reruns do not duplicate sections
+- Codex is the canonical product path; Claude bootstrap exists for parity and external usability, not as a second live blocker
+
+Acceptance
+----------
+- a fresh Bun consumer can install the packed artifact and bootstrap one Codex workspace end to end
+- a fresh Bun consumer can install the packed artifact and bootstrap one Claude workspace end to end
+- docs-as-written reflect the installed-package bootstrap flow instead of repo-local-only example execution
+- consumer-smoke fixtures prove the bootstrap commands and generated public-package wiring work
+
+Evidence To Add
+---------------
+- installed CLI regressions
+- package-boundary consumer smoke
+- updated reference/setup guides

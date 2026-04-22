@@ -6,7 +6,7 @@ Phase 30.4: Live Closure and Gate
 [DONE] Make one canonical provider-backed live-memory behavioral report a gate requirement.
 [DONE] Keep deterministic trace-backed regressions in the gate command list.
 [DONE] Fail the gate if live behavioral closure is missing, rejected, or not trace-backed.
-[WIP] Produce one canonical passing provider-backed live-memory behavioral report and archive closure evidence.
+[DONE] Produce one canonical passing provider-backed live-memory behavioral report and archive closure evidence.
 
 Acceptance
 ----------

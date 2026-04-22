@@ -1,0 +1,29 @@
+Phase 31.3: Selective Evidence and Proposal Compilation
+=======================================================
+
+[TODO] Normalize accepted external agent events into selective evidence and experiences.
+[TODO] Feed those experiences into the existing proposal/reviewer/compiler chain.
+[TODO] Keep the automatic path proposal-driven:
+- no direct canonical durable-memory mutation from host events
+- no bypass around existing gates and promotion decisions
+[TODO] Preserve `feedback()` as the explicit human-confirmation path.
+
+Guardrails
+----------
+- Do not store full transcripts.
+- Do not persist large raw tool outputs by default.
+- Store only the excerpts, outcomes, corrections, and representative artifacts needed for procedural learning and continuity.
+- Keep provenance explicit so every proposal can point back to host kind, session, and event excerpt.
+
+Acceptance
+----------
+- repeated external host failures can generate proposal inputs through the existing internal chain
+- selective event evidence is deduped and bounded
+- automatic event ingestion cannot silently redefine canonical truth
+- regression tests prove transcript-dump behavior does not appear in exported state or artifacts
+
+Evidence To Add
+---------------
+- integration coverage around event -> evidence -> proposal plumbing
+- export-memory/assertion regressions proving selective storage
+- proposal/promotion lineage tests on external host events

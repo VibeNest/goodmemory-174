@@ -95,6 +95,7 @@ Read and execute files in this order:
 29. 29-phase-28-canonical-sqlite-vss-local-backend.txt
 30. 30-phase-29-bun-only-release-hardening-0.1.0-rc.1.txt
 31. 31-phase-30-trace-backed-behavioral-enactment-and-live-closure.txt
+32. 32-phase-31-external-host-integration-productization.txt
 
 
 Current Sequencing Note
@@ -160,12 +161,17 @@ Current Sequencing Note
   - `docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md`
   - `reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json`
   - `reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json`
-- Phase 30 is reopened after native Codex host-trace validation blocked the live closure claim:
-  - current live-memory behavioral report: `reports/eval/live-memory/phase-30/run-phase30-live-current/report.json`
-  - current quality gate: `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
+- Phase 30 is now closed as the trace-backed behavioral enactment and provider-backed live closure slice:
+  - live-memory behavioral evidence: `reports/eval/live-memory/phase-30/run-phase30-live-current/report.json`
+  - quality gate: `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
   - warning fallback hardening remains regression-covered: unrelated warning prose no longer fabricates `approval_required`, while approval-warning variants keep their actual raw text
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-30-Quality-Gate.md`
-- Do not start a post-Phase-30 roadmap slice until Phase 30 is either reclosed with passing evidence or explicitly split into a new phase.
+- Phase 31 is now queued as the external host-integration productization slice:
+  - freeze one canonical product line: `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`
+  - add thin adapter-level agent-event ingestion instead of a new heavy `goodmemory/evolution` public API
+  - keep Codex as the only gate-blocking live host path while bringing Claude Code to bootstrap/reference parity
+  - ship installed-package bootstrap guidance and tooling so external users can wire GoodMemory into Codex/Claude Code without repo-internal imports
+- Any work after Phase 31 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -187,6 +193,7 @@ Use these bands when choosing what to work on next:
    - Preserve the closed Phase 17 through Phase 30 guarantees while local changes land
    - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 Bun-only release boundary, and accepted Phase 30 behavioral evidence regression-covered while future work lands
    - If new Phase 30 evidence fails, explicitly reopen Phase 30 or add a new phase file rather than treating it as still queued
+   - Execute Phase 31 on top of the accepted public/package/runtime boundaries instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
    - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, and Phase 30 behavioral enactment guarantees regression-covered while later phases execute
@@ -323,3 +330,6 @@ Files in This Folder
 
 - 31-phase-30-trace-backed-behavioral-enactment-and-live-closure.txt
   Trace-backed first-action behavioral enactment on the accepted Codex host path with provider-backed live-memory closure
+
+- 32-phase-31-external-host-integration-productization.txt
+  External Codex/Claude Code productization on the canonical `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host` line with thin public event ingestion and installed-package bootstrap

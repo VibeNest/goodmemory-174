@@ -1,0 +1,101 @@
+Phase 31: External Host Integration Productization
+==================================================
+
+Phase Goal
+----------
+Turn the accepted Codex host path and the accepted public reference path into one product-grade external integration slice for `coding_agent` users.
+
+This phase exists to make GoodMemory usable by external Codex and Claude Code adopters through public package surfaces, installed-package bootstrap tooling, and thin adapter-level agent-event ingestion.
+
+
+Current Status
+--------------
+[TODO] Phase 31 is queued and not started.
+[TODO] Phase 27 already proved public/package-boundary adoption and Codex handoff on the accepted local-first runtime.
+[TODO] Phase 29 already froze the Bun-only RC installability contract and installed CLI boundary.
+[TODO] Phase 30 already proved native Codex host traces can change first real actions, but that path is still internal evidence infrastructure.
+[TODO] External users still do not have one canonical installed-package bootstrap path for Codex or Claude Code, and public adapter surfaces do not yet accept normalized agent events.
+
+
+Dependencies
+------------
+- Phase 18 host adapters and file-authoritative integration
+- Phase 25 behavioral adaptation closure
+- Phase 27 public reference integration and Codex handoff adoption evidence
+- Phase 29 Bun-only release boundary and installed CLI contract
+- Phase 30 trace-backed behavioral enactment and live closure
+- `docs/开发安排.md`
+
+
+Primary Deliverables
+--------------------
+- one canonical external product line:
+  - `coding_agent`
+  - `goodmemory`
+  - `goodmemory/ai-sdk`
+  - `goodmemory/host`
+- thin public agent-event ingestion contracts on adapter surfaces instead of a new `goodmemory/evolution` public API
+- selective event-to-evidence and event-to-experience compilation that feeds the existing proposal/promotion pipeline without becoming a transcript database
+- coding-agent recall/context upgrades that can consume accepted outcome-backed procedural patterns from those host events
+- installed-package bootstrap commands and guides for:
+  - Codex
+  - Claude Code
+- package-boundary external-consumer smoke for the bootstrap path
+- dedicated `gate:phase-31` with deterministic regressions plus one canonical installed-package/native-host Codex evidence chain
+
+
+Definition of Done
+------------------
+- the canonical external line is explicitly frozen to `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`
+- no new root `GoodMemory` entrypoint is introduced and no public `goodmemory/evolution` surface is added
+- adapter-level public event input exists on the accepted external surfaces and covers at least:
+  - `tool_call`
+  - `tool_result`
+  - `file_edit`
+  - `verify_result`
+  - `task_transition`
+  - `user_correction`
+- automatic event ingestion stores only selective evidence, outcome telemetry, and proposal inputs:
+  - no full transcript dump
+  - no raw large tool-output persistence by default
+  - no direct canonical durable-memory mutation outside the existing explicit `feedback()` path and existing gated proposal/promotion chain
+- coding-agent recall can consume accepted outcome-backed procedural patterns together with runtime continuity without injecting raw traces or oversized evidence blobs
+- installed-package bootstrap works through the packaged Bun CLI and public imports only
+- Codex has one canonical bootstrap path and is the only gate-blocking live host path
+- Claude Code has bootstrap/docs/example/package-smoke parity but does not become a second live gate blocker
+- deterministic Phase 31 evidence shows that the external event-backed path improves at least:
+  - continuity/open-loop restoration
+  - repeated-correction avoidance
+  - procedure adherence on the accepted coding-agent path
+- at least one canonical installed-package or tarball-based Codex run is archived as real external-host evidence
+- no reopening of the Phase 29 Bun-only boundary, no all-host expansion, and no claim that every host now supports behavior learning equally
+
+
+Tasks
+-----
+[TODO] P31-T001 Freeze the canonical external product line and public boundary for Codex/Claude Code integration
+[TODO] P31-T002 Add thin adapter-level public agent-event contracts on `goodmemory/ai-sdk` and `goodmemory/host`
+[TODO] P31-T003 Compile normalized agent events into selective evidence, experiences, and proposal inputs without transcript-dump regressions
+[TODO] P31-T004 Upgrade `coding_agent` recall/context assembly to consume accepted event-backed procedural patterns on the external path
+[TODO] P31-T005 Ship installed-package bootstrap commands, guides, and consumer smoke for Codex and Claude Code
+[TODO] P31-T006 Add `gate:phase-31`, archive canonical external-host evidence, and sync current-status/task-board docs after the evidence is real
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-31-external-host-integration-productization/00-README.txt`
+- `task-board/phase-31-external-host-integration-productization/01-canonical-product-line-and-public-boundary.txt`
+- `task-board/phase-31-external-host-integration-productization/02-adapter-level-agent-event-contracts.txt`
+- `task-board/phase-31-external-host-integration-productization/03-selective-evidence-and-proposal-compilation.txt`
+- `task-board/phase-31-external-host-integration-productization/04-coding-agent-recall-and-context-integration.txt`
+- `task-board/phase-31-external-host-integration-productization/05-codex-claude-bootstrap-and-installed-surface.txt`
+- `task-board/phase-31-external-host-integration-productization/06-external-gate-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase productizes one canonical external line; it does not reopen every host path at once.
+- This phase does not add a transcript database or durable raw tool-output archive as a new truth source.
+- This phase does not make Claude a second live gate blocker.
+- This phase does not add a new public `goodmemory/evolution` module or widen the root `GoodMemory` API beyond optional adapter-level config/types.
+- This phase does not reopen the accepted Phase 28 local-backend contract or the accepted Phase 29 Bun-only release/install boundary.

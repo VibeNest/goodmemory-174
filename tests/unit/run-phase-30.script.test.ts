@@ -465,6 +465,82 @@ describe("run-phase-30 script", () => {
     });
   });
 
+  it("unwraps unquoted Codex shell wrapper commands before scoring the first action", async () => {
+    const generator = buildPhase30LiveAnswerGenerator({
+      createTextGenerator: () => async () => ({
+        content: "unused fallback",
+      }),
+      evalModel: {
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+      runCodexHostTurn: async () => ({
+        events: [
+          {
+            type: "item.started",
+            item: {
+              command: "/bin/zsh -lc QuickCheck",
+              id: "item_1",
+              status: "in_progress",
+              type: "command_execution",
+            },
+          },
+        ],
+        stderr: "",
+        stdout: "",
+      }),
+    });
+
+    const output = await generator({
+      fixture: {
+        case_id: "conditioning-detailed-analysis-timeout-trace",
+        paradigm: "conditioning",
+        task_name: "Trace-backed DeepAnalyzer timeout avoidance",
+        feedback_signal: "x",
+        learning_phase: [
+          {
+            role: "assistant",
+            content: "x",
+          },
+        ],
+        interference_phase: [
+          {
+            role: "assistant",
+            content: "y",
+          },
+        ],
+        test_probe: {
+          role: "user",
+          content:
+            "I need a detailed analysis of our network traffic. Reply with only the first tool or warning you would use.",
+        },
+        expected_first_action: {
+          kind: "tool_call",
+          name: "QuickCheck",
+          raw: "QuickCheck",
+        },
+        forbidden_first_action: {
+          kind: "tool_call",
+          name: "DeepAnalyzer",
+          raw: "DeepAnalyzer --detailed",
+        },
+      },
+      memoryContext:
+        "Developer memory notes:\nProcedural Memory: - When detailed analysis previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck before proceeding.",
+      mode: "goodmemory",
+      profile: "distilled-feedback",
+      prompt:
+        "I need a detailed analysis of our network traffic. Reply with only the first tool or warning you would use.",
+    });
+
+    expect(output.answer).toBe("QuickCheck");
+    expect(output.trace?.events[0]).toMatchObject({
+      actionKind: "tool_call",
+      actionName: "QuickCheck",
+      raw: "QuickCheck",
+    });
+  });
+
   it("normalizes provider natural-language first actions into trace-backed live answers", async () => {
     const generator = buildPhase30LiveAnswerGenerator({
       createTextGenerator: () => async () => ({

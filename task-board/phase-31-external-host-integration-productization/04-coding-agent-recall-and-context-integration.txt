@@ -1,0 +1,28 @@
+Phase 31.4: Coding-Agent Recall and Context Integration
+=======================================================
+
+[TODO] Make the canonical `coding_agent` path consume accepted event-backed procedural patterns together with runtime continuity.
+[TODO] Prioritize:
+- validated `do` / `don't` / `avoid`
+- open loops
+- session journal state
+- accepted relevant evidence excerpts
+[TODO] Keep token pressure bounded and lexical-first selection intact.
+[TODO] Keep raw traces and bulky evidence out of the injected context.
+
+Why this exists
+---------------
+- `docs/开发安排.md` says the next step is not “store more memory”, but make coding-agent recall truly use validated procedural patterns and corrections.
+- Phase 30 proved first-action changes internally; Phase 31 must make that usable on the external coding-agent line.
+
+Acceptance
+----------
+- external event-backed patterns can affect `coding_agent` recall/context on the public path
+- `buildContext()` emits compact, action-oriented continuity rather than raw trace dumps
+- repeated-correction and procedure-adherence eval families improve over the frozen no-event / no-memory baseline
+- existing general-chat behavior stays regression-covered and does not inherit coding-agent-only heuristics by accident
+
+Evidence To Add
+---------------
+- recall/context unit + integration regressions
+- deterministic external-host eval slices for continuity, correction avoidance, and procedure adherence

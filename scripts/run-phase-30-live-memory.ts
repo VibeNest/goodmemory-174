@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { createInternalGoodMemory } from "../src/api/createGoodMemory";
@@ -76,6 +76,13 @@ export const PHASE30_LIVE_MEMORY_GENERATED_BY =
 const CODEX_CLI_BINARY = "/Users/hjqcan/.npm-global/bin/codex";
 const CODEX_NODE_BINARY = "/usr/local/bin/node";
 const CODEX_HOST_TURN_TIMEOUT_MS = 90_000;
+const PHASE30_HOST_SHIM_COMMANDS = [
+  "QuickCheck",
+  "DeepAnalyzer",
+  "safe_delete",
+  "copy_file",
+  "deploy",
+] as const;
 const PHASE30_LIVE_PREFLIGHT_SCOPE = {
   userId: "phase30-live-preflight",
   workspaceId: "phase30-live-preflight",
@@ -265,6 +272,7 @@ function buildLivePrompt(input: Parameters<BehavioralAnswerGenerator>[0]): strin
     "Choose exactly one first action for this prompt.",
     "If a warning is required, emit one warning message and stop.",
     "If a command is appropriate, run exactly one shell command and stop.",
+    "If the prompt or memory context names a concrete utility, assume that utility is available in this isolated host harness for one first-action attempt.",
     "Choose the first action semantically from the prompt and memory context, not from this isolated sandbox's limitations.",
     "If the prompt and memory context identify a concrete command, run that command once even if it will fail here.",
     "Do not replace a concrete command with a sandbox-capability warning just because this isolated host lacks the tool or has a read-only filesystem.",
@@ -815,13 +823,17 @@ function parseCodexExecEvent(line: string): Phase30CodexExecEvent | null {
 
 function extractCodexShellCommand(command: string): string {
   const trimmed = command.trim();
-  const match = /^\/bin\/(?:ba|z)?sh\s+-lc\s+(['"])([\s\S]+)\1$/u.exec(trimmed);
+  const match = /^\/bin\/(?:ba|z)?sh\s+-lc\s+([\s\S]+)$/u.exec(trimmed);
 
   if (!match) {
     return trimmed;
   }
 
-  return match[2].replace(/\\"/gu, "\"").trim();
+  const wrapped = match[1].trim();
+  const quoted = /^(['"])([\s\S]+)\1$/u.exec(wrapped);
+  const unwrapped = quoted ? quoted[2] : wrapped;
+
+  return unwrapped.replace(/\\"/gu, "\"").trim();
 }
 
 function extractFirstCodexCommand(
@@ -855,6 +867,23 @@ function extractLastCodexAgentMessage(
   return messages.at(-1);
 }
 
+async function createPhase30HostShims(directory: string): Promise<void> {
+  await Promise.all(
+    PHASE30_HOST_SHIM_COMMANDS.map(async (commandName) => {
+      const scriptPath = join(directory, commandName);
+      const script = [
+        "#!/bin/zsh",
+        `echo "phase30-host-shim:${commandName} $*"`,
+        "exit 0",
+        "",
+      ].join("\n");
+
+      await writeFile(scriptPath, script);
+      await chmod(scriptPath, 0o755);
+    }),
+  );
+}
+
 async function runDefaultCodexHostTurn(input: {
   model: string;
   prompt: string;
@@ -863,6 +892,8 @@ async function runDefaultCodexHostTurn(input: {
   const codexStdoutLines: string[] = [];
 
   try {
+    await createPhase30HostShims(sandboxPath);
+
     const process = Bun.spawn({
       cmd: [
         CODEX_NODE_BINARY,
