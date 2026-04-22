@@ -1,0 +1,13 @@
+Phase 34.4: Codex Runtime Rewrite and Claude Parity
+===================================================
+
+[TODO] Insert `adapter.assessAction()` into the canonical Codex runtime path before planned tool/file/command execution.
+[TODO] Make `review_required` rewrite the first executable step to the recommended safe step.
+[TODO] Preserve the original `actionId` as lineage when later realized host events are emitted.
+[TODO] Keep Claude to bootstrap/docs/package-smoke parity only.
+
+Acceptance
+----------
+- Codex runtime evaluates the first planned action before execution
+- `review_required` changes the first step instead of only attaching passive guidance
+- Claude does not become a second live gate blocker

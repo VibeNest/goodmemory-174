@@ -2,6 +2,7 @@ import type { GoodMemory } from "../../src";
 import { createHostAdapter } from "../../src/host";
 import type {
   HostAdapter,
+  HostActionIntent,
   HostAdapterMode,
   HostArtifactType,
 } from "../../src/host";
@@ -34,6 +35,26 @@ void adapter.readArtifacts({
   },
   includeRuntime: true,
 });
+
+const actionIntent = {
+  actionId: "action-1",
+  runId: "run-1",
+  turnId: "turn-1",
+  sequence: 0,
+  occurredAt: "2026-04-22T00:00:00.000Z",
+  hostKind: "codex",
+  scope: {
+    userId: "u-1",
+    workspaceId: "ws-1",
+    sessionId: "s-1",
+  },
+  action: {
+    kind: "command",
+    command: "deploy production",
+  },
+} satisfies HostActionIntent;
+
+void adapter.assessAction(actionIntent);
 
 void adapter.writeArtifact({
   scope: {

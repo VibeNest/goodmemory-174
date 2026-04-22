@@ -5,6 +5,9 @@ import type {
 } from "../api/contracts";
 import { readGoodMemoryEvalSupport } from "../api/evalSupport";
 import {
+  readGoodMemoryIntegrationSupport,
+} from "../api/integrationSupport";
+import {
   createFeedbackMemory,
 } from "../domain/records";
 import type {
@@ -22,6 +25,8 @@ import {
 import { toPolicyMemoryRecord } from "../policy/hooks";
 import type {
   CreateHostAdapterInput,
+  HostActionAssessmentResult,
+  HostActionIntent,
   HostAdapter,
   HostArtifact,
   HostArtifactType,
@@ -36,19 +41,30 @@ import type {
 import {
   HostAdapterWriteError,
 } from "./contracts";
+import { validateHostActionIntent } from "./actionIntents";
 import { createHostBehavioralTraceRecorder } from "./behavioralTraceRecorder";
 import { attachHostEvalSupport } from "./evalSupport";
+import {
+  assessHostAction,
+  buildHostPlannedActionSummary,
+} from "./preActionPolicy";
 import { recordBehavioralTrace as recordHostBehavioralTrace } from "./behavioralTraceBridge";
 
 export type {
   CreateHostAdapterInput,
+  HostActionAssessmentResult,
+  HostActionIntent,
+  HostActionDecision,
   HostAdapter,
   HostAdapterCapabilities,
+  HostActionKind,
   HostAdapterMode,
   HostArtifact,
   HostArtifactType,
   HostKind,
+  HostPlannedAction,
   HostReadArtifactsResult,
+  HostRecommendedFirstStep,
   HostRollbackGuidance,
   HostStructuredDelta,
   HostWriteArtifactInput,
@@ -200,6 +216,95 @@ function hasBehavioralOutcomeRecorder(
   memory: CreateHostAdapterInput["memory"],
 ): memory is GoodMemory {
   return Boolean(readGoodMemoryEvalSupport(memory as GoodMemory)?.recordBehavioralOutcome);
+}
+
+function hasHostActionAssessmentRecorder(
+  memory: CreateHostAdapterInput["memory"],
+): memory is GoodMemory {
+  return Boolean(
+    readGoodMemoryIntegrationSupport(memory as GoodMemory)?.recordHostActionAssessment,
+  );
+}
+
+function summarizeRecommendedFirstStep(
+  step: HostActionAssessmentResult["recommendedFirstStep"],
+): string | undefined {
+  if (!step) {
+    return undefined;
+  }
+
+  switch (step.kind) {
+    case "warning":
+      return step.message;
+    case "command":
+      return step.command;
+    case "tool_call":
+      return step.toolName;
+    case "file_edit":
+      return `${step.operation} ${step.relativePath}`;
+  }
+}
+
+function bindIntentToAdapterHostKind(
+  intent: HostActionIntent,
+  adapterHostKind: HostAdapter["hostKind"],
+): HostActionIntent {
+  if (intent.hostKind !== adapterHostKind) {
+    throw new Error(
+      `host action intent hostKind ${intent.hostKind} does not match adapter hostKind ${adapterHostKind}`,
+    );
+  }
+
+  return {
+    ...intent,
+    hostKind: adapterHostKind,
+  };
+}
+
+async function maybeRecordActionAssessment(input: {
+  assessment: HostActionAssessmentResult;
+  intent: HostActionIntent;
+  memory: CreateHostAdapterInput["memory"];
+}): Promise<{
+  assessmentExperienceId?: string;
+  auditRecorded: boolean;
+}> {
+  if (!hasHostActionAssessmentRecorder(input.memory)) {
+    return {
+      auditRecorded: false,
+    };
+  }
+
+  const result = await readGoodMemoryIntegrationSupport(
+    input.memory as GoodMemory,
+  )!.recordHostActionAssessment({
+    assessment: {
+      actionId: input.intent.actionId,
+      actionKind: input.intent.action.kind,
+      actionSummary: buildHostPlannedActionSummary(input.intent.action),
+      attemptId: input.intent.attemptId,
+      decision: input.assessment.decision,
+      guidance: input.assessment.guidance,
+      hostKind: input.intent.hostKind,
+      matchedEvidenceIds: input.assessment.matchedEvidenceIds,
+      matchedMemoryIds: input.assessment.matchedMemoryIds,
+      occurredAt: input.intent.occurredAt,
+      policyApplied: input.assessment.policyApplied,
+      reason: input.assessment.reason,
+      recommendedFirstStepSummary: summarizeRecommendedFirstStep(
+        input.assessment.recommendedFirstStep,
+      ),
+      requiredPreconditions: input.assessment.requiredPreconditions,
+      runId: input.intent.runId,
+      scope: input.intent.scope,
+      turnId: input.intent.turnId,
+    },
+  });
+
+  return {
+    assessmentExperienceId: result.experienceId,
+    auditRecorded: result.recorded,
+  };
 }
 
 function renderSessionScopeLines(exported: ExportMemoryResult, sessionId: string): string[] {
@@ -1166,6 +1271,30 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
     id: input.id,
     hostKind,
     capabilities,
+    async assessAction(actionInput: HostActionIntent) {
+      const intent = bindIntentToAdapterHostKind(
+        validateHostActionIntent(actionInput),
+        hostKind,
+      );
+      const exported = await input.memory.exportMemory({
+        scope: intent.scope,
+        includeRuntime: Boolean(intent.scope.sessionId),
+      });
+      const assessment = assessHostAction({
+        exported,
+        intent,
+      });
+      const audit = await maybeRecordActionAssessment({
+        assessment,
+        intent,
+        memory: input.memory,
+      });
+
+      return {
+        ...assessment,
+        ...audit,
+      };
+    },
     async readArtifacts(exportInput: ExportMemoryInput) {
       const result = await readArtifacts(
         input.memory,

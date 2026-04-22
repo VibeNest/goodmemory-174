@@ -6,6 +6,10 @@ export type {
   AgentEventScope,
   AgentEventStructuredValue,
   CreateHostAdapterInput,
+  HostActionAssessmentResult,
+  HostActionDecision,
+  HostActionIntent,
+  HostActionKind,
   HostAgentEvent,
   HostAdapter,
   HostAdapterCapabilities,
@@ -13,7 +17,9 @@ export type {
   HostArtifact,
   HostArtifactType,
   HostKind,
+  HostPlannedAction,
   HostReadArtifactsResult,
+  HostRecommendedFirstStep,
   HostRollbackGuidance,
   HostStructuredDelta,
   HostWriteArtifactInput,
@@ -24,6 +30,10 @@ export type {
   HostWriteVerificationResult,
 } from "./contracts";
 export { ingestHostAgentEvent } from "./agentEvents";
+export {
+  isHostActionIntent,
+  validateHostActionIntent,
+} from "./actionIntents";
 export {
   isHostAgentEvent,
   validateHostAgentEvent,

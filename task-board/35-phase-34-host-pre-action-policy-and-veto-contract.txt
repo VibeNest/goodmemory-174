@@ -1,0 +1,90 @@
+Phase 34: Host Pre-Action Policy and Veto Contract
+==================================================
+
+Phase Goal
+----------
+Turn the accepted external host line from "memory can remind" into "memory can assess, veto, and rewrite the first step" on the explicit `goodmemory/host` surface without widening the root `GoodMemory` API.
+
+This phase exists to add one public host-level pre-action seam for the canonical `coding_agent + goodmemory + goodmemory/host + Codex` line, while keeping Claude to parity-only and leaving the root API and public `goodmemory/evolution` surface unchanged.
+
+
+Current Status
+--------------
+[DOING] Phase 34 is in progress.
+[DONE] P34-T001 Freeze the Phase 34 public boundary on `goodmemory/host` without widening the root API.
+[DONE] P34-T002 Add explicit `HostActionIntent` / `HostActionAssessmentResult` / `HostActionDecision` contracts plus `HostAdapter.assessAction()`.
+[DONE] P34-T003 Implement deterministic pre-action policy compilation from active validated patterns, correction/verification/tool-result evidence, working memory, and session journal, with internal audit recording.
+[TODO] P34-T004 Wire the Codex runtime path so `review_required` can rewrite the first executable step while keeping lineage tied to the assessed `actionId`.
+[TODO] P34-T005 Add dedicated Phase 34 deterministic/live eval runners and one canonical Codex live gate.
+[TODO] P34-T006 Sync package scripts, docs, and closure artifacts only after Phase 34 evidence is real.
+
+
+Dependencies
+------------
+- Phase 30 trace-backed behavioral enactment and live closure
+- Phase 31 native host outcome and correction closure
+- Phase 32 external host integration productization
+- Phase 33 formal Node-compatible package boundary and Node-first integration
+- `docs/开发安排.md`
+
+
+Primary Deliverables
+--------------------
+- explicit host pre-action contract on `goodmemory/host`
+- deterministic pre-action policy engine fed by:
+  - active `validated_pattern`
+  - `correction_context`
+  - `verification_result`
+  - `tool_result_excerpt`
+  - working memory
+  - session journal
+- auditable action-assessment recording tied to `actionId`
+- Codex-first runtime behavior:
+  - `allow`
+  - `allow_with_guidance`
+  - `review_required`
+  - `blocked`
+- deterministic/live Phase 34 evidence against:
+  - current Phase 32 soft-guard path
+  - no-memory baseline
+
+
+Definition of Done
+------------------
+- `goodmemory/host` publicly exports `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, and `HostAdapter.assessAction()`
+- root `goodmemory` API stays unchanged and no public `goodmemory/evolution` surface is added
+- pre-action assessment uses the existing compiled/exported memory truth sources instead of inventing a second policy database
+- memory-backed vetoes and rewrites are deterministic and fail closed
+- blocked or rewritten actions leave an auditable internal record tied to `actionId`
+- Codex remains the only live gate-blocking host path
+- Claude gets package/bootstrap parity only and does not become a second live blocker
+- deterministic/live evidence proves at least one high-risk first action is rewritten or blocked beyond the Phase 32 soft-guard path without a completion regression
+
+
+Tasks
+-----
+[DONE] P34-T001 Freeze the canonical public boundary for pre-action policy and veto behavior
+[DONE] P34-T002 Add host pre-action contracts, validation helpers, and adapter wiring
+[DONE] P34-T003 Record auditable host action assessments through the existing internal integration path
+[TODO] P34-T004 Wire the Codex runtime rewrite path and action lineage closure
+[TODO] P34-T005 Add Phase 34 deterministic/live evals plus `gate:phase-34`
+[TODO] P34-T006 Sync docs, package scripts, and closure artifacts once canonical evidence exists
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-34-host-pre-action-policy-and-veto-contract/00-README.txt`
+- `task-board/phase-34-host-pre-action-policy-and-veto-contract/01-freeze-canonical-boundary.txt`
+- `task-board/phase-34-host-pre-action-policy-and-veto-contract/02-host-pre-action-contract-and-policy-engine.txt`
+- `task-board/phase-34-host-pre-action-policy-and-veto-contract/03-action-lineage-and-audit-recording.txt`
+- `task-board/phase-34-host-pre-action-policy-and-veto-contract/04-codex-runtime-rewrite-and-claude-parity.txt`
+- `task-board/phase-34-host-pre-action-policy-and-veto-contract/05-phase-34-evals-and-gate.txt`
+- `task-board/phase-34-host-pre-action-policy-and-veto-contract/06-docs-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase grows `goodmemory/host`; it does not reopen the root API.
+- This phase does not reopen Phase 32 acceptance or pretend Claude is now live-gated.
+- This phase does not turn evidence storage into a transcript database or raw tool-output archive.
+- This phase does not claim closure until deterministic/live evidence and synced docs exist.

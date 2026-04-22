@@ -1,0 +1,12 @@
+Phase 34.6: Docs and Closure
+============================
+
+[TODO] Add Phase 34 package script/docs references after eval/gate scripts exist.
+[TODO] Archive canonical Phase 34 evidence only after deterministic/live reports are accepted.
+[TODO] Update current-status and quality-gate docs only when closure evidence is synchronized.
+
+Acceptance
+----------
+- no stable docs claim Phase 34 is accepted before the evidence exists
+- closure artifacts point to one canonical deterministic report, one canonical live report, and one canonical gate report
+- task-board, current-status, and archive docs stay synchronized when Phase 34 closes

@@ -1,0 +1,13 @@
+Phase 34.3: Action Lineage and Audit Recording
+==============================================
+
+[DONE] Keep pre-action intents outside the existing `*AgentEvent` family.
+[DONE] Make `actionId` the trace id for internal assessment records.
+[DONE] Persist assessed-action audit records through the existing internal integration support instead of opening a new public recorder.
+[TODO] Close the full runtime lineage so realized host events can consistently point back to the assessed `actionId`.
+
+Acceptance
+----------
+- assessed actions can be audited even when the original action never executes
+- audit records remain tied to matched memory ids and evidence ids
+- repeated assessment of the same `actionId` dedupes instead of duplicating experience records

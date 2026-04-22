@@ -1,4 +1,6 @@
 import type { AgentInputEvent, HostAgentEvent } from "../agentEvents";
+import type { MemoryScope } from "../domain/scope";
+import type { HostActionDecision, HostKind } from "../host/contracts";
 import type { GoodMemory } from "./contracts";
 
 export const GOODMEMORY_INTEGRATION_SUPPORT = Symbol.for(
@@ -19,6 +21,34 @@ export interface AgentEventIngestResult {
   skippedReason?: AgentEventIngestSkipReason;
 }
 
+export type HostActionAssessmentRecordSkipReason = "unsupported_memory";
+
+export interface HostActionAssessmentRecordInput {
+  actionId: string;
+  actionKind: "command" | "file_edit" | "tool_call";
+  actionSummary: string;
+  attemptId?: string;
+  decision: HostActionDecision;
+  guidance: string[];
+  hostKind: HostKind;
+  matchedEvidenceIds: string[];
+  matchedMemoryIds: string[];
+  occurredAt: string;
+  policyApplied: string[];
+  reason: string;
+  recommendedFirstStepSummary?: string;
+  requiredPreconditions: string[];
+  runId?: string;
+  scope: MemoryScope;
+  turnId: string;
+}
+
+export interface HostActionAssessmentRecordResult {
+  experienceId?: string;
+  recorded: boolean;
+  skippedReason?: HostActionAssessmentRecordSkipReason;
+}
+
 export interface GoodMemoryIntegrationSupport {
   ingestAgentInputEvent(
     input: { event: AgentInputEvent },
@@ -26,6 +56,9 @@ export interface GoodMemoryIntegrationSupport {
   ingestHostAgentEvent(
     input: { event: HostAgentEvent },
   ): Promise<AgentEventIngestResult>;
+  recordHostActionAssessment(
+    input: { assessment: HostActionAssessmentRecordInput },
+  ): Promise<HostActionAssessmentRecordResult>;
 }
 
 type IntegrationAwareGoodMemory = GoodMemory & {

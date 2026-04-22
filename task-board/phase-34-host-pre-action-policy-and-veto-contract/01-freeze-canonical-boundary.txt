@@ -1,0 +1,13 @@
+Phase 34.1: Freeze the Canonical Boundary
+=========================================
+
+[DONE] Keep the new behavior scoped to `goodmemory/host`.
+[DONE] Keep the root `goodmemory` API unchanged.
+[DONE] Keep the canonical line narrowed to `coding_agent + goodmemory + goodmemory/host + Codex`.
+[DONE] Keep Claude parity-only and non-blocking for live evidence.
+
+Acceptance
+----------
+- new public surface exists only on `goodmemory/host`
+- no new root API or public `goodmemory/evolution` module is introduced
+- Phase 34 is treated as a new slice instead of reopening accepted Phase 32 closure

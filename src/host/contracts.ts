@@ -124,6 +124,81 @@ export interface HostWriteArtifactResult {
   updatedArtifact: HostArtifact;
 }
 
+export type HostActionDecision =
+  | "allow"
+  | "allow_with_guidance"
+  | "review_required"
+  | "blocked";
+
+export type HostActionKind = "command" | "file_edit" | "tool_call";
+
+export interface HostCommandAction {
+  command: string;
+  kind: "command";
+  summary?: string;
+}
+
+export interface HostToolCallAction {
+  kind: "tool_call";
+  payload?: AgentEventStructuredValue;
+  raw?: string;
+  summary?: string;
+  toolName: string;
+}
+
+export interface HostFileEditAction {
+  kind: "file_edit";
+  operation: "create" | "delete" | "update";
+  relativePath: string;
+  summary?: string;
+}
+
+export type HostPlannedAction =
+  | HostCommandAction
+  | HostFileEditAction
+  | HostToolCallAction;
+
+export interface HostWarningAction {
+  kind: "warning";
+  message: string;
+}
+
+export type HostRecommendedFirstStep = HostPlannedAction | HostWarningAction;
+
+type HostActionRunBinding =
+  | {
+      attemptId: string;
+      runId?: string;
+    }
+  | {
+      attemptId?: string;
+      runId: string;
+    };
+
+export type HostActionIntent = HostActionRunBinding & {
+  action: HostPlannedAction;
+  actionId: string;
+  hostKind: HostKind;
+  occurredAt: string;
+  scope: MemoryScope;
+  sequence: number;
+  turnId: string;
+};
+
+export interface HostActionAssessmentResult {
+  actionId: string;
+  assessmentExperienceId?: string;
+  auditRecorded: boolean;
+  decision: HostActionDecision;
+  guidance: string[];
+  matchedEvidenceIds: string[];
+  matchedMemoryIds: string[];
+  policyApplied: string[];
+  reason: string;
+  recommendedFirstStep?: HostRecommendedFirstStep;
+  requiredPreconditions: string[];
+}
+
 export class HostAdapterWriteError extends Error {
   constructor(
     message: string,
@@ -138,6 +213,7 @@ export interface HostAdapter {
   readonly capabilities: HostAdapterCapabilities;
   readonly hostKind: HostKind;
   readonly id: string;
+  assessAction(input: HostActionIntent): Promise<HostActionAssessmentResult>;
   readArtifacts(input: ExportMemoryInput): Promise<HostReadArtifactsResult>;
   writeArtifact(input: HostWriteArtifactInput): Promise<HostWriteArtifactResult>;
 }

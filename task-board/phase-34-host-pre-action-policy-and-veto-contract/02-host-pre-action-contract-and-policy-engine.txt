@@ -1,0 +1,14 @@
+Phase 34.2: Host Pre-Action Contract and Policy Engine
+======================================================
+
+[DONE] Add `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, and `HostAdapter.assessAction()`.
+[DONE] Add runtime validation helpers for host action intents.
+[DONE] Compile deterministic decisions from active validated patterns, linked evidence, working memory, and session journal.
+[DONE] Restrict blocking behavior to memory-backed high-risk cases.
+
+Acceptance
+----------
+- `allow`, `allow_with_guidance`, `review_required`, and `blocked` are explicit public decisions
+- low-risk actions do not block by default
+- memory-backed preconditions can return a concrete recommended first step
+- destructive deletes with matched veto evidence fail closed

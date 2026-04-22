@@ -5,6 +5,7 @@ import {
 } from "goodmemory/ai-sdk";
 import {
   createHostAdapter,
+  validateHostActionIntent,
   validateHostAgentEvent,
 } from "goodmemory/host";
 
@@ -293,6 +294,22 @@ const validatedFileEditEvent = validateHostAgentEvent({
   relativePath: "playbooks/consumer-checklist.md",
   summary: "Capture the installed-package smoke edit shape.",
 });
+const validatedHostActionIntent = validateHostActionIntent({
+  actionId: "consumer-action-1",
+  runId: "consumer-run-1",
+  turnId: "consumer-turn-2",
+  sequence: 2,
+  occurredAt: "2026-04-22T00:00:02.000Z",
+  hostKind: "claude",
+  scope: {
+    ...memoryScope,
+    sessionId: "consumer-memory-s1",
+  },
+  action: {
+    kind: "command",
+    command: "deploy preview",
+  },
+});
 
 const aiSDKResponseText = await aiSDK.streamText({
   scope: {
@@ -405,10 +422,12 @@ const artifacts = await adapter.readArtifacts({
     sessionId: "consumer-memory-s1",
   },
 });
+const assessment = await adapter.assessAction(validatedHostActionIntent);
 
 console.log(
   JSON.stringify({
     aiSDKResponseText,
+    assessmentDecision: assessment.decision,
     artifactPaths: artifacts.artifacts.map((artifact) => artifact.relativePath),
     contextIncludesChecklist: context.content.includes("concise release checklists"),
     invalidScopeError,
@@ -417,6 +436,7 @@ console.log(
       validatedFileEditEvent.kind === "file_edit"
         ? validatedFileEditEvent.relativePath
         : undefined,
+    validatedHostActionIntentId: validatedHostActionIntent.actionId,
     validatedToolPayloadShape:
       validatedToolEvent.kind === "tool_call" &&
       validatedToolEvent.payload &&

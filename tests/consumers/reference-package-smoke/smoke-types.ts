@@ -7,8 +7,12 @@ import type {
 import {
   validateAgentInputEvent,
 } from "goodmemory/ai-sdk";
-import type { HostAgentEvent } from "goodmemory/host";
+import type {
+  HostActionIntent,
+  HostAgentEvent,
+} from "goodmemory/host";
 import {
+  validateHostActionIntent,
   validateHostAgentEvent,
 } from "goodmemory/host";
 
@@ -62,8 +66,27 @@ const hostEvent = {
   summary: "Capture the installed-package smoke edit shape.",
 } satisfies HostAgentEvent;
 
+const hostActionIntent = {
+  actionId: "consumer-action-1",
+  runId: "consumer-run-1",
+  turnId: "consumer-turn-2",
+  sequence: 2,
+  occurredAt: "2026-04-22T00:00:02.000Z",
+  hostKind: "codex",
+  scope: {
+    userId: "consumer-user",
+    workspaceId: "consumer-workspace",
+    sessionId: "consumer-s1",
+  },
+  action: {
+    kind: "command",
+    command: "deploy preview",
+  },
+} satisfies HostActionIntent;
+
 void validateAgentInputEvent(aiEvent);
 void validateHostAgentEvent(hostEvent);
+void validateHostActionIntent(hostActionIntent);
 
 const legacyArgsEvent: AgentInputEvent = {
   surface: "ai-sdk",
@@ -94,9 +117,17 @@ const rootValidateAgentInputEvent = import("goodmemory").validateAgentInputEvent
 // @ts-expect-error Root barrel must not export runtime validation helpers for host events.
 const rootValidateHostAgentEvent = import("goodmemory").validateHostAgentEvent;
 
+// @ts-expect-error Root barrel must not export host action intents.
+type RootHostActionIntent = import("goodmemory").HostActionIntent;
+
+// @ts-expect-error Root barrel must not export runtime validation helpers for host action intents.
+const rootValidateHostActionIntent = import("goodmemory").validateHostActionIntent;
+
 void legacyArgsEvent;
 void (0 as unknown as RootAgentInputEvent);
 void (0 as unknown as RootHostAgentEvent);
+void (0 as unknown as RootHostActionIntent);
 void rootValidateAgentInputEvent;
 void rootValidateHostAgentEvent;
+void rootValidateHostActionIntent;
 void runtimeInfo;

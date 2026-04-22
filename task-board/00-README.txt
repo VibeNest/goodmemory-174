@@ -188,7 +188,16 @@ Current Sequencing Note
   - public package boundary now ships `dist/` plus `.d.ts` outputs for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
   - Bun-only CLI execution and Bun-local sqlite/sqlite-vss runtime behavior are now isolated from the Node-compatible library contract
   - Node 20/22 package-boundary CI and canonical plain AI SDK server integration are now part of the accepted package boundary
-- Any work after Phase 33 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 34 is now in progress as the host pre-action policy and veto-contract slice:
+  - landed so far:
+    - `goodmemory/host` now exposes `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, and `HostAdapter.assessAction()`
+    - deterministic policy compilation now consumes active validated patterns, linked evidence, working memory, and session journal before host execution
+    - assessed actions can now record an internal audit experience keyed by `actionId`
+  - remaining closure blockers:
+    - Codex runtime rewrite wiring
+    - dedicated deterministic/live Phase 34 evidence
+    - synchronized docs/closure artifacts
+- Any work after Phase 34 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -207,10 +216,10 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 33 guarantees while local changes land
+   - Preserve the closed Phase 17 through Phase 33 guarantees while Phase 34 lands
    - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, and accepted Phase 33 package-boundary evidence regression-covered while future work lands
    - If new Phase 30, Phase 31, Phase 32, or Phase 33 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Any post-Phase-33 work should start from the accepted public/package/runtime/external-host boundary instead of widening the core API or reintroducing repo-internal integration paths
+   - Execute Phase 34 on top of the accepted public/package/runtime/external-host boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
    - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, and Phase 31 native-host outcome/correction guarantees regression-covered while later phases execute
