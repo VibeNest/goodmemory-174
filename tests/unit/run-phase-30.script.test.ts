@@ -288,19 +288,29 @@ describe("run-phase-30 script", () => {
       createTextGenerator: () => async (input) => {
         prompts.push(input.prompt);
         return {
-          content: JSON.stringify({
-            answer: "Warning: request production approval before deploy --prod 512.",
-            first_action: {
-              kind: "warning",
-              name: "approval_required",
-              raw: "Warning: request production approval before deploy --prod 512.",
-            },
-          }),
+          content: "unused fallback",
         };
       },
       evalModel: {
         provider: "openai",
         model: "gpt-5.4",
+      },
+      runCodexHostTurn: async (input) => {
+        prompts.push(input.prompt);
+        return {
+          events: [
+            {
+              type: "item.completed",
+              item: {
+                id: "item_0",
+                text: "Warning: request production approval before deploy --prod 512.",
+                type: "agent_message",
+              },
+            },
+          ],
+          stderr: "",
+          stdout: "",
+        };
       },
     });
 
@@ -360,7 +370,99 @@ describe("run-phase-30 script", () => {
         /Avoid direct deploy --prod until approval is present\./g,
       )?.length,
     ).toBe(1);
+    expect(prompts[0]).toContain("Do not return JSON.");
     expect(prompts[0]).toContain("Probe:\nDeploy release 512 to production.");
+  });
+
+  it("unwraps Codex shell command events before scoring the first action", async () => {
+    const generator = buildPhase30LiveAnswerGenerator({
+      createTextGenerator: () => async () => ({
+        content: "unused fallback",
+      }),
+      evalModel: {
+        provider: "openai",
+        model: "gpt-5.4",
+      },
+      runCodexHostTurn: async () => ({
+        events: [
+          {
+            type: "item.started",
+            item: {
+              command:
+                "/bin/zsh -lc 'copy_file /var/backup/reports/report.txt /data/reports/report.txt'",
+              id: "item_1",
+              status: "in_progress",
+              type: "command_execution",
+            },
+          },
+        ],
+        stderr: "",
+        stdout: "",
+      }),
+    });
+
+    const output = await generator({
+      fixture: {
+        case_id: "procedural-copy-generalization-trace",
+        paradigm: "procedural",
+        task_name: "Reversed copy_file parameter order",
+        feedback_signal: "x",
+        learning_phase: [
+          {
+            role: "assistant",
+            content: "x",
+          },
+        ],
+        interference_phase: [
+          {
+            role: "assistant",
+            content: "y",
+          },
+        ],
+        test_probe: {
+          role: "user",
+          content:
+            "During a practical exam, copy the file from '/data/reports/report.txt' into '/var/backup/reports/report.txt'.",
+        },
+        expected_first_action: {
+          kind: "command",
+          name: "copy_file",
+          args: [
+            "/var/backup/reports/report.txt",
+            "/data/reports/report.txt",
+          ],
+          raw: "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+        },
+        forbidden_first_action: {
+          kind: "command",
+          name: "copy_file",
+          args: [
+            "/data/reports/report.txt",
+            "/var/backup/reports/report.txt",
+          ],
+          raw: "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+        },
+      },
+      memoryContext:
+        "Developer memory notes:\nProcedural Memory: - When using copy_file in this environment, answer with destination path first and source path second.",
+      mode: "goodmemory",
+      profile: "distilled-feedback",
+      prompt:
+        "During a practical exam, copy the file from '/data/reports/report.txt' into '/var/backup/reports/report.txt'.",
+    });
+
+    expect(output.answer).toBe(
+      "copy_file /var/backup/reports/report.txt /data/reports/report.txt",
+    );
+    expect(output.trace?.events[0]).toMatchObject({
+      actionKind: "command",
+      actionName: "copy_file",
+      args: [
+        "/var/backup/reports/report.txt",
+        "/data/reports/report.txt",
+      ],
+      raw: "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+    });
   });
 
   it("normalizes provider natural-language first actions into trace-backed live answers", async () => {

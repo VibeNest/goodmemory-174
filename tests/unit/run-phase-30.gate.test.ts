@@ -222,6 +222,15 @@ function buildLiveReport(
       withLineage: index === 1,
     }),
   );
+  outcomeCases.push(
+    buildCase({
+      caseId: PHASE30_PROCEDURAL_CASE_ID,
+      paradigm: "procedural",
+      passed: true,
+      profile: "outcome-telemetry",
+      withLineage: true,
+    }),
+  );
   const distilledCases = [
     ...PHASE30_CONDITIONING_CASE_IDS.map((caseId) =>
       buildCase({
@@ -249,6 +258,10 @@ function buildLiveReport(
     evidenceContract: {
       phase30: {
         fixtureDir: contract.expectedFixtureDir,
+        hostRuntime: {
+          modelTransport: "codex-exec-json",
+          structuredFirstAction: "disabled",
+        },
         providerBackedStorage: {
           envVar: "GOODMEMORY_TEST_POSTGRES_URL",
           memoryStackPreflight: "passed",
@@ -294,21 +307,21 @@ function buildLiveReport(
             ...profiles["outcome-telemetry"].blockingSummary.procedural.failedCases,
             ...profiles["distilled-feedback"].blockingSummary.procedural.failedCases,
           ],
-          passedCases: 1,
-          totalCases: 2,
+          passedCases: 2,
+          totalCases: 3,
         },
       },
       executionFailures: 0,
       explicitRecallLeakCount: 0,
       layer_d: {
-        first_attempt_policy_adherence: 0.5455,
+        first_attempt_policy_adherence: 0.5833,
         failure_avoidance_rate: 0.5556,
         inhibition_success_rate: 0.5556,
-        procedure_generalization_rate: 0.5,
+        procedure_generalization_rate: 0.6667,
         priming_delta: 0,
         constraint_violation_rate: 0,
       },
-      totalCases: 15,
+      totalCases: 16,
     },
     ...overrides,
   };
@@ -320,7 +333,7 @@ describe("run-phase-30 gate", () => {
       "/tmp/goodmemory/reports/quality-gates/phase-30",
     );
     expect(resolvePhase30CanonicalLiveReportPath("/tmp/goodmemory")).toBe(
-      "/tmp/goodmemory/reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
+      "/tmp/goodmemory/reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
     );
     expect(buildPhase30GateRunId("2026-04-21T12:00:00.000Z")).toBe(
       "run-20260421120000",
@@ -340,9 +353,9 @@ describe("run-phase-30 gate", () => {
     });
 
     expect(evidence.status).toBe("accepted");
-    expect(evidence.blockingCases).toBe(11);
-    expect(evidence.passedBlockingCases).toBe(6);
-    expect(evidence.traceBackedBlockingCases).toBe(11);
+    expect(evidence.blockingCases).toBe(12);
+    expect(evidence.passedBlockingCases).toBe(7);
+    expect(evidence.traceBackedBlockingCases).toBe(12);
   });
 
   it("blocks live-memory reports that are not trace-backed", async () => {

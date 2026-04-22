@@ -2,7 +2,7 @@ Phase 30.3: Trace-Backed Eval Runners
 =====================================
 
 [DONE] Added a deterministic Phase 30 eval runner that consumes trace fixtures.
-[TODO] Add a provider-backed live-memory Phase 30 runner that records actual host traces.
+[DONE] Add a provider-backed live-memory Phase 30 runner that records native Codex host events and scores from those traces.
 [DONE] Reuse Phase 25 `layer_d` metrics without renaming or adding release-blocking priming metrics.
 [DONE] Report baseline trace, GoodMemory trace, memory context, first-action parse, score reason, and outcome telemetry lineage per case.
 

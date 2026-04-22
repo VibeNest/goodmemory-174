@@ -508,5 +508,70 @@
       "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
     },
     "feedback_signal": "When using copy_file in this environment, answer with destination path first and source path second."
+    ,
+    "behavioral_trace_replays": [
+      {
+        "cue": "copy_file order",
+        "hostKind": "codex",
+        "traceId": "procedural-copy-order-1",
+        "events": [
+          {
+            "stepIndex": 0,
+            "actionKind": "command",
+            "actionName": "copy_file",
+            "args": [
+              "/data/reports/report.txt",
+              "/var/backup/reports/report.txt"
+            ],
+            "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+            "evidenceExcerpt": "Practical exam rejected the source-first copy_file order.",
+            "outcome": "failure"
+          },
+          {
+            "stepIndex": 1,
+            "actionKind": "command",
+            "actionName": "copy_file",
+            "args": [
+              "/var/backup/reports/report.txt",
+              "/data/reports/report.txt"
+            ],
+            "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+            "correctionOfStepIndex": 0,
+            "outcome": "success"
+          }
+        ]
+      },
+      {
+        "cue": "copy_file order",
+        "hostKind": "codex",
+        "traceId": "procedural-copy-order-2",
+        "events": [
+          {
+            "stepIndex": 0,
+            "actionKind": "command",
+            "actionName": "copy_file",
+            "args": [
+              "/data/reports/report.txt",
+              "/var/backup/reports/report.txt"
+            ],
+            "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+            "evidenceExcerpt": "The environment-specific copy_file utility again failed when the source path was passed first.",
+            "outcome": "failure"
+          },
+          {
+            "stepIndex": 1,
+            "actionKind": "command",
+            "actionName": "copy_file",
+            "args": [
+              "/var/backup/reports/report.txt",
+              "/data/reports/report.txt"
+            ],
+            "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+            "correctionOfStepIndex": 0,
+            "outcome": "success"
+          }
+        ]
+      }
+    ]
   }
 ]

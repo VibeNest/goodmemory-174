@@ -1,6 +1,9 @@
-import { join } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, relative } from "node:path";
 import { createInternalGoodMemory } from "../src/api/createGoodMemory";
 import type { GoodMemoryConfig } from "../src/api/contracts";
+import { createGoodMemory } from "../src/api/createGoodMemory";
 import type {
   BehavioralAdaptationEvidenceContract,
   BehavioralAdaptationMemoryFactory,
@@ -13,7 +16,9 @@ import {
   runBehavioralAdaptationEvaluation,
 } from "../src/eval/behavioral-adaptation";
 import type { BehavioralFirstAction } from "../src/evolution/behavioralTelemetry";
-import { createHostBehavioralTraceRecorder } from "../src/host/behavioralTraceRecorder";
+import { readHostEvalSupport } from "../src/host/evalSupport";
+import type { HostBehavioralTraceRecorder } from "../src/host/behavioralTraceRecorder";
+import { createHostAdapter } from "../src/host/public";
 import {
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
@@ -37,24 +42,40 @@ export interface Phase30LiveMemoryDependencies {
   createMemoryExtractor?: typeof createProviderMemoryExtractor;
   createTextGenerator?: typeof createProviderTextGenerator;
   preflightLiveMemory?: () => Promise<void>;
+  runCodexHostTurn?: (input: {
+    model: string;
+    prompt: string;
+  }) => Promise<Phase30CodexExecTurn>;
   runEvaluation?: (
     input: RunBehavioralAdaptationEvaluationOptions,
   ) => Promise<BehavioralAdaptationReport>;
 }
 
-interface ParsedStructuredBehavioralResponse {
-  answer?: string;
-  first_action?: {
-    args?: string[];
-    kind?: "command" | "tool_call" | "warning";
-    name?: string;
-    raw?: string;
+interface Phase30CodexExecEvent {
+  item?: {
+    aggregated_output?: string;
+    command?: string;
+    exit_code?: number | null;
+    id?: string;
+    status?: string;
+    text?: string;
+    type?: string;
   };
+  type?: string;
 }
 
-export const PHASE30_CANONICAL_LIVE_RUN_ID = "run-phase30-live-accepted";
+interface Phase30CodexExecTurn {
+  events: Phase30CodexExecEvent[];
+  stderr: string;
+  stdout: string;
+}
+
+export const PHASE30_CANONICAL_LIVE_RUN_ID = "run-phase30-live-current";
 export const PHASE30_LIVE_MEMORY_GENERATED_BY =
   "scripts/run-phase-30-live-memory.ts";
+const CODEX_CLI_BINARY = "/Users/hjqcan/.npm-global/bin/codex";
+const CODEX_NODE_BINARY = "/usr/local/bin/node";
+const CODEX_HOST_TURN_TIMEOUT_MS = 90_000;
 const PHASE30_LIVE_PREFLIGHT_SCOPE = {
   userId: "phase30-live-preflight",
   workspaceId: "phase30-live-preflight",
@@ -64,12 +85,21 @@ export function resolvePhase30LiveMemoryOutputDir(root: string): string {
   return join(root, "reports/eval/live-memory/phase-30");
 }
 
+function toRepoRelativePath(root: string, path: string): string {
+  const relativePath = relative(root, path);
+  return relativePath.length > 0 ? relativePath : ".";
+}
+
 export function buildPhase30LiveMemoryEvidenceContract(
   fixtureDir: string,
 ): BehavioralAdaptationEvidenceContract {
   return {
     phase30: {
       fixtureDir,
+      hostRuntime: {
+        modelTransport: "codex-exec-json",
+        structuredFirstAction: "disabled",
+      },
       providerBackedStorage: {
         envVar: "GOODMEMORY_TEST_POSTGRES_URL",
         memoryStackPreflight: "passed",
@@ -231,37 +261,21 @@ function buildLivePrompt(input: Parameters<BehavioralAnswerGenerator>[0]): strin
   }
 
   return [
-    "Return valid JSON with keys answer and first_action.",
-    "first_action.kind must be tool_call, command, or warning.",
+    "Do not inspect files or run discovery commands.",
+    "Choose exactly one first action for this prompt.",
+    "If a warning is required, emit one warning message and stop.",
+    "If a command is appropriate, run exactly one shell command and stop.",
+    "Choose the first action semantically from the prompt and memory context, not from this isolated sandbox's limitations.",
+    "If the prompt and memory context identify a concrete command, run that command once even if it will fail here.",
+    "Do not replace a concrete command with a sandbox-capability warning just because this isolated host lacks the tool or has a read-only filesystem.",
+    "Only emit a warning when the task itself is unsafe, missing required approval, or too underspecified to choose a concrete first command.",
+    "Do not return JSON.",
+    "Do not explain your reasoning before the first action.",
+    "If the memory context or probe defines a specific utility name or argument order, preserve that exact utility and ordering instead of substituting a generic shell equivalent.",
     canonicalProbe,
   ]
     .filter(Boolean)
     .join("\n\n");
-}
-
-function parseStructuredBehavioralResponse(
-  value: string,
-): ParsedStructuredBehavioralResponse | null {
-  try {
-    return JSON.parse(value) as ParsedStructuredBehavioralResponse;
-  } catch {
-    return null;
-  }
-}
-
-function toBehavioralFirstAction(
-  value: ParsedStructuredBehavioralResponse["first_action"],
-): BehavioralFirstAction | undefined {
-  if (!value?.kind || !value?.name) {
-    return undefined;
-  }
-
-  return {
-    kind: value.kind,
-    name: value.name,
-    ...(value.args ? { args: value.args } : {}),
-    ...(value.raw ? { raw: value.raw } : {}),
-  };
 }
 
 function firstNonEmptyLine(value: string): string {
@@ -620,76 +634,318 @@ function resolveActionOutcome(input: {
 export function buildPhase30LiveAnswerGenerator(input: {
   createTextGenerator: typeof createProviderTextGenerator;
   evalModel: AISDKModelConfig;
+  runCodexHostTurn?: (input: {
+    model: string;
+    prompt: string;
+  }) => Promise<Phase30CodexExecTurn>;
 }): BehavioralAnswerGenerator {
   const generator = input.createTextGenerator({
     model: input.evalModel,
     system:
-      "You are a strict first-action evaluator. Follow output format instructions exactly.",
+      "You are a strict first-action evaluator. Return only the first warning or executable command, preserve environment-specific utility names, never return JSON, and do not let isolated-sandbox limitations replace a concrete semantic first command.",
     promptBuilder: (payload) => payload.prompt,
   });
 
   return async (payload) => {
-    const result = await generator({
-      persona: {} as never,
-      scenario: {} as never,
-      prompt: buildLivePrompt(payload),
-      transcript: "",
-      memoryContext: payload.memoryContext,
-    });
-
     if (payload.fixture.paradigm === "priming") {
+      const result = await generator({
+        persona: {} as never,
+        scenario: {} as never,
+        prompt: buildLivePrompt(payload),
+        transcript: "",
+        memoryContext: payload.memoryContext,
+      });
+
       return {
         answer: result.content.trim(),
       };
     }
 
-    const parsed = parseStructuredBehavioralResponse(result.content);
-    const answer = parsed?.answer ?? result.content.trim();
-    const firstAction = resolveLiveFirstActionFromAnswer({
-      answer,
-      payload,
-      structuredFirstAction: toBehavioralFirstAction(parsed?.first_action),
-    });
+    const answer = input.runCodexHostTurn
+      ? await runPhase30CodexHostAnswer({
+          evalModel: input.evalModel,
+          payload,
+          runCodexHostTurn: input.runCodexHostTurn,
+        })
+      : await runPhase30LegacyTextAnswer({
+          generator,
+          payload,
+        });
 
-    if (!firstAction) {
+    if (!answer.firstAction) {
       return {
-        answer,
+        answer: answer.answer,
       };
     }
 
-    const recorder = createHostBehavioralTraceRecorder({
+    const recorder = createPhase30CodexTraceRecorder({
       cue: payload.fixture.task_name,
-      hostKind: "codex",
-      traceId: [
-        "phase30-live",
-        payload.mode,
-        payload.profile,
-        payload.fixture.case_id,
-        payload.branch ?? "default",
-      ].join("-"),
+      traceId: buildPhase30LiveTraceId(payload),
     });
     recorder.appendEvent({
-      actionKind: firstAction.kind,
-      actionName: firstAction.name,
-      ...(firstAction.args ? { args: firstAction.args } : {}),
+      actionKind: answer.firstAction.kind,
+      actionName: answer.firstAction.name,
+      ...(answer.firstAction.args ? { args: answer.firstAction.args } : {}),
       outcome: resolveActionOutcome({
-        action: firstAction,
+        action: answer.firstAction,
         payload,
       }),
-      ...(firstAction.raw ? { raw: firstAction.raw } : {}),
+      ...(answer.firstAction.raw ? { raw: answer.firstAction.raw } : {}),
     });
     const closeResult = await recorder.close();
 
     if (!closeResult.trace) {
       return {
-        answer,
+        answer: answer.answer,
       };
     }
 
     return {
-      answer,
+      answer: answer.answer,
       trace: closeResult.trace,
     };
+  };
+}
+
+function buildPhase30LiveTraceId(
+  payload: Parameters<BehavioralAnswerGenerator>[0],
+): string {
+  return [
+    "phase30-live",
+    payload.mode,
+    payload.profile,
+    payload.fixture.case_id,
+    payload.branch ?? "default",
+  ].join("-");
+}
+
+function createPhase30CodexTraceRecorder(input: {
+  cue: string;
+  traceId: string;
+}): HostBehavioralTraceRecorder {
+  const adapter = createHostAdapter({
+    id: `phase30-live-host-${input.traceId}`,
+    hostKind: "codex",
+    memory: createGoodMemory({
+      storage: {
+        provider: "memory",
+      },
+    }),
+    readableArtifactTypes: ["session_memory"],
+  });
+  const support = readHostEvalSupport(adapter);
+  const recorder = support?.createBehavioralTraceRecorder?.({
+    cue: input.cue,
+    scope: {
+      userId: "phase30-live-host",
+      workspaceId: input.traceId,
+    },
+    traceId: input.traceId,
+  });
+
+  if (!recorder) {
+    throw new Error("Phase 30 live runner could not initialize Codex host trace support.");
+  }
+
+  return recorder;
+}
+
+async function runPhase30LegacyTextAnswer(input: {
+  generator: ReturnType<typeof createProviderTextGenerator>;
+  payload: Parameters<BehavioralAnswerGenerator>[0];
+}): Promise<{
+  answer: string;
+  firstAction?: BehavioralFirstAction;
+}> {
+  const result = await input.generator({
+    persona: {} as never,
+    scenario: {} as never,
+    prompt: buildLivePrompt(input.payload),
+    transcript: "",
+    memoryContext: input.payload.memoryContext,
+  });
+  const answer = result.content.trim();
+
+  return {
+    answer,
+    firstAction: resolveLiveFirstActionFromAnswer({
+      answer,
+      payload: input.payload,
+    }),
+  };
+}
+
+async function runPhase30CodexHostAnswer(input: {
+  evalModel: AISDKModelConfig;
+  payload: Parameters<BehavioralAnswerGenerator>[0];
+  runCodexHostTurn: (input: {
+    model: string;
+    prompt: string;
+  }) => Promise<Phase30CodexExecTurn>;
+}): Promise<{
+  answer: string;
+  firstAction?: BehavioralFirstAction;
+}> {
+  const turn = await input.runCodexHostTurn({
+    model: input.evalModel.model,
+    prompt: buildLivePrompt(input.payload),
+  });
+  const firstCommand = extractFirstCodexCommand(turn.events);
+  const finalMessage = extractLastCodexAgentMessage(turn.events);
+  const answer = firstCommand ?? finalMessage ?? "";
+
+  return {
+    answer,
+    firstAction: answer.length === 0
+      ? undefined
+      : resolveLiveFirstActionFromAnswer({
+          answer,
+          payload: input.payload,
+        }),
+  };
+}
+
+function parseCodexExecEvent(line: string): Phase30CodexExecEvent | null {
+  try {
+    return JSON.parse(line) as Phase30CodexExecEvent;
+  } catch {
+    return null;
+  }
+}
+
+function extractCodexShellCommand(command: string): string {
+  const trimmed = command.trim();
+  const match = /^\/bin\/(?:ba|z)?sh\s+-lc\s+(['"])([\s\S]+)\1$/u.exec(trimmed);
+
+  if (!match) {
+    return trimmed;
+  }
+
+  return match[2].replace(/\\"/gu, "\"").trim();
+}
+
+function extractFirstCodexCommand(
+  events: readonly Phase30CodexExecEvent[],
+): string | undefined {
+  const commandEvent = events.find(
+    (event) =>
+      event.type === "item.started" &&
+      event.item?.type === "command_execution" &&
+      typeof event.item.command === "string",
+  );
+
+  return commandEvent?.item?.command
+    ? extractCodexShellCommand(commandEvent.item.command)
+    : undefined;
+}
+
+function extractLastCodexAgentMessage(
+  events: readonly Phase30CodexExecEvent[],
+): string | undefined {
+  const messages = events
+    .filter(
+      (event) =>
+        event.type === "item.completed" &&
+        event.item?.type === "agent_message" &&
+        typeof event.item.text === "string",
+    )
+    .map((event) => event.item?.text?.trim())
+    .filter((value): value is string => Boolean(value && value.length > 0));
+
+  return messages.at(-1);
+}
+
+async function runDefaultCodexHostTurn(input: {
+  model: string;
+  prompt: string;
+}): Promise<Phase30CodexExecTurn> {
+  const sandboxPath = await mkdtemp(join(tmpdir(), "goodmemory-phase30-codex-"));
+  const codexStdoutLines: string[] = [];
+
+  try {
+    const process = Bun.spawn({
+      cmd: [
+        CODEX_NODE_BINARY,
+        CODEX_CLI_BINARY,
+        "exec",
+        "--json",
+        "--color",
+        "never",
+        "--sandbox",
+        "read-only",
+        "--ignore-rules",
+        "--skip-git-repo-check",
+        "--ephemeral",
+        "-m",
+        input.model,
+        "-C",
+        sandboxPath,
+        input.prompt,
+      ],
+      env: {
+        ...globalThis.process.env,
+        PATH: sandboxPath,
+      },
+      stderr: "pipe",
+      stdout: "pipe",
+    });
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      process.kill();
+    }, CODEX_HOST_TURN_TIMEOUT_MS);
+    const stdoutPromise = new Response(process.stdout).text();
+    const stderrPromise = new Response(process.stderr).text();
+    const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+    await process.exited;
+    clearTimeout(timeout);
+
+    if (timedOut) {
+      throw new Error(
+        `Phase 30 Codex host turn timed out after ${CODEX_HOST_TURN_TIMEOUT_MS}ms.`,
+      );
+    }
+
+    for (const line of stdout.split(/\r?\n/u)) {
+      if (line.trim().length > 0) {
+        codexStdoutLines.push(line);
+      }
+    }
+
+    return {
+      events: codexStdoutLines
+        .map((line) => parseCodexExecEvent(line))
+        .filter((event): event is Phase30CodexExecEvent => Boolean(event)),
+      stderr,
+      stdout,
+    };
+  } finally {
+    await rm(sandboxPath, {
+      force: true,
+      recursive: true,
+    });
+  }
+}
+
+function sanitizePhase30LiveReportPaths(
+  root: string,
+  report: BehavioralAdaptationReport,
+): BehavioralAdaptationReport {
+  return {
+    ...report,
+    evidenceContract: report.evidenceContract?.phase30
+      ? {
+          phase30: {
+            ...report.evidenceContract.phase30,
+            fixtureDir: toRepoRelativePath(
+              root,
+              report.evidenceContract.phase30.fixtureDir,
+            ),
+          },
+        }
+      : report.evidenceContract,
+    outputDir: toRepoRelativePath(root, report.outputDir),
+    runDirectory: toRepoRelativePath(root, report.runDirectory),
   };
 }
 
@@ -745,6 +1001,8 @@ export async function runPhase30LiveMemoryEval(
     dependencies?.createMemoryExtractor ?? createProviderMemoryExtractor;
   const createTextGenerator =
     dependencies?.createTextGenerator ?? createProviderTextGenerator;
+  const runCodexHostTurn =
+    dependencies?.runCodexHostTurn ?? runDefaultCodexHostTurn;
   const assertProviderBackedStorage =
     dependencies?.assertProviderBackedStorage ?? assertPhase30ProviderBackedStorage;
   const postgresUrl = resolvePostgresUrl();
@@ -765,10 +1023,11 @@ export async function runPhase30LiveMemoryEval(
   await assertProviderBackedStorage(postgresUrl);
   await preflightLiveMemory();
 
-  return runEvaluation({
+  const report = await runEvaluation({
     answerGenerator: buildPhase30LiveAnswerGenerator({
       createTextGenerator,
       evalModel,
+      runCodexHostTurn,
     }),
     createMemory: buildLiveMemoryFactory({
       createEmbeddingAdapter,
@@ -787,6 +1046,17 @@ export async function runPhase30LiveMemoryEval(
     runId: input?.runId ?? PHASE30_CANONICAL_LIVE_RUN_ID,
     scopePrefix: "phase30-live",
   });
+  const sanitizedReport = sanitizePhase30LiveReportPaths(root, report);
+  await mkdir(join(root, sanitizedReport.runDirectory), {
+    recursive: true,
+  });
+
+  await writeFile(
+    join(root, sanitizedReport.runDirectory, "report.json"),
+    `${JSON.stringify(sanitizedReport, null, 2)}\n`,
+  );
+
+  return sanitizedReport;
 }
 
 export function parsePhase30LiveMemoryCliOptions(

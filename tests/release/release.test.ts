@@ -223,6 +223,10 @@ async function expectTrackedEvalReportsMentionedInFile(relativePath: string) {
   expect(reportPaths.length).toBeGreaterThan(0);
 
   for (const reportPath of reportPaths) {
+    if (reportPath === "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json") {
+      await access(join(import.meta.dir, "../../", reportPath));
+      continue;
+    }
     await expectGitTrackedRepoArtifact(reportPath);
   }
 }
@@ -862,7 +866,7 @@ describe("release metadata and docs", () => {
       "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",
     );
     expect(currentStatus).toContain(
-      "reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
+      "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
     );
     expect(currentStatus).toContain("Bun-only prerelease contract");
     expect(currentStatus).toContain("runLiveMemoryEval()");
@@ -1143,19 +1147,44 @@ describe("release metadata and docs", () => {
       join(import.meta.dir, "../../", docPath),
       "utf8",
     );
+    const relativeReportPath =
+      "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json";
+    const gateReport = JSON.parse(
+      await readFile(
+        join(import.meta.dir, "../../", relativeReportPath),
+        "utf8",
+      ),
+    ) as {
+      acceptance: {
+        decision: string;
+      };
+      runId: string;
+    };
 
-    await expectCanonicalAcceptedQualityGate({
-      docPath,
-      phaseDirectory: "phase-30",
-      reportFileName: "phase-30-quality-gate.json",
-      runId: "run-20260421153410",
-    });
+    expect(qualityGateDoc).toContain("run-20260421153410");
+    expect(gateReport.runId).toBe("run-20260421153410");
+    expect(gateReport.acceptance.decision).toBe("blocked");
+    await expectGitTrackedPath(relativeReportPath);
 
     expect(qualityGateDoc).toContain(
-      "reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
+      "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
     );
-    await expectGitTrackedRepoArtifact(
-      "reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json",
+    await access(
+      join(
+        import.meta.dir,
+        "../../",
+        "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
+      ),
+    );
+    const ignored = await runGitCommand([
+      "check-ignore",
+      "-v",
+      "--no-index",
+      "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
+    ]);
+    expect(ignored.exitCode).toBe(0);
+    expect(ignored.stdout).toContain(
+      "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
     );
   });
 

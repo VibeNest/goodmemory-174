@@ -3,13 +3,13 @@ Phase 30 Breakdown
 
 Status
 ------
-- Phase 30 is closed.
+- Phase 30 is reopened.
 - P30-T001 is complete and regression-covered.
 - P30-T002 is complete and regression-covered for the accepted Codex host path.
 - P30-T003 is complete and regression-covered for deterministic replay.
 - P30-T004 is complete and regression-covered for deterministic trace-backed eval/report output.
 - P30-T005 is complete and regression-covered for the provider-backed live-memory runner.
-- `gate:phase-30` is accepted with canonical trace-backed provider-backed live-memory behavioral evidence.
+- `gate:phase-30` is currently blocked by the canonical native-host live report.
 
 
 Goal
@@ -26,7 +26,7 @@ Tasks
 [DONE] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
 [DONE] P30-T004 Add deterministic trace-backed behavioral eval and report contract
 [DONE] P30-T005 Add provider-backed live-memory behavioral eval runner
-[DONE] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
+[WIP] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
 
 
 Acceptance
@@ -42,6 +42,6 @@ Acceptance
 - Codex is the only gate-blocking host path.
 - Failed first actions from traces become `tool_outcome` telemetry with evidence lineage.
 - Repeated trace-derived failures can promote into active `validated_pattern` feedback.
-- Phase 30 closure requires a canonical accepted provider-backed live-memory behavioral report.
+- Phase 30 closure requires a canonical passing provider-backed live-memory behavioral report.
 - Phase 25 `layer_d` metrics remain canonical and unchanged.
 - Public API, Phase 28 local backend claims, and Phase 29 release boundary remain stable.

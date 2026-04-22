@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import type {
   BehavioralAdaptationReport,
   BehavioralAdaptationProfile,
@@ -121,15 +121,16 @@ const REQUIRED_PHASE30_PROFILE_COVERAGE = {
     totalCases: 6,
   },
   "outcome-telemetry": {
-    blockingCases: 3,
+    blockingCases: 4,
     caseOccurrences: {
       "conditioning-detailed-analysis-timeout-trace": 1,
       "conditioning-prod-deploy-warning-trace": 1,
       "conditioning-safe-delete-user-correction-trace": 1,
+      "procedural-copy-generalization-trace": 1,
     },
     conditioningCases: 3,
-    proceduralCases: 0,
-    totalCases: 3,
+    proceduralCases: 1,
+    totalCases: 4,
   },
   "distilled-feedback": {
     blockingCases: 4,
@@ -154,7 +155,7 @@ const REQUIRED_PHASE30_PROFILE_COVERAGE = {
     totalCases: number;
   }
 >;
-const REQUIRED_PHASE30_SUMMARY_TOTAL_CASES = 15;
+const REQUIRED_PHASE30_SUMMARY_TOTAL_CASES = 16;
 const REQUIRED_LAYER_D_KEYS = [
   "constraint_violation_rate",
   "failure_avoidance_rate",
@@ -178,6 +179,11 @@ function formatCommand(args: readonly string[]): string {
 
 function resolveMaybeRelativePath(root: string, path: string): string {
   return isAbsolute(path) ? path : resolve(root, path);
+}
+
+function toRepoRelativePath(root: string, path: string): string {
+  const relativePath = relative(root, path);
+  return relativePath.length > 0 ? relativePath : ".";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -327,16 +333,17 @@ function parsePhase30LiveReport(
   return parsed as unknown as BehavioralAdaptationReport;
 }
 
-function pathsMatch(left: string, right: string): boolean {
-  return resolve(left) === resolve(right);
+function pathsMatch(root: string, left: string, right: string): boolean {
+  return resolveMaybeRelativePath(root, left) === resolveMaybeRelativePath(root, right);
 }
 
 function validatePhase30ReportContract(input: {
   contract: Phase30LiveReportContract;
   liveReportPath: string;
   report: BehavioralAdaptationReport;
+  root: string;
 }): string | undefined {
-  if (!pathsMatch(input.liveReportPath, input.contract.canonicalLiveReportPath)) {
+  if (!pathsMatch(input.root, input.liveReportPath, input.contract.canonicalLiveReportPath)) {
     return [
       "Phase 30 live-memory behavioral report path is not canonical.",
       `Expected ${input.contract.canonicalLiveReportPath}.`,
@@ -357,11 +364,11 @@ function validatePhase30ReportContract(input: {
     ].join(" ");
   }
 
-  if (!pathsMatch(input.report.outputDir, input.contract.expectedOutputDir)) {
+  if (!pathsMatch(input.root, input.report.outputDir, input.contract.expectedOutputDir)) {
     return "Phase 30 live-memory behavioral report outputDir is not canonical.";
   }
 
-  if (!pathsMatch(input.report.runDirectory, input.contract.expectedRunDirectory)) {
+  if (!pathsMatch(input.root, input.report.runDirectory, input.contract.expectedRunDirectory)) {
     return "Phase 30 live-memory behavioral report runDirectory is not canonical.";
   }
 
@@ -378,7 +385,7 @@ function validatePhase30ReportContract(input: {
 
   if (
     typeof phase30.fixtureDir !== "string" ||
-    !pathsMatch(phase30.fixtureDir, input.contract.expectedFixtureDir)
+    !pathsMatch(input.root, phase30.fixtureDir, input.contract.expectedFixtureDir)
   ) {
     return "Phase 30 live-memory behavioral report evidence contract has the wrong fixture directory.";
   }
@@ -393,6 +400,18 @@ function validatePhase30ReportContract(input: {
 
   if (!isRecord(phase30.providerBackedStorage)) {
     return "Phase 30 live-memory behavioral report is missing provider-backed storage evidence.";
+  }
+
+  if (!isRecord(phase30.hostRuntime)) {
+    return "Phase 30 live-memory behavioral report is missing Codex host runtime evidence.";
+  }
+
+  const hostRuntime = phase30.hostRuntime;
+  if (
+    hostRuntime.modelTransport !== "codex-exec-json" ||
+    hostRuntime.structuredFirstAction !== "disabled"
+  ) {
+    return "Phase 30 live-memory behavioral report does not prove native Codex host-event transport.";
   }
 
   const storage = phase30.providerBackedStorage;
@@ -606,6 +625,7 @@ export async function validatePhase30LiveBehavioralReport(input: {
   liveReportPath: string;
   readTextFile: (path: string) => Promise<string>;
 }): Promise<Phase30LiveReportEvidence> {
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
   let reportText: string;
 
   try {
@@ -643,6 +663,7 @@ export async function validatePhase30LiveBehavioralReport(input: {
     contract: input.contract,
     liveReportPath: input.liveReportPath,
     report,
+    root,
   });
   if (contractFailure) {
     return buildBlockedLiveEvidence(
@@ -709,6 +730,25 @@ export async function validatePhase30LiveBehavioralReport(input: {
     };
   }
 
+  const proceduralBlockingCases = report.summary.blockingSummary.procedural.totalCases;
+  const passedProceduralCases = report.summary.blockingSummary.procedural.passedCases;
+  if (
+    proceduralBlockingCases > 0 &&
+    passedProceduralCases / proceduralBlockingCases <= 0.5
+  ) {
+    return {
+      blockingCases: blockingCases.length,
+      canonicalLiveReportPath: input.contract.canonicalLiveReportPath,
+      firstAttemptPolicyAdherence: report.summary.layer_d.first_attempt_policy_adherence,
+      liveReportPath: input.liveReportPath,
+      passedBlockingCases: passedBlockingCases.length,
+      reason:
+        "Phase 30 live-memory behavioral report does not prove a strict majority of procedural generalization wins.",
+      status: "blocked",
+      traceBackedBlockingCases: traceBackedBlockingCases.length,
+    };
+  }
+
   const telemetryCases = report.profiles["outcome-telemetry"].cases.filter(
     (caseResult) =>
       caseResult.blocking &&
@@ -745,7 +785,7 @@ function buildPhase30GateScope(): Phase30GateReport["scope"] {
   return {
     inScope: [
       "trace-backed first-action scoring",
-      "accepted Codex host runtime trace emission",
+      "native Codex host runtime trace capture",
       "phase-30 deterministic behavioral eval",
       "phase-30 provider-backed live-memory behavioral report validation",
     ],
@@ -817,7 +857,7 @@ export async function runPhase30QualityGate(
         ? {
             decision: "accepted",
             reason:
-              "Phase 30 deterministic regressions and a trace-backed provider live-memory behavioral report are accepted.",
+              "Phase 30 deterministic regressions and a native Codex host trace-backed provider live-memory behavioral report are accepted.",
           }
         : {
             decision: "blocked",
@@ -830,9 +870,18 @@ export async function runPhase30QualityGate(
     generatedAt,
     generatedBy: GENERATED_BY,
     phase: "phase-30",
-    runDirectory,
+    runDirectory: toRepoRelativePath(root, runDirectory),
     runId,
     scope: buildPhase30GateScope(),
+  };
+
+  report.evidence.liveMemoryReport = {
+    ...report.evidence.liveMemoryReport,
+    canonicalLiveReportPath: toRepoRelativePath(
+      root,
+      report.evidence.liveMemoryReport.canonicalLiveReportPath,
+    ),
+    liveReportPath: toRepoRelativePath(root, report.evidence.liveMemoryReport.liveReportPath),
   };
 
   await ensureDir(runDirectory, { recursive: true });

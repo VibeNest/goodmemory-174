@@ -158,6 +158,10 @@ export interface BehavioralProfileSummary {
 export interface BehavioralAdaptationEvidenceContract {
   phase30?: {
     fixtureDir: string;
+    hostRuntime: {
+      modelTransport: "codex-exec-json";
+      structuredFirstAction: "disabled";
+    };
     providerBackedStorage: {
       envVar: "GOODMEMORY_TEST_POSTGRES_URL";
       memoryStackPreflight: "passed";
@@ -1232,6 +1236,19 @@ async function prepareFixtureMemory(input: {
   }
 }
 
+function fixtureSupportsOutcomeTelemetry(
+  fixture: ProceduralOrConditioningFixture,
+): boolean {
+  if (fixture.paradigm === "conditioning") {
+    return true;
+  }
+
+  return Boolean(
+    (fixture.behavioral_trace_replays && fixture.behavioral_trace_replays.length > 0) ||
+      (fixture.behavioral_outcomes && fixture.behavioral_outcomes.length > 0),
+  );
+}
+
 function createEmptyBlockingSummary(): BehavioralBlockingSummary {
   return {
     conditioning: {
@@ -1383,7 +1400,10 @@ async function executeStructuredCase(input: {
   requireTraceForStructuredCases?: boolean;
   scopePrefix?: string;
 }): Promise<BehavioralCaseResult | null> {
-  if (input.profile === "outcome-telemetry" && input.fixture.paradigm !== "conditioning") {
+  if (
+    input.profile === "outcome-telemetry" &&
+    !fixtureSupportsOutcomeTelemetry(input.fixture)
+  ) {
     return null;
   }
 

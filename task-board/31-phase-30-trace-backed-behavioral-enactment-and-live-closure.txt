@@ -10,13 +10,13 @@ This phase proves that GoodMemory can change the first real action taken by the 
 
 Current Status
 --------------
-[DONE] Phase 30 is closed.
+[WIP] Phase 30 is reopened after the native Codex host live report blocked closure.
 [DONE] P30-T001 trace contract and deterministic trace-backed scoring are implemented and regression-covered.
 [DONE] P30-T002 accepted Codex host path now emits incremental first-action behavioral traces through internal runtime support and regression-covered close semantics.
 [DONE] P30-T003 internal trace-to-outcome bridge is implemented and regression-covered for deterministic replay.
 [DONE] P30-T004 deterministic trace-backed behavioral eval runner, fixture set, and report evidence contract are implemented and regression-covered.
 [DONE] P30-T005 provider-backed live-memory behavioral eval runner is implemented and regression-covered.
-[DONE] `gate:phase-30` is accepted with canonical provider-backed live-memory behavioral evidence.
+[WIP] P30-T006 gate/docs closure remains open because the current canonical native-host live report is blocked.
 
 
 Dependencies
@@ -35,8 +35,8 @@ Primary Deliverables
 - trace-to-outcome bridge that feeds the existing internal `recordBehavioralOutcome(...)` path
 - Phase 30 deterministic trace-backed behavioral eval runner
 - Phase 30 provider-backed live-memory behavioral eval runner
-- dedicated `gate:phase-30` that requires deterministic regressions plus one canonical accepted live-memory behavioral report
-- archive/current-status/task-board closure evidence after behavior and live evidence are real
+- dedicated `gate:phase-30` that requires deterministic regressions plus one canonical live-memory behavioral report
+- archive/current-status/task-board closure evidence after behavior and live evidence are real and passing
 
 
 Definition of Done
@@ -65,7 +65,7 @@ Tasks
 [DONE] P30-T003 Bridge failed host traces into existing outcome telemetry and validated-pattern promotion
 [DONE] P30-T004 Add deterministic trace-backed behavioral eval and report contract
 [DONE] P30-T005 Add provider-backed live-memory behavioral eval runner
-[DONE] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
+[WIP] P30-T006 Add `gate:phase-30`, archive closure evidence, and sync current-status/task-board docs
 
 
 Breakdown Folder
@@ -100,10 +100,10 @@ Implemented So Far
 - a dedicated Phase 30 deterministic runner now reads `fixtures/behavioral-enactment/` and writes `reports/eval/fallback/phase-30/<run-id>/report.json`
 - a dedicated Phase 30 provider-backed live-memory runner now writes `reports/eval/live-memory/phase-30/<run-id>/report.json`
 - `gate:phase-30` now runs typecheck, targeted trace/eval regressions, `eval:phase-30`, and then requires a canonical trace-backed live-memory report before it can accept
-- canonical accepted live-memory evidence now lives at `reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json`
-- canonical accepted gate evidence now lives at `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
+- current canonical live-memory evidence now lives at `reports/eval/live-memory/phase-30/run-phase30-live-current/report.json`
+- current canonical gate evidence now lives at `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
 - structured cases can now require trace-backed scoring, so self-reported `first_action` JSON fails closed when a Phase 30 runner demands host traces
-- the Phase 30 live runner now converts provider-returned structured first actions into host-style Codex traces before scoring
+- the Phase 30 live runner now captures native Codex host events through `codex exec --json` in an isolated runtime and scores from those first-action traces
 - the Phase 30 live runner now fails unrelated warning fallback text instead of fabricating expected warning actions
 - per-case Phase 30 evidence now includes baseline trace, GoodMemory trace, first-action source/parse, memory context, score reason, and outcome-telemetry lineage
 - Phase 25 behavioral eval regressions still pass after the trace-priority change
@@ -129,6 +129,6 @@ Evidence
 - `tests/unit/run-phase-25.script.test.ts`
 - `examples/host-codex-handoff.ts`
 - `tests/integration/evolution.outcome-telemetry.test.ts`
-- `reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json`
+- `reports/eval/live-memory/phase-30/run-phase30-live-current/report.json`
 - `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
 - `docs/archive/quality-gates/GoodMemory-Phase-30-Quality-Gate.md`

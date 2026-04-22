@@ -1,7 +1,7 @@
 Phase 30.2: Host-to-Telemetry Bridge
 ====================================
 
-[TODO] Emit behavioral traces from the accepted Codex host path automatically during real runtime execution.
+[DONE] Emit behavioral traces from the accepted Codex host path automatically during isolated Codex runtime execution.
 [DONE] Convert failed first-action traces into the existing internal `recordBehavioralOutcome(...)` path.
 [DONE] Persist evidence excerpts for timeout, tool failure, and explicit user-correction events.
 [DONE] Keep all new behavior internal; do not add public `GoodMemory` methods.

@@ -22,19 +22,16 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Retrieval rollout controls, promotion gates, salvage hooks, and internal provider-router rollout controls remain implementation detail, not README-level product surface.
 - Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
 - Behavioral adaptation outcome telemetry and deterministic Layer D evidence are also internal evidence infrastructure; they do not change the stable OSS runtime surface.
-- Trace-backed behavioral enactment and provider-backed live-memory behavioral closure are internal evidence infrastructure for the accepted Codex host path; they do not widen the public `GoodMemory` API, public config, or README-level default behavior.
+- Trace-backed behavioral enactment over the accepted Codex host path is internal evidence infrastructure; it does not widen the public `GoodMemory` API, public config, or README-level default behavior.
 
-## Latest Closed Slice
+## Current Phase Status
 
-- Phase 30 is now closed as the trace-backed behavioral enactment and live closure slice over the accepted Codex host path.
-- Accepted behavior:
-  - coding-agent behavioral cases score from the first executable host-style trace event, not model prose or self-reported JSON alone
-  - warning traces preserve the model's actual warning text; only warning text that matches the expected warning category can score as that category
-  - the accepted Codex host path can emit internal runtime behavioral traces without widening the public host adapter contract
-  - failed first actions from host traces feed the existing outcome-telemetry path
-  - deterministic Phase 30 eval remains trace-backed
-  - provider-backed live-memory Phase 30 evidence is accepted only when it is trace-backed and passes the canonical gate
-- Still outside the accepted Phase 30 claim:
+- Phase 29 remains the latest closed slice.
+- Phase 30 is reopened:
+  - coding-agent behavioral cases now score from native Codex host events rather than model-returned `first_action` JSON
+  - phase-30 live artifacts now use repo-relative paths instead of leaking machine-local absolute paths
+  - native host-trace live validation is currently blocked because the canonical live report does not yet show a strict majority of GoodMemory first-action wins, and procedural generalization still passes only 1 of 3 live cases
+- Still outside an accepted Phase 30 closure:
   - public API or public config widening
   - making Claude a gate-blocking host path
   - making priming a release-blocking behavioral metric
@@ -79,10 +76,10 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-29/run-20260421213000/phase-29-quality-gate.json`
   - RC dry run report: `reports/quality-gates/phase-29/run-20260421214500/phase-29-rc-dry-run.json`
-- Trace-backed behavioral enactment and live closure:
+- Trace-backed behavioral enactment (currently reopened):
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-30-Quality-Gate.md`
   - Deterministic/live gate: `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
-  - Provider-backed live-memory behavioral report: `reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json`
+  - Provider-backed live-memory behavioral report: `reports/eval/live-memory/phase-30/run-phase30-live-current/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

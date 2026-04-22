@@ -1,8 +1,8 @@
 # GoodMemory Phase 30 Quality Gate
 
-Canonical accepted gate run: `run-20260421153410`
+Canonical gate run: `run-20260421153410`
 
-Canonical provider-backed live-memory behavioral report: `run-phase30-live-accepted`
+Canonical provider-backed live-memory behavioral report: `run-phase30-live-current`
 
 ## Command
 
@@ -13,7 +13,7 @@ bun run gate:phase-30
 ## Scope
 
 - trace-backed first-action behavioral scoring for coding-agent behavioral cases
-- accepted Codex host runtime trace emission through internal support only
+- native Codex host runtime trace capture through `codex exec --json`
 - deterministic trace-backed behavioral eval fixtures and runner
 - provider-backed live-memory behavioral report validation
 - canonical Phase 25 `layer_d` metric names without public API widening
@@ -30,40 +30,32 @@ Out of scope:
 - Quality gate:
   - `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
 - Provider-backed live-memory behavioral report:
-  - `reports/eval/live-memory/phase-30/run-phase30-live-accepted/report.json`
+  - `reports/eval/live-memory/phase-30/run-phase30-live-current/report.json`
 
 ## Results
 
 - Deterministic gate command set: accepted.
-- Provider-backed live-memory behavioral report: accepted.
-- `gate:phase-30` proves:
+- Provider-backed live-memory behavioral report: blocked.
+- `gate:phase-30` currently proves:
   - `bun run typecheck` passed
   - targeted trace/eval/telemetry regressions passed
   - `bun run eval:phase-30` passed
-  - the canonical live-memory report is trace-backed
-  - all 11 blocking live-memory behavioral cases are trace-backed
-  - warning traces keep the actual model warning text instead of replacing it with fixture prose
-  - unrelated warning text does not satisfy the expected warning category
-  - negated approval text does not satisfy the `approval_required` warning category
-  - subject-verb negation such as "production deploy does not require approval" is regression-covered
-  - inverse object negation such as "production deploy requires no approval" is regression-covered
-  - modified no-approval wording such as "requires no explicit approval" is covered by a token-window rule
-  - contracted negation such as "approval isn't required" and "approval won't be required" is regression-covered
-  - positive constraints such as "do not deploy without approval" still satisfy `approval_required`
-  - 7 of 11 blocking live-memory cases passed on the GoodMemory path
-  - live-memory `first_attempt_policy_adherence` is `0.6364`
-- The live-memory report proves:
+  - the canonical live-memory report is trace-backed and now sourced from native Codex host events
+  - the canonical live-memory report no longer leaks machine-local absolute paths
   - provider-backed Postgres storage bootstrap passed
   - memory-stack preflight passed
-  - structured cases required trace-backed scoring
-  - no execution failures occurred
-  - `layer_d` remained the canonical metric surface
+  - live-memory `first_attempt_policy_adherence` is `0.4167`
+  - only 5 of 12 blocking live-memory cases passed on the GoodMemory path
+  - live procedural generalization passes only 1 of 3 blocking cases
+- The current blocking gaps are:
+  - native host live evidence does not yet show a strict majority of GoodMemory first-action wins
+  - procedural generalization is still not live-proven strongly enough to satisfy the tightened family-level gate
 
 ## Canonical Evidence Rule
 
-Only the accepted gate run and accepted live-memory report above are canonical for Phase 30. Earlier local accepted runs built before warning fallback hardening are superseded and must not be used as closure evidence. Later local reruns are validation artifacts only and must not be checked in as another accepted Phase 30 chain unless the archive doc, current-status doc, task-board references, and release tests are intentionally repointed together.
+Only the current gate run and current live-memory report above are canonical for Phase 30. Earlier local accepted runs built before native-host revalidation are superseded and must not be used as closure evidence. Later local reruns are validation artifacts only and must not be checked in as another canonical Phase 30 chain unless the archive doc, current-status doc, task-board references, and release tests are intentionally repointed together.
 
-## Acceptance Decision
+## Decision
 
-Phase 30 is accepted as the trace-backed behavioral enactment and live closure slice.
-It closes the Phase 25 deterministic-only gap by proving that behavioral evaluation consumes host-style first executable traces, that the accepted Codex host path can emit runtime traces internally, and that provider-backed live-memory evidence satisfies the trace-backed behavioral gate without widening the public API, making priming release-blocking, or changing the Bun-only release boundary.
+Phase 30 is currently reopened, not accepted.
+The deterministic trace-backed work remains real, and the live runner now consumes native Codex host events instead of model-returned `first_action` JSON, but the canonical live report still fails the tightened gate because live wins are not yet a strict majority and procedural generalization remains under-proven.
