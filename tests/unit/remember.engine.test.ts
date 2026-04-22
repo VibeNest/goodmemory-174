@@ -10,6 +10,7 @@ import {
   type RememberEngineConfig,
 } from "../../src/remember/engine";
 import {
+  createFeedbackMemory,
   createFactMemory,
   createReferenceMemory,
 } from "../../src/domain/records";
@@ -1289,6 +1290,82 @@ describe("remember engine", () => {
     expect(references).toHaveLength(1);
     expect(references[0]?.pointer).toBe("docs/current-runbook.md");
     expect(feedback).toHaveLength(0);
+  });
+
+  it("keeps appliesTo-distinct feedback rules separate when the guidance text matches", async () => {
+    const scope = {
+      userId: "u-feedback-applies-to",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "llm-feedback",
+                kindHint: "feedback",
+                explicitness: "explicit",
+                content: "Use bullet points.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  feedbackKind: "validated_pattern",
+                  appliesTo: "coding_agent",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    await repositories.feedback.upsert(
+      createFeedbackMemory({
+        id: "feedback-general",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        rule: "Use bullet points.",
+        kind: "validated_pattern",
+        appliesTo: "general_response",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "en-US",
+        },
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+
+    await engine.remember({
+      scope,
+      extractionStrategy: "llm-assisted",
+      messages: [
+        {
+          role: "user",
+          content: "Use bullet points.",
+        },
+      ],
+    });
+
+    const feedback = await repositories.feedback.listByScope(scope);
+
+    expect(
+      feedback
+        .filter((record) => record.lifecycle === "active")
+        .map((record) => record.appliesTo)
+        .sort(),
+    ).toEqual(["coding_agent", "general_response"]);
   });
 
   it("matches superseded source-of-truth references for bare filenames without slash prefixes", async () => {

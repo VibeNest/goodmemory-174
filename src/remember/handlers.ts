@@ -1,7 +1,9 @@
 import {
+  buildFeedbackIdentityKey,
   createFactMemory,
   createFeedbackMemory,
   createReferenceMemory,
+  normalizeFeedbackAppliesTo,
 } from "../domain/records";
 import {
   buildFactEmbeddingWrite,
@@ -487,12 +489,22 @@ export async function writeRememberCandidate(input: {
     candidate.content,
     context.resolvedLanguage,
   );
+  const candidateIdentityKey = buildFeedbackIdentityKey({
+    kind: candidate.metadata?.feedbackKind ?? "do",
+    normalizedRule,
+    appliesTo: candidate.metadata?.appliesTo,
+  });
   const duplicate = scopedFeedback.find(
     (feedback) =>
       feedback.lifecycle === "active" &&
-      feedback.kind === (candidate.metadata?.feedbackKind ?? "do") &&
-      context.language.normalizeForEquality(feedback.rule, context.resolvedLanguage) ===
-        normalizedRule,
+      buildFeedbackIdentityKey({
+        kind: feedback.kind,
+        normalizedRule: context.language.normalizeForEquality(
+          feedback.rule,
+          context.resolvedLanguage,
+        ),
+        appliesTo: feedback.appliesTo,
+      }) === candidateIdentityKey,
   );
 
   if (duplicate) {
@@ -510,8 +522,9 @@ export async function writeRememberCandidate(input: {
   const superseded = scopedFeedback.find(
     (feedback) =>
       feedback.lifecycle === "active" &&
-      feedback.appliesTo === candidate.metadata?.appliesTo &&
-      feedback.kind === (candidate.metadata?.feedbackKind ?? "do"),
+      feedback.kind === (candidate.metadata?.feedbackKind ?? "do") &&
+      normalizeFeedbackAppliesTo(feedback.appliesTo) ===
+        normalizeFeedbackAppliesTo(candidate.metadata?.appliesTo),
   );
   if (superseded && context.policy?.resolveConflict) {
     const resolution = await context.policy.resolveConflict(

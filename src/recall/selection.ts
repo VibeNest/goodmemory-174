@@ -6,6 +6,7 @@ import type {
   ReferenceMemory,
   UserProfile,
 } from "../domain/records";
+import { buildFeedbackIdentityKey, normalizeFeedbackAppliesTo } from "../domain/records";
 import type { SessionArchive } from "../evolution/contracts";
 import type { LanguageService } from "../language";
 import { FEEDBACK_RECALL_LIMIT } from "./budgets";
@@ -133,10 +134,67 @@ function hasFactSelectionSignal(entry: RankedFactCandidate): boolean {
   );
 }
 
-export function selectFeedback(feedback: FeedbackMemory[]): FeedbackMemory[] {
-  return sortFeedback(feedback)
-    .filter((record) => record.lifecycle === "active")
-    .slice(0, FEEDBACK_RECALL_LIMIT);
+function feedbackApplicabilityPriority(
+  feedback: FeedbackMemory,
+  retrievalProfile: RetrievalProfile,
+): number {
+  const appliesTo = normalizeFeedbackAppliesTo(feedback.appliesTo);
+
+  if (retrievalProfile === "coding_agent") {
+    if (appliesTo === "coding_agent") {
+      return 0;
+    }
+    if (appliesTo === "general_response") {
+      return 1;
+    }
+
+    return 2;
+  }
+
+  return appliesTo === "general_response" ? 0 : 1;
+}
+
+export function selectFeedback(
+  feedback: FeedbackMemory[],
+  retrievalProfile: RetrievalProfile = "general_chat",
+): FeedbackMemory[] {
+  const selected: FeedbackMemory[] = [];
+  const seen = new Set<string>();
+  const prioritized = sortFeedback(feedback).sort(
+    (left, right) =>
+      feedbackApplicabilityPriority(left, retrievalProfile) -
+      feedbackApplicabilityPriority(right, retrievalProfile),
+  );
+
+  for (const record of prioritized) {
+    if (record.lifecycle !== "active") {
+      continue;
+    }
+
+    const dedupeKey = buildFeedbackIdentityKey({
+      kind: record.kind,
+      normalizedRule: record.rule,
+      appliesTo: record.appliesTo,
+    });
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    selected.push(record);
+    if (selected.length >= FEEDBACK_RECALL_LIMIT) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
+export function selectFeedbackForProfile(
+  feedback: FeedbackMemory[],
+  retrievalProfile: RetrievalProfile,
+): FeedbackMemory[] {
+  return selectFeedback(feedback, retrievalProfile);
 }
 
 export function selectFacts(

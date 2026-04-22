@@ -22,8 +22,17 @@ export interface EvidenceLinkIndex {
   byMemoryId: Record<string, string[]>;
 }
 
+const EVIDENCE_KIND_PRIORITY = {
+  correction_context: 0,
+  verification_result: 1,
+  tool_result_excerpt: 2,
+  document_excerpt: 3,
+  conversation_excerpt: 4,
+} as const;
+
 function sortEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
   return [...evidence].sort((left, right) =>
+    EVIDENCE_KIND_PRIORITY[left.kind] - EVIDENCE_KIND_PRIORITY[right.kind] ||
     right.createdAt.localeCompare(left.createdAt),
   );
 }
@@ -32,9 +41,14 @@ export function filterLinkedEvidence(
   evidence: EvidenceRecord[],
   linkedMemoryIds: Set<string>,
   linkedArchiveIds: Set<string>,
+  explicitEvidenceIds?: Set<string>,
 ): EvidenceRecord[] {
   return sortEvidence(evidence)
     .filter((record) => {
+      if (explicitEvidenceIds?.has(record.id)) {
+        return true;
+      }
+
       const matchesMemory = record.linkedMemoryIds.some((id) => linkedMemoryIds.has(id));
       const matchesArchive = record.linkedArchiveIds.some((id) => linkedArchiveIds.has(id));
 
@@ -43,7 +57,23 @@ export function filterLinkedEvidence(
 }
 
 export function selectEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
-  return evidence.slice(0, 3);
+  const selected: EvidenceRecord[] = [];
+  const seen = new Set<string>();
+
+  for (const record of sortEvidence(evidence)) {
+    const dedupeKey = `${record.kind}:${record.excerpt.trim().toLowerCase()}`;
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    selected.push(record);
+    if (selected.length >= 3) {
+      break;
+    }
+  }
+
+  return selected;
 }
 
 export function collectTraceMemoryIds(
@@ -192,7 +222,10 @@ export function buildHits(input: {
           type: "feedback",
           reason: "scope_match",
           sourceMethod: feedback.source.method,
-          evidenceIds: evidenceIdsForMemory(input.evidenceIndex, feedback.id),
+          evidenceIds:
+            feedback.evidence && feedback.evidence.length > 0
+              ? feedback.evidence
+              : evidenceIdsForMemory(input.evidenceIndex, feedback.id),
         });
       }
     }

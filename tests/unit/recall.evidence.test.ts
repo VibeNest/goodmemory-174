@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  createFeedbackMemory,
   createPreferenceMemory,
   createReferenceMemory,
   createUserProfile,
@@ -10,6 +11,7 @@ import {
   attachEvidenceIdsToCandidateTraces,
   buildEvidenceLinkIndex,
   buildHits,
+  selectEvidence,
 } from "../../src/recall/evidence";
 import type { RoutingDecision } from "../../src/recall/router";
 
@@ -42,6 +44,91 @@ function buildRoutingDecision(): RoutingDecision {
 }
 
 describe("recall evidence helpers", () => {
+  it("prioritizes correction and verification evidence ahead of generic conversation excerpts", () => {
+    const selected = selectEvidence([
+      createEvidenceRecord({
+        id: "conversation-newest",
+        userId: "user-1",
+        kind: "conversation_excerpt",
+        excerpt: "The user mentioned a generic update.",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-10T03:00:00.000Z",
+        },
+      }),
+      createEvidenceRecord({
+        id: "tool-middle",
+        userId: "user-1",
+        kind: "tool_result_excerpt",
+        excerpt: "QuickCheck timed out on the first action.",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-10T02:00:00.000Z",
+        },
+      }),
+      createEvidenceRecord({
+        id: "verification-older",
+        userId: "user-1",
+        kind: "verification_result",
+        excerpt: "Verification showed the playbook branch was incorrect.",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-10T01:00:00.000Z",
+        },
+      }),
+      createEvidenceRecord({
+        id: "correction-oldest",
+        userId: "user-1",
+        kind: "correction_context",
+        excerpt: "The user corrected the summary style and required bullets.",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-10T00:00:00.000Z",
+        },
+      }),
+    ]);
+
+    expect(selected.map((record) => record.id)).toEqual([
+      "correction-oldest",
+      "verification-older",
+      "tool-middle",
+    ]);
+  });
+
+  it("dedupes repeated evidence excerpts before applying the recall limit", () => {
+    const selected = selectEvidence([
+      createEvidenceRecord({
+        id: "correction-1",
+        userId: "user-1",
+        kind: "correction_context",
+        excerpt: "Use bullet points.",
+        source: SOURCE,
+      }),
+      createEvidenceRecord({
+        id: "correction-2",
+        userId: "user-1",
+        kind: "correction_context",
+        excerpt: "Use bullet points.",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-11T00:00:00.000Z",
+        },
+      }),
+      createEvidenceRecord({
+        id: "verification-1",
+        userId: "user-1",
+        kind: "verification_result",
+        excerpt: "Verification failed.",
+        source: SOURCE,
+      }),
+    ]);
+
+    expect(selected.map((record) => record.id)).toEqual([
+      "correction-2",
+      "verification-1",
+    ]);
+  });
+
   it("attaches linked evidence ids to memory and archive traces", () => {
     const evidenceIndex = buildEvidenceLinkIndex([
       createEvidenceRecord({
@@ -162,6 +249,46 @@ describe("recall evidence helpers", () => {
     ]);
     expect(hits.find((hit) => hit.id === "archive-1")?.evidenceIds).toEqual([
       "evidence-archive-1",
+    ]);
+  });
+
+  it("uses feedback lineage evidence when validated patterns no longer have direct record links", () => {
+    const hits = buildHits({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [],
+      feedback: [
+        createFeedbackMemory({
+          id: "feedback-validated",
+          userId: "user-1",
+          kind: "validated_pattern",
+          rule: "Use bullet points in summaries.",
+          evidence: ["evidence-correction-1"],
+          source: SOURCE,
+          lifecycle: "active",
+        }),
+      ],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+      evidenceIndex: buildEvidenceLinkIndex([]),
+      routingDecision: {
+        ...buildRoutingDecision(),
+        sourcePriorities: ["feedback"],
+      },
+    });
+
+    expect(hits).toEqual([
+      {
+        id: "feedback-validated",
+        type: "feedback",
+        reason: "scope_match",
+        sourceMethod: "explicit",
+        evidenceIds: ["evidence-correction-1"],
+      },
     ]);
   });
 });

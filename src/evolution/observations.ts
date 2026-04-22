@@ -228,6 +228,7 @@ export function buildFeedbackExperienceRecord(
       rejected: input.result.accepted ? 0 : 1,
     },
     linkedMemoryIds: collectUnique([input.result.memoryId]),
+    linkedEvidenceIds: input.result.evidenceIds ?? [],
     createdAt: input.createdAt,
   });
 }

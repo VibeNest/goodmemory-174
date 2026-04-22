@@ -2,7 +2,11 @@ import type {
   ArtifactSpillRecord,
   FeedbackMemory,
 } from "../domain/records";
-import { createFeedbackMemory } from "../domain/records";
+import {
+  buildFeedbackIdentityKey,
+  createFeedbackMemory,
+  normalizeFeedbackAppliesTo,
+} from "../domain/records";
 import { createMemorySource } from "../domain/provenance";
 import { EVIDENCE_COLLECTION } from "../evidence/contracts";
 import type { BehavioralOutcomeObservationResult } from "../evolution/behavioralTelemetry";
@@ -196,18 +200,29 @@ async function resolveFeedbackSignalState(input: {
     input.signal,
     resolvedLanguage,
   );
+  const nextIdentityKey = buildFeedbackIdentityKey({
+    kind,
+    normalizedRule,
+    appliesTo: "general_response",
+  });
   const duplicate = existing.find(
     (record) =>
       record.lifecycle === "active" &&
-      record.kind === kind &&
-      input.language.normalizeForEquality(record.rule, resolvedLanguage) ===
-        normalizedRule,
+      buildFeedbackIdentityKey({
+        kind: record.kind,
+        normalizedRule: input.language.normalizeForEquality(
+          record.rule,
+          resolvedLanguage,
+        ),
+        appliesTo: record.appliesTo,
+      }) === nextIdentityKey,
   );
   const superseded = existing.find(
     (record) =>
       record.lifecycle === "active" &&
-      record.appliesTo === "general_response" &&
-      record.kind === kind,
+      record.kind === kind &&
+      normalizeFeedbackAppliesTo(record.appliesTo) ===
+        normalizeFeedbackAppliesTo("general_response"),
   );
 
   return {
@@ -234,6 +249,7 @@ async function writeFeedbackSignal(input: {
   locale?: string;
   scope: FeedbackInput["scope"];
   signal: string;
+  evidenceIds?: string[];
   strictExperience?: boolean;
   traceId?: string;
 }): Promise<FeedbackResult> {
@@ -284,6 +300,7 @@ async function writeFeedbackSignal(input: {
       await input.feedbackRepository.upsert(nextRecord);
       const result: FeedbackResult = {
         accepted: true,
+        ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
         outcome: "superseded",
         memoryId: nextRecord.id,
         kind,
@@ -308,6 +325,7 @@ async function writeFeedbackSignal(input: {
     await input.feedbackRepository.upsert(nextRecord);
     const result: FeedbackResult = {
       accepted: true,
+      ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
       outcome: "written",
       memoryId: nextRecord.id,
       kind,
@@ -331,6 +349,7 @@ async function writeFeedbackSignal(input: {
 
   const result: FeedbackResult = {
     accepted: true,
+    ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
     outcome: "merged",
     memoryId: duplicate.id,
     kind,
@@ -530,7 +549,12 @@ class GoodMemoryImpl implements GoodMemory {
 
   async buildContext(input: BuildContextInput): Promise<BuildContextResult> {
     const output = input.output ?? "json";
-    const rendered = renderMemoryPacket(input.recall.packet, output, input.maxTokens);
+    const rendered = renderMemoryPacket(
+      input.recall.packet,
+      output,
+      input.maxTokens,
+      input.recall.metadata.routingDecision.retrievalProfile,
+    );
 
     return {
       output,
@@ -859,6 +883,7 @@ export function createInternalGoodMemory(
             locale: input.locale,
             scope: input.scope,
             signal: input.signal,
+            ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
             strictExperience: true,
             ...(input.traceId ? { traceId: input.traceId } : {}),
           }),
@@ -883,6 +908,7 @@ export function createInternalGoodMemory(
             locale: input.locale,
             scope: input.scope,
             signal: input.signal,
+            ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
             strictExperience: true,
             ...(input.traceId ? { traceId: input.traceId } : {}),
           }),

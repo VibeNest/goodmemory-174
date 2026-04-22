@@ -229,6 +229,7 @@ function toFeedbackObservationResult(
 ): FeedbackObservationResult {
   return {
     accepted: result.accepted,
+    evidenceIds: result.evidenceIds,
     outcome: result.outcome,
     kind: result.kind,
     memoryId: result.memoryId,

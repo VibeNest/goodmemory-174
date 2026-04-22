@@ -17,6 +17,7 @@ Current Status
 [TODO] External users still do not have one canonical gate-accepted external-host evidence chain for Codex, but the installed-package bootstrap path now exists for both Codex and Claude Code.
 [DONE] P32-T002 public adapter-level agent-event contracts are now implemented and regression-covered on `goodmemory/ai-sdk` and `goodmemory/host`.
 [DONE] P32-T003 selective event -> evidence/experience/proposal-input compilation is now implemented and regression-covered, with `user_correction` routed through the existing explicit `feedback()` path.
+[DONE] P32-T004 coding-agent recall/context now prioritizes event-backed validated patterns, runtime continuity, and evidence lineage on the public path with deterministic dual-baseline coverage.
 [DONE] P32-T005 installed-package Codex/Claude bootstrap commands, docs, and package-boundary consumer smoke are now implemented and regression-covered.
 
 
@@ -96,7 +97,7 @@ Tasks
 [TODO] P32-T001 Freeze the canonical external product line and public boundary for Codex/Claude Code integration
 [DONE] P32-T002 Add thin adapter-level public agent-event contracts on `goodmemory/ai-sdk` and `goodmemory/host`
 [DONE] P32-T003 Compile normalized agent events into selective evidence, experiences, and proposal inputs without transcript-dump regressions
-[TODO] P32-T004 Upgrade `coding_agent` recall/context assembly to consume accepted event-backed procedural patterns on the external path
+[DONE] P32-T004 Upgrade `coding_agent` recall/context assembly to consume accepted event-backed procedural patterns on the external path
 [DONE] P32-T005 Ship installed-package bootstrap commands, guides, and consumer smoke for Codex and Claude Code
 [TODO] P32-T006 Add `gate:phase-32`, archive canonical external-host evidence, and sync current-status/task-board docs after the evidence is real
 

@@ -474,11 +474,19 @@ describe("agent event ingestion", () => {
           record.rule.includes("Use bullet points in summaries."),
       ),
     ).toBe(true);
+    expect(
+      recall.evidence.some(
+        (record) =>
+          record.kind === "correction_context" &&
+          record.excerpt.includes("Use bullet points in summaries."),
+      ),
+    ).toBe(true);
     expect(recall.workingMemory?.currentGoal).toBe("Finish the rollout note");
     expect(recall.workingMemory?.openLoops).toContain("capture the handoff summary");
     expect(context.content).toContain("Use bullet points in summaries.");
     expect(context.content).toContain("Finish the rollout note");
     expect(context.content).toContain("capture the handoff summary");
+    expect(context.content).toContain("## Evidence");
   });
 
   it("returns unsupported_memory when helper is used with a non-goodmemory object", async () => {

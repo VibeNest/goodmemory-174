@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import {
+  createFeedbackMemory,
   createFactMemory,
   createReferenceMemory,
 } from "../../src/domain/records";
 import { createLanguageService } from "../../src/language";
 import type { RoutingDecision } from "../../src/recall/router";
 import {
+  selectFeedbackForProfile,
   selectFacts,
   selectReferences,
 } from "../../src/recall/selection";
@@ -150,5 +152,35 @@ describe("recall selection", () => {
     expect(result.facts.map((fact) => fact.id)).toEqual(["fact-strong"]);
     expect(result.traces.find((trace) => trace.memoryId === "fact-strong")?.outcomeScore).toBeGreaterThan(0);
     expect(result.traces.find((trace) => trace.memoryId === "fact-strong")?.whyReturned).toContain("outcomeScore=");
+  });
+
+  it("keeps appliesTo-distinct feedback variants separate and prioritizes coding-agent guidance", () => {
+    const feedback = [
+      createFeedbackMemory({
+        id: "feedback-general",
+        userId: "user-1",
+        rule: "Use bullet points.",
+        kind: "validated_pattern",
+        appliesTo: "general_response",
+        source: SOURCE,
+        updatedAt: "2026-01-11T00:00:00.000Z",
+      }),
+      createFeedbackMemory({
+        id: "feedback-coding",
+        userId: "user-1",
+        rule: "Use bullet points.",
+        kind: "validated_pattern",
+        appliesTo: "coding_agent",
+        source: SOURCE,
+        updatedAt: "2026-01-10T00:00:00.000Z",
+      }),
+    ];
+
+    const selected = selectFeedbackForProfile(feedback, "coding_agent");
+
+    expect(selected.map((record) => record.id)).toEqual([
+      "feedback-coding",
+      "feedback-general",
+    ]);
   });
 });

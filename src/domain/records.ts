@@ -160,6 +160,23 @@ export interface FeedbackMemory {
   updatedAt: string;
 }
 
+export function normalizeFeedbackAppliesTo(appliesTo?: string): string {
+  const normalized = appliesTo?.trim().toLowerCase();
+  return normalized && normalized.length > 0 ? normalized : "general_response";
+}
+
+export function buildFeedbackIdentityKey(input: {
+  kind: FeedbackKind;
+  normalizedRule: string;
+  appliesTo?: string;
+}): string {
+  return [
+    input.kind,
+    normalizeFeedbackAppliesTo(input.appliesTo),
+    input.normalizedRule.trim().toLowerCase(),
+  ].join("\u0000");
+}
+
 export interface SessionBuffer {
   sessionId: string;
   userId: string;

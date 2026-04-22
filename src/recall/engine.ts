@@ -70,7 +70,7 @@ import {
 import {
   selectArchives,
   selectEpisodes,
-  selectFeedback,
+  selectFeedbackForProfile,
   selectFacts,
   selectReferences,
 } from "./selection";
@@ -597,7 +597,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
-      const feedback = selectFeedback(visibleFeedback);
+      const feedback = selectFeedbackForProfile(visibleFeedback, retrievalProfile);
       const selectedArchives = selectArchives(
         archivesRaw,
         input.query,
@@ -721,6 +721,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const referenceTraceIds = collectTraceMemoryIds(selectedReferences.traces);
       const archiveTraceIds = collectTraceMemoryIds(selectedArchives.traces);
       const episodeTraceIds = collectTraceMemoryIds(selectedEpisodes.traces);
+      const feedbackEvidenceIds = new Set(
+        feedback.flatMap((feedbackItem) => feedbackItem.evidence ?? []),
+      );
       const visibleLinkedEvidence = filterLinkedEvidence(
         visibleEvidencePool,
         new Set([
@@ -730,6 +733,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           ...episodes.map((episode) => episode.id),
         ]),
         new Set(archives.map((archive) => archive.id)),
+        feedbackEvidenceIds,
       );
       const explainabilityLinkedEvidence = filterLinkedEvidence(
         visibleEvidencePool,
@@ -740,6 +744,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           ...feedback.map((feedbackItem) => feedbackItem.id),
         ]),
         new Set([...archiveTraceIds.archiveIds]),
+        feedbackEvidenceIds,
       );
       const evidence = routingDecision.sourcePriorities.includes("evidence")
         ? selectEvidence(visibleLinkedEvidence)

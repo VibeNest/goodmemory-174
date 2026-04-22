@@ -211,6 +211,7 @@ export interface FeedbackInput {
 
 export interface FeedbackResult {
   accepted: boolean;
+  evidenceIds?: string[];
   outcome?: "written" | "merged" | "superseded";
   memoryId?: string;
   kind?: FeedbackKind;

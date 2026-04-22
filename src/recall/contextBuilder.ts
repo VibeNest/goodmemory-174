@@ -9,10 +9,11 @@ import type {
   UserProfile,
   WorkingMemorySnapshot,
 } from "../domain/records";
+import { normalizeFeedbackAppliesTo } from "../domain/records";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import { FEEDBACK_RECALL_LIMIT } from "./budgets";
-import type { RoutingDecision } from "./router";
+import type { RetrievalProfile, RoutingDecision } from "./router";
 
 export interface MemoryPacket {
   profileSummary?: string;
@@ -27,6 +28,7 @@ export interface MemoryPacket {
   evidenceSummary?: string;
   workingMemorySummary?: string;
   journalSummary?: string;
+  renderingProfile?: RetrievalProfile;
   debug?: {
     omittedSections: string[];
     estimatedTokens: number;
@@ -48,6 +50,8 @@ export interface MemoryPacketInput {
   locale?: string;
   routingDecision?: RoutingDecision;
 }
+
+const EVIDENCE_EXCERPT_SUMMARY_LENGTH = 120;
 
 function estimateTokens(value: string): number {
   return Math.ceil(value.length / 4);
@@ -240,7 +244,55 @@ function summarizeFeedback(feedback: FeedbackMemory[]): string | undefined {
     return undefined;
   }
 
-  return activeFeedback.map((item) => `- ${item.rule}`).join("\n");
+  const duplicateRules = new Set<string>();
+  const seenRules = new Set<string>();
+
+  for (const item of activeFeedback) {
+    const normalizedRule = item.rule.trim().toLowerCase();
+    if (seenRules.has(normalizedRule)) {
+      duplicateRules.add(normalizedRule);
+      continue;
+    }
+
+    seenRules.add(normalizedRule);
+  }
+
+  return activeFeedback
+    .map((item) => {
+      const normalizedRule = item.rule.trim().toLowerCase();
+      const appliesToLabel = duplicateRules.has(normalizedRule)
+        ? ` (appliesTo: ${normalizeFeedbackAppliesTo(item.appliesTo)})`
+        : "";
+
+      return `- ${item.rule}${appliesToLabel}`;
+    })
+    .join("\n");
+}
+
+function clipSummaryText(content: string, maxLength: number): string {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  return normalized.length <= maxLength
+    ? normalized
+    : `${normalized.slice(0, maxLength - 3)}...`;
+}
+
+function summarizeEvidenceRecord(record: EvidenceRecord): string {
+  const excerpt = clipSummaryText(record.excerpt, EVIDENCE_EXCERPT_SUMMARY_LENGTH);
+
+  if (record.kind === "correction_context") {
+    return `Correction: ${excerpt}`;
+  }
+  if (record.kind === "verification_result") {
+    return `Verification: ${excerpt}`;
+  }
+  if (record.kind === "tool_result_excerpt") {
+    return `Tool result: ${excerpt}`;
+  }
+  if (record.kind === "document_excerpt") {
+    return `File evidence: ${excerpt}`;
+  }
+
+  return excerpt;
 }
 
 function summarizeEpisodes(episodes: EpisodeMemory[]): string | undefined {
@@ -336,7 +388,7 @@ function summarizeEvidence(evidence: EvidenceRecord[]): string | undefined {
 
   return evidence
     .slice(0, 3)
-    .map((record) => `- ${record.excerpt}`)
+    .map((record) => `- ${summarizeEvidenceRecord(record)}`)
     .join("\n");
 }
 
@@ -365,8 +417,8 @@ function summarizeJournal(journal: SessionJournal | null): string | undefined {
 
   const segments = [
     journal.currentState ? `Current state: ${journal.currentState}` : undefined,
-    journal.worklog.length > 0
-      ? `Recent worklog: ${journal.worklog.slice(-2).join(" | ")}`
+    !journal.currentState && journal.worklog.length > 0
+      ? `Recent worklog: ${journal.worklog.slice(-1).join(" | ")}`
       : undefined,
   ].filter(Boolean);
 
@@ -393,6 +445,7 @@ export function buildMemoryPacket(input: MemoryPacketInput): MemoryPacket {
     evidenceSummary: summarizeEvidence(input.evidence),
     workingMemorySummary: summarizeWorkingMemory(input.workingMemory),
     journalSummary: summarizeJournal(input.journal),
+    renderingProfile: input.routingDecision?.retrievalProfile,
   };
 
   packet.debug = {
@@ -437,7 +490,10 @@ function trimSections(
   };
 }
 
-function buildRenderableSections(packet: MemoryPacket) {
+function buildRenderableSections(
+  packet: MemoryPacket,
+  renderingProfileOverride?: RetrievalProfile,
+) {
   const durableMemorySections = packet.durableMemorySummary
     ? [
         {
@@ -468,6 +524,69 @@ function buildRenderableSections(packet: MemoryPacket) {
           body: packet.archiveSummary,
         },
       ];
+
+  const renderingProfile = renderingProfileOverride ?? packet.renderingProfile;
+
+  if (renderingProfile === "coding_agent") {
+    return [
+      {
+        key: "feedbackSummary" as const,
+        title: "Procedural Memory",
+        body: packet.feedbackSummary,
+      },
+      {
+        key: "workingMemorySummary" as const,
+        title: "Working Memory",
+        body: packet.workingMemorySummary,
+      },
+      {
+        key: "journalSummary" as const,
+        title: "Session Journal",
+        body: packet.journalSummary,
+      },
+      {
+        key: "evidenceSummary" as const,
+        title: "Evidence",
+        body: packet.evidenceSummary,
+      },
+      ...durableMemorySections,
+      {
+        key: "profileSummary" as const,
+        title: "Profile",
+        body: packet.profileSummary,
+      },
+      {
+        key: "activeContextSummary" as const,
+        title: "Active Context",
+        body: packet.activeContextSummary,
+      },
+      {
+        key: "preferenceSummary" as const,
+        title: "Preferences",
+        body: packet.preferenceSummary,
+      },
+    ].filter(
+      (
+        section,
+      ): section is {
+        key:
+          | "profileSummary"
+          | "activeContextSummary"
+          | "durableMemorySummary"
+          | "feedbackSummary"
+          | "preferenceSummary"
+          | "referenceSummary"
+          | "factSummary"
+          | "episodeSummary"
+          | "archiveSummary"
+          | "evidenceSummary"
+          | "workingMemorySummary"
+          | "journalSummary";
+        title: string;
+        body: string;
+      } => Boolean(section.body),
+    );
+  }
 
   return [
     {
@@ -533,8 +652,9 @@ export function renderMemoryPacket(
   packet: MemoryPacket,
   output: "json" | "markdown" | "system_prompt_fragment" | "developer_prompt_fragment",
   maxTokens?: number,
+  renderingProfileOverride?: RetrievalProfile,
 ): { content: string; estimatedTokens: number; omittedSections: string[] } {
-  const sections = buildRenderableSections(packet);
+  const sections = buildRenderableSections(packet, renderingProfileOverride);
   const { sections: kept, omittedSections } = trimSections(
     sections.map(({ title, body }) => ({ title, body })),
     maxTokens,
@@ -543,6 +663,7 @@ export function renderMemoryPacket(
   if (output === "json") {
     const keptTitles = new Set(kept.map((section) => section.title));
     const trimmedPacket: MemoryPacket = {
+      renderingProfile: renderingProfileOverride ?? packet.renderingProfile,
       debug: {
         omittedSections,
         estimatedTokens: 0,

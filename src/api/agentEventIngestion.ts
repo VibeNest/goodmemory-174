@@ -31,6 +31,7 @@ export interface CreateAgentEventIngestorInput {
   documentStore: DocumentStore;
   feedback(
     input: {
+      evidenceIds?: string[];
       locale?: string;
       scope: MemoryScope;
       signal: string;
@@ -496,6 +497,7 @@ export function createAgentEventIngestor(
             scope: event.scope,
             signal: policyResult.content,
             locale: policyResult.locale,
+            ...(evidence ? { evidenceIds: [evidence.id] } : {}),
             traceId: event.eventId,
           })
         ).memoryId;

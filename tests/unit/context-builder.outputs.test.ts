@@ -191,6 +191,281 @@ describe("context builder output modes", () => {
     expect(markdown.content).not.toContain("## Evidence");
   });
 
+  it("prioritizes procedural, runtime, and evidence sections for coding-agent packets under token pressure", () => {
+    const packet = buildMemoryPacket({
+      profile: {
+        userId: "u-1",
+        identity: { name: "Lin", role: "Staff engineer" },
+        expertise: { primarySkills: [], domains: [] },
+        activeContext: { goals: [], currentProjects: ["Phase 32 external host line"] },
+        version: 1,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      preferences: [
+        {
+          id: "pref-1",
+          userId: "u-1",
+          category: "response_style",
+          value: "concise bullets",
+          confidence: 1,
+          evidenceCount: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      references: [
+        {
+          id: "ref-1",
+          userId: "u-1",
+          title: "phase-32-playbook.md",
+          pointer: "docs/phase-32-playbook.md",
+          confidence: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          lifecycle: "active",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      facts: [
+        {
+          id: "fact-1",
+          userId: "u-1",
+          category: "project",
+          content: "The current blocker is packaging the external host adoption proof.",
+          confidence: 1,
+          importance: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          factKind: "blocker",
+          scopeKind: "project",
+          accessCount: 0,
+          lifecycle: "active",
+          isActive: true,
+          supersededBy: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      feedback: [
+        {
+          id: "fb-1",
+          userId: "u-1",
+          rule: "Use bullets.",
+          kind: "validated_pattern",
+          confidence: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          lifecycle: "active",
+          evidence: [],
+          appliesTo: "coding_agent",
+        },
+      ],
+      archives: [],
+      evidence: [
+        {
+          id: "evidence-1",
+          userId: "u-1",
+          kind: "correction_context",
+          excerpt: "The user corrected the draft and required bullets.",
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          sourceMessageIds: [],
+          linkedMemoryIds: ["fb-1"],
+          linkedArchiveIds: [],
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      episodes: [],
+      workingMemory: {
+        sessionId: "s-1",
+        userId: "u-1",
+        currentGoal: "Finish phase 32 recall",
+        openLoops: ["lock eval slice"],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      journal: {
+        sessionId: "s-1",
+        userId: "u-1",
+        currentState: "Closeout draft in review.",
+        worklog: ["Bootstrap contract confirmed."],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      routingDecision: planRecall({
+        retrievalProfile: "coding_agent",
+        query: "Continue the phase 32 coding task from last time.",
+        runtime: {
+          hasWorkingMemory: true,
+          hasJournal: true,
+        },
+      }),
+    });
+
+    const markdown = renderMemoryPacket(packet, "markdown", 88);
+
+    expect(markdown.content).toContain("## Procedural Memory");
+    expect(markdown.content).toContain("## Working Memory");
+    expect(markdown.content).toContain("## Session Journal");
+    expect(markdown.content).toContain("## Evidence");
+    expect(markdown.content.indexOf("## Procedural Memory")).toBeLessThan(
+      markdown.content.indexOf("## Facts"),
+    );
+    expect(markdown.content.indexOf("## Working Memory")).toBeLessThan(
+      markdown.content.indexOf("## Facts"),
+    );
+    expect(markdown.content.indexOf("## Session Journal")).toBeLessThan(
+      markdown.content.indexOf("## Facts"),
+    );
+    expect(markdown.content.indexOf("## Evidence")).toBeLessThan(
+      markdown.content.indexOf("## Facts"),
+    );
+  });
+
+  it("preserves coding-agent section order after packet serialization", () => {
+    const packet = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [
+        {
+          id: "fact-1",
+          userId: "u-1",
+          category: "project",
+          content: "The current blocker is packaging the external host adoption proof.",
+          confidence: 1,
+          importance: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          factKind: "blocker",
+          scopeKind: "project",
+          accessCount: 0,
+          lifecycle: "active",
+          isActive: true,
+          supersededBy: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      feedback: [
+        {
+          id: "fb-1",
+          userId: "u-1",
+          rule: "Use bullets.",
+          kind: "validated_pattern",
+          confidence: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          lifecycle: "active",
+          evidence: [],
+          appliesTo: "coding_agent",
+        },
+      ],
+      archives: [],
+      evidence: [
+        {
+          id: "evidence-1",
+          userId: "u-1",
+          kind: "correction_context",
+          excerpt: "The user corrected the draft and required bullets.",
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          sourceMessageIds: [],
+          linkedMemoryIds: ["fb-1"],
+          linkedArchiveIds: [],
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      episodes: [],
+      workingMemory: {
+        sessionId: "s-1",
+        userId: "u-1",
+        currentGoal: "Finish phase 32 recall",
+        openLoops: ["lock eval slice"],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      journal: {
+        sessionId: "s-1",
+        userId: "u-1",
+        currentState: "Closeout draft in review.",
+        worklog: ["Bootstrap contract confirmed."],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      routingDecision: planRecall({
+        retrievalProfile: "coding_agent",
+        query: "Continue the phase 32 coding task from last time.",
+        runtime: {
+          hasWorkingMemory: true,
+          hasJournal: true,
+        },
+      }),
+    });
+
+    const serializedPacket = JSON.parse(JSON.stringify(packet)) as typeof packet;
+    const markdown = renderMemoryPacket(serializedPacket, "markdown", 88);
+
+    expect(markdown.content.indexOf("## Procedural Memory")).toBeLessThan(
+      markdown.content.indexOf("## Facts"),
+    );
+    expect(markdown.content.indexOf("## Working Memory")).toBeLessThan(
+      markdown.content.indexOf("## Facts"),
+    );
+    expect(markdown.content.indexOf("## Session Journal")).toBeLessThan(
+      markdown.content.indexOf("## Facts"),
+    );
+    expect(markdown.content.indexOf("## Evidence")).toBeLessThan(
+      markdown.content.indexOf("## Facts"),
+    );
+  });
+
+  it("labels appliesTo when duplicate feedback rules surface together", () => {
+    const packet = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [],
+      feedback: [
+        {
+          id: "fb-coding",
+          userId: "u-1",
+          rule: "Use bullet points.",
+          kind: "validated_pattern",
+          confidence: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          updatedAt: "2026-01-02T00:00:00.000Z",
+          lifecycle: "active",
+          evidence: [],
+          appliesTo: "coding_agent",
+        },
+        {
+          id: "fb-general",
+          userId: "u-1",
+          rule: "Use bullet points.",
+          kind: "validated_pattern",
+          confidence: 1,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          lifecycle: "active",
+          evidence: [],
+          appliesTo: "general_response",
+        },
+      ],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+      routingDecision: planRecall({
+        retrievalProfile: "coding_agent",
+        query: "Continue the coding task.",
+        runtime: {
+          hasWorkingMemory: false,
+          hasJournal: false,
+        },
+      }),
+    });
+
+    const markdown = renderMemoryPacket(packet, "markdown");
+
+    expect(markdown.content).toContain("Use bullet points. (appliesTo: coding_agent)");
+    expect(markdown.content).toContain("Use bullet points. (appliesTo: general_response)");
+  });
+
   it("frames blocker facts as immediate next-step support and open loops as deferred context", () => {
     const packet = buildMemoryPacket({
       profile: null,

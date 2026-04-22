@@ -817,6 +817,14 @@ export function sortFeedback(feedback: FeedbackMemory[]): FeedbackMemory[] {
     if (left.lifecycle !== right.lifecycle) {
       return left.lifecycle === "active" ? -1 : 1;
     }
+    if (left.kind !== right.kind) {
+      if (left.kind === "validated_pattern") {
+        return -1;
+      }
+      if (right.kind === "validated_pattern") {
+        return 1;
+      }
+    }
 
     const rightUsageTimestamp = right.lastUsedAt ?? right.updatedAt;
     const leftUsageTimestamp = left.lastUsedAt ?? left.updatedAt;
