@@ -946,6 +946,9 @@ describe("goodmemory cli host bootstrap", () => {
           "utf8",
         ),
       ) as {
+        artifacts: Array<{
+          relativePath?: string;
+        }>;
         outputRoot: string;
         scope: {
           sessionId?: string;

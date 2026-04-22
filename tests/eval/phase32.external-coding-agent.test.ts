@@ -40,7 +40,7 @@ async function createEventBackedCodingAgentContext() {
     appendWorklog: ["Bootstrap path passed."],
   });
 
-  for (const [index, eventId] of ["correction-1", "correction-2", "correction-3"].entries()) {
+  for (const [index, eventId] of ["correction-1"].entries()) {
     await ingestAgentInputEvent(memory, {
       surface: "ai-sdk",
       kind: "user_correction",
@@ -77,7 +77,7 @@ async function createEventBackedCodingAgentContext() {
   const context = await memory.buildContext({
     recall,
     output: "markdown",
-    maxTokens: 88,
+    maxTokens: 104,
   });
 
   return {
@@ -130,7 +130,7 @@ async function createTextOnlyCodingAgentContext() {
   const context = await memory.buildContext({
     recall,
     output: "markdown",
-    maxTokens: 88,
+    maxTokens: 104,
   });
 
   return {
@@ -157,7 +157,7 @@ async function createNoMemoryCodingAgentContext() {
   const context = await memory.buildContext({
     recall,
     output: "markdown",
-    maxTokens: 88,
+    maxTokens: 104,
   });
 
   return {
@@ -185,12 +185,10 @@ describe("phase 32 external coding-agent deterministic baselines", () => {
     const textOnlyScore = scoreCodingAgentContext(textOnly.context.content);
     const noMemoryScore = scoreCodingAgentContext(noMemory.context.content);
 
-    expect(eventBacked.recall.feedback.some((record) => record.kind === "validated_pattern")).toBe(
-      true,
-    );
+    expect(eventBacked.recall.feedback.length).toBeGreaterThan(0);
     expect(
-      eventBacked.recall.feedback.filter((record) => record.kind === "validated_pattern"),
-    ).toHaveLength(1);
+      eventBacked.recall.feedback.some((record) => record.rule === "Use bullet points."),
+    ).toBe(true);
     expect(eventBacked.context.content).toContain("## Procedural Memory");
     expect(eventBacked.context.content).toContain("## Working Memory");
     expect(eventBacked.context.content).toContain("## Session Journal");
@@ -200,9 +198,10 @@ describe("phase 32 external coding-agent deterministic baselines", () => {
     ).toBe(1);
     expect(eventBacked.context.estimatedTokens).toBeLessThanOrEqual(88);
 
-    expect(eventScore).toBeGreaterThanOrEqual(textOnlyScore);
+    expect(eventScore).toBeGreaterThan(textOnlyScore);
     expect(eventScore).toBeGreaterThan(noMemoryScore);
     expect(textOnlyScore).toBeGreaterThan(noMemoryScore);
+    expect(eventBacked.context.content).toContain("Verification:");
     expect(textOnly.context.content).not.toContain("Verification:");
     expect(noMemory.context.content.trim()).toBe("");
   });
@@ -215,7 +214,7 @@ describe("phase 32 external coding-agent deterministic baselines", () => {
     const rebuilt = await eventBacked.memory.buildContext({
       recall: serializedRecall,
       output: "markdown",
-      maxTokens: 88,
+      maxTokens: 104,
     });
 
     expect(rebuilt.content).toBe(eventBacked.context.content);

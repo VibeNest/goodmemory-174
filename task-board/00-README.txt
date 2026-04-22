@@ -177,11 +177,11 @@ Current Sequencing Note
   - executable blocking outcomes are now host-lifecycle derived for all canonical live cases
   - native targeted correction lineage is now proven on the provider-backed live path
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-31-Quality-Gate.md`
-- Phase 32 is now queued as the external host-integration productization slice:
-  - freeze one canonical product line: `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`
-  - add thin adapter-level agent-event ingestion instead of a new heavy `goodmemory/evolution` public API
-  - keep Codex as the only gate-blocking live host path while bringing Claude Code to bootstrap/reference parity
-  - ship installed-package bootstrap guidance and tooling so external users can wire GoodMemory into Codex/Claude Code without repo-internal imports
+- Phase 32 is now closed as the external host-integration productization slice:
+  - deterministic fallback evidence: `reports/eval/fallback/phase-32/run-20260422173045/report.json`
+  - live external-host evidence: `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
+  - quality gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-32-Quality-Gate.md`
 - Phase 33 is now queued as the formal Node-compatible package-boundary and Node-first integration slice:
   - ship `dist/` plus `.d.ts` outputs for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` instead of direct `src/*.ts` exports
   - isolate Bun-only CLI and Bun-local sqlite/sqlite-vss runtime behavior from the Node-compatible library contract
@@ -205,10 +205,10 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 31 guarantees while local changes land
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 Bun-only release boundary, accepted Phase 30 behavioral evidence, and accepted Phase 31 native-host evidence regression-covered while future work lands
-   - If new Phase 30 or Phase 31 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute Phase 32 on top of the accepted public/package/runtime boundaries instead of widening the core API or reintroducing repo-internal integration paths
+   - Preserve the closed Phase 17 through Phase 32 guarantees while local changes land
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 Bun-only release boundary, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, and accepted Phase 32 external-host evidence regression-covered while future work lands
+   - If new Phase 30, Phase 31, or Phase 32 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - Execute Phase 33 on top of the accepted public/package/runtime/external-host boundaries instead of widening the core API or reintroducing repo-internal integration paths
    - Queue Phase 33 as the package-boundary upgrade to mainstream Node/TypeScript adoption without adding new memory capability, dashboard scope, or rollout-family expansion
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence

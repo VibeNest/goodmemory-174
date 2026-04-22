@@ -1,10 +1,10 @@
 Phase 32.6: External Gate and Closure
 =====================================
 
-[TODO] Add `gate:phase-32` with targeted release, bootstrap, consumer-smoke, deterministic-eval, and live-evidence coverage.
-[TODO] Require one canonical installed-package/native-host Codex evidence chain before accepting Phase 32.
-[TODO] Keep Claude in deterministic/bootstrap/package-smoke coverage only.
-[TODO] Archive canonical evidence and sync `docs/GoodMemory-Current-Status-and-Evidence.md` plus `task-board/00-README.txt` only after the evidence is real.
+[DONE] Add `gate:phase-32` with targeted release, bootstrap, consumer-smoke, deterministic-eval, and live-evidence coverage.
+[DONE] Require one canonical installed-package/native-host Codex evidence chain before accepting Phase 32.
+[DONE] Keep Claude in deterministic/bootstrap/package-smoke coverage only.
+[DONE] Archive canonical evidence and sync `docs/GoodMemory-Current-Status-and-Evidence.md` plus `task-board/00-README.txt` after the evidence became real.
 
 Gate Shape
 ----------
@@ -30,3 +30,44 @@ Canonical Closure Evidence To Produce
 - one canonical Codex live/native-host report
 - one accepted Phase 32 quality-gate report
 - one archived quality-gate summary doc
+
+Implemented So Far
+------------------
+- `scripts/run-phase-32-eval.ts` now generates a deterministic Phase 32 dual-baseline report for:
+  - continuity/open-loop restoration
+  - repeated-correction avoidance
+  - procedure adherence
+- `scripts/run-phase-32-live-memory.ts` now generates the canonical installed-package Codex external-host report for:
+  - continuity/open-loop restoration
+  - repeated-correction summary-rule recall
+  - procedure-adherence rule/blocker recall
+- canonical deterministic report path is now:
+  - `reports/eval/fallback/phase-32/run-20260422173045/report.json`
+- canonical live external-host report path is now:
+  - `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
+- `scripts/run-phase-32-gate.ts` now exists and fail-closes on:
+  - targeted regressions
+  - deterministic dual-baseline report validity
+  - missing or invalid canonical Codex live external-host evidence
+- package scripts are widened to:
+  - `eval:phase-32`
+  - `eval:phase-32-live-memory`
+  - `gate:phase-32`
+- unit/regression coverage now locks the Phase 32 deterministic eval and gate contracts.
+
+Closure
+-------
+- accepted gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-32-Quality-Gate.md`
+- current-status doc and task-board root index are now synced to the same canonical evidence chain
+
+Regression Run
+--------------
+- `bun test tests/unit/run-phase-32.script.test.ts`
+- `bun test tests/unit/run-phase-32.live-memory.test.ts`
+- `bun test tests/unit/run-phase-32.gate.test.ts`
+- `bun test tests/release/release.test.ts`
+- `bun run typecheck`
+- `bun run eval:phase-32 -- --run-id run-20260422173045`
+- `bun run eval:phase-32-live-memory`
+- `bun run gate:phase-32`

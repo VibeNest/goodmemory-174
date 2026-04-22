@@ -1,10 +1,10 @@
 Phase 32.1: Canonical Product Line and Public Boundary
 ======================================================
 
-[TODO] Freeze one canonical external line: `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`.
-[TODO] Keep Codex as the only gate-blocking live host path.
-[TODO] Bring Claude Code to bootstrap/docs/example/package-smoke parity without making it a second live blocker.
-[TODO] Keep `goodmemory/evolution`, host trace internals, rollout controls, and proposal gates off the public root surface.
+[DONE] Freeze one canonical external line: `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`.
+[DONE] Keep Codex as the only gate-blocking live host path.
+[DONE] Bring Claude Code to bootstrap/docs/example/package-smoke parity without making it a second live blocker.
+[DONE] Keep `goodmemory/evolution`, host trace internals, rollout controls, and proposal gates off the public root surface.
 
 Why this exists
 ---------------
@@ -24,3 +24,4 @@ Evidence To Add
 - public-surface type tests
 - release/docs purity regressions
 - updated current-status/reference docs
+- accepted Phase 32 quality-gate archive summary

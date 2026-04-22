@@ -46,6 +46,7 @@ import {
   attachEvidenceIdsToCandidateTraces,
   buildEvidenceLinkIndex,
   buildHits,
+  collectSessionScopedEvidence,
   collectTraceMemoryIds,
   filterLinkedEvidence,
   selectEvidence,
@@ -746,8 +747,12 @@ export function createRecallEngine(config: RecallEngineConfig) {
         new Set([...archiveTraceIds.archiveIds]),
         feedbackEvidenceIds,
       );
+      const sessionScopedEvidence =
+        retrievalProfile === "coding_agent"
+          ? collectSessionScopedEvidence(visibleEvidencePool, input.scope)
+          : [];
       const evidence = routingDecision.sourcePriorities.includes("evidence")
-        ? selectEvidence(visibleLinkedEvidence)
+        ? selectEvidence([...visibleLinkedEvidence, ...sessionScopedEvidence])
         : [];
       const evidenceIndex = buildEvidenceLinkIndex(explainabilityLinkedEvidence);
       const assistantSuppressionTraceReason = createAssistantSuppressionTraceReason(

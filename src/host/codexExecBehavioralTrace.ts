@@ -23,6 +23,7 @@ export interface CodexExecEvent {
 
 export interface CodexExecTurn {
   events: CodexExecEvent[];
+  exitCode?: number;
   stderr: string;
   stdout: string;
   timedOut?: boolean;

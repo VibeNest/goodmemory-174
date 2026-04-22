@@ -11,6 +11,7 @@ import {
   attachEvidenceIdsToCandidateTraces,
   buildEvidenceLinkIndex,
   buildHits,
+  collectSessionScopedEvidence,
   selectEvidence,
 } from "../../src/recall/evidence";
 import type { RoutingDecision } from "../../src/recall/router";
@@ -126,6 +127,56 @@ describe("recall evidence helpers", () => {
     expect(selected.map((record) => record.id)).toEqual([
       "correction-2",
       "verification-1",
+    ]);
+  });
+
+  it("collects current-session evidence for coding-agent continuity before durable linkage exists", () => {
+    const selected = collectSessionScopedEvidence(
+      [
+        createEvidenceRecord({
+          id: "verification-current-session",
+          userId: "user-1",
+          workspaceId: "workspace-1",
+          sessionId: "session-1",
+          kind: "verification_result",
+          excerpt: "Verification failed in the active coding session.",
+          source: SOURCE,
+        }),
+        createEvidenceRecord({
+          id: "transition-current-session",
+          userId: "user-1",
+          workspaceId: "workspace-1",
+          sessionId: "session-1",
+          kind: "conversation_excerpt",
+          excerpt: "Task transition: archive the canonical Codex evidence chain next.",
+          source: {
+            method: "explicit",
+            extractedAt: "2026-01-11T00:00:00.000Z",
+          },
+        }),
+        createEvidenceRecord({
+          id: "verification-other-session",
+          userId: "user-1",
+          workspaceId: "workspace-1",
+          sessionId: "session-2",
+          kind: "verification_result",
+          excerpt: "Verification from a different session.",
+          source: {
+            method: "explicit",
+            extractedAt: "2026-01-12T00:00:00.000Z",
+          },
+        }),
+      ],
+      {
+        userId: "user-1",
+        workspaceId: "workspace-1",
+        sessionId: "session-1",
+      },
+    );
+
+    expect(selected.map((record) => record.id)).toEqual([
+      "verification-current-session",
+      "transition-current-session",
     ]);
   });
 

@@ -3,11 +3,12 @@ Phase 32 Breakdown
 
 Status
 ------
-- Phase 32 is in progress.
+- Phase 32 is accepted.
 - Slice 32.2 adapter-level agent-event contracts is complete and regression-covered.
 - Slice 32.3 selective event compilation is complete and regression-covered.
 - Slice 32.4 coding-agent recall/context integration is complete and regression-covered.
 - Slice 32.5 installed-package Codex/Claude bootstrap is complete and regression-covered.
+- Slice 32.6 gate scaffolding, canonical deterministic evidence, canonical Codex live external-host evidence, and closure sync are complete.
 - Scope: turn the accepted Codex host path and the accepted public reference path into one external product line for `coding_agent`.
 - Canonical line:
   - `goodmemory`
@@ -16,6 +17,10 @@ Status
   - installed-package Bun CLI bootstrap
 - Codex remains the only gate-blocking live host path.
 - Claude Code must reach bootstrap/docs/example/package-smoke parity without doubling gate scope.
+- Canonical accepted artifacts:
+  - `reports/eval/fallback/phase-32/run-20260422173045/report.json`
+  - `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
+  - `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
 
 
 Execution Order

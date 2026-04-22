@@ -8,6 +8,7 @@ import type {
   UserProfile,
   WorkingMemorySnapshot,
 } from "../domain/records";
+import { isSameScope, type MemoryScope } from "../domain/scope";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import type {
@@ -34,6 +35,22 @@ function sortEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
   return [...evidence].sort((left, right) =>
     EVIDENCE_KIND_PRIORITY[left.kind] - EVIDENCE_KIND_PRIORITY[right.kind] ||
     right.createdAt.localeCompare(left.createdAt),
+  );
+}
+
+function evidenceMatchesScope(
+  evidence: EvidenceRecord,
+  scope: MemoryScope,
+): boolean {
+  return isSameScope(
+    {
+      userId: evidence.userId,
+      tenantId: evidence.tenantId,
+      workspaceId: evidence.workspaceId,
+      agentId: evidence.agentId,
+      sessionId: evidence.sessionId,
+    },
+    scope,
   );
 }
 
@@ -74,6 +91,17 @@ export function selectEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
   }
 
   return selected;
+}
+
+export function collectSessionScopedEvidence(
+  evidence: EvidenceRecord[],
+  scope: MemoryScope,
+): EvidenceRecord[] {
+  if (!scope.sessionId) {
+    return [];
+  }
+
+  return sortEvidence(evidence).filter((record) => evidenceMatchesScope(record, scope));
 }
 
 export function collectTraceMemoryIds(

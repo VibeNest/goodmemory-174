@@ -371,12 +371,29 @@ for (const artifact of result.artifacts) {
   }
 }
 
+const manifestArtifacts = result.artifacts.flatMap((artifact) =>
+  artifact.artifactType === "session_memory"
+    ? [
+        {
+          artifactType: artifact.artifactType,
+          relativePath: artifact.relativePath,
+        },
+        {
+          artifactType: artifact.artifactType,
+          relativePath: "session-memory/current.md",
+        },
+      ]
+    : [
+        {
+          artifactType: artifact.artifactType,
+          relativePath: artifact.relativePath,
+        },
+      ]
+);
+
 const manifest = {
-  artifactCount: result.artifacts.length,
-  artifacts: result.artifacts.map((artifact) => ({
-    artifactType: artifact.artifactType,
-    relativePath: artifact.relativePath,
-  })),
+  artifactCount: manifestArtifacts.length,
+  artifacts: manifestArtifacts,
   exportedAt: new Date().toISOString(),
   host: ${JSON.stringify(blueprint.host)},
   outputRoot: OUTPUT_ROOT,

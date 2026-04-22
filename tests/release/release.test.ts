@@ -462,6 +462,10 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-31-live-memory"]).toBe(
       "bun run scripts/run-phase-31-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-32"]).toBe("bun run scripts/run-phase-32-eval.ts");
+    expect(pkg.scripts?.["eval:phase-32-live-memory"]).toBe(
+      "bun run scripts/run-phase-32-live-memory.ts",
+    );
     expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
     expect(pkg.scripts?.["gate:phase-19-reviewer"]).toBe(
       "bun run scripts/run-phase-19-reviewer-gate.ts",
@@ -477,6 +481,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-29"]).toBe("bun run scripts/run-phase-29-gate.ts");
     expect(pkg.scripts?.["gate:phase-30"]).toBe("bun run scripts/run-phase-30-gate.ts");
     expect(pkg.scripts?.["gate:phase-31"]).toBe("bun run scripts/run-phase-31-gate.ts");
+    expect(pkg.scripts?.["gate:phase-32"]).toBe("bun run scripts/run-phase-32-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -1109,6 +1114,9 @@ describe("release metadata and docs", () => {
           "utf8",
         ),
       ) as {
+        artifacts: Array<{
+          relativePath?: string;
+        }>;
         host: string;
         scope: {
           sessionId?: string;
@@ -1116,6 +1124,11 @@ describe("release metadata and docs", () => {
       };
       expect(codexManifest.host).toBe("codex");
       expect(codexManifest.scope.sessionId).toBe("consumer-session");
+      expect(
+        codexManifest.artifacts.some(
+          (artifact) => artifact.relativePath === "session-memory/current.md",
+        ),
+      ).toBe(true);
 
       const claudeManifest = JSON.parse(
         await readFile(
@@ -1235,6 +1248,18 @@ describe("release metadata and docs", () => {
     );
     expect(currentStatus).toContain(
       "reports/eval/live-memory/phase-31/run-phase31-live-current/report.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-32-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/fallback/phase-32/run-20260422173045/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-32/run-phase32-live-current/report.json",
     );
     expect(currentStatus).toContain("Bun-only prerelease contract");
     expect(currentStatus).toContain("runLiveMemoryEval()");
@@ -1360,6 +1385,7 @@ describe("release metadata and docs", () => {
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-28-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-29-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-30-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-32-Quality-Gate.md");
     expect(archivedQualityGates).toContain("README.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
@@ -1375,6 +1401,7 @@ describe("release metadata and docs", () => {
     expect(archivedQualityGates).toContain("GoodMemory-Phase-28-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-29-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-30-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-32-Quality-Gate.md");
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
@@ -1572,6 +1599,46 @@ describe("release metadata and docs", () => {
     );
     await expectGitTrackedRepoArtifact(
       "reports/eval/live-memory/phase-31/run-phase31-live-current/report.json",
+    );
+  });
+
+  it("phase-32 quality gate doc points to the canonical gate plus external-host live evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-32-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const relativeReportPath =
+      "reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json";
+    const gateReport = JSON.parse(
+      await readFile(
+        join(import.meta.dir, "../../", relativeReportPath),
+        "utf8",
+      ),
+    ) as {
+      acceptance: {
+        decision: string;
+      };
+      runId: string;
+    };
+
+    expect(qualityGateDoc).toContain("run-20260422085720");
+    expect(gateReport.runId).toBe("run-20260422085720");
+    expect(gateReport.acceptance.decision).toBe("accepted");
+    await expectGitTrackedPath(relativeReportPath);
+
+    expect(qualityGateDoc).toContain(
+      "reports/eval/fallback/phase-32/run-20260422173045/report.json",
+    );
+    await expectGitTrackedRepoArtifact(
+      "reports/eval/fallback/phase-32/run-20260422173045/report.json",
+    );
+
+    expect(qualityGateDoc).toContain(
+      "reports/eval/live-memory/phase-32/run-phase32-live-current/report.json",
+    );
+    await expectGitTrackedRepoArtifact(
+      "reports/eval/live-memory/phase-32/run-phase32-live-current/report.json",
     );
   });
 

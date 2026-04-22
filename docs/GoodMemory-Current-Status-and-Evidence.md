@@ -10,7 +10,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - `0.1.0-rc.1` is now frozen as a Bun-only prerelease contract. The canonical installable unit is the tarball produced by `bun pm pack`; registry publish is not a blocking claim for this RC.
 - `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend, and local SQLite is the fallback.
 - The official CLI surface remains memory-first: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`.
+- Installed-package external host wiring is now part of the accepted OSS surface through `goodmemory codex bootstrap` and `goodmemory claude bootstrap`; those commands only generate or patch repo-local host scaffolds and do not create canonical memory state.
 - Host integration stays on the explicit adapter path; `file-assisted` remains the recommended default mode for Claude/Codex-style consumption.
+- Optional adapter-level agent-event ingestion now exists on `goodmemory/ai-sdk` and `goodmemory/host`; no new root `goodmemory/evolution` module was added.
 - `sqlite` is now stable as the default local durable document/session/vector backend for the auto-storage path.
 - Generic live-memory eval semantics are now auto-storage aligned across both CLI and script helpers:
   - `bun run eval:live-memory` and `runLiveMemoryEval()` follow the normal runtime storage resolver, so default local SQLite remains valid and configured Postgres becomes provider-backed.
@@ -26,17 +28,17 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 31 is now closed as the native host outcome and correction closure slice over the accepted Codex host path.
+- Phase 32 is now closed as the external host-integration productization slice for the accepted `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host` line.
 - Accepted behavior:
-  - coding-agent behavioral cases now score from native Codex host events rather than model-returned `first_action` JSON
-  - live executable outcomes now come from host lifecycle rather than fixture-derived synthetic outcome scoring
-  - the canonical native-host live report now proves native targeted correction lineage through `correctionOfStepIndex`
-  - the canonical native-host live report shows a strict majority of GoodMemory first-action wins
-  - live procedural generalization now passes 2 of 3 blocking cases, which satisfies the tightened family-level gate
-- Still outside the accepted Phase 31 claim:
-  - public API or public config widening
-  - making Claude a gate-blocking host path
-  - making priming a release-blocking behavioral metric
+  - installed-package `goodmemory codex bootstrap` and `goodmemory claude bootstrap` now generate repo-local host wiring through public imports only
+  - `goodmemory/ai-sdk` and `goodmemory/host` now expose optional adapter-level `*AgentEvent` inputs without widening the root API
+  - external `coding_agent` recall/context now consumes accepted event-backed procedural patterns, runtime continuity, and evidence lineage on the public path
+  - the canonical Codex external-host live report now proves continuity/open-loop restoration, repeated-correction summary-rule recall, and procedure-adherence rule/blocker recall from exported host artifacts
+  - Claude Code reached bootstrap/docs/package-smoke parity, while Codex remained the only live gate blocker
+- Still outside the accepted Phase 32 claim:
+  - public `goodmemory/evolution`
+  - making Claude a second live gate blocker
+  - transcript-database behavior or raw tool-output persistence as a new truth source
   - changing the Phase 28 local backend contract or Phase 29 Bun-only release boundary
 
 ## Current Canonical Evidence
@@ -86,6 +88,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-31-Quality-Gate.md`
   - Deterministic/live gate: `reports/quality-gates/phase-31/run-20260422041616/phase-31-quality-gate.json`
   - Provider-backed live-memory behavioral report: `reports/eval/live-memory/phase-31/run-phase31-live-current/report.json`
+- External host-integration productization closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-32-Quality-Gate.md`
+  - Deterministic/live gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
+  - Deterministic fallback report: `reports/eval/fallback/phase-32/run-20260422173045/report.json`
+  - Codex external-host live report: `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 
