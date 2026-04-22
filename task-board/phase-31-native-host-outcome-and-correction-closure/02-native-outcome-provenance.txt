@@ -1,0 +1,11 @@
+Phase 31.2: Native Outcome Provenance
+=====================================
+
+[DONE] Build live behavioral traces directly from native Codex command lifecycles.
+[DONE] Mark executable outcomes as host-lifecycle derived.
+[DONE] Keep warning-only first actions trace-native without turning scorer verdicts into synthetic failures.
+
+Done when:
+- `item.started + item.completed + exit_code/status` maps to `success|failure`
+- runner timeout or unfinished pending command maps to `timeout`
+- blocking executable cases in canonical live evidence show host-lifecycle outcome provenance

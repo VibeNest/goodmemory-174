@@ -1,4 +1,4 @@
-Phase 31.1: Canonical Product Line and Public Boundary
+Phase 32.1: Canonical Product Line and Public Boundary
 ======================================================
 
 [TODO] Freeze one canonical external line: `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`.
@@ -9,15 +9,15 @@ Phase 31.1: Canonical Product Line and Public Boundary
 Why this exists
 ---------------
 - `docs/开发安排.md` explicitly says not to expand into all hosts or a heavy new public API.
-- Phase 27 already proved public/package adoption; Phase 30 already proved internal Codex host behavior change.
-- Phase 31 must connect those two accepted lines without reopening the stable core API.
+- Phase 27 already proved public/package adoption; Phase 31 already proved internal Codex host behavior change with native outcome/correction evidence.
+- Phase 32 must connect those two accepted lines without reopening the stable core API.
 
 Acceptance
 ----------
 - no new root export beyond the accepted `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` package surfaces
 - no public `goodmemory/evolution` entrypoint
 - release/docs tests lock the canonical product line and reject repo-internal import regressions
-- Codex remains the only live host that can block Phase 31 acceptance
+- Codex remains the only live host that can block Phase 32 acceptance
 
 Evidence To Add
 ---------------

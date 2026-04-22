@@ -1,9 +1,9 @@
-Phase 31 Breakdown
+Phase 32 Breakdown
 ==================
 
 Status
 ------
-- Phase 31 is queued and not started.
+- Phase 32 is queued and not started.
 - Scope: turn the accepted Codex host path and the accepted public reference path into one external product line for `coding_agent`.
 - Canonical line:
   - `goodmemory`
@@ -53,7 +53,7 @@ Canonical Inputs
 Files in This Folder
 --------------------
 - 01-canonical-product-line-and-public-boundary.txt
-  Freeze what Phase 31 is allowed to make public and what must remain internal.
+  Freeze what Phase 32 is allowed to make public and what must remain internal.
 
 - 02-adapter-level-agent-event-contracts.txt
   Add optional public host/AI SDK event-ingestion inputs without widening the core API.
@@ -68,4 +68,4 @@ Files in This Folder
   Ship the installed-package bootstrap path, docs, examples, and consumer smoke for Codex and Claude Code.
 
 - 06-external-gate-and-closure.txt
-  Add the dedicated Phase 31 gate, archive the canonical evidence chain, and sync stable docs/task-board entrypoints.
+  Add the dedicated Phase 32 gate, archive the canonical evidence chain, and sync stable docs/task-board entrypoints.

@@ -1,8 +1,8 @@
-Phase 31.6: External Gate and Closure
+Phase 32.6: External Gate and Closure
 =====================================
 
-[TODO] Add `gate:phase-31` with targeted release, bootstrap, consumer-smoke, deterministic-eval, and live-evidence coverage.
-[TODO] Require one canonical installed-package/native-host Codex evidence chain before accepting Phase 31.
+[TODO] Add `gate:phase-32` with targeted release, bootstrap, consumer-smoke, deterministic-eval, and live-evidence coverage.
+[TODO] Require one canonical installed-package/native-host Codex evidence chain before accepting Phase 32.
 [TODO] Keep Claude in deterministic/bootstrap/package-smoke coverage only.
 [TODO] Archive canonical evidence and sync `docs/GoodMemory-Current-Status-and-Evidence.md` plus `task-board/00-README.txt` only after the evidence is real.
 
@@ -18,15 +18,15 @@ Gate Shape
 
 Acceptance
 ----------
-- `gate:phase-31` fails if bootstrap/docs/reference coverage drifts from the packaged CLI contract
-- `gate:phase-31` fails if the external event-backed path regresses against the frozen pre-Phase-31 public text-only path
-- `gate:phase-31` fails if the external event-backed path does not show a clear win over the no-memory baseline
-- `gate:phase-31` fails without one archived canonical Codex external-host evidence chain
+- `gate:phase-32` fails if bootstrap/docs/reference coverage drifts from the packaged CLI contract
+- `gate:phase-32` fails if the external event-backed path regresses against the frozen pre-Phase-31 public text-only path
+- `gate:phase-32` fails if the external event-backed path does not show a clear win over the no-memory baseline
+- `gate:phase-32` fails without one archived canonical Codex external-host evidence chain
 - closure docs cite one exact canonical evidence chain and do not overstate Claude parity as live-proven
 
 Canonical Closure Evidence To Produce
 -------------------------------------
-- one deterministic Phase 31 report
+- one deterministic Phase 32 report
 - one canonical Codex live/native-host report
-- one accepted Phase 31 quality-gate report
+- one accepted Phase 32 quality-gate report
 - one archived quality-gate summary doc

@@ -1,4 +1,4 @@
-Phase 31.4: Coding-Agent Recall and Context Integration
+Phase 32.4: Coding-Agent Recall and Context Integration
 =======================================================
 
 [TODO] Make the canonical `coding_agent` path consume accepted event-backed procedural patterns together with runtime continuity.
@@ -13,7 +13,7 @@ Phase 31.4: Coding-Agent Recall and Context Integration
 Why this exists
 ---------------
 - `docs/开发安排.md` says the next step is not “store more memory”, but make coding-agent recall truly use validated procedural patterns and corrections.
-- Phase 30 proved first-action changes internally; Phase 31 must make that usable on the external coding-agent line.
+- Phase 31 proved first-action changes internally with native host outcome/correction evidence; Phase 32 must make that usable on the external coding-agent line.
 
 Acceptance
 ----------

@@ -1,4 +1,4 @@
-Phase 31.3: Selective Evidence and Proposal Compilation
+Phase 32.3: Selective Evidence and Proposal Compilation
 =======================================================
 
 [TODO] Normalize accepted external agent events into selective evidence and experiences.

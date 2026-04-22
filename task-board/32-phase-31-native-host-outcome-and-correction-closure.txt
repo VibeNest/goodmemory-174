@@ -1,0 +1,86 @@
+Phase 31: Native Host Outcome and Correction Closure
+====================================================
+
+Phase Goal
+----------
+Strengthen the accepted Phase 30 Codex host path without reopening it.
+
+This phase upgrades live behavioral evidence from:
+- native host first-action capture plus fixture-scored synthetic outcome
+
+to:
+- native `codex exec --json` event stream
+- native `HostBehavioralTraceEvent`
+- host-derived executable outcomes
+- native targeted correction lineage
+
+The scope is internal-only evidence hardening. It does not widen the public API, public config, or README-level default behavior.
+
+
+Current Status
+--------------
+[DONE] Phase 31 is closed and accepted.
+[DONE] Phase 30 remains closed and accepted.
+[DONE] Live Codex evidence now derives executable outcomes from native host lifecycle events.
+[DONE] Live Codex evidence now includes native `correctionOfStepIndex` lineage from the host event stream.
+[DONE] Native Codex runtime binary resolution now lives in a reusable internal host helper.
+
+
+Dependencies
+------------
+- Phase 25 behavioral adaptation closure
+- Phase 30 trace-backed behavioral enactment and live closure
+
+
+Primary Deliverables
+--------------------
+- internal Codex exec JSONL normalizer under `src/host`
+- internal Codex runtime binary resolver using env/PATH rather than author-machine absolute paths
+- Phase 31 deterministic behavioral eval runner
+- Phase 31 provider-backed live-memory behavioral eval runner
+- Phase 31 gate that requires:
+  - trace-backed blocking cases
+  - host-lifecycle executable outcomes
+  - at least one native targeted correction lineage
+  - the existing strict-majority and procedural-family behavioral bar
+- archive/current-status/task-board closure sync after one accepted canonical gate run
+
+
+Definition of Done
+------------------
+- Phase 30 remains closed and is not reopened
+- blocking executable live cases record `success|failure|timeout` from host lifecycle, not fixture match
+- warning-only first actions preserve native host provenance and do not produce synthetic failure telemetry
+- at least one canonical live case contains `correctionOfStepIndex`
+- Codex/Node binary resolution no longer depends on author-machine absolute paths
+- `eval:phase-31`, `eval:phase-31-live-memory`, and `gate:phase-31` exist and are regression-covered
+- one canonical accepted Phase 31 gate and one canonical accepted Phase 31 live-memory report are checked in
+
+
+Tasks
+-----
+[DONE] P31-T001 Add internal Codex exec event normalization and runtime binary resolution
+[DONE] P31-T002 Upgrade live Codex trace construction to host-lifecycle outcomes and native warning provenance
+[DONE] P31-T003 Add native targeted correction lineage and live telemetry extraction coverage
+[DONE] P31-T004 Add Phase 31 deterministic/live runners and a dedicated quality gate
+[DONE] P31-T005 Shift the queued external productization slice from Phase 31 to Phase 32
+[DONE] P31-T006 Archive accepted Phase 31 evidence and sync current-status/task-board/release docs
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-31-native-host-outcome-and-correction-closure/00-README.txt`
+- `task-board/phase-31-native-host-outcome-and-correction-closure/01-codex-event-normalization-and-runtime-resolution.txt`
+- `task-board/phase-31-native-host-outcome-and-correction-closure/02-native-outcome-provenance.txt`
+- `task-board/phase-31-native-host-outcome-and-correction-closure/03-native-correction-lineage.txt`
+- `task-board/phase-31-native-host-outcome-and-correction-closure/04-phase-31-runners-and-gate.txt`
+- `task-board/phase-31-native-host-outcome-and-correction-closure/05-phase-renumber-and-queue-shift.txt`
+- `task-board/phase-31-native-host-outcome-and-correction-closure/06-archive-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase does not reopen the accepted Phase 30 closure claim.
+- This phase does not add a public `goodmemory/evolution` surface.
+- This phase does not productize Claude Code or external bootstrap flows; that queued work moves to Phase 32.
+- This phase does not change the accepted Phase 28 local-backend contract or the accepted Phase 29 Bun-only release boundary.

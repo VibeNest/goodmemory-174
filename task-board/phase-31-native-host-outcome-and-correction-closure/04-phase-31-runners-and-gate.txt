@@ -1,0 +1,12 @@
+Phase 31.4: Runners and Gate
+============================
+
+[DONE] Add `scripts/run-phase-31-eval.ts`.
+[DONE] Add `scripts/run-phase-31-live-memory.ts`.
+[DONE] Add `scripts/run-phase-31-gate.ts`.
+[DONE] Add targeted unit/integration coverage for the new host-event contract.
+
+Done when:
+- package scripts expose `eval:phase-31`, `eval:phase-31-live-memory`, and `gate:phase-31`
+- deterministic gate runs typecheck, targeted regressions, and `eval:phase-31`
+- live gate additionally requires host-lifecycle executable outcomes and native correction lineage

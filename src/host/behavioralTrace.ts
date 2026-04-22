@@ -8,6 +8,8 @@ export type HostBehavioralOutcome =
   | "timeout"
   | "user_corrected";
 
+export type HostBehavioralOutcomeSource = "host_lifecycle" | "warning_message";
+
 export interface HostBehavioralTraceEvent {
   actionKind: HostBehavioralActionKind;
   actionName: string;
@@ -15,6 +17,7 @@ export interface HostBehavioralTraceEvent {
   correctionOfStepIndex?: number;
   evidenceExcerpt?: string;
   outcome: HostBehavioralOutcome;
+  outcomeSource?: HostBehavioralOutcomeSource;
   raw?: string;
   stepIndex: number;
   turnId?: string;
@@ -71,6 +74,17 @@ function assertOutcome(value: unknown, path: string): HostBehavioralOutcome {
   throw new Error(`${path} must be failure, success, timeout, or user_corrected`);
 }
 
+function assertOutcomeSource(
+  value: unknown,
+  path: string,
+): HostBehavioralOutcomeSource {
+  if (value === "host_lifecycle" || value === "warning_message") {
+    return value;
+  }
+
+  throw new Error(`${path} must be host_lifecycle or warning_message`);
+}
+
 export function validateBehavioralTraceEvent(
   value: unknown,
   path = "trace.events[0]",
@@ -98,6 +112,9 @@ export function validateBehavioralTraceEvent(
         `${path}.correctionOfStepIndex`,
       );
   const stepIndex = assertNonNegativeInteger(value.stepIndex, `${path}.stepIndex`);
+  const outcomeSource = value.outcomeSource === undefined
+    ? undefined
+    : assertOutcomeSource(value.outcomeSource, `${path}.outcomeSource`);
   const turnId = value.turnId;
   if (turnId !== undefined && typeof turnId !== "string") {
     throw new Error(`${path}.turnId must be a string`);
@@ -112,6 +129,7 @@ export function validateBehavioralTraceEvent(
       : {}),
     ...(typeof evidenceExcerpt === "string" ? { evidenceExcerpt } : {}),
     outcome: assertOutcome(value.outcome, `${path}.outcome`),
+    ...(typeof outcomeSource === "string" ? { outcomeSource } : {}),
     ...(typeof raw === "string" && raw.trim().length > 0 ? { raw } : {}),
     stepIndex,
     ...(typeof turnId === "string" && turnId.trim().length > 0 ? { turnId } : {}),

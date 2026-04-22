@@ -95,6 +95,9 @@ reports/eval/live-memory/**
 !reports/eval/live-memory/phase-30/
 !reports/eval/live-memory/phase-30/run-phase30-live-current/
 !reports/eval/live-memory/phase-30/run-phase30-live-current/report.json
+!reports/eval/live-memory/phase-31/
+!reports/eval/live-memory/phase-31/run-phase31-live-current/
+!reports/eval/live-memory/phase-31/run-phase31-live-current/report.json
 !reports/eval/live-memory/phase-22-smoke/
 !reports/eval/live-memory/phase-22-smoke/run-1776651268822/
 !reports/eval/live-memory/phase-22-smoke/run-1776651268822/report.json

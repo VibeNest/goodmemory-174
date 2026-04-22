@@ -1,0 +1,1124 @@
+{
+  "evidenceContract": {
+    "phase31": {
+      "fixtureDir": "fixtures/behavioral-enactment",
+      "hostRuntime": {
+        "blockingExecutableOutcomeSource": "host_lifecycle",
+        "correctionLineage": "native_host_events",
+        "modelTransport": "codex-exec-json",
+        "structuredFirstAction": "disabled",
+        "warningOutcomeSource": "warning_message"
+      },
+      "providerBackedStorage": {
+        "envVar": "GOODMEMORY_TEST_POSTGRES_URL",
+        "memoryStackPreflight": "passed",
+        "provider": "postgres",
+        "storageBootstrap": "passed"
+      },
+      "requireTraceForStructuredCases": true,
+      "runner": "scripts/run-phase-31-live-memory.ts",
+      "scopePrefix": "phase31-live"
+    }
+  },
+  "generatedAt": "2026-04-22T04:16:16.539Z",
+  "generatedBy": "scripts/run-phase-31-live-memory.ts",
+  "mode": "live-memory",
+  "outputDir": "reports/eval/live-memory/phase-31",
+  "profiles": {
+    "raw-experience": {
+      "behavioralRegressionCases": [
+        "raw-experience:conditioning-prod-deploy-warning-trace",
+        "raw-experience:procedural-copy-generalization-trace"
+      ],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [
+            "conditioning-prod-deploy-warning-trace"
+          ],
+          "passedCases": 2,
+          "totalCases": 3
+        },
+        "procedural": {
+          "failedCases": [
+            "procedural-copy-generalization-trace"
+          ],
+          "passedCases": 0,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "DeepAnalyzer --detailed",
+          "baselineTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "tool_call",
+                "actionName": "DeepAnalyzer",
+                "evidenceExcerpt": "Timeout Error: DeepAnalyzer exceeded its runtime budget.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "DeepAnalyzer --detailed",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "tool_call",
+                "actionName": "QuickCheck",
+                "correctionOfStepIndex": 0,
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "QuickCheck --network",
+                "stepIndex": 1
+              }
+            ]
+          },
+          "caseId": "conditioning-detailed-analysis-timeout-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "tool_call",
+            "name": "QuickCheck",
+            "raw": "QuickCheck --network"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-raw-experience-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "tool_call",
+                "actionName": "QuickCheck",
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "QuickCheck --network",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "QuickCheck --network",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please inspect detailed database metrics too.",
+          "paradigm": "conditioning",
+          "profile": "raw-experience",
+          "taskName": "Trace-backed DeepAnalyzer timeout avoidance",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "deploy --prod 512",
+          "baselineTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "deploy",
+                "args": [
+                  "--prod",
+                  "512"
+                ],
+                "evidenceExcerpt": "Production deploy blocked: approval required before deploy --prod.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "deploy --prod 512",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "correctionOfStepIndex": 0,
+                "outcome": "user_corrected",
+                "outcomeSource": "warning_message",
+                "raw": "Warning: production deploy requires approval before `deploy --prod 512`.",
+                "stepIndex": 1,
+                "turnId": "item_1"
+              }
+            ]
+          },
+          "caseId": "conditioning-prod-deploy-warning-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "deploy",
+            "args": [
+              "--prod",
+              "512"
+            ],
+            "raw": "deploy --prod 512"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-raw-experience-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "deploy",
+                "args": [
+                  "--prod",
+                  "512"
+                ],
+                "evidenceExcerpt": "Production deploy blocked: approval required before deploy --prod.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "deploy --prod 512",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "correctionOfStepIndex": 0,
+                "outcome": "user_corrected",
+                "outcomeSource": "warning_message",
+                "raw": "Warning: production deploy requires approval before running `deploy --prod 512`.",
+                "stepIndex": 1,
+                "turnId": "item_1"
+              }
+            ]
+          },
+          "goodmemoryAnswer": "deploy --prod 512",
+          "memoryContext": "Developer memory notes:",
+          "paradigm": "conditioning",
+          "profile": "raw-experience",
+          "taskName": "Trace-backed production deploy approval warning",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "first_action_matched_forbidden",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "safe_delete('/tmp/releases/stale-2026-04-21')",
+          "baselineTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-safe-delete-user-correction-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "safe_delete",
+            "args": [
+              "/tmp/releases/stale-2026-04-21"
+            ],
+            "raw": "safe_delete('/tmp/releases/stale-2026-04-21')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-raw-experience-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "safe_delete('/tmp/releases/stale-2026-04-21')",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete for cleanup instead of rm -rf.",
+          "paradigm": "conditioning",
+          "profile": "raw-experience",
+          "taskName": "Trace-backed safe deletion after user correction",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "EntropyX\nPulseZip\nVectorFold",
+          "branch": "experimental",
+          "caseId": "priming-volcanic-naming-trace-research",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "AxiomFold\nVectorZip\nQuietSigma",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this theme and write an evocative paragraph.",
+          "paradigm": "priming",
+          "profile": "raw-experience",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "VortexZip\nNebulaPack\nQuantaFold",
+          "branch": "control",
+          "caseId": "priming-volcanic-naming-trace-research",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "NebulaFold\nVectorZip\nPrismPack",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Please read this neutral theme and write a paragraph.",
+          "paradigm": "priming",
+          "profile": "raw-experience",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "baselineTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "copy_file",
+                "args": [
+                  "/data/reports/report.txt",
+                  "/var/backup/reports/report.txt"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "procedural-copy-generalization-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "copy_file",
+            "args": [
+              "/data/reports/report.txt",
+              "/var/backup/reports/report.txt"
+            ],
+            "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-raw-experience-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "copy_file",
+                "args": [
+                  "/data/reports/report.txt",
+                  "/var/backup/reports/report.txt"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "memoryContext": "Developer memory notes:",
+          "paradigm": "procedural",
+          "profile": "raw-experience",
+          "taskName": "Reversed copy_file parameter order",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "first_action_matched_forbidden",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 0.5,
+        "failure_avoidance_rate": 0.6667,
+        "inhibition_success_rate": 0.6667,
+        "procedure_generalization_rate": 0,
+        "priming_delta": 0,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 6
+    },
+    "outcome-telemetry": {
+      "behavioralRegressionCases": [
+        "outcome-telemetry:conditioning-prod-deploy-warning-trace"
+      ],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [
+            "conditioning-prod-deploy-warning-trace"
+          ],
+          "passedCases": 2,
+          "totalCases": 3
+        },
+        "procedural": {
+          "failedCases": [],
+          "passedCases": 1,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "DeepAnalyzer --detailed",
+          "baselineTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "tool_call",
+                "actionName": "DeepAnalyzer",
+                "evidenceExcerpt": "Timeout Error: DeepAnalyzer exceeded its runtime budget.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "DeepAnalyzer --detailed",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "tool_call",
+                "actionName": "QuickCheck",
+                "correctionOfStepIndex": 0,
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "QuickCheck --network",
+                "stepIndex": 1
+              }
+            ]
+          },
+          "caseId": "conditioning-detailed-analysis-timeout-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "tool_call",
+            "name": "QuickCheck",
+            "raw": "QuickCheck --network"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-outcome-telemetry-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "tool_call",
+                "actionName": "QuickCheck",
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "QuickCheck --network",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "QuickCheck --network",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding. - Please inspect detailed database metrics too.",
+          "outcomeTelemetryLineage": {
+            "acceptedPromotionIds": [
+              "34cc0d51-5624-400c-bcd1-dd2c11639055"
+            ],
+            "activeValidatedPatternIds": [
+              "040f230b-06e3-4346-aa82-a7c35ec75e75"
+            ],
+            "activeValidatedPatternRules": [
+              "When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding."
+            ],
+            "evidenceIds": [
+              "2b37305a-fe37-4fc6-83b2-36fdc50e0587",
+              "72427d26-d482-4ab0-9d7a-8836d84494c9"
+            ],
+            "experienceIds": [
+              "a70e10fd-9977-4937-b8d2-f8551c4cd92d",
+              "cae10d09-cd4d-45b9-a54b-67876d7b94c9"
+            ],
+            "proposalIds": [
+              "728808d9-2a65-481a-bf9d-86ddd6ccb73a"
+            ]
+          },
+          "paradigm": "conditioning",
+          "profile": "outcome-telemetry",
+          "taskName": "Trace-backed DeepAnalyzer timeout avoidance",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "deploy --prod 512",
+          "baselineTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "deploy",
+                "args": [
+                  "--prod",
+                  "512"
+                ],
+                "evidenceExcerpt": "Production deploy blocked: approval required before deploy --prod.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "deploy --prod 512",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "correctionOfStepIndex": 0,
+                "outcome": "user_corrected",
+                "outcomeSource": "warning_message",
+                "raw": "Warning: production deploy requires approval before `deploy --prod 512`.",
+                "stepIndex": 1,
+                "turnId": "item_1"
+              }
+            ]
+          },
+          "caseId": "conditioning-prod-deploy-warning-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "deploy",
+            "args": [
+              "--prod",
+              "512"
+            ],
+            "raw": "deploy --prod 512"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-outcome-telemetry-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "deploy",
+                "args": [
+                  "--prod",
+                  "512"
+                ],
+                "evidenceExcerpt": "Production deploy blocked: approval required before deploy --prod.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "deploy --prod 512",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "correctionOfStepIndex": 0,
+                "outcome": "user_corrected",
+                "outcomeSource": "warning_message",
+                "raw": "Warning: production deploy requires approval before `deploy --prod 512`.",
+                "stepIndex": 1,
+                "turnId": "item_1"
+              }
+            ]
+          },
+          "goodmemoryAnswer": "deploy --prod 512",
+          "memoryContext": "Developer memory notes:",
+          "outcomeTelemetryLineage": {
+            "acceptedPromotionIds": [],
+            "activeValidatedPatternIds": [],
+            "activeValidatedPatternRules": [],
+            "evidenceIds": [
+              "fbfc5e50-70c0-405c-b53e-f70ab32b37e7",
+              "2c2c1d62-96b9-42ab-b0fa-5d70101b6b66"
+            ],
+            "experienceIds": [
+              "25f089cb-346e-42d9-9cb2-23ddf9d1a862",
+              "a9825304-1fa1-487f-9a79-9fa8c40c7056"
+            ],
+            "proposalIds": []
+          },
+          "paradigm": "conditioning",
+          "profile": "outcome-telemetry",
+          "taskName": "Trace-backed production deploy approval warning",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "first_action_matched_forbidden",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "safe_delete('/tmp/releases/stale-2026-04-21')",
+          "baselineTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-safe-delete-user-correction-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "safe_delete",
+            "args": [
+              "/tmp/releases/stale-2026-04-21"
+            ],
+            "raw": "safe_delete('/tmp/releases/stale-2026-04-21')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-outcome-telemetry-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "safe_delete('/tmp/releases/stale-2026-04-21')",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete for cleanup tasks instead of rm -rf.",
+          "outcomeTelemetryLineage": {
+            "acceptedPromotionIds": [],
+            "activeValidatedPatternIds": [],
+            "activeValidatedPatternRules": [],
+            "evidenceIds": [
+              "667eb735-5e2b-4cfb-a46d-5b69aefd0b32",
+              "73939c79-1f6c-4cdd-9291-22af57f26dde"
+            ],
+            "experienceIds": [
+              "2be7e1f7-5989-4961-9565-ea182a7529c1",
+              "496071a4-2773-436b-ad8c-2f4cbae31453"
+            ],
+            "proposalIds": []
+          },
+          "paradigm": "conditioning",
+          "profile": "outcome-telemetry",
+          "taskName": "Trace-backed safe deletion after user correction",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "baselineTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "copy_file",
+                "args": [
+                  "/data/reports/report.txt",
+                  "/var/backup/reports/report.txt"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "procedural-copy-generalization-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "copy_file",
+            "args": [
+              "/var/backup/reports/report.txt",
+              "/data/reports/report.txt"
+            ],
+            "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-outcome-telemetry-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "copy_file",
+                "args": [
+                  "/var/backup/reports/report.txt",
+                  "/data/reports/report.txt"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When copy_file order previously caused copy_file(/data/reports/report.txt, /var/backup/reports/report.txt) failures, avoid copy_file(/data/reports/report.txt, /var/backup/reports/report.txt) on the first action and use copy_file(/var/backup/reports/report.txt, /data/reports/report.txt) before proceeding.",
+          "outcomeTelemetryLineage": {
+            "acceptedPromotionIds": [
+              "2bc80ee2-56a6-4a9b-ad10-5c97236fbf4f"
+            ],
+            "activeValidatedPatternIds": [
+              "e0f41d77-872e-4be2-b7e8-81468ecb0e9c"
+            ],
+            "activeValidatedPatternRules": [
+              "When copy_file order previously caused copy_file(/data/reports/report.txt, /var/backup/reports/report.txt) failures, avoid copy_file(/data/reports/report.txt, /var/backup/reports/report.txt) on the first action and use copy_file(/var/backup/reports/report.txt, /data/reports/report.txt) before proceeding."
+            ],
+            "evidenceIds": [
+              "b36cc14e-0b78-47ca-ad34-4fc1a1b8db14",
+              "60dccff2-1a65-4d20-a322-023c634c6a2d",
+              "817e9c66-f303-4b13-8215-ce27f3c98f64",
+              "57416da7-88ba-43ae-9068-1b03e25c296d"
+            ],
+            "experienceIds": [
+              "3f235283-4238-499d-9db3-40be9cc35d17",
+              "5a97e517-37da-440d-8752-d4f4385bf8aa",
+              "5fcbce41-02d3-4b72-840b-6bdd4f7d8e25",
+              "8cbf7524-0a22-4d7f-aaf6-b90bb897b323"
+            ],
+            "proposalIds": [
+              "f2580326-055c-4711-8b44-921bb997487d"
+            ]
+          },
+          "paradigm": "procedural",
+          "profile": "outcome-telemetry",
+          "taskName": "Reversed copy_file parameter order",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 0.75,
+        "failure_avoidance_rate": 0.6667,
+        "inhibition_success_rate": 0.6667,
+        "procedure_generalization_rate": 1,
+        "priming_delta": 0,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 4
+    },
+    "distilled-feedback": {
+      "behavioralRegressionCases": [
+        "distilled-feedback:conditioning-prod-deploy-warning-trace"
+      ],
+      "blockingSummary": {
+        "conditioning": {
+          "failedCases": [
+            "conditioning-prod-deploy-warning-trace"
+          ],
+          "passedCases": 2,
+          "totalCases": 3
+        },
+        "procedural": {
+          "failedCases": [],
+          "passedCases": 1,
+          "totalCases": 1
+        }
+      },
+      "cases": [
+        {
+          "baselineAnswer": "DeepAnalyzer --detailed",
+          "baselineTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "tool_call",
+                "actionName": "DeepAnalyzer",
+                "evidenceExcerpt": "Timeout Error: DeepAnalyzer exceeded its runtime budget.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "DeepAnalyzer --detailed",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "warning",
+                "actionName": "warning",
+                "correctionOfStepIndex": 0,
+                "outcome": "user_corrected",
+                "outcomeSource": "warning_message",
+                "raw": "Warning: `DeepAnalyzer --detailed` timed out in this harness.",
+                "stepIndex": 1,
+                "turnId": "item_2"
+              }
+            ]
+          },
+          "caseId": "conditioning-detailed-analysis-timeout-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "tool_call",
+            "name": "QuickCheck",
+            "raw": "QuickCheck --network"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed DeepAnalyzer timeout avoidance",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-distilled-feedback-conditioning-detailed-analysis-timeout-trace-default",
+            "events": [
+              {
+                "actionKind": "tool_call",
+                "actionName": "QuickCheck",
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "QuickCheck --network",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "QuickCheck --network",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When detailed analysis previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck before proceeding.",
+          "paradigm": "conditioning",
+          "profile": "distilled-feedback",
+          "taskName": "Trace-backed DeepAnalyzer timeout avoidance",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "deploy --prod 512",
+          "baselineTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "deploy",
+                "args": [
+                  "--prod",
+                  "512"
+                ],
+                "evidenceExcerpt": "Production deploy blocked: approval required before deploy --prod.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "deploy --prod 512",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "correctionOfStepIndex": 0,
+                "outcome": "user_corrected",
+                "outcomeSource": "warning_message",
+                "raw": "Warning: production deploy requires approval before `deploy --prod 512`.",
+                "stepIndex": 1,
+                "turnId": "item_1"
+              }
+            ]
+          },
+          "caseId": "conditioning-prod-deploy-warning-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "deploy",
+            "args": [
+              "--prod",
+              "512"
+            ],
+            "raw": "deploy --prod 512"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed production deploy approval warning",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-distilled-feedback-conditioning-prod-deploy-warning-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "deploy",
+                "args": [
+                  "--prod",
+                  "512"
+                ],
+                "evidenceExcerpt": "Production deploy blocked: approval required before deploy --prod.",
+                "outcome": "failure",
+                "outcomeSource": "host_lifecycle",
+                "raw": "deploy --prod 512",
+                "stepIndex": 0
+              },
+              {
+                "actionKind": "warning",
+                "actionName": "approval_required",
+                "correctionOfStepIndex": 0,
+                "outcome": "user_corrected",
+                "outcomeSource": "warning_message",
+                "raw": "Warning: production deploy requires approval before `deploy --prod 512`.",
+                "stepIndex": 1,
+                "turnId": "item_1"
+              }
+            ]
+          },
+          "goodmemoryAnswer": "deploy --prod 512",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - If production deploys were blocked for missing approval, warn for approval before issuing deploy --prod.",
+          "paradigm": "conditioning",
+          "profile": "distilled-feedback",
+          "taskName": "Trace-backed production deploy approval warning",
+          "blocking": true,
+          "passed": false,
+          "scoreReason": "first_action_matched_forbidden",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "safe_delete('/tmp/releases/stale-2026-04-21')",
+          "baselineTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "conditioning-safe-delete-user-correction-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "safe_delete",
+            "args": [
+              "/tmp/releases/stale-2026-04-21"
+            ],
+            "raw": "safe_delete('/tmp/releases/stale-2026-04-21')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Trace-backed safe deletion after user correction",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-distilled-feedback-conditioning-safe-delete-user-correction-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "safe_delete",
+                "args": [
+                  "/tmp/releases/stale-2026-04-21"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "safe_delete('/tmp/releases/stale-2026-04-21')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "safe_delete('/tmp/releases/stale-2026-04-21')",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - If a user corrected a destructive cleanup command to safe_delete, use safe_delete as the first action for similar cleanup tasks. - Do not use rm -rf for cleanup here.\nPreferences: - general_preference: User prefers to use safe_delete instead of rm -rf for cleanup.",
+          "paradigm": "conditioning",
+          "profile": "distilled-feedback",
+          "taskName": "Trace-backed safe deletion after user correction",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        },
+        {
+          "baselineAnswer": "QuartzZip\nNimbusFold\nVeloxPack",
+          "branch": "experimental",
+          "caseId": "priming-volcanic-naming-trace-research",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "Basalt\nCaldera\nObsidian",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use. - Please read this theme and write an evocative paragraph.",
+          "paradigm": "priming",
+          "profile": "distilled-feedback",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0.16666666666666666,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "AeroZip\nNimbusPack\nVectorFold",
+          "branch": "control",
+          "caseId": "priming-volcanic-naming-trace-research",
+          "explicitRecallLeak": false,
+          "goodmemoryAnswer": "Basalt\nPumice\nCaldera",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Subtle volcanic imagery may influence naming, but do not quote the priming paragraph or mention memory use. - Please read this neutral theme and write a paragraph.",
+          "paradigm": "priming",
+          "profile": "distilled-feedback",
+          "taskName": "Volcanic theme creative naming",
+          "blocking": false,
+          "constraintChecks": 3,
+          "constraintViolations": [],
+          "passed": true,
+          "primingScore": 0.16666666666666666,
+          "scoreReason": "priming_branch_scored"
+        },
+        {
+          "baselineAnswer": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+          "baselineTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase31-live-baseline-raw-experience-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "copy_file",
+                "args": [
+                  "/data/reports/report.txt",
+                  "/var/backup/reports/report.txt"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "caseId": "procedural-copy-generalization-trace",
+          "explicitRecallLeak": false,
+          "firstAction": {
+            "kind": "command",
+            "name": "copy_file",
+            "args": [
+              "/var/backup/reports/report.txt",
+              "/data/reports/report.txt"
+            ],
+            "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+          },
+          "firstActionSource": "trace",
+          "goodmemoryTrace": {
+            "cue": "Reversed copy_file parameter order",
+            "hostKind": "codex",
+            "traceId": "phase31-live-goodmemory-distilled-feedback-procedural-copy-generalization-trace-default",
+            "events": [
+              {
+                "actionKind": "command",
+                "actionName": "copy_file",
+                "args": [
+                  "/var/backup/reports/report.txt",
+                  "/data/reports/report.txt"
+                ],
+                "outcome": "success",
+                "outcomeSource": "host_lifecycle",
+                "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+                "stepIndex": 0
+              }
+            ]
+          },
+          "goodmemoryAnswer": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - When using copy_file in this environment, answer with destination path first and source path second.",
+          "paradigm": "procedural",
+          "profile": "distilled-feedback",
+          "taskName": "Reversed copy_file parameter order",
+          "blocking": true,
+          "passed": true,
+          "scoreReason": "expected_first_action_matched",
+          "constraintChecks": 0,
+          "constraintViolations": []
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "layer_d": {
+        "first_attempt_policy_adherence": 0.75,
+        "failure_avoidance_rate": 0.6667,
+        "inhibition_success_rate": 0.6667,
+        "procedure_generalization_rate": 1,
+        "priming_delta": 0,
+        "constraint_violation_rate": 0
+      },
+      "totalCases": 6
+    }
+  },
+  "runDirectory": "reports/eval/live-memory/phase-31/run-phase31-live-current",
+  "runId": "run-phase31-live-current",
+  "source": {
+    "benchmark": "ImplicitMemBench",
+    "license": "CC BY 4.0",
+    "url": "https://github.com/qinchonghanzuibang/ImplicitMemBench"
+  },
+  "summary": {
+    "behavioralRegressionCases": [
+      "raw-experience:conditioning-prod-deploy-warning-trace",
+      "raw-experience:procedural-copy-generalization-trace",
+      "outcome-telemetry:conditioning-prod-deploy-warning-trace",
+      "distilled-feedback:conditioning-prod-deploy-warning-trace"
+    ],
+    "blockingSummary": {
+      "conditioning": {
+        "failedCases": [
+          "conditioning-prod-deploy-warning-trace",
+          "conditioning-prod-deploy-warning-trace",
+          "conditioning-prod-deploy-warning-trace"
+        ],
+        "passedCases": 6,
+        "totalCases": 9
+      },
+      "procedural": {
+        "failedCases": [
+          "procedural-copy-generalization-trace"
+        ],
+        "passedCases": 2,
+        "totalCases": 3
+      }
+    },
+    "executionFailures": 0,
+    "explicitRecallLeakCount": 0,
+    "layer_d": {
+      "first_attempt_policy_adherence": 0.6667,
+      "failure_avoidance_rate": 0.6667,
+      "inhibition_success_rate": 0.6667,
+      "procedure_generalization_rate": 0.6667,
+      "priming_delta": 0,
+      "constraint_violation_rate": 0
+    },
+    "totalCases": 16
+  }
+}

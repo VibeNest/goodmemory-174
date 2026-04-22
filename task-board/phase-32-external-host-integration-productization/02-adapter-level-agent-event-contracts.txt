@@ -1,4 +1,4 @@
-Phase 31.2: Adapter-Level Agent Event Contracts
+Phase 32.2: Adapter-Level Agent Event Contracts
 ===============================================
 
 [TODO] Add optional public event-ingestion types and helper entrypoints on `goodmemory/ai-sdk`.

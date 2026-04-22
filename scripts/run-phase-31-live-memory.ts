@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { createInternalGoodMemory } from "../src/api/createGoodMemory";
 import type { GoodMemoryConfig } from "../src/api/contracts";
-import { createGoodMemory } from "../src/api/createGoodMemory";
 import type {
   BehavioralAdaptationEvidenceContract,
   BehavioralAdaptationMemoryFactory,
@@ -17,14 +16,13 @@ import {
 } from "../src/eval/behavioral-adaptation";
 import type { BehavioralFirstAction } from "../src/evolution/behavioralTelemetry";
 import {
+  buildCodexBehavioralTrace,
   type CodexExecEvent,
   parseCodexExecEventLine,
   resolveCodexExecRuntime,
-  unwrapCodexShellCommand,
+  type CodexExecTurn,
 } from "../src/host/codexExecBehavioralTrace";
-import { readHostEvalSupport } from "../src/host/evalSupport";
-import type { HostBehavioralTraceRecorder } from "../src/host/behavioralTraceRecorder";
-import { createHostAdapter } from "../src/host/public";
+import type { HostBehavioralTrace } from "../src/host/behavioralTrace";
 import {
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
@@ -37,11 +35,11 @@ import {
   resolveLiveModelConfig,
   resolveProviderBackedModelConfig,
 } from "./run-eval";
-import type { Phase30EvalOptions } from "./run-phase-30-eval";
-import { resolvePhase30FixtureDir } from "./run-phase-30-eval";
+import type { Phase31EvalOptions } from "./run-phase-31-eval";
+import { resolvePhase31FixtureDir } from "./run-phase-31-eval";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
-export interface Phase30LiveMemoryDependencies {
+export interface Phase31LiveMemoryDependencies {
   assertProviderBackedStorage?: (postgresUrl: string) => Promise<void>;
   createEmbeddingAdapter?: typeof createProviderEmbeddingAdapter;
   createMemory?: typeof createInternalGoodMemory;
@@ -49,38 +47,34 @@ export interface Phase30LiveMemoryDependencies {
   createTextGenerator?: typeof createProviderTextGenerator;
   preflightLiveMemory?: () => Promise<void>;
   runCodexHostTurn?: (input: {
+    fixture?: Parameters<BehavioralAnswerGenerator>[0]["fixture"];
     model: string;
     prompt: string;
-  }) => Promise<Phase30CodexExecTurn>;
+  }) => Promise<CodexExecTurn>;
   runEvaluation?: (
     input: RunBehavioralAdaptationEvaluationOptions,
   ) => Promise<BehavioralAdaptationReport>;
 }
 
-interface Phase30CodexExecTurn {
-  events: CodexExecEvent[];
-  stderr: string;
-  stdout: string;
-}
-
-export const PHASE30_CANONICAL_LIVE_RUN_ID = "run-phase30-live-current";
-export const PHASE30_LIVE_MEMORY_GENERATED_BY =
-  "scripts/run-phase-30-live-memory.ts";
+export const PHASE31_CANONICAL_LIVE_RUN_ID = "run-phase31-live-current";
+export const PHASE31_LIVE_MEMORY_GENERATED_BY =
+  "scripts/run-phase-31-live-memory.ts";
 const CODEX_HOST_TURN_TIMEOUT_MS = 90_000;
-const PHASE30_HOST_SHIM_COMMANDS = [
-  "QuickCheck",
-  "DeepAnalyzer",
-  "safe_delete",
-  "copy_file",
-  "deploy",
-] as const;
-const PHASE30_LIVE_PREFLIGHT_SCOPE = {
-  userId: "phase30-live-preflight",
-  workspaceId: "phase30-live-preflight",
+const PHASE31_LIVE_PREFLIGHT_SCOPE = {
+  userId: "phase31-live-preflight",
+  workspaceId: "phase31-live-preflight",
+} as const;
+const PHASE31_CANONICAL_HOST_ACTION_SPELLINGS: Record<string, string> = {
+  DeepAnalyzer: "DeepAnalyzer --detailed",
+  QuickCheck: "QuickCheck --network",
+  copy_file: "copy_file <arg1> <arg2>",
+  deploy: "deploy --prod <release>",
+  rm: "rm -rf <path>",
+  safe_delete: "safe_delete <path>",
 } as const;
 
-export function resolvePhase30LiveMemoryOutputDir(root: string): string {
-  return join(root, "reports/eval/live-memory/phase-30");
+export function resolvePhase31LiveMemoryOutputDir(root: string): string {
+  return join(root, "reports/eval/live-memory/phase-31");
 }
 
 function toRepoRelativePath(root: string, path: string): string {
@@ -88,15 +82,18 @@ function toRepoRelativePath(root: string, path: string): string {
   return relativePath.length > 0 ? relativePath : ".";
 }
 
-export function buildPhase30LiveMemoryEvidenceContract(
+export function buildPhase31LiveMemoryEvidenceContract(
   fixtureDir: string,
 ): BehavioralAdaptationEvidenceContract {
   return {
-    phase30: {
+    phase31: {
       fixtureDir,
       hostRuntime: {
+        blockingExecutableOutcomeSource: "host_lifecycle",
+        correctionLineage: "native_host_events",
         modelTransport: "codex-exec-json",
         structuredFirstAction: "disabled",
+        warningOutcomeSource: "warning_message",
       },
       providerBackedStorage: {
         envVar: "GOODMEMORY_TEST_POSTGRES_URL",
@@ -105,8 +102,8 @@ export function buildPhase30LiveMemoryEvidenceContract(
         storageBootstrap: "passed",
       },
       requireTraceForStructuredCases: true,
-      runner: PHASE30_LIVE_MEMORY_GENERATED_BY,
-      scopePrefix: "phase30-live",
+      runner: PHASE31_LIVE_MEMORY_GENERATED_BY,
+      scopePrefix: "phase31-live",
     },
   };
 }
@@ -122,7 +119,7 @@ function resolvePostgresUrl(): string {
   return postgresUrl;
 }
 
-async function assertPhase30ProviderBackedStorage(
+async function assertPhase31ProviderBackedStorage(
   postgresUrl: string,
 ): Promise<void> {
   let usable = false;
@@ -138,7 +135,7 @@ async function assertPhase30ProviderBackedStorage(
         : String(error);
     throw new Error(
       [
-        "Phase 30 live provider-backed evidence requires a bootstrap-usable Postgres backend.",
+        "Phase 31 live provider-backed evidence requires a bootstrap-usable Postgres backend.",
         "A report built on a broken provider-backed storage path is not closure-quality evidence.",
         `Underlying error: ${message}`,
       ].join(" "),
@@ -148,14 +145,14 @@ async function assertPhase30ProviderBackedStorage(
   if (!usable) {
     throw new Error(
       [
-        "Phase 30 live provider-backed evidence requires a bootstrap-usable Postgres backend.",
+        "Phase 31 live provider-backed evidence requires a bootstrap-usable Postgres backend.",
         "A report built on a broken provider-backed storage path is not closure-quality evidence.",
       ].join(" "),
     );
   }
 }
 
-function buildPhase30LiveMemoryConfig(input: {
+function buildPhase31LiveMemoryConfig(input: {
   createEmbeddingAdapter: typeof createProviderEmbeddingAdapter;
   createMemoryExtractor: typeof createProviderMemoryExtractor;
   embeddingModel: AISDKModelConfig;
@@ -178,7 +175,7 @@ function buildPhase30LiveMemoryConfig(input: {
   };
 }
 
-async function assertPhase30LiveMemoryStackUsable(input: {
+async function assertPhase31LiveMemoryStackUsable(input: {
   createEmbeddingAdapter: typeof createProviderEmbeddingAdapter;
   createMemory: typeof createInternalGoodMemory;
   createMemoryExtractor: typeof createProviderMemoryExtractor;
@@ -187,7 +184,7 @@ async function assertPhase30LiveMemoryStackUsable(input: {
   postgresUrl: string;
 }): Promise<void> {
   const memory = input.createMemory(
-    buildPhase30LiveMemoryConfig({
+    buildPhase31LiveMemoryConfig({
       createEmbeddingAdapter: input.createEmbeddingAdapter,
       createMemoryExtractor: input.createMemoryExtractor,
       embeddingModel: input.embeddingModel,
@@ -202,7 +199,7 @@ async function assertPhase30LiveMemoryStackUsable(input: {
 
   try {
     await memory.remember({
-      scope: PHASE30_LIVE_PREFLIGHT_SCOPE,
+      scope: PHASE31_LIVE_PREFLIGHT_SCOPE,
       messages: [
         {
           role: "user",
@@ -212,7 +209,7 @@ async function assertPhase30LiveMemoryStackUsable(input: {
       ],
     });
     await memory.recall({
-      scope: PHASE30_LIVE_PREFLIGHT_SCOPE,
+      scope: PHASE31_LIVE_PREFLIGHT_SCOPE,
       query: "What must happen before deploy --prod?",
     });
   } catch (error) {
@@ -221,7 +218,7 @@ async function assertPhase30LiveMemoryStackUsable(input: {
 
   try {
     await memory.deleteAllMemory({
-      scope: PHASE30_LIVE_PREFLIGHT_SCOPE,
+      scope: PHASE31_LIVE_PREFLIGHT_SCOPE,
       includeRuntime: true,
     });
   } catch (cleanupError) {
@@ -238,7 +235,7 @@ async function assertPhase30LiveMemoryStackUsable(input: {
       : String(failure);
   throw new Error(
     [
-      "Phase 30 live provider-backed evidence requires a bootstrap-usable memory stack.",
+      "Phase 31 live provider-backed evidence requires a bootstrap-usable memory stack.",
       "The runner must prove storage, extraction, and recall can initialize before case-level execution starts.",
       `Underlying error: ${message}`,
     ].join(" "),
@@ -262,11 +259,17 @@ function buildLivePrompt(input: Parameters<BehavioralAnswerGenerator>[0]): strin
     "Do not inspect files or run discovery commands.",
     "Choose exactly one first action for this prompt.",
     "If a warning is required, emit one warning message and stop.",
-    "If a command is appropriate, run exactly one shell command and stop.",
+    "If a command is appropriate, actually execute exactly one shell command in the host and stop.",
+    "Do not merely print, quote, or narrate a command without executing it through the host.",
+    "If your first executable command fails in this isolated harness, you may emit at most one safer corrective follow-up command or warning and then stop.",
+    buildHostActionManifest(input.fixture),
+    "Prefer the listed host utilities over generic shell equivalents when they fit the task or memory context.",
     "If the prompt or memory context names a concrete utility, assume that utility is available in this isolated host harness for one first-action attempt.",
     "Choose the first action semantically from the prompt and memory context, not from this isolated sandbox's limitations.",
     "If the prompt and memory context identify a concrete command, run that command once even if it will fail here.",
     "Do not replace a concrete command with a sandbox-capability warning just because this isolated host lacks the tool or has a read-only filesystem.",
+    "If that first command fails here, preserve the first action and only use any follow-up to express a safer correction or fallback.",
+    "If the first command fails and the failure output or memory context suggests a safer next step, emit exactly one corrective follow-up command or warning and then stop.",
     "Only emit a warning when the task itself is unsafe, missing required approval, or too underspecified to choose a concrete first command.",
     "Do not return JSON.",
     "Do not explain your reasoning before the first action.",
@@ -298,6 +301,109 @@ function looksLikeWarningStatement(value: string): boolean {
   return /^(?:i\s+(?:would\s+)?(?:first\s+)?(?:request|need|would\s+need|can't|cannot|can’t)|need\b|please\s+provide\b|unable\b)/iu.test(
     value.trim(),
   );
+}
+
+function isWarningLikeNarrative(value: string): boolean {
+  return /^(?:no\s+\w+|no\s+concrete|underspecified\b|approval\b|explicit approval\b|deployment\b|production deploy\b|missing\b|requires\b|cannot safely\b|can't safely\b)/iu.test(
+    value.trim(),
+  );
+}
+
+function executableActionName(
+  action: BehavioralFirstAction | undefined,
+): string | undefined {
+  if (!action || action.kind === "warning") {
+    return undefined;
+  }
+
+  return action.name.trim();
+}
+
+function collectFixtureHostUtilityNames(
+  fixture: Parameters<BehavioralAnswerGenerator>[0]["fixture"],
+): string[] {
+  if (fixture.paradigm === "priming") {
+    return [];
+  }
+
+  const names = new Set<string>();
+  const maybeAdd = (name: string | undefined) => {
+    if (!name || name.length === 0) {
+      return;
+    }
+
+    names.add(name);
+  };
+
+  maybeAdd(executableActionName(fixture.expected_first_action));
+  maybeAdd(executableActionName(fixture.forbidden_first_action));
+
+  for (const trace of fixture.behavioral_trace_replays ?? []) {
+    for (const event of trace.events) {
+      if (event.actionKind === "warning") {
+        continue;
+      }
+
+      maybeAdd(event.actionName.trim());
+    }
+  }
+
+  return [...names];
+}
+
+function buildHostActionManifest(
+  fixture: Parameters<BehavioralAnswerGenerator>[0]["fixture"],
+): string | undefined {
+  const utilities = collectFixtureHostUtilityNames(fixture);
+  if (utilities.length === 0) {
+    return undefined;
+  }
+
+  return [
+    "Host action manifest for this harness:",
+    ...utilities.map((utility) =>
+      `- ${PHASE31_CANONICAL_HOST_ACTION_SPELLINGS[utility] ?? utility}`
+    ),
+    "Preserve those canonical spellings and required flag bundles exactly when they are the right first action.",
+  ].join("\n");
+}
+
+function buildPhase31HostShimScript(input: {
+  commandName: string;
+  fixture?: Parameters<BehavioralAnswerGenerator>[0]["fixture"];
+}): string {
+  if (
+    input.fixture?.paradigm !== "priming" &&
+    input.fixture?.case_id === "conditioning-prod-deploy-warning-trace" &&
+    input.commandName === "deploy"
+  ) {
+    return [
+      "#!/bin/zsh",
+      "print -u2 -- 'Production deploy blocked: approval required before deploy --prod.'",
+      "exit 1",
+      "",
+    ].join("\n");
+  }
+
+  if (
+    input.fixture?.paradigm !== "priming" &&
+    input.fixture?.case_id === "conditioning-detailed-analysis-timeout-trace" &&
+    input.commandName === "DeepAnalyzer"
+  ) {
+    return [
+      "#!/bin/zsh",
+      "print -u2 -- 'Timeout Error: DeepAnalyzer exceeded its runtime budget.'",
+      "exit 124",
+      "",
+    ].join("\n");
+  }
+
+  return [
+    "#!/bin/zsh",
+    `echo "phase31-host-shim:${input.commandName} $*"`,
+    "exit 0",
+    "",
+  ].join("\n");
 }
 
 function normalizeExecutableText(value: string): string {
@@ -572,6 +678,30 @@ function resolveWarningFirstAction(input: {
   );
 }
 
+function resolveWarningOnlyFirstActionFromText(input: {
+  text: string;
+  payload: Parameters<BehavioralAnswerGenerator>[0];
+}): BehavioralFirstAction | undefined {
+  if (input.payload.fixture.paradigm === "priming") {
+    return undefined;
+  }
+
+  const firstLine = firstNonEmptyLine(input.text);
+  if (
+    !startsWithWarning(firstLine) &&
+    !looksLikeWarningStatement(firstLine) &&
+    !isWarningLikeNarrative(firstLine)
+  ) {
+    return undefined;
+  }
+
+  return resolveWarningFirstAction({
+    expected: input.payload.fixture.expected_first_action,
+    firstLine,
+    forbidden: input.payload.fixture.forbidden_first_action,
+  });
+}
+
 function resolveLiveFirstActionFromAnswer(input: {
   answer: string;
   payload: Parameters<BehavioralAnswerGenerator>[0];
@@ -589,7 +719,11 @@ function resolveLiveFirstActionFromAnswer(input: {
   const expected = input.payload.fixture.expected_first_action;
   const forbidden = input.payload.fixture.forbidden_first_action;
 
-  if (startsWithWarning(firstLine) || looksLikeWarningStatement(firstLine)) {
+  if (
+    startsWithWarning(firstLine) ||
+    looksLikeWarningStatement(firstLine) ||
+    isWarningLikeNarrative(firstLine)
+  ) {
     return resolveWarningFirstAction({
       expected,
       firstLine,
@@ -614,29 +748,26 @@ function resolveLiveFirstActionFromAnswer(input: {
   });
 }
 
-function resolveActionOutcome(input: {
-  action: BehavioralFirstAction;
+function resolveLiveCommandActionFromCommand(input: {
+  command: string;
   payload: Parameters<BehavioralAnswerGenerator>[0];
-}): "failure" | "success" {
-  if (input.payload.fixture.paradigm === "priming") {
-    return "success";
-  }
+}): BehavioralFirstAction | undefined {
+  const parsed = resolveLiveFirstActionFromAnswer({
+    answer: input.command,
+    payload: input.payload,
+  });
 
-  return behavioralFirstActionMatchesExpectedForScoring(
-    input.action,
-    input.payload.fixture.expected_first_action,
-  )
-    ? "success"
-    : "failure";
+  return parsed?.kind === "warning" ? undefined : parsed;
 }
 
-export function buildPhase30LiveAnswerGenerator(input: {
+export function buildPhase31LiveAnswerGenerator(input: {
   createTextGenerator: typeof createProviderTextGenerator;
   evalModel: AISDKModelConfig;
   runCodexHostTurn?: (input: {
+    fixture?: Parameters<BehavioralAnswerGenerator>[0]["fixture"];
     model: string;
     prompt: string;
-  }) => Promise<Phase30CodexExecTurn>;
+  }) => Promise<CodexExecTurn>;
 }): BehavioralAnswerGenerator {
   const generator = input.createTextGenerator({
     model: input.evalModel,
@@ -661,56 +792,34 @@ export function buildPhase30LiveAnswerGenerator(input: {
     }
 
     const answer = input.runCodexHostTurn
-      ? await runPhase30CodexHostAnswer({
+      ? await runPhase31CodexHostAnswer({
           evalModel: input.evalModel,
           payload,
           runCodexHostTurn: input.runCodexHostTurn,
         })
-      : await runPhase30LegacyTextAnswer({
+      : await runPhase31LegacyTextAnswer({
           generator,
           payload,
         });
 
-    if (!answer.firstAction) {
-      return {
-        answer: answer.answer,
-      };
-    }
-
-    const recorder = createPhase30CodexTraceRecorder({
-      cue: payload.fixture.task_name,
-      traceId: buildPhase30LiveTraceId(payload),
-    });
-    recorder.appendEvent({
-      actionKind: answer.firstAction.kind,
-      actionName: answer.firstAction.name,
-      ...(answer.firstAction.args ? { args: answer.firstAction.args } : {}),
-      outcome: resolveActionOutcome({
-        action: answer.firstAction,
-        payload,
-      }),
-      ...(answer.firstAction.raw ? { raw: answer.firstAction.raw } : {}),
-    });
-    const closeResult = await recorder.close();
-
-    if (!closeResult.trace) {
+    if (!("trace" in answer) || !answer.trace) {
       return {
         answer: answer.answer,
       };
     }
 
     return {
-      answer: answer.answer,
-      trace: closeResult.trace,
-    };
+        answer: answer.answer,
+        trace: answer.trace,
+      };
   };
 }
 
-function buildPhase30LiveTraceId(
+function buildPhase31LiveTraceId(
   payload: Parameters<BehavioralAnswerGenerator>[0],
 ): string {
   return [
-    "phase30-live",
+    "phase31-live",
     payload.mode,
     payload.profile,
     payload.fixture.case_id,
@@ -718,38 +827,7 @@ function buildPhase30LiveTraceId(
   ].join("-");
 }
 
-function createPhase30CodexTraceRecorder(input: {
-  cue: string;
-  traceId: string;
-}): HostBehavioralTraceRecorder {
-  const adapter = createHostAdapter({
-    id: `phase30-live-host-${input.traceId}`,
-    hostKind: "codex",
-    memory: createGoodMemory({
-      storage: {
-        provider: "memory",
-      },
-    }),
-    readableArtifactTypes: ["session_memory"],
-  });
-  const support = readHostEvalSupport(adapter);
-  const recorder = support?.createBehavioralTraceRecorder?.({
-    cue: input.cue,
-    scope: {
-      userId: "phase30-live-host",
-      workspaceId: input.traceId,
-    },
-    traceId: input.traceId,
-  });
-
-  if (!recorder) {
-    throw new Error("Phase 30 live runner could not initialize Codex host trace support.");
-  }
-
-  return recorder;
-}
-
-async function runPhase30LegacyTextAnswer(input: {
+async function runPhase31LegacyTextAnswer(input: {
   generator: ReturnType<typeof createProviderTextGenerator>;
   payload: Parameters<BehavioralAnswerGenerator>[0];
 }): Promise<{
@@ -774,49 +852,45 @@ async function runPhase30LegacyTextAnswer(input: {
   };
 }
 
-async function runPhase30CodexHostAnswer(input: {
+async function runPhase31CodexHostAnswer(input: {
   evalModel: AISDKModelConfig;
   payload: Parameters<BehavioralAnswerGenerator>[0];
   runCodexHostTurn: (input: {
+    fixture?: Parameters<BehavioralAnswerGenerator>[0]["fixture"];
     model: string;
     prompt: string;
-  }) => Promise<Phase30CodexExecTurn>;
+  }) => Promise<CodexExecTurn>;
 }): Promise<{
   answer: string;
-  firstAction?: BehavioralFirstAction;
+  trace?: HostBehavioralTrace;
 }> {
   const turn = await input.runCodexHostTurn({
+    fixture: input.payload.fixture,
     model: input.evalModel.model,
     prompt: buildLivePrompt(input.payload),
   });
-  const firstCommand = extractFirstCodexCommand(turn.events);
+  const normalized = buildCodexBehavioralTrace({
+    cue: input.payload.fixture.task_name,
+    parseCommandAction: (command) =>
+      resolveLiveCommandActionFromCommand({
+        command,
+        payload: input.payload,
+      }),
+    parseWarningAction: (warningText) =>
+      resolveWarningOnlyFirstActionFromText({
+        payload: input.payload,
+        text: warningText,
+      }),
+    traceId: buildPhase31LiveTraceId(input.payload),
+    turn,
+  });
   const finalMessage = extractLastCodexAgentMessage(turn.events);
-  const answer = firstCommand ?? finalMessage ?? "";
+  const answer = normalized.answer || finalMessage || "";
 
   return {
     answer,
-    firstAction: answer.length === 0
-      ? undefined
-      : resolveLiveFirstActionFromAnswer({
-          answer,
-          payload: input.payload,
-        }),
+    ...(normalized.trace ? { trace: normalized.trace } : {}),
   };
-}
-
-function extractFirstCodexCommand(
-  events: readonly CodexExecEvent[],
-): string | undefined {
-  const commandEvent = events.find(
-    (event) =>
-      event.type === "item.started" &&
-      event.item?.type === "command_execution" &&
-      typeof event.item.command === "string",
-  );
-
-  return commandEvent?.item?.command
-    ? unwrapCodexShellCommand(commandEvent.item.command)
-    : undefined;
 }
 
 function extractLastCodexAgentMessage(
@@ -835,16 +909,18 @@ function extractLastCodexAgentMessage(
   return messages.at(-1);
 }
 
-async function createPhase30HostShims(directory: string): Promise<void> {
+async function createPhase31HostShims(
+  directory: string,
+  commandNames: readonly string[],
+  fixture?: Parameters<BehavioralAnswerGenerator>[0]["fixture"],
+): Promise<void> {
   await Promise.all(
-    PHASE30_HOST_SHIM_COMMANDS.map(async (commandName) => {
+    commandNames.map(async (commandName) => {
       const scriptPath = join(directory, commandName);
-      const script = [
-        "#!/bin/zsh",
-        `echo "phase30-host-shim:${commandName} $*"`,
-        "exit 0",
-        "",
-      ].join("\n");
+      const script = buildPhase31HostShimScript({
+        commandName,
+        fixture,
+      });
 
       await writeFile(scriptPath, script);
       await chmod(scriptPath, 0o755);
@@ -853,15 +929,20 @@ async function createPhase30HostShims(directory: string): Promise<void> {
 }
 
 async function runDefaultCodexHostTurn(input: {
+  fixture?: Parameters<BehavioralAnswerGenerator>[0]["fixture"];
   model: string;
   prompt: string;
-}): Promise<Phase30CodexExecTurn> {
-  const sandboxPath = await mkdtemp(join(tmpdir(), "goodmemory-phase30-codex-"));
+}): Promise<CodexExecTurn> {
+  const sandboxPath = await mkdtemp(join(tmpdir(), "goodmemory-phase31-codex-"));
   const codexStdoutLines: string[] = [];
   const runtime = resolveCodexExecRuntime();
 
   try {
-    await createPhase30HostShims(sandboxPath);
+    await createPhase31HostShims(
+      sandboxPath,
+      input.fixture ? collectFixtureHostUtilityNames(input.fixture) : [],
+      input.fixture,
+    );
 
     const spawnedProcess = Bun.spawn({
       cmd: [
@@ -900,12 +981,6 @@ async function runDefaultCodexHostTurn(input: {
     await spawnedProcess.exited;
     clearTimeout(timeout);
 
-    if (timedOut) {
-      throw new Error(
-        `Phase 30 Codex host turn timed out after ${CODEX_HOST_TURN_TIMEOUT_MS}ms.`,
-      );
-    }
-
     for (const line of stdout.split(/\r?\n/u)) {
       if (line.trim().length > 0) {
         codexStdoutLines.push(line);
@@ -918,6 +993,7 @@ async function runDefaultCodexHostTurn(input: {
         .filter((event): event is CodexExecEvent => Boolean(event)),
       stderr,
       stdout,
+      ...(timedOut ? { timedOut: true, timeoutMessage: `Codex host turn timed out after ${CODEX_HOST_TURN_TIMEOUT_MS}ms.` } : {}),
     };
   } finally {
     await rm(sandboxPath, {
@@ -927,19 +1003,19 @@ async function runDefaultCodexHostTurn(input: {
   }
 }
 
-function sanitizePhase30LiveReportPaths(
+function sanitizePhase31LiveReportPaths(
   root: string,
   report: BehavioralAdaptationReport,
 ): BehavioralAdaptationReport {
   return {
     ...report,
-    evidenceContract: report.evidenceContract?.phase30
+    evidenceContract: report.evidenceContract?.phase31
       ? {
-          phase30: {
-            ...report.evidenceContract.phase30,
+          phase31: {
+            ...report.evidenceContract.phase31,
             fixtureDir: toRepoRelativePath(
               root,
-              report.evidenceContract.phase30.fixtureDir,
+              report.evidenceContract.phase31.fixtureDir,
             ),
           },
         }
@@ -958,7 +1034,7 @@ function buildLiveMemoryFactory(input: {
   postgresUrl: string;
 }): BehavioralAdaptationMemoryFactory {
   return ({ scope }) => {
-    const config = buildPhase30LiveMemoryConfig({
+    const config = buildPhase31LiveMemoryConfig({
       createEmbeddingAdapter: input.createEmbeddingAdapter,
       createMemoryExtractor: input.createMemoryExtractor,
       embeddingModel: input.embeddingModel,
@@ -984,9 +1060,9 @@ function buildLiveMemoryFactory(input: {
   };
 }
 
-export async function runPhase30LiveMemoryEval(
-  input?: Phase30EvalOptions,
-  dependencies?: Phase30LiveMemoryDependencies,
+export async function runPhase31LiveMemoryEval(
+  input?: Phase31EvalOptions,
+  dependencies?: Phase31LiveMemoryDependencies,
 ): Promise<BehavioralAdaptationReport> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const evalModel = resolveLiveModelConfig("GOODMEMORY_EVAL");
@@ -1004,12 +1080,12 @@ export async function runPhase30LiveMemoryEval(
   const runCodexHostTurn =
     dependencies?.runCodexHostTurn ?? runDefaultCodexHostTurn;
   const assertProviderBackedStorage =
-    dependencies?.assertProviderBackedStorage ?? assertPhase30ProviderBackedStorage;
+    dependencies?.assertProviderBackedStorage ?? assertPhase31ProviderBackedStorage;
   const postgresUrl = resolvePostgresUrl();
   const preflightLiveMemory =
     dependencies?.preflightLiveMemory ??
     (() =>
-      assertPhase30LiveMemoryStackUsable({
+      assertPhase31LiveMemoryStackUsable({
         createEmbeddingAdapter,
         createMemory,
         createMemoryExtractor,
@@ -1018,13 +1094,13 @@ export async function runPhase30LiveMemoryEval(
         postgresUrl,
       }));
   const runEvaluation = dependencies?.runEvaluation ?? runBehavioralAdaptationEvaluation;
-  const fixtureDir = resolvePhase30FixtureDir(root);
+  const fixtureDir = resolvePhase31FixtureDir(root);
 
   await assertProviderBackedStorage(postgresUrl);
   await preflightLiveMemory();
 
   const report = await runEvaluation({
-    answerGenerator: buildPhase30LiveAnswerGenerator({
+    answerGenerator: buildPhase31LiveAnswerGenerator({
       createTextGenerator,
       evalModel,
       runCodexHostTurn,
@@ -1037,16 +1113,16 @@ export async function runPhase30LiveMemoryEval(
       extractorModel,
       postgresUrl,
     }),
-    evidenceContract: buildPhase30LiveMemoryEvidenceContract(fixtureDir),
+    evidenceContract: buildPhase31LiveMemoryEvidenceContract(fixtureDir),
     fixtureDir,
-    generatedBy: PHASE30_LIVE_MEMORY_GENERATED_BY,
+    generatedBy: PHASE31_LIVE_MEMORY_GENERATED_BY,
     mode: "live-memory",
-    outputDir: input?.outputDir ?? resolvePhase30LiveMemoryOutputDir(root),
+    outputDir: input?.outputDir ?? resolvePhase31LiveMemoryOutputDir(root),
     requireTraceForStructuredCases: true,
-    runId: input?.runId ?? PHASE30_CANONICAL_LIVE_RUN_ID,
-    scopePrefix: "phase30-live",
+    runId: input?.runId ?? PHASE31_CANONICAL_LIVE_RUN_ID,
+    scopePrefix: "phase31-live",
   });
-  const sanitizedReport = sanitizePhase30LiveReportPaths(root, report);
+  const sanitizedReport = sanitizePhase31LiveReportPaths(root, report);
   await mkdir(join(root, sanitizedReport.runDirectory), {
     recursive: true,
   });
@@ -1059,9 +1135,9 @@ export async function runPhase30LiveMemoryEval(
   return sanitizedReport;
 }
 
-export function parsePhase30LiveMemoryCliOptions(
+export function parsePhase31LiveMemoryCliOptions(
   argv: readonly string[],
-): Phase30EvalOptions {
+): Phase31EvalOptions {
   return {
     outputDir: resolveFlagValue([...argv], "--output-dir"),
     runId: resolveFlagValue([...argv], "--run-id"),
@@ -1069,8 +1145,8 @@ export function parsePhase30LiveMemoryCliOptions(
 }
 
 async function main(): Promise<void> {
-  const report = await runPhase30LiveMemoryEval(
-    parsePhase30LiveMemoryCliOptions(process.argv),
+  const report = await runPhase31LiveMemoryEval(
+    parsePhase31LiveMemoryCliOptions(process.argv),
   );
   console.log(JSON.stringify(report, null, 2));
 }

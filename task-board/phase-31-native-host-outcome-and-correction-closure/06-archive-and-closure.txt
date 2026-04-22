@@ -1,0 +1,11 @@
+Phase 31.6: Archive and Closure
+===============================
+
+[DONE] Check in one canonical Phase 31 live-memory report and one accepted Phase 31 gate.
+[DONE] Add `docs/archive/quality-gates/GoodMemory-Phase-31-Quality-Gate.md`.
+[DONE] Sync `docs/GoodMemory-Current-Status-and-Evidence.md`, `docs/archive/quality-gates/README.md`, `task-board/00-README.txt`, and release tests.
+
+Done when:
+- Phase 31 is the newest closed internal evidence slice
+- Phase 30 remains closed
+- Phase 32 is the queued external productization slice

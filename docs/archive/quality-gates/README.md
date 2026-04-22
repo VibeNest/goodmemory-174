@@ -40,6 +40,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-29-Quality-Gate.md`
 - Trace-backed behavioral enactment and live closure:
   - `GoodMemory-Phase-30-Quality-Gate.md`
+- Native host outcome and correction closure:
+  - `GoodMemory-Phase-31-Quality-Gate.md`
 
 ## When To Use This Archive
 

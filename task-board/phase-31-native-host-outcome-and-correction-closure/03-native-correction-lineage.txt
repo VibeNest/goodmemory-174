@@ -1,0 +1,11 @@
+Phase 31.3: Native Correction Lineage
+=====================================
+
+[DONE] Allow one corrective follow-up after a failed executable first action in the live Codex harness.
+[DONE] Persist native `correctionOfStepIndex` on targeted corrective actions or warnings.
+[DONE] Reuse the existing trace bridge to extract safer alternatives from that lineage.
+
+Done when:
+- at least one live trace contains `correctionOfStepIndex`
+- later safe warnings or commands are tied back to the failed first step
+- bridge/telemetry tests prove the native correction lineage reaches outcome telemetry

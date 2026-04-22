@@ -1,0 +1,10 @@
+Phase 31.5: Phase Renumber and Queue Shift
+==========================================
+
+[DONE] Insert this closure slice before the queued external host productization work.
+[DONE] Shift the queued external productization slice from Phase 31 to Phase 32.
+
+Done when:
+- `task-board/00-README.txt` execution order lists this slice as Phase 31
+- the external host productization slice is consistently renamed to Phase 32
+- no file, folder, or in-file reference still claims the queued external work is Phase 31

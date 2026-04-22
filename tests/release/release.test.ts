@@ -449,6 +449,10 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-30-live-memory"]).toBe(
       "bun run scripts/run-phase-30-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-31"]).toBe("bun run scripts/run-phase-31-eval.ts");
+    expect(pkg.scripts?.["eval:phase-31-live-memory"]).toBe(
+      "bun run scripts/run-phase-31-live-memory.ts",
+    );
     expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
     expect(pkg.scripts?.["gate:phase-19-reviewer"]).toBe(
       "bun run scripts/run-phase-19-reviewer-gate.ts",
@@ -463,6 +467,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-28"]).toBe("bun run scripts/run-phase-28-gate.ts");
     expect(pkg.scripts?.["gate:phase-29"]).toBe("bun run scripts/run-phase-29-gate.ts");
     expect(pkg.scripts?.["gate:phase-30"]).toBe("bun run scripts/run-phase-30-gate.ts");
+    expect(pkg.scripts?.["gate:phase-31"]).toBe("bun run scripts/run-phase-31-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -957,6 +962,15 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
     );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-31-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-31/run-20260422041616/phase-31-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-31/run-phase31-live-current/report.json",
+    );
     expect(currentStatus).toContain("Bun-only prerelease contract");
     expect(currentStatus).toContain("runLiveMemoryEval()");
     expect(currentStatus).toContain("eval:live-provider-memory");
@@ -1260,6 +1274,39 @@ describe("release metadata and docs", () => {
     );
     await expectGitTrackedRepoArtifact(
       "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json",
+    );
+  });
+
+  it("phase-31 quality gate doc points to the canonical gate plus native host live evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-31-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const relativeReportPath =
+      "reports/quality-gates/phase-31/run-20260422041616/phase-31-quality-gate.json";
+    const gateReport = JSON.parse(
+      await readFile(
+        join(import.meta.dir, "../../", relativeReportPath),
+        "utf8",
+      ),
+    ) as {
+      acceptance: {
+        decision: string;
+      };
+      runId: string;
+    };
+
+    expect(qualityGateDoc).toContain("run-20260422041616");
+    expect(gateReport.runId).toBe("run-20260422041616");
+    expect(gateReport.acceptance.decision).toBe("accepted");
+    await expectGitTrackedPath(relativeReportPath);
+
+    expect(qualityGateDoc).toContain(
+      "reports/eval/live-memory/phase-31/run-phase31-live-current/report.json",
+    );
+    await expectGitTrackedRepoArtifact(
+      "reports/eval/live-memory/phase-31/run-phase31-live-current/report.json",
     );
   });
 

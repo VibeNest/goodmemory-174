@@ -172,6 +172,25 @@ export interface BehavioralAdaptationEvidenceContract {
     runner: "scripts/run-phase-30-live-memory.ts";
     scopePrefix: "phase30-live";
   };
+  phase31?: {
+    fixtureDir: string;
+    hostRuntime: {
+      blockingExecutableOutcomeSource: "host_lifecycle";
+      correctionLineage: "native_host_events";
+      modelTransport: "codex-exec-json";
+      structuredFirstAction: "disabled";
+      warningOutcomeSource: "warning_message";
+    };
+    providerBackedStorage: {
+      envVar: "GOODMEMORY_TEST_POSTGRES_URL";
+      memoryStackPreflight: "passed";
+      provider: "postgres";
+      storageBootstrap: "passed";
+    };
+    requireTraceForStructuredCases: true;
+    runner: "scripts/run-phase-31-live-memory.ts";
+    scopePrefix: "phase31-live";
+  };
 }
 
 export interface BehavioralAdaptationReport {

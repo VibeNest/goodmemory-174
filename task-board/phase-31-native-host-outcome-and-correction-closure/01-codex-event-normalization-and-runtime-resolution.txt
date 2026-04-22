@@ -1,0 +1,10 @@
+Phase 31.1: Codex Event Normalization and Runtime Resolution
+============================================================
+
+[DONE] Move `codex exec --json` event parsing into `src/host`.
+[DONE] Add a reusable internal resolver for Codex/Node binaries using env overrides and PATH/process fallback.
+
+Done when:
+- JSONL parsing is no longer local to the phase runner
+- quoted and unquoted `/bin/zsh -lc ...` wrappers normalize to the same command string
+- unresolved binaries fail fast with explicit error messages

@@ -26,13 +26,14 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 30 is now closed as the trace-backed behavioral enactment and live closure slice over the accepted Codex host path.
+- Phase 31 is now closed as the native host outcome and correction closure slice over the accepted Codex host path.
 - Accepted behavior:
   - coding-agent behavioral cases now score from native Codex host events rather than model-returned `first_action` JSON
-  - phase-30 live artifacts now use repo-relative paths instead of leaking machine-local absolute paths
-  - the canonical native-host live report now shows a strict majority of GoodMemory first-action wins
+  - live executable outcomes now come from host lifecycle rather than fixture-derived synthetic outcome scoring
+  - the canonical native-host live report now proves native targeted correction lineage through `correctionOfStepIndex`
+  - the canonical native-host live report shows a strict majority of GoodMemory first-action wins
   - live procedural generalization now passes 2 of 3 blocking cases, which satisfies the tightened family-level gate
-- Still outside the accepted Phase 30 claim:
+- Still outside the accepted Phase 31 claim:
   - public API or public config widening
   - making Claude a gate-blocking host path
   - making priming a release-blocking behavioral metric
@@ -81,6 +82,10 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-30-Quality-Gate.md`
   - Deterministic/live gate: `reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json`
   - Provider-backed live-memory behavioral report: `reports/eval/live-memory/phase-30/run-phase30-live-current/report.json`
+- Native host outcome and correction closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-31-Quality-Gate.md`
+  - Deterministic/live gate: `reports/quality-gates/phase-31/run-20260422041616/phase-31-quality-gate.json`
+  - Provider-backed live-memory behavioral report: `reports/eval/live-memory/phase-31/run-phase31-live-current/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 
