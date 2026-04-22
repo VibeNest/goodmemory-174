@@ -100,6 +100,14 @@ describe("run-phase-32 eval script", () => {
         ?.textOnly.context,
     ).not.toContain("## Evidence");
     expect(
+      report.cases.find((caseResult) => caseResult.caseId === "repeated-correction")
+        ?.eventBacked.context.match(/- Use bullet points in summaries\./g)?.length ?? 0,
+    ).toBe(1);
+    expect(
+      report.cases.find((caseResult) => caseResult.caseId === "repeated-correction")
+        ?.eventBacked.context,
+    ).not.toContain("appliesTo:");
+    expect(
       report.cases.every((caseResult) => caseResult.noMemory.context.trim().length === 0),
     ).toBe(true);
     expect(directories).toEqual([

@@ -79,4 +79,36 @@ describe("public feedback API", () => {
       }),
     ).toHaveLength(1);
   });
+
+  it("keeps public feedback() decoupled from evolution receipts even when promotion happens", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" } as const;
+
+    const first = await memory.feedback({
+      scope,
+      signal: "Use bullet points in summaries.",
+    });
+    const second = await memory.feedback({
+      scope,
+      signal: "Use bullet points in summaries.",
+    });
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+
+    expect("proposalReceipts" in first).toBe(false);
+    expect("promotionReceipts" in first).toBe(false);
+    expect("proposalReceipts" in second).toBe(false);
+    expect("promotionReceipts" in second).toBe(false);
+    expect(exported.durable.proposals).toHaveLength(1);
+    expect(exported.durable.promotions).toHaveLength(1);
+  });
 });

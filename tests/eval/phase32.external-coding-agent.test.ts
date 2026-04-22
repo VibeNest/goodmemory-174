@@ -52,6 +52,7 @@ async function createEventBackedCodingAgentContext() {
       hostKind: "generic",
       scope,
       correction: "Use bullet points.",
+      retrievalProfile: "coding_agent",
     });
   }
   await ingestHostAgentEvent(memory, {

@@ -11,7 +11,6 @@ import {
 } from "../evidence/contracts";
 import type {
   LearningProposal,
-  PromotionDecision,
 } from "../evolution/contracts";
 import type { ExperienceRecord } from "../evolution/contracts";
 import {
@@ -42,6 +41,11 @@ import type {
   RunMaintenanceInput,
   RunMaintenanceResult,
 } from "./contracts";
+import type {
+  AgentEventPromotionReceipt,
+  AgentEventProposalReceipt,
+} from "./integrationSupport";
+import type { ProposalGateDecision } from "../evolution/gates";
 
 interface RecallTouchSummary {
   reinforcedFeedbackCount: number;
@@ -56,7 +60,7 @@ interface ProposalGateRuntime {
   process(input: {
     proposals: LearningProposal[];
     scope: MemoryScope;
-  }): Promise<Array<{ decision: PromotionDecision }>>;
+  }): Promise<ProposalGateDecision[]>;
 }
 
 interface ProceduralCompilerRuntime {
@@ -241,6 +245,36 @@ function toFeedbackObservationResult(
 export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
   const now = config.now ?? (() => new Date().toISOString());
 
+  function createEmptyAgentEventReceipts(): {
+    promotionReceipts: AgentEventPromotionReceipt[];
+    proposalReceipts: AgentEventProposalReceipt[];
+  } {
+    return {
+      proposalReceipts: [],
+      promotionReceipts: [],
+    };
+  }
+
+  function toAgentEventProposalReceipt(
+    proposal: LearningProposal,
+  ): AgentEventProposalReceipt {
+    return {
+      proposalId: proposal.id,
+      proposalType: proposal.proposalType,
+      status: proposal.status,
+    };
+  }
+
+  function toAgentEventPromotionReceipt(
+    decision: ProposalGateDecision,
+  ): AgentEventPromotionReceipt {
+    return {
+      decision: decision.decision,
+      promotionId: decision.promotion.id,
+      proposalId: decision.proposal.id,
+    };
+  }
+
   async function persistExperienceRecords(records: ExperienceRecord[]): Promise<void> {
     for (const record of records) {
       try {
@@ -259,21 +293,62 @@ export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
     }
   }
 
-  async function runRulesOnlyReview(scope: MemoryScope): Promise<void> {
-    try {
-      const proposals = await config.reviewer.review({ scope });
+  async function runRulesOnlyReview(
+    scope: MemoryScope,
+    sourceExperienceIds: readonly string[] = [],
+  ): Promise<{
+    promotionReceipts: AgentEventPromotionReceipt[];
+    proposalReceipts: AgentEventProposalReceipt[];
+  }> {
+    let proposals: LearningProposal[];
 
+    try {
+      proposals = await config.reviewer.review({ scope });
+    } catch (error) {
+      console.error("Failed to run rules-only reviewer", error);
+      return createEmptyAgentEventReceipts();
+    }
+
+    let decisions: ProposalGateDecision[] = [];
+    try {
       if (proposals.length > 0) {
-        await config.proposalGate.process({
+        decisions = await config.proposalGate.process({
           scope,
           proposals,
         });
       }
+    } catch (error) {
+      console.error("Failed to run rules-only proposal gate", error);
+      return createEmptyAgentEventReceipts();
+    }
 
+    const receipts = sourceExperienceIds.length === 0
+      ? createEmptyAgentEventReceipts()
+      : (() => {
+          const sourceExperienceIdSet = new Set(sourceExperienceIds);
+          const matchedDecisions = decisions.filter((decision) =>
+            decision.proposal.sourceExperienceIds.some((experienceId) =>
+              sourceExperienceIdSet.has(experienceId)
+            )
+          );
+
+          return {
+            proposalReceipts: matchedDecisions.map((decision) =>
+              toAgentEventProposalReceipt(decision.proposal)
+            ),
+            promotionReceipts: matchedDecisions.map((decision) =>
+              toAgentEventPromotionReceipt(decision)
+            ),
+          };
+        })();
+
+    try {
       await config.compiler.compile(scope);
     } catch (error) {
-      console.error("Failed to run rules-only reviewer", error);
+      console.error("Failed to compile procedural patterns", error);
     }
+
+    return receipts;
   }
 
   return {
@@ -324,7 +399,10 @@ export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
       scope: FeedbackInput["scope"];
       strict?: boolean;
       traceId?: string;
-    }): Promise<void> {
+    }): Promise<{
+      promotionReceipts: AgentEventPromotionReceipt[];
+      proposalReceipts: AgentEventProposalReceipt[];
+    }> {
       const feedbackExperience = buildFeedbackExperienceRecord({
         scope: input.scope,
         result: toFeedbackObservationResult(input.result),
@@ -337,7 +415,7 @@ export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
       } else {
         await persistExperienceRecords([feedbackExperience]);
       }
-      await runRulesOnlyReview(input.scope);
+      return runRulesOnlyReview(input.scope, [feedbackExperience.id]);
     },
 
     async handleBehavioralOutcome(input: {

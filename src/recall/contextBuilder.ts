@@ -9,7 +9,6 @@ import type {
   UserProfile,
   WorkingMemorySnapshot,
 } from "../domain/records";
-import { normalizeFeedbackAppliesTo } from "../domain/records";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import { FEEDBACK_RECALL_LIMIT } from "./budgets";
@@ -243,30 +242,20 @@ function summarizeFeedback(feedback: FeedbackMemory[]): string | undefined {
   if (activeFeedback.length === 0) {
     return undefined;
   }
-
-  const duplicateRules = new Set<string>();
   const seenRules = new Set<string>();
+  const rendered: string[] = [];
 
   for (const item of activeFeedback) {
     const normalizedRule = item.rule.trim().toLowerCase();
     if (seenRules.has(normalizedRule)) {
-      duplicateRules.add(normalizedRule);
       continue;
     }
 
     seenRules.add(normalizedRule);
+    rendered.push(`- ${item.rule}`);
   }
 
-  return activeFeedback
-    .map((item) => {
-      const normalizedRule = item.rule.trim().toLowerCase();
-      const appliesToLabel = duplicateRules.has(normalizedRule)
-        ? ` (appliesTo: ${normalizeFeedbackAppliesTo(item.appliesTo)})`
-        : "";
-
-      return `- ${item.rule}${appliesToLabel}`;
-    })
-    .join("\n");
+  return rendered.join("\n");
 }
 
 function clipSummaryText(content: string, maxLength: number): string {

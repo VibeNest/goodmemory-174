@@ -329,6 +329,7 @@ async function buildRepeatedCorrectionContext(
         hostKind: "generic",
         scope,
         correction: PHASE32_FEEDBACK_SIGNAL,
+        retrievalProfile: "coding_agent",
       });
     }
   } else {
@@ -438,6 +439,7 @@ async function buildProcedureAdherenceContext(
         hostKind: "generic",
         scope,
         correction: PHASE32_FEEDBACK_SIGNAL,
+        retrievalProfile: "coding_agent",
       });
     }
     await ingestHostAgentEvent(memory, {

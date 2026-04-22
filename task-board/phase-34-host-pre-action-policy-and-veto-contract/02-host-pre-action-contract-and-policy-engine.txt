@@ -5,6 +5,8 @@ Phase 34.2: Host Pre-Action Contract and Policy Engine
 [DONE] Add runtime validation helpers for host action intents.
 [DONE] Compile deterministic decisions from active validated patterns, linked evidence, working memory, and session journal.
 [DONE] Restrict blocking behavior to memory-backed high-risk cases.
+[DONE] Event-backed `user_correction` now writes `coding_agent`-scoped feedback so promoted procedural guidance matches the canonical external host line more precisely.
+[DONE] Rendered `Procedural Memory` now collapses same-rule duplicates and keeps the highest-priority variant instead of repeating the same rule in final context.
 
 Acceptance
 ----------

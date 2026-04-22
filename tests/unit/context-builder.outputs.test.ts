@@ -413,7 +413,7 @@ describe("context builder output modes", () => {
     );
   });
 
-  it("labels appliesTo when duplicate feedback rules surface together", () => {
+  it("dedupes duplicate feedback rules and keeps the highest-priority variant in rendered context", () => {
     const packet = buildMemoryPacket({
       profile: null,
       preferences: [],
@@ -462,8 +462,9 @@ describe("context builder output modes", () => {
 
     const markdown = renderMemoryPacket(packet, "markdown");
 
-    expect(markdown.content).toContain("Use bullet points. (appliesTo: coding_agent)");
-    expect(markdown.content).toContain("Use bullet points. (appliesTo: general_response)");
+    expect(markdown.content).toContain("Use bullet points.");
+    expect(markdown.content.match(/- Use bullet points\./g)?.length ?? 0).toBe(1);
+    expect(markdown.content).not.toContain("appliesTo:");
   });
 
   it("frames blocker facts as immediate next-step support and open loops as deferred context", () => {

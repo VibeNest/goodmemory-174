@@ -79,6 +79,72 @@ describe("adapter-level agent event contracts", () => {
     expect(event.hostKind).toBe("claude");
   });
 
+  it("validates user correction applicability context for ai-sdk events", () => {
+    const event = validateAgentInputEvent({
+      surface: "ai-sdk",
+      kind: "user_correction",
+      correction: "Use short paragraphs.",
+      retrievalProfile: "general_chat",
+      eventId: "event-3",
+      runId: "run-1",
+      turnId: "turn-2",
+      sequence: 2,
+      occurredAt: "2026-04-22T00:00:02.000Z",
+      hostKind: "codex",
+      scope: {
+        userId: "u-1",
+      },
+    });
+
+    expect(event.kind).toBe("user_correction");
+    if (event.kind !== "user_correction") {
+      throw new Error("expected user_correction event");
+    }
+    expect(event.retrievalProfile).toBe("general_chat");
+  });
+
+  it("rejects ai-sdk user correction events that omit retrievalProfile", () => {
+    expect(() =>
+      validateAgentInputEvent({
+        surface: "ai-sdk",
+        kind: "user_correction",
+        correction: "Use short paragraphs.",
+        eventId: "event-missing-profile",
+        runId: "run-1",
+        turnId: "turn-2",
+        sequence: 2,
+        occurredAt: "2026-04-22T00:00:02.000Z",
+        hostKind: "codex",
+        scope: {
+          userId: "u-1",
+        },
+      })
+    ).toThrow("event.retrievalProfile must be provided for ai-sdk user_correction events");
+  });
+
+  it("defaults host user correction events to coding_agent when retrievalProfile is omitted", () => {
+    const event = validateHostAgentEvent({
+      surface: "host",
+      kind: "user_correction",
+      correction: "Use QuickCheck first.",
+      eventId: "event-host-default",
+      runId: "run-1",
+      turnId: "turn-2",
+      sequence: 2,
+      occurredAt: "2026-04-22T00:00:02.000Z",
+      hostKind: "codex",
+      scope: {
+        userId: "u-1",
+      },
+    });
+
+    expect(event.kind).toBe("user_correction");
+    if (event.kind !== "user_correction") {
+      throw new Error("expected user_correction event");
+    }
+    expect(event.retrievalProfile).toBe("coding_agent");
+  });
+
   it("rejects events that do not provide run or attempt identity", () => {
     expect(() =>
       validateAgentInputEvent({

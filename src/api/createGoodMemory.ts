@@ -63,6 +63,9 @@ import {
 } from "./evalSupport";
 import {
   attachGoodMemoryIntegrationSupport,
+  type AgentEventFeedbackResult,
+  type AgentEventPromotionReceipt,
+  type AgentEventProposalReceipt,
   type HostActionAssessmentRecordInput,
   type HostActionAssessmentRecordResult,
   type GoodMemoryIntegrationSupport,
@@ -185,6 +188,7 @@ function isPureUserScope(scope: ForgetInput["scope"]): boolean {
 }
 
 async function resolveFeedbackSignalState(input: {
+  appliesTo?: string;
   feedbackRepository: GovernanceRepositoryPort["feedback"];
   language: ReturnType<typeof createLanguageService>;
   locale?: string;
@@ -211,7 +215,7 @@ async function resolveFeedbackSignalState(input: {
   const nextIdentityKey = buildFeedbackIdentityKey({
     kind,
     normalizedRule,
-    appliesTo: "general_response",
+    appliesTo: input.appliesTo ?? "general_response",
   });
   const duplicate = existing.find(
     (record) =>
@@ -230,7 +234,7 @@ async function resolveFeedbackSignalState(input: {
       record.lifecycle === "active" &&
       record.kind === kind &&
       normalizeFeedbackAppliesTo(record.appliesTo) ===
-        normalizeFeedbackAppliesTo("general_response"),
+        normalizeFeedbackAppliesTo(input.appliesTo),
   );
 
   return {
@@ -244,13 +248,17 @@ async function resolveFeedbackSignalState(input: {
 }
 
 async function writeFeedbackSignal(input: {
+  appliesTo?: string;
   evolutionRuntime: {
     handleFeedback(input: {
       result: FeedbackResult;
       scope: FeedbackInput["scope"];
       strict?: boolean;
       traceId?: string;
-    }): Promise<void>;
+    }): Promise<{
+      promotionReceipts: AgentEventPromotionReceipt[];
+      proposalReceipts: AgentEventProposalReceipt[];
+    }>;
   };
   feedbackRepository: GovernanceRepositoryPort["feedback"];
   language: ReturnType<typeof createLanguageService>;
@@ -260,7 +268,13 @@ async function writeFeedbackSignal(input: {
   evidenceIds?: string[];
   strictExperience?: boolean;
   traceId?: string;
-}): Promise<FeedbackResult> {
+}): Promise<{
+  receipts: {
+    promotionReceipts: AgentEventPromotionReceipt[];
+    proposalReceipts: AgentEventProposalReceipt[];
+  };
+  result: FeedbackResult;
+}> {
   const {
     duplicate,
     kind,
@@ -272,6 +286,7 @@ async function writeFeedbackSignal(input: {
     locale: input.locale,
     scope: input.scope,
     signal: input.signal,
+    appliesTo: input.appliesTo,
   });
 
   if (!duplicate) {
@@ -285,7 +300,7 @@ async function writeFeedbackSignal(input: {
       sessionId: input.scope.sessionId,
       rule: input.signal,
       kind,
-      appliesTo: "general_response",
+      appliesTo: input.appliesTo ?? "general_response",
       source: createMemorySource({
         method: "explicit",
         extractedAt: timestamp,
@@ -320,14 +335,17 @@ async function writeFeedbackSignal(input: {
         },
       };
 
-      await input.evolutionRuntime.handleFeedback({
+      const receipts = await input.evolutionRuntime.handleFeedback({
         scope: input.scope,
         result,
         ...(input.traceId ? { traceId: input.traceId } : {}),
         ...(input.strictExperience ? { strict: true } : {}),
       });
 
-      return result;
+      return {
+        receipts,
+        result,
+      };
     }
 
     await input.feedbackRepository.upsert(nextRecord);
@@ -345,14 +363,17 @@ async function writeFeedbackSignal(input: {
       },
     };
 
-    await input.evolutionRuntime.handleFeedback({
+    const receipts = await input.evolutionRuntime.handleFeedback({
       scope: input.scope,
       result,
       ...(input.traceId ? { traceId: input.traceId } : {}),
       ...(input.strictExperience ? { strict: true } : {}),
     });
 
-    return result;
+    return {
+      receipts,
+      result,
+    };
   }
 
   const result: FeedbackResult = {
@@ -369,14 +390,35 @@ async function writeFeedbackSignal(input: {
     },
   };
 
-  await input.evolutionRuntime.handleFeedback({
+  const receipts = await input.evolutionRuntime.handleFeedback({
     scope: input.scope,
     result,
     ...(input.traceId ? { traceId: input.traceId } : {}),
     ...(input.strictExperience ? { strict: true } : {}),
   });
 
-  return result;
+  return {
+    receipts,
+    result,
+  };
+}
+
+function withAgentEventFeedbackReceipts(
+  result: FeedbackResult,
+  receipts: {
+    promotionReceipts: AgentEventPromotionReceipt[];
+    proposalReceipts: AgentEventProposalReceipt[];
+  },
+): AgentEventFeedbackResult {
+  return {
+    ...result,
+    ...(receipts.proposalReceipts.length > 0
+      ? { proposalReceipts: receipts.proposalReceipts }
+      : {}),
+    ...(receipts.promotionReceipts.length > 0
+      ? { promotionReceipts: receipts.promotionReceipts }
+      : {}),
+  };
 }
 
 function summarizeHostActionAssessment(
@@ -944,19 +986,59 @@ class GoodMemoryImpl implements GoodMemory {
   }
 
   async feedback(input: FeedbackInput): Promise<FeedbackResult> {
-    return writeFeedbackSignal({
-      evolutionRuntime: this.evolutionRuntime,
-      feedbackRepository: this.governanceRepositories.feedback,
-      language: this.language,
-      locale: input.locale,
-      scope: input.scope,
-      signal: input.signal,
-    });
+    return (
+      await writeFeedbackSignal({
+        evolutionRuntime: this.evolutionRuntime,
+        feedbackRepository: this.governanceRepositories.feedback,
+        language: this.language,
+        locale: input.locale,
+        scope: input.scope,
+        signal: input.signal,
+      })
+    ).result;
   }
 
   async runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult> {
     return this.evolutionRuntime.runMaintenance(input);
   }
+}
+
+async function writeAgentEventFeedbackSignal(input: {
+  appliesTo?: string;
+  evolutionRuntime: {
+    handleFeedback(input: {
+      result: FeedbackResult;
+      scope: FeedbackInput["scope"];
+      strict?: boolean;
+      traceId?: string;
+    }): Promise<{
+      promotionReceipts: AgentEventPromotionReceipt[];
+      proposalReceipts: AgentEventProposalReceipt[];
+    }>;
+  };
+  feedbackRepository: GovernanceRepositoryPort["feedback"];
+  language: ReturnType<typeof createLanguageService>;
+  locale?: string;
+  scope: FeedbackInput["scope"];
+  signal: string;
+  evidenceIds?: string[];
+  strictExperience?: boolean;
+  traceId?: string;
+}): Promise<AgentEventFeedbackResult> {
+  const { receipts, result } = await writeFeedbackSignal({
+    appliesTo: input.appliesTo,
+    evolutionRuntime: input.evolutionRuntime,
+    feedbackRepository: input.feedbackRepository,
+    language: input.language,
+    locale: input.locale,
+    scope: input.scope,
+    signal: input.signal,
+    ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
+    ...(input.strictExperience ? { strictExperience: true } : {}),
+    ...(input.traceId ? { traceId: input.traceId } : {}),
+  });
+
+  return withAgentEventFeedbackReceipts(result, receipts);
 }
 
 export function createGoodMemory(config: GoodMemoryConfig): GoodMemory {
@@ -994,7 +1076,10 @@ export function createInternalGoodMemory(
         scope: FeedbackInput["scope"];
         strict?: boolean;
         traceId?: string;
-      }) => Promise<void>;
+      }) => Promise<{
+        promotionReceipts: AgentEventPromotionReceipt[];
+        proposalReceipts: AgentEventProposalReceipt[];
+      }>;
     };
     governanceRepositories: GovernanceRepositoryPort;
     feedback: GoodMemory["feedback"];
@@ -1010,10 +1095,11 @@ export function createInternalGoodMemory(
       createAgentEventIngestor({
         documentStore: implWithInternals.documentStore,
         feedback: (input) =>
-          writeFeedbackSignal({
+          writeAgentEventFeedbackSignal({
             evolutionRuntime: implWithInternals.evolutionRuntime,
             feedbackRepository: implWithInternals.governanceRepositories.feedback,
             language: implWithInternals.language,
+            appliesTo: input.appliesTo,
             locale: input.locale,
             scope: input.scope,
             signal: input.signal,
@@ -1035,10 +1121,11 @@ export function createInternalGoodMemory(
       createAgentEventIngestor({
         documentStore: implWithInternals.documentStore,
         feedback: (input) =>
-          writeFeedbackSignal({
+          writeAgentEventFeedbackSignal({
             evolutionRuntime: implWithInternals.evolutionRuntime,
             feedbackRepository: implWithInternals.governanceRepositories.feedback,
             language: implWithInternals.language,
+            appliesTo: input.appliesTo,
             locale: input.locale,
             scope: input.scope,
             signal: input.signal,

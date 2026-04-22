@@ -45,6 +45,30 @@ function createFeedbackFailingOnceDocumentStore(): DocumentStore {
   };
 }
 
+function createValidatedPatternCompileFailingOnceDocumentStore(): DocumentStore {
+  const store = createInMemoryDocumentStore();
+  let failed = false;
+
+  return {
+    ...store,
+    async set(collection, id, document) {
+      if (
+        !failed &&
+        collection === "feedback" &&
+        typeof document === "object" &&
+        document !== null &&
+        "kind" in document &&
+        document.kind === "validated_pattern"
+      ) {
+        failed = true;
+        throw new Error("validated pattern compile unavailable");
+      }
+
+      await store.set(collection, id, document);
+    },
+  };
+}
+
 describe("agent event ingestion", () => {
   it("persists selective tool-result evidence and experience and dedupes by event id", async () => {
     const memory = createGoodMemory({
@@ -316,6 +340,8 @@ describe("agent event ingestion", () => {
       sessionId: "s-1",
     } as const;
 
+    const receipts: Array<Awaited<ReturnType<typeof ingestAgentInputEvent>>> = [];
+
     for (const [index, eventId] of ["event-1", "event-2", "event-3"].entries()) {
       const result = await ingestAgentInputEvent(memory, {
         surface: "ai-sdk",
@@ -328,10 +354,12 @@ describe("agent event ingestion", () => {
         hostKind: "generic",
         scope,
         correction: "Use bullet points in summaries.",
+        retrievalProfile: "coding_agent",
       });
 
       expect(result.recorded).toBe(true);
       expect(result.feedbackMemoryId).toBeDefined();
+      receipts.push(result);
     }
 
     const exported = await memory.exportMemory({
@@ -345,6 +373,7 @@ describe("agent event ingestion", () => {
       exported.durable.feedback.some(
         (record) =>
           record.kind === "validated_pattern" &&
+          record.appliesTo === "coding_agent" &&
           record.rule.includes("Use bullet points in summaries."),
       ),
     ).toBe(true);
@@ -359,6 +388,118 @@ describe("agent event ingestion", () => {
     expect(
       exported.durable.evidence.filter((record) => record.kind === "correction_context"),
     ).toHaveLength(3);
+    const receiptBearingResult = receipts.find(
+      (result) =>
+        (result.proposalReceipts?.length ?? 0) > 0 ||
+        (result.promotionReceipts?.length ?? 0) > 0,
+    );
+    expect(receiptBearingResult?.proposalReceipts).toHaveLength(1);
+    expect(receiptBearingResult?.proposalReceipts?.[0]?.proposalType).toBe(
+      "procedural_pattern",
+    );
+    expect(receiptBearingResult?.promotionReceipts).toHaveLength(1);
+    expect(receiptBearingResult?.promotionReceipts?.[0]?.decision).toBe("accepted");
+  });
+
+  it("maps general-chat user corrections to general_response guidance instead of coding-agent policy", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+    const scope = {
+      userId: "u-general",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    } as const;
+
+    for (const [index, eventId] of ["event-1", "event-2", "event-3"].entries()) {
+      await ingestAgentInputEvent(memory, {
+        surface: "ai-sdk",
+        kind: "user_correction",
+        eventId,
+        runId: "run-general",
+        turnId: `turn-${index + 1}`,
+        sequence: index,
+        occurredAt: `2026-04-22T00:00:1${index}.000Z`,
+        hostKind: "generic",
+        scope,
+        correction: "Use short paragraphs in chat answers.",
+        retrievalProfile: "general_chat",
+      });
+    }
+
+    const exported = await memory.exportMemory({
+      scope: {
+        userId: "u-general",
+        workspaceId: "workspace-a",
+      },
+    });
+
+    expect(
+      exported.durable.feedback.some(
+        (record) =>
+          record.kind === "validated_pattern" &&
+          record.appliesTo === "general_response" &&
+          record.rule.includes("Use short paragraphs in chat answers."),
+      ),
+    ).toBe(true);
+    expect(
+      exported.durable.feedback.some(
+        (record) =>
+          record.kind === "validated_pattern" &&
+          record.appliesTo === "coding_agent" &&
+          record.rule.includes("Use short paragraphs in chat answers."),
+      ),
+    ).toBe(false);
+  });
+
+  it("defaults host user corrections to coding-agent guidance when retrievalProfile is omitted", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+    const scope = {
+      userId: "u-host",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    } as const;
+
+    for (const [index, eventId] of ["event-1", "event-2", "event-3"].entries()) {
+      await ingestHostAgentEvent(memory, {
+        surface: "host",
+        kind: "user_correction",
+        eventId,
+        runId: "run-host",
+        turnId: `turn-${index + 1}`,
+        sequence: index,
+        occurredAt: `2026-04-22T00:00:2${index}.000Z`,
+        hostKind: "codex",
+        scope,
+        correction: "Run verification before finalizing changes.",
+      });
+    }
+
+    const exported = await memory.exportMemory({
+      scope: {
+        userId: "u-host",
+        workspaceId: "workspace-a",
+      },
+    });
+
+    expect(
+      exported.durable.feedback.some(
+        (record) =>
+          record.kind === "validated_pattern" &&
+          record.appliesTo === "coding_agent" &&
+          record.rule.includes("Run verification before finalizing changes."),
+      ),
+    ).toBe(true);
+    expect(
+      exported.durable.feedback.some(
+        (record) =>
+          record.kind === "validated_pattern" &&
+          record.appliesTo === "general_response" &&
+          record.rule.includes("Run verification before finalizing changes."),
+      ),
+    ).toBe(false);
   });
 
   it("retries user correction feedback after evidence-only partial persistence", async () => {
@@ -384,6 +525,7 @@ describe("agent event ingestion", () => {
       hostKind: "generic",
       scope,
       correction: "Use bullet points in summaries.",
+      retrievalProfile: "coding_agent",
     } as const;
 
     await expect(ingestAgentInputEvent(memory, event)).rejects.toThrow(
@@ -408,6 +550,64 @@ describe("agent event ingestion", () => {
     expect(exported.durable.feedback[0]?.rule).toContain(
       "Use bullet points in summaries.",
     );
+  });
+
+  it("keeps proposal and promotion receipts when compile fails after gate persistence", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: createValidatedPatternCompileFailingOnceDocumentStore(),
+      },
+    });
+    const scope = {
+      userId: "u-lineage",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    } as const;
+
+    const receipts: Array<Awaited<ReturnType<typeof ingestAgentInputEvent>>> = [];
+    const originalConsoleError = console.error;
+    console.error = (() => {}) as typeof console.error;
+
+    try {
+      for (const [index, eventId] of ["event-1", "event-2", "event-3"].entries()) {
+        receipts.push(await ingestAgentInputEvent(memory, {
+          surface: "ai-sdk",
+          kind: "user_correction",
+          eventId,
+          runId: "run-lineage",
+          turnId: `turn-${index + 1}`,
+          sequence: index,
+          occurredAt: `2026-04-22T00:00:2${index}.000Z`,
+          hostKind: "generic",
+          scope,
+          correction: "Use bullet points in summaries.",
+          retrievalProfile: "coding_agent",
+        }));
+      }
+    } finally {
+      console.error = originalConsoleError;
+    }
+
+    const receiptBearingResult = receipts.find(
+      (result) =>
+        (result.proposalReceipts?.length ?? 0) > 0 ||
+        (result.promotionReceipts?.length ?? 0) > 0,
+    );
+    const exported = await memory.exportMemory({
+      scope: {
+        userId: "u-lineage",
+        workspaceId: "workspace-a",
+      },
+    });
+
+    expect(receiptBearingResult?.proposalReceipts).toHaveLength(1);
+    expect(receiptBearingResult?.promotionReceipts).toHaveLength(1);
+    expect(exported.durable.proposals).toHaveLength(1);
+    expect(exported.durable.promotions).toHaveLength(1);
+    expect(
+      exported.durable.feedback.some((record) => record.kind === "validated_pattern"),
+    ).toBe(false);
   });
 
   it("feeds event-backed validated patterns into coding-agent recall and context assembly", async () => {
@@ -453,6 +653,7 @@ describe("agent event ingestion", () => {
         hostKind: "generic",
         scope,
         correction: "Use bullet points in summaries.",
+        retrievalProfile: "coding_agent",
       });
     }
 
@@ -471,6 +672,7 @@ describe("agent event ingestion", () => {
       recall.feedback.some(
         (record) =>
           record.kind === "validated_pattern" &&
+          record.appliesTo === "coding_agent" &&
           record.rule.includes("Use bullet points in summaries."),
       ),
     ).toBe(true);
@@ -484,6 +686,7 @@ describe("agent event ingestion", () => {
     expect(recall.workingMemory?.currentGoal).toBe("Finish the rollout note");
     expect(recall.workingMemory?.openLoops).toContain("capture the handoff summary");
     expect(context.content).toContain("Use bullet points in summaries.");
+    expect(context.content.match(/- Use bullet points in summaries\./g)?.length ?? 0).toBe(1);
     expect(context.content).toContain("Finish the rollout note");
     expect(context.content).toContain("capture the handoff summary");
     expect(context.content).toContain("## Evidence");

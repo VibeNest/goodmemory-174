@@ -74,19 +74,36 @@ interface TaskTransitionAgentEventFields {
   summary?: string;
 }
 
-interface UserCorrectionAgentEventFields {
+interface UserCorrectionAgentEventBaseFields {
   correction: string;
   kind: "user_correction";
   targetEventId?: string;
 }
 
-type AgentEventPayloadFields =
+interface AgentInputUserCorrectionAgentEventFields
+  extends UserCorrectionAgentEventBaseFields {
+  retrievalProfile: "general_chat" | "coding_agent";
+}
+
+interface HostUserCorrectionAgentEventFields
+  extends UserCorrectionAgentEventBaseFields {
+  retrievalProfile?: "general_chat" | "coding_agent";
+}
+
+type SharedAgentEventPayloadFields =
   | FileEditAgentEventFields
   | TaskTransitionAgentEventFields
   | ToolCallAgentEventFields
   | ToolResultAgentEventFields
-  | UserCorrectionAgentEventFields
   | VerifyResultAgentEventFields;
+
+type AgentInputEventPayloadFields =
+  | AgentInputUserCorrectionAgentEventFields
+  | SharedAgentEventPayloadFields;
+
+type HostAgentEventPayloadFields =
+  | HostUserCorrectionAgentEventFields
+  | SharedAgentEventPayloadFields;
 
 type AgentEventRunBinding =
   | {
@@ -99,13 +116,13 @@ type AgentEventRunBinding =
     };
 
 export type AgentInputEvent = AgentEventBaseFields &
-  AgentEventPayloadFields &
+  AgentInputEventPayloadFields &
   AgentEventRunBinding & {
     surface: "ai-sdk";
   };
 
 export type HostAgentEvent = AgentEventBaseFields &
-  AgentEventPayloadFields &
+  HostAgentEventPayloadFields &
   AgentEventRunBinding & {
     surface: "host";
   };
@@ -211,6 +228,17 @@ function assertAgentEventHostKind(
   }
 
   throw new Error(`${path} must be generic, codex, or claude`);
+}
+
+function assertAgentEventRetrievalProfile(
+  value: unknown,
+  path: string,
+): "general_chat" | "coding_agent" {
+  if (value === "general_chat" || value === "coding_agent") {
+    return value;
+  }
+
+  throw new Error(`${path} must be general_chat or coding_agent`);
 }
 
 function assertAgentEventScope(value: unknown, path: string): AgentEventScope {
@@ -333,12 +361,11 @@ function assertBaseFields(
   };
 }
 
-function assertPayloadFields(
+function assertSharedPayloadFields(
+  kind: Exclude<AgentEventKind, "user_correction">,
   value: Record<string, unknown>,
   path: string,
-): AgentEventPayloadFields {
-  const kind = assertNonEmptyString(value.kind, `${path}.kind`) as AgentEventKind;
-
+): SharedAgentEventPayloadFields {
   switch (kind) {
     case "tool_call":
       return {
@@ -419,10 +446,30 @@ function assertPayloadFields(
           ? { summary: assertNonEmptyString(value.summary, `${path}.summary`) }
           : {}),
       };
+  }
+}
+
+function assertAgentInputPayloadFields(
+  value: Record<string, unknown>,
+  path: string,
+): AgentInputEventPayloadFields {
+  const kind = assertNonEmptyString(value.kind, `${path}.kind`) as AgentEventKind;
+
+  switch (kind) {
     case "user_correction":
+      if (value.retrievalProfile === undefined) {
+        throw new Error(
+          `${path}.retrievalProfile must be provided for ai-sdk user_correction events`,
+        );
+      }
+
       return {
         kind,
         correction: assertNonEmptyString(value.correction, `${path}.correction`),
+        retrievalProfile: assertAgentEventRetrievalProfile(
+          value.retrievalProfile,
+          `${path}.retrievalProfile`,
+        ),
         ...(value.targetEventId !== undefined
           ? {
               targetEventId: assertNonEmptyString(
@@ -433,7 +480,38 @@ function assertPayloadFields(
           : {}),
       };
     default:
-      throw new Error(`${path}.kind must be a supported agent event kind`);
+      return assertSharedPayloadFields(kind, value, path);
+  }
+}
+
+function assertHostPayloadFields(
+  value: Record<string, unknown>,
+  path: string,
+): HostAgentEventPayloadFields {
+  const kind = assertNonEmptyString(value.kind, `${path}.kind`) as AgentEventKind;
+
+  switch (kind) {
+    case "user_correction":
+      return {
+        kind,
+        correction: assertNonEmptyString(value.correction, `${path}.correction`),
+        retrievalProfile: value.retrievalProfile === undefined
+          ? "coding_agent"
+          : assertAgentEventRetrievalProfile(
+              value.retrievalProfile,
+              `${path}.retrievalProfile`,
+            ),
+        ...(value.targetEventId !== undefined
+          ? {
+              targetEventId: assertNonEmptyString(
+                value.targetEventId,
+                `${path}.targetEventId`,
+              ),
+            }
+          : {}),
+      };
+    default:
+      return assertSharedPayloadFields(kind, value, path);
   }
 }
 
@@ -448,7 +526,7 @@ export function validateAgentInputEvent(
   return {
     surface: assertSurface(value.surface, `${path}.surface`, "ai-sdk"),
     ...assertBaseFields(value, path),
-    ...assertPayloadFields(value, path),
+    ...assertAgentInputPayloadFields(value, path),
   };
 }
 
@@ -463,7 +541,7 @@ export function validateHostAgentEvent(
   return {
     surface: assertSurface(value.surface, `${path}.surface`, "host"),
     ...assertBaseFields(value, path),
-    ...assertPayloadFields(value, path),
+    ...assertHostPayloadFields(value, path),
   };
 }
 

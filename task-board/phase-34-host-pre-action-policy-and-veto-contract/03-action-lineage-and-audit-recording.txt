@@ -4,6 +4,7 @@ Phase 34.3: Action Lineage and Audit Recording
 [DONE] Keep pre-action intents outside the existing `*AgentEvent` family.
 [DONE] Make `actionId` the trace id for internal assessment records.
 [DONE] Persist assessed-action audit records through the existing internal integration support instead of opening a new public recorder.
+[DONE] Public feedback/event receipts now expose proposal and promotion lineage for feedback experiences that directly triggered reviewer/gate work.
 [TODO] Close the full runtime lineage so realized host events can consistently point back to the assessed `actionId`.
 
 Acceptance

@@ -56,8 +56,41 @@ const hostEvent: HostAgentEvent = {
   excerpt: "Reachability confirmed.",
 };
 
+const aiCorrectionEvent: AgentInputEvent = {
+  surface: "ai-sdk",
+  kind: "user_correction",
+  correction: "Use short paragraphs.",
+  retrievalProfile: "general_chat",
+  eventId: "event-3",
+  runId: "run-2",
+  turnId: "turn-2",
+  sequence: 2,
+  occurredAt: "2026-04-22T00:00:02.000Z",
+  hostKind: "codex",
+  scope: {
+    userId: "u-1",
+  },
+};
+
+const hostCorrectionEvent: HostAgentEvent = {
+  surface: "host",
+  kind: "user_correction",
+  correction: "Run verification first.",
+  eventId: "event-4",
+  runId: "run-3",
+  turnId: "turn-3",
+  sequence: 3,
+  occurredAt: "2026-04-22T00:00:03.000Z",
+  hostKind: "codex",
+  scope: {
+    userId: "u-1",
+  },
+};
+
 void validateAgentInputEvent(aiEvent);
 void validateHostAgentEvent(hostEvent);
+void validateAgentInputEvent(aiCorrectionEvent);
+void validateHostAgentEvent(hostCorrectionEvent);
 
 const legacyArgsEvent: AgentInputEvent = {
   surface: "ai-sdk",
@@ -76,6 +109,22 @@ const legacyArgsEvent: AgentInputEvent = {
   args: ["--network"],
 };
 
+// @ts-expect-error ai-sdk user_correction must declare retrievalProfile.
+const invalidAiCorrectionEvent: AgentInputEvent = {
+  surface: "ai-sdk",
+  kind: "user_correction",
+  correction: "Use short paragraphs.",
+  eventId: "event-invalid",
+  runId: "run-invalid",
+  turnId: "turn-invalid",
+  sequence: 4,
+  occurredAt: "2026-04-22T00:00:04.000Z",
+  hostKind: "codex",
+  scope: {
+    userId: "u-1",
+  },
+};
+
 // @ts-expect-error Root barrel must not export adapter-level agent input events.
 type RootAgentInputEvent = import("../../src").AgentInputEvent;
 
@@ -90,6 +139,9 @@ const rootValidateHostAgentEvent = import("../../src").validateHostAgentEvent;
 
 void (0 as unknown as RootAgentInputEvent);
 void (0 as unknown as RootHostAgentEvent);
+void aiCorrectionEvent;
+void hostCorrectionEvent;
+void invalidAiCorrectionEvent;
 void legacyArgsEvent;
 void rootValidateAgentInputEvent;
 void rootValidateHostAgentEvent;

@@ -16,8 +16,10 @@ import {
 } from "../evolution/contracts";
 import type { LanguageService } from "../language";
 import { scopeToKey, type MemoryScope } from "../domain/scope";
-import type { FeedbackResult } from "./contracts";
-import type { AgentEventIngestResult } from "./integrationSupport";
+import type {
+  AgentEventFeedbackResult,
+  AgentEventIngestResult,
+} from "./integrationSupport";
 
 type ExternalAgentEvent = AgentInputEvent | HostAgentEvent;
 
@@ -31,13 +33,14 @@ export interface CreateAgentEventIngestorInput {
   documentStore: DocumentStore;
   feedback(
     input: {
+      appliesTo?: string;
       evidenceIds?: string[];
       locale?: string;
       scope: MemoryScope;
       signal: string;
       traceId?: string;
     },
-  ): Promise<FeedbackResult>;
+  ): Promise<AgentEventFeedbackResult>;
   language: LanguageService;
   now: () => Date;
   persist(input: PersistedAgentEventInput): Promise<void>;
@@ -266,6 +269,9 @@ async function applyAgentEventPolicy(input: {
     phase: "remember",
     locale: resolvedLanguage.locale,
     localeSource: resolvedLanguage.localeSource,
+    ...(input.event.kind === "user_correction" && input.event.retrievalProfile
+      ? { retrievalProfile: input.event.retrievalProfile }
+      : {}),
   };
   let candidate = buildCandidate(input.event, input.text);
   let redacted = false;
@@ -357,6 +363,24 @@ async function readUserCorrectionFeedbackReceipt(
   });
 
   return matches[0] ?? null;
+}
+
+function resolveUserCorrectionAppliesTo(
+  event: ExternalAgentEvent,
+): string | undefined {
+  if (event.kind !== "user_correction") {
+    return undefined;
+  }
+
+  if (event.retrievalProfile === "coding_agent") {
+    return "coding_agent";
+  }
+
+  if (event.retrievalProfile === "general_chat") {
+    return "general_response";
+  }
+
+  return undefined;
 }
 
 function buildEvidence(input: {
@@ -492,20 +516,29 @@ export function createAgentEventIngestor(
           });
         }
 
-        const feedbackMemoryId = feedbackReceipt?.linkedMemoryIds[0] ?? (
-          await input.feedback({
-            scope: event.scope,
-            signal: policyResult.content,
-            locale: policyResult.locale,
-            ...(evidence ? { evidenceIds: [evidence.id] } : {}),
-            traceId: event.eventId,
-          })
-        ).memoryId;
+        const feedbackResult = feedbackReceipt?.linkedMemoryIds[0]
+          ? undefined
+          : await input.feedback({
+              appliesTo: resolveUserCorrectionAppliesTo(event),
+              scope: event.scope,
+              signal: policyResult.content,
+              locale: policyResult.locale,
+              ...(evidence ? { evidenceIds: [evidence.id] } : {}),
+              traceId: event.eventId,
+            });
+        const feedbackMemoryId = feedbackReceipt?.linkedMemoryIds[0] ??
+          feedbackResult?.memoryId;
 
         return {
           recorded: true,
           ...(evidence ? { evidenceId: evidence.id } : {}),
           ...(feedbackMemoryId ? { feedbackMemoryId } : {}),
+          ...(feedbackResult?.proposalReceipts
+            ? { proposalReceipts: feedbackResult.proposalReceipts }
+            : {}),
+          ...(feedbackResult?.promotionReceipts
+            ? { promotionReceipts: feedbackResult.promotionReceipts }
+            : {}),
         };
       }
 
