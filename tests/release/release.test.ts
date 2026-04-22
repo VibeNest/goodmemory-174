@@ -12,9 +12,16 @@ import {
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  buildPackageTarballName,
+  loadPackageMetadataSync,
+} from "../../scripts/package-metadata";
 
 const QUALITY_GATE_ARCHIVE_ROOT = "docs/archive/quality-gates";
 const ROOT_PACKAGE_PATH = join(import.meta.dir, "../../");
+const CURRENT_PACKAGE = loadPackageMetadataSync(ROOT_PACKAGE_PATH);
+const CURRENT_PACKAGE_VERSION = CURRENT_PACKAGE.version;
+const CURRENT_TARBALL_NAME = buildPackageTarballName(CURRENT_PACKAGE);
 const RELEASE_TEST_ENV = {
   GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY: undefined,
   GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL: undefined,
@@ -155,7 +162,7 @@ async function packReleaseTarball(outputDir: string): Promise<{
   const tarballName =
     tarballOutput.length > 0
       ? basename(tarballOutput)
-      : "goodmemory-0.1.0-rc.1.tgz";
+      : CURRENT_TARBALL_NAME;
   const tarballPath =
     tarballOutput.length === 0
       ? join(outputDir, tarballName)
@@ -378,7 +385,7 @@ describe("release metadata and docs", () => {
       version?: string;
     };
 
-    expect(pkg.version).toBe("0.1.0-rc.1");
+    expect(pkg.version).toBe(CURRENT_PACKAGE_VERSION);
     expect(pkg.private).toBeUndefined();
     expect(pkg.description).toBe(
       "Memory layer for chat, copilot, and agent applications.",
@@ -633,12 +640,12 @@ describe("release metadata and docs", () => {
     const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
 
     expect(readme).toContain("createGoodMemory");
-    expect(readme).toContain("0.1.0-rc.1");
+    expect(readme).toContain(CURRENT_PACKAGE_VERSION);
     expect(readme).toContain("Node-compatible");
     expect(readme).toContain("Bun-backed");
-    expect(readme).toContain("npm install goodmemory@0.1.0-rc.1");
-    expect(readme).toContain("bun add goodmemory@0.1.0-rc.1");
-    expect(readme).toContain("npm install ./goodmemory-0.1.0-rc.1.tgz");
+    expect(readme).toContain(`npm install goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(readme).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(readme).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
     expect(readme).toContain("examples/basic-chat.ts");
     expect(readme).toContain("examples/coding-agent.ts");
     expect(readme).toContain("examples/plain-ai-sdk-server.ts");
@@ -855,9 +862,11 @@ describe("release metadata and docs", () => {
     expect(referenceGuide).toContain("Request");
     expect(referenceGuide).toContain("toTextStreamResponse");
     expect(referenceGuide).toContain("plain-ai-sdk-server");
-    expect(referenceGuide).toContain("npm install goodmemory@0.1.0-rc.1");
-    expect(referenceGuide).toContain("bun add goodmemory@0.1.0-rc.1");
-    expect(referenceGuide).toContain("npm install ./goodmemory-0.1.0-rc.1.tgz");
+    expect(referenceGuide).toContain(
+      `npm install goodmemory@${CURRENT_PACKAGE_VERSION}`,
+    );
+    expect(referenceGuide).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(referenceGuide).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
     expect(referenceGuide).toContain("Node");
     expect(referenceGuide).toContain("Bun");
 
@@ -870,9 +879,12 @@ describe("release metadata and docs", () => {
     );
     expect(codexGuide).toContain('from "goodmemory"');
     expect(codexGuide).toContain('from "goodmemory/host"');
-    expect(codexGuide).toContain("npm install goodmemory@0.1.0-rc.1");
-    expect(codexGuide).toContain("bun add goodmemory@0.1.0-rc.1");
+    expect(codexGuide).toContain(`npm install goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(codexGuide).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
     expect(codexGuide).toContain("Bun-backed");
+    expect(codexGuide).toContain("codex-action.mjs");
+    expect(codexGuide).toContain(".codex/hooks.json");
+    expect(codexGuide).toContain("canonical enforced path");
 
     const claudeGuide = await readFile(
       join(
@@ -883,8 +895,10 @@ describe("release metadata and docs", () => {
     );
     expect(claudeGuide).toContain('from "goodmemory"');
     expect(claudeGuide).toContain('from "goodmemory/host"');
-    expect(claudeGuide).toContain("npm install goodmemory@0.1.0-rc.1");
-    expect(claudeGuide).toContain("bun add goodmemory@0.1.0-rc.1");
+    expect(claudeGuide).toContain(
+      `npm install goodmemory@${CURRENT_PACKAGE_VERSION}`,
+    );
+    expect(claudeGuide).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
     expect(claudeGuide).toContain("Bun-backed");
   });
 
@@ -1293,10 +1307,10 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("bun test");
     expect(checklist).toContain("bun run test:coverage");
     expect(checklist).toContain("bun pm pack --dry-run");
-    expect(checklist).toContain("0.1.0-rc.1");
+    expect(checklist).toContain(CURRENT_PACKAGE_VERSION);
     expect(checklist).toContain("Node");
     expect(checklist).toContain("Bun");
-    expect(checklist).toContain("gate:phase-33");
+    expect(checklist).toContain("gate:phase-34");
     expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
@@ -1447,7 +1461,7 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("release workflow uses manual plus tag triggers, gate:phase-33, and tarball artifact upload", async () => {
+  it("release workflow uses manual plus stable tag triggers, gate:phase-34, and tarball artifact upload", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/release.yml"),
       "utf8",
@@ -1455,9 +1469,11 @@ describe("release metadata and docs", () => {
 
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("tags:");
-    expect(workflow).toContain("v0.1.0-rc.*");
-    expect(workflow).toContain("bun run gate:phase-33");
+    expect(workflow).toContain("v*.*.*");
+    expect(workflow).toContain("bun run gate:phase-34");
     expect(workflow).toContain("TAG_VERSION=\"${GITHUB_REF_NAME#v}\"");
+    expect(workflow).toContain("Stable release workflow only supports stable semver versions");
+    expect(workflow).toContain("[[ \"$VERSION\" == *-* ]]");
     expect(workflow).toContain("[[ \"$TAG_VERSION\" != \"$VERSION\" ]]");
     expect(workflow).toContain("bun pm pack");
     expect(workflow).toContain("actions/upload-artifact@v4");
@@ -1465,18 +1481,20 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("node-version: 24");
     expect(workflow).toContain("registry-url: https://registry.npmjs.org");
     expect(workflow).toContain("softprops/action-gh-release@v2");
-    expect(workflow).toContain("prerelease: true");
-    expect(workflow).toContain("make_latest: false");
+    expect(workflow).toContain("prerelease: false");
+    expect(workflow).toContain("make_latest: true");
     expect(workflow).toContain("NPM_TOKEN");
     expect(workflow).toContain("Skipped: NPM_TOKEN secret is not configured.");
-    expect(workflow).toContain("does not block the tarball-first RC release contract");
+    expect(workflow).toContain("does not block the tarball-first stable release contract");
     expect(workflow).toContain("NPM_USER=\"$(npm whoami)\"");
     expect(workflow).toContain("already exists on npm; skipping publish.");
-    expect(workflow).toContain("npm publish --tag rc --access public");
+    expect(workflow).toContain("npm publish --access public");
     expect(workflow).toContain('npm view "goodmemory@${VERSION}" version');
-    expect(workflow).toContain("npm view goodmemory@rc version");
+    expect(workflow).toContain("npm view goodmemory@latest version");
     expect(workflow).toContain("Waiting for npm registry visibility");
     expect(workflow).toContain("npm registry verification failed");
+    expect(workflow).not.toContain("npm publish --tag rc --access public");
+    expect(workflow).not.toContain("npm view goodmemory@rc version");
   });
 
   it("github workflows pin Bun to the repository-supported Bun version", async () => {

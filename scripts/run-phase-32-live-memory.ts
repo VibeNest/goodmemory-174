@@ -17,7 +17,15 @@ import {
   unwrapCodexShellCommand,
 } from "../src/host/codexExecBehavioralTrace";
 import { resolveCliFlagValue } from "./cli-options";
+import {
+  buildPackageTarballName,
+  resolveCurrentPackageMetadataSync,
+} from "./package-metadata";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
+
+const CURRENT_TARBALL_NAME = buildPackageTarballName(
+  resolveCurrentPackageMetadataSync(import.meta.url),
+);
 
 export interface Phase32LiveMemoryCommand {
   args: string[];
@@ -410,7 +418,7 @@ function resolveTarballPath(
   const tarballName =
     tarballOutput.length > 0
       ? basename(tarballOutput)
-      : "goodmemory-0.1.0-rc.1.tgz";
+      : CURRENT_TARBALL_NAME;
   const tarballPath =
     tarballOutput.length === 0
       ? join(outputDir, tarballName)

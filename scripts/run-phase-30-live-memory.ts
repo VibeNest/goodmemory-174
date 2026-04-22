@@ -840,7 +840,7 @@ async function createPhase30HostShims(directory: string): Promise<void> {
     PHASE30_HOST_SHIM_COMMANDS.map(async (commandName) => {
       const scriptPath = join(directory, commandName);
       const script = [
-        "#!/bin/zsh",
+        "#!/usr/bin/env sh",
         `echo "phase30-host-shim:${commandName} $*"`,
         "exit 0",
         "",

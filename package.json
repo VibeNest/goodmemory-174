@@ -1,6 +1,6 @@
 {
   "name": "goodmemory",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.1",
   "description": "Memory layer for chat, copilot, and agent applications.",
   "license": "MIT",
   "homepage": "https://github.com/hjqcan/GoodMemory#readme",

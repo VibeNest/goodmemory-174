@@ -13,8 +13,15 @@ import {
   resolvePhase34LiveMemoryOutputDir,
   runPhase34LiveMemoryEvaluation,
 } from "../../scripts/run-phase-34-live-memory";
+import {
+  buildPackageTarballName,
+  loadPackageMetadataSync,
+} from "../../scripts/package-metadata";
 
 const ROOT = "/tmp/goodmemory";
+const CURRENT_TARBALL_NAME = buildPackageTarballName(
+  loadPackageMetadataSync(join(import.meta.dir, "../../")),
+);
 
 function buildActionPayload(input: {
   actionId: string;
@@ -120,7 +127,7 @@ describe("run-phase-34 live-memory script", () => {
                 durationMs: 10,
                 exitCode: 0,
                 stderr: "",
-                stdout: join(packDir, "goodmemory-0.1.0-rc.1.tgz"),
+                stdout: join(packDir, CURRENT_TARBALL_NAME),
               };
             }
 

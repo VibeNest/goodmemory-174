@@ -10,7 +10,15 @@ import {
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { resolveCliFlagValue } from "./cli-options";
+import {
+  buildPackageTarballName,
+  resolveCurrentPackageMetadataSync,
+} from "./package-metadata";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
+
+const CURRENT_TARBALL_NAME = buildPackageTarballName(
+  resolveCurrentPackageMetadataSync(import.meta.url),
+);
 
 export interface Phase34LiveMemoryCommand {
   args: string[];
@@ -357,7 +365,7 @@ function resolveTarballPath(
   const tarballName =
     tarballOutput.length > 0
       ? basename(tarballOutput)
-      : "goodmemory-0.1.0-rc.1.tgz";
+      : CURRENT_TARBALL_NAME;
   const tarballPath =
     tarballOutput.length === 0
       ? join(outputDir, tarballName)
@@ -597,7 +605,7 @@ async function writeWorkspaceCommandFixtures(workspaceRoot: string): Promise<voi
   await writeFile(
     quickCheckPath,
     [
-      "#!/bin/zsh",
+      "#!/usr/bin/env sh",
       `echo "QuickCheck $*" >> ${JSON.stringify(join(workspaceRoot, "quickcheck.log"))}`,
     ].join("\n"),
     "utf8",
@@ -606,7 +614,7 @@ async function writeWorkspaceCommandFixtures(workspaceRoot: string): Promise<voi
   await writeFile(
     deepAnalyzerPath,
     [
-      "#!/bin/zsh",
+      "#!/usr/bin/env sh",
       `echo "DeepAnalyzer $*" >> ${JSON.stringify(join(workspaceRoot, "deepanalyzer.log"))}`,
     ].join("\n"),
     "utf8",
@@ -864,7 +872,7 @@ export async function runPhase34LiveMemoryEvaluation(
     [workspaceRoot]: "<workspace>",
   };
   const commands: Phase34LiveMemoryExecutionResult[] = [];
-  let tarballName = "goodmemory-0.1.0-rc.1.tgz";
+  let tarballName = CURRENT_TARBALL_NAME;
   let bootstrapArtifacts = {
     actionGateScript: false,
     agents: false,

@@ -95,7 +95,7 @@ const HOST_BLUEPRINTS: Record<BootstrapHostKind, HostBootstrapBlueprint> = {
 const CODEX_PRE_TOOL_USE_EVENT = "PreToolUse";
 const CODEX_PRE_TOOL_USE_MATCHER = "Bash";
 const CODEX_PRE_TOOL_USE_COMMAND =
-  '/bin/zsh -lc \'ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; /usr/bin/env bun "$ROOT/.goodmemory/bootstrap/codex-action.mjs" --hook-pre-tool-use\'';
+  '/bin/sh -lc \'ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; /usr/bin/env bun "$ROOT/.goodmemory/bootstrap/codex-action.mjs" --hook-pre-tool-use\'';
 const CODEX_PRE_TOOL_USE_STATUS = "Checking GoodMemory pre-action policy";
 const CODEX_HOOKS_FEATURE_HEADER = "[features]";
 const CODEX_HOOKS_FEATURE_FLAG = "codex_hooks = true";
@@ -549,6 +549,7 @@ function buildCodexActionGateScript(input: {
 }`;
 
   return `#!/usr/bin/env bun
+import { accessSync, constants } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -563,7 +564,29 @@ const DEFAULT_SCOPE = ${defaultScopeLiteral};
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = resolve(SCRIPT_DIR, "..", "..");
 const ACTION_WRAPPER_RELATIVE_PATH = "./.goodmemory/bootstrap/codex-action.mjs";
+const SHELL_BINARY_CANDIDATES = ["/bin/bash", "/bin/sh", "/bin/zsh"];
 process.chdir(WORKSPACE_ROOT);
+
+function resolveShellBinary() {
+  for (const candidate of SHELL_BINARY_CANDIDATES) {
+    if (!candidate || candidate.trim().length === 0) {
+      continue;
+    }
+
+    try {
+      accessSync(candidate, constants.X_OK);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error(
+    "Codex action gate could not resolve a supported shell. Install /bin/bash, /bin/sh, or /bin/zsh.",
+  );
+}
+
+const SHELL_BINARY = resolveShellBinary();
 
 function parseArgs(argv) {
   const flags = {};
@@ -759,7 +782,7 @@ function createScope(sessionId, flags) {
 
 async function runCommand(command) {
   const child = Bun.spawn({
-    cmd: ["/bin/zsh", "-lc", command],
+    cmd: [SHELL_BINARY, "-lc", command],
     cwd: WORKSPACE_ROOT,
     stdout: "pipe",
     stderr: "pipe",

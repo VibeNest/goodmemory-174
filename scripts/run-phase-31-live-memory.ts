@@ -378,8 +378,8 @@ function buildPhase31HostShimScript(input: {
     input.commandName === "deploy"
   ) {
     return [
-      "#!/bin/zsh",
-      "print -u2 -- 'Production deploy blocked: approval required before deploy --prod.'",
+      "#!/usr/bin/env sh",
+      "printf '%s\\n' 'Production deploy blocked: approval required before deploy --prod.' >&2",
       "exit 1",
       "",
     ].join("\n");
@@ -391,15 +391,15 @@ function buildPhase31HostShimScript(input: {
     input.commandName === "DeepAnalyzer"
   ) {
     return [
-      "#!/bin/zsh",
-      "print -u2 -- 'Timeout Error: DeepAnalyzer exceeded its runtime budget.'",
+      "#!/usr/bin/env sh",
+      "printf '%s\\n' 'Timeout Error: DeepAnalyzer exceeded its runtime budget.' >&2",
       "exit 124",
       "",
     ].join("\n");
   }
 
   return [
-    "#!/bin/zsh",
+    "#!/usr/bin/env sh",
     `echo "phase31-host-shim:${input.commandName} $*"`,
     "exit 0",
     "",

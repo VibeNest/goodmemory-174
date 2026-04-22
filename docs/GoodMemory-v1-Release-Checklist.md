@@ -2,8 +2,8 @@
 
 ## Package Boundary
 
-- `0.1.0-rc.1` packages `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` through compiled `dist/` outputs plus declarations
-- registry publish is still not a blocking requirement for this RC
+- `0.1.1` packages `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` through compiled `dist/` outputs plus declarations
+- registry publish is handled by the tagged stable release workflow when `NPM_TOKEN` is configured
 - `bun pm pack` tarball remains a canonical installable release artifact
 - public package surface remains:
   - `goodmemory`
@@ -67,7 +67,7 @@
 
 - `bun test` passes on the canonical `tests/` suite
 - `bun run test:coverage` passes and enforces script/source coverage gates
-- `bun run gate:phase-33` passes
+- `bun run gate:phase-34` passes
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
@@ -75,7 +75,7 @@
 ## Packaging
 
 - `package.json` exposes `bin`, `exports`, and example scripts
-- `package.json` is not private and uses version `0.1.0-rc.1`
+- `package.json` is not private and uses version `0.1.1`
 - `package.json` declares Node and Bun runtime support for the packaged boundary
 - `LICENSE` exists and matches package metadata
 - CLI wrapper exists at `scripts/goodmemory-cli.js`
@@ -99,5 +99,5 @@
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
-- the active package-boundary gate report lives under `reports/quality-gates/phase-33/`
+- the active stable release gate report lives under `reports/quality-gates/phase-34/`
 - the historical Phase 29 gate and RC dry-run reports remain archived under `reports/quality-gates/phase-29/`

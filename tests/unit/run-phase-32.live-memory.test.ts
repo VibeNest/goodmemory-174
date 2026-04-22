@@ -14,8 +14,15 @@ import {
   runPhase32LiveMemoryCli,
   runPhase32LiveMemoryEvaluation,
 } from "../../scripts/run-phase-32-live-memory";
+import {
+  buildPackageTarballName,
+  loadPackageMetadataSync,
+} from "../../scripts/package-metadata";
 
 const ROOT = "/tmp/goodmemory";
+const CURRENT_TARBALL_NAME = buildPackageTarballName(
+  loadPackageMetadataSync(join(import.meta.dir, "../../")),
+);
 
 function createMeasuredVariant(input: {
   artifactReadCommands: string[];
@@ -113,7 +120,7 @@ describe("run-phase-32 live-memory script", () => {
                 durationMs: 10,
                 exitCode: 0,
                 stderr: "",
-                stdout: "/tmp/pack/goodmemory-0.1.0-rc.1.tgz\n",
+                stdout: `/tmp/pack/${CURRENT_TARBALL_NAME}\n`,
               };
             }
 
@@ -369,7 +376,7 @@ describe("run-phase-32 live-memory script", () => {
                 durationMs: 10,
                 exitCode: 0,
                 stderr: "",
-                stdout: "/tmp/pack/goodmemory-0.1.0-rc.1.tgz\n",
+                stdout: `/tmp/pack/${CURRENT_TARBALL_NAME}\n`,
               };
             }
 
@@ -572,7 +579,7 @@ describe("run-phase-32 live-memory script", () => {
                 durationMs: 10,
                 exitCode: 0,
                 stderr: "",
-                stdout: "/tmp/pack/goodmemory-0.1.0-rc.1.tgz\n",
+                stdout: `/tmp/pack/${CURRENT_TARBALL_NAME}\n`,
               };
             }
 
@@ -842,7 +849,7 @@ describe("run-phase-32 live-memory script", () => {
                   durationMs: 10,
                   exitCode: 0,
                   stderr: "",
-                  stdout: "/tmp/pack/goodmemory-0.1.0-rc.1.tgz\n",
+                  stdout: `/tmp/pack/${CURRENT_TARBALL_NAME}\n`,
                 };
               }
 
@@ -943,7 +950,7 @@ describe("run-phase-32 live-memory script", () => {
                 durationMs: 10,
                 exitCode: 0,
                 stderr: "",
-                stdout: "/tmp/pack/goodmemory-0.1.0-rc.1.tgz\n",
+                stdout: `/tmp/pack/${CURRENT_TARBALL_NAME}\n`,
               };
             }
 
@@ -1186,7 +1193,7 @@ describe("run-phase-32 live-memory script", () => {
           releaseContract: {
             distribution: "tarball-first",
             runtime: "bun-only",
-            tarballName: "goodmemory-0.1.0-rc.1.tgz",
+            tarballName: CURRENT_TARBALL_NAME,
           },
         },
         evidenceContract: {

@@ -6,7 +6,7 @@
   "commands": [
     {
       "command": "bun run typecheck",
-      "durationMs": 2280,
+      "durationMs": 4573,
       "exitCode": 0,
       "label": "typecheck",
       "status": "passed",
@@ -17,31 +17,31 @@
     },
     {
       "command": "bun test tests/unit/host.action-execution.test.ts tests/unit/host.pre-action-policy.test.ts tests/integration/host.action-assessment.test.ts tests/unit/run-phase-34.script.test.ts tests/unit/run-phase-34.live-memory.test.ts tests/unit/run-phase-34.gate.test.ts tests/cli/cli.test.ts tests/release/release.test.ts",
-      "durationMs": 26741,
+      "durationMs": 41677,
       "exitCode": 0,
       "label": "targeted-regressions",
       "status": "passed",
       "stderrTail": [
-        "(pass) goodmemory cli root commands > fails closed when the read-only postgres probe is inconclusive [0.10ms]",
-        "(pass) goodmemory cli root commands > allows sqlite fallback when the read-only postgres probe proves postgres is unusable [0.06ms]",
-        "(pass) goodmemory cli root commands > inspect summarizes scoped memory from sqlite storage [2.48ms]",
-        "(pass) goodmemory cli root commands > inspect does not create a vectors table in read-only sqlite mode [2.20ms]",
-        "(pass) goodmemory cli root commands > inspect hides superseded references from the top summary [5.39ms]",
-        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [4.36ms]",
-        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [2.29ms]",
-        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [2.74ms]",
-        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [1.89ms]",
-        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [2.95ms]",
-        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [2.06ms]",
-        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.33ms]",
-        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.27ms]",
-        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.29ms]",
-        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.38ms]",
+        "(pass) goodmemory cli root commands > fails closed when the read-only postgres probe is inconclusive [0.26ms]",
+        "(pass) goodmemory cli root commands > allows sqlite fallback when the read-only postgres probe proves postgres is unusable [0.24ms]",
+        "(pass) goodmemory cli root commands > inspect summarizes scoped memory from sqlite storage [12.92ms]",
+        "(pass) goodmemory cli root commands > inspect does not create a vectors table in read-only sqlite mode [17.46ms]",
+        "(pass) goodmemory cli root commands > inspect hides superseded references from the top summary [36.50ms]",
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [30.22ms]",
+        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [14.37ms]",
+        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [72.20ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [50.50ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [58.29ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [28.35ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [2.83ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [2.02ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [3.36ms]",
+        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [2.24ms]",
         "",
         " 104 pass",
         " 0 fail",
-        " 1516 expect() calls",
-        "Ran 104 tests across 8 files. [26.73s]"
+        " 1531 expect() calls",
+        "Ran 104 tests across 8 files. [41.67s]"
       ],
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)"
@@ -62,7 +62,7 @@
       "status": "accepted"
     }
   },
-  "generatedAt": "2026-04-22T17:00:53.345Z",
+  "generatedAt": "2026-04-22T17:22:37.167Z",
   "generatedBy": "scripts/run-phase-34-gate.ts",
   "phase": "phase-34",
   "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-34/run-20260422235930",

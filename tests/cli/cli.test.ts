@@ -1402,7 +1402,7 @@ describe("goodmemory cli host bootstrap", () => {
       await writeFile(
         join(toolsDir, "QuickCheck"),
         [
-          "#!/bin/zsh",
+          "#!/usr/bin/env sh",
           `echo quickcheck >> ${JSON.stringify(join(workspace.root, "quickcheck.log"))}`,
         ].join("\n"),
         "utf8",
@@ -1411,7 +1411,7 @@ describe("goodmemory cli host bootstrap", () => {
       await writeFile(
         join(toolsDir, "deploy"),
         [
-          "#!/bin/zsh",
+          "#!/usr/bin/env sh",
           `echo deploy >> ${JSON.stringify(join(workspace.root, "deploy.log"))}`,
         ].join("\n"),
         "utf8",
@@ -1479,6 +1479,90 @@ describe("goodmemory cli host bootstrap", () => {
           (record) => record.kind === "tool_result_excerpt",
         ),
       ).toBe(true);
+    } finally {
+      await workspace.cleanup();
+    }
+    },
+    20_000,
+  );
+
+  it(
+    "generated Codex action gate ignores arbitrary SHELL executables and still runs bridged commands on a supported shell",
+    async () => {
+    const workspace = await createTempWorkspace("goodmemory-codex-action-gate-shell");
+    const packageRoot = join(import.meta.dir, "../..");
+    const stubShellPath = join(workspace.root, "fake-shell");
+
+    try {
+      await withCwd(workspace.root, async () =>
+        runCLI([
+          "codex",
+          "bootstrap",
+          "--user-id",
+          "codex-user",
+          "--workspace-id",
+          "codex-workspace",
+          "--json",
+        ]),
+      );
+      await writeFile(
+        join(workspace.root, "package.json"),
+        JSON.stringify(
+          {
+            name: "goodmemory-codex-action-gate-shell",
+            private: true,
+            dependencies: {
+              goodmemory: `file:${packageRoot}`,
+            },
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      const install = Bun.spawnSync({
+        cmd: ["bun", "install"],
+        cwd: workspace.root,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect(install.exitCode).toBe(0);
+
+      await writeFile(
+        stubShellPath,
+        [
+          "#!/usr/bin/env sh",
+          "exit 0",
+        ].join("\n"),
+        "utf8",
+      );
+      await chmod(stubShellPath, 0o755);
+
+      const result = await runBunScript({
+        args: [
+          "--session-id",
+          "consumer-session",
+          "--command",
+          "echo hi > proof.txt",
+          "--json",
+        ],
+        cwd: workspace.root,
+        env: {
+          SHELL: stubShellPath,
+        },
+        scriptPath: join(workspace.root, ".goodmemory/bootstrap/codex-action.mjs"),
+      });
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout) as {
+        executed: boolean;
+        exitCode: number;
+        rewritten: boolean;
+      };
+      expect(payload.executed).toBe(true);
+      expect(payload.exitCode).toBe(0);
+      expect(payload.rewritten).toBe(false);
+      expect(await readFile(join(workspace.root, "proof.txt"), "utf8")).toBe("hi\n");
     } finally {
       await workspace.cleanup();
     }

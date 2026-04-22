@@ -10,8 +10,15 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  buildPackageTarballName,
+  loadPackageMetadataSync,
+} from "../../scripts/package-metadata";
 
 const ROOT_PACKAGE_PATH = join(import.meta.dir, "../../");
+const CURRENT_TARBALL_NAME = buildPackageTarballName(
+  loadPackageMetadataSync(ROOT_PACKAGE_PATH),
+);
 const RELEASE_TEST_ENV = {
   GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY: undefined,
   GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL: undefined,
@@ -108,7 +115,7 @@ async function packReleaseTarball(outputDir: string): Promise<string> {
   expect(pack.exitCode).toBe(0);
   return pack.stdout.trim().length > 0
     ? pack.stdout.trim()
-    : join(outputDir, "goodmemory-0.1.0-rc.1.tgz");
+    : join(outputDir, CURRENT_TARBALL_NAME);
 }
 
 describe("node package boundary", () => {
