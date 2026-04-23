@@ -33,8 +33,8 @@ Acceptance
 - write commands do not require a repo checkout of GoodMemory
 - compatibility with the accepted bootstrap/export flow remains regression-covered
 
-Evidence To Add
----------------
+Evidence Added
+--------------
 - CLI tests for remember/feedback/forget
 - installed-package smoke covering write -> hook recall -> MCP deep read
 - docs showing how host users seed and correct memory explicitly

@@ -67,7 +67,7 @@
 
 - `bun test` passes on the canonical `tests/` suite
 - `bun run test:coverage` passes and enforces script/source coverage gates
-- `bun run gate:phase-34` passes
+- `bun run gate:phase-35` passes
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
@@ -99,5 +99,5 @@
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
-- the active stable release gate report lives under `reports/quality-gates/phase-34/`
+- the active stable release gate report lives under `reports/quality-gates/phase-35/`
 - the historical Phase 29 gate and RC dry-run reports remain archived under `reports/quality-gates/phase-29/`

@@ -1,9 +1,9 @@
 Phase 35.6: Phase 35 Evals, Gate, and Closure
 =============================================
 
-[WIP] Dedicated deterministic/live evidence and `gate:phase-35` exist as historical validation snapshots.
-[WIP] Phase 35 is not currently accepted after the Phase 34 public-boundary/proposal-first correction reopen.
-[WIP] Re-acceptance must refresh this gate and resync current-status, archive docs, and task-board entrypoints together.
+[DONE] Dedicated deterministic/live evidence and `gate:phase-35` are current accepted closure evidence.
+[DONE] Phase 35 is accepted again after the Phase 34 public-boundary/proposal-first correction reopen.
+[DONE] Current-status, archive docs, task-board entrypoints, release checklist, release workflow, and release tests are synchronized to Phase 35.
 
 Gate Shape
 ----------
@@ -30,12 +30,12 @@ Acceptance
 - `gate:phase-35` fails without one refreshed Codex global-install live evidence chain
 - closure docs cite one exact accepted gate run and one exact Codex live report
 
-Closure Evidence To Produce
----------------------------
-- one deterministic Phase 35 report
-- one Codex global-install live report
-- one refreshed Phase 35 quality-gate report with an accepted decision
-- one archived quality-gate summary doc
+Closure Evidence Produced
+-------------------------
+- deterministic Phase 35 report: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
+- Codex global-install live report: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
+- refreshed Phase 35 quality-gate report with an accepted decision: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
+- archived quality-gate summary doc: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
 
 Regression Run
 --------------
@@ -47,8 +47,3 @@ Regression Run
 - `bun run eval:phase-35`
 - `bun run eval:phase-35-live-memory`
 - `bun run gate:phase-35`
-- historical validation snapshots, not current closure evidence:
-  - `reports/eval/fallback/phase-35/run-20260423173045/report.json`
-  - `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
-  - `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
-  - `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`

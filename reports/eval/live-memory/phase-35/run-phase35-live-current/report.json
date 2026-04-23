@@ -5,13 +5,13 @@
   },
   "commands": [
     {
-      "command": "bun pm pack --destination /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-pack-goI0x9 --quiet",
-      "durationMs": 2437,
+      "command": "bun pm pack --destination /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-pack-fuHVE7 --quiet",
+      "durationMs": 3901,
       "exitCode": 0,
       "label": "pack-tarball",
       "status": "passed",
       "stderrTail": [
-        "[0.02ms] \".env\"",
+        "[0.09ms] \".env\"",
         "$ bun run build",
         "$ bun run clean && bun run build:js && bun run build:types",
         "$ rm -rf dist",
@@ -20,61 +20,61 @@
       ],
       "stdoutTail": [
         "",
-        "/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-pack-goI0x9/goodmemory-0.1.1.tgz"
+        "/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-pack-fuHVE7/goodmemory-0.1.1.tgz"
       ]
     },
     {
       "command": "bun install",
-      "durationMs": 2942,
+      "durationMs": 167,
       "exitCode": 0,
       "label": "install-tarball",
       "status": "passed",
       "stderrTail": [
         "Resolving dependencies",
-        "Resolved, downloaded and extracted [94]",
+        "Resolved, downloaded and extracted [1]",
         "Saved lockfile"
       ],
       "stdoutTail": [
         "bun install v1.3.11 (af24e281)",
         "",
-        "+ goodmemory@/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-pack-goI0x9/goodmemory-0.1.1.tgz",
+        "+ goodmemory@/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-pack-fuHVE7/goodmemory-0.1.1.tgz",
         "",
-        "105 packages installed [2.94s]"
+        "105 packages installed [162.00ms]"
       ]
     },
     {
       "command": "./node_modules/.bin/goodmemory install codex --user-id consumer-user --json",
-      "durationMs": 625,
+      "durationMs": 569,
       "exitCode": 0,
       "label": "codex-install",
       "status": "passed",
       "stderrTail": [],
       "stdoutTail": [
-        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.goodmemory/codex.json\",",
+        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.goodmemory/codex.json\",",
         "      \"relativePath\": \"codex.json\"",
         "    },",
         "    {",
         "      \"action\": \"created\",",
-        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.codex/config.toml\",",
+        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.codex/config.toml\",",
         "      \"relativePath\": \".codex/config.toml\"",
         "    },",
         "    {",
         "      \"action\": \"created\",",
-        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.codex/hooks.json\",",
+        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.codex/hooks.json\",",
         "      \"relativePath\": \".codex/hooks.json\"",
         "    }",
         "  ],",
-        "  \"configPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.goodmemory/codex.json\",",
+        "  \"configPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.goodmemory/codex.json\",",
         "  \"host\": \"codex\",",
-        "  \"installRoot\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.goodmemory\",",
-        "  \"memoryPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.goodmemory/memory.sqlite\",",
+        "  \"installRoot\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.goodmemory\",",
+        "  \"memoryPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.goodmemory/memory.sqlite\",",
         "  \"userId\": \"consumer-user\"",
         "}"
       ]
     },
     {
-      "command": "./node_modules/.bin/goodmemory enable codex --workspace-id consumer-workspace --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO --json",
-      "durationMs": 103,
+      "command": "./node_modules/.bin/goodmemory enable codex --workspace-id consumer-workspace --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c --json",
+      "durationMs": 109,
       "exitCode": 0,
       "label": "codex-enable",
       "status": "passed",
@@ -84,26 +84,26 @@
         "  \"changes\": [",
         "    {",
         "      \"action\": \"created\",",
-        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO/.goodmemory/codex.json\",",
+        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c/.goodmemory/codex.json\",",
         "      \"relativePath\": \".goodmemory/codex.json\"",
         "    },",
         "    {",
         "      \"action\": \"created\",",
-        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO/AGENTS.md\",",
+        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c/AGENTS.md\",",
         "      \"relativePath\": \"AGENTS.md\"",
         "    }",
         "  ],",
-        "  \"configPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO/.goodmemory/codex.json\",",
+        "  \"configPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c/.goodmemory/codex.json\",",
         "  \"host\": \"codex\",",
-        "  \"instructionPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO/AGENTS.md\",",
+        "  \"instructionPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c/AGENTS.md\",",
         "  \"workspaceId\": \"consumer-workspace\",",
-        "  \"workspaceRoot\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO\"",
+        "  \"workspaceRoot\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c\"",
         "}"
       ]
     },
     {
       "command": "bun ./phase35-seed-runtime.mjs",
-      "durationMs": 564,
+      "durationMs": 492,
       "exitCode": 0,
       "label": "seed-runtime-continuity",
       "status": "passed",
@@ -113,8 +113,8 @@
       ]
     },
     {
-      "command": "./node_modules/.bin/goodmemory remember --host codex --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO --session-id consumer-session --message Remember that the current goal is Finish the phase 35 middleware closeout. The open loop is Archive the canonical phase 35 quality gate. --json",
-      "durationMs": 166,
+      "command": "./node_modules/.bin/goodmemory remember --host codex --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c --session-id consumer-session --message Remember that the current goal is Finish the phase 35 middleware closeout. The open loop is Archive the canonical phase 35 quality gate. --json",
+      "durationMs": 136,
       "exitCode": 0,
       "label": "seed-continuity",
       "status": "passed",
@@ -136,15 +136,15 @@
         "    \"sessionId\": \"consumer-session\"",
         "  },",
         "  \"storage\": {",
-        "    \"location\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.goodmemory/memory.sqlite\",",
+        "    \"location\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.goodmemory/memory.sqlite\",",
         "    \"provider\": \"sqlite\"",
         "  }",
         "}"
       ]
     },
     {
-      "command": "./node_modules/.bin/goodmemory feedback --host codex --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO --session-id consumer-session --signal Use short next-step bullets in coding summaries. --json",
-      "durationMs": 116,
+      "command": "./node_modules/.bin/goodmemory feedback --host codex --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c --session-id consumer-session --signal Use short next-step bullets in coding summaries. --json",
+      "durationMs": 128,
       "exitCode": 0,
       "label": "seed-summary-rule",
       "status": "passed",
@@ -166,15 +166,15 @@
         "    \"sessionId\": \"consumer-session\"",
         "  },",
         "  \"storage\": {",
-        "    \"location\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.goodmemory/memory.sqlite\",",
+        "    \"location\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.goodmemory/memory.sqlite\",",
         "    \"provider\": \"sqlite\"",
         "  }",
         "}"
       ]
     },
     {
-      "command": "./node_modules/.bin/goodmemory remember --host codex --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-zXfewO --session-id consumer-session --message Remember that The deploy is blocked on smoke verification. --json",
-      "durationMs": 118,
+      "command": "./node_modules/.bin/goodmemory remember --host codex --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-workspace-QF4G5c --session-id consumer-session --message Remember that The deploy is blocked on smoke verification. --json",
+      "durationMs": 131,
       "exitCode": 0,
       "label": "seed-deploy-blocker",
       "status": "passed",
@@ -196,15 +196,15 @@
         "    \"sessionId\": \"consumer-session\"",
         "  },",
         "  \"storage\": {",
-        "    \"location\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP/.goodmemory/memory.sqlite\",",
+        "    \"location\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6/.goodmemory/memory.sqlite\",",
         "    \"provider\": \"sqlite\"",
         "  }",
         "}"
       ]
     },
     {
-      "command": "sh -c GOODMEMORY_HOME='/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-start",
-      "durationMs": 127,
+      "command": "sh -c GOODMEMORY_HOME='/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-start",
+      "durationMs": 142,
       "exitCode": 0,
       "label": "codex-hook-session-start",
       "status": "passed",
@@ -219,8 +219,8 @@
       ]
     },
     {
-      "command": "sh -c GOODMEMORY_HOME='/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-oS0QLP' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook user-prompt-submit",
-      "durationMs": 125,
+      "command": "sh -c GOODMEMORY_HOME='/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase35-home-i4xVF6' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook user-prompt-submit",
+      "durationMs": 138,
       "exitCode": 0,
       "label": "codex-hook-user-prompt-submit",
       "status": "passed",
@@ -294,7 +294,7 @@
       "runtimePath": "installed_package_user_level_hooks_and_mcp"
     }
   },
-  "generatedAt": "2026-04-23T08:36:08.628Z",
+  "generatedAt": "2026-04-23T11:03:02.466Z",
   "generatedBy": "scripts/run-phase-35-live-memory.ts",
   "mode": "live-memory",
   "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-35",

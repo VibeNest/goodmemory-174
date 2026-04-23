@@ -28,7 +28,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run release gate
-        run: bun run gate:phase-34
+        run: bun run gate:phase-35
 
       - name: Pack release tarball
         id: pack

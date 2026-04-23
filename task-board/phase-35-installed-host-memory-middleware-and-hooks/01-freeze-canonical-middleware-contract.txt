@@ -1,10 +1,10 @@
 Phase 35.1: Freeze Canonical Middleware Contract
 ================================================
 
-[TODO] Freeze the installed-host memory middleware contract on top of the accepted external package line.
-[TODO] Keep the root `GoodMemory` API unchanged and keep `goodmemory/evolution` off the public surface.
-[TODO] Define Phase 35 as `Hook + MCP` mixed rather than "MCP-only" or "artifact-only".
-[TODO] Keep Codex as the only live gate blocker and Claude Code as parity-only.
+[DONE] Freeze the installed-host memory middleware contract on top of the accepted external package line.
+[DONE] Keep the root `GoodMemory` API unchanged and keep `goodmemory/evolution` off the public surface.
+[DONE] Define Phase 35 as `Hook + MCP` mixed rather than "MCP-only" or "artifact-only".
+[DONE] Keep Codex as the only live gate blocker and Claude Code as parity-only.
 
 Why this exists
 ---------------
@@ -22,8 +22,8 @@ Acceptance
 - no transcript database, automatic writeback, or automatic maintenance in Phase 35
 - `goodmemory codex bootstrap` / `goodmemory claude bootstrap` remain valid lower-level helpers or compatibility shims rather than being broken or silently repurposed
 
-Evidence To Add
----------------
+Evidence Added
+--------------
 - release/docs surface assertions
-- type-surface assertions
-- updated current-status and archive references once closure evidence exists
+- type-surface assertions through the accepted package boundary and Phase 35 gate
+- synchronized current-status, archive, task-board, and release-test references

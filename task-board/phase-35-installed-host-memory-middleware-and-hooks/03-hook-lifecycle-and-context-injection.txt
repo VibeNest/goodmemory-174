@@ -39,8 +39,8 @@ Acceptance
 - hook output is projection, not canonical truth
 - Phase 35 does not add `Stop` hook or automatic remember-on-exit behavior
 
-Evidence To Add
----------------
+Evidence Added
+--------------
 - unit tests for scope derivation and fail-open behavior
 - integration tests for hook JSON input/output
 - installed consumer smoke proving injected context reaches Codex on the live path

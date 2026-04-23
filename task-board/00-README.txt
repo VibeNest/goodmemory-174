@@ -200,9 +200,13 @@ Current Sequencing Note
   - adapter/event `user_correction` now takes the proposal-first path: evidence plus feedback experience lineage, then reviewer/gate/compiler, without first creating active durable feedback
   - repeated coding-agent corrections and coding-agent outcome lineage compile to `coding_agent` scoped procedural guidance
   - the canonical live enforcement path is the installed-package Codex action-gate wrapper, while `.codex/hooks.json` and `codex/rules/goodmemory.rules` remain parity scaffolds instead of the live blocker
-- Phase 35 is now WIP again as the installed host-memory middleware and hooks slice:
-  - install, hook, MCP, and explicit write CLI work exists in-tree, but it is not accepted stable surface while this phase remains WIP
-  - prior Phase 35 reports are validation snapshots, not current accepted closure evidence, until the Phase 35 board and gate are accepted again
+- Phase 35 is now closed as the installed host-memory middleware and hooks slice:
+  - deterministic fallback evidence: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
+  - live Codex installed middleware evidence: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
+  - quality gate: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
+  - global install, explicit repo opt-in, hook-injected recall, read-only MCP, and explicit write CLI are accepted on the installed-host path
+  - automatic writeback, transcript persistence, `Stop` hooks, public `goodmemory/evolution`, and Claude as a second live blocker remain out of scope
 - Any work after Phase 35 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -222,13 +226,13 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 34 guarantees while future work lands
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, and accepted Phase 34 host pre-action policy evidence regression-covered while future work lands
-   - If new Phase 30, Phase 31, Phase 32, Phase 33, or Phase 34 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute Phase 35 on top of the accepted public/package/runtime/external-host boundary instead of widening the core API or reintroducing repo-internal integration paths
+   - Preserve the closed Phase 17 through Phase 35 guarantees while future work lands
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, and accepted Phase 35 installed-host middleware evidence regression-covered while future work lands
+   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, or Phase 35 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - Execute future host work on top of the accepted Phase 35 installed-host middleware boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, and Phase 31 native-host outcome/correction guarantees regression-covered while later phases execute
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, and Phase 35 installed-host middleware guarantees regression-covered while later phases execute
 3. Medium-term system hardening
    - Keep the accepted Codex host integration surface stable while future host-runtime evidence deepens
 4. Host integration track

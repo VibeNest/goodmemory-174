@@ -28,8 +28,9 @@ Acceptance
 - Claude install registers the MCP server on the supported host config path
 - MCP tools are read-only and respect the same scope/config resolution as the installed middleware path
 
-Evidence To Add
----------------
+Evidence Added
+--------------
 - MCP tool contract tests
 - installed-config registration tests
 - integration tests proving tool output matches the underlying public APIs
+- canonical Phase 35 live report proving installed MCP registration and deep-read availability

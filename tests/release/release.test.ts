@@ -523,6 +523,10 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-34-live-memory"]).toBe(
       "bun run scripts/run-phase-34-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-35"]).toBe("bun run scripts/run-phase-35-eval.ts");
+    expect(pkg.scripts?.["eval:phase-35-live-memory"]).toBe(
+      "bun run scripts/run-phase-35-live-memory.ts",
+    );
     expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
     expect(pkg.scripts?.["gate:phase-19-reviewer"]).toBe(
       "bun run scripts/run-phase-19-reviewer-gate.ts",
@@ -541,6 +545,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-32"]).toBe("bun run scripts/run-phase-32-gate.ts");
     expect(pkg.scripts?.["gate:phase-33"]).toBe("bun run scripts/run-phase-33-gate.ts");
     expect(pkg.scripts?.["gate:phase-34"]).toBe("bun run scripts/run-phase-34-gate.ts");
+    expect(pkg.scripts?.["gate:phase-35"]).toBe("bun run scripts/run-phase-35-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -1597,7 +1602,7 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain(CURRENT_PACKAGE_VERSION);
     expect(checklist).toContain("Node");
     expect(checklist).toContain("Bun");
-    expect(checklist).toContain("gate:phase-34");
+    expect(checklist).toContain("gate:phase-35");
     expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
@@ -1710,27 +1715,41 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json",
     );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/fallback/phase-35/run-20260423173045/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-35/run-phase35-live-current/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json",
+    );
     expect(currentStatus).toContain("compiled `dist/` artifacts");
     expect(currentStatus).toContain("Bun-backed today");
     expect(currentStatus).toContain("runLiveMemoryEval()");
     expect(currentStatus).toContain("eval:live-provider-memory");
-	    expect(currentStatus).toContain("reports/eval/live-memory/phase-*");
-	    expect(currentStatus).toContain(
-	      "Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice.",
-	    );
-	    expect(currentStatus).toContain(
-	      "root `goodmemory` no longer re-exports internal evolution contracts",
-	    );
-	    expect(currentStatus).toContain(
-	      "adapter/event `user_correction` is proposal-first",
-	    );
-	    expect(currentStatus).toContain(
-	      "Phase 35 installed host-memory middleware work is present in the repo but is WIP",
-	    );
-	    expect(currentStatus).not.toContain("Phase 35 is now closed");
-	  });
+    expect(currentStatus).toContain("reports/eval/live-memory/phase-*");
+    expect(currentStatus).toContain(
+      "Phase 35 is now closed as the installed host-memory middleware and hooks slice.",
+    );
+    expect(currentStatus).toContain(
+      "root `goodmemory` no longer re-exports internal evolution contracts",
+    );
+    expect(currentStatus).toContain(
+      "adapter/event `user_correction` is proposal-first",
+    );
+    expect(currentStatus).toContain(
+      "Phase 35 installed host-memory middleware is now part of the accepted stable host surface",
+    );
+    expect(currentStatus).not.toContain(
+      "Phase 35 installed host-memory middleware work is present in the repo but is WIP",
+    );
+  });
 
-	  it("task-board current note documents the generic eval command contract", async () => {
+  it("task-board current note documents the generic eval command contract", async () => {
     const taskBoard = await readFile(
       join(import.meta.dir, "../../task-board/00-README.txt"),
       "utf8",
@@ -1738,17 +1757,19 @@ describe("release metadata and docs", () => {
 
     expect(taskBoard).toContain("eval:live-memory");
     expect(taskBoard).toContain("auto-storage live memory");
-	    expect(taskBoard).toContain("eval:live-provider-memory");
-	    expect(taskBoard).toContain("reports/eval/live-memory/phase-*");
-	    expect(taskBoard).toContain(
-	      "Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice",
-	    );
-	    expect(taskBoard).toContain(
-	      "adapter/event `user_correction` now takes the proposal-first path",
-	    );
-	    expect(taskBoard).toContain("Phase 35 is now WIP again");
-	    expect(taskBoard).not.toContain("Phase 35 is now closed");
-	  });
+    expect(taskBoard).toContain("eval:live-provider-memory");
+    expect(taskBoard).toContain("reports/eval/live-memory/phase-*");
+    expect(taskBoard).toContain(
+      "Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice",
+    );
+    expect(taskBoard).toContain(
+      "adapter/event `user_correction` now takes the proposal-first path",
+    );
+    expect(taskBoard).toContain(
+      "Phase 35 is now closed as the installed host-memory middleware and hooks slice",
+    );
+    expect(taskBoard).not.toContain("Phase 35 is now WIP again");
+  });
 
   it("AGENTS.md keeps repository instructions aligned with the current eval contract", async () => {
     const agents = await readFile(
@@ -1769,7 +1790,7 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("release workflow uses manual plus stable tag triggers, gate:phase-34, and tarball artifact upload", async () => {
+  it("release workflow uses manual plus stable tag triggers, gate:phase-35, and tarball artifact upload", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/release.yml"),
       "utf8",
@@ -1778,7 +1799,7 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("tags:");
     expect(workflow).toContain("v*.*.*");
-    expect(workflow).toContain("bun run gate:phase-34");
+    expect(workflow).toContain("bun run gate:phase-35");
     expect(workflow).toContain("TAG_VERSION=\"${GITHUB_REF_NAME#v}\"");
     expect(workflow).toContain("Stable release workflow only supports stable semver versions");
     expect(workflow).toContain("[[ \"$VERSION\" == *-* ]]");

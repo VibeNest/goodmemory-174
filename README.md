@@ -93,13 +93,13 @@ const runtime = inspectGoodMemoryRuntime(memory);
 
 GoodMemory `0.1.1` 自带一个 Bun-backed 的已安装 CLI。包里的 `goodmemory` bin 现在可以在 Node 包安装场景下安全暴露；真正执行命令时会委托给 Bun。稳定的 memory-first 命令仍然是 `inspect` / `trace` / `export-memory` / `stats` / `eval ...`。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则在 Bun 运行时回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。这些 memory-first 根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。唯一的策略诊断例外是 `trace --ignore-memory`：它会把 recall 视为空集并直接跳过存储解析。
 
-Phase 35 installed-host middleware commands are present in the repo but remain WIP, not accepted stable surface. This includes `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>` for managed host config, repo-local opt-in, MCP registration, and hook wiring. The accepted stable host wiring path remains `goodmemory codex bootstrap` / `goodmemory claude bootstrap` until Phase 35 is accepted again.
+Phase 35 installed-host middleware commands are now part of the accepted stable host surface. This includes `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>` for managed host config, repo-local opt-in, MCP registration, and hook wiring. The lower-level `goodmemory codex bootstrap` / `goodmemory claude bootstrap` commands remain supported compatibility paths for artifact-first integrations.
 
-The Phase 35 hook runtime commands are also WIP: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. They read host hook JSON from stdin and use the existing `recall()` + `buildContext()` path, but they should not yet be treated as the canonical accepted always-on recall path.
+The installed hook runtime commands are the canonical always-on recall path when a repository is explicitly enabled: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. They read host hook JSON from stdin, use the existing `recall()` + `buildContext()` path, and fail open when config, opt-in, parsing, or recall is unavailable.
 
-The read-only MCP surface is likewise WIP: `goodmemory mcp serve --host <codex|claude>` and `goodmemory-mcp --host <codex|claude>`. It is intended for deep read, debug, and artifact browsing, but is not an accepted replacement for the Phase 34 host pre-action path.
+The read-only MCP surface is accepted for deep read, debug, and artifact browsing: `goodmemory mcp serve --host <codex|claude>` and `goodmemory-mcp --host <codex|claude>`. MCP does not replace hook-time recall injection or the Phase 34 host pre-action path.
 
-The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` are WIP Phase 35 installed-host work. The stable library write paths remain the public `remember()`, `feedback()`, and `forget()` APIs.
+The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` are accepted for installed-host seeding and correction. They do not add automatic writeback, transcript persistence, or a stop-hook memory path.
 
 ```bash
 ./node_modules/.bin/goodmemory inspect --user-id <user-id> --workspace-id <workspace-id>

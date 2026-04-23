@@ -1,10 +1,8 @@
 # GoodMemory Phase 35 Quality Gate
 
-Superseded validation run: `run-20260423213045`
+Canonical gate run: `run-20260423213045`
 
-Superseded Codex middleware live report: `run-phase35-live-current`
-
-This document is retained as a historical validation snapshot. It is not current accepted Phase 35 closure evidence after the Phase 34 public-boundary/proposal-first correction reopen.
+Canonical Codex middleware live report: `run-phase35-live-current`
 
 ## Command
 
@@ -48,9 +46,9 @@ Out of scope:
 - widening the root API or exposing public `goodmemory/evolution`
 - automatic writeback, transcript persistence, or `Stop` hook behavior
 - making Claude a second live gate blocker
-- claiming the frozen Phase 32 text-only path remains the canonical host product line after Phase 35
+- replacing the accepted Phase 34 host pre-action policy path with recall middleware
 
-## Historical Artifacts
+## Artifacts
 
 - Quality gate:
   - `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
@@ -62,13 +60,13 @@ Out of scope:
 ## Results
 
 - Deterministic fallback report: accepted.
-- Historical Codex middleware live report: accepted at the time of validation.
+- Codex middleware live report: accepted.
 - `gate:phase-35` proves:
   - `bun run typecheck` passed
   - targeted host-install, hook-runtime, MCP, phase-35 runner, CLI, and release regressions passed
   - the installed-hook middleware path stayed non-regressive against the frozen Phase 32 text-only host path on every deterministic case
   - the installed-hook middleware path beat the no-memory baseline on every deterministic case
-  - tarball-first installed-package Codex setup now proves:
+  - tarball-first installed-package Codex setup proves:
     - user-level install
     - repo opt-in
     - automatic hook registration
@@ -78,9 +76,9 @@ Out of scope:
 
 ## Evidence Rule
 
-The gate run above and the Codex middleware live report above are historical validation artifacts only. They must not be used as current Phase 35 closure evidence unless Phase 35 is explicitly re-accepted and the archive doc, current-status doc, task-board references, and release tests are intentionally repointed together.
+Only the gate run above and the Codex middleware live report above are canonical for Phase 35. If future evidence is repointed, update this archive doc, `docs/GoodMemory-Current-Status-and-Evidence.md`, `task-board/00-README.txt`, and release tests together.
 
 ## Decision
 
-Phase 35 is not currently accepted.
-GoodMemory retains the implementation and validation snapshots above, but the accepted stable line falls back to the refreshed Phase 34 host pre-action and proposal-first correction closure until Phase 35 is re-gated.
+Phase 35 is accepted after the Phase 34 public-boundary/proposal-first reopen.
+GoodMemory now has an accepted installed host-memory middleware path: global install, explicit repo opt-in, always-on hook-injected recall, read-only MCP deep-read/debug, and explicit installed-host write CLI while preserving the root API and Phase 34 host pre-action boundary.

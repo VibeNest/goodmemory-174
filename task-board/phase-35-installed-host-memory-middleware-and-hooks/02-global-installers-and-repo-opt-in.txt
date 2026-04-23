@@ -1,10 +1,10 @@
 Phase 35.2: Global Installers and Repo Opt-In
 =============================================
 
-[WIP] Base install/uninstall commands for Codex and Claude Code are now on the public CLI.
-[WIP] Base repo enable/disable commands are now explicit, reversible, and idempotent.
-[WIP] User-level managed config now merges instead of blindly overwriting stored values.
-[WIP] The installed-host middleware path now defaults to `~/.goodmemory/memory.sqlite`.
+[DONE] Base install/uninstall commands for Codex and Claude Code are now on the public CLI.
+[DONE] Base repo enable/disable commands are now explicit, reversible, and idempotent.
+[DONE] User-level managed config now merges instead of blindly overwriting stored values.
+[DONE] The installed-host middleware path now defaults to `~/.goodmemory/memory.sqlite`.
 [DONE] Explicit phase-35 hook handler commands now exist, and global install now registers both hook wiring and MCP wiring automatically.
 
 CLI Surface
@@ -34,11 +34,12 @@ Acceptance
 - repo disable removes or disables only the GoodMemory-managed host block
 - installed-host storage resolution for the middleware path is isolated from the accepted repo-local CLI default
 
-Evidence To Add
----------------
+Evidence Added
+--------------
 - CLI idempotence tests
 - config merge tests
 - repo opt-in/disable file-management tests
+- canonical Phase 35 live installed-package report proving Codex install plus repo opt-in
 
 Current Slice
 -------------
