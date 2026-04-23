@@ -24,7 +24,7 @@ export async function registerInstalledHostMcp(input: {
   host: InstalledHostKind;
 }): Promise<InstalledHostFileChange> {
   const resolvedHomeRoot = resolveHomeRoot(input.homeRoot);
-  const target = resolveMcpTargetPath(input.host, resolvedHomeRoot);
+  const target = resolveInstalledHostMcpTargetPath(input.host, resolvedHomeRoot);
   const existing = await readFileIfPresent(target.path);
   const nextContent =
     input.host === "codex"
@@ -49,7 +49,7 @@ export async function unregisterInstalledHostMcp(input: {
   host: InstalledHostKind;
 }): Promise<InstalledHostFileChange> {
   const resolvedHomeRoot = resolveHomeRoot(input.homeRoot);
-  const target = resolveMcpTargetPath(input.host, resolvedHomeRoot);
+  const target = resolveInstalledHostMcpTargetPath(input.host, resolvedHomeRoot);
   const existing = await readFileIfPresent(target.path);
   if (existing === null) {
     return buildUnchangedFileChange(target.path, target.root);
@@ -78,7 +78,7 @@ function resolveHomeRoot(homeRoot: string | undefined): string {
   return resolve(homeRoot ?? process.env.GOODMEMORY_HOME ?? homedir());
 }
 
-function resolveMcpTargetPath(
+export function resolveInstalledHostMcpTargetPath(
   host: InstalledHostKind,
   homeRoot: string,
 ): { path: string; root: string } {
@@ -251,7 +251,7 @@ function mergeCodexMcpConfig(
     );
   }
 
-  const replacement = buildCodexConfig(spec).trimEnd().split("\n");
+  const replacement = buildCodexConfig(spec).split("\n");
   const merged = [
     ...lines.slice(0, blockRange.start),
     ...replacement,

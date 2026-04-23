@@ -20,8 +20,14 @@ import {
 } from "./hostConfigValidation";
 import {
   registerInstalledHostMcp,
+  resolveInstalledHostMcpTargetPath,
   unregisterInstalledHostMcp,
 } from "./hostMcpConfig";
+import {
+  registerInstalledHostHooks,
+  resolveInstalledHostHookTargetPath,
+  unregisterInstalledHostHooks,
+} from "./hostHookConfig";
 
 export type InstalledHostKind = "claude" | "codex";
 
@@ -151,7 +157,12 @@ export async function installHost(
   const blueprint = HOST_INSTALL_BLUEPRINTS[input.host];
   const installRoot = resolveInstallRoot(input.homeRoot);
   const configPath = join(installRoot, blueprint.configFileName);
-  const previousConfigContent = await readFileIfPresent(configPath);
+  const managedSnapshots = await readManagedInstallSnapshots({
+    configPath,
+    homeRoot: input.homeRoot,
+    host: input.host,
+    installRoot,
+  });
   const resolvedMemoryPath = resolve(
     input.memoryPath ?? join(installRoot, "memory.sqlite"),
   );
@@ -166,21 +177,26 @@ export async function installHost(
   });
 
   try {
+    const changes = mergeInstalledFileChanges([
+      await writeManagedFile(
+        configPath,
+        installRoot,
+        JSON.stringify(nextConfig, null, 2) + "\n",
+        {
+          existingContent: managedSnapshots.config.content,
+        },
+      ),
+      await registerInstalledHostMcp({
+        homeRoot: input.homeRoot,
+        host: input.host,
+      }),
+      ...(await registerInstalledHostHooks({
+        homeRoot: input.homeRoot,
+        host: input.host,
+      })),
+    ]);
     return {
-      changes: [
-        await writeManagedFile(
-          configPath,
-          installRoot,
-          JSON.stringify(nextConfig, null, 2) + "\n",
-          {
-            existingContent: previousConfigContent,
-          },
-        ),
-        await registerInstalledHostMcp({
-          homeRoot: input.homeRoot,
-          host: input.host,
-        }),
-      ],
+      changes,
       configPath,
       host: input.host,
       installRoot,
@@ -188,7 +204,7 @@ export async function installHost(
       userId: nextConfig.userId,
     };
   } catch (error) {
-    await restoreManagedFile(configPath, installRoot, previousConfigContent);
+    await restoreManagedInstallSnapshots(managedSnapshots);
     throw error;
   }
 }
@@ -199,47 +215,68 @@ export async function uninstallHost(
   const blueprint = HOST_INSTALL_BLUEPRINTS[input.host];
   const installRoot = resolveInstallRoot(input.homeRoot);
   const configPath = join(installRoot, blueprint.configFileName);
-  const existing = await readFileIfPresent(configPath);
+  const managedSnapshots = await readManagedInstallSnapshots({
+    configPath,
+    homeRoot: input.homeRoot,
+    host: input.host,
+    installRoot,
+  });
+  const existing = managedSnapshots.config.content;
 
   if (existing === null) {
-    return {
-      changes: [
+    try {
+      const changes = mergeInstalledFileChanges([
         {
           action: "unchanged",
           path: configPath,
           relativePath: relativeToRoot(configPath, installRoot),
         },
+        ...(await unregisterInstalledHostHooks({
+          homeRoot: input.homeRoot,
+          host: input.host,
+        })),
         await unregisterInstalledHostMcp({
           homeRoot: input.homeRoot,
           host: input.host,
         }),
-      ],
-      configPath,
-      host: input.host,
-      installRoot,
-    };
+      ]);
+      return {
+        changes,
+        configPath,
+        host: input.host,
+        installRoot,
+      };
+    } catch (error) {
+      await restoreManagedInstallSnapshots(managedSnapshots);
+      throw error;
+    }
   }
 
   try {
     await rm(configPath, { force: true });
+    const changes = mergeInstalledFileChanges([
+      {
+        action: "deleted",
+        path: configPath,
+        relativePath: relativeToRoot(configPath, installRoot),
+      },
+      ...(await unregisterInstalledHostHooks({
+        homeRoot: input.homeRoot,
+        host: input.host,
+      })),
+      await unregisterInstalledHostMcp({
+        homeRoot: input.homeRoot,
+        host: input.host,
+      }),
+    ]);
     return {
-      changes: [
-        {
-          action: "deleted",
-          path: configPath,
-          relativePath: relativeToRoot(configPath, installRoot),
-        },
-        await unregisterInstalledHostMcp({
-          homeRoot: input.homeRoot,
-          host: input.host,
-        }),
-      ],
+      changes,
       configPath,
       host: input.host,
       installRoot,
     };
   } catch (error) {
-    await restoreManagedFile(configPath, installRoot, existing);
+    await restoreManagedInstallSnapshots(managedSnapshots);
     throw error;
   }
 }
@@ -592,4 +629,115 @@ async function restoreManagedFile(
   await writeManagedFile(path, root, content, {
     existingContent: null,
   });
+}
+
+interface ManagedInstallFileSnapshot {
+  content: string | null;
+  path: string;
+  root: string;
+}
+
+interface ManagedInstallSnapshots {
+  config: ManagedInstallFileSnapshot;
+  hooks: ManagedInstallFileSnapshot;
+  mcp: ManagedInstallFileSnapshot;
+}
+
+async function readManagedInstallSnapshots(input: {
+  configPath: string;
+  homeRoot?: string;
+  host: InstalledHostKind;
+  installRoot: string;
+}): Promise<ManagedInstallSnapshots> {
+  const resolvedHomeRoot = resolve(
+    input.homeRoot ?? process.env.GOODMEMORY_HOME ?? homedir(),
+  );
+  const mcpTarget = resolveInstalledHostMcpTargetPath(
+    input.host,
+    resolvedHomeRoot,
+  );
+  const hookTarget = resolveInstalledHostHookTargetPath(
+    input.host,
+    resolvedHomeRoot,
+  );
+
+  return {
+    config: {
+      content: await readFileIfPresent(input.configPath),
+      path: input.configPath,
+      root: input.installRoot,
+    },
+    hooks: {
+      content: await readFileIfPresent(hookTarget.path),
+      path: hookTarget.path,
+      root: hookTarget.root,
+    },
+    mcp: {
+      content: await readFileIfPresent(mcpTarget.path),
+      path: mcpTarget.path,
+      root: mcpTarget.root,
+    },
+  };
+}
+
+async function restoreManagedInstallSnapshots(
+  snapshots: ManagedInstallSnapshots,
+): Promise<void> {
+  await restoreManagedFile(
+    snapshots.hooks.path,
+    snapshots.hooks.root,
+    snapshots.hooks.content,
+  );
+  await restoreManagedFile(
+    snapshots.mcp.path,
+    snapshots.mcp.root,
+    snapshots.mcp.content,
+  );
+  await restoreManagedFile(
+    snapshots.config.path,
+    snapshots.config.root,
+    snapshots.config.content,
+  );
+}
+
+function mergeInstalledFileChanges(
+  changes: InstalledHostFileChange[],
+): InstalledHostFileChange[] {
+  const merged = new Map<string, InstalledHostFileChange>();
+  const order: string[] = [];
+
+  for (const change of changes) {
+    if (!merged.has(change.path)) {
+      merged.set(change.path, change);
+      order.push(change.path);
+      continue;
+    }
+
+    const previous = merged.get(change.path)!;
+    merged.set(change.path, {
+      ...change,
+      action: mergeInstalledFileAction(previous.action, change.action),
+    });
+  }
+
+  return order.map((path) => merged.get(path)!);
+}
+
+function mergeInstalledFileAction(
+  previous: InstalledHostFileChange["action"],
+  next: InstalledHostFileChange["action"],
+): InstalledHostFileChange["action"] {
+  if (next === "unchanged") {
+    return previous;
+  }
+  if (previous === "unchanged") {
+    return next;
+  }
+  if (previous === "created" || next === "created") {
+    return "created";
+  }
+  if (previous === "deleted" || next === "deleted") {
+    return "deleted";
+  }
+  return next;
 }

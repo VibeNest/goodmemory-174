@@ -1,0 +1,113 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Installed-host hook middleware stayed non-regressive against the frozen Phase 32 text-only path and beat the no-memory baseline on every deterministic case."
+  },
+  "cases": [
+    {
+      "caseId": "continuity-open-loop",
+      "focus": "continuity",
+      "middleware": {
+        "context": "Developer memory notes:\nWorking Memory: Current goal: Finish the phase 35 middleware closeout. Open loops: Archive the canonical phase 35 quality gate.\nSession Journal: Current state: Global install and automatic hook wiring are done.",
+        "estimatedTokens": 59,
+        "matchedExpectations": [
+          "goal",
+          "open-loop",
+          "journal-state"
+        ],
+        "score": 3
+      },
+      "noMemory": {
+        "context": "Developer memory notes:",
+        "estimatedTokens": 6,
+        "matchedExpectations": [],
+        "score": 0
+      },
+      "textOnly": {
+        "context": "# User Memory\n\n## Profile\n- none\n\n## Active Context\n- none\n\n## Preferences\n- none\n\n## Feedback\n- none\n\n# MEMORY\n\n## Scope\n- userId: phase35-user\n- workspaceId: phase35-workspace-continuity-open-loop\n- agentId: codex\n- scoped sessionId: phase35-session-continuity-open-loop\n\n## Profile\n- none\n\n## Preferences\n- none\n\n## Feedback\n- none\n\n## References\n- none\n\n## Facts\n- none\n\n## Episodes\n- none\n\n## Session Archives\n- none\n\n## Evidence\n- none\n\n## Experiences\n- none\n\n## Learning Proposals\n- none\n\n## Promotions\n- none\n\n## Working Memory\n- Current goal: Finish the phase 35 middleware closeout.\n- Open loop: Archive the canonical phase 35 quality gate.\n\n## Session Journal\n- Current state: Global install and automatic hook wiring are done.\n- Worklog: Next step is the canonical gate archive.\n\n## Artifact Spills\n- none\n\n# Session Handoff: phase35-session-continuity-open-loop\n\n## Scope\n- userId: phase35-user\n- workspaceId: phase35-workspace-continuity-open-loop\n- agentId: codex\n- sessionId: phase35-session-continuity-open-loop\n\n## Current Goal\n- Finish the phase 35 middleware closeout.\n\n## Open Loops\n- Archive the canonical phase 35 quality gate.\n\n## Recent Decisions\n- none\n\n## Constraints\n- none\n\n## Current State\n- Global install and automatic hook wiring are done.\n\n## Key Files\n- none\n\n## Workflow\n- none\n\n## Procedural Memory\n- none\n\n## Artifact Spills\n- none",
+        "estimatedTokens": 343,
+        "matchedExpectations": [
+          "goal",
+          "open-loop",
+          "journal-state"
+        ],
+        "score": 3
+      },
+      "nonRegressionAgainstTextOnly": true,
+      "winOverNoMemory": true
+    },
+    {
+      "caseId": "repeated-correction",
+      "focus": "repeated_correction",
+      "middleware": {
+        "context": "Developer memory notes:\nProcedural Memory: - Use short next-step bullets in coding summaries.",
+        "estimatedTokens": 24,
+        "matchedExpectations": [
+          "summary-rule"
+        ],
+        "score": 1
+      },
+      "noMemory": {
+        "context": "Developer memory notes:",
+        "estimatedTokens": 6,
+        "matchedExpectations": [],
+        "score": 0
+      },
+      "textOnly": {
+        "context": "# User Memory\n\n## Profile\n- none\n\n## Active Context\n- none\n\n## Preferences\n- none\n\n## Feedback\n- [do] Use short next-step bullets in coding summaries.\n\n# MEMORY\n\n## Scope\n- userId: phase35-user\n- workspaceId: phase35-workspace-repeated-correction\n- agentId: codex\n- scoped sessionId: phase35-session-repeated-correction\n\n## Profile\n- none\n\n## Preferences\n- none\n\n## Feedback\n- [do] Use short next-step bullets in coding summaries.\n\n## References\n- none\n\n## Facts\n- none\n\n## Episodes\n- none\n\n## Session Archives\n- none\n\n## Evidence\n- none\n\n## Experiences\n- [feedback] Feedback written as do.\n\n## Learning Proposals\n- none\n\n## Promotions\n- none\n\n## Working Memory\n- none\n\n## Session Journal\n- none\n\n## Artifact Spills\n- none\n\n# Session Handoff: phase35-session-repeated-correction\n\n## Scope\n- userId: phase35-user\n- workspaceId: phase35-workspace-repeated-correction\n- agentId: codex\n- sessionId: phase35-session-repeated-correction\n\n## Current Goal\n- none\n\n## Open Loops\n- none\n\n## Recent Decisions\n- none\n\n## Constraints\n- none\n\n## Current State\n- none\n\n## Key Files\n- none\n\n## Workflow\n- none\n\n## Procedural Memory\n- [do] Use short next-step bullets in coding summaries.\n\n## Artifact Spills\n- none",
+        "estimatedTokens": 300,
+        "matchedExpectations": [
+          "summary-rule"
+        ],
+        "score": 1
+      },
+      "nonRegressionAgainstTextOnly": true,
+      "winOverNoMemory": true
+    },
+    {
+      "caseId": "procedure-adherence",
+      "focus": "procedure_adherence",
+      "middleware": {
+        "context": "Developer memory notes:\nProcedural Memory: - The deploy is blocked on smoke verification. Use installed hook middleware before fallback bootstrap.",
+        "estimatedTokens": 37,
+        "matchedExpectations": [
+          "deploy-blocker",
+          "middleware-procedure"
+        ],
+        "score": 2
+      },
+      "noMemory": {
+        "context": "Developer memory notes:",
+        "estimatedTokens": 6,
+        "matchedExpectations": [],
+        "score": 0
+      },
+      "textOnly": {
+        "context": "# User Memory\n\n## Profile\n- none\n\n## Active Context\n- none\n\n## Preferences\n- none\n\n## Feedback\n- [do] The deploy is blocked on smoke verification. Use installed hook middleware before fallback bootstrap.\n\n# MEMORY\n\n## Scope\n- userId: phase35-user\n- workspaceId: phase35-workspace-procedure-adherence\n- agentId: codex\n- scoped sessionId: phase35-session-procedure-adherence\n\n## Profile\n- none\n\n## Preferences\n- none\n\n## Feedback\n- [do] The deploy is blocked on smoke verification. Use installed hook middleware before fallback bootstrap.\n\n## References\n- none\n\n## Facts\n- none\n\n## Episodes\n- none\n\n## Session Archives\n- none\n\n## Evidence\n- none\n\n## Experiences\n- [feedback] Feedback written as do.\n\n## Learning Proposals\n- none\n\n## Promotions\n- none\n\n## Working Memory\n- none\n\n## Session Journal\n- none\n\n## Artifact Spills\n- none\n\n# Session Handoff: phase35-session-procedure-adherence\n\n## Scope\n- userId: phase35-user\n- workspaceId: phase35-workspace-procedure-adherence\n- agentId: codex\n- sessionId: phase35-session-procedure-adherence\n\n## Current Goal\n- none\n\n## Open Loops\n- none\n\n## Recent Decisions\n- none\n\n## Constraints\n- none\n\n## Current State\n- none\n\n## Key Files\n- none\n\n## Workflow\n- none\n\n## Procedural Memory\n- [do] The deploy is blocked on smoke verification. Use installed hook middleware before fallback bootstrap.\n\n## Artifact Spills\n- none",
+        "estimatedTokens": 340,
+        "matchedExpectations": [
+          "deploy-blocker",
+          "middleware-procedure"
+        ],
+        "score": 2
+      },
+      "nonRegressionAgainstTextOnly": true,
+      "winOverNoMemory": true
+    }
+  ],
+  "generatedAt": "2026-04-23T07:54:11.120Z",
+  "generatedBy": "scripts/run-phase-35-eval.ts",
+  "mode": "fallback",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-35",
+  "phase": "phase-35",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-35/run-20260423173045",
+  "runId": "run-20260423173045",
+  "summary": {
+    "middlewareAverageScore": 2,
+    "middlewareNonRegressionPassCount": 3,
+    "middlewareWinOverNoMemoryCount": 3,
+    "noMemoryAverageScore": 0,
+    "textOnlyAverageScore": 2,
+    "totalCases": 3
+  }
+}

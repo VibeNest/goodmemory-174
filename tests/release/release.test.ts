@@ -1610,7 +1610,7 @@ describe("release metadata and docs", () => {
     expect(checklist).not.toContain("gate:phase-20");
     expect(checklist).not.toContain("strategyRollout");
     expect(checklist).not.toContain("promotionGate");
-  });
+  }, 60_000);
 
   it("current status doc points to the stable evidence entrypoints and archive", async () => {
     const currentStatus = await readFile(

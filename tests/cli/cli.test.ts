@@ -1914,6 +1914,10 @@ describe("goodmemory cli installed host config", () => {
               action: "created",
               relativePath: ".codex/config.toml",
             },
+            {
+              action: "created",
+              relativePath: ".codex/hooks.json",
+            },
           ]);
 
           const config = JSON.parse(
@@ -1926,9 +1930,12 @@ describe("goodmemory cli installed host config", () => {
           expect(config.host).toBe("codex");
           expect(config.userId).toBe("codex-user");
           expect(config.storage.path).toBe(join(home.root, ".goodmemory/memory.sqlite"));
+          const codexConfig = await readFile(join(home.root, ".codex/config.toml"), "utf8");
+          expect(codexConfig).toContain('command = "goodmemory-mcp"');
+          expect(codexConfig).toContain("codex_hooks = true");
           expect(
-            await readFile(join(home.root, ".codex/config.toml"), "utf8"),
-          ).toContain('command = "goodmemory-mcp"');
+            await readFile(join(home.root, ".codex/hooks.json"), "utf8"),
+          ).toContain("UserPromptSubmit");
 
           const second = await runCLI([
             "install",
@@ -1958,6 +1965,10 @@ describe("goodmemory cli installed host config", () => {
               action: "unchanged",
               relativePath: ".codex/config.toml",
             },
+            {
+              action: "unchanged",
+              relativePath: ".codex/hooks.json",
+            },
           ]);
 
           const uninstall = await runCLI(["uninstall", "codex", "--json"]);
@@ -1980,10 +1991,15 @@ describe("goodmemory cli installed host config", () => {
             },
             {
               action: "deleted",
+              relativePath: ".codex/hooks.json",
+            },
+            {
+              action: "deleted",
               relativePath: ".codex/config.toml",
             },
           ]);
           await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".codex/hooks.json"))).rejects.toThrow();
           await expect(access(join(home.root, ".codex/config.toml"))).rejects.toThrow();
         },
       );
@@ -2192,7 +2208,14 @@ describe("goodmemory cli installed host config", () => {
               action: "created",
               relativePath: ".claude.json",
             },
+            {
+              action: "created",
+              relativePath: ".claude/settings.json",
+            },
           ]);
+          expect(
+            await readFile(join(home.root, ".claude/settings.json"), "utf8"),
+          ).toContain("UserPromptSubmit");
         },
       );
       await withEnv(
@@ -2268,6 +2291,7 @@ describe("goodmemory cli installed host config", () => {
             })),
           ).toEqual([
             { action: "deleted", relativePath: "claude.json" },
+            { action: "deleted", relativePath: ".claude/settings.json" },
             { action: "deleted", relativePath: ".claude.json" },
           ]);
         },

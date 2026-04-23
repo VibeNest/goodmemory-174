@@ -222,6 +222,14 @@ describe("host install", () => {
         join(homeRoot, ".codex/config.toml"),
         "utf8",
       );
+      const hooksConfig = JSON.parse(
+        await readFile(join(homeRoot, ".codex/hooks.json"), "utf8"),
+      ) as {
+        hooks: Record<
+          string,
+          Array<{ hooks: Array<{ command: string; type: string }>; matcher?: string }>
+        >;
+      };
 
       expect(installed.changes.map(({ action, relativePath }) => ({
         action,
@@ -229,6 +237,7 @@ describe("host install", () => {
       }))).toEqual([
         { action: "created", relativePath: "codex.json" },
         { action: "updated", relativePath: ".codex/config.toml" },
+        { action: "created", relativePath: ".codex/hooks.json" },
       ]);
       expect(codexConfig).toContain("[features]");
       expect(codexConfig).toContain("[mcp_servers.context7]");
@@ -237,6 +246,29 @@ describe("host install", () => {
       expect(codexConfig).toContain('args = ["--host", "codex"]');
       expect(codexConfig).toContain(`GOODMEMORY_HOME = ${JSON.stringify(homeRoot)}`);
       expect(codexConfig).toContain('GOODMEMORY_MANAGED_BY = "goodmemory"');
+      expect(hooksConfig.hooks.SessionStart).toEqual([
+        {
+          matcher: "startup|resume|clear|compact",
+          hooks: [
+            {
+              command:
+                `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-start`,
+              type: "command",
+            },
+          ],
+        },
+      ]);
+      expect(hooksConfig.hooks.UserPromptSubmit).toEqual([
+        {
+          hooks: [
+            {
+              command:
+                `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook user-prompt-submit`,
+              type: "command",
+            },
+          ],
+        },
+      ]);
 
       const uninstalled = await uninstallHost({
         homeRoot,
@@ -252,10 +284,12 @@ describe("host install", () => {
         relativePath,
       }))).toEqual([
         { action: "deleted", relativePath: "codex.json" },
+        { action: "deleted", relativePath: ".codex/hooks.json" },
         { action: "updated", relativePath: ".codex/config.toml" },
       ]);
       expect(codexConfigAfterUninstall).toContain("[mcp_servers.context7]");
       expect(codexConfigAfterUninstall).not.toContain("[mcp_servers.goodmemory]");
+      await expect(readFile(join(homeRoot, ".codex/hooks.json"), "utf8")).rejects.toThrow();
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
     }
@@ -352,6 +386,43 @@ describe("host install", () => {
     }
   });
 
+  it("rolls back the main install config when hook registration fails", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-hook-rollback-");
+
+    try {
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(join(homeRoot, ".codex/hooks.json"), "{ invalid", "utf8");
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[features]",
+          "experimental_feature = true",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await expect(
+        installHost({
+          homeRoot,
+          host: "codex",
+          userId: "codex-user",
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing .codex/hooks.json: file is not valid JSON.",
+      );
+      await expect(
+        readFile(join(homeRoot, ".goodmemory/codex.json"), "utf8"),
+      ).rejects.toThrow();
+      expect(
+        await readFile(join(homeRoot, ".codex/config.toml"), "utf8"),
+      ).not.toContain("[mcp_servers.goodmemory]");
+      expect(await readFile(join(homeRoot, ".codex/hooks.json"), "utf8")).toBe("{ invalid");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
   it("registers and removes the managed Claude MCP server while preserving sibling settings", async () => {
     const homeRoot = await createWorkspace("goodmemory-host-install-claude-mcp-");
 
@@ -385,6 +456,14 @@ describe("host install", () => {
         mcpServers: Record<string, { args?: string[]; command: string; env?: Record<string, string> }>;
         theme: string;
       };
+      const claudeSettings = JSON.parse(
+        await readFile(join(homeRoot, ".claude/settings.json"), "utf8"),
+      ) as {
+        hooks: Record<
+          string,
+          Array<{ hooks: Array<{ command: string; type: string }>; matcher?: string }>
+        >;
+      };
 
       expect(installed.changes.map(({ action, relativePath }) => ({
         action,
@@ -392,6 +471,7 @@ describe("host install", () => {
       }))).toEqual([
         { action: "created", relativePath: "claude.json" },
         { action: "updated", relativePath: ".claude.json" },
+        { action: "created", relativePath: ".claude/settings.json" },
       ]);
       expect(claudeConfig.theme).toBe("light");
       expect(claudeConfig.mcpServers.github.command).toBe("npx");
@@ -403,6 +483,29 @@ describe("host install", () => {
           GOODMEMORY_MANAGED_BY: "goodmemory",
         },
       });
+      expect(claudeSettings.hooks.SessionStart).toEqual([
+        {
+          matcher: "startup|resume|clear|compact",
+          hooks: [
+            {
+              command:
+                `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory claude hook session-start`,
+              type: "command",
+            },
+          ],
+        },
+      ]);
+      expect(claudeSettings.hooks.UserPromptSubmit).toEqual([
+        {
+          hooks: [
+            {
+              command:
+                `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory claude hook user-prompt-submit`,
+              type: "command",
+            },
+          ],
+        },
+      ]);
 
       const uninstalled = await uninstallHost({
         homeRoot,
@@ -426,6 +529,7 @@ describe("host install", () => {
         relativePath,
       }))).toEqual([
         { action: "deleted", relativePath: "claude.json" },
+        { action: "deleted", relativePath: ".claude/settings.json" },
         { action: "updated", relativePath: ".claude.json" },
       ]);
       expect(claudeConfigAfterUninstall.theme).toBe("light");
@@ -435,6 +539,7 @@ describe("host install", () => {
           command: "npx",
         },
       });
+      await expect(readFile(join(homeRoot, ".claude/settings.json"), "utf8")).rejects.toThrow();
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
     }
@@ -534,6 +639,73 @@ describe("host install", () => {
     }
   });
 
+  it("restores the main uninstall config when hook cleanup fails", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-uninstall-hook-rollback-");
+    const configPath = join(homeRoot, ".goodmemory/codex.json");
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(
+        configPath,
+        JSON.stringify(
+          {
+            debug: false,
+            host: "codex",
+            maxTokens: 256,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "codex-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[features]",
+          "codex_hooks = true # goodmemory-managed-hooks",
+          "",
+          "[mcp_servers.goodmemory]",
+          'command = "goodmemory-mcp"',
+          'args = ["--host", "codex"]',
+          "[mcp_servers.goodmemory.env]",
+          `GOODMEMORY_HOME = ${JSON.stringify(homeRoot)}`,
+          'GOODMEMORY_MANAGED_BY = "goodmemory"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeFile(join(homeRoot, ".codex/hooks.json"), "{ invalid", "utf8");
+
+      await expect(
+        uninstallHost({
+          homeRoot,
+          host: "codex",
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing .codex/hooks.json: file is not valid JSON.",
+      );
+      expect(
+        JSON.parse(await readFile(configPath, "utf8")),
+      ).toMatchObject({
+        host: "codex",
+        userId: "codex-user",
+      });
+      expect(
+        await readFile(join(homeRoot, ".codex/config.toml"), "utf8"),
+      ).toContain("[mcp_servers.goodmemory]");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
   it("still removes the managed MCP registration when the main install config is already missing", async () => {
     const homeRoot = await createWorkspace("goodmemory-host-uninstall-mcp-only-");
 
@@ -563,6 +735,7 @@ describe("host install", () => {
         relativePath,
       }))).toEqual([
         { action: "unchanged", relativePath: "codex.json" },
+        { action: "unchanged", relativePath: ".codex/hooks.json" },
         { action: "deleted", relativePath: ".codex/config.toml" },
       ]);
     } finally {
@@ -624,6 +797,7 @@ describe("host install", () => {
         relativePath,
       }))).toEqual([
         { action: "deleted", relativePath: "codex.json" },
+        { action: "unchanged", relativePath: ".codex/hooks.json" },
         { action: "unchanged", relativePath: ".codex/config.toml" },
       ]);
       expect(codexConfig).toContain('command = "custom-mcp"');
@@ -703,6 +877,7 @@ describe("host install", () => {
         relativePath,
       }))).toEqual([
         { action: "deleted", relativePath: "claude.json" },
+        { action: "unchanged", relativePath: ".claude/settings.json" },
         { action: "unchanged", relativePath: ".claude.json" },
       ]);
       expect(claudeConfig).toEqual({
@@ -718,6 +893,196 @@ describe("host install", () => {
         theme: "light",
       });
       await expect(readFile(configPath, "utf8")).rejects.toThrow();
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("preserves Codex hook enablement for remaining user hooks during uninstall", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-uninstall-codex-hooks-preserve-");
+
+    try {
+      await installHost({
+        homeRoot,
+        host: "codex",
+        userId: "codex-user",
+      });
+      await writeFile(
+        join(homeRoot, ".codex/hooks.json"),
+        JSON.stringify(
+          {
+            hooks: {
+              SessionStart: [
+                {
+                  matcher: "startup|resume|clear|compact",
+                  hooks: [
+                    {
+                      type: "command",
+                      command:
+                        `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-start`,
+                    },
+                  ],
+                },
+                {
+                  matcher: "startup|resume",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: "echo keep-user-session-start-hook",
+                    },
+                  ],
+                },
+              ],
+              UserPromptSubmit: [
+                {
+                  hooks: [
+                    {
+                      type: "command",
+                      command:
+                        `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook user-prompt-submit`,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const uninstalled = await uninstallHost({
+        homeRoot,
+        host: "codex",
+      });
+      const codexConfig = await readFile(join(homeRoot, ".codex/config.toml"), "utf8");
+      const hooksConfig = JSON.parse(
+        await readFile(join(homeRoot, ".codex/hooks.json"), "utf8"),
+      ) as {
+        hooks: Record<
+          string,
+          Array<{ hooks: Array<{ command: string; type: string }>; matcher?: string }>
+        >;
+      };
+
+      expect(uninstalled.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "deleted", relativePath: "codex.json" },
+        { action: "updated", relativePath: ".codex/hooks.json" },
+        { action: "updated", relativePath: ".codex/config.toml" },
+      ]);
+      expect(codexConfig).toContain("codex_hooks = true");
+      expect(codexConfig).not.toContain("# goodmemory-managed-hooks");
+      expect(codexConfig).not.toContain("[mcp_servers.goodmemory]");
+      expect(hooksConfig.hooks.SessionStart).toEqual([
+        {
+          matcher: "startup|resume",
+          hooks: [
+            {
+              type: "command",
+              command: "echo keep-user-session-start-hook",
+            },
+          ],
+        },
+      ]);
+      expect(hooksConfig.hooks).not.toHaveProperty("UserPromptSubmit");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("removes managed Codex hooks while preserving user-managed GoodMemory hook wrappers", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-uninstall-codex-wrapper-");
+
+    try {
+      await installHost({
+        homeRoot,
+        host: "codex",
+        userId: "codex-user",
+      });
+      await writeFile(
+        join(homeRoot, ".codex/hooks.json"),
+        JSON.stringify(
+          {
+            hooks: {
+              SessionStart: [
+                {
+                  matcher: "startup|resume|clear|compact",
+                  hooks: [
+                    {
+                      command:
+                        `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-start`,
+                      type: "command",
+                    },
+                  ],
+                },
+                {
+                  hooks: [
+                    {
+                      command:
+                        "env FOO=1 goodmemory codex hook session-start",
+                      type: "command",
+                    },
+                  ],
+                },
+              ],
+              UserPromptSubmit: [
+                {
+                  hooks: [
+                    {
+                      command:
+                        `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook user-prompt-submit`,
+                      type: "command",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const uninstalled = await uninstallHost({
+        homeRoot,
+        host: "codex",
+      });
+      const hooksConfig = JSON.parse(
+        await readFile(join(homeRoot, ".codex/hooks.json"), "utf8"),
+      ) as {
+        hooks: Record<
+          string,
+          Array<{ hooks: Array<{ command: string; type: string }>; matcher?: string }>
+        >;
+      };
+      const codexConfig = await readFile(join(homeRoot, ".codex/config.toml"), "utf8");
+
+      expect(uninstalled.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "deleted", relativePath: "codex.json" },
+        { action: "updated", relativePath: ".codex/hooks.json" },
+        { action: "updated", relativePath: ".codex/config.toml" },
+      ]);
+      expect(hooksConfig.hooks.SessionStart).toEqual([
+        {
+          hooks: [
+            {
+              command: "env FOO=1 goodmemory codex hook session-start",
+              type: "command",
+            },
+          ],
+        },
+      ]);
+      expect(hooksConfig.hooks).not.toHaveProperty("UserPromptSubmit");
+      expect(codexConfig).toContain("codex_hooks = true");
+      expect(codexConfig).not.toContain("# goodmemory-managed-hooks");
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
     }

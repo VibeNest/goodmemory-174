@@ -1,10 +1,10 @@
 Phase 35.6: Phase 35 Evals, Gate, and Closure
 =============================================
 
-[TODO] Add dedicated deterministic and live evidence for the installed-host middleware path.
-[TODO] Add `gate:phase-35`.
-[TODO] Archive one canonical Codex global-install plus repo-opt-in hook/MCP evidence chain.
-[TODO] Sync current-status, archive docs, and task-board entrypoints only after the evidence is real.
+[DONE] Added dedicated deterministic and live evidence for the installed-host middleware path.
+[DONE] Added `gate:phase-35`.
+[DONE] Archived one canonical Codex global-install plus repo-opt-in hook/MCP evidence chain.
+[DONE] Synced current-status, archive docs, and task-board entrypoints after the evidence became real.
 
 Gate Shape
 ----------
@@ -48,3 +48,8 @@ Regression Run
 - `bun run eval:phase-35`
 - `bun run eval:phase-35-live-memory`
 - `bun run gate:phase-35`
+- canonical closure evidence:
+  - `reports/eval/fallback/phase-35/run-20260423173045/report.json`
+  - `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
+  - `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
+  - `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`

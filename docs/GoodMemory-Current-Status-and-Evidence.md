@@ -11,8 +11,8 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend; Bun keeps local SQLite as the zero-config durable fallback; Node zero-config runtime falls back to in-memory when the built-in local SQLite adapter is unavailable.
 - `inspectGoodMemoryRuntime(memory)` now exposes the sanitized resolved storage/runtime plan so Node zero-config in-memory fallback is observable through the public API instead of being silent, unsupported built-in `sqlite` / `postgres` selections are reported as unavailable instead of durable, and injected storage adapters are reported as adapter-defined execution instead of being mislabeled as the configured built-in plan.
 - The official CLI surface remains memory-first for stable read paths: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`. The package bin is Node-safe, but command execution is still Bun-backed today.
-- Phase 35 has widened the installed CLI with managed host-config commands: `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>`. Those commands now manage GoodMemory-owned global config, repo-local opt-in blocks, and user-level MCP registration on the supported host config paths; they do not replace the accepted bootstrap path or create canonical memory state implicitly.
-- Phase 35 now also exposes explicit installed hook handlers on the CLI: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. These commands are machine-facing, read hook JSON from stdin, and call the existing `recall()` + `buildContext()` path with fail-open behavior when config is missing, disabled, malformed, or empty. User-level automatic hook registration is still pending.
+- Phase 35 has widened the installed CLI with managed host-config commands: `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>`. Those commands now manage GoodMemory-owned global config, repo-local opt-in blocks, user-level MCP registration, and user-level hook registration on the supported host config paths; they do not replace the accepted bootstrap path or create canonical memory state implicitly.
+- Phase 35 now also exposes explicit installed hook handlers on the CLI: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. These commands are machine-facing, read hook JSON from stdin, and call the existing `recall()` + `buildContext()` path with fail-open behavior when config is missing, disabled, malformed, or empty. `goodmemory install codex|claude` now wires those handlers into the supported user-level host config files automatically.
 - Phase 35 now ships a read-only installed MCP surface through `goodmemory mcp serve --host <codex|claude>` and `goodmemory-mcp --host <codex|claude>`. The exposed tool set is intentionally read-only: `goodmemory_get_context`, `goodmemory_inspect_memory`, `goodmemory_trace_recall`, `goodmemory_read_artifacts`, and `goodmemory_stats`.
 - Phase 35 now also exposes explicit write CLI commands on the installed/package surface: `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget`. These commands stay on the public memory-first API path, accept explicit scope/storage flags, and can optionally reuse installed-host storage and derived scope defaults via `--host <codex|claude>`.
 - Installed-package external host wiring is now part of the accepted OSS surface through `goodmemory codex bootstrap` and `goodmemory claude bootstrap`; those commands only generate or patch repo-local host scaffolds and do not create canonical memory state.
@@ -34,23 +34,20 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 34 is now closed as the host pre-action policy and veto-contract slice.
+- Phase 35 is now closed as the installed host-memory middleware and hooks slice.
 - Accepted behavior:
-  - `goodmemory/host` now publicly ships `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()` on the packaged surface
-  - pre-action assessment deterministically consumes active `validated_pattern`, linked evidence, working memory, and session journal instead of inventing a second policy database
-  - assessed actions can record auditable internal experiences keyed by `actionId`, and later realized host events keep `parentEventId = actionId`
-  - external `user_correction` now lands as `coding_agent`-scoped procedural guidance on the adapter/event path, and adapter-event receipts expose the proposal/promotion lineage triggered by that feedback experience
-  - repeated procedural-rule rendering in the final coding-agent context is deduped instead of surfacing the same rule multiple times
-  - installed-package `goodmemory codex bootstrap` now emits the Codex action-gate wrapper plus repo-local hook/rules parity scaffolds through public imports only:
-    - `.goodmemory/bootstrap/codex-action.mjs`
-    - `.codex/hooks.json`
-    - `.codex/config.toml`
-    - `codex/rules/goodmemory.rules`
-  - the canonical live enforcement path is the installed-package Codex action-gate wrapper; `.codex/hooks.json` and `codex/rules/goodmemory.rules` are parity scaffolds and are not treated as the canonical live blocker
-  - the accepted external host product line from Phase 32 and the Node-compatible package boundary from Phase 33 remain intact underneath the new host pre-action slice
-- Still outside the accepted Phase 34 claim:
-  - claiming native Codex hook interception is the canonical live blocker without direct evidence from the current runtime
+  - `goodmemory install codex|claude`, `uninstall`, `enable`, and `disable` now form the canonical installed host-config surface
+  - user-level install merges and rolls back supported host config safely:
+    - Codex: `~/.codex/config.toml` and `~/.codex/hooks.json`
+    - Claude Code: `~/.claude.json` and `~/.claude/settings.json`
+  - `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>` are now the canonical always-on recall path on the installed host line
+  - `goodmemory mcp serve` / `goodmemory-mcp` is the accepted read-only deep-read and debug surface on the installed path
+  - explicit write CLI on the installed path is accepted through `goodmemory remember`, `feedback`, and `forget`
+  - the deterministic installed-hook middleware path now beats the no-memory baseline and stays non-regressive against the frozen Phase 32 text-only external-host path
+  - the canonical tarball-first Codex middleware evidence path now proves global install, repo opt-in, hook injection, and MCP availability together
+- Still outside the accepted Phase 35 claim:
   - public `goodmemory/evolution`
+  - automatic writeback, transcript persistence, or `Stop` hook behavior
   - dashboard/admin UI or new memory capability work
   - making Claude a second live gate blocker
 
@@ -114,6 +111,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic/live gate: `reports/quality-gates/phase-34/run-20260422235930/phase-34-quality-gate.json`
   - Deterministic fallback report: `reports/eval/fallback/phase-34/run-20260422213045/report.json`
   - Codex action-gate live report: `reports/eval/live-memory/phase-34/run-phase34-live-current/report.json`
+- Installed host-memory middleware and hooks closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
+  - Deterministic/live gate: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
+  - Deterministic fallback report: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
+  - Codex middleware live report: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

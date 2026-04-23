@@ -197,12 +197,12 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-34-Quality-Gate.md`
   - `goodmemory/host` now exposes `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and the execution-plan bridge for pre-action rewrite/veto outcomes
   - the canonical live enforcement path is the installed-package Codex action-gate wrapper, while `.codex/hooks.json` and `codex/rules/goodmemory.rules` remain parity scaffolds instead of the live blocker
-- Phase 35 is now queued as the installed host-memory middleware and hooks slice:
-  - ship `goodmemory-mcp`
-  - add `goodmemory install codex` and `goodmemory install claude`
-  - add explicit repo opt-in through `enable` / `disable`
-  - make `SessionStart` and `UserPromptSubmit` the canonical automatic recall path through hook-injected context
-  - keep Codex as the only live blocker while Claude reaches install/hook/package-smoke parity
+- Phase 35 is now closed as the installed host-memory middleware and hooks slice:
+  - deterministic dual-baseline evidence: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
+  - live middleware evidence: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
+  - quality gate: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
+  - external users now have a canonical Codex path for global install, explicit repo opt-in, automatic hook-injected recall, read-only MCP deep read, and explicit write seeding
 - Any work after Phase 35 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.

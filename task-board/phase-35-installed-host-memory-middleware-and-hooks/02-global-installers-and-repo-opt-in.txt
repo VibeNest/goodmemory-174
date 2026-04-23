@@ -5,7 +5,7 @@ Phase 35.2: Global Installers and Repo Opt-In
 [WIP] Base repo enable/disable commands are now explicit, reversible, and idempotent.
 [WIP] User-level managed config now merges instead of blindly overwriting stored values.
 [WIP] The installed-host middleware path now defaults to `~/.goodmemory/memory.sqlite`.
-[WIP] Explicit phase-35 hook handler commands now exist; global install still needs to register them automatically, and MCP registration stays deferred to Phase 35.4.
+[DONE] Explicit phase-35 hook handler commands now exist, and global install now registers both hook wiring and MCP wiring automatically.
 
 CLI Surface
 -----------
@@ -50,6 +50,5 @@ Current Slice
 - locked by:
   - `tests/unit/host-install.test.ts`
   - `tests/cli/cli.test.ts`
-- still deferred to later phase-35 tasks:
-  - host-level hook registration
-  - host-level MCP registration
+- locked further by:
+  - automatic user-level hook registration rollback and conflict tests
