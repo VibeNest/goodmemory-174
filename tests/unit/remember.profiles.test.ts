@@ -3,6 +3,14 @@ import { rememberRules } from "../../src";
 import { resolveRememberProfile } from "../../src/remember/profiles";
 
 const scope = { userId: "u-1", agentId: "life-coach" };
+const rawExtractor = {
+  async extract() {
+    return {
+      candidates: [],
+      ignoredMessageCount: 0,
+    };
+  },
+};
 
 describe("remember profile rule helpers", () => {
   it("preserves metadata supplied through regex rules", () => {
@@ -119,5 +127,113 @@ describe("remember profile rule helpers", () => {
     });
 
     expect(resolved.id).toBe("life-coach");
+  });
+
+  it("normalizes raw and named profile extractors to stable trace ids", () => {
+    const namedExtractor = {
+      id: "life-coach-values-extractor",
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    };
+    const resolved = resolveRememberProfile({
+      scope,
+      config: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            extractors: [rawExtractor, namedExtractor],
+          },
+        ],
+      },
+    });
+
+    expect(resolved.extractors.map((extractor) => extractor.id)).toEqual([
+      "life-coach:extractor-1",
+      "life-coach-values-extractor",
+    ]);
+    expect(resolved.extractors[0]?.extractor).toBe(rawExtractor);
+    expect(resolved.extractors[1]?.extractor).toBe(namedExtractor.extractor);
+  });
+
+  it("rejects blank named profile extractor ids", () => {
+    expect(() =>
+      resolveRememberProfile({
+        scope,
+        config: {
+          profiles: [
+            {
+              id: "life-coach",
+              when: { agentId: "life-coach" },
+              extractors: [
+                {
+                  id: "   ",
+                  extractor: rawExtractor,
+                },
+              ],
+            },
+          ],
+        },
+      })
+    ).toThrow(
+      'Remember profile "life-coach" extractor id at index 1 must not be blank.',
+    );
+  });
+
+  it("rejects duplicate or raw-namespace profile extractor ids", () => {
+    expect(() =>
+      resolveRememberProfile({
+        scope,
+        config: {
+          profiles: [
+            {
+              id: "life-coach",
+              when: { agentId: "life-coach" },
+              extractors: [
+                rawExtractor,
+                {
+                  id: "life-coach:extractor-1",
+                  extractor: rawExtractor,
+                },
+              ],
+            },
+          ],
+        },
+      })
+    ).toThrow(
+      'Remember profile "life-coach" extractor id "life-coach:extractor-1" is reserved for generated raw extractor ids.',
+    );
+
+    expect(() =>
+      resolveRememberProfile({
+        scope,
+        config: {
+          profiles: [
+            {
+              id: "life-coach",
+              when: { agentId: "life-coach" },
+              extractors: [
+                {
+                  id: "life-coach-values-extractor",
+                  extractor: rawExtractor,
+                },
+                {
+                  id: "life-coach-values-extractor",
+                  extractor: rawExtractor,
+                },
+              ],
+            },
+          ],
+        },
+      })
+    ).toThrow(
+      'Remember profile "life-coach" has duplicate extractor id "life-coach-values-extractor".',
+    );
   });
 });

@@ -35,6 +35,7 @@ Design Notes
 - If no profile matches, use `remember.preset ?? "default"`.
 - Profile `extends` defaults to the configured preset.
 - Profile custom extractors return normal `MemoryExtractionResult` and must pass through existing normalization, classification, policy, evidence, vector, and rollback paths.
+- Profile custom extractors may use either the legacy raw `MemoryExtractor` form or the named `{ id, extractor }` form; named ids are preferred for replayable traces.
 - Assisted extraction still runs after deterministic/profile extraction so it can enrich rather than erase host-defined rules.
 
 
@@ -43,4 +44,4 @@ Acceptance
 - unit tests cover profile matching order and fallback behavior
 - integration tests prove current remember output is unchanged without `remember` config
 - tests prove profile extractors compose with assisted extraction
-- remember metadata includes resolved profile/preset information
+- remember metadata includes resolved profile/preset information and stable named extractor ids

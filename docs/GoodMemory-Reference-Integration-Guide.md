@@ -163,6 +163,31 @@ Host annotations should be used for explicit write intent:
 - `remember: "always"` can raise a valid low-confidence candidate through normal classification and policy; it does not bypass redaction or policy hooks.
 - `metadataPatch`, `kindHint`, `confirmed`, `verified`, and `reason` are preserved in remember traces so audit output can explain why a write changed.
 
+Custom domain extractors should use the named profile form when trace stability
+matters:
+
+```ts
+extractors: [
+  {
+    id: "life-coach-values-extractor",
+    extractor: {
+      async extract(input) {
+        return {
+          candidates: [],
+          ignoredMessageCount: 0,
+        };
+      },
+    },
+  },
+],
+```
+
+The raw `MemoryExtractor` array form remains supported for compatibility; the
+named form keeps `extractorIds` stable across profile reordering and replayed
+evals. Named extractor ids are audit identities: they must be non-blank and
+unique in the resolved profile, and they cannot use the generated
+`${profileId}:extractor-N` raw-extractor namespace.
+
 Storage guidance stays deployment-dependent:
 
 - in-memory storage is for tests and short-lived demos

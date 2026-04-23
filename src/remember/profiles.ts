@@ -52,12 +52,21 @@ export interface RememberRule {
   extract(input: MemoryExtractionInput): MemoryCandidate[];
 }
 
+export interface NamedRememberProfileExtractor {
+  id: string;
+  extractor: MemoryExtractor;
+}
+
+export type RememberProfileExtractor =
+  | MemoryExtractor
+  | NamedRememberProfileExtractor;
+
 export interface RememberProfile {
   id: string;
   when?: RememberProfileMatcher;
   extends?: RememberPresetId;
   rules?: RememberRule[];
-  extractors?: MemoryExtractor[];
+  extractors?: RememberProfileExtractor[];
   assistantOutputs?: AssistantMemoryPolicy;
 }
 
@@ -69,10 +78,15 @@ export interface RememberConfig {
 
 export interface ResolvedRememberProfile {
   assistantOutputs: AssistantMemoryPolicy;
-  extractors: MemoryExtractor[];
+  extractors: ResolvedRememberProfileExtractor[];
   id: string;
   presetId: RememberPresetId;
   rules: RememberRule[];
+}
+
+export interface ResolvedRememberProfileExtractor {
+  extractor: MemoryExtractor;
+  id: string;
 }
 
 function resolveRuleValue<
@@ -91,6 +105,66 @@ function appendRuleId(
   return {
     ...candidate,
     ruleIds: [...new Set([...(candidate.ruleIds ?? []), ruleId])],
+  };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function isGeneratedProfileExtractorId(input: {
+  id: string;
+  profileId: string;
+}): boolean {
+  return new RegExp(`^${escapeRegExp(input.profileId)}:extractor-\\d+$`, "u")
+    .test(input.id);
+}
+
+function resolveProfileExtractor(input: {
+  extractor: RememberProfileExtractor;
+  index: number;
+  profileId: string;
+  seenIds: Set<string>;
+}): ResolvedRememberProfileExtractor {
+  const generatedId = `${input.profileId}:extractor-${input.index + 1}`;
+  const resolved = "extractor" in input.extractor
+    ? {
+        extractor: input.extractor.extractor,
+        id: input.extractor.id.trim(),
+        named: true,
+      }
+    : {
+        extractor: input.extractor,
+        id: generatedId,
+        named: false,
+      };
+
+  if (resolved.named && resolved.id.length === 0) {
+    throw new Error(
+      `Remember profile "${input.profileId}" extractor id at index ${input.index + 1} must not be blank.`,
+    );
+  }
+
+  if (
+    resolved.named &&
+    isGeneratedProfileExtractorId({ id: resolved.id, profileId: input.profileId })
+  ) {
+    throw new Error(
+      `Remember profile "${input.profileId}" extractor id "${resolved.id}" is reserved for generated raw extractor ids.`,
+    );
+  }
+
+  if (input.seenIds.has(resolved.id)) {
+    throw new Error(
+      `Remember profile "${input.profileId}" has duplicate extractor id "${resolved.id}".`,
+    );
+  }
+
+  input.seenIds.add(resolved.id);
+
+  return {
+    extractor: resolved.extractor,
+    id: resolved.id,
   };
 }
 
@@ -395,11 +469,21 @@ export function resolveRememberProfile(input: {
   const matchedProfile =
     profiles.find((profile) => profile.when && profileMatches(profile)) ??
     profiles.find((profile) => !profile.when);
+  const profileId = matchedProfile?.id ?? presetId;
+  const seenExtractorIds = new Set<string>();
+  const extractors = (matchedProfile?.extractors ?? []).map((extractor, index) =>
+    resolveProfileExtractor({
+      extractor,
+      index,
+      profileId,
+      seenIds: seenExtractorIds,
+    })
+  );
 
   return {
     assistantOutputs: matchedProfile?.assistantOutputs ?? { mode: "ignore" },
-    extractors: matchedProfile?.extractors ?? [],
-    id: matchedProfile?.id ?? presetId,
+    extractors,
+    id: profileId,
     presetId: matchedProfile?.extends ?? presetId,
     rules: matchedProfile?.rules ?? [],
   };

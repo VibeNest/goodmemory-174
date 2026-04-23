@@ -213,7 +213,7 @@ Current Sequencing Note
   - provider-backed live-memory evidence: `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
   - quality gate: `reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
-  - accepted surface: public `remember` config, profiles, rules, annotations, assistant-output policy, domain metadata, and traceable extractor composition
+  - accepted surface: public `remember` config, profiles, rules, annotations, assistant-output policy, domain metadata, and traceable extractor composition with stable custom extractor ids
   - OneLife / life-coach remains a reference pattern, not a built-in preset
 - Any work after Phase 35 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.

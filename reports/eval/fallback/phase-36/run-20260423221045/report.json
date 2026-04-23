@@ -20,6 +20,7 @@
         }
       ],
       "caseId": "life-coach-domain-rules",
+      "extractorIds": [],
       "focus": "rules_dsl",
       "passed": true
     },
@@ -35,6 +36,7 @@
         }
       ],
       "caseId": "assistant-confirmed-policy",
+      "extractorIds": [],
       "focus": "assistant_policy",
       "passed": true
     },
@@ -50,6 +52,7 @@
         }
       ],
       "caseId": "never-annotation-masking",
+      "extractorIds": [],
       "focus": "annotation_privacy",
       "passed": true
     },
@@ -62,9 +65,16 @@
         {
           "label": "trace-preserved",
           "passed": true
+        },
+        {
+          "label": "stable-extractor-ids",
+          "passed": true
         }
       ],
       "caseId": "custom-assisted-composition",
+      "extractorIds": [
+        "life-coach-launch-owner-extractor"
+      ],
       "focus": "extractor_composition",
       "passed": true
     },
@@ -80,11 +90,12 @@
         }
       ],
       "caseId": "domain-metadata-export",
+      "extractorIds": [],
       "focus": "metadata_audit",
       "passed": true
     }
   ],
-  "generatedAt": "2026-04-23T14:08:29.917Z",
+  "generatedAt": "2026-04-23T14:38:41.051Z",
   "generatedBy": "scripts/run-phase-36-eval.ts",
   "mode": "fallback",
   "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36",

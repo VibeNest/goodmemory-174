@@ -67,6 +67,11 @@ describe("run-phase-36 eval script", () => {
     expect(report.summary.extractorCompositionPassCount).toBe(1);
     expect(report.summary.domainMetadataPassCount).toBe(1);
     expect(report.cases.every((caseResult) => caseResult.passed)).toBe(true);
+    expect(
+      report.cases.find(
+        (caseResult) => caseResult.caseId === "custom-assisted-composition",
+      )?.extractorIds,
+    ).toEqual(["life-coach-launch-owner-extractor"]);
     expect(directories).toEqual([
       "/tmp/goodmemory/reports/eval/fallback/phase-36/run-phase36",
     ]);

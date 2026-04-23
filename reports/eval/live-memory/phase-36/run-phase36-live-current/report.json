@@ -1,9 +1,12 @@
 {
   "acceptance": {
     "decision": "accepted",
-    "reason": "Provider-backed assisted extraction ran while public profile rules wrote domain memory through the normal pipeline."
+    "reason": "Provider-backed assisted extraction ran while public profile rules wrote domain memory and emitted the stable profile extractor id."
   },
   "evidence": {
+    "extractorIds": [
+      "life-coach-live-domain-extractor"
+    ],
     "providerBacked": true,
     "publicConfigOnly": true,
     "resolvedExtractionStrategy": "llm-assisted",
@@ -15,7 +18,7 @@
       "runtimePath": "provider_backed_public_write_smoke"
     }
   },
-  "generatedAt": "2026-04-23T11:52:31.463Z",
+  "generatedAt": "2026-04-23T14:38:07.126Z",
   "generatedBy": "scripts/run-phase-36-live-memory.ts",
   "mode": "live-memory",
   "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-36",

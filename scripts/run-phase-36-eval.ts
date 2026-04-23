@@ -43,6 +43,7 @@ export interface Phase36CaseResult {
     | "annotation_privacy"
     | "extractor_composition"
     | "metadata_audit";
+  extractorIds: string[];
   passed: boolean;
 }
 
@@ -133,18 +134,35 @@ function assertCase(
   caseId: Phase36CaseResult["caseId"],
   focus: Phase36CaseResult["focus"],
   assertions: Phase36CaseResult["assertions"],
+  evidence: { extractorIds?: string[] } = {},
 ): Phase36CaseResult {
   return {
     assertions,
     caseId,
+    extractorIds: evidence.extractorIds ?? [],
     focus,
     passed: assertions.every((assertion) => assertion.passed),
   };
 }
 
+function collectExtractorIds(
+  memory: Awaited<ReturnType<GoodMemory["remember"]>>,
+): string[] {
+  const extractorIds = new Set<string>();
+
+  for (const event of memory.events) {
+    for (const extractorId of event.extractorIds ?? []) {
+      extractorIds.add(extractorId);
+    }
+  }
+
+  return [...extractorIds];
+}
+
 function hasWrittenEvent(
   memory: Awaited<ReturnType<GoodMemory["remember"]>>,
   input: {
+    extractorId?: string;
     extractionSources?: MemoryExtractionStrategy[];
     profileId?: string;
     ruleId?: string;
@@ -153,6 +171,7 @@ function hasWrittenEvent(
   return memory.events.some(
     (event) =>
       event.outcome === "written" &&
+      (!input.extractorId || event.extractorIds?.includes(input.extractorId)) &&
       (!input.profileId || event.profileId === input.profileId) &&
       (!input.ruleId || event.ruleIds?.includes(input.ruleId)) &&
       (!input.extractionSources ||
@@ -346,6 +365,7 @@ async function runNeverAnnotationMaskingCase(): Promise<Phase36CaseResult> {
 
 async function runCustomAssistedCompositionCase(): Promise<Phase36CaseResult> {
   const scope: MemoryScope = { agentId: "life-coach", userId: "phase36-user" };
+  const extractorId = "life-coach-launch-owner-extractor";
   const memory = createGoodMemory({
     adapters: {
       assistedExtractor: {
@@ -372,21 +392,24 @@ async function runCustomAssistedCompositionCase(): Promise<Phase36CaseResult> {
         {
           extractors: [
             {
-              async extract() {
-                return {
-                  candidates: [
-                    {
-                      content: "Maya owns the launch checklist.",
-                      explicitness: "explicit",
-                      id: "profile-launch-owner",
-                      kindHint: "fact",
-                      metadata: { category: "project" },
-                      sourceMessageIndex: 0,
-                      sourceRole: "user",
-                    },
-                  ],
-                  ignoredMessageCount: 0,
-                };
+              id: extractorId,
+              extractor: {
+                async extract() {
+                  return {
+                    candidates: [
+                      {
+                        content: "Maya owns the launch checklist.",
+                        explicitness: "explicit",
+                        id: "profile-launch-owner",
+                        kindHint: "fact",
+                        metadata: { category: "project" },
+                        sourceMessageIndex: 0,
+                        sourceRole: "user",
+                      },
+                    ],
+                    ignoredMessageCount: 0,
+                  };
+                },
               },
             },
           ],
@@ -402,6 +425,7 @@ async function runCustomAssistedCompositionCase(): Promise<Phase36CaseResult> {
     messages: [{ content: "Maya owns the launch checklist.", role: "user" }],
     scope,
   });
+  const extractorIds = collectExtractorIds(result);
 
   return assertCase("custom-assisted-composition", "extractor_composition", [
     {
@@ -411,11 +435,16 @@ async function runCustomAssistedCompositionCase(): Promise<Phase36CaseResult> {
     {
       label: "trace-preserved",
       passed: hasWrittenEvent(result, {
+        extractorId,
         extractionSources: ["rules-only", "llm-assisted"],
         profileId: "life-coach",
       }),
     },
-  ]);
+    {
+      label: "stable-extractor-ids",
+      passed: extractorIds.includes(extractorId),
+    },
+  ], { extractorIds });
 }
 
 async function runDomainMetadataExportCase(): Promise<Phase36CaseResult> {

@@ -40,6 +40,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - `createGoodMemory({ remember: ... })` is public API for domain-specific write profiles
   - `rememberRules` supports regex, predicate, and direct mapper rules that produce normal candidates
   - profile custom extractors compose with deterministic and assisted extraction instead of replacing normalization, classification, policy, evidence, conflict handling, vector writes, or rollback
+  - profile custom extractors can use named `{ id, extractor }` entries so remember traces and eval reports keep stable `extractorIds`; blank, duplicate, or generated raw-namespace ids fail during profile resolution
   - `RememberInput.annotations` supports host write intent, metadata patches, kind hints, confirmation, verification, and reasons
   - assistant-originated durable writes remain ignored by default and require both host annotation and an allowing profile policy
   - `remember: "never"` masks annotated message content before deterministic, custom, or assisted extraction

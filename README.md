@@ -101,6 +101,13 @@ the selected profile must allow confirmed or verified assistant output.
 `remember: "never"` suppresses the annotated message before deterministic,
 custom, or assisted extraction.
 
+Profile `extractors` can be supplied either as raw `MemoryExtractor` objects or
+as `{ id, extractor }` entries. Use the named form for product integrations so
+remember events and eval reports carry stable `extractorIds` even if the profile
+composition order changes. Named ids must be non-blank, unique within the
+resolved profile, and outside the generated raw-extractor id namespace
+`${profileId}:extractor-N`; invalid ids fail during profile resolution.
+
 ## Install
 
 GoodMemory `0.1.1` now exposes a Node-compatible packaged library boundary for:

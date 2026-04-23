@@ -16,6 +16,13 @@ function createAcceptedPhase36DeterministicReport(): string {
     acceptance: {
       decision: "accepted",
     },
+    cases: [
+      {
+        caseId: "custom-assisted-composition",
+        extractorIds: ["life-coach-launch-owner-extractor"],
+        passed: true,
+      },
+    ],
     generatedBy: "scripts/run-phase-36-eval.ts",
     mode: "fallback",
     phase: "phase-36",
@@ -36,6 +43,7 @@ function createAcceptedPhase36LiveReport(): string {
       decision: "accepted",
     },
     evidence: {
+      extractorIds: ["life-coach-live-domain-extractor"],
       providerBacked: true,
       publicConfigOnly: true,
       wroteDomainMemory: true,

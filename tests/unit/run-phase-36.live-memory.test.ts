@@ -53,6 +53,7 @@ describe("run-phase-36 live-memory script", () => {
     expect(report.phase).toBe("phase-36");
     expect(report.mode).toBe("live-memory");
     expect(report.acceptance.decision).toBe("blocked");
+    expect(report.evidence.extractorIds).toEqual([]);
     expect(report.evidence.providerBacked).toBe(false);
     expect(report.evidence.publicConfigOnly).toBe(true);
     expect(report.evidenceContract.phase36.runner).toBe(

@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { GoodMemory } from "../src";
 import {
   createGoodMemory,
   rememberRules,
@@ -32,6 +33,7 @@ export interface Phase36LiveMemoryReport {
     reason: string;
   };
   evidence: {
+    extractorIds: string[];
     providerBacked: boolean;
     publicConfigOnly: boolean;
     resolvedExtractionStrategy?: string;
@@ -54,6 +56,21 @@ export interface Phase36LiveMemoryReport {
 
 const GENERATED_BY = "scripts/run-phase-36-live-memory.ts";
 const PHASE36_CANONICAL_LIVE_RUN_ID = "run-phase36-live-current";
+const PHASE36_LIVE_DOMAIN_EXTRACTOR_ID = "life-coach-live-domain-extractor";
+
+function collectExtractorIds(
+  memory: Awaited<ReturnType<GoodMemory["remember"]>>,
+): string[] {
+  const extractorIds = new Set<string>();
+
+  for (const event of memory.events) {
+    for (const extractorId of event.extractorIds ?? []) {
+      extractorIds.add(extractorId);
+    }
+  }
+
+  return [...extractorIds];
+}
 
 export function resolvePhase36LiveMemoryOutputDir(root: string): string {
   return join(root, "reports/eval/live-memory/phase-36");
@@ -93,6 +110,7 @@ export async function runPhase36LiveMemoryEval(
             "GOODMEMORY_ASSISTED_EXTRACTOR_* is not configured, so provider-backed Phase 36 live-memory evidence cannot run.",
         },
         evidence: {
+          extractorIds: [],
           providerBacked: false,
           publicConfigOnly: true,
           wroteDomainMemory: false,
@@ -130,6 +148,39 @@ export async function runPhase36LiveMemoryEval(
                   content: ({ match }) => match[1] ?? "",
                 }),
               ],
+              extractors: [
+                {
+                  id: PHASE36_LIVE_DOMAIN_EXTRACTOR_ID,
+                  extractor: {
+                    async extract(input) {
+                      const content = input.messages
+                        .find((message) => message.role === "user")
+                        ?.content.match(/my top priority this quarter is (.+)/i)?.[1]
+                        ?.trim();
+
+                      return {
+                        candidates: content
+                          ? [
+                              {
+                                content,
+                                explicitness: "explicit",
+                                id: "live-profile-domain-goal",
+                                kindHint: "fact",
+                                metadata: {
+                                  category: "goal",
+                                  tags: ["life_coach", "live_memory"],
+                                },
+                                sourceMessageIndex: 0,
+                                sourceRole: "user",
+                              },
+                            ]
+                          : [],
+                        ignoredMessageCount: 0,
+                      };
+                    },
+                  },
+                },
+              ],
             },
           ],
         },
@@ -149,19 +200,26 @@ export async function runPhase36LiveMemoryEval(
       const exported = await memory.exportMemory({ scope });
       const providerBacked =
         remember.metadata?.resolvedExtractionStrategy === "llm-assisted";
-      const wroteDomainMemory =
-        exported.durable.facts[0]?.category === "goal" &&
-        exported.durable.facts[0]?.tags?.includes("live_memory") === true;
-      const accepted = providerBacked && wroteDomainMemory;
+      const wroteDomainMemory = exported.durable.facts.some(
+        (fact) =>
+          fact.category === "goal" &&
+          fact.tags?.includes("live_memory") === true,
+      );
+      const extractorIds = collectExtractorIds(remember);
+      const tracedProfileExtractor = extractorIds.includes(
+        PHASE36_LIVE_DOMAIN_EXTRACTOR_ID,
+      );
+      const accepted = providerBacked && wroteDomainMemory && tracedProfileExtractor;
 
       report = {
         acceptance: {
           decision: accepted ? "accepted" : "blocked",
           reason: accepted
-            ? "Provider-backed assisted extraction ran while public profile rules wrote domain memory through the normal pipeline."
-            : "Provider-backed assisted extraction did not complete or domain memory was not written.",
+            ? "Provider-backed assisted extraction ran while public profile rules wrote domain memory and emitted the stable profile extractor id."
+            : "Provider-backed assisted extraction did not complete, domain memory was not written, or the profile extractor id was not traced.",
         },
         evidence: {
+          extractorIds,
           providerBacked,
           publicConfigOnly: true,
           resolvedExtractionStrategy: remember.metadata?.resolvedExtractionStrategy,
@@ -191,6 +249,7 @@ export async function runPhase36LiveMemoryEval(
           : "Phase 36 provider-backed live-memory smoke failed.",
       },
       evidence: {
+        extractorIds: [],
         providerBacked: false,
         publicConfigOnly: true,
         wroteDomainMemory: false,

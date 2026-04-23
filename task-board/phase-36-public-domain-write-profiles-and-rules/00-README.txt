@@ -27,6 +27,7 @@ Acceptance
 - built-in `default` and `coding_agent` write presets preserve existing behavior
 - domain profiles can be selected by scope or custom matcher
 - rules and custom extractors compose with assisted extraction instead of replacing the pipeline
+- named custom extractors keep stable trace ids for replayed evals and audit output
 - message annotations can explicitly suppress, force, or enrich candidate writes
 - assistant-originated durable writes are opt-in and evidence-gated
 - remember traces explain profile, rule, extractor, annotation, and strategy influence

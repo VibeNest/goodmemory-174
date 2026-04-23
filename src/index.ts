@@ -199,9 +199,11 @@ export type {
 export { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
 export type {
   AssistantMemoryPolicy,
+  NamedRememberProfileExtractor,
   RememberConfig,
   RememberPresetId,
   RememberProfile,
+  RememberProfileExtractor,
   RememberProfileMatcher,
   RememberRule,
   RememberRuleMatchContext,

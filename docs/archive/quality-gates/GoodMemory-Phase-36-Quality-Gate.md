@@ -55,6 +55,7 @@ Out of scope:
   - provider-backed assisted extraction ran while public profile rules wrote domain memory through the normal pipeline
   - host `remember: "never"` annotations suppress content before deterministic, custom, or assisted extraction
   - annotation metadata, rules, profile, custom extractor, and assisted extraction influence remain visible in remember traces
+  - named public custom extractors keep stable trace ids for replayed evals and audit output
 
 ## Evidence Rule
 

@@ -427,6 +427,65 @@ describe("public remember profile customization", () => {
     });
   });
 
+  it("uses stable public ids for named profile extractors in remember traces", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            extractors: [
+              {
+                id: "life-coach-values-extractor",
+                extractor: {
+                  async extract() {
+                    return {
+                      candidates: [
+                        {
+                          id: "life-core-value",
+                          kindHint: "fact",
+                          explicitness: "explicit",
+                          content: "Family dinners are a core weekly anchor.",
+                          sourceMessageIndex: 0,
+                          sourceRole: "user",
+                          metadata: {
+                            category: "value",
+                            tags: ["life_coach", "values"],
+                          },
+                        },
+                      ],
+                      ignoredMessageCount: 0,
+                    };
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [
+        {
+          role: "user",
+          content: "Family dinners are a core weekly anchor.",
+        },
+      ],
+      extractionStrategy: "rules-only",
+    });
+    const writtenEvent = result.events.find((event) => event.outcome === "written");
+
+    expect(result.accepted).toBe(1);
+    expect(writtenEvent).toMatchObject({
+      extractorIds: ["life-coach-values-extractor"],
+      profileId: "life-coach",
+      presetId: "default",
+    });
+  });
+
   it("dedupes candidates after annotation metadata enrichment", async () => {
     const memory = createGoodMemory({
       storage: { provider: "memory" },

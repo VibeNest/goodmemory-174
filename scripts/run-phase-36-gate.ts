@@ -79,6 +79,11 @@ interface ValidatedPhase36DeterministicReport {
   acceptance: {
     decision: "accepted" | "blocked";
   };
+  cases: Array<{
+    caseId: string;
+    extractorIds?: string[];
+    passed: boolean;
+  }>;
   generatedBy: "scripts/run-phase-36-eval.ts";
   mode: "fallback";
   phase: "phase-36";
@@ -97,6 +102,7 @@ interface ValidatedPhase36LiveReport {
     decision: "accepted" | "blocked";
   };
   evidence: {
+    extractorIds?: string[];
     providerBacked: boolean;
     publicConfigOnly: boolean;
     wroteDomainMemory: boolean;
@@ -116,6 +122,8 @@ const GENERATED_BY = "scripts/run-phase-36-gate.ts";
 const PHASE36_CANONICAL_DETERMINISTIC_RUN_ID = "run-20260423221045";
 const PHASE36_CANONICAL_LIVE_RUN_ID = "run-phase36-live-current";
 const PHASE36_CANONICAL_GATE_RUN_ID = "run-20260423223045";
+const PHASE36_FALLBACK_EXTRACTOR_ID = "life-coach-launch-owner-extractor";
+const PHASE36_LIVE_EXTRACTOR_ID = "life-coach-live-domain-extractor";
 const PHASE36_IN_SCOPE = [
   "public remember config, profile resolution, rules DSL, annotations, assistant-output policy, and metadata persistence",
   "deterministic Phase 36 eval over life-coach/domain-write public configuration",
@@ -442,9 +450,16 @@ export async function runPhase36QualityGate(
     deterministic.summary.rulesDslPassCount === 1 &&
     deterministic.summary.annotationPolicyPassCount === 2 &&
     deterministic.summary.extractorCompositionPassCount === 1 &&
+    deterministic.cases.some(
+      (caseResult) =>
+        caseResult.caseId === "custom-assisted-composition" &&
+        caseResult.passed &&
+        caseResult.extractorIds?.includes(PHASE36_FALLBACK_EXTRACTOR_ID) === true,
+    ) &&
     deterministic.summary.domainMetadataPassCount === 1;
   const liveAccepted =
     live.acceptance.decision === "accepted" &&
+    live.evidence.extractorIds?.includes(PHASE36_LIVE_EXTRACTOR_ID) === true &&
     live.evidence.providerBacked &&
     live.evidence.publicConfigOnly &&
     live.evidence.wroteDomainMemory &&

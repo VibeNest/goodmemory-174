@@ -62,6 +62,7 @@ Definition of Done
 - `testing.extractor` remains usable for tests but is documented as non-product/deprecated for integrations.
 - Public profiles can add deterministic domain rules without replacing the entire extractor.
 - Public profiles can add custom extractors without bypassing normalization, classification, policy, evidence, conflict handling, vector writes, or rollback behavior.
+- Public custom extractors can use stable product-supplied ids so remember traces remain replayable when profile composition changes.
 - Assistant messages are ignored by default for durable writes.
 - Assistant-originated writes require explicit host annotations and an allowing assistant-output policy.
 - Domain-specific metadata can be stored without widening top-level memory kinds beyond profile, preference, reference, fact, feedback, and episode.

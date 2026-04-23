@@ -1,5 +1,6 @@
 import type {
   GoodMemoryConfig,
+  NamedRememberProfileExtractor,
   RememberInput,
   RememberProfile,
 } from "../../src";
@@ -95,8 +96,33 @@ const lifeCoachProfile: RememberProfile = {
       ],
     }),
   ],
+  extractors: [
+    {
+      id: "life-coach-values-extractor",
+      extractor: {
+        async extract() {
+          return {
+            candidates: [],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    },
+  ],
   assistantOutputs: {
     mode: "confirmed_or_verified_only",
+  },
+};
+
+const namedProfileExtractor: NamedRememberProfileExtractor = {
+  id: "life-coach-domain-extractor",
+  extractor: {
+    async extract() {
+      return {
+        candidates: [],
+        ignoredMessageCount: 0,
+      };
+    },
   },
 };
 
@@ -139,6 +165,7 @@ void embeddingAdapterConfig;
 void assistedExtractorConfig;
 void rememberConfig;
 void annotatedRememberInput;
+void namedProfileExtractor;
 
 const invalidEmbeddingConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },

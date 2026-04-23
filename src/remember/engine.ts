@@ -345,12 +345,11 @@ export function createRememberEngine(config: RememberEngineConfig) {
       ),
     );
 
-    for (const [index, profileExtractor] of profile.extractors.entries()) {
-      const extractorId = `${profile.id}:extractor-${index + 1}`;
+    for (const profileExtractor of profile.extractors) {
       const profileExtraction = annotateExtractionResult(
         normalizeExtractionResult(
           input,
-          await profileExtractor.extract(extractorInput),
+          await profileExtractor.extractor.extract(extractorInput),
         ),
         "rules-only",
       );
@@ -362,7 +361,10 @@ export function createRememberEngine(config: RememberEngineConfig) {
           candidates: profileExtraction.candidates.map((candidate) => ({
             ...candidate,
             extractorIds: [
-              ...new Set([...(candidate.extractorIds ?? []), extractorId]),
+              ...new Set([
+                ...(candidate.extractorIds ?? []),
+                profileExtractor.id,
+              ]),
             ],
             profileId: candidate.profileId ?? profile.id,
             presetId: candidate.presetId ?? profile.presetId,
