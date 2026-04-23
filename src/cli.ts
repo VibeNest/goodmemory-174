@@ -10,6 +10,17 @@ import type {
 } from "./api/contracts";
 import { bootstrapHostWorkspace, type BootstrapHostKind } from "./bootstrap/hostBootstrap";
 import { normalizeScope, type MemoryScope } from "./domain/scope";
+import {
+  disableHostWorkspace,
+  enableHostWorkspace,
+  installHost,
+  type InstalledHostKind,
+  uninstallHost,
+} from "./install/hostInstall";
+import {
+  type InstalledHostHookCommand,
+  executeInstalledHostHook,
+} from "./install/hostHookRuntime";
 import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
 import { resolveStoragePlan } from "./api/runtimeResolution";
@@ -129,14 +140,20 @@ const ROOT_HELP_TEXT = [
   "  trace           Run read-only recall diagnostics for a scope and query",
   "  export-memory   Export a memory snapshot plus Markdown artifacts",
   "  stats           Show scope-bounded counts and storage metadata",
-  "  codex           Bootstrap repo-local Codex wiring",
-  "  claude          Bootstrap repo-local Claude Code wiring",
+  "  install         Install managed global GoodMemory host config for Codex or Claude Code",
+  "  uninstall       Remove managed global GoodMemory host config for Codex or Claude Code",
+  "  enable          Enable repo-local GoodMemory host opt-in for Codex or Claude Code",
+  "  disable         Disable repo-local GoodMemory host opt-in for Codex or Claude Code",
+  "  codex           Codex bootstrap and installed hook commands",
+  "  claude          Claude Code bootstrap and installed hook commands",
   "  eval            Inspect eval run artifacts",
   "",
   "Help",
   "  goodmemory --help",
   "  goodmemory <command> --help",
   "  goodmemory eval --help",
+  "  goodmemory install --help",
+  "  goodmemory enable --help",
   "  goodmemory codex --help",
   "  goodmemory claude --help",
 ].join("\n");
@@ -244,6 +261,48 @@ const STATS_HELP_TEXT = [
   "  --include-runtime",
   "  --json",
 ].join("\n");
+const INSTALL_HELP_TEXT = [
+  "GoodMemory Install CLI",
+  "",
+  "Usage",
+  "  goodmemory install <codex|claude> [options]",
+  "",
+  "Commands",
+  "  codex         Install managed global GoodMemory host config for Codex",
+  "  claude        Install managed global GoodMemory host config for Claude Code",
+  "",
+  "Options",
+  "  --user-id <id>            Optional, defaults to the current OS username",
+  "  --memory-path <path>      Optional, defaults to ~/.goodmemory/memory.sqlite",
+  "  --json",
+].join("\n");
+const UNINSTALL_HELP_TEXT = [
+  "GoodMemory Uninstall CLI",
+  "",
+  "Usage",
+  "  goodmemory uninstall <codex|claude> [--json]",
+].join("\n");
+const ENABLE_HELP_TEXT = [
+  "GoodMemory Enable CLI",
+  "",
+  "Usage",
+  "  goodmemory enable <codex|claude> [options]",
+  "",
+  "Options",
+  "  --workspace-id <id>       Optional, defaults to the workspace folder name",
+  "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --json",
+].join("\n");
+const DISABLE_HELP_TEXT = [
+  "GoodMemory Disable CLI",
+  "",
+  "Usage",
+  "  goodmemory disable <codex|claude> [options]",
+  "",
+  "Options",
+  "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --json",
+].join("\n");
 const EVAL_INSPECT_HELP_TEXT = [
   "GoodMemory Eval Inspect",
   "",
@@ -263,34 +322,34 @@ const EVAL_EXPORT_CASE_HELP_TEXT = [
   "  goodmemory eval export-case --run-dir <path> --case-id <id> --output <path> [--force] [--json]",
 ].join("\n");
 const CODEX_HELP_TEXT = [
-  "GoodMemory Codex Bootstrap CLI",
+  "GoodMemory Codex CLI",
   "",
   "Usage",
-  "  goodmemory codex bootstrap --user-id <id> [options]",
+  "  goodmemory codex <command> [options]",
   "",
   "Commands",
   "  bootstrap     Generate repo-local Codex wiring on the installed package surface",
+  "  hook          Run installed Codex hook handlers from stdin JSON",
   "",
-  "Options",
-  "  --user-id <id>            Required",
-  "  --workspace-id <id>       Optional, defaults to the workspace folder name",
-  "  --workspace-root <path>   Optional, defaults to the current working directory",
-  "  --json",
+  "Help",
+  "  goodmemory codex --help",
+  "  goodmemory codex bootstrap --help",
+  "  goodmemory codex hook --help",
 ].join("\n");
 const CLAUDE_HELP_TEXT = [
-  "GoodMemory Claude Bootstrap CLI",
+  "GoodMemory Claude CLI",
   "",
   "Usage",
-  "  goodmemory claude bootstrap --user-id <id> [options]",
+  "  goodmemory claude <command> [options]",
   "",
   "Commands",
   "  bootstrap     Generate repo-local Claude Code wiring on the installed package surface",
+  "  hook          Run installed Claude Code hook handlers from stdin JSON",
   "",
-  "Options",
-  "  --user-id <id>            Required",
-  "  --workspace-id <id>       Optional, defaults to the workspace folder name",
-  "  --workspace-root <path>   Optional, defaults to the current working directory",
-  "  --json",
+  "Help",
+  "  goodmemory claude --help",
+  "  goodmemory claude bootstrap --help",
+  "  goodmemory claude hook --help",
 ].join("\n");
 const CODEX_BOOTSTRAP_HELP_TEXT = [
   "GoodMemory Codex Bootstrap",
@@ -303,6 +362,26 @@ const CLAUDE_BOOTSTRAP_HELP_TEXT = [
   "",
   "Usage",
   "  goodmemory claude bootstrap --user-id <id> [--workspace-id <id>] [--workspace-root <path>] [--json]",
+].join("\n");
+const CODEX_HOOK_HELP_TEXT = [
+  "GoodMemory Codex Hook",
+  "",
+  "Usage",
+  "  goodmemory codex hook <session-start|user-prompt-submit>",
+  "",
+  "Commands",
+  "  session-start        Read Codex SessionStart JSON from stdin and emit additionalContext JSON",
+  "  user-prompt-submit   Read Codex UserPromptSubmit JSON from stdin and emit additionalContext JSON",
+].join("\n");
+const CLAUDE_HOOK_HELP_TEXT = [
+  "GoodMemory Claude Hook",
+  "",
+  "Usage",
+  "  goodmemory claude hook <session-start|user-prompt-submit>",
+  "",
+  "Commands",
+  "  session-start        Read Claude SessionStart JSON from stdin and emit additionalContext JSON",
+  "  user-prompt-submit   Read Claude UserPromptSubmit JSON from stdin and emit additionalContext JSON",
 ].join("\n");
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -1469,6 +1548,65 @@ function renderBootstrapPayload(payload: {
   ].join("\n");
 }
 
+function renderInstalledHostPayload(input: {
+  actionLabel: "Disabled" | "Enabled" | "Installed" | "Uninstalled";
+  payload: {
+    changes: Array<{ action: string; relativePath: string }>;
+    configPath?: string;
+    host: string;
+    instructionPath?: string;
+    memoryPath?: string;
+    userId?: string;
+    workspaceRoot?: string;
+  };
+}): string {
+  const hostLabel = input.payload.host === "codex" ? "Codex" : "Claude Code";
+  const lines = [`${input.actionLabel} GoodMemory ${hostLabel} configuration`];
+
+  for (const change of input.payload.changes) {
+    lines.push(`- ${change.relativePath} (${change.action})`);
+  }
+  if (input.payload.configPath) {
+    lines.push(`- config: ${input.payload.configPath}`);
+  }
+  if (input.payload.instructionPath) {
+    lines.push(`- instructions: ${input.payload.instructionPath}`);
+  }
+  if (input.payload.memoryPath) {
+    lines.push(`- memory path: ${input.payload.memoryPath}`);
+  }
+  if (input.payload.userId) {
+    lines.push(`- userId: ${input.payload.userId}`);
+  }
+  if (input.payload.workspaceRoot) {
+    lines.push(`- workspace: ${input.payload.workspaceRoot}`);
+  }
+
+  return lines.join("\n");
+}
+
+function requireInstalledHostKind(value: string | undefined): InstalledHostKind {
+  if (value === "codex" || value === "claude") {
+    return value;
+  }
+
+  throw new Error(
+    `Unknown host target: ${value ?? "(missing)"}. Use 'codex' or 'claude'.`,
+  );
+}
+
+function requireInstalledHostHookCommand(
+  value: string | undefined,
+): InstalledHostHookCommand {
+  if (value === "session-start" || value === "user-prompt-submit") {
+    return value;
+  }
+
+  throw new Error(
+    `Unknown hook command: ${value ?? "(missing)"}. Use 'session-start' or 'user-prompt-submit'.`,
+  );
+}
+
 async function handleInspect(flags: ParsedFlags): Promise<CLICommandOutput> {
   const scope = resolveScopeFromFlags(flags);
   const includeRuntime = shouldIncludeRuntime(flags, scope);
@@ -1669,6 +1807,149 @@ async function handleHostBootstrap(
   };
 }
 
+async function handleHostInstall(
+  host: InstalledHostKind,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  const result = await installHost({
+    host,
+    memoryPath: flags["memory-path"],
+    userId: flags["user-id"],
+  });
+  const payload = {
+    changes: result.changes.map((change) => ({
+      action: change.action,
+      path: change.path,
+      relativePath: change.relativePath,
+    })),
+    configPath: result.configPath,
+    host: result.host,
+    installRoot: result.installRoot,
+    memoryPath: result.memoryPath,
+    userId: result.userId,
+  };
+
+  return {
+    json: payload,
+    text: renderInstalledHostPayload({
+      actionLabel: "Installed",
+      payload,
+    }),
+  };
+}
+
+async function handleHostUninstall(
+  host: InstalledHostKind,
+): Promise<CLICommandOutput> {
+  const result = await uninstallHost({ host });
+  const payload = {
+    changes: result.changes.map((change) => ({
+      action: change.action,
+      path: change.path,
+      relativePath: change.relativePath,
+    })),
+    configPath: result.configPath,
+    host: result.host,
+  };
+
+  return {
+    json: payload,
+    text: renderInstalledHostPayload({
+      actionLabel: "Uninstalled",
+      payload,
+    }),
+  };
+}
+
+async function handleHostEnable(
+  host: InstalledHostKind,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  const result = await enableHostWorkspace({
+    host,
+    workspaceId: flags["workspace-id"],
+    workspaceRoot: flags["workspace-root"],
+  });
+  const payload = {
+    changes: result.changes.map((change) => ({
+      action: change.action,
+      path: change.path,
+      relativePath: change.relativePath,
+    })),
+    configPath: result.configPath,
+    host: result.host,
+    instructionPath: result.instructionPath,
+    workspaceId: result.workspaceId,
+    workspaceRoot: result.workspaceRoot,
+  };
+
+  return {
+    json: payload,
+    text: renderInstalledHostPayload({
+      actionLabel: "Enabled",
+      payload,
+    }),
+  };
+}
+
+async function handleHostDisable(
+  host: InstalledHostKind,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  const result = await disableHostWorkspace({
+    host,
+    workspaceRoot: flags["workspace-root"],
+  });
+  const payload = {
+    changes: result.changes.map((change) => ({
+      action: change.action,
+      path: change.path,
+      relativePath: change.relativePath,
+    })),
+    configPath: result.configPath,
+    host: result.host,
+    instructionPath: result.instructionPath,
+    workspaceRoot: result.workspaceRoot,
+  };
+
+  return {
+    json: payload,
+    text: renderInstalledHostPayload({
+      actionLabel: "Disabled",
+      payload,
+    }),
+  };
+}
+
+async function handleHostHook(
+  host: InstalledHostKind,
+  command: InstalledHostHookCommand,
+): Promise<CLICommandOutput> {
+  const rawInput = await new Response(Bun.stdin.stream()).text();
+  let payload: Record<string, unknown> = {};
+  if (rawInput.trim().length > 0) {
+    try {
+      payload = JSON.parse(rawInput) as Record<string, unknown>;
+    } catch {
+      return {
+        json: {},
+        text: JSON.stringify({}, null, 2),
+      };
+    }
+  }
+  const result = await executeInstalledHostHook({
+    command,
+    host,
+    payload,
+  });
+  const rendered = JSON.stringify(result.output ?? {}, null, 2);
+
+  return {
+    json: result.output ?? {},
+    text: rendered,
+  };
+}
+
 export async function runCLI(argv: string[]): Promise<CLIResult> {
   try {
     const { commands, flags } = parseArgs(argv);
@@ -1719,6 +2000,14 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
         if (secondary === "bootstrap") {
           return helpResult(CODEX_BOOTSTRAP_HELP_TEXT);
         }
+        if (secondary === "hook") {
+          const tertiary = commands[2];
+          if (!tertiary) {
+            return helpResult(CODEX_HOOK_HELP_TEXT);
+          }
+          requireInstalledHostHookCommand(tertiary);
+          return helpResult(CODEX_HOOK_HELP_TEXT);
+        }
 
         return errorResult(
           `Unknown Codex command: ${secondary}. Run 'goodmemory codex --help'.`,
@@ -1732,10 +2021,50 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
         if (secondary === "bootstrap") {
           return helpResult(CLAUDE_BOOTSTRAP_HELP_TEXT);
         }
+        if (secondary === "hook") {
+          const tertiary = commands[2];
+          if (!tertiary) {
+            return helpResult(CLAUDE_HOOK_HELP_TEXT);
+          }
+          requireInstalledHostHookCommand(tertiary);
+          return helpResult(CLAUDE_HOOK_HELP_TEXT);
+        }
 
         return errorResult(
           `Unknown Claude command: ${secondary}. Run 'goodmemory claude --help'.`,
         );
+      }
+      if (primary === "install") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(INSTALL_HELP_TEXT);
+        }
+        requireInstalledHostKind(secondary);
+        return helpResult(INSTALL_HELP_TEXT);
+      }
+      if (primary === "uninstall") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(UNINSTALL_HELP_TEXT);
+        }
+        requireInstalledHostKind(secondary);
+        return helpResult(UNINSTALL_HELP_TEXT);
+      }
+      if (primary === "enable") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(ENABLE_HELP_TEXT);
+        }
+        requireInstalledHostKind(secondary);
+        return helpResult(ENABLE_HELP_TEXT);
+      }
+      if (primary === "disable") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(DISABLE_HELP_TEXT);
+        }
+        requireInstalledHostKind(secondary);
+        return helpResult(DISABLE_HELP_TEXT);
       }
 
       return errorResult(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
@@ -1766,6 +2095,15 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
       if (secondary === "bootstrap") {
         return renderOutput(await handleHostBootstrap("codex", flags), flags);
       }
+      if (secondary === "hook") {
+        return renderOutput(
+          await handleHostHook(
+            "codex",
+            requireInstalledHostHookCommand(commands[2]),
+          ),
+          flags,
+        );
+      }
 
       throw new Error(`Unknown Codex command: ${secondary}. Run 'goodmemory codex --help'.`);
     }
@@ -1777,8 +2115,41 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
       if (secondary === "bootstrap") {
         return renderOutput(await handleHostBootstrap("claude", flags), flags);
       }
+      if (secondary === "hook") {
+        return renderOutput(
+          await handleHostHook(
+            "claude",
+            requireInstalledHostHookCommand(commands[2]),
+          ),
+          flags,
+        );
+      }
 
       throw new Error(`Unknown Claude command: ${secondary}. Run 'goodmemory claude --help'.`);
+    }
+    if (primary === "install") {
+      return renderOutput(
+        await handleHostInstall(requireInstalledHostKind(commands[1]), flags),
+        flags,
+      );
+    }
+    if (primary === "uninstall") {
+      return renderOutput(
+        await handleHostUninstall(requireInstalledHostKind(commands[1])),
+        flags,
+      );
+    }
+    if (primary === "enable") {
+      return renderOutput(
+        await handleHostEnable(requireInstalledHostKind(commands[1]), flags),
+        flags,
+      );
+    }
+    if (primary === "disable") {
+      return renderOutput(
+        await handleHostDisable(requireInstalledHostKind(commands[1]), flags),
+        flags,
+      );
     }
 
     if (primary === "inspect") {

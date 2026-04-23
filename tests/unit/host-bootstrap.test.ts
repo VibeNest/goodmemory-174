@@ -190,6 +190,35 @@ describe("host bootstrap", () => {
     }
   });
 
+  it("fails closed when the managed bootstrap instruction markers are reversed", async () => {
+    const workspaceRoot = await createWorkspace("goodmemory-host-bootstrap-marker-order-");
+
+    try {
+      await writeFile(
+        join(workspaceRoot, "AGENTS.md"),
+        [
+          "# Existing Notes",
+          "<!-- GOODMEMORY-BOOTSTRAP:CODEX END -->",
+          "broken bootstrap block",
+          "<!-- GOODMEMORY-BOOTSTRAP:CODEX START -->",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await expect(
+        bootstrapHostWorkspace({
+          host: "codex",
+          userId: "codex-user",
+          workspaceRoot,
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing AGENTS.md: the managed install block is malformed.",
+      );
+    } finally {
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("fails closed when .codex/config.toml uses [[features]]", async () => {
     const workspaceRoot = await createWorkspace("goodmemory-host-bootstrap-invalid-toml-");
 

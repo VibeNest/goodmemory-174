@@ -16,14 +16,14 @@ This phase exists to make GoodMemory feel closer to a real host-native memory la
 
 Current Status
 --------------
-[TODO] Phase 35 is queued.
+[WIP] Phase 35 is in progress.
 [DONE] Phase 32 already proved the installed-package external host line on `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`.
 [DONE] Phase 33 already froze the formal Node-compatible package boundary for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`.
 [DONE] Phase 34 already proved host pre-action policy and veto behavior on the explicit `goodmemory/host` seam.
 [TODO] External users still do not have one canonical global-install, repo-opt-in, hook-injected GoodMemory middleware path for Codex or Claude Code.
 [TODO] `goodmemory-mcp` does not yet exist as a distributable server or installed entrypoint.
-[TODO] `goodmemory install codex` / `goodmemory install claude` do not yet exist; the accepted external path still starts from repo-local `bootstrap`.
-[TODO] Hook-driven automatic recall injection is not yet the canonical live path; exported artifacts are still the main accepted external read path.
+[WIP] `goodmemory install codex` / `goodmemory install claude` and explicit repo `enable` / `disable` now exist, but user-level hook and MCP registration are not fully wired yet.
+[WIP] Explicit installed hook commands now exist for `SessionStart` and `UserPromptSubmit`, but the canonical live path still needs automatic user-level registration and live evidence before exported artifacts stop being the main accepted external read path.
 
 
 Dependencies
@@ -90,8 +90,8 @@ Definition of Done
 Tasks
 -----
 [TODO] P35-T001 Freeze the canonical middleware contract and CLI boundary for installed host memory
-[TODO] P35-T002 Add global install/uninstall plus repo enable/disable for Codex and Claude Code
-[TODO] P35-T003 Add hook payload contracts and lifecycle handlers for automatic recall injection
+[WIP] P35-T002 Add global install/uninstall plus repo enable/disable for Codex and Claude Code
+[DONE] P35-T003 Add hook payload contracts and lifecycle handlers for automatic recall injection
 [TODO] P35-T004 Ship `goodmemory-mcp` and the read-only MCP tool surface
 [TODO] P35-T005 Add explicit write CLI plus compatibility wiring from the accepted Phase 32 bootstrap path
 [TODO] P35-T006 Add dedicated evals, gate, archive summary, and closure sync for the canonical installed-host middleware path

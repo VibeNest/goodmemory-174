@@ -1,5 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
+import {
+  resolveWorkspaceId,
+  writeManagedFile,
+  writeMarkerManagedFile,
+} from "../host/managedFiles";
 
 export type BootstrapHostKind = "claude" | "codex";
 
@@ -158,44 +163,6 @@ export async function bootstrapHostWorkspace(
   };
 }
 
-function resolveWorkspaceId(
-  workspaceRoot: string,
-  workspaceId: string | undefined,
-): string {
-  const normalized = workspaceId?.trim();
-  if (normalized && normalized.length > 0) {
-    return normalized;
-  }
-
-  const derived = basename(workspaceRoot).trim();
-  return derived.length > 0 ? derived : "goodmemory-workspace";
-}
-
-async function writeManagedFile(
-  path: string,
-  workspaceRoot: string,
-  content: string,
-  existingContent?: string | null,
-): Promise<BootstrapHostWorkspaceFileChange> {
-  const existing = existingContent ?? await readFileIfPresent(path);
-  if (existing === content) {
-    return {
-      action: "unchanged",
-      path,
-      relativePath: relativeToWorkspace(path, workspaceRoot),
-    };
-  }
-
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content, "utf8");
-
-  return {
-    action: existing === null ? "created" : "updated",
-    path,
-    relativePath: relativeToWorkspace(path, workspaceRoot),
-  };
-}
-
 async function writeMergedManagedFile(input: {
   merge(existing: string | null): string;
   path: string;
@@ -206,34 +173,8 @@ async function writeMergedManagedFile(input: {
     input.path,
     input.workspaceRoot,
     input.merge(existing),
-    existing,
+    { existingContent: existing },
   );
-}
-
-async function writeMarkerManagedFile(
-  path: string,
-  workspaceRoot: string,
-  marker: HostBootstrapBlueprint["instructionMarker"],
-  section: string,
-): Promise<BootstrapHostWorkspaceFileChange> {
-  const existing = await readFileIfPresent(path);
-  const block = `${marker.start}\n${section.trimEnd()}\n${marker.end}\n`;
-  let nextContent = block;
-
-  if (existing !== null) {
-    if (existing.includes(marker.start) && existing.includes(marker.end)) {
-      const pattern = new RegExp(
-        `${escapeRegExp(marker.start)}[\\s\\S]*?${escapeRegExp(marker.end)}\\n?`,
-        "m",
-      );
-      nextContent = existing.replace(pattern, block);
-    } else {
-      const separator = existing.endsWith("\n") ? "\n" : "\n\n";
-      nextContent = `${existing}${separator}${block}`;
-    }
-  }
-
-  return writeManagedFile(path, workspaceRoot, nextContent);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -438,13 +379,6 @@ function isMissingFileError(error: unknown): boolean {
     "code" in error &&
     error.code === "ENOENT"
   );
-}
-
-function relativeToWorkspace(path: string, workspaceRoot: string): string {
-  const normalizedRoot = resolve(workspaceRoot);
-  return path.startsWith(`${normalizedRoot}/`)
-    ? path.slice(normalizedRoot.length + 1)
-    : path;
 }
 
 async function writeCodexRuntimePolicyFiles(input: {
@@ -1343,8 +1277,4 @@ await writeFile(
 
 console.log(JSON.stringify(manifest, null, 2));
 `;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

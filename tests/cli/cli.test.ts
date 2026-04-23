@@ -42,6 +42,33 @@ async function withCwd<T>(cwd: string, callback: () => Promise<T>): Promise<T> {
   }
 }
 
+async function withEnv<T>(
+  overrides: Record<string, string | undefined>,
+  callback: () => Promise<T>,
+): Promise<T> {
+  const previous = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries(overrides)) {
+    previous.set(key, process.env[key]);
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  try {
+    return await callback();
+  } finally {
+    for (const [key, value] of previous.entries()) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
 async function runBunScript(input: {
   args?: string[];
   cwd: string;
@@ -814,9 +841,16 @@ describe("goodmemory cli help and routing", () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("GoodMemory CLI");
       expect(result.stdout).toContain("inspect         Inspect scope-bounded memory");
-      expect(result.stdout).toContain("codex           Bootstrap repo-local Codex wiring");
-      expect(result.stdout).toContain("claude          Bootstrap repo-local Claude Code wiring");
+      expect(result.stdout).toContain(
+        "install         Install managed global GoodMemory host config for Codex or Claude Code",
+      );
+      expect(result.stdout).toContain(
+        "enable          Enable repo-local GoodMemory host opt-in for Codex or Claude Code",
+      );
+      expect(result.stdout).toContain("codex           Codex bootstrap and installed hook commands");
+      expect(result.stdout).toContain("claude          Claude Code bootstrap and installed hook commands");
       expect(result.stdout).toContain("goodmemory eval --help");
+      expect(result.stdout).toContain("goodmemory install --help");
       expect(result.stderr).toBe("");
     }
   });
@@ -840,10 +874,17 @@ describe("goodmemory cli help and routing", () => {
     const stats = await runCLI(["stats", "--help"]);
     const exportMemory = await runCLI(["export-memory", "--help"]);
     const evalInspect = await runCLI(["eval", "inspect", "--help"]);
+    const install = await runCLI(["install", "--help"]);
+    const installCodex = await runCLI(["install", "codex", "--help"]);
+    const uninstall = await runCLI(["uninstall", "--help"]);
+    const enable = await runCLI(["enable", "--help"]);
+    const disable = await runCLI(["disable", "--help"]);
     const codex = await runCLI(["codex", "--help"]);
     const codexBootstrap = await runCLI(["codex", "bootstrap", "--help"]);
+    const codexHook = await runCLI(["codex", "hook", "--help"]);
     const claude = await runCLI(["claude", "--help"]);
     const claudeBootstrap = await runCLI(["claude", "bootstrap", "--help"]);
+    const claudeHook = await runCLI(["claude", "hook", "--help"]);
 
     expect(inspect.exitCode).toBe(0);
     expect(inspect.stdout).toContain("GoodMemory Inspect");
@@ -860,23 +901,42 @@ describe("goodmemory cli help and routing", () => {
     expect(evalInspect.exitCode).toBe(0);
     expect(evalInspect.stdout).toContain("GoodMemory Eval Inspect");
     expect(evalInspect.stdout).toContain("--run-dir <path>");
+    expect(install.exitCode).toBe(0);
+    expect(install.stdout).toContain("GoodMemory Install CLI");
+    expect(install.stdout).toContain("goodmemory install <codex|claude>");
+    expect(installCodex.exitCode).toBe(0);
+    expect(installCodex.stdout).toContain("--memory-path <path>");
+    expect(uninstall.exitCode).toBe(0);
+    expect(uninstall.stdout).toContain("GoodMemory Uninstall CLI");
+    expect(enable.exitCode).toBe(0);
+    expect(enable.stdout).toContain("GoodMemory Enable CLI");
+    expect(enable.stdout).toContain("--workspace-root <path>");
+    expect(disable.exitCode).toBe(0);
+    expect(disable.stdout).toContain("GoodMemory Disable CLI");
     expect(codex.exitCode).toBe(0);
-    expect(codex.stdout).toContain("GoodMemory Codex Bootstrap CLI");
-    expect(codex.stdout).toContain("goodmemory codex bootstrap --user-id <id>");
+    expect(codex.stdout).toContain("GoodMemory Codex CLI");
+    expect(codex.stdout).toContain("goodmemory codex hook --help");
     expect(codexBootstrap.exitCode).toBe(0);
     expect(codexBootstrap.stdout).toContain("GoodMemory Codex Bootstrap");
     expect(codexBootstrap.stdout).toContain("--workspace-root <path>");
+    expect(codexHook.exitCode).toBe(0);
+    expect(codexHook.stdout).toContain("GoodMemory Codex Hook");
+    expect(codexHook.stdout).toContain("session-start");
     expect(claude.exitCode).toBe(0);
-    expect(claude.stdout).toContain("GoodMemory Claude Bootstrap CLI");
-    expect(claude.stdout).toContain("goodmemory claude bootstrap --user-id <id>");
+    expect(claude.stdout).toContain("GoodMemory Claude CLI");
+    expect(claude.stdout).toContain("goodmemory claude hook --help");
     expect(claudeBootstrap.exitCode).toBe(0);
     expect(claudeBootstrap.stdout).toContain("GoodMemory Claude Bootstrap");
     expect(claudeBootstrap.stdout).toContain("--workspace-root <path>");
+    expect(claudeHook.exitCode).toBe(0);
+    expect(claudeHook.stdout).toContain("GoodMemory Claude Hook");
+    expect(claudeHook.stdout).toContain("user-prompt-submit");
   });
 
   it("returns help hints for unknown root and eval commands", async () => {
     const unknownRoot = await runCLI(["unknown"]);
     const unknownEval = await runCLI(["eval", "unknown"]);
+    const unknownInstall = await runCLI(["install", "unknown"]);
     const unknownCodex = await runCLI(["codex", "unknown"]);
     const unknownClaude = await runCLI(["claude", "unknown"]);
 
@@ -886,6 +946,8 @@ describe("goodmemory cli help and routing", () => {
     expect(unknownEval.exitCode).toBe(1);
     expect(unknownEval.stderr).toContain("Unknown eval command: unknown.");
     expect(unknownEval.stderr).toContain("goodmemory eval --help");
+    expect(unknownInstall.exitCode).toBe(1);
+    expect(unknownInstall.stderr).toContain("Unknown host target: unknown.");
     expect(unknownCodex.exitCode).toBe(1);
     expect(unknownCodex.stderr).toContain("Unknown Codex command: unknown.");
     expect(unknownCodex.stderr).toContain("goodmemory codex --help");
@@ -1759,6 +1821,567 @@ describe("goodmemory cli host bootstrap", () => {
       expect(script).not.toContain('"claude-active"');
       expect(script).toContain('readTextFlag(flags, "session-id")');
       expect(script).not.toContain("../src");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+});
+
+describe("goodmemory cli installed host config", () => {
+  it("installs and uninstalls Codex global middleware config idempotently", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-home");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const first = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(first.exitCode).toBe(0);
+          const firstPayload = JSON.parse(first.stdout) as {
+            changes: Array<{
+              action: "created" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+            configPath: string;
+            host: string;
+            memoryPath: string;
+            userId: string;
+          };
+          expect(firstPayload.host).toBe("codex");
+          expect(firstPayload.userId).toBe("codex-user");
+          expect(firstPayload.memoryPath).toBe(join(home.root, ".goodmemory/memory.sqlite"));
+          expect(
+            firstPayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            {
+              action: "created",
+              relativePath: "codex.json",
+            },
+          ]);
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            host: string;
+            storage: { path: string; provider: string };
+            userId: string;
+          };
+          expect(config.host).toBe("codex");
+          expect(config.userId).toBe("codex-user");
+          expect(config.storage.path).toBe(join(home.root, ".goodmemory/memory.sqlite"));
+
+          const second = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(second.exitCode).toBe(0);
+          const secondPayload = JSON.parse(second.stdout) as {
+            changes: Array<{
+              action: "created" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+          };
+          expect(
+            secondPayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            {
+              action: "unchanged",
+              relativePath: "codex.json",
+            },
+          ]);
+
+          const uninstall = await runCLI(["uninstall", "codex", "--json"]);
+          expect(uninstall.exitCode).toBe(0);
+          const uninstallPayload = JSON.parse(uninstall.stdout) as {
+            changes: Array<{
+              action: "deleted" | "unchanged";
+              relativePath: string;
+            }>;
+          };
+          expect(
+            uninstallPayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            {
+              action: "deleted",
+              relativePath: "codex.json",
+            },
+          ]);
+          await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+    }
+  });
+
+  it("requires a matching global install before enabling repo-local opt-in", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-enable-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-enable-missing-install");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await runCLI([
+            "enable",
+            "codex",
+            "--workspace-root",
+            workspace.root,
+            "--json",
+          ]);
+
+          expect(result.exitCode).toBe(1);
+          expect(result.stderr).toContain("Run 'goodmemory install codex' first");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("enables and disables Codex repo opt-in without losing existing repo notes", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-enable-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-enable");
+    const originalInstructions = "\n# Existing Notes\n\n";
+
+    try {
+      await writeFile(join(workspace.root, "AGENTS.md"), originalInstructions, "utf8");
+
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const first = await runCLI([
+            "enable",
+            "codex",
+            "--workspace-id",
+            "codex-workspace",
+            "--workspace-root",
+            workspace.root,
+            "--json",
+          ]);
+          expect(first.exitCode).toBe(0);
+          const firstPayload = JSON.parse(first.stdout) as {
+            changes: Array<{
+              action: "created" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+            host: string;
+            workspaceId: string;
+          };
+          expect(firstPayload.host).toBe("codex");
+          expect(firstPayload.workspaceId).toBe("codex-workspace");
+          expect(
+            firstPayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            { action: "created", relativePath: ".goodmemory/codex.json" },
+            { action: "updated", relativePath: "AGENTS.md" },
+          ]);
+
+          const firstConfig = JSON.parse(
+            await readFile(join(workspace.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            enabled: boolean;
+            workspaceId: string;
+          };
+          expect(firstConfig.enabled).toBe(true);
+          expect(firstConfig.workspaceId).toBe("codex-workspace");
+          expect(await readFile(join(workspace.root, "AGENTS.md"), "utf8")).toContain(
+            "GOODMEMORY-INSTALL:CODEX START",
+          );
+
+          const second = await runCLI([
+            "enable",
+            "codex",
+            "--workspace-id",
+            "codex-workspace",
+            "--workspace-root",
+            workspace.root,
+            "--json",
+          ]);
+          expect(second.exitCode).toBe(0);
+          const secondPayload = JSON.parse(second.stdout) as {
+            changes: Array<{
+              action: "created" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+          };
+          expect(
+            secondPayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            { action: "unchanged", relativePath: ".goodmemory/codex.json" },
+            { action: "unchanged", relativePath: "AGENTS.md" },
+          ]);
+
+          const disable = await runCLI([
+            "disable",
+            "codex",
+            "--workspace-root",
+            workspace.root,
+            "--json",
+          ]);
+          expect(disable.exitCode).toBe(0);
+          const disablePayload = JSON.parse(disable.stdout) as {
+            changes: Array<{
+              action: "deleted" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+          };
+          expect(
+            disablePayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            { action: "updated", relativePath: ".goodmemory/codex.json" },
+            { action: "updated", relativePath: "AGENTS.md" },
+          ]);
+          const disabledConfig = JSON.parse(
+            await readFile(join(workspace.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            enabled: boolean;
+            workspaceId: string;
+          };
+          expect(disabledConfig.enabled).toBe(false);
+          expect(disabledConfig.workspaceId).toBe("codex-workspace");
+          expect(await readFile(join(workspace.root, "AGENTS.md"), "utf8")).toBe(
+            originalInstructions,
+          );
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("installs Claude global config and keeps disable/uninstall parity", async () => {
+    const home = await createTempWorkspace("goodmemory-claude-install-home");
+    const workspace = await createTempWorkspace("goodmemory-claude-enable");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "claude",
+            "--user-id",
+            "claude-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+          const installPayload = JSON.parse(install.stdout) as {
+            changes: Array<{
+              action: "created" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+            host: string;
+          };
+          expect(installPayload.host).toBe("claude");
+          expect(
+            installPayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            {
+              action: "created",
+              relativePath: "claude.json",
+            },
+          ]);
+        },
+      );
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const enable = await runCLI([
+            "enable",
+            "claude",
+            "--workspace-root",
+            workspace.root,
+            "--json",
+          ]);
+          expect(enable.exitCode).toBe(0);
+          const enablePayload = JSON.parse(enable.stdout) as {
+            changes: Array<{
+              action: "created" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+            host: string;
+          };
+          expect(enablePayload.host).toBe("claude");
+          expect(
+            enablePayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            { action: "created", relativePath: ".goodmemory/claude.json" },
+            { action: "created", relativePath: "CLAUDE.md" },
+          ]);
+          expect(await readFile(join(workspace.root, "CLAUDE.md"), "utf8")).toContain(
+            "GOODMEMORY-INSTALL:CLAUDE START",
+          );
+
+          const disable = await runCLI([
+            "disable",
+            "claude",
+            "--workspace-root",
+            workspace.root,
+            "--json",
+          ]);
+          expect(disable.exitCode).toBe(0);
+          const disablePayload = JSON.parse(disable.stdout) as {
+            changes: Array<{
+              action: "deleted" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+          };
+          expect(
+            disablePayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            { action: "updated", relativePath: ".goodmemory/claude.json" },
+            { action: "deleted", relativePath: "CLAUDE.md" },
+          ]);
+
+          const uninstall = await runCLI(["uninstall", "claude", "--json"]);
+          expect(uninstall.exitCode).toBe(0);
+          const uninstallPayload = JSON.parse(uninstall.stdout) as {
+            changes: Array<{
+              action: "deleted" | "unchanged" | "updated";
+              relativePath: string;
+            }>;
+          };
+          expect(
+            uninstallPayload.changes.map(({ action, relativePath }) => ({
+              action,
+              relativePath,
+            })),
+          ).toEqual([
+            { action: "deleted", relativePath: "claude.json" },
+          ]);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("runs the Codex user-prompt-submit hook and emits additionalContext JSON", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-hook-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-hook-runtime");
+    const cliScript = join(import.meta.dir, "../../scripts/goodmemory-cli.ts");
+
+    try {
+      await mkdir(join(home.root, ".goodmemory"), { recursive: true });
+      await mkdir(join(workspace.root, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(home.root, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            debug: false,
+            host: "codex",
+            maxTokens: 512,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(home.root, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "cli-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(workspace.root, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            enabled: true,
+            host: "codex",
+            version: 1,
+            workspaceId: "workspace-a",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await seedSQLiteMemory(join(home.root, ".goodmemory/memory.sqlite"));
+
+      const result = await runBunScript({
+        args: ["codex", "hook", "user-prompt-submit"],
+        cwd: workspace.root,
+        env: {
+          GOODMEMORY_HOME: home.root,
+        },
+        scriptPath: cliScript,
+        stdin: JSON.stringify({
+          cwd: workspace.root,
+          hook_event_name: "UserPromptSubmit",
+          prompt: "Check the release runbook before editing files.",
+          session_id: "hook-session-1",
+          turn_id: "turn-hook-1",
+        }),
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr.trim()).toBe("");
+      const payload = JSON.parse(result.stdout) as {
+        hookSpecificOutput: {
+          additionalContext: string;
+          hookEventName: string;
+        };
+      };
+      expect(payload.hookSpecificOutput.hookEventName).toBe("UserPromptSubmit");
+      expect(payload.hookSpecificOutput.additionalContext).toContain(
+        "Developer memory notes",
+      );
+      expect(payload.hookSpecificOutput.additionalContext).toContain(
+        "release quality program",
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("runs the Claude session-start hook fail-open with a debug systemMessage when the repo is disabled", async () => {
+    const home = await createTempWorkspace("goodmemory-claude-hook-home");
+    const workspace = await createTempWorkspace("goodmemory-claude-hook-runtime");
+    const cliScript = join(import.meta.dir, "../../scripts/goodmemory-cli.ts");
+
+    try {
+      await mkdir(join(home.root, ".goodmemory"), { recursive: true });
+      await mkdir(join(workspace.root, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(home.root, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            debug: true,
+            host: "claude",
+            maxTokens: 128,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(home.root, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "cli-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(workspace.root, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            debug: true,
+            enabled: false,
+            host: "claude",
+            version: 1,
+            workspaceId: "workspace-a",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const result = await runBunScript({
+        args: ["claude", "hook", "session-start"],
+        cwd: workspace.root,
+        env: {
+          GOODMEMORY_HOME: home.root,
+        },
+        scriptPath: cliScript,
+        stdin: JSON.stringify({
+          cwd: workspace.root,
+          hook_event_name: "SessionStart",
+          session_id: "hook-session-2",
+          source: "startup",
+        }),
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr.trim()).toBe("");
+      const payload = JSON.parse(result.stdout) as { systemMessage: string };
+      expect(payload.systemMessage).toBe(
+        "GoodMemory claude session-start hook skipped: disabled.",
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("fails open when hook stdin is malformed JSON", async () => {
+    const workspace = await createTempWorkspace("goodmemory-hook-invalid-stdin");
+    const cliScript = join(import.meta.dir, "../../scripts/goodmemory-cli.ts");
+
+    try {
+      const result = await runBunScript({
+        args: ["codex", "hook", "session-start"],
+        cwd: workspace.root,
+        scriptPath: cliScript,
+        stdin: "{invalid",
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe("{}");
+      expect(result.stderr.trim()).toBe("");
     } finally {
       await workspace.cleanup();
     }

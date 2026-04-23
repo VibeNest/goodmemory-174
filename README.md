@@ -91,13 +91,20 @@ const runtime = inspectGoodMemoryRuntime(memory);
 
 ## CLI
 
-GoodMemory `0.1.1` 自带一个 Bun-backed、只读的已安装 CLI。包里的 `goodmemory` bin 现在可以在 Node 包安装场景下安全暴露；真正执行命令时会委托给 Bun。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则在 Bun 运行时回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。唯一的策略诊断例外是 `trace --ignore-memory`：它会把 recall 视为空集并直接跳过存储解析。
+GoodMemory `0.1.1` 自带一个 Bun-backed 的已安装 CLI。包里的 `goodmemory` bin 现在可以在 Node 包安装场景下安全暴露；真正执行命令时会委托给 Bun。稳定的 memory-first 命令仍然是 `inspect` / `trace` / `export-memory` / `stats` / `eval ...`。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则在 Bun 运行时回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。这些 memory-first 根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。唯一的策略诊断例外是 `trace --ignore-memory`：它会把 recall 视为空集并直接跳过存储解析。
+
+Phase 35 另外新增了一组 installed-host config 命令：`goodmemory install|uninstall <codex|claude>` 和 `goodmemory enable|disable <codex|claude>`。这组命令目前只会管理 GoodMemory 自己的全局 host config 和 repo-local opt-in block，不会隐式创建 canonical memory state，也还没有取代 `goodmemory codex bootstrap` / `goodmemory claude bootstrap` 作为已接受的 host wiring 路径。
+
+Phase 35 也新增了 machine-facing 的 hook runtime 命令：`goodmemory codex hook <session-start|user-prompt-submit>` 和 `goodmemory claude hook <session-start|user-prompt-submit>`。这些命令从 stdin 读取 host hook JSON，走现有 `recall()` + `buildContext()` 路径，并在 repo 已显式 enable 时把压缩后的 memory context 通过 stdout JSON 返回给 host。当前 global install 还没有自动把这些 hook handlers 注册到 Codex / Claude 的用户级配置里，这一层仍在 Phase 35 后续任务中。
 
 ```bash
 ./node_modules/.bin/goodmemory inspect --user-id <user-id> --workspace-id <workspace-id>
 ./node_modules/.bin/goodmemory trace --user-id <user-id> --workspace-id <workspace-id> --query "Which runbook is the source of truth?"
 ./node_modules/.bin/goodmemory export-memory --user-id <user-id> --workspace-id <workspace-id> --output ./tmp/export
 ./node_modules/.bin/goodmemory stats --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory install codex --user-id <user-id>
+./node_modules/.bin/goodmemory enable codex --workspace-root .
+printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' | ./node_modules/.bin/goodmemory codex hook session-start
 ./node_modules/.bin/goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
 ./node_modules/.bin/goodmemory claude bootstrap --user-id <user-id> --workspace-id <workspace-id>
 
@@ -112,6 +119,12 @@ CLI surface:
 - `goodmemory trace`
 - `goodmemory export-memory`
 - `goodmemory stats`
+- `goodmemory install`
+- `goodmemory uninstall`
+- `goodmemory enable`
+- `goodmemory disable`
+- `goodmemory codex hook`
+- `goodmemory claude hook`
 - `goodmemory codex bootstrap`
 - `goodmemory claude bootstrap`
 - `goodmemory eval inspect`

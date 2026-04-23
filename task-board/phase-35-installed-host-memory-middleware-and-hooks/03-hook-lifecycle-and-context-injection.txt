@@ -1,10 +1,10 @@
 Phase 35.3: Hook Lifecycle and Context Injection
 ================================================
 
-[TODO] Add canonical hook handlers for `SessionStart` and `UserPromptSubmit`.
-[TODO] Make hook injection use `recall()` plus `buildContext()` instead of inventing a parallel memory path.
-[TODO] Define the installed-host hook payload and fail-open behavior.
-[TODO] Keep automatic writeback out of scope.
+[DONE] Add canonical hook handlers for `SessionStart` and `UserPromptSubmit`.
+[DONE] Make hook injection use `recall()` plus `buildContext()` instead of inventing a parallel memory path.
+[DONE] Define the installed-host hook payload and fail-open behavior.
+[DONE] Keep automatic writeback out of scope.
 
 Runtime Commands
 ----------------
@@ -44,3 +44,20 @@ Evidence To Add
 - unit tests for scope derivation and fail-open behavior
 - integration tests for hook JSON input/output
 - installed consumer smoke proving injected context reaches Codex on the live path
+
+Current Slice
+-------------
+- landed:
+  - `goodmemory codex hook session-start`
+  - `goodmemory codex hook user-prompt-submit`
+  - `goodmemory claude hook session-start`
+  - `goodmemory claude hook user-prompt-submit`
+- behavior:
+  - repo opt-in gates whether any context is injected
+  - hook runtime uses `recall()` plus `buildContext(output="developer_prompt_fragment")`
+  - missing config, disabled repos, parse failure, empty prompt, or recall/buildContext failure fail open
+  - no `Stop` hook and no automatic writeback were added
+- locked by:
+  - `tests/unit/host-hook-runtime.test.ts`
+  - `tests/cli/cli.test.ts`
+  - `tests/unit/host-bootstrap.test.ts`

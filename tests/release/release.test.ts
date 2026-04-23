@@ -762,8 +762,8 @@ describe("release metadata and docs", () => {
       expect(binHelp.exitCode).toBe(0);
       expect(binHelp.stdout).toContain("GoodMemory CLI");
       expect(binHelp.stdout).toContain("inspect         Inspect scope-bounded memory");
-      expect(binHelp.stdout).toContain("codex           Bootstrap repo-local Codex wiring");
-      expect(binHelp.stdout).toContain("claude          Bootstrap repo-local Claude Code wiring");
+      expect(binHelp.stdout).toContain("codex           Codex bootstrap and installed hook commands");
+      expect(binHelp.stdout).toContain("claude          Claude Code bootstrap and installed hook commands");
       expect(binHelp.stdout).toContain("eval            Inspect eval run artifacts");
     } finally {
       await rm(packOutputDir, { recursive: true, force: true });
