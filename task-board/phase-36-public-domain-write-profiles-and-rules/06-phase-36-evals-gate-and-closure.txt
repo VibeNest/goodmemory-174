@@ -1,0 +1,40 @@
+Phase 36.6: Phase 36 Evals, Gate, and Closure
+==============================================
+
+Goal
+----
+Add a dedicated evidence chain proving public write customization works and does not regress existing memory behavior.
+
+
+Tasks
+-----
+[TODO] Add deterministic unit and integration tests for the public API.
+[TODO] Add a Phase 36 deterministic eval runner.
+[TODO] Add a Phase 36 life-coach/domain-write fixture slice.
+[TODO] Add a provider-backed live-memory smoke path when credentials are available.
+[TODO] Add `eval:phase-36`, `eval:phase-36-live-memory`, and `gate:phase-36` package scripts.
+[TODO] Add a Phase 36 quality-gate report contract.
+[TODO] Archive accepted closure evidence only after the deterministic and live-memory requirements are satisfied.
+[TODO] Sync task-board, current-status docs, release checklist, release workflow, and release tests after closure.
+
+
+Gate Requirements
+-----------------
+`gate:phase-36` must fail unless:
+
+- typecheck passes
+- targeted remember-profile/rules/annotation tests pass
+- default behavior regression tests pass
+- deterministic Phase 36 eval passes
+- public package-boundary tests prove the new root exports are available
+- no test uses `testing.extractor` as the documented product integration path
+- a canonical live-memory report exists or the gate explicitly records provider credentials as unavailable and blocks closure
+
+
+Acceptance
+----------
+- deterministic report: `reports/eval/fallback/phase-36/<run-id>/report.json`
+- live-memory report: `reports/eval/live-memory/phase-36/<run-id>/report.json`
+- quality gate: `reports/quality-gates/phase-36/<run-id>/phase-36-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
+- Phase 36 is not marked closed until all accepted evidence paths are present and synchronized

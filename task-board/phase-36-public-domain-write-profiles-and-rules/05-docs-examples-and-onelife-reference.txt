@@ -1,0 +1,41 @@
+Phase 36.5: Docs, Examples, and OneLife Reference
+=================================================
+
+Goal
+----
+Document the public customization model and prove it supports a life-coach style agent without hardcoding OneLife into the library.
+
+
+Tasks
+-----
+[TODO] Update README with a short public remember customization example.
+[TODO] Add a reference integration guide section for server-side agents.
+[TODO] Add a life-coach example using public config only.
+[TODO] Show how a Python backend can call a GoodMemory sidecar or Node/Bun service without putting GoodMemory in Expo.
+[TODO] Document storage guidance:
+  - in-memory is test-only
+  - SQLite is acceptable for local/single-writer deployments
+  - Postgres is recommended for multi-instance production
+[TODO] Document how `remember` profiles differ from `retrievalProfile`.
+[TODO] Document how domain rules differ from `policy` hooks.
+
+
+OneLife Reference Scenario
+--------------------------
+The example should demonstrate:
+
+- long-term goal capture
+- current focus or life project capture
+- habit and routine preference capture
+- relationship context capture
+- coaching style preference capture
+- explicit correction and supersession
+- assistant suggestions not becoming durable unless confirmed
+
+
+Acceptance
+----------
+- docs never claim OneLife is built in
+- examples work with public imports only
+- examples do not rely on `testing.extractor`
+- a reader can adapt the same pattern to non-life-coach domains

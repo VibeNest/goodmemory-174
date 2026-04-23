@@ -1,0 +1,53 @@
+Phase 36.3: Rules DSL and Message Annotations
+=============================================
+
+Goal
+----
+Give integrators a public deterministic way to define domain write rules without writing full extractors.
+
+
+Tasks
+-----
+[TODO] Add root-exported rule helpers under a stable namespace such as `rememberRules`.
+[TODO] Support rules that can target:
+  - profile
+  - preference
+  - reference
+  - fact
+  - feedback
+[TODO] Support regex, predicate, and direct mapper rule inputs.
+[TODO] Add `ruleId` to generated candidates and remember traces.
+[TODO] Implement `MessageAnnotation` processing before classification.
+[TODO] Support annotation values:
+  - `remember: "always" | "never" | "auto"`
+  - `kindHint`
+  - `metadataPatch`
+  - `confirmed`
+  - `verified`
+  - `reason`
+[TODO] Ensure `remember: "never"` suppresses both deterministic and assisted candidates for the annotated message.
+[TODO] Ensure `remember: "always"` can raise an otherwise valid low-confidence candidate into the write path without bypassing policy/redaction.
+
+
+Design Notes
+------------
+The DSL should stay small and map to the existing candidate model. It is not a second storage taxonomy.
+
+Example target shape:
+
+```ts
+rememberRules.fact(/my top priority this quarter is (.+)/i, {
+  id: "life-goal-priority",
+  category: "goal",
+  tags: ["life_coach", "long_term_goal"],
+  content: ({ match }) => match[1],
+});
+```
+
+
+Acceptance
+----------
+- rules produce normal `MemoryCandidate`s
+- annotations can suppress and enrich generated candidates
+- trace output can explain which rule or annotation affected a write
+- policy hooks still run after rule/annotation processing

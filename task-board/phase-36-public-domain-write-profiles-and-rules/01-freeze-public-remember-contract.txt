@@ -1,0 +1,82 @@
+Phase 36.1: Freeze Public Remember Contract
+===========================================
+
+Goal
+----
+Define the additive public API for domain-specific write customization before implementation starts.
+
+
+Tasks
+-----
+[TODO] Add public types for:
+  - `RememberConfig`
+  - `RememberPresetId`
+  - `RememberProfile`
+  - `RememberProfileMatcher`
+  - `RememberRule`
+  - `MessageAnnotation`
+  - `AssistantMemoryPolicy`
+[TODO] Add `remember?: RememberConfig` to `GoodMemoryConfig`.
+[TODO] Add `annotations?: MessageAnnotation[]` to `RememberInput`.
+[TODO] Export the new public types from the root package.
+[TODO] Add type-level tests proving old configs still compile and new configs compile.
+[TODO] Document that `testing.extractor` is not the public integration path.
+
+
+Contract
+--------
+The target public shape is:
+
+```ts
+createGoodMemory({
+  remember: {
+    preset: "default",
+    profiles: [
+      {
+        id: "life-coach",
+        when: { agentId: "life-coach" },
+        extends: "default",
+        rules: [],
+        extractors: [],
+        assistantOutputs: { mode: "confirmed_or_verified_only" },
+      },
+    ],
+  },
+});
+```
+
+`RememberInput.annotations` must support host-supplied write intent without requiring a custom extractor:
+
+```ts
+await memory.remember({
+  scope,
+  messages,
+  annotations: [
+    {
+      messageIndex: 1,
+      remember: "always",
+      kindHint: "fact",
+      metadataPatch: { category: "goal", tags: ["life_coach"] },
+      confirmed: true,
+    },
+  ],
+});
+```
+
+
+Compatibility Rules
+-------------------
+- `createGoodMemory({})` behavior must not change.
+- `extractionStrategy` remains request-level strategy selection.
+- `adapters.assistedExtractor` remains the provider-assisted extractor seam.
+- `testing.extractor` remains supported for tests and legacy internal tests.
+- If `remember` config is present, profile/preset resolution is authoritative for the baseline deterministic chain.
+- Existing `policy` hooks keep their current governance semantics.
+
+
+Acceptance
+----------
+- no existing public type tests fail
+- new type tests cover public remember profiles and annotations
+- no implementation code depends on OneLife-specific names
+- README/docs clearly distinguish write profiles from recall `retrievalProfile`

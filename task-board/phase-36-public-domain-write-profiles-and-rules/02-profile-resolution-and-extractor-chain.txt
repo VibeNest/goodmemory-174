@@ -1,0 +1,46 @@
+Phase 36.2: Profile Resolution and Extractor Chain
+==================================================
+
+Goal
+----
+Resolve one write profile for each `remember()` call and compose preset, rule, custom, and assisted extractors in a traceable order.
+
+
+Tasks
+-----
+[TODO] Add a remember profile resolver module.
+[TODO] Support declarative matchers:
+  - `tenantId`
+  - `workspaceId`
+  - `agentId`
+  - `sessionId`
+[TODO] Support function matchers for advanced server-side users.
+[TODO] Implement built-in preset IDs:
+  - `default`
+  - `coding_agent`
+[TODO] Move the current deterministic extractor into the `default` preset without changing behavior.
+[TODO] Wire `coding_agent` as an explicit preset alias that can add coding-agent-specific defaults later without affecting `default`.
+[TODO] Compose extraction in this order:
+  1. preset extractor
+  2. profile rules extractor
+  3. profile custom extractors
+  4. assisted extractor when requested or auto-selected
+[TODO] Preserve existing extraction merge and dedupe semantics.
+[TODO] Add trace fields for `profileId`, `presetId`, and `extractorIds`.
+
+
+Design Notes
+------------
+- First matching profile wins.
+- If no profile matches, use `remember.preset ?? "default"`.
+- Profile `extends` defaults to the configured preset.
+- Profile custom extractors return normal `MemoryExtractionResult` and must pass through existing normalization, classification, policy, evidence, vector, and rollback paths.
+- Assisted extraction still runs after deterministic/profile extraction so it can enrich rather than erase host-defined rules.
+
+
+Acceptance
+----------
+- unit tests cover profile matching order and fallback behavior
+- integration tests prove current remember output is unchanged without `remember` config
+- tests prove profile extractors compose with assisted extraction
+- remember metadata includes resolved profile/preset information

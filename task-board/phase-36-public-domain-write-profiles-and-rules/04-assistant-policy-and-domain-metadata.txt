@@ -1,0 +1,54 @@
+Phase 36.4: Assistant Policy and Domain Metadata
+================================================
+
+Goal
+----
+Make assistant-originated writes safe by default and allow domain concepts to be represented without adding new top-level memory kinds.
+
+
+Tasks
+-----
+[TODO] Add `AssistantMemoryPolicy` with modes:
+  - `ignore`
+  - `host_tagged_only`
+  - `confirmed_only`
+  - `verified_only`
+  - `confirmed_or_verified_only`
+[TODO] Default assistant-output policy to `ignore`.
+[TODO] Require annotations or host-provided evidence for assistant-originated durable writes.
+[TODO] Add candidate metadata fields:
+  - `tags?: string[]`
+  - `attributes?: Record<string, string | number | boolean | null>`
+[TODO] Widen category typing enough to support domain values such as:
+  - `goal`
+  - `habit`
+  - `health`
+  - `value`
+  - `relationship_dynamic`
+  - `career_direction`
+[TODO] Persist domain metadata on durable records where appropriate.
+[TODO] Ensure markdown/export paths do not drop domain metadata needed for auditability.
+
+
+Design Notes
+------------
+Assistant output is not authoritative by default. A life coach may suggest a plan, but the plan becomes durable memory only when the user confirms it, the host verifies it, or the host explicitly tags the turn as durable.
+
+Top-level memory kinds remain fixed:
+
+- profile
+- preference
+- reference
+- fact
+- feedback
+- episode
+
+Domain semantics live in category, tags, attributes, subject, fact kind, reference kind, and evidence.
+
+
+Acceptance
+----------
+- assistant messages remain ignored by default
+- annotated/verified assistant messages can write durable memory under an allowing profile policy
+- domain metadata survives persistence, export, and trace output
+- no recall rendering becomes noisy by dumping arbitrary attributes into user-facing context by default

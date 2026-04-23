@@ -1,0 +1,101 @@
+Phase 36: Public Domain Write Profiles and Rules
+================================================
+
+Phase Goal
+----------
+Make domain-specific memory writing a public, first-class GoodMemory capability so product teams can adapt the write path for life coaches, copilots, support agents, sales agents, and future hosts without forking the core extractor or relying on `testing.extractor`.
+
+This phase exists because GoodMemory is a general memory layer for other agents. The core write pipeline should stay universal, but each host or agent domain must be able to declare:
+
+- what counts as durable memory
+- which user or assistant turns are eligible for long-term writes
+- how domain facts, preferences, references, and feedback map into the stable GoodMemory taxonomy
+- why a memory was written, skipped, merged, or superseded
+
+OneLife is the motivating integration, but not the product boundary. The delivered API must remain generic and usable by any server-side app.
+
+
+Current Status
+--------------
+[TODO] Phase 36 is open and not yet implemented.
+[DONE] Phase 35 is closed as the installed host-memory middleware and hooks slice.
+[DONE] The current write path already includes deterministic extraction, optional assisted extraction, extraction strategy metadata, language resolution, evidence linking, vector writes, and rollback-aware persistence.
+[TODO] Public write customization is still missing as a stable contract:
+  - `testing.extractor` exists but is not an acceptable product integration surface.
+  - `adapters.assistedExtractor` exists but represents provider-assisted extraction, not domain policy.
+  - `policy` hooks are post-extraction governance, not domain-specific candidate generation.
+
+
+Dependencies
+------------
+- Phase 29 Bun/Node package boundary and installed-package expectations
+- Phase 32 external host integration productization
+- Phase 33 formal Node-compatible package boundary and Node-first integration
+- Phase 35 installed host-memory middleware and hooks
+- Current remember pipeline under `src/remember/`
+- Current public config surface under `src/api/contracts.ts`
+
+
+Primary Deliverables
+--------------------
+- public `remember` configuration surface on `GoodMemoryConfig`
+- built-in remember presets:
+  - `default`
+  - `coding_agent`
+- public `RememberProfile` model for agent/domain-specific write behavior
+- profile resolver that selects a write profile by scope, host, or custom matcher
+- rules DSL for deterministic domain candidate extraction
+- message annotations for host-provided memory intent and evidence
+- assistant-output write policy that is opt-in and evidence-gated
+- domain-extensible metadata fields without changing the stable memory kind taxonomy
+- remember traces that show profile/rule/extractor/annotation influence
+- docs and examples showing a life-coach style integration without making OneLife a hardcoded preset
+- deterministic and provider-backed eval/gate evidence proving the public write customization path is non-regressive
+
+
+Definition of Done
+------------------
+- `createGoodMemory({ remember: ... })` is accepted public API and type-tested.
+- Existing zero-config behavior remains unchanged.
+- Existing `extractionStrategy: "rules-only" | "llm-assisted" | "auto"` semantics remain compatible.
+- `testing.extractor` remains usable for tests but is documented as non-product/deprecated for integrations.
+- Public profiles can add deterministic domain rules without replacing the entire extractor.
+- Public profiles can add custom extractors without bypassing normalization, classification, policy, evidence, conflict handling, vector writes, or rollback behavior.
+- Assistant messages are ignored by default for durable writes.
+- Assistant-originated writes require explicit host annotations and an allowing assistant-output policy.
+- Domain-specific metadata can be stored without widening top-level memory kinds beyond profile, preference, reference, fact, feedback, and episode.
+- Remember events and trace artifacts identify which profile, rule, extractor, annotation, and extraction strategy influenced each candidate.
+- One life-coach reference scenario proves the model can capture goals, habits, values, relationship context, and coaching-style preferences through public configuration only.
+- The phase closes with targeted unit/integration tests, a deterministic eval slice, one live-memory provider-backed smoke when credentials are available, and a dedicated `gate:phase-36`.
+
+
+Tasks
+-----
+[TODO] P36-T001 Freeze the public remember customization contract and compatibility rules
+[TODO] P36-T002 Implement remember profile resolution and extractor-chain composition
+[TODO] P36-T003 Add deterministic rules DSL and message annotations
+[TODO] P36-T004 Add assistant-output policy plus domain-extensible metadata
+[TODO] P36-T005 Add docs, examples, and OneLife-style reference integration guidance
+[TODO] P36-T006 Add dedicated Phase 36 evals, gate, archive path, and closure criteria
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-36-public-domain-write-profiles-and-rules/00-README.txt`
+- `task-board/phase-36-public-domain-write-profiles-and-rules/01-freeze-public-remember-contract.txt`
+- `task-board/phase-36-public-domain-write-profiles-and-rules/02-profile-resolution-and-extractor-chain.txt`
+- `task-board/phase-36-public-domain-write-profiles-and-rules/03-rules-dsl-and-message-annotations.txt`
+- `task-board/phase-36-public-domain-write-profiles-and-rules/04-assistant-policy-and-domain-metadata.txt`
+- `task-board/phase-36-public-domain-write-profiles-and-rules/05-docs-examples-and-onelife-reference.txt`
+- `task-board/phase-36-public-domain-write-profiles-and-rules/06-phase-36-evals-gate-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase adds a public write customization surface; it does not reopen retrieval routing or recall-side strategy promotion.
+- This phase does not add a full stage-by-stage plugin platform.
+- This phase does not make OneLife a built-in preset.
+- This phase does not require an Expo or Python client implementation.
+- This phase does not make assisted extraction mandatory or default-on.
+- This phase does not make automatic assistant-answer memory safe by default.
+- This phase keeps policy hooks as governance gates instead of redefining them as domain extraction rules.

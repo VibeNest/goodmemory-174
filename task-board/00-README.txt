@@ -103,6 +103,7 @@ Read and execute files in this order:
 34. 34-phase-33-node-compatible-package-boundary-and-node-first-integration.txt
 35. 35-phase-34-host-pre-action-policy-and-veto-contract.txt
 36. 36-phase-35-installed-host-memory-middleware-and-hooks.txt
+37. 37-phase-36-public-domain-write-profiles-and-rules.txt
 
 
 Current Sequencing Note
@@ -207,6 +208,10 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
   - global install, explicit repo opt-in, hook-injected recall, read-only MCP, and explicit write CLI are accepted on the installed-host path
   - automatic writeback, transcript persistence, `Stop` hooks, public `goodmemory/evolution`, and Claude as a second live blocker remain out of scope
+- Phase 36 is now open as the public domain write profiles and rules slice:
+  - goal: make domain-specific write customization a first-class public API instead of relying on `testing.extractor`, internal adapters, or post-extraction policy hooks
+  - motivating integration: OneLife / life-coach agents, without hardcoding OneLife as a built-in preset
+  - entrypoint: `task-board/37-phase-36-public-domain-write-profiles-and-rules.txt`
 - Any work after Phase 35 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
