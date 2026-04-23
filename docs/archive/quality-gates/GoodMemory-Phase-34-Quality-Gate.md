@@ -1,6 +1,6 @@
 # GoodMemory Phase 34 Quality Gate
 
-Canonical gate run: `run-20260422235930`
+Canonical gate run: `run-20260423102636`
 
 Canonical Codex action-gate live report: `run-phase34-live-current`
 
@@ -14,6 +14,9 @@ bun run gate:phase-34
 
 - explicit host pre-action policy and veto behavior on `goodmemory/host`
 - packaged `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()`
+- root `goodmemory` public surface cleanup so internal evolution contracts and constructors no longer leak from the root barrel
+- proposal-first automatic adapter correction: event-backed `user_correction` creates selective evidence and feedback experience lineage before reviewer/gate/compiler, not an intermediate active feedback memory
+- coding-agent procedural targeting for repeated coding-agent corrections and coding-agent tool-outcome lineage
 - deterministic policy compilation from active validated patterns, linked evidence, working memory, and session journal
 - auditable action-assessment recording keyed by `actionId`
 - installed-package Codex bootstrap assets for the action-gate runtime path:
@@ -37,7 +40,7 @@ Out of scope:
 ## Canonical Artifacts
 
 - Quality gate:
-  - `reports/quality-gates/phase-34/run-20260422235930/phase-34-quality-gate.json`
+  - `reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json`
 - Deterministic fallback report:
   - `reports/eval/fallback/phase-34/run-20260422213045/report.json`
 - Codex action-gate live report:
@@ -50,6 +53,9 @@ Out of scope:
 - `gate:phase-34` proves:
   - `bun run typecheck` passed
   - targeted host/action/bootstrap/release regressions passed
+  - root public-surface regressions prove no root evolution export leak
+  - adapter-event regressions prove automatic corrections are proposal-first and receipts remain visible without `feedbackMemoryId`
+  - reviewer/evolution regressions prove experience-only corrections and coding-agent outcome lineage compile to targeted procedural guidance
   - the deterministic Phase 34 report still beats the Phase 32 soft-guard and no-memory baselines on first-action interception, corrected first-step behavior, false-block control, and completion non-regression
   - the canonical Codex live report is tarball-first and installed-package based, not repo-internal
   - the canonical Codex live report proves one executable first-step rewrite, one destructive veto, and one low-risk non-regression case on the installed-package action-gate wrapper path
@@ -63,5 +69,5 @@ Only the gate run above and the Codex action-gate live report above are canonica
 
 ## Decision
 
-Phase 34 is accepted.
-GoodMemory now has an explicit host pre-action policy and veto contract on `goodmemory/host`, plus a canonical installed-package Codex action-gate path that can rewrite or block the first step without widening the root API.
+Phase 34 is accepted after the seven-standard closure refresh.
+GoodMemory now has an explicit host pre-action policy and veto contract on `goodmemory/host`, proposal-first automatic adapter corrections, targeted coding-agent procedural promotion, and a cleaned root public surface without widening into `goodmemory/evolution`.

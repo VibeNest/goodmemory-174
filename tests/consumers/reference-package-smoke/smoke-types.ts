@@ -132,12 +132,24 @@ type RootHostActionIntent = import("goodmemory").HostActionIntent;
 // @ts-expect-error Root barrel must not export runtime validation helpers for host action intents.
 const rootValidateHostActionIntent = import("goodmemory").validateHostActionIntent;
 
+// @ts-expect-error Root barrel must not export internal evolution proposals.
+type RootLearningProposal = import("goodmemory").LearningProposal;
+
+// @ts-expect-error Root barrel must not export internal evolution promotions.
+type RootPromotionRecord = import("goodmemory").PromotionRecord;
+
+// @ts-expect-error Root barrel must not export internal evolution constructors.
+const rootCreateLearningProposal = import("goodmemory").createLearningProposal;
+
 void legacyArgsEvent;
 void (0 as unknown as RootAgentInputEvent);
 void (0 as unknown as RootHostAgentEvent);
 void (0 as unknown as RootHostActionIntent);
+void (0 as unknown as RootLearningProposal);
+void (0 as unknown as RootPromotionRecord);
 void rootValidateAgentInputEvent;
 void rootValidateHostAgentEvent;
 void rootValidateHostActionIntent;
+void rootCreateLearningProposal;
 void hostExecutionPlan;
 void runtimeInfo;

@@ -1,5 +1,6 @@
 import type {
   ArtifactSpillRecord,
+  FeedbackKind,
   FeedbackMemory,
 } from "../domain/records";
 import {
@@ -202,20 +203,22 @@ async function resolveFeedbackSignalState(input: {
   resolvedLanguage: ReturnType<ReturnType<typeof createLanguageService>["resolveFromText"]>;
   superseded?: FeedbackMemory;
 }> {
-  const resolvedLanguage = input.language.resolveFromText({
+  const {
+    appliesTo,
+    kind,
+    normalizedRule,
+    resolvedLanguage,
+  } = resolveFeedbackSignalMetadata({
+    appliesTo: input.appliesTo,
+    language: input.language,
     locale: input.locale,
-    text: input.signal,
+    signal: input.signal,
   });
   const existing = await input.feedbackRepository.listByScope(input.scope);
-  const kind = input.language.deriveFeedbackKind(input.signal, resolvedLanguage);
-  const normalizedRule = input.language.normalizeForEquality(
-    input.signal,
-    resolvedLanguage,
-  );
   const nextIdentityKey = buildFeedbackIdentityKey({
     kind,
     normalizedRule,
-    appliesTo: input.appliesTo ?? "general_response",
+    appliesTo,
   });
   const duplicate = existing.find(
     (record) =>
@@ -233,8 +236,7 @@ async function resolveFeedbackSignalState(input: {
     (record) =>
       record.lifecycle === "active" &&
       record.kind === kind &&
-      normalizeFeedbackAppliesTo(record.appliesTo) ===
-        normalizeFeedbackAppliesTo(input.appliesTo),
+      normalizeFeedbackAppliesTo(record.appliesTo) === appliesTo,
   );
 
   return {
@@ -244,6 +246,36 @@ async function resolveFeedbackSignalState(input: {
     normalizedRule,
     resolvedLanguage,
     superseded,
+  };
+}
+
+function resolveFeedbackSignalMetadata(input: {
+  appliesTo?: string;
+  language: ReturnType<typeof createLanguageService>;
+  locale?: string;
+  signal: string;
+}): {
+  appliesTo: string;
+  kind: Exclude<FeedbackKind, "validated_pattern">;
+  normalizedRule: string;
+  resolvedLanguage: ReturnType<ReturnType<typeof createLanguageService>["resolveFromText"]>;
+} {
+  const resolvedLanguage = input.language.resolveFromText({
+    locale: input.locale,
+    text: input.signal,
+  });
+  const derivedKind = input.language.deriveFeedbackKind(input.signal, resolvedLanguage);
+  const kind = derivedKind === "validated_pattern" ? "do" : derivedKind;
+  const normalizedRule = input.language.normalizeForEquality(
+    input.signal,
+    resolvedLanguage,
+  );
+
+  return {
+    appliesTo: normalizeFeedbackAppliesTo(input.appliesTo),
+    kind,
+    normalizedRule,
+    resolvedLanguage,
   };
 }
 
@@ -1003,12 +1035,15 @@ class GoodMemoryImpl implements GoodMemory {
   }
 }
 
-async function writeAgentEventFeedbackSignal(input: {
+async function submitAgentEventCorrection(input: {
   appliesTo?: string;
   evolutionRuntime: {
-    handleFeedback(input: {
-      result: FeedbackResult;
+    handleAgentCorrection(input: {
+      appliesTo: string;
+      evidenceIds?: string[];
+      kind: Exclude<FeedbackKind, "validated_pattern">;
       scope: FeedbackInput["scope"];
+      signal: string;
       strict?: boolean;
       traceId?: string;
     }): Promise<{
@@ -1016,7 +1051,6 @@ async function writeAgentEventFeedbackSignal(input: {
       proposalReceipts: AgentEventProposalReceipt[];
     }>;
   };
-  feedbackRepository: GovernanceRepositoryPort["feedback"];
   language: ReturnType<typeof createLanguageService>;
   locale?: string;
   scope: FeedbackInput["scope"];
@@ -1025,18 +1059,36 @@ async function writeAgentEventFeedbackSignal(input: {
   strictExperience?: boolean;
   traceId?: string;
 }): Promise<AgentEventFeedbackResult> {
-  const { receipts, result } = await writeFeedbackSignal({
+  const {
+    appliesTo,
+    kind,
+    resolvedLanguage,
+  } = resolveFeedbackSignalMetadata({
     appliesTo: input.appliesTo,
-    evolutionRuntime: input.evolutionRuntime,
-    feedbackRepository: input.feedbackRepository,
     language: input.language,
     locale: input.locale,
+    signal: input.signal,
+  });
+  const receipts = await input.evolutionRuntime.handleAgentCorrection({
+    appliesTo,
+    kind,
     scope: input.scope,
     signal: input.signal,
     ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
-    ...(input.strictExperience ? { strictExperience: true } : {}),
+    ...(input.strictExperience ? { strict: true } : {}),
     ...(input.traceId ? { traceId: input.traceId } : {}),
   });
+  const result: FeedbackResult = {
+    accepted: true,
+    ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
+    kind,
+    metadata: {
+      locale: resolvedLanguage.locale,
+      localeSource: resolvedLanguage.localeSource,
+      adapterId: resolvedLanguage.adapterId,
+      analysisMode: resolvedLanguage.analysisMode,
+    },
+  };
 
   return withAgentEventFeedbackReceipts(result, receipts);
 }
@@ -1071,6 +1123,18 @@ export function createInternalGoodMemory(
         result: BehavioralOutcomeObservationResult;
         scope: ForgetInput["scope"];
       }) => Promise<void>;
+      handleAgentCorrection: (input: {
+        appliesTo: string;
+        evidenceIds?: string[];
+        kind: Exclude<FeedbackKind, "validated_pattern">;
+        scope: FeedbackInput["scope"];
+        signal: string;
+        strict?: boolean;
+        traceId?: string;
+      }) => Promise<{
+        promotionReceipts: AgentEventPromotionReceipt[];
+        proposalReceipts: AgentEventProposalReceipt[];
+      }>;
       handleFeedback: (input: {
         result: FeedbackResult;
         scope: FeedbackInput["scope"];
@@ -1094,10 +1158,9 @@ export function createInternalGoodMemory(
     ingestAgentInputEvent: ({ event }) =>
       createAgentEventIngestor({
         documentStore: implWithInternals.documentStore,
-        feedback: (input) =>
-          writeAgentEventFeedbackSignal({
+        submitCorrection: (input) =>
+          submitAgentEventCorrection({
             evolutionRuntime: implWithInternals.evolutionRuntime,
-            feedbackRepository: implWithInternals.governanceRepositories.feedback,
             language: implWithInternals.language,
             appliesTo: input.appliesTo,
             locale: input.locale,
@@ -1120,10 +1183,9 @@ export function createInternalGoodMemory(
     ingestHostAgentEvent: ({ event }) =>
       createAgentEventIngestor({
         documentStore: implWithInternals.documentStore,
-        feedback: (input) =>
-          writeAgentEventFeedbackSignal({
+        submitCorrection: (input) =>
+          submitAgentEventCorrection({
             evolutionRuntime: implWithInternals.evolutionRuntime,
-            feedbackRepository: implWithInternals.governanceRepositories.feedback,
             language: implWithInternals.language,
             appliesTo: input.appliesTo,
             locale: input.locale,
@@ -1169,6 +1231,7 @@ export function createInternalGoodMemory(
                 firstAction: input.firstAction,
                 modelInfluence: input.modelInfluence ?? "rules-only",
                 outcome: input.outcome,
+                retrievalProfile: input.retrievalProfile,
                 saferAlternative: input.saferAlternative,
               },
             }),

@@ -28,23 +28,6 @@ function createExperienceFailingOnceDocumentStore(): DocumentStore {
   };
 }
 
-function createFeedbackFailingOnceDocumentStore(): DocumentStore {
-  const store = createInMemoryDocumentStore();
-  let failed = false;
-
-  return {
-    ...store,
-    async set(collection, id, document) {
-      if (!failed && collection === "feedback") {
-        failed = true;
-        throw new Error("feedback repository unavailable");
-      }
-
-      await store.set(collection, id, document);
-    },
-  };
-}
-
 function createValidatedPatternCompileFailingOnceDocumentStore(): DocumentStore {
   const store = createInMemoryDocumentStore();
   let failed = false;
@@ -65,6 +48,34 @@ function createValidatedPatternCompileFailingOnceDocumentStore(): DocumentStore 
       }
 
       await store.set(collection, id, document);
+    },
+  };
+}
+
+function createFeedbackReceiptBarrierDocumentStore(traceId: string): DocumentStore {
+  const store = createInMemoryDocumentStore();
+  let receiptQueryCount = 0;
+  let releaseReceiptQueries: (() => void) | undefined;
+  const receiptBarrier = new Promise<void>((resolve) => {
+    releaseReceiptQueries = resolve;
+  });
+
+  return {
+    ...store,
+    async query(collection, filter) {
+      if (
+        collection === EXPERIENCES_COLLECTION &&
+        filter?.kind === "feedback" &&
+        filter.traceId === traceId
+      ) {
+        receiptQueryCount += 1;
+        if (receiptQueryCount >= 2) {
+          releaseReceiptQueries?.();
+        }
+        await receiptBarrier;
+      }
+
+      return store.query(collection, filter);
     },
   };
 }
@@ -358,7 +369,7 @@ describe("agent event ingestion", () => {
       });
 
       expect(result.recorded).toBe(true);
-      expect(result.feedbackMemoryId).toBeDefined();
+      expect(result.feedbackMemoryId).toBeUndefined();
       receipts.push(result);
     }
 
@@ -377,6 +388,13 @@ describe("agent event ingestion", () => {
           record.rule.includes("Use bullet points in summaries."),
       ),
     ).toBe(true);
+    expect(
+      exported.durable.feedback.some(
+        (record) =>
+          record.kind !== "validated_pattern" &&
+          record.rule.includes("Use bullet points in summaries."),
+      ),
+    ).toBe(false);
     expect(
       exported.durable.proposals.some(
         (proposal) => proposal.proposalType === "procedural_pattern",
@@ -399,6 +417,74 @@ describe("agent event ingestion", () => {
     );
     expect(receiptBearingResult?.promotionReceipts).toHaveLength(1);
     expect(receiptBearingResult?.promotionReceipts?.[0]?.decision).toBe("accepted");
+  });
+
+  it("does not let concurrent duplicate user corrections self-promote from one logical trace", async () => {
+    const traceId = "event-concurrent-correction";
+    const documentStore = createFeedbackReceiptBarrierDocumentStore(traceId);
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+      },
+    });
+    const scope = {
+      userId: "u-concurrent",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    } as const;
+    const event = {
+      surface: "ai-sdk",
+      kind: "user_correction",
+      eventId: traceId,
+      runId: "run-1",
+      turnId: "turn-1",
+      sequence: 0,
+      occurredAt: "2026-04-22T00:00:00.000Z",
+      hostKind: "generic",
+      scope,
+      correction: "Use bullet points in summaries.",
+      retrievalProfile: "coding_agent",
+    } as const;
+
+    const [first, second] = await Promise.all([
+      ingestAgentInputEvent(memory, event),
+      ingestAgentInputEvent(memory, event),
+    ]);
+    const duplicate = await ingestAgentInputEvent(memory, event);
+    const exported = await memory.exportMemory({
+      scope: {
+        userId: "u-concurrent",
+        workspaceId: "workspace-a",
+      },
+    });
+
+    expect(first.recorded).toBe(true);
+    expect(second.recorded).toBe(true);
+    expect(duplicate).toEqual({
+      recorded: false,
+      skippedReason: "duplicate_event",
+    });
+    expect(
+      exported.durable.evidence.filter((record) => record.kind === "correction_context"),
+    ).toHaveLength(1);
+    expect(
+      exported.durable.experiences.filter((record) => record.kind === "feedback"),
+    ).toHaveLength(1);
+    expect(
+      exported.durable.proposals.filter(
+        (proposal) => proposal.proposalType === "procedural_pattern",
+      ),
+    ).toHaveLength(0);
+    expect(exported.durable.promotions).toHaveLength(0);
+    expect(
+      exported.durable.feedback.filter(
+        (record) =>
+          record.kind === "validated_pattern" &&
+          record.lifecycle === "active" &&
+          record.rule.includes("Use bullet points in summaries."),
+      ),
+    ).toHaveLength(0);
   });
 
   it("maps general-chat user corrections to general_response guidance instead of coding-agent policy", async () => {
@@ -502,11 +588,11 @@ describe("agent event ingestion", () => {
     ).toBe(false);
   });
 
-  it("retries user correction feedback after evidence-only partial persistence", async () => {
+  it("retries user correction proposal submission after evidence-only partial persistence", async () => {
     const memory = createGoodMemory({
       storage: { provider: "memory" },
       adapters: {
-        documentStore: createFeedbackFailingOnceDocumentStore(),
+        documentStore: createExperienceFailingOnceDocumentStore(),
       },
     });
     const scope = {
@@ -529,7 +615,7 @@ describe("agent event ingestion", () => {
     } as const;
 
     await expect(ingestAgentInputEvent(memory, event)).rejects.toThrow(
-      "feedback repository unavailable",
+      "experience repository unavailable",
     );
 
     const retry = await ingestAgentInputEvent(memory, event);
@@ -538,7 +624,7 @@ describe("agent event ingestion", () => {
 
     expect(retry.recorded).toBe(true);
     expect(retry.evidenceId).toBeDefined();
-    expect(retry.feedbackMemoryId).toBeDefined();
+    expect(retry.feedbackMemoryId).toBeUndefined();
     expect(duplicate).toEqual({
       recorded: false,
       skippedReason: "duplicate_event",
@@ -546,10 +632,8 @@ describe("agent event ingestion", () => {
     expect(
       exported.durable.evidence.filter((record) => record.kind === "correction_context"),
     ).toHaveLength(1);
-    expect(exported.durable.feedback).toHaveLength(1);
-    expect(exported.durable.feedback[0]?.rule).toContain(
-      "Use bullet points in summaries.",
-    );
+    expect(exported.durable.experiences).toHaveLength(1);
+    expect(exported.durable.feedback).toHaveLength(0);
   });
 
   it("keeps proposal and promotion receipts when compile fails after gate persistence", async () => {
@@ -570,7 +654,7 @@ describe("agent event ingestion", () => {
     console.error = (() => {}) as typeof console.error;
 
     try {
-      for (const [index, eventId] of ["event-1", "event-2", "event-3"].entries()) {
+      for (const [index, eventId] of ["event-1", "event-2"].entries()) {
         receipts.push(await ingestAgentInputEvent(memory, {
           surface: "ai-sdk",
           kind: "user_correction",

@@ -41,6 +41,7 @@ describe("host behavioral trace bridge", () => {
         name: "DeepAnalyzer",
         raw: "DeepAnalyzer --detailed",
       },
+      retrievalProfile: "coding_agent",
       saferAlternative: {
         kind: "tool_call",
         name: "QuickCheck",
@@ -90,6 +91,7 @@ describe("host behavioral trace bridge", () => {
         name: "DeepAnalyzer",
         raw: "DeepAnalyzer --detailed",
       },
+      retrievalProfile: "coding_agent",
       saferAlternative: {
         kind: "tool_call",
         name: "SafeCheck",

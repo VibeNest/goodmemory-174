@@ -16,17 +16,12 @@ This phase exists to make GoodMemory feel closer to a real host-native memory la
 
 Current Status
 --------------
-[DONE] Phase 35 is accepted and closed.
+[WIP] Phase 35 is in progress after the Phase 34 public-boundary/proposal-first reopen.
 [DONE] Phase 32 already proved the installed-package external host line on `coding_agent + goodmemory + goodmemory/ai-sdk + goodmemory/host`.
 [DONE] Phase 33 already froze the formal Node-compatible package boundary for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`.
 [DONE] Phase 34 already proved host pre-action policy and veto behavior on the explicit `goodmemory/host` seam.
-[DONE] External users now have one canonical global-install, repo-opt-in, hook-injected GoodMemory middleware path for Codex.
-[DONE] Claude Code reached install/hook/docs/package-smoke parity without becoming a second live blocker.
-[DONE] `goodmemory-mcp` now exists as a distributable installed entrypoint, and `goodmemory mcp serve` is the canonical CLI form.
-[DONE] `goodmemory install codex` / `goodmemory install claude` and explicit repo `enable` / `disable` now wire user-level MCP registration, user-level automatic hook registration, and repo opt-in.
-[DONE] Explicit installed hook commands now exist for `SessionStart` and `UserPromptSubmit`, and global install now auto-registers them on the supported host config paths.
-[DONE] Explicit write CLI now exists on the installed/package surface: `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget`, including installed-package smoke for write -> hook recall -> MCP deep read.
-[DONE] Canonical closure evidence now exists for deterministic dual-baseline evaluation, tarball-first installed-package live middleware validation, and `gate:phase-35`.
+[WIP] Global-install, repo opt-in, hook-injected recall, MCP, and explicit write CLI work exists in-tree but is not accepted stable surface until the refreshed Phase 35 gate is accepted.
+[WIP] Prior Phase 35 deterministic/live/gate reports are validation snapshots, not current accepted closure evidence.
 
 
 Dependencies

@@ -8,6 +8,7 @@ import {
   readCompiledGuidance,
 } from "./behavioralTelemetry";
 import { createPromotionRecord } from "./contracts";
+import { readAgentEventCorrectionMetadata } from "./feedbackCorrections";
 import type {
   ExperienceRecord,
   LearningProposal,
@@ -46,6 +47,7 @@ interface ProposalGateContext {
 }
 
 interface ProceduralPatternLineageAssessment {
+  hasRepeatedAgentCorrectionLineage: boolean;
   hasRepeatedFeedbackLineage: boolean;
   hasRepeatedToolOutcomeLineage: boolean;
   missingExperienceIds: string[];
@@ -165,6 +167,14 @@ function evaluateVerificationGate(
       };
     }
 
+    if (lineage.hasRepeatedAgentCorrectionLineage) {
+      return {
+        outcome: "passed",
+        rationale:
+          "procedural proposal has repeated adapter correction lineage and compiled guidance",
+      };
+    }
+
     if (lineage.missingExperienceIds.length > 0) {
       return {
         outcome: "review_required",
@@ -229,6 +239,14 @@ function evaluateEvalGate(
         outcome: "passed",
         rationale:
           "repeated tool-outcome failures confirm governed first-action avoidance strongly enough for deterministic procedural promotion",
+      };
+    }
+
+    if (lineage.hasRepeatedAgentCorrectionLineage) {
+      return {
+        outcome: "passed",
+        rationale:
+          "repeated adapter user corrections confirm governed procedural guidance strongly enough for deterministic promotion",
       };
     }
   }
@@ -310,8 +328,31 @@ function assessProceduralPatternLineage(
           firstToolOutcome!.saferAlternative,
         ),
     );
+  const parsedAgentCorrectionMetadata = sourceExperiences.map((experience) =>
+    readAgentEventCorrectionMetadata(experience),
+  );
+  const [firstAgentCorrection] = parsedAgentCorrectionMetadata;
+  const agentCorrectionTraceIds = new Set(
+    sourceExperiences
+      .filter((_, index) => Boolean(parsedAgentCorrectionMetadata[index]))
+      .map((experience) => experience.traceId),
+  );
+  const hasRepeatedAgentCorrectionLineage =
+    Boolean(readCompiledGuidance(proposal)) &&
+    distinctSourceExperienceIds.length >= 2 &&
+    agentCorrectionTraceIds.size >= 2 &&
+    missingExperienceIds.length === 0 &&
+    Boolean(firstAgentCorrection) &&
+    parsedAgentCorrectionMetadata.every(
+      (metadata) =>
+        Boolean(metadata) &&
+        metadata!.signal === firstAgentCorrection!.signal &&
+        metadata!.appliesTo === firstAgentCorrection!.appliesTo &&
+        metadata!.kind === firstAgentCorrection!.kind,
+    );
 
   return {
+    hasRepeatedAgentCorrectionLineage,
     hasRepeatedFeedbackLineage,
     hasRepeatedToolOutcomeLineage,
     missingExperienceIds,

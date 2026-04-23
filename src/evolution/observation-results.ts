@@ -48,9 +48,12 @@ export interface RecallObservationResult {
 
 export interface FeedbackObservationResult {
   accepted: boolean;
+  appliesTo?: string;
   evidenceIds?: string[];
   kind?: string;
   memoryId?: string;
   modelInfluence: ExperienceModelInfluence;
+  origin?: "agent_event" | "api";
   outcome?: string;
+  signal?: string;
 }

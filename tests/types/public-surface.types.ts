@@ -19,6 +19,24 @@ type RootRecallEngineConfig = import("../../src").RecallEngineConfig;
 // @ts-expect-error Root barrel no longer exports internal recall-engine results.
 type RootInternalRecallResult = import("../../src").InternalRecallResult;
 
+// @ts-expect-error Root barrel must not expose internal evolution contracts.
+type RootLearningProposal = import("../../src").LearningProposal;
+
+// @ts-expect-error Root barrel must not expose internal promotion contracts.
+type RootPromotionRecord = import("../../src").PromotionRecord;
+
+// @ts-expect-error Root barrel must not expose internal archive contracts.
+type RootSessionArchive = import("../../src").SessionArchive;
+
+// @ts-expect-error Root barrel must not expose internal proposal constructors.
+type RootCreateLearningProposal = typeof import("../../src").createLearningProposal;
+
+// @ts-expect-error Root barrel must not expose internal promotion constructors.
+type RootCreatePromotionRecord = typeof import("../../src").createPromotionRecord;
+
+// @ts-expect-error Root barrel must not expose internal archive constructors.
+type RootCreateSessionArchive = typeof import("../../src").createSessionArchive;
+
 void (0 as unknown as RootMemoryRepositories);
 void (0 as unknown as RootMemoryRepositoriesConfig);
 void (0 as unknown as RootCreateMemoryRepositories);
@@ -26,3 +44,9 @@ void (0 as unknown as RootCreateRecallEngine);
 void (0 as unknown as RootCreateRememberEngine);
 void (0 as unknown as RootRecallEngineConfig);
 void (0 as unknown as RootInternalRecallResult);
+void (0 as unknown as RootLearningProposal);
+void (0 as unknown as RootPromotionRecord);
+void (0 as unknown as RootSessionArchive);
+void (0 as unknown as RootCreateLearningProposal);
+void (0 as unknown as RootCreatePromotionRecord);
+void (0 as unknown as RootCreateSessionArchive);

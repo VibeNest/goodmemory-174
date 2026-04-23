@@ -137,6 +137,116 @@ describe("rules-only reviewer", () => {
     expect(proposals[0]?.summary).toContain("Use bullet points");
   });
 
+  it("emits a compiled procedural pattern from repeated agent-event corrections without source feedback memory", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+    const reviewer = createRulesOnlyReviewer({
+      repositories,
+      now: () => "2026-04-15T00:00:00.000Z",
+      createId: () => "proposal-agent-correction-1",
+      createTraceId: () => "review-trace-agent-correction-1",
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    await repositories.experiences.add(
+      createExperienceRecord({
+        id: "xp-agent-correction-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "feedback",
+        traceId: "trace-agent-correction-1",
+        summary: "Agent-event correction submitted for proposal review.",
+        linkedEvidenceIds: ["evidence-1"],
+        metadata: {
+          feedbackAppliesTo: "coding_agent",
+          feedbackKind: "do",
+          feedbackOrigin: "agent_event",
+          feedbackSignal: "Use bullet points in summaries.",
+        },
+        modelInfluence: "rules-only",
+      }),
+    );
+    await repositories.experiences.add(
+      createExperienceRecord({
+        id: "xp-agent-correction-2",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "feedback",
+        traceId: "trace-agent-correction-2",
+        summary: "Agent-event correction submitted for proposal review.",
+        linkedEvidenceIds: ["evidence-2"],
+        metadata: {
+          feedbackAppliesTo: "coding_agent",
+          feedbackKind: "do",
+          feedbackOrigin: "agent_event",
+          feedbackSignal: "Use bullet points in summaries.",
+        },
+        modelInfluence: "rules-only",
+      }),
+    );
+
+    const proposals = await reviewer.review({ scope });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.proposalType).toBe("procedural_pattern");
+    expect(proposals[0]?.linkedMemoryIds).toEqual([]);
+    expect(proposals[0]?.sourceExperienceIds).toEqual([
+      "xp-agent-correction-1",
+      "xp-agent-correction-2",
+    ]);
+    expect(readCompiledGuidance(proposals[0]!)).toEqual({
+      rule: "Use bullet points in summaries.",
+      kind: "do",
+      appliesTo: "coding_agent",
+      confidence: 0.9,
+      why: "Repeated adapter user corrections support this governed procedural pattern.",
+    });
+  });
+
+  it("does not treat duplicate agent-event correction rows for one trace as repeated lineage", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+    const reviewer = createRulesOnlyReviewer({
+      repositories,
+      now: () => "2026-04-15T00:00:00.000Z",
+      createId: () => "proposal-agent-correction-1",
+      createTraceId: () => "review-trace-agent-correction-1",
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    for (const [index, experienceId] of [
+      "xp-agent-correction-1",
+      "xp-agent-correction-2",
+    ].entries()) {
+      await repositories.experiences.add(
+        createExperienceRecord({
+          id: experienceId,
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          kind: "feedback",
+          traceId: "trace-agent-correction-1",
+          summary: "Agent-event correction submitted for proposal review.",
+          linkedEvidenceIds: [`evidence-${index + 1}`],
+          metadata: {
+            feedbackAppliesTo: "coding_agent",
+            feedbackKind: "do",
+            feedbackOrigin: "agent_event",
+            feedbackSignal: "Use bullet points in summaries.",
+          },
+          modelInfluence: "rules-only",
+        }),
+      );
+    }
+
+    const proposals = await reviewer.review({ scope });
+
+    expect(proposals).toHaveLength(0);
+  });
+
   it("emits a maintenance proposal for a single verification signal and ignores low-signal traces", async () => {
     const repositories = createMemoryRepositories({
       documentStore: createInMemoryDocumentStore(),
@@ -475,6 +585,52 @@ describe("rules-only reviewer", () => {
       confidence: 0.9,
       why: "Repeated tool-outcome failures show the original first action is unsafe for this cue.",
     });
+  });
+
+  it("targets coding-agent tool outcome guidance when the source lineage is coding-agent scoped", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+    const reviewer = createRulesOnlyReviewer({
+      repositories,
+      now: () => "2026-04-20T00:00:00.000Z",
+      createId: () => "proposal-tool-outcome-1",
+      createTraceId: () => "review-trace-tool-outcome-1",
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    for (const [index, traceId] of ["trace-tool-outcome-1", "trace-tool-outcome-2"].entries()) {
+      await repositories.experiences.add(
+        toStoredExperienceRecord(buildBehavioralOutcomeExperienceRecord({
+          scope,
+          traceId,
+          createdAt: `2026-04-20T00:00:0${index}.000Z`,
+          createId: () => `xp-tool-outcome-${index + 1}`,
+          result: {
+            cue: "detailed analysis",
+            failureClass: "timeout",
+            firstAction: {
+              kind: "tool_call",
+              name: "DeepAnalyzer",
+              raw: "DeepAnalyzer --detailed",
+            },
+            modelInfluence: "rules-only",
+            retrievalProfile: "coding_agent",
+            saferAlternative: {
+              kind: "tool_call",
+              name: "QuickCheck",
+              raw: "QuickCheck --network",
+            },
+          },
+        })),
+      );
+    }
+
+    const proposals = await reviewer.review({ scope });
+
+    expect(proposals).toHaveLength(1);
+    expect(readCompiledGuidance(proposals[0]!)?.appliesTo).toBe("coding_agent");
   });
 
   it("does not merge tool outcome experiences that only share the action name", async () => {

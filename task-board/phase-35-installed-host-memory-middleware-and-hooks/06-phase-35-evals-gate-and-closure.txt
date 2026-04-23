@@ -1,10 +1,9 @@
 Phase 35.6: Phase 35 Evals, Gate, and Closure
 =============================================
 
-[DONE] Added dedicated deterministic and live evidence for the installed-host middleware path.
-[DONE] Added `gate:phase-35`.
-[DONE] Archived one canonical Codex global-install plus repo-opt-in hook/MCP evidence chain.
-[DONE] Synced current-status, archive docs, and task-board entrypoints after the evidence became real.
+[WIP] Dedicated deterministic/live evidence and `gate:phase-35` exist as historical validation snapshots.
+[WIP] Phase 35 is not currently accepted after the Phase 34 public-boundary/proposal-first correction reopen.
+[WIP] Re-acceptance must refresh this gate and resync current-status, archive docs, and task-board entrypoints together.
 
 Gate Shape
 ----------
@@ -15,7 +14,7 @@ Gate Shape
 - deterministic middleware comparison against:
   - accepted Phase 32 bootstrap/file-assisted path
   - no-memory baseline
-- one canonical Codex live report proving:
+- one refreshed Codex live report proving:
   - global install
   - repo opt-in
   - `SessionStart` continuity injection
@@ -28,14 +27,14 @@ Acceptance
 - `gate:phase-35` fails if install/uninstall/enable/disable drifts from the documented contract
 - `gate:phase-35` fails if hook injection regresses below the accepted Phase 32 external-host baseline
 - `gate:phase-35` fails if the installed middleware path does not clearly beat the no-memory baseline
-- `gate:phase-35` fails without one canonical Codex global-install live evidence chain
-- closure docs cite one exact canonical gate run and one exact canonical Codex live report
+- `gate:phase-35` fails without one refreshed Codex global-install live evidence chain
+- closure docs cite one exact accepted gate run and one exact Codex live report
 
-Canonical Closure Evidence To Produce
--------------------------------------
+Closure Evidence To Produce
+---------------------------
 - one deterministic Phase 35 report
-- one canonical Codex global-install live report
-- one accepted Phase 35 quality-gate report
+- one Codex global-install live report
+- one refreshed Phase 35 quality-gate report with an accepted decision
 - one archived quality-gate summary doc
 
 Regression Run
@@ -48,7 +47,7 @@ Regression Run
 - `bun run eval:phase-35`
 - `bun run eval:phase-35-live-memory`
 - `bun run gate:phase-35`
-- canonical closure evidence:
+- historical validation snapshots, not current closure evidence:
   - `reports/eval/fallback/phase-35/run-20260423173045/report.json`
   - `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
   - `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`

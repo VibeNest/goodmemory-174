@@ -177,7 +177,6 @@ interface ValidatedPhase34LiveReport {
 const GENERATED_BY = "scripts/run-phase-34-gate.ts";
 const PHASE34_CANONICAL_DETERMINISTIC_RUN_ID = "run-20260422213045";
 const PHASE34_CANONICAL_LIVE_RUN_ID = "run-phase34-live-current";
-const PHASE34_CANONICAL_GATE_RUN_ID = "run-20260422235930";
 const PHASE34_REQUIRED_LIVE_CASE_IDS = [
   "command-rewrite",
   "command-blocked-veto",
@@ -185,6 +184,9 @@ const PHASE34_REQUIRED_LIVE_CASE_IDS = [
 ] as const;
 const PHASE34_IN_SCOPE = [
   "phase-34 deterministic pre-action evidence against the Phase 32 soft-guard and no-memory baselines",
+  "root public surface cleanup that keeps internal evolution contracts off the root barrel",
+  "proposal-first adapter user-correction ingestion with proposal/promotion receipts and no intermediate active feedback memory",
+  "coding-agent targeted procedural promotion for repeated corrections and tool-outcome lineage",
   "one canonical installed-package Codex action-gate live report for executable rewrite, destructive veto, and low-risk non-regression",
   "repo-local Codex bootstrap scaffolds for AGENTS, wrapper, hooks, config, and rules through public package imports",
   "phase-34 quality-gate generation and fail-closed closure validation",
@@ -302,13 +304,16 @@ export function buildPhase34GateCommands(root: string): Phase34GateCommand[] {
         "bun",
         "test",
         "tests/unit/host.action-execution.test.ts",
-        "tests/unit/host.pre-action-policy.test.ts",
-        "tests/integration/host.action-assessment.test.ts",
-        "tests/unit/run-phase-34.script.test.ts",
-        "tests/unit/run-phase-34.live-memory.test.ts",
-        "tests/unit/run-phase-34.gate.test.ts",
-        "tests/cli/cli.test.ts",
-        "tests/release/release.test.ts",
+	        "tests/unit/host.pre-action-policy.test.ts",
+	        "tests/unit/evolution.reviewer.test.ts",
+	        "tests/integration/host.action-assessment.test.ts",
+	        "tests/integration/agent-events.ingestion.test.ts",
+	        "tests/unit/run-phase-34.script.test.ts",
+	        "tests/unit/run-phase-34.live-memory.test.ts",
+	        "tests/unit/run-phase-34.gate.test.ts",
+	        "tests/types/public-surface.types.ts",
+	        "tests/cli/cli.test.ts",
+	        "tests/release/release.test.ts",
       ],
       cwd: root,
       label: "targeted-regressions",
@@ -430,10 +435,11 @@ export async function runPhase34QualityGate(
 ): Promise<Phase34GateReport> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = options.outputDir ?? resolvePhase34GateOutputDir(root);
-  const runId = options.runId ?? PHASE34_CANONICAL_GATE_RUN_ID;
-  const runDirectory = join(outputDir, runId);
   const ensureDir = dependencies.ensureDir ?? mkdir;
   const now = dependencies.now ?? (() => new Date().toISOString());
+  const generatedAt = now();
+  const runId = options.runId ?? buildPhase34GateRunId(generatedAt);
+  const runDirectory = join(outputDir, runId);
   const readTextFile =
     dependencies.readTextFile ??
     ((path: string) => readFile(path, "utf8"));
@@ -473,7 +479,7 @@ export async function runPhase34QualityGate(
     acceptance: {
       decision: "accepted",
       reason:
-        "Phase 34 deterministic and installed-package Codex action-gate live evidence are both accepted, and the targeted host/package/release regressions passed.",
+        "Phase 34 deterministic and installed-package Codex action-gate live evidence are both accepted; targeted host/package/release, root-surface, proposal-first correction, and coding-agent procedural targeting regressions passed.",
     },
     commands,
     evidence: {
@@ -490,7 +496,7 @@ export async function runPhase34QualityGate(
         status: liveReport.acceptance.decision,
       },
     },
-    generatedAt: now(),
+    generatedAt,
     generatedBy: GENERATED_BY,
     phase: "phase-34",
     runDirectory,

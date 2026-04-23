@@ -47,12 +47,16 @@ describe("public feedback API", () => {
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
       signal: "The checklist format worked well for me, keep using it for code reviews.",
     });
+    await memory.feedback({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+      signal: "The checklist format worked well for me, keep using it for code reviews.",
+    });
 
     const records = await documentStore.query<{ kind: string }>("feedback", {
       userId: "u-1",
       workspaceId: "workspace-a",
     });
-    expect(records[0]?.kind).toBe("validated_pattern");
+    expect(records.some((record) => record.kind === "validated_pattern")).toBe(true);
   });
 
   it("normalizes and stores Chinese feedback signals", async () => {

@@ -5,6 +5,7 @@ const TOOL_OUTCOME_POLICY_TOKEN = "tool_outcome";
 const TOOL_OUTCOME_PREFIX = "tool_outcome.";
 
 export type BehavioralFirstActionKind = "command" | "tool_call" | "warning";
+export type BehavioralOutcomeRetrievalProfile = "coding_agent" | "general_chat";
 
 export interface BehavioralFirstAction {
   args?: string[];
@@ -20,6 +21,7 @@ export interface BehavioralOutcomeObservationResult {
   firstAction: BehavioralFirstAction;
   modelInfluence: ExperienceModelInfluence;
   outcome?: "failure" | "mixed" | "skipped" | "success";
+  retrievalProfile?: BehavioralOutcomeRetrievalProfile;
   saferAlternative?: BehavioralFirstAction;
 }
 
@@ -48,6 +50,7 @@ export interface ParsedToolOutcomeMetadata {
   cue: string;
   failureClass: string;
   firstAction: BehavioralFirstAction;
+  retrievalProfile?: BehavioralOutcomeRetrievalProfile;
   saferAlternative?: BehavioralFirstAction;
 }
 
@@ -151,6 +154,9 @@ export function buildBehavioralOutcomePolicyApplied(
   }
   if (result.firstAction.raw) {
     tags.push(toTag("first_action.raw", result.firstAction.raw));
+  }
+  if (result.retrievalProfile) {
+    tags.push(toTag("retrieval_profile", result.retrievalProfile));
   }
   if (result.saferAlternative) {
     tags.push(toTag("safer_alternative.kind", result.saferAlternative.kind));
@@ -290,10 +296,17 @@ export function parseToolOutcomeMetadata(
     return null;
   }
 
+  const retrievalProfile = values.get("retrieval_profile");
+  const parsedRetrievalProfile =
+    retrievalProfile === "coding_agent" || retrievalProfile === "general_chat"
+      ? retrievalProfile
+      : undefined;
+
   return {
     cue,
     failureClass,
     firstAction,
+    retrievalProfile: parsedRetrievalProfile,
     saferAlternative: parseAction(values, "safer_alternative"),
   };
 }

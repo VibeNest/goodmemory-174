@@ -3,6 +3,7 @@ import type {
   FeedbackMemory,
   FeedbackKind,
 } from "../domain/records";
+import { normalizeFeedbackAppliesTo } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { EvolutionRepositoryPort } from "../storage/ports";
 import {
@@ -19,6 +20,11 @@ import {
   parseToolOutcomeMetadata,
   serializeBehavioralFirstAction,
 } from "./behavioralTelemetry";
+import {
+  buildAgentEventCorrectionGroupKey,
+  readAgentEventCorrectionMetadata,
+} from "./feedbackCorrections";
+import type { AgentEventCorrectionMetadata } from "./feedbackCorrections";
 import {
   refreshDelayedProposal,
   sameProposalContent,
@@ -140,6 +146,20 @@ function sortExperiences(experiences: ExperienceRecord[]): ExperienceRecord[] {
   return [...experiences].sort((left, right) =>
     left.createdAt.localeCompare(right.createdAt),
   );
+}
+
+function collectDistinctTraceExperiences(
+  experiences: ExperienceRecord[],
+): ExperienceRecord[] {
+  const byTraceId = new Map<string, ExperienceRecord>();
+
+  for (const experience of sortExperiences(experiences)) {
+    if (!byTraceId.has(experience.traceId)) {
+      byTraceId.set(experience.traceId, experience);
+    }
+  }
+
+  return [...byTraceId.values()];
 }
 
 function resolveProposalScope(experiences: ExperienceRecord[]): MemoryScope {
@@ -264,6 +284,46 @@ function buildProceduralPatternProposal(input: {
   });
 }
 
+function buildAgentEventCorrectionPatternProposal(input: {
+  createId: () => string;
+  createTraceId: () => string;
+  experiences: ExperienceRecord[];
+  metadata: AgentEventCorrectionMetadata;
+  now: string;
+}): LearningProposal {
+  const sorted = sortExperiences(input.experiences);
+  const scope = resolveProposalScope(sorted);
+  const proposal = createLearningProposal({
+    id: input.createId(),
+    userId: scope.userId,
+    tenantId: scope.tenantId,
+    workspaceId: scope.workspaceId,
+    agentId: scope.agentId,
+    sessionId: scope.sessionId,
+    proposalType: "procedural_pattern",
+    traceId: input.createTraceId(),
+    summary:
+      `Promote repeated adapter correction into a governed procedural pattern: ${input.metadata.signal}`,
+    rationale:
+      `Rules-only reviewer saw ${sorted.length} repeated adapter user corrections for ${input.metadata.appliesTo}. This is stable enough to propose as governed procedural guidance without first writing durable feedback.`,
+    sourceExperienceIds: sorted.map((experience) => experience.id),
+    linkedEvidenceIds: collectUniqueFromGroups(
+      sorted.map((experience) => experience.linkedEvidenceIds),
+    ),
+    modelInfluence: aggregateModelInfluence(sorted),
+    createdAt: input.now,
+    updatedAt: input.now,
+  });
+
+  return attachCompiledGuidance(proposal, {
+    rule: input.metadata.signal,
+    kind: input.metadata.kind,
+    appliesTo: input.metadata.appliesTo,
+    confidence: 0.9,
+    why: "Repeated adapter user corrections support this governed procedural pattern.",
+  });
+}
+
 function resolveOutcomeGuidanceKind(): Exclude<FeedbackKind, "validated_pattern"> {
   return "dont";
 }
@@ -314,6 +374,9 @@ function buildToolOutcomePatternProposal(input: {
   const sorted = sortExperiences(input.experiences);
   const metadata = sorted.map((experience) => parseToolOutcomeMetadata(experience));
   const [firstMetadata] = metadata;
+  const appliesTo = firstMetadata?.retrievalProfile === "coding_agent"
+    ? "coding_agent"
+    : "general_response";
 
   if (
     !firstMetadata ||
@@ -322,6 +385,11 @@ function buildToolOutcomePatternProposal(input: {
         !entry ||
         entry.cue !== firstMetadata.cue ||
         entry.failureClass !== firstMetadata.failureClass ||
+        normalizeFeedbackAppliesTo(
+          entry.retrievalProfile === "coding_agent"
+            ? "coding_agent"
+            : "general_response",
+        ) !== appliesTo ||
         !behavioralFirstActionsEqual(entry.firstAction, firstMetadata.firstAction) ||
         !behavioralFirstActionsEqual(
           entry.saferAlternative,
@@ -367,7 +435,7 @@ function buildToolOutcomePatternProposal(input: {
       saferAlternativeLabel,
     }),
     kind: resolveOutcomeGuidanceKind(),
-    appliesTo: "general_response",
+    appliesTo,
     confidence: 0.9,
     why: "Repeated tool-outcome failures show the original first action is unsafe for this cue.",
   });
@@ -477,6 +545,54 @@ export function createRulesOnlyReviewer(config: RulesOnlyReviewerConfig) {
         }
       }
 
+      const agentCorrectionGroups = new Map<
+        string,
+        {
+          experiences: ExperienceRecord[];
+          metadata: AgentEventCorrectionMetadata;
+        }
+      >();
+      for (const experience of experiences) {
+        const metadata = readAgentEventCorrectionMetadata(experience);
+        if (!metadata) {
+          continue;
+        }
+
+        const groupKey = buildAgentEventCorrectionGroupKey({
+          experience,
+          metadata,
+        });
+        const group = agentCorrectionGroups.get(groupKey) ?? {
+          experiences: [],
+          metadata,
+        };
+        group.experiences.push(experience);
+        agentCorrectionGroups.set(groupKey, group);
+      }
+
+      for (const group of agentCorrectionGroups.values()) {
+        const distinctTraceExperiences = collectDistinctTraceExperiences(
+          group.experiences,
+        );
+
+        if (distinctTraceExperiences.length < 2) {
+          continue;
+        }
+
+        const candidate = buildAgentEventCorrectionPatternProposal({
+          createId,
+          createTraceId,
+          experiences: distinctTraceExperiences,
+          metadata: group.metadata,
+          now: timestamp,
+        });
+        const reconciled = reconcileCandidateProposal(existingProposals, candidate);
+
+        if (reconciled) {
+          proposals.push(reconciled);
+        }
+      }
+
       const toolOutcomeGroups = new Map<string, ExperienceRecord[]>();
       for (const experience of experiences) {
         if (!isToolOutcomeExperience(experience)) {
@@ -495,6 +611,7 @@ export function createRulesOnlyReviewer(config: RulesOnlyReviewerConfig) {
           metadata.saferAlternative
             ? serializeBehavioralFirstAction(metadata.saferAlternative)
             : "",
+          metadata.retrievalProfile ?? "",
         ].join("::");
         const group = toolOutcomeGroups.get(groupKey) ?? [];
         group.push(experience);

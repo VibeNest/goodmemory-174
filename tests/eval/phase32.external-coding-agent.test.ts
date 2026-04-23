@@ -40,7 +40,7 @@ async function createEventBackedCodingAgentContext() {
     appendWorklog: ["Bootstrap path passed."],
   });
 
-  for (const [index, eventId] of ["correction-1"].entries()) {
+  for (const [index, eventId] of ["correction-1", "correction-2"].entries()) {
     await ingestAgentInputEvent(memory, {
       surface: "ai-sdk",
       kind: "user_correction",

@@ -190,19 +190,19 @@ Current Sequencing Note
   - public package boundary now ships `dist/` plus `.d.ts` outputs for `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`
   - Bun-only CLI execution and Bun-local sqlite/sqlite-vss runtime behavior are now isolated from the Node-compatible library contract
   - Node 20/22 package-boundary CI and canonical plain AI SDK server integration are now part of the accepted package boundary
-- Phase 34 is now closed as the host pre-action policy and veto-contract slice:
+- Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice:
   - deterministic fallback evidence: `reports/eval/fallback/phase-34/run-20260422213045/report.json`
   - live Codex action-gate evidence: `reports/eval/live-memory/phase-34/run-phase34-live-current/report.json`
-  - quality gate: `reports/quality-gates/phase-34/run-20260422235930/phase-34-quality-gate.json`
+  - quality gate: `reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-34-Quality-Gate.md`
   - `goodmemory/host` now exposes `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and the execution-plan bridge for pre-action rewrite/veto outcomes
+  - root `goodmemory` no longer re-exports internal evolution contracts or constructors
+  - adapter/event `user_correction` now takes the proposal-first path: evidence plus feedback experience lineage, then reviewer/gate/compiler, without first creating active durable feedback
+  - repeated coding-agent corrections and coding-agent outcome lineage compile to `coding_agent` scoped procedural guidance
   - the canonical live enforcement path is the installed-package Codex action-gate wrapper, while `.codex/hooks.json` and `codex/rules/goodmemory.rules` remain parity scaffolds instead of the live blocker
-- Phase 35 is now closed as the installed host-memory middleware and hooks slice:
-  - deterministic dual-baseline evidence: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
-  - live middleware evidence: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
-  - quality gate: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
-  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
-  - external users now have a canonical Codex path for global install, explicit repo opt-in, automatic hook-injected recall, read-only MCP deep read, and explicit write seeding
+- Phase 35 is now WIP again as the installed host-memory middleware and hooks slice:
+  - install, hook, MCP, and explicit write CLI work exists in-tree, but it is not accepted stable surface while this phase remains WIP
+  - prior Phase 35 reports are validation snapshots, not current accepted closure evidence, until the Phase 35 board and gate are accepted again
 - Any work after Phase 35 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.

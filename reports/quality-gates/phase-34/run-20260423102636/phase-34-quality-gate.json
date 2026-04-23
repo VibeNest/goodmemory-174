@@ -1,0 +1,87 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 34 deterministic and installed-package Codex action-gate live evidence are both accepted; targeted host/package/release, root-surface, proposal-first correction, and coding-agent procedural targeting regressions passed."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 2663,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/host.action-execution.test.ts tests/unit/host.pre-action-policy.test.ts tests/unit/evolution.reviewer.test.ts tests/integration/host.action-assessment.test.ts tests/integration/agent-events.ingestion.test.ts tests/unit/run-phase-34.script.test.ts tests/unit/run-phase-34.live-memory.test.ts tests/unit/run-phase-34.gate.test.ts tests/types/public-surface.types.ts tests/cli/cli.test.ts tests/release/release.test.ts",
+      "durationMs": 36609,
+      "exitCode": 0,
+      "label": "targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [5.91ms]",
+        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [2.11ms]",
+        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [2.95ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [2.45ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [3.34ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [1.94ms]",
+        "(pass) goodmemory cli root commands > remember writes durable memory through explicit scope flags and default sqlite storage [3.37ms]",
+        "(pass) goodmemory cli root commands > feedback derives installed-host defaults and is recalled through the host hook path [104.66ms]",
+        "(pass) goodmemory cli root commands > host-derived write commands require repo opt-in before using installed-host defaults [1.69ms]",
+        "(pass) goodmemory cli root commands > forget removes a host-derived memory id from the installed-host storage path [4.75ms]",
+        "(pass) goodmemory cli root commands > forget supports deleting a full scoped target with --all [8.87ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.44ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.25ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.36ms]",
+        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.47ms]",
+        "",
+        " 145 pass",
+        " 0 fail",
+        " 1878 expect() calls",
+        "Ran 145 tests across 10 files. [36.60s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "reason": "Policy-backed pre-action assessment intercepted every deterministic high-risk first step, rewrote or blocked it beyond the Phase 32 soft-guard baseline, and preserved the low-risk path.",
+      "reportPath": "reports/eval/fallback/phase-34/run-20260422213045/report.json",
+      "status": "accepted"
+    },
+    "liveMemory": {
+      "hostKind": "codex",
+      "liveEnforcementPath": "installed_package_action_gate_wrapper",
+      "liveReportPath": "reports/eval/live-memory/phase-34/run-phase34-live-current/report.json",
+      "reason": "Installed-package Codex action-gate live evidence rewrote or blocked every canonical high-risk first action, proved at least one executable first-step rewrite, and preserved the low-risk path without regression.",
+      "status": "accepted"
+    }
+  },
+  "generatedAt": "2026-04-23T10:26:36.419Z",
+  "generatedBy": "scripts/run-phase-34-gate.ts",
+  "phase": "phase-34",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-34/run-20260423102636",
+  "runId": "run-20260423102636",
+  "scope": {
+    "inScope": [
+      "phase-34 deterministic pre-action evidence against the Phase 32 soft-guard and no-memory baselines",
+      "root public surface cleanup that keeps internal evolution contracts off the root barrel",
+      "proposal-first adapter user-correction ingestion with proposal/promotion receipts and no intermediate active feedback memory",
+      "coding-agent targeted procedural promotion for repeated corrections and tool-outcome lineage",
+      "one canonical installed-package Codex action-gate live report for executable rewrite, destructive veto, and low-risk non-regression",
+      "repo-local Codex bootstrap scaffolds for AGENTS, wrapper, hooks, config, and rules through public package imports",
+      "phase-34 quality-gate generation and fail-closed closure validation"
+    ],
+    "outOfScope": [
+      "claiming native Codex hook interception is the canonical live blocker when the current runtime does not prove it",
+      "widening the root API or opening a public goodmemory/evolution module",
+      "making Claude a second live gate blocker",
+      "new memory capability work beyond the accepted host pre-action contract slice"
+    ]
+  }
+}

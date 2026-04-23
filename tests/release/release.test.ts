@@ -652,6 +652,18 @@ describe("release metadata and docs", () => {
     expect(rootModule.createRecallEngine).toBeUndefined();
     expect(rootModule.createRememberEngine).toBeUndefined();
     expect(rootModule.createRuntimeSalvageHooks).toBeUndefined();
+    expect(rootModule.ExperienceRecord).toBeUndefined();
+    expect(rootModule.LearningProposal).toBeUndefined();
+    expect(rootModule.PromotionRecord).toBeUndefined();
+    expect(rootModule.SessionArchive).toBeUndefined();
+    expect(rootModule.createExperienceRecord).toBeUndefined();
+    expect(rootModule.createLearningProposal).toBeUndefined();
+    expect(rootModule.createPromotionRecord).toBeUndefined();
+    expect(rootModule.createSessionArchive).toBeUndefined();
+    expect(rootModule.EXPERIENCES_COLLECTION).toBeUndefined();
+    expect(rootModule.LEARNING_PROPOSALS_COLLECTION).toBeUndefined();
+    expect(rootModule.PROMOTION_RECORDS_COLLECTION).toBeUndefined();
+    expect(rootModule.SESSION_ARCHIVES_COLLECTION).toBeUndefined();
   });
 
   it("readme links the canonical docs, examples, cli, and eval flow", async () => {
@@ -1696,16 +1708,29 @@ describe("release metadata and docs", () => {
       "reports/eval/live-memory/phase-34/run-phase34-live-current/report.json",
     );
     expect(currentStatus).toContain(
-      "reports/quality-gates/phase-34/run-20260422235930/phase-34-quality-gate.json",
+      "reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json",
     );
     expect(currentStatus).toContain("compiled `dist/` artifacts");
     expect(currentStatus).toContain("Bun-backed today");
     expect(currentStatus).toContain("runLiveMemoryEval()");
     expect(currentStatus).toContain("eval:live-provider-memory");
-    expect(currentStatus).toContain("reports/eval/live-memory/phase-*");
-  });
+	    expect(currentStatus).toContain("reports/eval/live-memory/phase-*");
+	    expect(currentStatus).toContain(
+	      "Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice.",
+	    );
+	    expect(currentStatus).toContain(
+	      "root `goodmemory` no longer re-exports internal evolution contracts",
+	    );
+	    expect(currentStatus).toContain(
+	      "adapter/event `user_correction` is proposal-first",
+	    );
+	    expect(currentStatus).toContain(
+	      "Phase 35 installed host-memory middleware work is present in the repo but is WIP",
+	    );
+	    expect(currentStatus).not.toContain("Phase 35 is now closed");
+	  });
 
-  it("task-board current note documents the generic eval command contract", async () => {
+	  it("task-board current note documents the generic eval command contract", async () => {
     const taskBoard = await readFile(
       join(import.meta.dir, "../../task-board/00-README.txt"),
       "utf8",
@@ -1713,9 +1738,17 @@ describe("release metadata and docs", () => {
 
     expect(taskBoard).toContain("eval:live-memory");
     expect(taskBoard).toContain("auto-storage live memory");
-    expect(taskBoard).toContain("eval:live-provider-memory");
-    expect(taskBoard).toContain("reports/eval/live-memory/phase-*");
-  });
+	    expect(taskBoard).toContain("eval:live-provider-memory");
+	    expect(taskBoard).toContain("reports/eval/live-memory/phase-*");
+	    expect(taskBoard).toContain(
+	      "Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice",
+	    );
+	    expect(taskBoard).toContain(
+	      "adapter/event `user_correction` now takes the proposal-first path",
+	    );
+	    expect(taskBoard).toContain("Phase 35 is now WIP again");
+	    expect(taskBoard).not.toContain("Phase 35 is now closed");
+	  });
 
   it("AGENTS.md keeps repository instructions aligned with the current eval contract", async () => {
     const agents = await readFile(

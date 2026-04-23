@@ -1,8 +1,10 @@
 # GoodMemory Phase 35 Quality Gate
 
-Canonical gate run: `run-20260423213045`
+Superseded validation run: `run-20260423213045`
 
-Canonical Codex middleware live report: `run-phase35-live-current`
+Superseded Codex middleware live report: `run-phase35-live-current`
+
+This document is retained as a historical validation snapshot. It is not current accepted Phase 35 closure evidence after the Phase 34 public-boundary/proposal-first correction reopen.
 
 ## Command
 
@@ -48,7 +50,7 @@ Out of scope:
 - making Claude a second live gate blocker
 - claiming the frozen Phase 32 text-only path remains the canonical host product line after Phase 35
 
-## Canonical Artifacts
+## Historical Artifacts
 
 - Quality gate:
   - `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
@@ -60,7 +62,7 @@ Out of scope:
 ## Results
 
 - Deterministic fallback report: accepted.
-- Canonical Codex middleware live report: accepted.
+- Historical Codex middleware live report: accepted at the time of validation.
 - `gate:phase-35` proves:
   - `bun run typecheck` passed
   - targeted host-install, hook-runtime, MCP, phase-35 runner, CLI, and release regressions passed
@@ -74,11 +76,11 @@ Out of scope:
     - read-only MCP availability
   - Claude reached install/hook/package-smoke parity without becoming a second live blocker
 
-## Canonical Evidence Rule
+## Evidence Rule
 
-Only the gate run above and the Codex middleware live report above are canonical for Phase 35. Earlier local runs before automatic hook registration landed, or before the deterministic dual-baseline gate existed, are superseded and must not be used as closure evidence. Later local reruns are validation artifacts only and must not be checked in as another canonical Phase 35 chain unless the archive doc, current-status doc, task-board references, and release tests are intentionally repointed together.
+The gate run above and the Codex middleware live report above are historical validation artifacts only. They must not be used as current Phase 35 closure evidence unless Phase 35 is explicitly re-accepted and the archive doc, current-status doc, task-board references, and release tests are intentionally repointed together.
 
 ## Decision
 
-Phase 35 is accepted.
-GoodMemory now has a canonical installed-package host-memory middleware path for Codex: global install, explicit repo opt-in, always-on hook-injected recall, read-only MCP deep read, and explicit write seeding without widening the root API.
+Phase 35 is not currently accepted.
+GoodMemory retains the implementation and validation snapshots above, but the accepted stable line falls back to the refreshed Phase 34 host pre-action and proposal-first correction closure until Phase 35 is re-gated.

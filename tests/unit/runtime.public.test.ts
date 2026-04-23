@@ -4,8 +4,8 @@ import {
   createInMemorySessionStore,
   createRuntimeArchiveStore,
   createRuntimeContextService,
-  SESSION_ARCHIVES_COLLECTION,
 } from "../../src";
+import { SESSION_ARCHIVES_COLLECTION } from "../../src/evolution/contracts";
 
 describe("public runtime wrapper", () => {
   it("ignores injected internal salvage hooks at runtime", async () => {

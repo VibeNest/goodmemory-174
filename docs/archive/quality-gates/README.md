@@ -48,7 +48,7 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-33-Quality-Gate.md`
 - Host pre-action policy and veto-contract closure:
   - `GoodMemory-Phase-34-Quality-Gate.md`
-- Installed host-memory middleware and hooks closure:
+- Installed host-memory middleware and hooks historical validation snapshot:
   - `GoodMemory-Phase-35-Quality-Gate.md`
 
 ## When To Use This Archive

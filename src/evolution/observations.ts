@@ -65,6 +65,12 @@ function buildFeedbackSummary(result: FeedbackObservationResult): string {
     return "Feedback was rejected before it became durable guidance.";
   }
 
+  if (result.origin === "agent_event") {
+    return `Agent-event correction submitted for proposal review: ${
+      result.signal ?? "feedback guidance"
+    }.`;
+  }
+
   return `Feedback ${result.outcome ?? "accepted"} as ${
     result.kind ?? "general guidance"
   }.`;
@@ -210,6 +216,22 @@ export function buildRecallExperienceRecords(
 export function buildFeedbackExperienceRecord(
   input: ObservationRecordInput & { result: FeedbackObservationResult },
 ): ExperienceRecord {
+  const agentEventMetadata = input.result.origin === "agent_event"
+    ? {
+        metadata: {
+          feedbackAppliesTo: input.result.appliesTo ?? "general_response",
+          feedbackKind: input.result.kind ?? "do",
+          feedbackOrigin: "agent_event",
+          feedbackSignal: input.result.signal ?? "",
+        },
+        policyApplied: [
+          "agent_event_correction",
+          "proposal_first_correction",
+          `feedback_applies_to:${input.result.appliesTo ?? "general_response"}`,
+        ],
+      }
+    : {};
+
   return createExperienceRecord({
     id: input.createId(),
     userId: input.scope.userId,
@@ -223,6 +245,7 @@ export function buildFeedbackExperienceRecord(
     modelInfluence: input.result.modelInfluence,
     summary: buildFeedbackSummary(input.result),
     outcome: input.result.accepted ? "success" : "failure",
+    ...agentEventMetadata,
     metrics: {
       accepted: input.result.accepted ? 1 : 0,
       rejected: input.result.accepted ? 0 : 1,

@@ -18,12 +18,6 @@ import type {
 import type { EvidenceRecord } from "./evidence/contracts";
 import type { EmbeddingAdapter } from "./embedding/contracts";
 import type {
-  ExperienceRecord,
-  LearningProposal,
-  PromotionRecord,
-  SessionArchive,
-} from "./evolution/contracts";
-import type {
   MarkdownArtifactBundle,
 } from "./governance/markdownArtifacts";
 import {
@@ -33,12 +27,6 @@ import {
   createMemorySource,
 } from "./domain/provenance";
 import { EVIDENCE_COLLECTION } from "./evidence/contracts";
-import {
-  EXPERIENCES_COLLECTION,
-  LEARNING_PROPOSALS_COLLECTION,
-  PROMOTION_RECORDS_COLLECTION,
-  SESSION_ARCHIVES_COLLECTION,
-} from "./evolution/contracts";
 import type { MemorySourceMethod } from "./domain/provenance";
 import type {
   ConflictResolution,
@@ -131,30 +119,6 @@ export {
   EVIDENCE_COLLECTION,
 } from "./evidence/contracts";
 export type { EmbeddingAdapter } from "./embedding/contracts";
-export type {
-  ExperienceKind,
-  ExperienceRecord,
-  ExperienceMetrics,
-  ExperienceModelInfluence,
-  ExperienceTrigger,
-  LearningProposal,
-  LearningProposalStatus,
-  LearningProposalType,
-  PromotionDecision,
-  PromotionGateOutcome,
-  PromotionRecord,
-  SessionArchive,
-} from "./evolution/contracts";
-export {
-  createExperienceRecord,
-  createLearningProposal,
-  createPromotionRecord,
-  createSessionArchive,
-  EXPERIENCES_COLLECTION,
-  LEARNING_PROPOSALS_COLLECTION,
-  PROMOTION_RECORDS_COLLECTION,
-  SESSION_ARCHIVES_COLLECTION,
-} from "./evolution/contracts";
 export type {
   MemoryLifecycleState,
   MemorySource,

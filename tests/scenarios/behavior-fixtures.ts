@@ -344,7 +344,7 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
         fields: [
           { path: "rule", equals: "Please keep answers concise and action-oriented." },
           { path: "workspaceId", equals: "workspace-feedback" },
-          { path: "lifecycle", equals: "active" },
+          { path: "lifecycle", equals: "superseded" },
         ],
       },
       {
@@ -364,12 +364,6 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
       {
         collection: "feedback",
         fields: [
-          { path: "rule", equals: "Please keep answers concise and action-oriented." },
-        ],
-      },
-      {
-        collection: "feedback",
-        fields: [
           {
             path: "rule",
             equals: "The concise bullet-point summary worked well. Keep using that format.",
@@ -381,7 +375,6 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
       {
         path: "Procedural Memory",
         hasEntries: [
-          "Please keep answers concise and action-oriented.",
           "The concise bullet-point summary worked well. Keep using that format.",
         ],
       },
@@ -390,7 +383,6 @@ export const behaviorScenarios: Record<string, BehaviorScenarioFixture> = {
       {
         path: "feedbackRules",
         hasEntries: [
-          "Please keep answers concise and action-oriented.",
           "The concise bullet-point summary worked well. Keep using that format.",
         ],
       },

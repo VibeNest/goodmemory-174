@@ -71,6 +71,7 @@ export function extractBehavioralOutcomeFromTrace(
     evidenceExcerpt: firstAction.evidenceExcerpt,
     failureClass: toFailureClass(firstAction.outcome),
     firstAction: toBehavioralFirstAction(firstAction),
+    retrievalProfile: "coding_agent",
     saferAlternative: resolveSaferAlternative({
       firstAction,
       trace,

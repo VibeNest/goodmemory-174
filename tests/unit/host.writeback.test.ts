@@ -7,10 +7,12 @@ import {
   createFeedbackMemory,
 } from "../../src";
 import type {
-  ExperienceRecord,
   FeedbackMemory,
 } from "../../src";
-import { EXPERIENCES_COLLECTION } from "../../src/evolution/contracts";
+import {
+  EXPERIENCES_COLLECTION,
+  type ExperienceRecord,
+} from "../../src/evolution/contracts";
 import { createDeterministicIdGenerator } from "../../src/testing/utils";
 import {
   createHostAdapter,

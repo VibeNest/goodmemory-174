@@ -258,6 +258,66 @@ describe("proposal gate processor", () => {
     expect((await repositories.promotions.get("promotion-0001"))?.decision).toBe("delayed");
   });
 
+  it("delays agent-correction procedural proposals backed only by duplicate rows for one trace", async () => {
+    const { processor, repositories } = createFixture();
+
+    for (const [index, experienceId] of [
+      "xp-agent-correction-1",
+      "xp-agent-correction-2",
+    ].entries()) {
+      await repositories.experiences.add(
+        createExperienceRecord({
+          id: experienceId,
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          kind: "feedback",
+          traceId: "trace-agent-correction-1",
+          summary: "Agent-event correction submitted for proposal review.",
+          linkedEvidenceIds: [`evidence-${index + 1}`],
+          metadata: {
+            feedbackAppliesTo: "coding_agent",
+            feedbackKind: "do",
+            feedbackOrigin: "agent_event",
+            feedbackSignal: "Use bullet points in summaries.",
+          },
+          modelInfluence: "rules-only",
+        }),
+      );
+    }
+
+    const proposal = attachCompiledGuidance(
+      createLearningProposal({
+        id: "proposal-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        proposalType: "procedural_pattern",
+        traceId: "proposal-trace-1",
+        summary: "Promote repeated adapter correction into a governed pattern.",
+        rationale: "Repeated corrections suggest a reusable pattern.",
+        sourceExperienceIds: ["xp-agent-correction-1", "xp-agent-correction-2"],
+        linkedEvidenceIds: ["evidence-1", "evidence-2"],
+        modelInfluence: "rules-only",
+      }),
+      {
+        rule: "Use bullet points in summaries.",
+        kind: "do",
+        appliesTo: "coding_agent",
+        confidence: 0.9,
+      },
+    );
+
+    const decisions = await processor.process({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      proposals: [proposal],
+    });
+
+    expect(decisions[0]?.decision).toBe("delayed");
+    expect(decisions[0]?.verificationOutcome).toBe("review_required");
+    expect(decisions[0]?.evalOutcome).toBe("review_required");
+    expect((await repositories.proposals.get("proposal-1"))?.status).toBe("delayed");
+    expect((await repositories.promotions.get("promotion-0001"))?.decision).toBe("delayed");
+  });
+
   it("accepts outcome-derived procedural proposals when repeated tool-outcome lineage exists", async () => {
     const { processor, repositories } = createFixture();
 

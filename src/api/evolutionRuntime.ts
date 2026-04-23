@@ -1,6 +1,7 @@
 import { createMemorySource } from "../domain/provenance";
 import type {
   FactMemory,
+  FeedbackKind,
   FeedbackMemory,
 } from "../domain/records";
 import { scopeToKey } from "../domain/scope";
@@ -90,6 +91,21 @@ export interface EvolutionRuntimeConfig {
 }
 
 const LOW_RISK_RECALL_TOUCH_WINDOW_MS = 5 * 60 * 1000;
+
+function encodeExperienceIdSegment(value: string): string {
+  return encodeURIComponent(value);
+}
+
+function createAgentCorrectionExperienceId(input: {
+  scope: MemoryScope;
+  traceId: string;
+}): string {
+  return [
+    "agent_event.feedback",
+    `scope=${encodeExperienceIdSegment(scopeToKey(input.scope))}`,
+    `trace=${encodeExperienceIdSegment(input.traceId)}`,
+  ].join("|");
+}
 
 function shouldApplyLowRiskTouch(
   previousTimestamp: string | undefined,
@@ -409,6 +425,48 @@ export function createEvolutionRuntime(config: EvolutionRuntimeConfig) {
         traceId: input.traceId ?? crypto.randomUUID(),
         createdAt: now(),
         createId: () => crypto.randomUUID(),
+      });
+      if (input.strict) {
+        await persistExperienceRecordsStrict([feedbackExperience]);
+      } else {
+        await persistExperienceRecords([feedbackExperience]);
+      }
+      return runRulesOnlyReview(input.scope, [feedbackExperience.id]);
+    },
+
+    async handleAgentCorrection(input: {
+      appliesTo: string;
+      evidenceIds?: string[];
+      kind: Exclude<FeedbackKind, "validated_pattern">;
+      scope: FeedbackInput["scope"];
+      signal: string;
+      strict?: boolean;
+      traceId?: string;
+    }): Promise<{
+      promotionReceipts: AgentEventPromotionReceipt[];
+      proposalReceipts: AgentEventProposalReceipt[];
+    }> {
+      const traceId = input.traceId ?? crypto.randomUUID();
+      const experienceId = input.traceId
+        ? createAgentCorrectionExperienceId({
+            scope: input.scope,
+            traceId,
+          })
+        : crypto.randomUUID();
+      const feedbackExperience = buildFeedbackExperienceRecord({
+        scope: input.scope,
+        result: {
+          accepted: true,
+          appliesTo: input.appliesTo,
+          evidenceIds: input.evidenceIds,
+          kind: input.kind,
+          modelInfluence: "rules-only",
+          origin: "agent_event",
+          signal: input.signal,
+        },
+        traceId,
+        createdAt: now(),
+        createId: () => experienceId,
       });
       if (input.strict) {
         await persistExperienceRecordsStrict([feedbackExperience]);

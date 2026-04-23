@@ -3,7 +3,7 @@ Phase 35 Breakdown
 
 Status
 ------
-- Phase 35 is accepted and closed.
+- Phase 35 is in progress after the Phase 34 public-boundary/proposal-first reopen.
 - Scope: turn the accepted external host line into a global-install, repo-opt-in, hook-injected memory middleware path for Codex and Claude Code.
 - Root `goodmemory` API stays unchanged.
 - Canonical direction:
@@ -15,6 +15,7 @@ Status
   - explicit `remember` / `feedback` / `forget` write CLI
 - Codex remains the only live gate blocker.
 - Claude Code must reach install/hook/docs/package-smoke parity without doubling gate scope.
+- Prior Phase 35 reports are validation snapshots, not current accepted closure evidence, until the Phase 35 board and gate are accepted again.
 
 
 Execution Order
@@ -35,8 +36,8 @@ Acceptance
 - repo opt-in is explicit and host-scoped
 - user-level install is idempotent and reversible
 - installed-host storage defaults stay user-level and do not break the accepted repo-local CLI defaults
-- one canonical Codex live report proves hook-injected continuity and prompt-time recall on the installed path
-- canonical closure evidence:
+- one Codex live report must prove hook-injected continuity and prompt-time recall on the installed path before this phase can be accepted again
+- historical validation snapshots, not current closure evidence:
   - `reports/eval/fallback/phase-35/run-20260423173045/report.json`
   - `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
   - `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`

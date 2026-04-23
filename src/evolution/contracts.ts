@@ -34,6 +34,8 @@ export interface ExperienceMetrics {
   reinforcedFeedbackCount?: number;
 }
 
+export type ExperienceMetadataValue = boolean | number | string;
+
 export interface ExperienceRecord {
   id: string;
   userId: string;
@@ -54,6 +56,7 @@ export interface ExperienceRecord {
   linkedArchiveIds: string[];
   linkedEvidenceIds: string[];
   linkedProposalIds: string[];
+  metadata?: Record<string, ExperienceMetadataValue>;
   createdAt: string;
 }
 
@@ -204,6 +207,7 @@ export function createExperienceRecord(
     linkedArchiveIds: input.linkedArchiveIds ?? [],
     linkedEvidenceIds: input.linkedEvidenceIds ?? [],
     linkedProposalIds: input.linkedProposalIds ?? [],
+    ...(input.metadata ? { metadata: input.metadata } : {}),
     createdAt: input.createdAt ?? new Date(0).toISOString(),
   };
 }

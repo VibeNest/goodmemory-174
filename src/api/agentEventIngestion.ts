@@ -31,7 +31,7 @@ interface PersistedAgentEventInput {
 
 export interface CreateAgentEventIngestorInput {
   documentStore: DocumentStore;
-  feedback(
+  submitCorrection(
     input: {
       appliesTo?: string;
       evidenceIds?: string[];
@@ -516,9 +516,9 @@ export function createAgentEventIngestor(
           });
         }
 
-        const feedbackResult = feedbackReceipt?.linkedMemoryIds[0]
+        const correctionResult = feedbackReceipt
           ? undefined
-          : await input.feedback({
+          : await input.submitCorrection({
               appliesTo: resolveUserCorrectionAppliesTo(event),
               scope: event.scope,
               signal: policyResult.content,
@@ -526,18 +526,15 @@ export function createAgentEventIngestor(
               ...(evidence ? { evidenceIds: [evidence.id] } : {}),
               traceId: event.eventId,
             });
-        const feedbackMemoryId = feedbackReceipt?.linkedMemoryIds[0] ??
-          feedbackResult?.memoryId;
 
         return {
           recorded: true,
           ...(evidence ? { evidenceId: evidence.id } : {}),
-          ...(feedbackMemoryId ? { feedbackMemoryId } : {}),
-          ...(feedbackResult?.proposalReceipts
-            ? { proposalReceipts: feedbackResult.proposalReceipts }
+          ...(correctionResult?.proposalReceipts
+            ? { proposalReceipts: correctionResult.proposalReceipts }
             : {}),
-          ...(feedbackResult?.promotionReceipts
-            ? { promotionReceipts: feedbackResult.promotionReceipts }
+          ...(correctionResult?.promotionReceipts
+            ? { promotionReceipts: correctionResult.promotionReceipts }
             : {}),
         };
       }

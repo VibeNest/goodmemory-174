@@ -178,10 +178,13 @@ describe("run-phase-34 gate", () => {
           "test",
           "tests/unit/host.action-execution.test.ts",
           "tests/unit/host.pre-action-policy.test.ts",
+          "tests/unit/evolution.reviewer.test.ts",
           "tests/integration/host.action-assessment.test.ts",
+          "tests/integration/agent-events.ingestion.test.ts",
           "tests/unit/run-phase-34.script.test.ts",
           "tests/unit/run-phase-34.live-memory.test.ts",
           "tests/unit/run-phase-34.gate.test.ts",
+          "tests/types/public-surface.types.ts",
           "tests/cli/cli.test.ts",
           "tests/release/release.test.ts",
         ],
@@ -237,12 +240,18 @@ describe("run-phase-34 gate", () => {
     expect(report.evidence.liveMemory.liveEnforcementPath).toBe(
       "installed_package_action_gate_wrapper",
     );
-    expect(report.scope.inScope).toContain(
-      "one canonical installed-package Codex action-gate live report for executable rewrite, destructive veto, and low-risk non-regression",
-    );
-    expect(report.scope.outOfScope).toContain(
-      "claiming native Codex hook interception is the canonical live blocker when the current runtime does not prove it",
-    );
+	    expect(report.scope.inScope).toContain(
+	      "one canonical installed-package Codex action-gate live report for executable rewrite, destructive veto, and low-risk non-regression",
+	    );
+	    expect(report.scope.inScope).toContain(
+	      "proposal-first adapter user-correction ingestion with proposal/promotion receipts and no intermediate active feedback memory",
+	    );
+	    expect(report.scope.inScope).toContain(
+	      "root public surface cleanup that keeps internal evolution contracts off the root barrel",
+	    );
+	    expect(report.scope.outOfScope).toContain(
+	      "claiming native Codex hook interception is the canonical live blocker when the current runtime does not prove it",
+	    );
     expect(directories).toEqual([
       "/tmp/goodmemory/reports/quality-gates/phase-34/run-phase34-gate-test",
     ]);
@@ -251,5 +260,49 @@ describe("run-phase-34 gate", () => {
       "/tmp/goodmemory/reports/quality-gates/phase-34/run-phase34-gate-test/phase-34-quality-gate.json",
     );
     expect(JSON.parse(writes[0]!.content)).toEqual(report);
+  });
+
+  it("defaults refreshed phase-34 gate evidence to a fresh timestamped run directory", async () => {
+    const writes: Array<{ content: string; path: string }> = [];
+    const directories: string[] = [];
+
+    const report = await runPhase34QualityGate(
+      {
+        outputDir: "/tmp/goodmemory/reports/quality-gates/phase-34",
+      },
+      {
+        ensureDir: async (path) => {
+          directories.push(path);
+        },
+        now: () => "2026-04-23T10:24:47.000Z",
+        readTextFile: async (path) => {
+          if (path.endsWith("reports/eval/fallback/phase-34/run-20260422213045/report.json")) {
+            return createAcceptedPhase34DeterministicReport();
+          }
+          if (path.endsWith("reports/eval/live-memory/phase-34/run-phase34-live-current/report.json")) {
+            return createAcceptedPhase34LiveReport();
+          }
+          throw new Error(`Unexpected report path: ${path}`);
+        },
+        runCommand: async () => ({
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: "ok",
+        }),
+        writeTextFile: async (path, content) => {
+          writes.push({ path, content });
+        },
+      },
+    );
+
+    expect(report.runId).toBe("run-20260423102447");
+    expect(report.generatedAt).toBe("2026-04-23T10:24:47.000Z");
+    expect(directories).toEqual([
+      "/tmp/goodmemory/reports/quality-gates/phase-34/run-20260423102447",
+    ]);
+    expect(writes[0]?.path).toBe(
+      "/tmp/goodmemory/reports/quality-gates/phase-34/run-20260423102447/phase-34-quality-gate.json",
+    );
   });
 });
