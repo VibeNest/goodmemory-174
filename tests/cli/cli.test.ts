@@ -847,10 +847,14 @@ describe("goodmemory cli help and routing", () => {
       expect(result.stdout).toContain(
         "enable          Enable repo-local GoodMemory host opt-in for Codex or Claude Code",
       );
+      expect(result.stdout).toContain(
+        "mcp             Run the installed GoodMemory MCP server",
+      );
       expect(result.stdout).toContain("codex           Codex bootstrap and installed hook commands");
       expect(result.stdout).toContain("claude          Claude Code bootstrap and installed hook commands");
       expect(result.stdout).toContain("goodmemory eval --help");
       expect(result.stdout).toContain("goodmemory install --help");
+      expect(result.stdout).toContain("goodmemory mcp --help");
       expect(result.stderr).toBe("");
     }
   });
@@ -879,6 +883,8 @@ describe("goodmemory cli help and routing", () => {
     const uninstall = await runCLI(["uninstall", "--help"]);
     const enable = await runCLI(["enable", "--help"]);
     const disable = await runCLI(["disable", "--help"]);
+    const mcp = await runCLI(["mcp", "--help"]);
+    const mcpServe = await runCLI(["mcp", "serve", "--help"]);
     const codex = await runCLI(["codex", "--help"]);
     const codexBootstrap = await runCLI(["codex", "bootstrap", "--help"]);
     const codexHook = await runCLI(["codex", "hook", "--help"]);
@@ -913,6 +919,12 @@ describe("goodmemory cli help and routing", () => {
     expect(enable.stdout).toContain("--workspace-root <path>");
     expect(disable.exitCode).toBe(0);
     expect(disable.stdout).toContain("GoodMemory Disable CLI");
+    expect(mcp.exitCode).toBe(0);
+    expect(mcp.stdout).toContain("GoodMemory MCP CLI");
+    expect(mcp.stdout).toContain("goodmemory mcp serve --help");
+    expect(mcpServe.exitCode).toBe(0);
+    expect(mcpServe.stdout).toContain("GoodMemory MCP Serve");
+    expect(mcpServe.stdout).toContain("--host <codex|claude>");
     expect(codex.exitCode).toBe(0);
     expect(codex.stdout).toContain("GoodMemory Codex CLI");
     expect(codex.stdout).toContain("goodmemory codex hook --help");
@@ -937,6 +949,7 @@ describe("goodmemory cli help and routing", () => {
     const unknownRoot = await runCLI(["unknown"]);
     const unknownEval = await runCLI(["eval", "unknown"]);
     const unknownInstall = await runCLI(["install", "unknown"]);
+    const unknownMcp = await runCLI(["mcp", "unknown"]);
     const unknownCodex = await runCLI(["codex", "unknown"]);
     const unknownClaude = await runCLI(["claude", "unknown"]);
 
@@ -948,6 +961,9 @@ describe("goodmemory cli help and routing", () => {
     expect(unknownEval.stderr).toContain("goodmemory eval --help");
     expect(unknownInstall.exitCode).toBe(1);
     expect(unknownInstall.stderr).toContain("Unknown host target: unknown.");
+    expect(unknownMcp.exitCode).toBe(1);
+    expect(unknownMcp.stderr).toContain("Unknown MCP command: unknown.");
+    expect(unknownMcp.stderr).toContain("goodmemory mcp --help");
     expect(unknownCodex.exitCode).toBe(1);
     expect(unknownCodex.stderr).toContain("Unknown Codex command: unknown.");
     expect(unknownCodex.stderr).toContain("goodmemory codex --help");
@@ -1868,6 +1884,10 @@ describe("goodmemory cli installed host config", () => {
               action: "created",
               relativePath: "codex.json",
             },
+            {
+              action: "created",
+              relativePath: ".codex/config.toml",
+            },
           ]);
 
           const config = JSON.parse(
@@ -1880,6 +1900,9 @@ describe("goodmemory cli installed host config", () => {
           expect(config.host).toBe("codex");
           expect(config.userId).toBe("codex-user");
           expect(config.storage.path).toBe(join(home.root, ".goodmemory/memory.sqlite"));
+          expect(
+            await readFile(join(home.root, ".codex/config.toml"), "utf8"),
+          ).toContain('command = "goodmemory-mcp"');
 
           const second = await runCLI([
             "install",
@@ -1905,6 +1928,10 @@ describe("goodmemory cli installed host config", () => {
               action: "unchanged",
               relativePath: "codex.json",
             },
+            {
+              action: "unchanged",
+              relativePath: ".codex/config.toml",
+            },
           ]);
 
           const uninstall = await runCLI(["uninstall", "codex", "--json"]);
@@ -1925,8 +1952,13 @@ describe("goodmemory cli installed host config", () => {
               action: "deleted",
               relativePath: "codex.json",
             },
+            {
+              action: "deleted",
+              relativePath: ".codex/config.toml",
+            },
           ]);
           await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".codex/config.toml"))).rejects.toThrow();
         },
       );
     } finally {
@@ -2130,6 +2162,10 @@ describe("goodmemory cli installed host config", () => {
               action: "created",
               relativePath: "claude.json",
             },
+            {
+              action: "created",
+              relativePath: ".claude.json",
+            },
           ]);
         },
       );
@@ -2206,6 +2242,7 @@ describe("goodmemory cli installed host config", () => {
             })),
           ).toEqual([
             { action: "deleted", relativePath: "claude.json" },
+            { action: "deleted", relativePath: ".claude.json" },
           ]);
         },
       );

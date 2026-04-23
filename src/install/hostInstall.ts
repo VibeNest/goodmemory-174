@@ -18,6 +18,10 @@ import {
   readPositiveInteger,
   readRetrievalProfile,
 } from "./hostConfigValidation";
+import {
+  registerInstalledHostMcp,
+  unregisterInstalledHostMcp,
+} from "./hostMcpConfig";
 
 export type InstalledHostKind = "claude" | "codex";
 
@@ -147,6 +151,7 @@ export async function installHost(
   const blueprint = HOST_INSTALL_BLUEPRINTS[input.host];
   const installRoot = resolveInstallRoot(input.homeRoot);
   const configPath = join(installRoot, blueprint.configFileName);
+  const previousConfigContent = await readFileIfPresent(configPath);
   const resolvedMemoryPath = resolve(
     input.memoryPath ?? join(installRoot, "memory.sqlite"),
   );
@@ -160,20 +165,32 @@ export async function installHost(
     userId: resolveUserId(input.userId, input.homeRoot),
   });
 
-  return {
-    changes: [
-      await writeManagedFile(
-        configPath,
-        installRoot,
-        JSON.stringify(nextConfig, null, 2) + "\n",
-      ),
-    ],
-    configPath,
-    host: input.host,
-    installRoot,
-    memoryPath: nextConfig.storage.path,
-    userId: nextConfig.userId,
-  };
+  try {
+    return {
+      changes: [
+        await writeManagedFile(
+          configPath,
+          installRoot,
+          JSON.stringify(nextConfig, null, 2) + "\n",
+          {
+            existingContent: previousConfigContent,
+          },
+        ),
+        await registerInstalledHostMcp({
+          homeRoot: input.homeRoot,
+          host: input.host,
+        }),
+      ],
+      configPath,
+      host: input.host,
+      installRoot,
+      memoryPath: nextConfig.storage.path,
+      userId: nextConfig.userId,
+    };
+  } catch (error) {
+    await restoreManagedFile(configPath, installRoot, previousConfigContent);
+    throw error;
+  }
 }
 
 export async function uninstallHost(
@@ -192,6 +209,10 @@ export async function uninstallHost(
           path: configPath,
           relativePath: relativeToRoot(configPath, installRoot),
         },
+        await unregisterInstalledHostMcp({
+          homeRoot: input.homeRoot,
+          host: input.host,
+        }),
       ],
       configPath,
       host: input.host,
@@ -199,19 +220,28 @@ export async function uninstallHost(
     };
   }
 
-  await rm(configPath, { force: true });
-  return {
-    changes: [
-      {
-        action: "deleted",
-        path: configPath,
-        relativePath: relativeToRoot(configPath, installRoot),
-      },
-    ],
-    configPath,
-    host: input.host,
-    installRoot,
-  };
+  try {
+    await rm(configPath, { force: true });
+    return {
+      changes: [
+        {
+          action: "deleted",
+          path: configPath,
+          relativePath: relativeToRoot(configPath, installRoot),
+        },
+        await unregisterInstalledHostMcp({
+          homeRoot: input.homeRoot,
+          host: input.host,
+        }),
+      ],
+      configPath,
+      host: input.host,
+      installRoot,
+    };
+  } catch (error) {
+    await restoreManagedFile(configPath, installRoot, existing);
+    throw error;
+  }
 }
 
 export async function enableHostWorkspace(
@@ -547,4 +577,19 @@ function isMissingFileError(error: unknown): boolean {
     "code" in error &&
     error.code === "ENOENT"
   );
+}
+
+async function restoreManagedFile(
+  path: string,
+  root: string,
+  content: string | null,
+): Promise<void> {
+  if (content === null) {
+    await rm(path, { force: true });
+    return;
+  }
+
+  await writeManagedFile(path, root, content, {
+    existingContent: null,
+  });
 }

@@ -419,9 +419,12 @@ describe("release metadata and docs", () => {
       "package.json",
       "scripts/goodmemory-cli.js",
       "scripts/goodmemory-cli.ts",
+      "scripts/goodmemory-mcp.js",
+      "scripts/goodmemory-mcp.ts",
       "src",
     ]);
     expect(pkg.bin?.goodmemory).toBe("./scripts/goodmemory-cli.js");
+    expect(pkg.bin?.["goodmemory-mcp"]).toBe("./scripts/goodmemory-mcp.js");
     expect(pkg.types).toBe("./dist/index.d.ts");
     expect(pkg.exports?.["."]).toEqual({
       import: "./dist/index.js",
@@ -445,6 +448,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["build:js"]).toBe("bun run scripts/build-package.ts");
     expect(pkg.scripts?.["build:types"]).toBe("bunx tsc -p tsconfig.package.json");
     expect(pkg.scripts?.goodmemory).toBe("bun run scripts/goodmemory-cli.ts");
+    expect(pkg.scripts?.["goodmemory:mcp"]).toBe("bun run scripts/goodmemory-mcp.ts");
     expect(pkg.scripts?.cli).toBeUndefined();
     expect(pkg.scripts?.["example:chat"]).toBe("bun run examples/basic-chat.ts");
     expect(pkg.scripts?.["example:coding-agent"]).toBe(
@@ -593,6 +597,8 @@ describe("release metadata and docs", () => {
       expect(entries).toContain("package/src/storage/sqliteRuntime.ts");
       expect(entries).toContain("package/scripts/goodmemory-cli.js");
       expect(entries).toContain("package/scripts/goodmemory-cli.ts");
+      expect(entries).toContain("package/scripts/goodmemory-mcp.js");
+      expect(entries).toContain("package/scripts/goodmemory-mcp.ts");
       expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Codex-Handoff-Setup-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Claude-Code-Setup-Guide.md");

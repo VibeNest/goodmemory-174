@@ -3,7 +3,7 @@ Phase 35 Breakdown
 
 Status
 ------
-- Phase 35 is queued.
+- Phase 35 is in progress.
 - Scope: turn the accepted external host line into a global-install, repo-opt-in, hook-injected memory middleware path for Codex and Claude Code.
 - Root `goodmemory` API stays unchanged.
 - Canonical direction:

@@ -6,6 +6,7 @@ import {
   disableHostWorkspace,
   enableHostWorkspace,
   installHost,
+  uninstallHost,
 } from "../../src/install/hostInstall";
 
 async function createWorkspace(prefix: string): Promise<string> {
@@ -188,6 +189,535 @@ describe("host install", () => {
       expect(overridden.memoryPath).toBe(overrideMemoryPath);
       expect(overriddenConfig.userId).toBe("override-user");
       expect(overriddenConfig.storage.path).toBe(overrideMemoryPath);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("registers the managed Codex MCP server without disturbing existing config.toml sections", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-codex-mcp-");
+
+    try {
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[features]",
+          "codex_hooks = true",
+          "",
+          "[mcp_servers.context7]",
+          'command = "npx"',
+          'args = ["-y", "@upstash/context7-mcp"]',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      const installed = await installHost({
+        homeRoot,
+        host: "codex",
+        userId: "codex-user",
+      });
+      const codexConfig = await readFile(
+        join(homeRoot, ".codex/config.toml"),
+        "utf8",
+      );
+
+      expect(installed.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "created", relativePath: "codex.json" },
+        { action: "updated", relativePath: ".codex/config.toml" },
+      ]);
+      expect(codexConfig).toContain("[features]");
+      expect(codexConfig).toContain("[mcp_servers.context7]");
+      expect(codexConfig).toContain("[mcp_servers.goodmemory]");
+      expect(codexConfig).toContain('command = "goodmemory-mcp"');
+      expect(codexConfig).toContain('args = ["--host", "codex"]');
+      expect(codexConfig).toContain(`GOODMEMORY_HOME = ${JSON.stringify(homeRoot)}`);
+      expect(codexConfig).toContain('GOODMEMORY_MANAGED_BY = "goodmemory"');
+
+      const uninstalled = await uninstallHost({
+        homeRoot,
+        host: "codex",
+      });
+      const codexConfigAfterUninstall = await readFile(
+        join(homeRoot, ".codex/config.toml"),
+        "utf8",
+      );
+
+      expect(uninstalled.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "deleted", relativePath: "codex.json" },
+        { action: "updated", relativePath: ".codex/config.toml" },
+      ]);
+      expect(codexConfigAfterUninstall).toContain("[mcp_servers.context7]");
+      expect(codexConfigAfterUninstall).not.toContain("[mcp_servers.goodmemory]");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("fails closed when the existing Codex MCP config uses an array table", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-codex-mcp-invalid-");
+
+    try {
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[[mcp_servers.goodmemory]]",
+          'command = "custom-mcp"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await expect(
+        installHost({
+          homeRoot,
+          host: "codex",
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing .codex/config.toml: `[[mcp_servers.goodmemory]]` is unsupported for managed MCP registration.",
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("fails closed when a user-managed Codex MCP server already uses the goodmemory name", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-codex-mcp-owned-");
+
+    try {
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[mcp_servers.goodmemory]",
+          'command = "custom-mcp"',
+          'args = ["serve"]',
+          "[mcp_servers.goodmemory.env]",
+          'CUSTOM = "1"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await expect(
+        installHost({
+          homeRoot,
+          host: "codex",
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing .codex/config.toml: `[mcp_servers.goodmemory]` already exists and is not managed by GoodMemory.",
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("rolls back the main install config when MCP registration fails", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-rollback-");
+
+    try {
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[[mcp_servers.goodmemory]]",
+          'command = "custom-mcp"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await expect(
+        installHost({
+          homeRoot,
+          host: "codex",
+          userId: "codex-user",
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing .codex/config.toml: `[[mcp_servers.goodmemory]]` is unsupported for managed MCP registration.",
+      );
+      await expect(
+        readFile(join(homeRoot, ".goodmemory/codex.json"), "utf8"),
+      ).rejects.toThrow();
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("registers and removes the managed Claude MCP server while preserving sibling settings", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-claude-mcp-");
+
+    try {
+      await writeFile(
+        join(homeRoot, ".claude.json"),
+        JSON.stringify(
+          {
+            mcpServers: {
+              github: {
+                command: "npx",
+                args: ["-y", "@modelcontextprotocol/server-github"],
+              },
+            },
+            theme: "light",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const installed = await installHost({
+        homeRoot,
+        host: "claude",
+        userId: "claude-user",
+      });
+      const claudeConfig = JSON.parse(
+        await readFile(join(homeRoot, ".claude.json"), "utf8"),
+      ) as {
+        mcpServers: Record<string, { args?: string[]; command: string; env?: Record<string, string> }>;
+        theme: string;
+      };
+
+      expect(installed.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "created", relativePath: "claude.json" },
+        { action: "updated", relativePath: ".claude.json" },
+      ]);
+      expect(claudeConfig.theme).toBe("light");
+      expect(claudeConfig.mcpServers.github.command).toBe("npx");
+      expect(claudeConfig.mcpServers.goodmemory).toEqual({
+        args: ["--host", "claude"],
+        command: "goodmemory-mcp",
+        env: {
+          GOODMEMORY_HOME: homeRoot,
+          GOODMEMORY_MANAGED_BY: "goodmemory",
+        },
+      });
+
+      const uninstalled = await uninstallHost({
+        homeRoot,
+        host: "claude",
+      });
+      const claudeConfigAfterUninstall = JSON.parse(
+        await readFile(join(homeRoot, ".claude.json"), "utf8"),
+      ) as {
+        mcpServers: Record<
+          string,
+          {
+            args?: string[];
+            command: string;
+          }
+        >;
+        theme: string;
+      };
+
+      expect(uninstalled.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "deleted", relativePath: "claude.json" },
+        { action: "updated", relativePath: ".claude.json" },
+      ]);
+      expect(claudeConfigAfterUninstall.theme).toBe("light");
+      expect(claudeConfigAfterUninstall.mcpServers).toEqual({
+        github: {
+          args: ["-y", "@modelcontextprotocol/server-github"],
+          command: "npx",
+        },
+      });
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("fails closed when a user-managed Claude MCP server already uses the goodmemory name", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-claude-mcp-owned-");
+
+    try {
+      await writeFile(
+        join(homeRoot, ".claude.json"),
+        JSON.stringify(
+          {
+            mcpServers: {
+              goodmemory: {
+                args: ["serve"],
+                command: "custom-mcp",
+                env: {
+                  CUSTOM: "1",
+                },
+              },
+            },
+            theme: "light",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      await expect(
+        installHost({
+          homeRoot,
+          host: "claude",
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing .claude.json: `mcpServers.goodmemory` already exists and is not managed by GoodMemory.",
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("restores the main uninstall config when MCP cleanup fails", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-uninstall-rollback-");
+    const configPath = join(homeRoot, ".goodmemory/codex.json");
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(
+        configPath,
+        JSON.stringify(
+          {
+            debug: false,
+            host: "codex",
+            maxTokens: 256,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "codex-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[[mcp_servers.goodmemory]]",
+          'command = "custom-mcp"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await expect(
+        uninstallHost({
+          homeRoot,
+          host: "codex",
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing .codex/config.toml: `[[mcp_servers.goodmemory]]` is unsupported for managed MCP registration.",
+      );
+      expect(
+        JSON.parse(await readFile(configPath, "utf8")),
+      ).toMatchObject({
+        host: "codex",
+        userId: "codex-user",
+      });
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("still removes the managed MCP registration when the main install config is already missing", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-uninstall-mcp-only-");
+
+    try {
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[mcp_servers.goodmemory]",
+          'command = "goodmemory-mcp"',
+          'args = ["--host", "codex"]',
+          "[mcp_servers.goodmemory.env]",
+          `GOODMEMORY_HOME = ${JSON.stringify(homeRoot)}`,
+          'GOODMEMORY_MANAGED_BY = "goodmemory"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      const uninstalled = await uninstallHost({
+        homeRoot,
+        host: "codex",
+      });
+
+      expect(uninstalled.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "unchanged", relativePath: "codex.json" },
+        { action: "deleted", relativePath: ".codex/config.toml" },
+      ]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("preserves a user-managed Codex MCP server during uninstall", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-uninstall-codex-user-managed-");
+    const configPath = join(homeRoot, ".goodmemory/codex.json");
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await mkdir(join(homeRoot, ".codex"), { recursive: true });
+      await writeFile(
+        configPath,
+        JSON.stringify(
+          {
+            debug: false,
+            host: "codex",
+            maxTokens: 256,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "codex-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(homeRoot, ".codex/config.toml"),
+        [
+          "[mcp_servers.goodmemory]",
+          'command = "custom-mcp"',
+          'args = ["serve"]',
+          "[mcp_servers.goodmemory.env]",
+          'CUSTOM = "1"',
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      const uninstalled = await uninstallHost({
+        homeRoot,
+        host: "codex",
+      });
+      const codexConfig = await readFile(
+        join(homeRoot, ".codex/config.toml"),
+        "utf8",
+      );
+
+      expect(uninstalled.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "deleted", relativePath: "codex.json" },
+        { action: "unchanged", relativePath: ".codex/config.toml" },
+      ]);
+      expect(codexConfig).toContain('command = "custom-mcp"');
+      await expect(readFile(configPath, "utf8")).rejects.toThrow();
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("preserves a user-managed Claude MCP server during uninstall", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-uninstall-claude-user-managed-");
+    const configPath = join(homeRoot, ".goodmemory/claude.json");
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        configPath,
+        JSON.stringify(
+          {
+            debug: false,
+            host: "claude",
+            maxTokens: 256,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "claude-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(homeRoot, ".claude.json"),
+        JSON.stringify(
+          {
+            mcpServers: {
+              goodmemory: {
+                args: ["serve"],
+                command: "custom-mcp",
+                env: {
+                  CUSTOM: "1",
+                },
+              },
+            },
+            theme: "light",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const uninstalled = await uninstallHost({
+        homeRoot,
+        host: "claude",
+      });
+      const claudeConfig = JSON.parse(
+        await readFile(join(homeRoot, ".claude.json"), "utf8"),
+      ) as {
+        mcpServers: Record<
+          string,
+          {
+            args?: string[];
+            command: string;
+            env?: Record<string, string>;
+          }
+        >;
+        theme: string;
+      };
+
+      expect(uninstalled.changes.map(({ action, relativePath }) => ({
+        action,
+        relativePath,
+      }))).toEqual([
+        { action: "deleted", relativePath: "claude.json" },
+        { action: "unchanged", relativePath: ".claude.json" },
+      ]);
+      expect(claudeConfig).toEqual({
+        mcpServers: {
+          goodmemory: {
+            args: ["serve"],
+            command: "custom-mcp",
+            env: {
+              CUSTOM: "1",
+            },
+          },
+        },
+        theme: "light",
+      });
+      await expect(readFile(configPath, "utf8")).rejects.toThrow();
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
     }

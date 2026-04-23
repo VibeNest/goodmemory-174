@@ -1,10 +1,10 @@
 Phase 35.4: goodmemory-mcp and Read-Only Tools
 ==============================================
 
-[TODO] Ship `goodmemory-mcp` as a distributable installed entrypoint.
-[TODO] Add `goodmemory mcp serve` as the canonical CLI form.
-[TODO] Keep the first MCP surface read-only.
-[TODO] Register MCP during host install without making MCP the default recall transport.
+[DONE] Ship `goodmemory-mcp` as a distributable installed entrypoint.
+[DONE] Add `goodmemory mcp serve` as the canonical CLI form.
+[DONE] Keep the first MCP surface read-only.
+[DONE] Register MCP during host install without making MCP the default recall transport.
 
 Minimum Tool Surface
 --------------------

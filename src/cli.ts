@@ -21,6 +21,7 @@ import {
   type InstalledHostHookCommand,
   executeInstalledHostHook,
 } from "./install/hostHookRuntime";
+import { serveGoodMemoryMcp } from "./install/hostMcpServer";
 import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
 import { resolveStoragePlan } from "./api/runtimeResolution";
@@ -144,6 +145,7 @@ const ROOT_HELP_TEXT = [
   "  uninstall       Remove managed global GoodMemory host config for Codex or Claude Code",
   "  enable          Enable repo-local GoodMemory host opt-in for Codex or Claude Code",
   "  disable         Disable repo-local GoodMemory host opt-in for Codex or Claude Code",
+  "  mcp             Run the installed GoodMemory MCP server",
   "  codex           Codex bootstrap and installed hook commands",
   "  claude          Claude Code bootstrap and installed hook commands",
   "  eval            Inspect eval run artifacts",
@@ -154,6 +156,7 @@ const ROOT_HELP_TEXT = [
   "  goodmemory eval --help",
   "  goodmemory install --help",
   "  goodmemory enable --help",
+  "  goodmemory mcp --help",
   "  goodmemory codex --help",
   "  goodmemory claude --help",
 ].join("\n");
@@ -302,6 +305,25 @@ const DISABLE_HELP_TEXT = [
   "Options",
   "  --workspace-root <path>   Optional, defaults to the current working directory",
   "  --json",
+].join("\n");
+const MCP_HELP_TEXT = [
+  "GoodMemory MCP CLI",
+  "",
+  "Usage",
+  "  goodmemory mcp <command> [options]",
+  "",
+  "Commands",
+  "  serve         Run the installed GoodMemory MCP server over stdio",
+  "",
+  "Help",
+  "  goodmemory mcp --help",
+  "  goodmemory mcp serve --help",
+].join("\n");
+const MCP_SERVE_HELP_TEXT = [
+  "GoodMemory MCP Serve",
+  "",
+  "Usage",
+  "  goodmemory mcp serve --host <codex|claude>",
 ].join("\n");
 const EVAL_INSPECT_HELP_TEXT = [
   "GoodMemory Eval Inspect",
@@ -1950,6 +1972,12 @@ async function handleHostHook(
   };
 }
 
+async function handleMcpServe(flags: ParsedFlags): Promise<void> {
+  await serveGoodMemoryMcp({
+    host: requireInstalledHostKind(flags.host),
+  });
+}
+
 export async function runCLI(argv: string[]): Promise<CLIResult> {
   try {
     const { commands, flags } = parseArgs(argv);
@@ -2066,6 +2094,19 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
         requireInstalledHostKind(secondary);
         return helpResult(DISABLE_HELP_TEXT);
       }
+      if (primary === "mcp") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(MCP_HELP_TEXT);
+        }
+        if (secondary === "serve") {
+          return helpResult(MCP_SERVE_HELP_TEXT);
+        }
+
+        return errorResult(
+          `Unknown MCP command: ${secondary}. Run 'goodmemory mcp --help'.`,
+        );
+      }
 
       return errorResult(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
     }
@@ -2150,6 +2191,22 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
         await handleHostDisable(requireInstalledHostKind(commands[1]), flags),
         flags,
       );
+    }
+    if (primary === "mcp") {
+      const secondary = commands[1];
+      if (!secondary) {
+        return helpResult(MCP_HELP_TEXT);
+      }
+      if (secondary === "serve") {
+        await handleMcpServe(flags);
+        return {
+          exitCode: 0,
+          stderr: "",
+          stdout: "",
+        };
+      }
+
+      throw new Error(`Unknown MCP command: ${secondary}. Run 'goodmemory mcp --help'.`);
     }
 
     if (primary === "inspect") {
