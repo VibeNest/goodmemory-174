@@ -163,6 +163,17 @@ const runtime = inspectGoodMemoryRuntime(memory);
 
 GoodMemory `0.1.1` 自带一个 Bun-backed 的已安装 CLI。包里的 `goodmemory` bin 现在可以在 Node 包安装场景下安全暴露；真正执行命令时会委托给 Bun。稳定的 memory-first 命令仍然是 `inspect` / `trace` / `export-memory` / `stats` / `eval ...`。显式 `--storage-provider` / `--storage-url` 优先；不显式指定时，会优先尝试可用的 Postgres 目标，否则在 Bun 运行时回落到当前工作目录下的 sqlite：`./.goodmemory/memory.sqlite`。这些 memory-first 根命令只会读取已有存储；如果最终解析到的本地 sqlite 不存在，CLI 会报错而不会隐式创建本地数据库。唯一的策略诊断例外是 `trace --ignore-memory`：它会把 recall 视为空集并直接跳过存储解析。
 
+Version checks are intentionally lightweight and follow the normal package-bin
+contract:
+
+```bash
+./node_modules/.bin/goodmemory -V
+./node_modules/.bin/goodmemory --version
+```
+
+The installed Node wrapper answers version queries directly without launching
+Bun. Other CLI commands still delegate to Bun.
+
 Phase 35 installed-host middleware commands are now part of the accepted stable host surface. This includes `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>` for managed host config, repo-local opt-in, MCP registration, and hook wiring. The lower-level `goodmemory codex bootstrap` / `goodmemory claude bootstrap` commands remain supported compatibility paths for artifact-first integrations.
 
 The installed hook runtime commands are the canonical always-on recall path when a repository is explicitly enabled: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. They read host hook JSON from stdin, use the existing `recall()` + `buildContext()` path, and fail open when config, opt-in, parsing, or recall is unavailable.
@@ -170,6 +181,61 @@ The installed hook runtime commands are the canonical always-on recall path when
 The read-only MCP surface is accepted for deep read, debug, and artifact browsing: `goodmemory mcp serve --host <codex|claude>` and `goodmemory-mcp --host <codex|claude>`. MCP does not replace hook-time recall injection or the Phase 34 host pre-action path.
 
 The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` are accepted for installed-host seeding and correction. They do not add automatic writeback, transcript persistence, or a stop-hook memory path.
+
+Installed-host setup is designed as a closed loop. `goodmemory install <codex|claude>`
+always succeeds with the local SQLite + rules-only baseline unless you provide
+optional storage/provider flags. To configure stronger memory at install time,
+pass Postgres, embedding, and LLM extraction flags:
+
+```bash
+goodmemory install codex \
+  --user-id <user-id> \
+  --storage-provider postgres \
+  --storage-url "postgres://user:pass@host:5432/goodmemory" \
+  --embedding-provider openai \
+  --embedding-model text-embedding-3-small \
+  --embedding-api-key <key> \
+  --llm-provider openai \
+  --llm-model gpt-4o-mini \
+  --llm-api-key <key>
+```
+
+If you skip those flags, the install output points to the managed file to edit
+later: `~/.goodmemory/codex.json` or `~/.goodmemory/claude.json`. Re-running
+`goodmemory install <host>` with the provider flags updates the same managed
+config and keeps MCP/hook registration idempotent. The installed hook, MCP, and
+`--host` write commands read this managed config directly; shell environment
+variables are still supported by the lower-level core runtime, but they are not
+required for the installed-host path.
+
+Package upgrade and GoodMemory host uninstall are separate operations. Upgrade
+the package through the same package manager you used to install it:
+
+```bash
+npm install goodmemory@latest
+bun add goodmemory@latest
+npm install ./goodmemory-<version>.tgz
+```
+
+Package upgrade replaces the package/bin files; it does not delete
+`~/.goodmemory`, repo-local `.goodmemory`, local SQLite memory files, or remote
+Postgres data. Package uninstall follows the same rule:
+
+```bash
+npm uninstall goodmemory
+bun remove goodmemory
+```
+
+To remove managed host wiring, use GoodMemory's own reversible uninstall:
+
+```bash
+goodmemory uninstall codex
+goodmemory uninstall claude
+```
+
+This removes GoodMemory-managed host config, hooks, and MCP registration for the
+target host. It does not delete memory data. Clearing memory is an explicit data
+operation (`goodmemory forget ...`) or a manual storage deletion after backup.
 
 ```bash
 ./node_modules/.bin/goodmemory inspect --user-id <user-id> --workspace-id <workspace-id>
@@ -179,6 +245,7 @@ The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, an
 ./node_modules/.bin/goodmemory remember --user-id <user-id> --workspace-id <workspace-id> --session-id <session-id> --message "Remember that the deploy is blocked on smoke verification."
 ./node_modules/.bin/goodmemory feedback --host codex --workspace-root . --session-id <session-id> --signal "Keep coding summaries short and list explicit next steps."
 ./node_modules/.bin/goodmemory forget --host codex --workspace-root . --session-id <session-id> --memory-id <memory-id>
+./node_modules/.bin/goodmemory -V
 ./node_modules/.bin/goodmemory install codex --user-id <user-id>
 ./node_modules/.bin/goodmemory enable codex --workspace-root .
 printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' | ./node_modules/.bin/goodmemory codex hook session-start
@@ -194,6 +261,8 @@ printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","sou
 
 CLI surface:
 
+- `goodmemory -V`
+- `goodmemory --version`
 - `goodmemory inspect`
 - `goodmemory trace`
 - `goodmemory export-memory`

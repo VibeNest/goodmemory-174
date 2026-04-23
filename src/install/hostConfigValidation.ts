@@ -5,12 +5,32 @@ export type InstalledHostConfigTarget = "claude" | "codex";
 export interface InstalledHostRuntimeConfig {
   debug: boolean;
   maxTokens: number;
+  providers?: InstalledHostProviderConfig;
   retrievalProfile: "coding_agent" | "general_chat";
   storage: {
     provider: "memory" | "postgres" | "sqlite";
     url: string;
   };
   userId: string;
+}
+
+export interface InstalledHostModelProviderConfig {
+  apiKey: string;
+  baseURL?: string;
+  model: string;
+  provider: "anthropic" | "openai";
+}
+
+export interface InstalledHostEmbeddingProviderConfig {
+  apiKey: string;
+  baseURL?: string;
+  model: string;
+  provider: "openai";
+}
+
+export interface InstalledHostProviderConfig {
+  assistedExtractor?: InstalledHostModelProviderConfig;
+  embedding?: InstalledHostEmbeddingProviderConfig;
 }
 
 export interface WorkspaceHostOptInConfig {
@@ -84,11 +104,20 @@ export function parseInstalledHostRuntimeConfig(
     return { detail: "userId must be a non-empty string", status: "invalid" };
   }
 
+  const providers = readInstalledHostProviders(parsed.providers);
+  if (providers.status === "invalid") {
+    return {
+      detail: providers.detail,
+      status: "invalid",
+    };
+  }
+
   return {
     status: "ok",
     config: {
       debug: parsed.debug === true,
       maxTokens,
+      ...(providers.config ? { providers: providers.config } : {}),
       retrievalProfile,
       storage: {
         provider,
@@ -208,4 +237,123 @@ export function readStorageUrl(storage: Record<string, unknown> | null): string 
         ? storage.url
         : undefined,
   );
+}
+
+function readInstalledHostProviders(
+  value: unknown,
+):
+  | { config?: InstalledHostProviderConfig; status: "ok" }
+  | { detail: string; status: "invalid" } {
+  if (value === undefined) {
+    return { status: "ok" };
+  }
+  if (!isRecord(value)) {
+    return { detail: "providers must be a JSON object", status: "invalid" };
+  }
+
+  const embedding = readEmbeddingProviderConfig(value.embedding);
+  if (embedding.status === "invalid") {
+    return embedding;
+  }
+
+  const assistedExtractor = readModelProviderConfig(
+    value.assistedExtractor,
+    "providers.assistedExtractor",
+  );
+  if (assistedExtractor.status === "invalid") {
+    return assistedExtractor;
+  }
+
+  const config: InstalledHostProviderConfig = {
+    ...(embedding.config ? { embedding: embedding.config } : {}),
+    ...(assistedExtractor.config
+      ? { assistedExtractor: assistedExtractor.config }
+      : {}),
+  };
+
+  return Object.keys(config).length > 0
+    ? { config, status: "ok" }
+    : { status: "ok" };
+}
+
+function readEmbeddingProviderConfig(
+  value: unknown,
+):
+  | { config?: InstalledHostEmbeddingProviderConfig; status: "ok" }
+  | { detail: string; status: "invalid" } {
+  const result = readModelProviderConfig(value, "providers.embedding");
+  if (result.status === "invalid") {
+    return result;
+  }
+  if (!result.config) {
+    return { status: "ok" };
+  }
+  if (result.config.provider !== "openai") {
+    return {
+      detail: "providers.embedding.provider must be openai",
+      status: "invalid",
+    };
+  }
+
+  return {
+    config: {
+      ...result.config,
+      provider: "openai",
+    },
+    status: "ok",
+  };
+}
+
+function readModelProviderConfig(
+  value: unknown,
+  field: string,
+):
+  | { config?: InstalledHostModelProviderConfig; status: "ok" }
+  | { detail: string; status: "invalid" } {
+  if (value === undefined) {
+    return { status: "ok" };
+  }
+  if (!isRecord(value)) {
+    return { detail: `${field} must be a JSON object`, status: "invalid" };
+  }
+
+  const provider = readModelProvider(value.provider);
+  if (!provider) {
+    return {
+      detail: `${field}.provider must be openai or anthropic`,
+      status: "invalid",
+    };
+  }
+
+  const model = normalizeText(
+    typeof value.model === "string" ? value.model : undefined,
+  );
+  if (!model) {
+    return { detail: `${field}.model must be a non-empty string`, status: "invalid" };
+  }
+
+  const apiKey = normalizeText(
+    typeof value.apiKey === "string" ? value.apiKey : undefined,
+  );
+  if (!apiKey) {
+    return { detail: `${field}.apiKey must be a non-empty string`, status: "invalid" };
+  }
+
+  const baseURL = normalizeText(
+    typeof value.baseURL === "string" ? value.baseURL : undefined,
+  );
+
+  return {
+    config: {
+      apiKey,
+      ...(baseURL ? { baseURL } : {}),
+      model,
+      provider,
+    },
+    status: "ok",
+  };
+}
+
+function readModelProvider(value: unknown): "anthropic" | "openai" | undefined {
+  return value === "anthropic" || value === "openai" ? value : undefined;
 }

@@ -834,6 +834,39 @@ describe("goodmemory cli eval commands", () => {
 });
 
 describe("goodmemory cli help and routing", () => {
+  it("returns package version for -V and --version", async () => {
+    const packageJson = JSON.parse(
+      await readFile(join(import.meta.dir, "../../package.json"), "utf8"),
+    ) as { version: string };
+
+    for (const args of [["-V"], ["--version"]]) {
+      const result = await runCLI(args);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe(`goodmemory ${packageJson.version}\n`);
+      expect(result.stderr).toBe("");
+    }
+  });
+
+  it("returns version from the installed Node wrapper without requiring Bun", async () => {
+    const packageJson = JSON.parse(
+      await readFile(join(import.meta.dir, "../../package.json"), "utf8"),
+    ) as { version: string };
+    const result = Bun.spawnSync({
+      cmd: ["node", join(import.meta.dir, "../../scripts/goodmemory-cli.js"), "-V"],
+      env: {
+        ...process.env,
+        GOODMEMORY_BUN_BINARY: "missing-goodmemory-bun",
+      },
+      stderr: "pipe",
+      stdout: "pipe",
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(TEXT_DECODER.decode(result.stdout)).toBe(`goodmemory ${packageJson.version}\n`);
+    expect(TEXT_DECODER.decode(result.stderr)).toBe("");
+  });
+
   it("returns root help for no args and --help", async () => {
     const noArgs = await runCLI([]);
     const help = await runCLI(["--help"]);
@@ -938,6 +971,10 @@ describe("goodmemory cli help and routing", () => {
     expect(install.stdout).toContain("goodmemory install <codex|claude>");
     expect(installCodex.exitCode).toBe(0);
     expect(installCodex.stdout).toContain("--memory-path <path>");
+    expect(installCodex.stdout).toContain("--storage-provider <sqlite|postgres>");
+    expect(installCodex.stdout).toContain("--embedding-provider <openai>");
+    expect(installCodex.stdout).toContain("--llm-provider <openai|anthropic>");
+    expect(installCodex.stdout).toContain("rules-only mode");
     expect(uninstall.exitCode).toBe(0);
     expect(uninstall.stdout).toContain("GoodMemory Uninstall CLI");
     expect(enable.exitCode).toBe(0);
@@ -2005,6 +2042,268 @@ describe("goodmemory cli installed host config", () => {
       );
     } finally {
       await home.cleanup();
+    }
+  });
+
+  it("installs Codex provider-backed storage and provider config without leaking secrets", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-provider-home");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--storage-provider",
+            "postgres",
+            "--storage-url",
+            "postgres://postgres:secret@localhost:5432/goodmemory",
+            "--embedding-provider",
+            "openai",
+            "--embedding-model",
+            "text-embedding-3-small",
+            "--embedding-api-key",
+            "embedding-secret",
+            "--llm-provider",
+            "anthropic",
+            "--llm-model",
+            "claude-3-5-haiku-latest",
+            "--llm-api-key",
+            "llm-secret",
+            "--json",
+          ]);
+
+          expect(result.exitCode).toBe(0);
+          expect(result.stdout).not.toContain("embedding-secret");
+          expect(result.stdout).not.toContain("llm-secret");
+          const payload = JSON.parse(result.stdout) as {
+            providers: {
+              assistedExtractor: {
+                configured: boolean;
+                model?: string;
+                provider?: string;
+              };
+              embedding: {
+                configured: boolean;
+                model?: string;
+                provider?: string;
+              };
+            };
+            storage: {
+              location: string;
+              provider: string;
+            };
+          };
+          expect(payload.storage).toEqual({
+            location: "configured",
+            provider: "postgres",
+          });
+          expect(payload.providers.embedding).toMatchObject({
+            configured: true,
+            model: "text-embedding-3-small",
+            provider: "openai",
+          });
+          expect(payload.providers.assistedExtractor).toMatchObject({
+            configured: true,
+            model: "claude-3-5-haiku-latest",
+            provider: "anthropic",
+          });
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            providers: {
+              assistedExtractor: {
+                apiKey: string;
+                model: string;
+                provider: string;
+              };
+              embedding: {
+                apiKey: string;
+                model: string;
+                provider: string;
+              };
+            };
+            storage: {
+              provider: string;
+              url: string;
+            };
+          };
+          expect(config.storage).toEqual({
+            provider: "postgres",
+            url: "postgres://postgres:secret@localhost:5432/goodmemory",
+          });
+          expect(config.providers.embedding).toEqual({
+            apiKey: "embedding-secret",
+            model: "text-embedding-3-small",
+            provider: "openai",
+          });
+          expect(config.providers.assistedExtractor).toEqual({
+            apiKey: "llm-secret",
+            model: "claude-3-5-haiku-latest",
+            provider: "anthropic",
+          });
+        },
+      );
+    } finally {
+      await home.cleanup();
+    }
+  });
+
+  it("tells installed-host users how to add optional providers later", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-guidance-home");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+          ]);
+
+          expect(result.exitCode).toBe(0);
+          expect(result.stdout).toContain("embedding provider: not configured");
+          expect(result.stdout).toContain("LLM extraction provider: not configured");
+          expect(result.stdout).toContain("--embedding-* / --llm-* flags");
+          expect(result.stdout).toContain(join(home.root, ".goodmemory/codex.json"));
+        },
+      );
+    } finally {
+      await home.cleanup();
+    }
+  });
+
+  it("lets users add provider config later by rerunning install", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-later-home");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const initial = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(initial.exitCode).toBe(0);
+
+          const configured = await runCLI([
+            "install",
+            "codex",
+            "--embedding-provider",
+            "openai",
+            "--embedding-model",
+            "text-embedding-3-small",
+            "--embedding-api-key",
+            "embedding-secret",
+            "--llm-provider",
+            "openai",
+            "--llm-model",
+            "gpt-4o-mini",
+            "--llm-api-key",
+            "llm-secret",
+            "--json",
+          ]);
+          expect(configured.exitCode).toBe(0);
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            providers: {
+              assistedExtractor: { model: string; provider: string };
+              embedding: { model: string; provider: string };
+            };
+            storage: { path: string; provider: string };
+            userId: string;
+          };
+          expect(config.userId).toBe("codex-user");
+          expect(config.storage).toEqual({
+            path: join(home.root, ".goodmemory/memory.sqlite"),
+            provider: "sqlite",
+          });
+          expect(config.providers.embedding).toMatchObject({
+            model: "text-embedding-3-small",
+            provider: "openai",
+          });
+          expect(config.providers.assistedExtractor).toMatchObject({
+            model: "gpt-4o-mini",
+            provider: "openai",
+          });
+        },
+      );
+    } finally {
+      await home.cleanup();
+    }
+  });
+
+  it("rejects blank normalized installed provider flags before writing config", async () => {
+    const cases = [
+      {
+        args: [
+          "--embedding-provider",
+          "openai",
+          "--embedding-model",
+          " ",
+          "--embedding-api-key",
+          "embedding-secret",
+        ],
+        message: "Incomplete embedding provider config. Missing --embedding-model.",
+        prefix: "goodmemory-codex-install-blank-embedding-model",
+      },
+      {
+        args: [
+          "--llm-provider",
+          "openai",
+          "--llm-model",
+          "gpt-4o-mini",
+          "--llm-api-key",
+          " ",
+        ],
+        message: "Incomplete LLM provider config. Missing --llm-api-key.",
+        prefix: "goodmemory-codex-install-blank-llm-key",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const home = await createTempWorkspace(testCase.prefix);
+
+      try {
+        await withEnv(
+          {
+            GOODMEMORY_HOME: home.root,
+          },
+          async () => {
+            const result = await runCLI([
+              "install",
+              "codex",
+              ...testCase.args,
+              "--json",
+            ]);
+
+            expect(result.exitCode).toBe(1);
+            expect(result.stderr).toContain(testCase.message);
+            await expect(
+              access(join(home.root, ".goodmemory/codex.json")),
+            ).rejects.toThrow();
+          },
+        );
+      } finally {
+        await home.cleanup();
+      }
     }
   });
 

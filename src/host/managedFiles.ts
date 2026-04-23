@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 
 export interface ManagedMarker {
@@ -36,11 +36,14 @@ export async function writeManagedFile(
   root: string,
   content: string,
   input?: {
+    directoryMode?: number;
     existingContent?: string | null;
+    mode?: number;
   },
 ): Promise<ManagedWriteFileChange> {
   const existing = input?.existingContent ?? await readFileIfPresent(path);
   if (existing === content) {
+    await applyManagedFilePermissions(path, input);
     return {
       action: "unchanged",
       path,
@@ -49,7 +52,11 @@ export async function writeManagedFile(
   }
 
   await mkdir(dirname(path), { recursive: true });
+  if (input?.directoryMode !== undefined) {
+    await chmod(dirname(path), input.directoryMode);
+  }
   await writeFile(path, content, "utf8");
+  await applyManagedFilePermissions(path, input);
   return {
     action: existing === null ? "created" : "updated",
     path,
@@ -184,6 +191,23 @@ async function readFileIfPresent(path: string): Promise<string | null> {
       return null;
     }
     throw error;
+  }
+}
+
+async function applyManagedFilePermissions(
+  path: string,
+  input:
+    | {
+        directoryMode?: number;
+        mode?: number;
+      }
+    | undefined,
+): Promise<void> {
+  if (input?.directoryMode !== undefined) {
+    await chmod(dirname(path), input.directoryMode);
+  }
+  if (input?.mode !== undefined) {
+    await chmod(path, input.mode);
   }
 }
 

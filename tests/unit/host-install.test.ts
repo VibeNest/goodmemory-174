@@ -1,5 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -189,6 +197,75 @@ describe("host install", () => {
       expect(overridden.memoryPath).toBe(overrideMemoryPath);
       expect(overriddenConfig.userId).toBe("override-user");
       expect(overriddenConfig.storage.path).toBe(overrideMemoryPath);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("writes the secret-bearing global config and install directory with private permissions", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-private-config-");
+    const installRoot = join(homeRoot, ".goodmemory");
+    const configPath = join(installRoot, "codex.json");
+
+    try {
+      await mkdir(installRoot, { recursive: true });
+      await chmod(installRoot, 0o755);
+      await writeFile(
+        configPath,
+        JSON.stringify(
+          {
+            debug: false,
+            host: "codex",
+            maxTokens: 256,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(installRoot, "memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "existing-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await chmod(configPath, 0o644);
+
+      await installHost({
+        embedding: {
+          apiKey: "embedding-secret",
+          model: "text-embedding-3-small",
+          provider: "openai",
+        },
+        homeRoot,
+        host: "codex",
+        storageProvider: "postgres",
+        storageUrl: "postgres://postgres:secret@localhost:5432/goodmemory",
+      });
+
+      expect((await stat(installRoot)).mode & 0o777).toBe(0o700);
+      expect((await stat(configPath)).mode & 0o777).toBe(0o600);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects blank Postgres storage URLs before writing global config", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-blank-postgres-");
+
+    try {
+      await expect(
+        installHost({
+          homeRoot,
+          host: "codex",
+          storageProvider: "postgres",
+          storageUrl: " ",
+        }),
+      ).rejects.toThrow("Postgres installed-host storage requires --storage-url.");
+      await expect(
+        readFile(join(homeRoot, ".goodmemory/codex.json"), "utf8"),
+      ).rejects.toThrow();
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
     }

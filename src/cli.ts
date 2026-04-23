@@ -8,20 +8,33 @@ import type {
   RecallInput,
   RecallResult,
 } from "./api/contracts";
-import { bootstrapHostWorkspace, type BootstrapHostKind } from "./bootstrap/hostBootstrap";
-import { normalizeScope, type MemoryScope } from "./domain/scope";
+import { bootstrapHostWorkspace } from "./bootstrap/hostBootstrap";
+import type { BootstrapHostKind } from "./bootstrap/hostBootstrap";
+import { normalizeScope } from "./domain/scope";
+import type { MemoryScope } from "./domain/scope";
 import {
   disableHostWorkspace,
   enableHostWorkspace,
   installHost,
-  type InstalledHostKind,
   uninstallHost,
 } from "./install/hostInstall";
+import type {
+  InstalledHostKind,
+  InstalledHostStorageProvider,
+} from "./install/hostInstall";
 import {
-  type InstalledHostHookCommand,
   executeInstalledHostHook,
 } from "./install/hostHookRuntime";
-import { resolveInstalledHostContext } from "./install/hostExecutionContext";
+import type { InstalledHostHookCommand } from "./install/hostHookRuntime";
+import {
+  createInstalledHostMemory,
+  resolveInstalledHostContext,
+} from "./install/hostExecutionContext";
+import type {
+  InstalledHostEmbeddingProviderConfig,
+  InstalledHostModelProviderConfig,
+  InstalledHostProviderConfig,
+} from "./install/hostConfigValidation";
 import { serveGoodMemoryMcp } from "./install/hostMcpServer";
 import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
@@ -53,6 +66,10 @@ type ParsedFlags = Record<string, string>;
 interface ParsedArgs {
   commands: string[];
   flags: ParsedFlags;
+}
+
+interface PackageMetadata {
+  version?: unknown;
 }
 
 interface ProposalLifecycleTrace {
@@ -132,6 +149,7 @@ interface InternalDiagnosticGoodMemory extends GoodMemory {
 
 const TOP_RECORD_LIMIT = 3;
 const TRACE_SUPPRESSED_LIMIT = 8;
+const PACKAGE_JSON_URL = new URL("../package.json", import.meta.url);
 const ROOT_HELP_TEXT = [
   "GoodMemory CLI",
   "",
@@ -164,6 +182,7 @@ const ROOT_HELP_TEXT = [
   "  goodmemory mcp --help",
   "  goodmemory codex --help",
   "  goodmemory claude --help",
+  "  goodmemory -V, --version",
 ].join("\n");
 const EVAL_HELP_TEXT = [
   "GoodMemory Eval CLI",
@@ -281,8 +300,21 @@ const INSTALL_HELP_TEXT = [
   "",
   "Options",
   "  --user-id <id>            Optional, defaults to the current OS username",
-  "  --memory-path <path>      Optional, defaults to ~/.goodmemory/memory.sqlite",
+  "  --memory-path <path>      SQLite shortcut. Defaults to ~/.goodmemory/memory.sqlite",
+  "  --storage-provider <sqlite|postgres>",
+  "  --storage-url <path-or-url>",
+  "  --embedding-provider <openai>",
+  "  --embedding-model <model>",
+  "  --embedding-api-key <key>",
+  "  --embedding-base-url <url>",
+  "  --llm-provider <openai|anthropic>",
+  "  --llm-model <model>",
+  "  --llm-api-key <key>",
+  "  --llm-base-url <url>",
   "  --json",
+  "",
+  "If provider flags are omitted, install still succeeds in local rules-only mode.",
+  "Add them later by rerunning install with flags or editing ~/.goodmemory/<host>.json.",
 ].join("\n");
 const UNINSTALL_HELP_TEXT = [
   "GoodMemory Uninstall CLI",
@@ -509,6 +541,11 @@ function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
 
+    if (token === "-V") {
+      flags.version = "true";
+      continue;
+    }
+
     if (!token.startsWith("--")) {
       commands.push(token);
       continue;
@@ -545,6 +582,28 @@ function helpRequested(flags: ParsedFlags): boolean {
   return flagEnabled(flags, "help");
 }
 
+function versionRequested(flags: ParsedFlags): boolean {
+  return flagEnabled(flags, "version");
+}
+
+let packageVersionCache: string | undefined;
+
+async function readPackageVersion(): Promise<string> {
+  if (packageVersionCache) {
+    return packageVersionCache;
+  }
+
+  const packageJson = JSON.parse(
+    await readFile(PACKAGE_JSON_URL, "utf8"),
+  ) as PackageMetadata;
+  if (typeof packageJson.version !== "string" || packageJson.version.length === 0) {
+    throw new Error("Unable to read GoodMemory package version.");
+  }
+
+  packageVersionCache = packageJson.version;
+  return packageVersionCache;
+}
+
 function requireFlag(flags: ParsedFlags, name: string): string {
   const value = flags[name];
   if (!value) {
@@ -559,6 +618,14 @@ function helpResult(text: string): CLIResult {
     exitCode: 0,
     stderr: "",
     stdout: `${text}\n`,
+  };
+}
+
+async function versionResult(): Promise<CLIResult> {
+  return {
+    exitCode: 0,
+    stderr: "",
+    stdout: `goodmemory ${await readPackageVersion()}\n`,
   };
 }
 
@@ -904,12 +971,14 @@ async function resolveWriteExecutionContext(
 
   return {
     host,
-    memory: createGoodMemory({
-      storage: {
-        provider: storage.provider,
-        url: storage.url,
-      },
-    }),
+    memory: hasExplicitStorage
+      ? createGoodMemory({
+          storage: {
+            provider: storage.provider,
+            url: storage.url,
+          },
+        })
+      : createInstalledHostMemory(resolved.context),
     scope,
     storage,
     workspaceRoot: resolved.context.workspaceRoot,
@@ -1801,6 +1870,14 @@ function renderInstalledHostPayload(input: {
     host: string;
     instructionPath?: string;
     memoryPath?: string;
+    providers?: {
+      assistedExtractor: InstalledProviderStatus;
+      embedding: InstalledProviderStatus;
+    };
+    storage?: {
+      location: string;
+      provider: string;
+    };
     userId?: string;
     workspaceRoot?: string;
   };
@@ -1814,6 +1891,11 @@ function renderInstalledHostPayload(input: {
   if (input.payload.configPath) {
     lines.push(`- config: ${input.payload.configPath}`);
   }
+  if (input.payload.storage) {
+    lines.push(
+      `- storage: ${input.payload.storage.provider} (${input.payload.storage.location})`,
+    );
+  }
   if (input.payload.instructionPath) {
     lines.push(`- instructions: ${input.payload.instructionPath}`);
   }
@@ -1826,8 +1908,38 @@ function renderInstalledHostPayload(input: {
   if (input.payload.workspaceRoot) {
     lines.push(`- workspace: ${input.payload.workspaceRoot}`);
   }
+  if (input.payload.providers) {
+    lines.push(
+      `- embedding provider: ${formatInstalledProviderStatus(input.payload.providers.embedding)}`,
+    );
+    lines.push(
+      `- LLM extraction provider: ${formatInstalledProviderStatus(input.payload.providers.assistedExtractor)}`,
+    );
+    if (
+      !input.payload.providers.embedding.configured ||
+      !input.payload.providers.assistedExtractor.configured
+    ) {
+      lines.push(
+        `- provider setup: rerun install with --embedding-* / --llm-* flags or edit ${input.payload.configPath ?? "~/.goodmemory/<host>.json"}`,
+      );
+    }
+  }
 
   return lines.join("\n");
+}
+
+function formatInstalledProviderStatus(status: InstalledProviderStatus): string {
+  if (!status.configured) {
+    return "not configured (rules-only/local fallback remains available)";
+  }
+
+  return [
+    status.provider,
+    status.model,
+    status.baseURLConfigured ? "custom base URL" : undefined,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" / ");
 }
 
 function renderRememberPayload(payload: {
@@ -1929,6 +2041,161 @@ function requireInstalledHostHookCommand(
   throw new Error(
     `Unknown hook command: ${value ?? "(missing)"}. Use 'session-start' or 'user-prompt-submit'.`,
   );
+}
+
+function readInstallStorageProviderFlag(
+  value: string | undefined,
+): InstalledHostStorageProvider | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === "sqlite" || value === "postgres") {
+    return value;
+  }
+
+  throw new Error(
+    `Unsupported installed-host storage provider: ${value}. Expected sqlite|postgres.`,
+  );
+}
+
+function readOptionalInstalledProviderConfig(input: {
+  apiKeyFlag: string;
+  baseUrlFlag: string;
+  flags: ParsedFlags;
+  modelFlag: string;
+  providerFlag: string;
+  providerLabel: string;
+  supportedProviders: Array<InstalledHostModelProviderConfig["provider"]>;
+}): InstalledHostModelProviderConfig | undefined {
+  const rawProvider = input.flags[input.providerFlag];
+  const rawModel = input.flags[input.modelFlag];
+  const rawApiKey = input.flags[input.apiKeyFlag];
+  const rawBaseURL = input.flags[input.baseUrlFlag];
+  const provider = normalizeOptionalFlag(rawProvider);
+  const model = normalizeOptionalFlag(rawModel);
+  const apiKey = normalizeOptionalFlag(rawApiKey);
+  const baseURL = normalizeOptionalFlag(rawBaseURL);
+  const anyConfigured = [
+    rawProvider,
+    rawModel,
+    rawApiKey,
+    rawBaseURL,
+  ].some((value) => value !== undefined);
+  if (!anyConfigured) {
+    return undefined;
+  }
+
+  if (!provider || !model || !apiKey) {
+    const missingFlags = [
+      provider ? null : `--${input.providerFlag}`,
+      model ? null : `--${input.modelFlag}`,
+      apiKey ? null : `--${input.apiKeyFlag}`,
+    ].filter(Boolean) as string[];
+    throw new Error(
+      `Incomplete ${input.providerLabel} provider config. Missing ${missingFlags.join(", ")}.`,
+    );
+  }
+  if (
+    provider !== "openai" &&
+    provider !== "anthropic"
+  ) {
+    throw new Error(
+      `Unsupported ${input.providerLabel} provider: ${provider}. Expected ${input.supportedProviders.join("|")}.`,
+    );
+  }
+  if (!input.supportedProviders.includes(provider)) {
+    throw new Error(
+      `Unsupported ${input.providerLabel} provider: ${provider}. Expected ${input.supportedProviders.join("|")}.`,
+    );
+  }
+
+  return {
+    apiKey,
+    ...(baseURL ? { baseURL } : {}),
+    model,
+    provider,
+  };
+}
+
+function normalizeOptionalFlag(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function readOptionalEmbeddingProviderConfig(
+  flags: ParsedFlags,
+): InstalledHostEmbeddingProviderConfig | undefined {
+  const config = readOptionalInstalledProviderConfig({
+    apiKeyFlag: "embedding-api-key",
+    baseUrlFlag: "embedding-base-url",
+    flags,
+    modelFlag: "embedding-model",
+    providerFlag: "embedding-provider",
+    providerLabel: "embedding",
+    supportedProviders: ["openai"],
+  });
+  if (!config) {
+    return undefined;
+  }
+
+  return {
+    ...config,
+    provider: "openai",
+  };
+}
+
+function readOptionalAssistedExtractorProviderConfig(
+  flags: ParsedFlags,
+): InstalledHostModelProviderConfig | undefined {
+  return readOptionalInstalledProviderConfig({
+    apiKeyFlag: "llm-api-key",
+    baseUrlFlag: "llm-base-url",
+    flags,
+    modelFlag: "llm-model",
+    providerFlag: "llm-provider",
+    providerLabel: "LLM",
+    supportedProviders: ["openai", "anthropic"],
+  });
+}
+
+interface InstalledProviderStatus {
+  baseURLConfigured?: boolean;
+  configured: boolean;
+  model?: string;
+  provider?: "anthropic" | "openai";
+}
+
+function summarizeInstalledProviderStatus(
+  provider: InstalledHostModelProviderConfig | undefined,
+): InstalledProviderStatus {
+  return provider
+    ? {
+        baseURLConfigured: Boolean(provider.baseURL),
+        configured: true,
+        model: provider.model,
+        provider: provider.provider,
+      }
+    : {
+        configured: false,
+      };
+}
+
+function summarizeInstalledProviders(
+  providers: InstalledHostProviderConfig | undefined,
+): {
+  assistedExtractor: InstalledProviderStatus;
+  embedding: InstalledProviderStatus;
+} {
+  return {
+    assistedExtractor: summarizeInstalledProviderStatus(
+      providers?.assistedExtractor,
+    ),
+    embedding: summarizeInstalledProviderStatus(providers?.embedding),
+  };
 }
 
 async function handleInspect(flags: ParsedFlags): Promise<CLICommandOutput> {
@@ -2251,10 +2518,15 @@ async function handleHostInstall(
   flags: ParsedFlags,
 ): Promise<CLICommandOutput> {
   const result = await installHost({
+    assistedExtractor: readOptionalAssistedExtractorProviderConfig(flags),
+    embedding: readOptionalEmbeddingProviderConfig(flags),
     host,
     memoryPath: flags["memory-path"],
+    storageProvider: readInstallStorageProviderFlag(flags["storage-provider"]),
+    storageUrl: flags["storage-url"],
     userId: flags["user-id"],
   });
+  const providerSummary = summarizeInstalledProviders(result.providers);
   const payload = {
     changes: result.changes.map((change) => ({
       action: change.action,
@@ -2264,7 +2536,9 @@ async function handleHostInstall(
     configPath: result.configPath,
     host: result.host,
     installRoot: result.installRoot,
-    memoryPath: result.memoryPath,
+    ...(result.storage.provider === "sqlite" ? { memoryPath: result.memoryPath } : {}),
+    providers: providerSummary,
+    storage: result.storage,
     userId: result.userId,
   };
 
@@ -2398,6 +2672,10 @@ async function handleMcpServe(flags: ParsedFlags): Promise<void> {
 export async function runCLI(argv: string[]): Promise<CLIResult> {
   try {
     const { commands, flags } = parseArgs(argv);
+    if (versionRequested(flags)) {
+      return await versionResult();
+    }
+
     if (commands.length === 0) {
       return helpResult(ROOT_HELP_TEXT);
     }

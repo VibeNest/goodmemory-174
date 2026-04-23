@@ -217,6 +217,133 @@ describe("installed host hook runtime", () => {
     }
   });
 
+  it("creates GoodMemory with installed provider adapters from host config", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-provider-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-provider-workspace-");
+    const calls: {
+      assistedExtractorConfigured?: boolean;
+      embeddingAdapterConfigured?: boolean;
+      storage?: GoodMemoryConfig["storage"];
+    } = {};
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await mkdir(join(workspaceRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            debug: false,
+            host: "codex",
+            maxTokens: 320,
+            providers: {
+              assistedExtractor: {
+                apiKey: "llm-secret",
+                model: "claude-3-5-haiku-latest",
+                provider: "anthropic",
+              },
+              embedding: {
+                apiKey: "embedding-secret",
+                model: "text-embedding-3-small",
+                provider: "openai",
+              },
+            },
+            retrievalProfile: "coding_agent",
+            storage: {
+              provider: "postgres",
+              url: "postgres://postgres:secret@localhost:5432/goodmemory",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(workspaceRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            enabled: true,
+            host: "codex",
+            version: 1,
+            workspaceId: "workspace-hook",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "codex",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "Check project memory.",
+            session_id: "session-42",
+          },
+        },
+        {
+          createMemory: ((config: GoodMemoryConfig) => {
+            calls.storage = config.storage;
+            calls.assistedExtractorConfigured = Boolean(
+              config.adapters?.assistedExtractor,
+            );
+            calls.embeddingAdapterConfigured = Boolean(
+              config.adapters?.embeddingAdapter,
+            );
+            return {
+              async buildContext() {
+                return {
+                  content: "Developer memory notes:\nProvider-backed memory is configured.",
+                  estimatedTokens: 10,
+                  omittedSections: [],
+                  output: "developer_prompt_fragment",
+                };
+              },
+              async recall() {
+                return createRecallResult();
+              },
+              async remember() {
+                throw new Error("not used");
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            } satisfies GoodMemory;
+          }) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.applied).toBe(true);
+      expect(calls.storage).toEqual({
+        provider: "postgres",
+        url: "postgres://postgres:secret@localhost:5432/goodmemory",
+      });
+      expect(calls.assistedExtractorConfigured).toBe(true);
+      expect(calls.embeddingAdapterConfigured).toBe(true);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("fails open with a debug systemMessage when the workspace is disabled", async () => {
     const homeRoot = await createWorkspace("goodmemory-hook-disabled-home-");
     const workspaceRoot = await createWorkspace("goodmemory-hook-disabled-workspace-");

@@ -7,9 +7,14 @@ import type {
 import { normalizeScope } from "../domain/scope";
 import type { MemoryScope } from "../domain/scope";
 import {
+  createProviderEmbeddingAdapter,
+  createProviderMemoryExtractor,
+} from "../provider/layer";
+import {
   DEFAULT_INSTALLED_HOST_MAX_TOKENS,
   DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
 } from "./hostConfigValidation";
+import type { InstalledHostProviderConfig } from "./hostConfigValidation";
 import type { InstalledHostKind } from "./hostInstall";
 import {
   readInstalledHostDebug,
@@ -36,6 +41,7 @@ export interface InstalledHostResolvedContext {
   debug: boolean;
   host: InstalledHostKind;
   maxTokens: number;
+  providers?: InstalledHostProviderConfig;
   retrievalProfile: "coding_agent" | "general_chat";
   scope: MemoryScope;
   storage: GoodMemoryConfig["storage"];
@@ -118,6 +124,9 @@ export async function resolveInstalledHostContext(
         repoConfig.config.retrievalProfile ??
         globalConfig.config.retrievalProfile ??
         DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
+      ...(globalConfig.config.providers
+        ? { providers: globalConfig.config.providers }
+        : {}),
       scope: normalizeScope({
         agentId: input.host,
         sessionId: input.sessionId,
@@ -137,7 +146,34 @@ export function createInstalledHostMemory(
   context: InstalledHostResolvedContext,
   dependencies: InstalledHostContextDependencies = {},
 ): GoodMemory {
+  const adapters = buildInstalledHostProviderAdapters(context.providers);
   return (dependencies.createMemory ?? createGoodMemory)({
+    ...(adapters ? { adapters } : {}),
     storage: context.storage,
   });
+}
+
+function buildInstalledHostProviderAdapters(
+  providers: InstalledHostProviderConfig | undefined,
+): GoodMemoryConfig["adapters"] | undefined {
+  if (!providers?.embedding && !providers?.assistedExtractor) {
+    return undefined;
+  }
+
+  return {
+    ...(providers.embedding
+      ? {
+          embeddingAdapter: createProviderEmbeddingAdapter({
+            model: providers.embedding,
+          }),
+        }
+      : {}),
+    ...(providers.assistedExtractor
+      ? {
+          assistedExtractor: createProviderMemoryExtractor({
+            model: providers.assistedExtractor,
+          }),
+        }
+      : {}),
+  };
 }

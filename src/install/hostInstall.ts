@@ -18,6 +18,11 @@ import {
   readPositiveInteger,
   readRetrievalProfile,
 } from "./hostConfigValidation";
+import type {
+  InstalledHostEmbeddingProviderConfig,
+  InstalledHostModelProviderConfig,
+  InstalledHostProviderConfig,
+} from "./hostConfigValidation";
 import {
   registerInstalledHostMcp,
   resolveInstalledHostMcpTargetPath,
@@ -38,9 +43,13 @@ export interface InstalledHostFileChange {
 }
 
 export interface InstallHostInput {
+  assistedExtractor?: InstalledHostModelProviderConfig;
+  embedding?: InstalledHostEmbeddingProviderConfig;
   homeRoot?: string;
   host: InstalledHostKind;
   memoryPath?: string;
+  storageProvider?: InstalledHostStorageProvider;
+  storageUrl?: string;
   userId?: string;
 }
 
@@ -50,6 +59,8 @@ export interface InstallHostResult {
   host: InstalledHostKind;
   installRoot: string;
   memoryPath: string;
+  providers?: InstalledHostProviderConfig;
+  storage: InstalledHostStorageSummary;
   userId: string;
 }
 
@@ -108,11 +119,9 @@ interface HostInstallConfigRecord {
   debug: boolean;
   host: InstalledHostKind;
   maxTokens: number;
+  providers?: InstalledHostProviderConfig;
   retrievalProfile: "coding_agent" | "general_chat";
-  storage: {
-    path: string;
-    provider: "sqlite";
-  };
+  storage: HostInstallStorageConfigRecord;
   userId: string;
   version: 1;
 }
@@ -150,6 +159,25 @@ const HOST_INSTALL_BLUEPRINTS: Record<InstalledHostKind, HostInstallBlueprint> =
 
 const DEFAULT_MAX_TOKENS = DEFAULT_INSTALLED_HOST_MAX_TOKENS;
 const DEFAULT_RETRIEVAL_PROFILE = DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE;
+const PRIVATE_INSTALL_CONFIG_MODE = 0o600;
+const PRIVATE_INSTALL_DIRECTORY_MODE = 0o700;
+
+export type InstalledHostStorageProvider = "postgres" | "sqlite";
+
+export type HostInstallStorageConfigRecord =
+  | {
+      path: string;
+      provider: "sqlite";
+    }
+  | {
+      provider: "postgres";
+      url: string;
+    };
+
+export interface InstalledHostStorageSummary {
+  location: string;
+  provider: InstalledHostStorageProvider;
+}
 
 export async function installHost(
   input: InstallHostInput,
@@ -157,24 +185,35 @@ export async function installHost(
   const blueprint = HOST_INSTALL_BLUEPRINTS[input.host];
   const installRoot = resolveInstallRoot(input.homeRoot);
   const configPath = join(installRoot, blueprint.configFileName);
+  const storageUrl = normalizeInstallStorageUrl(input.storageUrl);
   const managedSnapshots = await readManagedInstallSnapshots({
     configPath,
     homeRoot: input.homeRoot,
     host: input.host,
     installRoot,
   });
-  const resolvedMemoryPath = resolve(
+  validateInstallStorageInput({
+    memoryPath: input.memoryPath,
+    storageProvider: input.storageProvider,
+    storageUrl,
+  });
+  const resolvedMemoryPath = resolveSQLiteMemoryPath(
     input.memoryPath ?? join(installRoot, "memory.sqlite"),
   );
   const nextConfig = await mergeInstallConfig({
+    assistedExtractor: input.assistedExtractor,
     configPath,
+    embedding: input.embedding,
     host: input.host,
     installRoot,
     memoryPath: resolvedMemoryPath,
     preferInputMemoryPath: input.memoryPath !== undefined,
+    storageProvider: input.storageProvider,
+    storageUrl,
     preferInputUserId: input.userId !== undefined,
     userId: resolveUserId(input.userId, input.homeRoot),
   });
+  const storageSummary = summarizeInstallStorage(nextConfig.storage);
 
   try {
     const changes = mergeInstalledFileChanges([
@@ -183,7 +222,9 @@ export async function installHost(
         installRoot,
         JSON.stringify(nextConfig, null, 2) + "\n",
         {
+          directoryMode: PRIVATE_INSTALL_DIRECTORY_MODE,
           existingContent: managedSnapshots.config.content,
+          mode: PRIVATE_INSTALL_CONFIG_MODE,
         },
       ),
       await registerInstalledHostMcp({
@@ -200,7 +241,9 @@ export async function installHost(
       configPath,
       host: input.host,
       installRoot,
-      memoryPath: nextConfig.storage.path,
+      memoryPath: storageSummary.location,
+      ...(nextConfig.providers ? { providers: nextConfig.providers } : {}),
+      storage: storageSummary,
       userId: nextConfig.userId,
     };
   } catch (error) {
@@ -372,6 +415,10 @@ function resolveInstallRoot(homeRoot: string | undefined): string {
   return join(resolvedHome, ".goodmemory");
 }
 
+function resolveSQLiteMemoryPath(path: string): string {
+  return path === ":memory:" ? path : resolve(path);
+}
+
 function resolveUserId(
   userId: string | undefined,
   homeRoot: string | undefined,
@@ -442,12 +489,16 @@ async function assertInstalledHostConfigExists(input: {
 }
 
 async function mergeInstallConfig(input: {
+  assistedExtractor?: InstalledHostModelProviderConfig;
   configPath: string;
+  embedding?: InstalledHostEmbeddingProviderConfig;
   host: InstalledHostKind;
   installRoot: string;
   memoryPath: string;
   preferInputMemoryPath: boolean;
   preferInputUserId: boolean;
+  storageProvider?: InstalledHostStorageProvider;
+  storageUrl?: string;
   userId: string;
 }): Promise<HostInstallConfigRecord> {
   const existing = await readFileIfPresent(input.configPath);
@@ -457,11 +508,16 @@ async function mergeInstallConfig(input: {
       debug: false,
       host: input.host,
       maxTokens: DEFAULT_MAX_TOKENS,
+      ...mergeProviderConfig(undefined, {
+        assistedExtractor: input.assistedExtractor,
+        embedding: input.embedding,
+      }),
       retrievalProfile: DEFAULT_RETRIEVAL_PROFILE,
-      storage: {
-        path: input.memoryPath,
-        provider: "sqlite",
-      },
+      storage: resolveInstallStorageConfig({
+        memoryPath: input.memoryPath,
+        storageProvider: input.storageProvider,
+        storageUrl: input.storageUrl,
+      }),
       userId: input.userId,
       version: 1,
     };
@@ -496,22 +552,28 @@ async function mergeInstallConfig(input: {
   const debug = parsed.debug === true;
   const retrievalProfile =
     readRetrievalProfile(parsed.retrievalProfile) ?? DEFAULT_RETRIEVAL_PROFILE;
+  const providers = mergeProviderConfig(
+    readExistingProviders(parsed.providers),
+    {
+      assistedExtractor: input.assistedExtractor,
+      embedding: input.embedding,
+    },
+  ).providers;
 
   return {
     ...parsed,
     debug,
     host: input.host,
     maxTokens,
+    providers,
     retrievalProfile,
-    storage: {
-      ...storage,
-      path: input.preferInputMemoryPath
-        ? input.memoryPath
-        : typeof storage.path === "string" && storage.path.trim().length > 0
-          ? storage.path
-          : input.memoryPath,
-      provider: "sqlite",
-    },
+    storage: resolveInstallStorageConfig({
+      existingStorage: storage,
+      memoryPath: input.memoryPath,
+      preferInputMemoryPath: input.preferInputMemoryPath,
+      storageProvider: input.storageProvider,
+      storageUrl: input.storageUrl,
+    }),
     userId:
       input.preferInputUserId ||
       !(typeof parsed.userId === "string" && parsed.userId.trim().length > 0)
@@ -519,6 +581,192 @@ async function mergeInstallConfig(input: {
         : parsed.userId,
     version: 1,
   } as HostInstallConfigRecord;
+}
+
+function validateInstallStorageInput(input: {
+  memoryPath?: string;
+  storageProvider?: InstalledHostStorageProvider;
+  storageUrl?: string;
+}): void {
+  const storageUrl = normalizeInstallStorageUrl(input.storageUrl);
+  if (
+    input.memoryPath &&
+    (input.storageProvider !== undefined || input.storageUrl !== undefined)
+  ) {
+    throw new Error(
+      "Use either --memory-path or --storage-provider/--storage-url, not both.",
+    );
+  }
+  if (input.storageProvider === "postgres" && !storageUrl) {
+    throw new Error("Postgres installed-host storage requires --storage-url.");
+  }
+  if (
+    input.storageUrl !== undefined &&
+    storageUrl !== undefined &&
+    storageUrl.length === 0
+  ) {
+    throw new Error("Installed-host --storage-url must be a non-empty string.");
+  }
+  if (input.storageProvider === undefined && input.storageUrl !== undefined) {
+    throw new Error(
+      "Installed-host --storage-url requires --storage-provider <sqlite|postgres>.",
+    );
+  }
+}
+
+function normalizeInstallStorageUrl(
+  value: string | undefined,
+): string | undefined {
+  return value === undefined ? undefined : value.trim();
+}
+
+function resolveInstallStorageConfig(input: {
+  existingStorage?: Record<string, unknown>;
+  memoryPath: string;
+  preferInputMemoryPath?: boolean;
+  storageProvider?: InstalledHostStorageProvider;
+  storageUrl?: string;
+}): HostInstallStorageConfigRecord {
+  if (input.storageProvider === "postgres") {
+    return {
+      provider: "postgres",
+      url: input.storageUrl!,
+    };
+  }
+  if (input.storageProvider === "sqlite") {
+    return {
+      path: resolveSQLiteMemoryPath(input.storageUrl ?? input.memoryPath),
+      provider: "sqlite",
+    };
+  }
+  if (input.preferInputMemoryPath) {
+    return {
+      path: input.memoryPath,
+      provider: "sqlite",
+    };
+  }
+
+  const existingStorage = input.existingStorage;
+  if (existingStorage?.provider === "postgres") {
+    const url =
+      typeof existingStorage.url === "string" &&
+      existingStorage.url.trim().length > 0
+        ? existingStorage.url.trim()
+        : undefined;
+    if (url) {
+      return {
+        provider: "postgres",
+        url,
+      };
+    }
+  }
+
+  const existingPath =
+    typeof existingStorage?.path === "string" &&
+    existingStorage.path.trim().length > 0
+      ? existingStorage.path.trim()
+      : typeof existingStorage?.url === "string" &&
+          existingStorage.url.trim().length > 0
+        ? existingStorage.url.trim()
+        : undefined;
+
+  return {
+    path: existingPath ?? input.memoryPath,
+    provider: "sqlite",
+  };
+}
+
+function summarizeInstallStorage(
+  storage: HostInstallStorageConfigRecord,
+): InstalledHostStorageSummary {
+  return storage.provider === "postgres"
+    ? {
+        location: "configured",
+        provider: "postgres",
+      }
+    : {
+        location: storage.path,
+        provider: "sqlite",
+      };
+}
+
+function readExistingProviders(value: unknown): InstalledHostProviderConfig | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const embedding = isProviderConfig(value.embedding)
+    ? normalizeEmbeddingProviderConfig(value.embedding)
+    : undefined;
+  const assistedExtractor = isProviderConfig(value.assistedExtractor)
+    ? normalizeModelProviderConfig(value.assistedExtractor)
+    : undefined;
+  const providers: InstalledHostProviderConfig = {
+    ...(embedding ? { embedding } : {}),
+    ...(assistedExtractor ? { assistedExtractor } : {}),
+  };
+
+  return Object.keys(providers).length > 0 ? providers : undefined;
+}
+
+function mergeProviderConfig(
+  existing: InstalledHostProviderConfig | undefined,
+  updates: {
+    assistedExtractor?: InstalledHostModelProviderConfig;
+    embedding?: InstalledHostEmbeddingProviderConfig;
+  },
+): { providers?: InstalledHostProviderConfig } {
+  const providers: InstalledHostProviderConfig = {
+    ...(existing ?? {}),
+    ...(updates.embedding ? { embedding: updates.embedding } : {}),
+    ...(updates.assistedExtractor
+      ? { assistedExtractor: updates.assistedExtractor }
+      : {}),
+  };
+
+  return Object.keys(providers).length > 0 ? { providers } : {};
+}
+
+function isProviderConfig(value: unknown): value is Record<string, unknown> {
+  return isRecord(value);
+}
+
+function normalizeModelProviderConfig(
+  value: Record<string, unknown>,
+): InstalledHostModelProviderConfig | undefined {
+  const provider = value.provider;
+  const model = typeof value.model === "string" ? value.model.trim() : "";
+  const apiKey = typeof value.apiKey === "string" ? value.apiKey.trim() : "";
+  const baseURL = typeof value.baseURL === "string" ? value.baseURL.trim() : "";
+
+  if (
+    (provider !== "openai" && provider !== "anthropic") ||
+    model.length === 0 ||
+    apiKey.length === 0
+  ) {
+    return undefined;
+  }
+
+  return {
+    apiKey,
+    ...(baseURL ? { baseURL } : {}),
+    model,
+    provider,
+  };
+}
+
+function normalizeEmbeddingProviderConfig(
+  value: Record<string, unknown>,
+): InstalledHostEmbeddingProviderConfig | undefined {
+  const config = normalizeModelProviderConfig(value);
+  if (!config || config.provider !== "openai") {
+    return undefined;
+  }
+
+  return {
+    ...config,
+    provider: "openai",
+  };
 }
 
 async function mergeWorkspaceConfig(input: {
@@ -620,6 +868,10 @@ async function restoreManagedFile(
   path: string,
   root: string,
   content: string | null,
+  options?: {
+    directoryMode?: number;
+    mode?: number;
+  },
 ): Promise<void> {
   if (content === null) {
     await rm(path, { force: true });
@@ -627,6 +879,7 @@ async function restoreManagedFile(
   }
 
   await writeManagedFile(path, root, content, {
+    ...options,
     existingContent: null,
   });
 }
@@ -697,6 +950,10 @@ async function restoreManagedInstallSnapshots(
     snapshots.config.path,
     snapshots.config.root,
     snapshots.config.content,
+    {
+      directoryMode: PRIVATE_INSTALL_DIRECTORY_MODE,
+      mode: PRIVATE_INSTALL_CONFIG_MODE,
+    },
   );
 }
 
