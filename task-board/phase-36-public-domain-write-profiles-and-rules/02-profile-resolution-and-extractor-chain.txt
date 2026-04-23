@@ -44,4 +44,4 @@ Acceptance
 - unit tests cover profile matching order and fallback behavior
 - integration tests prove current remember output is unchanged without `remember` config
 - tests prove profile extractors compose with assisted extraction
-- remember metadata includes resolved profile/preset information and stable named extractor ids
+- remember metadata includes resolved profile/preset information for default preset, rules, custom extractor, assisted-only, and annotation-derived candidates, plus stable named extractor ids

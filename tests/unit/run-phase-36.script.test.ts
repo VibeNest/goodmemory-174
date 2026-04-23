@@ -60,11 +60,12 @@ describe("run-phase-36 eval script", () => {
     expect(report.mode).toBe("fallback");
     expect(report.runId).toBe("run-phase36");
     expect(report.acceptance.decision).toBe("accepted");
-    expect(report.summary.totalCases).toBe(5);
-    expect(report.summary.acceptedCaseCount).toBe(5);
+    expect(report.summary.totalCases).toBe(6);
+    expect(report.summary.acceptedCaseCount).toBe(6);
     expect(report.summary.rulesDslPassCount).toBe(1);
     expect(report.summary.annotationPolicyPassCount).toBe(2);
     expect(report.summary.extractorCompositionPassCount).toBe(1);
+    expect(report.summary.traceCompletenessPassCount).toBe(1);
     expect(report.summary.domainMetadataPassCount).toBe(1);
     expect(report.cases.every((caseResult) => caseResult.passed)).toBe(true);
     expect(

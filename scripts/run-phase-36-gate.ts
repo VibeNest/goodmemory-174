@@ -93,6 +93,7 @@ interface ValidatedPhase36DeterministicReport {
     domainMetadataPassCount: number;
     extractorCompositionPassCount: number;
     rulesDslPassCount: number;
+    traceCompletenessPassCount: number;
     totalCases: number;
   };
 }
@@ -450,6 +451,7 @@ export async function runPhase36QualityGate(
     deterministic.summary.rulesDslPassCount === 1 &&
     deterministic.summary.annotationPolicyPassCount === 2 &&
     deterministic.summary.extractorCompositionPassCount === 1 &&
+    deterministic.summary.traceCompletenessPassCount === 1 &&
     deterministic.cases.some(
       (caseResult) =>
         caseResult.caseId === "custom-assisted-composition" &&

@@ -1,7 +1,7 @@
 {
   "acceptance": {
     "decision": "accepted",
-    "reason": "Phase 36 public remember profiles, rules, annotations, extractor composition, and metadata export passed deterministic evaluation."
+    "reason": "Phase 36 public remember profiles, rules, annotations, trace completeness, extractor composition, and metadata export passed deterministic evaluation."
   },
   "cases": [
     {
@@ -81,6 +81,22 @@
     {
       "assertions": [
         {
+          "label": "default-preset-trace",
+          "passed": true
+        },
+        {
+          "label": "assisted-only-trace",
+          "passed": true
+        }
+      ],
+      "caseId": "profile-preset-trace-completeness",
+      "extractorIds": [],
+      "focus": "trace_completeness",
+      "passed": true
+    },
+    {
+      "assertions": [
+        {
           "label": "json-export-tags",
           "passed": true
         },
@@ -95,7 +111,7 @@
       "passed": true
     }
   ],
-  "generatedAt": "2026-04-23T14:38:41.051Z",
+  "generatedAt": "2026-04-23T14:47:50.756Z",
   "generatedBy": "scripts/run-phase-36-eval.ts",
   "mode": "fallback",
   "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36",
@@ -103,11 +119,12 @@
   "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36/run-20260423221045",
   "runId": "run-20260423221045",
   "summary": {
-    "acceptedCaseCount": 5,
+    "acceptedCaseCount": 6,
     "annotationPolicyPassCount": 2,
     "domainMetadataPassCount": 1,
     "extractorCompositionPassCount": 1,
     "rulesDslPassCount": 1,
-    "totalCases": 5
+    "traceCompletenessPassCount": 1,
+    "totalCases": 6
   }
 }

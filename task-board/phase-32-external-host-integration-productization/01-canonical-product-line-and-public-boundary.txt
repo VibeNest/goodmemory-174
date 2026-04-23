@@ -8,7 +8,7 @@ Phase 32.1: Canonical Product Line and Public Boundary
 
 Why this exists
 ---------------
-- `docs/开发安排.md` explicitly says not to expand into all hosts or a heavy new public API.
+- `docs/GoodMemory-Current-Status-and-Evidence.md` keeps the accepted public surface on `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host`; `docs/GoodMemory-First-Principles-and-Reference-Architecture.md` keeps the root API small instead of expanding host behavior into a heavy new surface.
 - Phase 27 already proved public/package adoption; Phase 31 already proved internal Codex host behavior change with native outcome/correction evidence.
 - Phase 32 must connect those two accepted lines without reopening the stable core API.
 

@@ -311,6 +311,18 @@ export function createRememberEngine(config: RememberEngineConfig) {
     };
   };
 
+  const applyProfileTrace = (
+    result: MemoryExtractionResult,
+    profile: ResolvedRememberProfile,
+  ): MemoryExtractionResult => ({
+    ...result,
+    candidates: result.candidates.map((candidate) => ({
+      ...candidate,
+      profileId: profile.id,
+      presetId: profile.presetId,
+    })),
+  });
+
   const resolveRequestedExtractionStrategy = (
     strategy: MemoryExtractionStrategy | undefined,
   ): MemoryExtractionStrategy => strategy ?? "auto";
@@ -325,7 +337,10 @@ export function createRememberEngine(config: RememberEngineConfig) {
       input.extractionStrategy,
     );
     let baselineExtraction = annotateExtractionResult(
-      normalizeExtractionResult(input, await extractor.extract(extractorInput)),
+      applyProfileTrace(
+        normalizeExtractionResult(input, await extractor.extract(extractorInput)),
+        profile,
+      ),
       "rules-only",
     );
     const profileRuleExtractor = createRuleMemoryExtractor({
@@ -337,9 +352,12 @@ export function createRememberEngine(config: RememberEngineConfig) {
     baselineExtraction = mergeExtractionResults(
       baselineExtraction,
       annotateExtractionResult(
-        normalizeExtractionResult(
-          input,
-          await profileRuleExtractor.extract(extractorInput),
+        applyProfileTrace(
+          normalizeExtractionResult(
+            input,
+            await profileRuleExtractor.extract(extractorInput),
+          ),
+          profile,
         ),
         "rules-only",
       ),
@@ -347,9 +365,12 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
     for (const profileExtractor of profile.extractors) {
       const profileExtraction = annotateExtractionResult(
-        normalizeExtractionResult(
-          input,
-          await profileExtractor.extractor.extract(extractorInput),
+        applyProfileTrace(
+          normalizeExtractionResult(
+            input,
+            await profileExtractor.extractor.extract(extractorInput),
+          ),
+          profile,
         ),
         "rules-only",
       );
@@ -366,8 +387,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
                 profileExtractor.id,
               ]),
             ],
-            profileId: candidate.profileId ?? profile.id,
-            presetId: candidate.presetId ?? profile.presetId,
+            profileId: profile.id,
+            presetId: profile.presetId,
           })),
         },
       );
@@ -398,12 +419,15 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
     try {
       assistedExtraction = annotateExtractionResult(
-        normalizeExtractionResult(
-          input,
-          await assistedExtractor.extract({
-            ...extractorInput,
-            extractionStrategy: "llm-assisted",
-          }),
+        applyProfileTrace(
+          normalizeExtractionResult(
+            input,
+            await assistedExtractor.extract({
+              ...extractorInput,
+              extractionStrategy: "llm-assisted",
+            }),
+          ),
+          profile,
         ),
         "llm-assisted",
       );

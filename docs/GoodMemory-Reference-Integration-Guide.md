@@ -187,6 +187,8 @@ named form keeps `extractorIds` stable across profile reordering and replayed
 evals. Named extractor ids are audit identities: they must be non-blank and
 unique in the resolved profile, and they cannot use the generated
 `${profileId}:extractor-N` raw-extractor namespace.
+Remember events carry the resolved `profileId` and `presetId` for default
+preset, rules, custom extractor, assisted-only, and annotation-derived writes.
 
 Storage guidance stays deployment-dependent:
 

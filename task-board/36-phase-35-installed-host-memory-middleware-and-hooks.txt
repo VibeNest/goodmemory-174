@@ -32,7 +32,8 @@ Dependencies
 - Phase 32 external host integration productization
 - Phase 33 formal Node-compatible package boundary and Node-first integration
 - Phase 34 host pre-action policy and veto contract
-- `docs/开发安排.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `docs/GoodMemory-First-Principles-and-Reference-Architecture.md`
 
 
 Primary Deliverables

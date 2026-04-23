@@ -66,7 +66,7 @@ Definition of Done
 - Assistant messages are ignored by default for durable writes.
 - Assistant-originated writes require explicit host annotations and an allowing assistant-output policy.
 - Domain-specific metadata can be stored without widening top-level memory kinds beyond profile, preference, reference, fact, feedback, and episode.
-- Remember events and trace artifacts identify which profile, rule, extractor, annotation, and extraction strategy influenced each candidate.
+- Remember events and trace artifacts identify which profile, preset, rule, extractor, annotation, and extraction strategy influenced each candidate, including default preset and assisted-only writes.
 - One life-coach reference scenario proves the model can capture goals, habits, values, relationship context, and coaching-style preferences through public configuration only.
 - The phase closes with targeted unit/integration tests, a deterministic eval slice, one live-memory provider-backed smoke when credentials are available, and a dedicated `gate:phase-36`.
 

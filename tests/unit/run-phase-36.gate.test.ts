@@ -27,12 +27,13 @@ function createAcceptedPhase36DeterministicReport(): string {
     mode: "fallback",
     phase: "phase-36",
     summary: {
-      acceptedCaseCount: 5,
+      acceptedCaseCount: 6,
       annotationPolicyPassCount: 2,
       domainMetadataPassCount: 1,
       extractorCompositionPassCount: 1,
       rulesDslPassCount: 1,
-      totalCases: 5,
+      traceCompletenessPassCount: 1,
+      totalCases: 6,
     },
   });
 }

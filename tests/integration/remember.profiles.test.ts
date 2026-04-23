@@ -59,6 +59,96 @@ describe("public remember profile customization", () => {
     );
   });
 
+  it("stamps resolved profile and preset on default preset extraction traces", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+          },
+        ],
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the current blocker is vendor approval for sleep program launch.",
+        },
+      ],
+      extractionStrategy: "rules-only",
+    });
+    const writtenEvent = result.events.find((event) => event.outcome === "written");
+
+    expect(result.accepted).toBeGreaterThanOrEqual(1);
+    expect(writtenEvent).toMatchObject({
+      profileId: "life-coach",
+      presetId: "default",
+    });
+  });
+
+  it("stamps resolved profile and preset on assisted-only extraction traces", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        assistedExtractor: {
+          async extract() {
+            return {
+              candidates: [
+                {
+                  id: "assisted-values-context",
+                  kindHint: "fact",
+                  explicitness: "explicit",
+                  profileId: "wrong-profile",
+                  presetId: "wrong-preset",
+                  content: "Family dinners are a core weekly anchor.",
+                  sourceMessageIndex: 0,
+                  sourceRole: "user",
+                  metadata: {
+                    category: "value",
+                    tags: ["life_coach", "values"],
+                  },
+                },
+              ],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+      },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+          },
+        ],
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [
+        {
+          role: "user",
+          content: "Family dinners are a core weekly anchor.",
+        },
+      ],
+      extractionStrategy: "llm-assisted",
+    });
+    const writtenEvent = result.events.find((event) => event.outcome === "written");
+
+    expect(result.accepted).toBe(1);
+    expect(writtenEvent).toMatchObject({
+      extractionSources: ["llm-assisted"],
+      profileId: "life-coach",
+      presetId: "default",
+    });
+  });
+
   it("keeps assistant-originated durable writes disabled unless a profile opts in", async () => {
     const memory = createGoodMemory({
       storage: { provider: "memory" },

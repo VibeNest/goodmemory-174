@@ -56,6 +56,7 @@ Out of scope:
   - host `remember: "never"` annotations suppress content before deterministic, custom, or assisted extraction
   - annotation metadata, rules, profile, custom extractor, and assisted extraction influence remain visible in remember traces
   - named public custom extractors keep stable trace ids for replayed evals and audit output
+  - default preset and assisted-only candidates carry resolved profile/preset trace metadata
 
 ## Evidence Rule
 

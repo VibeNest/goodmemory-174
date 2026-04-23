@@ -36,12 +36,14 @@ export interface Phase36CaseResult {
     | "assistant-confirmed-policy"
     | "never-annotation-masking"
     | "custom-assisted-composition"
+    | "profile-preset-trace-completeness"
     | "domain-metadata-export";
   focus:
     | "rules_dsl"
     | "assistant_policy"
     | "annotation_privacy"
     | "extractor_composition"
+    | "trace_completeness"
     | "metadata_audit";
   extractorIds: string[];
   passed: boolean;
@@ -66,6 +68,7 @@ export interface Phase36EvalReport {
     domainMetadataPassCount: number;
     extractorCompositionPassCount: number;
     rulesDslPassCount: number;
+    traceCompletenessPassCount: number;
     totalCases: number;
   };
 }
@@ -447,6 +450,91 @@ async function runCustomAssistedCompositionCase(): Promise<Phase36CaseResult> {
   ], { extractorIds });
 }
 
+async function runProfilePresetTraceCompletenessCase(): Promise<Phase36CaseResult> {
+  const scope: MemoryScope = { agentId: "life-coach", userId: "phase36-user" };
+  const defaultMemory = createGoodMemory({
+    remember: {
+      profiles: [
+        {
+          id: "life-coach",
+          when: { agentId: "life-coach" },
+        },
+      ],
+    },
+    storage: { provider: "memory" },
+  });
+  const defaultResult = await defaultMemory.remember({
+    extractionStrategy: "rules-only",
+    messages: [
+      {
+        content: "Remember that the current blocker is vendor approval for sleep program launch.",
+        role: "user",
+      },
+    ],
+    scope,
+  });
+  const assistedMemory = createGoodMemory({
+    adapters: {
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                content: "Family dinners are a core weekly anchor.",
+                explicitness: "explicit",
+                id: "assisted-values-context",
+                kindHint: "fact",
+                metadata: { category: "value" },
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    },
+    remember: {
+      profiles: [
+        {
+          id: "life-coach",
+          when: { agentId: "life-coach" },
+        },
+      ],
+    },
+    storage: { provider: "memory" },
+  });
+  const assistedResult = await assistedMemory.remember({
+    extractionStrategy: "llm-assisted",
+    messages: [
+      {
+        content: "Family dinners are a core weekly anchor.",
+        role: "user",
+      },
+    ],
+    scope,
+  });
+
+  return assertCase("profile-preset-trace-completeness", "trace_completeness", [
+    {
+      label: "default-preset-trace",
+      passed: hasWrittenEvent(defaultResult, {
+        extractionSources: ["rules-only"],
+        profileId: "life-coach",
+      }) &&
+        defaultResult.events.some((event) => event.presetId === "default"),
+    },
+    {
+      label: "assisted-only-trace",
+      passed: hasWrittenEvent(assistedResult, {
+        extractionSources: ["llm-assisted"],
+        profileId: "life-coach",
+      }) &&
+        assistedResult.events.some((event) => event.presetId === "default"),
+    },
+  ]);
+}
+
 async function runDomainMetadataExportCase(): Promise<Phase36CaseResult> {
   const memory = createLifeCoachMemory();
   const scope = { agentId: "life-coach", userId: "phase36-user" };
@@ -496,6 +584,7 @@ export async function runPhase36FallbackEval(
       runAssistantConfirmedPolicyCase(),
       runNeverAnnotationMaskingCase(),
       runCustomAssistedCompositionCase(),
+      runProfilePresetTraceCompletenessCase(),
       runDomainMetadataExportCase(),
     ])
   );
@@ -508,7 +597,7 @@ export async function runPhase36FallbackEval(
     acceptance: {
       decision: accepted ? "accepted" : "blocked",
       reason: accepted
-        ? "Phase 36 public remember profiles, rules, annotations, extractor composition, and metadata export passed deterministic evaluation."
+        ? "Phase 36 public remember profiles, rules, annotations, trace completeness, extractor composition, and metadata export passed deterministic evaluation."
         : "One or more Phase 36 public remember customization cases failed deterministic evaluation.",
     },
     cases,
@@ -526,6 +615,7 @@ export async function runPhase36FallbackEval(
       domainMetadataPassCount: countFocus("metadata_audit"),
       extractorCompositionPassCount: countFocus("extractor_composition"),
       rulesDslPassCount: countFocus("rules_dsl"),
+      traceCompletenessPassCount: countFocus("trace_completeness"),
       totalCases: cases.length,
     },
   };

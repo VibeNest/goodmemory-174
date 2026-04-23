@@ -46,6 +46,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - `remember: "never"` masks annotated message content before deterministic, custom, or assisted extraction
   - domain metadata persists on preferences, facts, references, and feedback, and Markdown exports render the metadata needed for auditability
   - remember events trace profile, preset, extractor, rule, annotation, and extraction strategy influence
+  - default preset, rules, custom extractor, assisted-only, and annotation-derived candidates all carry resolved profile/preset trace metadata
   - the life-coach/OneLife-style scenario is documented as a generic public configuration pattern, not a built-in preset
 - Still outside the accepted Phase 36 claim:
   - making OneLife a built-in preset

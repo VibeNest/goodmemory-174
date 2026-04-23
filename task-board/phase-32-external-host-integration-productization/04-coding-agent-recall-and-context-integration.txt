@@ -12,7 +12,7 @@ Phase 32.4: Coding-Agent Recall and Context Integration
 
 Why this exists
 ---------------
-- `docs/开发安排.md` says the next step is not “store more memory”, but make coding-agent recall truly use validated procedural patterns and corrections.
+- `docs/GoodMemory-First-Principles-and-Reference-Architecture.md` defines `coding_agent` recall around runtime, procedural memory, episodes, and project facts; `docs/GoodMemory-Unified-Self-Evolving-Roadmap.md` keeps outcome-backed behavior on the proposal/promote path instead of raw transcript persistence.
 - Phase 31 proved first-action changes internally with native host outcome/correction evidence; Phase 32 must make that usable on the external coding-agent line.
 
 Acceptance

@@ -43,4 +43,4 @@ Canonical Inputs
 - `docs/GoodMemory-Current-Status-and-Evidence.md`
 - `task-board/33-phase-32-external-host-integration-productization.txt`
 - `task-board/34-phase-33-node-compatible-package-boundary-and-node-first-integration.txt`
-- `docs/开发安排.md`
+- `docs/GoodMemory-Unified-Self-Evolving-Roadmap.md`

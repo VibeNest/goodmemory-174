@@ -30,7 +30,7 @@ Acceptance
 - named custom extractors keep stable trace ids for replayed evals and audit output
 - message annotations can explicitly suppress, force, or enrich candidate writes
 - assistant-originated durable writes are opt-in and evidence-gated
-- remember traces explain profile, rule, extractor, annotation, and strategy influence
+- remember traces explain profile, preset, rule, extractor, annotation, and strategy influence for default, custom, assisted, and annotation-derived writes
 - domain metadata can represent life-coach concepts without new top-level memory kinds
 - deterministic and provider-backed evidence proves the new public surface is non-regressive
 

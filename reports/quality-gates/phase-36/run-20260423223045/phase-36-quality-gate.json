@@ -6,7 +6,7 @@
   "commands": [
     {
       "command": "bun run typecheck",
-      "durationMs": 3021,
+      "durationMs": 2794,
       "exitCode": 0,
       "label": "typecheck",
       "status": "passed",
@@ -17,31 +17,31 @@
     },
     {
       "command": "bun test tests/unit/remember.profiles.test.ts tests/unit/remember.extraction.test.ts tests/unit/remember.engine.test.ts tests/integration/remember.profiles.test.ts tests/unit/markdown-artifacts.test.ts tests/unit/run-phase-36.script.test.ts tests/unit/run-phase-36.live-memory.test.ts tests/unit/run-phase-36.gate.test.ts tests/release/release.test.ts",
-      "durationMs": 25850,
+      "durationMs": 22023,
       "exitCode": 0,
       "label": "phase-36-targeted-regressions",
       "status": "passed",
       "stderrTail": [
-        "(pass) release metadata and docs > phase-25 quality gate doc points to one canonical accepted report [34.63ms]",
-        "(pass) release metadata and docs > phase-26 quality gate doc points to one canonical accepted report [63.96ms]",
-        "(pass) release metadata and docs > phase-28 quality gate doc points to one canonical accepted report [31.97ms]",
-        "(pass) release metadata and docs > phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence [101.29ms]",
-        "(pass) release metadata and docs > phase-29 quality gate doc points to the canonical gate plus RC dry-run evidence [55.42ms]",
-        "(pass) release metadata and docs > phase-30 quality gate doc points to the canonical gate plus trace-backed live evidence [29.80ms]",
-        "(pass) release metadata and docs > phase-31 quality gate doc points to the canonical gate plus native host live evidence [29.24ms]",
-        "(pass) release metadata and docs > phase-32 quality gate doc points to the canonical gate plus external-host live evidence [49.77ms]",
-        "(pass) release metadata and docs > phase-33 quality gate doc points to the canonical gate plus package-boundary evidence [9.81ms]",
-        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [237.68ms]",
-        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [544.42ms]",
-        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [999.16ms]",
-        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [302.11ms]",
+        "(pass) release metadata and docs > phase-25 quality gate doc points to one canonical accepted report [39.50ms]",
+        "(pass) release metadata and docs > phase-26 quality gate doc points to one canonical accepted report [73.21ms]",
+        "(pass) release metadata and docs > phase-28 quality gate doc points to one canonical accepted report [44.25ms]",
+        "(pass) release metadata and docs > phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence [109.77ms]",
+        "(pass) release metadata and docs > phase-29 quality gate doc points to the canonical gate plus RC dry-run evidence [52.58ms]",
+        "(pass) release metadata and docs > phase-30 quality gate doc points to the canonical gate plus trace-backed live evidence [31.52ms]",
+        "(pass) release metadata and docs > phase-31 quality gate doc points to the canonical gate plus native host live evidence [30.00ms]",
+        "(pass) release metadata and docs > phase-32 quality gate doc points to the canonical gate plus external-host live evidence [55.04ms]",
+        "(pass) release metadata and docs > phase-33 quality gate doc points to the canonical gate plus package-boundary evidence [11.17ms]",
+        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [225.89ms]",
+        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [444.17ms]",
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [913.38ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [292.86ms]",
         "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.43ms]",
-        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.50ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.30ms]",
         "",
-        " 117 pass",
+        " 119 pass",
         " 0 fail",
-        " 1460 expect() calls",
-        "Ran 117 tests across 9 files. [25.84s]"
+        " 1465 expect() calls",
+        "Ran 119 tests across 9 files. [22.02s]"
       ],
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)"
@@ -49,7 +49,7 @@
     },
     {
       "command": "bun run eval:phase-36 --run-id run-20260423221045",
-      "durationMs": 68,
+      "durationMs": 97,
       "exitCode": 0,
       "label": "phase-36-fallback-eval",
       "status": "passed",
@@ -57,11 +57,10 @@
         "$ bun run scripts/run-phase-36-eval.ts --run-id \"run-20260423221045\""
       ],
       "stdoutTail": [
-        "      \"focus\": \"metadata_audit\",",
         "      \"passed\": true",
         "    }",
         "  ],",
-        "  \"generatedAt\": \"2026-04-23T14:38:41.051Z\",",
+        "  \"generatedAt\": \"2026-04-23T14:47:50.756Z\",",
         "  \"generatedBy\": \"scripts/run-phase-36-eval.ts\",",
         "  \"mode\": \"fallback\",",
         "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36\",",
@@ -69,12 +68,13 @@
         "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36/run-20260423221045\",",
         "  \"runId\": \"run-20260423221045\",",
         "  \"summary\": {",
-        "    \"acceptedCaseCount\": 5,",
+        "    \"acceptedCaseCount\": 6,",
         "    \"annotationPolicyPassCount\": 2,",
         "    \"domainMetadataPassCount\": 1,",
         "    \"extractorCompositionPassCount\": 1,",
         "    \"rulesDslPassCount\": 1,",
-        "    \"totalCases\": 5",
+        "    \"traceCompletenessPassCount\": 1,",
+        "    \"totalCases\": 6",
         "  }",
         "}"
       ]
@@ -93,7 +93,7 @@
       "status": "accepted"
     }
   },
-  "generatedAt": "2026-04-23T14:38:41.057Z",
+  "generatedAt": "2026-04-23T14:47:50.764Z",
   "generatedBy": "scripts/run-phase-36-gate.ts",
   "phase": "phase-36",
   "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-36/run-20260423223045",

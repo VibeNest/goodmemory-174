@@ -107,6 +107,8 @@ remember events and eval reports carry stable `extractorIds` even if the profile
 composition order changes. Named ids must be non-blank, unique within the
 resolved profile, and outside the generated raw-extractor id namespace
 `${profileId}:extractor-N`; invalid ids fail during profile resolution.
+Remember events also carry the resolved `profileId` and `presetId` for default,
+custom, assisted, and annotation-derived writes.
 
 ## Install
 

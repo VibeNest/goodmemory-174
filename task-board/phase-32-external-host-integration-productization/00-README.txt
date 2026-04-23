@@ -51,11 +51,12 @@ Acceptance
 
 Canonical Inputs
 ----------------
-- `docs/开发安排.md`
 - `docs/GoodMemory-Reference-Integration-Guide.md`
 - `docs/GoodMemory-Codex-Handoff-Setup-Guide.md`
 - `docs/GoodMemory-Claude-Code-Setup-Guide.md`
 - `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `docs/GoodMemory-First-Principles-and-Reference-Architecture.md`
+- `docs/GoodMemory-Unified-Self-Evolving-Roadmap.md`
 - `task-board/28-phase-27-reference-integration-gate-and-adoption-evidence.txt`
 - `task-board/31-phase-30-trace-backed-behavioral-enactment-and-live-closure.txt`
 

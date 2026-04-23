@@ -33,7 +33,9 @@ Dependencies
 - Phase 27 public reference integration and Codex handoff adoption evidence
 - Phase 29 Bun-only release boundary and installed CLI contract
 - Phase 30 trace-backed behavioral enactment and live closure
-- `docs/开发安排.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `docs/GoodMemory-First-Principles-and-Reference-Architecture.md`
+- `docs/GoodMemory-Unified-Self-Evolving-Roadmap.md`
 
 
 Primary Deliverables
