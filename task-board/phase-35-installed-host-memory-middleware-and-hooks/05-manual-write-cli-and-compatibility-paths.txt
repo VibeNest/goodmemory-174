@@ -1,9 +1,9 @@
 Phase 35.5: Manual Write CLI and Compatibility Paths
 ====================================================
 
-[TODO] Add explicit write CLI for installed-host users.
-[TODO] Keep the accepted Phase 32 bootstrap/export path working as a lower-level compatibility layer.
-[TODO] Avoid hidden automatic durable writes in the middleware milestone.
+[DONE] Add explicit write CLI for installed-host users.
+[DONE] Keep the accepted Phase 32 bootstrap/export path working as a lower-level compatibility layer.
+[DONE] Avoid hidden automatic durable writes in the middleware milestone.
 
 CLI Surface
 -----------

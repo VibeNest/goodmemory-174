@@ -99,11 +99,16 @@ Phase 35 也新增了 machine-facing 的 hook runtime 命令：`goodmemory codex
 
 Phase 35 还新增了 read-only MCP surface：`goodmemory mcp serve --host <codex|claude>` 和 `goodmemory-mcp --host <codex|claude>`。这条路径复用现有 `recall()`、`buildContext()`、`exportMemory()` 和 `createHostAdapter()`，暴露的只读工具包括 `goodmemory_get_context`、`goodmemory_inspect_memory`、`goodmemory_trace_recall`、`goodmemory_read_artifacts` 和 `goodmemory_stats`。它用于 deep read、debug 和 artifact 浏览，不替代 hook-time 的自动 context 注入。
 
+Phase 35 同时新增了显式写入 CLI：`goodmemory remember`、`goodmemory feedback`、`goodmemory forget`。这组命令仍然是 memory-first public API 的薄封装，不会引入第二套写引擎。普通库用户可以继续显式传 `--user-id` / `--workspace-id` / `--storage-*`；installed-host 用户则可以通过 `--host <codex|claude>` 复用全局 host storage，并从安装时的 user config 和 repo opt-in 派生缺省 scope。`forget` 现在同时支持按 `--memory-id` 删除单条 durable memory，或用 `--all` 按当前 scope 清空 durable target。
+
 ```bash
 ./node_modules/.bin/goodmemory inspect --user-id <user-id> --workspace-id <workspace-id>
 ./node_modules/.bin/goodmemory trace --user-id <user-id> --workspace-id <workspace-id> --query "Which runbook is the source of truth?"
 ./node_modules/.bin/goodmemory export-memory --user-id <user-id> --workspace-id <workspace-id> --output ./tmp/export
 ./node_modules/.bin/goodmemory stats --user-id <user-id> --workspace-id <workspace-id>
+./node_modules/.bin/goodmemory remember --user-id <user-id> --workspace-id <workspace-id> --session-id <session-id> --message "Remember that the deploy is blocked on smoke verification."
+./node_modules/.bin/goodmemory feedback --host codex --workspace-root . --session-id <session-id> --signal "Keep coding summaries short and list explicit next steps."
+./node_modules/.bin/goodmemory forget --host codex --workspace-root . --session-id <session-id> --memory-id <memory-id>
 ./node_modules/.bin/goodmemory install codex --user-id <user-id>
 ./node_modules/.bin/goodmemory enable codex --workspace-root .
 printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' | ./node_modules/.bin/goodmemory codex hook session-start
@@ -123,6 +128,9 @@ CLI surface:
 - `goodmemory trace`
 - `goodmemory export-memory`
 - `goodmemory stats`
+- `goodmemory remember`
+- `goodmemory feedback`
+- `goodmemory forget`
 - `goodmemory install`
 - `goodmemory uninstall`
 - `goodmemory enable`

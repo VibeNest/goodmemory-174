@@ -24,6 +24,7 @@ Current Status
 [DONE] `goodmemory-mcp` now exists as a distributable installed entrypoint, and `goodmemory mcp serve` is the canonical CLI form.
 [WIP] `goodmemory install codex` / `goodmemory install claude` and explicit repo `enable` / `disable` now wire user-level MCP registration plus repo opt-in, but user-level automatic hook registration is still pending.
 [WIP] Explicit installed hook commands now exist for `SessionStart` and `UserPromptSubmit`, but the canonical live path still needs automatic user-level hook registration and live evidence before exported artifacts stop being the main accepted external read path.
+[DONE] Explicit write CLI now exists on the installed/package surface: `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget`, including installed-package smoke for write -> hook recall -> MCP deep read.
 
 
 Dependencies
@@ -93,7 +94,7 @@ Tasks
 [DONE] P35-T002 Add global install/uninstall plus repo enable/disable for Codex and Claude Code
 [DONE] P35-T003 Add hook payload contracts and lifecycle handlers for automatic recall injection
 [DONE] P35-T004 Ship `goodmemory-mcp` and the read-only MCP tool surface
-[TODO] P35-T005 Add explicit write CLI plus compatibility wiring from the accepted Phase 32 bootstrap path
+[DONE] P35-T005 Add explicit write CLI plus compatibility wiring from the accepted Phase 32 bootstrap path
 [TODO] P35-T006 Add dedicated evals, gate, archive summary, and closure sync for the canonical installed-host middleware path
 
 

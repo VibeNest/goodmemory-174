@@ -1,3 +1,5 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { describe, expect, it } from "bun:test";
 import {
   access,
@@ -114,18 +116,28 @@ async function runCommand(input: {
   cmd: string[];
   cwd: string;
   env?: Record<string, string | undefined>;
+  stdin?: string;
 }): Promise<{
   exitCode: number;
   stderr: string;
   stdout: string;
 }> {
+  const stdin = input.stdin;
   const childProcess = Bun.spawn({
     cmd: input.cmd,
     cwd: input.cwd,
     env: createChildEnv(input.env),
+    stdin: stdin === undefined ? "ignore" : "pipe",
     stdout: "pipe",
     stderr: "pipe",
   });
+  if (stdin !== undefined) {
+    if (!childProcess.stdin) {
+      throw new Error("release test helper expected a writable stdin pipe");
+    }
+    childProcess.stdin.write(stdin);
+    childProcess.stdin.end();
+  }
   const stdout = await new Response(childProcess.stdout).text();
   const stderr = await new Response(childProcess.stderr).text();
   const exitCode = await childProcess.exited;
@@ -1295,6 +1307,263 @@ describe("release metadata and docs", () => {
       expect(claudeManifest.scope.workspaceId).toBe("consumer-workspace");
     } finally {
       await rm(packOutputDir, { recursive: true, force: true });
+      await rm(workspaceRoot, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("installed-package write CLI smoke covers write -> hook recall -> MCP deep read", async () => {
+    const fixtureRoot = join(
+      import.meta.dir,
+      "../../tests/consumers/bootstrap-package-smoke",
+    );
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-write-cli-consumer-"),
+    );
+    const homeRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-write-cli-home-"),
+    );
+    const packOutputDir = await mkdtemp(
+      join(tmpdir(), "goodmemory-write-cli-pack-"),
+    );
+    let transport: StdioClientTransport | null = null;
+
+    try {
+      const { tarballPath } = await packReleaseTarball(packOutputDir);
+      await cp(fixtureRoot, workspaceRoot, { recursive: true });
+
+      const packageJsonPath = join(workspaceRoot, "package.json");
+      const packageJson = await readFile(packageJsonPath, "utf8");
+      await writeFile(
+        packageJsonPath,
+        packageJson.replace(
+          "__GOODMEMORY_PACKAGE_SPEC__",
+          `file:${tarballPath}`,
+        ),
+        "utf8",
+      );
+
+      const install = await runCommand({
+        cmd: ["bun", "install"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(install.exitCode).toBe(0);
+
+      expect(
+        (
+          await runCommand({
+            cmd: [
+              "./node_modules/.bin/goodmemory",
+              "install",
+              "codex",
+              "--user-id",
+              "consumer-user",
+              "--json",
+            ],
+            cwd: workspaceRoot,
+            env: {
+              ...RELEASE_TEST_ENV,
+              GOODMEMORY_HOME: homeRoot,
+            },
+          })
+        ).exitCode,
+      ).toBe(0);
+
+      expect(
+        (
+          await runCommand({
+            cmd: [
+              "./node_modules/.bin/goodmemory",
+              "enable",
+              "codex",
+              "--workspace-id",
+              "consumer-workspace",
+              "--workspace-root",
+              workspaceRoot,
+              "--json",
+            ],
+            cwd: workspaceRoot,
+            env: {
+              ...RELEASE_TEST_ENV,
+              GOODMEMORY_HOME: homeRoot,
+            },
+          })
+        ).exitCode,
+      ).toBe(0);
+
+      const feedback = await runCommand({
+        cmd: [
+          "./node_modules/.bin/goodmemory",
+          "feedback",
+          "--host",
+          "codex",
+          "--workspace-root",
+          workspaceRoot,
+          "--session-id",
+          "consumer-session",
+          "--signal",
+          "Keep coding summaries short and list explicit next steps.",
+          "--json",
+        ],
+        cwd: workspaceRoot,
+        env: {
+          ...RELEASE_TEST_ENV,
+          GOODMEMORY_HOME: homeRoot,
+        },
+      });
+      expect(feedback.exitCode).toBe(0);
+      const feedbackJson = extractJsonObject<{
+        accepted: boolean;
+        memoryId?: string;
+        scope: {
+          agentId?: string;
+          sessionId?: string;
+          userId: string;
+          workspaceId?: string;
+        };
+      }>(feedback.stdout);
+      expect(feedbackJson.accepted).toBe(true);
+      expect(feedbackJson.memoryId).toBeDefined();
+      expect(feedbackJson.scope).toEqual({
+        agentId: "codex",
+        sessionId: "consumer-session",
+        userId: "consumer-user",
+        workspaceId: "consumer-workspace",
+      });
+
+      const remember = await runCommand({
+        cmd: [
+          "./node_modules/.bin/goodmemory",
+          "remember",
+          "--host",
+          "codex",
+          "--workspace-root",
+          workspaceRoot,
+          "--session-id",
+          "consumer-session",
+          "--message",
+          "Remember that the deploy is blocked on smoke verification.",
+          "--json",
+        ],
+        cwd: workspaceRoot,
+        env: {
+          ...RELEASE_TEST_ENV,
+          GOODMEMORY_HOME: homeRoot,
+        },
+      });
+      expect(remember.exitCode).toBe(0);
+      const rememberJson = extractJsonObject<{
+        accepted: number;
+      }>(remember.stdout);
+      expect(rememberJson.accepted).toBeGreaterThan(0);
+
+      const hook = await runCommand({
+        cmd: [
+          "./node_modules/.bin/goodmemory",
+          "codex",
+          "hook",
+          "user-prompt-submit",
+        ],
+        cwd: workspaceRoot,
+        env: {
+          ...RELEASE_TEST_ENV,
+          GOODMEMORY_HOME: homeRoot,
+        },
+        stdin: JSON.stringify({
+          cwd: workspaceRoot,
+          prompt: "Summarize my preferred style and current blocker before you answer.",
+          session_id: "consumer-session",
+        }),
+      });
+      expect(hook.exitCode).toBe(0);
+      expect(hook.stdout).toContain(
+        "Keep coding summaries short and list explicit next steps.",
+      );
+      expect(hook.stdout).toContain("smoke verification");
+
+      const emptyHook = await runCommand({
+        cmd: [
+          "./node_modules/.bin/goodmemory",
+          "codex",
+          "hook",
+          "user-prompt-submit",
+        ],
+        cwd: workspaceRoot,
+        env: {
+          ...RELEASE_TEST_ENV,
+          GOODMEMORY_HOME: homeRoot,
+        },
+        stdin: "",
+      });
+      expect(emptyHook.exitCode).toBe(0);
+      expect(emptyHook.stdout.trim()).toBe("{}");
+      expect(emptyHook.stderr.trim()).toBe("");
+
+      transport = new StdioClientTransport({
+        args: ["--host", "codex"],
+        command: "./node_modules/.bin/goodmemory-mcp",
+        cwd: workspaceRoot,
+        env: createChildEnv({
+          ...RELEASE_TEST_ENV,
+          GOODMEMORY_HOME: homeRoot,
+        }),
+        stderr: "pipe",
+      });
+
+      const client = new Client(
+        {
+          name: "goodmemory-release-write-smoke",
+          version: "0.0.0",
+        },
+        {
+          capabilities: {},
+        },
+      );
+      await client.connect(transport);
+
+      const stats = await client.callTool({
+        arguments: {
+          cwd: workspaceRoot,
+          sessionId: "consumer-session",
+        },
+        name: "goodmemory_stats",
+      });
+      expect(stats.structuredContent).toMatchObject({
+        counts: {
+          facts: 1,
+          feedback: 1,
+        },
+        scope: {
+          agentId: "codex",
+          sessionId: "consumer-session",
+          userId: "consumer-user",
+          workspaceId: "consumer-workspace",
+        },
+      });
+
+      const context = await client.callTool({
+        arguments: {
+          cwd: workspaceRoot,
+          query: "Summarize my preferred style and current blocker before you answer.",
+          sessionId: "consumer-session",
+        },
+        name: "goodmemory_get_context",
+      });
+      expect(context.structuredContent).toMatchObject({
+        query: "Summarize my preferred style and current blocker before you answer.",
+      });
+      expect(JSON.stringify(context.structuredContent)).toContain(
+        "Keep coding summaries short and list explicit next steps.",
+      );
+      expect(JSON.stringify(context.structuredContent)).toContain(
+        "smoke verification",
+      );
+    } finally {
+      if (transport) {
+        await transport.close();
+      }
+      await rm(packOutputDir, { recursive: true, force: true });
+      await rm(homeRoot, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });
     }
   }, 30_000);

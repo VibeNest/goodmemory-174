@@ -21,9 +21,11 @@ import {
   type InstalledHostHookCommand,
   executeInstalledHostHook,
 } from "./install/hostHookRuntime";
+import { resolveInstalledHostContext } from "./install/hostExecutionContext";
 import { serveGoodMemoryMcp } from "./install/hostMcpServer";
 import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
+import type { MemoryExtractionStrategy } from "./remember/candidates";
 import { resolveStoragePlan } from "./api/runtimeResolution";
 import {
   canBootstrapPostgresStorageBackend,
@@ -137,6 +139,9 @@ const ROOT_HELP_TEXT = [
   "  goodmemory <command> [options]",
   "",
   "Commands",
+  "  remember        Write durable memory through the public API",
+  "  feedback        Write explicit feedback or correction through the public API",
+  "  forget          Delete one durable memory record or clear a scoped target",
   "  inspect         Inspect scope-bounded memory from durable storage",
   "  trace           Run read-only recall diagnostics for a scope and query",
   "  export-memory   Export a memory snapshot plus Markdown artifacts",
@@ -304,6 +309,94 @@ const DISABLE_HELP_TEXT = [
   "",
   "Options",
   "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --json",
+].join("\n");
+const REMEMBER_HELP_TEXT = [
+  "GoodMemory Remember",
+  "",
+  "Usage",
+  "  goodmemory remember --message <text> [scope flags] [write flags] [storage flags] [installed-host flags]",
+  "",
+  "Scope Flags",
+  "  --user-id <id>          Required unless --host derives it from installed host config",
+  "  --tenant-id <id>",
+  "  --workspace-id <id>",
+  "  --agent-id <id>",
+  "  --session-id <id>",
+  "",
+  "Write Flags",
+  "  --message <text>        Required",
+  "  --role <user|assistant>",
+  "  --extraction-strategy <auto|rules-only|llm-assisted>",
+  "  --locale <locale>",
+  "",
+  "Installed Host Flags",
+  "  --host <codex|claude>   Reuse installed host storage and derive missing scope defaults",
+  "  --workspace-root <path> Optional, defaults to the current working directory when --host is set",
+  "",
+  "Storage Flags",
+  "  --storage-provider <memory|sqlite|postgres>",
+  "  --storage-url <path-or-url>",
+  "",
+  "Output Flags",
+  "  --json",
+].join("\n");
+const FEEDBACK_HELP_TEXT = [
+  "GoodMemory Feedback",
+  "",
+  "Usage",
+  "  goodmemory feedback --signal <text> [scope flags] [storage flags] [installed-host flags]",
+  "",
+  "Scope Flags",
+  "  --user-id <id>          Required unless --host derives it from installed host config",
+  "  --tenant-id <id>",
+  "  --workspace-id <id>",
+  "  --agent-id <id>",
+  "  --session-id <id>",
+  "",
+  "Feedback Flags",
+  "  --signal <text>         Required",
+  "  --locale <locale>",
+  "",
+  "Installed Host Flags",
+  "  --host <codex|claude>   Reuse installed host storage and derive missing scope defaults",
+  "  --workspace-root <path> Optional, defaults to the current working directory when --host is set",
+  "",
+  "Storage Flags",
+  "  --storage-provider <memory|sqlite|postgres>",
+  "  --storage-url <path-or-url>",
+  "",
+  "Output Flags",
+  "  --json",
+].join("\n");
+const FORGET_HELP_TEXT = [
+  "GoodMemory Forget",
+  "",
+  "Usage",
+  "  goodmemory forget --memory-id <id> [scope flags] [storage flags] [installed-host flags]",
+  "  goodmemory forget --all [scope flags] [storage flags] [installed-host flags] [--include-runtime]",
+  "",
+  "Scope Flags",
+  "  --user-id <id>          Required unless --host derives it from installed host config",
+  "  --tenant-id <id>",
+  "  --workspace-id <id>",
+  "  --agent-id <id>",
+  "  --session-id <id>",
+  "",
+  "Forget Flags",
+  "  --memory-id <id>        Delete one durable memory record. Use either this or --all",
+  "  --all                  Delete the full durable scope. Use either this or --memory-id",
+  "  --include-runtime      Include working memory, journal, and artifact spills when used with --all",
+  "",
+  "Installed Host Flags",
+  "  --host <codex|claude>   Reuse installed host storage and derive missing scope defaults",
+  "  --workspace-root <path> Optional, defaults to the current working directory when --host is set",
+  "",
+  "Storage Flags",
+  "  --storage-provider <memory|sqlite|postgres>",
+  "  --storage-url <path-or-url>",
+  "",
+  "Output Flags",
   "  --json",
 ].join("\n");
 const MCP_HELP_TEXT = [
@@ -753,6 +846,96 @@ function createIgnoredDiagnosticMemory(): {
   };
 }
 
+interface WriteExecutionContext {
+  host?: InstalledHostKind;
+  memory: GoodMemory;
+  scope: MemoryScope;
+  storage: CLIStorageConfig;
+  workspaceRoot?: string;
+}
+
+async function resolveWriteExecutionContext(
+  flags: ParsedFlags,
+): Promise<WriteExecutionContext> {
+  const host = flags.host ? requireInstalledHostKind(flags.host) : undefined;
+
+  if (!host) {
+    const storage = await resolveStorageConfig(flags);
+    return {
+      memory: createGoodMemory({
+        storage: {
+          provider: storage.provider,
+          url: storage.url,
+        },
+      }),
+      scope: resolveScopeFromFlags(flags),
+      storage,
+    };
+  }
+
+  const resolved = await resolveInstalledHostContext({
+    cwd: flags["workspace-root"],
+    host,
+    sessionId: flags["session-id"],
+  });
+  if (resolved.status !== "ok") {
+    throw new Error(buildInstalledHostWriteErrorMessage(host, resolved));
+  }
+
+  const hasExplicitStorage =
+    flags["storage-provider"] !== undefined || flags["storage-url"] !== undefined;
+  const storage = hasExplicitStorage
+    ? await resolveStorageConfig(flags)
+    : {
+        provider: resolved.context.storage?.provider ?? "memory",
+        url: resolved.context.storage?.url,
+        displayValue: describeStorageDisplayValue({
+          provider: resolved.context.storage?.provider ?? "memory",
+          url: resolved.context.storage?.url ?? "",
+        }),
+      };
+  const scope = normalizeScope({
+    userId: flags["user-id"] ?? resolved.context.scope.userId,
+    tenantId: flags["tenant-id"],
+    workspaceId: flags["workspace-id"] ?? resolved.context.scope.workspaceId,
+    agentId: flags["agent-id"] ?? resolved.context.scope.agentId,
+    sessionId: flags["session-id"] ?? resolved.context.scope.sessionId,
+  });
+
+  return {
+    host,
+    memory: createGoodMemory({
+      storage: {
+        provider: storage.provider,
+        url: storage.url,
+      },
+    }),
+    scope,
+    storage,
+    workspaceRoot: resolved.context.workspaceRoot,
+  };
+}
+
+function buildInstalledHostWriteErrorMessage(
+  host: InstalledHostKind,
+  resolved: Exclude<
+    Awaited<ReturnType<typeof resolveInstalledHostContext>>,
+    { status: "ok" }
+  >,
+): string {
+  if (resolved.status === "missing_global_config") {
+    return `Run 'goodmemory install ${host}' first before using '--host ${host}'.`;
+  }
+  if (resolved.status === "invalid_global_config") {
+    return `Installed ${host} host config is invalid. Reinstall with 'goodmemory install ${host}' or fix ~/.goodmemory/${host}.json before using '--host ${host}'.`;
+  }
+  if (resolved.status === "invalid_repo_config") {
+    return `Installed ${host} repo config at ${join(resolved.workspaceRoot, ".goodmemory", `${host}.json`)} is invalid. Fix it before using '--host ${host}'.`;
+  }
+
+  return `Run 'goodmemory enable ${host} --workspace-root ${resolved.workspaceRoot}' first before using '--host ${host}'.`;
+}
+
 function resolveScopeFromFlags(flags: ParsedFlags): MemoryScope {
   return normalizeScope({
     userId: requireFlag(flags, "user-id"),
@@ -765,6 +948,20 @@ function resolveScopeFromFlags(flags: ParsedFlags): MemoryScope {
 
 function shouldIncludeRuntime(flags: ParsedFlags, scope: MemoryScope): boolean {
   return flagEnabled(flags, "include-runtime") || scope.sessionId !== undefined;
+}
+
+function describeStorageDisplayValue(storage: {
+  provider: "memory" | "postgres" | "sqlite";
+  url?: string;
+}): string {
+  if (storage.provider === "memory") {
+    return "in-memory";
+  }
+  if (storage.provider === "postgres") {
+    return "configured";
+  }
+
+  return storage.url ?? "configured";
 }
 
 function countActiveRecords<TRecord extends { lifecycle?: string }>(
@@ -1071,6 +1268,32 @@ function parseRetrievalProfile(flags: ParsedFlags): "coding_agent" | "general_ch
 
   throw new Error(
     `Unsupported retrieval profile: ${profile}. Expected general_chat|coding_agent.`,
+  );
+}
+
+function parseRememberRole(flags: ParsedFlags): "assistant" | "user" {
+  const role = flags.role ?? "user";
+  if (role === "assistant" || role === "user") {
+    return role;
+  }
+
+  throw new Error(
+    `Unsupported remember role: ${role}. Expected user|assistant.`,
+  );
+}
+
+function parseExtractionStrategy(flags: ParsedFlags): MemoryExtractionStrategy {
+  const strategy = flags["extraction-strategy"] ?? "auto";
+  if (
+    strategy === "auto" ||
+    strategy === "llm-assisted" ||
+    strategy === "rules-only"
+  ) {
+    return strategy;
+  }
+
+  throw new Error(
+    `Unsupported extraction strategy: ${strategy}. Expected auto|rules-only|llm-assisted.`,
   );
 }
 
@@ -1607,6 +1830,85 @@ function renderInstalledHostPayload(input: {
   return lines.join("\n");
 }
 
+function renderRememberPayload(payload: {
+  accepted: number;
+  rejected: number;
+  scope: MemoryScope;
+  storage: {
+    location: string;
+    provider: CLIStorageConfig["provider"];
+  };
+}): string {
+  return [
+    `Remembered durable memory for ${formatScope(payload.scope)}`,
+    `- storage: ${payload.storage.provider} (${payload.storage.location})`,
+    `- accepted: ${payload.accepted}`,
+    `- rejected: ${payload.rejected}`,
+  ].join("\n");
+}
+
+function renderFeedbackPayload(payload: {
+  accepted: boolean;
+  kind?: string;
+  memoryId?: string;
+  outcome?: string;
+  promotionReceiptCount: number;
+  proposalReceiptCount: number;
+  scope: MemoryScope;
+  storage: {
+    location: string;
+    provider: CLIStorageConfig["provider"];
+  };
+}): string {
+  return [
+    `Stored feedback for ${formatScope(payload.scope)}`,
+    `- storage: ${payload.storage.provider} (${payload.storage.location})`,
+    `- accepted: ${payload.accepted}`,
+    `- outcome: ${payload.outcome ?? "unknown"}`,
+    `- kind: ${payload.kind ?? "unknown"}`,
+    ...(payload.memoryId ? [`- memoryId: ${payload.memoryId}`] : []),
+    `- proposal receipts: ${payload.proposalReceiptCount}`,
+    `- promotion receipts: ${payload.promotionReceiptCount}`,
+  ].join("\n");
+}
+
+function renderForgetPayload(payload: {
+  forgotten: boolean;
+  memoryId: string;
+  scope: MemoryScope;
+  storage: {
+    location: string;
+    provider: CLIStorageConfig["provider"];
+  };
+}): string {
+  return [
+    payload.forgotten
+      ? `Forgot memory ${payload.memoryId} for ${formatScope(payload.scope)}`
+      : `No memory forgotten for ${formatScope(payload.scope)}`,
+    `- storage: ${payload.storage.provider} (${payload.storage.location})`,
+  ].join("\n");
+}
+
+function renderForgetAllPayload(payload: {
+  deleted: Record<string, number>;
+  includeRuntime: boolean;
+  scope: MemoryScope;
+  storage: {
+    location: string;
+    provider: CLIStorageConfig["provider"];
+  };
+}): string {
+  return [
+    `Forgot scoped memory for ${formatScope(payload.scope)}`,
+    `- storage: ${payload.storage.provider} (${payload.storage.location})`,
+    `- includeRuntime: ${payload.includeRuntime}`,
+    `- deleted: ${Object.entries(payload.deleted)
+      .filter(([, value]) => value > 0)
+      .map(([key, value]) => `${key}=${value}`)
+      .join(", ") || "none"}`,
+  ].join("\n");
+}
+
 function requireInstalledHostKind(value: string | undefined): InstalledHostKind {
   if (value === "codex" || value === "claude") {
     return value;
@@ -1746,6 +2048,121 @@ async function handleExportMemory(
       `Exported memory snapshot to ${outputPath}\n` +
       `- json: ${join(outputPath, "memory-export.json")}\n` +
       `- markdown root: ${join(outputPath, result.artifacts.rootPath)}`,
+  };
+}
+
+async function handleRemember(flags: ParsedFlags): Promise<CLICommandOutput> {
+  const { memory, scope, storage } = await resolveWriteExecutionContext(flags);
+  const result = await memory.remember({
+    extractionStrategy: parseExtractionStrategy(flags),
+    locale: flags.locale,
+    messages: [
+      {
+        content: requireFlag(flags, "message"),
+        role: parseRememberRole(flags),
+      },
+    ],
+    scope,
+  });
+  const payload = {
+    accepted: result.accepted,
+    events: result.events,
+    metadata: result.metadata ?? null,
+    rejected: result.rejected,
+    scope,
+    storage: {
+      location: storage.displayValue,
+      provider: storage.provider,
+    },
+  };
+
+  return {
+    json: payload,
+    text: renderRememberPayload(payload),
+  };
+}
+
+async function handleFeedback(flags: ParsedFlags): Promise<CLICommandOutput> {
+  const { memory, scope, storage } = await resolveWriteExecutionContext(flags);
+  const result = await memory.feedback({
+    locale: flags.locale,
+    scope,
+    signal: requireFlag(flags, "signal"),
+  });
+  const payload = {
+    accepted: result.accepted,
+    kind: result.kind,
+    memoryId: result.memoryId,
+    metadata: result.metadata ?? null,
+    outcome: result.outcome,
+    promotionReceiptCount: result.promotionReceipts?.length ?? 0,
+    promotionReceipts: result.promotionReceipts ?? [],
+    proposalReceiptCount: result.proposalReceipts?.length ?? 0,
+    proposalReceipts: result.proposalReceipts ?? [],
+    scope,
+    storage: {
+      location: storage.displayValue,
+      provider: storage.provider,
+    },
+  };
+
+  return {
+    json: payload,
+    text: renderFeedbackPayload(payload),
+  };
+}
+
+async function handleForget(flags: ParsedFlags): Promise<CLICommandOutput> {
+  const { memory, scope, storage } = await resolveWriteExecutionContext(flags);
+  const deleteAll = flagEnabled(flags, "all");
+  const memoryId = flags["memory-id"];
+
+  if (deleteAll && memoryId) {
+    throw new Error("Use either --memory-id or --all, not both.");
+  }
+  if (!deleteAll && !memoryId) {
+    throw new Error("Missing required flag --memory-id or --all.");
+  }
+
+  if (deleteAll) {
+    const includeRuntime = flagEnabled(flags, "include-runtime");
+    const payload = {
+      deleted: (
+        await memory.deleteAllMemory({
+          includeRuntime,
+          scope,
+        })
+      ).deleted,
+      includeRuntime,
+      scope,
+      storage: {
+        location: storage.displayValue,
+        provider: storage.provider,
+      },
+    };
+
+    return {
+      json: payload,
+      text: renderForgetAllPayload(payload),
+    };
+  }
+
+  const payload = {
+    ...(await memory.forget({
+      memoryId,
+      scope,
+    })),
+    memoryId,
+    scope,
+    storage: {
+      location: storage.displayValue,
+      provider: storage.provider,
+    },
+  };
+
+  return {
+    json: payload,
+    text: renderForgetPayload(payload),
   };
 }
 
@@ -2011,6 +2428,15 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
       if (primary === "inspect") {
         return helpResult(INSPECT_HELP_TEXT);
       }
+      if (primary === "remember") {
+        return helpResult(REMEMBER_HELP_TEXT);
+      }
+      if (primary === "feedback") {
+        return helpResult(FEEDBACK_HELP_TEXT);
+      }
+      if (primary === "forget") {
+        return helpResult(FORGET_HELP_TEXT);
+      }
       if (primary === "trace") {
         return helpResult(TRACE_HELP_TEXT);
       }
@@ -2209,6 +2635,15 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
       throw new Error(`Unknown MCP command: ${secondary}. Run 'goodmemory mcp --help'.`);
     }
 
+    if (primary === "remember") {
+      return renderOutput(await handleRemember(flags), flags);
+    }
+    if (primary === "feedback") {
+      return renderOutput(await handleFeedback(flags), flags);
+    }
+    if (primary === "forget") {
+      return renderOutput(await handleForget(flags), flags);
+    }
     if (primary === "inspect") {
       return renderOutput(await handleInspect(flags), flags);
     }

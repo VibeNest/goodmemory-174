@@ -80,6 +80,7 @@ async function runBunScript(input: {
   stderr: string;
   stdout: string;
 }> {
+  const stdin = input.stdin;
   const childProcess = Bun.spawn({
     cmd: ["bun", input.scriptPath, ...(input.args ?? [])],
     cwd: input.cwd,
@@ -87,15 +88,15 @@ async function runBunScript(input: {
       ...process.env,
       ...(input.env ?? {}),
     },
-    stdin: input.stdin ? "pipe" : "ignore",
+    stdin: stdin === undefined ? "ignore" : "pipe",
     stdout: "pipe",
     stderr: "pipe",
   });
-  if (input.stdin) {
+  if (stdin !== undefined) {
     if (!childProcess.stdin) {
       throw new Error("bun test helper expected a writable stdin pipe");
     }
-    childProcess.stdin.write(input.stdin);
+    childProcess.stdin.write(stdin);
     childProcess.stdin.end();
   }
   const stdout = await new Response(childProcess.stdout).text();
@@ -840,6 +841,11 @@ describe("goodmemory cli help and routing", () => {
     for (const result of [noArgs, help]) {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("GoodMemory CLI");
+      expect(result.stdout).toContain("remember        Write durable memory through the public API");
+      expect(result.stdout).toContain("feedback        Write explicit feedback or correction through the public API");
+      expect(result.stdout).toContain(
+        "forget          Delete one durable memory record or clear a scoped target",
+      );
       expect(result.stdout).toContain("inspect         Inspect scope-bounded memory");
       expect(result.stdout).toContain(
         "install         Install managed global GoodMemory host config for Codex or Claude Code",
@@ -874,6 +880,9 @@ describe("goodmemory cli help and routing", () => {
 
   it("returns subcommand help before validating required flags", async () => {
     const inspect = await runCLI(["inspect", "--help"]);
+    const remember = await runCLI(["remember", "--help"]);
+    const feedback = await runCLI(["feedback", "--help"]);
+    const forget = await runCLI(["forget", "--help"]);
     const trace = await runCLI(["trace", "--help"]);
     const stats = await runCLI(["stats", "--help"]);
     const exportMemory = await runCLI(["export-memory", "--help"]);
@@ -892,6 +901,23 @@ describe("goodmemory cli help and routing", () => {
     const claudeBootstrap = await runCLI(["claude", "bootstrap", "--help"]);
     const claudeHook = await runCLI(["claude", "hook", "--help"]);
 
+    expect(remember.exitCode).toBe(0);
+    expect(remember.stdout).toContain("GoodMemory Remember");
+    expect(remember.stdout).toContain("--message <text>");
+    expect(remember.stdout).toContain("--host <codex|claude>");
+    expect(feedback.exitCode).toBe(0);
+    expect(feedback.stdout).toContain("GoodMemory Feedback");
+    expect(feedback.stdout).toContain("--signal <text>");
+    expect(forget.exitCode).toBe(0);
+    expect(forget.stdout).toContain("GoodMemory Forget");
+    expect(forget.stdout).toContain("--memory-id <id>");
+    expect(forget.stdout).toContain("--all");
+    expect(forget.stdout).toContain(
+      "--memory-id <id>        Delete one durable memory record. Use either this or --all",
+    );
+    expect(forget.stdout).toContain(
+      "--all                  Delete the full durable scope. Use either this or --memory-id",
+    );
     expect(inspect.exitCode).toBe(0);
     expect(inspect.stdout).toContain("GoodMemory Inspect");
     expect(inspect.stdout).toContain("--user-id <id>");
@@ -2423,6 +2449,26 @@ describe("goodmemory cli installed host config", () => {
       await workspace.cleanup();
     }
   });
+
+  it("fails open when hook stdin is empty", async () => {
+    const workspace = await createTempWorkspace("goodmemory-hook-empty-stdin");
+    const cliScript = join(import.meta.dir, "../../scripts/goodmemory-cli.ts");
+
+    try {
+      const result = await runBunScript({
+        args: ["codex", "hook", "session-start"],
+        cwd: workspace.root,
+        scriptPath: cliScript,
+        stdin: "",
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe("{}");
+      expect(result.stderr.trim()).toBe("");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
 });
 
 describe("goodmemory cli root commands", () => {
@@ -2937,6 +2983,406 @@ describe("goodmemory cli root commands", () => {
       expect(result.stdout).toContain(
         join(".goodmemory", "memory.sqlite"),
       );
+    } finally {
+      process.chdir(previousCwd);
+      await workspace.cleanup();
+    }
+  });
+
+  it("remember writes durable memory through explicit scope flags and default sqlite storage", async () => {
+    const workspace = await createTempWorkspace("goodmemory-cli-remember-default-sqlite");
+    const previousCwd = process.cwd();
+
+    try {
+      process.chdir(workspace.root);
+
+      const result = await runCLI([
+        "remember",
+        "--user-id",
+        "write-user",
+        "--workspace-id",
+        "workspace-a",
+        "--session-id",
+        "write-session",
+        "--message",
+        "Remember that the deploy is blocked on smoke verification.",
+        "--json",
+      ]);
+      const payload = JSON.parse(result.stdout) as {
+        accepted: number;
+        scope: {
+          sessionId?: string;
+          userId: string;
+          workspaceId?: string;
+        };
+        storage: {
+          provider: string;
+        };
+      };
+
+      expect(result.exitCode).toBe(0);
+      expect(payload.accepted).toBeGreaterThan(0);
+      expect(payload.scope).toEqual({
+        sessionId: "write-session",
+        userId: "write-user",
+        workspaceId: "workspace-a",
+      });
+      expect(payload.storage.provider).toBe("sqlite");
+
+      const stats = await runCLI([
+        "stats",
+        "--user-id",
+        "write-user",
+        "--workspace-id",
+        "workspace-a",
+        "--session-id",
+        "write-session",
+        "--json",
+      ]);
+      const statsPayload = JSON.parse(stats.stdout) as {
+        counts: {
+          facts: number;
+        };
+      };
+
+      expect(stats.exitCode).toBe(0);
+      expect(statsPayload.counts.facts).toBeGreaterThan(0);
+    } finally {
+      process.chdir(previousCwd);
+      await workspace.cleanup();
+    }
+  });
+
+  it("feedback derives installed-host defaults and is recalled through the host hook path", async () => {
+    const home = await createTempWorkspace("goodmemory-feedback-host-home");
+    const workspace = await createTempWorkspace("goodmemory-feedback-host-workspace");
+    const cliScript = join(import.meta.dir, "../../scripts/goodmemory-cli.ts");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          expect(
+            (await runCLI([
+              "install",
+              "codex",
+              "--user-id",
+              "codex-user",
+            ])).exitCode,
+          ).toBe(0);
+          expect(
+            (await runCLI([
+              "enable",
+              "codex",
+              "--workspace-id",
+              "workspace-a",
+              "--workspace-root",
+              workspace.root,
+            ])).exitCode,
+          ).toBe(0);
+
+          const feedback = await runCLI([
+            "feedback",
+            "--host",
+            "codex",
+            "--workspace-root",
+            workspace.root,
+            "--session-id",
+            "write-session",
+            "--signal",
+            "Use short next-step bullets in coding summaries.",
+            "--json",
+          ]);
+          const payload = JSON.parse(feedback.stdout) as {
+            accepted: boolean;
+            kind?: string;
+            memoryId?: string;
+            scope: {
+              agentId?: string;
+              sessionId?: string;
+              userId: string;
+              workspaceId?: string;
+            };
+            storage: {
+              provider: string;
+            };
+          };
+
+          expect(feedback.exitCode).toBe(0);
+          expect(payload.accepted).toBe(true);
+          expect(payload.kind).toBeDefined();
+          expect(payload.memoryId).toBeDefined();
+          expect(payload.scope).toEqual({
+            agentId: "codex",
+            sessionId: "write-session",
+            userId: "codex-user",
+            workspaceId: "workspace-a",
+          });
+          expect(payload.storage.provider).toBe("sqlite");
+
+          const hook = await runBunScript({
+            args: ["codex", "hook", "user-prompt-submit"],
+            cwd: workspace.root,
+            env: {
+              GOODMEMORY_HOME: home.root,
+            },
+            scriptPath: cliScript,
+            stdin: JSON.stringify({
+              cwd: workspace.root,
+              prompt: "Summarize what style I prefer before you answer.",
+              session_id: "write-session",
+            }),
+          });
+
+          expect(hook.exitCode).toBe(0);
+          expect(hook.stderr.trim()).toBe("");
+          expect(hook.stdout).toContain("Use short next-step bullets in coding summaries.");
+        },
+      );
+    } finally {
+      await workspace.cleanup();
+      await home.cleanup();
+    }
+  });
+
+  it("host-derived write commands require repo opt-in before using installed-host defaults", async () => {
+    const home = await createTempWorkspace("goodmemory-write-host-missing-enable-home");
+    const workspace = await createTempWorkspace("goodmemory-write-host-missing-enable-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          expect(
+            (await runCLI([
+              "install",
+              "codex",
+              "--user-id",
+              "codex-user",
+            ])).exitCode,
+          ).toBe(0);
+
+          const result = await runCLI([
+            "feedback",
+            "--host",
+            "codex",
+            "--workspace-root",
+            workspace.root,
+            "--session-id",
+            "write-session",
+            "--signal",
+            "Use short next-step bullets in coding summaries.",
+          ]);
+
+          expect(result.exitCode).toBe(1);
+          expect(result.stderr).toContain("Run 'goodmemory enable codex --workspace-root");
+        },
+      );
+    } finally {
+      await workspace.cleanup();
+      await home.cleanup();
+    }
+  });
+
+  it("forget removes a host-derived memory id from the installed-host storage path", async () => {
+    const home = await createTempWorkspace("goodmemory-forget-host-home");
+    const workspace = await createTempWorkspace("goodmemory-forget-host-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          expect(
+            (await runCLI([
+              "install",
+              "codex",
+              "--user-id",
+              "codex-user",
+            ])).exitCode,
+          ).toBe(0);
+          expect(
+            (await runCLI([
+              "enable",
+              "codex",
+              "--workspace-id",
+              "workspace-a",
+              "--workspace-root",
+              workspace.root,
+            ])).exitCode,
+          ).toBe(0);
+
+          const feedback = await runCLI([
+            "feedback",
+            "--host",
+            "codex",
+            "--workspace-root",
+            workspace.root,
+            "--workspace-id",
+            "workspace-a",
+            "--session-id",
+            "write-session",
+            "--signal",
+            "Use numbered checklists for deploy updates.",
+            "--json",
+          ]);
+          const feedbackPayload = JSON.parse(feedback.stdout) as {
+            memoryId?: string;
+          };
+
+          expect(feedback.exitCode).toBe(0);
+          expect(feedbackPayload.memoryId).toBeDefined();
+
+          const forgotten = await runCLI([
+            "forget",
+            "--host",
+            "codex",
+            "--workspace-root",
+            workspace.root,
+            "--workspace-id",
+            "workspace-a",
+            "--session-id",
+            "write-session",
+            "--memory-id",
+            String(feedbackPayload.memoryId),
+            "--json",
+          ]);
+          const forgottenPayload = JSON.parse(forgotten.stdout) as {
+            forgotten: boolean;
+            scope: {
+              agentId?: string;
+              sessionId?: string;
+              userId: string;
+              workspaceId?: string;
+            };
+          };
+
+          expect(forgotten.exitCode).toBe(0);
+          expect(forgottenPayload.forgotten).toBe(true);
+          expect(forgottenPayload.scope).toEqual({
+            agentId: "codex",
+            sessionId: "write-session",
+            userId: "codex-user",
+            workspaceId: "workspace-a",
+          });
+
+          const stats = await runCLI([
+            "stats",
+            "--user-id",
+            "codex-user",
+            "--workspace-id",
+            "workspace-a",
+            "--agent-id",
+            "codex",
+            "--session-id",
+            "write-session",
+            "--storage-provider",
+            "sqlite",
+            "--storage-url",
+            join(home.root, ".goodmemory", "memory.sqlite"),
+            "--json",
+          ]);
+          const statsPayload = JSON.parse(stats.stdout) as {
+            counts: {
+              feedback: number;
+            };
+          };
+
+          expect(stats.exitCode).toBe(0);
+          expect(statsPayload.counts.feedback).toBe(0);
+        },
+      );
+    } finally {
+      await workspace.cleanup();
+      await home.cleanup();
+    }
+  });
+
+  it("forget supports deleting a full scoped target with --all", async () => {
+    const workspace = await createTempWorkspace("goodmemory-forget-all");
+    const previousCwd = process.cwd();
+
+    try {
+      process.chdir(workspace.root);
+
+      expect(
+        (
+          await runCLI([
+            "remember",
+            "--user-id",
+            "forget-user",
+            "--workspace-id",
+            "workspace-a",
+            "--session-id",
+            "forget-session",
+            "--message",
+            "Remember that the deploy is blocked on smoke verification.",
+          ])
+        ).exitCode,
+      ).toBe(0);
+      expect(
+        (
+          await runCLI([
+            "feedback",
+            "--user-id",
+            "forget-user",
+            "--workspace-id",
+            "workspace-a",
+            "--session-id",
+            "forget-session",
+            "--signal",
+            "Keep coding summaries short and list explicit next steps.",
+          ])
+        ).exitCode,
+      ).toBe(0);
+
+      const forgotten = await runCLI([
+        "forget",
+        "--all",
+        "--user-id",
+        "forget-user",
+        "--workspace-id",
+        "workspace-a",
+        "--session-id",
+        "forget-session",
+        "--json",
+      ]);
+      const forgottenPayload = JSON.parse(forgotten.stdout) as {
+        deleted: {
+          facts: number;
+          feedback: number;
+        };
+      };
+
+      expect(forgotten.exitCode).toBe(0);
+      expect(forgottenPayload.deleted.facts).toBeGreaterThan(0);
+      expect(forgottenPayload.deleted.feedback).toBeGreaterThan(0);
+
+      const stats = await runCLI([
+        "stats",
+        "--user-id",
+        "forget-user",
+        "--workspace-id",
+        "workspace-a",
+        "--session-id",
+        "forget-session",
+        "--json",
+      ]);
+      const statsPayload = JSON.parse(stats.stdout) as {
+        counts: {
+          facts: number;
+          feedback: number;
+        };
+      };
+
+      expect(stats.exitCode).toBe(0);
+      expect(statsPayload.counts.facts).toBe(0);
+      expect(statsPayload.counts.feedback).toBe(0);
     } finally {
       process.chdir(previousCwd);
       await workspace.cleanup();
