@@ -38,9 +38,11 @@ import type {
   RoutingDecision,
 } from "../recall/router";
 import type {
+  MessageAnnotation,
   MemoryExtractionStrategy,
   MemoryExtractor,
 } from "../remember/candidates";
+import type { RememberConfig } from "../remember/profiles";
 import type { RememberResult as RememberPipelineResult } from "../remember/contracts";
 import type {
   DocumentStore,
@@ -58,6 +60,7 @@ export interface GoodMemoryConfig {
   storage?: StorageConfig;
   policy?: GoodMemoryPolicyHooks;
   language?: LanguageConfig;
+  remember?: RememberConfig;
   adapters?: {
     assistedExtractor?: MemoryExtractor;
     documentStore?: DocumentStore;
@@ -124,6 +127,7 @@ export interface BuildContextResult {
 export interface RememberInput {
   scope: MemoryScope;
   messages: Array<{ role: string; content: string }>;
+  annotations?: MessageAnnotation[];
   extractionStrategy?: MemoryExtractionStrategy;
   locale?: string;
 }

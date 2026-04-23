@@ -1602,7 +1602,7 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain(CURRENT_PACKAGE_VERSION);
     expect(checklist).toContain("Node");
     expect(checklist).toContain("Bun");
-    expect(checklist).toContain("gate:phase-35");
+    expect(checklist).toContain("gate:phase-36");
     expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
@@ -1790,7 +1790,7 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("release workflow uses manual plus stable tag triggers, gate:phase-35, and tarball artifact upload", async () => {
+  it("release workflow uses manual plus stable tag triggers, gate:phase-36, and tarball artifact upload", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/release.yml"),
       "utf8",
@@ -1799,7 +1799,8 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("tags:");
     expect(workflow).toContain("v*.*.*");
-    expect(workflow).toContain("bun run gate:phase-35");
+    expect(workflow).toContain("bun run gate:phase-36");
+    expect(workflow).not.toContain("bun run gate:phase-35");
     expect(workflow).toContain("TAG_VERSION=\"${GITHUB_REF_NAME#v}\"");
     expect(workflow).toContain("Stable release workflow only supports stable semver versions");
     expect(workflow).toContain("[[ \"$VERSION\" == *-* ]]");

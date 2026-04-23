@@ -3,7 +3,7 @@ Phase 36 Breakdown
 
 Status
 ------
-- Phase 36 is open.
+- Phase 36 is closed and accepted.
 - Scope: add public domain-specific write customization through remember presets, profiles, rules, annotations, and traceable extractor composition.
 - The core write pipeline remains universal and stable.
 - OneLife is the motivating example, but the deliverable is a generic public library capability.
@@ -32,6 +32,13 @@ Acceptance
 - remember traces explain profile, rule, extractor, annotation, and strategy influence
 - domain metadata can represent life-coach concepts without new top-level memory kinds
 - deterministic and provider-backed evidence proves the new public surface is non-regressive
+
+Canonical Evidence
+------------------
+- deterministic report: `reports/eval/fallback/phase-36/run-20260423221045/report.json`
+- live-memory report: `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
+- quality gate: `reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
 
 
 Canonical Inputs

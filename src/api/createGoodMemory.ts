@@ -690,6 +690,7 @@ class GoodMemoryImpl implements GoodMemory {
           service: language,
         }),
       language,
+      remember: config.remember,
       policy: config.policy,
     });
     const reviewer = createRulesOnlyReviewer({

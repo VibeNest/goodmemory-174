@@ -8,25 +8,25 @@ Resolve one write profile for each `remember()` call and compose preset, rule, c
 
 Tasks
 -----
-[TODO] Add a remember profile resolver module.
-[TODO] Support declarative matchers:
+[DONE] Add a remember profile resolver module.
+[DONE] Support declarative matchers:
   - `tenantId`
   - `workspaceId`
   - `agentId`
   - `sessionId`
-[TODO] Support function matchers for advanced server-side users.
-[TODO] Implement built-in preset IDs:
+[DONE] Support function matchers for advanced server-side users.
+[DONE] Implement built-in preset IDs:
   - `default`
   - `coding_agent`
-[TODO] Move the current deterministic extractor into the `default` preset without changing behavior.
-[TODO] Wire `coding_agent` as an explicit preset alias that can add coding-agent-specific defaults later without affecting `default`.
-[TODO] Compose extraction in this order:
+[DONE] Move the current deterministic extractor into the `default` preset without changing behavior.
+[DONE] Wire `coding_agent` as an explicit preset alias that can add coding-agent-specific defaults later without affecting `default`.
+[DONE] Compose extraction in this order:
   1. preset extractor
   2. profile rules extractor
   3. profile custom extractors
   4. assisted extractor when requested or auto-selected
-[TODO] Preserve existing extraction merge and dedupe semantics.
-[TODO] Add trace fields for `profileId`, `presetId`, and `extractorIds`.
+[DONE] Preserve existing extraction merge and dedupe semantics.
+[DONE] Add trace fields for `profileId`, `presetId`, and `extractorIds`.
 
 
 Design Notes

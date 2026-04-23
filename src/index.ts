@@ -186,15 +186,28 @@ export {
   resolveRouterStrategy,
 } from "./recall/router";
 export type {
+  MessageAnnotation,
   MemoryCandidate,
+  MemoryCandidateAnnotationTrace,
   MemoryCandidateExplicitness,
-  MemoryExtractionStrategy,
   MemoryCandidateKindHint,
   MemoryExtractionInput,
   MemoryExtractionResult,
+  MemoryExtractionStrategy,
   MemoryExtractor,
 } from "./remember/candidates";
 export { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
+export type {
+  AssistantMemoryPolicy,
+  RememberConfig,
+  RememberPresetId,
+  RememberProfile,
+  RememberProfileMatcher,
+  RememberRule,
+  RememberRuleMatchContext,
+  RememberRuleMessageContext,
+} from "./remember/profiles";
+export { rememberRules } from "./remember/profiles";
 export type {
   LanguageAdapter,
   LanguageConfig,

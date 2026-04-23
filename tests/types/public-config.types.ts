@@ -1,4 +1,9 @@
-import type { GoodMemoryConfig } from "../../src";
+import type {
+  GoodMemoryConfig,
+  RememberInput,
+  RememberProfile,
+} from "../../src";
+import { rememberRules } from "../../src";
 
 const defaultConfig: GoodMemoryConfig = {};
 
@@ -46,12 +51,94 @@ const assistedExtractorConfig: GoodMemoryConfig = {
   },
 };
 
+const lifeCoachProfile: RememberProfile = {
+  id: "life-coach",
+  when: { agentId: "life-coach" },
+  extends: "default",
+  rules: [
+    rememberRules.fact(/my top priority this quarter is (.+)/i, {
+      id: "life-goal-priority",
+      category: "goal",
+      tags: ["life_coach", "long_term_goal"],
+      content: ({ match }) => match[1] ?? "",
+    }),
+    rememberRules.preference(/please coach me with (.+)/i, {
+      id: "life-coaching-style",
+      category: "coaching_style",
+      value: ({ match }) => match[1] ?? "",
+    }),
+    rememberRules.predicate({
+      id: "life-relationship-context",
+      when: ({ message }) => message.content.includes("my sister"),
+      kindHint: "fact",
+      content: ({ message }) => message.content,
+      metadata: {
+        category: "relationship_dynamic",
+        tags: ["life_coach", "relationship"],
+      },
+    }),
+    rememberRules.mapper({
+      id: "life-direct-goal",
+      map: (input) => [
+        {
+          id: "life-direct-goal-1",
+          kindHint: "fact",
+          explicitness: "explicit",
+          content: input.messages[0]?.content ?? "",
+          sourceMessageIndex: 0,
+          sourceRole: input.messages[0]?.role ?? "user",
+          metadata: {
+            category: "goal",
+            attributes: { source: "host_mapper" },
+          },
+        },
+      ],
+    }),
+  ],
+  assistantOutputs: {
+    mode: "confirmed_or_verified_only",
+  },
+};
+
+const rememberConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  remember: {
+    preset: "default",
+    profiles: [lifeCoachProfile],
+  },
+};
+
+const annotatedRememberInput: RememberInput = {
+  scope: { userId: "user-1", agentId: "life-coach" },
+  messages: [
+    { role: "assistant", content: "A weekly review cadence may help." },
+    { role: "user", content: "Yes, let's use that." },
+  ],
+  annotations: [
+    {
+      messageIndex: 0,
+      remember: "always",
+      kindHint: "fact",
+      confirmed: true,
+      metadataPatch: {
+        category: "habit",
+        tags: ["life_coach", "weekly_review"],
+        attributes: {
+          cadence: "weekly",
+        },
+      },
+    },
+  ],
+};
+
 void defaultConfig;
 void minimalConfig;
 void testingConfig;
 void languageConfig;
 void embeddingAdapterConfig;
 void assistedExtractorConfig;
+void rememberConfig;
+void annotatedRememberInput;
 
 const invalidEmbeddingConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },

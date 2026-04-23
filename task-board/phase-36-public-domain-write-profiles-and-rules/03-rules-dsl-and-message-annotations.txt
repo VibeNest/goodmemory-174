@@ -8,25 +8,25 @@ Give integrators a public deterministic way to define domain write rules without
 
 Tasks
 -----
-[TODO] Add root-exported rule helpers under a stable namespace such as `rememberRules`.
-[TODO] Support rules that can target:
+[DONE] Add root-exported rule helpers under a stable namespace such as `rememberRules`.
+[DONE] Support rules that can target:
   - profile
   - preference
   - reference
   - fact
   - feedback
-[TODO] Support regex, predicate, and direct mapper rule inputs.
-[TODO] Add `ruleId` to generated candidates and remember traces.
-[TODO] Implement `MessageAnnotation` processing before classification.
-[TODO] Support annotation values:
+[DONE] Support regex, predicate, and direct mapper rule inputs.
+[DONE] Add `ruleId` to generated candidates and remember traces.
+[DONE] Implement `MessageAnnotation` processing before classification.
+[DONE] Support annotation values:
   - `remember: "always" | "never" | "auto"`
   - `kindHint`
   - `metadataPatch`
   - `confirmed`
   - `verified`
   - `reason`
-[TODO] Ensure `remember: "never"` suppresses both deterministic and assisted candidates for the annotated message.
-[TODO] Ensure `remember: "always"` can raise an otherwise valid low-confidence candidate into the write path without bypassing policy/redaction.
+[DONE] Ensure `remember: "never"` suppresses both deterministic and assisted candidates for the annotated message.
+[DONE] Ensure `remember: "always"` can raise an otherwise valid low-confidence candidate into the write path without bypassing policy/redaction.
 
 
 Design Notes

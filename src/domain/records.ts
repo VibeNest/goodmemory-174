@@ -40,12 +40,23 @@ export interface PreferenceMemory {
   sessionId?: string;
   category: string;
   value: unknown;
+  tags?: string[];
+  attributes?: Record<string, MemoryAttributeValue>;
   confidence: number;
   source: MemorySource;
   evidenceCount: number;
   isPinned?: boolean;
   updatedAt: string;
 }
+
+export type MemoryCategory =
+  | "project"
+  | "technical"
+  | "personal"
+  | "relationship"
+  | "event"
+  | (string & {});
+export type MemoryAttributeValue = string | number | boolean | null;
 
 export type FactKind =
   | "blocker"
@@ -69,8 +80,10 @@ export interface FactMemory {
   workspaceId?: string;
   agentId?: string;
   sessionId?: string;
-  category: "project" | "technical" | "personal" | "relationship" | "event";
+  category: MemoryCategory;
   content: string;
+  tags?: string[];
+  attributes?: Record<string, MemoryAttributeValue>;
   confidence: number;
   importance: number;
   source: MemorySource;
@@ -112,6 +125,8 @@ export interface ReferenceMemory {
   source: MemorySource;
   referenceKind?: ReferenceKind;
   subject?: string;
+  tags?: string[];
+  attributes?: Record<string, MemoryAttributeValue>;
   lifecycle: MemoryLifecycleState;
   createdAt: string;
   updatedAt: string;
@@ -152,6 +167,8 @@ export interface FeedbackMemory {
   appliesTo?: string;
   why?: string;
   evidence?: string[];
+  tags?: string[];
+  attributes?: Record<string, MemoryAttributeValue>;
   confidence: number;
   source: MemorySource;
   supersededBy?: string | null;
@@ -267,6 +284,8 @@ export function createPreferenceMemory(
     sessionId: input.sessionId,
     category: input.category,
     value: input.value,
+    tags: input.tags,
+    attributes: input.attributes,
     confidence: input.confidence ?? 1,
     source: input.source,
     evidenceCount: input.evidenceCount ?? 1,
@@ -290,6 +309,8 @@ export function createFactMemory(
     sessionId: input.sessionId,
     category: input.category,
     content: input.content,
+    tags: input.tags,
+    attributes: input.attributes,
     confidence: input.confidence ?? 1,
     importance: input.importance ?? 1,
     source: input.source,
@@ -334,6 +355,8 @@ export function createReferenceMemory(
     source: input.source,
     referenceKind: input.referenceKind,
     subject: input.subject,
+    tags: input.tags,
+    attributes: input.attributes,
     lifecycle: input.lifecycle ?? "active",
     createdAt: input.createdAt ?? timestamp,
     updatedAt: input.updatedAt ?? timestamp,
@@ -382,6 +405,8 @@ export function createFeedbackMemory(
     appliesTo: input.appliesTo,
     why: input.why,
     evidence: input.evidence ?? [],
+    tags: input.tags,
+    attributes: input.attributes,
     confidence: input.confidence ?? 1,
     source: input.source,
     supersededBy: input.supersededBy ?? null,

@@ -32,6 +32,12 @@
   - `shouldRecall`
   - `redact`
   - `resolveConflict`
+- public remember customization covers:
+  - `GoodMemoryConfig.remember`
+  - `RememberProfile`
+  - `rememberRules`
+  - `RememberInput.annotations`
+  - traceable domain metadata on export
 - `raw-recall.json` includes `policyApplied`
 
 ## Examples
@@ -68,6 +74,7 @@
 - `bun test` passes on the canonical `tests/` suite
 - `bun run test:coverage` passes and enforces script/source coverage gates
 - `bun run gate:phase-35` passes
+- `bun run gate:phase-36` passes
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
@@ -99,5 +106,5 @@
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
-- the active stable release gate report lives under `reports/quality-gates/phase-35/`
+- the active stable release gate report lives under `reports/quality-gates/phase-36/`
 - the historical Phase 29 gate and RC dry-run reports remain archived under `reports/quality-gates/phase-29/`

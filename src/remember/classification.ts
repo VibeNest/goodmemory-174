@@ -13,11 +13,34 @@ export function toRememberEventMemoryType(
 }
 
 export function buildRememberEventTrace(
-  candidate: Pick<MemoryCandidate, "explicitness" | "extractionSources">,
-): Pick<RememberEvent, "sourceMethod" | "extractionSources"> {
+  candidate: Pick<
+    MemoryCandidate,
+    | "explicitness"
+    | "annotation"
+    | "extractionSources"
+    | "extractorIds"
+    | "profileId"
+    | "presetId"
+    | "ruleIds"
+  >,
+): Pick<
+  RememberEvent,
+  | "sourceMethod"
+  | "annotation"
+  | "extractionSources"
+  | "extractorIds"
+  | "profileId"
+  | "presetId"
+  | "ruleIds"
+> {
   return {
-    sourceMethod: candidate.explicitness,
+    annotation: candidate.annotation,
+    extractorIds: candidate.extractorIds,
     extractionSources: mergeExtractionSources(candidate.extractionSources),
+    profileId: candidate.profileId,
+    presetId: candidate.presetId,
+    ruleIds: candidate.ruleIds,
+    sourceMethod: candidate.explicitness,
   };
 }
 
@@ -113,7 +136,7 @@ export function classifyCandidate(candidate: MemoryCandidate): ClassifiedCandida
     };
   }
 
-  if (score < SCORE_THRESHOLD) {
+  if (score < SCORE_THRESHOLD && candidate.annotation?.remember !== "always") {
     return {
       ...candidate,
       memoryType: "reject",

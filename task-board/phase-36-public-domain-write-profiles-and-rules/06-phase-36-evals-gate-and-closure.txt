@@ -8,14 +8,14 @@ Add a dedicated evidence chain proving public write customization works and does
 
 Tasks
 -----
-[TODO] Add deterministic unit and integration tests for the public API.
-[TODO] Add a Phase 36 deterministic eval runner.
-[TODO] Add a Phase 36 life-coach/domain-write fixture slice.
-[TODO] Add a provider-backed live-memory smoke path when credentials are available.
-[TODO] Add `eval:phase-36`, `eval:phase-36-live-memory`, and `gate:phase-36` package scripts.
-[TODO] Add a Phase 36 quality-gate report contract.
-[TODO] Archive accepted closure evidence only after the deterministic and live-memory requirements are satisfied.
-[TODO] Sync task-board, current-status docs, release checklist, release workflow, and release tests after closure.
+[DONE] Add deterministic unit and integration tests for the public API.
+[DONE] Add a Phase 36 deterministic eval runner.
+[DONE] Add a Phase 36 life-coach/domain-write fixture slice.
+[DONE] Add a provider-backed live-memory smoke path when credentials are available.
+[DONE] Add `eval:phase-36`, `eval:phase-36-live-memory`, and `gate:phase-36` package scripts.
+[DONE] Add a Phase 36 quality-gate report contract.
+[DONE] Archive accepted closure evidence only after the deterministic and live-memory requirements are satisfied.
+[DONE] Sync task-board, current-status docs, release checklist, release workflow, and release tests after closure.
 
 
 Gate Requirements

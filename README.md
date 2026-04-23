@@ -40,6 +40,67 @@ const context = await memory.buildContext({
 });
 ```
 
+## Public Remember Customization
+
+Domain-specific writes are configured through the public `remember` surface on
+`createGoodMemory`. Use profiles and rules when a host knows what should become
+durable memory for a specific agent or domain. Do not use `testing.extractor`
+for product integrations; that seam is for tests.
+
+```ts
+import { createGoodMemory, rememberRules } from "goodmemory";
+
+const memory = createGoodMemory({
+  remember: {
+    preset: "default",
+    profiles: [
+      {
+        id: "life-coach",
+        when: { agentId: "life-coach" },
+        rules: [
+          rememberRules.fact(/my top priority this quarter is (.+)/i, {
+            id: "life-goal-priority",
+            category: "goal",
+            tags: ["life_coach", "long_term_goal"],
+            attributes: { horizon: "quarter" },
+            content: ({ match }) => match[1] ?? "",
+          }),
+          rememberRules.preference(/please coach me with (.+)/i, {
+            id: "life-coaching-style",
+            category: "coaching_style",
+            value: ({ match }) => match[1] ?? "",
+          }),
+        ],
+        assistantOutputs: { mode: "confirmed_or_verified_only" },
+      },
+    ],
+  },
+});
+
+await memory.remember({
+  scope: { userId: "u-1", agentId: "life-coach" },
+  messages: [
+    {
+      role: "user",
+      content: "My top priority this quarter is rebuilding my sleep routine.",
+    },
+  ],
+  annotations: [
+    {
+      messageIndex: 0,
+      remember: "always",
+      metadataPatch: { tags: ["confirmed_by_host"] },
+    },
+  ],
+});
+```
+
+Assistant messages are ignored by default for durable writes. To make an
+assistant-originated suggestion durable, the host must annotate the message and
+the selected profile must allow confirmed or verified assistant output.
+`remember: "never"` suppresses the annotated message before deterministic,
+custom, or assisted extraction.
+
 ## Install
 
 GoodMemory `0.1.1` now exposes a Node-compatible packaged library boundary for:
@@ -165,6 +226,7 @@ Repo-local developer examples:
 - Coding-agent flavored integration: [examples/coding-agent.ts](./examples/coding-agent.ts)
 - Plain AI SDK server integration: [examples/plain-ai-sdk-server.ts](./examples/plain-ai-sdk-server.ts)
 - AI SDK wrapper integration: [examples/vercel-ai-chat.ts](./examples/vercel-ai-chat.ts)
+- Life-coach public remember profile: [examples/life-coach-remember-profile.ts](./examples/life-coach-remember-profile.ts)
 - Claude-style host artifact consumption: [examples/host-claude-artifacts.ts](./examples/host-claude-artifacts.ts)
 - Codex-style session handoff consumption: [examples/host-codex-handoff.ts](./examples/host-codex-handoff.ts)
 
@@ -175,6 +237,7 @@ bun run example:chat
 bun run example:coding-agent
 bun run example:ai-sdk-server
 bun run example:vercel-ai
+bun run example:life-coach-profile
 bun run example:host-claude
 bun run example:host-codex
 ```

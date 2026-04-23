@@ -1,0 +1,115 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 36 deterministic and provider-backed public write customization evidence both passed."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 3139,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/remember.profiles.test.ts tests/unit/remember.extraction.test.ts tests/unit/remember.engine.test.ts tests/integration/remember.profiles.test.ts tests/unit/markdown-artifacts.test.ts tests/unit/run-phase-36.script.test.ts tests/unit/run-phase-36.live-memory.test.ts tests/unit/run-phase-36.gate.test.ts tests/release/release.test.ts",
+      "durationMs": 22857,
+      "exitCode": 0,
+      "label": "phase-36-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) release metadata and docs > phase-25 quality gate doc points to one canonical accepted report [38.96ms]",
+        "(pass) release metadata and docs > phase-26 quality gate doc points to one canonical accepted report [69.28ms]",
+        "(pass) release metadata and docs > phase-28 quality gate doc points to one canonical accepted report [30.20ms]",
+        "(pass) release metadata and docs > phase-27 quality gate doc points to the canonical gate plus deterministic and live evidence [99.76ms]",
+        "(pass) release metadata and docs > phase-29 quality gate doc points to the canonical gate plus RC dry-run evidence [50.80ms]",
+        "(pass) release metadata and docs > phase-30 quality gate doc points to the canonical gate plus trace-backed live evidence [30.02ms]",
+        "(pass) release metadata and docs > phase-31 quality gate doc points to the canonical gate plus native host live evidence [30.42ms]",
+        "(pass) release metadata and docs > phase-32 quality gate doc points to the canonical gate plus external-host live evidence [55.21ms]",
+        "(pass) release metadata and docs > phase-33 quality gate doc points to the canonical gate plus package-boundary evidence [11.30ms]",
+        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [235.93ms]",
+        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [555.80ms]",
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [989.51ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [292.57ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.39ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.26ms]",
+        "",
+        " 113 pass",
+        " 0 fail",
+        " 1450 expect() calls",
+        "Ran 113 tests across 9 files. [22.85s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-36 --run-id run-20260423221045",
+      "durationMs": 65,
+      "exitCode": 0,
+      "label": "phase-36-fallback-eval",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-36-eval.ts --run-id \"run-20260423221045\""
+      ],
+      "stdoutTail": [
+        "      \"focus\": \"metadata_audit\",",
+        "      \"passed\": true",
+        "    }",
+        "  ],",
+        "  \"generatedAt\": \"2026-04-23T14:08:29.917Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-36-eval.ts\",",
+        "  \"mode\": \"fallback\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36\",",
+        "  \"phase\": \"phase-36\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36/run-20260423221045\",",
+        "  \"runId\": \"run-20260423221045\",",
+        "  \"summary\": {",
+        "    \"acceptedCaseCount\": 5,",
+        "    \"annotationPolicyPassCount\": 2,",
+        "    \"domainMetadataPassCount\": 1,",
+        "    \"extractorCompositionPassCount\": 1,",
+        "    \"rulesDslPassCount\": 1,",
+        "    \"totalCases\": 5",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "reason": "Deterministic public remember customization eval passed every Phase 36 case.",
+      "reportPath": "reports/eval/fallback/phase-36/run-20260423221045/report.json",
+      "status": "accepted"
+    },
+    "liveMemory": {
+      "liveReportPath": "reports/eval/live-memory/phase-36/run-phase36-live-current/report.json",
+      "reason": "Provider-backed live-memory smoke proved public config-only domain writes.",
+      "runtimePath": "provider_backed_public_write_smoke",
+      "status": "accepted"
+    }
+  },
+  "generatedAt": "2026-04-23T14:08:29.923Z",
+  "generatedBy": "scripts/run-phase-36-gate.ts",
+  "phase": "phase-36",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-36/run-20260423223045",
+  "runId": "run-20260423223045",
+  "scope": {
+    "inScope": [
+      "public remember config, profile resolution, rules DSL, annotations, assistant-output policy, and metadata persistence",
+      "deterministic Phase 36 eval over life-coach/domain-write public configuration",
+      "provider-backed live-memory smoke evidence through the public write customization surface",
+      "Phase 36 quality-gate generation and fail-closed closure validation"
+    ],
+    "outOfScope": [
+      "turning OneLife into a built-in preset",
+      "requiring assisted extraction or provider storage for zero-config users",
+      "widening top-level memory kinds beyond the stable taxonomy",
+      "automatic assistant-output memory without host confirmation or verification"
+    ]
+  }
+}

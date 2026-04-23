@@ -19,6 +19,8 @@ import {
   buildProfile,
   buildReference,
   enrichDuplicateFact,
+  enrichDuplicateFeedback,
+  enrichDuplicatePreference,
   enrichDuplicateReference,
   getProfileWriteReason,
   resolveReferenceSubject,
@@ -110,6 +112,19 @@ export async function writeRememberCandidate(input: {
     );
 
     if (duplicate) {
+      const enrichedDuplicate = enrichDuplicatePreference(
+        duplicate,
+        candidate,
+        timestamp,
+        context.resolvedLanguage.locale,
+      );
+      if (enrichedDuplicate) {
+        await context.setDocumentWithRollback(
+          "preferences",
+          duplicate.id,
+          enrichedDuplicate,
+        );
+      }
       pushAcceptedEvent(state, {
         candidateId,
         outcome: "merged",
@@ -508,6 +523,19 @@ export async function writeRememberCandidate(input: {
   );
 
   if (duplicate) {
+    const enrichedDuplicate = enrichDuplicateFeedback(
+      duplicate,
+      candidate,
+      timestamp,
+      context.resolvedLanguage.locale,
+    );
+    if (enrichedDuplicate) {
+      await context.setDocumentWithRollback(
+        "feedback",
+        duplicate.id,
+        enrichedDuplicate,
+      );
+    }
     pushAcceptedEvent(state, {
       candidateId,
       outcome: "merged",

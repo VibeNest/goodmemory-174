@@ -12,11 +12,13 @@ import type {
 } from "../storage/ports";
 import type {
   MemoryCandidate,
+  MemoryCandidateAnnotationTrace,
   MemoryCandidateKindHint,
   MemoryExtractionInput,
   MemoryExtractionStrategy,
   MemoryExtractor,
 } from "./candidates";
+import type { RememberConfig } from "./profiles";
 import type { MemorySourceMethod } from "../domain/provenance";
 
 export type ScopedIdentity = {
@@ -47,7 +49,12 @@ export interface RememberEvent {
   memoryId?: string;
   reason?: string;
   sourceMethod?: MemorySourceMethod;
+  annotation?: MemoryCandidateAnnotationTrace;
   extractionSources?: MemoryExtractionStrategy[];
+  extractorIds?: string[];
+  profileId?: string;
+  presetId?: string;
+  ruleIds?: string[];
   evidenceIds?: string[];
 }
 
@@ -71,6 +78,7 @@ export interface RememberEngineConfig {
   embedding?: EmbeddingAdapter;
   extractor?: MemoryExtractor;
   language?: LanguageService;
+  remember?: RememberConfig;
   repositories: RememberRepositoryPort & { vectorIndex?: RememberVectorPort | null };
   vectorIndex?: RememberVectorPort | null;
   shouldWrite?: (candidate: ClassifiedCandidate) => boolean;

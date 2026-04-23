@@ -8,26 +8,26 @@ Make assistant-originated writes safe by default and allow domain concepts to be
 
 Tasks
 -----
-[TODO] Add `AssistantMemoryPolicy` with modes:
+[DONE] Add `AssistantMemoryPolicy` with modes:
   - `ignore`
   - `host_tagged_only`
   - `confirmed_only`
   - `verified_only`
   - `confirmed_or_verified_only`
-[TODO] Default assistant-output policy to `ignore`.
-[TODO] Require annotations or host-provided evidence for assistant-originated durable writes.
-[TODO] Add candidate metadata fields:
+[DONE] Default assistant-output policy to `ignore`.
+[DONE] Require annotations or host-provided evidence for assistant-originated durable writes.
+[DONE] Add candidate metadata fields:
   - `tags?: string[]`
   - `attributes?: Record<string, string | number | boolean | null>`
-[TODO] Widen category typing enough to support domain values such as:
+[DONE] Widen category typing enough to support domain values such as:
   - `goal`
   - `habit`
   - `health`
   - `value`
   - `relationship_dynamic`
   - `career_direction`
-[TODO] Persist domain metadata on durable records where appropriate.
-[TODO] Ensure markdown/export paths do not drop domain metadata needed for auditability.
+[DONE] Persist domain metadata on durable records where appropriate.
+[DONE] Ensure markdown/export paths do not drop domain metadata needed for auditability.
 
 
 Design Notes

@@ -17,13 +17,14 @@ OneLife is the motivating integration, but not the product boundary. The deliver
 
 Current Status
 --------------
-[TODO] Phase 36 is open and not yet implemented.
+[DONE] Phase 36 is closed and accepted.
 [DONE] Phase 35 is closed as the installed host-memory middleware and hooks slice.
 [DONE] The current write path already includes deterministic extraction, optional assisted extraction, extraction strategy metadata, language resolution, evidence linking, vector writes, and rollback-aware persistence.
-[TODO] Public write customization is still missing as a stable contract:
-  - `testing.extractor` exists but is not an acceptable product integration surface.
-  - `adapters.assistedExtractor` exists but represents provider-assisted extraction, not domain policy.
-  - `policy` hooks are post-extraction governance, not domain-specific candidate generation.
+[DONE] Public write customization is accepted as a stable contract:
+  - `GoodMemoryConfig.remember` is the product integration surface for domain write profiles.
+  - `testing.extractor` remains a test-only seam, not the product path.
+  - `adapters.assistedExtractor` remains provider-assisted extraction, not domain policy.
+  - `policy` hooks remain post-candidate governance gates, not domain extraction rules.
 
 
 Dependencies
@@ -71,12 +72,12 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P36-T001 Freeze the public remember customization contract and compatibility rules
-[TODO] P36-T002 Implement remember profile resolution and extractor-chain composition
-[TODO] P36-T003 Add deterministic rules DSL and message annotations
-[TODO] P36-T004 Add assistant-output policy plus domain-extensible metadata
-[TODO] P36-T005 Add docs, examples, and OneLife-style reference integration guidance
-[TODO] P36-T006 Add dedicated Phase 36 evals, gate, archive path, and closure criteria
+[DONE] P36-T001 Freeze the public remember customization contract and compatibility rules
+[DONE] P36-T002 Implement remember profile resolution and extractor-chain composition
+[DONE] P36-T003 Add deterministic rules DSL and message annotations
+[DONE] P36-T004 Add assistant-output policy plus domain-extensible metadata
+[DONE] P36-T005 Add docs, examples, and OneLife-style reference integration guidance
+[DONE] P36-T006 Add dedicated Phase 36 evals, gate, archive path, and closure criteria
 
 
 Breakdown Folder

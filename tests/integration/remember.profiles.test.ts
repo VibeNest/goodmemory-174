@@ -1,0 +1,579 @@
+import { describe, expect, it } from "bun:test";
+import {
+  createGoodMemory,
+  rememberRules,
+} from "../../src";
+
+describe("public remember profile customization", () => {
+  it("applies a scope-matched domain rule without replacing the core pipeline", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      remember: {
+        preset: "default",
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            extends: "default",
+            rules: [
+              rememberRules.fact(/my top priority this quarter is (.+)/i, {
+                id: "life-goal-priority",
+                category: "goal",
+                tags: ["life_coach", "long_term_goal"],
+                content: ({ match }) => match[1] ?? "",
+              }),
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [
+        {
+          role: "user",
+          content: "My top priority this quarter is rebuilding my sleep routine.",
+        },
+      ],
+      extractionStrategy: "rules-only",
+    });
+
+    expect(result.accepted).toBeGreaterThanOrEqual(1);
+    expect(result.events.some((event) => event.reason === "explicit_fact")).toBe(true);
+    expect(result.events.some((event) => event.profileId === "life-coach")).toBe(true);
+    expect(result.events.some((event) => event.ruleIds?.includes("life-goal-priority"))).toBe(true);
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", agentId: "life-coach" },
+    });
+
+    expect(exported.durable.facts).toHaveLength(1);
+    expect(exported.durable.facts[0]?.category).toBe("goal");
+    expect(exported.durable.facts[0]?.tags).toEqual([
+      "life_coach",
+      "long_term_goal",
+    ]);
+    expect(exported.durable.facts[0]?.content).toBe(
+      "rebuilding my sleep routine.",
+    );
+  });
+
+  it("keeps assistant-originated durable writes disabled unless a profile opts in", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [
+        {
+          role: "assistant",
+          content: "A weekly review cadence may help.",
+        },
+      ],
+      annotations: [
+        {
+          messageIndex: 0,
+          remember: "always",
+          kindHint: "fact",
+          confirmed: true,
+          metadataPatch: {
+            category: "habit",
+            tags: ["weekly_review"],
+          },
+        },
+      ],
+    });
+
+    expect(result.accepted).toBe(0);
+    expect(result.events.some((event) => event.reason === "assistant_policy_blocked")).toBe(true);
+  });
+
+  it("allows confirmed assistant-originated writes under an explicit profile policy", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            assistantOutputs: { mode: "confirmed_or_verified_only" },
+          },
+        ],
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [
+        {
+          role: "assistant",
+          content: "A weekly review cadence may help.",
+        },
+        {
+          role: "user",
+          content: "Yes, let's use that.",
+        },
+      ],
+      annotations: [
+        {
+          messageIndex: 0,
+          remember: "always",
+          kindHint: "fact",
+          confirmed: true,
+          metadataPatch: {
+            category: "habit",
+            tags: ["life_coach", "weekly_review"],
+            attributes: { cadence: "weekly" },
+          },
+        },
+      ],
+    });
+
+    expect(result.accepted).toBeGreaterThanOrEqual(1);
+    expect(result.events.some((event) => event.profileId === "life-coach")).toBe(true);
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", agentId: "life-coach" },
+    });
+
+    expect(exported.durable.facts[0]?.content).toBe(
+      "A weekly review cadence may help.",
+    );
+    expect(exported.durable.facts[0]?.category).toBe("habit");
+    expect(exported.durable.facts[0]?.attributes).toEqual({
+      cadence: "weekly",
+    });
+  });
+
+  it("persists preference metadata produced by public rules", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            rules: [
+              rememberRules.preference(/please coach me with (.+)/i, {
+                id: "life-coaching-style",
+                category: "coaching_style",
+                value: ({ match }) => match[1] ?? "",
+                tags: ["life_coach", "coaching_style"],
+                attributes: { source: "domain_rule" },
+              }),
+            ],
+          },
+        ],
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [
+        {
+          role: "user",
+          content: "Please coach me with concise weekly planning prompts.",
+        },
+      ],
+      extractionStrategy: "rules-only",
+    });
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", agentId: "life-coach" },
+    });
+
+    expect(exported.durable.preferences[0]).toMatchObject({
+      category: "coaching_style",
+      value: "concise weekly planning prompts.",
+      tags: ["life_coach", "coaching_style"],
+      attributes: { source: "domain_rule" },
+    });
+  });
+
+  it("enriches duplicate facts and references with profile metadata", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            extractors: [
+              {
+                async extract(input) {
+                  const tagged = input.messages[0]?.content.includes("tagged");
+
+                  return {
+                    candidates: [
+                      {
+                        id: tagged ? "fact-tagged" : "fact-base",
+                        kindHint: "fact",
+                        explicitness: "explicit",
+                        content: "Launch planning is blocked on legal review.",
+                        sourceMessageIndex: 0,
+                        sourceRole: "user",
+                        metadata: tagged
+                          ? {
+                              attributes: { source: "profile_extractor" },
+                              category: "goal",
+                              tags: ["life_coach", "planning"],
+                            }
+                          : {
+                              category: "project",
+                            },
+                      },
+                      {
+                        id: tagged ? "reference-tagged" : "reference-base",
+                        kindHint: "reference",
+                        explicitness: "explicit",
+                        content: "docs/launch-plan.md",
+                        sourceMessageIndex: 0,
+                        sourceRole: "user",
+                        metadata: tagged
+                          ? {
+                              attributes: { source: "profile_extractor" },
+                              referenceKind: "runbook",
+                              referencePointer: "docs/launch-plan.md",
+                              tags: ["life_coach", "planning"],
+                            }
+                          : {
+                              referencePointer: "docs/launch-plan.md",
+                            },
+                      },
+                    ],
+                    ignoredMessageCount: 0,
+                  };
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const scope = { userId: "u-1", agentId: "life-coach" };
+
+    await memory.remember({
+      scope,
+      messages: [{ role: "user", content: "base" }],
+      extractionStrategy: "rules-only",
+    });
+    await memory.remember({
+      scope,
+      messages: [{ role: "user", content: "tagged" }],
+      extractionStrategy: "rules-only",
+    });
+
+    const exported = await memory.exportMemory({ scope });
+
+    expect(exported.durable.facts).toHaveLength(1);
+    expect(exported.durable.facts[0]).toMatchObject({
+      attributes: { source: "profile_extractor" },
+      category: "goal",
+      tags: ["life_coach", "planning"],
+    });
+    expect(exported.durable.references).toHaveLength(1);
+    expect(exported.durable.references[0]).toMatchObject({
+      attributes: { source: "profile_extractor" },
+      referenceKind: "runbook",
+      tags: ["life_coach", "planning"],
+    });
+  });
+
+  it("keeps never-annotated messages out of deterministic and assisted extraction", async () => {
+    const assistedInputs: string[] = [];
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        assistedExtractor: {
+          async extract(input) {
+            assistedInputs.push(input.messages[0]?.content ?? "");
+
+            return {
+              candidates: [
+                {
+                  id: "assisted-private-goal",
+                  kindHint: "fact",
+                  explicitness: "explicit",
+                  content: "Private coaching goal should not persist.",
+                  sourceMessageIndex: 0,
+                  sourceRole: "user",
+                  metadata: { category: "goal" },
+                },
+              ],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+      },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            rules: [
+              rememberRules.fact(/private goal: (.+)/i, {
+                id: "private-goal",
+                category: "goal",
+                content: ({ match }) => match[1] ?? "",
+              }),
+            ],
+          },
+        ],
+      },
+    });
+    const scope = { userId: "u-1", agentId: "life-coach" };
+
+    const result = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Private goal: do not retain this sensitive detail.",
+        },
+      ],
+      annotations: [
+        {
+          messageIndex: 0,
+          remember: "never",
+          reason: "host privacy suppression",
+        },
+      ],
+      extractionStrategy: "llm-assisted",
+    });
+    const exported = await memory.exportMemory({ scope });
+
+    expect(assistedInputs).toEqual([""]);
+    expect(result.accepted).toBe(0);
+    expect(exported.durable.facts).toHaveLength(0);
+  });
+
+  it("composes profile custom extractors with assisted extraction without losing trace", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        assistedExtractor: {
+          async extract() {
+            return {
+              candidates: [
+                {
+                  id: "assisted-launch-owner",
+                  kindHint: "fact",
+                  explicitness: "explicit",
+                  content: "Maya owns the launch checklist.",
+                  sourceMessageIndex: 0,
+                  sourceRole: "user",
+                  metadata: {
+                    category: "project",
+                    factKind: "project_state",
+                    subject: "launch checklist",
+                  },
+                },
+              ],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+      },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            extractors: [
+              {
+                async extract() {
+                  return {
+                    candidates: [
+                      {
+                        id: "profile-launch-owner",
+                        kindHint: "fact",
+                        explicitness: "explicit",
+                        content: "Maya owns the launch checklist.",
+                        sourceMessageIndex: 0,
+                        sourceRole: "user",
+                        metadata: {
+                          category: "project",
+                          factKind: "project_state",
+                          subject: "launch checklist",
+                        },
+                      },
+                    ],
+                    ignoredMessageCount: 0,
+                  };
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [{ role: "user", content: "Maya owns the launch checklist." }],
+      extractionStrategy: "llm-assisted",
+    });
+
+    const writtenEvent = result.events.find((event) => event.outcome === "written");
+
+    expect(result.accepted).toBe(1);
+    expect(writtenEvent).toMatchObject({
+      extractionSources: ["rules-only", "llm-assisted"],
+      extractorIds: ["life-coach:extractor-1"],
+      profileId: "life-coach",
+      presetId: "default",
+    });
+  });
+
+  it("dedupes candidates after annotation metadata enrichment", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        assistedExtractor: {
+          async extract() {
+            return {
+              candidates: [
+                {
+                  id: "assisted-launch-goal",
+                  kindHint: "fact",
+                  explicitness: "explicit",
+                  content: "Maya owns the launch checklist.",
+                  sourceMessageIndex: 0,
+                  sourceRole: "user",
+                  metadata: {
+                    category: "project",
+                  },
+                },
+              ],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+      },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            extractors: [
+              {
+                async extract() {
+                  return {
+                    candidates: [
+                      {
+                        id: "profile-launch-goal",
+                        kindHint: "fact",
+                        explicitness: "explicit",
+                        content: "Maya owns the launch checklist.",
+                        sourceMessageIndex: 0,
+                        sourceRole: "user",
+                        metadata: {
+                          category: "project",
+                        },
+                      },
+                    ],
+                    ignoredMessageCount: 0,
+                  };
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await memory.remember({
+      scope: { userId: "u-1", agentId: "life-coach" },
+      messages: [{ role: "user", content: "Maya owns the launch checklist." }],
+      annotations: [
+        {
+          messageIndex: 0,
+          metadataPatch: {
+            tags: ["life_coach", "launch"],
+          },
+        },
+      ],
+      extractionStrategy: "llm-assisted",
+    });
+    const writtenEvents = result.events.filter(
+      (event) => event.outcome === "written",
+    );
+
+    expect(result.accepted).toBe(1);
+    expect(writtenEvents).toHaveLength(1);
+    expect(writtenEvents[0]).toMatchObject({
+      annotation: {
+        metadataPatched: true,
+        remember: "auto",
+      },
+      extractionSources: ["rules-only", "llm-assisted"],
+      extractorIds: ["life-coach:extractor-1"],
+    });
+  });
+
+  it("enriches duplicate feedback with profile metadata", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      remember: {
+        profiles: [
+          {
+            id: "life-coach",
+            when: { agentId: "life-coach" },
+            extractors: [
+              {
+                async extract(input) {
+                  const tagged = input.messages[0]?.content.includes("tagged");
+
+                  return {
+                    candidates: [
+                      {
+                        id: tagged ? "feedback-tagged" : "feedback-base",
+                        kindHint: "feedback",
+                        explicitness: "explicit",
+                        content: "Keep coaching prompts concise.",
+                        sourceMessageIndex: 0,
+                        sourceRole: "user",
+                        metadata: tagged
+                          ? {
+                              attributes: { source: "profile_extractor" },
+                              feedbackKind: "do",
+                              tags: ["life_coach", "tone"],
+                            }
+                          : {
+                              feedbackKind: "do",
+                            },
+                      },
+                    ],
+                    ignoredMessageCount: 0,
+                  };
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const scope = { userId: "u-1", agentId: "life-coach" };
+
+    await memory.remember({
+      scope,
+      messages: [{ role: "user", content: "base" }],
+      extractionStrategy: "rules-only",
+    });
+    await memory.remember({
+      scope,
+      messages: [{ role: "user", content: "tagged" }],
+      extractionStrategy: "rules-only",
+    });
+
+    const exported = await memory.exportMemory({ scope });
+
+    expect(exported.durable.feedback).toHaveLength(1);
+    expect(exported.durable.feedback[0]).toMatchObject({
+      attributes: { source: "profile_extractor" },
+      tags: ["life_coach", "tone"],
+    });
+  });
+});

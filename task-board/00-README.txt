@@ -208,10 +208,13 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
   - global install, explicit repo opt-in, hook-injected recall, read-only MCP, and explicit write CLI are accepted on the installed-host path
   - automatic writeback, transcript persistence, `Stop` hooks, public `goodmemory/evolution`, and Claude as a second live blocker remain out of scope
-- Phase 36 is now open as the public domain write profiles and rules slice:
-  - goal: make domain-specific write customization a first-class public API instead of relying on `testing.extractor`, internal adapters, or post-extraction policy hooks
-  - motivating integration: OneLife / life-coach agents, without hardcoding OneLife as a built-in preset
-  - entrypoint: `task-board/37-phase-36-public-domain-write-profiles-and-rules.txt`
+- Phase 36 is now closed as the public domain write profiles and rules slice:
+  - deterministic fallback evidence: `reports/eval/fallback/phase-36/run-20260423221045/report.json`
+  - provider-backed live-memory evidence: `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
+  - quality gate: `reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
+  - accepted surface: public `remember` config, profiles, rules, annotations, assistant-output policy, domain metadata, and traceable extractor composition
+  - OneLife / life-coach remains a reference pattern, not a built-in preset
 - Any work after Phase 35 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -231,13 +234,13 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 35 guarantees while future work lands
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, and accepted Phase 35 installed-host middleware evidence regression-covered while future work lands
-   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, or Phase 35 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - Preserve the closed Phase 17 through Phase 36 guarantees while future work lands
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, and accepted Phase 36 public write-profile evidence regression-covered while future work lands
+   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, or Phase 36 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
    - Execute future host work on top of the accepted Phase 35 installed-host middleware boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, and Phase 35 installed-host middleware guarantees regression-covered while later phases execute
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, and Phase 36 public write-profile guarantees regression-covered while later phases execute
 3. Medium-term system hardening
    - Keep the accepted Codex host integration surface stable while future host-runtime evidence deepens
 4. Host integration track

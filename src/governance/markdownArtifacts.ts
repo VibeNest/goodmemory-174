@@ -274,29 +274,55 @@ function sortPromotions(promotions: PromotionRecord[]): PromotionRecord[] {
   });
 }
 
+function renderDomainMetadataSuffix(record: {
+  tags?: string[];
+  attributes?: Record<string, string | number | boolean | null>;
+}): string {
+  const parts = [
+    record.tags && record.tags.length > 0
+      ? `tags: ${[...record.tags]
+          .sort(compareStrings)
+          .map(sanitizeMarkdownInline)
+          .join(", ")}`
+      : undefined,
+    record.attributes && Object.keys(record.attributes).length > 0
+      ? `attributes: ${Object.entries(record.attributes)
+          .sort(([left], [right]) => compareStrings(left, right))
+          .map(([key, value]) =>
+            `${sanitizeMarkdownInline(key)}=${sanitizeMarkdownInline(String(value))}`,
+          )
+          .join(", ")}`
+      : undefined,
+  ].filter((part): part is string => Boolean(part));
+
+  return parts.length > 0 ? ` {${parts.join("; ")}}` : "";
+}
+
 function renderPreferenceLines(preferences: PreferenceMemory[]): string[] {
   return sortPreferences(preferences).map(
     (preference) =>
-      `- ${sanitizeMarkdownInline(preference.category)}: ${sanitizeMarkdownInline(String(preference.value))}`,
+      `- ${sanitizeMarkdownInline(preference.category)}: ${sanitizeMarkdownInline(String(preference.value))}${renderDomainMetadataSuffix(preference)}`,
   );
 }
 
 function renderFactLines(facts: FactMemory[]): string[] {
   return sortFacts(facts).map(
-    (fact) => `- [${fact.lifecycle}] ${sanitizeMarkdownInline(fact.content)}`,
+    (fact) =>
+      `- [${fact.lifecycle}] ${sanitizeMarkdownInline(fact.content)}${renderDomainMetadataSuffix(fact)}`,
   );
 }
 
 function renderReferenceLines(references: ReferenceMemory[]): string[] {
   return sortReferences(references).map(
     (reference) =>
-      `- [${reference.lifecycle}] ${sanitizeMarkdownInline(reference.title)} (${sanitizeMarkdownInline(reference.pointer)})`,
+      `- [${reference.lifecycle}] ${sanitizeMarkdownInline(reference.title)} (${sanitizeMarkdownInline(reference.pointer)})${renderDomainMetadataSuffix(reference)}`,
   );
 }
 
 function renderFeedbackLines(feedback: FeedbackMemory[]): string[] {
   return sortFeedback(feedback).map(
-    (entry) => `- [${entry.kind}] ${sanitizeMarkdownInline(entry.rule)}`,
+    (entry) =>
+      `- [${entry.kind}] ${sanitizeMarkdownInline(entry.rule)}${renderDomainMetadataSuffix(entry)}`,
   );
 }
 

@@ -7,15 +7,19 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 ## Stable OSS Surface
 
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
+- Public domain write customization is now accepted through `GoodMemoryConfig.remember`, `RememberProfile`, `rememberRules`, `RememberInput.annotations`, and traceable extractor composition.
 - `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` now resolve through compiled `dist/` artifacts and emitted type declarations on the packaged install surface.
 - `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend; Bun keeps local SQLite as the zero-config durable fallback; Node zero-config runtime falls back to in-memory when the built-in local SQLite adapter is unavailable.
 - `inspectGoodMemoryRuntime(memory)` now exposes the sanitized resolved storage/runtime plan so Node zero-config in-memory fallback is observable through the public API instead of being silent, unsupported built-in `sqlite` / `postgres` selections are reported as unavailable instead of durable, and injected storage adapters are reported as adapter-defined execution instead of being mislabeled as the configured built-in plan.
 - The official CLI surface remains memory-first for stable read paths: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`. The package bin is Node-safe, but command execution is still Bun-backed today.
 - Phase 35 installed host-memory middleware is now part of the accepted stable host surface through `goodmemory install|uninstall <codex|claude>`, `goodmemory enable|disable <codex|claude>`, `SessionStart` / `UserPromptSubmit` hooks, read-only MCP, and explicit write CLI commands.
+- Phase 35 is now closed as the installed host-memory middleware and hooks slice.
 - Installed-package external host wiring remains available through `goodmemory codex bootstrap` and `goodmemory claude bootstrap` as lower-level compatibility scaffolding for artifact-first integrations.
 - Host integration stays on the explicit adapter/package path; hook-injected recall is the canonical always-on middleware path for enabled repositories, while MCP is a deep-read/debug surface rather than the default recall transport.
 - `goodmemory/host` now includes an explicit pre-action contract through `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()`.
 - Optional adapter-level agent-event ingestion now exists on `goodmemory/ai-sdk` and `goodmemory/host`; no new root `goodmemory/evolution` module was added.
+- root `goodmemory` no longer re-exports internal evolution contracts; proposal, reviewer, compiler, and maintenance internals stay outside the stable root API.
+- adapter/event `user_correction` is proposal-first and records selective evidence plus promotion receipts instead of writing an intermediate active feedback memory.
 - `sqlite` remains the stable default local durable document/session/vector backend on Bun.
 - Generic live-memory eval semantics are now auto-storage aligned across both CLI and script helpers:
   - `bun run eval:live-memory` and `runLiveMemoryEval()` follow the normal runtime storage resolver, so default local SQLite remains valid and configured Postgres becomes provider-backed.
@@ -31,27 +35,22 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 35 is now closed as the installed host-memory middleware and hooks slice.
+- Phase 36 is now closed as the public domain write profiles and rules slice.
 - Accepted behavior:
-  - `goodmemory install|uninstall codex|claude` manages documented user-level host config without enabling every repository globally
-  - `goodmemory enable|disable codex|claude` makes repo opt-in explicit and host-scoped
-  - `SessionStart` and `UserPromptSubmit` hooks inject compact recall context through the existing `recall()` plus `buildContext()` path and fail open on missing config, parse failures, empty memory, or recall/build errors
-  - `goodmemory mcp serve` and `goodmemory-mcp` expose read-only deep-read/debug tools without becoming the default recall transport
-  - `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` provide explicit installed-host writes without automatic writeback, transcript persistence, or `Stop` hook behavior
-  - the installed-host middleware path uses a user-level storage default and does not change the accepted repo-local CLI SQLite default
-  - Codex is the only live gate-blocking installed-host path; Claude Code has install/hook/docs/package-smoke parity without becoming a second live blocker
-  - the accepted Phase 34 host pre-action policy path remains separate underneath the Phase 35 recall middleware
-  - `goodmemory/host` publicly ships `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()` on the packaged surface
-  - root `goodmemory` no longer re-exports internal evolution contracts or constructors such as `LearningProposal`, `PromotionRecord`, `SessionArchive`, or their factories
-  - adapter/event `user_correction` is proposal-first: it records selective correction evidence and feedback experience lineage without first creating an active durable feedback memory
-  - proposal/promotion receipts remain visible on the adapter/event receipt surface; `feedbackMemoryId` is absent for proposal-first automatic corrections
-  - repeated `coding_agent` corrections and coding-agent tool-outcome lineage compile into `coding_agent` scoped `validated_pattern` guidance, while `general_chat` corrections stay `general_response`
-  - the accepted external host product line from Phase 32 and the Node-compatible package boundary from Phase 33 remain intact underneath the refreshed host pre-action slice
-- Still outside the accepted Phase 35 claim:
-  - public `goodmemory/evolution`
-  - automatic writeback, transcript persistence, or `Stop` hook behavior
-  - dashboard/admin UI or new memory capability work
-  - making Claude a second live gate blocker
+  - `createGoodMemory({ remember: ... })` is public API for domain-specific write profiles
+  - `rememberRules` supports regex, predicate, and direct mapper rules that produce normal candidates
+  - profile custom extractors compose with deterministic and assisted extraction instead of replacing normalization, classification, policy, evidence, conflict handling, vector writes, or rollback
+  - `RememberInput.annotations` supports host write intent, metadata patches, kind hints, confirmation, verification, and reasons
+  - assistant-originated durable writes remain ignored by default and require both host annotation and an allowing profile policy
+  - `remember: "never"` masks annotated message content before deterministic, custom, or assisted extraction
+  - domain metadata persists on preferences, facts, references, and feedback, and Markdown exports render the metadata needed for auditability
+  - remember events trace profile, preset, extractor, rule, annotation, and extraction strategy influence
+  - the life-coach/OneLife-style scenario is documented as a generic public configuration pattern, not a built-in preset
+- Still outside the accepted Phase 36 claim:
+  - making OneLife a built-in preset
+  - requiring assisted extraction, provider-backed storage, or a database service for zero-config users
+  - automatic assistant-answer memory without host confirmation or verification
+  - reopening recall routing or retrieval profile promotion
 
 ## Current Canonical Evidence
 
@@ -118,6 +117,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic/live gate: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
   - Deterministic fallback report: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
   - Codex installed middleware live report: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
+- Public domain write profiles and rules closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
+  - Deterministic/live gate: `reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json`
+  - Deterministic fallback report: `reports/eval/fallback/phase-36/run-20260423221045/report.json`
+  - Provider-backed live-memory report: `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

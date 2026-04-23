@@ -240,6 +240,60 @@ describe("markdown artifact projection", () => {
     expect(sessionOne.rootPath).not.toBe(sessionNine.rootPath);
   });
 
+  it("renders domain metadata needed for memory auditability", () => {
+    const input = buildProjectionInput();
+    const artifacts = buildMarkdownArtifacts({
+      ...input,
+      durable: {
+        ...input.durable,
+        preferences: [
+          createPreferenceMemory({
+            ...input.durable.preferences[0]!,
+            tags: ["style", "life_coach"],
+            attributes: { cadence: "weekly" },
+          }),
+        ],
+        references: [
+          createReferenceMemory({
+            ...input.durable.references[0]!,
+            tags: ["runbook", "life_coach"],
+            attributes: { owner: "Maya" },
+          }),
+        ],
+        facts: [
+          createFactMemory({
+            ...input.durable.facts[0]!,
+            tags: ["goal", "life_coach"],
+            attributes: { horizon: "quarter" },
+          }),
+        ],
+        feedback: [
+          createFeedbackMemory({
+            ...input.durable.feedback[0]!,
+            tags: ["tone", "life_coach"],
+            attributes: { source: "domain_rule" },
+          }),
+        ],
+      },
+    });
+    const memoryArtifact = artifacts.files.find(
+      (file) => file.relativePath === "MEMORY.md",
+    );
+
+    expect(memoryArtifact?.content).toContain(
+      "- response_style: bullet points {tags: life_coach, style; attributes: cadence=weekly}",
+    );
+    expect(memoryArtifact?.content).toContain(
+      "- [active] Migration rollout is blocked on prod verification. {tags: goal, life_coach; attributes: horizon=quarter}",
+    );
+    expect(memoryArtifact?.content).toContain(
+      "- [active] Runbook (docs/runbook.md) {tags: life_coach, runbook; attributes: owner=Maya}",
+    );
+    expect(memoryArtifact?.content).toContain(
+      "- [do] Keep answers concise. {tags: life_coach, tone; attributes: source=domain_rule}",
+    );
+  });
+
   it("exports active validated patterns as deterministic playbook artifacts with lineage", () => {
     const source = createMemorySource({
       method: "confirmed",

@@ -8,6 +8,7 @@ import { createDeterministicMemoryExtractor } from "./deterministicExtractor";
 import { maybeBuildEpisode } from "./episodes";
 import {
   annotateExtractionResult,
+  dedupeExtractionResult,
   mergeExtractionResults,
 } from "./extraction";
 import { writeRememberCandidate } from "./handlers";
@@ -17,6 +18,7 @@ import {
   toRememberEventMemoryType,
 } from "./classification";
 import type {
+  MessageAnnotation,
   MemoryCandidate,
   MemoryExtractionInput,
   MemoryExtractionResult,
@@ -28,6 +30,11 @@ import type {
   RollbackAction,
   RememberWriteState,
 } from "./contracts";
+import {
+  createRuleMemoryExtractor,
+  resolveRememberProfile,
+  type ResolvedRememberProfile,
+} from "./profiles";
 import {
   extractCanonicalReferencePointer,
   normalizeMemoryCandidate,
@@ -59,6 +66,170 @@ export function createRememberEngine(config: RememberEngineConfig) {
     config.vectorIndex !== undefined
       ? config.vectorIndex ?? null
       : config.repositories.vectorIndex ?? null;
+
+  const findAnnotation = (
+    input: MemoryExtractionInput,
+    messageIndex: number,
+  ): MessageAnnotation | undefined =>
+    input.annotations?.find((annotation) => annotation.messageIndex === messageIndex);
+
+  const buildAnnotationTrace = (annotation: MessageAnnotation) => {
+    if (
+      annotation.remember === undefined &&
+      annotation.confirmed !== true &&
+      annotation.verified !== true &&
+      annotation.kindHint === undefined &&
+      annotation.metadataPatch === undefined &&
+      !annotation.reason
+    ) {
+      return undefined;
+    }
+
+    return {
+      ...(annotation.confirmed === true ? { confirmed: true } : {}),
+      ...(annotation.kindHint ? { kindHint: annotation.kindHint } : {}),
+      ...(annotation.metadataPatch ? { metadataPatched: true } : {}),
+      ...(annotation.reason ? { reason: annotation.reason } : {}),
+      remember: annotation.remember ?? "auto",
+      ...(annotation.verified === true ? { verified: true } : {}),
+    };
+  };
+
+  const getNeverAnnotatedMessageIndexes = (
+    input: MemoryExtractionInput,
+  ): Set<number> =>
+    new Set(
+      (input.annotations ?? [])
+        .filter((annotation) => annotation.remember === "never")
+        .map((annotation) => annotation.messageIndex),
+    );
+
+  const maskNeverAnnotatedMessages = (
+    input: MemoryExtractionInput,
+  ): MemoryExtractionInput => {
+    const blockedIndexes = getNeverAnnotatedMessageIndexes(input);
+    if (blockedIndexes.size === 0) {
+      return input;
+    }
+
+    return {
+      ...input,
+      messages: input.messages.map((message, messageIndex) =>
+        blockedIndexes.has(messageIndex)
+          ? {
+              ...message,
+              content: "",
+            }
+          : message,
+      ),
+    };
+  };
+
+  const isAssistantWriteAllowed = (
+    candidate: MemoryCandidate,
+    profile: ResolvedRememberProfile,
+    input: MemoryExtractionInput,
+  ): boolean => {
+    if (candidate.sourceRole !== "assistant") {
+      return true;
+    }
+
+    const annotation = findAnnotation(input, candidate.sourceMessageIndex);
+    if (!annotation || annotation.remember !== "always") {
+      return false;
+    }
+
+    if (profile.assistantOutputs.mode === "host_tagged_only") {
+      return true;
+    }
+
+    if (profile.assistantOutputs.mode === "confirmed_only") {
+      return annotation.confirmed === true;
+    }
+
+    if (profile.assistantOutputs.mode === "verified_only") {
+      return annotation.verified === true;
+    }
+
+    if (profile.assistantOutputs.mode === "confirmed_or_verified_only") {
+      return annotation.confirmed === true || annotation.verified === true;
+    }
+
+    return false;
+  };
+
+  const applyAnnotations = (
+    input: MemoryExtractionInput,
+    profile: ResolvedRememberProfile,
+    extraction: MemoryExtractionResult,
+  ): MemoryExtractionResult => {
+    const blockedIndexes = getNeverAnnotatedMessageIndexes(input);
+    const candidates = extraction.candidates
+      .filter((candidate) => !blockedIndexes.has(candidate.sourceMessageIndex))
+      .map((candidate) => {
+        const annotation = findAnnotation(input, candidate.sourceMessageIndex);
+        if (!annotation) {
+          return candidate;
+        }
+
+        const annotationTrace = buildAnnotationTrace(annotation);
+        if (!annotation?.metadataPatch && !annotation?.kindHint && !annotationTrace) {
+          return candidate;
+        }
+
+        return {
+          ...candidate,
+          annotation: annotationTrace ?? candidate.annotation,
+          kindHint: annotation.kindHint ?? candidate.kindHint,
+          metadata: {
+            ...candidate.metadata,
+            ...annotation.metadataPatch,
+          },
+        };
+      });
+
+    for (const annotation of input.annotations ?? []) {
+      if (annotation.remember !== "always") {
+        continue;
+      }
+
+      if (blockedIndexes.has(annotation.messageIndex)) {
+        continue;
+      }
+
+      const message = input.messages[annotation.messageIndex];
+      if (!message) {
+        continue;
+      }
+
+      if (
+        candidates.some(
+          (candidate) => candidate.sourceMessageIndex === annotation.messageIndex,
+        )
+      ) {
+        continue;
+      }
+
+      candidates.push({
+        id: `annotation-${annotation.messageIndex + 1}`,
+        kindHint: annotation.kindHint ?? "fact",
+        explicitness: "explicit",
+        annotation: buildAnnotationTrace(annotation),
+        extractionSources: ["rules-only"],
+        profileId: profile.id,
+        presetId: profile.presetId,
+        content: message.content,
+        sourceMessageIndex: annotation.messageIndex,
+        sourceRole: message.role,
+        metadata: annotation.metadataPatch,
+      });
+    }
+
+    return {
+      ...extraction,
+      candidates,
+    };
+  };
 
   const shouldAutoUseAssistedExtraction = (input: {
     request: MemoryExtractionInput;
@@ -145,25 +316,77 @@ export function createRememberEngine(config: RememberEngineConfig) {
   ): MemoryExtractionStrategy => strategy ?? "auto";
 
   const resolveExtraction = async (input: MemoryExtractionInput) => {
+    const profile = resolveRememberProfile({
+      config: config.remember,
+      scope: input.scope,
+    });
+    const extractorInput = maskNeverAnnotatedMessages(input);
     const requestedExtractionStrategy = resolveRequestedExtractionStrategy(
       input.extractionStrategy,
     );
-    const baselineExtraction = annotateExtractionResult(
-      normalizeExtractionResult(input, await extractor.extract(input)),
+    let baselineExtraction = annotateExtractionResult(
+      normalizeExtractionResult(input, await extractor.extract(extractorInput)),
       "rules-only",
+    );
+    const profileRuleExtractor = createRuleMemoryExtractor({
+      profileId: profile.id,
+      presetId: profile.presetId,
+      rules: profile.rules,
+    });
+
+    baselineExtraction = mergeExtractionResults(
+      baselineExtraction,
+      annotateExtractionResult(
+        normalizeExtractionResult(
+          input,
+          await profileRuleExtractor.extract(extractorInput),
+        ),
+        "rules-only",
+      ),
+    );
+
+    for (const [index, profileExtractor] of profile.extractors.entries()) {
+      const extractorId = `${profile.id}:extractor-${index + 1}`;
+      const profileExtraction = annotateExtractionResult(
+        normalizeExtractionResult(
+          input,
+          await profileExtractor.extract(extractorInput),
+        ),
+        "rules-only",
+      );
+
+      baselineExtraction = mergeExtractionResults(
+        baselineExtraction,
+        {
+          ...profileExtraction,
+          candidates: profileExtraction.candidates.map((candidate) => ({
+            ...candidate,
+            extractorIds: [
+              ...new Set([...(candidate.extractorIds ?? []), extractorId]),
+            ],
+            profileId: candidate.profileId ?? profile.id,
+            presetId: candidate.presetId ?? profile.presetId,
+          })),
+        },
+      );
+    }
+
+    baselineExtraction = dedupeExtractionResult(
+      applyAnnotations(input, profile, baselineExtraction),
     );
 
     const shouldRunAssistedExtraction =
       requestedExtractionStrategy === "llm-assisted" ||
       (requestedExtractionStrategy === "auto" &&
         shouldAutoUseAssistedExtraction({
-          request: input,
+          request: extractorInput,
           baselineExtraction,
         }));
 
     if (!shouldRunAssistedExtraction || !assistedExtractor) {
       return {
         extraction: baselineExtraction,
+        profile,
         requestedExtractionStrategy,
         resolvedExtractionStrategy: "rules-only" as const,
       };
@@ -176,7 +399,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
         normalizeExtractionResult(
           input,
           await assistedExtractor.extract({
-            ...input,
+            ...extractorInput,
             extractionStrategy: "llm-assisted",
           }),
         ),
@@ -185,13 +408,21 @@ export function createRememberEngine(config: RememberEngineConfig) {
     } catch {
       return {
         extraction: baselineExtraction,
+        profile,
         requestedExtractionStrategy,
         resolvedExtractionStrategy: "rules-only" as const,
       };
     }
 
     return {
-      extraction: mergeExtractionResults(baselineExtraction, assistedExtraction),
+      extraction: dedupeExtractionResult(
+        applyAnnotations(
+          input,
+          profile,
+          mergeExtractionResults(baselineExtraction, assistedExtraction),
+        ),
+      ),
+      profile,
       requestedExtractionStrategy,
       resolvedExtractionStrategy: "llm-assisted" as const,
     };
@@ -212,6 +443,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
       });
       const {
         extraction,
+        profile,
         requestedExtractionStrategy,
         resolvedExtractionStrategy,
       } = await resolveExtraction(input);
@@ -263,6 +495,18 @@ export function createRememberEngine(config: RememberEngineConfig) {
 
       try {
         for (const candidate of extraction.candidates) {
+          if (!isAssistantWriteAllowed(candidate, profile, input)) {
+            state.rejected += 1;
+            state.events.push({
+              candidateId: candidate.id,
+              outcome: "rejected",
+              memoryType: toRememberEventMemoryType("reject"),
+              reason: "assistant_policy_blocked",
+              ...buildRememberEventTrace(candidate),
+            });
+            continue;
+          }
+
           const classified = classifyCandidate(candidate);
 
           if (

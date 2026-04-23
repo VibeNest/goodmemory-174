@@ -315,6 +315,142 @@ describe("remember engine", () => {
     expect(blockedResult.events[0]?.reason).toBe("policy_rejected");
   });
 
+  it("lets remember-always annotations raise valid inferred candidates through normal policy gates", async () => {
+    const scope = { userId: "u-annotation-raise", sessionId: "s-1" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "inferred-1",
+                kindHint: "fact",
+                explicitness: "inferred",
+                content: "The user is trying to stabilize their sleep routine.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "habit",
+                  tags: ["life_coach"],
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "I want to stabilize my sleep routine this month.",
+        },
+      ],
+      annotations: [
+        {
+          messageIndex: 0,
+          remember: "always",
+          reason: "host classified this as durable coaching context",
+        },
+      ],
+    });
+
+    const facts = await repositories.facts.listByScope(scope);
+
+    expect(result.accepted).toBe(1);
+    expect(result.events[0]?.sourceMethod).toBe("inferred");
+    expect(result.events[0]?.annotation).toEqual({
+      remember: "always",
+      reason: "host classified this as durable coaching context",
+    });
+    expect(facts[0]?.source.method).toBe("inferred");
+    expect(facts[0]?.tags).toEqual(["life_coach"]);
+  });
+
+  it("does not let remember-always annotations bypass write policy", async () => {
+    const scope = { userId: "u-annotation-policy", sessionId: "s-1" };
+    const { engine } = createEngine({
+      shouldWrite: () => false,
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "inferred-1",
+                kindHint: "fact",
+                explicitness: "inferred",
+                content: "The user is trying to stabilize their sleep routine.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "habit",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "I want to stabilize my sleep routine this month.",
+        },
+      ],
+      annotations: [
+        {
+          messageIndex: 0,
+          remember: "always",
+        },
+      ],
+    });
+
+    expect(result.accepted).toBe(0);
+    expect(result.events[0]?.reason).toBe("policy_rejected");
+    expect(result.events[0]?.annotation).toEqual({ remember: "always" });
+  });
+
+  it("lets remember-never annotations dominate duplicate remember-always annotations", async () => {
+    const scope = {
+      userId: "u-annotation-suppression",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    };
+    const { engine, repositories } = createEngine();
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that runtime launch is blocked on legal review.",
+        },
+      ],
+      annotations: [
+        {
+          messageIndex: 0,
+          remember: "never",
+          reason: "private source text",
+        },
+        {
+          messageIndex: 0,
+          remember: "always",
+          reason: "duplicate host write intent",
+        },
+      ],
+    });
+
+    expect(result.accepted).toBe(0);
+    expect(await repositories.facts.listByScope(scope)).toHaveLength(0);
+  });
+
   it("merges duplicate references and facts within the same scope", async () => {
     const { engine } = createEngine();
     const scope = { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" };

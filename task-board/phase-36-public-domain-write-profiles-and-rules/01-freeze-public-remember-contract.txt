@@ -8,7 +8,7 @@ Define the additive public API for domain-specific write customization before im
 
 Tasks
 -----
-[TODO] Add public types for:
+[DONE] Add public types for:
   - `RememberConfig`
   - `RememberPresetId`
   - `RememberProfile`
@@ -16,11 +16,11 @@ Tasks
   - `RememberRule`
   - `MessageAnnotation`
   - `AssistantMemoryPolicy`
-[TODO] Add `remember?: RememberConfig` to `GoodMemoryConfig`.
-[TODO] Add `annotations?: MessageAnnotation[]` to `RememberInput`.
-[TODO] Export the new public types from the root package.
-[TODO] Add type-level tests proving old configs still compile and new configs compile.
-[TODO] Document that `testing.extractor` is not the public integration path.
+[DONE] Add `remember?: RememberConfig` to `GoodMemoryConfig`.
+[DONE] Add `annotations?: MessageAnnotation[]` to `RememberInput`.
+[DONE] Export the new public types from the root package.
+[DONE] Add type-level tests proving old configs still compile and new configs compile.
+[DONE] Document that `testing.extractor` is not the public integration path.
 
 
 Contract

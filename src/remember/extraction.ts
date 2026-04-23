@@ -5,12 +5,28 @@ import type {
 } from "./candidates";
 import { mergeExtractionSources } from "./classification";
 
+function canonicalizeMetadata(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return [...value].sort();
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalizeMetadata(nested)]),
+    );
+  }
+
+  return value;
+}
+
 function buildCandidateMergeKey(candidate: MemoryCandidate): string {
   return JSON.stringify({
     content: candidate.content.trim().toLowerCase(),
     explicitness: candidate.explicitness,
     kindHint: candidate.kindHint,
-    metadata: candidate.metadata ?? null,
+    metadata: canonicalizeMetadata(candidate.metadata ?? null),
     sourceMessageIndex: candidate.sourceMessageIndex,
     sourceRole: candidate.sourceRole,
   });
@@ -35,6 +51,15 @@ function ensureUniqueCandidateId(
     ...candidate,
     id: nextId,
   };
+}
+
+function mergeUniqueValues<TValue>(
+  left: TValue[] | undefined,
+  right: TValue[] | undefined,
+): TValue[] | undefined {
+  const values = [...(left ?? []), ...(right ?? [])];
+
+  return values.length > 0 ? [...new Set(values)] : undefined;
 }
 
 export function annotateExtractionResult(
@@ -67,10 +92,15 @@ export function mergeExtractionResults(
       const existing = candidates[existingIndex]!;
       candidates[existingIndex] = {
         ...existing,
+        annotation: existing.annotation ?? candidate.annotation,
+        extractorIds: mergeUniqueValues(existing.extractorIds, candidate.extractorIds),
         extractionSources: mergeExtractionSources(
           existing.extractionSources,
           candidate.extractionSources,
         ),
+        profileId: existing.profileId ?? candidate.profileId,
+        presetId: existing.presetId ?? candidate.presetId,
+        ruleIds: mergeUniqueValues(existing.ruleIds, candidate.ruleIds),
       };
       continue;
     }
@@ -88,4 +118,16 @@ export function mergeExtractionResults(
       assisted.ignoredMessageCount,
     ),
   };
+}
+
+export function dedupeExtractionResult(
+  result: MemoryExtractionResult,
+): MemoryExtractionResult {
+  return mergeExtractionResults(
+    {
+      candidates: [],
+      ignoredMessageCount: result.ignoredMessageCount,
+    },
+    result,
+  );
 }

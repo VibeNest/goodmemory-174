@@ -1,0 +1,102 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 36 public remember profiles, rules, annotations, extractor composition, and metadata export passed deterministic evaluation."
+  },
+  "cases": [
+    {
+      "assertions": [
+        {
+          "label": "profile-rule-trace",
+          "passed": true
+        },
+        {
+          "label": "goal-fact",
+          "passed": true
+        },
+        {
+          "label": "preference-metadata",
+          "passed": true
+        }
+      ],
+      "caseId": "life-coach-domain-rules",
+      "focus": "rules_dsl",
+      "passed": true
+    },
+    {
+      "assertions": [
+        {
+          "label": "default-blocks-assistant",
+          "passed": true
+        },
+        {
+          "label": "confirmed-policy-allows",
+          "passed": true
+        }
+      ],
+      "caseId": "assistant-confirmed-policy",
+      "focus": "assistant_policy",
+      "passed": true
+    },
+    {
+      "assertions": [
+        {
+          "label": "assisted-input-masked",
+          "passed": true
+        },
+        {
+          "label": "no-durable-write",
+          "passed": true
+        }
+      ],
+      "caseId": "never-annotation-masking",
+      "focus": "annotation_privacy",
+      "passed": true
+    },
+    {
+      "assertions": [
+        {
+          "label": "single-write",
+          "passed": true
+        },
+        {
+          "label": "trace-preserved",
+          "passed": true
+        }
+      ],
+      "caseId": "custom-assisted-composition",
+      "focus": "extractor_composition",
+      "passed": true
+    },
+    {
+      "assertions": [
+        {
+          "label": "json-export-tags",
+          "passed": true
+        },
+        {
+          "label": "markdown-export-tags",
+          "passed": true
+        }
+      ],
+      "caseId": "domain-metadata-export",
+      "focus": "metadata_audit",
+      "passed": true
+    }
+  ],
+  "generatedAt": "2026-04-23T14:08:29.917Z",
+  "generatedBy": "scripts/run-phase-36-eval.ts",
+  "mode": "fallback",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36",
+  "phase": "phase-36",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-36/run-20260423221045",
+  "runId": "run-20260423221045",
+  "summary": {
+    "acceptedCaseCount": 5,
+    "annotationPolicyPassCount": 2,
+    "domainMetadataPassCount": 1,
+    "extractorCompositionPassCount": 1,
+    "rulesDslPassCount": 1,
+    "totalCases": 5
+  }
+}

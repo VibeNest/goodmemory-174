@@ -101,6 +101,10 @@ Next.js mapping:
 ## Stable Contract
 
 - `goodmemory` and `goodmemory/ai-sdk` now resolve through compiled package artifacts on both Node and Bun.
+- Domain-specific writes should use `createGoodMemory({ remember: ... })` with public profiles, rules, custom extractors, and annotations.
+- `testing.extractor` is not a product integration surface; it remains available for tests.
+- `remember` profiles differ from `retrievalProfile`: remember profiles control what gets written, while retrieval profiles control recall routing and context assembly.
+- Domain rules differ from `policy` hooks: rules generate normal candidates before classification, evidence, conflict handling, vector writes, and rollback; policy hooks remain governance gates after candidates exist.
 - The canonical deterministic path uses the accepted Phase 26 local-first runtime and the accepted Phase 28 supported local acceleration behavior.
 - Bun keeps the local SQLite default runtime path; Node zero-config runtime currently falls back to in-memory when the built-in local SQLite adapter is unavailable.
 - No embedding environment variables means the runtime stays `rules-only`.
@@ -116,3 +120,55 @@ Next.js mapping:
 - the canonical public path is a plain AI SDK server that returns `Request -> Response` through `toTextStreamResponse()`
 - the AI SDK wrapper can augment recall and remember on the public surface
 - the same public surface is installable from the packed release artifact or from registry install, not only from a repo checkout
+
+## Domain Write Profiles
+
+A server-side agent can declare domain write behavior without forking the core
+extractor. OneLife and life-coach agents are motivating examples, but they are
+not built-in presets.
+
+```ts
+import { createGoodMemory, rememberRules } from "goodmemory";
+
+const memory = createGoodMemory({
+  remember: {
+    profiles: [
+      {
+        id: "life-coach",
+        when: { agentId: "life-coach" },
+        rules: [
+          rememberRules.fact(/my top priority this quarter is (.+)/i, {
+            id: "life-goal-priority",
+            category: "goal",
+            tags: ["life_coach", "long_term_goal"],
+            attributes: { horizon: "quarter" },
+            content: ({ match }) => match[1] ?? "",
+          }),
+          rememberRules.preference(/please coach me with (.+)/i, {
+            id: "life-coaching-style",
+            category: "coaching_style",
+            value: ({ match }) => match[1] ?? "",
+          }),
+        ],
+        assistantOutputs: { mode: "confirmed_or_verified_only" },
+      },
+    ],
+  },
+});
+```
+
+Host annotations should be used for explicit write intent:
+
+- `remember: "never"` suppresses the annotated message before deterministic, custom, or assisted extraction.
+- `remember: "always"` can raise a valid low-confidence candidate through normal classification and policy; it does not bypass redaction or policy hooks.
+- `metadataPatch`, `kindHint`, `confirmed`, `verified`, and `reason` are preserved in remember traces so audit output can explain why a write changed.
+
+Storage guidance stays deployment-dependent:
+
+- in-memory storage is for tests and short-lived demos
+- SQLite is acceptable for local and single-writer deployments
+- Postgres is recommended for multi-instance production
+
+For Python backends or Expo clients, keep GoodMemory on the server side as a
+Node/Bun sidecar or service. The mobile/client app should call the server API;
+it does not need GoodMemory bundled into the client runtime.

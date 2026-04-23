@@ -10,6 +10,7 @@ import type {
   EpisodeMemory,
   FactMemory,
   FeedbackMemory,
+  PreferenceMemory,
   ReferenceMemory,
   UserProfile,
 } from "../domain/records";
@@ -97,6 +98,8 @@ export function buildPreference(
     sessionId: scope.sessionId,
     category: candidate.metadata?.preferenceCategory ?? "general_preference",
     value: candidate.metadata?.preferenceValue ?? candidate.content,
+    tags: candidate.metadata?.tags,
+    attributes: candidate.metadata?.attributes,
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
@@ -139,6 +142,8 @@ export function buildReference(
     }),
     referenceKind: candidate.metadata?.referenceKind,
     subject: candidate.metadata?.subject ?? "unknown",
+    tags: candidate.metadata?.tags,
+    attributes: candidate.metadata?.attributes,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
@@ -190,6 +195,8 @@ export function buildFact(
     sessionId: scope.sessionId,
     category: candidate.metadata?.category ?? "project",
     content: candidate.content,
+    tags: candidate.metadata?.tags,
+    attributes: candidate.metadata?.attributes,
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
@@ -287,6 +294,86 @@ function strengthenSourceMethod(
   });
 }
 
+function mergeTags(
+  existing: string[] | undefined,
+  next: string[] | undefined,
+): string[] | undefined {
+  const merged = [...new Set([...(existing ?? []), ...(next ?? [])])];
+
+  return merged.length > 0 ? merged : undefined;
+}
+
+function sameTags(
+  left: string[] | undefined,
+  right: string[] | undefined,
+): boolean {
+  const leftTags = left ?? [];
+  const rightTags = right ?? [];
+
+  return leftTags.length === rightTags.length &&
+    leftTags.every((tag, index) => tag === rightTags[index]);
+}
+
+function mergeAttributes<
+  TAttributes extends Record<string, string | number | boolean | null>,
+>(
+  existing: TAttributes | undefined,
+  next: TAttributes | undefined,
+): TAttributes | undefined {
+  const merged = {
+    ...(existing ?? {}),
+    ...(next ?? {}),
+  } as TAttributes;
+
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+function sameAttributes(
+  left: Record<string, string | number | boolean | null> | undefined,
+  right: Record<string, string | number | boolean | null> | undefined,
+): boolean {
+  const leftEntries = Object.entries(left ?? {});
+  const rightEntries = Object.entries(right ?? {});
+
+  return leftEntries.length === rightEntries.length &&
+    leftEntries.every(([key, value]) => right?.[key] === value);
+}
+
+export function enrichDuplicatePreference(
+  preference: PreferenceMemory,
+  candidate: ClassifiedCandidate,
+  timestamp: string,
+  locale: string,
+): PreferenceMemory | null {
+  const tags = mergeTags(preference.tags, candidate.metadata?.tags);
+  const attributes = mergeAttributes(
+    preference.attributes,
+    candidate.metadata?.attributes,
+  );
+  const source = strengthenSourceMethod(
+    preference.source,
+    candidate,
+    timestamp,
+    locale,
+  ) as PreferenceMemory["source"];
+
+  if (
+    sameTags(tags, preference.tags) &&
+    sameAttributes(attributes, preference.attributes) &&
+    source.method === preference.source.method
+  ) {
+    return null;
+  }
+
+  return createPreferenceMemory({
+    ...preference,
+    tags,
+    attributes,
+    source,
+    updatedAt: timestamp,
+  });
+}
+
 export function enrichDuplicateFact(
   fact: FactMemory,
   candidate: ClassifiedCandidate,
@@ -303,12 +390,16 @@ export function enrichDuplicateFact(
     timestamp,
     locale,
   ) as FactMemory["source"];
+  const tags = mergeTags(fact.tags, candidate.metadata?.tags);
+  const attributes = mergeAttributes(fact.attributes, candidate.metadata?.attributes);
 
   if (
     category === fact.category &&
     factKind === fact.factKind &&
     scopeKind === fact.scopeKind &&
     subject === fact.subject &&
+    sameTags(tags, fact.tags) &&
+    sameAttributes(attributes, fact.attributes) &&
     source.method === fact.source.method
   ) {
     return null;
@@ -320,6 +411,8 @@ export function enrichDuplicateFact(
     factKind,
     scopeKind,
     subject,
+    tags,
+    attributes,
     source,
     updatedAt: timestamp,
   });
@@ -386,10 +479,17 @@ export function enrichDuplicateReference(
     timestamp,
     locale,
   ) as ReferenceMemory["source"];
+  const tags = mergeTags(reference.tags, candidate.metadata?.tags);
+  const attributes = mergeAttributes(
+    reference.attributes,
+    candidate.metadata?.attributes,
+  );
 
   if (
     referenceKind === reference.referenceKind &&
     subject === reference.subject &&
+    sameTags(tags, reference.tags) &&
+    sameAttributes(attributes, reference.attributes) &&
     source.method === reference.source.method
   ) {
     return null;
@@ -399,6 +499,8 @@ export function enrichDuplicateReference(
     ...reference,
     referenceKind,
     subject,
+    tags,
+    attributes,
     source,
     updatedAt: timestamp,
   });
@@ -421,11 +523,48 @@ export function buildFeedback(
     rule: candidate.content,
     kind: candidate.metadata?.feedbackKind ?? "do",
     appliesTo: candidate.metadata?.appliesTo,
+    tags: candidate.metadata?.tags,
+    attributes: candidate.metadata?.attributes,
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
       locale,
     }),
+    updatedAt: timestamp,
+  });
+}
+
+export function enrichDuplicateFeedback(
+  feedback: FeedbackMemory,
+  candidate: ClassifiedCandidate,
+  timestamp: string,
+  locale: string,
+): FeedbackMemory | null {
+  const tags = mergeTags(feedback.tags, candidate.metadata?.tags);
+  const attributes = mergeAttributes(
+    feedback.attributes,
+    candidate.metadata?.attributes,
+  );
+  const source = strengthenSourceMethod(
+    feedback.source,
+    candidate,
+    timestamp,
+    locale,
+  ) as FeedbackMemory["source"];
+
+  if (
+    sameTags(tags, feedback.tags) &&
+    sameAttributes(attributes, feedback.attributes) &&
+    source.method === feedback.source.method
+  ) {
+    return null;
+  }
+
+  return createFeedbackMemory({
+    ...feedback,
+    tags,
+    attributes,
+    source,
     updatedAt: timestamp,
   });
 }

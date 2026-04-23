@@ -1,0 +1,25 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Provider-backed assisted extraction ran while public profile rules wrote domain memory through the normal pipeline."
+  },
+  "evidence": {
+    "providerBacked": true,
+    "publicConfigOnly": true,
+    "resolvedExtractionStrategy": "llm-assisted",
+    "wroteDomainMemory": true
+  },
+  "evidenceContract": {
+    "phase36": {
+      "runner": "scripts/run-phase-36-live-memory.ts",
+      "runtimePath": "provider_backed_public_write_smoke"
+    }
+  },
+  "generatedAt": "2026-04-23T11:52:31.463Z",
+  "generatedBy": "scripts/run-phase-36-live-memory.ts",
+  "mode": "live-memory",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-36",
+  "phase": "phase-36",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-36/run-phase36-live-current",
+  "runId": "run-phase36-live-current"
+}
