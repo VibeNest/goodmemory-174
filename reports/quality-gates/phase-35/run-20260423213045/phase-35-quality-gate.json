@@ -6,7 +6,7 @@
   "commands": [
     {
       "command": "bun run typecheck",
-      "durationMs": 3247,
+      "durationMs": 2881,
       "exitCode": 0,
       "label": "typecheck",
       "status": "passed",
@@ -17,31 +17,31 @@
     },
     {
       "command": "bun test tests/unit/host-install.test.ts tests/unit/host-hook-runtime.test.ts tests/integration/host-mcp-server.test.ts tests/unit/run-phase-35.script.test.ts tests/unit/run-phase-35.live-memory.test.ts tests/unit/run-phase-35.gate.test.ts tests/cli/cli.test.ts tests/release/release.test.ts",
-      "durationMs": 38981,
+      "durationMs": 33025,
       "exitCode": 0,
       "label": "targeted-regressions",
       "status": "passed",
       "stderrTail": [
-        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [3.60ms]",
-        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [1.62ms]",
-        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [2.05ms]",
-        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [1.76ms]",
-        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [3.00ms]",
-        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [2.08ms]",
-        "(pass) goodmemory cli root commands > remember writes durable memory through explicit scope flags and default sqlite storage [18.79ms]",
-        "(pass) goodmemory cli root commands > feedback derives installed-host defaults and is recalled through the host hook path [119.21ms]",
-        "(pass) goodmemory cli root commands > host-derived write commands require repo opt-in before using installed-host defaults [1.66ms]",
-        "(pass) goodmemory cli root commands > forget removes a host-derived memory id from the installed-host storage path [4.34ms]",
-        "(pass) goodmemory cli root commands > forget supports deleting a full scoped target with --all [12.46ms]",
-        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.46ms]",
-        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.32ms]",
-        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.69ms]",
-        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.52ms]",
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [4.80ms]",
+        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [2.68ms]",
+        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [2.63ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [2.26ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [3.61ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [2.91ms]",
+        "(pass) goodmemory cli root commands > remember writes durable memory through explicit scope flags and default sqlite storage [3.26ms]",
+        "(pass) goodmemory cli root commands > feedback derives installed-host defaults and is recalled through the host hook path [104.03ms]",
+        "(pass) goodmemory cli root commands > host-derived write commands require repo opt-in before using installed-host defaults [1.71ms]",
+        "(pass) goodmemory cli root commands > forget removes a host-derived memory id from the installed-host storage path [5.10ms]",
+        "(pass) goodmemory cli root commands > forget supports deleting a full scoped target with --all [9.92ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.42ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.30ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.34ms]",
+        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.40ms]",
         "",
-        " 136 pass",
+        " 143 pass",
         " 0 fail",
-        " 1869 expect() calls",
-        "Ran 136 tests across 8 files. [38.97s]"
+        " 1904 expect() calls",
+        "Ran 143 tests across 8 files. [33.02s]"
       ],
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)"
@@ -61,7 +61,7 @@
       "status": "accepted"
     }
   },
-  "generatedAt": "2026-04-23T15:16:25.983Z",
+  "generatedAt": "2026-04-23T15:52:18.779Z",
   "generatedBy": "scripts/run-phase-35-gate.ts",
   "phase": "phase-35",
   "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-35/run-20260423213045",

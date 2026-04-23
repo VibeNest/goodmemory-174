@@ -170,13 +170,18 @@ async function packReleaseTarball(outputDir: string): Promise<{
   });
 
   expect(pack.exitCode).toBe(0);
-  const tarballOutput = pack.stdout.trim();
+  const tarballOutput = pack.stdout
+    .trim()
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith(".tgz"))
+    .at(-1);
   const tarballName =
-    tarballOutput.length > 0
+    tarballOutput !== undefined
       ? basename(tarballOutput)
       : CURRENT_TARBALL_NAME;
   const tarballPath =
-    tarballOutput.length === 0
+    tarballOutput === undefined
       ? join(outputDir, tarballName)
       : tarballOutput.includes("/")
         ? tarballOutput

@@ -1,5 +1,6 @@
 import { access, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { createGoodMemory } from "./api/createGoodMemory";
 import type {
   ExportMemoryResult,
@@ -66,6 +67,17 @@ type ParsedFlags = Record<string, string>;
 interface ParsedArgs {
   commands: string[];
   flags: ParsedFlags;
+}
+
+export interface CLIInstallPrompt {
+  ask(message: string): Promise<string>;
+  askSecret?: (message: string) => Promise<string>;
+  close?: () => Promise<void> | void;
+}
+
+export interface CLIRunDependencies {
+  interactive?: boolean;
+  prompt?: CLIInstallPrompt;
 }
 
 interface PackageMetadata {
@@ -311,9 +323,12 @@ const INSTALL_HELP_TEXT = [
   "  --llm-model <model>",
   "  --llm-api-key <key>",
   "  --llm-base-url <url>",
+  "  --interactive",
+  "  --no-interactive",
   "  --json",
   "",
-  "If provider flags are omitted, install still succeeds in local rules-only mode.",
+  "Interactive terminals prompt for missing storage/provider settings unless --no-interactive or --json is used; --interactive forces prompts.",
+  "If provider setup is skipped, install still succeeds in local rules-only mode.",
   "Add them later by rerunning install with flags or editing ~/.goodmemory/<host>.json.",
 ].join("\n");
 const UNINSTALL_HELP_TEXT = [
@@ -2198,6 +2213,424 @@ function summarizeInstalledProviders(
   };
 }
 
+const EMBEDDING_INSTALL_FLAGS = [
+  "embedding-api-key",
+  "embedding-base-url",
+  "embedding-model",
+  "embedding-provider",
+];
+const LLM_INSTALL_FLAGS = [
+  "llm-api-key",
+  "llm-base-url",
+  "llm-model",
+  "llm-provider",
+];
+
+async function resolveInteractiveInstallFlags(
+  host: InstalledHostKind,
+  flags: ParsedFlags,
+  dependencies: CLIRunDependencies = {},
+): Promise<ParsedFlags> {
+  const prompt = resolveInstallPrompt(flags, dependencies);
+  if (!prompt) {
+    return flags;
+  }
+
+  try {
+    const resolvedFlags = { ...flags };
+    const configPathHint = `~/.goodmemory/${host}.json`;
+    await promptOptionalFlag({
+      flagName: "user-id",
+      flags: resolvedFlags,
+      message:
+        "GoodMemory user id for this host install (leave empty to use the OS account)",
+      prompt,
+    });
+    await promptInstallStorage(resolvedFlags, prompt);
+    await promptEmbeddingInstallConfig(resolvedFlags, prompt, configPathHint);
+    await promptAssistedExtractorInstallConfig(resolvedFlags, prompt, configPathHint);
+
+    return resolvedFlags;
+  } finally {
+    await prompt.close?.();
+  }
+}
+
+function resolveInstallPrompt(
+  flags: ParsedFlags,
+  dependencies: CLIRunDependencies,
+): CLIInstallPrompt | undefined {
+  if (flagEnabled(flags, "interactive") && flagEnabled(flags, "no-interactive")) {
+    throw new Error("Use either --interactive or --no-interactive, not both.");
+  }
+  if (flagEnabled(flags, "no-interactive")) {
+    return undefined;
+  }
+
+  const shouldPrompt =
+    flagEnabled(flags, "interactive") ||
+    dependencies.interactive === true ||
+    (dependencies.interactive !== false &&
+      !flagEnabled(flags, "json") &&
+      isProcessInteractive());
+  if (!shouldPrompt) {
+    return undefined;
+  }
+
+  const prompt = dependencies.prompt ?? createProcessInstallPrompt();
+  if (!prompt) {
+    throw new Error(
+      "Interactive install requires a TTY. Re-run without --interactive for non-interactive mode, or pass provider flags directly.",
+    );
+  }
+
+  return prompt;
+}
+
+function isProcessInteractive(): boolean {
+  return Boolean(process.stdin.isTTY && process.stderr.isTTY);
+}
+
+function createProcessInstallPrompt(): CLIInstallPrompt | undefined {
+  if (!isProcessInteractive()) {
+    return undefined;
+  }
+
+  return {
+    ask: askProcessLine,
+    askSecret: askProcessSecret,
+  };
+}
+
+async function askProcessLine(message: string): Promise<string> {
+  const readline = createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+
+  try {
+    return await readline.question(message);
+  } finally {
+    readline.close();
+  }
+}
+
+async function askProcessSecret(message: string): Promise<string> {
+  if (typeof process.stdin.setRawMode !== "function") {
+    return askProcessLine(message);
+  }
+
+  process.stderr.write(message);
+  const wasRaw = process.stdin.isRaw === true;
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+
+  return await new Promise<string>((resolve, reject) => {
+    let value = "";
+
+    const cleanup = (): void => {
+      process.stdin.off("data", onData);
+      process.stdin.setRawMode(wasRaw);
+      process.stderr.write("\n");
+    };
+    const onData = (chunk: Buffer): void => {
+      for (const char of chunk.toString("utf8")) {
+        if (char === "\u0003") {
+          cleanup();
+          reject(new Error("Interactive install cancelled."));
+          return;
+        }
+        if (char === "\r" || char === "\n") {
+          cleanup();
+          resolve(value);
+          return;
+        }
+        if (char === "\u0008" || char === "\u007f") {
+          value = value.slice(0, -1);
+          continue;
+        }
+
+        value += char;
+      }
+    };
+
+    process.stdin.on("data", onData);
+  });
+}
+
+async function promptOptionalFlag(input: {
+  flagName: string;
+  flags: ParsedFlags;
+  message: string;
+  prompt: CLIInstallPrompt;
+}): Promise<void> {
+  if (input.flags[input.flagName] !== undefined) {
+    return;
+  }
+
+  const answer = await askPrompt(input.prompt, `${input.message}: `);
+  if (answer) {
+    input.flags[input.flagName] = answer;
+  }
+}
+
+async function promptInstallStorage(
+  flags: ParsedFlags,
+  prompt: CLIInstallPrompt,
+): Promise<void> {
+  if (flags["memory-path"] !== undefined) {
+    return;
+  }
+
+  const existingProvider = flags["storage-provider"];
+  if (existingProvider !== undefined) {
+    const provider = readInstallStorageProviderFlag(existingProvider);
+    if (
+      provider === "postgres" &&
+      normalizeOptionalFlag(flags["storage-url"]) === undefined
+    ) {
+      const storageUrl = await askPrompt(
+        prompt,
+        "Postgres connection string for GoodMemory storage (leave empty to skip Postgres for now): ",
+      );
+      if (storageUrl) {
+        flags["storage-url"] = storageUrl;
+      } else {
+        clearInstallStorageFlags(flags);
+      }
+    }
+    return;
+  }
+
+  const choice = await askChoice({
+    choices: ["sqlite", "postgres", "skip"],
+    defaultValue: "sqlite",
+    message:
+      "Storage provider for GoodMemory host memory [sqlite/postgres/skip]",
+    prompt,
+  });
+  if (choice === "skip") {
+    return;
+  }
+  if (choice === "sqlite") {
+    flags["storage-provider"] = "sqlite";
+    return;
+  }
+
+  const storageUrl = await askPrompt(
+    prompt,
+    "Postgres connection string for GoodMemory storage (leave empty to skip Postgres for now): ",
+  );
+  if (storageUrl) {
+    flags["storage-provider"] = "postgres";
+    flags["storage-url"] = storageUrl;
+  }
+}
+
+function clearInstallStorageFlags(flags: ParsedFlags): void {
+  delete flags["storage-provider"];
+  delete flags["storage-url"];
+}
+
+async function promptEmbeddingInstallConfig(
+  flags: ParsedFlags,
+  prompt: CLIInstallPrompt,
+  configPathHint: string,
+): Promise<void> {
+  const requestedByFlags = hasAnyFlag(flags, EMBEDDING_INSTALL_FLAGS);
+  if (!requestedByFlags) {
+    const shouldConfigure = await askYesNo({
+      defaultValue: false,
+      message: "Embedding provider improves semantic recall. Configure OpenAI embeddings now?",
+      prompt,
+    });
+    if (!shouldConfigure) {
+      return;
+    }
+    flags["embedding-provider"] = "openai";
+  } else if (flags["embedding-provider"] === undefined) {
+    flags["embedding-provider"] = "openai";
+  }
+
+  await promptOptionalFlag({
+    flagName: "embedding-model",
+    flags,
+    message:
+      "Embedding model (for example text-embedding-3-small; leave empty to skip embeddings)",
+    prompt,
+  });
+  await promptOptionalSecretFlag({
+    flagName: "embedding-api-key",
+    flags,
+    message:
+      `Embedding API key (stored in ${configPathHint}; leave empty to skip embeddings)`,
+    prompt,
+  });
+  await promptOptionalFlag({
+    flagName: "embedding-base-url",
+    flags,
+    message: "Embedding base URL (optional, leave empty for provider default)",
+    prompt,
+  });
+  clearProviderFlagsIfRequiredValuesMissing(flags, EMBEDDING_INSTALL_FLAGS, [
+    "embedding-api-key",
+    "embedding-model",
+    "embedding-provider",
+  ]);
+}
+
+async function promptAssistedExtractorInstallConfig(
+  flags: ParsedFlags,
+  prompt: CLIInstallPrompt,
+  configPathHint: string,
+): Promise<void> {
+  const requestedByFlags = hasAnyFlag(flags, LLM_INSTALL_FLAGS);
+  if (!requestedByFlags) {
+    const shouldConfigure = await askYesNo({
+      defaultValue: false,
+      message:
+        "LLM extraction provider improves memory writes. Configure LLM extraction now?",
+      prompt,
+    });
+    if (!shouldConfigure) {
+      return;
+    }
+  }
+
+  if (flags["llm-provider"] === undefined) {
+    flags["llm-provider"] = await askChoice({
+      choices: ["openai", "anthropic"],
+      defaultValue: "openai",
+      message: "LLM extraction provider [openai/anthropic]",
+      prompt,
+    });
+  }
+  await promptOptionalFlag({
+    flagName: "llm-model",
+    flags,
+    message:
+      "LLM extraction model (required; leave empty to skip LLM extraction)",
+    prompt,
+  });
+  await promptOptionalSecretFlag({
+    flagName: "llm-api-key",
+    flags,
+    message:
+      `LLM API key (stored in ${configPathHint}; leave empty to skip LLM extraction)`,
+    prompt,
+  });
+  await promptOptionalFlag({
+    flagName: "llm-base-url",
+    flags,
+    message: "LLM base URL (optional, leave empty for provider default)",
+    prompt,
+  });
+  clearProviderFlagsIfRequiredValuesMissing(flags, LLM_INSTALL_FLAGS, [
+    "llm-api-key",
+    "llm-model",
+    "llm-provider",
+  ]);
+}
+
+async function promptOptionalSecretFlag(input: {
+  flagName: string;
+  flags: ParsedFlags;
+  message: string;
+  prompt: CLIInstallPrompt;
+}): Promise<void> {
+  if (input.flags[input.flagName] !== undefined) {
+    return;
+  }
+
+  const answer = await askSecretPrompt(input.prompt, `${input.message}: `);
+  if (answer) {
+    input.flags[input.flagName] = answer;
+  }
+}
+
+async function askPrompt(
+  prompt: CLIInstallPrompt,
+  message: string,
+): Promise<string | undefined> {
+  const answer = (await prompt.ask(message)).trim();
+  return answer.length > 0 ? answer : undefined;
+}
+
+async function askSecretPrompt(
+  prompt: CLIInstallPrompt,
+  message: string,
+): Promise<string | undefined> {
+  const answer = (await (prompt.askSecret ?? prompt.ask)(message)).trim();
+  return answer.length > 0 ? answer : undefined;
+}
+
+async function askChoice(input: {
+  choices: string[];
+  defaultValue: string;
+  message: string;
+  prompt: CLIInstallPrompt;
+}): Promise<string> {
+  const answer =
+    (await askPrompt(input.prompt, `${input.message} (${input.defaultValue}): `)) ??
+    input.defaultValue;
+  const normalized = answer.toLowerCase();
+  if (!input.choices.includes(normalized)) {
+    throw new Error(
+      `Unsupported install prompt answer: ${answer}. Expected ${input.choices.join("|")}.`,
+    );
+  }
+
+  return normalized;
+}
+
+async function askYesNo(input: {
+  defaultValue: boolean;
+  message: string;
+  prompt: CLIInstallPrompt;
+}): Promise<boolean> {
+  const suffix = input.defaultValue ? "[Y/n]" : "[y/N]";
+  const answer = await askPrompt(input.prompt, `${input.message} ${suffix}: `);
+  if (answer === undefined) {
+    return input.defaultValue;
+  }
+
+  const normalized = answer.toLowerCase();
+  if (normalized === "y" || normalized === "yes") {
+    return true;
+  }
+  if (
+    normalized === "n" ||
+    normalized === "no" ||
+    normalized === "skip" ||
+    normalized === "later"
+  ) {
+    return false;
+  }
+
+  throw new Error(`Unsupported yes/no answer: ${answer}. Expected yes|no.`);
+}
+
+function hasAnyFlag(flags: ParsedFlags, names: string[]): boolean {
+  return names.some((name) => flags[name] !== undefined);
+}
+
+function clearProviderFlagsIfRequiredValuesMissing(
+  flags: ParsedFlags,
+  allFlagNames: string[],
+  requiredFlagNames: string[],
+): void {
+  const hasRequiredValues = requiredFlagNames.every(
+    (name) => normalizeOptionalFlag(flags[name]) !== undefined,
+  );
+  if (hasRequiredValues) {
+    return;
+  }
+
+  for (const name of allFlagNames) {
+    delete flags[name];
+  }
+}
+
 async function handleInspect(flags: ParsedFlags): Promise<CLICommandOutput> {
   const scope = resolveScopeFromFlags(flags);
   const includeRuntime = shouldIncludeRuntime(flags, scope);
@@ -2516,15 +2949,17 @@ async function handleHostBootstrap(
 async function handleHostInstall(
   host: InstalledHostKind,
   flags: ParsedFlags,
+  dependencies: CLIRunDependencies = {},
 ): Promise<CLICommandOutput> {
+  const installFlags = await resolveInteractiveInstallFlags(host, flags, dependencies);
   const result = await installHost({
-    assistedExtractor: readOptionalAssistedExtractorProviderConfig(flags),
-    embedding: readOptionalEmbeddingProviderConfig(flags),
+    assistedExtractor: readOptionalAssistedExtractorProviderConfig(installFlags),
+    embedding: readOptionalEmbeddingProviderConfig(installFlags),
     host,
-    memoryPath: flags["memory-path"],
-    storageProvider: readInstallStorageProviderFlag(flags["storage-provider"]),
-    storageUrl: flags["storage-url"],
-    userId: flags["user-id"],
+    memoryPath: installFlags["memory-path"],
+    storageProvider: readInstallStorageProviderFlag(installFlags["storage-provider"]),
+    storageUrl: installFlags["storage-url"],
+    userId: installFlags["user-id"],
   });
   const providerSummary = summarizeInstalledProviders(result.providers);
   const payload = {
@@ -2669,7 +3104,10 @@ async function handleMcpServe(flags: ParsedFlags): Promise<void> {
   });
 }
 
-export async function runCLI(argv: string[]): Promise<CLIResult> {
+export async function runCLI(
+  argv: string[],
+  dependencies: CLIRunDependencies = {},
+): Promise<CLIResult> {
   try {
     const { commands, flags } = parseArgs(argv);
     if (versionRequested(flags)) {
@@ -2874,7 +3312,11 @@ export async function runCLI(argv: string[]): Promise<CLIResult> {
     }
     if (primary === "install") {
       return renderOutput(
-        await handleHostInstall(requireInstalledHostKind(commands[1]), flags),
+        await handleHostInstall(
+          requireInstalledHostKind(commands[1]),
+          flags,
+          dependencies,
+        ),
         flags,
       );
     }

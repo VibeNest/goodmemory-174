@@ -105,3 +105,13 @@ TDD is mandatory here: add a failing test first, then implement. Put pure logic 
 ## Commit & Pull Request Guidelines
 
 Recent history mixes scoped English subjects and short milestone commits, for example `Enhance AI SDK integration and examples` and `phase 23完成`. Keep new subjects specific and easy to scan. PRs should include a concise summary, linked task-board item or ADR when relevant, and the commands you ran. If a change touches Postgres, fixtures, or eval output, note the environment used and whether `reports/eval/` or `reports/quality-gates/` changes are intentional.
+
+<!-- GOODMEMORY-INSTALL:CODEX START -->
+## GoodMemory Codex
+
+This repository opts into the installed GoodMemory Codex host-config path.
+
+Prefer hook-injected GoodMemory context when the installed host runtime provides it.
+Use GoodMemory MCP for deep memory inspection or recall debugging when the installed host runtime exposes it.
+Treat exported artifact files as projections, not canonical truth.
+<!-- GOODMEMORY-INSTALL:CODEX END -->

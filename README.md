@@ -182,10 +182,16 @@ The read-only MCP surface is accepted for deep read, debug, and artifact browsin
 
 The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` are accepted for installed-host seeding and correction. They do not add automatic writeback, transcript persistence, or a stop-hook memory path.
 
-Installed-host setup is designed as a closed loop. `goodmemory install <codex|claude>`
-always succeeds with the local SQLite + rules-only baseline unless you provide
-optional storage/provider flags. To configure stronger memory at install time,
-pass Postgres, embedding, and LLM extraction flags:
+Installed-host setup is designed as a closed loop. In an interactive terminal,
+`goodmemory install <codex|claude>` prompts for the GoodMemory user id, optional
+Postgres storage, optional embedding provider, and optional LLM extraction
+provider. You can provide values, skip them, or defer them. `--json` and
+`--no-interactive` keep install script-safe; `--interactive` forces the prompt
+flow. If you skip provider setup, install still succeeds with the local SQLite +
+rules-only baseline.
+
+To configure stronger memory non-interactively, pass Postgres, embedding, and
+LLM extraction flags:
 
 ```bash
 goodmemory install codex \
@@ -200,13 +206,13 @@ goodmemory install codex \
   --llm-api-key <key>
 ```
 
-If you skip those flags, the install output points to the managed file to edit
-later: `~/.goodmemory/codex.json` or `~/.goodmemory/claude.json`. Re-running
-`goodmemory install <host>` with the provider flags updates the same managed
-config and keeps MCP/hook registration idempotent. The installed hook, MCP, and
-`--host` write commands read this managed config directly; shell environment
-variables are still supported by the lower-level core runtime, but they are not
-required for the installed-host path.
+If you skip prompts or flags, the install output points to the managed file to
+edit later: `~/.goodmemory/codex.json` or `~/.goodmemory/claude.json`.
+Re-running `goodmemory install <host>` with provider flags updates the same
+managed config and keeps MCP/hook registration idempotent. The installed hook,
+MCP, and `--host` write commands read this managed config directly; shell
+environment variables are still supported by the lower-level core runtime, but
+they are not required for the installed-host path.
 
 Package upgrade and GoodMemory host uninstall are separate operations. Upgrade
 the package through the same package manager you used to install it:

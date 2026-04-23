@@ -135,11 +135,18 @@ async function packCurrentPackage(input: {
   }
 
   const stdout = TEXT_DECODER.decode(pack.stdout).trim();
-  if (stdout.length === 0) {
+  const tarballOutput = stdout
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith(".tgz"))
+    .at(-1);
+  if (tarballOutput === undefined) {
     throw new Error("Expected bun pm pack to print the generated tarball path.");
   }
 
-  return stdout.includes("/") ? stdout : join(input.outputDir, stdout);
+  return tarballOutput.includes("/")
+    ? tarballOutput
+    : join(input.outputDir, tarballOutput);
 }
 
 function buildAnswerPackage(
@@ -2242,6 +2249,276 @@ describe("goodmemory cli installed host config", () => {
           expect(config.providers.assistedExtractor).toMatchObject({
             model: "gpt-4o-mini",
             provider: "openai",
+          });
+        },
+      );
+    } finally {
+      await home.cleanup();
+    }
+  });
+
+  it("prompts for installed-host storage and provider config during interactive install", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-interactive-home");
+    const prompts: string[] = [];
+    const answers = [
+      "codex-user",
+      "postgres",
+      "postgres://postgres:secret@localhost:5432/goodmemory",
+      "yes",
+      "text-embedding-3-small",
+      "embedding-secret",
+      "",
+      "yes",
+      "openai",
+      "gpt-4o-mini",
+      "llm-secret",
+      "",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await runCLI(
+            [
+              "install",
+              "codex",
+              "--interactive",
+              "--json",
+            ],
+            {
+              interactive: true,
+              prompt: {
+                ask: async (message) => {
+                  prompts.push(message);
+                  return answers.shift() ?? "";
+                },
+                askSecret: async (message) => {
+                  prompts.push(message);
+                  return answers.shift() ?? "";
+                },
+              },
+            },
+          );
+
+          expect(result.exitCode).toBe(0);
+          expect(result.stdout).not.toContain("embedding-secret");
+          expect(result.stdout).not.toContain("llm-secret");
+          expect(prompts.join("\n")).toContain("Postgres connection string");
+          expect(prompts.join("\n")).toContain("Embedding");
+          expect(prompts.join("\n")).toContain("LLM extraction");
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            providers: {
+              assistedExtractor: {
+                apiKey: string;
+                model: string;
+                provider: string;
+              };
+              embedding: {
+                apiKey: string;
+                model: string;
+                provider: string;
+              };
+            };
+            storage: {
+              provider: string;
+              url: string;
+            };
+            userId: string;
+          };
+          expect(config.userId).toBe("codex-user");
+          expect(config.storage).toEqual({
+            provider: "postgres",
+            url: "postgres://postgres:secret@localhost:5432/goodmemory",
+          });
+          expect(config.providers.embedding).toEqual({
+            apiKey: "embedding-secret",
+            model: "text-embedding-3-small",
+            provider: "openai",
+          });
+          expect(config.providers.assistedExtractor).toEqual({
+            apiKey: "llm-secret",
+            model: "gpt-4o-mini",
+            provider: "openai",
+          });
+        },
+      );
+    } finally {
+      await home.cleanup();
+    }
+  });
+
+  it("lets interactive installed-host users skip providers and defer to the managed config path", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-interactive-skip-home");
+    const answers = [
+      "",
+      "skip",
+      "no",
+      "no",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await runCLI(
+            [
+              "install",
+              "codex",
+              "--interactive",
+            ],
+            {
+              interactive: true,
+              prompt: {
+                ask: async () => answers.shift() ?? "",
+                askSecret: async () => answers.shift() ?? "",
+              },
+            },
+          );
+
+          expect(result.exitCode).toBe(0);
+          expect(result.stdout).toContain("embedding provider: not configured");
+          expect(result.stdout).toContain("LLM extraction provider: not configured");
+          expect(result.stdout).toContain(join(home.root, ".goodmemory/codex.json"));
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            providers?: unknown;
+            storage: {
+              path: string;
+              provider: string;
+            };
+          };
+          expect(config.providers).toBeUndefined();
+          expect(config.storage).toEqual({
+            path: join(home.root, ".goodmemory/memory.sqlite"),
+            provider: "sqlite",
+          });
+        },
+      );
+    } finally {
+      await home.cleanup();
+    }
+  });
+
+  it("lets interactive sqlite storage override an existing Postgres install", async () => {
+    const home = await createTempWorkspace(
+      "goodmemory-codex-install-interactive-sqlite-reinstall-home",
+    );
+    const answers = [
+      "",
+      "sqlite",
+      "no",
+      "no",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const initial = await runCLI([
+            "install",
+            "codex",
+            "--storage-provider",
+            "postgres",
+            "--storage-url",
+            "postgres://example/db",
+            "--json",
+          ]);
+          expect(initial.exitCode).toBe(0);
+
+          const result = await runCLI(
+            [
+              "install",
+              "codex",
+              "--interactive",
+            ],
+            {
+              interactive: true,
+              prompt: {
+                ask: async () => answers.shift() ?? "",
+                askSecret: async () => answers.shift() ?? "",
+              },
+            },
+          );
+
+          expect(result.exitCode).toBe(0);
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            storage: {
+              path: string;
+              provider: string;
+            };
+          };
+          expect(config.storage).toEqual({
+            path: join(home.root, ".goodmemory/memory.sqlite"),
+            provider: "sqlite",
+          });
+        },
+      );
+    } finally {
+      await home.cleanup();
+    }
+  });
+
+  it("lets interactive users leave a prompted Postgres URL blank to skip Postgres", async () => {
+    const home = await createTempWorkspace(
+      "goodmemory-codex-install-interactive-blank-postgres-url-home",
+    );
+    const answers = [
+      "",
+      "",
+      "no",
+      "no",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await runCLI(
+            [
+              "install",
+              "codex",
+              "--storage-provider",
+              "postgres",
+              "--interactive",
+            ],
+            {
+              interactive: true,
+              prompt: {
+                ask: async () => answers.shift() ?? "",
+                askSecret: async () => answers.shift() ?? "",
+              },
+            },
+          );
+
+          expect(result.exitCode).toBe(0);
+          expect(result.stderr).toBe("");
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            storage: {
+              path: string;
+              provider: string;
+            };
+          };
+          expect(config.storage).toEqual({
+            path: join(home.root, ".goodmemory/memory.sqlite"),
+            provider: "sqlite",
           });
         },
       );
