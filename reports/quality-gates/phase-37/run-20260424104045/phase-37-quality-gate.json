@@ -1,0 +1,251 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 37 deterministic, provider-backed assisted-extraction live-memory, external consumer, and Phase 35/36 regression gates all passed."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 3866,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/host-writeback-runtime.test.ts tests/unit/host-writeback-config.test.ts tests/unit/host-hook-runtime.test.ts tests/unit/host-install.test.ts tests/integration/installed-host-writeback.test.ts tests/unit/run-phase-37.script.test.ts tests/unit/run-phase-37.live-memory.test.ts tests/unit/run-phase-37.external-consumer.test.ts tests/unit/run-phase-37.gate.test.ts tests/cli/cli.test.ts tests/release/release.test.ts",
+      "durationMs": 41970,
+      "exitCode": 0,
+      "label": "phase-37-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [3.99ms]",
+        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [2.68ms]",
+        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [3.65ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [2.39ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [3.61ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [2.29ms]",
+        "(pass) goodmemory cli root commands > remember writes durable memory through explicit scope flags and default sqlite storage [3.39ms]",
+        "(pass) goodmemory cli root commands > feedback derives installed-host defaults and is recalled through the host hook path [116.68ms]",
+        "(pass) goodmemory cli root commands > host-derived write commands require repo opt-in before using installed-host defaults [2.26ms]",
+        "(pass) goodmemory cli root commands > forget removes a host-derived memory id from the installed-host storage path [4.51ms]",
+        "(pass) goodmemory cli root commands > forget supports deleting a full scoped target with --all [9.08ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.59ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.28ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.32ms]",
+        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.40ms]",
+        "",
+        " 190 pass",
+        " 0 fail",
+        " 2181 expect() calls",
+        "Ran 190 tests across 11 files. [41.96s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-37 --run-id run-20260424101045",
+      "durationMs": 1306,
+      "exitCode": 0,
+      "label": "phase-37-fallback-eval",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-37-eval.ts --run-id \"run-20260424101045\""
+      ],
+      "stdoutTail": [
+        "  ],",
+        "  \"generatedAt\": \"2026-04-24T02:52:38.908Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-37-eval.ts\",",
+        "  \"mode\": \"fallback\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-37\",",
+        "  \"phase\": \"phase-37\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-37/run-20260424101045\",",
+        "  \"runId\": \"run-20260424101045\",",
+        "  \"summary\": {",
+        "    \"acceptedCaseCount\": 8,",
+        "    \"blockedAssistantCount\": 1,",
+        "    \"dedupePassCount\": 1,",
+        "    \"durableWriteCount\": 5,",
+        "    \"nextSessionRecallPassCount\": 1,",
+        "    \"privacyMaskPassCount\": 2,",
+        "    \"rawTranscriptRejectedPassCount\": 1,",
+        "    \"totalCases\": 8,",
+        "    \"writebackCandidateCount\": 7",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-37-live-memory",
+      "durationMs": 2170,
+      "exitCode": 0,
+      "label": "phase-37-live-memory",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-37-live-memory.ts"
+      ],
+      "stdoutTail": [
+        "    \"resolvedExtractionStrategies\": [",
+        "      \"llm-assisted\"",
+        "    ],",
+        "    \"wroteDurableMemory\": true,",
+        "    \"writebackMode\": \"selective\"",
+        "  },",
+        "  \"evidenceContract\": {",
+        "    \"phase37\": {",
+        "      \"runner\": \"scripts/run-phase-37-live-memory.ts\",",
+        "      \"runtimePath\": \"provider_backed_assisted_extraction_installed_host_selective_writeback\"",
+        "    }",
+        "  },",
+        "  \"generatedAt\": \"2026-04-24T02:52:38.976Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-37-live-memory.ts\",",
+        "  \"mode\": \"live-memory\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-37\",",
+        "  \"phase\": \"phase-37\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-37/run-phase37-live-current\",",
+        "  \"runId\": \"run-phase37-live-current\"",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-37-external-consumer",
+      "durationMs": 12793,
+      "exitCode": 0,
+      "label": "phase-37-external-consumer",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-37-external-consumer.ts"
+      ],
+      "stdoutTail": [
+        "    \"rawTranscriptPersisted\": false,",
+        "    \"tarballName\": \"goodmemory-0.1.1.tgz\",",
+        "    \"wroteDurableMemory\": true,",
+        "    \"writebackMode\": \"selective\"",
+        "  },",
+        "  \"evidenceContract\": {",
+        "    \"phase37\": {",
+        "      \"packageBoundary\": \"external_consumer_installed_package\",",
+        "      \"runner\": \"scripts/run-phase-37-external-consumer.ts\",",
+        "      \"runtimePath\": \"external_consumer_installed_host_writeback\"",
+        "    }",
+        "  },",
+        "  \"generatedAt\": \"2026-04-24T02:52:41.111Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-37-external-consumer.ts\",",
+        "  \"mode\": \"external-consumer\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-37\",",
+        "  \"phase\": \"phase-37\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-37/run-phase37-external-consumer\",",
+        "  \"runId\": \"run-phase37-external-consumer\"",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-35",
+      "durationMs": 47242,
+      "exitCode": 0,
+      "label": "phase-35-regression-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-35-gate.ts"
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"generatedAt\": \"2026-04-24T02:53:41.116Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-35-gate.ts\",",
+        "  \"phase\": \"phase-35\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-35/run-20260423213045\",",
+        "  \"runId\": \"run-20260423213045\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"phase-35 deterministic installed-hook middleware evaluation against the frozen Phase 32 text-only path and the no-memory baseline\",",
+        "      \"tarball-first installed-package Codex middleware validation for install, repo opt-in, hook injection, and read-only MCP availability\",",
+        "      \"phase-35 quality-gate generation and fail-closed closure validation\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"widening the root API or exposing public goodmemory/evolution\",",
+        "      \"automatic writeback, transcript persistence, or stop-hook behavior\",",
+        "      \"making Claude a second live gate blocker\",",
+        "      \"claiming the frozen Phase 32 text-only path remains the canonical product line after Phase 35\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-36",
+      "durationMs": 31119,
+      "exitCode": 0,
+      "label": "phase-36-regression-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-36-gate.ts"
+      ],
+      "stdoutTail": [
+        "  \"generatedAt\": \"2026-04-24T02:54:12.233Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-36-gate.ts\",",
+        "  \"phase\": \"phase-36\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-36/run-20260423223045\",",
+        "  \"runId\": \"run-20260423223045\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"public remember config, profile resolution, rules DSL, annotations, assistant-output policy, and metadata persistence\",",
+        "      \"deterministic Phase 36 eval over life-coach/domain-write public configuration\",",
+        "      \"provider-backed live-memory smoke evidence through the public write customization surface\",",
+        "      \"Phase 36 quality-gate generation and fail-closed closure validation\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"turning OneLife into a built-in preset\",",
+        "      \"requiring assisted extraction or provider storage for zero-config users\",",
+        "      \"widening top-level memory kinds beyond the stable taxonomy\",",
+        "      \"automatic assistant-output memory without host confirmation or verification\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "reason": "Deterministic installed-host selective writeback eval passed every Phase 37 case.",
+      "reportPath": "reports/eval/fallback/phase-37/run-20260424101045/report.json",
+      "status": "accepted"
+    },
+    "externalConsumer": {
+      "reason": "External consumer tarball smoke proved installed package writeback and recall.",
+      "reportPath": "reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json",
+      "status": "accepted"
+    },
+    "liveMemory": {
+      "reason": "Provider-backed assisted-extraction live-memory smoke proved installed Codex selective writeback and next-session recall.",
+      "reportPath": "reports/eval/live-memory/phase-37/run-phase37-live-current/report.json",
+      "runtimePath": "provider_backed_assisted_extraction_installed_host_selective_writeback",
+      "status": "accepted"
+    }
+  },
+  "generatedAt": "2026-04-24T02:54:12.237Z",
+  "generatedBy": "scripts/run-phase-37-gate.ts",
+  "phase": "phase-37",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-37/run-20260424104045",
+  "runId": "run-20260424104045",
+  "scope": {
+    "inScope": [
+      "installed-host selective writeback for Codex first, with Claude CLI parity",
+      "opt-in off, observe, and selective managed writeback config",
+      "public remember-surface writes with assistant confirmation or verification policy",
+      "no raw transcript persistence, remember-never masking, dedupe, and next-session recall evidence",
+      "provider-backed assisted-extraction live-memory and external consumer package smoke evidence"
+    ],
+    "outOfScope": [
+      "default-on automatic writeback",
+      "full transcript archive",
+      "dashboard or managed cloud",
+      "OneLife built-in preset",
+      "recall router reopening",
+      "Claude provider-backed live blocker"
+    ]
+  }
+}

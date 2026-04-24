@@ -208,7 +208,7 @@ Current Sequencing Note
   - quality gate: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
   - global install, explicit repo opt-in, hook-injected recall, read-only MCP, and explicit write CLI are accepted on the installed-host path
-  - automatic writeback, transcript persistence, `Stop` hooks, public `goodmemory/evolution`, and Claude as a second live blocker remain out of scope
+  - this slice did not claim automatic writeback, transcript persistence, `Stop` hooks, public `goodmemory/evolution`, or Claude as a second live blocker
 - Phase 36 is now closed as the public domain write profiles and rules slice:
   - deterministic fallback evidence: `reports/eval/fallback/phase-36/run-20260423221045/report.json`
   - provider-backed live-memory evidence: `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
@@ -216,12 +216,16 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
   - accepted surface: public `remember` config, profiles, rules, annotations, assistant-output policy, domain metadata, and traceable extractor composition with stable custom extractor ids
   - OneLife / life-coach remains a reference pattern, not a built-in preset
-- Phase 37 is now open as the installed host selective writeback slice:
+- Phase 37 is now closed as the installed host selective writeback slice:
   - task-board entrypoint: `task-board/38-phase-37-installed-host-selective-writeback.txt`
   - breakdown folder: `task-board/phase-37-installed-host-selective-writeback/`
-  - goal: connect the Phase 35 installed-host recall path with the Phase 36 public remember path so Codex can opt into selective automatic writeback
-  - default remains off; observe mode must write nothing; selective mode must write only through public remember profiles/rules/annotations
-  - closure requires deterministic eval, provider-backed live-memory smoke, external consumer smoke, a dedicated Phase 37 gate, and non-regression of Phase 35/36 gates
+  - deterministic fallback evidence: `reports/eval/fallback/phase-37/run-20260424101045/report.json`
+  - provider-backed assisted-extraction live-memory evidence: `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
+  - external consumer evidence: `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
+  - quality gate: `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md`
+  - accepted surface: Codex installed host supports opt-in `off` / `observe` / `selective` writeback through public `remember` profiles/rules/annotations, with no raw transcript persistence and assistant output still gated by host confirmation or verification
+  - still out of scope: default-on writeback, transcript archives, dashboard, managed cloud, built-in OneLife preset, recall-router reopening, and Claude as a provider-backed live blocker
 - Any work after Phase 37 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -241,13 +245,13 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 36 guarantees while future work lands
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, and accepted Phase 36 public write-profile evidence regression-covered while future work lands
-   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, or Phase 36 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute future host work on top of the accepted Phase 35 installed-host middleware boundary instead of widening the core API or reintroducing repo-internal integration paths
+   - Preserve the closed Phase 17 through Phase 37 guarantees while future work lands
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, and accepted Phase 37 installed-host writeback evidence regression-covered while future work lands
+   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, Phase 36, or Phase 37 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - Execute future host work on top of the accepted Phase 35 installed-host middleware boundary and Phase 37 installed-host writeback boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, and Phase 36 public write-profile guarantees regression-covered while later phases execute
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, Phase 36 public write-profile guarantees, and Phase 37 installed-host writeback guarantees regression-covered while later phases execute
 3. Medium-term system hardening
    - Keep the accepted Codex host integration surface stable while future host-runtime evidence deepens
 4. Host integration track

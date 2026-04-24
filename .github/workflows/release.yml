@@ -28,7 +28,12 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run release gate
-        run: bun run gate:phase-36
+        env:
+          GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY: ${{ secrets.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY }}
+          GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL: ${{ secrets.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL }}
+          GOODMEMORY_ASSISTED_EXTRACTOR_MODEL: ${{ secrets.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL }}
+          GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER: ${{ secrets.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER }}
+        run: bun run gate:phase-37
 
       - name: Pack release tarball
         id: pack

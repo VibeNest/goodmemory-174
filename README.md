@@ -174,20 +174,33 @@ contract:
 The installed Node wrapper answers version queries directly without launching
 Bun. Other CLI commands still delegate to Bun.
 
-Phase 35 installed-host middleware commands are now part of the accepted stable host surface. The recommended entrypoint is `goodmemory setup`, which detects Codex and Claude Code, installs managed host wiring, and defaults interactive installs to global activation. `goodmemory status [codex|claude]` reports host wiring, activation mode, current workspace status, storage, managed MCP/hook registration, and scoped memory counts without initializing fresh local SQLite state. The host-specific `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>` commands remain available for advanced control, while the lower-level `goodmemory codex bootstrap` / `goodmemory claude bootstrap` commands stay supported compatibility paths for artifact-first integrations.
+Phase 35 installed-host middleware commands are now part of the accepted stable host surface. The recommended entrypoint is `goodmemory setup`, which detects Codex and Claude Code, installs managed host wiring, and defaults interactive installs to global activation. `goodmemory status [codex|claude]` reports host wiring, activation mode, current workspace status, storage, managed MCP/hook registration, writeback mode, and scoped memory counts without initializing fresh local SQLite state. The host-specific `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>` commands remain available for advanced control, while the lower-level `goodmemory codex bootstrap` / `goodmemory claude bootstrap` commands stay supported compatibility paths for artifact-first integrations.
 
-The accepted installed hook runtime commands are the canonical always-on recall path when a repository or global activation mode is enabled: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. `session-start` and `user-prompt-submit` read host hook JSON from stdin, use the existing `recall()` + `buildContext()` path, and fail open when config, opt-in, parsing, or recall is unavailable. Automatic learning, `session-stop`, and bounded hook-signal writeback remain outside the accepted Phase 35 gate until a new or reopened phase supplies matching evidence.
+The accepted installed hook runtime commands are the canonical always-on recall path when a repository or global activation mode is enabled: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. `session-start` and `user-prompt-submit` read host hook JSON from stdin, use the existing `recall()` + `buildContext()` path, and fail open when config, opt-in, parsing, or recall is unavailable.
 
 The read-only MCP surface is accepted for deep read, debug, and artifact browsing: `goodmemory mcp serve --host <codex|claude>` and `goodmemory-mcp --host <codex|claude>`. MCP does not replace hook-time recall injection or the Phase 34 host pre-action path.
 
-The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` are accepted for installed-host seeding and correction. GoodMemory still avoids raw full-transcript persistence, and automatic learning from hook signals is not part of the accepted Phase 35 stable surface.
+The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` remain accepted for installed-host seeding and correction.
+
+### Installed Host Writeback
+
+`goodmemory codex writeback` is the accepted opt-in installed-host after-response/session-end write path. `goodmemory claude writeback` follows the same deterministic surface, while Codex remains the canonical live-evidence path.
+
+Writeback is disabled by default. Use `observe` before `selective`:
+
+```bash
+goodmemory enable codex --writeback observe
+goodmemory enable codex --writeback selective
+```
+
+Writeback does not persist raw transcripts. It extracts selected memory candidates and writes them only through the public `remember` surface, using installed-host profiles, rules, annotations, and the Phase 36 assistant-output policy. Assistant-originated durable memory requires host confirmation or verification, and `remember: "never"` masks annotated content before extraction. `session-stop` hook payloads delegate to the same writeback runtime when a host invokes that hook.
 
 Installed-host setup is designed as a closed loop. In an interactive terminal,
 `goodmemory setup` is the recommended happy path. It asks which host to enable,
 where memory enhancement should run (`global`, `current-workspace`, or
 `manual`), then prompts for the GoodMemory user id, optional Postgres storage,
-optional embedding provider, optional LLM extraction provider, and whether to
-enable automatic learning for follow-on validation. `goodmemory install <codex|claude>` uses the same
+optional embedding provider, optional LLM extraction provider, and the
+installed-host writeback mode. `goodmemory install <codex|claude>` uses the same
 host-specific wizard. Global activation is the default interactive path, while
 `--json` and `--no-interactive` keep install script-safe; non-interactive
 install remains workspace opt-in unless `--activation-mode global` is passed.
@@ -263,9 +276,10 @@ operation (`goodmemory forget ...`) or a manual storage deletion after backup.
 ./node_modules/.bin/goodmemory -V
 ./node_modules/.bin/goodmemory setup --host codex
 ./node_modules/.bin/goodmemory status codex --workspace-root .
-./node_modules/.bin/goodmemory install codex --activation-mode global --auto-learn --user-id <user-id>
-./node_modules/.bin/goodmemory enable codex --workspace-root .
+./node_modules/.bin/goodmemory install codex --activation-mode global --writeback observe --user-id <user-id>
+./node_modules/.bin/goodmemory enable codex --workspace-root . --writeback selective
 printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' | ./node_modules/.bin/goodmemory codex hook session-start
+printf '%s' '{"cwd":".","session_id":"s-1","messages":[{"role":"user","content":"Next step is to finish the release smoke."}]}' | ./node_modules/.bin/goodmemory codex writeback --json
 printf '%s' '{"cwd":".","session_id":"s-1","event_id":"stop-1","summary":"Keep coding summaries short."}' | ./node_modules/.bin/goodmemory codex hook session-stop
 ./node_modules/.bin/goodmemory mcp serve --host codex
 ./node_modules/.bin/goodmemory-mcp --host codex
@@ -297,7 +311,9 @@ CLI surface:
 - `goodmemory mcp serve`
 - `goodmemory-mcp`
 - `goodmemory codex hook`
+- `goodmemory codex writeback`
 - `goodmemory claude hook`
+- `goodmemory claude writeback`
 - `goodmemory codex bootstrap`
 - `goodmemory claude bootstrap`
 - `goodmemory eval inspect`

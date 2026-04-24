@@ -3,7 +3,7 @@ Phase 37 Breakdown
 
 Status
 ------
-- Phase 37 is open.
+- Phase 37 is closed.
 - Scope: installed-host selective writeback for Codex first.
 - The accepted Phase 35 installed-host recall path remains the base layer.
 - The accepted Phase 36 public remember configuration path remains the only durable write path.
@@ -13,6 +13,10 @@ Status
 - `selective` mode writes only high-value candidates through public remember profiles, rules, annotations, and policies.
 - No raw transcript durable persistence is allowed.
 - Codex is the canonical implementation and live evidence path. Claude does not block closure.
+- Canonical deterministic evidence: `reports/eval/fallback/phase-37/run-20260424101045/report.json`
+- Canonical provider-backed assisted-extraction live evidence: `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
+- Canonical external consumer evidence: `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
+- Canonical quality gate: `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`
 
 
 Execution Order

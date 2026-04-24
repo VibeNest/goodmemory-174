@@ -21,10 +21,10 @@ The product rule for this phase is strict: installed-host writeback extracts aud
 
 Current Status
 --------------
-[TODO] Phase 37 is open.
+[DONE] Phase 37 is closed.
 [DONE] Phase 35 closed the stable installed-host middleware surface: install/uninstall, enable/disable, Codex/Claude hook scaffolding, hook-injected recall, read-only MCP, and explicit remember/feedback/forget commands.
 [DONE] Phase 36 closed public domain write customization: `GoodMemoryConfig.remember`, profiles, rules, annotations, assistant-output policy, `remember: "never"` masking, domain metadata, and traceable extractor composition.
-[TODO] Installed hosts still need opt-in automatic selective writeback, deterministic evidence, provider-backed live evidence, and external consumer smoke evidence.
+[DONE] Phase 37 adds opt-in installed-host selective writeback, deterministic evidence, provider-backed assisted-extraction live evidence, external consumer smoke evidence, and a Phase 35/36 regression gate.
 
 
 Dependencies
@@ -76,16 +76,25 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P37-T001 Freeze the Phase 37 contract and add failing tests
-[TODO] P37-T002 Add installed-host writeback config parsing, defaults, and context propagation
-[TODO] P37-T003 Implement observe-mode writeback runtime and JSON trace output
-[TODO] P37-T004 Implement selective writeback through public remember profiles/rules/annotations
-[TODO] P37-T005 Wire the Codex CLI command plus conservative install/enable opt-in
-[TODO] P37-T006 Add the deterministic Phase 37 eval and report contract
-[TODO] P37-T007 Add provider-backed live-memory smoke for automatic writeback plus next-session recall
-[TODO] P37-T008 Add repo-external consumer smoke against the packed package
-[TODO] P37-T009 Add the Phase 37 quality gate and Phase 35/36 regression chain
-[TODO] P37-T010 Sync README, current status, archive docs, reports, and release-facing checks
+[DONE] P37-T001 Freeze the Phase 37 contract and add failing tests
+[DONE] P37-T002 Add installed-host writeback config parsing, defaults, and context propagation
+[DONE] P37-T003 Implement observe-mode writeback runtime and JSON trace output
+[DONE] P37-T004 Implement selective writeback through public remember profiles/rules/annotations
+[DONE] P37-T005 Wire the Codex CLI command plus conservative install/enable opt-in
+[DONE] P37-T006 Add the deterministic Phase 37 eval and report contract
+[DONE] P37-T007 Add provider-backed live-memory smoke for automatic writeback plus next-session recall
+[DONE] P37-T008 Add repo-external consumer smoke against the packed package
+[DONE] P37-T009 Add the Phase 37 quality gate and Phase 35/36 regression chain
+[DONE] P37-T010 Sync README, current status, archive docs, reports, and release-facing checks
+
+
+Canonical Evidence
+------------------
+- Deterministic fallback evidence: `reports/eval/fallback/phase-37/run-20260424101045/report.json`
+- Provider-backed assisted-extraction live-memory evidence: `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
+- External consumer evidence: `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
+- Quality gate: `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`
+- Archive summary: `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md`
 
 
 Breakdown Folder

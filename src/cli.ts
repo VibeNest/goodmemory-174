@@ -39,15 +39,26 @@ import {
 import type { InstalledHostResolvedContext } from "./install/hostExecutionContext";
 import type {
   InstalledHostActivationMode,
-  InstalledHostAutoLearnConfig,
   InstalledHostEmbeddingProviderConfig,
   InstalledHostModelProviderConfig,
   InstalledHostProviderConfig,
+  InstalledHostWritebackConfig,
+  InstalledHostWritebackMode,
+} from "./install/hostConfigValidation";
+import {
+  DEFAULT_INSTALLED_HOST_WRITEBACK,
+  readWritebackMode,
 } from "./install/hostConfigValidation";
 import {
   readInstalledHostRuntimeConfig,
   resolveInstallRoot,
 } from "./install/hostRuntimeConfig";
+import {
+  executeInstalledHostWriteback,
+} from "./install/hostWritebackRuntime";
+import type {
+  InstalledHostWritebackResult,
+} from "./install/hostWritebackRuntime";
 import {
   isInstalledHostMcpRegistered,
   resolveInstalledHostMcpTargetPath,
@@ -101,8 +112,8 @@ type SetupHostSelection = "both" | InstalledHostKind;
 
 interface ResolvedInstallOptions {
   activationSelection?: InstallActivationSelection;
-  autoLearn?: InstalledHostAutoLearnConfig;
   flags: ParsedFlags;
+  writeback?: InstalledHostWritebackConfig;
 }
 
 interface FileSnapshot {
@@ -163,6 +174,7 @@ export interface CLIStorageResolutionDependencies {
 }
 
 interface CLICommandOutput {
+  exitCode?: number;
   json: unknown;
   text: string;
 }
@@ -242,8 +254,7 @@ const SETUP_HELP_TEXT = [
   "  --host <codex|claude|both>  Optional, defaults to detected installed hosts",
   "  --user-id <id>              Optional, defaults to the current OS username",
   "  --activation-mode <global|workspace_opt_in>",
-  "  --auto-learn",
-  "  --no-auto-learn",
+  "  --writeback <off|observe|selective>",
   "  --interactive",
   "  --no-interactive",
   "  --json",
@@ -376,8 +387,7 @@ const INSTALL_HELP_TEXT = [
   "  --llm-api-key <key>",
   "  --llm-base-url <url>",
   "  --activation-mode <global|workspace_opt_in>",
-  "  --auto-learn",
-  "  --no-auto-learn",
+  "  --writeback <off|observe|selective>",
   "  --interactive",
   "  --no-interactive",
   "  --json",
@@ -411,6 +421,7 @@ const ENABLE_HELP_TEXT = [
   "Options",
   "  --workspace-id <id>       Optional, defaults to the workspace folder name",
   "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --writeback <off|observe|selective>",
   "  --json",
 ].join("\n");
 const DISABLE_HELP_TEXT = [
@@ -557,11 +568,13 @@ const CODEX_HELP_TEXT = [
   "Commands",
   "  bootstrap     Generate repo-local Codex wiring on the installed package surface",
   "  hook          Run installed Codex hook handlers from stdin JSON",
+  "  writeback     Run opt-in installed Codex selective writeback from stdin JSON",
   "",
   "Help",
   "  goodmemory codex --help",
   "  goodmemory codex bootstrap --help",
   "  goodmemory codex hook --help",
+  "  goodmemory codex writeback --help",
 ].join("\n");
 const CLAUDE_HELP_TEXT = [
   "GoodMemory Claude CLI",
@@ -572,11 +585,13 @@ const CLAUDE_HELP_TEXT = [
   "Commands",
   "  bootstrap     Generate repo-local Claude Code wiring on the installed package surface",
   "  hook          Run installed Claude Code hook handlers from stdin JSON",
+  "  writeback     Run opt-in installed Claude Code selective writeback from stdin JSON",
   "",
   "Help",
   "  goodmemory claude --help",
   "  goodmemory claude bootstrap --help",
   "  goodmemory claude hook --help",
+  "  goodmemory claude writeback --help",
 ].join("\n");
 const CODEX_BOOTSTRAP_HELP_TEXT = [
   "GoodMemory Codex Bootstrap",
@@ -601,6 +616,14 @@ const CODEX_HOOK_HELP_TEXT = [
   "  session-stop         Read Codex Stop JSON from stdin and learn bounded session signals",
   "  user-prompt-submit   Read Codex UserPromptSubmit JSON from stdin and emit additionalContext JSON",
 ].join("\n");
+const CODEX_WRITEBACK_HELP_TEXT = [
+  "GoodMemory Codex Writeback",
+  "",
+  "Usage",
+  "  goodmemory codex writeback [--mode off|observe|selective] [--dry-run] [--json]",
+  "",
+  "Reads Codex after-response/session-end JSON from stdin and runs installed-host selective writeback.",
+].join("\n");
 const CLAUDE_HOOK_HELP_TEXT = [
   "GoodMemory Claude Hook",
   "",
@@ -611,6 +634,14 @@ const CLAUDE_HOOK_HELP_TEXT = [
   "  session-start        Read Claude SessionStart JSON from stdin and emit additionalContext JSON",
   "  session-stop         Read Claude Stop JSON from stdin and learn bounded session signals",
   "  user-prompt-submit   Read Claude UserPromptSubmit JSON from stdin and emit additionalContext JSON",
+].join("\n");
+const CLAUDE_WRITEBACK_HELP_TEXT = [
+  "GoodMemory Claude Writeback",
+  "",
+  "Usage",
+  "  goodmemory claude writeback [--mode off|observe|selective] [--dry-run] [--json]",
+  "",
+  "Reads Claude after-response/session-end JSON from stdin and runs installed-host selective writeback.",
 ].join("\n");
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -1918,7 +1949,7 @@ function renderOutput(
   flags: ParsedFlags,
 ): CLIResult {
   return {
-    exitCode: 0,
+    exitCode: output.exitCode ?? 0,
     stderr: "",
     stdout: flagEnabled(flags, "json")
       ? `${JSON.stringify(output.json, null, 2)}\n`
@@ -1957,7 +1988,6 @@ function renderInstalledHostPayload(input: {
   actionLabel: "Disabled" | "Enabled" | "Installed" | "Uninstalled";
   payload: {
     activationMode?: string;
-    autoLearn?: InstalledHostAutoLearnConfig;
     changes: Array<{ action: string; relativePath: string }>;
     configPath?: string;
     host: string;
@@ -1972,6 +2002,7 @@ function renderInstalledHostPayload(input: {
       provider: string;
     };
     userId?: string;
+    writeback?: InstalledHostWritebackConfig;
     workspaceRoot?: string;
   };
 }): string {
@@ -1987,10 +2018,8 @@ function renderInstalledHostPayload(input: {
   if (input.payload.activationMode) {
     lines.push(`- activation: ${input.payload.activationMode}`);
   }
-  if (input.payload.autoLearn) {
-    lines.push(
-      `- auto learn: ${input.payload.autoLearn.enabled ? "enabled" : "disabled"}`,
-    );
+  if (input.payload.writeback) {
+    lines.push(`- writeback: ${input.payload.writeback.mode}`);
   }
   if (input.payload.storage) {
     lines.push(
@@ -2032,16 +2061,16 @@ function renderInstalledHostPayload(input: {
 function renderSetupPayload(payload: {
   hosts: Array<{
     activationMode: InstalledHostActivationMode;
-    autoLearn: InstalledHostAutoLearnConfig;
     changes: Array<{ action: string; relativePath: string }>;
     host: InstalledHostKind;
     storage: { location: string; provider: string };
+    writeback: InstalledHostWritebackConfig;
   }>;
 }): string {
   const lines = ["GoodMemory setup complete"];
   for (const host of payload.hosts) {
     lines.push(
-      `- ${host.host}: ${host.activationMode}, autoLearn=${host.autoLearn.enabled ? "enabled" : "disabled"}, storage=${host.storage.provider}`,
+      `- ${host.host}: ${host.activationMode}, writeback=${host.writeback.mode}, storage=${host.storage.provider}`,
     );
     for (const change of host.changes) {
       lines.push(`  - ${change.relativePath} (${change.action})`);
@@ -2061,9 +2090,9 @@ function renderStatusPayload(payload: {
     lines.push(`- ${hostName}: ${String(host.workspaceStatus)}`);
     lines.push(`  - config: ${String(host.config)}`);
     lines.push(`  - activation: ${String(host.activationMode ?? "unknown")}`);
-    const autoLearn = host.autoLearn as InstalledHostAutoLearnConfig | null;
+    const writeback = host.writeback as InstalledHostWritebackConfig | null;
     lines.push(
-      `  - auto learn: ${autoLearn?.enabled ? "enabled" : "disabled"}`,
+      `  - writeback: ${writeback?.mode ?? "off"}`,
     );
     lines.push(`  - hook: ${host.hookRegistered ? "registered" : "missing"}`);
     lines.push(`  - MCP: ${host.mcpRegistered ? "registered" : "missing"}`);
@@ -2232,20 +2261,47 @@ function readActivationModeFlag(
   );
 }
 
-function readInstallAutoLearnConfig(flags: ParsedFlags): InstalledHostAutoLearnConfig {
-  if (flagEnabled(flags, "auto-learn") && flagEnabled(flags, "no-auto-learn")) {
+function readInstallWritebackConfig(flags: ParsedFlags): InstalledHostWritebackConfig {
+  const legacyAutoLearn = flagEnabled(flags, "auto-learn");
+  const legacyNoAutoLearn = flagEnabled(flags, "no-auto-learn");
+  if (legacyAutoLearn && legacyNoAutoLearn) {
     throw new Error("Use either --auto-learn or --no-auto-learn, not both.");
   }
+  if (flags.writeback !== undefined && (legacyAutoLearn || legacyNoAutoLearn)) {
+    throw new Error("Use --writeback instead of combining it with legacy auto-learn flags.");
+  }
 
-  return buildAutoLearnConfig(flagEnabled(flags, "auto-learn"));
+  if (flags.writeback !== undefined) {
+    return buildWritebackConfig(readWritebackModeFlag(flags.writeback));
+  }
+
+  if (legacyAutoLearn || legacyNoAutoLearn) {
+    return buildWritebackConfig(legacyAutoLearn ? "selective" : "off");
+  }
+
+  return DEFAULT_INSTALLED_HOST_WRITEBACK;
 }
 
-function buildAutoLearnConfig(enabled: boolean): InstalledHostAutoLearnConfig {
+function buildWritebackConfig(
+  mode: InstalledHostWritebackMode,
+): InstalledHostWritebackConfig {
   return {
-    enabled,
-    extractionStrategy: "auto",
-    sources: ["user_prompt", "session_stop"],
+    ...DEFAULT_INSTALLED_HOST_WRITEBACK,
+    mode,
   };
+}
+
+function readWritebackModeFlag(
+  value: string | undefined,
+): InstalledHostWritebackMode {
+  const mode = readWritebackMode(value);
+  if (!mode) {
+    throw new Error(
+      `Unsupported installed-host writeback mode: ${value ?? "(missing)"}. Expected off|observe|selective.`,
+    );
+  }
+
+  return mode;
 }
 
 function readSetupHostSelection(
@@ -2452,8 +2508,8 @@ async function resolveInteractiveInstallFlags(
   const prompt = resolveInstallPrompt(flags, dependencies);
   if (!prompt) {
     return {
-      autoLearn: readInstallAutoLearnConfig(flags),
       flags,
+      writeback: readInstallWritebackConfig(flags),
     };
   }
 
@@ -2474,15 +2530,15 @@ async function resolveInteractiveInstallFlags(
     await promptInstallStorage(resolvedFlags, prompt);
     await promptEmbeddingInstallConfig(resolvedFlags, prompt, configPathHint);
     await promptAssistedExtractorInstallConfig(resolvedFlags, prompt, configPathHint);
-    const autoLearn = await promptAutoLearnInstallConfig(
+    const writeback = await promptWritebackInstallConfig(
       resolvedFlags,
       prompt,
     );
 
     return {
       activationSelection,
-      autoLearn,
       flags: resolvedFlags,
+      writeback,
     };
   } finally {
     await prompt.close?.();
@@ -2510,21 +2566,26 @@ async function promptInstallActivationSelection(
   })) as InstallActivationSelection;
 }
 
-async function promptAutoLearnInstallConfig(
+async function promptWritebackInstallConfig(
   flags: ParsedFlags,
   prompt: CLIInstallPrompt,
-): Promise<InstalledHostAutoLearnConfig> {
-  if (flagEnabled(flags, "auto-learn") || flagEnabled(flags, "no-auto-learn")) {
-    return readInstallAutoLearnConfig(flags);
+): Promise<InstalledHostWritebackConfig> {
+  if (
+    flags.writeback !== undefined ||
+    flagEnabled(flags, "auto-learn") ||
+    flagEnabled(flags, "no-auto-learn")
+  ) {
+    return readInstallWritebackConfig(flags);
   }
 
-  const enabled = await askYesNo({
-    defaultValue: false,
-    message: "Enable automatic learning from conversations?",
+  const mode = await askChoice({
+    choices: ["off", "observe", "selective"],
+    defaultValue: "off",
+    message: "Installed-host writeback mode? [off/observe/selective]",
     prompt,
   });
 
-  return buildAutoLearnConfig(enabled);
+  return buildWritebackConfig(mode as InstalledHostWritebackMode);
 }
 
 function resolveInstallPrompt(
@@ -3244,13 +3305,13 @@ async function handleHostInstall(
       const result = await installHost({
         activationMode,
         assistedExtractor: readOptionalAssistedExtractorProviderConfig(installFlags),
-        autoLearn: installOptions.autoLearn ?? readInstallAutoLearnConfig(installFlags),
         embedding: readOptionalEmbeddingProviderConfig(installFlags),
         host,
         memoryPath: installFlags["memory-path"],
         storageProvider: readInstallStorageProviderFlag(installFlags["storage-provider"]),
         storageUrl: installFlags["storage-url"],
         userId: installFlags["user-id"],
+        writeback: installOptions.writeback ?? readInstallWritebackConfig(installFlags),
       });
       const workspaceEnableResult =
         installOptions.activationSelection === "current-workspace"
@@ -3263,7 +3324,6 @@ async function handleHostInstall(
       const providerSummary = summarizeInstalledProviders(result.providers);
       const payload = {
         activationMode: result.activationMode,
-        autoLearn: result.autoLearn,
         changes: [
           ...result.changes,
           ...(workspaceEnableResult?.changes ?? []),
@@ -3279,6 +3339,7 @@ async function handleHostInstall(
         providers: providerSummary,
         storage: result.storage,
         userId: result.userId,
+        writeback: result.writeback,
         ...(workspaceEnableResult
           ? {
               instructionPath: workspaceEnableResult.instructionPath,
@@ -3324,13 +3385,13 @@ async function handleSetup(
         const result = await installHost({
           activationMode,
           assistedExtractor: readOptionalAssistedExtractorProviderConfig(setup.flags),
-          autoLearn: setup.autoLearn,
           embedding: readOptionalEmbeddingProviderConfig(setup.flags),
           host,
           memoryPath: setup.flags["memory-path"],
           storageProvider: readInstallStorageProviderFlag(setup.flags["storage-provider"]),
           storageUrl: setup.flags["storage-url"],
           userId: setup.flags["user-id"],
+          writeback: setup.writeback,
         });
         const workspaceEnableResult =
           setup.activationSelection === "current-workspace"
@@ -3455,9 +3516,9 @@ async function resolveSetupOptions(
   dependencies: CLIRunDependencies,
 ): Promise<{
   activationSelection: InstallActivationSelection;
-  autoLearn: InstalledHostAutoLearnConfig;
   flags: ParsedFlags;
   hosts: InstalledHostKind[];
+  writeback: InstalledHostWritebackConfig;
 }> {
   const prompt = resolveInstallPrompt(flags, dependencies);
   if (!prompt) {
@@ -3468,9 +3529,9 @@ async function resolveSetupOptions(
         readActivationModeFlag(flags["activation-mode"]) === "workspace_opt_in"
           ? "manual"
           : "global",
-      autoLearn: readInstallAutoLearnConfig(flags),
       flags,
       hosts: expandSetupHostSelection(hostSelection),
+      writeback: readInstallWritebackConfig(flags),
     };
   }
 
@@ -3506,13 +3567,13 @@ async function resolveSetupOptions(
       prompt,
       "~/.goodmemory/<host>.json",
     );
-    const autoLearn = await promptAutoLearnInstallConfig(resolvedFlags, prompt);
+    const writeback = await promptWritebackInstallConfig(resolvedFlags, prompt);
 
     return {
       activationSelection,
-      autoLearn,
       flags: resolvedFlags,
       hosts: expandSetupHostSelection(hostSelection),
+      writeback,
     };
   } finally {
     await prompt.close?.();
@@ -3524,7 +3585,6 @@ function buildInstalledHostPayload(
   workspaceEnableResult: Awaited<ReturnType<typeof enableHostWorkspace>> | null,
 ): {
   activationMode: InstalledHostActivationMode;
-  autoLearn: InstalledHostAutoLearnConfig;
   changes: Array<{
     action: string;
     path: string;
@@ -3544,11 +3604,11 @@ function buildInstalledHostPayload(
     provider: string;
   };
   userId: string;
+  writeback: InstalledHostWritebackConfig;
   workspaceRoot?: string;
 } {
   return {
     activationMode: result.activationMode,
-    autoLearn: result.autoLearn,
     changes: [
       ...result.changes,
       ...(workspaceEnableResult?.changes ?? []),
@@ -3564,6 +3624,7 @@ function buildInstalledHostPayload(
     providers: summarizeInstalledProviders(result.providers),
     storage: result.storage,
     userId: result.userId,
+    writeback: result.writeback,
     ...(workspaceEnableResult
       ? {
           instructionPath: workspaceEnableResult.instructionPath,
@@ -3625,11 +3686,11 @@ async function buildHostStatus(
   const base = {
     activationMode:
       globalConfig.status === "ok" ? globalConfig.config.activationMode : null,
-    autoLearn: globalConfig.status === "ok" ? globalConfig.config.autoLearn : null,
     config: globalConfig.status,
     hookRegistered: await isInstalledHostHookRegistered({ homeRoot, host }),
     host,
     mcpRegistered: await isInstalledHostMcpRegistered({ homeRoot, host }),
+    writeback: globalConfig.status === "ok" ? globalConfig.config.writeback : null,
     workspaceStatus: resolved.status,
   };
 
@@ -3763,6 +3824,8 @@ async function handleHostEnable(
 ): Promise<CLICommandOutput> {
   const result = await enableHostWorkspace({
     host,
+    writebackMode:
+      flags.writeback === undefined ? undefined : readWritebackModeFlag(flags.writeback),
     workspaceId: flags["workspace-id"],
     workspaceRoot: flags["workspace-root"],
   });
@@ -3775,6 +3838,7 @@ async function handleHostEnable(
     configPath: result.configPath,
     host: result.host,
     instructionPath: result.instructionPath,
+    ...(result.writeback ? { writeback: result.writeback } : {}),
     workspaceId: result.workspaceId,
     workspaceRoot: result.workspaceRoot,
   };
@@ -3844,6 +3908,39 @@ async function handleHostHook(
     json: result.output ?? {},
     text: rendered,
   };
+}
+
+async function handleHostWriteback(
+  host: InstalledHostKind,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  const rawInput = await new Response(Bun.stdin.stream()).text();
+  const payload = rawInput.trim().length > 0
+    ? JSON.parse(rawInput) as Record<string, unknown>
+    : {};
+  const result = await executeInstalledHostWriteback({
+    command: "session-end",
+    dryRun: flagEnabled(flags, "dry-run"),
+    host,
+    mode: flags.mode === undefined ? undefined : readWritebackModeFlag(flags.mode),
+    payload,
+  });
+
+  return {
+    exitCode: hostWritebackExitCode(result.reason),
+    json: result,
+    text: JSON.stringify(result, null, 2),
+  };
+}
+
+function hostWritebackExitCode(
+  reason: InstalledHostWritebackResult["reason"],
+): number {
+  return reason === "missing_config" ||
+    reason === "missing_repo_opt_in" ||
+    reason === "write_failed"
+    ? 1
+    : 0;
 }
 
 async function handleMcpServe(flags: ParsedFlags): Promise<void> {
@@ -3932,6 +4029,9 @@ export async function runCLI(
           requireInstalledHostHookCommand(tertiary);
           return helpResult(CODEX_HOOK_HELP_TEXT);
         }
+        if (secondary === "writeback") {
+          return helpResult(CODEX_WRITEBACK_HELP_TEXT);
+        }
 
         return errorResult(
           `Unknown Codex command: ${secondary}. Run 'goodmemory codex --help'.`,
@@ -3952,6 +4052,9 @@ export async function runCLI(
           }
           requireInstalledHostHookCommand(tertiary);
           return helpResult(CLAUDE_HOOK_HELP_TEXT);
+        }
+        if (secondary === "writeback") {
+          return helpResult(CLAUDE_WRITEBACK_HELP_TEXT);
         }
 
         return errorResult(
@@ -4054,6 +4157,9 @@ export async function runCLI(
           flags,
         );
       }
+      if (secondary === "writeback") {
+        return renderOutput(await handleHostWriteback("codex", flags), flags);
+      }
 
       throw new Error(`Unknown Codex command: ${secondary}. Run 'goodmemory codex --help'.`);
     }
@@ -4073,6 +4179,9 @@ export async function runCLI(
           ),
           flags,
         );
+      }
+      if (secondary === "writeback") {
+        return renderOutput(await handleHostWriteback("claude", flags), flags);
       }
 
       throw new Error(`Unknown Claude command: ${secondary}. Run 'goodmemory claude --help'.`);

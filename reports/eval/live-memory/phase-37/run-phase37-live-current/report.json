@@ -1,0 +1,33 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Provider-backed assisted extraction ran through Codex installed writeback, wrote selective durable memory, and next-session recall consumed it without manual seeding."
+  },
+  "evidence": {
+    "assistantUnconfirmedWritesBlocked": true,
+    "durableStorageProvider": "sqlite",
+    "host": "codex",
+    "manualSeedUsed": false,
+    "nextSessionRecallHit": true,
+    "providerBackedAssistedExtraction": true,
+    "rawTranscriptPersisted": false,
+    "resolvedExtractionStrategies": [
+      "llm-assisted"
+    ],
+    "wroteDurableMemory": true,
+    "writebackMode": "selective"
+  },
+  "evidenceContract": {
+    "phase37": {
+      "runner": "scripts/run-phase-37-live-memory.ts",
+      "runtimePath": "provider_backed_assisted_extraction_installed_host_selective_writeback"
+    }
+  },
+  "generatedAt": "2026-04-24T02:52:38.976Z",
+  "generatedBy": "scripts/run-phase-37-live-memory.ts",
+  "mode": "live-memory",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-37",
+  "phase": "phase-37",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-37/run-phase37-live-current",
+  "runId": "run-phase37-live-current"
+}

@@ -52,6 +52,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-35-Quality-Gate.md`
 - Public domain write profiles and rules closure:
   - `GoodMemory-Phase-36-Quality-Gate.md`
+- Installed host selective writeback closure:
+  - `GoodMemory-Phase-37-Quality-Gate.md`
 
 ## When To Use This Archive
 

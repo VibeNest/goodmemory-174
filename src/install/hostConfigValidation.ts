@@ -4,7 +4,6 @@ export type InstalledHostConfigTarget = "claude" | "codex";
 
 export interface InstalledHostRuntimeConfig {
   activationMode: InstalledHostActivationMode;
-  autoLearn: InstalledHostAutoLearnConfig;
   debug: boolean;
   maxTokens: number;
   providers?: InstalledHostProviderConfig;
@@ -14,6 +13,7 @@ export interface InstalledHostRuntimeConfig {
     url: string;
   };
   userId: string;
+  writeback: InstalledHostWritebackConfig;
 }
 
 export type InstalledHostActivationMode = "global" | "workspace_opt_in";
@@ -27,6 +27,23 @@ export interface InstalledHostAutoLearnConfig {
   enabled: boolean;
   extractionStrategy: InstalledHostAutoLearnExtractionStrategy;
   sources: InstalledHostAutoLearnSource[];
+}
+
+export type InstalledHostWritebackMode = "off" | "observe" | "selective";
+export type InstalledHostWritebackAssistantPolicy =
+  | "never"
+  | "confirmed"
+  | "verified"
+  | "confirmed_or_verified";
+
+export interface InstalledHostWritebackConfig {
+  allowAssistantOutput: InstalledHostWritebackAssistantPolicy;
+  dryRun: boolean;
+  maxChars: number;
+  maxMessages: number;
+  minConfidence: number;
+  mode: InstalledHostWritebackMode;
+  persistRawTranscript: false;
 }
 
 export interface InstalledHostModelProviderConfig {
@@ -64,6 +81,15 @@ export const DEFAULT_INSTALLED_HOST_AUTO_LEARN: InstalledHostAutoLearnConfig = {
   extractionStrategy: "auto",
   sources: ["user_prompt", "session_stop"],
 };
+export const DEFAULT_INSTALLED_HOST_WRITEBACK: InstalledHostWritebackConfig = {
+  allowAssistantOutput: "confirmed_or_verified",
+  dryRun: false,
+  maxChars: 12_000,
+  maxMessages: 12,
+  minConfidence: 0.7,
+  mode: "off",
+  persistRawTranscript: false,
+};
 
 export function parseInstalledHostRuntimeConfig(
   parsed: unknown,
@@ -95,10 +121,13 @@ export function parseInstalledHostRuntimeConfig(
     };
   }
 
-  const autoLearn = readAutoLearnConfig(parsed.autoLearn);
-  if (autoLearn.status === "invalid") {
+  const writeback = readWritebackConfig({
+    legacyAutoLearn: parsed.autoLearn,
+    value: parsed.writeback,
+  });
+  if (writeback.status === "invalid") {
     return {
-      detail: autoLearn.detail,
+      detail: writeback.detail,
       status: "invalid",
     };
   }
@@ -156,7 +185,6 @@ export function parseInstalledHostRuntimeConfig(
     status: "ok",
     config: {
       activationMode,
-      autoLearn: autoLearn.config,
       debug: parsed.debug === true,
       maxTokens,
       ...(providers.config ? { providers: providers.config } : {}),
@@ -166,6 +194,7 @@ export function parseInstalledHostRuntimeConfig(
         url,
       },
       userId,
+      writeback: writeback.config,
     },
   };
 }
@@ -221,6 +250,158 @@ function readAutoLearnConfig(
     },
     status: "ok",
   };
+}
+
+export function normalizeInstalledHostWritebackConfig(input: {
+  legacyAutoLearn?: unknown;
+  value?: unknown;
+}): InstalledHostWritebackConfig {
+  const parsed = readWritebackConfig(input);
+  return parsed.status === "ok" ? parsed.config : DEFAULT_INSTALLED_HOST_WRITEBACK;
+}
+
+function readWritebackConfig(input: {
+  legacyAutoLearn?: unknown;
+  value?: unknown;
+}):
+  | { config: InstalledHostWritebackConfig; status: "ok" }
+  | { detail: string; status: "invalid" } {
+  if (input.value === undefined) {
+    return {
+      config: readLegacyAutoLearnWritebackConfig(input.legacyAutoLearn),
+      status: "ok",
+    };
+  }
+  if (!isRecord(input.value)) {
+    return { detail: "writeback must be a JSON object", status: "invalid" };
+  }
+
+  const mode =
+    input.value.mode === undefined
+      ? DEFAULT_INSTALLED_HOST_WRITEBACK.mode
+      : readWritebackMode(input.value.mode);
+  if (mode === undefined) {
+    return {
+      detail: "writeback.mode must be off, observe, or selective",
+      status: "invalid",
+    };
+  }
+
+  const allowAssistantOutput =
+    input.value.allowAssistantOutput === undefined
+      ? DEFAULT_INSTALLED_HOST_WRITEBACK.allowAssistantOutput
+      : readWritebackAssistantPolicy(input.value.allowAssistantOutput);
+  if (allowAssistantOutput === undefined) {
+    return {
+      detail:
+        "writeback.allowAssistantOutput must be never, confirmed, verified, or confirmed_or_verified",
+      status: "invalid",
+    };
+  }
+
+  if (
+    input.value.persistRawTranscript !== undefined &&
+    input.value.persistRawTranscript !== false
+  ) {
+    return {
+      detail: "writeback.persistRawTranscript must be false",
+      status: "invalid",
+    };
+  }
+  if (
+    input.value.dryRun !== undefined &&
+    typeof input.value.dryRun !== "boolean"
+  ) {
+    return { detail: "writeback.dryRun must be a boolean", status: "invalid" };
+  }
+
+  const maxMessages =
+    input.value.maxMessages === undefined
+      ? DEFAULT_INSTALLED_HOST_WRITEBACK.maxMessages
+      : readPositiveInteger(input.value.maxMessages);
+  if (maxMessages === undefined) {
+    return {
+      detail: "writeback.maxMessages must be a positive integer",
+      status: "invalid",
+    };
+  }
+
+  const maxChars =
+    input.value.maxChars === undefined
+      ? DEFAULT_INSTALLED_HOST_WRITEBACK.maxChars
+      : readPositiveInteger(input.value.maxChars);
+  if (maxChars === undefined) {
+    return {
+      detail: "writeback.maxChars must be a positive integer",
+      status: "invalid",
+    };
+  }
+
+  const minConfidence =
+    input.value.minConfidence === undefined
+      ? DEFAULT_INSTALLED_HOST_WRITEBACK.minConfidence
+      : readConfidence(input.value.minConfidence);
+  if (minConfidence === undefined) {
+    return {
+      detail: "writeback.minConfidence must be a number between 0 and 1",
+      status: "invalid",
+    };
+  }
+
+  return {
+    config: {
+      allowAssistantOutput,
+      dryRun: input.value.dryRun === true,
+      maxChars,
+      maxMessages,
+      minConfidence,
+      mode,
+      persistRawTranscript: false,
+    },
+    status: "ok",
+  };
+}
+
+function readLegacyAutoLearnWritebackConfig(
+  value: unknown,
+): InstalledHostWritebackConfig {
+  const legacy = readAutoLearnConfig(value);
+  if (legacy.status === "invalid") {
+    return DEFAULT_INSTALLED_HOST_WRITEBACK;
+  }
+
+  return {
+    ...DEFAULT_INSTALLED_HOST_WRITEBACK,
+    mode: legacy.config.enabled ? "selective" : "off",
+  };
+}
+
+export function readWritebackMode(
+  value: unknown,
+): InstalledHostWritebackMode | undefined {
+  return value === "off" || value === "observe" || value === "selective"
+    ? value
+    : undefined;
+}
+
+function readWritebackAssistantPolicy(
+  value: unknown,
+): InstalledHostWritebackAssistantPolicy | undefined {
+  return value === "never" ||
+    value === "confirmed" ||
+    value === "verified" ||
+    value === "confirmed_or_verified"
+    ? value
+    : undefined;
+}
+
+function readConfidence(value: unknown): number | undefined {
+  return typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= 1
+    ? value
+    : undefined;
 }
 
 function readAutoLearnExtractionStrategy(

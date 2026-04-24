@@ -410,7 +410,7 @@ describe("installed host hook runtime", () => {
     }
   });
 
-  it("uses global activation mode without a repo config and auto-learns the submitted prompt", async () => {
+  it("uses global activation mode without a repo config and keeps prompt-submit recall read-only", async () => {
     const homeRoot = await createWorkspace("goodmemory-hook-global-home-");
     const workspaceRoot = await createWorkspace("goodmemory-hook-global-workspace-");
     const rememberCalls: Array<{
@@ -431,10 +431,8 @@ describe("installed host hook runtime", () => {
         JSON.stringify(
           {
             activationMode: "global",
-            autoLearn: {
-              enabled: true,
-              extractionStrategy: "auto",
-              sources: ["user_prompt", "session_stop"],
+            writeback: {
+              mode: "selective",
             },
             debug: false,
             host: "codex",
@@ -511,28 +509,20 @@ describe("installed host hook runtime", () => {
       );
 
       expect(result.applied).toBe(true);
-      expect(result.autoLearn).toEqual({
-        attempted: true,
-        reason: "written",
+      expect(result.writeback).toEqual({
+        attempted: false,
+        candidateCount: 0,
+        reason: "source_disabled",
+        wrote: false,
       });
-      expect(rememberCalls).toHaveLength(1);
-      expect(rememberCalls[0]).toEqual({
-        extractionStrategy: "auto",
-        message: "Always check the release runbook before editing files.",
-        scope: {
-          agentId: "codex",
-          sessionId: "session-42",
-          userId: "hook-user",
-          workspaceId: workspaceRoot.split("/").at(-1),
-        },
-      });
+      expect(rememberCalls).toHaveLength(0);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
     }
   });
 
-  it("learns bounded stop-hook session signals without blocking output", async () => {
+  it("runs selective writeback for bounded stop-hook session signals without blocking output", async () => {
     const homeRoot = await createWorkspace("goodmemory-hook-stop-home-");
     const workspaceRoot = await createWorkspace("goodmemory-hook-stop-workspace-");
     const rememberMessages: string[] = [];
@@ -544,10 +534,8 @@ describe("installed host hook runtime", () => {
         JSON.stringify(
           {
             activationMode: "global",
-            autoLearn: {
-              enabled: true,
-              extractionStrategy: "auto",
-              sources: ["user_prompt", "session_stop"],
+            writeback: {
+              mode: "selective",
             },
             debug: false,
             host: "claude",
@@ -617,22 +605,24 @@ describe("installed host hook runtime", () => {
       );
 
       expect(result.applied).toBe(false);
-      expect(result.reason).toBe("learned");
+      expect(result.reason).toBe("writeback_written");
       expect(result.output).toBeNull();
-      expect(result.autoLearn).toEqual({
+      expect(result.writeback).toEqual({
         attempted: true,
+        candidateCount: 1,
+        mode: "selective",
         reason: "written",
+        wrote: true,
       });
       expect(rememberMessages).toHaveLength(1);
-      expect(rememberMessages[0]).toContain("user: Remember to keep summaries short.");
-      expect(rememberMessages[0]).toContain("assistant: I will keep coding summaries short.");
+      expect(rememberMessages[0]).toBe("Remember to keep summaries short.");
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
     }
   });
 
-  it("dedupes concurrent auto-learn events under the ledger lock", async () => {
+  it("dedupes concurrent writeback events under the ledger lock", async () => {
     const homeRoot = await createWorkspace("goodmemory-hook-stop-lock-home-");
     const workspaceRoot = await createWorkspace("goodmemory-hook-stop-lock-workspace-");
     let rememberCallCount = 0;
@@ -652,10 +642,8 @@ describe("installed host hook runtime", () => {
         JSON.stringify(
           {
             activationMode: "global",
-            autoLearn: {
-              enabled: true,
-              extractionStrategy: "auto",
-              sources: ["user_prompt", "session_stop"],
+            writeback: {
+              mode: "selective",
             },
             debug: false,
             host: "claude",
@@ -720,7 +708,8 @@ describe("installed host hook runtime", () => {
             cwd: workspaceRoot,
             event_id: "stop-1",
             session_id: "session-77",
-            summary: "Keep summaries short.",
+            summary: "Always keep summaries short.",
+            summary_confirmed: true,
           },
         },
         dependencies,
@@ -736,7 +725,8 @@ describe("installed host hook runtime", () => {
             cwd: workspaceRoot,
             event_id: "stop-1",
             session_id: "session-77",
-            summary: "Keep summaries short.",
+            summary: "Always keep summaries short.",
+            summary_confirmed: true,
           },
         },
         dependencies,
@@ -747,8 +737,8 @@ describe("installed host hook runtime", () => {
       const [firstResult, secondResult] = await Promise.all([firstRun, secondRun]);
 
       expect(rememberCallCount).toBe(1);
-      expect([firstResult.autoLearn.reason, secondResult.autoLearn.reason].sort()).toEqual([
-        "duplicate",
+      expect([firstResult.writeback.reason, secondResult.writeback.reason].sort()).toEqual([
+        "no_candidates",
         "written",
       ]);
     } finally {
@@ -758,7 +748,7 @@ describe("installed host hook runtime", () => {
     }
   });
 
-  it("fails auto-learn closed when the ledger file is malformed", async () => {
+  it("fails writeback closed when the ledger file is malformed", async () => {
     const homeRoot = await createWorkspace("goodmemory-hook-stop-ledger-home-");
     const workspaceRoot = await createWorkspace("goodmemory-hook-stop-ledger-workspace-");
     let rememberCalled = false;
@@ -770,10 +760,8 @@ describe("installed host hook runtime", () => {
         JSON.stringify(
           {
             activationMode: "global",
-            autoLearn: {
-              enabled: true,
-              extractionStrategy: "auto",
-              sources: ["user_prompt", "session_stop"],
+            writeback: {
+              mode: "selective",
             },
             debug: false,
             host: "claude",
@@ -792,7 +780,7 @@ describe("installed host hook runtime", () => {
         "utf8",
       );
       await writeFile(
-        join(homeRoot, ".goodmemory/claude-auto-learn-events.json"),
+        join(homeRoot, ".goodmemory/claude-writeback-events.json"),
         JSON.stringify({ events: "bad-ledger" }, null, 2) + "\n",
         "utf8",
       );
@@ -806,7 +794,8 @@ describe("installed host hook runtime", () => {
             cwd: workspaceRoot,
             event_id: "stop-2",
             session_id: "session-78",
-            summary: "Keep summaries short.",
+            summary: "Always keep summaries short.",
+            summary_confirmed: true,
           },
         },
         {
@@ -846,10 +835,13 @@ describe("installed host hook runtime", () => {
       );
 
       expect(rememberCalled).toBe(false);
-      expect(result.reason).toBe("auto_learn_failed");
-      expect(result.autoLearn).toEqual({
-        attempted: false,
+      expect(result.reason).toBe("writeback_failed");
+      expect(result.writeback).toEqual({
+        attempted: true,
+        candidateCount: 1,
+        mode: "selective",
         reason: "failed",
+        wrote: false,
       });
     } finally {
       await rm(homeRoot, { force: true, recursive: true });

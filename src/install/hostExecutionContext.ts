@@ -17,8 +17,8 @@ import {
 } from "./hostConfigValidation";
 import type {
   InstalledHostActivationMode,
-  InstalledHostAutoLearnConfig,
   InstalledHostProviderConfig,
+  InstalledHostWritebackConfig,
   WorkspaceHostOptInConfig,
 } from "./hostConfigValidation";
 import type { InstalledHostKind } from "./hostInstall";
@@ -44,7 +44,6 @@ export interface InstalledHostContextInput {
 
 export interface InstalledHostResolvedContext {
   activationMode: InstalledHostActivationMode;
-  autoLearn: InstalledHostAutoLearnConfig;
   debug: boolean;
   host: InstalledHostKind;
   maxTokens: number;
@@ -52,6 +51,7 @@ export interface InstalledHostResolvedContext {
   retrievalProfile: "coding_agent" | "general_chat";
   scope: MemoryScope;
   storage: GoodMemoryConfig["storage"];
+  writeback: InstalledHostWritebackConfig;
   workspaceRoot: string;
 }
 
@@ -131,7 +131,6 @@ export async function resolveInstalledHostContext(
     status: "ok",
     context: {
       activationMode: globalConfig.config.activationMode,
-      autoLearn: globalConfig.config.autoLearn,
       debug: globalConfig.config.debug || workspaceConfig.debug,
       host: input.host,
       maxTokens:
@@ -157,6 +156,7 @@ export async function resolveInstalledHostContext(
         provider: globalConfig.config.storage.provider,
         url: globalConfig.config.storage.url,
       },
+      writeback: globalConfig.config.writeback,
       workspaceRoot,
     },
   };
@@ -177,8 +177,43 @@ export function createInstalledHostMemory(
   const adapters = buildInstalledHostProviderAdapters(context.providers);
   return (dependencies.createMemory ?? createGoodMemory)({
     ...(adapters ? { adapters } : {}),
+    remember: {
+      preset: "coding_agent",
+      profiles: [
+        {
+          assistantOutputs: {
+            mode: mapWritebackAssistantPolicy(context.writeback.allowAssistantOutput),
+          },
+          extends: "coding_agent",
+          id: `installed-host-${context.host}-writeback`,
+          when: {
+            agentId: context.host,
+          },
+        },
+      ],
+    },
     storage: context.storage,
   });
+}
+
+function mapWritebackAssistantPolicy(
+  policy: InstalledHostWritebackConfig["allowAssistantOutput"],
+):
+  | "confirmed_only"
+  | "confirmed_or_verified_only"
+  | "ignore"
+  | "verified_only" {
+  if (policy === "confirmed") {
+    return "confirmed_only";
+  }
+  if (policy === "verified") {
+    return "verified_only";
+  }
+  if (policy === "confirmed_or_verified") {
+    return "confirmed_or_verified_only";
+  }
+
+  return "ignore";
 }
 
 function buildInstalledHostProviderAdapters(

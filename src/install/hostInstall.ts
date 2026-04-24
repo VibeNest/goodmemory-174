@@ -12,20 +12,22 @@ import {
 } from "../host/managedFiles";
 import {
   DEFAULT_INSTALLED_HOST_ACTIVATION_MODE,
-  DEFAULT_INSTALLED_HOST_AUTO_LEARN,
   DEFAULT_INSTALLED_HOST_MAX_TOKENS,
   DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
+  DEFAULT_INSTALLED_HOST_WRITEBACK,
   isRecord,
+  normalizeInstalledHostWritebackConfig,
   parseInstalledHostRuntimeConfig,
   readPositiveInteger,
   readRetrievalProfile,
 } from "./hostConfigValidation";
 import type {
   InstalledHostActivationMode,
-  InstalledHostAutoLearnConfig,
   InstalledHostEmbeddingProviderConfig,
   InstalledHostModelProviderConfig,
   InstalledHostProviderConfig,
+  InstalledHostWritebackConfig,
+  InstalledHostWritebackMode,
 } from "./hostConfigValidation";
 import {
   registerInstalledHostMcp,
@@ -49,7 +51,6 @@ export interface InstalledHostFileChange {
 export interface InstallHostInput {
   activationMode?: InstalledHostActivationMode;
   assistedExtractor?: InstalledHostModelProviderConfig;
-  autoLearn?: InstalledHostAutoLearnConfig;
   embedding?: InstalledHostEmbeddingProviderConfig;
   homeRoot?: string;
   host: InstalledHostKind;
@@ -57,11 +58,11 @@ export interface InstallHostInput {
   storageProvider?: InstalledHostStorageProvider;
   storageUrl?: string;
   userId?: string;
+  writeback?: InstalledHostWritebackConfig;
 }
 
 export interface InstallHostResult {
   activationMode: InstalledHostActivationMode;
-  autoLearn: InstalledHostAutoLearnConfig;
   changes: InstalledHostFileChange[];
   configPath: string;
   host: InstalledHostKind;
@@ -70,6 +71,7 @@ export interface InstallHostResult {
   providers?: InstalledHostProviderConfig;
   storage: InstalledHostStorageSummary;
   userId: string;
+  writeback: InstalledHostWritebackConfig;
 }
 
 export interface UninstallHostInput {
@@ -87,6 +89,7 @@ export interface UninstallHostResult {
 export interface EnableHostWorkspaceInput {
   homeRoot?: string;
   host: InstalledHostKind;
+  writebackMode?: InstalledHostWritebackMode;
   workspaceId?: string;
   workspaceRoot?: string;
 }
@@ -96,6 +99,7 @@ export interface EnableHostWorkspaceResult {
   configPath: string;
   host: InstalledHostKind;
   instructionPath: string;
+  writeback?: InstalledHostWritebackConfig;
   workspaceId: string;
   workspaceRoot: string;
 }
@@ -126,7 +130,6 @@ interface HostInstallBlueprint {
 
 interface HostInstallConfigRecord {
   activationMode: InstalledHostActivationMode;
-  autoLearn: InstalledHostAutoLearnConfig;
   debug: boolean;
   host: InstalledHostKind;
   maxTokens: number;
@@ -135,6 +138,7 @@ interface HostInstallConfigRecord {
   storage: HostInstallStorageConfigRecord;
   userId: string;
   version: 1;
+  writeback: InstalledHostWritebackConfig;
 }
 
 interface WorkspaceOptInConfigRecord {
@@ -214,7 +218,6 @@ export async function installHost(
   const nextConfig = await mergeInstallConfig({
     activationMode: input.activationMode,
     assistedExtractor: input.assistedExtractor,
-    autoLearn: input.autoLearn,
     configPath,
     embedding: input.embedding,
     host: input.host,
@@ -225,6 +228,7 @@ export async function installHost(
     storageUrl,
     preferInputUserId: input.userId !== undefined,
     userId: resolveUserId(input.userId, input.homeRoot),
+    writeback: input.writeback,
   });
   const storageSummary = summarizeInstallStorage(nextConfig.storage);
 
@@ -251,7 +255,6 @@ export async function installHost(
     ]);
   return {
     activationMode: nextConfig.activationMode,
-    autoLearn: nextConfig.autoLearn,
     changes,
     configPath,
       host: input.host,
@@ -260,6 +263,7 @@ export async function installHost(
       ...(nextConfig.providers ? { providers: nextConfig.providers } : {}),
       storage: storageSummary,
       userId: nextConfig.userId,
+      writeback: nextConfig.writeback,
     };
   } catch (error) {
     await restoreManagedInstallSnapshots(managedSnapshots);
@@ -350,6 +354,25 @@ export async function enableHostWorkspace(
   });
   const configPath = join(workspaceRoot, ".goodmemory", blueprint.configFileName);
   const instructionPath = join(workspaceRoot, blueprint.instructionFileName);
+  const installRoot = resolveInstallRoot(input.homeRoot);
+  const globalConfigPath = join(installRoot, blueprint.configFileName);
+  const snapshots = {
+    globalConfig: {
+      content: await readFileIfPresent(globalConfigPath),
+      path: globalConfigPath,
+      root: installRoot,
+    },
+    instruction: {
+      content: await readFileIfPresent(instructionPath),
+      path: instructionPath,
+      root: workspaceRoot,
+    },
+    workspaceConfig: {
+      content: await readFileIfPresent(configPath),
+      path: configPath,
+      root: workspaceRoot,
+    },
+  };
   const nextConfig = await mergeWorkspaceConfig({
     configPath,
     host: input.host,
@@ -358,26 +381,61 @@ export async function enableHostWorkspace(
     workspaceRoot,
   });
 
-  return {
-    changes: [
-      await writeManagedFile(
-        configPath,
-        workspaceRoot,
-        JSON.stringify(nextConfig, null, 2) + "\n",
-      ),
-      await writeMarkerManagedFile(
-        instructionPath,
-        workspaceRoot,
-        blueprint.installMarker,
-        buildInstallInstructionBlock(blueprint),
-      ),
-    ],
-    configPath,
-    host: input.host,
-    instructionPath,
-    workspaceId: nextConfig.workspaceId,
-    workspaceRoot,
-  };
+  try {
+    const workspaceConfigChange = await writeManagedFile(
+      configPath,
+      workspaceRoot,
+      JSON.stringify(nextConfig, null, 2) + "\n",
+    );
+    const instructionChange = await writeMarkerManagedFile(
+      instructionPath,
+      workspaceRoot,
+      blueprint.installMarker,
+      buildInstallInstructionBlock(blueprint),
+    );
+    const writebackChange = input.writebackMode
+      ? await updateInstalledHostWritebackMode({
+          homeRoot: input.homeRoot,
+          host: input.host,
+          mode: input.writebackMode,
+        })
+      : null;
+
+    return {
+      changes: [
+        workspaceConfigChange,
+        instructionChange,
+        ...(writebackChange ? [writebackChange.change] : []),
+      ],
+      configPath,
+      host: input.host,
+      instructionPath,
+      ...(writebackChange ? { writeback: writebackChange.writeback } : {}),
+      workspaceId: nextConfig.workspaceId,
+      workspaceRoot,
+    };
+  } catch (error) {
+    await restoreManagedFile(
+      snapshots.instruction.path,
+      snapshots.instruction.root,
+      snapshots.instruction.content,
+    );
+    await restoreManagedFile(
+      snapshots.workspaceConfig.path,
+      snapshots.workspaceConfig.root,
+      snapshots.workspaceConfig.content,
+    );
+    await restoreManagedFile(
+      snapshots.globalConfig.path,
+      snapshots.globalConfig.root,
+      snapshots.globalConfig.content,
+      {
+        directoryMode: PRIVATE_INSTALL_DIRECTORY_MODE,
+        mode: PRIVATE_INSTALL_CONFIG_MODE,
+      },
+    );
+    throw error;
+  }
 }
 
 export async function disableHostWorkspace(
@@ -510,7 +568,6 @@ async function assertInstalledHostConfigExists(input: {
 async function mergeInstallConfig(input: {
   activationMode?: InstalledHostActivationMode;
   assistedExtractor?: InstalledHostModelProviderConfig;
-  autoLearn?: InstalledHostAutoLearnConfig;
   configPath: string;
   embedding?: InstalledHostEmbeddingProviderConfig;
   host: InstalledHostKind;
@@ -521,13 +578,13 @@ async function mergeInstallConfig(input: {
   storageProvider?: InstalledHostStorageProvider;
   storageUrl?: string;
   userId: string;
+  writeback?: InstalledHostWritebackConfig;
 }): Promise<HostInstallConfigRecord> {
   const existing = await readFileIfPresent(input.configPath);
 
   if (existing === null || existing.trim().length === 0) {
     return {
       activationMode: input.activationMode ?? DEFAULT_INSTALLED_HOST_ACTIVATION_MODE,
-      autoLearn: input.autoLearn ?? DEFAULT_INSTALLED_HOST_AUTO_LEARN,
       debug: false,
       host: input.host,
       maxTokens: DEFAULT_MAX_TOKENS,
@@ -543,6 +600,7 @@ async function mergeInstallConfig(input: {
       }),
       userId: input.userId,
       version: 1,
+      writeback: input.writeback ?? DEFAULT_INSTALLED_HOST_WRITEBACK,
     };
   }
 
@@ -577,7 +635,10 @@ async function mergeInstallConfig(input: {
     parsed.activationMode === "global" || parsed.activationMode === "workspace_opt_in"
       ? parsed.activationMode
       : DEFAULT_INSTALLED_HOST_ACTIVATION_MODE;
-  const existingAutoLearn = normalizeAutoLearnConfig(parsed.autoLearn);
+  const existingWriteback = normalizeInstalledHostWritebackConfig({
+    legacyAutoLearn: parsed.autoLearn,
+    value: parsed.writeback,
+  });
   const retrievalProfile =
     readRetrievalProfile(parsed.retrievalProfile) ?? DEFAULT_RETRIEVAL_PROFILE;
   const providers = mergeProviderConfig(
@@ -588,10 +649,15 @@ async function mergeInstallConfig(input: {
     },
   ).providers;
 
+  const {
+    autoLearn: _legacyAutoLearn,
+    writeback: _existingWriteback,
+    ...rest
+  } = parsed;
+
   return {
-    ...parsed,
+    ...rest,
     activationMode: input.activationMode ?? existingActivationMode,
-    autoLearn: input.autoLearn ?? existingAutoLearn,
     debug,
     host: input.host,
     maxTokens,
@@ -610,7 +676,76 @@ async function mergeInstallConfig(input: {
         ? input.userId
         : parsed.userId,
     version: 1,
+    writeback: input.writeback ?? existingWriteback,
   } as HostInstallConfigRecord;
+}
+
+async function updateInstalledHostWritebackMode(input: {
+  homeRoot?: string;
+  host: InstalledHostKind;
+  mode: InstalledHostWritebackMode;
+}): Promise<{
+  change: InstalledHostFileChange;
+  writeback: InstalledHostWritebackConfig;
+}> {
+  const blueprint = HOST_INSTALL_BLUEPRINTS[input.host];
+  const installRoot = resolveInstallRoot(input.homeRoot);
+  const configPath = join(installRoot, blueprint.configFileName);
+  const existing = await readFileIfPresent(configPath);
+  if (existing === null || existing.trim().length === 0) {
+    throw new Error(
+      `Run 'goodmemory install ${input.host}' first to create ${configPath} before enabling writeback.`,
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(existing);
+  } catch {
+    throw buildInvalidManagedConfigError(
+      relativeToRoot(configPath, installRoot),
+      "file is not valid JSON",
+    );
+  }
+  if (!isRecord(parsed)) {
+    throw buildInvalidManagedConfigError(
+      relativeToRoot(configPath, installRoot),
+      "root value must be a JSON object",
+    );
+  }
+  const validation = parseInstalledHostRuntimeConfig(parsed, input.host);
+  if (validation.status !== "ok") {
+    throw buildInvalidManagedConfigError(
+      relativeToRoot(configPath, installRoot),
+      validation.detail,
+    );
+  }
+
+  const { autoLearn: _legacyAutoLearn, writeback: _existingWriteback, ...rest } = parsed;
+  const writeback = {
+    ...validation.config.writeback,
+    mode: input.mode,
+  };
+  const nextConfig = {
+    ...rest,
+    host: input.host,
+    version: 1,
+    writeback,
+  };
+
+  return {
+    change: await writeManagedFile(
+      configPath,
+      installRoot,
+      JSON.stringify(nextConfig, null, 2) + "\n",
+      {
+        directoryMode: PRIVATE_INSTALL_DIRECTORY_MODE,
+        existingContent: existing,
+        mode: PRIVATE_INSTALL_CONFIG_MODE,
+      },
+    ),
+    writeback,
+  };
 }
 
 async function shouldWriteDisableOverrideForGlobalMode(
@@ -631,31 +766,6 @@ async function shouldWriteDisableOverrideForGlobalMode(
   } catch {
     return false;
   }
-}
-
-function normalizeAutoLearnConfig(value: unknown): InstalledHostAutoLearnConfig {
-  if (!isRecord(value)) {
-    return DEFAULT_INSTALLED_HOST_AUTO_LEARN;
-  }
-
-  const extractionStrategy =
-    value.extractionStrategy === "rules-only" ||
-    value.extractionStrategy === "llm-assisted" ||
-    value.extractionStrategy === "auto"
-      ? value.extractionStrategy
-      : DEFAULT_INSTALLED_HOST_AUTO_LEARN.extractionStrategy;
-  const sources = Array.isArray(value.sources)
-    ? value.sources.filter(
-        (source): source is "session_stop" | "user_prompt" =>
-          source === "session_stop" || source === "user_prompt",
-      )
-    : DEFAULT_INSTALLED_HOST_AUTO_LEARN.sources;
-
-  return {
-    enabled: value.enabled === true,
-    extractionStrategy,
-    sources: sources.length > 0 ? sources : DEFAULT_INSTALLED_HOST_AUTO_LEARN.sources,
-  };
 }
 
 function validateInstallStorageInput(input: {

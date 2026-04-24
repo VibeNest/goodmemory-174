@@ -715,7 +715,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory export-memory");
     expect(readme).toContain("goodmemory stats");
     expect(readme).toContain("session-stop");
-    expect(readme).toContain("automatic learning");
+    expect(readme).toContain("Installed Host Writeback");
     expect(readme).toContain("goodmemory eval inspect");
     expect(readme).toContain("goodmemory eval export-case");
     expect(readme).toContain("GoodMemory-Current-Status-and-Evidence.md");
@@ -1631,7 +1631,7 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain(CURRENT_PACKAGE_VERSION);
     expect(checklist).toContain("Node");
     expect(checklist).toContain("Bun");
-    expect(checklist).toContain("gate:phase-36");
+    expect(checklist).toContain("gate:phase-37");
     expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
@@ -1702,9 +1702,8 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain("goodmemory setup");
     expect(currentStatus).toContain("goodmemory status");
     expect(currentStatus).toContain("SessionStart` / `UserPromptSubmit` hooks");
-    expect(currentStatus).toContain(
-      "Automatic learning, `Stop` / `session-stop` hook behavior, and any bounded writeback from hook signals remain outside the accepted Phase 35 stable-surface claim",
-    );
+    expect(currentStatus).toContain("Phase 37 is now closed as the installed host selective writeback slice");
+    expect(currentStatus).toContain("goodmemory codex writeback");
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",
     );
@@ -1762,6 +1761,27 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json",
     );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/fallback/phase-37/run-20260424101045/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-37/run-phase37-live-current/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json",
+    );
     expect(currentStatus).toContain("compiled `dist/` artifacts");
     expect(currentStatus).toContain("Bun-backed today");
     expect(currentStatus).toContain("runLiveMemoryEval()");
@@ -1803,6 +1823,9 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain(
       "Phase 35 is now closed as the installed host-memory middleware and hooks slice",
     );
+    expect(taskBoard).toContain(
+      "Phase 37 is now closed as the installed host selective writeback slice",
+    );
     expect(taskBoard).not.toContain("Phase 35 is now WIP again");
   });
 
@@ -1825,7 +1848,7 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("release workflow uses manual plus stable tag triggers, gate:phase-36, and tarball artifact upload", async () => {
+  it("release workflow uses manual plus stable tag triggers, gate:phase-37, and tarball artifact upload", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/release.yml"),
       "utf8",
@@ -1834,8 +1857,10 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("tags:");
     expect(workflow).toContain("v*.*.*");
-    expect(workflow).toContain("bun run gate:phase-36");
-    expect(workflow).not.toContain("bun run gate:phase-35");
+    expect(workflow).toContain("bun run gate:phase-37");
+    expect(workflow).toContain("GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY");
+    expect(workflow).toContain("secrets.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER");
+    expect(workflow).not.toContain("bun run gate:phase-36");
     expect(workflow).toContain("TAG_VERSION=\"${GITHUB_REF_NAME#v}\"");
     expect(workflow).toContain("Stable release workflow only supports stable semver versions");
     expect(workflow).toContain("[[ \"$VERSION\" == *-* ]]");

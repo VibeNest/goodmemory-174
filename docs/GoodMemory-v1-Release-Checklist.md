@@ -75,9 +75,11 @@
 - `bun run test:coverage` passes and enforces script/source coverage gates
 - `bun run gate:phase-35` passes
 - `bun run gate:phase-36` passes
+- `bun run gate:phase-37` passes
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
+- the tagged release workflow has `GOODMEMORY_ASSISTED_EXTRACTOR_*` secrets configured for the Phase 37 live-memory gate
 
 ## Packaging
 
@@ -106,5 +108,5 @@
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
-- the active stable release gate report lives under `reports/quality-gates/phase-36/`
+- the active stable release gate report lives under `reports/quality-gates/phase-37/`
 - the historical Phase 29 gate and RC dry-run reports remain archived under `reports/quality-gates/phase-29/`

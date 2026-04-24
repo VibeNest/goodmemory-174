@@ -12,11 +12,12 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend; Bun keeps local SQLite as the zero-config durable fallback; Node zero-config runtime falls back to in-memory when the built-in local SQLite adapter is unavailable.
 - `inspectGoodMemoryRuntime(memory)` now exposes the sanitized resolved storage/runtime plan so Node zero-config in-memory fallback is observable through the public API instead of being silent, unsupported built-in `sqlite` / `postgres` selections are reported as unavailable instead of durable, and injected storage adapters are reported as adapter-defined execution instead of being mislabeled as the configured built-in plan.
 - The official CLI surface remains memory-first for stable read paths: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`. The package bin is Node-safe, `goodmemory -V` / `goodmemory --version` answer directly from package metadata, and non-version command execution is still Bun-backed today.
-- Phase 35 installed host-memory middleware is now part of the accepted stable host surface through `goodmemory setup`, `goodmemory status`, `goodmemory install|uninstall <codex|claude>`, `goodmemory enable|disable <codex|claude>`, `SessionStart` / `UserPromptSubmit` hooks, read-only MCP, and explicit write CLI commands. Interactive setup now defaults to global activation with workspace-derived isolation, prompts for optional Postgres, embedding, and LLM extraction, keeps `--json` / `--no-interactive` script-safe, and still lets users skip provider setup and add it later in `~/.goodmemory/<host>.json`.
+- Phase 35 installed host-memory middleware is now part of the accepted stable host surface through `goodmemory setup`, `goodmemory status`, `goodmemory install|uninstall <codex|claude>`, `goodmemory enable|disable <codex|claude>`, `SessionStart` / `UserPromptSubmit` hooks, read-only MCP, and explicit write CLI commands. Interactive setup now defaults to global activation with workspace-derived isolation, prompts for optional Postgres, embedding, LLM extraction, and installed-host writeback mode, keeps `--json` / `--no-interactive` script-safe, and still lets users skip provider setup and add it later in `~/.goodmemory/<host>.json`.
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice.
+- Phase 37 is now closed as the installed host selective writeback slice. Codex installed host supports opt-in `off` / `observe` / `selective` writeback through `goodmemory codex writeback`, `install|enable --writeback`, and `session-stop` delegation. `off` remains the default; `observe` produces candidates and trace without writes; `selective` writes only selected candidates through the public Phase 36 `remember` surface.
 - Installed-package external host wiring remains available through `goodmemory codex bootstrap` and `goodmemory claude bootstrap` as lower-level compatibility scaffolding for artifact-first integrations.
 - Host integration stays on the explicit adapter/package path; hook-injected recall is the canonical always-on middleware path for enabled repositories or globally activated workspaces, while MCP is a deep-read/debug surface rather than the default recall transport.
-- Automatic learning, `Stop` / `session-stop` hook behavior, and any bounded writeback from hook signals remain outside the accepted Phase 35 stable-surface claim until a new or reopened phase supplies matching task-board and gate evidence. Raw transcript dumps are not part of the stable host contract.
+- Installed-host writeback does not persist raw transcripts. Assistant-originated durable memory remains blocked unless host annotations confirm or verify it and the active profile policy allows it. `remember: "never"` masks content before deterministic, custom, or assisted extraction. Cross-store exactly-once transactions between memory storage and the writeback JSON ledger remain outside the accepted claim; the accepted runtime uses a pending/committed ledger for repair-visible idempotency and reports uncommitted writes as `write_failed`.
 - `goodmemory/host` now includes an explicit pre-action contract through `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()`.
 - Optional adapter-level agent-event ingestion now exists on `goodmemory/ai-sdk` and `goodmemory/host`; no new root `goodmemory/evolution` module was added.
 - root `goodmemory` no longer re-exports internal evolution contracts; proposal, reviewer, compiler, and maintenance internals stay outside the stable root API.
@@ -36,24 +37,28 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 36 is now closed as the public domain write profiles and rules slice.
+- Phase 37 is now closed as the installed host selective writeback slice.
 - Accepted behavior:
-  - `createGoodMemory({ remember: ... })` is public API for domain-specific write profiles
-  - `rememberRules` supports regex, predicate, and direct mapper rules that produce normal candidates
-  - profile custom extractors compose with deterministic and assisted extraction instead of replacing normalization, classification, policy, evidence, conflict handling, vector writes, or rollback
-  - profile custom extractors can use named `{ id, extractor }` entries so remember traces and eval reports keep stable `extractorIds`; blank, duplicate, or generated raw-namespace ids fail during profile resolution
-  - `RememberInput.annotations` supports host write intent, metadata patches, kind hints, confirmation, verification, and reasons
-  - assistant-originated durable writes remain ignored by default and require both host annotation and an allowing profile policy
-  - `remember: "never"` masks annotated message content before deterministic, custom, or assisted extraction
-  - domain metadata persists on preferences, facts, references, and feedback, and Markdown exports render the metadata needed for auditability
-  - remember events trace profile, preset, extractor, rule, annotation, and extraction strategy influence
-  - default preset, rules, custom extractor, assisted-only, and annotation-derived candidates all carry resolved profile/preset trace metadata
-  - the life-coach/OneLife-style scenario is documented as a generic public configuration pattern, not a built-in preset
-- Still outside the accepted Phase 36 claim:
-  - making OneLife a built-in preset
-  - requiring assisted extraction, provider-backed storage, or a database service for zero-config users
-  - automatic assistant-answer memory without host confirmation or verification
+  - Codex installed host supports opt-in writeback modes: `off`, `observe`, and `selective`
+  - `off` remains the default
+  - `observe` produces candidates and trace without durable writes
+  - `selective` writes durable memory only through the accepted public `remember` surface, with installed-host profiles, rules, annotations, and trace metadata
+  - no raw transcript is persisted as durable memory
+  - assistant-originated durable memory is ignored unless host annotation confirms or verifies it and the active profile allows it
+  - `remember: "never"` masks content before deterministic, custom, or assisted extraction
+  - duplicate open-loop writeback is suppressed through stable writeback candidate keys and the pending/committed ledger
+  - a two-session Codex scenario works without manual `goodmemory remember`: session 1 writes an open loop, session 2 recalls it through `UserPromptSubmit`
+  - provider-backed assisted extraction ran through the installed-host writeback runtime, while durable storage remained the accepted local SQLite fallback in the canonical live report
+  - an external consumer installed the packed package and completed writeback plus next-session recall outside this repository
+- Still outside the accepted Phase 37 claim:
+  - default-on automatic writeback
+  - full transcript archive or transcript persistence as memory
+  - dashboard
+  - managed cloud
+  - built-in OneLife preset
   - reopening recall routing or retrieval profile promotion
+  - making Claude a second provider-backed live blocker
+  - cross-store exactly-once transaction between memory storage and the JSON writeback ledger
 
 ## Current Canonical Evidence
 
@@ -125,6 +130,12 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Deterministic/live gate: `reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json`
   - Deterministic fallback report: `reports/eval/fallback/phase-36/run-20260423221045/report.json`
   - Provider-backed live-memory report: `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
+- Installed host selective writeback closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md`
+  - Deterministic/live gate: `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`
+  - Deterministic fallback report: `reports/eval/fallback/phase-37/run-20260424101045/report.json`
+  - Provider-backed assisted-extraction live-memory report: `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
+  - External consumer installed-package smoke report: `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

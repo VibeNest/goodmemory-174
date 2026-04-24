@@ -1,0 +1,171 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "External consumer installed the packed package, ran Codex selective writeback, and recalled the written open loop without manual seeding."
+  },
+  "commands": [
+    {
+      "command": "npm pack --pack-destination /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/pack",
+      "durationMs": 2884,
+      "exitCode": 0,
+      "label": "npm-pack",
+      "status": "passed",
+      "stderrTail": [
+        "npm notice 6.2kB src/storage/postgresPublic.ts",
+        "npm notice 16.3kB src/storage/repositories.ts",
+        "npm notice 31.1kB src/storage/sqlite.ts",
+        "npm notice 6.3kB src/storage/sqlitePublic.ts",
+        "npm notice 14.4kB src/storage/sqliteRuntime.ts",
+        "npm notice 6.3kB src/testing/fakes.ts",
+        "npm notice 355B src/testing/fixtures.ts",
+        "npm notice 5.2kB src/testing/scenarioReplay.ts",
+        "npm notice 1.1kB src/testing/utils.ts",
+        "npm notice 4.8kB src/verify/policy.ts",
+        "npm notice Tarball Details",
+        "npm notice name: goodmemory",
+        "npm notice version: 0.1.1",
+        "npm notice filename: goodmemory-0.1.1.tgz",
+        "npm notice package size: 867.2 kB",
+        "npm notice unpacked size: 4.4 MB",
+        "npm notice shasum: f26de6fc162c0c99d6d0710ac3516684d1adf3c7",
+        "npm notice integrity: sha512-fmCLpgxoGH84x[...]o9ob2pBgKad+g==",
+        "npm notice total files: 312",
+        "npm notice"
+      ],
+      "stdoutTail": [
+        "",
+        "> goodmemory@0.1.1 prepack",
+        "> bun run build",
+        "",
+        "goodmemory-0.1.1.tgz"
+      ]
+    },
+    {
+      "command": "npm install /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/pack/goodmemory-0.1.1.tgz",
+      "durationMs": 6746,
+      "exitCode": 0,
+      "label": "consumer-install-package",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "",
+        "added 105 packages, and audited 106 packages in 7s",
+        "",
+        "28 packages are looking for funding",
+        "  run `npm fund` for details",
+        "",
+        "found 0 vulnerabilities"
+      ]
+    },
+    {
+      "command": "/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/consumer/node_modules/.bin/goodmemory install codex --user-id phase37-external-user --writeback selective --no-interactive",
+      "durationMs": 347,
+      "exitCode": 0,
+      "label": "consumer-install-codex",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "Installed GoodMemory Codex configuration",
+        "- codex.json (created)",
+        "- .codex/config.toml (created)",
+        "- .codex/hooks.json (created)",
+        "- config: /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/home/.goodmemory/codex.json",
+        "- activation: workspace_opt_in",
+        "- writeback: selective",
+        "- storage: sqlite (/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/home/.goodmemory/memory.sqlite)",
+        "- memory path: /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/home/.goodmemory/memory.sqlite",
+        "- userId: phase37-external-user",
+        "- embedding provider: not configured (rules-only/local fallback remains available)",
+        "- LLM extraction provider: not configured (rules-only/local fallback remains available)",
+        "- provider setup: rerun install with --embedding-* / --llm-* flags or edit /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/home/.goodmemory/codex.json"
+      ]
+    },
+    {
+      "command": "/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/consumer/node_modules/.bin/goodmemory enable codex --writeback selective",
+      "durationMs": 258,
+      "exitCode": 0,
+      "label": "consumer-enable-codex",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "Enabled GoodMemory Codex configuration",
+        "- .goodmemory/codex.json (created)",
+        "- AGENTS.md (created)",
+        "- codex.json (unchanged)",
+        "- config: /private/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/consumer/.goodmemory/codex.json",
+        "- writeback: selective",
+        "- instructions: /private/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/consumer/AGENTS.md",
+        "- workspace: /private/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/consumer"
+      ]
+    },
+    {
+      "command": "/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/consumer/node_modules/.bin/goodmemory codex writeback --json",
+      "durationMs": 1323,
+      "exitCode": 0,
+      "label": "consumer-codex-writeback",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "    }",
+        "  ],",
+        "  \"mode\": \"selective\",",
+        "  \"reason\": \"written\",",
+        "  \"trace\": {",
+        "    \"command\": \"session-end\",",
+        "    \"duplicateCandidateCount\": 0,",
+        "    \"durableCandidateCount\": 1,",
+        "    \"extractionStrategy\": \"rules-only\",",
+        "    \"failedCandidateCount\": 0,",
+        "    \"rawTranscriptPersisted\": false,",
+        "    \"rejectedCandidateCount\": 0,",
+        "    \"resolvedExtractionStrategies\": [",
+        "      \"rules-only\"",
+        "    ],",
+        "    \"uncommittedCandidateCount\": 0,",
+        "    \"writtenCandidateCount\": 1",
+        "  },",
+        "  \"wrote\": true",
+        "}"
+      ]
+    },
+    {
+      "command": "/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase37-external-brQXSL/consumer/node_modules/.bin/goodmemory codex hook user-prompt-submit",
+      "durationMs": 748,
+      "exitCode": 0,
+      "label": "consumer-codex-user-prompt-submit",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{",
+        "  \"hookSpecificOutput\": {",
+        "    \"hookEventName\": \"UserPromptSubmit\",",
+        "    \"additionalContext\": \"Developer memory notes:\\nEvidence: - Next step is to add the phase-37 external consumer report.\\nFacts: - Next step is to add the phase-37 external consumer report.\"",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "installedPackageUsed": true,
+    "manualSeedUsed": false,
+    "nextSessionRecallHit": true,
+    "rawTranscriptPersisted": false,
+    "tarballName": "goodmemory-0.1.1.tgz",
+    "wroteDurableMemory": true,
+    "writebackMode": "selective"
+  },
+  "evidenceContract": {
+    "phase37": {
+      "packageBoundary": "external_consumer_installed_package",
+      "runner": "scripts/run-phase-37-external-consumer.ts",
+      "runtimePath": "external_consumer_installed_host_writeback"
+    }
+  },
+  "generatedAt": "2026-04-24T02:52:41.111Z",
+  "generatedBy": "scripts/run-phase-37-external-consumer.ts",
+  "mode": "external-consumer",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-37",
+  "phase": "phase-37",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-37/run-phase37-external-consumer",
+  "runId": "run-phase37-external-consumer"
+}

@@ -111,27 +111,25 @@ describe("host install", () => {
         await readFile(join(homeRoot, ".goodmemory/codex.json"), "utf8"),
       ) as {
         activationMode: string;
-        autoLearn: {
-          enabled: boolean;
-          extractionStrategy: string;
-          sources: string[];
-        };
         debug: boolean;
         maxTokens: number;
         retrievalProfile: string;
         storage: { path: string; provider: string };
         userId: string;
+        writeback: {
+          mode: string;
+          persistRawTranscript: boolean;
+        };
       };
 
       expect(reinstalled.memoryPath).toBe(existingMemoryPath);
       expect(reinstalled.activationMode).toBe("workspace_opt_in");
-      expect(reinstalled.autoLearn.enabled).toBe(false);
+      expect(reinstalled.writeback.mode).toBe("off");
       expect(reinstalled.userId).toBe("preserved-user");
       expect(config.activationMode).toBe("workspace_opt_in");
-      expect(config.autoLearn).toEqual({
-        enabled: false,
-        extractionStrategy: "auto",
-        sources: ["user_prompt", "session_stop"],
+      expect(config.writeback).toMatchObject({
+        mode: "off",
+        persistRawTranscript: false,
       });
       expect(config.debug).toBe(true);
       expect(config.maxTokens).toBe(256);
@@ -1339,14 +1337,18 @@ describe("host install", () => {
     try {
       await installHost({
         activationMode: "global",
-        autoLearn: {
-          enabled: true,
-          extractionStrategy: "auto",
-          sources: ["user_prompt", "session_stop"],
-        },
         homeRoot,
         host: "codex",
         userId: "codex-user",
+        writeback: {
+          allowAssistantOutput: "confirmed_or_verified",
+          dryRun: false,
+          maxChars: 12000,
+          maxMessages: 12,
+          minConfidence: 0.7,
+          mode: "selective",
+          persistRawTranscript: false,
+        },
       });
 
       const disabled = await disableHostWorkspace({
@@ -1438,11 +1440,24 @@ describe("host install", () => {
         enableHostWorkspace({
           homeRoot,
           host: "codex",
+          writebackMode: "selective",
           workspaceRoot,
         }),
       ).rejects.toThrow(
         "Refusing to overwrite existing AGENTS.md: the managed install block is malformed.",
       );
+
+      const globalConfig = JSON.parse(
+        await readFile(join(homeRoot, ".goodmemory/codex.json"), "utf8"),
+      ) as {
+        writeback: {
+          mode: string;
+        };
+      };
+      expect(globalConfig.writeback.mode).toBe("off");
+      await expect(
+        readFile(join(workspaceRoot, ".goodmemory/codex.json"), "utf8"),
+      ).rejects.toThrow();
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
