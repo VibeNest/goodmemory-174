@@ -1,13 +1,26 @@
 import { createHash } from "node:crypto";
-import { mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import type { GoodMemory } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
+import type { RememberEvent } from "../remember/contracts";
 import type {
   MessageAnnotation,
   MemoryExtractionStrategy,
   MemoryCandidateKindHint,
 } from "../remember/candidates";
+import {
+  buildWritebackAuditEventId,
+  buildScopedWritebackCandidateKey,
+  buildWritebackScopeDigest,
+  buildWritebackSessionDigest,
+  clearWritebackAuditPending,
+  markWritebackAuditCommitted,
+  markWritebackAuditFailed,
+  markWritebackAuditPending,
+  readInstalledHostWritebackLedger,
+  withInstalledHostWritebackLedgerLock,
+  writeInstalledHostWritebackLedger,
+} from "./hostWritebackAuditLedger";
+import type { InstalledHostWritebackLinkedRecordId } from "./hostWritebackAuditLedger";
 import {
   isRecord,
   normalizeText,
@@ -22,7 +35,6 @@ import {
   type InstalledHostResolvedContext,
 } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
-import { resolveInstallRoot } from "./hostRuntimeConfig";
 
 export type InstalledHostWritebackCommand = "turn-end" | "session-end";
 
@@ -75,6 +87,7 @@ type NormalizedWritebackRole = NormalizedWritebackMessage["role"];
 interface HostPayloadAnnotation {
   confirmed?: boolean;
   kindHint?: InstalledHostWritebackCandidate["kind"];
+  machineReason?: string;
   reason?: string;
   remember?: "always" | "auto" | "never";
   verified?: boolean;
@@ -89,14 +102,6 @@ interface CandidateWithKey extends InstalledHostWritebackCandidate {
   messageAnnotation: MessageAnnotation;
 }
 
-interface WritebackLedger {
-  events: string[];
-  pending: string[];
-}
-
-const MAX_WRITEBACK_LEDGER_EVENTS = 1_000;
-const MAX_WRITEBACK_LOCK_ATTEMPTS = 40;
-const MAX_WRITEBACK_LOCK_DELAY_MS = 25;
 const MAX_WRITEBACK_MESSAGE_CHARS = 1_500;
 const SECRET_PATTERN =
   /\b(api[_-]?key|secret|token|password)\b\s*[:=]|sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{16,}/iu;
@@ -232,34 +237,45 @@ export async function executeInstalledHostWriteback(
   try {
     const memory = createInstalledHostMemory(resolved.context, dependencies);
     const extractionStrategy = resolveWritebackExtractionStrategy(resolved.context);
+    const scopeDigest = buildWritebackScopeDigest(durableScope);
+    const toScopedKey = (candidate: CandidateWithKey): string =>
+      buildScopedWritebackCandidateKey({
+        candidateKey: candidate.key,
+        scopeDigest,
+      });
     const writeResult = await writeNewCandidates({
       candidates: durableCandidates,
+      command: input.command,
       extractionStrategy,
       homeRoot: input.homeRoot,
       host: input.host,
       memory,
       scope: durableScope,
+      sessionDigest: buildWritebackSessionDigest(
+        readOptionalText(input.payload, "session_id"),
+      ),
     });
 
     return {
       applied: true,
-      candidates: candidates.map((candidate) =>
-        writeResult.writtenKeys.has(candidate.key)
+      candidates: candidates.map((candidate) => {
+        const scopedKey = toScopedKey(candidate);
+        return writeResult.writtenKeys.has(scopedKey)
           ? stripCandidateKey(candidate)
           : {
               ...stripCandidateKey(candidate),
-              durable: writeResult.uncommittedKeys.has(candidate.key),
-              reason: writeResult.uncommittedKeys.has(candidate.key)
+              durable: writeResult.uncommittedKeys.has(scopedKey),
+              reason: writeResult.uncommittedKeys.has(scopedKey)
                 ? "ledger_pending"
-                : writeResult.rejectedKeys.has(candidate.key)
+                : writeResult.rejectedKeys.has(scopedKey)
                   ? "write_rejected"
-                  : writeResult.failedKeys.has(candidate.key)
+                  : writeResult.failedKeys.has(scopedKey)
                     ? "write_failed"
                     : candidate.durable
                       ? "duplicate"
                       : candidate.reason,
-            }
-      ),
+            };
+      }),
       mode: "selective",
       reason: writeResult.failed
         ? "write_failed"
@@ -419,6 +435,9 @@ function readPayloadAnnotations(value: unknown): Map<number, HostPayloadAnnotati
       ...(annotation.confirmed === true ? { confirmed: true } : {}),
       ...(kindHint ? { kindHint } : {}),
       ...(typeof annotation.reason === "string" && annotation.reason.trim().length > 0
+        ? { machineReason: "host_annotation" }
+        : {}),
+      ...(typeof annotation.reason === "string" && annotation.reason.trim().length > 0
         ? { reason: annotation.reason.trim() }
         : {}),
       ...(remember ? { remember } : {}),
@@ -447,6 +466,7 @@ function readSummaryAnnotation(
     if (remember === "never") {
       return {
         ...(kindHint ? { kindHint } : {}),
+        ...(reason ? { machineReason: "host_annotation" } : {}),
         ...(reason ? { reason } : {}),
         remember: "never",
       };
@@ -457,6 +477,7 @@ function readSummaryAnnotation(
   return {
     ...(confirmed ? { confirmed: true } : {}),
     ...(kindHint ? { kindHint } : {}),
+    ...(reason ? { machineReason: "host_annotation" } : {}),
     ...(reason ? { reason } : {}),
     remember: remember ?? (confirmed || verified ? "always" : "auto"),
     ...(verified ? { verified: true } : {}),
@@ -643,7 +664,7 @@ function buildMessageCandidate(
     : !assistantAllowed
       ? "assistant_policy_blocked"
       : durable
-        ? base?.reason ?? message.annotation?.reason ?? "host_annotation"
+        ? base?.reason ?? message.annotation?.machineReason ?? "host_annotation"
         : "below_confidence";
 
   const messageRole = source === "assistant" ? "assistant" : "user";
@@ -702,7 +723,7 @@ function classifyDurableSignal(
     return {
       confidence: 0.86,
       kind: message.annotation.kindHint ?? "fact",
-      reason: message.annotation.reason ?? "host_annotation",
+      reason: message.annotation.machineReason ?? "host_annotation",
     };
   }
   if (FEEDBACK_PATTERN.test(content)) {
@@ -766,11 +787,13 @@ function isAssistantOutputAllowed(
 
 async function writeNewCandidates(input: {
   candidates: CandidateWithKey[];
+  command: InstalledHostWritebackCommand;
   extractionStrategy: MemoryExtractionStrategy;
   homeRoot: string | undefined;
   host: InstalledHostKind;
   memory: GoodMemory;
   scope: MemoryScope;
+  sessionDigest?: string;
 }): Promise<{
   duplicateCount: number;
   failed: boolean;
@@ -781,109 +804,306 @@ async function writeNewCandidates(input: {
   wrote: boolean;
   writtenKeys: Set<string>;
 }> {
-  return await withWritebackLedgerLock(input.host, input.homeRoot, async () => {
-    let ledger = await readWritebackLedger(input.host, input.homeRoot);
-    const existing = new Set([...ledger.events, ...ledger.pending]);
-    const newCandidates = input.candidates.filter(
-      (candidate) => !existing.has(candidate.key),
-    );
-    if (newCandidates.length === 0) {
-      return {
-        duplicateCount: input.candidates.length,
-        failed: false,
-        failedKeys: new Set<string>(),
-        rejectedKeys: new Set<string>(),
-        resolvedExtractionStrategies: new Set<MemoryExtractionStrategy>(),
-        uncommittedKeys: new Set<string>(),
-        wrote: false,
-        writtenKeys: new Set<string>(),
-      };
-    }
+  const scopeDigest = buildWritebackScopeDigest(input.scope);
+  const records = input.candidates.map((candidate) => ({
+    candidate,
+    eventId: buildWritebackAuditEventId({
+      candidateKey: buildScopedWritebackCandidateKey({
+        candidateKey: candidate.key,
+        scopeDigest,
+      }),
+      scopeDigest,
+    }),
+    legacyKey: candidate.key,
+    scopedKey: buildScopedWritebackCandidateKey({
+      candidateKey: candidate.key,
+      scopeDigest,
+    }),
+  }));
+  const seenInBatch = new Set<string>();
+  const writtenKeys: string[] = [];
+  const rejectedKeys: string[] = [];
+  const uncommittedKeys: string[] = [];
+  const failedKeys = new Set<string>();
+  const resolvedExtractionStrategies = new Set<MemoryExtractionStrategy>();
+  let duplicateCount = 0;
 
-    const writtenKeys: string[] = [];
-    const rejectedKeys: string[] = [];
-    const uncommittedKeys: string[] = [];
-    const resolvedExtractionStrategies = new Set<MemoryExtractionStrategy>();
-    for (const [index, candidate] of newCandidates.entries()) {
-      let acceptedCurrentCandidate = false;
-      try {
-        ledger = markWritebackPending(ledger, candidate.key);
-        await writeWritebackLedger(input.host, input.homeRoot, ledger);
-        const result = await input.memory.remember({
-          annotations: [
-            {
-              ...candidate.messageAnnotation,
-              messageIndex: 0,
-            },
-          ],
-          extractionStrategy: input.extractionStrategy,
-          messages: [candidate.message],
-          scope: input.scope,
-        });
-        if (result.metadata?.resolvedExtractionStrategy) {
-          resolvedExtractionStrategies.add(
-            result.metadata.resolvedExtractionStrategy,
-          );
-        }
-        if (result.accepted > 0) {
-          acceptedCurrentCandidate = true;
-          ledger = markWritebackCommitted(ledger, candidate.key);
-          await writeWritebackLedger(input.host, input.homeRoot, ledger);
-          writtenKeys.push(candidate.key);
-        } else {
-          ledger = clearWritebackPending(ledger, candidate.key);
-          await writeWritebackLedger(input.host, input.homeRoot, ledger);
-          rejectedKeys.push(candidate.key);
-        }
-      } catch {
-        if (acceptedCurrentCandidate) {
-          uncommittedKeys.push(candidate.key);
-        } else {
-          try {
-            ledger = clearWritebackPending(ledger, candidate.key);
-            await writeWritebackLedger(input.host, input.homeRoot, ledger);
-          } catch {
-            // Keep the conservative pending marker if cleanup cannot be persisted.
-          }
-        }
-        return {
-          duplicateCount: input.candidates.length - newCandidates.length,
-          failed: true,
-          failedKeys: new Set(
-            newCandidates.slice(index).map((failedCandidate) => failedCandidate.key),
-          ),
-          rejectedKeys: new Set(rejectedKeys),
-          resolvedExtractionStrategies,
-          uncommittedKeys: new Set(uncommittedKeys),
-          wrote: writtenKeys.length > 0 || uncommittedKeys.length > 0,
-          writtenKeys: new Set(writtenKeys),
-        };
+  for (const [index, record] of records.entries()) {
+    const { candidate, eventId, legacyKey, scopedKey } = record;
+    if (seenInBatch.has(scopedKey) || seenInBatch.has(legacyKey)) {
+      duplicateCount += 1;
+      continue;
+    }
+    seenInBatch.add(scopedKey);
+    seenInBatch.add(legacyKey);
+
+    try {
+      const reserved = await reserveWritebackCandidate({
+        candidate,
+        command: input.command,
+        eventId,
+        homeRoot: input.homeRoot,
+        host: input.host,
+        legacyKey,
+        scopedKey,
+        scopeDigest,
+        sessionDigest: input.sessionDigest,
+      });
+      if (!reserved) {
+        duplicateCount += 1;
+        continue;
       }
-    }
-    if (writtenKeys.length === 0) {
-      return {
-        duplicateCount: input.candidates.length - newCandidates.length,
-        failed: false,
-        failedKeys: new Set<string>(),
-        rejectedKeys: new Set(rejectedKeys),
+    } catch {
+      failedKeys.add(scopedKey);
+      return buildWritebackFailureResult({
+        duplicateCount,
+        failedKeys,
+        records: records.slice(index + 1),
+        rejectedKeys,
         resolvedExtractionStrategies,
-        uncommittedKeys: new Set<string>(),
-        wrote: false,
-        writtenKeys: new Set<string>(),
-      };
+        uncommittedKeys,
+        writtenKeys,
+      });
     }
 
-    return {
-      duplicateCount: input.candidates.length - newCandidates.length,
-      failed: false,
-      failedKeys: new Set<string>(),
-      rejectedKeys: new Set(rejectedKeys),
-      resolvedExtractionStrategies,
-      uncommittedKeys: new Set<string>(),
-      wrote: true,
-      writtenKeys: new Set(writtenKeys),
-    };
+    let acceptedCurrentCandidate = false;
+    try {
+      const result = await input.memory.remember({
+        annotations: [
+          {
+            ...candidate.messageAnnotation,
+            messageIndex: 0,
+          },
+        ],
+        extractionStrategy: input.extractionStrategy,
+        messages: [candidate.message],
+        scope: input.scope,
+      });
+      if (result.metadata?.resolvedExtractionStrategy) {
+        resolvedExtractionStrategies.add(
+          result.metadata.resolvedExtractionStrategy,
+        );
+      }
+      if (result.accepted > 0) {
+        acceptedCurrentCandidate = true;
+        const linkedRecordIds = collectWritebackLinkedRecordIds(result.events);
+        const memoryIds = linkedRecordIds
+          .filter((record) => record.type === "memory")
+          .map((record) => record.id);
+        await commitWritebackCandidate({
+          eventId,
+          homeRoot: input.homeRoot,
+          host: input.host,
+          linkedRecordIds,
+          memoryIds,
+          scopedKey,
+        });
+        writtenKeys.push(scopedKey);
+      } else {
+        await clearRejectedWritebackCandidate({
+          eventId,
+          homeRoot: input.homeRoot,
+          host: input.host,
+          scopedKey,
+        });
+        rejectedKeys.push(scopedKey);
+      }
+    } catch {
+      if (acceptedCurrentCandidate) {
+        uncommittedKeys.push(scopedKey);
+      } else {
+        try {
+          await failWritebackCandidate({
+            eventId,
+            homeRoot: input.homeRoot,
+            host: input.host,
+            scopedKey,
+          });
+        } catch {
+          // Keep the conservative pending marker if cleanup cannot be persisted.
+        }
+      }
+      failedKeys.add(scopedKey);
+      return buildWritebackFailureResult({
+        duplicateCount,
+        failedKeys,
+        records: records.slice(index + 1),
+        rejectedKeys,
+        resolvedExtractionStrategies,
+        uncommittedKeys,
+        writtenKeys,
+      });
+    }
+  }
+
+  return {
+    duplicateCount,
+    failed: false,
+    failedKeys: new Set<string>(),
+    rejectedKeys: new Set(rejectedKeys),
+    resolvedExtractionStrategies,
+    uncommittedKeys: new Set<string>(),
+    wrote: writtenKeys.length > 0,
+    writtenKeys: new Set(writtenKeys),
+  };
+}
+
+async function reserveWritebackCandidate(input: {
+  candidate: CandidateWithKey;
+  command: InstalledHostWritebackCommand;
+  eventId: string;
+  homeRoot: string | undefined;
+  host: InstalledHostKind;
+  legacyKey: string;
+  scopedKey: string;
+  scopeDigest: string;
+  sessionDigest?: string;
+}): Promise<boolean> {
+  return await withInstalledHostWritebackLedgerLock(
+    input.host,
+    input.homeRoot,
+    async () => {
+      let ledger = await readInstalledHostWritebackLedger(input.host, input.homeRoot);
+      const existing = new Set([...ledger.events, ...ledger.pending]);
+      if (existing.has(input.scopedKey) || existing.has(input.legacyKey)) {
+        return false;
+      }
+      ledger = markWritebackAuditPending(ledger, {
+        candidateKey: input.scopedKey,
+        command: input.command,
+        content: input.candidate.content,
+        eventId: input.eventId,
+        host: input.host,
+        kind: input.candidate.kind,
+        mode: "selective",
+        now: new Date().toISOString(),
+        reason: input.candidate.reason,
+        scopeDigest: input.scopeDigest,
+        source: input.candidate.source,
+        ...(input.sessionDigest ? { sessionDigest: input.sessionDigest } : {}),
+      });
+      await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
+      return true;
+    },
+  );
+}
+
+async function commitWritebackCandidate(input: {
+  eventId: string;
+  homeRoot: string | undefined;
+  host: InstalledHostKind;
+  linkedRecordIds: InstalledHostWritebackLinkedRecordId[];
+  memoryIds: string[];
+  scopedKey: string;
+}): Promise<void> {
+  await withInstalledHostWritebackLedgerLock(input.host, input.homeRoot, async () => {
+    const ledger = markWritebackAuditCommitted(
+      await readInstalledHostWritebackLedger(input.host, input.homeRoot),
+      {
+        candidateKey: input.scopedKey,
+        eventId: input.eventId,
+        linkedRecordIds: input.linkedRecordIds,
+        memoryIds: input.memoryIds,
+        now: new Date().toISOString(),
+      },
+    );
+    await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
   });
+}
+
+async function clearRejectedWritebackCandidate(input: {
+  eventId: string;
+  homeRoot: string | undefined;
+  host: InstalledHostKind;
+  scopedKey: string;
+}): Promise<void> {
+  await withInstalledHostWritebackLedgerLock(input.host, input.homeRoot, async () => {
+    const ledger = clearWritebackAuditPending(
+      await readInstalledHostWritebackLedger(input.host, input.homeRoot),
+      {
+        candidateKey: input.scopedKey,
+        eventId: input.eventId,
+      },
+    );
+    await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
+  });
+}
+
+async function failWritebackCandidate(input: {
+  eventId: string;
+  homeRoot: string | undefined;
+  host: InstalledHostKind;
+  scopedKey: string;
+}): Promise<void> {
+  await withInstalledHostWritebackLedgerLock(input.host, input.homeRoot, async () => {
+    const ledger = markWritebackAuditFailed(
+      await readInstalledHostWritebackLedger(input.host, input.homeRoot),
+      {
+        candidateKey: input.scopedKey,
+        errorCode: "remember_failed",
+        eventId: input.eventId,
+        now: new Date().toISOString(),
+      },
+    );
+    await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
+  });
+}
+
+function buildWritebackFailureResult(input: {
+  duplicateCount: number;
+  failedKeys: Set<string>;
+  records: Array<{ scopedKey: string }>;
+  rejectedKeys: string[];
+  resolvedExtractionStrategies: Set<MemoryExtractionStrategy>;
+  uncommittedKeys: string[];
+  writtenKeys: string[];
+}): {
+  duplicateCount: number;
+  failed: boolean;
+  failedKeys: Set<string>;
+  rejectedKeys: Set<string>;
+  resolvedExtractionStrategies: Set<MemoryExtractionStrategy>;
+  uncommittedKeys: Set<string>;
+  wrote: boolean;
+  writtenKeys: Set<string>;
+} {
+  for (const record of input.records) {
+    input.failedKeys.add(record.scopedKey);
+  }
+  return {
+    duplicateCount: input.duplicateCount,
+    failed: true,
+    failedKeys: input.failedKeys,
+    rejectedKeys: new Set(input.rejectedKeys),
+    resolvedExtractionStrategies: input.resolvedExtractionStrategies,
+    uncommittedKeys: new Set(input.uncommittedKeys),
+    wrote: input.writtenKeys.length > 0 || input.uncommittedKeys.length > 0,
+    writtenKeys: new Set(input.writtenKeys),
+  };
+}
+
+function collectWritebackLinkedRecordIds(
+  events: RememberEvent[],
+): InstalledHostWritebackLinkedRecordId[] {
+  const linked = new Map<string, InstalledHostWritebackLinkedRecordId>();
+  for (const event of events) {
+    if (event.outcome === "rejected") {
+      continue;
+    }
+    if (event.memoryId && event.outcome !== "merged") {
+      linked.set(`memory:${event.memoryId}`, {
+        id: event.memoryId,
+        type: "memory",
+      });
+    }
+    for (const evidenceId of event.evidenceIds ?? []) {
+      linked.set(`evidence:${evidenceId}`, {
+        id: evidenceId,
+        type: "evidence",
+      });
+    }
+  }
+  return [...linked.values()];
 }
 
 function stripCandidateKey(
@@ -936,155 +1156,6 @@ function toMessageAnnotationKind(
   return kind === "episode" ? "fact" : kind;
 }
 
-function appendWritebackEvents(
-  events: string[],
-  eventKeys: string[],
-): string[] {
-  return [...new Set([...events, ...eventKeys])].slice(-MAX_WRITEBACK_LEDGER_EVENTS);
-}
-
-function markWritebackPending(
-  ledger: WritebackLedger,
-  eventKey: string,
-): WritebackLedger {
-  if (ledger.events.includes(eventKey)) {
-    return {
-      events: ledger.events,
-      pending: ledger.pending.filter((pendingKey) => pendingKey !== eventKey),
-    };
-  }
-
-  return {
-    events: ledger.events,
-    pending: [...new Set([...ledger.pending, eventKey])].slice(
-      -MAX_WRITEBACK_LEDGER_EVENTS,
-    ),
-  };
-}
-
-function markWritebackCommitted(
-  ledger: WritebackLedger,
-  eventKey: string,
-): WritebackLedger {
-  return {
-    events: appendWritebackEvents(ledger.events, [eventKey]),
-    pending: ledger.pending.filter((pendingKey) => pendingKey !== eventKey),
-  };
-}
-
-function clearWritebackPending(
-  ledger: WritebackLedger,
-  eventKey: string,
-): WritebackLedger {
-  return {
-    events: ledger.events,
-    pending: ledger.pending.filter((pendingKey) => pendingKey !== eventKey),
-  };
-}
-
-async function withWritebackLedgerLock<T>(
-  host: InstalledHostKind,
-  homeRoot: string | undefined,
-  callback: () => Promise<T>,
-): Promise<T> {
-  const lockPath = `${writebackLedgerPath(host, homeRoot)}.lock`;
-  let attempt = 0;
-
-  while (attempt < MAX_WRITEBACK_LOCK_ATTEMPTS) {
-    try {
-      const lockHandle = await open(lockPath, "wx", 0o600);
-      try {
-        return await callback();
-      } finally {
-        await lockHandle.close();
-        await rm(lockPath, { force: true });
-      }
-    } catch (error) {
-      if (!isLockAlreadyHeldError(error)) {
-        throw error;
-      }
-    }
-
-    attempt += 1;
-    await delay(MAX_WRITEBACK_LOCK_DELAY_MS);
-  }
-
-  throw new Error(`Timed out waiting for the ${host} writeback ledger lock.`);
-}
-
-async function writeWritebackLedger(
-  host: InstalledHostKind,
-  homeRoot: string | undefined,
-  ledger: WritebackLedger,
-): Promise<void> {
-  const path = writebackLedgerPath(host, homeRoot);
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(
-    path,
-    JSON.stringify(
-      {
-        events: ledger.events,
-        pending: ledger.pending,
-        version: 2,
-      },
-      null,
-      2,
-    ) + "\n",
-    "utf8",
-  );
-}
-
-async function readWritebackLedger(
-  host: InstalledHostKind,
-  homeRoot: string | undefined,
-): Promise<WritebackLedger> {
-  try {
-    const parsed = JSON.parse(await readFile(writebackLedgerPath(host, homeRoot), "utf8")) as unknown;
-    if (isRecord(parsed) && Array.isArray(parsed.events)) {
-      return {
-        events: parsed.events.filter((event): event is string => typeof event === "string"),
-        pending: Array.isArray(parsed.pending)
-          ? parsed.pending.filter((event): event is string => typeof event === "string")
-          : [],
-      };
-    }
-    throw new Error("GoodMemory writeback ledger must be a JSON object with an events array.");
-  } catch (error) {
-    if (isMissingFileError(error)) {
-      return {
-        events: [],
-        pending: [],
-      };
-    }
-    throw error;
-  }
-}
-
-function writebackLedgerPath(
-  host: InstalledHostKind,
-  homeRoot: string | undefined,
-): string {
-  return join(resolveInstallRoot(homeRoot), `${host}-writeback-events.json`);
-}
-
-function isMissingFileError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "ENOENT"
-  );
-}
-
-function isLockAlreadyHeldError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "EEXIST"
-  );
-}
-
 function clampText(value: string, maxLength: number): string {
   if (maxLength <= 0) {
     return "";
@@ -1097,8 +1168,4 @@ function clampText(value: string, maxLength: number): string {
   }
 
   return `${value.slice(0, maxLength - 3)}...`;
-}
-
-async function delay(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
 }

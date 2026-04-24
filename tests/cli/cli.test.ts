@@ -939,9 +939,11 @@ describe("goodmemory cli help and routing", () => {
     const codex = await runCLI(["codex", "--help"]);
     const codexBootstrap = await runCLI(["codex", "bootstrap", "--help"]);
     const codexHook = await runCLI(["codex", "hook", "--help"]);
+    const codexWriteback = await runCLI(["codex", "writeback", "--help"]);
     const claude = await runCLI(["claude", "--help"]);
     const claudeBootstrap = await runCLI(["claude", "bootstrap", "--help"]);
     const claudeHook = await runCLI(["claude", "hook", "--help"]);
+    const claudeWriteback = await runCLI(["claude", "writeback", "--help"]);
 
     expect(remember.exitCode).toBe(0);
     expect(remember.stdout).toContain("GoodMemory Remember");
@@ -1014,6 +1016,10 @@ describe("goodmemory cli help and routing", () => {
     expect(codexHook.stdout).toContain("GoodMemory Codex Hook");
     expect(codexHook.stdout).toContain("session-start");
     expect(codexHook.stdout).toContain("session-stop");
+    expect(codexWriteback.exitCode).toBe(0);
+    expect(codexWriteback.stdout).toContain("GoodMemory Codex Writeback");
+    expect(codexWriteback.stdout).toContain("goodmemory codex writeback inspect");
+    expect(codexWriteback.stdout).toContain("goodmemory codex writeback forget --event-id <id>");
     expect(claude.exitCode).toBe(0);
     expect(claude.stdout).toContain("GoodMemory Claude CLI");
     expect(claude.stdout).toContain("goodmemory claude hook --help");
@@ -1024,6 +1030,10 @@ describe("goodmemory cli help and routing", () => {
     expect(claudeHook.stdout).toContain("GoodMemory Claude Hook");
     expect(claudeHook.stdout).toContain("user-prompt-submit");
     expect(claudeHook.stdout).toContain("session-stop");
+    expect(claudeWriteback.exitCode).toBe(0);
+    expect(claudeWriteback.stdout).toContain("GoodMemory Claude Writeback");
+    expect(claudeWriteback.stdout).toContain("goodmemory claude writeback inspect");
+    expect(claudeWriteback.stdout).toContain("goodmemory claude writeback forget --event-id <id>");
   });
 
   it("returns help hints for unknown root and eval commands", async () => {
@@ -3927,6 +3937,135 @@ describe("goodmemory cli installed host config", () => {
       await missingRepoHome.cleanup();
       await writeFailureHome.cleanup();
       await workspace.cleanup();
+    }
+  });
+
+  it("inspects and forgets installed-host writeback audit events for Codex and Claude", async () => {
+    const cliScript = join(import.meta.dir, "../../scripts/goodmemory-cli.ts");
+
+    for (const host of ["codex", "claude"] as const) {
+      const home = await createTempWorkspace(`goodmemory-${host}-writeback-audit-home`);
+      const workspace = await createTempWorkspace(
+        `goodmemory-${host}-writeback-audit-workspace`,
+      );
+
+      try {
+        await withEnv(
+          {
+            GOODMEMORY_HOME: home.root,
+          },
+          async () => {
+            const install = await runCLI([
+              "install",
+              host,
+              "--activation-mode",
+              "global",
+              "--user-id",
+              "cli-user",
+              "--writeback",
+              "selective",
+              "--json",
+            ]);
+            expect(install.exitCode).toBe(0);
+          },
+        );
+
+        const writeback = await runBunScript({
+          args: [host, "writeback", "--json"],
+          cwd: workspace.root,
+          env: {
+            GOODMEMORY_HOME: home.root,
+          },
+          scriptPath: cliScript,
+          stdin: JSON.stringify({
+            cwd: workspace.root,
+            messages: [
+              {
+                content: `Next step is to add Phase 37.1 ${host} CLI audit undo.`,
+                role: "user",
+              },
+            ],
+            session_id: `${host}-cli-audit-session-1`,
+          }),
+        });
+        expect(writeback.exitCode).toBe(0);
+
+        const inspect = await runBunScript({
+          args: [host, "writeback", "inspect", "--json"],
+          cwd: workspace.root,
+          env: {
+            GOODMEMORY_HOME: home.root,
+          },
+          scriptPath: cliScript,
+        });
+        expect(inspect.exitCode).toBe(0);
+        const inspectPayload = JSON.parse(inspect.stdout) as {
+          events: Array<{
+            contentPreview: string;
+            eventId: string;
+            linkedRecordIds: Array<{ id: string; type: string }>;
+            memoryExistsCount: number;
+            memoryIds: string[];
+            status: string;
+          }>;
+        };
+        expect(inspectPayload.events[0]).toEqual(
+          expect.objectContaining({
+            contentPreview: expect.stringContaining(
+              `Phase 37.1 ${host} CLI audit undo`,
+            ),
+            linkedRecordIds: expect.arrayContaining([
+              expect.objectContaining({ type: "memory" }),
+              expect.objectContaining({ type: "evidence" }),
+            ]),
+            memoryExistsCount: 1,
+            status: "committed",
+          }),
+        );
+
+        const forget = await runBunScript({
+          args: [
+            host,
+            "writeback",
+            "forget",
+            "--event-id",
+            inspectPayload.events[0]!.eventId,
+            "--review-outcome",
+            "false_write",
+            "--review-reason",
+            "api_key=sk-cli-review-secret-value",
+            "--json",
+          ],
+          cwd: workspace.root,
+          env: {
+            GOODMEMORY_HOME: home.root,
+          },
+          scriptPath: cliScript,
+        });
+        expect(forget.exitCode).toBe(0);
+        const forgetPayload = JSON.parse(forget.stdout) as {
+          forgottenLinkedRecordIds: Array<{ id: string; type: string }>;
+          forgottenMemoryIds: string[];
+          review?: { outcome: string; reason?: string };
+          status: string;
+        };
+        expect(forgetPayload.forgottenLinkedRecordIds).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "memory" }),
+            expect.objectContaining({ type: "evidence" }),
+          ]),
+        );
+        expect(forgetPayload.forgottenMemoryIds.length).toBeGreaterThan(0);
+        expect(forgetPayload.review).toEqual({
+          outcome: "false_write",
+          reason: "[redacted secret-like content]",
+        });
+        expect(forget.stdout).not.toContain("sk-cli-review-secret-value");
+        expect(forgetPayload.status).toBe("forgotten");
+      } finally {
+        await home.cleanup();
+        await workspace.cleanup();
+      }
     }
   });
 

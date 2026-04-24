@@ -195,6 +195,17 @@ goodmemory enable codex --writeback selective
 
 Writeback does not persist raw transcripts. It extracts selected memory candidates and writes them only through the public `remember` surface, using installed-host profiles, rules, annotations, and the Phase 36 assistant-output policy. Assistant-originated durable memory requires host confirmation or verification, and `remember: "never"` masks annotated content before extraction. `session-stop` hook payloads delegate to the same writeback runtime when a host invokes that hook.
 
+Writeback is auditable and reversible from the installed-host CLI:
+
+```bash
+goodmemory codex writeback inspect --json
+goodmemory codex writeback forget --event-id <event-id> --review-outcome false_write
+```
+
+The audit ledger stores bounded redacted candidate previews, candidate keys, typed linked record ids, status, reasons, host, mode, timestamps, scope/session digests, and optional manual review metadata. It does not store raw host payloads. `forget --event-id` deletes the linked memory/evidence records through the public `forget()` API before marking the audit event forgotten.
+
+Use `goodmemory codex writeback` for opt-in automatic writeback, `goodmemory remember` / `goodmemory feedback` for explicit seeding and correction, `goodmemory codex hook user-prompt-submit` for automatic recall injection, and `goodmemory forget` or `goodmemory codex writeback forget` for cleanup.
+
 Installed-host setup is designed as a closed loop. In an interactive terminal,
 `goodmemory setup` is the recommended happy path. It asks which host to enable,
 where memory enhancement should run (`global`, `current-workspace`, or

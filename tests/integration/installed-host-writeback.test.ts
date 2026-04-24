@@ -11,6 +11,7 @@ import {
   installHost,
 } from "../../src/install/hostInstall";
 import { executeInstalledHostHook } from "../../src/install/hostHookRuntime";
+import { readInstalledHostWritebackLedger } from "../../src/install/hostWritebackAuditLedger";
 import { executeInstalledHostWriteback } from "../../src/install/hostWritebackRuntime";
 
 async function createWorkspace(prefix: string): Promise<string> {
@@ -90,6 +91,27 @@ describe("installed host writeback integration", () => {
       expect(durableText).toContain("phase-37 live report");
       expect(durableText).not.toContain("I will add the phase-37 live report next.");
 
+      const sameSessionRecall = await executeInstalledHostHook({
+        command: "user-prompt-submit",
+        homeRoot,
+        host: "codex",
+        payload: {
+          cwd: workspaceRoot,
+          prompt: "What is the next step for phase-37?",
+          session_id: "phase37-session-1",
+        },
+      });
+
+      expect(sameSessionRecall.applied).toBe(true);
+      const beforeNextSessionLedger = await readInstalledHostWritebackLedger(
+        "codex",
+        homeRoot,
+      );
+      const sameSessionEvent = beforeNextSessionLedger.auditEvents.find((item) =>
+        item.contentPreview.includes("phase-37 live report"),
+      );
+      expect(sameSessionEvent?.recallHitCount).toBe(0);
+
       const recall = await executeInstalledHostHook({
         command: "user-prompt-submit",
         homeRoot,
@@ -103,6 +125,18 @@ describe("installed host writeback integration", () => {
 
       expect(recall.applied).toBe(true);
       expect(recall.context).toContain("phase-37 live report");
+
+      const ledger = await readInstalledHostWritebackLedger("codex", homeRoot);
+      const event = ledger.auditEvents.find((item) =>
+        item.contentPreview.includes("phase-37 live report"),
+      );
+      expect(event).toEqual(
+        expect.objectContaining({
+          recallHitCount: 1,
+          status: "committed",
+        }),
+      );
+      expect(event?.recalledBy[0]?.sessionDigest).toMatch(/^session:/u);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });

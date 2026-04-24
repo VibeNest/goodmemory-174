@@ -105,6 +105,7 @@ Read and execute files in this order:
 36. 36-phase-35-installed-host-memory-middleware-and-hooks.txt
 37. 37-phase-36-public-domain-write-profiles-and-rules.txt
 38. 38-phase-37-installed-host-selective-writeback.txt
+39. 39-phase-37-1-writeback-productization-polish.txt
 
 
 Current Sequencing Note
@@ -226,6 +227,11 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md`
   - accepted surface: Codex installed host supports opt-in `off` / `observe` / `selective` writeback through public `remember` profiles/rules/annotations, with no raw transcript persistence and assistant output still gated by host confirmation or verification
   - still out of scope: default-on writeback, transcript archives, dashboard, managed cloud, built-in OneLife preset, recall-router reopening, and Claude as a provider-backed live blocker
+- Phase 37.1 is now open as the writeback productization polish slice:
+  - task-board entrypoint: `task-board/39-phase-37-1-writeback-productization-polish.txt`
+  - breakdown folder: `task-board/phase-37-1-writeback-productization-polish/`
+  - goal: make installed-host writeback inspectable, undoable, and dogfood-measurable without changing Phase 37 accepted claims
+  - constraints: writeback remains opt-in, raw transcripts are not persisted, and no root public writeback API is added
 - Any work after Phase 37 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.

@@ -1,4 +1,5 @@
 import type { MemoryScope } from "../domain/scope";
+import type { RecallResult } from "../api/contracts";
 import {
   normalizeText,
   readOptionalText,
@@ -6,13 +7,12 @@ import {
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
-  type InstalledHostContextDependencies,
 } from "./hostExecutionContext";
+import type { InstalledHostContextDependencies } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
-import {
-  executeInstalledHostWriteback,
-  type InstalledHostWritebackResult,
-} from "./hostWritebackRuntime";
+import { recordInstalledHostWritebackRecallHits } from "./hostWritebackAuditRuntime";
+import { executeInstalledHostWriteback } from "./hostWritebackRuntime";
+import type { InstalledHostWritebackResult } from "./hostWritebackRuntime";
 
 export type InstalledHostHookCommand =
   | "session-start"
@@ -156,6 +156,14 @@ export async function executeInstalledHostHook(
     }
 
     const boundedContext = clampText(fragment, MAX_HOOK_CONTEXT_CHARS);
+    await recordInstalledHostWritebackRecallHits({
+      homeRoot: input.homeRoot,
+      host: input.host,
+      recalledRecordIds: collectRecallRecordIds(recall),
+      scope: context.scope,
+      sessionId: context.scope.sessionId,
+    }).catch(() => undefined);
+
     return {
       applied: true,
       context: boundedContext,
@@ -248,6 +256,37 @@ function mapHookEventName(
 
 function clampText(value: string, maxLength: number): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 3)}...`;
+}
+
+function collectRecallRecordIds(recall: RecallResult): string[] {
+  const ids = new Set<string>();
+  for (const record of [
+    ...recall.preferences,
+    ...recall.references,
+    ...recall.facts,
+    ...recall.feedback,
+    ...recall.evidence,
+    ...recall.episodes,
+    ...recall.archives,
+  ]) {
+    ids.add(record.id);
+  }
+  for (const hit of recall.metadata.hits) {
+    ids.add(hit.id);
+    for (const evidenceId of hit.evidenceIds ?? []) {
+      ids.add(evidenceId);
+    }
+  }
+  for (const trace of recall.metadata.candidateTraces) {
+    if (!trace.returned) {
+      continue;
+    }
+    ids.add(trace.memoryId);
+    for (const evidenceId of trace.evidenceIds ?? []) {
+      ids.add(evidenceId);
+    }
+  }
+  return [...ids];
 }
 
 function summarizeHookWriteback(

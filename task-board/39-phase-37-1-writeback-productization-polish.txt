@@ -1,0 +1,60 @@
+Phase 37.1: Writeback Productization Polish
+===========================================
+
+Status
+------
+[WIP] Phase 37.1 is the productization polish slice after the accepted Phase 37 installed-host selective writeback closure.
+
+
+Intent
+------
+Make installed-host writeback understandable, inspectable, undoable, and dogfood-measurable without reopening the Phase 37 accepted claim.
+
+This slice must not make writeback default-on, must not persist raw transcripts, must not add a full transcript archive, and must not widen the root `goodmemory` public API.
+
+
+Accepted Scope
+--------------
+- product-facing docs for installed-host writeback
+- installed-host writeback audit ledger
+- `goodmemory codex writeback inspect`
+- `goodmemory codex writeback forget --event-id <id>`
+- deterministic Claude CLI parity for inspect and forget
+- dogfood summary report from local writeback audit ledgers
+- Phase 37.1 quality gate
+
+
+Out of Scope
+------------
+- default-on automatic writeback
+- full transcript archive
+- dashboard
+- managed cloud
+- public root `goodmemory/writeback` API
+- making Claude provider-backed live evidence a blocker
+- changing Phase 37 canonical evidence
+
+
+Acceptance Criteria
+-------------------
+1. Writeback remains opt-in and defaults to `off`.
+2. New writeback audit events record event id, candidate key, candidate preview, kind, reason, source, host, mode, status, linked record ids, timestamps, scope digest, redacted session digest, explicit recall-hit markers, and optional manual review outcome.
+3. Audit events never persist raw transcripts, secrets, or full assistant output; only bounded, redacted candidate previews are allowed.
+4. Legacy Phase 37 ledgers with `{ events, pending }` remain readable and keep dedupe behavior.
+5. `goodmemory codex writeback inspect --json` lists recent writeback audit events and reconciles them with memory export.
+6. `goodmemory codex writeback forget --event-id <id>` deletes linked records through public `forget()` where records are forgettable, then marks the audit event forgotten with a manual review reason.
+7. Claude exposes the same deterministic inspect and forget command surface.
+8. Dogfood summary reports session count, candidate count, durable write count, forgotten count, duplicate count, next-session recall hit count, and manual false-write rate from explicit review metadata without transcript content.
+9. Phase 37.1 gate passes and keeps Phase 35, Phase 36, and Phase 37 gates regression-covered.
+
+
+Tasks
+-----
+[WIP] P37.1-T001 Add task-board contract and failing tests.
+[TODO] P37.1-T002 Add installed-host writeback audit ledger with legacy compatibility.
+[TODO] P37.1-T003 Record committed, pending, failed, and forgotten writeback audit events from the runtime.
+[TODO] P37.1-T004 Add `codex|claude writeback inspect` CLI and tests.
+[TODO] P37.1-T005 Add `codex|claude writeback forget --event-id` CLI and tests.
+[TODO] P37.1-T006 Add dogfood summary runner and report contract.
+[TODO] P37.1-T007 Add Phase 37.1 quality gate and regression chain.
+[TODO] P37.1-T008 Polish README/current-status/release docs.

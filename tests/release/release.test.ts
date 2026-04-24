@@ -716,6 +716,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory stats");
     expect(readme).toContain("session-stop");
     expect(readme).toContain("Installed Host Writeback");
+    expect(readme).toContain("goodmemory codex writeback inspect");
+    expect(readme).toContain("goodmemory codex writeback forget --event-id");
     expect(readme).toContain("goodmemory eval inspect");
     expect(readme).toContain("goodmemory eval export-case");
     expect(readme).toContain("GoodMemory-Current-Status-and-Evidence.md");
@@ -1704,6 +1706,8 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain("SessionStart` / `UserPromptSubmit` hooks");
     expect(currentStatus).toContain("Phase 37 is now closed as the installed host selective writeback slice");
     expect(currentStatus).toContain("goodmemory codex writeback");
+    expect(currentStatus).toContain("Phase 37.1 is in productization polish");
+    expect(currentStatus).toContain("goodmemory codex writeback inspect");
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",
     );
@@ -1825,6 +1829,9 @@ describe("release metadata and docs", () => {
     );
     expect(taskBoard).toContain(
       "Phase 37 is now closed as the installed host selective writeback slice",
+    );
+    expect(taskBoard).toContain(
+      "Phase 37.1 is now open as the writeback productization polish slice",
     );
     expect(taskBoard).not.toContain("Phase 35 is now WIP again");
   });

@@ -37,6 +37,10 @@ import {
   resolveInstalledHostContext,
 } from "./install/hostExecutionContext";
 import type { InstalledHostResolvedContext } from "./install/hostExecutionContext";
+import {
+  forgetInstalledHostWritebackAuditEvent,
+  inspectInstalledHostWritebackAudit,
+} from "./install/hostWritebackAuditRuntime";
 import type {
   InstalledHostActivationMode,
   InstalledHostEmbeddingProviderConfig,
@@ -621,8 +625,11 @@ const CODEX_WRITEBACK_HELP_TEXT = [
   "",
   "Usage",
   "  goodmemory codex writeback [--mode off|observe|selective] [--dry-run] [--json]",
+  "  goodmemory codex writeback inspect [--limit <n>] [--json]",
+  "  goodmemory codex writeback forget --event-id <id> [--review-outcome <valid_write|false_write|uncertain>] [--review-reason <text>] [--json]",
   "",
   "Reads Codex after-response/session-end JSON from stdin and runs installed-host selective writeback.",
+  "Inspect lists recent audit events. Forget deletes linked writeback records through public forget().",
 ].join("\n");
 const CLAUDE_HOOK_HELP_TEXT = [
   "GoodMemory Claude Hook",
@@ -640,8 +647,11 @@ const CLAUDE_WRITEBACK_HELP_TEXT = [
   "",
   "Usage",
   "  goodmemory claude writeback [--mode off|observe|selective] [--dry-run] [--json]",
+  "  goodmemory claude writeback inspect [--limit <n>] [--json]",
+  "  goodmemory claude writeback forget --event-id <id> [--review-outcome <valid_write|false_write|uncertain>] [--review-reason <text>] [--json]",
   "",
   "Reads Claude after-response/session-end JSON from stdin and runs installed-host selective writeback.",
+  "Inspect lists recent audit events. Forget deletes linked writeback records through public forget().",
 ].join("\n");
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -3912,8 +3922,46 @@ async function handleHostHook(
 
 async function handleHostWriteback(
   host: InstalledHostKind,
+  command: string | undefined,
   flags: ParsedFlags,
 ): Promise<CLICommandOutput> {
+  if (command === "inspect") {
+    const result = await inspectInstalledHostWritebackAudit({
+      cwd: flags["workspace-root"] ? resolve(flags["workspace-root"]) : process.cwd(),
+      host,
+      limit: flags.limit === undefined ? undefined : Number(flags.limit),
+    });
+    return {
+      json: result,
+      text: JSON.stringify(result, null, 2),
+    };
+  }
+
+  if (command === "forget") {
+    const reviewOutcome = readWritebackReviewOutcome(flags["review-outcome"]);
+    const result = await forgetInstalledHostWritebackAuditEvent({
+      cwd: flags["workspace-root"] ? resolve(flags["workspace-root"]) : process.cwd(),
+      eventId: requireFlag(flags, "event-id"),
+      host,
+      ...(reviewOutcome || flags["review-reason"]
+        ? {
+            review: {
+              outcome: reviewOutcome ?? "uncertain",
+              ...(flags["review-reason"] ? { reason: flags["review-reason"] } : {}),
+            },
+          }
+        : {}),
+    });
+    return {
+      json: result,
+      text: JSON.stringify(result, null, 2),
+    };
+  }
+
+  if (command !== undefined) {
+    throw new Error(`Unknown ${host} writeback command: ${command}.`);
+  }
+
   const rawInput = await new Response(Bun.stdin.stream()).text();
   const payload = rawInput.trim().length > 0
     ? JSON.parse(rawInput) as Record<string, unknown>
@@ -3931,6 +3979,20 @@ async function handleHostWriteback(
     json: result,
     text: JSON.stringify(result, null, 2),
   };
+}
+
+function readWritebackReviewOutcome(
+  value: string | undefined,
+): "false_write" | "uncertain" | "valid_write" | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === "false_write" || value === "uncertain" || value === "valid_write") {
+    return value;
+  }
+  throw new Error(
+    `Unsupported writeback review outcome: ${value}. Expected valid_write|false_write|uncertain.`,
+  );
 }
 
 function hostWritebackExitCode(
@@ -4158,7 +4220,7 @@ export async function runCLI(
         );
       }
       if (secondary === "writeback") {
-        return renderOutput(await handleHostWriteback("codex", flags), flags);
+        return renderOutput(await handleHostWriteback("codex", commands[2], flags), flags);
       }
 
       throw new Error(`Unknown Codex command: ${secondary}. Run 'goodmemory codex --help'.`);
@@ -4181,7 +4243,7 @@ export async function runCLI(
         );
       }
       if (secondary === "writeback") {
-        return renderOutput(await handleHostWriteback("claude", flags), flags);
+        return renderOutput(await handleHostWriteback("claude", commands[2], flags), flags);
       }
 
       throw new Error(`Unknown Claude command: ${secondary}. Run 'goodmemory claude --help'.`);

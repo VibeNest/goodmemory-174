@@ -6,6 +6,10 @@ import type {
   GoodMemory,
   GoodMemoryConfig,
 } from "../../src/api/contracts";
+import {
+  readInstalledHostWritebackLedger,
+  withInstalledHostWritebackLedgerLock,
+} from "../../src/install/hostWritebackAuditLedger";
 import { executeInstalledHostWriteback } from "../../src/install/hostWritebackRuntime";
 
 async function createWorkspace(prefix: string): Promise<string> {
@@ -430,6 +434,90 @@ describe("installed host writeback runtime", () => {
       expect(result.trace.extractionStrategy).toBe("llm-assisted");
       expect(result.trace.resolvedExtractionStrategies).toEqual(["llm-assisted"]);
       expect(rememberCalls[0]?.extractionStrategy).toBe("llm-assisted");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("does not hold the ledger lock while provider-backed remember runs", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-lock-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-lock-workspace-",
+    );
+    let acquiredLockDuringRemember = false;
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "selective" });
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              {
+                content: "Next step is to verify provider-backed lock behavior.",
+                role: "user",
+              },
+            ],
+            session_id: "session-1",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember() {
+                await withInstalledHostWritebackLedgerLock(
+                  "codex",
+                  homeRoot,
+                  async () => {
+                    acquiredLockDuringRemember = true;
+                  },
+                );
+                return {
+                  accepted: 1,
+                  events: [
+                    {
+                      candidateId: "candidate-1",
+                      evidenceIds: ["evidence-1"],
+                      memoryId: "fact-1",
+                      memoryType: "fact",
+                      outcome: "written",
+                    },
+                  ],
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.reason).toBe("written");
+      expect(acquiredLockDuringRemember).toBe(true);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
@@ -1133,6 +1221,383 @@ describe("installed host writeback runtime", () => {
     }
   });
 
+  it("uses bounded machine reasons in durable annotations when host reasons contain secrets", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-safe-reason-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-safe-reason-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "selective" });
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            annotations: [
+              {
+                kindHint: "fact",
+                messageIndex: 0,
+                reason: "api_key=sk-host-reason-secret-value",
+                remember: "always",
+              },
+            ],
+            cwd: workspaceRoot,
+            messages: [
+              {
+                content: "Next step is to verify safe host annotation reasons.",
+                role: "user",
+              },
+            ],
+            session_id: "session-1",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember(input) {
+                rememberCalls.push(input);
+                return {
+                  accepted: 1,
+                  events: [
+                    {
+                      candidateId: "candidate-1",
+                      evidenceIds: ["evidence-1"],
+                      memoryId: "fact-1",
+                      memoryType: "fact",
+                      outcome: "written",
+                    },
+                  ],
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.reason).toBe("written");
+      expect(result.candidates[0]).toEqual(
+        expect.objectContaining({
+          reason: "host_annotation",
+        }),
+      );
+      expect(JSON.stringify(rememberCalls)).not.toContain("sk-host-reason-secret-value");
+      expect(rememberCalls[0]?.annotations?.[0]).toEqual(
+        expect.objectContaining({
+          metadataPatch: {
+            attributes: expect.objectContaining({
+              hostWritebackReason: "host_annotation",
+            }),
+            tags: ["installed-host-writeback"],
+          },
+          reason: "GoodMemory installed-host writeback: host_annotation",
+        }),
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("dedupes repeated candidates inside the same writeback payload", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-same-batch-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-same-batch-workspace-",
+    );
+    let rememberCallCount = 0;
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "selective" });
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              {
+                content: "Next step is to add Phase 37.1 audit undo.",
+                role: "user",
+              },
+              {
+                content: "Next step is to add Phase 37.1 audit undo.",
+                role: "user",
+              },
+            ],
+            session_id: "session-1",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember() {
+                rememberCallCount += 1;
+                return {
+                  accepted: 1,
+                  events: [
+                    {
+                      candidateId: "candidate-1",
+                      evidenceIds: ["evidence-1"],
+                      memoryId: "fact-1",
+                      memoryType: "fact",
+                      outcome: "written",
+                    },
+                  ],
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.reason).toBe("written");
+      expect(result.trace).toMatchObject({
+        duplicateCandidateCount: 1,
+        writtenCandidateCount: 1,
+      });
+      expect(rememberCallCount).toBe(1);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("does not dedupe the same candidate across different installed-host scopes", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-scoped-dedupe-home-");
+    const workspaceOne = await createWorkspace(
+      "goodmemory-writeback-scoped-dedupe-one-",
+    );
+    const workspaceTwo = await createWorkspace(
+      "goodmemory-writeback-scoped-dedupe-two-",
+    );
+    let rememberCallCount = 0;
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "selective" });
+      const dependencies = {
+        createMemory: ((_: GoodMemoryConfig) =>
+          ({
+            async buildContext() {
+              throw new Error("not used");
+            },
+            async recall() {
+              throw new Error("not used");
+            },
+            async remember() {
+              rememberCallCount += 1;
+              return {
+                accepted: 1,
+                events: [
+                  {
+                    candidateId: `candidate-${rememberCallCount}`,
+                    evidenceIds: [`evidence-${rememberCallCount}`],
+                    memoryId: `fact-${rememberCallCount}`,
+                    memoryType: "fact",
+                    outcome: "written",
+                  },
+                ],
+                rejected: 0,
+              };
+            },
+            async forget() {
+              throw new Error("not used");
+            },
+            async exportMemory() {
+              throw new Error("not used");
+            },
+            async deleteAllMemory() {
+              throw new Error("not used");
+            },
+            async feedback() {
+              throw new Error("not used");
+            },
+            async runMaintenance() {
+              throw new Error("not used");
+            },
+          }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+      };
+
+      const first = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceOne,
+            messages: [
+              {
+                content: "Next step is to add Phase 37.1 audit undo.",
+                role: "user",
+              },
+            ],
+            session_id: "session-1",
+          },
+        },
+        dependencies,
+      );
+      const second = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceTwo,
+            messages: [
+              {
+                content: "Next step is to add Phase 37.1 audit undo.",
+                role: "user",
+              },
+            ],
+            session_id: "session-2",
+          },
+        },
+        dependencies,
+      );
+      const ledger = await readInstalledHostWritebackLedger("codex", homeRoot);
+
+      expect(first.reason).toBe("written");
+      expect(second.reason).toBe("written");
+      expect(rememberCallCount).toBe(2);
+      expect(ledger.events).toHaveLength(2);
+      expect(new Set(ledger.events).size).toBe(2);
+      expect(ledger.events.every((event) => event.startsWith("scope:"))).toBe(true);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceOne, { force: true, recursive: true });
+      await rm(workspaceTwo, { force: true, recursive: true });
+    }
+  });
+
+  it("does not mark merged pre-existing memories as writeback-owned undo targets", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-merged-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-merged-workspace-",
+    );
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "selective" });
+
+      await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              {
+                content: "Next step is to add Phase 37.1 audit undo.",
+                role: "user",
+              },
+            ],
+            session_id: "session-1",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember() {
+                return {
+                  accepted: 1,
+                  events: [
+                    {
+                      candidateId: "candidate-1",
+                      evidenceIds: ["writeback-evidence-1"],
+                      memoryId: "pre-existing-fact-1",
+                      memoryType: "fact",
+                      outcome: "merged",
+                    },
+                  ],
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      const ledger = await readInstalledHostWritebackLedger("codex", homeRoot);
+
+      expect(ledger.auditEvents[0]?.memoryIds).toEqual([]);
+      expect(ledger.auditEvents[0]?.linkedRecordIds).toEqual([
+        {
+          id: "writeback-evidence-1",
+          type: "evidence",
+        },
+      ]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("records accepted writes in the ledger before returning a partial failure", async () => {
     const homeRoot = await createWorkspace("goodmemory-writeback-partial-home-");
     const workspaceRoot = await createWorkspace(
@@ -1240,6 +1705,83 @@ describe("installed host writeback runtime", () => {
     }
   });
 
+  it("records failed audit status when remember fails before accepting", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-audit-failed-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-audit-failed-workspace-",
+    );
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "selective" });
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              {
+                content: "Next step is to record failed audit status.",
+                role: "user",
+              },
+            ],
+            session_id: "session-1",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember() {
+                throw new Error("remember failed before accepting");
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      const ledger = await readInstalledHostWritebackLedger("codex", homeRoot);
+
+      expect(result.reason).toBe("write_failed");
+      expect(result.wrote).toBe(false);
+      expect(ledger.events).toEqual([]);
+      expect(ledger.pending).toEqual([]);
+      expect(ledger.auditEvents[0]).toEqual(
+        expect.objectContaining({
+          errorCode: "remember_failed",
+          sessionDigest: expect.stringMatching(/^session:/u),
+          status: "failed",
+        }),
+      );
+      expect(ledger.auditEvents[0]?.sessionDigest).not.toBe("session-1");
+      expect(JSON.stringify(ledger)).not.toContain("session-1");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("keeps a pending ledger record when commit persistence fails after remember accepts", async () => {
     const homeRoot = await createWorkspace(
       "goodmemory-writeback-ledger-fail-home-",
@@ -1329,9 +1871,14 @@ describe("installed host writeback runtime", () => {
           ),
         ),
       ).toMatchObject({
+        auditEvents: [
+          expect.objectContaining({
+            status: "pending",
+          }),
+        ],
         events: [],
-        pending: [expect.stringMatching(/^candidate:/u)],
-        version: 2,
+        pending: [expect.stringMatching(/^scope:[a-f0-9]+:candidate:/u)],
+        version: 3,
       });
       expect(rememberCallCount).toBe(1);
 

@@ -15,6 +15,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 35 installed host-memory middleware is now part of the accepted stable host surface through `goodmemory setup`, `goodmemory status`, `goodmemory install|uninstall <codex|claude>`, `goodmemory enable|disable <codex|claude>`, `SessionStart` / `UserPromptSubmit` hooks, read-only MCP, and explicit write CLI commands. Interactive setup now defaults to global activation with workspace-derived isolation, prompts for optional Postgres, embedding, LLM extraction, and installed-host writeback mode, keeps `--json` / `--no-interactive` script-safe, and still lets users skip provider setup and add it later in `~/.goodmemory/<host>.json`.
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice.
 - Phase 37 is now closed as the installed host selective writeback slice. Codex installed host supports opt-in `off` / `observe` / `selective` writeback through `goodmemory codex writeback`, `install|enable --writeback`, and `session-stop` delegation. `off` remains the default; `observe` produces candidates and trace without writes; `selective` writes only selected candidates through the public Phase 36 `remember` surface.
+- Phase 37.1 is in productization polish for installed-host writeback. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v3 audit ledger with bounded redacted previews and typed linked records, and dogfood summary/gate scripts. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Installed-package external host wiring remains available through `goodmemory codex bootstrap` and `goodmemory claude bootstrap` as lower-level compatibility scaffolding for artifact-first integrations.
 - Host integration stays on the explicit adapter/package path; hook-injected recall is the canonical always-on middleware path for enabled repositories or globally activated workspaces, while MCP is a deep-read/debug surface rather than the default recall transport.
 - Installed-host writeback does not persist raw transcripts. Assistant-originated durable memory remains blocked unless host annotations confirm or verify it and the active profile policy allows it. `remember: "never"` masks content before deterministic, custom, or assisted extraction. Cross-store exactly-once transactions between memory storage and the writeback JSON ledger remain outside the accepted claim; the accepted runtime uses a pending/committed ledger for repair-visible idempotency and reports uncommitted writes as `write_failed`.
@@ -59,6 +60,21 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - reopening recall routing or retrieval profile promotion
   - making Claude a second provider-backed live blocker
   - cross-store exactly-once transaction between memory storage and the JSON writeback ledger
+
+## Current Open Productization Slice
+
+- Phase 37.1 is open as writeback productization polish.
+- Accepted target behavior for this slice:
+  - `goodmemory codex writeback inspect --json` lists scope-filtered writeback audit events
+  - `goodmemory codex writeback forget --event-id <id>` deletes typed linked records through public `forget()` before marking an audit event forgotten
+  - Claude has deterministic CLI parity for inspect and forget
+  - the v3 audit ledger remains compatible with Phase 37 `{ events, pending }` ledgers
+  - dogfood summary reports at least candidate count, durable write count, forgotten count, duplicate count, next-session recall hit count, session count, and manual false-write rate
+- Still outside this productization slice:
+  - default-on writeback
+  - transcript archive
+  - dashboard or managed cloud
+  - widening the root public API
 
 ## Current Canonical Evidence
 
