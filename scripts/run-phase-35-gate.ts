@@ -304,6 +304,17 @@ export function buildPhase35GateCommands(root: string): Phase35GateCommand[] {
       cwd: root,
       label: "targeted-regressions",
     },
+    {
+      args: [
+        "bun",
+        "run",
+        "eval:phase-35",
+        "--run-id",
+        PHASE35_CANONICAL_DETERMINISTIC_RUN_ID,
+      ],
+      cwd: root,
+      label: "phase-35-fallback-eval",
+    },
   ];
 }
 

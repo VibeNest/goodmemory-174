@@ -2061,6 +2061,7 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("tags:");
     expect(workflow).toContain("v*.*.*");
     expect(workflow).toContain("bun run gate:phase-37");
+    expect(workflow).toContain('--run-id "release-v${VERSION}"');
     expect(workflow).toContain("GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY");
     expect(workflow).toContain("secrets.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER");
     expect(workflow).not.toContain("bun run gate:phase-36");

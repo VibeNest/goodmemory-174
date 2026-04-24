@@ -287,6 +287,15 @@ describe("run-phase-37 gate", () => {
     ]);
   });
 
+  it("can reuse canonical provider-backed live evidence without rerunning it", () => {
+    expect(
+      buildPhase37GateCommands(ROOT, {
+        liveRunId: "run-phase37-live-current",
+        runLiveMemory: false,
+      }).map((command) => command.label),
+    ).not.toContain("phase-37-live-memory");
+  });
+
   it("writes an accepted phase-37 gate when canonical evidence is accepted", async () => {
     const writes: Array<{ content: string; path: string }> = [];
     const directories: string[] = [];
@@ -308,7 +317,7 @@ describe("run-phase-37 gate", () => {
           if (path.endsWith("reports/eval/live-memory/phase-37/run-phase37-live-current/report.json")) {
             return createAcceptedPhase37LiveReport();
           }
-          if (path.endsWith("reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json")) {
+          if (path.endsWith("reports/eval/live-memory/phase-37/run-phase37-gate-test-external-consumer/report.json")) {
             return createAcceptedPhase37ExternalReport();
           }
           throw new Error(`Unexpected report path: ${path}`);

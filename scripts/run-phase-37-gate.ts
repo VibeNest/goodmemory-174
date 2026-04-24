@@ -15,6 +15,7 @@ export interface Phase37GateCommandOptions {
   liveRunId?: string;
   phase35GateRunId?: string;
   phase36GateRunId?: string;
+  runLiveMemory?: boolean;
 }
 
 export interface Phase37GateCommandResult {
@@ -357,8 +358,7 @@ export function buildPhase37GateCommands(
 ): Phase37GateCommand[] {
   const deterministicRunId =
     options.deterministicRunId ?? PHASE37_CANONICAL_DETERMINISTIC_RUN_ID;
-
-  return [
+  const commands: Phase37GateCommand[] = [
     {
       args: ["bun", "run", "typecheck"],
       cwd: root,
@@ -394,14 +394,20 @@ export function buildPhase37GateCommands(
       cwd: root,
       label: "phase-37-fallback-eval",
     },
-    {
+  ];
+
+  if (options.runLiveMemory !== false) {
+    commands.push({
       args: withRunId(
         ["bun", "run", "eval:phase-37-live-memory"],
         options.liveRunId,
       ),
       cwd: root,
       label: "phase-37-live-memory",
-    },
+    });
+  }
+
+  commands.push(
     {
       args: withRunId(
         ["bun", "run", "eval:phase-37-external-consumer"],
@@ -426,7 +432,9 @@ export function buildPhase37GateCommands(
       cwd: root,
       label: "phase-36-regression-gate",
     },
-  ];
+  );
+
+  return commands;
 }
 
 function validatePhase37DeterministicReport(
@@ -552,9 +560,7 @@ export async function runPhase37QualityGate(
     ? runId
     : PHASE37_CANONICAL_DETERMINISTIC_RUN_ID;
   const liveRunId = usesRunScopedEvidence ? runId : PHASE37_CANONICAL_LIVE_RUN_ID;
-  const externalRunId = usesRunScopedEvidence
-    ? `${runId}-external-consumer`
-    : PHASE37_CANONICAL_EXTERNAL_RUN_ID;
+  const externalRunId = `${runId}-external-consumer`;
   const phase35GateRunId = usesRunScopedEvidence ? runId : undefined;
   const phase36GateRunId = usesRunScopedEvidence ? runId : undefined;
   const runDirectory = join(outputDir, runId);
@@ -582,6 +588,7 @@ export async function runPhase37QualityGate(
     liveRunId,
     phase35GateRunId,
     phase36GateRunId,
+    runLiveMemory: usesRunScopedEvidence,
   })) {
     const result = await runCommand(command);
     commands.push(toExecutionResult(command, result));

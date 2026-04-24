@@ -33,7 +33,10 @@ jobs:
           GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL: ${{ secrets.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL }}
           GOODMEMORY_ASSISTED_EXTRACTOR_MODEL: ${{ secrets.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL }}
           GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER: ${{ secrets.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER }}
-        run: bun run gate:phase-37
+        run: |
+          set -euo pipefail
+          VERSION="$(bun -e 'import { readFileSync } from "node:fs"; const pkg = JSON.parse(readFileSync("package.json", "utf8")); console.log(pkg.version);')"
+          bun run gate:phase-37 --run-id "release-v${VERSION}"
 
       - name: Pack release tarball
         id: pack

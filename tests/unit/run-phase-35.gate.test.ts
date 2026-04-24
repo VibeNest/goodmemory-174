@@ -183,6 +183,17 @@ describe("run-phase-35 gate", () => {
         cwd: ROOT,
         label: "targeted-regressions",
       },
+      {
+        args: [
+          "bun",
+          "run",
+          "eval:phase-35",
+          "--run-id",
+          "run-20260423173045",
+        ],
+        cwd: ROOT,
+        label: "phase-35-fallback-eval",
+      },
     ]);
   });
 
