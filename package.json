@@ -32,6 +32,7 @@
   "files": [
     "LICENSE",
     "README.md",
+    "README.zh-CN.md",
     "dist",
     "docs",
     "package.json",

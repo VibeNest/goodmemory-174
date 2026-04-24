@@ -590,6 +590,7 @@ describe("release metadata and docs", () => {
     expect(pkg.files).toEqual([
       "LICENSE",
       "README.md",
+      "README.zh-CN.md",
       "dist",
       "docs",
       "package.json",
@@ -770,6 +771,7 @@ describe("release metadata and docs", () => {
 
       expect(entries).toContain("package/package.json");
       expect(entries).toContain("package/README.md");
+      expect(entries).toContain("package/README.zh-CN.md");
       expect(entries).toContain("package/LICENSE");
       expect(entries).toContain("package/dist/index.js");
       expect(entries).toContain("package/dist/index.d.ts");
@@ -916,6 +918,43 @@ describe("release metadata and docs", () => {
     expect(readme).not.toContain("strategyRollout");
     expect(readme).not.toContain("promotionGate");
     expect(readme).not.toContain("bun run cli -- inspect");
+  });
+
+  it("readme ships a Simplified Chinese product entrypoint", async () => {
+    const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
+    const zhReadme = await readFile(
+      join(import.meta.dir, "../../README.zh-CN.md"),
+      "utf8",
+    );
+
+    expect(readme).toContain("[简体中文](./README.zh-CN.md)");
+    expect(zhReadme).toContain("[English](./README.md)");
+    expect(zhReadme).toContain(`# GoodMemory`);
+    expect(zhReadme).toContain(CURRENT_PACKAGE_VERSION);
+    expect(zhReadme).toContain(`npm install -g goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(zhReadme).toContain(`npm install goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(zhReadme).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(zhReadme).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
+    expect(zhReadme).toContain("goodmemory setup");
+    expect(zhReadme).toContain("goodmemory status");
+    expect(zhReadme).toContain("Installed Host Writeback");
+    expect(zhReadme).toContain("goodmemory codex writeback inspect");
+    expect(zhReadme).toContain("goodmemory codex writeback forget --event-id");
+    expect(zhReadme).toContain("createGoodMemory");
+    expect(zhReadme).toContain("GoodMemoryConfig.remember");
+    expect(zhReadme).toContain("goodmemory/ai-sdk");
+    expect(zhReadme).toContain("goodmemory/host");
+    expect(zhReadme).toContain("./node_modules/.bin/goodmemory inspect");
+    expect(zhReadme).toContain("eval:live-memory");
+    expect(zhReadme).toContain("eval:live-provider-memory");
+    expect(zhReadme).toContain("GOODMEMORY_TEST_POSTGRES_URL");
+    expect(zhReadme).toContain("GoodMemory-Current-Status-and-Evidence.md");
+    expect(zhReadme).toContain("docs/archive/quality-gates/README.md");
+    expect(zhReadme).toContain("task-board/00-README.txt");
+    expect(zhReadme).not.toContain("Bun-only");
+    expect(zhReadme).not.toContain("eval:full");
+    expect(zhReadme).not.toContain("goodmemory/evolution");
+    expect(zhReadme).not.toContain("bun run cli -- inspect");
   });
 
   it("keeps the PRD on the canonical docs route used by source-of-truth navigation", async () => {
