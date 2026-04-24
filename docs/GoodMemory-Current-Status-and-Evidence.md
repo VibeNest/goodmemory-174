@@ -16,6 +16,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice.
 - Phase 37 is now closed as the installed host selective writeback slice. Codex installed host supports opt-in `off` / `observe` / `selective` writeback through `goodmemory codex writeback`, `install|enable --writeback`, and `session-stop` delegation. `off` remains the default; `observe` produces candidates and trace without writes; `selective` writes only selected candidates through the public Phase 36 `remember` surface.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v3 audit ledger with bounded redacted previews and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
+- Phase 38 is open as the governed runtime surface slice. The initial implemented surface is `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, with private keyed scope digests by default. Phase 38 is not closed yet; targeted `reviseMemory()`, `memory.runtime.*`, background jobs, provider facade, and Express/Fastify examples remain follow-up tasks on the Phase 38 board.
 - Installed-package external host wiring remains available through `goodmemory codex bootstrap` and `goodmemory claude bootstrap` as lower-level compatibility scaffolding for artifact-first integrations.
 - Host integration stays on the explicit adapter/package path; hook-injected recall is the canonical always-on middleware path for enabled repositories or globally activated workspaces, while MCP is a deep-read/debug surface rather than the default recall transport.
 - Installed-host writeback does not persist raw transcripts. Assistant-originated durable memory remains blocked unless host annotations confirm or verify it and the active profile policy allows it. `remember: "never"` masks content before deterministic, custom, or assisted extraction. Cross-store exactly-once transactions between memory storage and the writeback JSON ledger remain outside the accepted claim; the accepted runtime uses a pending/committed ledger for repair-visible idempotency and reports uncommitted writes as `write_failed`.
@@ -57,6 +58,24 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - dashboard or managed cloud
   - widening the root public API
   - claiming long-running 20-50 real-session dogfood retention results
+
+## Active Slice
+
+- Phase 38 is open as the governed runtime surface slice.
+- Current task-board entrypoint: `task-board/40-phase-38-governed-runtime-surface.txt`
+- Initial implemented surface:
+  - `GoodMemoryConfig.observability.traceSink`
+  - `GoodMemoryTraceSpan` / `GoodMemoryTraceSink` public types
+  - redaction-safe started/succeeded/failed span emission for the core public memory API
+  - keyed scope digests using a private per-instance secret by default, with `scopeDigestSecret` only for trusted stable correlation
+  - trace ids on public receipts when a trace sink is configured
+- Still not accepted as complete:
+  - targeted `reviseMemory()`
+  - `memory.runtime.*`
+  - background jobs
+  - provider facade
+  - Express/Fastify examples
+  - Phase 38 quality gate
 
 - Phase 37 is now closed as the installed host selective writeback slice.
 - Accepted behavior:

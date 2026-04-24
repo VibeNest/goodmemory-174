@@ -25,6 +25,10 @@ import type {
 } from "../evolution/contracts";
 import type { MarkdownArtifactBundle } from "../governance/markdownArtifacts";
 import type { LanguageConfig } from "../language";
+import type {
+  GoodMemoryObservabilityConfig,
+  GoodMemoryScopeDigest,
+} from "../observability/contracts";
 import type { MaintenanceJobName, MaintenanceRunReport } from "../maintenance/runner";
 import type { GoodMemoryPolicyHooks } from "../policy/hooks";
 import type { MemoryPacket } from "../recall/contextBuilder";
@@ -61,6 +65,7 @@ export interface GoodMemoryConfig {
   policy?: GoodMemoryPolicyHooks;
   language?: LanguageConfig;
   remember?: RememberConfig;
+  observability?: GoodMemoryObservabilityConfig;
   adapters?: {
     assistedExtractor?: MemoryExtractor;
     documentStore?: DocumentStore;
@@ -108,6 +113,8 @@ export interface RecallResult {
     localeSource?: "explicit" | "detected" | "default";
     adapterId?: string;
     analysisMode?: "rules-only";
+    traceId?: string;
+    traceScopeDigest?: GoodMemoryScopeDigest;
   };
 }
 
@@ -122,6 +129,7 @@ export interface BuildContextResult {
   content: string;
   estimatedTokens: number;
   omittedSections: string[];
+  traceId?: string;
 }
 
 export interface RememberInput {
@@ -143,6 +151,7 @@ export interface RememberResult {
     analysisMode: "rules-only";
     requestedExtractionStrategy: MemoryExtractionStrategy;
     resolvedExtractionStrategy: MemoryExtractionStrategy;
+    traceId?: string;
   };
 }
 
@@ -153,6 +162,7 @@ export interface ForgetInput {
 
 export interface ForgetResult {
   forgotten: boolean;
+  traceId?: string;
 }
 
 export interface ExportMemoryInput {
@@ -164,6 +174,7 @@ export interface ExportMemoryResult {
   artifacts: MarkdownArtifactBundle;
   scope: MemoryScope;
   exportedAt: string;
+  traceId?: string;
   durable: {
     profile: UserProfile | null;
     preferences: PreferenceMemory[];
@@ -191,6 +202,7 @@ export interface DeleteAllMemoryInput {
 
 export interface DeleteAllMemoryResult {
   scope: MemoryScope;
+  traceId?: string;
   deleted: {
     profiles: number;
     preferences: number;
@@ -240,6 +252,7 @@ export interface FeedbackResult {
     localeSource: "explicit" | "detected" | "default";
     adapterId: string;
     analysisMode: "rules-only";
+    traceId?: string;
   };
 }
 
@@ -259,6 +272,7 @@ export interface RunMaintenanceResult {
   proposalCount: number;
   ran: boolean;
   reason: "completed" | "cooldown" | "scope_busy" | "threshold";
+  traceId?: string;
 }
 
 export interface GoodMemory {

@@ -1,0 +1,70 @@
+Phase 38: Governed Runtime Surface
+==================================
+
+Status
+------
+[WIP] Phase 38 is open.
+
+This phase starts after the accepted Phase 37.1 installed-host writeback polish closure. It opens the next root public surface carefully: first structured trace/audit spans, then targeted revision, then the runtime facade, then background jobs and provider ergonomics.
+
+
+Intent
+------
+Expose GoodMemory as memory infrastructure, not only a durable memory store.
+
+The public surface must make the memory lifecycle observable, correctable, and runtime-aware without adding raw transcript persistence, unmanaged CRUD shortcuts, or a parallel primary constructor.
+
+
+Accepted Scope
+--------------
+- `GoodMemoryConfig.observability.traceSink`
+- structured, redaction-safe `GoodMemoryTraceSpan` public types
+- trace id propagation on core public API receipts
+- targeted `reviseMemory()` with `target.memoryId` only
+- `memory.runtime.*` facade attached to `createGoodMemory()` result
+- explicit background write job port
+- provider facade for embedding and extraction only
+- thin Express and Fastify examples
+
+
+Out of Scope
+------------
+- `correctMemory()` as the primary public name
+- query-resolved revision targets
+- `memory.facts.add()` / `memory.preferences.upsert()` / unmanaged CRUD APIs
+- standalone `createGoodMemoryRuntime()` as the main integration path
+- default-on background writeback
+- transcript archive by default
+- public router-provider configuration
+- dashboard, managed cloud, analytics, or LangGraph-first coupling
+
+
+Acceptance Criteria
+-------------------
+1. Trace spans are structured, typed, keyed with private scope digests by default, redaction-safe by default, and do not include raw user text or raw scope ids.
+2. Trace sink failures and slow async exporters fail open and do not block memory operations.
+3. `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, `deleteAllMemory`, and `runMaintenance` emit started/succeeded/failed spans where applicable.
+4. Public receipts expose `traceId` only when a trace sink is configured.
+5. `reviseMemory()` uses governed evidence, policy, supersede lineage, idempotency, and trace receipts; first version accepts only `target.memoryId`.
+6. `memory.runtime.*` wraps the existing runtime context service while making transcript-like archive behavior explicit and off by default.
+7. Background writes use `memory.jobs.*`; `remember({ mode: "background" })` is not added.
+8. Provider facade maps to existing adapter ports and environment resolver behavior; it does not create a second provider runtime.
+9. Express and Fastify examples show a normal HTTP server integration without abstract middleware.
+10. Phase 35, Phase 36, Phase 37, and Phase 37.1 guarantees remain regression-covered.
+
+
+Tasks
+-----
+[DONE] P38-T001 Add traceSink public contract, redaction-safe spans, and core API span emission.
+[TODO] P38-T002 Add targeted `reviseMemory()` with evidence, policy, supersede lineage, idempotency, and trace receipt.
+[TODO] P38-T003 Attach a small `memory.runtime.*` facade to the `createGoodMemory()` return object.
+[TODO] P38-T004 Add background write job scheduler port and in-memory implementation.
+[TODO] P38-T005 Add provider facade for embedding and extraction, mapped to existing adapters/resolvers.
+[TODO] P38-T006 Add Express and Fastify thin server examples plus package-boundary smoke coverage.
+[TODO] P38-T007 Add Phase 38 quality gate and regression chain.
+
+
+Current Evidence
+----------------
+- Initial traceSink tests: `tests/integration/observability.trace-sink.test.ts`
+- Public config/type smoke: `tests/types/public-config.types.ts`

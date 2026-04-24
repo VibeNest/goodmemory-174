@@ -155,6 +155,7 @@ GoodMemory 不追求“存得更多”，而追求：
 - `remember()` 写入与编译
 - `forget()` / `exportMemory()` / `deleteAllMemory()`
 - runtime context pressure management
+- typed observability hooks with redaction-safe trace/audit spans
 - 默认 memory router
 - 默认 extractor / summarizer / conflict resolver
 - adapter interfaces

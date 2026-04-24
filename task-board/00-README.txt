@@ -106,6 +106,7 @@ Read and execute files in this order:
 37. 37-phase-36-public-domain-write-profiles-and-rules.txt
 38. 38-phase-37-installed-host-selective-writeback.txt
 39. 39-phase-37-1-writeback-productization-polish.txt
+40. 40-phase-38-governed-runtime-surface.txt
 
 
 Current Sequencing Note
@@ -236,7 +237,12 @@ Current Sequencing Note
   - goal: make installed-host writeback inspectable, undoable, and dogfood-measurable without changing Phase 37 accepted claims
   - constraints: writeback remains opt-in, raw transcripts are not persisted, and no root public writeback API is added
   - accepted status: audit ledger, inspect/forget CLI, deterministic fixture-backed dogfood summary, local real-ledger dogfood mode, and Phase 37.1 gate tooling are implemented and accepted
-- Any work after Phase 37 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 38 is now open as the governed runtime surface slice:
+  - task-board entrypoint: `task-board/40-phase-38-governed-runtime-surface.txt`
+  - breakdown folder: `task-board/phase-38-governed-runtime-surface/`
+  - initial scope order: traceSink, targeted `reviseMemory()`, `memory.runtime.*`, background jobs, provider facade, Express/Fastify examples
+  - current status: P38-T001 is implemented; Phase 38 is not closed and has no accepted quality gate yet
+- Any work after Phase 37.1 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -255,13 +261,13 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 37 guarantees while future work lands
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, and accepted Phase 37 installed-host writeback evidence regression-covered while future work lands
-   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, Phase 36, or Phase 37 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - Preserve the closed Phase 17 through Phase 37.1 guarantees while future work lands
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, and Phase 37.1 productization evidence regression-covered while future work lands
+   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, Phase 36, Phase 37, or Phase 37.1 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
    - Execute future host work on top of the accepted Phase 35 installed-host middleware boundary and Phase 37 installed-host writeback boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, Phase 36 public write-profile guarantees, and Phase 37 installed-host writeback guarantees regression-covered while later phases execute
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, Phase 36 public write-profile guarantees, Phase 37 installed-host writeback guarantees, and Phase 37.1 audit/undo guarantees regression-covered while later phases execute
 3. Medium-term system hardening
    - Keep the accepted Codex host integration surface stable while future host-runtime evidence deepens
 4. Host integration track

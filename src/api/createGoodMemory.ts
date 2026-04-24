@@ -30,6 +30,11 @@ import {
   createDreamMaintenanceOrchestrator,
 } from "../maintenance/dream";
 import { createMaintenanceRunner } from "../maintenance/runner";
+import type { GoodMemoryTraceLink } from "../observability/contracts";
+import {
+  createGoodMemoryTracer,
+  type GoodMemoryTracer,
+} from "../observability/tracer";
 import { ARTIFACT_SPILL_COLLECTION } from "../runtime/spillover";
 import type { RecallRouterAssistant } from "../recall/assistant";
 import { renderMemoryPacket } from "../recall/contextBuilder";
@@ -186,6 +191,99 @@ function isPureUserScope(scope: ForgetInput["scope"]): boolean {
     scope.agentId === undefined &&
     scope.sessionId === undefined
   );
+}
+
+function buildRememberTraceLinks(events: RememberResult["events"]): GoodMemoryTraceLink[] {
+  const links: GoodMemoryTraceLink[] = [];
+  for (const event of events) {
+    if (event.memoryId) {
+      links.push({ type: "memory", id: event.memoryId });
+    }
+    for (const evidenceId of event.evidenceIds ?? []) {
+      links.push({ type: "evidence", id: evidenceId });
+    }
+  }
+  return links;
+}
+
+function buildRecallTraceLinks(result: RecallResult): GoodMemoryTraceLink[] {
+  const links: GoodMemoryTraceLink[] = [];
+  for (const hit of result.metadata.hits) {
+    links.push({ type: "memory", id: hit.id });
+    for (const evidenceId of hit.evidenceIds ?? []) {
+      links.push({ type: "evidence", id: evidenceId });
+    }
+  }
+  return links;
+}
+
+function buildFeedbackTraceLinks(result: FeedbackResult): GoodMemoryTraceLink[] {
+  const links: GoodMemoryTraceLink[] = [];
+  if (result.memoryId) {
+    links.push({ type: "memory", id: result.memoryId });
+  }
+  for (const evidenceId of result.evidenceIds ?? []) {
+    links.push({ type: "evidence", id: evidenceId });
+  }
+  for (const receipt of result.proposalReceipts ?? []) {
+    links.push({ type: "proposal", id: receipt.proposalId });
+  }
+  for (const receipt of result.promotionReceipts ?? []) {
+    links.push({ type: "promotion", id: receipt.promotionId });
+  }
+  return links;
+}
+
+function withRecallTrace(
+  result: RecallResult,
+  trace: Awaited<ReturnType<GoodMemoryTracer["start"]>>,
+): RecallResult {
+  if (!trace.traceId) {
+    return result;
+  }
+
+  return {
+    ...result,
+    metadata: {
+      ...result.metadata,
+      traceId: trace.traceId,
+      traceScopeDigest: trace.scopeDigest,
+    },
+  };
+}
+
+function withRememberTrace(
+  result: RememberResult,
+  traceId: string | undefined,
+): RememberResult {
+  if (!traceId || !result.metadata) {
+    return result;
+  }
+
+  return {
+    ...result,
+    metadata: {
+      ...result.metadata,
+      traceId,
+    },
+  };
+}
+
+function withFeedbackTrace(
+  result: FeedbackResult,
+  traceId: string | undefined,
+): FeedbackResult {
+  if (!traceId || !result.metadata) {
+    return result;
+  }
+
+  return {
+    ...result,
+    metadata: {
+      ...result.metadata,
+      traceId,
+    },
+  };
 }
 
 async function resolveFeedbackSignalState(input: {
@@ -598,6 +696,7 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly evolutionRuntime: ReturnType<typeof createEvolutionRuntime>;
   private readonly language;
   private readonly now: () => Date;
+  private readonly tracer: GoodMemoryTracer;
 
   constructor(
     private readonly config: GoodMemoryConfig,
@@ -683,6 +782,7 @@ class GoodMemoryImpl implements GoodMemory {
     this.governanceVectors = repositories.vectorIndex;
     this.language = language;
     this.now = config.testing?.now ?? (() => new Date());
+    this.tracer = createGoodMemoryTracer(config.observability, this.now);
     this.recallEngine = createRecallEngine({
       assistedRouter: internal?.assistedRecallRouter,
       repositories,
@@ -760,13 +860,38 @@ class GoodMemoryImpl implements GoodMemory {
   }
 
   async recall(input: RecallInput): Promise<RecallResult> {
-    const result = await this.recallEngine.recall(input);
-    await this.evolutionRuntime.handleRecall({
+    const trace = await this.tracer.start({
+      name: "memory.recall",
       scope: input.scope,
-      result,
+      attributes: {
+        ignoreMemory: Boolean(input.ignoreMemory),
+        requestedRetrievalProfile: input.retrievalProfile ?? "default",
+        requestedStrategy: input.strategy ?? "default",
+      },
     });
 
-    return result;
+    try {
+      const result = await this.recallEngine.recall(input);
+      await this.evolutionRuntime.handleRecall({
+        scope: input.scope,
+        result,
+      });
+      const traced = withRecallTrace(result, trace);
+      await trace.succeeded({
+        attributes: {
+          hitCount: result.metadata.hits.length,
+          policyAppliedCount: result.metadata.policyApplied.length,
+          tokenCount: result.metadata.tokenCount,
+          verificationHintCount: result.metadata.verificationHints.length,
+        },
+        links: buildRecallTraceLinks(result),
+      });
+
+      return traced;
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
   }
 
   async diagnoseRecall(input: RecallInput): Promise<RecallResult> {
@@ -775,137 +900,246 @@ class GoodMemoryImpl implements GoodMemory {
 
   async buildContext(input: BuildContextInput): Promise<BuildContextResult> {
     const output = input.output ?? "json";
-    const rendered = renderMemoryPacket(
-      input.recall.packet,
-      output,
-      input.maxTokens,
-      input.recall.metadata.routingDecision.retrievalProfile,
-    );
+    const trace = await this.tracer.start({
+      name: "memory.build_context",
+      scopeDigest: input.recall.metadata.traceScopeDigest,
+      attributes: {
+        maxTokens: input.maxTokens ?? 0,
+        output,
+        retrievalProfile: input.recall.metadata.routingDecision.retrievalProfile,
+      },
+    });
 
-    return {
-      output,
-      content: rendered.content,
-      estimatedTokens: rendered.estimatedTokens,
-      omittedSections: rendered.omittedSections,
-    };
+    try {
+      const rendered = renderMemoryPacket(
+        input.recall.packet,
+        output,
+        input.maxTokens,
+        input.recall.metadata.routingDecision.retrievalProfile,
+      );
+      await trace.succeeded({
+        attributes: {
+          estimatedTokens: rendered.estimatedTokens,
+          omittedSectionCount: rendered.omittedSections.length,
+        },
+      });
+
+      return {
+        output,
+        content: rendered.content,
+        estimatedTokens: rendered.estimatedTokens,
+        omittedSections: rendered.omittedSections,
+        ...(trace.traceId ? { traceId: trace.traceId } : {}),
+      };
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
   }
 
   async remember(input: RememberInput): Promise<RememberResult> {
-    const result = await this.rememberEngine.remember(input);
-    await this.evolutionRuntime.handleRemember({
+    const trace = await this.tracer.start({
+      name: "memory.remember",
       scope: input.scope,
-      result,
+      attributes: {
+        annotationCount: input.annotations?.length ?? 0,
+        extractionStrategy: input.extractionStrategy ?? "auto",
+        messageCount: input.messages.length,
+      },
     });
 
-    return result;
+    try {
+      const result = await this.rememberEngine.remember(input);
+      await this.evolutionRuntime.handleRemember({
+        scope: input.scope,
+        result,
+      });
+      const traced = withRememberTrace(result, trace.traceId);
+      await trace.succeeded({
+        attributes: {
+          accepted: result.accepted,
+          eventCount: result.events.length,
+          rejected: result.rejected,
+        },
+        links: buildRememberTraceLinks(result.events),
+      });
+
+      return traced;
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
   }
 
   async forget(input: ForgetInput): Promise<ForgetResult> {
-    if (!input.memoryId) {
-      return {
-        forgotten: false,
-      };
-    }
+    const trace = await this.tracer.start({
+      name: "memory.forget",
+      scope: input.scope,
+      attributes: {
+        hasMemoryId: Boolean(input.memoryId),
+      },
+    });
 
-    for (const collection of FORGETTABLE_COLLECTIONS) {
-      const existing = await this.documentStore.get(collection, input.memoryId);
-
-      if (existing && recordMatchesScope(existing as ScopeBoundRecord, input.scope)) {
-        await deleteVectorForCollection(
-          this.governanceVectors,
-          collection,
-          input.memoryId,
-        );
-        await this.documentStore.delete(collection, input.memoryId);
+    try {
+      if (!input.memoryId) {
+        await trace.succeeded({
+          attributes: {
+            forgotten: false,
+          },
+        });
         return {
-          forgotten: true,
+          forgotten: false,
+          ...(trace.traceId ? { traceId: trace.traceId } : {}),
         };
       }
-    }
 
-    return {
-      forgotten: false,
-    };
+      for (const collection of FORGETTABLE_COLLECTIONS) {
+        const existing = await this.documentStore.get(collection, input.memoryId);
+
+        if (existing && recordMatchesScope(existing as ScopeBoundRecord, input.scope)) {
+          await deleteVectorForCollection(
+            this.governanceVectors,
+            collection,
+            input.memoryId,
+          );
+          await this.documentStore.delete(collection, input.memoryId);
+          await trace.succeeded({
+            attributes: {
+              collection,
+              forgotten: true,
+            },
+            links: [{ type: "memory", id: input.memoryId }],
+          });
+          return {
+            forgotten: true,
+            ...(trace.traceId ? { traceId: trace.traceId } : {}),
+          };
+        }
+      }
+
+      await trace.succeeded({
+        attributes: {
+          forgotten: false,
+        },
+      });
+      return {
+        forgotten: false,
+        ...(trace.traceId ? { traceId: trace.traceId } : {}),
+      };
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
   }
 
   async exportMemory(input: ExportMemoryInput): Promise<ExportMemoryResult> {
-    const [
-      profile,
-      preferences,
-      references,
-      facts,
-      feedback,
-      episodes,
-      archives,
-      evidence,
-      experiences,
-      proposals,
-      promotions,
-      workingMemory,
-      journal,
-      allSpills,
-    ] = await Promise.all([
-      this.governanceRepositories.profiles.get(input.scope.userId),
-      this.governanceRepositories.preferences.listByScope(input.scope),
-      this.governanceRepositories.references.listByScope(input.scope),
-      this.governanceRepositories.facts.listByScope(input.scope),
-      this.governanceRepositories.feedback.listByScope(input.scope),
-      this.governanceRepositories.episodes.listByScope(input.scope),
-      this.governanceRepositories.archives.listByScope(input.scope),
-      this.governanceRepositories.evidence.listByScope(input.scope),
-      this.governanceRepositories.experiences.listByScope(input.scope),
-      this.governanceRepositories.proposals.listByScope(input.scope),
-      this.governanceRepositories.promotions.listByScope(input.scope),
-      input.includeRuntime && input.scope.sessionId
-        ? this.sessionStore.getWorkingMemory(input.scope)
-        : Promise.resolve(null),
-      input.includeRuntime && input.scope.sessionId
-        ? this.sessionStore.getJournal(input.scope)
-        : Promise.resolve(null),
-      input.includeRuntime
-        ? this.documentStore.query<ArtifactSpillRecord>(ARTIFACT_SPILL_COLLECTION)
-        : Promise.resolve([]),
-    ]);
+    const trace = await this.tracer.start({
+      name: "memory.export",
+      scope: input.scope,
+      attributes: {
+        includeRuntime: Boolean(input.includeRuntime),
+      },
+    });
 
-    const spills = allSpills.filter((record) =>
-      recordMatchesScope(record.scope, input.scope),
-    );
+    try {
+      const [
+        profile,
+        preferences,
+        references,
+        facts,
+        feedback,
+        episodes,
+        archives,
+        evidence,
+        experiences,
+        proposals,
+        promotions,
+        workingMemory,
+        journal,
+        allSpills,
+      ] = await Promise.all([
+        this.governanceRepositories.profiles.get(input.scope.userId),
+        this.governanceRepositories.preferences.listByScope(input.scope),
+        this.governanceRepositories.references.listByScope(input.scope),
+        this.governanceRepositories.facts.listByScope(input.scope),
+        this.governanceRepositories.feedback.listByScope(input.scope),
+        this.governanceRepositories.episodes.listByScope(input.scope),
+        this.governanceRepositories.archives.listByScope(input.scope),
+        this.governanceRepositories.evidence.listByScope(input.scope),
+        this.governanceRepositories.experiences.listByScope(input.scope),
+        this.governanceRepositories.proposals.listByScope(input.scope),
+        this.governanceRepositories.promotions.listByScope(input.scope),
+        input.includeRuntime && input.scope.sessionId
+          ? this.sessionStore.getWorkingMemory(input.scope)
+          : Promise.resolve(null),
+        input.includeRuntime && input.scope.sessionId
+          ? this.sessionStore.getJournal(input.scope)
+          : Promise.resolve(null),
+        input.includeRuntime
+          ? this.documentStore.query<ArtifactSpillRecord>(ARTIFACT_SPILL_COLLECTION)
+          : Promise.resolve([]),
+      ]);
 
-    const durable = {
-      profile: isPureUserScope(input.scope) ? profile : null,
-      preferences: preferences.filter((record) => recordMatchesScope(record, input.scope)),
-      references: references.filter((record) => recordMatchesScope(record, input.scope)),
-      facts: facts.filter((record) => recordMatchesScope(record, input.scope)),
-      feedback: feedback.filter((record) => recordMatchesScope(record, input.scope)),
-      episodes: episodes.filter((record) => recordMatchesScope(record, input.scope)),
-      archives: archives.filter((record) => recordMatchesScope(record, input.scope)),
-      evidence: evidence.filter((record) => recordMatchesScope(record, input.scope)),
-      experiences: experiences.filter((record) => recordMatchesScope(record, input.scope)),
-      proposals: proposals.filter((record) => recordMatchesScope(record, input.scope)),
-      promotions: promotions.filter((record) => recordMatchesScope(record, input.scope)),
-    };
-    const runtime = input.includeRuntime
-      ? {
-          workingMemory,
-          journal,
-          spills,
-        }
-      : undefined;
+      const spills = allSpills.filter((record) =>
+        recordMatchesScope(record.scope, input.scope),
+      );
 
-    return {
-      artifacts: buildMarkdownArtifacts({
+      const durable = {
+        profile: isPureUserScope(input.scope) ? profile : null,
+        preferences: preferences.filter((record) => recordMatchesScope(record, input.scope)),
+        references: references.filter((record) => recordMatchesScope(record, input.scope)),
+        facts: facts.filter((record) => recordMatchesScope(record, input.scope)),
+        feedback: feedback.filter((record) => recordMatchesScope(record, input.scope)),
+        episodes: episodes.filter((record) => recordMatchesScope(record, input.scope)),
+        archives: archives.filter((record) => recordMatchesScope(record, input.scope)),
+        evidence: evidence.filter((record) => recordMatchesScope(record, input.scope)),
+        experiences: experiences.filter((record) => recordMatchesScope(record, input.scope)),
+        proposals: proposals.filter((record) => recordMatchesScope(record, input.scope)),
+        promotions: promotions.filter((record) => recordMatchesScope(record, input.scope)),
+      };
+      const runtime = input.includeRuntime
+        ? {
+            workingMemory,
+            journal,
+            spills,
+          }
+        : undefined;
+
+      await trace.succeeded({
+        attributes: {
+          factCount: durable.facts.length,
+          feedbackCount: durable.feedback.length,
+          preferenceCount: durable.preferences.length,
+          referenceCount: durable.references.length,
+        },
+      });
+
+      return {
+        artifacts: buildMarkdownArtifacts({
+          scope: input.scope,
+          durable,
+          runtime,
+        }),
         scope: input.scope,
+        exportedAt: new Date().toISOString(),
+        ...(trace.traceId ? { traceId: trace.traceId } : {}),
         durable,
         runtime,
-      }),
-      scope: input.scope,
-      exportedAt: new Date().toISOString(),
-      durable,
-      runtime,
-    };
+      };
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
   }
 
   async deleteAllMemory(input: DeleteAllMemoryInput): Promise<DeleteAllMemoryResult> {
+    const trace = await this.tracer.start({
+      name: "memory.delete_all",
+      scope: input.scope,
+      attributes: {
+        includeRuntime: input.includeRuntime !== false,
+      },
+    });
     const deleted: DeleteAllMemoryResult["deleted"] = {
       profiles: 0,
       preferences: 0,
@@ -923,134 +1157,215 @@ class GoodMemoryImpl implements GoodMemory {
       artifactSpills: 0,
     };
 
-    const [
-      profile,
-      allPreferences,
-      allReferences,
-      allFacts,
-      allFeedback,
-      allEpisodes,
-      allArchives,
-      allEvidence,
-      allExperiences,
-      allProposals,
-      allPromotions,
-    ] = await Promise.all([
-      this.governanceRepositories.profiles.get(input.scope.userId),
-      this.governanceRepositories.preferences.listByScope(input.scope),
-      this.governanceRepositories.references.listByScope(input.scope),
-      this.governanceRepositories.facts.listByScope(input.scope),
-      this.governanceRepositories.feedback.listByScope(input.scope),
-      this.governanceRepositories.episodes.listByScope(input.scope),
-      this.governanceRepositories.archives.listByScope(input.scope),
-      this.governanceRepositories.evidence.listByScope(input.scope),
-      this.governanceRepositories.experiences.listByScope(input.scope),
-      this.governanceRepositories.proposals.listByScope(input.scope),
-      this.governanceRepositories.promotions.listByScope(input.scope),
-    ]);
+    try {
+      const [
+        profile,
+        allPreferences,
+        allReferences,
+        allFacts,
+        allFeedback,
+        allEpisodes,
+        allArchives,
+        allEvidence,
+        allExperiences,
+        allProposals,
+        allPromotions,
+      ] = await Promise.all([
+        this.governanceRepositories.profiles.get(input.scope.userId),
+        this.governanceRepositories.preferences.listByScope(input.scope),
+        this.governanceRepositories.references.listByScope(input.scope),
+        this.governanceRepositories.facts.listByScope(input.scope),
+        this.governanceRepositories.feedback.listByScope(input.scope),
+        this.governanceRepositories.episodes.listByScope(input.scope),
+        this.governanceRepositories.archives.listByScope(input.scope),
+        this.governanceRepositories.evidence.listByScope(input.scope),
+        this.governanceRepositories.experiences.listByScope(input.scope),
+        this.governanceRepositories.proposals.listByScope(input.scope),
+        this.governanceRepositories.promotions.listByScope(input.scope),
+      ]);
 
-    const preferences = allPreferences.filter((record) => recordMatchesScope(record, input.scope));
-    const references = allReferences.filter((record) => recordMatchesScope(record, input.scope));
-    const facts = allFacts.filter((record) => recordMatchesScope(record, input.scope));
-    const feedback = allFeedback.filter((record) => recordMatchesScope(record, input.scope));
-    const episodes = allEpisodes.filter((record) => recordMatchesScope(record, input.scope));
-    const archives = allArchives.filter((record) => recordMatchesScope(record, input.scope));
-    const evidence = allEvidence.filter((record) => recordMatchesScope(record, input.scope));
-    const experiences = allExperiences.filter((record) => recordMatchesScope(record, input.scope));
-    const proposals = allProposals.filter((record) => recordMatchesScope(record, input.scope));
-    const promotions = allPromotions.filter((record) =>
-      recordMatchesScope(record, input.scope)
-    );
-
-    if (profile && isPureUserScope(input.scope)) {
-      await this.documentStore.delete("profiles", input.scope.userId);
-      deleted.profiles = 1;
-    }
-
-    for (const preference of preferences) {
-      await this.documentStore.delete("preferences", preference.id);
-      deleted.preferences += 1;
-    }
-    for (const reference of references) {
-      await deleteVectorForCollection(this.governanceVectors, "references", reference.id);
-      await this.documentStore.delete("references", reference.id);
-      deleted.references += 1;
-    }
-    for (const fact of facts) {
-      await deleteVectorForCollection(this.governanceVectors, "facts", fact.id);
-      await this.documentStore.delete("facts", fact.id);
-      deleted.facts += 1;
-    }
-    for (const feedbackItem of feedback) {
-      await this.documentStore.delete("feedback", feedbackItem.id);
-      deleted.feedback += 1;
-    }
-    for (const episode of episodes) {
-      await deleteVectorForCollection(this.governanceVectors, "episodes", episode.id);
-      await this.documentStore.delete("episodes", episode.id);
-      deleted.episodes += 1;
-    }
-    for (const archive of archives) {
-      await this.documentStore.delete(SESSION_ARCHIVES_COLLECTION, archive.id);
-      deleted.archives += 1;
-    }
-    for (const evidenceRecord of evidence) {
-      await this.documentStore.delete(EVIDENCE_COLLECTION, evidenceRecord.id);
-      deleted.evidence += 1;
-    }
-    for (const experience of experiences) {
-      await this.documentStore.delete(EXPERIENCES_COLLECTION, experience.id);
-      deleted.experiences += 1;
-    }
-    for (const proposal of proposals) {
-      await this.documentStore.delete(LEARNING_PROPOSALS_COLLECTION, proposal.id);
-      deleted.proposals += 1;
-    }
-    for (const promotion of promotions) {
-      await this.documentStore.delete(PROMOTION_RECORDS_COLLECTION, promotion.id);
-      deleted.promotions += 1;
-    }
-
-    if (input.includeRuntime !== false) {
-      const allSpills = await this.documentStore.query<ArtifactSpillRecord>(
-        ARTIFACT_SPILL_COLLECTION,
+      const preferences = allPreferences.filter((record) =>
+        recordMatchesScope(record, input.scope),
       );
-      const spills = allSpills.filter((record) =>
-        recordMatchesScope(record.scope, input.scope),
+      const references = allReferences.filter((record) =>
+        recordMatchesScope(record, input.scope),
+      );
+      const facts = allFacts.filter((record) => recordMatchesScope(record, input.scope));
+      const feedback = allFeedback.filter((record) =>
+        recordMatchesScope(record, input.scope),
+      );
+      const episodes = allEpisodes.filter((record) =>
+        recordMatchesScope(record, input.scope),
+      );
+      const archives = allArchives.filter((record) =>
+        recordMatchesScope(record, input.scope),
+      );
+      const evidence = allEvidence.filter((record) =>
+        recordMatchesScope(record, input.scope),
+      );
+      const experiences = allExperiences.filter((record) =>
+        recordMatchesScope(record, input.scope),
+      );
+      const proposals = allProposals.filter((record) =>
+        recordMatchesScope(record, input.scope),
+      );
+      const promotions = allPromotions.filter((record) =>
+        recordMatchesScope(record, input.scope),
       );
 
-      deleted.workingMemory = await this.sessionStore.deleteWorkingMemoryByScope(
-        input.scope,
-      );
-      deleted.journal = await this.sessionStore.deleteJournalsByScope(input.scope);
-      await this.sessionStore.deleteBuffersByScope(input.scope);
-      for (const spill of spills) {
-        await this.documentStore.delete(ARTIFACT_SPILL_COLLECTION, spill.id);
-        deleted.artifactSpills += 1;
+      if (profile && isPureUserScope(input.scope)) {
+        await this.documentStore.delete("profiles", input.scope.userId);
+        deleted.profiles = 1;
       }
-    }
 
-    return {
-      scope: input.scope,
-      deleted,
-    };
+      for (const preference of preferences) {
+        await this.documentStore.delete("preferences", preference.id);
+        deleted.preferences += 1;
+      }
+      for (const reference of references) {
+        await deleteVectorForCollection(this.governanceVectors, "references", reference.id);
+        await this.documentStore.delete("references", reference.id);
+        deleted.references += 1;
+      }
+      for (const fact of facts) {
+        await deleteVectorForCollection(this.governanceVectors, "facts", fact.id);
+        await this.documentStore.delete("facts", fact.id);
+        deleted.facts += 1;
+      }
+      for (const feedbackItem of feedback) {
+        await this.documentStore.delete("feedback", feedbackItem.id);
+        deleted.feedback += 1;
+      }
+      for (const episode of episodes) {
+        await deleteVectorForCollection(this.governanceVectors, "episodes", episode.id);
+        await this.documentStore.delete("episodes", episode.id);
+        deleted.episodes += 1;
+      }
+      for (const archive of archives) {
+        await this.documentStore.delete(SESSION_ARCHIVES_COLLECTION, archive.id);
+        deleted.archives += 1;
+      }
+      for (const evidenceRecord of evidence) {
+        await this.documentStore.delete(EVIDENCE_COLLECTION, evidenceRecord.id);
+        deleted.evidence += 1;
+      }
+      for (const experience of experiences) {
+        await this.documentStore.delete(EXPERIENCES_COLLECTION, experience.id);
+        deleted.experiences += 1;
+      }
+      for (const proposal of proposals) {
+        await this.documentStore.delete(LEARNING_PROPOSALS_COLLECTION, proposal.id);
+        deleted.proposals += 1;
+      }
+      for (const promotion of promotions) {
+        await this.documentStore.delete(PROMOTION_RECORDS_COLLECTION, promotion.id);
+        deleted.promotions += 1;
+      }
+
+      if (input.includeRuntime !== false) {
+        const allSpills = await this.documentStore.query<ArtifactSpillRecord>(
+          ARTIFACT_SPILL_COLLECTION,
+        );
+        const spills = allSpills.filter((record) =>
+          recordMatchesScope(record.scope, input.scope),
+        );
+
+        deleted.workingMemory = await this.sessionStore.deleteWorkingMemoryByScope(
+          input.scope,
+        );
+        deleted.journal = await this.sessionStore.deleteJournalsByScope(input.scope);
+        await this.sessionStore.deleteBuffersByScope(input.scope);
+        for (const spill of spills) {
+          await this.documentStore.delete(ARTIFACT_SPILL_COLLECTION, spill.id);
+          deleted.artifactSpills += 1;
+        }
+      }
+
+      await trace.succeeded({
+        attributes: {
+          deletedFacts: deleted.facts,
+          deletedFeedback: deleted.feedback,
+          deletedPreferences: deleted.preferences,
+          deletedReferences: deleted.references,
+        },
+      });
+
+      return {
+        scope: input.scope,
+        ...(trace.traceId ? { traceId: trace.traceId } : {}),
+        deleted,
+      };
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
   }
 
   async feedback(input: FeedbackInput): Promise<FeedbackResult> {
-    const { receipts, result } = await writeFeedbackSignal({
-      evolutionRuntime: this.evolutionRuntime,
-      feedbackRepository: this.governanceRepositories.feedback,
-      language: this.language,
-      locale: input.locale,
+    const trace = await this.tracer.start({
+      name: "memory.feedback",
       scope: input.scope,
-      signal: input.signal,
+      attributes: {
+        signalLength: input.signal.length,
+      },
     });
 
-    return withFeedbackReceipts(result, receipts);
+    try {
+      const { receipts, result } = await writeFeedbackSignal({
+        evolutionRuntime: this.evolutionRuntime,
+        feedbackRepository: this.governanceRepositories.feedback,
+        language: this.language,
+        locale: input.locale,
+        scope: input.scope,
+        signal: input.signal,
+      });
+      const withReceipts = withFeedbackReceipts(result, receipts);
+      const traced = withFeedbackTrace(withReceipts, trace.traceId);
+      await trace.succeeded({
+        attributes: {
+          accepted: withReceipts.accepted,
+          kind: withReceipts.kind ?? "unknown",
+          outcome: withReceipts.outcome ?? "none",
+          proposalReceiptCount: withReceipts.proposalReceipts?.length ?? 0,
+        },
+        links: buildFeedbackTraceLinks(withReceipts),
+      });
+
+      return traced;
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
   }
 
   async runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult> {
-    return this.evolutionRuntime.runMaintenance(input);
+    const trace = await this.tracer.start({
+      name: "maintenance.run",
+      scope: input.scope,
+      attributes: {
+        jobCount: input.jobs?.length ?? 0,
+      },
+    });
+
+    try {
+      const result = await this.evolutionRuntime.runMaintenance(input);
+      await trace.succeeded({
+        attributes: {
+          compiledCount: result.compiledCount,
+          proposalCount: result.proposalCount,
+          ran: result.ran,
+          reason: result.reason,
+        },
+      });
+
+      return {
+        ...result,
+        ...(trace.traceId ? { traceId: trace.traceId } : {}),
+      };
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
   }
 }
 

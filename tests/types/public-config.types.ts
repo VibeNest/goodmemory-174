@@ -1,5 +1,6 @@
 import type {
   GoodMemoryConfig,
+  GoodMemoryTraceSink,
   NamedRememberProfileExtractor,
   RememberInput,
   RememberProfile,
@@ -49,6 +50,22 @@ const assistedExtractorConfig: GoodMemoryConfig = {
         };
       },
     },
+  },
+};
+
+const traceSink: GoodMemoryTraceSink = {
+  emit(span) {
+    void span.traceId;
+    void span.scopeDigest.userIdHash;
+    void span.redaction.containsRawUserText;
+  },
+};
+
+const observabilityConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  observability: {
+    scopeDigestSecret: "trusted-public-config-secret",
+    traceSink,
   },
 };
 
@@ -163,6 +180,7 @@ void testingConfig;
 void languageConfig;
 void embeddingAdapterConfig;
 void assistedExtractorConfig;
+void observabilityConfig;
 void rememberConfig;
 void annotatedRememberInput;
 void namedProfileExtractor;

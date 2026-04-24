@@ -238,6 +238,17 @@ export type {
   MarkdownArtifactFile,
 } from "./governance/markdownArtifacts";
 export type {
+  GoodMemoryObservabilityConfig,
+  GoodMemoryScopeDigest,
+  GoodMemoryTraceAttributeValue,
+  GoodMemoryTraceLink,
+  GoodMemoryTraceRedaction,
+  GoodMemoryTraceSink,
+  GoodMemoryTraceSpan,
+  GoodMemoryTraceSpanName,
+  GoodMemoryTraceSpanStatus,
+} from "./observability/contracts";
+export type {
   RuntimeArchiveStore,
   RuntimeArchiveStoreConfig,
   RuntimeContextServiceConfig,
