@@ -17,7 +17,7 @@ import {
 import type { LanguageService } from "../language";
 import { scopeToKey, type MemoryScope } from "../domain/scope";
 import type {
-  AgentEventFeedbackResult,
+  AgentEventCorrectionResult,
   AgentEventIngestResult,
 } from "./integrationSupport";
 
@@ -40,7 +40,7 @@ export interface CreateAgentEventIngestorInput {
       signal: string;
       traceId?: string;
     },
-  ): Promise<AgentEventFeedbackResult>;
+  ): Promise<AgentEventCorrectionResult>;
   language: LanguageService;
   now: () => Date;
   persist(input: PersistedAgentEventInput): Promise<void>;

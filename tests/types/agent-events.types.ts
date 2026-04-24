@@ -1,11 +1,15 @@
 import type {
+  AgentEventIngestResult as AISDKAgentEventIngestResult,
   AgentEventStructuredValue,
   AgentInputEvent,
 } from "../../src/ai-sdk";
 import {
   validateAgentInputEvent,
 } from "../../src/ai-sdk";
-import type { HostAgentEvent } from "../../src/host";
+import type {
+  AgentEventIngestResult as HostAgentEventIngestResult,
+  HostAgentEvent,
+} from "../../src/host";
 import {
   validateHostAgentEvent,
 } from "../../src/host";
@@ -91,6 +95,23 @@ void validateAgentInputEvent(aiEvent);
 void validateHostAgentEvent(hostEvent);
 void validateAgentInputEvent(aiCorrectionEvent);
 void validateHostAgentEvent(hostCorrectionEvent);
+
+const aiCorrectionIngestResult: AISDKAgentEventIngestResult = {
+  evidenceId: "evidence-1",
+  proposalReceipts: [{
+    proposalId: "proposal-1",
+    proposalType: "procedural_pattern",
+    status: "accepted",
+  }],
+  recorded: true,
+};
+
+const hostCorrectionIngestResult: HostAgentEventIngestResult = {
+  recorded: true,
+};
+
+void aiCorrectionIngestResult.feedbackMemoryId;
+void hostCorrectionIngestResult.feedbackMemoryId;
 
 const legacyArgsEvent: AgentInputEvent = {
   surface: "ai-sdk",

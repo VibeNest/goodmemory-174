@@ -15,9 +15,9 @@ Current Status
 [DONE] P34-T002 Add explicit `HostActionIntent` / `HostActionAssessmentResult` / `HostActionDecision` contracts plus `HostAdapter.assessAction()`.
 [DONE] P34-T003 Implement deterministic pre-action policy compilation from active validated patterns, correction/verification/tool-result evidence, working memory, and session journal, with internal audit recording.
 [DONE] External `user_correction` now lands as `coding_agent`-scoped procedural guidance on the adapter/event path instead of defaulting back to broad `general_response`.
-[DONE] Adapter/event `user_correction` now stays proposal-first: it records selective evidence and feedback experience lineage, then uses reviewer/gate/compiler to materialize `validated_pattern` only after promotion.
+[DONE] Automatic adapter/event `user_correction` path now stays proposal-first: it records selective evidence and feedback experience lineage, then uses reviewer/gate/compiler to materialize `validated_pattern` only after promotion; public `feedback()` remains the explicit durable procedural feedback entrypoint.
 [DONE] Root `goodmemory` no longer re-exports internal evolution contracts or constructors.
-[DONE] Adapter/event feedback receipts now expose proposal/promotion lineage for the feedback experience that directly triggered reviewer/gate work.
+[DONE] Adapter/event correction receipts now expose proposal/promotion lineage for the correction experience that directly triggered reviewer/gate work.
 [DONE] Final `Procedural Memory` rendering now dedupes same-rule guidance instead of surfacing repeated copies in the Phase 32 repeated-correction path.
 [DONE] Added a dedicated deterministic `eval:phase-34` runner comparing `policy-backed` vs `phase-32-soft-guard` vs `no-memory`, with interception/non-regression metrics.
 [DONE] P34-T004 Wire the Codex runtime path through the installed-package Codex action-gate wrapper so `review_required` can rewrite the first executable step while keeping lineage tied to the assessed `actionId`.

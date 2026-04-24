@@ -1,10 +1,10 @@
 import type { AgentInputEvent, HostAgentEvent } from "../agentEvents";
+import type { FeedbackKind } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { HostActionDecision, HostKind } from "../host/contracts";
 import type {
   FeedbackPromotionReceipt,
   FeedbackProposalReceipt,
-  FeedbackResult,
   GoodMemory,
 } from "./contracts";
 
@@ -22,7 +22,16 @@ export type AgentEventProposalReceipt = FeedbackProposalReceipt;
 
 export type AgentEventPromotionReceipt = FeedbackPromotionReceipt;
 
-export interface AgentEventFeedbackResult extends FeedbackResult {
+export interface AgentEventCorrectionResult {
+  accepted: boolean;
+  evidenceIds?: string[];
+  kind?: Exclude<FeedbackKind, "validated_pattern">;
+  metadata?: {
+    locale: string;
+    localeSource: "explicit" | "detected" | "default";
+    adapterId: string;
+    analysisMode: "rules-only";
+  };
   proposalReceipts?: AgentEventProposalReceipt[];
   promotionReceipts?: AgentEventPromotionReceipt[];
 }
@@ -30,6 +39,11 @@ export interface AgentEventFeedbackResult extends FeedbackResult {
 export interface AgentEventIngestResult {
   evidenceId?: string;
   experienceId?: string;
+  /**
+   * @deprecated Automatic adapter/event user_correction ingestion is proposal-first
+   * and does not set this field. It remains only for compatibility with older
+   * adapter result shapes.
+   */
   feedbackMemoryId?: string;
   proposalReceipts?: AgentEventProposalReceipt[];
   promotionReceipts?: AgentEventPromotionReceipt[];

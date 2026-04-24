@@ -16,6 +16,7 @@ bun run gate:phase-34
 - packaged `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()`
 - root `goodmemory` public surface cleanup so internal evolution contracts and constructors no longer leak from the root barrel
 - proposal-first automatic adapter correction: event-backed `user_correction` creates selective evidence and feedback experience lineage before reviewer/gate/compiler, not an intermediate active feedback memory
+- public `feedback()` remains the explicit durable procedural feedback entrypoint and still writes active feedback memory directly
 - coding-agent procedural targeting for repeated coding-agent corrections and coding-agent tool-outcome lineage
 - deterministic policy compilation from active validated patterns, linked evidence, working memory, and session journal
 - auditable action-assessment recording keyed by `actionId`
@@ -54,7 +55,7 @@ Out of scope:
   - `bun run typecheck` passed
   - targeted host/action/bootstrap/release regressions passed
   - root public-surface regressions prove no root evolution export leak
-  - adapter-event regressions prove automatic corrections are proposal-first and receipts remain visible without `feedbackMemoryId`
+  - adapter-event regressions prove automatic corrections are proposal-first and correction receipts remain visible without `feedbackMemoryId`
   - reviewer/evolution regressions prove experience-only corrections and coding-agent outcome lineage compile to targeted procedural guidance
   - the deterministic Phase 34 report still beats the Phase 32 soft-guard and no-memory baselines on first-action interception, corrected first-step behavior, false-block control, and completion non-regression
   - the canonical Codex live report is tarball-first and installed-package based, not repo-internal

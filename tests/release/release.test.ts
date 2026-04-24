@@ -1794,7 +1794,7 @@ describe("release metadata and docs", () => {
       "root `goodmemory` no longer re-exports internal evolution contracts",
     );
     expect(currentStatus).toContain(
-      "adapter/event `user_correction` is proposal-first",
+      "automatic adapter/event `user_correction` path is proposal-first",
     );
     expect(currentStatus).toContain(
       "Phase 35 installed host-memory middleware is now part of the accepted stable host surface",
@@ -1818,7 +1818,7 @@ describe("release metadata and docs", () => {
       "Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice",
     );
     expect(taskBoard).toContain(
-      "adapter/event `user_correction` now takes the proposal-first path",
+      "automatic adapter/event `user_correction` path now takes the proposal-first route",
     );
     expect(taskBoard).toContain(
       "Phase 35 is now closed as the installed host-memory middleware and hooks slice",

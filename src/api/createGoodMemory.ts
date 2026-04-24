@@ -64,7 +64,7 @@ import {
 } from "./evalSupport";
 import {
   attachGoodMemoryIntegrationSupport,
-  type AgentEventFeedbackResult,
+  type AgentEventCorrectionResult,
   type AgentEventPromotionReceipt,
   type AgentEventProposalReceipt,
   type HostActionAssessmentRecordInput,
@@ -435,13 +435,31 @@ async function writeFeedbackSignal(input: {
   };
 }
 
-function withAgentEventFeedbackReceipts(
+function withFeedbackReceipts(
   result: FeedbackResult,
   receipts: {
     promotionReceipts: AgentEventPromotionReceipt[];
     proposalReceipts: AgentEventProposalReceipt[];
   },
-): AgentEventFeedbackResult {
+): FeedbackResult {
+  return {
+    ...result,
+    ...(receipts.proposalReceipts.length > 0
+      ? { proposalReceipts: receipts.proposalReceipts }
+      : {}),
+    ...(receipts.promotionReceipts.length > 0
+      ? { promotionReceipts: receipts.promotionReceipts }
+      : {}),
+  };
+}
+
+function withAgentEventCorrectionReceipts(
+  result: AgentEventCorrectionResult,
+  receipts: {
+    promotionReceipts: AgentEventPromotionReceipt[];
+    proposalReceipts: AgentEventProposalReceipt[];
+  },
+): AgentEventCorrectionResult {
   return {
     ...result,
     ...(receipts.proposalReceipts.length > 0
@@ -1028,7 +1046,7 @@ class GoodMemoryImpl implements GoodMemory {
       signal: input.signal,
     });
 
-    return withAgentEventFeedbackReceipts(result, receipts);
+    return withFeedbackReceipts(result, receipts);
   }
 
   async runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult> {
@@ -1059,7 +1077,7 @@ async function submitAgentEventCorrection(input: {
   evidenceIds?: string[];
   strictExperience?: boolean;
   traceId?: string;
-}): Promise<AgentEventFeedbackResult> {
+}): Promise<AgentEventCorrectionResult> {
   const {
     appliesTo,
     kind,
@@ -1079,7 +1097,7 @@ async function submitAgentEventCorrection(input: {
     ...(input.strictExperience ? { strict: true } : {}),
     ...(input.traceId ? { traceId: input.traceId } : {}),
   });
-  const result: FeedbackResult = {
+  const result: AgentEventCorrectionResult = {
     accepted: true,
     ...(input.evidenceIds ? { evidenceIds: input.evidenceIds } : {}),
     kind,
@@ -1091,7 +1109,7 @@ async function submitAgentEventCorrection(input: {
     },
   };
 
-  return withAgentEventFeedbackReceipts(result, receipts);
+  return withAgentEventCorrectionReceipts(result, receipts);
 }
 
 export function createGoodMemory(config: GoodMemoryConfig): GoodMemory {

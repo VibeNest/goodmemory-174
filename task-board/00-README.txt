@@ -199,7 +199,7 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-34-Quality-Gate.md`
   - `goodmemory/host` now exposes `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and the execution-plan bridge for pre-action rewrite/veto outcomes
   - root `goodmemory` no longer re-exports internal evolution contracts or constructors
-  - adapter/event `user_correction` now takes the proposal-first path: evidence plus feedback experience lineage, then reviewer/gate/compiler, without first creating active durable feedback
+  - automatic adapter/event `user_correction` path now takes the proposal-first route: evidence plus feedback experience lineage, then reviewer/gate/compiler, without first creating active durable feedback; public `feedback()` remains the explicit durable procedural feedback entrypoint
   - repeated coding-agent corrections and coding-agent outcome lineage compile to `coding_agent` scoped procedural guidance
   - the canonical live enforcement path is the installed-package Codex action-gate wrapper, while `.codex/hooks.json` and `codex/rules/goodmemory.rules` remain parity scaffolds instead of the live blocker
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice:

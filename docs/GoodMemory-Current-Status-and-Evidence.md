@@ -21,7 +21,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - `goodmemory/host` now includes an explicit pre-action contract through `HostActionIntent`, `HostActionAssessmentResult`, `HostActionDecision`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()`.
 - Optional adapter-level agent-event ingestion now exists on `goodmemory/ai-sdk` and `goodmemory/host`; no new root `goodmemory/evolution` module was added.
 - root `goodmemory` no longer re-exports internal evolution contracts; proposal, reviewer, compiler, and maintenance internals stay outside the stable root API.
-- adapter/event `user_correction` is proposal-first and records selective evidence plus promotion receipts instead of writing an intermediate active feedback memory.
+- automatic adapter/event `user_correction` path is proposal-first and records selective evidence plus proposal/promotion receipts instead of writing an intermediate active feedback memory; public `feedback()` remains the explicit durable procedural feedback entrypoint.
 - `sqlite` remains the stable default local durable document/session/vector backend on Bun.
 - Generic live-memory eval semantics are now auto-storage aligned across both CLI and script helpers:
   - `bun run eval:live-memory` and `runLiveMemoryEval()` follow the normal runtime storage resolver, so default local SQLite remains valid and configured Postgres becomes provider-backed.

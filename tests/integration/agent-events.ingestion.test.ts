@@ -341,7 +341,7 @@ describe("agent event ingestion", () => {
     expect(exported.durable.experiences[0]?.summary).not.toContain("TAIL_SENTINEL");
   });
 
-  it("routes repeated user correction events through feedback and proposal compilation", async () => {
+  it("routes repeated user correction events through correction lineage and proposal compilation", async () => {
     const memory = createGoodMemory({
       storage: { provider: "memory" },
     });
