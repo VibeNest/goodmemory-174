@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { describe, expect, it } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   createFactMemory,
@@ -218,6 +218,20 @@ describe("goodmemory mcp server", () => {
         },
       );
       await client.connect(transport);
+      const packageJson = JSON.parse(
+        await readFile(join(import.meta.dir, "../../package.json"), "utf8"),
+      ) as { version?: string };
+      if (
+        typeof packageJson.version !== "string" ||
+        packageJson.version.length === 0
+      ) {
+        throw new Error("package.json must define a non-empty version.");
+      }
+
+      expect(client.getServerVersion()).toEqual({
+        name: "goodmemory-mcp",
+        version: packageJson.version,
+      });
 
       const listedTools = await client.listTools();
       expect(listedTools.tools.map((tool) => tool.name).sort()).toEqual([

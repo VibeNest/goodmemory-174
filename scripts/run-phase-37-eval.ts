@@ -497,16 +497,16 @@ export async function runPhase37FallbackEval(
   const runDirectory = join(outputDir, runId);
   const ensureDir = dependencies.ensureDir ?? mkdir;
   const writeTextFile = dependencies.writeTextFile ?? writeFile;
-  const cases = await Promise.all([
-    runOpenLoopWritebackCase(),
-    runNextSessionRecallCase(),
-    runProceduralCorrectionCase(),
-    runAssistantDefaultBlockedCase(),
-    runAssistantConfirmedAllowedCase(),
-    runNeverMaskingCase(),
-    runRawTranscriptRejectedCase(),
-    runDedupeCooldownCase(),
-  ]);
+  const cases = [
+    await runOpenLoopWritebackCase(),
+    await runNextSessionRecallCase(),
+    await runProceduralCorrectionCase(),
+    await runAssistantDefaultBlockedCase(),
+    await runAssistantConfirmedAllowedCase(),
+    await runNeverMaskingCase(),
+    await runRawTranscriptRejectedCase(),
+    await runDedupeCooldownCase(),
+  ];
   const acceptedCaseCount = cases.filter((caseResult) => caseResult.passed).length;
   const accepted = acceptedCaseCount === cases.length;
   const countPassed = (caseId: Phase37CaseResult["caseId"]) =>

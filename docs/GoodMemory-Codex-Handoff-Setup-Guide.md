@@ -1,25 +1,25 @@
 # GoodMemory Codex Handoff Setup Guide
 
-This is the canonical installed-package `0.1.1` Codex bootstrap path.
+This is the canonical installed-package `0.1.2` Codex bootstrap path.
 
 ## Install
 
 Published install:
 
 ```bash
-npm install goodmemory@0.1.1
+npm install goodmemory@0.1.2
 ```
 
 Bun install:
 
 ```bash
-bun add goodmemory@0.1.1
+bun add goodmemory@0.1.2
 ```
 
 Tarball verification of the same release artifact before publish:
 
 ```bash
-npm install ./goodmemory-0.1.1.tgz
+npm install ./goodmemory-0.1.2.tgz
 ```
 
 ## Bootstrap

@@ -50,7 +50,7 @@ export function createGoodMemoryMcpServer(input: {
 }): McpServer {
   const server = new McpServer({
     name: "goodmemory-mcp",
-    version: "0.1.1",
+    version: "0.1.2",
   });
   const dependencies = input.dependencies ?? {};
 

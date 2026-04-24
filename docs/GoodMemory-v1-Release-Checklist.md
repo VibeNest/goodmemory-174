@@ -2,7 +2,7 @@
 
 ## Package Boundary
 
-- `0.1.1` packages `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` through compiled `dist/` outputs plus declarations
+- `0.1.2` packages `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` through compiled `dist/` outputs plus declarations
 - registry publish is handled by the tagged stable release workflow when `NPM_TOKEN` is configured
 - `bun pm pack` tarball remains a canonical installable release artifact
 - public package surface remains:
@@ -84,7 +84,7 @@
 ## Packaging
 
 - `package.json` exposes `bin`, `exports`, and example scripts
-- `package.json` is not private and uses version `0.1.1`
+- `package.json` is not private and uses version `0.1.2`
 - `package.json` declares Node and Bun runtime support for the packaged boundary
 - `LICENSE` exists and matches package metadata
 - CLI wrapper exists at `scripts/goodmemory-cli.js`
