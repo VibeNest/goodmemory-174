@@ -13,7 +13,7 @@ Status
 - `selective` mode writes only high-value candidates through public remember profiles, rules, annotations, and policies.
 - No raw transcript durable persistence is allowed.
 - Codex is the canonical implementation and live evidence path. Claude does not block closure.
-- Canonical deterministic evidence: `reports/eval/fallback/phase-37/run-20260424101045/report.json`
+- Canonical deterministic replay output (ignored generated): `reports/eval/fallback/phase-37/run-20260424101045/report.json`
 - Canonical provider-backed assisted-extraction live evidence: `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
 - Canonical external consumer evidence: `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
 - Canonical quality gate: `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`

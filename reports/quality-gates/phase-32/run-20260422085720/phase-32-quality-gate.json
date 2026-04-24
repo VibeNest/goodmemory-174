@@ -83,8 +83,10 @@
   "evidence": {
     "deterministicReport": {
       "reason": "Phase 32 deterministic dual-baseline report is accepted.",
-      "reportPath": "reports/eval/fallback/phase-32/run-20260422173045/report.json",
-      "status": "accepted"
+      "status": "accepted",
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-32/run-20260422173045/report.json",
+      "regenerateCommand": "bun run eval:phase-32 --run-id run-20260422173045"
     },
     "liveExternalHost": {
       "hostKind": "codex",

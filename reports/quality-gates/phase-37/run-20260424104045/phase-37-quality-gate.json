@@ -211,8 +211,10 @@
   "evidence": {
     "deterministicReport": {
       "reason": "Deterministic installed-host selective writeback eval passed every Phase 37 case.",
-      "reportPath": "reports/eval/fallback/phase-37/run-20260424101045/report.json",
-      "status": "accepted"
+      "status": "accepted",
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-37/run-20260424101045/report.json",
+      "regenerateCommand": "bun run eval:phase-37 --run-id run-20260424101045"
     },
     "externalConsumer": {
       "reason": "External consumer tarball smoke proved installed package writeback and recall.",

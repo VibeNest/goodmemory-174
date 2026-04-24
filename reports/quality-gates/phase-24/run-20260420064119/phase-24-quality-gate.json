@@ -79,6 +79,15 @@
       ]
     }
   ],
+  "evidence": {
+    "deterministicReports": [
+      {
+        "artifactKind": "ignored_generated",
+        "ignoredReportPath": "reports/eval/fallback/phase-24/run-1776667282719/report.json",
+        "regenerateCommand": "bun run eval:phase-24 --run-id run-1776667282719"
+      }
+    ]
+  },
   "generatedAt": "2026-04-20T06:41:19.865Z",
   "generatedBy": "scripts/run-phase-24-gate.ts",
   "phase": "phase-24",

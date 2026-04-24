@@ -49,7 +49,7 @@ Out of scope:
 
 - Quality gate:
   - `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`
-- Deterministic fallback report:
+- Deterministic fallback replay output (ignored generated):
   - `reports/eval/fallback/phase-37/run-20260424101045/report.json`
 - Provider-backed assisted-extraction live-memory report:
   - `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
@@ -58,7 +58,7 @@ Out of scope:
 
 ## Results
 
-- Deterministic fallback report: accepted.
+- Deterministic fallback replay output (ignored generated): accepted.
 - Provider-backed assisted-extraction live-memory report: accepted.
 - External consumer installed-package report: accepted.
 - `gate:phase-37` proves:
@@ -78,7 +78,7 @@ Out of scope:
 
 ## Evidence Rule
 
-Only the gate run above, deterministic fallback report above, provider-backed assisted-extraction live-memory report above, and external consumer report above are canonical for Phase 37. If future evidence is repointed, update this archive doc, `docs/GoodMemory-Current-Status-and-Evidence.md`, `task-board/00-README.txt`, release tests, and release checklist together.
+Only the gate run above, deterministic fallback replay output (ignored generated) above, provider-backed assisted-extraction live-memory report above, and external consumer report above are canonical for Phase 37. If future evidence is repointed, update this archive doc, `docs/GoodMemory-Current-Status-and-Evidence.md`, `task-board/00-README.txt`, release tests, and release checklist together.
 
 ## Decision
 

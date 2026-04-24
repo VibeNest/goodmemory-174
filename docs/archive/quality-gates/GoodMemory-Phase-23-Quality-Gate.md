@@ -48,9 +48,9 @@ bun run gate:phase-23
 ## Results
 
 - Deterministic gate: accepted
-- Fallback observe: 5 completed cases, 0 regressions, known-safe observe coverage `5/5`
-- Fallback assist: 5 completed cases, 0 regressions, assist gate `accepted/passed`
-- Fallback promote: 5 completed cases, 0 regressions, promote gate `accepted/passed`
+- Fallback observe replay output (ignored generated): 5 completed cases, 0 regressions, known-safe observe coverage `5/5`
+- Fallback assist replay output (ignored generated): 5 completed cases, 0 regressions, assist gate `accepted/passed`
+- Fallback promote replay output (ignored generated): 5 completed cases, 0 regressions, promote gate `accepted/passed`
 - Live-memory observe: 5 completed cases, 0 regressions, known-safe observe coverage `5/5`
 - Live-memory assist: 5 completed cases, 0 regressions, assist gate `accepted/passed`
 - Live-memory promote: 5 completed cases, 0 regressions, promote gate `accepted/passed`

@@ -80,6 +80,15 @@
       ]
     }
   ],
+  "evidence": {
+    "deterministicReports": [
+      {
+        "artifactKind": "ignored_generated",
+        "ignoredReportPath": "reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix/report.json",
+        "regenerateCommand": "bun run eval:phase-24 --run-id run-20260420154540-contrastive-fix"
+      }
+    ]
+  },
   "generatedAt": "2026-04-20T07:50:15.230Z",
   "generatedBy": "scripts/run-phase-24-gate.ts",
   "phase": "phase-24",

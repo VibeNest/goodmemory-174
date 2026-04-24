@@ -26,12 +26,22 @@ export interface Phase23GateExecutionResult {
   stdoutTail: string[];
 }
 
+export interface Phase23IgnoredGeneratedArtifactEvidence {
+  artifactKind: "ignored_generated";
+  ignoredArtifactPath?: string;
+  ignoredReportPath?: string;
+  regenerateCommand: string;
+}
+
 export interface Phase23GateReport {
   acceptance: {
     decision: "accepted" | "blocked";
     reason: string;
   };
   commands: Phase23GateExecutionResult[];
+  evidence: {
+    fallbackArtifacts: Phase23IgnoredGeneratedArtifactEvidence[];
+  };
   generatedAt: string;
   generatedBy: string;
   phase: "phase-23";
@@ -85,7 +95,42 @@ export function resolvePhase23GateOutputDir(root: string): string {
   return join(root, "reports/quality-gates/phase-23");
 }
 
-export function buildPhase23GateCommands(root: string): Phase23GateCommand[] {
+function buildPhase23FallbackRegenerateCommand(baseRunId: string): string {
+  return `bun run eval:phase-23 --run-id ${baseRunId}`;
+}
+
+function buildPhase23IgnoredFallbackEvidence(
+  baseRunId: string,
+): Phase23IgnoredGeneratedArtifactEvidence[] {
+  const regenerateCommand = buildPhase23FallbackRegenerateCommand(baseRunId);
+  return [
+    {
+      artifactKind: "ignored_generated",
+      ignoredReportPath: `reports/eval/fallback/phase-23/${baseRunId}-observe/report.json`,
+      regenerateCommand,
+    },
+    {
+      artifactKind: "ignored_generated",
+      ignoredReportPath: `reports/eval/fallback/phase-23/${baseRunId}-assist/report.json`,
+      regenerateCommand,
+    },
+    {
+      artifactKind: "ignored_generated",
+      ignoredArtifactPath: `reports/eval/fallback/phase-23/${baseRunId}-assist/strategy-promotion-authorization.json`,
+      regenerateCommand,
+    },
+    {
+      artifactKind: "ignored_generated",
+      ignoredReportPath: `reports/eval/fallback/phase-23/${baseRunId}-promote/report.json`,
+      regenerateCommand,
+    },
+  ];
+}
+
+export function buildPhase23GateCommands(
+  root: string,
+  fallbackRunId?: string,
+): Phase23GateCommand[] {
   return [
     {
       label: "typecheck",
@@ -111,7 +156,15 @@ export function buildPhase23GateCommands(root: string): Phase23GateCommand[] {
     {
       label: "phase-23-fallback-eval",
       cwd: root,
-      args: ["bun", "run", "eval:phase-23"],
+      args: fallbackRunId
+        ? [
+            "bun",
+            "run",
+            "eval:phase-23",
+            "--run-id",
+            fallbackRunId,
+          ]
+        : ["bun", "run", "eval:phase-23"],
     },
   ];
 }
@@ -162,7 +215,7 @@ export async function runPhase23QualityGate(
   const outputDir = input?.outputDir ?? resolvePhase23GateOutputDir(root);
   const runDirectory = join(outputDir, runId);
   const commandResults: Phase23GateExecutionResult[] = [];
-  const commands = buildPhase23GateCommands(root);
+  const commands = buildPhase23GateCommands(root, runId);
 
   for (const command of commands) {
     const result = await runCommand(command);
@@ -194,6 +247,9 @@ export async function runPhase23QualityGate(
             "Phase 23 internal recall-router promotion path is regression-covered on the deterministic gate path.",
         },
     commands: commandResults,
+    evidence: {
+      fallbackArtifacts: buildPhase23IgnoredFallbackEvidence(runId),
+    },
     generatedAt,
     generatedBy: GENERATED_BY,
     phase: "phase-23",

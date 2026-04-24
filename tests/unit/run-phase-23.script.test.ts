@@ -619,6 +619,32 @@ describe("run-phase-23 scripts", () => {
       "passed",
       "passed",
     ]);
+    expect(report.evidence.fallbackArtifacts).toEqual([
+      {
+        artifactKind: "ignored_generated",
+        ignoredReportPath:
+          "reports/eval/fallback/phase-23/run-phase23-observe/report.json",
+        regenerateCommand: "bun run eval:phase-23 --run-id run-phase23",
+      },
+      {
+        artifactKind: "ignored_generated",
+        ignoredReportPath:
+          "reports/eval/fallback/phase-23/run-phase23-assist/report.json",
+        regenerateCommand: "bun run eval:phase-23 --run-id run-phase23",
+      },
+      {
+        artifactKind: "ignored_generated",
+        ignoredArtifactPath:
+          "reports/eval/fallback/phase-23/run-phase23-assist/strategy-promotion-authorization.json",
+        regenerateCommand: "bun run eval:phase-23 --run-id run-phase23",
+      },
+      {
+        artifactKind: "ignored_generated",
+        ignoredReportPath:
+          "reports/eval/fallback/phase-23/run-phase23-promote/report.json",
+        regenerateCommand: "bun run eval:phase-23 --run-id run-phase23",
+      },
+    ]);
   });
 
   it("parses phase-23 gate cli flags and exits cleanly", async () => {
@@ -659,6 +685,9 @@ describe("run-phase-23 scripts", () => {
           reason: "ok",
         },
         commands: [],
+        evidence: {
+          fallbackArtifacts: [],
+        },
         generatedAt: "2026-04-20T10:00:00.000Z",
         generatedBy: "tests",
         phase: "phase-23",

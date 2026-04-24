@@ -37,7 +37,7 @@ Out of scope:
 
 ## Canonical Artifacts
 
-- Deterministic adoption eval:
+- Deterministic adoption replay output (ignored generated):
   - `reports/eval/fallback/phase-27/run-20260421165000/report.json`
 - Live-memory adoption eval:
   - `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
@@ -46,7 +46,7 @@ Out of scope:
 
 ## Results
 
-- Deterministic adoption eval: accepted.
+- Deterministic adoption replay output (ignored generated): accepted.
 - Live-memory adoption eval: accepted.
 - Quality gate: accepted.
 - Execution failures: `0` on the canonical deterministic and live reports.

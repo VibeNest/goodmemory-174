@@ -111,6 +111,99 @@ describe("run-phase-37 gate", () => {
     );
   });
 
+  it("defaults reruns to fresh evidence and gate run ids", async () => {
+    const executedCommands: string[][] = [];
+    const writes: Array<{ content: string; path: string }> = [];
+
+    const report = await runPhase37QualityGate(
+      {
+        outputDir: "/tmp/goodmemory/reports/quality-gates/phase-37",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-24T14:32:45.000Z",
+        readTextFile: async (path) => {
+          if (path.endsWith("reports/eval/fallback/phase-37/run-20260424143245/report.json")) {
+            return createAcceptedPhase37DeterministicReport();
+          }
+          if (path.endsWith("reports/eval/live-memory/phase-37/run-20260424143245/report.json")) {
+            return createAcceptedPhase37LiveReport();
+          }
+          if (path.endsWith("reports/eval/live-memory/phase-37/run-20260424143245-external-consumer/report.json")) {
+            return createAcceptedPhase37ExternalReport();
+          }
+          throw new Error(`Unexpected report path: ${path}`);
+        },
+        runCommand: async (command) => {
+          executedCommands.push(command.args);
+
+          return {
+            durationMs: 10,
+            exitCode: 0,
+            stderr: "",
+            stdout: "ok",
+          };
+        },
+        writeTextFile: async (path, content) => {
+          writes.push({ path, content });
+        },
+      },
+    );
+
+    expect(report.runId).toBe("run-20260424143245");
+    expect(report.evidence.deterministicReport.artifactKind).toBe("ignored_generated");
+    expect(report.evidence.deterministicReport.ignoredReportPath).toBe(
+      "reports/eval/fallback/phase-37/run-20260424143245/report.json",
+    );
+    expect(report.evidence.deterministicReport.regenerateCommand).toBe(
+      "bun run eval:phase-37 --run-id run-20260424143245",
+    );
+    expect(report.evidence.liveMemory.reportPath).toBe(
+      "reports/eval/live-memory/phase-37/run-20260424143245/report.json",
+    );
+    expect(report.evidence.externalConsumer.reportPath).toBe(
+      "reports/eval/live-memory/phase-37/run-20260424143245-external-consumer/report.json",
+    );
+    expect(executedCommands).toContainEqual([
+      "bun",
+      "run",
+      "eval:phase-37",
+      "--run-id",
+      "run-20260424143245",
+    ]);
+    expect(executedCommands).toContainEqual([
+      "bun",
+      "run",
+      "eval:phase-37-live-memory",
+      "--run-id",
+      "run-20260424143245",
+    ]);
+    expect(executedCommands).toContainEqual([
+      "bun",
+      "run",
+      "eval:phase-37-external-consumer",
+      "--run-id",
+      "run-20260424143245-external-consumer",
+    ]);
+    expect(executedCommands).toContainEqual([
+      "bun",
+      "run",
+      "gate:phase-35",
+      "--run-id",
+      "run-20260424143245",
+    ]);
+    expect(executedCommands).toContainEqual([
+      "bun",
+      "run",
+      "gate:phase-36",
+      "--run-id",
+      "run-20260424143245",
+    ]);
+    expect(writes[0]?.path).toBe(
+      "/tmp/goodmemory/reports/quality-gates/phase-37/run-20260424143245/phase-37-quality-gate.json",
+    );
+  });
+
   it("parses phase-37 gate cli flags", () => {
     expect(
       parsePhase37GateCliOptions([
@@ -267,8 +360,11 @@ describe("run-phase-37 gate", () => {
         commands: [],
         evidence: {
           deterministicReport: {
+            artifactKind: "ignored_generated",
+            ignoredReportPath:
+              "reports/eval/fallback/phase-37/run-20260424101045/report.json",
             reason: "ok",
-            reportPath: "reports/eval/fallback/phase-37/run-20260424101045/report.json",
+            regenerateCommand: "bun run eval:phase-37 --run-id run-20260424101045",
             status: "accepted",
           },
           externalConsumer: {

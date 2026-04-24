@@ -27,8 +27,10 @@ export interface Phase32GateExecutionResult {
 }
 
 export interface Phase32DeterministicReportEvidence {
+  artifactKind: "ignored_generated";
+  ignoredReportPath: string;
   reason: string;
-  reportPath: string;
+  regenerateCommand: string;
   status: "accepted" | "blocked";
 }
 
@@ -633,6 +635,10 @@ export function resolvePhase32CanonicalLiveReportPath(root: string): string {
   );
 }
 
+function buildPhase32DeterministicRegenerateCommand(): string {
+  return `bun run eval:phase-32 --run-id ${PHASE32_CANONICAL_DETERMINISTIC_RUN_ID}`;
+}
+
 export function buildPhase32GateRunId(timestamp: string): string {
   return `run-${timestamp.replace(/\D/g, "").slice(0, 14) || "phase32"}`;
 }
@@ -733,8 +739,10 @@ function buildBlockedDeterministicEvidence(
   reason: string,
 ): Phase32DeterministicReportEvidence {
   return {
+    artifactKind: "ignored_generated",
+    ignoredReportPath: reportPath,
     reason,
-    reportPath,
+    regenerateCommand: buildPhase32DeterministicRegenerateCommand(),
     status: "blocked",
   };
 }
@@ -803,8 +811,10 @@ export async function runPhase32QualityGate(
         try {
           assertPhase32DeterministicReport(await readTextFile(deterministicReportPath));
           return {
+            artifactKind: "ignored_generated" as const,
+            ignoredReportPath: deterministicReportPath,
             reason: "Phase 32 deterministic dual-baseline report is accepted.",
-            reportPath: deterministicReportPath,
+            regenerateCommand: buildPhase32DeterministicRegenerateCommand(),
             status: "accepted" as const,
           };
         } catch (error) {
@@ -937,7 +947,10 @@ export async function runPhase32QualityGate(
 
   report.evidence.deterministicReport = {
     ...report.evidence.deterministicReport,
-    reportPath: toRepoRelativePath(root, report.evidence.deterministicReport.reportPath),
+    ignoredReportPath: toRepoRelativePath(
+      root,
+      report.evidence.deterministicReport.ignoredReportPath,
+    ),
   };
   report.evidence.liveExternalHost = {
     ...report.evidence.liveExternalHost,

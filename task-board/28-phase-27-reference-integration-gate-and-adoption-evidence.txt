@@ -18,7 +18,7 @@ Current Status
 --------------
 [DONE] Phase 27 is closed and accepted.
 [DONE] Public reference hardening landed on top of the accepted Phase 26 local-first runtime.
-[DONE] Deterministic adoption eval now runs through `eval:phase-27` with thresholded identity/background, continuation/open-loop, repeated-correction, and Codex handoff reporting.
+[DONE] Deterministic adoption replay output (ignored generated) now runs through `eval:phase-27` with thresholded identity/background, continuation/open-loop, repeated-correction, and Codex handoff reporting.
 [DONE] Canonical live adoption evidence now exists through `eval:phase-27-live-memory` at `reports/eval/live-memory/phase-27/run-20260421170500/report.json`.
 [DONE] `gate:phase-27` is accepted and the archive/current-status/task-board evidence chain is now synchronized.
 

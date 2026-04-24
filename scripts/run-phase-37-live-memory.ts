@@ -74,11 +74,14 @@ export interface Phase37LiveMemoryReport {
 }
 
 const GENERATED_BY = "scripts/run-phase-37-live-memory.ts";
-const PHASE37_CANONICAL_LIVE_RUN_ID = "run-phase37-live-current";
 const PHASE37_OPEN_LOOP = "Next step is to add the phase-37 live report.";
 
 export function resolvePhase37LiveMemoryOutputDir(root: string): string {
   return join(root, "reports/eval/live-memory/phase-37");
+}
+
+export function buildPhase37LiveMemoryRunId(timestamp: string): string {
+  return `run-${timestamp.replace(/\D/g, "").slice(0, 14) || "phase37live"}`;
 }
 
 export function parsePhase37LiveMemoryCliOptions(
@@ -211,10 +214,11 @@ export async function runPhase37LiveMemoryEval(
 ): Promise<Phase37LiveMemoryReport> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = options.outputDir ?? resolvePhase37LiveMemoryOutputDir(root);
-  const runId = options.runId ?? PHASE37_CANONICAL_LIVE_RUN_ID;
-  const runDirectory = join(outputDir, runId);
   const ensureDir = dependencies.ensureDir ?? mkdir;
   const now = dependencies.now ?? (() => new Date().toISOString());
+  const timestamp = now();
+  const runId = options.runId ?? buildPhase37LiveMemoryRunId(timestamp);
+  const runDirectory = join(outputDir, runId);
   const readTextFile =
     dependencies.readTextFile ??
     ((path: string) => readFile(path, "utf8"));
@@ -223,7 +227,6 @@ export async function runPhase37LiveMemoryEval(
     dependencies.makeTempDir ??
     ((prefix: string) => mkdtemp(join(tmpdir(), prefix)));
   const removeDir = dependencies.removeDir ?? rm;
-  const timestamp = now();
   const env = await toEnvWithDotEnv({
     env: dependencies.env,
     readTextFile,

@@ -45,6 +45,10 @@ const CANONICAL_DETERMINISTIC_REPORT_PATH = resolvePhase27CanonicalDeterministic
   ROOT,
 );
 const CANONICAL_LIVE_REPORT_PATH = resolvePhase27CanonicalLiveReportPath(ROOT);
+const CANONICAL_QUALITY_GATE_PATH = join(
+  ROOT,
+  "reports/quality-gates/phase-27/run-20260421172000/phase-27-quality-gate.json",
+);
 
 function buildAcceptedCanonicalDeterministicReport(
   metrics: Record<string, unknown> = {
@@ -126,11 +130,16 @@ describe("run-phase-27 gate script", () => {
   });
 
   it("keeps the canonical accepted artifacts aligned with the current gate scope", async () => {
-    const deterministicReport = JSON.parse(
-      await readFile(CANONICAL_DETERMINISTIC_REPORT_PATH, "utf8"),
+    const gateReport = JSON.parse(
+      await readFile(CANONICAL_QUALITY_GATE_PATH, "utf8"),
     ) as {
-      runId: string;
-      summary: { accepted: boolean; totalScenarioCases: number };
+      evidence: {
+        deterministicReport: {
+          artifactKind: string;
+          ignoredReportPath: string;
+          regenerateCommand: string;
+        };
+      };
     };
     const liveReport = JSON.parse(
       await readFile(CANONICAL_LIVE_REPORT_PATH, "utf8"),
@@ -139,9 +148,12 @@ describe("run-phase-27 gate script", () => {
       summary: { accepted: boolean; totalScenarioCases: number };
     };
 
-    expect(deterministicReport.runId).toBe("run-20260421165000");
-    expect(deterministicReport.summary.accepted).toBe(true);
-    expect(deterministicReport.summary.totalScenarioCases).toBe(13);
+    expect(gateReport.evidence.deterministicReport).toEqual({
+      artifactKind: "ignored_generated",
+      ignoredReportPath:
+        "reports/eval/fallback/phase-27/run-20260421165000/report.json",
+      regenerateCommand: "bun run eval:phase-27 --run-id run-20260421165000",
+    });
     expect(liveReport.runId).toBe("run-20260421170500");
     expect(liveReport.summary.accepted).toBe(true);
     expect(liveReport.summary.totalScenarioCases).toBe(4);
@@ -186,6 +198,12 @@ describe("run-phase-27 gate script", () => {
 
     expect(report.acceptance.decision).toBe("accepted");
     expect(report.acceptance.reason).toContain("Phase 27");
+    expect(report.evidence.deterministicReport).toEqual({
+      artifactKind: "ignored_generated",
+      ignoredReportPath:
+        "reports/eval/fallback/phase-27/run-20260421165000/report.json",
+      regenerateCommand: "bun run eval:phase-27 --run-id run-20260421165000",
+    });
     expect(report.scope).toEqual(buildPhase27GateScope());
     expect(directories).toEqual([
       "/tmp/goodmemory/reports/quality-gates/phase-27/run-phase27",
@@ -241,7 +259,7 @@ describe("run-phase-27 gate script", () => {
 
     expect(report.acceptance.decision).toBe("blocked");
     expect(report.acceptance.reason).toContain("referenceSetup");
-    expect(report.commands).toEqual([]);
+    expect(report.commands).toHaveLength(3);
   });
 
   it("blocks when a required command fails", async () => {
@@ -313,6 +331,15 @@ describe("run-phase-27 gate script", () => {
           reason: "ok",
         },
         commands: [],
+        evidence: {
+          deterministicReport: {
+            artifactKind: "ignored_generated",
+            ignoredReportPath:
+              "reports/eval/fallback/phase-27/run-20260421165000/report.json",
+            regenerateCommand:
+              "bun run eval:phase-27 --run-id run-20260421165000",
+          },
+        },
         generatedAt: "2026-04-20T18:10:00.000Z",
         generatedBy: "tests",
         phase: "phase-27",

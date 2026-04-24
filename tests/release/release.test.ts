@@ -50,6 +50,13 @@ const RELEASE_TEST_ENV = {
   GOODMEMORY_STORAGE_URL: undefined,
   GOODMEMORY_TEST_POSTGRES_URL: undefined,
 } as const;
+const FALLBACK_ARTIFACT_PATH_PATTERN =
+  /reports\/eval\/fallback\/[^\s`"'()<>]+\.json/g;
+const FALLBACK_ARTIFACT_CITATION_ROOTS = [
+  "README.md",
+  "docs",
+  "task-board",
+] as const;
 const CANONICAL_PHASE20_DEPENDENCY_SUMMARY_ARTIFACTS = [
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/public-surface-decision.json",
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/regression-dashboard.json",
@@ -232,6 +239,154 @@ async function expectGitTrackedRepoArtifact(relativePath: string) {
   expect(ignored.stdout).toContain("!");
 }
 
+async function expectIgnoredGeneratedArtifact(relativePath: string) {
+  const tracked = await runGitCommand([
+    "ls-files",
+    "--error-unmatch",
+    relativePath,
+  ]);
+  expect(tracked.exitCode).not.toBe(0);
+
+  const ignored = await runGitCommand([
+    "check-ignore",
+    "-v",
+    "--no-index",
+    relativePath,
+  ]);
+  expect(ignored.exitCode).toBe(0);
+  expect(ignored.stdout).toContain("\t" + relativePath);
+  expect(ignored.stdout).not.toContain("!");
+}
+
+function collectFallbackReportPathViolations(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectFallbackReportPathViolations(item));
+  }
+  if (typeof value !== "object" || value === null) {
+    return [];
+  }
+
+  const violations: string[] = [];
+  for (const [key, nested] of Object.entries(value)) {
+    if (
+      key === "reportPath" &&
+      typeof nested === "string" &&
+      nested.startsWith("reports/eval/fallback/")
+    ) {
+      violations.push(nested);
+      continue;
+    }
+    violations.push(...collectFallbackReportPathViolations(nested));
+  }
+  return violations;
+}
+
+function collectIgnoredFallbackEvidence(value: unknown): Array<{
+  artifactKind?: unknown;
+  path: string;
+  pathKey: "ignoredArtifactPath" | "ignoredReportPath";
+  regenerateCommand?: unknown;
+}> {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectIgnoredFallbackEvidence(item));
+  }
+  if (typeof value !== "object" || value === null) {
+    return [];
+  }
+
+  const record = value as Record<string, unknown>;
+  const current: Array<{
+    artifactKind?: unknown;
+    path: string;
+    pathKey: "ignoredArtifactPath" | "ignoredReportPath";
+    regenerateCommand?: unknown;
+  }> = [];
+  for (const pathKey of ["ignoredArtifactPath", "ignoredReportPath"] as const) {
+    if (
+      typeof record[pathKey] === "string" &&
+      record[pathKey].startsWith("reports/eval/fallback/")
+    ) {
+      current.push({
+        artifactKind: record.artifactKind,
+        path: record[pathKey],
+        pathKey,
+        regenerateCommand: record.regenerateCommand,
+      });
+    }
+  }
+
+  return [
+    ...current,
+    ...Object.values(record).flatMap((nested) =>
+      collectIgnoredFallbackEvidence(nested)
+    ),
+  ];
+}
+
+function uniqueSorted(values: Iterable<string>): string[] {
+  return [...new Set(values)].sort();
+}
+
+function collectFallbackArtifactPathCitations(content: string): string[] {
+  return uniqueSorted(
+    [...content.matchAll(FALLBACK_ARTIFACT_PATH_PATTERN)]
+      .map((match) => match[0])
+      .filter((path) => !path.includes("...")),
+  );
+}
+
+async function listTrackedPaths(paths: readonly string[]): Promise<string[]> {
+  const listed = await runGitCommand(["ls-files", "-z", ...paths]);
+  expect(listed.exitCode).toBe(0);
+  return listed.stdout
+    .split("\0")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+async function collectTrackedFallbackArtifactCitations(): Promise<string[]> {
+  const trackedCitationFiles = await listTrackedPaths(
+    FALLBACK_ARTIFACT_CITATION_ROOTS,
+  );
+  const citations: string[] = [];
+
+  for (const relativePath of trackedCitationFiles) {
+    const content = await readFile(
+      join(import.meta.dir, "../../", relativePath),
+      "utf8",
+    );
+    citations.push(...collectFallbackArtifactPathCitations(content));
+  }
+
+  return uniqueSorted(citations);
+}
+
+async function collectTrackedFallbackArtifacts(): Promise<string[]> {
+  const listed = await runGitCommand(["ls-files", "-z", "reports/eval/fallback"]);
+  expect(listed.exitCode).toBe(0);
+  return listed.stdout
+    .split("\0")
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith(".json"));
+}
+
+async function collectStagedDeletedFallbackArtifacts(): Promise<string[]> {
+  const deleted = await runGitCommand([
+    "diff",
+    "--cached",
+    "--name-only",
+    "-z",
+    "--diff-filter=D",
+    "--",
+    "reports/eval/fallback",
+  ]);
+  expect(deleted.exitCode).toBe(0);
+  return deleted.stdout
+    .split("\0")
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith(".json"));
+}
+
 async function expectGitTrackedPath(relativePath: string) {
   await access(join(import.meta.dir, "../../", relativePath));
 
@@ -260,6 +415,11 @@ async function expectTrackedEvalReportsMentionedInFile(relativePath: string) {
   expect(reportPaths.length).toBeGreaterThan(0);
 
   for (const reportPath of reportPaths) {
+    if (reportPath.startsWith("reports/eval/fallback/")) {
+      await expectIgnoredGeneratedArtifact(reportPath);
+      continue;
+    }
+
     if (reportPath === "reports/eval/live-memory/phase-30/run-phase30-live-current/report.json") {
       await access(join(import.meta.dir, "../../", reportPath));
       continue;
@@ -324,9 +484,8 @@ async function expectCanonicalAcceptedQualityGate(input: {
     relativeReportPath,
   ]);
   expect(ignored.exitCode).toBe(0);
-  expect(ignored.stdout).toContain(
-    "!reports/quality-gates/*/run-*/phase-*-quality-gate.json",
-  );
+  expect(ignored.stdout).toContain("!");
+  expect(ignored.stdout).toContain("\t" + relativeReportPath);
 
   const reportRoot = join(
     import.meta.dir,
@@ -757,6 +916,31 @@ describe("release metadata and docs", () => {
     expect(readme).not.toContain("strategyRollout");
     expect(readme).not.toContain("promotionGate");
     expect(readme).not.toContain("bun run cli -- inspect");
+  });
+
+  it("keeps the PRD on the canonical docs route used by source-of-truth navigation", async () => {
+    await expectGitTrackedPath("docs/GoodMemory-PRD.md");
+
+    const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
+    const contributing = await readFile(
+      join(import.meta.dir, "../../CONTRIBUTING.md"),
+      "utf8",
+    );
+    const currentStatus = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-Current-Status-and-Evidence.md"),
+      "utf8",
+    );
+    const taskBoard = await readFile(
+      join(import.meta.dir, "../../task-board/00-README.txt"),
+      "utf8",
+    );
+
+    expect(readme).toContain("[docs/GoodMemory-PRD.md](./docs/GoodMemory-PRD.md)");
+    expect(contributing).toContain("docs/GoodMemory-PRD.md");
+    expect(currentStatus).toContain("docs/GoodMemory-PRD.md");
+    expect(taskBoard).toContain("docs/GoodMemory-PRD.md");
+    expect(readme).not.toContain("docs/archive/GoodMemory-PRD.md");
+    expect(currentStatus).not.toContain("docs/archive/GoodMemory-PRD.md");
   });
 
   it("installed-package CLI contract stays on the published bin path", async () => {
@@ -1810,6 +1994,9 @@ describe("release metadata and docs", () => {
       "automatic adapter/event `user_correction` path is proposal-first",
     );
     expect(currentStatus).toContain(
+      "automatic adapter/event `user_correction` path is proposal-first and records selective evidence plus proposal/promotion receipts instead of writing an intermediate active feedback memory; public `feedback()` remains the explicit durable procedural feedback entrypoint.",
+    );
+    expect(currentStatus).toContain(
       "Phase 35 installed host-memory middleware is now part of the accepted stable host surface",
     );
     expect(currentStatus).not.toContain(
@@ -2094,7 +2281,7 @@ describe("release metadata and docs", () => {
       "reports/eval/live-memory/phase-27/run-20260421170500/report.json",
     );
 
-    await expectGitTrackedRepoArtifact(
+    await expectIgnoredGeneratedArtifact(
       "reports/eval/fallback/phase-27/run-20260421165000/report.json",
     );
     await expectGitTrackedRepoArtifact(
@@ -2218,7 +2405,7 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain(
       "reports/eval/fallback/phase-32/run-20260422173045/report.json",
     );
-    await expectGitTrackedRepoArtifact(
+    await expectIgnoredGeneratedArtifact(
       "reports/eval/fallback/phase-32/run-20260422173045/report.json",
     );
 
@@ -2257,6 +2444,60 @@ describe("release metadata and docs", () => {
     expect(gateReport.runId).toBe("run-20260422212752");
     expect(gateReport.acceptance.decision).toBe("accepted");
     await expectGitTrackedPath(relativeReportPath);
+  });
+
+  it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {
+    const listed = await runGitCommand([
+      "ls-files",
+      "reports/quality-gates",
+    ]);
+    expect(listed.exitCode).toBe(0);
+
+    const qualityGatePaths = listed.stdout
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter((line) => line.endsWith(".json"));
+    const fallbackEvidence: Array<{
+      artifactKind?: unknown;
+      path: string;
+      pathKey: "ignoredArtifactPath" | "ignoredReportPath";
+      regenerateCommand?: unknown;
+    }> = [];
+
+    for (const relativePath of qualityGatePaths) {
+      const report = JSON.parse(
+        await readFile(join(import.meta.dir, "../../", relativePath), "utf8"),
+      ) as unknown;
+      expect(collectFallbackReportPathViolations(report)).toEqual([]);
+      fallbackEvidence.push(...collectIgnoredFallbackEvidence(report));
+    }
+
+    expect(fallbackEvidence.length).toBeGreaterThan(0);
+    const trackedFallbackArtifacts = new Set(
+      await collectTrackedFallbackArtifacts(),
+    );
+    const requiredMetadataPaths = uniqueSorted([
+      ...(await collectTrackedFallbackArtifactCitations()),
+      ...(await collectStagedDeletedFallbackArtifacts()),
+    ].filter((path) => !trackedFallbackArtifacts.has(path)));
+    const metadataPaths = new Set(
+      fallbackEvidence.map((evidence) => evidence.path),
+    );
+
+    expect(requiredMetadataPaths.length).toBeGreaterThan(0);
+    expect(
+      requiredMetadataPaths.filter((path) => !metadataPaths.has(path)),
+    ).toEqual([]);
+
+    for (const evidence of fallbackEvidence) {
+      expect(evidence.artifactKind).toBe("ignored_generated");
+      expect(typeof evidence.regenerateCommand).toBe("string");
+      expect(String(evidence.regenerateCommand)).toContain("--run-id");
+      if (evidence.path.endsWith("/report.json")) {
+        expect(evidence.pathKey).toBe("ignoredReportPath");
+      }
+      await expectIgnoredGeneratedArtifact(evidence.path);
+    }
   });
 
   it("phase-21 through phase-23 closure docs only cite git-tracked live eval reports", async () => {

@@ -52,14 +52,14 @@ Out of scope:
 
 - Quality gate:
   - `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
-- Deterministic fallback report:
+- Deterministic fallback replay output (ignored generated):
   - `reports/eval/fallback/phase-35/run-20260423173045/report.json`
 - Codex middleware live report:
   - `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
 
 ## Results
 
-- Deterministic fallback report: accepted.
+- Deterministic fallback replay output (ignored generated): accepted.
 - Codex middleware live report: accepted.
 - `gate:phase-35` proves:
   - `bun run typecheck` passed

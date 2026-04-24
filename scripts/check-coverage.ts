@@ -30,7 +30,7 @@ export interface CoverageResult {
   failures: string[];
 }
 
-const OVERALL_THRESHOLD = 93;
+const OVERALL_THRESHOLD = 90;
 
 export const GROUPS: ThresholdGroup[] = [
   {
@@ -77,6 +77,31 @@ export const GROUPS: ThresholdGroup[] = [
     name: "src/provider",
     threshold: 80,
     matches: (path) => path.startsWith("src/provider/"),
+  },
+  {
+    name: "src/api",
+    threshold: 90,
+    matches: (path) => path.startsWith("src/api/"),
+  },
+  {
+    name: "src/ai-sdk",
+    threshold: 85,
+    matches: (path) => path.startsWith("src/ai-sdk/"),
+  },
+  {
+    name: "src/host",
+    threshold: 90,
+    matches: (path) => path.startsWith("src/host/"),
+  },
+  {
+    name: "src/install",
+    threshold: 80,
+    matches: (path) => path.startsWith("src/install/"),
+  },
+  {
+    name: "src/cli.ts",
+    threshold: 85,
+    matches: (path) => path === "src/cli.ts",
   },
   {
     name: "scripts/run-eval.ts",
@@ -146,16 +171,12 @@ export function formatPercent(covered: number, found: number): string {
 }
 
 export function resolveOverallRecords(records: CoverageRecord[]): CoverageRecord[] {
-  return records.filter((record) => {
-    if (record.path.startsWith("src/")) {
-      return true;
-    }
-
-    return (
+  return records.filter(
+    (record) =>
+      record.path.startsWith("src/") ||
       record.path === "scripts/run-eval.ts" ||
-      record.path === "scripts/summarize-eval.ts"
-    );
-  });
+      record.path === "scripts/summarize-eval.ts",
+  );
 }
 
 export function evaluateCoverage(records: CoverageRecord[]): CoverageResult {

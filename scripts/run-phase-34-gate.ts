@@ -27,8 +27,10 @@ export interface Phase34GateExecutionResult {
 }
 
 export interface Phase34DeterministicReportEvidence {
+  artifactKind: "ignored_generated";
+  ignoredReportPath: string;
   reason: string;
-  reportPath: string;
+  regenerateCommand: string;
   status: "accepted" | "blocked";
 }
 
@@ -278,6 +280,10 @@ export function resolvePhase34CanonicalLiveReportPath(root: string): string {
   );
 }
 
+function buildPhase34DeterministicRegenerateCommand(): string {
+  return `bun run eval:phase-34 --run-id ${PHASE34_CANONICAL_DETERMINISTIC_RUN_ID}`;
+}
+
 export function buildPhase34GateRunId(timestamp: string): string {
   return `run-${timestamp.replace(/\D/g, "").slice(0, 14) || "phase34gate"}`;
 }
@@ -484,8 +490,10 @@ export async function runPhase34QualityGate(
     commands,
     evidence: {
       deterministicReport: {
+        artifactKind: "ignored_generated",
+        ignoredReportPath: toRepoRelativePath(root, deterministicReportPath),
         reason: deterministicReport.acceptance.reason,
-        reportPath: toRepoRelativePath(root, deterministicReportPath),
+        regenerateCommand: buildPhase34DeterministicRegenerateCommand(),
         status: deterministicReport.acceptance.decision,
       },
       liveMemory: {

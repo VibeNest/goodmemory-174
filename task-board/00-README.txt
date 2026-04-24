@@ -183,7 +183,7 @@ Current Sequencing Note
   - native targeted correction lineage is now proven on the provider-backed live path
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-31-Quality-Gate.md`
 - Phase 32 is now closed as the external host-integration productization slice:
-  - deterministic fallback evidence: `reports/eval/fallback/phase-32/run-20260422173045/report.json`
+  - deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-32/run-20260422173045/report.json`
   - live external-host evidence: `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
   - quality gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-32-Quality-Gate.md`
@@ -194,7 +194,7 @@ Current Sequencing Note
   - Bun-only CLI execution and Bun-local sqlite/sqlite-vss runtime behavior are now isolated from the Node-compatible library contract
   - Node 20/22 package-boundary CI and canonical plain AI SDK server integration are now part of the accepted package boundary
 - Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice:
-  - deterministic fallback evidence: `reports/eval/fallback/phase-34/run-20260422213045/report.json`
+  - deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-34/run-20260422213045/report.json`
   - live Codex action-gate evidence: `reports/eval/live-memory/phase-34/run-phase34-live-current/report.json`
   - quality gate: `reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-34-Quality-Gate.md`
@@ -204,14 +204,14 @@ Current Sequencing Note
   - repeated coding-agent corrections and coding-agent outcome lineage compile to `coding_agent` scoped procedural guidance
   - the canonical live enforcement path is the installed-package Codex action-gate wrapper, while `.codex/hooks.json` and `codex/rules/goodmemory.rules` remain parity scaffolds instead of the live blocker
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice:
-  - deterministic fallback evidence: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
+  - deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-35/run-20260423173045/report.json`
   - live Codex installed middleware evidence: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
   - quality gate: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
   - global install, explicit repo opt-in, hook-injected recall, read-only MCP, and explicit write CLI are accepted on the installed-host path
   - this slice did not claim automatic writeback, transcript persistence, `Stop` hooks, public `goodmemory/evolution`, or Claude as a second live blocker
 - Phase 36 is now closed as the public domain write profiles and rules slice:
-  - deterministic fallback evidence: `reports/eval/fallback/phase-36/run-20260423221045/report.json`
+  - deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-36/run-20260423221045/report.json`
   - provider-backed live-memory evidence: `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
   - quality gate: `reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
@@ -220,7 +220,7 @@ Current Sequencing Note
 - Phase 37 is now closed as the installed host selective writeback slice:
   - task-board entrypoint: `task-board/38-phase-37-installed-host-selective-writeback.txt`
   - breakdown folder: `task-board/phase-37-installed-host-selective-writeback/`
-  - deterministic fallback evidence: `reports/eval/fallback/phase-37/run-20260424101045/report.json`
+  - deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-37/run-20260424101045/report.json`
   - provider-backed assisted-extraction live-memory evidence: `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
   - external consumer evidence: `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
   - quality gate: `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`

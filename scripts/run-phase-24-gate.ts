@@ -26,12 +26,21 @@ export interface Phase24GateExecutionResult {
   stdoutTail: string[];
 }
 
+export interface Phase24IgnoredGeneratedReportEvidence {
+  artifactKind: "ignored_generated";
+  ignoredReportPath: string;
+  regenerateCommand: string;
+}
+
 export interface Phase24GateReport {
   acceptance: {
     decision: "accepted" | "blocked";
     reason: string;
   };
   commands: Phase24GateExecutionResult[];
+  evidence: {
+    deterministicReports: Phase24IgnoredGeneratedReportEvidence[];
+  };
   generatedAt: string;
   generatedBy: string;
   phase: "phase-24";
@@ -85,7 +94,24 @@ export function resolvePhase24GateOutputDir(root: string): string {
   return join(root, "reports/quality-gates/phase-24");
 }
 
-export function buildPhase24GateCommands(root: string): Phase24GateCommand[] {
+function buildPhase24DeterministicRegenerateCommand(runId: string): string {
+  return `bun run eval:phase-24 --run-id ${runId}`;
+}
+
+function buildPhase24IgnoredFallbackEvidence(
+  runId: string,
+): Phase24IgnoredGeneratedReportEvidence {
+  return {
+    artifactKind: "ignored_generated",
+    ignoredReportPath: `reports/eval/fallback/phase-24/${runId}/report.json`,
+    regenerateCommand: buildPhase24DeterministicRegenerateCommand(runId),
+  };
+}
+
+export function buildPhase24GateCommands(
+  root: string,
+  deterministicRunId?: string,
+): Phase24GateCommand[] {
   return [
     {
       label: "typecheck",
@@ -105,7 +131,15 @@ export function buildPhase24GateCommands(root: string): Phase24GateCommand[] {
     {
       label: "phase-24-fallback-eval",
       cwd: root,
-      args: ["bun", "run", "eval:phase-24"],
+      args: deterministicRunId
+        ? [
+            "bun",
+            "run",
+            "eval:phase-24",
+            "--run-id",
+            deterministicRunId,
+          ]
+        : ["bun", "run", "eval:phase-24"],
     },
   ];
 }
@@ -157,7 +191,7 @@ export async function runPhase24QualityGate(
   const runDirectory = join(outputDir, runId);
   const commandResults: Phase24GateExecutionResult[] = [];
 
-  for (const command of buildPhase24GateCommands(root)) {
+  for (const command of buildPhase24GateCommands(root, runId)) {
     const result = await runCommand(command);
     commandResults.push({
       label: command.label,
@@ -187,6 +221,9 @@ export async function runPhase24QualityGate(
             "Phase 24 implicit behavioral adaptation eval harness is regression-covered on the deterministic gate path.",
         },
     commands: commandResults,
+    evidence: {
+      deterministicReports: [buildPhase24IgnoredFallbackEvidence(runId)],
+    },
     generatedAt,
     generatedBy: GENERATED_BY,
     phase: "phase-24",

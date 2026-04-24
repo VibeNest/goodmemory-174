@@ -55,7 +55,6 @@ export interface Phase36LiveMemoryReport {
 }
 
 const GENERATED_BY = "scripts/run-phase-36-live-memory.ts";
-const PHASE36_CANONICAL_LIVE_RUN_ID = "run-phase36-live-current";
 const PHASE36_LIVE_DOMAIN_EXTRACTOR_ID = "life-coach-live-domain-extractor";
 
 function collectExtractorIds(
@@ -76,6 +75,10 @@ export function resolvePhase36LiveMemoryOutputDir(root: string): string {
   return join(root, "reports/eval/live-memory/phase-36");
 }
 
+export function buildPhase36LiveMemoryRunId(timestamp: string): string {
+  return `run-${timestamp.replace(/\D/g, "").slice(0, 14) || "phase36live"}`;
+}
+
 export function parsePhase36LiveMemoryCliOptions(
   argv: readonly string[],
 ): Phase36LiveMemoryOptions {
@@ -91,10 +94,11 @@ export async function runPhase36LiveMemoryEval(
 ): Promise<Phase36LiveMemoryReport> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = options.outputDir ?? resolvePhase36LiveMemoryOutputDir(root);
-  const runId = options.runId ?? PHASE36_CANONICAL_LIVE_RUN_ID;
-  const runDirectory = join(outputDir, runId);
   const ensureDir = dependencies.ensureDir ?? mkdir;
   const now = dependencies.now ?? (() => new Date().toISOString());
+  const timestamp = now();
+  const runId = options.runId ?? buildPhase36LiveMemoryRunId(timestamp);
+  const runDirectory = join(outputDir, runId);
   const writeTextFile = dependencies.writeTextFile ?? writeFile;
 
   let report: Phase36LiveMemoryReport;
@@ -121,7 +125,7 @@ export async function runPhase36LiveMemoryEval(
             runtimePath: "provider_backed_public_write_smoke",
           },
         },
-        generatedAt: now(),
+        generatedAt: timestamp,
         generatedBy: GENERATED_BY,
         mode: "live-memory",
         outputDir,
@@ -231,7 +235,7 @@ export async function runPhase36LiveMemoryEval(
             runtimePath: "provider_backed_public_write_smoke",
           },
         },
-        generatedAt: now(),
+        generatedAt: timestamp,
         generatedBy: GENERATED_BY,
         mode: "live-memory",
         outputDir,
@@ -260,7 +264,7 @@ export async function runPhase36LiveMemoryEval(
           runtimePath: "provider_backed_public_write_smoke",
         },
       },
-      generatedAt: now(),
+      generatedAt: timestamp,
       generatedBy: GENERATED_BY,
       mode: "live-memory",
       outputDir,

@@ -268,6 +268,12 @@ describe("run-phase-25 scripts", () => {
       "passed",
       "passed",
     ]);
+    expect(report.evidence.deterministicReport).toEqual({
+      artifactKind: "ignored_generated",
+      ignoredReportPath:
+        "reports/eval/fallback/phase-25/run-phase25/report.json",
+      regenerateCommand: "bun run eval:phase-25 --run-id run-phase25",
+    });
     expect(report.scope.outOfScope).toContain(
       "provider-backed live-memory behavioral closure",
     );
@@ -311,6 +317,14 @@ describe("run-phase-25 scripts", () => {
           reason: "ok",
         },
         commands: [],
+        evidence: {
+          deterministicReport: {
+            artifactKind: "ignored_generated",
+            ignoredReportPath:
+              "reports/eval/fallback/phase-25/run-phase25/report.json",
+            regenerateCommand: "bun run eval:phase-25 --run-id run-phase25",
+          },
+        },
         generatedAt: "2026-04-20T12:00:00.000Z",
         generatedBy: "tests",
         phase: "phase-25",

@@ -19,7 +19,7 @@ Canonical deterministic gate
 
 Canonical eval evidence
 -----------------------
-- Fallback report: `reports/eval/fallback/phase-25/run-1776673441250/report.json`
+- Fallback replay output (ignored generated): `reports/eval/fallback/phase-25/run-1776673441250/report.json`
 
 Closure note
 ------------

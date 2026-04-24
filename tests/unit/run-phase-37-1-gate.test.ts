@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { resolve } from "node:path";
 import {
   buildPhase371GateCommands,
   parsePhase371GateCliOptions,
@@ -9,6 +10,7 @@ import {
 } from "../../scripts/run-phase-37-1-gate";
 
 const ROOT = "/tmp/goodmemory";
+const REPO_ROOT = resolve(import.meta.dir, "../..");
 
 describe("run-phase-37-1 gate", () => {
   it("parses phase-37.1 gate cli options", () => {
@@ -153,7 +155,7 @@ describe("run-phase-37-1 gate", () => {
         now: () => "2026-04-24T12:00:00.000Z",
         readTextFile: async (path) => {
           expect(path).toBe(
-            "/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json",
+            `${REPO_ROOT}/reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json`,
           );
           return JSON.stringify({
             acceptance: { decision: "accepted" },
@@ -193,7 +195,7 @@ describe("run-phase-37-1 gate", () => {
       "--run-id",
       "run-phase37-1-dogfood-current",
       "--output-dir",
-      "/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1",
+      `${REPO_ROOT}/reports/eval/dogfood/phase-37-1`,
       "--fixture",
       "accepted",
     ]);
@@ -234,7 +236,7 @@ describe("run-phase-37-1 gate", () => {
         now: () => "2026-04-24T12:00:00.000Z",
         readTextFile: async (path) => {
           expect(path).toBe(
-            "/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1/run-phase37-1-local-dogfood-current/report.json",
+            `${REPO_ROOT}/.tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1/run-phase37-1-local-dogfood-current/report.json`,
           );
           return JSON.stringify({
             acceptance: { decision: "accepted" },
@@ -269,10 +271,10 @@ describe("run-phase-37-1 gate", () => {
 
     expect(report.acceptance.decision).toBe("accepted");
     expect(report.runDirectory).toBe(
-      "/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase37-1-local/quality-gates/phase-37-1/run-phase37-1-local-current",
+      `${REPO_ROOT}/.tmp-goodmemory-phase37-1-local/quality-gates/phase-37-1/run-phase37-1-local-current`,
     );
     expect(writes).toEqual([
-      "/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase37-1-local/quality-gates/phase-37-1/run-phase37-1-local-current/phase-37-1-quality-gate.json",
+      `${REPO_ROOT}/.tmp-goodmemory-phase37-1-local/quality-gates/phase-37-1/run-phase37-1-local-current/phase-37-1-quality-gate.json`,
     ]);
     expect(executedCommands).toContainEqual([
       "bun",
@@ -282,7 +284,7 @@ describe("run-phase-37-1 gate", () => {
       "--run-id",
       "run-phase37-1-local-dogfood-current",
       "--output-dir",
-      "/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1",
+      `${REPO_ROOT}/.tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1`,
     ]);
   });
 

@@ -13,6 +13,7 @@ import type {
 import {
   validateHostAgentEvent,
 } from "../../src/host";
+import type { GoodMemoryIntegrationSupport } from "../../src/api/integrationSupport";
 
 const aiPayload: AgentEventStructuredValue = {
   checks: ["network"],
@@ -103,15 +104,52 @@ const aiCorrectionIngestResult: AISDKAgentEventIngestResult = {
     proposalType: "procedural_pattern",
     status: "accepted",
   }],
+  promotionReceipts: [{
+    decision: "accepted",
+    promotionId: "promotion-1",
+    proposalId: "proposal-1",
+  }],
   recorded: true,
 };
 
 const hostCorrectionIngestResult: HostAgentEventIngestResult = {
+  evidenceId: "evidence-2",
+  proposalReceipts: [{
+    proposalId: "proposal-2",
+    proposalType: "procedural_pattern",
+    status: "accepted",
+  }],
+  promotionReceipts: [{
+    decision: "accepted",
+    promotionId: "promotion-2",
+    proposalId: "proposal-2",
+  }],
   recorded: true,
 };
 
 void aiCorrectionIngestResult.feedbackMemoryId;
+void aiCorrectionIngestResult.proposalReceipts;
+void aiCorrectionIngestResult.promotionReceipts;
 void hostCorrectionIngestResult.feedbackMemoryId;
+void hostCorrectionIngestResult.proposalReceipts;
+void hostCorrectionIngestResult.promotionReceipts;
+
+// @ts-expect-error adapter ingestion must not expose a new direct active feedback memory field.
+void aiCorrectionIngestResult.activeFeedbackMemoryId;
+
+async function assertIntegrationSupportReturnTypes(
+  support: GoodMemoryIntegrationSupport,
+) {
+  const result = await support.ingestAgentInputEvent({ event: aiCorrectionEvent });
+
+  void result.evidenceId;
+  void result.proposalReceipts;
+  void result.promotionReceipts;
+  void result.feedbackMemoryId;
+
+  // @ts-expect-error integration support must not expose direct active feedback memory writes.
+  void result.activeFeedbackMemoryId;
+}
 
 const legacyArgsEvent: AgentInputEvent = {
   surface: "ai-sdk",
@@ -166,3 +204,4 @@ void invalidAiCorrectionEvent;
 void legacyArgsEvent;
 void rootValidateAgentInputEvent;
 void rootValidateHostAgentEvent;
+void assertIntegrationSupportReturnTypes;

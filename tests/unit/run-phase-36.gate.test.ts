@@ -80,6 +80,111 @@ describe("run-phase-36 gate", () => {
     );
   });
 
+  it("defaults reruns to fresh deterministic and gate run ids", async () => {
+    const executedCommands: string[][] = [];
+    const writes: Array<{ content: string; path: string }> = [];
+
+    const report = await runPhase36QualityGate(
+      {
+        outputDir: "/tmp/goodmemory/reports/quality-gates/phase-36",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-24T14:31:45.000Z",
+        readTextFile: async (path) => {
+          if (path.endsWith("reports/eval/fallback/phase-36/run-20260424143145/report.json")) {
+            return createAcceptedPhase36DeterministicReport();
+          }
+          if (path.endsWith("reports/eval/live-memory/phase-36/run-phase36-live-current/report.json")) {
+            return createAcceptedPhase36LiveReport();
+          }
+          throw new Error(`Unexpected report path: ${path}`);
+        },
+        runCommand: async (command) => {
+          executedCommands.push(command.args);
+
+          return {
+            durationMs: 10,
+            exitCode: 0,
+            stderr: "",
+            stdout: "ok",
+          };
+        },
+        writeTextFile: async (path, content) => {
+          writes.push({ path, content });
+        },
+      },
+    );
+
+    expect(report.runId).toBe("run-20260424143145");
+    expect(report.evidence.deterministicReport.artifactKind).toBe("ignored_generated");
+    expect(report.evidence.deterministicReport.ignoredReportPath).toBe(
+      "reports/eval/fallback/phase-36/run-20260424143145/report.json",
+    );
+    expect(report.evidence.deterministicReport.regenerateCommand).toBe(
+      "bun run eval:phase-36 --run-id run-20260424143145",
+    );
+    expect(executedCommands).toContainEqual([
+      "bun",
+      "run",
+      "eval:phase-36",
+      "--run-id",
+      "run-20260424143145",
+    ]);
+    expect(writes[0]?.path).toBe(
+      "/tmp/goodmemory/reports/quality-gates/phase-36/run-20260424143145/phase-36-quality-gate.json",
+    );
+  });
+
+  it("treats timestamp run ids as run-scoped deterministic evidence", async () => {
+    const executedCommands: string[][] = [];
+
+    const report = await runPhase36QualityGate(
+      {
+        outputDir: "/tmp/goodmemory/reports/quality-gates/phase-36",
+        runId: "run-20260424143145",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-24T14:31:45.000Z",
+        readTextFile: async (path) => {
+          if (path.endsWith("reports/eval/fallback/phase-36/run-20260424143145/report.json")) {
+            return createAcceptedPhase36DeterministicReport();
+          }
+          if (path.endsWith("reports/eval/live-memory/phase-36/run-phase36-live-current/report.json")) {
+            return createAcceptedPhase36LiveReport();
+          }
+          throw new Error(`Unexpected report path: ${path}`);
+        },
+        runCommand: async (command) => {
+          executedCommands.push(command.args);
+
+          return {
+            durationMs: 10,
+            exitCode: 0,
+            stderr: "",
+            stdout: "ok",
+          };
+        },
+        writeTextFile: async () => {},
+      },
+    );
+
+    expect(report.evidence.deterministicReport.ignoredReportPath).toBe(
+      "reports/eval/fallback/phase-36/run-20260424143145/report.json",
+    );
+    expect(report.evidence.deterministicReport.regenerateCommand).toBe(
+      "bun run eval:phase-36 --run-id run-20260424143145",
+    );
+    expect(executedCommands).toContainEqual([
+      "bun",
+      "run",
+      "eval:phase-36",
+      "--run-id",
+      "run-20260424143145",
+    ]);
+  });
+
   it("parses phase-36 gate cli flags", () => {
     expect(
       parsePhase36GateCliOptions([

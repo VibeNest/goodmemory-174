@@ -20,6 +20,11 @@ function buildCoverageRecords(
     "src/storage/example.ts": { found: 10, covered: 10 },
     "src/eval/example.ts": { found: 10, covered: 10 },
     "src/provider/example.ts": { found: 10, covered: 10 },
+    "src/api/example.ts": { found: 10, covered: 10 },
+    "src/ai-sdk/example.ts": { found: 10, covered: 10 },
+    "src/host/example.ts": { found: 10, covered: 10 },
+    "src/install/example.ts": { found: 10, covered: 10 },
+    "src/cli.ts": { found: 10, covered: 10 },
     "scripts/run-eval.ts": { found: 20, covered: 19 },
     "scripts/summarize-eval.ts": { found: 31, covered: 25 },
   };
@@ -57,6 +62,25 @@ describe("check-coverage script", () => {
     expect(result.failures).toEqual([]);
   });
 
+  it("keeps public source surfaces inside explicit coverage gates and the overall denominator", () => {
+    const records = buildCoverageRecords({
+      "src/cli.ts": { found: 1000, covered: 0 },
+      "src/install/hostMcpServer.ts": { found: 1000, covered: 0 },
+    });
+
+    expect(resolveOverallRecords(records).map((record) => record.path)).toContain(
+      "src/cli.ts",
+    );
+    expect(resolveOverallRecords(records).map((record) => record.path)).toContain(
+      "src/install/hostMcpServer.ts",
+    );
+    expect(evaluateCoverage(records).failures).toEqual([
+      "overall deterministic line coverage 7.98% < 90.00%",
+      "src/install line coverage 0.99% < 80.00%",
+      "src/cli.ts line coverage 0.00% < 85.00%",
+    ]);
+  });
+
   it("fails when summarize-eval coverage drops below the threshold", () => {
     const records = buildCoverageRecords({
       "scripts/run-eval.ts": { found: 20, covered: 20 },
@@ -69,12 +93,12 @@ describe("check-coverage script", () => {
 
   it("fails when overall deterministic coverage drops below the release threshold", () => {
     const records = buildCoverageRecords({
-      "src/eval/support.ts": { found: 10, covered: 6 },
+      "src/other/uncovered.ts": { found: 100, covered: 50 },
     });
 
     const result = evaluateCoverage(records);
     expect(result.failures).toContain(
-      "overall deterministic line coverage 92.72% < 93.00%",
+      "overall deterministic line coverage 80.41% < 90.00%",
     );
   });
 });

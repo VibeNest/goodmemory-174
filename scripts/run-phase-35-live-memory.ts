@@ -148,7 +148,6 @@ export interface Phase35LiveReport {
 }
 
 const GENERATED_BY = "scripts/run-phase-35-live-memory.ts";
-const PHASE35_CANONICAL_LIVE_RUN_ID = "run-phase35-live-current";
 const PHASE35_CURRENT_GOAL = "Finish the phase 35 middleware closeout.";
 const PHASE35_OPEN_LOOP = "Archive the canonical phase 35 quality gate.";
 const PHASE35_SUMMARY_RULE = "Use short next-step bullets in coding summaries.";
@@ -551,6 +550,10 @@ export function resolvePhase35LiveMemoryOutputDir(root: string): string {
   return join(root, "reports/eval/live-memory/phase-35");
 }
 
+export function buildPhase35LiveMemoryRunId(timestamp: string): string {
+  return `run-${timestamp.replace(/\D/g, "").slice(0, 14) || "phase35live"}`;
+}
+
 export function parsePhase35LiveMemoryCliOptions(
   argv: readonly string[],
 ): Phase35LiveMemoryOptions {
@@ -698,8 +701,6 @@ export async function runPhase35LiveMemoryEvaluation(
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir =
     options.outputDir ?? resolvePhase35LiveMemoryOutputDir(root);
-  const runId = options.runId ?? PHASE35_CANONICAL_LIVE_RUN_ID;
-  const runDirectory = join(outputDir, runId);
   const ensureDir = dependencies.ensureDir ?? mkdir;
   const makeTempDir =
     dependencies.makeTempDir ??
@@ -713,6 +714,9 @@ export async function runPhase35LiveMemoryEvaluation(
   const writeTextFile = dependencies.writeTextFile ?? writeFile;
   const probeMcp = dependencies.probeMcp ?? defaultProbePhase35Mcp;
   const now = dependencies.now ?? (() => new Date().toISOString());
+  const timestamp = now();
+  const runId = options.runId ?? buildPhase35LiveMemoryRunId(timestamp);
+  const runDirectory = join(outputDir, runId);
   const commands: Phase35LiveMemoryExecutionResult[] = [];
   const packDir = await makeTempDir("goodmemory-phase35-pack-");
   const workspaceRoot = await makeTempDir("goodmemory-phase35-workspace-");
@@ -1047,7 +1051,7 @@ export async function runPhase35LiveMemoryEvaluation(
           runtimePath: "installed_package_user_level_hooks_and_mcp",
         },
       },
-      generatedAt: now(),
+      generatedAt: timestamp,
       generatedBy: GENERATED_BY,
       mode: "live-memory",
       outputDir,

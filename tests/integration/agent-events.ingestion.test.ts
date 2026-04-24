@@ -6,6 +6,8 @@ import {
   createRuntimeArchiveStore,
   createRuntimeContextService,
 } from "../../src";
+import { readGoodMemoryIntegrationSupport } from "../../src/api/integrationSupport";
+import type { AgentEventIngestResult } from "../../src/ai-sdk";
 import { ingestAgentInputEvent } from "../../src/ai-sdk";
 import { EXPERIENCES_COLLECTION } from "../../src/evolution/contracts";
 import { ingestHostAgentEvent } from "../../src/host";
@@ -417,6 +419,94 @@ describe("agent event ingestion", () => {
     );
     expect(receiptBearingResult?.promotionReceipts).toHaveLength(1);
     expect(receiptBearingResult?.promotionReceipts?.[0]?.decision).toBe("accepted");
+  });
+
+  it("keeps adapter user corrections proposal-first while public feedback writes durable procedural memory", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+    const support = readGoodMemoryIntegrationSupport(memory);
+    const scope = {
+      userId: "u-proposal-first",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    } as const;
+    const correction = "Run typecheck before closing CI fixes.";
+    const correctionResults: AgentEventIngestResult[] = [];
+
+    expect(support).toBeDefined();
+
+    for (const [index, eventId] of ["event-1", "event-2"].entries()) {
+      const result = await support!.ingestAgentInputEvent({
+        event: {
+          surface: "ai-sdk",
+          kind: "user_correction",
+          eventId,
+          runId: "run-proposal-first",
+          turnId: `turn-${index + 1}`,
+          sequence: index,
+          occurredAt: `2026-04-22T00:01:0${index}.000Z`,
+          hostKind: "codex",
+          scope,
+          correction,
+          retrievalProfile: "coding_agent",
+        },
+      });
+
+      expect(result.recorded).toBe(true);
+      expect(result.evidenceId).toStartWith("agent_event.evidence.");
+      expect(result.experienceId).toBeUndefined();
+      expect(result.feedbackMemoryId).toBeUndefined();
+      correctionResults.push(result);
+    }
+
+    const receiptBearingResult = correctionResults.find(
+      (result) =>
+        (result.proposalReceipts?.length ?? 0) > 0 ||
+        (result.promotionReceipts?.length ?? 0) > 0,
+    );
+    const afterCorrection = await memory.exportMemory({
+      scope: {
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+      },
+    });
+
+    expect(receiptBearingResult?.proposalReceipts).toHaveLength(1);
+    expect(receiptBearingResult?.promotionReceipts).toHaveLength(1);
+    expect(
+      afterCorrection.durable.evidence.filter(
+        (record) =>
+          record.kind === "correction_context" &&
+          record.excerpt.includes(correction),
+      ),
+    ).toHaveLength(2);
+    expect(
+      afterCorrection.durable.feedback.filter((record) =>
+        record.rule.includes(correction)
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        appliesTo: "coding_agent",
+        kind: "validated_pattern",
+      }),
+    ]);
+
+    const explicitFeedback = await memory.feedback({
+      scope,
+      signal: "Use numbered release notes for public changelog summaries.",
+    });
+    const afterExplicitFeedback = await memory.exportMemory({ scope });
+
+    expect(explicitFeedback.memoryId).toBeDefined();
+    expect(
+      afterExplicitFeedback.durable.feedback.some(
+        (record) =>
+          record.id === explicitFeedback.memoryId &&
+          record.kind !== "validated_pattern" &&
+          record.rule.includes("Use numbered release notes"),
+      ),
+    ).toBe(true);
   });
 
   it("does not let concurrent duplicate user corrections self-promote from one logical trace", async () => {

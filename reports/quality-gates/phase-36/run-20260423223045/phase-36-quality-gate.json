@@ -83,8 +83,10 @@
   "evidence": {
     "deterministicReport": {
       "reason": "Deterministic public remember customization eval passed every Phase 36 case.",
-      "reportPath": "reports/eval/fallback/phase-36/run-20260423221045/report.json",
-      "status": "accepted"
+      "status": "accepted",
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-36/run-20260423221045/report.json",
+      "regenerateCommand": "bun run eval:phase-36 --run-id run-20260423221045"
     },
     "liveMemory": {
       "liveReportPath": "reports/eval/live-memory/phase-36/run-phase36-live-current/report.json",

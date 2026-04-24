@@ -17,9 +17,9 @@ Canonical deterministic gate
 
 Canonical eval evidence
 -----------------------
-- Fallback observe: `reports/eval/fallback/phase-23/run-1776658356917-observe/report.json`
-- Fallback assist: `reports/eval/fallback/phase-23/run-1776658356917-assist/report.json`
-- Fallback promote: `reports/eval/fallback/phase-23/run-1776658356917-promote/report.json`
+- Fallback observe replay output (ignored generated): `reports/eval/fallback/phase-23/run-1776658356917-observe/report.json`
+- Fallback assist replay output (ignored generated): `reports/eval/fallback/phase-23/run-1776658356917-assist/report.json`
+- Fallback promote replay output (ignored generated): `reports/eval/fallback/phase-23/run-1776658356917-promote/report.json`
 - Live-memory observe: `reports/eval/live-memory/phase-23/run-1776658376536-observe/report.json`
 - Live-memory assist: `reports/eval/live-memory/phase-23/run-1776658376536-assist/report.json`
 - Live-memory promote: `reports/eval/live-memory/phase-23/run-1776658376536-promote/report.json`

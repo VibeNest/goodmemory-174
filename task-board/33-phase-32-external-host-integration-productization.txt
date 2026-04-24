@@ -16,7 +16,7 @@ Current Status
 [DONE] Phase 31 already proved native Codex host traces can carry host-lifecycle outcomes plus targeted correction lineage, and Phase 32 now productizes that line for external users without widening the root API.
 [DONE] External users now have one canonical gate-accepted external-host evidence chain for Codex, while the installed-package bootstrap path exists for both Codex and Claude Code.
 [DONE] Canonical evidence:
-  - deterministic fallback report: `reports/eval/fallback/phase-32/run-20260422173045/report.json`
+  - deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-32/run-20260422173045/report.json`
   - Codex external-host live report: `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
   - quality gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
 [DONE] P32-T002 public adapter-level agent-event contracts are now implemented and regression-covered on `goodmemory/ai-sdk` and `goodmemory/host`.

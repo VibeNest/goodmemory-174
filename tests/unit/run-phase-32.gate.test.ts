@@ -588,8 +588,11 @@ describe("run-phase-32 gate", () => {
         commands: [],
         evidence: {
           deterministicReport: {
+            artifactKind: "ignored_generated",
+            ignoredReportPath:
+              "reports/eval/fallback/phase-32/run-20260422173045/report.json",
             reason: "accepted",
-            reportPath: "reports/eval/fallback/phase-32/run-20260422173045/report.json",
+            regenerateCommand: "bun run eval:phase-32 --run-id run-20260422173045",
             status: "accepted",
           },
           liveExternalHost: {

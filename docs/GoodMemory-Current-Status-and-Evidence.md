@@ -91,6 +91,8 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Current Canonical Evidence
 
+Fallback eval outputs under `reports/eval/fallback/**` are deterministic, regenerable local outputs. They are intentionally ignored by Git; tracked quality-gate artifacts record the run id, regeneration command, and ignored output path instead of treating fallback reports as checked-in audit artifacts.
+
 - Deterministic integrated acceptance:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-20-Quality-Gate.md`
   - Report: `reports/quality-gates/phase-20/run-20260420023503/phase-20-quality-gate.json`
@@ -103,15 +105,15 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-23-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-23/run-20260420061039/phase-23-quality-gate.json`
   - Live-memory promote report: `reports/eval/live-memory/phase-23/run-1776658376536-promote/report.json`
-  - Deterministic fallback promote report: `reports/eval/fallback/phase-23/run-1776658356917-promote/report.json`
+  - Deterministic fallback promote replay output (ignored generated): `reports/eval/fallback/phase-23/run-1776658356917-promote/report.json`
 - Implicit behavioral adaptation eval-harness evidence:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-24-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-24/run-20260420154540-contrastive-fix/phase-24-quality-gate.json`
-  - Deterministic fallback report: `reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix/report.json`
+  - Deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-24/run-20260420154540-contrastive-fix/report.json`
 - Behavioral adaptation deterministic runtime and outcome-telemetry evidence:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-25-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-25/run-20260420082358/phase-25-quality-gate.json`
-  - Deterministic fallback report: `reports/eval/fallback/phase-25/run-1776673441250/report.json`
+  - Deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-25/run-1776673441250/report.json`
   - Live-memory behavioral closure is not yet a canonical accepted artifact for this slice.
 - Local-first runtime closure evidence:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-26-Quality-Gate.md`
@@ -119,7 +121,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Reference-integration and adoption-evidence closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-27-Quality-Gate.md`
   - Deterministic gate: `reports/quality-gates/phase-27/run-20260421172000/phase-27-quality-gate.json`
-  - Deterministic adoption eval: `reports/eval/fallback/phase-27/run-20260421165000/report.json`
+  - Deterministic adoption replay output (ignored generated): `reports/eval/fallback/phase-27/run-20260421165000/report.json`
   - Live-memory adoption eval: `reports/eval/live-memory/phase-27/run-20260421170500/report.json`
 - Canonical local sqlite-vss backend closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-28-Quality-Gate.md`
@@ -139,7 +141,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - External host-integration productization closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-32-Quality-Gate.md`
   - Deterministic/live gate: `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
-  - Deterministic fallback report: `reports/eval/fallback/phase-32/run-20260422173045/report.json`
+  - Deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-32/run-20260422173045/report.json`
   - Codex external-host live report: `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`
 - Node-compatible package-boundary and Node-first integration closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-33-Quality-Gate.md`
@@ -147,22 +149,22 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Host pre-action policy and veto-contract closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-34-Quality-Gate.md`
   - Deterministic/live gate: `reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json`
-  - Deterministic fallback report: `reports/eval/fallback/phase-34/run-20260422213045/report.json`
+  - Deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-34/run-20260422213045/report.json`
   - Codex action-gate live report: `reports/eval/live-memory/phase-34/run-phase34-live-current/report.json`
 - Installed host-memory middleware and hooks closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`
   - Deterministic/live gate: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
-  - Deterministic fallback report: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
+  - Deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-35/run-20260423173045/report.json`
   - Codex installed middleware live report: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
 - Public domain write profiles and rules closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
   - Deterministic/live gate: `reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json`
-  - Deterministic fallback report: `reports/eval/fallback/phase-36/run-20260423221045/report.json`
+  - Deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-36/run-20260423221045/report.json`
   - Provider-backed live-memory report: `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
 - Installed host selective writeback closure:
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md`
   - Deterministic/live gate: `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`
-  - Deterministic fallback report: `reports/eval/fallback/phase-37/run-20260424101045/report.json`
+  - Deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-37/run-20260424101045/report.json`
   - Provider-backed assisted-extraction live-memory report: `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
   - External consumer installed-package smoke report: `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
 - Historical v1 snapshot:

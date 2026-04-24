@@ -80,6 +80,30 @@
       ]
     }
   ],
+  "evidence": {
+    "fallbackArtifacts": [
+      {
+        "artifactKind": "ignored_generated",
+        "ignoredReportPath": "reports/eval/fallback/phase-23/run-1776658356917-observe/report.json",
+        "regenerateCommand": "bun run eval:phase-23 --run-id run-1776658356917"
+      },
+      {
+        "artifactKind": "ignored_generated",
+        "ignoredReportPath": "reports/eval/fallback/phase-23/run-1776658356917-assist/report.json",
+        "regenerateCommand": "bun run eval:phase-23 --run-id run-1776658356917"
+      },
+      {
+        "artifactKind": "ignored_generated",
+        "ignoredArtifactPath": "reports/eval/fallback/phase-23/run-1776658356917-assist/strategy-promotion-authorization.json",
+        "regenerateCommand": "bun run eval:phase-23 --run-id run-1776658356917"
+      },
+      {
+        "artifactKind": "ignored_generated",
+        "ignoredReportPath": "reports/eval/fallback/phase-23/run-1776658356917-promote/report.json",
+        "regenerateCommand": "bun run eval:phase-23 --run-id run-1776658356917"
+      }
+    ]
+  },
   "generatedAt": "2026-04-20T06:10:39.343Z",
   "generatedBy": "scripts/run-phase-23-gate.ts",
   "phase": "phase-23",

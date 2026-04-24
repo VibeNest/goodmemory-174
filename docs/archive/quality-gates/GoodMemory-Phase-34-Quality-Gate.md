@@ -42,14 +42,14 @@ Out of scope:
 
 - Quality gate:
   - `reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json`
-- Deterministic fallback report:
+- Deterministic fallback replay output (ignored generated):
   - `reports/eval/fallback/phase-34/run-20260422213045/report.json`
 - Codex action-gate live report:
   - `reports/eval/live-memory/phase-34/run-phase34-live-current/report.json`
 
 ## Results
 
-- Deterministic fallback report: accepted.
+- Deterministic fallback replay output (ignored generated): accepted.
 - Canonical Codex action-gate live report: accepted.
 - `gate:phase-34` proves:
   - `bun run typecheck` passed

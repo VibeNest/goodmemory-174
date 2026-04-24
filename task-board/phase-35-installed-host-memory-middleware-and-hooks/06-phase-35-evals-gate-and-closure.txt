@@ -32,7 +32,7 @@ Acceptance
 
 Closure Evidence Produced
 -------------------------
-- deterministic Phase 35 report: `reports/eval/fallback/phase-35/run-20260423173045/report.json`
+- deterministic Phase 35 replay output (ignored generated): `reports/eval/fallback/phase-35/run-20260423173045/report.json`
 - Codex global-install live report: `reports/eval/live-memory/phase-35/run-phase35-live-current/report.json`
 - refreshed Phase 35 quality-gate report with an accepted decision: `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
 - archived quality-gate summary doc: `docs/archive/quality-gates/GoodMemory-Phase-35-Quality-Gate.md`

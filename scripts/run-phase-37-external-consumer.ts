@@ -89,11 +89,15 @@ export interface Phase37ExternalConsumerReport {
 }
 
 const GENERATED_BY = "scripts/run-phase-37-external-consumer.ts";
-const PHASE37_EXTERNAL_RUN_ID = "run-phase37-external-consumer";
 const PHASE37_OPEN_LOOP = "Next step is to add the phase-37 external consumer report.";
 
 export function resolvePhase37ExternalConsumerOutputDir(root: string): string {
   return join(root, "reports/eval/live-memory/phase-37");
+}
+
+export function buildPhase37ExternalConsumerRunId(timestamp: string): string {
+  const value = timestamp.replace(/\D/g, "").slice(0, 14) || "phase37external";
+  return `run-${value}-external-consumer`;
 }
 
 export function parsePhase37ExternalConsumerCliOptions(
@@ -219,8 +223,6 @@ export async function runPhase37ExternalConsumerSmoke(
 ): Promise<Phase37ExternalConsumerReport> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = options.outputDir ?? resolvePhase37ExternalConsumerOutputDir(root);
-  const runId = options.runId ?? PHASE37_EXTERNAL_RUN_ID;
-  const runDirectory = join(outputDir, runId);
   const ensureDir = dependencies.ensureDir ?? mkdir;
   const makeTempDir =
     dependencies.makeTempDir ??
@@ -230,6 +232,8 @@ export async function runPhase37ExternalConsumerSmoke(
   const runCommand = dependencies.runCommand ?? defaultRunCommand;
   const writeTextFile = dependencies.writeTextFile ?? writeFile;
   const timestamp = now();
+  const runId = options.runId ?? buildPhase37ExternalConsumerRunId(timestamp);
+  const runDirectory = join(outputDir, runId);
   const commands: Phase37ExternalConsumerExecutionResult[] = [];
   let tarballName: string | null = null;
   const tempRoot = await makeTempDir("goodmemory-phase37-external-");

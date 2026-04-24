@@ -31,7 +31,7 @@ Out of scope:
 
 - Quality gate:
   - `reports/quality-gates/phase-32/run-20260422085720/phase-32-quality-gate.json`
-- Deterministic fallback report:
+- Deterministic fallback replay output (ignored generated):
   - `reports/eval/fallback/phase-32/run-20260422173045/report.json`
 - Codex external-host live report:
   - `reports/eval/live-memory/phase-32/run-phase32-live-current/report.json`

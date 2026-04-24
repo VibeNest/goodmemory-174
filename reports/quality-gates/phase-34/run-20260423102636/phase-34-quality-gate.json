@@ -51,8 +51,10 @@
   "evidence": {
     "deterministicReport": {
       "reason": "Policy-backed pre-action assessment intercepted every deterministic high-risk first step, rewrote or blocked it beyond the Phase 32 soft-guard baseline, and preserved the low-risk path.",
-      "reportPath": "reports/eval/fallback/phase-34/run-20260422213045/report.json",
-      "status": "accepted"
+      "status": "accepted",
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-34/run-20260422213045/report.json",
+      "regenerateCommand": "bun run eval:phase-34 --run-id run-20260422213045"
     },
     "liveMemory": {
       "hostKind": "codex",

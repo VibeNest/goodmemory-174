@@ -9,6 +9,14 @@ export interface Phase37GateCommand {
   label: string;
 }
 
+export interface Phase37GateCommandOptions {
+  deterministicRunId?: string;
+  externalRunId?: string;
+  liveRunId?: string;
+  phase35GateRunId?: string;
+  phase36GateRunId?: string;
+}
+
 export interface Phase37GateCommandResult {
   durationMs: number;
   exitCode: number;
@@ -34,8 +42,10 @@ export interface Phase37GateReport {
   commands: Phase37GateExecutionResult[];
   evidence: {
     deterministicReport: {
+      artifactKind: "ignored_generated";
+      ignoredReportPath: string;
       reason: string;
-      reportPath: string;
+      regenerateCommand: string;
       status: "accepted" | "blocked";
     };
     externalConsumer: {
@@ -161,7 +171,6 @@ const GENERATED_BY = "scripts/run-phase-37-gate.ts";
 const PHASE37_CANONICAL_DETERMINISTIC_RUN_ID = "run-20260424101045";
 const PHASE37_CANONICAL_LIVE_RUN_ID = "run-phase37-live-current";
 const PHASE37_CANONICAL_EXTERNAL_RUN_ID = "run-phase37-external-consumer";
-const PHASE37_CANONICAL_GATE_RUN_ID = "run-20260424104045";
 const PHASE37_IN_SCOPE = [
   "installed-host selective writeback for Codex first, with Claude CLI parity",
   "opt-in off, observe, and selective managed writeback config",
@@ -207,8 +216,25 @@ function toRepoRelativePath(root: string, path: string): string {
   return relativePath.length > 0 ? relativePath : ".";
 }
 
-function pathsMatch(root: string, left: string, right: string): boolean {
-  return resolveMaybeRelativePath(root, left) === resolveMaybeRelativePath(root, right);
+function isTimestampRunId(runId: string): boolean {
+  return /^run-\d{14}$/u.test(runId);
+}
+
+function buildPhase37DeterministicRegenerateCommand(runId: string): string {
+  return `bun run eval:phase-37 --run-id ${runId}`;
+}
+
+function isReportPathUnder(root: string, reportPath: string, outputDir: string): boolean {
+  const relativePath = relative(
+    resolveMaybeRelativePath(root, outputDir),
+    resolveMaybeRelativePath(root, reportPath),
+  ).replaceAll("\\", "/");
+
+  return (
+    relativePath.length > 0 &&
+    !relativePath.startsWith("../") &&
+    relativePath.endsWith("/report.json")
+  );
 }
 
 function toExecutionResult(
@@ -256,28 +282,52 @@ export function resolvePhase37GateOutputDir(root: string): string {
 }
 
 export function resolvePhase37CanonicalDeterministicReportPath(root: string): string {
+  return resolvePhase37DeterministicReportPath(
+    root,
+    PHASE37_CANONICAL_DETERMINISTIC_RUN_ID,
+  );
+}
+
+function resolvePhase37DeterministicReportPath(
+  root: string,
+  runId: string,
+): string {
   return join(
     root,
     "reports/eval/fallback/phase-37",
-    PHASE37_CANONICAL_DETERMINISTIC_RUN_ID,
+    runId,
     "report.json",
   );
 }
 
 export function resolvePhase37CanonicalLiveReportPath(root: string): string {
+  return resolvePhase37LiveReportPath(root, PHASE37_CANONICAL_LIVE_RUN_ID);
+}
+
+function resolvePhase37LiveReportPath(root: string, runId: string): string {
   return join(
     root,
     "reports/eval/live-memory/phase-37",
-    PHASE37_CANONICAL_LIVE_RUN_ID,
+    runId,
     "report.json",
   );
 }
 
 export function resolvePhase37CanonicalExternalConsumerReportPath(root: string): string {
+  return resolvePhase37ExternalConsumerReportPath(
+    root,
+    PHASE37_CANONICAL_EXTERNAL_RUN_ID,
+  );
+}
+
+function resolvePhase37ExternalConsumerReportPath(
+  root: string,
+  runId: string,
+): string {
   return join(
     root,
     "reports/eval/live-memory/phase-37",
-    PHASE37_CANONICAL_EXTERNAL_RUN_ID,
+    runId,
     "report.json",
   );
 }
@@ -297,7 +347,17 @@ export function parsePhase37GateCliOptions(
   };
 }
 
-export function buildPhase37GateCommands(root: string): Phase37GateCommand[] {
+function withRunId(args: string[], runId: string | undefined): string[] {
+  return runId ? [...args, "--run-id", runId] : args;
+}
+
+export function buildPhase37GateCommands(
+  root: string,
+  options: Phase37GateCommandOptions = {},
+): Phase37GateCommand[] {
+  const deterministicRunId =
+    options.deterministicRunId ?? PHASE37_CANONICAL_DETERMINISTIC_RUN_ID;
+
   return [
     {
       args: ["bun", "run", "typecheck"],
@@ -329,28 +389,40 @@ export function buildPhase37GateCommands(root: string): Phase37GateCommand[] {
         "run",
         "eval:phase-37",
         "--run-id",
-        PHASE37_CANONICAL_DETERMINISTIC_RUN_ID,
+        deterministicRunId,
       ],
       cwd: root,
       label: "phase-37-fallback-eval",
     },
     {
-      args: ["bun", "run", "eval:phase-37-live-memory"],
+      args: withRunId(
+        ["bun", "run", "eval:phase-37-live-memory"],
+        options.liveRunId,
+      ),
       cwd: root,
       label: "phase-37-live-memory",
     },
     {
-      args: ["bun", "run", "eval:phase-37-external-consumer"],
+      args: withRunId(
+        ["bun", "run", "eval:phase-37-external-consumer"],
+        options.externalRunId,
+      ),
       cwd: root,
       label: "phase-37-external-consumer",
     },
     {
-      args: ["bun", "run", "gate:phase-35"],
+      args: withRunId(
+        ["bun", "run", "gate:phase-35"],
+        options.phase35GateRunId,
+      ),
       cwd: root,
       label: "phase-35-regression-gate",
     },
     {
-      args: ["bun", "run", "gate:phase-36"],
+      args: withRunId(
+        ["bun", "run", "gate:phase-36"],
+        options.phase36GateRunId,
+      ),
       cwd: root,
       label: "phase-36-regression-gate",
     },
@@ -369,8 +441,8 @@ function validatePhase37DeterministicReport(
   if (parsed.generatedBy !== "scripts/run-phase-37-eval.ts") {
     throw new Error("Phase 37 deterministic report was not generated by the canonical runner.");
   }
-  if (!pathsMatch(root, reportPath, resolvePhase37CanonicalDeterministicReportPath(root))) {
-    throw new Error("Phase 37 deterministic report path is not canonical.");
+  if (!isReportPathUnder(root, reportPath, join(root, "reports/eval/fallback/phase-37"))) {
+    throw new Error("Phase 37 deterministic report path is outside the phase output directory.");
   }
 
   return parsed;
@@ -388,8 +460,8 @@ function validatePhase37LiveReport(
   if (parsed.generatedBy !== "scripts/run-phase-37-live-memory.ts") {
     throw new Error("Phase 37 live-memory report was not generated by the canonical runner.");
   }
-  if (!pathsMatch(root, reportPath, resolvePhase37CanonicalLiveReportPath(root))) {
-    throw new Error("Phase 37 live-memory report path is not canonical.");
+  if (!isReportPathUnder(root, reportPath, join(root, "reports/eval/live-memory/phase-37"))) {
+    throw new Error("Phase 37 live-memory report path is outside the phase output directory.");
   }
 
   return parsed;
@@ -407,8 +479,8 @@ function validatePhase37ExternalConsumerReport(
   if (parsed.generatedBy !== "scripts/run-phase-37-external-consumer.ts") {
     throw new Error("Phase 37 external consumer report was not generated by the canonical runner.");
   }
-  if (!pathsMatch(root, reportPath, resolvePhase37CanonicalExternalConsumerReportPath(root))) {
-    throw new Error("Phase 37 external consumer report path is not canonical.");
+  if (!isReportPathUnder(root, reportPath, join(root, "reports/eval/live-memory/phase-37"))) {
+    throw new Error("Phase 37 external consumer report path is outside the phase output directory.");
   }
 
   return parsed;
@@ -417,6 +489,7 @@ function validatePhase37ExternalConsumerReport(
 function buildBlockedReport(input: {
   commands: Phase37GateExecutionResult[];
   deterministicReportPath: string;
+  deterministicRunId: string;
   externalReportPath: string;
   liveReportPath: string;
   reason: string;
@@ -433,8 +506,10 @@ function buildBlockedReport(input: {
     commands: input.commands,
     evidence: {
       deterministicReport: {
+        artifactKind: "ignored_generated",
+        ignoredReportPath: toRepoRelativePath(input.root, input.deterministicReportPath),
         reason: input.reason,
-        reportPath: toRepoRelativePath(input.root, input.deterministicReportPath),
+        regenerateCommand: buildPhase37DeterministicRegenerateCommand(input.deterministicRunId),
         status: "blocked",
       },
       externalConsumer: {
@@ -467,38 +542,61 @@ export async function runPhase37QualityGate(
 ): Promise<Phase37GateReport> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = options.outputDir ?? resolvePhase37GateOutputDir(root);
-  const runId = options.runId ?? PHASE37_CANONICAL_GATE_RUN_ID;
+  const now = dependencies.now ?? (() => new Date().toISOString());
+  const timestamp = now();
+  const freshRunId = buildPhase37GateRunId(timestamp);
+  const runId = options.runId ?? freshRunId;
+  const usesRunScopedEvidence =
+    options.runId === undefined || isTimestampRunId(runId);
+  const deterministicRunId = usesRunScopedEvidence
+    ? runId
+    : PHASE37_CANONICAL_DETERMINISTIC_RUN_ID;
+  const liveRunId = usesRunScopedEvidence ? runId : PHASE37_CANONICAL_LIVE_RUN_ID;
+  const externalRunId = usesRunScopedEvidence
+    ? `${runId}-external-consumer`
+    : PHASE37_CANONICAL_EXTERNAL_RUN_ID;
+  const phase35GateRunId = usesRunScopedEvidence ? runId : undefined;
+  const phase36GateRunId = usesRunScopedEvidence ? runId : undefined;
   const runDirectory = join(outputDir, runId);
   const ensureDir = dependencies.ensureDir ?? mkdir;
-  const now = dependencies.now ?? (() => new Date().toISOString());
   const readTextFile =
     dependencies.readTextFile ??
     ((path: string) => readFile(path, "utf8"));
   const runCommand = dependencies.runCommand ?? defaultRunCommand;
   const writeTextFile = dependencies.writeTextFile ?? writeFile;
   const commands: Phase37GateExecutionResult[] = [];
-  const deterministicReportPath = resolvePhase37CanonicalDeterministicReportPath(root);
+  const deterministicReportPath = resolvePhase37DeterministicReportPath(
+    root,
+    deterministicRunId,
+  );
   const liveReportPath = options.liveReportPath
     ? resolveMaybeRelativePath(root, options.liveReportPath)
-    : resolvePhase37CanonicalLiveReportPath(root);
+    : resolvePhase37LiveReportPath(root, liveRunId);
   const externalReportPath = options.externalReportPath
     ? resolveMaybeRelativePath(root, options.externalReportPath)
-    : resolvePhase37CanonicalExternalConsumerReportPath(root);
+    : resolvePhase37ExternalConsumerReportPath(root, externalRunId);
 
-  for (const command of buildPhase37GateCommands(root)) {
+  for (const command of buildPhase37GateCommands(root, {
+    deterministicRunId,
+    externalRunId,
+    liveRunId,
+    phase35GateRunId,
+    phase36GateRunId,
+  })) {
     const result = await runCommand(command);
     commands.push(toExecutionResult(command, result));
     if (result.exitCode !== 0) {
       const blocked = buildBlockedReport({
         commands,
         deterministicReportPath,
+        deterministicRunId,
         externalReportPath,
         liveReportPath,
         reason: `Required Phase 37 command failed: ${command.label}.`,
         root,
         runDirectory,
         runId,
-        timestamp: now(),
+        timestamp,
       });
       await ensureDir(runDirectory, { recursive: true });
       await writeTextFile(
@@ -532,6 +630,7 @@ export async function runPhase37QualityGate(
     const blocked = buildBlockedReport({
       commands,
       deterministicReportPath,
+      deterministicRunId,
       externalReportPath,
       liveReportPath,
       reason: error instanceof Error
@@ -540,7 +639,7 @@ export async function runPhase37QualityGate(
       root,
       runDirectory,
       runId,
-      timestamp: now(),
+      timestamp,
     });
     await ensureDir(runDirectory, { recursive: true });
     await writeTextFile(
@@ -597,10 +696,12 @@ export async function runPhase37QualityGate(
     commands,
     evidence: {
       deterministicReport: {
+        artifactKind: "ignored_generated",
+        ignoredReportPath: toRepoRelativePath(root, deterministicReportPath),
         reason: deterministicAccepted
           ? "Deterministic installed-host selective writeback eval passed every Phase 37 case."
           : "Deterministic installed-host selective writeback eval did not pass every required case.",
-        reportPath: toRepoRelativePath(root, deterministicReportPath),
+        regenerateCommand: buildPhase37DeterministicRegenerateCommand(deterministicRunId),
         status: deterministicAccepted ? "accepted" : "blocked",
       },
       externalConsumer: {
@@ -619,7 +720,7 @@ export async function runPhase37QualityGate(
         status: liveAccepted ? "accepted" : "blocked",
       },
     },
-    generatedAt: now(),
+    generatedAt: timestamp,
     generatedBy: GENERATED_BY,
     phase: "phase-37",
     runDirectory,

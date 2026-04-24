@@ -231,8 +231,12 @@ describe("run-phase-34 gate", () => {
 
     expect(report.phase).toBe("phase-34");
     expect(report.acceptance.decision).toBe("accepted");
-    expect(report.evidence.deterministicReport.reportPath).toBe(
+    expect(report.evidence.deterministicReport.artifactKind).toBe("ignored_generated");
+    expect(report.evidence.deterministicReport.ignoredReportPath).toBe(
       "reports/eval/fallback/phase-34/run-20260422213045/report.json",
+    );
+    expect(report.evidence.deterministicReport.regenerateCommand).toBe(
+      "bun run eval:phase-34 --run-id run-20260422213045",
     );
     expect(report.evidence.liveMemory.liveReportPath).toBe(
       "reports/eval/live-memory/phase-34/run-phase34-live-current/report.json",

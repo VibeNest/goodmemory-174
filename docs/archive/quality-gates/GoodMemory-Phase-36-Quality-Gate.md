@@ -39,14 +39,14 @@ Out of scope:
 
 - Quality gate:
   - `reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json`
-- Deterministic fallback report:
+- Deterministic fallback replay output (ignored generated):
   - `reports/eval/fallback/phase-36/run-20260423221045/report.json`
 - Provider-backed live-memory report:
   - `reports/eval/live-memory/phase-36/run-phase36-live-current/report.json`
 
 ## Results
 
-- Deterministic fallback report: accepted.
+- Deterministic fallback replay output (ignored generated): accepted.
 - Provider-backed live-memory report: accepted.
 - `gate:phase-36` proves:
   - `bun run typecheck` passed
@@ -60,7 +60,7 @@ Out of scope:
 
 ## Evidence Rule
 
-Only the gate run above, deterministic fallback report above, and provider-backed live-memory report above are canonical for Phase 36. If future evidence is repointed, update this archive doc, `docs/GoodMemory-Current-Status-and-Evidence.md`, `task-board/00-README.txt`, and release tests together.
+Only the gate run above, deterministic fallback replay output (ignored generated) above, and provider-backed live-memory report above are canonical for Phase 36. If future evidence is repointed, update this archive doc, `docs/GoodMemory-Current-Status-and-Evidence.md`, `task-board/00-README.txt`, and release tests together.
 
 ## Decision
 

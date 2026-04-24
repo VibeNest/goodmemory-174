@@ -228,6 +228,14 @@ describe("run-phase-24 scripts", () => {
       "passed",
       "passed",
     ]);
+    expect(report.evidence.deterministicReports).toEqual([
+      {
+        artifactKind: "ignored_generated",
+        ignoredReportPath:
+          "reports/eval/fallback/phase-24/run-phase24/report.json",
+        regenerateCommand: "bun run eval:phase-24 --run-id run-phase24",
+      },
+    ]);
   });
 
   it("parses phase-24 gate cli flags and exits cleanly", async () => {
@@ -268,6 +276,9 @@ describe("run-phase-24 scripts", () => {
           reason: "ok",
         },
         commands: [],
+        evidence: {
+          deterministicReports: [],
+        },
         generatedAt: "2026-04-20T10:00:00.000Z",
         generatedBy: "tests",
         phase: "phase-24",

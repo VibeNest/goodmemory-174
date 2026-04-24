@@ -51,8 +51,10 @@
   "evidence": {
     "deterministicReport": {
       "reason": "Deterministic installed-hook middleware report stayed non-regressive against the frozen Phase 32 text-only path and beat the no-memory baseline.",
-      "reportPath": "reports/eval/fallback/phase-35/run-20260423173045/report.json",
-      "status": "accepted"
+      "status": "accepted",
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-35/run-20260423173045/report.json",
+      "regenerateCommand": "bun run eval:phase-35 --run-id run-20260423173045"
     },
     "liveMemory": {
       "liveReportPath": "reports/eval/live-memory/phase-35/run-phase35-live-current/report.json",

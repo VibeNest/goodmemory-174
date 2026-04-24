@@ -103,6 +103,43 @@ describe("run-phase-35 gate", () => {
     );
   });
 
+  it("defaults reruns to a fresh gate run id instead of rewriting accepted evidence", async () => {
+    const writes: Array<{ content: string; path: string }> = [];
+
+    const report = await runPhase35QualityGate(
+      {
+        outputDir: "/tmp/goodmemory/reports/quality-gates/phase-35",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-24T14:30:45.000Z",
+        readTextFile: async (path) => {
+          if (path.endsWith("reports/eval/fallback/phase-35/run-20260423173045/report.json")) {
+            return createAcceptedPhase35DeterministicReport();
+          }
+          if (path.endsWith("reports/eval/live-memory/phase-35/run-phase35-live-current/report.json")) {
+            return createAcceptedPhase35LiveReport();
+          }
+          throw new Error(`Unexpected report path: ${path}`);
+        },
+        runCommand: async () => ({
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: "ok",
+        }),
+        writeTextFile: async (path, content) => {
+          writes.push({ path, content });
+        },
+      },
+    );
+
+    expect(report.runId).toBe("run-20260424143045");
+    expect(writes[0]?.path).toBe(
+      "/tmp/goodmemory/reports/quality-gates/phase-35/run-20260424143045/phase-35-quality-gate.json",
+    );
+  });
+
   it("parses phase-35 gate cli flags", () => {
     expect(
       parsePhase35GateCliOptions([
@@ -186,8 +223,12 @@ describe("run-phase-35 gate", () => {
 
     expect(report.phase).toBe("phase-35");
     expect(report.acceptance.decision).toBe("accepted");
-    expect(report.evidence.deterministicReport.reportPath).toBe(
+    expect(report.evidence.deterministicReport.artifactKind).toBe("ignored_generated");
+    expect(report.evidence.deterministicReport.ignoredReportPath).toBe(
       "reports/eval/fallback/phase-35/run-20260423173045/report.json",
+    );
+    expect(report.evidence.deterministicReport.regenerateCommand).toBe(
+      "bun run eval:phase-35 --run-id run-20260423173045",
     );
     expect(report.evidence.liveMemory.liveReportPath).toBe(
       "reports/eval/live-memory/phase-35/run-phase35-live-current/report.json",

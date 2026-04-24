@@ -27,8 +27,10 @@ export interface Phase35GateExecutionResult {
 }
 
 export interface Phase35DeterministicReportEvidence {
+  artifactKind: "ignored_generated";
+  ignoredReportPath: string;
   reason: string;
-  reportPath: string;
+  regenerateCommand: string;
   status: "accepted" | "blocked";
 }
 
@@ -150,7 +152,6 @@ interface ValidatedPhase35LiveReport {
 const GENERATED_BY = "scripts/run-phase-35-gate.ts";
 const PHASE35_CANONICAL_DETERMINISTIC_RUN_ID = "run-20260423173045";
 const PHASE35_CANONICAL_LIVE_RUN_ID = "run-phase35-live-current";
-const PHASE35_CANONICAL_GATE_RUN_ID = "run-20260423213045";
 const PHASE35_IN_SCOPE = [
   "phase-35 deterministic installed-hook middleware evaluation against the frozen Phase 32 text-only path and the no-memory baseline",
   "tarball-first installed-package Codex middleware validation for install, repo opt-in, hook injection, and read-only MCP availability",
@@ -262,6 +263,10 @@ export function resolvePhase35CanonicalLiveReportPath(root: string): string {
   );
 }
 
+function buildPhase35DeterministicRegenerateCommand(): string {
+  return `bun run eval:phase-35 --run-id ${PHASE35_CANONICAL_DETERMINISTIC_RUN_ID}`;
+}
+
 export function buildPhase35GateRunId(timestamp: string): string {
   return `run-${timestamp.replace(/\D/g, "").slice(0, 14) || "phase35gate"}`;
 }
@@ -348,10 +353,11 @@ export async function runPhase35QualityGate(
 ): Promise<Phase35GateReport> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputDir = options.outputDir ?? resolvePhase35GateOutputDir(root);
-  const runId = options.runId ?? PHASE35_CANONICAL_GATE_RUN_ID;
+  const now = dependencies.now ?? (() => new Date().toISOString());
+  const timestamp = now();
+  const runId = options.runId ?? buildPhase35GateRunId(timestamp);
   const runDirectory = join(outputDir, runId);
   const ensureDir = dependencies.ensureDir ?? mkdir;
-  const now = dependencies.now ?? (() => new Date().toISOString());
   const readTextFile =
     dependencies.readTextFile ??
     ((path: string) => readFile(path, "utf8"));
@@ -372,8 +378,10 @@ export async function runPhase35QualityGate(
         commands,
         evidence: {
           deterministicReport: {
+            artifactKind: "ignored_generated",
+            ignoredReportPath: toRepoRelativePath(root, resolvePhase35CanonicalDeterministicReportPath(root)),
             reason: "Targeted regressions failed before deterministic evidence could be validated.",
-            reportPath: toRepoRelativePath(root, resolvePhase35CanonicalDeterministicReportPath(root)),
+            regenerateCommand: buildPhase35DeterministicRegenerateCommand(),
             status: "blocked",
           },
           liveMemory: {
@@ -388,7 +396,7 @@ export async function runPhase35QualityGate(
             status: "blocked",
           },
         },
-        generatedAt: now(),
+        generatedAt: timestamp,
         generatedBy: GENERATED_BY,
         phase: "phase-35",
         runDirectory,
@@ -459,10 +467,12 @@ export async function runPhase35QualityGate(
     commands,
     evidence: {
       deterministicReport: {
+        artifactKind: "ignored_generated",
+        ignoredReportPath: toRepoRelativePath(root, deterministicReportPath),
         reason: deterministicAccepted
           ? "Deterministic installed-hook middleware report stayed non-regressive against the frozen Phase 32 text-only path and beat the no-memory baseline."
           : "Deterministic installed-hook middleware report failed the dual-baseline acceptance rule.",
-        reportPath: toRepoRelativePath(root, deterministicReportPath),
+        regenerateCommand: buildPhase35DeterministicRegenerateCommand(),
         status: deterministicAccepted ? "accepted" : "blocked",
       },
       liveMemory: {
@@ -474,7 +484,7 @@ export async function runPhase35QualityGate(
         status: liveAccepted ? "accepted" : "blocked",
       },
     },
-    generatedAt: now(),
+    generatedAt: timestamp,
     generatedBy: GENERATED_BY,
     phase: "phase-35",
     runDirectory,

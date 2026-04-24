@@ -27,12 +27,21 @@ export interface Phase27GateExecutionResult {
   stdoutTail: string[];
 }
 
+export interface Phase27IgnoredGeneratedReportEvidence {
+  artifactKind: "ignored_generated";
+  ignoredReportPath: string;
+  regenerateCommand: string;
+}
+
 export interface Phase27GateReport {
   acceptance: {
     decision: "accepted" | "blocked";
     reason: string;
   };
   commands: Phase27GateExecutionResult[];
+  evidence: {
+    deterministicReport: Phase27IgnoredGeneratedReportEvidence;
+  };
   generatedAt: string;
   generatedBy: string;
   phase: "phase-27";
@@ -164,7 +173,24 @@ export function buildPhase27GateScope(): Phase27GateReport["scope"] {
   };
 }
 
-export function buildPhase27GateCommands(root: string): Phase27GateCommand[] {
+function buildPhase27DeterministicRegenerateCommand(runId: string): string {
+  return `bun run eval:phase-27 --run-id ${runId}`;
+}
+
+function buildPhase27IgnoredFallbackEvidence(): Phase27IgnoredGeneratedReportEvidence {
+  return {
+    artifactKind: "ignored_generated",
+    ignoredReportPath: `reports/eval/fallback/phase-27/${PHASE27_CANONICAL_DETERMINISTIC_RUN_ID}/report.json`,
+    regenerateCommand: buildPhase27DeterministicRegenerateCommand(
+      PHASE27_CANONICAL_DETERMINISTIC_RUN_ID,
+    ),
+  };
+}
+
+export function buildPhase27GateCommands(
+  root: string,
+  deterministicRunId?: string,
+): Phase27GateCommand[] {
   return [
     {
       label: "typecheck",
@@ -188,7 +214,15 @@ export function buildPhase27GateCommands(root: string): Phase27GateCommand[] {
       label: "phase-27-fallback-eval",
       cwd: root,
       env: { ...PHASE27_DETERMINISTIC_TEST_ENV },
-      args: ["bun", "run", "eval:phase-27"],
+      args: deterministicRunId
+        ? [
+            "bun",
+            "run",
+            "eval:phase-27",
+            "--run-id",
+            deterministicRunId,
+          ]
+        : ["bun", "run", "eval:phase-27"],
     },
   ];
 }
@@ -309,29 +343,6 @@ export async function runPhase27QualityGate(
   const runDirectory = join(outputDir, runId);
   const commandResults: Phase27GateExecutionResult[] = [];
 
-  const deterministicArtifactFailure = await validateCanonicalPhase27EvalReport({
-    expectedMode: "fallback",
-    expectedRunId: PHASE27_CANONICAL_DETERMINISTIC_RUN_ID,
-    expectedTotalCases: 13,
-    path: resolvePhase27CanonicalDeterministicReportPath(root),
-    readTextFile,
-  });
-  if (deterministicArtifactFailure) {
-    return {
-      acceptance: {
-        decision: "blocked",
-        reason: deterministicArtifactFailure,
-      },
-      commands: [],
-      generatedAt,
-      generatedBy: GENERATED_BY,
-      phase: "phase-27",
-      runDirectory,
-      runId,
-      scope: buildPhase27GateScope(),
-    };
-  }
-
   const liveArtifactFailure = await validateCanonicalPhase27EvalReport({
     expectedMode: "live-memory",
     expectedRunId: PHASE27_CANONICAL_LIVE_RUN_ID,
@@ -346,6 +357,9 @@ export async function runPhase27QualityGate(
         reason: liveArtifactFailure,
       },
       commands: [],
+      evidence: {
+        deterministicReport: buildPhase27IgnoredFallbackEvidence(),
+      },
       generatedAt,
       generatedBy: GENERATED_BY,
       phase: "phase-27",
@@ -355,7 +369,10 @@ export async function runPhase27QualityGate(
     };
   }
 
-  for (const command of buildPhase27GateCommands(root)) {
+  for (const command of buildPhase27GateCommands(
+    root,
+    PHASE27_CANONICAL_DETERMINISTIC_RUN_ID,
+  )) {
     const result = await runCommand(command);
     commandResults.push({
       label: command.label,
@@ -373,18 +390,36 @@ export async function runPhase27QualityGate(
   }
 
   const failedCommand = commandResults.find((result) => result.status === "failed");
-  const report: Phase27GateReport = {
-    acceptance: failedCommand
+  const deterministicArtifactFailure = failedCommand
+    ? undefined
+    : await validateCanonicalPhase27EvalReport({
+        expectedMode: "fallback",
+        expectedRunId: PHASE27_CANONICAL_DETERMINISTIC_RUN_ID,
+        expectedTotalCases: 13,
+        path: resolvePhase27CanonicalDeterministicReportPath(root),
+        readTextFile,
+      });
+  const acceptance: Phase27GateReport["acceptance"] = failedCommand
+    ? {
+        decision: "blocked",
+        reason: `Required regression command failed: ${failedCommand.label}`,
+      }
+    : deterministicArtifactFailure
       ? {
           decision: "blocked",
-          reason: `Required regression command failed: ${failedCommand.label}`,
+          reason: deterministicArtifactFailure,
         }
       : {
           decision: "accepted",
           reason:
             "Phase 27 public reference hardening, deterministic adoption evidence, canonical live adoption evidence, and Codex-only host gating are regression-covered and closure-ready.",
-        },
+        };
+  const report: Phase27GateReport = {
+    acceptance,
     commands: commandResults,
+    evidence: {
+      deterministicReport: buildPhase27IgnoredFallbackEvidence(),
+    },
     generatedAt,
     generatedBy: GENERATED_BY,
     phase: "phase-27",
