@@ -19,7 +19,7 @@ const GOODMEMORY_CODEX_HOOKS_FEATURE_PLAIN_LINE = "codex_hooks = true";
 
 interface ManagedHookSpec {
   command: string;
-  eventName: "SessionStart" | "UserPromptSubmit";
+  eventName: "SessionStart" | "Stop" | "UserPromptSubmit";
   matcher?: string;
 }
 
@@ -121,6 +121,34 @@ export function resolveInstalledHostHookTargetPath(
       };
 }
 
+export async function isInstalledHostHookRegistered(input: {
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<boolean> {
+  const resolvedHomeRoot = resolve(homeRootValue(input.homeRoot));
+  const target = resolveInstalledHostHookTargetPath(input.host, resolvedHomeRoot);
+  const existing = await readFileIfPresent(target.path);
+  if (existing === null) {
+    return false;
+  }
+
+  try {
+    const parsed = parseHookRoot(existing, target.relativePath);
+    const hooksValue = parsed.hooks;
+    if (!isRecord(hooksValue)) {
+      return false;
+    }
+
+    const requiredRecallHooks = buildManagedHookSpecs(input.host, resolvedHomeRoot)
+      .filter((spec) => spec.eventName !== "Stop");
+    return requiredRecallHooks.every((spec) =>
+      hookEventContainsManagedRecord(hooksValue[spec.eventName], spec, target.relativePath),
+    );
+  } catch {
+    return false;
+  }
+}
+
 function resolveInstalledHostHookFeatureTargetPath(homeRoot: string): {
   path: string;
   relativePath: string;
@@ -151,12 +179,16 @@ function buildManagedHookSpecs(
       command: buildManagedHookCommand(host, "user-prompt-submit", homeRoot),
       eventName: "UserPromptSubmit",
     },
+    {
+      command: buildManagedHookCommand(host, "session-stop", homeRoot),
+      eventName: "Stop",
+    },
   ];
 }
 
 function buildManagedHookCommand(
   host: InstalledHostKind,
-  command: "session-start" | "user-prompt-submit",
+  command: "session-start" | "session-stop" | "user-prompt-submit",
   homeRoot: string,
 ): string {
   return [
@@ -308,6 +340,27 @@ function removeHookEvent(
   return remainingGroups.length === 0 ? null : remainingGroups;
 }
 
+function hookEventContainsManagedRecord(
+  value: unknown,
+  spec: ManagedHookSpec,
+  relativePath: string,
+): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  try {
+    const groups = value.map((group, index) =>
+      validateHookGroup(group, relativePath, spec.eventName, index),
+    );
+    return groups.some((group) =>
+      group.hooks.some((hook) => isManagedHookRecord(hook, spec.command)),
+    );
+  } catch {
+    return false;
+  }
+}
+
 function validateHookGroup(
   value: unknown,
   relativePath: string,
@@ -377,7 +430,9 @@ function findConflictingHook(
   const conflictNeedle =
     eventName === "SessionStart"
       ? `goodmemory ${host} hook session-start`
-      : `goodmemory ${host} hook user-prompt-submit`;
+      : eventName === "Stop"
+        ? `goodmemory ${host} hook session-stop`
+        : `goodmemory ${host} hook user-prompt-submit`;
 
   return groups.some((group) =>
     group.hooks.some((hook) =>

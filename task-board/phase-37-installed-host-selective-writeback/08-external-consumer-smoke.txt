@@ -1,0 +1,55 @@
+Phase 37.8: External Consumer Smoke
+===================================
+
+Goal
+----
+Verify Phase 37 from outside the GoodMemory repository so adoption risk is tested on the installed package path.
+
+
+Fixture Shape
+-------------
+Create a temporary consumer fixture:
+
+```text
+.tmp-goodmemory-phase37-consumer/
+  package.json
+  .goodmemory/codex.json
+  scenario/
+    session-1.json
+    session-2.json
+```
+
+
+Smoke Chain
+-----------
+Run the packed-package flow:
+
+```bash
+npm pack
+cd .tmp-goodmemory-phase37-consumer
+npm install ../goodmemory-0.1.1.tgz
+./node_modules/.bin/goodmemory install codex --user-id phase37 --no-interactive
+./node_modules/.bin/goodmemory enable codex --writeback selective
+cat scenario/session-1.json | ./node_modules/.bin/goodmemory codex writeback --json
+cat scenario/session-2.json | ./node_modules/.bin/goodmemory codex hook user-prompt-submit
+```
+
+Adjust the tarball path/version to the actual package name produced by `npm pack`.
+
+
+Evidence
+--------
+Produce:
+
+- `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
+- external consumer section in `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md`
+
+
+Acceptance
+----------
+- the consumer smoke runs outside `/Users/hjqcan/Documents/GoodMomery`
+- the installed binary is used from `node_modules/.bin/goodmemory`
+- `goodmemory codex writeback --json` writes selective memory in the consumer project
+- `goodmemory codex hook user-prompt-submit` recalls the automatically written memory
+- `manualSeedUsed` is false
+- raw transcript persistence is false

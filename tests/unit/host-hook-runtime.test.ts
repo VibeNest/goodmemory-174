@@ -410,6 +410,453 @@ describe("installed host hook runtime", () => {
     }
   });
 
+  it("uses global activation mode without a repo config and auto-learns the submitted prompt", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-global-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-global-workspace-");
+    const rememberCalls: Array<{
+      extractionStrategy?: string;
+      message: string;
+      scope: {
+        agentId?: string;
+        sessionId?: string;
+        userId?: string;
+        workspaceId?: string;
+      };
+    }> = [];
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            autoLearn: {
+              enabled: true,
+              extractionStrategy: "auto",
+              sources: ["user_prompt", "session_stop"],
+            },
+            debug: false,
+            host: "codex",
+            maxTokens: 320,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "codex",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "Always check the release runbook before editing files.",
+            session_id: "session-42",
+            turn_id: "turn-1",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              async buildContext() {
+                return {
+                  content: "Developer memory notes:\nRelease runbook is canonical.",
+                  estimatedTokens: 9,
+                  omittedSections: [],
+                  output: "developer_prompt_fragment",
+                };
+              },
+              async recall() {
+                return createRecallResult();
+              },
+              async remember(input) {
+                rememberCalls.push({
+                  extractionStrategy: input.extractionStrategy,
+                  message: input.messages[0]?.content ?? "",
+                  scope: input.scope,
+                });
+                return {
+                  accepted: 1,
+                  events: [],
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.applied).toBe(true);
+      expect(result.autoLearn).toEqual({
+        attempted: true,
+        reason: "written",
+      });
+      expect(rememberCalls).toHaveLength(1);
+      expect(rememberCalls[0]).toEqual({
+        extractionStrategy: "auto",
+        message: "Always check the release runbook before editing files.",
+        scope: {
+          agentId: "codex",
+          sessionId: "session-42",
+          userId: "hook-user",
+          workspaceId: workspaceRoot.split("/").at(-1),
+        },
+      });
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("learns bounded stop-hook session signals without blocking output", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-stop-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-stop-workspace-");
+    const rememberMessages: string[] = [];
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            autoLearn: {
+              enabled: true,
+              extractionStrategy: "auto",
+              sources: ["user_prompt", "session_stop"],
+            },
+            debug: false,
+            host: "claude",
+            maxTokens: 128,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostHook(
+        {
+          command: "session-stop",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              { role: "user", content: "Remember to keep summaries short." },
+              { role: "assistant", content: "I will keep coding summaries short." },
+            ],
+            session_id: "session-77",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember(input) {
+                rememberMessages.push(input.messages[0]?.content ?? "");
+                return {
+                  accepted: 1,
+                  events: [],
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.applied).toBe(false);
+      expect(result.reason).toBe("learned");
+      expect(result.output).toBeNull();
+      expect(result.autoLearn).toEqual({
+        attempted: true,
+        reason: "written",
+      });
+      expect(rememberMessages).toHaveLength(1);
+      expect(rememberMessages[0]).toContain("user: Remember to keep summaries short.");
+      expect(rememberMessages[0]).toContain("assistant: I will keep coding summaries short.");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("dedupes concurrent auto-learn events under the ledger lock", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-stop-lock-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-stop-lock-workspace-");
+    let rememberCallCount = 0;
+    let releaseRemember: (() => void) | undefined;
+    let markRememberEntered: (() => void) | undefined;
+    const rememberEntered = new Promise<void>((resolve) => {
+      markRememberEntered = resolve;
+    });
+    const rememberRelease = new Promise<void>((resolve) => {
+      releaseRemember = resolve;
+    });
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            autoLearn: {
+              enabled: true,
+              extractionStrategy: "auto",
+              sources: ["user_prompt", "session_stop"],
+            },
+            debug: false,
+            host: "claude",
+            maxTokens: 128,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const dependencies = {
+        createMemory: ((_: GoodMemoryConfig) =>
+          ({
+            async buildContext() {
+              throw new Error("not used");
+            },
+            async recall() {
+              throw new Error("not used");
+            },
+            async remember() {
+              rememberCallCount += 1;
+              markRememberEntered?.();
+              await rememberRelease;
+              return {
+                accepted: 1,
+                events: [],
+                rejected: 0,
+              };
+            },
+            async forget() {
+              throw new Error("not used");
+            },
+            async exportMemory() {
+              throw new Error("not used");
+            },
+            async deleteAllMemory() {
+              throw new Error("not used");
+            },
+            async feedback() {
+              throw new Error("not used");
+            },
+            async runMaintenance() {
+              throw new Error("not used");
+            },
+          }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+      };
+
+      const firstRun = executeInstalledHostHook(
+        {
+          command: "session-stop",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            event_id: "stop-1",
+            session_id: "session-77",
+            summary: "Keep summaries short.",
+          },
+        },
+        dependencies,
+      );
+      await rememberEntered;
+
+      const secondRun = executeInstalledHostHook(
+        {
+          command: "session-stop",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            event_id: "stop-1",
+            session_id: "session-77",
+            summary: "Keep summaries short.",
+          },
+        },
+        dependencies,
+      );
+
+      releaseRemember?.();
+
+      const [firstResult, secondResult] = await Promise.all([firstRun, secondRun]);
+
+      expect(rememberCallCount).toBe(1);
+      expect([firstResult.autoLearn.reason, secondResult.autoLearn.reason].sort()).toEqual([
+        "duplicate",
+        "written",
+      ]);
+    } finally {
+      releaseRemember?.();
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("fails auto-learn closed when the ledger file is malformed", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-stop-ledger-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-stop-ledger-workspace-");
+    let rememberCalled = false;
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            autoLearn: {
+              enabled: true,
+              extractionStrategy: "auto",
+              sources: ["user_prompt", "session_stop"],
+            },
+            debug: false,
+            host: "claude",
+            maxTokens: 128,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(homeRoot, ".goodmemory/claude-auto-learn-events.json"),
+        JSON.stringify({ events: "bad-ledger" }, null, 2) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostHook(
+        {
+          command: "session-stop",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            event_id: "stop-2",
+            session_id: "session-78",
+            summary: "Keep summaries short.",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember() {
+                rememberCalled = true;
+                return {
+                  accepted: 1,
+                  events: [],
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(rememberCalled).toBe(false);
+      expect(result.reason).toBe("auto_learn_failed");
+      expect(result.autoLearn).toEqual({
+        attempted: false,
+        reason: "failed",
+      });
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("uses a continuity query for session start", async () => {
     const homeRoot = await createWorkspace("goodmemory-hook-session-home-");
     const workspaceRoot = await createWorkspace("goodmemory-hook-session-workspace-");
@@ -572,7 +1019,9 @@ describe("installed host hook runtime", () => {
       expect(result.applied).toBe(false);
       expect(result.reason).toBe("invalid_repo_config");
       expect(result.context).toBeNull();
-      expect(result.output).toBeNull();
+      expect(result.output).toEqual({
+        systemMessage: "GoodMemory codex user-prompt-submit hook skipped: invalid_repo_config.",
+      });
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });

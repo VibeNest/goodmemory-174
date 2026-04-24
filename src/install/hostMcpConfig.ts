@@ -93,6 +93,22 @@ export function resolveInstalledHostMcpTargetPath(
       };
 }
 
+export async function isInstalledHostMcpRegistered(input: {
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<boolean> {
+  const resolvedHomeRoot = resolveHomeRoot(input.homeRoot);
+  const target = resolveInstalledHostMcpTargetPath(input.host, resolvedHomeRoot);
+  const existing = await readFileIfPresent(target.path);
+  if (existing === null) {
+    return false;
+  }
+
+  return input.host === "codex"
+    ? isRegisteredCodexMcpConfig(existing, input.host)
+    : isRegisteredClaudeMcpConfig(existing, input.host);
+}
+
 function buildInstalledHostMcpSpec(
   host: InstalledHostKind,
   homeRoot: string,
@@ -216,6 +232,25 @@ function removeClaudeMcpConfig(
   return Object.keys(nextRoot).length === 0 ? null : renderClaudeConfig(nextRoot);
 }
 
+function isRegisteredClaudeMcpConfig(
+  existing: string,
+  host: InstalledHostKind,
+): boolean {
+  try {
+    const parsed = JSON.parse(existing) as unknown;
+    if (!isRecord(parsed) || !isRecord(parsed.mcpServers)) {
+      return false;
+    }
+
+    return isManagedClaudeMcpServer(
+      parsed.mcpServers[GOODMEMORY_MCP_SERVER_NAME],
+      host,
+    );
+  } catch {
+    return false;
+  }
+}
+
 function renderClaudeConfig(value: Record<string, unknown>): string {
   return JSON.stringify(value, null, 2) + "\n";
 }
@@ -290,6 +325,21 @@ function removeCodexMcpConfig(
     .trim();
 
   return merged.length === 0 ? null : `${merged}\n`;
+}
+
+function isRegisteredCodexMcpConfig(
+  existing: string,
+  host: InstalledHostKind,
+): boolean {
+  if (containsCodexManagedArrayTable(existing)) {
+    return false;
+  }
+
+  const lines = existing.replace(/\r\n/gu, "\n").split("\n");
+  const blockRange = findCodexGoodmemoryBlock(lines);
+  return blockRange === null
+    ? false
+    : isManagedCodexMcpBlock(lines.slice(blockRange.start, blockRange.end), host);
 }
 
 function buildCodexConfig(spec: InstalledHostMcpSpec): string {

@@ -1,0 +1,71 @@
+Phase 37.5: CLI Wiring and Install Opt-In
+=========================================
+
+Goal
+----
+Expose the Codex writeback path in the installed CLI and make writeback easy to opt into without changing default behavior.
+
+
+Files
+-----
+- `src/cli.ts`
+- `src/install/hostInstall.ts`
+- `src/install/hostConfigValidation.ts`
+- `tests/cli/cli.test.ts`
+- `tests/integration/installed-host-writeback.test.ts`
+
+
+CLI Commands
+------------
+Add:
+
+```bash
+goodmemory codex writeback --json
+goodmemory codex writeback --dry-run
+goodmemory codex writeback --mode observe
+goodmemory codex writeback --mode selective
+```
+
+Conservative install/enable opt-in:
+
+```bash
+goodmemory install codex --writeback observe
+goodmemory enable codex --writeback observe
+goodmemory enable codex --writeback selective
+```
+
+Minimum acceptable first version:
+
+- managed config can drive writeback even if install flags are deferred
+- `goodmemory enable codex --writeback observe` should exist if the CLI can support only one opt-in helper initially
+
+
+Rules
+-----
+- default install keeps writeback `off`
+- `--json` must be script-safe
+- `--no-interactive` must not prompt
+- `--dry-run` must behave like observe mode and must not write durable memory
+- command output must expose `mode`, `reason`, `wrote`, candidate count, and trace summary
+- errors must fail open for host integration and fail clearly for direct CLI invocation
+
+
+Week 1 Manual Closure
+---------------------
+By the end of Week 1, this local manual loop must work:
+
+```text
+1. goodmemory install codex --user-id demo --writeback selective
+2. goodmemory enable codex
+3. echo fixture.json | goodmemory codex writeback --json
+4. goodmemory inspect / export-memory can see the selective write
+5. the next user-prompt-submit hook recalls the written open loop
+```
+
+
+Acceptance
+----------
+- `bun test tests/cli/cli.test.ts`
+- `bun test tests/integration/installed-host-writeback.test.ts`
+- `bun run typecheck`
+- install/enable config changes do not regress Phase 35 install, hook, MCP, or explicit write CLI behavior

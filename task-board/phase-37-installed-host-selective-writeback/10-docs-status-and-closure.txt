@@ -1,0 +1,79 @@
+Phase 37.10: Docs, Status, and Closure
+======================================
+
+Goal
+----
+Close Phase 37 by synchronizing public docs, current status, archive evidence, reports, task-board state, and release-facing checks. Do not add new features on this day.
+
+
+Files
+-----
+- `README.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md`
+- `reports/quality-gates/phase-37/...`
+- `reports/eval/fallback/phase-37/...`
+- `reports/eval/live-memory/phase-37/...`
+- `task-board/00-README.txt`
+- `task-board/38-phase-37-installed-host-selective-writeback.txt`
+- `task-board/phase-37-installed-host-selective-writeback/00-README.txt`
+- release-facing tests and package metadata if command scripts changed
+
+
+README Section
+--------------
+Add a short installed writeback section:
+
+```md
+## Installed Host Writeback
+
+`goodmemory codex writeback` is the opt-in installed-host after-response/session-end write path.
+
+It does not persist raw transcripts.
+It writes only selected memory candidates through the public `remember` surface.
+Assistant-originated durable memory requires host confirmation or verification.
+Use `observe` mode before enabling `selective`.
+```
+
+
+Current Status Text
+-------------------
+Add a latest closed slice section once evidence is accepted:
+
+```text
+Latest Closed Slice:
+- Phase 37 is now closed as installed-host selective writeback.
+- Accepted behavior:
+  - Codex installed host supports opt-in observe/selective writeback.
+  - writeback uses public remember config/profiles/annotations.
+  - no raw transcript persistence.
+  - assistant output remains blocked unless confirmed/verified.
+  - next-session recall consumes automatically written open loops.
+- Still outside accepted claim:
+  - default-on automatic writeback
+  - full transcript archive
+  - dashboard
+  - managed cloud
+  - Claude provider-backed live blocker
+```
+
+
+Closure Checklist
+-----------------
+- deterministic report is accepted
+- provider-backed live-memory report is accepted
+- external consumer smoke report is accepted
+- quality gate is accepted
+- Phase 35 and Phase 36 gates remain accepted after Phase 37 changes
+- task-board marks Phase 37 tasks done only after evidence exists
+- README does not imply default-on automatic writeback
+- current-status distinguishes accepted behavior from still-outside claims
+- archive summary cites exact run ids and report paths
+
+
+Acceptance
+----------
+- no Phase 37 file claims closure before accepted evidence exists
+- `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md` cites exact deterministic, live-memory, external consumer, and gate reports
+- `docs/GoodMemory-Current-Status-and-Evidence.md` lists Phase 37 as latest only after the gate is accepted
+- release-facing tests cover the new scripts and package surface

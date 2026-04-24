@@ -1,0 +1,117 @@
+Phase 37: Installed Host Selective Writeback
+============================================
+
+Phase Goal
+----------
+Move the installed-host line from "enabled hosts can automatically recall" to "enabled hosts can opt into selective automatic remember" for Codex first, without widening the root `GoodMemory` API or persisting raw transcripts.
+
+This phase exists to close the current product loop:
+
+```text
+Codex installed host
+  -> normal user conversation or coding collaboration
+  -> GoodMemory selectively extracts high-value memory at turn/session end
+  -> GoodMemory writes durable memory through the public remember surface
+  -> the next SessionStart/UserPromptSubmit hook automatically recalls it
+  -> no manual goodmemory remember seed is required
+```
+
+The product rule for this phase is strict: installed-host writeback extracts auditable, explainable, reversible memory candidates from transcript-like host payloads or host-confirmed events. It does not make transcript storage a memory layer.
+
+
+Current Status
+--------------
+[TODO] Phase 37 is open.
+[DONE] Phase 35 closed the stable installed-host middleware surface: install/uninstall, enable/disable, Codex/Claude hook scaffolding, hook-injected recall, read-only MCP, and explicit remember/feedback/forget commands.
+[DONE] Phase 36 closed public domain write customization: `GoodMemoryConfig.remember`, profiles, rules, annotations, assistant-output policy, `remember: "never"` masking, domain metadata, and traceable extractor composition.
+[TODO] Installed hosts still need opt-in automatic selective writeback, deterministic evidence, provider-backed live evidence, and external consumer smoke evidence.
+
+
+Dependencies
+------------
+- Phase 35 installed host-memory middleware and hooks
+- Phase 36 public domain write profiles and rules
+- `docs/GoodMemory-PRD.md`
+- `docs/GoodMemory-First-Principles-and-Reference-Architecture.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `docs/GoodMemory-TDD-and-Evaluation-Strategy.md`
+- `src/install/hostConfigValidation.ts`
+- `src/install/hostExecutionContext.ts`
+- `src/install/hostHookRuntime.ts`
+- `src/cli.ts`
+- `src/remember/`
+
+
+Primary Deliverables
+--------------------
+- `hostWritebackRuntime` for installed-host writeback
+- installed-host writeback config with `off`, `observe`, and `selective` modes
+- Codex canonical writeback command
+- Phase 37 deterministic eval covering continuation, correction, privacy, assistant policy, and dedupe
+- provider-backed live-memory smoke proving automatic writeback plus next-session recall
+- external consumer smoke outside the GoodMemory repository
+- docs, current-status, archive summary, eval artifacts, and quality-gate evidence
+
+
+Definition of Done
+------------------
+- Codex installed host supports opt-in writeback mode:
+  - `off`
+  - `observe`
+  - `selective`
+- `off` is the default.
+- `observe` produces candidates and trace, but writes nothing.
+- `selective` writes durable memory only through the accepted public `remember` surface.
+- no raw transcript is persisted as durable memory.
+- assistant-originated memory is ignored unless host annotation confirms or verifies it and the active profile allows it.
+- `remember: "never"` masks content before deterministic, custom, or assisted extraction.
+- a two-session Codex scenario works without manual `goodmemory remember`:
+  - session 1 creates an open loop
+  - writeback stores it
+  - session 2 recall injects it
+- Phase 35 and Phase 36 gates still pass.
+- provider-backed live-memory report exists and is accepted.
+- external consumer smoke exists and is accepted.
+
+
+Tasks
+-----
+[TODO] P37-T001 Freeze the Phase 37 contract and add failing tests
+[TODO] P37-T002 Add installed-host writeback config parsing, defaults, and context propagation
+[TODO] P37-T003 Implement observe-mode writeback runtime and JSON trace output
+[TODO] P37-T004 Implement selective writeback through public remember profiles/rules/annotations
+[TODO] P37-T005 Wire the Codex CLI command plus conservative install/enable opt-in
+[TODO] P37-T006 Add the deterministic Phase 37 eval and report contract
+[TODO] P37-T007 Add provider-backed live-memory smoke for automatic writeback plus next-session recall
+[TODO] P37-T008 Add repo-external consumer smoke against the packed package
+[TODO] P37-T009 Add the Phase 37 quality gate and Phase 35/36 regression chain
+[TODO] P37-T010 Sync README, current status, archive docs, reports, and release-facing checks
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-37-installed-host-selective-writeback/00-README.txt`
+- `task-board/phase-37-installed-host-selective-writeback/01-contract-and-failing-tests.txt`
+- `task-board/phase-37-installed-host-selective-writeback/02-installed-host-writeback-config.txt`
+- `task-board/phase-37-installed-host-selective-writeback/03-observe-runtime-and-json-trace.txt`
+- `task-board/phase-37-installed-host-selective-writeback/04-selective-public-remember-writeback.txt`
+- `task-board/phase-37-installed-host-selective-writeback/05-cli-wiring-and-install-opt-in.txt`
+- `task-board/phase-37-installed-host-selective-writeback/06-deterministic-eval.txt`
+- `task-board/phase-37-installed-host-selective-writeback/07-provider-backed-live-smoke.txt`
+- `task-board/phase-37-installed-host-selective-writeback/08-external-consumer-smoke.txt`
+- `task-board/phase-37-installed-host-selective-writeback/09-quality-gate-and-regression.txt`
+- `task-board/phase-37-installed-host-selective-writeback/10-docs-status-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase is installed-host capability, not a new root `goodmemory/writeback` public module.
+- This phase is Codex-first. Claude parity may exist, but Claude is not a live blocker.
+- This phase does not add a dashboard.
+- This phase does not add managed cloud.
+- This phase does not add a Memory OS positioning layer.
+- This phase does not add a built-in OneLife preset.
+- This phase does not reopen the recall router or retrieval promotion.
+- This phase does not make automatic writeback default-on.
+- This phase does not save full transcripts.
+- This phase does not expand the root public API beyond already accepted Phase 36 remember configuration.

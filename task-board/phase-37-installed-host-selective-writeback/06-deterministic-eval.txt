@@ -1,0 +1,63 @@
+Phase 37.6: Deterministic Eval
+==============================
+
+Goal
+----
+Add deterministic Phase 37 eval evidence proving selective writeback behavior before relying on live provider smoke.
+
+
+Files
+-----
+- `scripts/run-phase-37-eval.ts`
+- `tests/unit/run-phase-37-eval.test.ts`
+- `reports/eval/fallback/phase-37/<run-id>/report.json`
+- `package.json`
+
+
+Eval Command
+------------
+Add:
+
+```bash
+bun run eval:phase-37 --run-id run-YYYYMMDDHHMMSS
+```
+
+
+Required Cases
+--------------
+- `open-loop-writeback`: previous unfinished work becomes durable memory
+- `next-session-recall`: next session recalls the open loop
+- `procedural-correction`: user correction becomes procedural memory
+- `assistant-default-blocked`: unconfirmed assistant output is not durable
+- `assistant-confirmed-allowed`: confirmed assistant suggestion can write
+- `never-masking`: `remember: "never"` content is excluded before extraction
+- `raw-transcript-rejected`: full transcript is not persisted
+- `dedupe-cooldown`: same open loop does not repeatedly write duplicate memory
+
+
+Required Summary Fields
+-----------------------
+The report summary must include:
+
+```json
+{
+  "acceptedCaseCount": 8,
+  "writebackCandidateCount": 12,
+  "durableWriteCount": 5,
+  "blockedAssistantCount": 2,
+  "privacyMaskPassCount": 1,
+  "dedupePassCount": 1,
+  "nextSessionRecallPassCount": 1
+}
+```
+
+Exact counts may differ only if the report also explains the changed fixture shape and still proves all required cases.
+
+
+Acceptance
+----------
+- `bun test tests/unit/run-phase-37-eval.test.ts`
+- `bun run eval:phase-37 --run-id <run-id>`
+- the report records `manualSeedUsed: false`
+- the report proves automatic writeback plus next-session recall
+- the report proves privacy, assistant policy, and dedupe guardrails

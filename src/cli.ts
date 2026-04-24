@@ -1,4 +1,4 @@
-import { access, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { createGoodMemory } from "./api/createGoodMemory";
@@ -20,9 +20,14 @@ import {
   uninstallHost,
 } from "./install/hostInstall";
 import type {
+  InstallHostResult,
   InstalledHostKind,
   InstalledHostStorageProvider,
 } from "./install/hostInstall";
+import {
+  isInstalledHostHookRegistered,
+  resolveInstalledHostHookTargetPath,
+} from "./install/hostHookConfig";
 import {
   executeInstalledHostHook,
 } from "./install/hostHookRuntime";
@@ -31,11 +36,22 @@ import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
 } from "./install/hostExecutionContext";
+import type { InstalledHostResolvedContext } from "./install/hostExecutionContext";
 import type {
+  InstalledHostActivationMode,
+  InstalledHostAutoLearnConfig,
   InstalledHostEmbeddingProviderConfig,
   InstalledHostModelProviderConfig,
   InstalledHostProviderConfig,
 } from "./install/hostConfigValidation";
+import {
+  readInstalledHostRuntimeConfig,
+  resolveInstallRoot,
+} from "./install/hostRuntimeConfig";
+import {
+  isInstalledHostMcpRegistered,
+  resolveInstalledHostMcpTargetPath,
+} from "./install/hostMcpConfig";
 import { serveGoodMemoryMcp } from "./install/hostMcpServer";
 import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
@@ -78,6 +94,22 @@ export interface CLIInstallPrompt {
 export interface CLIRunDependencies {
   interactive?: boolean;
   prompt?: CLIInstallPrompt;
+}
+
+type InstallActivationSelection = "current-workspace" | "global" | "manual";
+type SetupHostSelection = "both" | InstalledHostKind;
+
+interface ResolvedInstallOptions {
+  activationSelection?: InstallActivationSelection;
+  autoLearn?: InstalledHostAutoLearnConfig;
+  flags: ParsedFlags;
+}
+
+interface FileSnapshot {
+  content?: string;
+  existed: boolean;
+  mode?: number;
+  path: string;
 }
 
 interface PackageMetadata {
@@ -169,6 +201,7 @@ const ROOT_HELP_TEXT = [
   "  goodmemory <command> [options]",
   "",
   "Commands",
+  "  setup           Configure GoodMemory memory enhancement for installed hosts",
   "  remember        Write durable memory through the public API",
   "  feedback        Write explicit feedback or correction through the public API",
   "  forget          Delete one durable memory record or clear a scoped target",
@@ -176,6 +209,7 @@ const ROOT_HELP_TEXT = [
   "  trace           Run read-only recall diagnostics for a scope and query",
   "  export-memory   Export a memory snapshot plus Markdown artifacts",
   "  stats           Show scope-bounded counts and storage metadata",
+  "  status          Show installed host memory enhancement status",
   "  install         Install managed global GoodMemory host config for Codex or Claude Code",
   "  uninstall       Remove managed global GoodMemory host config for Codex or Claude Code",
   "  enable          Enable repo-local GoodMemory host opt-in for Codex or Claude Code",
@@ -188,6 +222,8 @@ const ROOT_HELP_TEXT = [
   "Help",
   "  goodmemory --help",
   "  goodmemory <command> --help",
+  "  goodmemory setup --help",
+  "  goodmemory status --help",
   "  goodmemory eval --help",
   "  goodmemory install --help",
   "  goodmemory enable --help",
@@ -195,6 +231,22 @@ const ROOT_HELP_TEXT = [
   "  goodmemory codex --help",
   "  goodmemory claude --help",
   "  goodmemory -V, --version",
+].join("\n");
+const SETUP_HELP_TEXT = [
+  "GoodMemory Setup CLI",
+  "",
+  "Usage",
+  "  goodmemory setup [options]",
+  "",
+  "Options",
+  "  --host <codex|claude|both>  Optional, defaults to detected installed hosts",
+  "  --user-id <id>              Optional, defaults to the current OS username",
+  "  --activation-mode <global|workspace_opt_in>",
+  "  --auto-learn",
+  "  --no-auto-learn",
+  "  --interactive",
+  "  --no-interactive",
+  "  --json",
 ].join("\n");
 const EVAL_HELP_TEXT = [
   "GoodMemory Eval CLI",
@@ -323,6 +375,9 @@ const INSTALL_HELP_TEXT = [
   "  --llm-model <model>",
   "  --llm-api-key <key>",
   "  --llm-base-url <url>",
+  "  --activation-mode <global|workspace_opt_in>",
+  "  --auto-learn",
+  "  --no-auto-learn",
   "  --interactive",
   "  --no-interactive",
   "  --json",
@@ -336,6 +391,16 @@ const UNINSTALL_HELP_TEXT = [
   "",
   "Usage",
   "  goodmemory uninstall <codex|claude> [--json]",
+].join("\n");
+const STATUS_HELP_TEXT = [
+  "GoodMemory Status CLI",
+  "",
+  "Usage",
+  "  goodmemory status [codex|claude] [options]",
+  "",
+  "Options",
+  "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --json",
 ].join("\n");
 const ENABLE_HELP_TEXT = [
   "GoodMemory Enable CLI",
@@ -529,20 +594,22 @@ const CODEX_HOOK_HELP_TEXT = [
   "GoodMemory Codex Hook",
   "",
   "Usage",
-  "  goodmemory codex hook <session-start|user-prompt-submit>",
+  "  goodmemory codex hook <session-start|session-stop|user-prompt-submit>",
   "",
   "Commands",
   "  session-start        Read Codex SessionStart JSON from stdin and emit additionalContext JSON",
+  "  session-stop         Read Codex Stop JSON from stdin and learn bounded session signals",
   "  user-prompt-submit   Read Codex UserPromptSubmit JSON from stdin and emit additionalContext JSON",
 ].join("\n");
 const CLAUDE_HOOK_HELP_TEXT = [
   "GoodMemory Claude Hook",
   "",
   "Usage",
-  "  goodmemory claude hook <session-start|user-prompt-submit>",
+  "  goodmemory claude hook <session-start|session-stop|user-prompt-submit>",
   "",
   "Commands",
   "  session-start        Read Claude SessionStart JSON from stdin and emit additionalContext JSON",
+  "  session-stop         Read Claude Stop JSON from stdin and learn bounded session signals",
   "  user-prompt-submit   Read Claude UserPromptSubmit JSON from stdin and emit additionalContext JSON",
 ].join("\n");
 
@@ -1498,6 +1565,15 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
+function isMissingFileError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "ENOENT"
+  );
+}
+
 async function writeExportMemoryOutput(input: {
   force: boolean;
   outputPath: string;
@@ -1880,6 +1956,8 @@ function renderBootstrapPayload(payload: {
 function renderInstalledHostPayload(input: {
   actionLabel: "Disabled" | "Enabled" | "Installed" | "Uninstalled";
   payload: {
+    activationMode?: string;
+    autoLearn?: InstalledHostAutoLearnConfig;
     changes: Array<{ action: string; relativePath: string }>;
     configPath?: string;
     host: string;
@@ -1905,6 +1983,14 @@ function renderInstalledHostPayload(input: {
   }
   if (input.payload.configPath) {
     lines.push(`- config: ${input.payload.configPath}`);
+  }
+  if (input.payload.activationMode) {
+    lines.push(`- activation: ${input.payload.activationMode}`);
+  }
+  if (input.payload.autoLearn) {
+    lines.push(
+      `- auto learn: ${input.payload.autoLearn.enabled ? "enabled" : "disabled"}`,
+    );
   }
   if (input.payload.storage) {
     lines.push(
@@ -1937,6 +2023,60 @@ function renderInstalledHostPayload(input: {
       lines.push(
         `- provider setup: rerun install with --embedding-* / --llm-* flags or edit ${input.payload.configPath ?? "~/.goodmemory/<host>.json"}`,
       );
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function renderSetupPayload(payload: {
+  hosts: Array<{
+    activationMode: InstalledHostActivationMode;
+    autoLearn: InstalledHostAutoLearnConfig;
+    changes: Array<{ action: string; relativePath: string }>;
+    host: InstalledHostKind;
+    storage: { location: string; provider: string };
+  }>;
+}): string {
+  const lines = ["GoodMemory setup complete"];
+  for (const host of payload.hosts) {
+    lines.push(
+      `- ${host.host}: ${host.activationMode}, autoLearn=${host.autoLearn.enabled ? "enabled" : "disabled"}, storage=${host.storage.provider}`,
+    );
+    for (const change of host.changes) {
+      lines.push(`  - ${change.relativePath} (${change.action})`);
+    }
+  }
+  lines.push("- status: run goodmemory status");
+
+  return lines.join("\n");
+}
+
+function renderStatusPayload(payload: {
+  hosts: Array<Record<string, unknown>>;
+}): string {
+  const lines = ["GoodMemory status"];
+  for (const host of payload.hosts) {
+    const hostName = String(host.host);
+    lines.push(`- ${hostName}: ${String(host.workspaceStatus)}`);
+    lines.push(`  - config: ${String(host.config)}`);
+    lines.push(`  - activation: ${String(host.activationMode ?? "unknown")}`);
+    const autoLearn = host.autoLearn as InstalledHostAutoLearnConfig | null;
+    lines.push(
+      `  - auto learn: ${autoLearn?.enabled ? "enabled" : "disabled"}`,
+    );
+    lines.push(`  - hook: ${host.hookRegistered ? "registered" : "missing"}`);
+    lines.push(`  - MCP: ${host.mcpRegistered ? "registered" : "missing"}`);
+    if (host.memoryStatus) {
+      lines.push(`  - memory: ${String(host.memoryStatus)}`);
+    }
+    if (host.scope) {
+      lines.push(`  - scope: ${formatScope(host.scope as MemoryScope)}`);
+    }
+    if (host.counts) {
+      const counts = host.counts as Record<string, number>;
+      const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+      lines.push(`  - memories: ${total} (${formatCountBreakdown(counts) ?? "empty"})`);
     }
   }
 
@@ -2049,12 +2189,16 @@ function requireInstalledHostKind(value: string | undefined): InstalledHostKind 
 function requireInstalledHostHookCommand(
   value: string | undefined,
 ): InstalledHostHookCommand {
-  if (value === "session-start" || value === "user-prompt-submit") {
+  if (
+    value === "session-start" ||
+    value === "session-stop" ||
+    value === "user-prompt-submit"
+  ) {
     return value;
   }
 
   throw new Error(
-    `Unknown hook command: ${value ?? "(missing)"}. Use 'session-start' or 'user-prompt-submit'.`,
+    `Unknown hook command: ${value ?? "(missing)"}. Use 'session-start', 'session-stop', or 'user-prompt-submit'.`,
   );
 }
 
@@ -2071,6 +2215,80 @@ function readInstallStorageProviderFlag(
   throw new Error(
     `Unsupported installed-host storage provider: ${value}. Expected sqlite|postgres.`,
   );
+}
+
+function readActivationModeFlag(
+  value: string | undefined,
+): InstalledHostActivationMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === "global" || value === "workspace_opt_in") {
+    return value;
+  }
+
+  throw new Error(
+    `Unsupported installed-host activation mode: ${value}. Expected global|workspace_opt_in.`,
+  );
+}
+
+function readInstallAutoLearnConfig(flags: ParsedFlags): InstalledHostAutoLearnConfig {
+  if (flagEnabled(flags, "auto-learn") && flagEnabled(flags, "no-auto-learn")) {
+    throw new Error("Use either --auto-learn or --no-auto-learn, not both.");
+  }
+
+  return buildAutoLearnConfig(flagEnabled(flags, "auto-learn"));
+}
+
+function buildAutoLearnConfig(enabled: boolean): InstalledHostAutoLearnConfig {
+  return {
+    enabled,
+    extractionStrategy: "auto",
+    sources: ["user_prompt", "session_stop"],
+  };
+}
+
+function readSetupHostSelection(
+  value: string | undefined,
+): SetupHostSelection | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === "codex" || value === "claude" || value === "both") {
+    return value;
+  }
+
+  throw new Error(
+    `Unsupported setup host: ${value}. Expected codex|claude|both.`,
+  );
+}
+
+function expandSetupHostSelection(selection: SetupHostSelection): InstalledHostKind[] {
+  return selection === "both" ? ["codex", "claude"] : [selection];
+}
+
+async function detectSetupHostSelection(): Promise<SetupHostSelection> {
+  const [codexAvailable, claudeAvailable] = await Promise.all([
+    commandAvailable("codex"),
+    commandAvailable("claude"),
+  ]);
+  if (codexAvailable && claudeAvailable) {
+    return "both";
+  }
+  if (claudeAvailable) {
+    return "claude";
+  }
+
+  return "codex";
+}
+
+async function commandAvailable(command: string): Promise<boolean> {
+  const result = Bun.spawn({
+    cmd: ["which", command],
+    stderr: "ignore",
+    stdout: "ignore",
+  });
+  return (await result.exited) === 0;
 }
 
 function readOptionalInstalledProviderConfig(input: {
@@ -2230,14 +2448,21 @@ async function resolveInteractiveInstallFlags(
   host: InstalledHostKind,
   flags: ParsedFlags,
   dependencies: CLIRunDependencies = {},
-): Promise<ParsedFlags> {
+): Promise<ResolvedInstallOptions> {
   const prompt = resolveInstallPrompt(flags, dependencies);
   if (!prompt) {
-    return flags;
+    return {
+      autoLearn: readInstallAutoLearnConfig(flags),
+      flags,
+    };
   }
 
   try {
     const resolvedFlags = { ...flags };
+    const activationSelection = await promptInstallActivationSelection(
+      resolvedFlags,
+      prompt,
+    );
     const configPathHint = `~/.goodmemory/${host}.json`;
     await promptOptionalFlag({
       flagName: "user-id",
@@ -2249,11 +2474,57 @@ async function resolveInteractiveInstallFlags(
     await promptInstallStorage(resolvedFlags, prompt);
     await promptEmbeddingInstallConfig(resolvedFlags, prompt, configPathHint);
     await promptAssistedExtractorInstallConfig(resolvedFlags, prompt, configPathHint);
+    const autoLearn = await promptAutoLearnInstallConfig(
+      resolvedFlags,
+      prompt,
+    );
 
-    return resolvedFlags;
+    return {
+      activationSelection,
+      autoLearn,
+      flags: resolvedFlags,
+    };
   } finally {
     await prompt.close?.();
   }
+}
+
+async function promptInstallActivationSelection(
+  flags: ParsedFlags,
+  prompt: CLIInstallPrompt,
+): Promise<InstallActivationSelection> {
+  const flagMode = readActivationModeFlag(flags["activation-mode"]);
+  if (flagMode === "global") {
+    return "global";
+  }
+  if (flagMode === "workspace_opt_in") {
+    return "manual";
+  }
+
+  return (await askChoice({
+    choices: ["global", "current-workspace", "manual"],
+    defaultValue: "global",
+    message:
+      "Where should GoodMemory memory enhancement run? [global/current-workspace/manual]",
+    prompt,
+  })) as InstallActivationSelection;
+}
+
+async function promptAutoLearnInstallConfig(
+  flags: ParsedFlags,
+  prompt: CLIInstallPrompt,
+): Promise<InstalledHostAutoLearnConfig> {
+  if (flagEnabled(flags, "auto-learn") || flagEnabled(flags, "no-auto-learn")) {
+    return readInstallAutoLearnConfig(flags);
+  }
+
+  const enabled = await askYesNo({
+    defaultValue: false,
+    message: "Enable automatic learning from conversations?",
+    prompt,
+  });
+
+  return buildAutoLearnConfig(enabled);
 }
 
 function resolveInstallPrompt(
@@ -2951,19 +3222,337 @@ async function handleHostInstall(
   flags: ParsedFlags,
   dependencies: CLIRunDependencies = {},
 ): Promise<CLICommandOutput> {
-  const installFlags = await resolveInteractiveInstallFlags(host, flags, dependencies);
-  const result = await installHost({
-    assistedExtractor: readOptionalAssistedExtractorProviderConfig(installFlags),
-    embedding: readOptionalEmbeddingProviderConfig(installFlags),
-    host,
-    memoryPath: installFlags["memory-path"],
-    storageProvider: readInstallStorageProviderFlag(installFlags["storage-provider"]),
-    storageUrl: installFlags["storage-url"],
-    userId: installFlags["user-id"],
+  const installOptions = await resolveInteractiveInstallFlags(host, flags, dependencies);
+  const installFlags = installOptions.flags;
+  const workspaceRoot =
+    installOptions.activationSelection === "current-workspace"
+      ? resolve(installFlags["workspace-root"] ?? ".")
+      : undefined;
+
+  return withManagedFileTransaction(
+    resolveHostMutationPaths([
+      {
+        host,
+        workspaceRoot,
+      },
+    ]),
+    async () => {
+      const activationMode =
+        installOptions.activationSelection === "global"
+          ? "global"
+          : readActivationModeFlag(installFlags["activation-mode"]) ?? "workspace_opt_in";
+      const result = await installHost({
+        activationMode,
+        assistedExtractor: readOptionalAssistedExtractorProviderConfig(installFlags),
+        autoLearn: installOptions.autoLearn ?? readInstallAutoLearnConfig(installFlags),
+        embedding: readOptionalEmbeddingProviderConfig(installFlags),
+        host,
+        memoryPath: installFlags["memory-path"],
+        storageProvider: readInstallStorageProviderFlag(installFlags["storage-provider"]),
+        storageUrl: installFlags["storage-url"],
+        userId: installFlags["user-id"],
+      });
+      const workspaceEnableResult =
+        installOptions.activationSelection === "current-workspace"
+          ? await enableHostWorkspace({
+              host,
+              workspaceId: installFlags["workspace-id"],
+              workspaceRoot: installFlags["workspace-root"],
+            })
+          : null;
+      const providerSummary = summarizeInstalledProviders(result.providers);
+      const payload = {
+        activationMode: result.activationMode,
+        autoLearn: result.autoLearn,
+        changes: [
+          ...result.changes,
+          ...(workspaceEnableResult?.changes ?? []),
+        ].map((change) => ({
+          action: change.action,
+          path: change.path,
+          relativePath: change.relativePath,
+        })),
+        configPath: result.configPath,
+        host: result.host,
+        installRoot: result.installRoot,
+        ...(result.storage.provider === "sqlite" ? { memoryPath: result.memoryPath } : {}),
+        providers: providerSummary,
+        storage: result.storage,
+        userId: result.userId,
+        ...(workspaceEnableResult
+          ? {
+              instructionPath: workspaceEnableResult.instructionPath,
+              workspaceRoot: workspaceEnableResult.workspaceRoot,
+            }
+          : {}),
+      };
+
+      return {
+        json: payload,
+        text: renderInstalledHostPayload({
+          actionLabel: "Installed",
+          payload,
+        }),
+      };
+    },
+  );
+}
+
+async function handleSetup(
+  flags: ParsedFlags,
+  dependencies: CLIRunDependencies = {},
+): Promise<CLICommandOutput> {
+  const setup = await resolveSetupOptions(flags, dependencies);
+  const workspaceRoot =
+    setup.activationSelection === "current-workspace"
+      ? resolve(setup.flags["workspace-root"] ?? ".")
+      : undefined;
+
+  return withManagedFileTransaction(
+    resolveHostMutationPaths(
+      setup.hosts.map((host) => ({
+        host,
+        workspaceRoot,
+      })),
+    ),
+    async () => {
+      const installPayloads = [];
+
+      for (const host of setup.hosts) {
+        const activationMode =
+          setup.activationSelection === "global" ? "global" : "workspace_opt_in";
+        const result = await installHost({
+          activationMode,
+          assistedExtractor: readOptionalAssistedExtractorProviderConfig(setup.flags),
+          autoLearn: setup.autoLearn,
+          embedding: readOptionalEmbeddingProviderConfig(setup.flags),
+          host,
+          memoryPath: setup.flags["memory-path"],
+          storageProvider: readInstallStorageProviderFlag(setup.flags["storage-provider"]),
+          storageUrl: setup.flags["storage-url"],
+          userId: setup.flags["user-id"],
+        });
+        const workspaceEnableResult =
+          setup.activationSelection === "current-workspace"
+            ? await enableHostWorkspace({
+                host,
+                workspaceId: setup.flags["workspace-id"],
+                workspaceRoot: setup.flags["workspace-root"],
+              })
+            : null;
+        installPayloads.push(buildInstalledHostPayload(result, workspaceEnableResult));
+      }
+
+      const payload = {
+        hosts: installPayloads,
+      };
+
+      return {
+        json: payload,
+        text: renderSetupPayload(payload),
+      };
+    },
+  );
+}
+
+async function withManagedFileTransaction<T>(
+  paths: string[],
+  callback: () => Promise<T>,
+): Promise<T> {
+  const snapshots = await captureFileSnapshots(paths);
+
+  try {
+    return await callback();
+  } catch (error) {
+    try {
+      await restoreFileSnapshots(snapshots);
+    } catch (restoreError) {
+      const primary = error instanceof Error ? error.message : String(error);
+      const rollback =
+        restoreError instanceof Error ? restoreError.message : String(restoreError);
+      throw new Error(
+        `GoodMemory CLI command failed and rollback was incomplete.\nPrimary error: ${primary}\nRollback error: ${rollback}`,
+      );
+    }
+    throw error;
+  }
+}
+
+async function captureFileSnapshots(paths: string[]): Promise<FileSnapshot[]> {
+  const uniquePaths = [...new Set(paths)];
+  return Promise.all(uniquePaths.map((path) => captureFileSnapshot(path)));
+}
+
+async function captureFileSnapshot(path: string): Promise<FileSnapshot> {
+  try {
+    const [content, details] = await Promise.all([
+      readFile(path, "utf8"),
+      stat(path),
+    ]);
+    return {
+      content,
+      existed: true,
+      mode: details.mode & 0o777,
+      path,
+    };
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return {
+        existed: false,
+        path,
+      };
+    }
+    throw error;
+  }
+}
+
+async function restoreFileSnapshots(snapshots: FileSnapshot[]): Promise<void> {
+  for (const snapshot of snapshots) {
+    if (!snapshot.existed) {
+      await rm(snapshot.path, { force: true });
+      continue;
+    }
+
+    await mkdir(dirname(snapshot.path), { recursive: true });
+    await writeFile(snapshot.path, snapshot.content ?? "", "utf8");
+    if (snapshot.mode !== undefined) {
+      await chmod(snapshot.path, snapshot.mode);
+    }
+  }
+}
+
+function resolveHostMutationPaths(
+  inputs: Array<{ host: InstalledHostKind; workspaceRoot?: string }>,
+): string[] {
+  const installRoot = resolveInstallRoot(undefined);
+  const homeRoot = dirname(installRoot);
+  const paths = inputs.flatMap((input) => {
+    const basePaths = [
+      join(installRoot, `${input.host}.json`),
+      resolveInstalledHostHookTargetPath(input.host, homeRoot).path,
+      resolveInstalledHostMcpTargetPath(input.host, homeRoot).path,
+    ];
+
+    if (!input.workspaceRoot) {
+      return basePaths;
+    }
+
+    return [
+      ...basePaths,
+      join(input.workspaceRoot, ".goodmemory", `${input.host}.json`),
+      join(
+        input.workspaceRoot,
+        input.host === "codex" ? "AGENTS.md" : "CLAUDE.md",
+      ),
+    ];
   });
-  const providerSummary = summarizeInstalledProviders(result.providers);
-  const payload = {
-    changes: result.changes.map((change) => ({
+
+  return [...new Set(paths)];
+}
+
+async function resolveSetupOptions(
+  flags: ParsedFlags,
+  dependencies: CLIRunDependencies,
+): Promise<{
+  activationSelection: InstallActivationSelection;
+  autoLearn: InstalledHostAutoLearnConfig;
+  flags: ParsedFlags;
+  hosts: InstalledHostKind[];
+}> {
+  const prompt = resolveInstallPrompt(flags, dependencies);
+  if (!prompt) {
+    const hostSelection =
+      readSetupHostSelection(flags.host) ?? (await detectSetupHostSelection());
+    return {
+      activationSelection:
+        readActivationModeFlag(flags["activation-mode"]) === "workspace_opt_in"
+          ? "manual"
+          : "global",
+      autoLearn: readInstallAutoLearnConfig(flags),
+      flags,
+      hosts: expandSetupHostSelection(hostSelection),
+    };
+  }
+
+  try {
+    const resolvedFlags = { ...flags };
+    const hostSelection =
+      readSetupHostSelection(resolvedFlags.host) ??
+      ((await askChoice({
+        choices: ["codex", "claude", "both"],
+        defaultValue: await detectSetupHostSelection(),
+        message: "Enable GoodMemory for which host? [codex/claude/both]",
+        prompt,
+      })) as SetupHostSelection);
+    const activationSelection = await promptInstallActivationSelection(
+      resolvedFlags,
+      prompt,
+    );
+    await promptOptionalFlag({
+      flagName: "user-id",
+      flags: resolvedFlags,
+      message:
+        "GoodMemory user id for this setup (leave empty to use the OS account)",
+      prompt,
+    });
+    await promptInstallStorage(resolvedFlags, prompt);
+    await promptEmbeddingInstallConfig(
+      resolvedFlags,
+      prompt,
+      "~/.goodmemory/<host>.json",
+    );
+    await promptAssistedExtractorInstallConfig(
+      resolvedFlags,
+      prompt,
+      "~/.goodmemory/<host>.json",
+    );
+    const autoLearn = await promptAutoLearnInstallConfig(resolvedFlags, prompt);
+
+    return {
+      activationSelection,
+      autoLearn,
+      flags: resolvedFlags,
+      hosts: expandSetupHostSelection(hostSelection),
+    };
+  } finally {
+    await prompt.close?.();
+  }
+}
+
+function buildInstalledHostPayload(
+  result: InstallHostResult,
+  workspaceEnableResult: Awaited<ReturnType<typeof enableHostWorkspace>> | null,
+): {
+  activationMode: InstalledHostActivationMode;
+  autoLearn: InstalledHostAutoLearnConfig;
+  changes: Array<{
+    action: string;
+    path: string;
+    relativePath: string;
+  }>;
+  configPath: string;
+  host: InstalledHostKind;
+  installRoot: string;
+  instructionPath?: string;
+  memoryPath?: string;
+  providers: {
+    assistedExtractor: InstalledProviderStatus;
+    embedding: InstalledProviderStatus;
+  };
+  storage: {
+    location: string;
+    provider: string;
+  };
+  userId: string;
+  workspaceRoot?: string;
+} {
+  return {
+    activationMode: result.activationMode,
+    autoLearn: result.autoLearn,
+    changes: [
+      ...result.changes,
+      ...(workspaceEnableResult?.changes ?? []),
+    ].map((change) => ({
       action: change.action,
       path: change.path,
       relativePath: change.relativePath,
@@ -2972,17 +3561,15 @@ async function handleHostInstall(
     host: result.host,
     installRoot: result.installRoot,
     ...(result.storage.provider === "sqlite" ? { memoryPath: result.memoryPath } : {}),
-    providers: providerSummary,
+    providers: summarizeInstalledProviders(result.providers),
     storage: result.storage,
     userId: result.userId,
-  };
-
-  return {
-    json: payload,
-    text: renderInstalledHostPayload({
-      actionLabel: "Installed",
-      payload,
-    }),
+    ...(workspaceEnableResult
+      ? {
+          instructionPath: workspaceEnableResult.instructionPath,
+          workspaceRoot: workspaceEnableResult.workspaceRoot,
+        }
+      : {}),
   };
 }
 
@@ -3006,6 +3593,167 @@ async function handleHostUninstall(
       actionLabel: "Uninstalled",
       payload,
     }),
+  };
+}
+
+async function handleStatus(
+  host: InstalledHostKind | undefined,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  const hosts = host ? [host] : (["codex", "claude"] as InstalledHostKind[]);
+  const payload = {
+    hosts: await Promise.all(hosts.map((target) => buildHostStatus(target, flags))),
+  };
+
+  return {
+    json: payload,
+    text: renderStatusPayload(payload),
+  };
+}
+
+async function buildHostStatus(
+  host: InstalledHostKind,
+  flags: ParsedFlags,
+): Promise<Record<string, unknown>> {
+  const installRoot = resolveInstallRoot(undefined);
+  const homeRoot = dirname(installRoot);
+  const globalConfig = await readInstalledHostRuntimeConfig(host, undefined, {});
+  const resolved = await resolveInstalledHostContext({
+    cwd: flags["workspace-root"],
+    host,
+  });
+  const base = {
+    activationMode:
+      globalConfig.status === "ok" ? globalConfig.config.activationMode : null,
+    autoLearn: globalConfig.status === "ok" ? globalConfig.config.autoLearn : null,
+    config: globalConfig.status,
+    hookRegistered: await isInstalledHostHookRegistered({ homeRoot, host }),
+    host,
+    mcpRegistered: await isInstalledHostMcpRegistered({ homeRoot, host }),
+    workspaceStatus: resolved.status,
+  };
+
+  if (resolved.status !== "ok") {
+    return base;
+  }
+
+  try {
+    const memoryStatus = await exportInstalledHostMemoryStatus(resolved.context);
+    return {
+      ...base,
+      ...memoryStatus,
+      scope: resolved.context.scope,
+      storage: resolved.context.storage,
+      workspaceRoot: resolved.context.workspaceRoot,
+    };
+  } catch (error) {
+    return {
+      ...base,
+      countsError: error instanceof Error ? error.message : String(error),
+      scope: resolved.context.scope,
+      storage: resolved.context.storage,
+      workspaceRoot: resolved.context.workspaceRoot,
+    };
+  }
+}
+
+async function exportInstalledHostMemoryStatus(
+  context: InstalledHostResolvedContext,
+): Promise<{
+  counts: Record<string, number>;
+  memoryStatus: "ok" | "uninitialized";
+}> {
+  if (await isUninitializedInstalledHostStorage(context)) {
+    return {
+      counts: buildEmptyInstalledHostMemoryCounts(),
+      memoryStatus: "uninitialized",
+    };
+  }
+
+  const exported = await createReadOnlyInstalledHostMemory(context).exportMemory({
+    includeRuntime: false,
+    scope: context.scope,
+  });
+
+  return {
+    counts: {
+      archives: exported.durable.archives.length,
+      episodes: exported.durable.episodes.length,
+      facts: exported.durable.facts.length,
+      feedback: exported.durable.feedback.length,
+      preferences: exported.durable.preferences.length,
+      profile: exported.durable.profile ? 1 : 0,
+      references: exported.durable.references.length,
+    },
+    memoryStatus: "ok",
+  };
+}
+
+async function isUninitializedInstalledHostStorage(
+  context: InstalledHostResolvedContext,
+): Promise<boolean> {
+  const storage = context.storage;
+  return (
+    storage?.provider === "sqlite" &&
+    storage.url !== undefined &&
+    storage.url !== ":memory:" &&
+    !(await pathExists(storage.url))
+  );
+}
+
+function createReadOnlyInstalledHostMemory(
+  context: InstalledHostResolvedContext,
+): GoodMemory {
+  const storage = context.storage;
+  if (storage?.provider === "sqlite" && storage.url !== undefined) {
+    return createGoodMemory({
+      adapters: {
+        documentStore: createSQLiteDocumentStore(storage.url, {
+          readOnly: true,
+        }),
+        sessionStore: createSQLiteSessionStore(storage.url, {
+          readOnly: true,
+        }),
+        vectorStore: createInMemoryVectorStore(),
+      },
+      storage: {
+        provider: "sqlite",
+        url: storage.url,
+      },
+    });
+  }
+  if (storage?.provider === "postgres" && storage.url !== undefined) {
+    return createGoodMemory({
+      adapters: {
+        documentStore: createPostgresDocumentStore(
+          { url: storage.url },
+          { readOnly: true },
+        ),
+        sessionStore: createPostgresSessionStore(
+          { url: storage.url },
+          { readOnly: true },
+        ),
+        vectorStore: createInMemoryVectorStore(),
+      },
+      storage: {
+        provider: "postgres",
+        url: storage.url,
+      },
+    });
+  }
+
+  return createInstalledHostMemory(context);
+}
+
+function buildEmptyInstalledHostMemoryCounts(): Record<string, number> {
+  return {
+    archives: 0,
+    episodes: 0,
+    facts: 0,
+    feedback: 0,
+    preferences: 0,
+    profile: 0,
+    references: 0,
   };
 }
 
@@ -3121,6 +3869,12 @@ export async function runCLI(
     const primary = commands[0]!;
 
     if (helpRequested(flags)) {
+      if (primary === "setup") {
+        return helpResult(SETUP_HELP_TEXT);
+      }
+      if (primary === "status") {
+        return helpResult(STATUS_HELP_TEXT);
+      }
       if (primary === "eval") {
         const secondary = commands[1];
         if (!secondary) {
@@ -3251,6 +4005,19 @@ export async function runCLI(
       }
 
       return errorResult(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
+    }
+
+    if (primary === "setup") {
+      return renderOutput(await handleSetup(flags, dependencies), flags);
+    }
+    if (primary === "status") {
+      return renderOutput(
+        await handleStatus(
+          commands[1] ? requireInstalledHostKind(commands[1]) : undefined,
+          flags,
+        ),
+        flags,
+      );
     }
 
     if (primary === "eval") {

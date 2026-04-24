@@ -1,0 +1,71 @@
+Phase 37.9: Quality Gate and Regression
+=======================================
+
+Goal
+----
+Add a dedicated Phase 37 quality gate and prove the new writeback path does not regress Phase 35 recall middleware or Phase 36 public remember customization.
+
+
+Files
+-----
+- `scripts/run-phase-37-gate.ts`
+- `tests/unit/run-phase-37-gate.test.ts`
+- `reports/quality-gates/phase-37/<run-id>/phase-37-quality-gate.json`
+- `package.json`
+
+
+Gate Command
+------------
+Add:
+
+```bash
+bun run gate:phase-37
+```
+
+
+Required Gate Chain
+-------------------
+The gate must cover:
+
+```bash
+bun run typecheck
+
+bun test \
+  tests/unit/host-writeback-runtime.test.ts \
+  tests/unit/host-writeback-config.test.ts \
+  tests/integration/installed-host-writeback.test.ts \
+  tests/unit/run-phase-37-eval.test.ts \
+  tests/unit/run-phase-37-live-memory.test.ts \
+  tests/unit/run-phase-37-gate.test.ts \
+  tests/cli/cli.test.ts \
+  tests/release/release.test.ts
+
+bun run eval:phase-37 --run-id <run-id>
+bun run eval:phase-37-live-memory
+bun run gate:phase-37
+bun run gate:phase-35
+bun run gate:phase-36
+```
+
+
+Gate Must Fail If
+-----------------
+- writeback mode defaults to anything other than `off`
+- observe mode writes durable memory
+- selective mode bypasses public `remember`
+- raw transcript is persisted
+- assistant output writes without confirmation or verification
+- `remember: "never"` content reaches extraction
+- next-session recall evidence is missing
+- provider-backed live-memory report is missing or not accepted
+- external consumer smoke is missing or not accepted
+- Phase 35 gate fails
+- Phase 36 gate fails
+
+
+Acceptance
+----------
+- `bun test tests/unit/run-phase-37-gate.test.ts`
+- `bun run gate:phase-37`
+- accepted gate report exists under `reports/quality-gates/phase-37/<run-id>/phase-37-quality-gate.json`
+- the report links deterministic eval, live smoke, external consumer smoke, and Phase 35/36 regression gates

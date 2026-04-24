@@ -1,0 +1,64 @@
+Phase 37.3: Observe Runtime and JSON Trace
+==========================================
+
+Goal
+----
+Implement `hostWritebackRuntime` in observe mode first so writeback decisions are auditable before any durable writes are allowed.
+
+
+Files
+-----
+- `src/install/hostWritebackRuntime.ts`
+- `tests/unit/host-writeback-runtime.test.ts`
+- `tests/integration/installed-host-writeback.test.ts`
+
+
+Runtime Behavior
+----------------
+Normalize recent host messages or transcript-like payload data, classify high-value writeback candidates, apply policy, and return a JSON result.
+
+Observe mode must guarantee:
+
+- no call to `memory.remember()`
+- no SQLite or Postgres writes
+- no raw transcript persistence
+- no full transcript returned in the trace
+- candidate content is bounded by `maxMessages` and `maxChars`
+- result includes candidate reason, source, confidence, durability decision, and trace metadata
+
+
+Candidate Result Fields
+-----------------------
+Each candidate must include:
+
+- `kind`
+- `content`
+- `confidence`
+- `source`
+- `durable`
+- `reason`
+
+
+CLI Probe
+---------
+The first manual probe should support one of these command shapes:
+
+```bash
+goodmemory codex writeback --mode observe --json < fixture.json
+```
+
+Preferred command shape:
+
+```bash
+goodmemory codex writeback
+```
+
+Reason: existing `goodmemory codex hook <session-start|user-prompt-submit>` is the accepted recall hook path. Until a real host stop-hook path is proven, writeback should not be presented as the same hook lifecycle.
+
+
+Acceptance
+----------
+- `bun test tests/unit/host-writeback-runtime.test.ts`
+- `bun test tests/integration/installed-host-writeback.test.ts`
+- a fixture run in observe mode returns `reason: "observed"` with candidates and `wrote: false`
+- exported trace proves raw transcript was not persisted or returned

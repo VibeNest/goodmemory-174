@@ -696,6 +696,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("GoodMemory-Codex-Handoff-Setup-Guide.md");
     expect(readme).toContain("GoodMemory-Claude-Code-Setup-Guide.md");
     expect(readme).toContain("./node_modules/.bin/goodmemory inspect");
+    expect(readme).toContain("./node_modules/.bin/goodmemory setup");
+    expect(readme).toContain("./node_modules/.bin/goodmemory status");
     expect(readme).toContain("./node_modules/.bin/goodmemory codex bootstrap");
     expect(readme).toContain("./node_modules/.bin/goodmemory claude bootstrap");
     expect(readme).toContain("createGoodMemoryAISDK");
@@ -708,8 +710,12 @@ describe("release metadata and docs", () => {
     expect(readme).toContain('file-assisted');
     expect(readme).toContain('file-authoritative');
     expect(readme).toContain("goodmemory inspect");
+    expect(readme).toContain("goodmemory setup");
+    expect(readme).toContain("goodmemory status");
     expect(readme).toContain("goodmemory export-memory");
     expect(readme).toContain("goodmemory stats");
+    expect(readme).toContain("session-stop");
+    expect(readme).toContain("automatic learning");
     expect(readme).toContain("goodmemory eval inspect");
     expect(readme).toContain("goodmemory eval export-case");
     expect(readme).toContain("GoodMemory-Current-Status-and-Evidence.md");
@@ -801,10 +807,28 @@ describe("release metadata and docs", () => {
       });
       expect(binHelp.exitCode).toBe(0);
       expect(binHelp.stdout).toContain("GoodMemory CLI");
+      expect(binHelp.stdout).toContain("setup           Configure GoodMemory memory enhancement for installed hosts");
       expect(binHelp.stdout).toContain("inspect         Inspect scope-bounded memory");
+      expect(binHelp.stdout).toContain("status          Show installed host memory enhancement status");
       expect(binHelp.stdout).toContain("codex           Codex bootstrap and installed hook commands");
       expect(binHelp.stdout).toContain("claude          Claude Code bootstrap and installed hook commands");
       expect(binHelp.stdout).toContain("eval            Inspect eval run artifacts");
+
+      const setupHelp = await runCommand({
+        cmd: ["./node_modules/.bin/goodmemory", "setup", "--help"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(setupHelp.exitCode).toBe(0);
+      expect(setupHelp.stdout).toContain("GoodMemory Setup CLI");
+
+      const statusHelp = await runCommand({
+        cmd: ["./node_modules/.bin/goodmemory", "status", "--help"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(statusHelp.exitCode).toBe(0);
+      expect(statusHelp.stdout).toContain("GoodMemory Status CLI");
     } finally {
       await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });
@@ -1674,6 +1698,12 @@ describe("release metadata and docs", () => {
     );
     expect(currentStatus).toContain(
       "docs/archive/quality-gates/GoodMemory-Phase-30-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain("goodmemory setup");
+    expect(currentStatus).toContain("goodmemory status");
+    expect(currentStatus).toContain("SessionStart` / `UserPromptSubmit` hooks");
+    expect(currentStatus).toContain(
+      "Automatic learning, `Stop` / `session-stop` hook behavior, and any bounded writeback from hook signals remain outside the accepted Phase 35 stable-surface claim",
     );
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",

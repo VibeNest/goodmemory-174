@@ -1,0 +1,65 @@
+Phase 37.2: Installed Host Writeback Config
+===========================================
+
+Goal
+----
+Add managed installed-host writeback configuration without changing the root public API.
+
+
+Files
+-----
+- `src/install/hostConfigValidation.ts`
+- `src/install/hostExecutionContext.ts`
+- `tests/unit/host-writeback-config.test.ts`
+
+
+Config Contract
+---------------
+Add installed-host managed config:
+
+```ts
+type InstalledHostWritebackMode = "off" | "observe" | "selective";
+
+interface InstalledHostWritebackConfig {
+  mode: InstalledHostWritebackMode;
+  maxMessages?: number;
+  maxChars?: number;
+  minConfidence?: number;
+  allowAssistantOutput?: "never" | "confirmed" | "verified" | "confirmed_or_verified";
+  persistRawTranscript?: false;
+  dryRun?: boolean;
+}
+```
+
+Default managed config:
+
+```json
+{
+  "writeback": {
+    "mode": "off",
+    "allowAssistantOutput": "confirmed_or_verified",
+    "persistRawTranscript": false,
+    "maxMessages": 12,
+    "maxChars": 12000
+  }
+}
+```
+
+
+Rules
+-----
+- default is `off`
+- `persistRawTranscript` can only resolve to `false`
+- unknown mode falls back safely or fails validation without enabling writes
+- invalid numeric limits are sanitized to conservative defaults
+- managed config merge must not mutate unrelated install, hook, MCP, storage, embedding, or assisted-extractor settings
+- writeback config is exposed through installed-host execution context for runtime use
+- config remains host-scoped and repo opt-in remains explicit
+
+
+Acceptance
+----------
+- `bun test tests/unit/host-writeback-config.test.ts`
+- `bun run typecheck`
+- no root `GoodMemoryConfig` field is added for installed-host writeback
+- no automatic writeback is enabled by install alone

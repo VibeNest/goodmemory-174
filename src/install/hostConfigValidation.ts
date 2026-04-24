@@ -3,6 +3,8 @@ import { resolveWorkspaceId } from "../host/managedFiles";
 export type InstalledHostConfigTarget = "claude" | "codex";
 
 export interface InstalledHostRuntimeConfig {
+  activationMode: InstalledHostActivationMode;
+  autoLearn: InstalledHostAutoLearnConfig;
   debug: boolean;
   maxTokens: number;
   providers?: InstalledHostProviderConfig;
@@ -12,6 +14,19 @@ export interface InstalledHostRuntimeConfig {
     url: string;
   };
   userId: string;
+}
+
+export type InstalledHostActivationMode = "global" | "workspace_opt_in";
+export type InstalledHostAutoLearnSource = "session_stop" | "user_prompt";
+export type InstalledHostAutoLearnExtractionStrategy =
+  | "auto"
+  | "llm-assisted"
+  | "rules-only";
+
+export interface InstalledHostAutoLearnConfig {
+  enabled: boolean;
+  extractionStrategy: InstalledHostAutoLearnExtractionStrategy;
+  sources: InstalledHostAutoLearnSource[];
 }
 
 export interface InstalledHostModelProviderConfig {
@@ -43,6 +58,12 @@ export interface WorkspaceHostOptInConfig {
 
 export const DEFAULT_INSTALLED_HOST_MAX_TOKENS = 256;
 export const DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE = "coding_agent";
+export const DEFAULT_INSTALLED_HOST_ACTIVATION_MODE = "workspace_opt_in";
+export const DEFAULT_INSTALLED_HOST_AUTO_LEARN: InstalledHostAutoLearnConfig = {
+  enabled: false,
+  extractionStrategy: "auto",
+  sources: ["user_prompt", "session_stop"],
+};
 
 export function parseInstalledHostRuntimeConfig(
   parsed: unknown,
@@ -61,6 +82,25 @@ export function parseInstalledHostRuntimeConfig(
   }
   if (parsed.debug !== undefined && typeof parsed.debug !== "boolean") {
     return { detail: "debug must be a boolean", status: "invalid" };
+  }
+
+  const activationMode =
+    parsed.activationMode === undefined
+      ? DEFAULT_INSTALLED_HOST_ACTIVATION_MODE
+      : readActivationMode(parsed.activationMode);
+  if (activationMode === undefined) {
+    return {
+      detail: "activationMode must be global or workspace_opt_in",
+      status: "invalid",
+    };
+  }
+
+  const autoLearn = readAutoLearnConfig(parsed.autoLearn);
+  if (autoLearn.status === "invalid") {
+    return {
+      detail: autoLearn.detail,
+      status: "invalid",
+    };
   }
 
   const maxTokens =
@@ -115,6 +155,8 @@ export function parseInstalledHostRuntimeConfig(
   return {
     status: "ok",
     config: {
+      activationMode,
+      autoLearn: autoLearn.config,
       debug: parsed.debug === true,
       maxTokens,
       ...(providers.config ? { providers: providers.config } : {}),
@@ -126,6 +168,90 @@ export function parseInstalledHostRuntimeConfig(
       userId,
     },
   };
+}
+
+function readActivationMode(
+  value: unknown,
+): InstalledHostActivationMode | undefined {
+  return value === "global" || value === "workspace_opt_in" ? value : undefined;
+}
+
+function readAutoLearnConfig(
+  value: unknown,
+):
+  | { config: InstalledHostAutoLearnConfig; status: "ok" }
+  | { detail: string; status: "invalid" } {
+  if (value === undefined) {
+    return {
+      config: DEFAULT_INSTALLED_HOST_AUTO_LEARN,
+      status: "ok",
+    };
+  }
+  if (!isRecord(value)) {
+    return { detail: "autoLearn must be a JSON object", status: "invalid" };
+  }
+  if (value.enabled !== undefined && typeof value.enabled !== "boolean") {
+    return { detail: "autoLearn.enabled must be a boolean", status: "invalid" };
+  }
+
+  const extractionStrategy =
+    value.extractionStrategy === undefined
+      ? DEFAULT_INSTALLED_HOST_AUTO_LEARN.extractionStrategy
+      : readAutoLearnExtractionStrategy(value.extractionStrategy);
+  if (extractionStrategy === undefined) {
+    return {
+      detail: "autoLearn.extractionStrategy must be auto, rules-only, or llm-assisted",
+      status: "invalid",
+    };
+  }
+
+  const sources = readAutoLearnSources(value.sources);
+  if (sources === undefined) {
+    return {
+      detail: "autoLearn.sources must be an array of user_prompt and session_stop",
+      status: "invalid",
+    };
+  }
+
+  return {
+    config: {
+      enabled: value.enabled === true,
+      extractionStrategy,
+      sources,
+    },
+    status: "ok",
+  };
+}
+
+function readAutoLearnExtractionStrategy(
+  value: unknown,
+): InstalledHostAutoLearnExtractionStrategy | undefined {
+  return value === "auto" || value === "rules-only" || value === "llm-assisted"
+    ? value
+    : undefined;
+}
+
+function readAutoLearnSources(
+  value: unknown,
+): InstalledHostAutoLearnSource[] | undefined {
+  if (value === undefined) {
+    return [...DEFAULT_INSTALLED_HOST_AUTO_LEARN.sources];
+  }
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const sources = new Set<InstalledHostAutoLearnSource>();
+  for (const candidate of value) {
+    if (candidate !== "user_prompt" && candidate !== "session_stop") {
+      return undefined;
+    }
+    sources.add(candidate);
+  }
+
+  return sources.size > 0
+    ? [...sources]
+    : [...DEFAULT_INSTALLED_HOST_AUTO_LEARN.sources];
 }
 
 export function parseWorkspaceHostOptInConfig(

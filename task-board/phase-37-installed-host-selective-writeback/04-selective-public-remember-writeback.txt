@@ -1,0 +1,77 @@
+Phase 37.4: Selective Public Remember Writeback
+===============================================
+
+Goal
+----
+Turn observe-mode candidates into selective durable writes through the accepted Phase 36 public remember surface.
+
+
+Files
+-----
+- `src/install/hostWritebackRuntime.ts`
+- `tests/unit/host-writeback-runtime.test.ts`
+- `tests/integration/installed-host-writeback.test.ts`
+- `src/remember/profiles.ts` only if a built-in coding-agent writeback helper is truly needed
+
+
+Pipeline
+--------
+Selective mode must follow this path:
+
+```text
+payload/transcript
+  -> normalize recent messages
+  -> classify high-value candidates
+  -> apply writeback policy
+  -> create annotations
+  -> memory.remember({ scope, messages, annotations, extractionStrategy })
+  -> return trace
+```
+
+Do not add an internal writeback backdoor. The runtime must reuse Phase 36:
+
+- public `GoodMemoryConfig.remember`
+- remember profiles and presets
+- remember rules
+- `RememberInput.annotations`
+- assistant-output policy
+- `remember: "never"` masking
+- traceable profile/preset/extractor metadata
+
+
+Durable Candidates Allowed
+--------------------------
+- explicit user preferences
+- user corrections and procedural feedback
+- open loops or unresolved tasks
+- confirmed decisions
+- stable project references
+
+
+Durable Candidates Rejected
+---------------------------
+- ordinary low-value chat
+- one-time tool output
+- unconfirmed assistant self-summary
+- raw transcript
+- secrets, API keys, or tokens
+- content marked `remember: "never"`
+- short-lived current-task state promoted as a long-term fact
+
+
+Regression Cases
+----------------
+- assistant output default blocked
+- assistant output with confirmed annotation allowed when policy allows it
+- assistant output with verified annotation allowed when policy allows it
+- `remember: "never"` masks before extraction
+- raw transcript never persists
+- duplicate open loop does not create duplicate durable memory
+
+
+Acceptance
+----------
+- selective mode writes durable memory only through `memory.remember()`
+- every durable write has trace metadata linking host, command, mode, policy, source, and candidate reason
+- no durable write contains raw transcript text or secrets
+- Phase 36 assistant-output and masking guarantees remain true on the installed-host writeback path

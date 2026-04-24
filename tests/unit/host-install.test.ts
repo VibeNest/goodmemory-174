@@ -110,6 +110,12 @@ describe("host install", () => {
       const config = JSON.parse(
         await readFile(join(homeRoot, ".goodmemory/codex.json"), "utf8"),
       ) as {
+        activationMode: string;
+        autoLearn: {
+          enabled: boolean;
+          extractionStrategy: string;
+          sources: string[];
+        };
         debug: boolean;
         maxTokens: number;
         retrievalProfile: string;
@@ -118,7 +124,15 @@ describe("host install", () => {
       };
 
       expect(reinstalled.memoryPath).toBe(existingMemoryPath);
+      expect(reinstalled.activationMode).toBe("workspace_opt_in");
+      expect(reinstalled.autoLearn.enabled).toBe(false);
       expect(reinstalled.userId).toBe("preserved-user");
+      expect(config.activationMode).toBe("workspace_opt_in");
+      expect(config.autoLearn).toEqual({
+        enabled: false,
+        extractionStrategy: "auto",
+        sources: ["user_prompt", "session_stop"],
+      });
       expect(config.debug).toBe(true);
       expect(config.maxTokens).toBe(256);
       expect(config.retrievalProfile).toBe("coding_agent");
@@ -1314,6 +1328,88 @@ describe("host install", () => {
         { action: "unchanged", relativePath: "AGENTS.md" },
       ]);
     } finally {
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("writes a disabled workspace override when global activation is enabled", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-disable-global-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-host-disable-global-workspace-");
+
+    try {
+      await installHost({
+        activationMode: "global",
+        autoLearn: {
+          enabled: true,
+          extractionStrategy: "auto",
+          sources: ["user_prompt", "session_stop"],
+        },
+        homeRoot,
+        host: "codex",
+        userId: "codex-user",
+      });
+
+      const disabled = await disableHostWorkspace({
+        homeRoot,
+        host: "codex",
+        workspaceRoot,
+      });
+      const config = JSON.parse(
+        await readFile(join(workspaceRoot, ".goodmemory/codex.json"), "utf8"),
+      ) as {
+        enabled: boolean;
+        host: string;
+        workspaceId: string;
+      };
+
+      expect(disabled.changes.map(({ action, relativePath }) => ({ action, relativePath }))).toEqual([
+        { action: "created", relativePath: ".goodmemory/codex.json" },
+        { action: "unchanged", relativePath: "AGENTS.md" },
+      ]);
+      expect(config.host).toBe("codex");
+      expect(config.enabled).toBe(false);
+      expect(config.workspaceId.length).toBeGreaterThan(0);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("fails closed when disabling a workspace with malformed repo config", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-disable-invalid-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-host-disable-invalid-workspace-");
+
+    try {
+      await installHost({
+        homeRoot,
+        host: "codex",
+        userId: "codex-user",
+      });
+      await mkdir(join(workspaceRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(workspaceRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            enabled: "false",
+            host: "codex",
+            version: 1,
+            workspaceId: "workspace-hook",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      await expect(
+        disableHostWorkspace({
+          homeRoot,
+          host: "codex",
+          workspaceRoot,
+        }),
+      ).rejects.toThrow("enabled must be a boolean.");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
     }
   });

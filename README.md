@@ -174,21 +174,30 @@ contract:
 The installed Node wrapper answers version queries directly without launching
 Bun. Other CLI commands still delegate to Bun.
 
-Phase 35 installed-host middleware commands are now part of the accepted stable host surface. This includes `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>` for managed host config, repo-local opt-in, MCP registration, and hook wiring. The lower-level `goodmemory codex bootstrap` / `goodmemory claude bootstrap` commands remain supported compatibility paths for artifact-first integrations.
+Phase 35 installed-host middleware commands are now part of the accepted stable host surface. The recommended entrypoint is `goodmemory setup`, which detects Codex and Claude Code, installs managed host wiring, and defaults interactive installs to global activation. `goodmemory status [codex|claude]` reports host wiring, activation mode, current workspace status, storage, managed MCP/hook registration, and scoped memory counts without initializing fresh local SQLite state. The host-specific `goodmemory install|uninstall <codex|claude>` and `goodmemory enable|disable <codex|claude>` commands remain available for advanced control, while the lower-level `goodmemory codex bootstrap` / `goodmemory claude bootstrap` commands stay supported compatibility paths for artifact-first integrations.
 
-The installed hook runtime commands are the canonical always-on recall path when a repository is explicitly enabled: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. They read host hook JSON from stdin, use the existing `recall()` + `buildContext()` path, and fail open when config, opt-in, parsing, or recall is unavailable.
+The accepted installed hook runtime commands are the canonical always-on recall path when a repository or global activation mode is enabled: `goodmemory codex hook <session-start|user-prompt-submit>` and `goodmemory claude hook <session-start|user-prompt-submit>`. `session-start` and `user-prompt-submit` read host hook JSON from stdin, use the existing `recall()` + `buildContext()` path, and fail open when config, opt-in, parsing, or recall is unavailable. Automatic learning, `session-stop`, and bounded hook-signal writeback remain outside the accepted Phase 35 gate until a new or reopened phase supplies matching evidence.
 
 The read-only MCP surface is accepted for deep read, debug, and artifact browsing: `goodmemory mcp serve --host <codex|claude>` and `goodmemory-mcp --host <codex|claude>`. MCP does not replace hook-time recall injection or the Phase 34 host pre-action path.
 
-The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` are accepted for installed-host seeding and correction. They do not add automatic writeback, transcript persistence, or a stop-hook memory path.
+The explicit write CLI commands `goodmemory remember`, `goodmemory feedback`, and `goodmemory forget` are accepted for installed-host seeding and correction. GoodMemory still avoids raw full-transcript persistence, and automatic learning from hook signals is not part of the accepted Phase 35 stable surface.
 
 Installed-host setup is designed as a closed loop. In an interactive terminal,
-`goodmemory install <codex|claude>` prompts for the GoodMemory user id, optional
-Postgres storage, optional embedding provider, and optional LLM extraction
-provider. You can provide values, skip them, or defer them. `--json` and
-`--no-interactive` keep install script-safe; `--interactive` forces the prompt
-flow. If you skip provider setup, install still succeeds with the local SQLite +
+`goodmemory setup` is the recommended happy path. It asks which host to enable,
+where memory enhancement should run (`global`, `current-workspace`, or
+`manual`), then prompts for the GoodMemory user id, optional Postgres storage,
+optional embedding provider, optional LLM extraction provider, and whether to
+enable automatic learning for follow-on validation. `goodmemory install <codex|claude>` uses the same
+host-specific wizard. Global activation is the default interactive path, while
+`--json` and `--no-interactive` keep install script-safe; non-interactive
+install remains workspace opt-in unless `--activation-mode global` is passed.
+If you skip provider setup, install still succeeds with the local SQLite +
 rules-only baseline.
+
+```bash
+goodmemory setup
+goodmemory status
+```
 
 To configure stronger memory non-interactively, pass Postgres, embedding, and
 LLM extraction flags:
@@ -252,9 +261,12 @@ operation (`goodmemory forget ...`) or a manual storage deletion after backup.
 ./node_modules/.bin/goodmemory feedback --host codex --workspace-root . --session-id <session-id> --signal "Keep coding summaries short and list explicit next steps."
 ./node_modules/.bin/goodmemory forget --host codex --workspace-root . --session-id <session-id> --memory-id <memory-id>
 ./node_modules/.bin/goodmemory -V
-./node_modules/.bin/goodmemory install codex --user-id <user-id>
+./node_modules/.bin/goodmemory setup --host codex
+./node_modules/.bin/goodmemory status codex --workspace-root .
+./node_modules/.bin/goodmemory install codex --activation-mode global --auto-learn --user-id <user-id>
 ./node_modules/.bin/goodmemory enable codex --workspace-root .
 printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' | ./node_modules/.bin/goodmemory codex hook session-start
+printf '%s' '{"cwd":".","session_id":"s-1","event_id":"stop-1","summary":"Keep coding summaries short."}' | ./node_modules/.bin/goodmemory codex hook session-stop
 ./node_modules/.bin/goodmemory mcp serve --host codex
 ./node_modules/.bin/goodmemory-mcp --host codex
 ./node_modules/.bin/goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
@@ -269,10 +281,12 @@ CLI surface:
 
 - `goodmemory -V`
 - `goodmemory --version`
+- `goodmemory setup`
 - `goodmemory inspect`
 - `goodmemory trace`
 - `goodmemory export-memory`
 - `goodmemory stats`
+- `goodmemory status`
 - `goodmemory remember`
 - `goodmemory feedback`
 - `goodmemory forget`

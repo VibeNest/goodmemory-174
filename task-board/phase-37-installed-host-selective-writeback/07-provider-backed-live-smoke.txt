@@ -1,0 +1,58 @@
+Phase 37.7: Provider-Backed Live Smoke
+======================================
+
+Goal
+----
+Prove the installed-host writeback path works with provider-backed extraction/storage and next-session recall without manual seeding.
+
+
+Files
+-----
+- `scripts/run-phase-37-live-memory.ts`
+- `tests/unit/run-phase-37-live-memory.test.ts`
+- `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
+- `package.json`
+
+
+Live Smoke Must Prove
+---------------------
+- installed host context can resolve
+- provider-backed extraction can run
+- public remember profiles/rules/annotations can write domain memory
+- automatic writeback writes durable memory
+- the next recall hook consumes the written memory
+- no manual `goodmemory remember` seed was used
+- raw transcript was not persisted
+- unconfirmed assistant-originated memory was blocked
+
+
+Required Report Shape
+---------------------
+The report must include:
+
+```json
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Provider-backed Codex installed writeback wrote selective memory and next-session recall consumed it without manual seeding."
+  },
+  "evidence": {
+    "host": "codex",
+    "providerBacked": true,
+    "manualSeedUsed": false,
+    "writebackMode": "selective",
+    "wroteDurableMemory": true,
+    "nextSessionRecallHit": true,
+    "rawTranscriptPersisted": false,
+    "assistantUnconfirmedWritesBlocked": true
+  }
+}
+```
+
+
+Acceptance
+----------
+- `bun test tests/unit/run-phase-37-live-memory.test.ts`
+- `bun run eval:phase-37-live-memory`
+- accepted report exists at `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
+- closure cannot claim provider-backed success if credentials were unavailable or the report is missing

@@ -1,0 +1,101 @@
+Phase 37.1: Contract and Failing Tests
+======================================
+
+Goal
+----
+Freeze the Phase 37 contract before implementation and add failing tests for the installed-host selective writeback slice.
+
+
+In Scope
+--------
+- installed-host selective writeback
+- Codex first
+- opt-in config
+- dry-run or observe mode
+- high-value memory only
+- assistant output requires host confirmation or verification
+- no raw transcript durable persistence
+
+
+Out of Scope
+------------
+- dashboard
+- managed cloud
+- OneLife built-in preset
+- public API widening
+- recall router reopening
+- Claude live blocker
+- full transcript archive
+
+
+Contract
+--------
+Add an installed-host writeback runtime with this shape:
+
+```ts
+executeInstalledHostWriteback({
+  host: "codex",
+  payload,
+  homeRoot,
+  command: "turn-end" | "session-end",
+})
+```
+
+The result shape must be explicit and gateable:
+
+```ts
+interface InstalledHostWritebackResult {
+  applied: boolean;
+  wrote: boolean;
+  mode: "off" | "observe" | "selective";
+  reason:
+    | "disabled"
+    | "missing_config"
+    | "missing_repo_opt_in"
+    | "empty_transcript"
+    | "no_candidates"
+    | "observed"
+    | "written"
+    | "write_failed";
+  candidates: Array<{
+    kind: "preference" | "fact" | "feedback" | "reference" | "episode";
+    content: string;
+    confidence: number;
+    source: "user" | "assistant" | "host_event";
+    durable: boolean;
+    reason: string;
+  }>;
+  trace: Record<string, unknown>;
+}
+```
+
+
+Tests to Add First
+------------------
+- `tests/unit/host-writeback-runtime.test.ts`
+- `tests/integration/installed-host-writeback.test.ts`
+- `tests/unit/host-writeback-config.test.ts`
+- `tests/unit/run-phase-37-eval.test.ts`
+- `tests/unit/run-phase-37-gate.test.ts`
+
+
+Required Failing Cases
+----------------------
+- runtime is disabled when mode is `off`
+- missing managed config returns `missing_config`
+- missing repo opt-in returns `missing_repo_opt_in`
+- empty transcript returns `empty_transcript`
+- observe mode returns candidates but does not write durable memory
+- selective mode calls the public remember surface only after candidate policy passes
+- assistant output is blocked by default
+- confirmed or verified assistant output can be allowed by policy
+- `remember: "never"` masks content before extraction
+- raw transcript is never stored as durable memory
+- duplicate open loop does not create duplicate durable memory
+
+
+Acceptance
+----------
+- `bun test tests/unit/host-writeback-runtime.test.ts` fails for implementation-missing reasons before runtime work starts.
+- the failure messages prove the tests are exercising the intended Phase 37 contract, not unrelated imports or fixture setup.
+- task-board and code comments do not imply Phase 37 is closed.

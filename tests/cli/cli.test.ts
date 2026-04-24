@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
-import { access, chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   createFactMemory,
@@ -929,9 +929,11 @@ describe("goodmemory cli help and routing", () => {
     const evalInspect = await runCLI(["eval", "inspect", "--help"]);
     const install = await runCLI(["install", "--help"]);
     const installCodex = await runCLI(["install", "codex", "--help"]);
+    const setup = await runCLI(["setup", "--help"]);
     const uninstall = await runCLI(["uninstall", "--help"]);
     const enable = await runCLI(["enable", "--help"]);
     const disable = await runCLI(["disable", "--help"]);
+    const status = await runCLI(["status", "--help"]);
     const mcp = await runCLI(["mcp", "--help"]);
     const mcpServe = await runCLI(["mcp", "serve", "--help"]);
     const codex = await runCLI(["codex", "--help"]);
@@ -976,9 +978,14 @@ describe("goodmemory cli help and routing", () => {
     expect(install.exitCode).toBe(0);
     expect(install.stdout).toContain("GoodMemory Install CLI");
     expect(install.stdout).toContain("goodmemory install <codex|claude>");
+    expect(setup.exitCode).toBe(0);
+    expect(setup.stdout).toContain("GoodMemory Setup CLI");
+    expect(setup.stdout).toContain("--host <codex|claude|both>");
     expect(installCodex.exitCode).toBe(0);
     expect(installCodex.stdout).toContain("--memory-path <path>");
     expect(installCodex.stdout).toContain("--storage-provider <sqlite|postgres>");
+    expect(installCodex.stdout).toContain("--activation-mode <global|workspace_opt_in>");
+    expect(installCodex.stdout).toContain("--auto-learn");
     expect(installCodex.stdout).toContain("--embedding-provider <openai>");
     expect(installCodex.stdout).toContain("--llm-provider <openai|anthropic>");
     expect(installCodex.stdout).toContain("rules-only mode");
@@ -989,6 +996,8 @@ describe("goodmemory cli help and routing", () => {
     expect(enable.stdout).toContain("--workspace-root <path>");
     expect(disable.exitCode).toBe(0);
     expect(disable.stdout).toContain("GoodMemory Disable CLI");
+    expect(status.exitCode).toBe(0);
+    expect(status.stdout).toContain("GoodMemory Status CLI");
     expect(mcp.exitCode).toBe(0);
     expect(mcp.stdout).toContain("GoodMemory MCP CLI");
     expect(mcp.stdout).toContain("goodmemory mcp serve --help");
@@ -1004,6 +1013,7 @@ describe("goodmemory cli help and routing", () => {
     expect(codexHook.exitCode).toBe(0);
     expect(codexHook.stdout).toContain("GoodMemory Codex Hook");
     expect(codexHook.stdout).toContain("session-start");
+    expect(codexHook.stdout).toContain("session-stop");
     expect(claude.exitCode).toBe(0);
     expect(claude.stdout).toContain("GoodMemory Claude CLI");
     expect(claude.stdout).toContain("goodmemory claude hook --help");
@@ -1013,6 +1023,7 @@ describe("goodmemory cli help and routing", () => {
     expect(claudeHook.exitCode).toBe(0);
     expect(claudeHook.stdout).toContain("GoodMemory Claude Hook");
     expect(claudeHook.stdout).toContain("user-prompt-submit");
+    expect(claudeHook.stdout).toContain("session-stop");
   });
 
   it("returns help hints for unknown root and eval commands", async () => {
@@ -2261,6 +2272,7 @@ describe("goodmemory cli installed host config", () => {
     const home = await createTempWorkspace("goodmemory-codex-install-interactive-home");
     const prompts: string[] = [];
     const answers = [
+      "",
       "codex-user",
       "postgres",
       "postgres://postgres:secret@localhost:5432/goodmemory",
@@ -2272,6 +2284,7 @@ describe("goodmemory cli installed host config", () => {
       "openai",
       "gpt-4o-mini",
       "llm-secret",
+      "",
       "",
     ];
 
@@ -2357,7 +2370,9 @@ describe("goodmemory cli installed host config", () => {
     const home = await createTempWorkspace("goodmemory-codex-install-interactive-skip-home");
     const answers = [
       "",
+      "",
       "skip",
+      "no",
       "no",
       "no",
     ];
@@ -2409,13 +2424,733 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
+  it("uses interactive global activation as the default installed-host path", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-interactive-global-home");
+    const workspace = await createTempWorkspace(
+      "goodmemory-codex-install-interactive-global-workspace",
+    );
+    const answers = [
+      "global",
+      "",
+      "sqlite",
+      "no",
+      "no",
+      "yes",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI(
+              [
+                "install",
+                "codex",
+                "--interactive",
+                "--json",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => answers.shift() ?? "",
+                  askSecret: async () => answers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(result.exitCode).toBe(0);
+          const payload = JSON.parse(result.stdout) as {
+            activationMode: string;
+            autoLearn: { enabled: boolean };
+          };
+          expect(payload.activationMode).toBe("global");
+          expect(payload.autoLearn.enabled).toBe(true);
+          await expect(access(join(workspace.root, ".goodmemory/codex.json"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("can install and enable the current workspace from the interactive flow", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-current-workspace-home");
+    const workspace = await createTempWorkspace(
+      "goodmemory-codex-install-current-workspace-workspace",
+    );
+    const answers = [
+      "current-workspace",
+      "",
+      "sqlite",
+      "no",
+      "no",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI(
+              [
+                "install",
+                "codex",
+                "--interactive",
+                "--json",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => answers.shift() ?? "",
+                  askSecret: async () => answers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(result.exitCode).toBe(0);
+          const config = JSON.parse(
+            await readFile(join(workspace.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            enabled: boolean;
+          };
+          expect(config.enabled).toBe(true);
+          expect(await readFile(join(workspace.root, "AGENTS.md"), "utf8")).toContain(
+            "GOODMEMORY-INSTALL:CODEX START",
+          );
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("rolls back the global install when current-workspace enable fails", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-rollback-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-install-rollback-workspace");
+    const answers = [
+      "current-workspace",
+      "",
+      "sqlite",
+      "no",
+      "no",
+      "no",
+    ];
+
+    try {
+      await writeFile(
+        join(workspace.root, "AGENTS.md"),
+        [
+          "# Existing Notes",
+          "<!-- GOODMEMORY-INSTALL:CODEX START -->",
+          "broken block",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI(
+              [
+                "install",
+                "codex",
+                "--interactive",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => answers.shift() ?? "",
+                  askSecret: async () => answers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(result.exitCode).toBe(1);
+          expect(result.stderr).toContain("managed install block is malformed");
+          await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".codex/hooks.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".codex/config.toml"))).rejects.toThrow();
+          await expect(access(join(workspace.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          expect(await readFile(join(workspace.root, "AGENTS.md"), "utf8")).toContain(
+            "broken block",
+          );
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("keeps manual activation script-safe in non-interactive install mode", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-install-manual-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-install-manual-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI([
+              "install",
+              "codex",
+              "--user-id",
+              "codex-user",
+              "--json",
+            ]),
+          );
+
+          expect(result.exitCode).toBe(0);
+          const payload = JSON.parse(result.stdout) as {
+            activationMode: string;
+          };
+          expect(payload.activationMode).toBe("workspace_opt_in");
+          await expect(access(join(workspace.root, ".goodmemory/codex.json"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("setup installs both hosts with global activation and auto learn", async () => {
+    const home = await createTempWorkspace("goodmemory-setup-home");
+    const workspace = await createTempWorkspace("goodmemory-setup-workspace");
+    const answers = [
+      "both",
+      "global",
+      "",
+      "sqlite",
+      "no",
+      "no",
+      "yes",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI(
+              [
+                "setup",
+                "--interactive",
+                "--json",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => answers.shift() ?? "",
+                  askSecret: async () => answers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(result.exitCode).toBe(0);
+          const payload = JSON.parse(result.stdout) as {
+            hosts: Array<{
+              activationMode: string;
+              autoLearn: { enabled: boolean };
+              host: string;
+            }>;
+          };
+          expect(payload.hosts.map((host) => host.host).sort()).toEqual(["claude", "codex"]);
+          expect(payload.hosts.every((host) => host.activationMode === "global")).toBe(true);
+          expect(payload.hosts.every((host) => host.autoLearn.enabled)).toBe(true);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("keeps interactive setup automatic learning off when the prompt default is accepted", async () => {
+    const home = await createTempWorkspace("goodmemory-setup-default-auto-learn-home");
+    const workspace = await createTempWorkspace(
+      "goodmemory-setup-default-auto-learn-workspace",
+    );
+    const answers = [
+      "codex",
+      "global",
+      "",
+      "",
+      "",
+      "",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI(
+              [
+                "setup",
+                "--interactive",
+                "--json",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => answers.shift() ?? "",
+                  askSecret: async () => answers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(result.exitCode).toBe(0);
+          const payload = JSON.parse(result.stdout) as {
+            hosts: Array<{
+              autoLearn: { enabled: boolean };
+              host: string;
+            }>;
+          };
+          expect(payload.hosts).toHaveLength(1);
+          expect(payload.hosts[0]?.host).toBe("codex");
+          expect(payload.hosts[0]?.autoLearn.enabled).toBe(false);
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            autoLearn: { enabled: boolean };
+          };
+          expect(config.autoLearn.enabled).toBe(false);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("setup current-workspace uses workspace opt-in activation while enabling the repo", async () => {
+    const home = await createTempWorkspace("goodmemory-setup-current-workspace-home");
+    const workspace = await createTempWorkspace("goodmemory-setup-current-workspace");
+    const answers = [
+      "codex",
+      "current-workspace",
+      "",
+      "sqlite",
+      "no",
+      "no",
+      "no",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI(
+              [
+                "setup",
+                "--interactive",
+                "--json",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => answers.shift() ?? "",
+                  askSecret: async () => answers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(result.exitCode).toBe(0);
+          const payload = JSON.parse(result.stdout) as {
+            hosts: Array<{
+              activationMode: string;
+              host: string;
+              workspaceRoot?: string;
+            }>;
+          };
+          expect(payload.hosts).toHaveLength(1);
+          expect(payload.hosts[0]?.host).toBe("codex");
+          expect(payload.hosts[0]?.activationMode).toBe("workspace_opt_in");
+          expect(await realpath(payload.hosts[0]?.workspaceRoot ?? "")).toBe(
+            await realpath(workspace.root),
+          );
+
+          const globalConfig = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            activationMode: string;
+          };
+          const workspaceConfig = JSON.parse(
+            await readFile(join(workspace.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            enabled: boolean;
+          };
+          expect(globalConfig.activationMode).toBe("workspace_opt_in");
+          expect(workspaceConfig.enabled).toBe(true);
+          expect(await readFile(join(workspace.root, "AGENTS.md"), "utf8")).toContain(
+            "GOODMEMORY-INSTALL:CODEX START",
+          );
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("rolls back earlier host installs when setup fails on a later workspace enable", async () => {
+    const home = await createTempWorkspace("goodmemory-setup-rollback-home");
+    const workspace = await createTempWorkspace("goodmemory-setup-rollback-workspace");
+    const answers = [
+      "both",
+      "current-workspace",
+      "",
+      "sqlite",
+      "no",
+      "no",
+      "no",
+    ];
+
+    try {
+      await writeFile(
+        join(workspace.root, "CLAUDE.md"),
+        [
+          "# Existing Claude Notes",
+          "<!-- GOODMEMORY-INSTALL:CLAUDE START -->",
+          "broken block",
+        ].join("\n"),
+        "utf8",
+      );
+
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI(
+              [
+                "setup",
+                "--interactive",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => answers.shift() ?? "",
+                  askSecret: async () => answers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(result.exitCode).toBe(1);
+          expect(result.stderr).toContain("managed install block is malformed");
+          await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".goodmemory/claude.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".codex/hooks.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".codex/config.toml"))).rejects.toThrow();
+          await expect(access(join(home.root, ".claude/settings.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".claude.json"))).rejects.toThrow();
+          await expect(access(join(workspace.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(access(join(workspace.root, ".goodmemory/claude.json"))).rejects.toThrow();
+          await expect(access(join(workspace.root, "AGENTS.md"))).rejects.toThrow();
+          expect(await readFile(join(workspace.root, "CLAUDE.md"), "utf8")).toContain(
+            "broken block",
+          );
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("status does not report user-owned host config files as managed registrations", async () => {
+    const home = await createTempWorkspace("goodmemory-status-user-owned-home");
+    const workspace = await createTempWorkspace("goodmemory-status-user-owned-workspace");
+    const memoryPath = join(home.root, ".goodmemory/memory.sqlite");
+
+    try {
+      await mkdir(join(home.root, ".goodmemory"), { recursive: true });
+      await mkdir(join(home.root, ".codex"), { recursive: true });
+      await writeFile(
+        join(home.root, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            host: "codex",
+            storage: {
+              path: memoryPath,
+              provider: "sqlite",
+            },
+            userId: "codex-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(home.root, ".codex/hooks.json"),
+        JSON.stringify(
+          {
+            hooks: {
+              SessionStart: [],
+            },
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(home.root, ".codex/config.toml"),
+        ["[features]", "codex_hooks = true", ""].join("\n"),
+        "utf8",
+      );
+
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(status.exitCode).toBe(0);
+          const payload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              hookRegistered: boolean;
+              mcpRegistered: boolean;
+            }>;
+          };
+          expect(payload.hosts[0]?.hookRegistered).toBe(false);
+          expect(payload.hosts[0]?.mcpRegistered).toBe(false);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("status does not create a fresh sqlite database for an installed host", async () => {
+    const home = await createTempWorkspace("goodmemory-status-fresh-sqlite-home");
+    const workspace = await createTempWorkspace("goodmemory-status-fresh-sqlite-workspace");
+    const memoryPath = join(home.root, ".goodmemory/memory.sqlite");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+          await expect(access(memoryPath)).rejects.toThrow();
+
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(status.exitCode).toBe(0);
+          const payload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              counts: Record<string, number>;
+              memoryStatus: string;
+            }>;
+          };
+          expect(payload.hosts[0]?.memoryStatus).toBe("uninitialized");
+          expect(payload.hosts[0]?.counts).toEqual({
+            archives: 0,
+            episodes: 0,
+            facts: 0,
+            feedback: 0,
+            preferences: 0,
+            profile: 0,
+            references: 0,
+          });
+          await expect(access(memoryPath)).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("status reports installed host activation and current workspace counts", async () => {
+    const home = await createTempWorkspace("goodmemory-status-home");
+    const workspace = await createTempWorkspace("goodmemory-status-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--auto-learn",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const remember = await withCwd(workspace.root, async () =>
+            runCLI([
+              "remember",
+              "--host",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--message",
+              "Remember that release status updates should be short.",
+              "--json",
+            ]),
+          );
+          expect(remember.exitCode).toBe(0);
+
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(status.exitCode).toBe(0);
+          const payload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              activationMode: string;
+              autoLearn: { enabled: boolean };
+              counts: { facts: number; feedback: number; preferences: number };
+              hookRegistered: boolean;
+              mcpRegistered: boolean;
+              workspaceStatus: string;
+            }>;
+          };
+          expect(payload.hosts[0]?.activationMode).toBe("global");
+          expect(payload.hosts[0]?.autoLearn.enabled).toBe(true);
+          expect(payload.hosts[0]?.hookRegistered).toBe(true);
+          expect(payload.hosts[0]?.mcpRegistered).toBe(true);
+          expect(payload.hosts[0]?.workspaceStatus).toBe("ok");
+          expect(
+            (payload.hosts[0]?.counts.facts ?? 0) +
+              (payload.hosts[0]?.counts.feedback ?? 0) +
+              (payload.hosts[0]?.counts.preferences ?? 0),
+          ).toBeGreaterThan(0);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("status reports missing repo opt-in when workspace activation is still manual", async () => {
+    const home = await createTempWorkspace("goodmemory-status-manual-home");
+    const workspace = await createTempWorkspace("goodmemory-status-manual-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(status.exitCode).toBe(0);
+          const payload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              activationMode: string;
+              counts?: unknown;
+              workspaceStatus: string;
+            }>;
+          };
+          expect(payload.hosts[0]?.activationMode).toBe("workspace_opt_in");
+          expect(payload.hosts[0]?.workspaceStatus).toBe("missing_repo_config");
+          expect(payload.hosts[0]?.counts).toBeUndefined();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
   it("lets interactive sqlite storage override an existing Postgres install", async () => {
     const home = await createTempWorkspace(
       "goodmemory-codex-install-interactive-sqlite-reinstall-home",
     );
     const answers = [
       "",
+      "",
       "sqlite",
+      "no",
       "no",
       "no",
     ];
@@ -2479,6 +3214,8 @@ describe("goodmemory cli installed host config", () => {
     const answers = [
       "",
       "",
+      "",
+      "no",
       "no",
       "no",
     ];

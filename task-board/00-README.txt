@@ -104,6 +104,7 @@ Read and execute files in this order:
 35. 35-phase-34-host-pre-action-policy-and-veto-contract.txt
 36. 36-phase-35-installed-host-memory-middleware-and-hooks.txt
 37. 37-phase-36-public-domain-write-profiles-and-rules.txt
+38. 38-phase-37-installed-host-selective-writeback.txt
 
 
 Current Sequencing Note
@@ -215,7 +216,13 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-36-Quality-Gate.md`
   - accepted surface: public `remember` config, profiles, rules, annotations, assistant-output policy, domain metadata, and traceable extractor composition with stable custom extractor ids
   - OneLife / life-coach remains a reference pattern, not a built-in preset
-- Any work after Phase 35 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 37 is now open as the installed host selective writeback slice:
+  - task-board entrypoint: `task-board/38-phase-37-installed-host-selective-writeback.txt`
+  - breakdown folder: `task-board/phase-37-installed-host-selective-writeback/`
+  - goal: connect the Phase 35 installed-host recall path with the Phase 36 public remember path so Codex can opt into selective automatic writeback
+  - default remains off; observe mode must write nothing; selective mode must write only through public remember profiles/rules/annotations
+  - closure requires deterministic eval, provider-backed live-memory smoke, external consumer smoke, a dedicated Phase 37 gate, and non-regression of Phase 35/36 gates
+- Any work after Phase 37 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.

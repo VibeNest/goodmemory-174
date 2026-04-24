@@ -6,6 +6,7 @@ import type {
 } from "../api/contracts";
 import { normalizeScope } from "../domain/scope";
 import type { MemoryScope } from "../domain/scope";
+import { resolveWorkspaceId } from "../host/managedFiles";
 import {
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
@@ -14,10 +15,14 @@ import {
   DEFAULT_INSTALLED_HOST_MAX_TOKENS,
   DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
 } from "./hostConfigValidation";
-import type { InstalledHostProviderConfig } from "./hostConfigValidation";
+import type {
+  InstalledHostActivationMode,
+  InstalledHostAutoLearnConfig,
+  InstalledHostProviderConfig,
+  WorkspaceHostOptInConfig,
+} from "./hostConfigValidation";
 import type { InstalledHostKind } from "./hostInstall";
 import {
-  readInstalledHostDebug,
   readInstalledHostRuntimeConfig,
   readWorkspaceHostOptInConfig,
   type InstalledHostRuntimeConfigDependencies,
@@ -38,6 +43,8 @@ export interface InstalledHostContextInput {
 }
 
 export interface InstalledHostResolvedContext {
+  activationMode: InstalledHostActivationMode;
+  autoLearn: InstalledHostAutoLearnConfig;
   debug: boolean;
   host: InstalledHostKind;
   maxTokens: number;
@@ -69,30 +76,6 @@ export async function resolveInstalledHostContext(
   dependencies: InstalledHostContextDependencies = {},
 ): Promise<InstalledHostContextResolution> {
   const workspaceRoot = resolve(input.cwd ?? ".");
-  const repoConfig = await readWorkspaceHostOptInConfig(
-    input.host,
-    workspaceRoot,
-    dependencies,
-  );
-  if (repoConfig.status !== "ok") {
-    const globalDebug =
-      repoConfig.status === "disabled"
-        ? await readInstalledHostDebug(input.host, input.homeRoot, dependencies)
-        : false;
-    return {
-      debug:
-        (repoConfig.status === "disabled" ? repoConfig.config.debug : false) ||
-        globalDebug,
-      status:
-        repoConfig.status === "disabled"
-          ? "disabled"
-          : repoConfig.status === "invalid"
-            ? "invalid_repo_config"
-            : "missing_repo_config",
-      workspaceRoot,
-    };
-  }
-
   const globalConfig = await readInstalledHostRuntimeConfig(
     input.host,
     input.homeRoot,
@@ -100,7 +83,7 @@ export async function resolveInstalledHostContext(
   );
   if (globalConfig.status !== "ok") {
     return {
-      debug: repoConfig.config.debug,
+      debug: false,
       status:
         globalConfig.status === "invalid"
           ? "invalid_global_config"
@@ -109,19 +92,56 @@ export async function resolveInstalledHostContext(
     };
   }
 
+  const repoConfig = await readWorkspaceHostOptInConfig(
+    input.host,
+    workspaceRoot,
+    dependencies,
+  );
+  if (repoConfig.status === "invalid") {
+    return {
+      debug: globalConfig.config.debug,
+      status: "invalid_repo_config",
+      workspaceRoot,
+    };
+  }
+  if (repoConfig.status === "disabled") {
+    return {
+      debug: repoConfig.config.debug || globalConfig.config.debug,
+      status: "disabled",
+      workspaceRoot,
+    };
+  }
+  if (
+    repoConfig.status === "missing" &&
+    globalConfig.config.activationMode !== "global"
+  ) {
+    return {
+      debug: globalConfig.config.debug,
+      status: "missing_repo_config",
+      workspaceRoot,
+    };
+  }
+
+  const workspaceConfig =
+    repoConfig.status === "ok"
+      ? repoConfig.config
+      : createGlobalWorkspaceConfig(workspaceRoot);
+
   return {
     status: "ok",
     context: {
-      debug: globalConfig.config.debug || repoConfig.config.debug,
+      activationMode: globalConfig.config.activationMode,
+      autoLearn: globalConfig.config.autoLearn,
+      debug: globalConfig.config.debug || workspaceConfig.debug,
       host: input.host,
       maxTokens:
         input.maxTokens ??
-        repoConfig.config.maxTokens ??
+        workspaceConfig.maxTokens ??
         globalConfig.config.maxTokens ??
         DEFAULT_INSTALLED_HOST_MAX_TOKENS,
       retrievalProfile:
         input.retrievalProfile ??
-        repoConfig.config.retrievalProfile ??
+        workspaceConfig.retrievalProfile ??
         globalConfig.config.retrievalProfile ??
         DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
       ...(globalConfig.config.providers
@@ -131,7 +151,7 @@ export async function resolveInstalledHostContext(
         agentId: input.host,
         sessionId: input.sessionId,
         userId: globalConfig.config.userId,
-        workspaceId: repoConfig.config.workspaceId,
+        workspaceId: workspaceConfig.workspaceId,
       }),
       storage: {
         provider: globalConfig.config.storage.provider,
@@ -139,6 +159,14 @@ export async function resolveInstalledHostContext(
       },
       workspaceRoot,
     },
+  };
+}
+
+function createGlobalWorkspaceConfig(workspaceRoot: string): WorkspaceHostOptInConfig {
+  return {
+    debug: false,
+    enabled: true,
+    workspaceId: resolveWorkspaceId(workspaceRoot, undefined),
   };
 }
 
