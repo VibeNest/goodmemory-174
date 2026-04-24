@@ -1,0 +1,191 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 37.1 writeback productization polish gate passed."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 3142,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/host-writeback-audit-ledger.test.ts tests/unit/host-writeback-runtime.test.ts tests/integration/installed-host-writeback-audit.test.ts tests/integration/installed-host-writeback.test.ts tests/unit/run-phase-37-1-dogfood-summary.test.ts tests/unit/run-phase-37-1-gate.test.ts tests/cli/cli.test.ts tests/release/release.test.ts",
+      "durationMs": 35960,
+      "exitCode": 0,
+      "label": "phase-37-1-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [3.12ms]",
+        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [1.71ms]",
+        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [3.22ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [2.46ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [3.22ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [2.20ms]",
+        "(pass) goodmemory cli root commands > remember writes durable memory through explicit scope flags and default sqlite storage [2.51ms]",
+        "(pass) goodmemory cli root commands > feedback derives installed-host defaults and is recalled through the host hook path [113.19ms]",
+        "(pass) goodmemory cli root commands > host-derived write commands require repo opt-in before using installed-host defaults [2.12ms]",
+        "(pass) goodmemory cli root commands > forget removes a host-derived memory id from the installed-host storage path [5.51ms]",
+        "(pass) goodmemory cli root commands > forget supports deleting a full scoped target with --all [8.00ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.84ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.45ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.39ms]",
+        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.53ms]",
+        "",
+        " 175 pass",
+        " 0 fail",
+        " 2175 expect() calls",
+        "Ran 175 tests across 8 files. [35.95s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-37-1-dogfood -- --run-id run-phase37-1-dogfood-current --output-dir /Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1 --fixture accepted",
+      "durationMs": 20,
+      "exitCode": 0,
+      "label": "phase-37-1-dogfood-summary",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-37-1-dogfood-summary.ts --run-id \"run-phase37-1-dogfood-current\" --output-dir \"/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1\" --fixture accepted"
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"generatedAt\": \"2026-04-24T10:23:32.510Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-37-1-dogfood-summary.ts\",",
+        "  \"hostCount\": 1,",
+        "  \"mode\": \"dogfood\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1\",",
+        "  \"phase\": \"phase-37.1\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current\",",
+        "  \"runId\": \"run-phase37-1-dogfood-current\",",
+        "  \"summary\": {",
+        "    \"candidateCount\": 20,",
+        "    \"duplicateCount\": 0,",
+        "    \"durableWriteCount\": 20,",
+        "    \"falseWriteRateManual\": 0.05,",
+        "    \"forgottenCount\": 1,",
+        "    \"nextSessionRecallHitCount\": 8,",
+        "    \"sessionCount\": 20",
+        "  },",
+        "  \"evidenceSource\": \"deterministic_fixture\"",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-37",
+      "durationMs": 124083,
+      "exitCode": 0,
+      "label": "phase-37-regression-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-37-gate.ts"
+      ],
+      "stdoutTail": [
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-37/run-20260424104045\",",
+        "  \"runId\": \"run-20260424104045\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"installed-host selective writeback for Codex first, with Claude CLI parity\",",
+        "      \"opt-in off, observe, and selective managed writeback config\",",
+        "      \"public remember-surface writes with assistant confirmation or verification policy\",",
+        "      \"no raw transcript persistence, remember-never masking, dedupe, and next-session recall evidence\",",
+        "      \"provider-backed assisted-extraction live-memory and external consumer package smoke evidence\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"default-on automatic writeback\",",
+        "      \"full transcript archive\",",
+        "      \"dashboard or managed cloud\",",
+        "      \"OneLife built-in preset\",",
+        "      \"recall router reopening\",",
+        "      \"Claude provider-backed live blocker\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-35",
+      "durationMs": 41990,
+      "exitCode": 0,
+      "label": "phase-35-regression-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-35-gate.ts"
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"generatedAt\": \"2026-04-24T10:26:18.582Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-35-gate.ts\",",
+        "  \"phase\": \"phase-35\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-35/run-20260423213045\",",
+        "  \"runId\": \"run-20260423213045\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"phase-35 deterministic installed-hook middleware evaluation against the frozen Phase 32 text-only path and the no-memory baseline\",",
+        "      \"tarball-first installed-package Codex middleware validation for install, repo opt-in, hook injection, and read-only MCP availability\",",
+        "      \"phase-35 quality-gate generation and fail-closed closure validation\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"widening the root API or exposing public goodmemory/evolution\",",
+        "      \"automatic writeback, transcript persistence, or stop-hook behavior\",",
+        "      \"making Claude a second live gate blocker\",",
+        "      \"claiming the frozen Phase 32 text-only path remains the canonical product line after Phase 35\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-36",
+      "durationMs": 27237,
+      "exitCode": 0,
+      "label": "phase-36-regression-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-36-gate.ts"
+      ],
+      "stdoutTail": [
+        "  \"generatedAt\": \"2026-04-24T10:26:45.820Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-36-gate.ts\",",
+        "  \"phase\": \"phase-36\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-36/run-20260423223045\",",
+        "  \"runId\": \"run-20260423223045\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"public remember config, profile resolution, rules DSL, annotations, assistant-output policy, and metadata persistence\",",
+        "      \"deterministic Phase 36 eval over life-coach/domain-write public configuration\",",
+        "      \"provider-backed live-memory smoke evidence through the public write customization surface\",",
+        "      \"Phase 36 quality-gate generation and fail-closed closure validation\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"turning OneLife into a built-in preset\",",
+        "      \"requiring assisted extraction or provider storage for zero-config users\",",
+        "      \"widening top-level memory kinds beyond the stable taxonomy\",",
+        "      \"automatic assistant-output memory without host confirmation or verification\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "dogfood": {
+      "reason": "Dogfood report met Phase 37.1 minimum session and metric requirements.",
+      "reportPath": "reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json",
+      "status": "accepted"
+    }
+  },
+  "generatedAt": "2026-04-24T10:26:45.822Z",
+  "generatedBy": "scripts/run-phase-37-1-gate.ts",
+  "phase": "phase-37.1",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-37-1/run-20260424100757",
+  "runId": "run-20260424100757"
+}

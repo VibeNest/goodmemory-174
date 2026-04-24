@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import {
   buildPhase371GateCommands,
   parsePhase371GateCliOptions,
+  resolvePhase371LocalDogfoodOutputDir,
+  resolvePhase371LocalGateOutputDir,
   runPhase371GateCli,
   runPhase371QualityGate,
 } from "../../scripts/run-phase-37-1-gate";
@@ -19,10 +21,13 @@ describe("run-phase-37-1 gate", () => {
         "/tmp/phase371-gate",
         "--run-id",
         "run-phase371-gate",
+        "--dogfood-mode",
+        "local",
         "--dogfood-report-path",
         "/tmp/dogfood/report.json",
       ]),
     ).toEqual({
+      dogfoodMode: "local",
       dogfoodReportPath: "/tmp/dogfood/report.json",
       outputDir: "/tmp/phase371-gate",
       runId: "run-phase371-gate",
@@ -62,6 +67,8 @@ describe("run-phase-37-1 gate", () => {
           "run-phase37-1-dogfood-current",
           "--output-dir",
           "/tmp/goodmemory/reports/eval/dogfood/phase-37-1",
+          "--fixture",
+          "accepted",
         ],
         cwd: ROOT,
         label: "phase-37-1-dogfood-summary",
@@ -99,6 +106,7 @@ describe("run-phase-37-1 gate", () => {
         readTextFile: async () =>
           JSON.stringify({
             acceptance: { decision: "accepted" },
+            evidenceSource: "deterministic_fixture",
             generatedBy: "scripts/run-phase-37-1-dogfood-summary.ts",
             phase: "phase-37.1",
             summary: {
@@ -149,6 +157,7 @@ describe("run-phase-37-1 gate", () => {
           );
           return JSON.stringify({
             acceptance: { decision: "accepted" },
+            evidenceSource: "deterministic_fixture",
             generatedBy: "scripts/run-phase-37-1-dogfood-summary.ts",
             phase: "phase-37.1",
             summary: {
@@ -185,7 +194,176 @@ describe("run-phase-37-1 gate", () => {
       "run-phase37-1-dogfood-current",
       "--output-dir",
       "/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1",
+      "--fixture",
+      "accepted",
     ]);
+  });
+
+  it("can run the dogfood command against the local audit ledger", async () => {
+    expect(buildPhase371GateCommands(ROOT, { dogfoodMode: "local" })[2]).toEqual({
+      args: [
+        "bun",
+        "run",
+        "eval:phase-37-1-dogfood",
+        "--",
+        "--run-id",
+        "run-phase37-1-local-dogfood-current",
+        "--output-dir",
+        "/tmp/goodmemory/.tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1",
+      ],
+      cwd: ROOT,
+      label: "phase-37-1-dogfood-summary",
+    });
+    expect(resolvePhase371LocalDogfoodOutputDir(ROOT)).toBe(
+      "/tmp/goodmemory/.tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1",
+    );
+    expect(resolvePhase371LocalGateOutputDir(ROOT)).toBe(
+      "/tmp/goodmemory/.tmp-goodmemory-phase37-1-local/quality-gates/phase-37-1",
+    );
+  });
+
+  it("uses ignored local artifact paths by default in local mode", async () => {
+    const executedCommands: string[][] = [];
+    const writes: string[] = [];
+    const report = await runPhase371QualityGate(
+      {
+        dogfoodMode: "local",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-24T12:00:00.000Z",
+        readTextFile: async (path) => {
+          expect(path).toBe(
+            "/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1/run-phase37-1-local-dogfood-current/report.json",
+          );
+          return JSON.stringify({
+            acceptance: { decision: "accepted" },
+            evidenceSource: "local_audit_ledger",
+            generatedBy: "scripts/run-phase-37-1-dogfood-summary.ts",
+            phase: "phase-37.1",
+            summary: {
+              candidateCount: 20,
+              duplicateCount: 1,
+              durableWriteCount: 12,
+              falseWriteRateManual: 0.05,
+              forgottenCount: 1,
+              nextSessionRecallHitCount: 8,
+              sessionCount: 20,
+            },
+          });
+        },
+        runCommand: async (command) => {
+          executedCommands.push(command.args);
+          return {
+            durationMs: 1,
+            exitCode: 0,
+            stderr: "",
+            stdout: "",
+          };
+        },
+        writeTextFile: async (path) => {
+          writes.push(path);
+        },
+      },
+    );
+
+    expect(report.acceptance.decision).toBe("accepted");
+    expect(report.runDirectory).toBe(
+      "/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase37-1-local/quality-gates/phase-37-1/run-phase37-1-local-current",
+    );
+    expect(writes).toEqual([
+      "/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase37-1-local/quality-gates/phase-37-1/run-phase37-1-local-current/phase-37-1-quality-gate.json",
+    ]);
+    expect(executedCommands).toContainEqual([
+      "bun",
+      "run",
+      "eval:phase-37-1-dogfood",
+      "--",
+      "--run-id",
+      "run-phase37-1-local-dogfood-current",
+      "--output-dir",
+      "/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1",
+    ]);
+  });
+
+  it("accepts local-ledger dogfood only in local mode", async () => {
+    const report = await runPhase371QualityGate(
+      {
+        dogfoodMode: "local",
+        dogfoodReportPath: "/tmp/dogfood/report.json",
+        outputDir: "/tmp/phase371-gate",
+        runId: "run-phase371-gate",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-24T12:00:00.000Z",
+        readTextFile: async () =>
+          JSON.stringify({
+            acceptance: { decision: "accepted" },
+            evidenceSource: "local_audit_ledger",
+            generatedBy: "scripts/run-phase-37-1-dogfood-summary.ts",
+            phase: "phase-37.1",
+            summary: {
+              candidateCount: 20,
+              duplicateCount: 1,
+              durableWriteCount: 12,
+              falseWriteRateManual: 0.05,
+              forgottenCount: 1,
+              nextSessionRecallHitCount: 8,
+              sessionCount: 20,
+            },
+          }),
+        runCommand: async () => ({
+          durationMs: 1,
+          exitCode: 0,
+          stderr: "",
+          stdout: "",
+        }),
+        writeTextFile: async () => {},
+      },
+    );
+
+    expect(report.acceptance.decision).toBe("accepted");
+  });
+
+  it("blocks dogfood evidence with the wrong source for deterministic mode", async () => {
+    const report = await runPhase371QualityGate(
+      {
+        dogfoodReportPath: "/tmp/dogfood/report.json",
+        outputDir: "/tmp/phase371-gate",
+        runId: "run-phase371-gate",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-24T12:00:00.000Z",
+        readTextFile: async () =>
+          JSON.stringify({
+            acceptance: { decision: "accepted" },
+            evidenceSource: "local_audit_ledger",
+            generatedBy: "scripts/run-phase-37-1-dogfood-summary.ts",
+            phase: "phase-37.1",
+            summary: {
+              candidateCount: 20,
+              duplicateCount: 1,
+              durableWriteCount: 12,
+              falseWriteRateManual: 0.05,
+              forgottenCount: 1,
+              nextSessionRecallHitCount: 8,
+              sessionCount: 20,
+            },
+          }),
+        runCommand: async () => ({
+          durationMs: 1,
+          exitCode: 0,
+          stderr: "",
+          stdout: "",
+        }),
+        writeTextFile: async () => {},
+      },
+    );
+
+    expect(report.acceptance.decision).toBe("blocked");
+    expect(report.acceptance.reason).toContain("wrong evidence source");
   });
 
   it("exits nonzero when the gate is blocked", async () => {
@@ -220,6 +398,7 @@ describe("run-phase-37-1 gate", () => {
         readTextFile: async () =>
           JSON.stringify({
             acceptance: { decision: "accepted" },
+            evidenceSource: "deterministic_fixture",
             generatedBy: "scripts/run-phase-37-1-dogfood-summary.ts",
             phase: "phase-37.1",
             summary: {

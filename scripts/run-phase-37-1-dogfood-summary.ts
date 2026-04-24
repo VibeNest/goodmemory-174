@@ -9,6 +9,7 @@ import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export interface Phase371DogfoodSummaryOptions {
+  fixture?: "accepted";
   homeRoot?: string;
   minSessions?: number;
   outputDir?: string;
@@ -39,6 +40,7 @@ export interface Phase371DogfoodReport {
   runDirectory: string;
   runId: string;
   summary: Phase371DogfoodSummary;
+  evidenceSource: "deterministic_fixture" | "local_audit_ledger";
 }
 
 const GENERATED_BY = "scripts/run-phase-37-1-dogfood-summary.ts";
@@ -64,7 +66,9 @@ export function parsePhase371DogfoodCliOptions(
   argv: readonly string[],
 ): Phase371DogfoodSummaryOptions {
   const minSessions = resolveCliFlagValue(argv, "--min-sessions");
+  const fixture = resolveCliFlagValue(argv, "--fixture");
   return {
+    fixture: fixture === "accepted" ? "accepted" : undefined,
     homeRoot: resolveCliFlagValue(argv, "--home-root"),
     minSessions: minSessions === undefined ? undefined : Number(minSessions),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
@@ -82,13 +86,19 @@ export async function runPhase371DogfoodSummary(
   const runDirectory = join(outputDir, runId);
   const homeRoot = options.homeRoot;
   const minSessions = options.minSessions ?? DEFAULT_DOGFOOD_MIN_SESSIONS;
-  const events: InstalledHostWritebackAuditEvent[] = [];
+  const events: InstalledHostWritebackAuditEvent[] = options.fixture === "accepted"
+    ? buildAcceptedDeterministicDogfoodEvents()
+    : [];
   let legacyEventCount = 0;
+  let hostCount = 1;
 
-  for (const host of HOSTS) {
-    const ledger = await readInstalledHostWritebackLedger(host, homeRoot);
-    events.push(...ledger.auditEvents);
-    legacyEventCount += ledger.events.length;
+  if (options.fixture !== "accepted") {
+    hostCount = HOSTS.length;
+    for (const host of HOSTS) {
+      const ledger = await readInstalledHostWritebackLedger(host, homeRoot);
+      events.push(...ledger.auditEvents);
+      legacyEventCount += ledger.events.length;
+    }
   }
 
   const sessionDigests = new Set(
@@ -120,22 +130,28 @@ export async function runPhase371DogfoodSummary(
     Number.isFinite(summary.falseWriteRateManual) &&
     summary.falseWriteRateManual >= 0 &&
     summary.falseWriteRateManual <= 1;
+  const evidenceSource = options.fixture === "accepted"
+    ? "deterministic_fixture"
+    : "local_audit_ledger";
   const report: Phase371DogfoodReport = {
     acceptance: {
       decision: accepted ? "accepted" : "blocked",
       reason: accepted
-        ? "Phase 37.1 dogfood audit summary met the minimum real-session evidence floor without raw conversation content."
+        ? evidenceSource === "deterministic_fixture"
+          ? "Phase 37.1 deterministic dogfood fixture met the minimum acceptance floor without raw conversation content."
+          : "Phase 37.1 dogfood audit summary met the minimum real-session evidence floor without raw conversation content."
         : `Phase 37.1 dogfood audit summary needs at least ${minSessions} sessions, durable writes, next-session recall hits, and complete metrics.`,
     },
     generatedAt: timestamp,
     generatedBy: GENERATED_BY,
-    hostCount: HOSTS.length,
+    hostCount,
     mode: "dogfood",
     outputDir,
     phase: "phase-37.1",
     runDirectory,
     runId,
     summary,
+    evidenceSource,
   };
 
   await mkdir(runDirectory, { recursive: true });
@@ -153,6 +169,49 @@ function hasWritebackOwnedNextSessionRecallHit(
   return event.memoryIds.length > 0 &&
     Boolean(event.sessionDigest) &&
     event.recalledBy.some((hit) => hit.sessionDigest !== event.sessionDigest);
+}
+
+function buildAcceptedDeterministicDogfoodEvents(): InstalledHostWritebackAuditEvent[] {
+  return Array.from({ length: DEFAULT_DOGFOOD_MIN_SESSIONS }, (_, index) => {
+    const ordinal = index + 1;
+    const sessionDigest = `session:fixture-write-${String(ordinal).padStart(2, "0")}`;
+    const occurredAt = `2026-04-24T08:${String(ordinal).padStart(2, "0")}:00.000Z`;
+    const updatedAt = `2026-04-24T08:${String(ordinal).padStart(2, "0")}:01.000Z`;
+    return {
+      candidateKey: `scope:phase371-fixture:candidate:dogfood-${ordinal}`,
+      command: "session-end",
+      contentPreview: `Next step is to audit deterministic writeback event ${ordinal}.`,
+      eventId: `wb_phase371_fixture_${String(ordinal).padStart(2, "0")}`,
+      forgottenLinkedRecordIds: ordinal === 1
+        ? [{ forgottenAt: "2026-04-24T08:00:03.000Z", id: "fact-phase371-fixture-01", type: "memory" }]
+        : [],
+      forgottenMemoryIds: ordinal === 1 ? ["fact-phase371-fixture-01"] : [],
+      host: "codex",
+      kind: "fact",
+      linkedRecordIds: [{ id: `fact-phase371-fixture-${String(ordinal).padStart(2, "0")}`, type: "memory" }],
+      memoryIds: [`fact-phase371-fixture-${String(ordinal).padStart(2, "0")}`],
+      mode: "selective",
+      occurredAt,
+      reason: "open_loop",
+      recallHitCount: ordinal <= 8 ? 1 : 0,
+      recalledBy: ordinal <= 8
+        ? [
+            {
+              occurredAt: `2026-04-24T09:${String(ordinal).padStart(2, "0")}:00.000Z`,
+              sessionDigest: `session:fixture-recall-${String(ordinal).padStart(2, "0")}`,
+            },
+          ]
+        : [],
+      review: ordinal === 1
+        ? { outcome: "false_write", reason: "Manual deterministic fixture review." }
+        : undefined,
+      scopeDigest: "scope:phase371-fixture",
+      sessionDigest,
+      source: "user",
+      status: ordinal === 1 ? "forgotten" : "committed",
+      updatedAt,
+    };
+  });
 }
 
 export async function runPhase371DogfoodSummaryCli(

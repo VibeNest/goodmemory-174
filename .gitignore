@@ -68,6 +68,7 @@ temp/
 # Sandbox outputs
 sandbox/output/
 sandbox/tmp/
+.tmp-goodmemory-phase37-1-local/
 
 third-party/
 reports/*
@@ -79,9 +80,14 @@ reports/eval/*
 !reports/eval/fallback/
 !reports/eval/live/
 !reports/eval/live-memory/
+!reports/eval/dogfood/
 reports/eval/fallback/**
 reports/eval/live/**
 reports/eval/live-memory/**
+reports/eval/dogfood/**
+!reports/eval/dogfood/phase-37-1/
+!reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/
+!reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json
 !reports/eval/live-memory/phase-21/
 !reports/eval/live-memory/phase-21/run-1776620091171-observe/
 !reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json

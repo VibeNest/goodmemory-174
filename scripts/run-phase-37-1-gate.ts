@@ -49,6 +49,7 @@ export interface Phase371GateReport {
 }
 
 export interface Phase371GateOptions {
+  dogfoodMode?: "deterministic" | "local";
   dogfoodReportPath?: string;
   outputDir?: string;
   runId?: string;
@@ -70,13 +71,17 @@ export interface Phase371GateCliDependencies {
 }
 
 const GENERATED_BY = "scripts/run-phase-37-1-gate.ts";
-const CANONICAL_RUN_ID = "run-20260424137100";
+const CANONICAL_RUN_ID = "run-20260424100757";
 const CANONICAL_DOGFOOD_RUN_ID = "run-phase37-1-dogfood-current";
+const LOCAL_RUN_ID = "run-phase37-1-local-current";
+const LOCAL_DOGFOOD_RUN_ID = "run-phase37-1-local-dogfood-current";
 
 export function parsePhase371GateCliOptions(
   argv: readonly string[],
 ): Phase371GateOptions {
+  const dogfoodMode = resolveCliFlagValue(argv, "--dogfood-mode");
   return {
+    dogfoodMode: dogfoodMode === "local" ? "local" : "deterministic",
     dogfoodReportPath: resolveCliFlagValue(argv, "--dogfood-report-path"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     runId: resolveCliFlagValue(argv, "--run-id"),
@@ -87,7 +92,41 @@ export function resolvePhase371GateOutputDir(root: string): string {
   return join(root, "reports/quality-gates/phase-37-1");
 }
 
-export function buildPhase371GateCommands(root: string): Phase371GateCommand[] {
+export function resolvePhase371LocalGateOutputDir(root: string): string {
+  return join(root, ".tmp-goodmemory-phase37-1-local/quality-gates/phase-37-1");
+}
+
+export function resolvePhase371LocalDogfoodOutputDir(root: string): string {
+  return join(root, ".tmp-goodmemory-phase37-1-local/eval/dogfood/phase-37-1");
+}
+
+export function buildPhase371GateCommands(
+  root: string,
+  options: {
+    dogfoodMode?: "deterministic" | "local";
+  } = {},
+): Phase371GateCommand[] {
+  const dogfoodMode = options.dogfoodMode ?? "deterministic";
+  const dogfoodOutputDir = dogfoodMode === "local"
+    ? resolvePhase371LocalDogfoodOutputDir(root)
+    : resolvePhase371DogfoodOutputDir(root);
+  const dogfoodRunId = dogfoodMode === "local"
+    ? LOCAL_DOGFOOD_RUN_ID
+    : CANONICAL_DOGFOOD_RUN_ID;
+  const dogfoodArgs = [
+    "bun",
+    "run",
+    "eval:phase-37-1-dogfood",
+    "--",
+    "--run-id",
+    dogfoodRunId,
+    "--output-dir",
+    dogfoodOutputDir,
+  ];
+  if (dogfoodMode === "deterministic") {
+    dogfoodArgs.push("--fixture", "accepted");
+  }
+
   return [
     {
       args: ["bun", "run", "typecheck"],
@@ -111,16 +150,7 @@ export function buildPhase371GateCommands(root: string): Phase371GateCommand[] {
       label: "phase-37-1-targeted-regressions",
     },
     {
-      args: [
-        "bun",
-        "run",
-        "eval:phase-37-1-dogfood",
-        "--",
-        "--run-id",
-        CANONICAL_DOGFOOD_RUN_ID,
-        "--output-dir",
-        resolvePhase371DogfoodOutputDir(root),
-      ],
+      args: dogfoodArgs,
       cwd: root,
       label: "phase-37-1-dogfood-summary",
     },
@@ -147,8 +177,13 @@ export async function runPhase371QualityGate(
   dependencies: Phase371GateDependencies = {},
 ): Promise<Phase371GateReport> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
-  const outputDir = options.outputDir ?? resolvePhase371GateOutputDir(root);
-  const runId = options.runId ?? CANONICAL_RUN_ID;
+  const dogfoodMode = options.dogfoodMode ?? "deterministic";
+  const outputDir = options.outputDir ?? (dogfoodMode === "local"
+    ? resolvePhase371LocalGateOutputDir(root)
+    : resolvePhase371GateOutputDir(root));
+  const runId = options.runId ?? (dogfoodMode === "local"
+    ? LOCAL_RUN_ID
+    : CANONICAL_RUN_ID);
   const runDirectory = join(outputDir, runId);
   const ensureDir =
     dependencies.ensureDir ??
@@ -160,14 +195,20 @@ export async function runPhase371QualityGate(
   const runCommand = dependencies.runCommand ?? defaultRunCommand;
   const writeTextFile = dependencies.writeTextFile ?? writeFile;
   const commands: Phase371GateExecutionResult[] = [];
+  const dogfoodOutputDir = dogfoodMode === "local"
+    ? resolvePhase371LocalDogfoodOutputDir(root)
+    : resolvePhase371DogfoodOutputDir(root);
+  const dogfoodRunId = dogfoodMode === "local"
+    ? LOCAL_DOGFOOD_RUN_ID
+    : CANONICAL_DOGFOOD_RUN_ID;
   const dogfoodReportPath = options.dogfoodReportPath
     ? resolveMaybeRelativePath(root, options.dogfoodReportPath)
-    : join(resolvePhase371DogfoodOutputDir(root), CANONICAL_DOGFOOD_RUN_ID, "report.json");
+    : join(dogfoodOutputDir, dogfoodRunId, "report.json");
   const commandsToRun = options.dogfoodReportPath
-    ? buildPhase371GateCommands(root).filter(
+    ? buildPhase371GateCommands(root, { dogfoodMode }).filter(
         (command) => command.label !== "phase-37-1-dogfood-summary",
       )
-    : buildPhase371GateCommands(root);
+    : buildPhase371GateCommands(root, { dogfoodMode });
 
   for (const command of commandsToRun) {
     const result = await runCommand(command);
@@ -207,13 +248,19 @@ export async function runPhase371QualityGate(
       writeTextFile,
     });
   }
-  const dogfoodAccepted = isAcceptedDogfoodReport(dogfood);
+  const expectedEvidenceSource = dogfoodMode === "local"
+    ? "local_audit_ledger"
+    : "deterministic_fixture";
+  const dogfoodAccepted = isAcceptedDogfoodReport(
+    dogfood,
+    expectedEvidenceSource,
+  );
   return await writeReport({
     commands,
     dogfoodAccepted,
     dogfoodReason: dogfoodAccepted
       ? "Dogfood report met Phase 37.1 minimum session and metric requirements."
-      : "Phase 37.1 dogfood report is incomplete, below the session floor, or not accepted.",
+      : `Phase 37.1 dogfood report is incomplete, below the session floor, has the wrong evidence source for ${dogfoodMode} mode, or is not accepted.`,
     dogfoodReportPath,
     ensureDir,
     now,
@@ -240,8 +287,12 @@ export async function runPhase371GateCli(
   return report;
 }
 
-function isAcceptedDogfoodReport(report: Phase371DogfoodReport): boolean {
+function isAcceptedDogfoodReport(
+  report: Phase371DogfoodReport,
+  expectedEvidenceSource: Phase371DogfoodReport["evidenceSource"],
+): boolean {
   return report.acceptance.decision === "accepted" &&
+    report.evidenceSource === expectedEvidenceSource &&
     report.generatedBy === "scripts/run-phase-37-1-dogfood-summary.ts" &&
     report.phase === "phase-37.1" &&
     report.summary.sessionCount >= 20 &&

@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  parsePhase371DogfoodCliOptions,
   runPhase371DogfoodSummary,
   resolvePhase371DogfoodReportPath,
 } from "../../scripts/run-phase-37-1-dogfood-summary";
@@ -20,6 +21,53 @@ async function createHome(prefix: string): Promise<string> {
 }
 
 describe("run-phase-37-1 dogfood summary", () => {
+  it("parses deterministic fixture mode for clean CI runners", () => {
+    expect(
+      parsePhase371DogfoodCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-37-1-dogfood-summary.ts",
+        "--fixture",
+        "accepted",
+        "--min-sessions",
+        "20",
+      ]),
+    ).toEqual({
+      fixture: "accepted",
+      homeRoot: undefined,
+      minSessions: 20,
+      outputDir: undefined,
+      runId: undefined,
+    });
+  });
+
+  it("can generate accepted deterministic dogfood evidence without local history", async () => {
+    const outputDir = await createHome("goodmemory-phase371-dogfood-fixture-output-");
+
+    try {
+      const report = await runPhase371DogfoodSummary({
+        fixture: "accepted",
+        outputDir,
+        runId: "run-dogfood-fixture-test",
+      });
+
+      expect(report.acceptance.decision).toBe("accepted");
+      expect(report.evidenceSource).toBe("deterministic_fixture");
+      expect(report.summary).toEqual(
+        expect.objectContaining({
+          candidateCount: 20,
+          durableWriteCount: 20,
+          forgottenCount: 1,
+          nextSessionRecallHitCount: 8,
+          sessionCount: 20,
+        }),
+      );
+      expect(JSON.stringify(report)).not.toMatch(/transcript|messages|rawTranscript/u);
+    } finally {
+      await rm(outputDir, { force: true, recursive: true });
+    }
+  });
+
   it("summarizes local writeback audit events without transcript content", async () => {
     const homeRoot = await createHome("goodmemory-phase371-dogfood-home-");
     const outputDir = await createHome("goodmemory-phase371-dogfood-output-");
@@ -88,6 +136,7 @@ describe("run-phase-37-1 dogfood summary", () => {
       });
 
       expect(report.acceptance.decision).toBe("accepted");
+      expect(report.evidenceSource).toBe("local_audit_ledger");
       expect(report.generatedBy).toBe("scripts/run-phase-37-1-dogfood-summary.ts");
       expect(report.summary).toEqual(
         expect.objectContaining({

@@ -363,7 +363,7 @@ async function runAssistantConfirmedAllowedCase(): Promise<Phase37CaseResult> {
             (candidate) =>
               candidate.durable &&
               candidate.source === "assistant" &&
-              candidate.reason === "host_confirmed_decision",
+              candidate.reason === "host_annotation",
           ),
         },
       ],

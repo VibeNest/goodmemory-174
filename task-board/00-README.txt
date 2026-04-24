@@ -227,11 +227,15 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-37-Quality-Gate.md`
   - accepted surface: Codex installed host supports opt-in `off` / `observe` / `selective` writeback through public `remember` profiles/rules/annotations, with no raw transcript persistence and assistant output still gated by host confirmation or verification
   - still out of scope: default-on writeback, transcript archives, dashboard, managed cloud, built-in OneLife preset, recall-router reopening, and Claude as a provider-backed live blocker
-- Phase 37.1 is now open as the writeback productization polish slice:
+- Phase 37.1 is now closed as the writeback productization polish slice:
   - task-board entrypoint: `task-board/39-phase-37-1-writeback-productization-polish.txt`
   - breakdown folder: `task-board/phase-37-1-writeback-productization-polish/`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-37.1-Quality-Gate.md`
+  - dogfood report: `reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json`
+  - quality gate: `reports/quality-gates/phase-37-1/run-20260424100757/phase-37-1-quality-gate.json`
   - goal: make installed-host writeback inspectable, undoable, and dogfood-measurable without changing Phase 37 accepted claims
   - constraints: writeback remains opt-in, raw transcripts are not persisted, and no root public writeback API is added
+  - accepted status: audit ledger, inspect/forget CLI, deterministic fixture-backed dogfood summary, local real-ledger dogfood mode, and Phase 37.1 gate tooling are implemented and accepted
 - Any work after Phase 37 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.

@@ -3,7 +3,9 @@ Phase 37.1: Writeback Productization Polish
 
 Status
 ------
-[WIP] Phase 37.1 is the productization polish slice after the accepted Phase 37 installed-host selective writeback closure.
+[DONE] Phase 37.1 is closed as the productization polish slice after the accepted Phase 37 installed-host selective writeback closure.
+
+The accepted gate uses deterministic fixture-backed dogfood evidence so clean CI does not depend on local `~/.goodmemory` history. Real local-ledger dogfood remains available through `--dogfood-mode local` for longer retention validation and writes to `.tmp-goodmemory-phase37-1-local/` by default.
 
 
 Intent
@@ -20,7 +22,7 @@ Accepted Scope
 - `goodmemory codex writeback inspect`
 - `goodmemory codex writeback forget --event-id <id>`
 - deterministic Claude CLI parity for inspect and forget
-- dogfood summary report from local writeback audit ledgers
+- dogfood summary report from deterministic fixture-backed evidence, with local writeback audit ledger mode preserved for follow-up validation
 - Phase 37.1 quality gate
 
 
@@ -45,16 +47,24 @@ Acceptance Criteria
 6. `goodmemory codex writeback forget --event-id <id>` deletes linked records through public `forget()` where records are forgettable, then marks the audit event forgotten with a manual review reason.
 7. Claude exposes the same deterministic inspect and forget command surface.
 8. Dogfood summary reports session count, candidate count, durable write count, forgotten count, duplicate count, next-session recall hit count, and manual false-write rate from explicit review metadata without transcript content.
-9. Phase 37.1 gate passes and keeps Phase 35, Phase 36, and Phase 37 gates regression-covered.
+9. Phase 37.1 gate passes in deterministic CI mode, keeps Phase 35, Phase 36, and Phase 37 gates regression-covered, and preserves a local real-ledger dogfood mode for follow-up validation.
 
 
 Tasks
 -----
-[WIP] P37.1-T001 Add task-board contract and failing tests.
-[TODO] P37.1-T002 Add installed-host writeback audit ledger with legacy compatibility.
-[TODO] P37.1-T003 Record committed, pending, failed, and forgotten writeback audit events from the runtime.
-[TODO] P37.1-T004 Add `codex|claude writeback inspect` CLI and tests.
-[TODO] P37.1-T005 Add `codex|claude writeback forget --event-id` CLI and tests.
-[TODO] P37.1-T006 Add dogfood summary runner and report contract.
-[TODO] P37.1-T007 Add Phase 37.1 quality gate and regression chain.
-[TODO] P37.1-T008 Polish README/current-status/release docs.
+[DONE] P37.1-T001 Add task-board contract and failing tests.
+[DONE] P37.1-T002 Add installed-host writeback audit ledger with legacy compatibility.
+[DONE] P37.1-T003 Record committed, pending, failed, and forgotten writeback audit events from the runtime.
+[DONE] P37.1-T004 Add `codex|claude writeback inspect` CLI and tests.
+[DONE] P37.1-T005 Add `codex|claude writeback forget --event-id` CLI and tests.
+[DONE] P37.1-T006 Add dogfood summary runner and report contract.
+[DONE] P37.1-T007 Add Phase 37.1 quality gate and regression chain.
+[DONE] P37.1-T008 Polish README/current-status/release docs.
+[DONE] P37.1-T009 Add deterministic fixture-backed dogfood evidence, accepted Phase 37.1 gate artifact, and local real-ledger dogfood mode.
+
+
+Canonical Evidence
+------------------
+- dogfood report: `reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json`
+- quality gate: `reports/quality-gates/phase-37-1/run-20260424100757/phase-37-1-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-37.1-Quality-Gate.md`

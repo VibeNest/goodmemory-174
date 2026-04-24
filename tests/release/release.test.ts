@@ -1706,8 +1706,17 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain("SessionStart` / `UserPromptSubmit` hooks");
     expect(currentStatus).toContain("Phase 37 is now closed as the installed host selective writeback slice");
     expect(currentStatus).toContain("goodmemory codex writeback");
-    expect(currentStatus).toContain("Phase 37.1 is in productization polish");
+    expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-37.1-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-37-1/run-20260424100757/phase-37-1-quality-gate.json",
+    );
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",
     );
@@ -1831,7 +1840,7 @@ describe("release metadata and docs", () => {
       "Phase 37 is now closed as the installed host selective writeback slice",
     );
     expect(taskBoard).toContain(
-      "Phase 37.1 is now open as the writeback productization polish slice",
+      "Phase 37.1 is now closed as the writeback productization polish slice",
     );
     expect(taskBoard).not.toContain("Phase 35 is now WIP again");
   });

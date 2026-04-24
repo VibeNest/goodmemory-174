@@ -1,0 +1,24 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 37.1 deterministic dogfood fixture met the minimum acceptance floor without raw conversation content."
+  },
+  "generatedAt": "2026-04-24T10:23:32.510Z",
+  "generatedBy": "scripts/run-phase-37-1-dogfood-summary.ts",
+  "hostCount": 1,
+  "mode": "dogfood",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1",
+  "phase": "phase-37.1",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current",
+  "runId": "run-phase37-1-dogfood-current",
+  "summary": {
+    "candidateCount": 20,
+    "duplicateCount": 0,
+    "durableWriteCount": 20,
+    "falseWriteRateManual": 0.05,
+    "forgottenCount": 1,
+    "nextSessionRecallHitCount": 8,
+    "sessionCount": 20
+  },
+  "evidenceSource": "deterministic_fixture"
+}
