@@ -2908,6 +2908,19 @@ describe("release metadata and docs", () => {
     );
   });
 
+  it("release workflow installs sqlite-vss Linux prerequisites before dependency install", async () => {
+    const workflow = await readFile(
+      join(import.meta.dir, "../../.github/workflows/release.yml"),
+      "utf8",
+    );
+
+    expect(workflow).toContain("Install sqlite-vss Linux prerequisites");
+    expect(workflow).toContain("sudo apt-get install -y libgomp1 libatlas-base-dev liblapack-dev");
+    expect(workflow.indexOf("Install sqlite-vss Linux prerequisites")).toBeLessThan(
+      workflow.indexOf("Install dependencies"),
+    );
+  });
+
   it("ci workflow runs the node package boundary matrix on Node 20, 22, and 24", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/ci.yml"),

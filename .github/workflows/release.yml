@@ -24,6 +24,11 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
+      - name: Install sqlite-vss Linux prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgomp1 libatlas-base-dev liblapack-dev
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
