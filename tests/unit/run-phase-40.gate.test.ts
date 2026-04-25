@@ -16,24 +16,52 @@ const CROSS_CONSUMER_REPORT_PATH =
 const PRODUCT_REPORT_PATH =
   "/tmp/goodmemory/reports/eval/product/phase-40/run-20260425165544-product-eval/report.json";
 const PACKAGE_JSON_PATH = "/tmp/goodmemory/package.json";
+const PRODUCT_CASE_CONTRACTS = {
+  background_remember: {
+    expectedSignals: ["background.fact"],
+    wrongSignalLabels: ["wrong.background"],
+  },
+  feedback_procedural_learning: {
+    expectedSignals: ["feedback.summary_style"],
+    wrongSignalLabels: ["wrong.summary_style"],
+  },
+  historical_task_continuation: {
+    expectedSignals: ["phase40.next_step", "phase40.release_gate"],
+    wrongSignalLabels: ["wrong.next_step"],
+  },
+  identity_background: {
+    expectedSignals: ["profile.name", "background.role"],
+    wrongSignalLabels: ["wrong.role"],
+  },
+  open_loop_recall: {
+    expectedSignals: ["runtime.open_loop", "runtime.journal_state"],
+    wrongSignalLabels: ["wrong.open_loop"],
+  },
+  user_correction: {
+    expectedSignals: ["editor.current"],
+    wrongSignalLabels: ["editor.stale"],
+  },
+} as const;
 
-function productCase(focus: string): Record<string, unknown> {
+function productCase(focus: keyof typeof PRODUCT_CASE_CONTRACTS): Record<string, unknown> {
+  const contract = PRODUCT_CASE_CONTRACTS[focus];
+
   return {
-    expectedSignals: [`${focus}.expected`],
+    expectedSignals: [...contract.expectedSignals],
     focus,
     goodMemory: {
-      matchedSignals: [`${focus}.expected`],
+      matchedSignals: [...contract.expectedSignals],
       missedSignals: [],
       traceId: `${focus}-trace`,
       wrongSignals: [],
     },
     noMemory: {
       matchedSignals: [],
-      missedSignals: [`${focus}.expected`],
+      missedSignals: [...contract.expectedSignals],
       wrongSignals: [],
     },
     passed: true,
-    wrongSignalLabels: [`${focus}.wrong`],
+    wrongSignalLabels: [...contract.wrongSignalLabels],
   };
 }
 
@@ -75,7 +103,8 @@ function acceptedReports(): Record<string, string> {
           stdoutTail: [],
         },
         {
-          command: "bun test tests/release/release.test.ts --test-name-pattern python",
+          command:
+            "bun test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
           durationMs: 10,
           exitCode: 0,
           label: "python-fastapi-bridge-consumer",
@@ -84,7 +113,8 @@ function acceptedReports(): Record<string, string> {
           stdoutTail: [],
         },
         {
-          command: "bun test tests/release/release.test.ts --test-name-pattern host",
+          command:
+            "bun test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
           durationMs: 10,
           exitCode: 0,
           label: "installed-host-package-path",
@@ -362,6 +392,75 @@ describe("run-phase-40 gate", () => {
       cases?: unknown[];
     };
     delete product.cases;
+    reports[PRODUCT_REPORT_PATH] = JSON.stringify(product);
+
+    const report = await runPhase40QualityGate(
+      {
+        outputDir: "/tmp/phase40-gate",
+        runId: "run-phase40-gate",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-25T09:15:44.000Z",
+        readTextFile: readAcceptedReport(reports),
+        runCommand: async () => ({
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: "ok",
+        }),
+        writeTextFile: async () => {},
+      },
+    );
+
+    expect(report.acceptance.decision).toBe("blocked");
+    expect(report.evidence.productEval.status).toBe("blocked");
+  });
+
+  it("fails closed when a cross-consumer command is substituted", async () => {
+    const reports = acceptedReports();
+    const crossConsumer = JSON.parse(reports[CROSS_CONSUMER_REPORT_PATH]!) as {
+      commands: Array<{ command: string; label: string }>;
+    };
+    crossConsumer.commands[1]!.command = "bun --version";
+    reports[CROSS_CONSUMER_REPORT_PATH] = JSON.stringify(crossConsumer);
+
+    const report = await runPhase40QualityGate(
+      {
+        outputDir: "/tmp/phase40-gate",
+        runId: "run-phase40-gate",
+      },
+      {
+        ensureDir: async () => {},
+        now: () => "2026-04-25T09:15:44.000Z",
+        readTextFile: readAcceptedReport(reports),
+        runCommand: async () => ({
+          durationMs: 10,
+          exitCode: 0,
+          stderr: "",
+          stdout: "ok",
+        }),
+        writeTextFile: async () => {},
+      },
+    );
+
+    expect(report.acceptance.decision).toBe("blocked");
+    expect(report.evidence.crossConsumerAdoption.status).toBe("blocked");
+  });
+
+  it("fails closed when a product case drops a required signal", async () => {
+    const reports = acceptedReports();
+    const product = JSON.parse(reports[PRODUCT_REPORT_PATH]!) as {
+      cases: Array<{
+        expectedSignals: string[];
+        goodMemory: { matchedSignals: string[] };
+        noMemory: { missedSignals: string[] };
+      }>;
+    };
+    const identity = product.cases[0]!;
+    identity.expectedSignals = ["profile.name"];
+    identity.goodMemory.matchedSignals = ["profile.name"];
+    identity.noMemory.missedSignals = ["profile.name"];
     reports[PRODUCT_REPORT_PATH] = JSON.stringify(product);
 
     const report = await runPhase40QualityGate(

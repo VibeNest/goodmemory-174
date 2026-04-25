@@ -6,7 +6,7 @@
   "commands": [
     {
       "command": "bun run example:chat",
-      "durationMs": 633,
+      "durationMs": 638,
       "exitCode": 0,
       "label": "direct-typescript-app",
       "status": "passed",
@@ -15,7 +15,7 @@
     },
     {
       "command": "bun run example:express-chat",
-      "durationMs": 1175,
+      "durationMs": 1096,
       "exitCode": 0,
       "label": "express-http-server",
       "status": "passed",
@@ -24,7 +24,7 @@
     },
     {
       "command": "bun run example:fastify-chat",
-      "durationMs": 1917,
+      "durationMs": 1295,
       "exitCode": 0,
       "label": "fastify-http-server",
       "status": "passed",
@@ -33,7 +33,7 @@
     },
     {
       "command": "bun test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
-      "durationMs": 3013,
+      "durationMs": 3061,
       "exitCode": 0,
       "label": "python-fastapi-bridge-consumer",
       "status": "passed",
@@ -42,7 +42,7 @@
     },
     {
       "command": "bun test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
-      "durationMs": 4216,
+      "durationMs": 3970,
       "exitCode": 0,
       "label": "installed-host-package-path",
       "status": "passed",
@@ -80,7 +80,7 @@
       "status": "accepted"
     }
   },
-  "generatedAt": "2026-04-25T09:50:14.901Z",
+  "generatedAt": "2026-04-25T13:42:00.934Z",
   "generatedBy": "scripts/run-phase-40-cross-consumer-smoke.ts",
   "mode": "cross-consumer-adoption-smoke",
   "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/adoption/phase-40",

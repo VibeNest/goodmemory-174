@@ -6,31 +6,31 @@
   "commands": [
     {
       "command": "bun test tests/unit/run-phase-40.gate.test.ts tests/unit/run-phase-40.cross-consumer-smoke.test.ts tests/unit/run-phase-40.product-eval.test.ts tests/release/release.test.ts --test-name-pattern phase-40|package metadata exposes bin, exports, and key scripts|release checklist exists and covers the final gate|release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload|ci workflow runs the node package boundary matrix on Node 20, 22, and 24",
-      "durationMs": 208,
+      "durationMs": 306,
       "exitCode": 0,
       "label": "phase-40-release-regressions",
       "status": "passed",
       "stderrTail": [
-        "(pass) run-phase-40 product eval script > builds a deterministic phase-40 product eval run id [0.07ms]",
-        "(pass) run-phase-40 product eval script > parses phase-40 product eval cli flags [0.08ms]",
-        "(pass) run-phase-40 product eval script > writes an accepted product rollup with no-memory and GoodMemory variants [23.48ms]",
+        "(pass) run-phase-40 product eval script > builds a deterministic phase-40 product eval run id [0.10ms]",
+        "(pass) run-phase-40 product eval script > parses phase-40 product eval cli flags [0.03ms]",
+        "(pass) run-phase-40 product eval script > writes an accepted product rollup with no-memory and GoodMemory variants [26.32ms]",
         "",
         "tests/release/release.test.ts:",
-        "(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [1.89ms]",
-        "(pass) release metadata and docs > release checklist exists and covers the final gate [0.31ms]",
-        "(pass) release metadata and docs > phase-40 closes only from immutable phase-39 release evidence [1.15ms]",
-        "(pass) release metadata and docs > phase-40 cross-consumer adoption smoke is accepted and tracked [0.54ms]",
-        "(pass) release metadata and docs > phase-40 product eval rollup is accepted and tracked [0.52ms]",
-        "(pass) release metadata and docs > phase-40 quality gate report is accepted and tracked [13.21ms]",
-        "(pass) release metadata and docs > release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload [0.27ms]",
-        "(pass) release metadata and docs > ci workflow runs the node package boundary matrix on Node 20, 22, and 24 [0.18ms]",
-        "(pass) release metadata and docs > phase-40 quality gate doc points to the canonical v0.2 release-candidate gate [0.31ms]",
+        "(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [1.52ms]",
+        "(pass) release metadata and docs > release checklist exists and covers the final gate [0.24ms]",
+        "(pass) release metadata and docs > phase-40 closes only from immutable phase-39 release evidence [1.12ms]",
+        "(pass) release metadata and docs > phase-40 cross-consumer adoption smoke is accepted and tracked [0.44ms]",
+        "(pass) release metadata and docs > phase-40 product eval rollup is accepted and tracked [0.68ms]",
+        "(pass) release metadata and docs > phase-40 quality gate report is accepted and tracked [13.72ms]",
+        "(pass) release metadata and docs > release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload [0.32ms]",
+        "(pass) release metadata and docs > ci workflow runs the node package boundary matrix on Node 20, 22, and 24 [0.21ms]",
+        "(pass) release metadata and docs > phase-40 quality gate doc points to the canonical v0.2 release-candidate gate [0.37ms]",
         "",
-        " 26 pass",
+        " 28 pass",
         " 47 filtered out",
         " 0 fail",
-        " 343 expect() calls",
-        "Ran 26 tests across 4 files. [198.00ms]"
+        " 347 expect() calls",
+        "Ran 28 tests across 4 files. [297.00ms]"
       ],
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)"
@@ -38,7 +38,7 @@
     },
     {
       "command": "bun run test:ci",
-      "durationMs": 67184,
+      "durationMs": 70927,
       "exitCode": 0,
       "label": "ci-regression-gate",
       "status": "passed",
@@ -59,10 +59,10 @@
         " tests/support/test-env.ts                    |  100.00 |   94.74 | ",
         "----------------------------------------------|---------|---------|-------------------",
         "",
-        " 1475 pass",
+        " 1477 pass",
         " 0 fail",
-        " 7976 expect() calls",
-        "Ran 1475 tests across 182 files. [63.61s]"
+        " 7980 expect() calls",
+        "Ran 1477 tests across 182 files. [66.56s]"
       ],
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)",
@@ -87,19 +87,19 @@
     },
     {
       "command": "bun test tests/release/node-package-boundary.test.ts",
-      "durationMs": 5206,
+      "durationMs": 4840,
       "exitCode": 0,
       "label": "node-package-boundary-smoke",
       "status": "passed",
       "stderrTail": [
         "",
         "tests/release/node-package-boundary.test.ts:",
-        "(pass) node package boundary > installs from the packed artifact in npm and runs the canonical public library path under Node [5187.89ms]",
+        "(pass) node package boundary > installs from the packed artifact in npm and runs the canonical public library path under Node [4823.72ms]",
         "",
         " 1 pass",
         " 0 fail",
         " 42 expect() calls",
-        "Ran 1 test across 1 file. [5.20s]"
+        "Ran 1 test across 1 file. [4.84s]"
       ],
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)"
@@ -107,7 +107,7 @@
     },
     {
       "command": "bun run eval:phase-40-cross-consumer -- --run-id run-20260425163012-cross-consumer",
-      "durationMs": 10973,
+      "durationMs": 10079,
       "exitCode": 0,
       "label": "cross-consumer-adoption-smoke",
       "status": "passed",
@@ -120,7 +120,7 @@
     },
     {
       "command": "bun run eval:phase-40-product -- --run-id run-20260425165544-product-eval",
-      "durationMs": 4584,
+      "durationMs": 4827,
       "exitCode": 0,
       "label": "product-eval-rollup",
       "status": "passed",
@@ -133,12 +133,12 @@
     },
     {
       "command": "bun pm pack --dry-run",
-      "durationMs": 2084,
+      "durationMs": 2073,
       "exitCode": 0,
       "label": "pack-dry-run",
       "status": "passed",
       "stderrTail": [
-        "[0.03ms] \".env\"",
+        "[0.06ms] \".env\"",
         "$ bun run build",
         "$ bun run clean && bun run build:js && bun run build:types",
         "$ rm -rf dist",
@@ -170,7 +170,7 @@
     },
     {
       "command": "bun run release:rc-dry-run -- --output-dir /Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase40/quality-gates/phase-29 --run-id run-phase40-release-dry-run",
-      "durationMs": 3127,
+      "durationMs": 3449,
       "exitCode": 0,
       "label": "release-rc-dry-run",
       "status": "passed",
@@ -227,7 +227,7 @@
       "status": "accepted"
     }
   },
-  "generatedAt": "2026-04-25T09:50:35.655Z",
+  "generatedAt": "2026-04-25T13:42:21.350Z",
   "generatedBy": "scripts/run-phase-40-gate.ts",
   "phase": "phase-40",
   "releaseCandidate": {

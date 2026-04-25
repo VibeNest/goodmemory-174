@@ -118,12 +118,29 @@ const EXPECTED_CROSS_CONSUMER_EVIDENCE = [
   "publicEntrypointsOnly",
   "pythonFastApiBridge",
 ] as const;
-const EXPECTED_CROSS_CONSUMER_COMMAND_LABELS = [
-  "direct-typescript-app",
-  "express-http-server",
-  "fastify-http-server",
-  "python-fastapi-bridge-consumer",
-  "installed-host-package-path",
+const EXPECTED_CROSS_CONSUMER_COMMANDS = [
+  {
+    command: "bun run example:chat",
+    label: "direct-typescript-app",
+  },
+  {
+    command: "bun run example:express-chat",
+    label: "express-http-server",
+  },
+  {
+    command: "bun run example:fastify-chat",
+    label: "fastify-http-server",
+  },
+  {
+    command:
+      "bun test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
+    label: "python-fastapi-bridge-consumer",
+  },
+  {
+    command:
+      "bun test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
+    label: "installed-host-package-path",
+  },
 ] as const;
 const EXPECTED_PRODUCT_TRACE_EVIDENCE = [
   "whyBlocked",
@@ -131,13 +148,37 @@ const EXPECTED_PRODUCT_TRACE_EVIDENCE = [
   "whyRemembered",
   "whyRevised",
 ] as const;
-const EXPECTED_PRODUCT_CASE_FOCUSES = [
-  "identity_background",
-  "historical_task_continuation",
-  "open_loop_recall",
-  "user_correction",
-  "feedback_procedural_learning",
-  "background_remember",
+const EXPECTED_PRODUCT_CASES = [
+  {
+    expectedSignals: ["profile.name", "background.role"],
+    focus: "identity_background",
+    wrongSignalLabels: ["wrong.role"],
+  },
+  {
+    expectedSignals: ["phase40.next_step", "phase40.release_gate"],
+    focus: "historical_task_continuation",
+    wrongSignalLabels: ["wrong.next_step"],
+  },
+  {
+    expectedSignals: ["runtime.open_loop", "runtime.journal_state"],
+    focus: "open_loop_recall",
+    wrongSignalLabels: ["wrong.open_loop"],
+  },
+  {
+    expectedSignals: ["editor.current"],
+    focus: "user_correction",
+    wrongSignalLabels: ["editor.stale"],
+  },
+  {
+    expectedSignals: ["feedback.summary_style"],
+    focus: "feedback_procedural_learning",
+    wrongSignalLabels: ["wrong.summary_style"],
+  },
+  {
+    expectedSignals: ["background.fact"],
+    focus: "background_remember",
+    wrongSignalLabels: ["wrong.background"],
+  },
 ] as const;
 const PHASE40_RELEASE_REGRESSION_PATTERN =
   "phase-40|package metadata exposes bin, exports, and key scripts|release checklist exists and covers the final gate|release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload|ci workflow runs the node package boundary matrix on Node 20, 22, and 24";
@@ -358,24 +399,31 @@ function stringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function sameStrings(value: unknown, expected: readonly string[]): boolean {
+  return (
+    stringArray(value) &&
+    value.length === expected.length &&
+    expected.every((item, index) => value[index] === item)
+  );
+}
+
 function crossConsumerCommandsAccepted(report: Record<string, unknown>): boolean {
   const commands = report.commands;
   if (
     !Array.isArray(commands) ||
-    commands.length !== EXPECTED_CROSS_CONSUMER_COMMAND_LABELS.length
+    commands.length !== EXPECTED_CROSS_CONSUMER_COMMANDS.length
   ) {
     return false;
   }
 
-  return EXPECTED_CROSS_CONSUMER_COMMAND_LABELS.every((label, index) => {
+  return EXPECTED_CROSS_CONSUMER_COMMANDS.every((expected, index) => {
     const command = commands[index];
     return (
       isRecord(command) &&
-      command.label === label &&
+      command.label === expected.label &&
+      command.command === expected.command &&
       command.status === "passed" &&
       command.exitCode === 0 &&
-      typeof command.command === "string" &&
-      command.command.length > 0 &&
       typeof command.durationMs === "number" &&
       command.durationMs >= 0 &&
       Array.isArray(command.stdoutTail) &&
@@ -409,13 +457,17 @@ function requiredTraceEvidenceAccepted(report: Record<string, unknown>): boolean
 
 function productCasesAccepted(report: Record<string, unknown>): boolean {
   const cases = report.cases;
-  if (!Array.isArray(cases) || cases.length !== EXPECTED_PRODUCT_CASE_FOCUSES.length) {
+  if (!Array.isArray(cases) || cases.length !== EXPECTED_PRODUCT_CASES.length) {
     return false;
   }
 
-  return EXPECTED_PRODUCT_CASE_FOCUSES.every((focus, index) => {
+  return EXPECTED_PRODUCT_CASES.every((expected, index) => {
     const caseResult = cases[index];
-    if (!isRecord(caseResult) || caseResult.focus !== focus || caseResult.passed !== true) {
+    if (
+      !isRecord(caseResult) ||
+      caseResult.focus !== expected.focus ||
+      caseResult.passed !== true
+    ) {
       return false;
     }
     const goodMemory = caseResult.goodMemory;
@@ -424,8 +476,7 @@ function productCasesAccepted(report: Record<string, unknown>): boolean {
     return (
       isRecord(goodMemory) &&
       isRecord(noMemory) &&
-      stringArray(goodMemory.matchedSignals) &&
-      goodMemory.matchedSignals.length > 0 &&
+      sameStrings(goodMemory.matchedSignals, expected.expectedSignals) &&
       stringArray(goodMemory.missedSignals) &&
       goodMemory.missedSignals.length === 0 &&
       stringArray(goodMemory.wrongSignals) &&
@@ -434,14 +485,11 @@ function productCasesAccepted(report: Record<string, unknown>): boolean {
       goodMemory.traceId.length > 0 &&
       stringArray(noMemory.matchedSignals) &&
       noMemory.matchedSignals.length === 0 &&
-      stringArray(noMemory.missedSignals) &&
-      noMemory.missedSignals.length > 0 &&
+      sameStrings(noMemory.missedSignals, expected.expectedSignals) &&
       stringArray(noMemory.wrongSignals) &&
       noMemory.wrongSignals.length === 0 &&
-      stringArray(caseResult.expectedSignals) &&
-      caseResult.expectedSignals.length > 0 &&
-      stringArray(caseResult.wrongSignalLabels) &&
-      caseResult.wrongSignalLabels.length > 0
+      sameStrings(caseResult.expectedSignals, expected.expectedSignals) &&
+      sameStrings(caseResult.wrongSignalLabels, expected.wrongSignalLabels)
     );
   });
 }
@@ -471,9 +519,9 @@ function productMetricsAccepted(report: Record<string, unknown>): boolean {
     correctness.missedRecallRate === 0 &&
     correctness.wrongRecallRate === 0 &&
     correctness.correctionSuccessRate === 1 &&
-    correctness.goodMemoryPassCount === EXPECTED_PRODUCT_CASE_FOCUSES.length &&
+    correctness.goodMemoryPassCount === EXPECTED_PRODUCT_CASES.length &&
     correctness.noMemoryPassCount === 0 &&
-    correctness.totalCases === EXPECTED_PRODUCT_CASE_FOCUSES.length &&
+    correctness.totalCases === EXPECTED_PRODUCT_CASES.length &&
     quality.backgroundJobFailureVisibility === 1 &&
     quality.duplicateMemoryRate === 0 &&
     quality.policyBlockExplainability === 1 &&

@@ -21,7 +21,7 @@
         "missedSignals": [],
         "recallLatencyMs": 0,
         "score": 2,
-        "traceId": "522838a1-ca5a-4ca9-9af1-af47b161f864",
+        "traceId": "96e4a8a0-d587-47c1-b905-737913286a97",
         "wrongSignals": []
       },
       "noMemory": {
@@ -58,7 +58,7 @@
         "missedSignals": [],
         "recallLatencyMs": 0,
         "score": 2,
-        "traceId": "1f25f43c-f299-42a8-b56c-074666b40af1",
+        "traceId": "be597c6f-4609-4fa3-a6cf-7d534a2b621d",
         "wrongSignals": []
       },
       "noMemory": {
@@ -69,7 +69,7 @@
           "phase40.next_step",
           "phase40.release_gate"
         ],
-        "recallLatencyMs": 619,
+        "recallLatencyMs": 214,
         "score": 0,
         "wrongSignals": []
       },
@@ -95,7 +95,7 @@
         "missedSignals": [],
         "recallLatencyMs": 0,
         "score": 2,
-        "traceId": "e91652c0-2f33-4ea1-9f68-ee6672a64bab",
+        "traceId": "dbb4d3fb-0fcd-4e56-ac1e-c57e66b567c8",
         "wrongSignals": []
       },
       "noMemory": {
@@ -106,7 +106,7 @@
           "runtime.open_loop",
           "runtime.journal_state"
         ],
-        "recallLatencyMs": 192,
+        "recallLatencyMs": 263,
         "score": 0,
         "wrongSignals": []
       },
@@ -130,7 +130,7 @@
         "missedSignals": [],
         "recallLatencyMs": 0,
         "score": 1,
-        "traceId": "5e0e0746-5236-4035-a47f-4141fd097fb5",
+        "traceId": "4dd05ad4-a7c6-41c0-ad9a-e21685d3dc59",
         "wrongSignals": []
       },
       "noMemory": {
@@ -164,7 +164,7 @@
         "missedSignals": [],
         "recallLatencyMs": 0,
         "score": 1,
-        "traceId": "76c5ea92-53b3-4fc6-a428-8b824b94fe48",
+        "traceId": "462458e8-3f12-4537-a139-ae9978d5db19",
         "wrongSignals": []
       },
       "noMemory": {
@@ -198,7 +198,7 @@
         "missedSignals": [],
         "recallLatencyMs": 0,
         "score": 1,
-        "traceId": "d5401cc2-be84-47d2-8cd9-734f97e8e683",
+        "traceId": "6063e4b2-4945-4429-8a9f-25867ce82bf4",
         "wrongSignals": []
       },
       "noMemory": {
@@ -218,7 +218,7 @@
       ]
     }
   ],
-  "generatedAt": "2026-04-25T09:50:25.923Z",
+  "generatedAt": "2026-04-25T13:42:11.056Z",
   "generatedBy": "scripts/run-phase-40-product-eval.ts",
   "metrics": {
     "correctness": {
@@ -234,7 +234,7 @@
       "backgroundRememberNonBlocking": true,
       "noMemoryContextTokens": 30,
       "recallLatencyMs": {
-        "noMemoryAverage": 135.1667,
+        "noMemoryAverage": 79.5,
         "withGoodMemoryAverage": 0
       },
       "tokenCostDelta": 161,
