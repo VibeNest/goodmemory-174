@@ -1,0 +1,25 @@
+Phase 40.3: v0.2 Package and Release Proof
+==========================================
+
+Goal
+----
+Prove the package can be released as `0.2.0` with stable public boundaries.
+
+Scope
+-----
+- Bump package version to `0.2.0`.
+- Run pack dry run and inspect packaged files.
+- Install the tarball into external consumer projects.
+- Prove `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` resolve without
+  repo-internal imports.
+- Add Node 20 / 22 / 24 package-boundary smokes.
+- Confirm release workflow uses the latest accepted gate.
+
+Acceptance
+----------
+- Package-boundary smoke passes on Node 20, Node 22, and Node 24.
+- External tarball consumers do not import `src/` or private paths.
+- README, docs, examples, package metadata, and release checklist agree on
+  `0.2.0`.
+- Release proof includes `bun run test:ci`, the latest accepted quality gate,
+  and pack/install evidence.

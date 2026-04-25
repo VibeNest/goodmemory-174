@@ -29,6 +29,8 @@ flowchart LR
 - 客户端只调用 OneLife 的 FastAPI。
 - OneLife 的 FastAPI 再调用 GoodMemory bridge。
 - GoodMemory bridge 内部只使用 GoodMemory 的公开 API。
+- GoodMemory bridge 是 backend-only/internal service boundary，不应该直接暴露给
+  浏览器或移动端；OneLife FastAPI 负责认证、授权和跨用户/租户 scope 校验。
 - `life_os_state`、反思记录、事件流、用户控制和产品策略仍由 OneLife 自己拥有。
 
 不要这样做：
@@ -50,9 +52,14 @@ flowchart LR
 结论：
 
 - Expo/Web 不需要知道 GoodMemory 的存在。
-- OneLife 只需要知道五个 HTTP endpoint。
+- OneLife 只需要知道五个核心 HTTP endpoint，外加一个 targeted correction
+  endpoint。
 
 ## 3. 推荐暴露的接口
+
+这些接口应该只被 OneLife FastAPI 或等价的后端服务调用。`export`、`forget`
+和 `revise` 必须经过产品侧授权，并且请求 scope 必须绑定当前用户和租户/环境，
+不能让 bridge 自己猜测“谁有权改哪条记忆”。
 
 ### 3.1 `POST /memory/recall-context`
 
@@ -165,6 +172,11 @@ bridge 内部推荐这样处理：
 - `mode=async` 时调用 `memory.jobs.enqueueRemember(...)`
 - `idempotencyKey` 由 OneLife 后端生成，建议使用 `session_id + turn_id`
 
+这里的 `mode` 只是 HTTP bridge 的 transport/control 字段。它不能作为
+`memory.remember()` 的新参数向下透传，也不意味着 GoodMemory root API 支持
+`remember({ mode: "background" })`。异步写入应该显式走
+`memory.jobs.enqueueRemember(...)`。
+
 ### 3.3 `POST /memory/feedback`
 
 用途：
@@ -238,6 +250,57 @@ bridge 内部推荐这样处理：
 }
 ```
 
+默认 `includeRuntime=false`。即使未来允许导出 runtime 信息，也只能是
+summary-only 视图，不应包含 raw transcript archive。
+
+### 3.6 `POST /memory/revise`
+
+用途：
+
+- 修改一条用户已经看见并明确指向的记忆。
+- 只包装 Phase 38 已接受的 targeted `reviseMemory()`。
+- 不做 query-resolved target，不根据自然语言自动猜要改哪条 memory。
+
+推荐请求：
+
+```json
+{
+  "scope": {
+    "userId": "user-123",
+    "workspaceId": "onelife-prod",
+    "agentId": "life-coach"
+  },
+  "target": {
+    "memoryId": "mem_123"
+  },
+  "revision": {
+    "content": "用户现在更喜欢晚上复盘，而不是早上复盘。"
+  },
+  "reason": "user_correction",
+  "evidence": {
+    "source": "user_message",
+    "message": "其实我现在更喜欢晚上复盘。"
+  },
+  "idempotencyKey": "user-123:correction-42"
+}
+```
+
+bridge 内部只能调用：
+
+```ts
+await memory.reviseMemory({
+  scope,
+  target: { memoryId },
+  revision,
+  reason: "user_correction",
+  evidence,
+  idempotencyKey,
+});
+```
+
+如果 OneLife 还没有 resolve 到明确的 `memoryId`，这个 endpoint 应该拒绝请求，
+由 OneLife 先在用户可见记忆列表或产品状态里完成 target resolution。
+
 ## 4. OneLife 现有模型和 GoodMemory 的职责分工
 
 ### OneLife 继续拥有的部分
@@ -254,7 +317,7 @@ bridge 内部推荐这样处理：
 - recall 和 context assembly
 - domain write profile
 - assistant 输出的确认式写入
-- forget / export / feedback / runtime recall snapshot
+- targeted revise / forget / export / feedback / runtime recall snapshot
 
 一句话：
 
@@ -292,6 +355,9 @@ scope = {
 - `sessionId` 用于当前会话 runtime continuity
 - `agentId` 用来命中 `life-coach` profile
 - `workspaceId` 用来隔离环境和应用
+
+这些字段不是权限系统本身。OneLife 仍然要用自己的认证/授权结果来决定当前请求
+是否能访问这个 `userId` / `tenantId` / `workspaceId` 下的记忆。
 
 ## 6. OneLife 应该怎么定制写入规则
 
@@ -440,6 +506,9 @@ OneLife 已经有自己的 `MemoryPolicyService`。这很好，应该保留。
 - 不要一上来就让 GoodMemory 替换 OneLife 的全部 working memory。
 - 第一阶段应该先让 GoodMemory 接管“跨 session 的高价值语义记忆”。
 - OneLife 的 event/reflection window retrieval 可以先继续保留。
+- OneLife 拥有 session lifecycle。Phase 39 bridge 不急着暴露
+  `/memory/session/*`；GoodMemory runtime 只用于 scoped continuity snapshot
+  或 summary-only runtime state，archive 默认关闭。
 
 这样接得更快，也更稳。
 
@@ -474,6 +543,12 @@ LLM 回复成功后：
 1. 调 `POST /memory/export`
 2. 在 OneLife 侧渲染可见层
 
+用户点击“修改这条记忆”：
+
+1. OneLife 从用户可见记忆列表找到明确的 `memoryId`
+2. 调 `POST /memory/revise`
+3. 刷新用户可见记忆列表和下一轮 recall-context
+
 ## 10. 存储建议
 
 起步阶段：
@@ -495,7 +570,7 @@ LLM 回复成功后：
 如果目标是“尽快接上”，先做这四件事：
 
 1. 起一个 GoodMemory bridge 服务，先用 SQLite。
-2. 只接五个 endpoint。
+2. 先接五个核心 endpoint 和 targeted `/memory/revise`。
 3. 先配置 `life-coach` write profile。
 4. 先把 OneLife 的 coach 对话链接到 `recall-context -> prompt -> remember/feedback`。
 

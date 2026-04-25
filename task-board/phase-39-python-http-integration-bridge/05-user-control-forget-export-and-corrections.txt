@@ -11,15 +11,23 @@ Scope
 - Document how a consumer uses `forget` and `exportMemory` for user-visible
   memory control; OneLife is the reference flow.
 - Document when a consumer should use `feedback` versus `remember`.
+- Document `/memory/revise` as the explicit correction endpoint for already
+  resolved `memoryId` targets.
 - Document when a user correction should remain a consumer-side policy action
   first and when it should become a GoodMemory `reviseMemory()` or `forget()`
   follow-up.
+- Document that query-resolved target selection is out of scope; the consuming
+  app must resolve the visible memory item before calling revise.
+- Document authorization boundaries for view/export/delete/revise flows.
 
 Acceptance
 ----------
 - The docs show how to implement:
   - view/export
   - delete/forget
+  - targeted revise/correct by `memoryId`
   - do-not-remember masking
   - assistant suggestion confirmation
 - The contract makes it clear that raw transcript archive is out of scope.
+- The contract makes it clear that consumer-side lock/do-not-remember policy can
+  block writes before GoodMemory sees them.

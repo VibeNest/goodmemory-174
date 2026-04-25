@@ -1,0 +1,37 @@
+Phase 40.5: Product Eval Rollup
+===============================
+
+Goal
+----
+Prove GoodMemory improves product behavior versus a no-memory baseline.
+
+Scope
+-----
+- Add a product eval rollup under a stable phase-40 eval path.
+- Compare with-GoodMemory against no-memory baseline.
+- Cover:
+  - identity/background carry-forward
+  - historical task continuation
+  - open-loop recall
+  - user correction via targeted `reviseMemory()`
+  - feedback procedural learning
+  - runtime session continuity
+  - background remember not blocking response
+  - trace explainability for remember/recall/block/revise
+- Report:
+  - continuity uplift
+  - missed recall rate
+  - wrong recall rate
+  - duplicate memory rate
+  - correction success rate
+  - policy block explainability
+  - context token cost
+  - background job failure visibility
+
+Acceptance
+----------
+- The eval includes a no-memory baseline and a with-GoodMemory run.
+- The report separates correctness, product-quality, and cost/latency signals.
+- Trace evidence explains why remembered, why recalled, why blocked, and why
+  revised.
+- The eval does not persist raw transcripts as the default evidence source.

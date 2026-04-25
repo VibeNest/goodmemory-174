@@ -13,6 +13,10 @@ Scope
 - Show how product-owned state stays product-owned and is merged with
   GoodMemory context at prompt assembly time; OneLife's `life_os_state` is the
   reference case.
+- Show that Python/FastAPI remains the authenticated product boundary and that
+  the client/mobile app never calls the GoodMemory bridge directly.
+- Include a targeted correction smoke where Python resolves a visible
+  `memoryId` and calls `/memory/revise` without query target resolution.
 
 Acceptance
 ----------
@@ -20,3 +24,4 @@ Acceptance
 - A smoke path proves the bridge is consumable from outside the repository's
   TypeScript runtime.
 - The consumer path does not require client/mobile changes.
+- Export, forget, and revise examples include scoped authorization assumptions.

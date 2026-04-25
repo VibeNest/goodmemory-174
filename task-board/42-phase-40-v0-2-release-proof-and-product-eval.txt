@@ -1,0 +1,124 @@
+Phase 40: v0.2 Release Proof and Product Eval
+==============================================
+
+Status
+------
+[TODO] Phase 40 is queued. Do not make it the active implementation slice until
+Phase 39 closes with bridge regression and quality-gate evidence.
+
+This phase starts after Phase 39 Python HTTP integration bridge closure. It
+does not reopen Phase 38 or Phase 39. It uses their accepted public/runtime and
+bridge surfaces as release evidence inputs.
+
+
+Intent
+------
+Turn the accepted governed runtime surface plus the Python/FastAPI bridge into
+a release-grade v0.2 product surface.
+
+The goal is not to add another large API family. The goal is to prove that
+external users can adopt GoodMemory quickly, package boundaries are stable, and
+GoodMemory produces measurable continuity value versus a no-memory baseline.
+
+
+Accepted Scope
+--------------
+- Phase 39 closure as the required release-evidence input.
+- README and public docs updated around the real app loop:
+  - `createGoodMemory()`
+  - `memory.runtime.*`
+  - `recall`
+  - `buildContext`
+  - `memory.jobs.enqueueRemember()`
+  - targeted `reviseMemory()`
+  - `traceSink`
+  - `forget` / `exportMemory`
+- A canonical 15-minute app integration guide for ordinary Node services.
+- v0.2 package and release proof:
+  - version bump to `0.2.0`
+  - pack dry run
+  - external tarball consumer smoke
+  - Node 20 / 22 / 24 package-boundary smoke
+  - release workflow uses the latest accepted gate
+- Cross-consumer adoption smoke:
+  - direct TypeScript app
+  - Express/Fastify HTTP example
+  - Python/FastAPI bridge consumer from Phase 39
+  - installed-host path remains unaffected
+- Product eval rollup comparing with-GoodMemory against a no-memory baseline.
+- Phase 40 quality gate and v0.2 release-candidate evidence.
+
+
+Out of Scope
+------------
+- Query-resolved revise targets
+- `correctMemory()` alias
+- `memory.facts.add()` / `memory.preferences.upsert()` / unmanaged CRUD APIs
+- `remember({ mode: "background" })`
+- Public router provider config
+- Persistent distributed job queue
+- Dashboard, managed cloud, or analytics product
+- Default-on writeback
+- Raw transcript archive
+- Built-in OneLife preset
+- LangGraph-first integration
+
+
+Acceptance Criteria
+-------------------
+1. Phase 39 is closed first, with an immutable quality gate and Python/FastAPI
+   bridge smoke evidence.
+2. README main quickstart shows the current app loop, not only the old durable
+   `remember` / `recall` / `buildContext` path.
+3. A canonical 15-minute app integration guide exists and points to the
+   Express/Fastify examples as the recommended Node server path.
+4. External consumers can install the packed package and use only public
+   package entrypoints: `goodmemory`, `goodmemory/ai-sdk`, and
+   `goodmemory/host`.
+5. Node 20, Node 22, and Node 24 package-boundary smokes pass.
+6. The release workflow and release checklist use the latest accepted gate as
+   the release gate.
+7. Package version, README, docs, examples, and release notes agree on `0.2.0`.
+8. Product eval rollup reports with-GoodMemory uplift versus no-memory baseline
+   for identity/background understanding and historical task continuation.
+9. Product eval artifacts include trace evidence for why remembered, why
+   recalled, why blocked, and why revised.
+10. The gate proves runtime archive is off by default, background jobs are
+    auditable/idempotent/failure-visible, and raw CRUD/default-on
+    writeback/raw transcript archive remain out of scope.
+
+
+Tasks
+-----
+[TODO] P40-T001 Close Phase 39 as release-evidence input.
+[TODO] P40-T002 Rewrite public quickstart and add the 15-minute app integration
+guide.
+[TODO] P40-T003 Add v0.2 package and release proof.
+[TODO] P40-T004 Add cross-consumer adoption smoke coverage.
+[TODO] P40-T005 Add product eval rollup with a no-memory baseline.
+[TODO] P40-T006 Add Phase 40 quality gate and v0.2 release-candidate evidence.
+
+
+Entry Evidence
+--------------
+- Phase 38 quality gate:
+  `reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json`
+- Phase 39 task-board entrypoint:
+  `task-board/41-phase-39-python-http-integration-bridge.txt`
+- Stable current-status entrypoint:
+  `docs/GoodMemory-Current-Status-and-Evidence.md`
+- Product scope and eval intent:
+  `docs/GoodMemory-PRD.md`
+- TDD and eval strategy:
+  `docs/GoodMemory-TDD-and-Evaluation-Strategy.md`
+
+
+Breakdown
+---------
+- `task-board/phase-40-v0-2-release-proof-and-product-eval/00-README.txt`
+- `task-board/phase-40-v0-2-release-proof-and-product-eval/01-close-phase-39-input.txt`
+- `task-board/phase-40-v0-2-release-proof-and-product-eval/02-public-quickstart-and-integration-guide.txt`
+- `task-board/phase-40-v0-2-release-proof-and-product-eval/03-v0-2-package-release-proof.txt`
+- `task-board/phase-40-v0-2-release-proof-and-product-eval/04-cross-consumer-adoption-smoke.txt`
+- `task-board/phase-40-v0-2-release-proof-and-product-eval/05-product-eval-rollup.txt`
+- `task-board/phase-40-v0-2-release-proof-and-product-eval/06-phase-40-gate-and-release-candidate.txt`

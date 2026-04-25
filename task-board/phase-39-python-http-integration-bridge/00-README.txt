@@ -16,8 +16,19 @@ Working rules:
 - Do not add a built-in OneLife preset.
 - Keep Expo/Web clients unaware of GoodMemory internals; the server boundary is
   Python/FastAPI to Node/Bun HTTP.
+- Treat the bridge as backend-only. Browser/mobile clients must call the
+  product backend, and export/forget/revise operations must pass product-owned
+  authorization and scoped user/tenant validation.
 - Prefer a thin bridge/example over new root public API expansion.
 - Keep consumer product memory policy product-owned; GoodMemory is the semantic
   memory layer and runtime facade. OneLife is the first reference case.
+- If the bridge exposes `mode: "async"` for remember, keep it as transport
+  control that chooses `memory.jobs.enqueueRemember()`; do not add
+  `remember({ mode: "background" })`.
+- Use targeted `reviseMemory()` only after the product has resolved an explicit
+  `memoryId`; do not add query-resolved correction in this phase.
+- Let the consuming app own session lifecycle. GoodMemory runtime may support
+  scoped continuity snapshots or summary-only runtime state, but raw transcript
+  archive remains off by default.
 - Do not persist raw transcripts by default.
 - After each slice, run targeted regressions and update docs/examples together.

@@ -13,8 +13,21 @@ Scope
   - `POST /memory/feedback`
   - `POST /memory/forget`
   - `POST /memory/export`
+  - `POST /memory/revise`
 - Freeze required scope fields, idempotency behavior, and assistant-output
   confirmation expectations.
+- Freeze backend-only caller expectations: the bridge is not public browser API;
+  the consuming backend must authenticate the user and authorize scoped export,
+  forget, and revise operations.
+- Freeze remember `mode` as an HTTP bridge transport field only. `mode=async`
+  selects `memory.jobs.enqueueRemember(...)`; it is not forwarded into
+  `memory.remember()` and does not widen the root GoodMemory API.
+- Freeze revise as targeted-only:
+  `reviseMemory({ target: { memoryId }, ... })`. Query-resolved targets and
+  ambiguous correction requests are rejected.
+- Freeze runtime ownership: the consuming app owns session lifecycle; the bridge
+  may use `memory.runtime.*` only for scoped continuity snapshots or
+  summary-only runtime state, with archive off by default.
 - Freeze the recall-context response so it can satisfy both:
   - prompt-ready context assembly
   - compact structured memory items for the consumer; OneLife is the reference
@@ -23,7 +36,13 @@ Acceptance
 ----------
 - Contract is documented in a repo-tracked doc/example.
 - Input validation rejects malformed scope or malformed message arrays.
+- Authorization/scope validation requirements are explicit for export, forget,
+  and revise.
 - Recall-context contract makes `traceId`, `hasContext`, `itemCount`, and
   prompt-ready context explicit.
 - Remember contract makes `annotations`, idempotency, and async-vs-sync write
   semantics explicit.
+- Revise contract requires `target.memoryId`, user-correction reason/evidence,
+  and idempotency metadata, and rejects query target resolution.
+- Export contract defaults `includeRuntime` to `false`; any runtime output is
+  summary-only and never a raw transcript archive.

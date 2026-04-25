@@ -1,0 +1,24 @@
+Phase 40.1: Close Phase 39 as Release-Evidence Input
+====================================================
+
+Goal
+----
+Ensure the Python/FastAPI HTTP bridge is accepted before using it as v0.2
+release evidence.
+
+Scope
+-----
+- Verify Phase 39 has a quality gate.
+- Verify the bridge contract is frozen.
+- Verify Python/FastAPI consumer smoke passed.
+- Verify backend-only auth/scope/revise/runtime boundaries are documented and
+  regression-covered.
+- Verify current status says Phase 39 is closed before Phase 40 becomes active.
+
+Acceptance
+----------
+- Phase 40 does not begin implementation work until Phase 39 closure evidence
+  exists.
+- Phase 39 did not widen the root public API unless the accepted bridge evidence
+  explicitly justified it.
+- Phase 39 closure artifacts are referenced as immutable inputs, not rewritten.

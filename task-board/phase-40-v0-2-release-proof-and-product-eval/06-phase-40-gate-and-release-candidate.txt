@@ -1,0 +1,24 @@
+Phase 40.6: Gate and v0.2 Release Candidate
+===========================================
+
+Goal
+----
+Close Phase 40 with release-candidate evidence, not a docs-only claim.
+
+Required Evidence
+-----------------
+- Phase 39 accepted gate
+- Phase 40 product eval rollup
+- `bun run test:ci`
+- Node 20 / 22 / 24 package-boundary smokes
+- External tarball consumer smoke
+- Cross-consumer adoption smoke
+- Pack dry run / release dry run
+- Release checklist and current-status updates
+
+Acceptance
+----------
+- The Phase 40 quality gate records all required evidence paths.
+- `0.2.0` release candidate is traceable to immutable gate artifacts.
+- Out-of-scope items remain explicitly blocked or absent.
+- Current status is updated only after evidence exists.

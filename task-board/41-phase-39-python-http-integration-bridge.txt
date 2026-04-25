@@ -24,7 +24,8 @@ The target integration shape is:
 - the backend talks to a thin Node/Bun GoodMemory bridge over HTTP
 - the bridge exposes a stable memory contract built on top of accepted public
   APIs: `recall`, `buildContext`, `remember`, `feedback`, `forget`,
-  `exportMemory`, and `memory.runtime.*`
+  `exportMemory`, targeted `reviseMemory`, `memory.runtime.*`, and
+  `memory.jobs.*`
 
 
 Accepted Scope
@@ -35,8 +36,13 @@ Accepted Scope
   - `POST /memory/feedback`
   - `POST /memory/forget`
   - `POST /memory/export`
+  - `POST /memory/revise` for targeted governed correction by explicit
+    `target.memoryId`
 - A Bun/Node reference bridge example built on the accepted Phase 38 runtime
   surface, not on repo-internal imports.
+- A backend-only service-boundary contract: callers authenticate through the
+  consuming app, and bridge requests must be scoped so export, forget, and
+  revise cannot cross user/tenant boundaries.
 - A reference-consumer response shape for recall-context that gives both:
   - prompt-ready context text
   - compact structured items that can map onto a consumer's current memory
@@ -47,8 +53,13 @@ Accepted Scope
   session/state boundaries; OneLife's `MemoryPolicyService`, `LifeOSState`, and
   `agent-session` contracts are the first reference case.
 - User-control flows for forget/export that can back a consuming product's
-  "view, correct, delete, lock, do not remember this" requirements; OneLife is
-  the reference case.
+  "view, correct, delete, lock, do not remember this" requirements; targeted
+  revise is the correction path when the product has resolved an explicit
+  `memoryId`. OneLife is the reference case.
+- Explicit runtime ownership guidance: the consuming app owns session lifecycle;
+  the bridge can use `memory.runtime.*` only for scoped continuity snapshots or
+  optional summary-only runtime journal behavior, with transcript-like archive
+  persistence off by default.
 - Targeted contract/regression coverage for the reference bridge and docs.
 
 
@@ -60,6 +71,7 @@ Out of Scope
   tables
 - Root public API expansion unless the bridge/example proves a real blocker
 - Transcript persistence as the default memory source
+- Query-resolved correction targets or automatic memory target selection
 - Managed cloud, dashboard, hosted sync, or cross-service exactly-once claims
 
 
@@ -68,13 +80,14 @@ Acceptance Criteria
 1. A Python/FastAPI backend can integrate through a documented HTTP bridge
    without importing repo-internal GoodMemory modules.
 2. The bridge contract is explicit about scope, idempotency, assistant-output
-   confirmation, and user-control flows.
+   confirmation, bridge-level async/sync controls, and user-control flows.
 3. `POST /memory/recall-context` can return both prompt-ready context text and
    compact structured items for the consumer's coach path; OneLife is the first
    reference path.
 4. `POST /memory/remember` supports public write customization through
    `remember` profiles/rules/annotations and does not require a built-in
-   OneLife preset.
+   OneLife preset. Its `mode` field, if exposed, is bridge transport control
+   only and is not forwarded as a new root `memory.remember()` parameter.
 5. Consumer memory policy remains product-owned: blocked/shame-solidifying or
    unconfirmed identity/preference writes are filtered before durable writes,
    while GoodMemory remains the semantic memory layer.
@@ -83,22 +96,32 @@ Acceptance Criteria
 7. The reference docs show how a consumer maps `userId`, `sessionId`,
    `agentId`, product state, and feedback/user-control events onto GoodMemory
    scope and API calls; OneLife is the concrete example.
-8. Phase 39 closes only with targeted tests, reference-consumer smoke, and a
+8. Bridge endpoints are backend-only and require caller authentication or an
+   internal service boundary; export, forget, and revise require product-owned
+   authorization plus scoped `userId` and tenant/workspace validation.
+9. `POST /memory/revise` wraps only the Phase 38 accepted targeted
+   `reviseMemory({ target: { memoryId } })` path and rejects query-resolved or
+   ambiguous correction requests.
+10. OneLife owns session lifecycle; GoodMemory runtime is used only for scoped
+    continuity or summary-only runtime state, and runtime archive remains off by
+    default.
+11. Phase 39 closes only with targeted tests, reference-consumer smoke, and a
    new immutable quality gate.
 
 
 Tasks
 -----
 [TODO] P39-T001 Freeze the Python/FastAPI HTTP memory bridge contract and
-document the request/response schema for the five endpoints.
+document the request/response schema for the core endpoints plus governed
+revise.
 [TODO] P39-T002 Add a thin Node/Bun reference bridge example on top of the
 accepted governed runtime and background job surface.
 [TODO] P39-T003 Add OneLife-aligned response adapters for recall-context and
 life-coach scoped write-profile wiring without a built-in preset.
 [TODO] P39-T004 Add Python/FastAPI consumer guidance and smoke coverage for the
 reference bridge.
-[TODO] P39-T005 Add forget/export and correction guidance that matches
-OneLife's user-control and memory-policy model.
+[TODO] P39-T005 Add forget/export/revise and correction guidance that matches
+OneLife's user-control, authorization, and memory-policy model.
 [TODO] P39-T006 Add Phase 39 regressions, gate tooling, and closure evidence.
 
 

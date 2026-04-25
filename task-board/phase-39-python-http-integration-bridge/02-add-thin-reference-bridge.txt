@@ -12,6 +12,9 @@ Scope
 - Build on top of the accepted Phase 38 runtime facade and job surface.
 - Keep framework coupling thin; Express/Fastify-style adapters are acceptable.
 - Do not introduce repo-internal imports as the integration contract.
+- Include backend-only request validation hooks or documented middleware seams
+  for authentication, authorization, and scoped tenant/user checks.
+- Expose targeted `/memory/revise` by wrapping public `reviseMemory()` only.
 
 Acceptance
 ----------
@@ -19,4 +22,9 @@ Acceptance
 - The bridge uses `recall` + `buildContext` for `/memory/recall-context`.
 - The bridge uses `remember` or `memory.jobs.enqueueRemember()` for
   `/memory/remember` without widening the root public API.
+- The bridge uses `reviseMemory()` for `/memory/revise` only when
+  `target.memoryId` is present and authorized.
+- The bridge does not expose session lifecycle endpoints by default; the
+  consuming product owns sessions, while GoodMemory runtime use remains scoped
+  and summary-only.
 - The bridge exposes stable JSON validation and error responses.

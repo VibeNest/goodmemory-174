@@ -1,0 +1,33 @@
+Phase 40.2: Public Quickstart and 15-Minute Integration Guide
+============================================================
+
+Goal
+----
+Make the public docs explain the current GoodMemory app loop without requiring
+users to read source or phase boards.
+
+Scope
+-----
+- Update README main quickstart around:
+  - `createGoodMemory()`
+  - `memory.runtime.startSession()` / `appendMessage()`
+  - `recall`
+  - `buildContext`
+  - `memory.jobs.enqueueRemember()`
+  - targeted `reviseMemory()`
+  - `traceSink`
+  - `forget` / `exportMemory`
+- Add a canonical 15-minute app integration guide.
+- Elevate Express/Fastify examples as the recommended Node server path.
+- Keep Python/FastAPI bridge as the Phase 39 reference consumer path without
+  making OneLife the product boundary.
+
+Acceptance
+----------
+- README shows one complete app loop and links to the detailed guide.
+- The detailed guide shows background remember through `memory.jobs.*`, not
+  `remember({ mode: "background" })`.
+- The correction example uses explicit `target.memoryId`, not query-resolved
+  target selection.
+- Docs clearly state runtime archive is off by default and raw transcripts are
+  not the default memory source.

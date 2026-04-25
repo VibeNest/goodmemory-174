@@ -1,0 +1,24 @@
+Phase 40.4: Cross-Consumer Adoption Smoke
+=========================================
+
+Goal
+----
+Prove the release surface works across the main consumer shapes GoodMemory now
+claims to support.
+
+Scope
+-----
+- Direct TypeScript app smoke.
+- Express/Fastify HTTP server smoke.
+- Python/FastAPI bridge consumer smoke from Phase 39.
+- Installed-host path smoke to prove Phase 35/37/37.1 behavior remains
+  unaffected.
+
+Acceptance
+----------
+- Each consumer uses only public package entrypoints.
+- Each consumer can complete recall/context/write or the relevant installed-host
+  workflow.
+- Cross-consumer smoke reports are included in Phase 40 gate evidence.
+- Failures are visible and actionable; no consumer path silently falls back to a
+  misleading unsupported runtime.

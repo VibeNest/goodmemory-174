@@ -11,6 +11,12 @@ Required Evidence
 - Contract validation tests for the bridge endpoints
 - Regression coverage for public remember profiles/annotations/runtime paths
 - Reference-consumer smoke for the Python/FastAPI boundary
+- Backend-only authorization/scope validation evidence for export, forget, and
+  revise
+- Targeted correction evidence for `/memory/revise` without query target
+  resolution
+- Evidence that remember async mode uses `memory.jobs.*` and does not add
+  `remember({ mode: "background" })`
 - A new immutable Phase 39 quality gate
 
 Acceptance
@@ -19,3 +25,5 @@ Acceptance
 - Closure evidence does not mutate prior accepted phase artifacts.
 - Any blocker that requires widening the root public API must be written down
   explicitly and justified by failing bridge evidence.
+- Closure evidence proves runtime archive defaults remain off and any runtime
+  export is summary-only.

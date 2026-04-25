@@ -71,11 +71,42 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 39 is now open as the Python HTTP integration bridge slice.
 - The current goal is a thin Node/Bun HTTP bridge for Python/FastAPI consumers,
   built on the accepted `remember`, `recall`, `buildContext`, `feedback`,
-  `forget`, `exportMemory`, and `memory.runtime.*` surfaces.
+  `forget`, `exportMemory`, targeted `reviseMemory()`, `memory.runtime.*`, and
+  `memory.jobs.*` surfaces.
 - OneLife is the first reference consumer for this work, not the product
   boundary of GoodMemory itself.
+- The refined Phase 39 contract is backend-only: browser/mobile clients call the
+  product backend, and export/forget/revise require product-owned
+  authentication, authorization, and scoped user/tenant validation.
+- The bridge may expose remember `mode` as HTTP transport control only; async
+  writes route to `memory.jobs.enqueueRemember()` and do not add
+  `remember({ mode: "background" })`.
+- Phase 39 targeted correction is `/memory/revise` over explicit
+  `target.memoryId`; query-resolved correction remains out of scope.
+- The consuming product owns session lifecycle. GoodMemory runtime is used only
+  for scoped continuity or summary-only runtime state, and transcript-like
+  archive persistence remains off by default.
 - This open slice does not change the accepted stable OSS surface until it
   closes with its own regression and quality-gate evidence.
+
+## Queued Follow-Up Slice
+
+- Phase 40 is queued as the v0.2 release proof and product eval slice.
+- It should not become active until Phase 39 closes with bridge regression and
+  quality-gate evidence.
+- Planned scope:
+  - README and canonical 15-minute app integration guide around the current app
+    loop
+  - v0.2 package and release proof, including external tarball consumer smoke
+    and Node 20 / 22 / 24 package-boundary smoke
+  - cross-consumer adoption smoke for direct TypeScript, Express/Fastify,
+    Python/FastAPI bridge, and installed-host paths
+  - product eval rollup comparing with-GoodMemory against a no-memory baseline
+    for identity/background understanding and historical task continuation
+- Phase 40 must not add query-resolved revise targets, raw CRUD APIs,
+  `remember({ mode: "background" })`, public router provider config, dashboard,
+  managed cloud, default-on writeback, raw transcript archive, or a built-in
+  OneLife preset.
 
 ## Prior Closed Installed-Host Slices
 
