@@ -2921,6 +2921,24 @@ describe("release metadata and docs", () => {
     );
   });
 
+  it("release workflow provisions postgres coverage dependencies before the release gate", async () => {
+    const workflow = await readFile(
+      join(import.meta.dir, "../../.github/workflows/release.yml"),
+      "utf8",
+    );
+
+    expect(workflow).toContain("services:");
+    expect(workflow).toContain("postgres:");
+    expect(workflow).toContain("image: pgvector/pgvector:pg16");
+    expect(workflow).toContain(
+      "GOODMEMORY_TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres",
+    );
+    expect(workflow.indexOf("services:")).toBeLessThan(workflow.indexOf("steps:"));
+    expect(workflow.indexOf("GOODMEMORY_TEST_POSTGRES_URL")).toBeLessThan(
+      workflow.indexOf("Run release gate"),
+    );
+  });
+
   it("ci workflow runs the node package boundary matrix on Node 20, 22, and 24", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/ci.yml"),
