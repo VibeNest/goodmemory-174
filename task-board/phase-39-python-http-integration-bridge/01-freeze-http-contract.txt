@@ -16,6 +16,9 @@ Scope
   - `POST /memory/revise`
 - Freeze required scope fields, idempotency behavior, and assistant-output
   confirmation expectations.
+- Freeze `/memory/feedback` as a procedural-learning endpoint with explicit
+  retry-safe idempotency and source/provenance metadata so consumer retries and
+  replay remain auditable.
 - Freeze backend-only caller expectations: the bridge is not public browser API;
   the consuming backend must authenticate the user and authorize scoped export,
   forget, and revise operations.
@@ -42,6 +45,8 @@ Acceptance
   prompt-ready context explicit.
 - Remember contract makes `annotations`, idempotency, and async-vs-sync write
   semantics explicit.
+- Feedback contract makes `signal`, idempotency, and provenance/source metadata
+  explicit, and distinguishes procedural feedback from general fact writes.
 - Revise contract requires `target.memoryId`, user-correction reason/evidence,
   and idempotency metadata, and rejects query target resolution.
 - Export contract defaults `includeRuntime` to `false`; any runtime output is

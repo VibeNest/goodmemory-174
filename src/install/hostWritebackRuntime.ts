@@ -15,6 +15,7 @@ import {
   clearWritebackAuditPending,
   markWritebackAuditCommitted,
   markWritebackAuditFailed,
+  markWritebackAuditObserved,
   markWritebackAuditPending,
   readInstalledHostWritebackLedger,
   withInstalledHostWritebackLedgerLock,
@@ -66,6 +67,7 @@ export interface InstalledHostWritebackResult {
   reason:
     | "disabled"
     | "empty_transcript"
+    | "audit_failed"
     | "missing_config"
     | "missing_repo_opt_in"
     | "no_candidates"
@@ -201,16 +203,28 @@ export async function executeInstalledHostWriteback(
   }
 
   if (config.mode === "observe") {
+    const observed = await recordObservedCandidates({
+      candidates: candidates.filter((candidate) => candidate.durable),
+      command: input.command,
+      homeRoot: input.homeRoot,
+      host: input.host,
+      scope: durableScope,
+      sessionDigest: buildWritebackSessionDigest(
+        readOptionalText(input.payload, "session_id"),
+      ),
+    });
     return {
       applied: true,
       candidates: candidates.map(stripCandidateKey),
       mode: "observe",
-      reason: "observed",
+      reason: observed.failed ? "audit_failed" : "observed",
       trace: {
+        auditWriteFailed: observed.failed,
         command: input.command,
         durableCandidateCount: candidates.filter((candidate) => candidate.durable)
           .length,
         messageCount: messages.length,
+        observedCandidateCount: observed.observedCount,
         rawTranscriptPersisted: false,
       },
       wrote: false,
@@ -783,6 +797,90 @@ function isAssistantOutputAllowed(
   }
 
   return annotation.confirmed === true || annotation.verified === true;
+}
+
+async function recordObservedCandidates(input: {
+  candidates: CandidateWithKey[];
+  command: InstalledHostWritebackCommand;
+  homeRoot: string | undefined;
+  host: InstalledHostKind;
+  scope: MemoryScope;
+  sessionDigest?: string;
+}): Promise<{
+  failed: boolean;
+  observedCount: number;
+}> {
+  if (input.candidates.length === 0) {
+    return {
+      failed: false,
+      observedCount: 0,
+    };
+  }
+
+  const scopeDigest = buildWritebackScopeDigest(input.scope);
+  const seenInBatch = new Set<string>();
+  const records = input.candidates.flatMap((candidate) => {
+    const scopedKey = buildScopedWritebackCandidateKey({
+      candidateKey: candidate.key,
+      scopeDigest,
+    });
+    if (seenInBatch.has(scopedKey) || seenInBatch.has(candidate.key)) {
+      return [];
+    }
+    seenInBatch.add(scopedKey);
+    seenInBatch.add(candidate.key);
+    return [
+      {
+        candidate,
+        eventId: buildWritebackAuditEventId({
+          candidateKey: scopedKey,
+          scopeDigest,
+        }),
+        legacyKey: candidate.key,
+        scopedKey,
+      },
+    ];
+  });
+
+  try {
+    await withInstalledHostWritebackLedgerLock(
+      input.host,
+      input.homeRoot,
+      async () => {
+        const now = new Date().toISOString();
+        let ledger = await readInstalledHostWritebackLedger(input.host, input.homeRoot);
+        const committedOrPending = new Set([...ledger.events, ...ledger.pending]);
+        for (const { candidate, eventId, legacyKey, scopedKey } of records) {
+          if (committedOrPending.has(scopedKey) || committedOrPending.has(legacyKey)) {
+            continue;
+          }
+          ledger = markWritebackAuditObserved(ledger, {
+            candidateKey: scopedKey,
+            command: input.command,
+            content: candidate.content,
+            eventId,
+            host: input.host,
+            kind: candidate.kind,
+            now,
+            reason: candidate.reason,
+            scopeDigest,
+            source: candidate.source,
+            ...(input.sessionDigest ? { sessionDigest: input.sessionDigest } : {}),
+          });
+        }
+        await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
+      },
+    );
+    return {
+      failed: false,
+      observedCount: records.length,
+    };
+  } catch {
+    return {
+      failed: true,
+      observedCount: 0,
+    };
+  }
 }
 
 async function writeNewCandidates(input: {

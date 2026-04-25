@@ -8,8 +8,10 @@ import { resolveInstallRoot } from "./hostRuntimeConfig";
 
 export type InstalledHostWritebackAuditStatus =
   | "committed"
+  | "dismissed"
   | "failed"
   | "forgotten"
+  | "observed"
   | "pending";
 
 export type InstalledHostWritebackAuditReviewOutcome =
@@ -62,7 +64,7 @@ export interface InstalledHostWritebackAuditLedger {
   auditEvents: InstalledHostWritebackAuditEvent[];
   events: string[];
   pending: string[];
-  version: 3;
+  version: number;
 }
 
 export interface MarkWritebackAuditPendingInput {
@@ -80,10 +82,25 @@ export interface MarkWritebackAuditPendingInput {
   sessionDigest?: string;
 }
 
+export interface MarkWritebackAuditObservedInput {
+  candidateKey: string;
+  command: InstalledHostWritebackAuditEvent["command"];
+  content: string;
+  eventId: string;
+  host: InstalledHostKind;
+  kind: InstalledHostWritebackAuditEvent["kind"];
+  now: string;
+  reason: string;
+  scopeDigest: string;
+  source: InstalledHostWritebackAuditEvent["source"];
+  sessionDigest?: string;
+}
+
 const MAX_WRITEBACK_LEDGER_EVENTS = 1_000;
 const MAX_WRITEBACK_LOCK_ATTEMPTS = 40;
 const MAX_WRITEBACK_LOCK_DELAY_MS = 25;
 const MAX_AUDIT_PREVIEW_CHARS = 160;
+const WRITEBACK_LEDGER_VERSION = 4;
 const SECRET_PATTERN =
   /\b(api[_-]?key|secret|token|password)\b\s*[:=]|sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{16,}/iu;
 
@@ -165,6 +182,55 @@ export function markWritebackAuditPending(
     ...ledger,
     auditEvents: upsertAuditEvent(ledger.auditEvents, nextEvent),
     pending: appendUnique(ledger.pending, [input.candidateKey]),
+  };
+}
+
+export function markWritebackAuditObserved(
+  ledger: InstalledHostWritebackAuditLedger,
+  input: MarkWritebackAuditObservedInput,
+): InstalledHostWritebackAuditLedger {
+  const existing = ledger.auditEvents.find(
+    (event) => event.eventId === input.eventId,
+  );
+  if (
+    ledger.events.includes(input.candidateKey) ||
+    ledger.pending.includes(input.candidateKey) ||
+    existing?.status === "committed" ||
+    existing?.status === "dismissed" ||
+    existing?.status === "forgotten" ||
+    existing?.status === "pending"
+  ) {
+    return ledger;
+  }
+
+  const nextEvent: InstalledHostWritebackAuditEvent = {
+    candidateKey: input.candidateKey,
+    command: input.command,
+    contentPreview: createAuditPreview(input.content, input.source),
+    eventId: input.eventId,
+    forgottenLinkedRecordIds: existing?.forgottenLinkedRecordIds ?? [],
+    forgottenMemoryIds: existing?.forgottenMemoryIds ?? [],
+    host: input.host,
+    kind: input.kind,
+    linkedRecordIds: existing?.linkedRecordIds ?? [],
+    memoryIds: existing?.memoryIds ?? [],
+    mode: "observe",
+    occurredAt: existing?.occurredAt ?? input.now,
+    reason: createAuditPreview(input.reason, "user"),
+    recallHitCount: existing?.recallHitCount ?? 0,
+    recalledBy: existing?.recalledBy ?? [],
+    scopeDigest: coerceDigest("scope", input.scopeDigest),
+    ...(input.sessionDigest
+      ? { sessionDigest: coerceDigest("session", input.sessionDigest) }
+      : {}),
+    source: input.source,
+    status: "observed",
+    updatedAt: input.now,
+  };
+
+  return {
+    ...ledger,
+    auditEvents: upsertAuditEvent(ledger.auditEvents, nextEvent),
   };
 }
 
@@ -277,6 +343,32 @@ export function markWritebackAuditForgotten(
     ),
     ...(input.review ? { review: sanitizeReview(input.review) } : {}),
     status: "forgotten",
+    updatedAt: input.now,
+  };
+
+  return {
+    ...ledger,
+    auditEvents: upsertAuditEvent(ledger.auditEvents, nextEvent),
+  };
+}
+
+export function markWritebackAuditDismissed(
+  ledger: InstalledHostWritebackAuditLedger,
+  input: {
+    eventId: string;
+    now: string;
+    review?: InstalledHostWritebackAuditReview;
+  },
+): InstalledHostWritebackAuditLedger {
+  const existing = findRequiredAuditEvent(ledger, input.eventId);
+  if (existing.status !== "observed" && existing.status !== "dismissed") {
+    return ledger;
+  }
+  const { errorCode: _errorCode, ...existingWithoutError } = existing;
+  const nextEvent: InstalledHostWritebackAuditEvent = {
+    ...existingWithoutError,
+    ...(input.review ? { review: sanitizeReview(input.review) } : {}),
+    status: "dismissed",
     updatedAt: input.now,
   };
 
@@ -399,7 +491,7 @@ export async function writeInstalledHostWritebackLedger(
         auditEvents: ledger.auditEvents.slice(-MAX_WRITEBACK_LEDGER_EVENTS),
         events: ledger.events.slice(-MAX_WRITEBACK_LEDGER_EVENTS),
         pending: ledger.pending.slice(-MAX_WRITEBACK_LEDGER_EVENTS),
-        version: 3,
+        version: WRITEBACK_LEDGER_VERSION,
       },
       null,
       2,
@@ -430,7 +522,7 @@ export async function readInstalledHostWritebackLedger(
       pending: Array.isArray(parsed.pending)
         ? parsed.pending.filter((event): event is string => typeof event === "string")
         : [],
-      version: 3,
+      version: WRITEBACK_LEDGER_VERSION,
     };
   } catch (error) {
     if (isMissingFileError(error)) {
@@ -438,7 +530,7 @@ export async function readInstalledHostWritebackLedger(
         auditEvents: [],
         events: [],
         pending: [],
-        version: 3,
+        version: WRITEBACK_LEDGER_VERSION,
       };
     }
     throw error;
@@ -576,8 +668,10 @@ function sanitizeReview(
 
 function readAuditStatus(value: unknown): InstalledHostWritebackAuditStatus | undefined {
   return value === "committed" ||
+    value === "dismissed" ||
     value === "failed" ||
     value === "forgotten" ||
+    value === "observed" ||
     value === "pending"
     ? value
     : undefined;

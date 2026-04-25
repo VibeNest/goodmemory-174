@@ -182,6 +182,74 @@ describe("installed host writeback runtime", () => {
       ]);
       expect(rememberCalled).toBe(false);
       expect(result.trace.rawTranscriptPersisted).toBe(false);
+      expect(result.trace).toEqual(
+        expect.objectContaining({
+          auditWriteFailed: false,
+          observedCandidateCount: 1,
+        }),
+      );
+      const ledger = await readInstalledHostWritebackLedger("codex", homeRoot);
+      expect(ledger.events).toEqual([]);
+      expect(ledger.pending).toEqual([]);
+      expect(ledger.version).toBe(4);
+      expect(ledger.auditEvents).toEqual([
+        expect.objectContaining({
+          contentPreview: "Always run typecheck before calling the phase done.",
+          linkedRecordIds: [],
+          memoryIds: [],
+          mode: "observe",
+          status: "observed",
+        }),
+      ]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("fails open when observe audit persistence fails", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-observe-audit-fail-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-observe-audit-fail-workspace-",
+    );
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "observe" });
+      await mkdir(join(homeRoot, ".goodmemory/codex-writeback-events.json"), {
+        recursive: true,
+      });
+
+      const result = await executeInstalledHostWriteback({
+        command: "session-end",
+        homeRoot,
+        host: "codex",
+        payload: {
+          cwd: workspaceRoot,
+          messages: [
+            {
+              content: "Always run typecheck before calling the phase done.",
+              role: "user",
+            },
+          ],
+          session_id: "session-1",
+        },
+      });
+
+      expect(result.reason).toBe("audit_failed");
+      expect(result.wrote).toBe(false);
+      expect(result.trace).toEqual(
+        expect.objectContaining({
+          auditWriteFailed: true,
+          observedCandidateCount: 0,
+          rawTranscriptPersisted: false,
+        }),
+      );
+      expect(result.candidates).toEqual([
+        expect.objectContaining({
+          content: "Always run typecheck before calling the phase done.",
+          durable: true,
+        }),
+      ]);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
@@ -1982,7 +2050,7 @@ describe("installed host writeback runtime", () => {
         ],
         events: [],
         pending: [expect.stringMatching(/^scope:[a-f0-9]+:candidate:/u)],
-        version: 3,
+        version: 4,
       });
       expect(rememberCallCount).toBe(1);
 

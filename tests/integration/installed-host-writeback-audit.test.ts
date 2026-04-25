@@ -188,6 +188,128 @@ describe("installed host writeback audit integration", () => {
     }
   });
 
+  it("records observed candidates as dismissible audit events without blocking later selective writes", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-observed-audit-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-observed-audit-workspace-",
+    );
+    const payload = {
+      cwd: workspaceRoot,
+      messages: [
+        {
+          content: "Always run typecheck before closing Phase 38.",
+          role: "user",
+        },
+      ],
+      session_id: "phase38-observe-session",
+    };
+
+    try {
+      await installHost({
+        homeRoot,
+        host: "codex",
+        userId: "phase38-user",
+        writeback: {
+          allowAssistantOutput: "confirmed_or_verified",
+          dryRun: false,
+          maxChars: 12000,
+          maxMessages: 12,
+          minConfidence: 0.7,
+          mode: "observe",
+          persistRawTranscript: false,
+        },
+      });
+      await enableHostWorkspace({
+        homeRoot,
+        host: "codex",
+        workspaceId: "phase38-workspace",
+        workspaceRoot,
+      });
+
+      const observed = await executeInstalledHostWriteback({
+        command: "session-end",
+        homeRoot,
+        host: "codex",
+        payload,
+      });
+      expect(observed.reason).toBe("observed");
+      expect(observed.wrote).toBe(false);
+
+      const inspectedObserved = await inspectInstalledHostWritebackAudit({
+        cwd: workspaceRoot,
+        homeRoot,
+        host: "codex",
+      });
+      expect(inspectedObserved.legacyEventCount).toBe(0);
+      expect(inspectedObserved.pendingCount).toBe(0);
+      expect(inspectedObserved.events[0]).toEqual(
+        expect.objectContaining({
+          contentPreview: "Always run typecheck before closing Phase 38.",
+          linkedRecordIds: [],
+          memoryExistsCount: 0,
+          memoryIds: [],
+          mode: "observe",
+          status: "observed",
+        }),
+      );
+      const eventId = inspectedObserved.events[0]!.eventId;
+
+      const dismissed = await forgetInstalledHostWritebackAuditEvent({
+        cwd: workspaceRoot,
+        eventId,
+        homeRoot,
+        host: "codex",
+        review: {
+          outcome: "false_write",
+          reason: "reviewed as an observe-only false write",
+        },
+      });
+      expect(dismissed).toEqual(
+        expect.objectContaining({
+          forgottenLinkedRecordIds: [],
+          forgottenMemoryIds: [],
+          status: "dismissed",
+        }),
+      );
+
+      await enableHostWorkspace({
+        homeRoot,
+        host: "codex",
+        workspaceId: "phase38-workspace",
+        workspaceRoot,
+        writebackMode: "selective",
+      });
+      const written = await executeInstalledHostWriteback({
+        command: "session-end",
+        homeRoot,
+        host: "codex",
+        payload,
+      });
+      expect(written.reason).toBe("written");
+      expect(written.wrote).toBe(true);
+
+      const inspectedWritten = await inspectInstalledHostWritebackAudit({
+        cwd: workspaceRoot,
+        homeRoot,
+        host: "codex",
+      });
+      expect(inspectedWritten.legacyEventCount).toBe(1);
+      expect(inspectedWritten.pendingCount).toBe(0);
+      expect(inspectedWritten.events[0]).toEqual(
+        expect.objectContaining({
+          eventId,
+          memoryExistsCount: 1,
+          mode: "selective",
+          status: "committed",
+        }),
+      );
+      expect(inspectedWritten.events[0]?.review).toBeUndefined();
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("does not mark an audit event forgotten when linked records cannot all be deleted", async () => {
     const homeRoot = await createWorkspace("goodmemory-writeback-audit-partial-home-");
     const workspaceRoot = await createWorkspace(

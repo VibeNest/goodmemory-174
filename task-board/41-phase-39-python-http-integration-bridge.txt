@@ -52,10 +52,12 @@ Accepted Scope
 - Explicit alignment guidance for a consumer's existing product policy and
   session/state boundaries; OneLife's `MemoryPolicyService`, `LifeOSState`, and
   `agent-session` contracts are the first reference case.
-- User-control flows for forget/export that can back a consuming product's
-  "view, correct, delete, lock, do not remember this" requirements; targeted
-  revise is the correction path when the product has resolved an explicit
-  `memoryId`. OneLife is the reference case.
+- User-control flows for view/export, delete/forget, and targeted correction by
+  explicit `memoryId`; targeted revise is the bridge correction path only after
+  the product has resolved a visible memory target. Consumer-side `lock` /
+  "do not remember this" remains product-owned policy or masking unless it is
+  intentionally mapped to an explicit `forget` or targeted `revise` outcome.
+  OneLife is the reference case.
 - Explicit runtime ownership guidance: the consuming app owns session lifecycle;
   the bridge can use `memory.runtime.*` only for scoped continuity snapshots or
   optional summary-only runtime journal behavior, with transcript-like archive
@@ -72,6 +74,8 @@ Out of Scope
 - Root public API expansion unless the bridge/example proves a real blocker
 - Transcript persistence as the default memory source
 - Query-resolved correction targets or automatic memory target selection
+- Bridge-managed `lock` / "do not remember this" mutations that bypass the
+  consumer's product policy or visible target resolution
 - Managed cloud, dashboard, hosted sync, or cross-service exactly-once claims
 
 
@@ -79,8 +83,9 @@ Acceptance Criteria
 -------------------
 1. A Python/FastAPI backend can integrate through a documented HTTP bridge
    without importing repo-internal GoodMemory modules.
-2. The bridge contract is explicit about scope, idempotency, assistant-output
-   confirmation, bridge-level async/sync controls, and user-control flows.
+2. The bridge contract is explicit about scope, idempotency, procedural
+   feedback provenance, assistant-output confirmation, bridge-level async/sync
+   controls, and user-control flows.
 3. `POST /memory/recall-context` can return both prompt-ready context text and
    compact structured items for the consumer's coach path; OneLife is the first
    reference path.
@@ -90,23 +95,30 @@ Acceptance Criteria
    only and is not forwarded as a new root `memory.remember()` parameter.
 5. Consumer memory policy remains product-owned: blocked/shame-solidifying or
    unconfirmed identity/preference writes are filtered before durable writes,
-   while GoodMemory remains the semantic memory layer.
+   while GoodMemory remains the semantic memory layer; consumer-side `lock` /
+   "do not remember this" policy stays outside the bridge unless mapped onto an
+   explicit visible target action.
 6. SQLite remains an acceptable local/single-writer path, while Postgres stays
    the recommended multi-instance production path.
 7. The reference docs show how a consumer maps `userId`, `sessionId`,
-   `agentId`, product state, and feedback/user-control events onto GoodMemory
-   scope and API calls; OneLife is the concrete example.
+   `agentId`, product state, procedural feedback, proposal/review outcomes, and
+   user-control events onto GoodMemory scope and API calls; OneLife is the
+   concrete example.
 8. Bridge endpoints are backend-only and require caller authentication or an
    internal service boundary; export, forget, and revise require product-owned
    authorization plus scoped `userId` and tenant/workspace validation.
 9. `POST /memory/revise` wraps only the Phase 38 accepted targeted
    `reviseMemory({ target: { memoryId } })` path and rejects query-resolved or
    ambiguous correction requests.
-10. OneLife owns session lifecycle; GoodMemory runtime is used only for scoped
+10. The reference consumer mapping is explicit: accepted/edited visible
+    corrections can flow to targeted `revise`, explicit delete can flow to
+    `forget`, and `lock` / "do not remember this" remains consumer-side policy
+    or masking first instead of becoming a new bridge mutation.
+11. OneLife owns session lifecycle; GoodMemory runtime is used only for scoped
     continuity or summary-only runtime state, and runtime archive remains off by
     default.
-11. Phase 39 closes only with targeted tests, reference-consumer smoke, and a
-   new immutable quality gate.
+12. Phase 39 closes only with targeted tests, reference-consumer smoke, and a
+    new immutable quality gate.
 
 
 Tasks
@@ -121,7 +133,7 @@ life-coach scoped write-profile wiring without a built-in preset.
 [TODO] P39-T004 Add Python/FastAPI consumer guidance and smoke coverage for the
 reference bridge.
 [TODO] P39-T005 Add forget/export/revise and correction guidance that matches
-OneLife's user-control, authorization, and memory-policy model.
+OneLife's proposal-first user-control, authorization, and memory-policy model.
 [TODO] P39-T006 Add Phase 39 regressions, gate tooling, and closure evidence.
 
 

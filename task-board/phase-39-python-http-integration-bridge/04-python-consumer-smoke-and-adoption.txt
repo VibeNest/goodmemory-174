@@ -15,8 +15,13 @@ Scope
   reference case.
 - Show that Python/FastAPI remains the authenticated product boundary and that
   the client/mobile app never calls the GoodMemory bridge directly.
+- Include a procedural feedback smoke with explicit idempotency and
+  source/provenance payload so retries remain consumer-safe.
 - Include a targeted correction smoke where Python resolves a visible
   `memoryId` and calls `/memory/revise` without query target resolution.
+- Include a proposal/review mapping smoke where consumer outcomes route as:
+  accept/edit -> `/memory/revise`, delete -> `/memory/forget`, lock /
+  "do-not-remember" -> consumer-only policy with no new bridge mutation.
 
 Acceptance
 ----------
@@ -24,4 +29,5 @@ Acceptance
 - A smoke path proves the bridge is consumable from outside the repository's
   TypeScript runtime.
 - The consumer path does not require client/mobile changes.
+- Feedback examples include idempotency and provenance assumptions.
 - Export, forget, and revise examples include scoped authorization assumptions.

@@ -5,9 +5,11 @@ import { join } from "node:path";
 import {
   buildWritebackAuditEventId,
   markWritebackAuditCommitted,
+  markWritebackAuditDismissed,
   markWritebackAuditFailed,
   markWritebackAuditForgetFailed,
   markWritebackAuditForgotten,
+  markWritebackAuditObserved,
   markWritebackAuditPending,
   markWritebackAuditRecalled,
   readInstalledHostWritebackLedger,
@@ -60,7 +62,7 @@ describe("installed host writeback audit ledger", () => {
       expect(ledger.events).toEqual(["candidate:committed"]);
       expect(ledger.pending).toEqual(["candidate:pending"]);
       expect(ledger.auditEvents).toEqual([]);
-      expect(ledger.version).toBe(3);
+      expect(ledger.version).toBe(4);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
     }
@@ -185,6 +187,128 @@ describe("installed host writeback audit ledger", () => {
 
     expect(ledger.auditEvents[0]?.reason).toBe("[redacted secret-like content]");
     expect(JSON.stringify(ledger)).not.toContain("sk-reason-secret-value");
+  });
+
+  it("records observed audit events without touching committed or pending dedupe keys", async () => {
+    const homeRoot = await createHome("goodmemory-writeback-observed-ledger-");
+    const eventId = buildWritebackAuditEventId({
+      candidateKey: "scope:demo:candidate:observe",
+      scopeDigest: "scope:demo",
+    });
+
+    try {
+      const ledger = markWritebackAuditObserved(
+        {
+          auditEvents: [],
+          events: [],
+          pending: [],
+          version: 4,
+        },
+        {
+          candidateKey: "scope:demo:candidate:observe",
+          command: "session-end",
+          content:
+            "Always run typecheck before closing Phase 37. api_key=sk-observed-secret-value",
+          eventId,
+          host: "codex",
+          kind: "preference",
+          now: "2026-04-24T00:00:00.000Z",
+          reason: "explicit_preference",
+          scopeDigest: "scope:demo",
+          sessionDigest: "session:observe",
+          source: "user",
+        },
+      );
+      await writeInstalledHostWritebackLedger("codex", homeRoot, ledger);
+
+      const roundTrip = await readInstalledHostWritebackLedger("codex", homeRoot);
+
+      expect(roundTrip.events).toEqual([]);
+      expect(roundTrip.pending).toEqual([]);
+      expect(JSON.stringify(roundTrip)).not.toContain("sk-observed-secret-value");
+      expect(roundTrip.auditEvents[0]).toEqual(
+        expect.objectContaining({
+          candidateKey: "scope:demo:candidate:observe",
+          eventId,
+          mode: "observe",
+          sessionDigest: expect.stringMatching(/^session:/u),
+          status: "observed",
+        }),
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("lets dismissed observed events transition to pending without committed dedupe", () => {
+    const eventId = buildWritebackAuditEventId({
+      candidateKey: "scope:demo:candidate:observe",
+      scopeDigest: "scope:demo",
+    });
+    const dismissed = markWritebackAuditDismissed(
+      markWritebackAuditObserved(
+        {
+          auditEvents: [],
+          events: [],
+          pending: [],
+          version: 4,
+        },
+        {
+          candidateKey: "scope:demo:candidate:observe",
+          command: "session-end",
+          content: "Always run typecheck before closing Phase 37.",
+          eventId,
+          host: "codex",
+          kind: "preference",
+          now: "2026-04-24T00:00:00.000Z",
+          reason: "explicit_preference",
+          scopeDigest: "scope:demo",
+          source: "user",
+        },
+      ),
+      {
+        eventId,
+        now: "2026-04-24T00:00:01.000Z",
+        review: {
+          outcome: "false_write",
+          reason: "not worth keeping",
+        },
+      },
+    );
+    const pending = markWritebackAuditPending(dismissed, {
+      candidateKey: "scope:demo:candidate:observe",
+      command: "session-end",
+      content: "Always run typecheck before closing Phase 37.",
+      eventId,
+      host: "codex",
+      kind: "preference",
+      mode: "selective",
+      now: "2026-04-24T00:00:02.000Z",
+      reason: "explicit_preference",
+      scopeDigest: "scope:demo",
+      source: "user",
+    });
+
+    expect(dismissed.events).toEqual([]);
+    expect(dismissed.pending).toEqual([]);
+    expect(dismissed.auditEvents[0]).toEqual(
+      expect.objectContaining({
+        review: {
+          outcome: "false_write",
+          reason: "not worth keeping",
+        },
+        status: "dismissed",
+      }),
+    );
+    expect(pending.events).toEqual([]);
+    expect(pending.pending).toEqual(["scope:demo:candidate:observe"]);
+    expect(pending.auditEvents[0]).toEqual(
+      expect.objectContaining({
+        mode: "selective",
+        status: "pending",
+      }),
+    );
+    expect(pending.auditEvents[0]?.review).toBeUndefined();
   });
 
   it("acquires the ledger lock on a fresh home", async () => {
@@ -733,6 +857,84 @@ describe("installed host writeback audit ledger", () => {
       expect(ledger.auditEvents[0]?.contentPreview).toBe(
         "[redacted assistant-originated candidate]",
       );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("drops unknown audit statuses without corrupting known events", async () => {
+    const homeRoot = await createHome("goodmemory-writeback-unknown-status-read-");
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/codex-writeback-events.json"),
+        JSON.stringify(
+          {
+            auditEvents: [
+              {
+                candidateKey: "candidate:unknown",
+                command: "session-end",
+                contentPreview: "This event has a future status.",
+                eventId: "wb_unknown",
+                forgottenLinkedRecordIds: [],
+                forgottenMemoryIds: [],
+                host: "codex",
+                kind: "fact",
+                linkedRecordIds: [],
+                memoryIds: [],
+                mode: "observe",
+                occurredAt: "2026-04-24T00:00:00.000Z",
+                reason: "future_status",
+                recallHitCount: 0,
+                recalledBy: [],
+                scopeDigest: "scope:demo",
+                source: "user",
+                status: "future_status",
+                updatedAt: "2026-04-24T00:00:00.000Z",
+              },
+              {
+                candidateKey: "candidate:observed",
+                command: "session-end",
+                contentPreview: "This observed event should survive.",
+                eventId: "wb_observed",
+                forgottenLinkedRecordIds: [],
+                forgottenMemoryIds: [],
+                host: "codex",
+                kind: "preference",
+                linkedRecordIds: [],
+                memoryIds: [],
+                mode: "observe",
+                occurredAt: "2026-04-24T00:00:00.000Z",
+                reason: "explicit_preference",
+                recallHitCount: 0,
+                recalledBy: [],
+                scopeDigest: "scope:demo",
+                source: "user",
+                status: "observed",
+                updatedAt: "2026-04-24T00:00:00.000Z",
+              },
+            ],
+            events: ["candidate:committed"],
+            pending: ["candidate:pending"],
+            version: 4,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const ledger = await readInstalledHostWritebackLedger("codex", homeRoot);
+
+      expect(ledger.events).toEqual(["candidate:committed"]);
+      expect(ledger.pending).toEqual(["candidate:pending"]);
+      expect(ledger.auditEvents).toEqual([
+        expect.objectContaining({
+          eventId: "wb_observed",
+          status: "observed",
+        }),
+      ]);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
     }

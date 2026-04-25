@@ -3,9 +3,10 @@ import type { MemoryScope } from "../domain/scope";
 import {
   buildWritebackSessionDigest,
   buildWritebackScopeDigest,
+  markWritebackAuditDismissed,
   markWritebackAuditForgetFailed,
-  markWritebackAuditRecalled,
   markWritebackAuditForgotten,
+  markWritebackAuditRecalled,
   readInstalledHostWritebackLedger,
   withInstalledHostWritebackLedgerLock,
   writeInstalledHostWritebackLedger,
@@ -70,7 +71,7 @@ export interface ForgetInstalledHostWritebackAuditEventResult {
   host: InstalledHostKind;
   review?: InstalledHostWritebackAuditReview;
   scope: MemoryScope;
-  status: "forgotten";
+  status: "dismissed" | "forgotten";
 }
 
 export interface RecordInstalledHostWritebackRecallResult {
@@ -141,18 +142,30 @@ export async function forgetInstalledHostWritebackAuditEvent(
 
   const durableScope = toDurableScope(resolved.context.scope);
   const expectedScopeDigest = buildWritebackScopeDigest(durableScope);
-  const memory = createInstalledHostMemory(resolved.context, dependencies);
   const snapshot = await withInstalledHostWritebackLedgerLock(
     input.host,
     input.homeRoot,
     async () => {
-      const ledger = await readInstalledHostWritebackLedger(input.host, input.homeRoot);
+      let ledger = await readInstalledHostWritebackLedger(input.host, input.homeRoot);
       const event = ledger.auditEvents.find((item) => item.eventId === input.eventId);
       if (!event) {
         throw new Error(`Unknown writeback audit event: ${input.eventId}.`);
       }
       if (event.scopeDigest !== expectedScopeDigest) {
         throw new Error("Writeback audit event does not belong to the current installed-host scope.");
+      }
+      if (event.status === "observed" || event.status === "dismissed") {
+        ledger = markWritebackAuditDismissed(ledger, {
+          eventId: input.eventId,
+          now: new Date().toISOString(),
+          ...(input.review ? { review: input.review } : {}),
+        });
+        await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
+        const dismissed = ledger.auditEvents.find((item) => item.eventId === input.eventId);
+        return {
+          dismissed: true as const,
+          review: dismissed?.review,
+        };
       }
 
       const linkedRecordIds: InstalledHostWritebackLinkedRecordId[] = event.linkedRecordIds.length > 0
@@ -163,10 +176,23 @@ export async function forgetInstalledHostWritebackAuditEvent(
           `Writeback audit event ${input.eventId} has no linked records to forget.`,
         );
       }
-      return { linkedRecordIds };
+      return { dismissed: false as const, linkedRecordIds };
     },
   );
 
+  if (snapshot.dismissed) {
+    return {
+      eventId: input.eventId,
+      forgottenLinkedRecordIds: [],
+      forgottenMemoryIds: [],
+      host: input.host,
+      ...(snapshot.review ? { review: snapshot.review } : {}),
+      scope: durableScope,
+      status: "dismissed",
+    };
+  }
+
+  const memory = createInstalledHostMemory(resolved.context, dependencies);
   const exported = await memory.exportMemory({ scope: durableScope });
   const existingIds = collectExportedRecordIds(exported);
   const notForgettable = snapshot.linkedRecordIds.filter(

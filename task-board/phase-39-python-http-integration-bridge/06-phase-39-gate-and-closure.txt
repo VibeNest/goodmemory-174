@@ -8,13 +8,17 @@ first reference consumer in evidence, but the gate closes a generic bridge.
 
 Required Evidence
 -----------------
-- Contract validation tests for the bridge endpoints
+- Contract validation tests for the bridge endpoints, including feedback
+  idempotency/provenance and revise target validation
 - Regression coverage for public remember profiles/annotations/runtime paths
 - Reference-consumer smoke for the Python/FastAPI boundary
 - Backend-only authorization/scope validation evidence for export, forget, and
   revise
 - Targeted correction evidence for `/memory/revise` without query target
   resolution
+- Reference-consumer evidence that proposal/review outcomes map coherently:
+  accept/edit -> revise, delete -> forget, lock / "do not remember this" ->
+  consumer-only policy
 - Evidence that remember async mode uses `memory.jobs.*` and does not add
   `remember({ mode: "background" })`
 - A new immutable Phase 39 quality gate
@@ -22,6 +26,8 @@ Required Evidence
 Acceptance
 ----------
 - Phase 39 closes only after the bridge, docs, and tests agree on one contract.
+- Closure evidence proves the bridge contract does not over-claim consumer-side
+  `lock` / "do not remember this" as native bridge mutations.
 - Closure evidence does not mutate prior accepted phase artifacts.
 - Any blocker that requires widening the root public API must be written down
   explicitly and justified by failing bridge evidence.

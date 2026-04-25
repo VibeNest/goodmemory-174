@@ -14,6 +14,9 @@ Scope
   intervention-feedback style writes.
 - Use rules, predicate/mapper helpers, annotations, and stable extractor ids
   where appropriate.
+- Document that proposal/review remains consumer-owned: product policy decides
+  whether an outcome becomes `remember`, `feedback`, targeted `revise`,
+  `forget`, or a consumer-only lock/masking action.
 - Keep the consumer's product policy service as the first write gate for user
   confirmation, blocked/shame-solidifying content, and lock/delete behavior.
 
@@ -23,4 +26,7 @@ Acceptance
 - The guidance distinguishes:
   - consumer product policy ownership
   - GoodMemory semantic write customization
+- Lock / "do not remember this" remains a consumer-side policy surface unless a
+  visible memory target is intentionally mapped to `forget` or targeted
+  `revise`.
 - Assistant-originated durable writes remain confirmation/verification gated.

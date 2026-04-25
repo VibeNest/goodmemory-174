@@ -22,11 +22,17 @@ Working rules:
 - Prefer a thin bridge/example over new root public API expansion.
 - Keep consumer product memory policy product-owned; GoodMemory is the semantic
   memory layer and runtime facade. OneLife is the first reference case.
+- Treat `/memory/feedback` as a retry-safe procedural signal endpoint with
+  explicit idempotency and source/provenance metadata, not as an unscoped
+  catch-all fact write.
 - If the bridge exposes `mode: "async"` for remember, keep it as transport
   control that chooses `memory.jobs.enqueueRemember()`; do not add
   `remember({ mode: "background" })`.
 - Use targeted `reviseMemory()` only after the product has resolved an explicit
   `memoryId`; do not add query-resolved correction in this phase.
+- Keep proposal/review, `lock`, and "do not remember this" semantics on the
+  consumer side first; only explicit visible-target outcomes should map to
+  `revise` or `forget`.
 - Let the consuming app own session lifecycle. GoodMemory runtime may support
   scoped continuity snapshots or summary-only runtime state, but raw transcript
   archive remains off by default.
