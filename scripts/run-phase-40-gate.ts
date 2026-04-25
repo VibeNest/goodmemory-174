@@ -327,14 +327,16 @@ function toExecutionResult(
   command: Phase40GateCommand,
   result: Phase40GateCommandResult,
 ): Phase40GateExecutionResult {
+  const tailCount = result.exitCode === 0 ? 20 : 600;
+
   return {
     command: formatCommand(command.args),
     durationMs: result.durationMs,
     exitCode: result.exitCode,
     label: command.label,
     status: result.exitCode === 0 ? "passed" : "failed",
-    stderrTail: tailLines(result.stderr),
-    stdoutTail: tailLines(result.stdout),
+    stderrTail: tailLines(result.stderr, tailCount),
+    stdoutTail: tailLines(result.stdout, tailCount),
   };
 }
 
