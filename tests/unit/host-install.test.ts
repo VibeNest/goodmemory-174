@@ -347,6 +347,18 @@ describe("host install", () => {
           ],
         },
       ]);
+      expect(hooksConfig.hooks.PreToolUse).toEqual([
+        {
+          matcher: "Bash",
+          hooks: [
+            {
+              command:
+                `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook pre-tool-use`,
+              type: "command",
+            },
+          ],
+        },
+      ]);
       expect(hooksConfig.hooks.UserPromptSubmit).toEqual([
         {
           hooks: [
@@ -1022,6 +1034,27 @@ describe("host install", () => {
                   ],
                 },
               ],
+              PreToolUse: [
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      type: "command",
+                      command:
+                        `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook pre-tool-use`,
+                    },
+                  ],
+                },
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: "echo keep-user-pre-tool-hook",
+                    },
+                  ],
+                },
+              ],
               UserPromptSubmit: [
                 {
                   hooks: [
@@ -1077,6 +1110,17 @@ describe("host install", () => {
           ],
         },
       ]);
+      expect(hooksConfig.hooks.PreToolUse).toEqual([
+        {
+          matcher: "Bash",
+          hooks: [
+            {
+              type: "command",
+              command: "echo keep-user-pre-tool-hook",
+            },
+          ],
+        },
+      ]);
       expect(hooksConfig.hooks).not.toHaveProperty("UserPromptSubmit");
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
@@ -1113,6 +1157,28 @@ describe("host install", () => {
                     {
                       command:
                         "env FOO=1 goodmemory codex hook session-start",
+                      type: "command",
+                    },
+                  ],
+                },
+              ],
+              PreToolUse: [
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      command:
+                        `GOODMEMORY_HOME='${homeRoot}' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook pre-tool-use`,
+                      type: "command",
+                    },
+                  ],
+                },
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      command:
+                        "env FOO=1 goodmemory codex hook pre-tool-use",
                       type: "command",
                     },
                   ],
@@ -1164,6 +1230,17 @@ describe("host install", () => {
           hooks: [
             {
               command: "env FOO=1 goodmemory codex hook session-start",
+              type: "command",
+            },
+          ],
+        },
+      ]);
+      expect(hooksConfig.hooks.PreToolUse).toEqual([
+        {
+          matcher: "Bash",
+          hooks: [
+            {
+              command: "env FOO=1 goodmemory codex hook pre-tool-use",
               type: "command",
             },
           ],

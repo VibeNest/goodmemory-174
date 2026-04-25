@@ -11,6 +11,7 @@ import type { InstalledHostFileChange, InstalledHostKind } from "./hostInstall";
 const GOODMEMORY_HOOK_MANAGED_BY_ENV = "GOODMEMORY_MANAGED_BY";
 const GOODMEMORY_HOOK_MANAGED_BY_VALUE = "goodmemory";
 const GOODMEMORY_HOOK_SESSION_START_MATCHER = "startup|resume|clear|compact";
+const GOODMEMORY_HOOK_PRE_TOOL_USE_MATCHER = "Bash";
 const GOODMEMORY_CODEX_HOOKS_FEATURE_COMMENT = "# goodmemory-managed-hooks";
 const GOODMEMORY_CODEX_HOOKS_SECTION_COMMENT = "# goodmemory-managed-hooks-section";
 const GOODMEMORY_CODEX_HOOKS_FEATURE_LINE =
@@ -19,7 +20,7 @@ const GOODMEMORY_CODEX_HOOKS_FEATURE_PLAIN_LINE = "codex_hooks = true";
 
 interface ManagedHookSpec {
   command: string;
-  eventName: "SessionStart" | "Stop" | "UserPromptSubmit";
+  eventName: "PreToolUse" | "SessionStart" | "Stop" | "UserPromptSubmit";
   matcher?: string;
 }
 
@@ -140,9 +141,48 @@ export async function isInstalledHostHookRegistered(input: {
     }
 
     const requiredRecallHooks = buildManagedHookSpecs(input.host, resolvedHomeRoot)
-      .filter((spec) => spec.eventName !== "Stop");
+      .filter(
+        (spec) =>
+          spec.eventName === "SessionStart" ||
+          spec.eventName === "UserPromptSubmit",
+      );
     return requiredRecallHooks.every((spec) =>
       hookEventContainsManagedRecord(hooksValue[spec.eventName], spec, target.relativePath),
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function isInstalledHostPreActionHookRegistered(input: {
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<boolean> {
+  const resolvedHomeRoot = resolve(homeRootValue(input.homeRoot));
+  const target = resolveInstalledHostHookTargetPath(input.host, resolvedHomeRoot);
+  const existing = await readFileIfPresent(target.path);
+  if (existing === null) {
+    return false;
+  }
+
+  const preActionSpec = buildManagedHookSpecs(input.host, resolvedHomeRoot).find(
+    (spec) => spec.eventName === "PreToolUse",
+  );
+  if (!preActionSpec) {
+    return false;
+  }
+
+  try {
+    const parsed = parseHookRoot(existing, target.relativePath);
+    const hooksValue = parsed.hooks;
+    if (!isRecord(hooksValue)) {
+      return false;
+    }
+
+    return hookEventContainsManagedRecord(
+      hooksValue[preActionSpec.eventName],
+      preActionSpec,
+      target.relativePath,
     );
   } catch {
     return false;
@@ -170,6 +210,15 @@ function buildManagedHookSpecs(
   homeRoot: string,
 ): ManagedHookSpec[] {
   return [
+    ...(host === "codex"
+      ? [
+          {
+            command: buildManagedHookCommand(host, "pre-tool-use", homeRoot),
+            eventName: "PreToolUse" as const,
+            matcher: GOODMEMORY_HOOK_PRE_TOOL_USE_MATCHER,
+          },
+        ]
+      : []),
     {
       command: buildManagedHookCommand(host, "session-start", homeRoot),
       eventName: "SessionStart",
@@ -188,7 +237,11 @@ function buildManagedHookSpecs(
 
 function buildManagedHookCommand(
   host: InstalledHostKind,
-  command: "session-start" | "session-stop" | "user-prompt-submit",
+  command:
+    | "pre-tool-use"
+    | "session-start"
+    | "session-stop"
+    | "user-prompt-submit",
   homeRoot: string,
 ): string {
   return [
@@ -428,7 +481,9 @@ function findConflictingHook(
   eventName: ManagedHookSpec["eventName"],
 ): boolean {
   const conflictNeedle =
-    eventName === "SessionStart"
+    eventName === "PreToolUse"
+      ? `goodmemory ${host} hook pre-tool-use`
+      : eventName === "SessionStart"
       ? `goodmemory ${host} hook session-start`
       : eventName === "Stop"
         ? `goodmemory ${host} hook session-stop`

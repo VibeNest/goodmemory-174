@@ -1,0 +1,258 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Tarball-installed Codex used the managed PreToolUse hook, redirected DeepAnalyzer through the installed action bridge, vetoed destructive AGENTS deletion, left low-risk QuickCheck unblocked, and wrote action evidence to the shared installed storage."
+  },
+  "commands": [
+    {
+      "command": "bun pm pack --destination /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-pack-85tAa0 --quiet",
+      "durationMs": 1638,
+      "exitCode": 0,
+      "label": "pack-tarball",
+      "status": "passed",
+      "stderrTail": [
+        "[0.02ms] \".env\"",
+        "$ bun run build",
+        "$ bun run clean && bun run build:js && bun run build:types",
+        "$ rm -rf dist",
+        "$ bun run scripts/build-package.ts",
+        "$ bunx tsc -p tsconfig.package.json"
+      ],
+      "stdoutTail": [
+        "",
+        "/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-pack-85tAa0/goodmemory-0.2.0.tgz"
+      ]
+    },
+    {
+      "command": "bun install",
+      "durationMs": 104,
+      "exitCode": 0,
+      "label": "install-tarball",
+      "status": "passed",
+      "stderrTail": [
+        "Resolving dependencies",
+        "Resolved, downloaded and extracted [1]",
+        "Saved lockfile"
+      ],
+      "stdoutTail": [
+        "bun install v1.3.11 (af24e281)",
+        "",
+        "+ goodmemory@/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-pack-85tAa0/goodmemory-0.2.0.tgz",
+        "",
+        "105 packages installed [99.00ms]"
+      ]
+    },
+    {
+      "command": "./node_modules/.bin/goodmemory install codex --user-id consumer-user --json",
+      "durationMs": 260,
+      "exitCode": 0,
+      "label": "codex-install",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "    },",
+        "    \"embedding\": {",
+        "      \"configured\": false",
+        "    }",
+        "  },",
+        "  \"storage\": {",
+        "    \"location\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-home-dF5wpp/.goodmemory/memory.sqlite\",",
+        "    \"provider\": \"sqlite\"",
+        "  },",
+        "  \"userId\": \"consumer-user\",",
+        "  \"writeback\": {",
+        "    \"allowAssistantOutput\": \"confirmed_or_verified\",",
+        "    \"dryRun\": false,",
+        "    \"maxChars\": 12000,",
+        "    \"maxMessages\": 12,",
+        "    \"minConfidence\": 0.7,",
+        "    \"mode\": \"off\",",
+        "    \"persistRawTranscript\": false",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "./node_modules/.bin/goodmemory enable codex --workspace-id consumer-workspace --workspace-root /var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-workspace-TVoYeD --json",
+      "durationMs": 100,
+      "exitCode": 0,
+      "label": "codex-enable",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{",
+        "  \"changes\": [",
+        "    {",
+        "      \"action\": \"created\",",
+        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-workspace-TVoYeD/.goodmemory/codex.json\",",
+        "      \"relativePath\": \".goodmemory/codex.json\"",
+        "    },",
+        "    {",
+        "      \"action\": \"updated\",",
+        "      \"path\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-workspace-TVoYeD/AGENTS.md\",",
+        "      \"relativePath\": \"AGENTS.md\"",
+        "    }",
+        "  ],",
+        "  \"configPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-workspace-TVoYeD/.goodmemory/codex.json\",",
+        "  \"host\": \"codex\",",
+        "  \"instructionPath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-workspace-TVoYeD/AGENTS.md\",",
+        "  \"workspaceId\": \"consumer-workspace\",",
+        "  \"workspaceRoot\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-workspace-TVoYeD\"",
+        "}"
+      ]
+    },
+    {
+      "command": "bun ./phase41-seed-installed-memory.mjs",
+      "durationMs": 300,
+      "exitCode": 0,
+      "label": "seed-installed-memory",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{\"ok\":true}"
+      ]
+    },
+    {
+      "command": "sh -c GOODMEMORY_HOME='/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-home-dF5wpp' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook pre-tool-use",
+      "durationMs": 140,
+      "exitCode": 0,
+      "label": "codex-hook-pre-tool-use-deepanalyzer",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{",
+        "  \"hookSpecificOutput\": {",
+        "    \"hookEventName\": \"PreToolUse\",",
+        "    \"permissionDecision\": \"deny\",",
+        "    \"permissionDecisionReason\": \"Matched memory-backed policy requires preconditions before command ./tools/DeepAnalyzer --detailed. Run this instead: goodmemory codex action --session-id 'consumer-session' --run-id 'goodmemory-installed-consumer-session' --action-id 'goodmemory-installed-pretool-3862f1e59dd7' --turn-id 'goodmemory-installed-pretool-turn' --sequence 0 --command './tools/DeepAnalyzer --detailed'\"",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "sh -c goodmemory codex action --session-id 'consumer-session' --run-id 'goodmemory-installed-consumer-session' --action-id 'goodmemory-installed-pretool-3862f1e59dd7' --turn-id 'goodmemory-installed-pretool-turn' --sequence 0 --command './tools/DeepAnalyzer --detailed'",
+      "durationMs": 382,
+      "exitCode": 0,
+      "label": "codex-action-deepanalyzer",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{",
+        "  \"actionId\": \"goodmemory-installed-pretool-3862f1e59dd7\",",
+        "  \"decision\": \"review_required\",",
+        "  \"executed\": true,",
+        "  \"executedStep\": \"./tools/QuickCheck\",",
+        "  \"executionSummary\": \"\",",
+        "  \"guidance\": [",
+        "    \"Rather than DeepAnalyzer, use QuickCheck first.\",",
+        "    \"Use the current runbook before deploy.\",",
+        "    \"Session workflow says to start with: Review the exported session handoff\"",
+        "  ],",
+        "  \"originalAction\": \"./tools/DeepAnalyzer --detailed\",",
+        "  \"reason\": \"Matched memory-backed policy requires preconditions before command ./tools/DeepAnalyzer --detailed.\",",
+        "  \"realizedEventParentId\": \"goodmemory-installed-pretool-3862f1e59dd7\",",
+        "  \"rewritten\": true,",
+        "  \"originalActionDeferred\": true,",
+        "  \"exitCode\": 0",
+        "}"
+      ]
+    },
+    {
+      "command": "sh -c GOODMEMORY_HOME='/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-home-dF5wpp' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook pre-tool-use",
+      "durationMs": 135,
+      "exitCode": 0,
+      "label": "codex-hook-pre-tool-use-destructive",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{",
+        "  \"hookSpecificOutput\": {",
+        "    \"hookEventName\": \"PreToolUse\",",
+        "    \"permissionDecision\": \"deny\",",
+        "    \"permissionDecisionReason\": \"Matched memory-backed veto blocks this destructive action before execution. Run this instead: goodmemory codex action --session-id 'consumer-session' --run-id 'goodmemory-installed-consumer-session' --action-id 'goodmemory-installed-pretool-b194cbecd631' --turn-id 'goodmemory-installed-pretool-turn' --sequence 0 --command 'rm -rf AGENTS.md'\"",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "sh -c goodmemory codex action --session-id 'consumer-session' --run-id 'goodmemory-installed-consumer-session' --action-id 'goodmemory-installed-pretool-b194cbecd631' --turn-id 'goodmemory-installed-pretool-turn' --sequence 0 --command 'rm -rf AGENTS.md'",
+      "durationMs": 119,
+      "exitCode": 2,
+      "label": "codex-action-destructive",
+      "status": "failed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{",
+        "  \"actionId\": \"goodmemory-installed-pretool-b194cbecd631\",",
+        "  \"decision\": \"blocked\",",
+        "  \"executed\": false,",
+        "  \"guidance\": [",
+        "    \"Never delete AGENTS.md from the host bootstrap surface.\",",
+        "    \"It breaks repo-local host wiring and package bootstrap continuity.\",",
+        "    \"Use the current runbook before deploy.\",",
+        "    \"Session workflow says to start with: Review the exported session handoff\"",
+        "  ],",
+        "  \"originalAction\": \"rm -rf AGENTS.md\",",
+        "  \"reason\": \"Matched memory-backed veto blocks this destructive action before execution.\",",
+        "  \"realizedEventParentId\": \"goodmemory-installed-pretool-b194cbecd631\",",
+        "  \"rewritten\": false",
+        "}"
+      ]
+    },
+    {
+      "command": "sh -c GOODMEMORY_HOME='/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-home-dF5wpp' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook pre-tool-use",
+      "durationMs": 122,
+      "exitCode": 0,
+      "label": "codex-hook-pre-tool-use-low-risk",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{}"
+      ]
+    },
+    {
+      "command": "bun ./phase41-inspect-installed-memory.mjs",
+      "durationMs": 56,
+      "exitCode": 0,
+      "label": "inspect-installed-storage",
+      "status": "passed",
+      "stderrTail": [],
+      "stdoutTail": [
+        "{\"actionTraceRecorded\":true,\"followupTraceRecorded\":true,\"toolResultEvidenceRecorded\":true,\"sharedInstalledStorage\":true}"
+      ]
+    }
+  ],
+  "evidence": {
+    "install": {
+      "registeredPreToolUseMatchesManagedConfig": true,
+      "repoOptInEnabled": true,
+      "workspaceId": "consumer-workspace"
+    },
+    "preAction": {
+      "deepAnalyzerDenied": true,
+      "deepAnalyzerExecutedStep": "./tools/QuickCheck",
+      "destructiveVetoed": true,
+      "lowRiskAllowed": true,
+      "sharedInstalledStorage": true
+    },
+    "releaseContract": {
+      "distribution": "tarball-first",
+      "runtime": "bun-only",
+      "tarballName": "goodmemory-0.2.0.tgz"
+    }
+  },
+  "evidenceContract": {
+    "phase41": {
+      "packageBoundary": "installed_package_public_imports",
+      "runner": "scripts/run-phase-41-live-memory.ts",
+      "runtimePath": "installed_package_pretooluse_and_action_bridge"
+    }
+  },
+  "generatedAt": "2026-04-25T16:56:08.111Z",
+  "generatedBy": "scripts/run-phase-41-live-memory.ts",
+  "mode": "live-memory",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-41",
+  "phase": "phase-41",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-41/run-phase41-live-current",
+  "runId": "run-phase41-live-current"
+}

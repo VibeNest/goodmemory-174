@@ -62,6 +62,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-39-Quality-Gate.md`
 - v0.2 release proof and product eval closure:
   - `GoodMemory-Phase-40-Quality-Gate.md`
+- Installed-host pre-action unification closure:
+  - `GoodMemory-Phase-41-Quality-Gate.md`
 
 ## When To Use This Archive
 

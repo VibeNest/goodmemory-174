@@ -10,11 +10,13 @@ import {
 } from "./hostExecutionContext";
 import type { InstalledHostContextDependencies } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
+import { evaluateInstalledHostPreToolUse } from "./hostActionRuntime";
 import { recordInstalledHostWritebackRecallHits } from "./hostWritebackAuditRuntime";
 import { executeInstalledHostWriteback } from "./hostWritebackRuntime";
 import type { InstalledHostWritebackResult } from "./hostWritebackRuntime";
 
 export type InstalledHostHookCommand =
+  | "pre-tool-use"
   | "session-start"
   | "session-stop"
   | "user-prompt-submit";
@@ -36,15 +38,22 @@ export interface InstalledHostHookExecutionResult {
   output: Record<string, unknown> | null;
   query: string | null;
   reason:
+    | "allow"
+    | "assessment_failed"
     | "applied"
     | "disabled"
     | "empty_context"
     | "empty_prompt"
     | "invalid_global_config"
     | "invalid_repo_config"
+    | "managed_command"
+    | "missing_command"
     | "missing_global_config"
+    | "missing_session"
     | "missing_repo_config"
     | "recall_failed"
+    | "unsupported_hook_event"
+    | "unsupported_tool"
     | "writeback_failed"
     | "writeback_written";
   scope: MemoryScope | null;
@@ -73,6 +82,45 @@ export async function executeInstalledHostHook(
   input: InstalledHostHookExecutionInput,
   dependencies: InstalledHostHookDependencies = {},
 ): Promise<InstalledHostHookExecutionResult> {
+  if (input.command === "pre-tool-use") {
+    const preToolUse = await evaluateInstalledHostPreToolUse(
+      {
+        homeRoot: input.homeRoot,
+        host: input.host,
+        payload: input.payload,
+      },
+      dependencies,
+    );
+
+    if (preToolUse.reason === "applied") {
+      return {
+        applied: true,
+        context: null,
+        maxTokens: preToolUse.maxTokens,
+        output: preToolUse.output,
+        query: preToolUse.command,
+        reason: "applied",
+        scope: preToolUse.scope,
+        writeback: {
+          attempted: false,
+          candidateCount: 0,
+          reason: "source_disabled",
+          wrote: false,
+        },
+      };
+    }
+
+    return buildHookSkipResult({
+      debug: preToolUse.debug,
+      host: input.host,
+      reason: preToolUse.reason,
+      command: input.command,
+      maxTokens: preToolUse.maxTokens,
+      query: preToolUse.command,
+      scope: preToolUse.scope,
+    });
+  }
+
   const resolved = await resolveInstalledHostContext(
     {
       cwd: readOptionalText(input.payload, "cwd"),
@@ -232,6 +280,9 @@ function deriveHookQuery(
   command: InstalledHostHookCommand,
   payload: Record<string, unknown>,
 ): string | null {
+  if (command === "pre-tool-use") {
+    return null;
+  }
   if (command === "user-prompt-submit") {
     return normalizeText(readOptionalText(payload, "prompt"));
   }
@@ -248,7 +299,10 @@ function deriveHookQuery(
 
 function mapHookEventName(
   command: InstalledHostHookCommand,
-): "SessionStart" | "Stop" | "UserPromptSubmit" {
+): "PreToolUse" | "SessionStart" | "Stop" | "UserPromptSubmit" {
+  if (command === "pre-tool-use") {
+    return "PreToolUse";
+  }
   if (command === "session-start") {
     return "SessionStart";
   }

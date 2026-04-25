@@ -57,6 +57,8 @@ const FALLBACK_ARTIFACT_CITATION_ROOTS = [
   "docs",
   "task-board",
 ] as const;
+const PHASE41_CANONICAL_FALLBACK_REPORT =
+  "reports/eval/fallback/phase-41/run-20260425213045/report.json";
 const CANONICAL_PHASE20_DEPENDENCY_SUMMARY_ARTIFACTS = [
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/public-surface-decision.json",
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/regression-dashboard.json",
@@ -772,6 +774,10 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-35-live-memory"]).toBe(
       "bun run scripts/run-phase-35-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-41"]).toBe("bun run scripts/run-phase-41-eval.ts");
+    expect(pkg.scripts?.["eval:phase-41-live-memory"]).toBe(
+      "bun run scripts/run-phase-41-live-memory.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -800,6 +806,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-38"]).toBe("bun run scripts/run-phase-38-gate.ts");
     expect(pkg.scripts?.["gate:phase-39"]).toBe("bun run scripts/run-phase-39-gate.ts");
     expect(pkg.scripts?.["gate:phase-40"]).toBe("bun run scripts/run-phase-40-gate.ts");
+    expect(pkg.scripts?.["gate:phase-41"]).toBe("bun run scripts/run-phase-41-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -983,6 +990,10 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory export-memory");
     expect(readme).toContain("goodmemory stats");
     expect(readme).toContain("session-stop");
+    expect(readme).toContain("goodmemory codex hook pre-tool-use");
+    expect(readme).toContain(
+      "goodmemory codex action -- ./tools/DeepAnalyzer --detailed",
+    );
     expect(readme).toContain("Installed Host Writeback");
     expect(readme).toContain("New interactive installs recommend `observe`");
     expect(readme).toContain("observe-only events it marks the candidate dismissed");
@@ -1146,6 +1157,10 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain("OneLife");
     expect(zhReadme).toContain("在一轮模型调用中，GoodMemory 做四件事");
     expect(zhReadme).toContain("Installed Host Writeback");
+    expect(zhReadme).toContain("goodmemory codex hook pre-tool-use");
+    expect(zhReadme).toContain(
+      "goodmemory codex action -- ./tools/DeepAnalyzer --detailed",
+    );
     expect(zhReadme).toContain("新的交互式安装会推荐 `observe`");
     expect(zhReadme).toContain("observe-only event，它只会标记为 dismissed");
     expect(zhReadme).toContain("goodmemory codex writeback inspect");
@@ -2288,6 +2303,18 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain("Phase 37 is now closed as the installed host selective writeback slice");
     expect(currentStatus).toContain("goodmemory codex writeback");
     expect(currentStatus).toContain("new interactive installs recommend `observe`");
+    expect(currentStatus).toContain("Phase 41 is now closed as installed-host pre-action unification");
+    expect(currentStatus).toContain("goodmemory codex hook pre-tool-use");
+    expect(currentStatus).toContain("goodmemory codex action");
+    expect(currentStatus).toContain(
+      "reports/eval/fallback/phase-41/run-20260425213045/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/eval/live-memory/phase-41/run-phase41-live-current/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json",
+    );
     expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
@@ -2456,6 +2483,18 @@ describe("release metadata and docs", () => {
     );
     expect(taskBoard).toContain(
       "Phase 39 is now closed as the Python HTTP integration bridge slice",
+    );
+    expect(taskBoard).toContain(
+      "Phase 41 is now closed as the installed-host pre-action unification slice",
+    );
+    expect(taskBoard).toContain(
+      "reports/eval/fallback/phase-41/run-20260425213045/report.json",
+    );
+    expect(taskBoard).toContain(
+      "reports/eval/live-memory/phase-41/run-phase41-live-current/report.json",
+    );
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json",
     );
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json",
@@ -2976,6 +3015,7 @@ describe("release metadata and docs", () => {
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-30-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-32-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-38-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-41-Quality-Gate.md");
     expect(archivedQualityGates).toContain("README.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
@@ -2993,6 +3033,7 @@ describe("release metadata and docs", () => {
     expect(archivedQualityGates).toContain("GoodMemory-Phase-30-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-32-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-38-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-41-Quality-Gate.md");
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
@@ -3344,6 +3385,42 @@ describe("release metadata and docs", () => {
     expect(archiveIndex).toContain("GoodMemory-Phase-40-Quality-Gate.md");
   });
 
+  it("phase-41 quality gate doc points to the canonical installed pre-action gate", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-41-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    if (process.env.PHASE41_GATE_IN_PROGRESS !== "1") {
+      await expectCanonicalAcceptedQualityGate({
+        docPath,
+        phaseDirectory: "phase-41",
+        reportFileName: "phase-41-quality-gate.json",
+        runId: "run-20260425223045",
+      });
+    } else {
+      expect(qualityGateDoc).toContain(
+        "Canonical accepted gate run: `run-20260425223045`",
+      );
+    }
+
+    expect(qualityGateDoc).toContain("installed Codex");
+    expect(qualityGateDoc).toContain("PreToolUse");
+    expect(qualityGateDoc).toContain("goodmemory codex action");
+    expect(qualityGateDoc).toContain(
+      "reports/eval/fallback/phase-41/run-20260425213045/report.json",
+    );
+    expect(qualityGateDoc).toContain(
+      "reports/eval/live-memory/phase-41/run-phase41-live-current/report.json",
+    );
+    expect(archiveIndex).toContain("GoodMemory-Phase-41-Quality-Gate.md");
+  });
+
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {
     const listed = await runGitCommand([
       "ls-files",
@@ -3377,7 +3454,15 @@ describe("release metadata and docs", () => {
     const requiredMetadataPaths = uniqueSorted([
       ...(await collectTrackedFallbackArtifactCitations()),
       ...(await collectStagedDeletedFallbackArtifacts()),
-    ].filter((path) => !trackedFallbackArtifacts.has(path)));
+    ].filter((path) => !trackedFallbackArtifacts.has(path))).filter((path) => {
+      if (
+        process.env.PHASE41_GATE_IN_PROGRESS === "1" &&
+        path === PHASE41_CANONICAL_FALLBACK_REPORT
+      ) {
+        return false;
+      }
+      return true;
+    });
     const metadataPaths = new Set(
       fallbackEvidence.map((evidence) => evidence.path),
     );

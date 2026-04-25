@@ -12,7 +12,7 @@ GoodMemory 不是 LLM、agent framework、向量数据库，也不是通用 RAG 
 ## 你会得到什么
 
 - 稳定的记忆 API：`remember`、`recall`、`buildContext`、`feedback`、`forget`、`exportMemory`、`deleteAllMemory`。
-- 面向 Codex 和 Claude Code 的已安装 agent 记忆：`goodmemory setup`、托管 hooks、`goodmemory status`、只读 MCP、可选 writeback。
+- 面向 Codex 和 Claude Code 的已安装 agent 记忆：`goodmemory setup`、托管 hooks、Codex 已安装 pre-action、`goodmemory status`、只读 MCP、可选 writeback。
 - 公开的一等写入定制能力：`GoodMemoryConfig.remember`、`RememberProfile`、`rememberRules`、`RememberInput.annotations`、命名 extractor id。
 - 面向 npm 包的公开导出：`goodmemory`、`goodmemory/ai-sdk`、`goodmemory/host`、`goodmemory/http`，并提供编译后的 `dist` 与 TypeScript 声明文件。
 - Local-first 存储：Bun 默认使用本地 SQLite；需要时可以接 Postgres、注入 adapter、启用 embedding provider。
@@ -53,8 +53,10 @@ GoodMemory 有三类主要产品入口。它不是只有这些 API：`goodmemory
 
 1. `session-start` 和 `user-prompt-submit` hooks 召回 scoped memory。
 2. GoodMemory 把压缩后的上下文注入 Codex 或 Claude Code。
-3. 只读 MCP 提供 trace、context、stats 和 artifact inspection。
-4. 可选 writeback 默认是 `off`；先用 `observe` 查看候选，再决定是否进入
+3. Codex 的 `pre-tool-use` 会把高风险 Bash 拦到同一条 installed config 和
+   storage 路径上的 `goodmemory codex action`。
+4. 只读 MCP 提供 trace、context、stats 和 artifact inspection。
+5. 可选 writeback 默认是 `off`；先用 `observe` 查看候选，再决定是否进入
    `selective` durable writes。
 
 先看 [快速开始：让 Codex 或 Claude Code 拥有记忆](#快速开始让-codex-或-claude-code-拥有记忆)。
@@ -154,8 +156,11 @@ goodmemory disable codex --workspace-root .
 goodmemory uninstall codex
 ```
 
-已安装 host 路径由三部分组成：
+已安装 host 路径由四部分组成：
 
+- Codex 托管 pre-action：`pre-tool-use` 会 deny 或 redirect 高风险 Bash，
+  `goodmemory codex action` 在和 recall/writeback 相同的 installed
+  config、storage、provider、scope 路径上执行经过评估的 first step。
 - Recall injection：`session-start` 和 `user-prompt-submit` hooks 调用 `recall()` 与 `buildContext()`；当配置、解析或存储不可用时 fail open。
 - 深度 inspection：`goodmemory mcp serve --host codex` 和 `goodmemory-mcp --host codex` 暴露只读 context、trace、stats 与 artifact tools。
 - 可选 writeback：`session-stop` 与显式 writeback 命令可以把经过筛选的 after-response 信号写入 durable memory。
@@ -591,6 +596,11 @@ Hook 与 writeback 示例：
 ```bash
 printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' \
   | ./node_modules/.bin/goodmemory codex hook session-start
+
+printf '%s' '{"cwd":".","session_id":"s-1","tool_name":"Bash","tool_input":{"command":"./tools/DeepAnalyzer --detailed"}}' \
+  | ./node_modules/.bin/goodmemory codex hook pre-tool-use
+
+./node_modules/.bin/goodmemory codex action -- ./tools/DeepAnalyzer --detailed
 
 printf '%s' '{"cwd":".","session_id":"s-1","messages":[{"role":"user","content":"Next step is to finish the release smoke."}]}' \
   | ./node_modules/.bin/goodmemory codex writeback --json

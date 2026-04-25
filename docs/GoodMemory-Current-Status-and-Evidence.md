@@ -15,6 +15,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 35 installed host-memory middleware is now part of the accepted stable host surface through `goodmemory setup`, `goodmemory status`, `goodmemory install|uninstall <codex|claude>`, `goodmemory enable|disable <codex|claude>`, `SessionStart` / `UserPromptSubmit` hooks, read-only MCP, and explicit write CLI commands. Interactive setup now defaults to global activation with workspace-derived isolation, prompts for optional Postgres, embedding, LLM extraction, and installed-host writeback mode, recommends `observe` for new host configs, preserves existing writeback mode when the interactive prompt default is accepted, keeps `--json` / `--no-interactive` script-safe, and still lets users skip provider setup and add it later in `~/.goodmemory/<host>.json`.
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice.
 - Phase 37 is now closed as the installed host selective writeback slice. Codex installed host supports opt-in `off` / `observe` / `selective` writeback through `goodmemory codex writeback`, `install|enable --writeback`, and `session-stop` delegation. Runtime config defaults and new scripted installs remain `off` unless explicitly changed; existing configs keep their current writeback mode when no explicit override is provided; new interactive installs recommend `observe`. `observe` stores bounded/redacted candidate previews for review without durable writes; `selective` writes only selected candidates through the public Phase 36 `remember` surface.
+- Phase 41 is now closed as installed-host pre-action unification. `goodmemory install|enable codex` now registers managed `PreToolUse` for `Bash`, `goodmemory codex hook pre-tool-use` evaluates risky first steps on the installed config/storage/providers path, and `goodmemory codex action` executes rewrite/veto decisions plus lineage/evidence on the same installed memory backend already used by recall and writeback.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
@@ -40,6 +41,34 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Trace-backed behavioral enactment over the accepted Codex host path is internal evidence infrastructure; it does not widen the public `GoodMemory` API, public config, or README-level default behavior.
 
 ## Latest Closed Slice
+
+- Phase 41 is now closed as installed-host pre-action unification.
+- Accepted behavior:
+  - `goodmemory install codex` plus `goodmemory enable codex` registers managed `PreToolUse` alongside the existing recall and writeback hooks
+  - `goodmemory codex hook pre-tool-use` denies or redirects only when installed policy requires review or veto, and otherwise fails open
+  - `goodmemory codex action` reuses the installed config/storage/providers path through `resolveInstalledHostContext()`, `createInstalledHostMemory()`, `createHostAdapter(...).assessAction()`, and `resolveHostActionExecutionPlan()`
+  - policy-backed `./tools/DeepAnalyzer --detailed` redirects so the first executed step becomes `./tools/QuickCheck`
+  - policy-backed `rm -rf AGENTS.md` is vetoed on the installed path
+  - low-risk `./tools/QuickCheck --network` is not misblocked
+  - installed pre-action, recall, and writeback now share one installed storage backend and action lineage/evidence path
+  - Phase 34 bootstrap wrapper remains available as a compatibility path and is still regression-covered, not replaced as historical evidence
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-41-Quality-Gate.md`
+  - deterministic eval: `reports/eval/fallback/phase-41/run-20260425213045/report.json`
+  - installed live report: `reports/eval/live-memory/phase-41/run-phase41-live-current/report.json`
+  - quality gate: `reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json`
+  - prior gates kept in regression chain:
+    - `reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json`
+    - `reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json`
+    - `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`
+- Still outside the Phase 41 accepted claim:
+  - reopening Phase 34 bootstrap-wrapper closure
+  - widening the root GoodMemory API
+  - Claude pre-action as a second live blocker
+  - default-on writeback
+  - transcript persistence as installed-host memory
+
+## Prior Closed Installed-Host Slices
 
 - Phase 40 is now closed as the v0.2 release proof and product eval slice.
 - Accepted behavior:
@@ -70,8 +99,6 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - raw transcript archive
   - built-in OneLife preset
   - LangGraph-first integration
-
-## Prior Closed Installed-Host Slices
 
 - Phase 37.1 is now closed as installed-host writeback productization polish.
 - Accepted behavior:

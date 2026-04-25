@@ -17,7 +17,8 @@ and the model runtime.
 - Durable memory API: `remember`, `recall`, `buildContext`, `feedback`, `forget`,
   `exportMemory`, and `deleteAllMemory`.
 - Installed agent memory for Codex and Claude Code through `goodmemory setup`,
-  managed hooks, `goodmemory status`, read-only MCP, and opt-in writeback.
+  managed hooks, installed Codex pre-action, `goodmemory status`, read-only
+  MCP, and opt-in writeback.
 - Public write customization with `GoodMemoryConfig.remember`,
   `RememberProfile`, `rememberRules`, `RememberInput.annotations`, and named
   extractor ids.
@@ -68,8 +69,10 @@ The installed-host flow is:
 
 1. `session-start` and `user-prompt-submit` hooks recall scoped memory.
 2. GoodMemory injects a compact context block into Codex or Claude Code.
-3. Read-only MCP gives trace, context, stats, and artifact inspection.
-4. Optional writeback stays `off` by default; use `observe` to inspect
+3. Codex `pre-tool-use` can deny or redirect risky Bash through
+   `goodmemory codex action` on the same installed config and storage path.
+4. Read-only MCP gives trace, context, stats, and artifact inspection.
+5. Optional writeback stays `off` by default; use `observe` to inspect
    candidates before moving to `selective` durable writes.
 
 Start with [Quickstart: Codex Or Claude Code Memory](#quickstart-codex-or-claude-code-memory).
@@ -183,8 +186,12 @@ goodmemory disable codex --workspace-root .
 goodmemory uninstall codex
 ```
 
-The installed host path has three pieces:
+The installed host path has four pieces:
 
+- Managed pre-action for Codex: `pre-tool-use` can deny or redirect risky Bash
+  and `goodmemory codex action` executes the vetted first step on the same
+  installed config, storage, provider, and scope path used by recall and
+  writeback.
 - Recall injection: `session-start` and `user-prompt-submit` hooks call
   `recall()` plus `buildContext()` and fail open if config, parsing, or storage
   is unavailable.
@@ -675,6 +682,11 @@ Hook and writeback examples:
 ```bash
 printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' \
   | ./node_modules/.bin/goodmemory codex hook session-start
+
+printf '%s' '{"cwd":".","session_id":"s-1","tool_name":"Bash","tool_input":{"command":"./tools/DeepAnalyzer --detailed"}}' \
+  | ./node_modules/.bin/goodmemory codex hook pre-tool-use
+
+./node_modules/.bin/goodmemory codex action -- ./tools/DeepAnalyzer --detailed
 
 printf '%s' '{"cwd":".","session_id":"s-1","messages":[{"role":"user","content":"Next step is to finish the release smoke."}]}' \
   | ./node_modules/.bin/goodmemory codex writeback --json

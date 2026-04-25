@@ -937,6 +937,7 @@ describe("goodmemory cli help and routing", () => {
     const mcp = await runCLI(["mcp", "--help"]);
     const mcpServe = await runCLI(["mcp", "serve", "--help"]);
     const codex = await runCLI(["codex", "--help"]);
+    const codexAction = await runCLI(["codex", "action", "--help"]);
     const codexBootstrap = await runCLI(["codex", "bootstrap", "--help"]);
     const codexHook = await runCLI(["codex", "hook", "--help"]);
     const codexWriteback = await runCLI(["codex", "writeback", "--help"]);
@@ -1008,12 +1009,18 @@ describe("goodmemory cli help and routing", () => {
     expect(mcpServe.stdout).toContain("--host <codex|claude>");
     expect(codex.exitCode).toBe(0);
     expect(codex.stdout).toContain("GoodMemory Codex CLI");
+    expect(codex.stdout).toContain("goodmemory codex action --help");
     expect(codex.stdout).toContain("goodmemory codex hook --help");
+    expect(codexAction.exitCode).toBe(0);
+    expect(codexAction.stdout).toContain("GoodMemory Codex Action");
+    expect(codexAction.stdout).toContain("--session-id <id>");
+    expect(codexAction.stdout).toContain("--command <command>");
     expect(codexBootstrap.exitCode).toBe(0);
     expect(codexBootstrap.stdout).toContain("GoodMemory Codex Bootstrap");
     expect(codexBootstrap.stdout).toContain("--workspace-root <path>");
     expect(codexHook.exitCode).toBe(0);
     expect(codexHook.stdout).toContain("GoodMemory Codex Hook");
+    expect(codexHook.stdout).toContain("pre-tool-use");
     expect(codexHook.stdout).toContain("session-start");
     expect(codexHook.stdout).toContain("session-stop");
     expect(codexWriteback.exitCode).toBe(0);
@@ -3048,10 +3055,12 @@ describe("goodmemory cli installed host config", () => {
             hosts: Array<{
               hookRegistered: boolean;
               mcpRegistered: boolean;
+              preActionRegistered: boolean;
             }>;
           };
           expect(payload.hosts[0]?.hookRegistered).toBe(false);
           expect(payload.hosts[0]?.mcpRegistered).toBe(false);
+          expect(payload.hosts[0]?.preActionRegistered).toBe(false);
         },
       );
     } finally {
@@ -3171,6 +3180,7 @@ describe("goodmemory cli installed host config", () => {
               counts: { facts: number; feedback: number; preferences: number };
               hookRegistered: boolean;
               mcpRegistered: boolean;
+              preActionRegistered: boolean;
               workspaceStatus: string;
               writeback: { mode: string };
             }>;
@@ -3179,6 +3189,7 @@ describe("goodmemory cli installed host config", () => {
           expect(payload.hosts[0]?.writeback.mode).toBe("selective");
           expect(payload.hosts[0]?.hookRegistered).toBe(true);
           expect(payload.hosts[0]?.mcpRegistered).toBe(true);
+          expect(payload.hosts[0]?.preActionRegistered).toBe(true);
           expect(payload.hosts[0]?.workspaceStatus).toBe("ok");
           expect(
             (payload.hosts[0]?.counts.facts ?? 0) +
@@ -3836,6 +3847,412 @@ describe("goodmemory cli installed host config", () => {
       expect(payload.hookSpecificOutput.additionalContext).toContain(
         "release quality program",
       );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("runs the Codex pre-tool-use hook and routes risky Bash commands to the installed action bridge", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-pretool-hook-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-pretool-hook-runtime");
+    const cliScript = join(import.meta.dir, "../../scripts/goodmemory-cli.ts");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "cli-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const enable = await withCwd(workspace.root, async () =>
+            runCLI([
+              "enable",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--workspace-id",
+              "workspace-a",
+              "--json",
+            ]),
+          );
+          expect(enable.exitCode).toBe(0);
+        },
+      );
+
+      await seedCodexActionPolicyMemory({
+        sqlitePath: join(home.root, ".goodmemory/memory.sqlite"),
+        sessionId: "hook-session-1",
+        userId: "cli-user",
+        workspaceId: "workspace-a",
+        rule: "Rather than DeepAnalyzer, use QuickCheck first.",
+        evidenceExcerpt:
+          "DeepAnalyzer detailed scan failed because QuickCheck had not run first.",
+      });
+
+      const result = await runBunScript({
+        args: ["codex", "hook", "pre-tool-use"],
+        cwd: workspace.root,
+        env: {
+          GOODMEMORY_HOME: home.root,
+        },
+        scriptPath: cliScript,
+        stdin: JSON.stringify({
+          cwd: workspace.root,
+          hook_event_name: "PreToolUse",
+          sequence: 3,
+          session_id: "hook-session-1",
+          tool_input: {
+            command: "./tools/DeepAnalyzer --detailed",
+          },
+          tool_name: "Bash",
+          turn_id: "turn-hook-1",
+        }),
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr.trim()).toBe("");
+      const payload = JSON.parse(result.stdout) as {
+        hookSpecificOutput: {
+          hookEventName: string;
+          permissionDecision: string;
+          permissionDecisionReason: string;
+        };
+      };
+      expect(payload.hookSpecificOutput.hookEventName).toBe("PreToolUse");
+      expect(payload.hookSpecificOutput.permissionDecision).toBe("deny");
+      expect(payload.hookSpecificOutput.permissionDecisionReason).toContain(
+        "goodmemory codex action",
+      );
+      expect(payload.hookSpecificOutput.permissionDecisionReason).toContain(
+        "--action-id",
+      );
+      expect(payload.hookSpecificOutput.permissionDecisionReason).toContain(
+        "DeepAnalyzer --detailed",
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("runs the installed Codex action bridge, rewrites DeepAnalyzer, and records lineage in installed storage", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-installed-action-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-installed-action-runtime");
+    const sqlitePath = join(home.root, ".goodmemory/memory.sqlite");
+    const toolsDir = join(workspace.root, "tools");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "cli-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const enable = await withCwd(workspace.root, async () =>
+            runCLI([
+              "enable",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--workspace-id",
+              "workspace-a",
+              "--json",
+            ]),
+          );
+          expect(enable.exitCode).toBe(0);
+        },
+      );
+
+      const { memory, scope } = await seedCodexActionPolicyMemory({
+        sqlitePath,
+        sessionId: "action-session-1",
+        userId: "cli-user",
+        workspaceId: "workspace-a",
+        rule: "Rather than DeepAnalyzer, use QuickCheck first.",
+        evidenceExcerpt:
+          "DeepAnalyzer detailed scan failed because QuickCheck had not run first.",
+      });
+
+      await mkdir(toolsDir, { recursive: true });
+      await writeFile(
+        join(toolsDir, "QuickCheck"),
+        [
+          "#!/usr/bin/env sh",
+          `echo quickcheck >> ${JSON.stringify(join(workspace.root, "quickcheck.log"))}`,
+        ].join("\n"),
+        "utf8",
+      );
+      await chmod(join(toolsDir, "QuickCheck"), 0o755);
+      await writeFile(
+        join(toolsDir, "DeepAnalyzer"),
+        [
+          "#!/usr/bin/env sh",
+          `echo deepanalyzer >> ${JSON.stringify(join(workspace.root, "deepanalyzer.log"))}`,
+        ].join("\n"),
+        "utf8",
+      );
+      await chmod(join(toolsDir, "DeepAnalyzer"), 0o755);
+
+      const result = await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () =>
+          withCwd(workspace.root, async () =>
+            runCLI([
+              "codex",
+              "action",
+              "--session-id",
+              "action-session-1",
+              "--turn-id",
+              "turn-action-1",
+              "--command",
+              "./tools/DeepAnalyzer --detailed",
+              "--json",
+            ]),
+          ),
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout) as {
+        actionId: string;
+        decision: string;
+        executed: boolean;
+        executedStep: string;
+        originalActionDeferred: boolean;
+        realizedEventParentId: string;
+        rewritten: boolean;
+      };
+      expect(payload.decision).toBe("review_required");
+      expect(payload.executed).toBe(true);
+      expect(payload.executedStep).toBe("./tools/QuickCheck");
+      expect(payload.rewritten).toBe(true);
+      expect(payload.originalActionDeferred).toBe(true);
+      expect(payload.realizedEventParentId).toBe(payload.actionId);
+      const quickCheckExecuted = await access(join(workspace.root, "quickcheck.log"))
+        .then(() => true)
+        .catch(() => false);
+      const deepAnalyzerExecuted = await access(join(workspace.root, "deepanalyzer.log"))
+        .then(() => true)
+        .catch(() => false);
+      expect(quickCheckExecuted).toBe(true);
+      expect(deepAnalyzerExecuted).toBe(false);
+
+      const exported = await memory.exportMemory({
+        includeRuntime: true,
+        scope: {
+          ...scope,
+          agentId: "codex",
+        },
+      });
+      expect(
+        exported.durable.experiences.some(
+          (record) => record.traceId === payload.actionId,
+        ),
+      ).toBe(true);
+      expect(
+        exported.durable.experiences.some(
+          (record) =>
+            Array.isArray(record.sourceTraceIds) &&
+            record.sourceTraceIds.includes(payload.actionId) &&
+            record.traceId !== payload.actionId,
+        ),
+      ).toBe(true);
+      expect(
+        exported.durable.evidence.some(
+          (record) => record.kind === "tool_result_excerpt",
+        ),
+      ).toBe(true);
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("preserves literal argv tokens passed after -- for installed Codex actions", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-installed-argv-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-installed-argv-runtime");
+    const capturePath = join(workspace.root, "capture-argv.sh");
+    const captureOutputPath = join(workspace.root, "captured-argv.txt");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "cli-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const enable = await withCwd(workspace.root, async () =>
+            runCLI([
+              "enable",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--workspace-id",
+              "workspace-a",
+              "--json",
+            ]),
+          );
+          expect(enable.exitCode).toBe(0);
+        },
+      );
+
+      await writeFile(
+        capturePath,
+        [
+          "#!/usr/bin/env sh",
+          `printf '%s\\n' \"$@\" > ${JSON.stringify(captureOutputPath)}`,
+        ].join("\n"),
+        "utf8",
+      );
+      await chmod(capturePath, 0o755);
+
+      const result = await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () =>
+          withCwd(workspace.root, async () =>
+            runCLI([
+              "codex",
+              "action",
+              "--session-id",
+              "action-session-argv",
+              "--",
+              "./capture-argv.sh",
+              "--flag",
+              "two words",
+              "semi;colon",
+              "quote'and",
+            ]),
+          ),
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout) as {
+        decision: string;
+        executed: boolean;
+        executedStep: string;
+      };
+      expect(payload.decision).toBe("allow");
+      expect(payload.executed).toBe(true);
+      expect(payload.executedStep).toContain("./capture-argv.sh");
+      const captured = await readFile(captureOutputPath, "utf8");
+      expect(captured.trim().split("\n")).toEqual([
+        "--flag",
+        "two words",
+        "semi;colon",
+        "quote'and",
+      ]);
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("blocks destructive installed Codex actions without executing the original command", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-installed-block-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-installed-block-runtime");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "cli-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const enable = await withCwd(workspace.root, async () =>
+            runCLI([
+              "enable",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--workspace-id",
+              "workspace-a",
+              "--json",
+            ]),
+          );
+          expect(enable.exitCode).toBe(0);
+        },
+      );
+
+      await seedCodexActionPolicyMemory({
+        sqlitePath: join(home.root, ".goodmemory/memory.sqlite"),
+        sessionId: "action-session-2",
+        userId: "cli-user",
+        workspaceId: "workspace-a",
+        rule: "Never delete AGENTS.md from the host bootstrap surface.",
+        why: "It breaks repo-local host wiring and package bootstrap continuity.",
+        evidenceExcerpt:
+          "Deleting AGENTS.md broke the repo-local host bootstrap surface.",
+      });
+      await writeFile(join(workspace.root, "AGENTS.md"), "# Keep me\n", "utf8");
+
+      const result = await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () =>
+          withCwd(workspace.root, async () =>
+            runCLI([
+              "codex",
+              "action",
+              "--session-id",
+              "action-session-2",
+              "--turn-id",
+              "turn-action-2",
+              "--command",
+              "rm -rf AGENTS.md",
+              "--json",
+            ]),
+          ),
+      );
+
+      expect(result.exitCode).toBe(2);
+      const payload = JSON.parse(result.stdout) as {
+        decision: string;
+        executed: boolean;
+        reason: string;
+        rewritten: boolean;
+      };
+      expect(payload.decision).toBe("blocked");
+      expect(payload.executed).toBe(false);
+      expect(payload.rewritten).toBe(false);
+      expect(payload.reason).toContain("destructive action");
+      expect(await readFile(join(workspace.root, "AGENTS.md"), "utf8")).toBe("# Keep me\n");
     } finally {
       await home.cleanup();
       await workspace.cleanup();

@@ -271,13 +271,17 @@ Current Sequencing Note
   - quality gate: `reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-40-Quality-Gate.md`
   - current status: P40-T001 through P40-T006 are implemented and accepted
-- Phase 41 is now queued as the installed-host pre-action unification slice:
+- Phase 41 is now closed as the installed-host pre-action unification slice:
   - task-board entrypoint: `task-board/43-phase-41-installed-host-pre-action-unification.txt`
   - breakdown folder: `task-board/phase-41-installed-host-pre-action-unification/`
   - focus: make `goodmemory install|enable codex` register managed `PreToolUse` and route high-risk Bash commands through an installed `goodmemory codex action` bridge on the same installed config/storage/providers path as recall and writeback
+  - deterministic evidence: `reports/eval/fallback/phase-41/run-20260425213045/report.json`
+  - installed live evidence: `reports/eval/live-memory/phase-41/run-phase41-live-current/report.json`
+  - quality gate: `reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-41-Quality-Gate.md`
   - fixed runtime shape: two-stage installed path, where `goodmemory codex hook pre-tool-use` denies or redirects and `goodmemory codex action` performs rewrite/veto/execution/lineage
   - fixed boundary: do not reopen Phase 34 canonical bootstrap-wrapper evidence, do not widen the root API, do not make Claude a live blocker
-- Any work beyond the queued Phase 41 slice should add a later phase file or explicitly reopen a closed phase with failing regression or gate evidence.
+- Any work beyond the closed Phase 41 slice should add a later phase file or explicitly reopen a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -296,13 +300,13 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 40 guarantees while future work lands
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, Phase 37.1 productization evidence, Phase 38 governed runtime evidence, Phase 39 Python/FastAPI bridge evidence, and Phase 40 release-proof/product-eval evidence regression-covered while future work lands
-   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, Phase 36, Phase 37, Phase 37.1, Phase 38, Phase 39, or Phase 40 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute future host work on top of the accepted Phase 35 installed-host middleware boundary, Phase 37 installed-host writeback boundary, and the closed Phase 40 public release proof instead of widening the core API or reintroducing repo-internal integration paths
+   - Preserve the closed Phase 17 through Phase 41 guarantees while future work lands
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, Phase 37.1 productization evidence, Phase 38 governed runtime evidence, Phase 39 Python/FastAPI bridge evidence, Phase 40 release-proof/product-eval evidence, and Phase 41 installed pre-action unification evidence regression-covered while future work lands
+   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, Phase 36, Phase 37, Phase 37.1, Phase 38, Phase 39, Phase 40, or Phase 41 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - Execute future host work on top of the accepted Phase 35 installed-host middleware boundary, Phase 37 installed-host writeback boundary, Phase 40 public release proof, and Phase 41 installed pre-action boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, Phase 36 public write-profile guarantees, Phase 37 installed-host writeback guarantees, Phase 37.1 audit/undo guarantees, Phase 38 governed runtime guarantees, Phase 39 bridge guarantees, and Phase 40 release-proof guarantees regression-covered while later phases execute
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, Phase 36 public write-profile guarantees, Phase 37 installed-host writeback guarantees, Phase 37.1 audit/undo guarantees, Phase 38 governed runtime guarantees, Phase 39 bridge guarantees, Phase 40 release-proof guarantees, and Phase 41 installed pre-action guarantees regression-covered while later phases execute
 3. Medium-term system hardening
    - Keep the accepted Codex host integration surface stable while future host-runtime evidence deepens
 4. Host integration track

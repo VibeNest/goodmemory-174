@@ -1,0 +1,263 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 41 is closed: deterministic installed pre-action evidence, tarball-first installed live evidence, and the accepted Phase 34/35/37 gates all hold."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 2875,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/host-install.test.ts tests/unit/host-hook-runtime.test.ts tests/unit/host-action-runtime.test.ts tests/unit/host-bootstrap.test.ts tests/integration/installed-host-action.test.ts tests/unit/run-phase-41-eval.test.ts tests/unit/run-phase-41-live-memory.test.ts tests/unit/run-phase-41-gate.test.ts tests/cli/cli.test.ts tests/release/release.test.ts",
+      "durationMs": 34317,
+      "exitCode": 0,
+      "label": "targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [5.59ms]",
+        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [1.68ms]",
+        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [2.05ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [2.42ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [3.87ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [2.27ms]",
+        "(pass) goodmemory cli root commands > remember writes durable memory through explicit scope flags and default sqlite storage [2.49ms]",
+        "(pass) goodmemory cli root commands > feedback derives installed-host defaults and is recalled through the host hook path [104.04ms]",
+        "(pass) goodmemory cli root commands > host-derived write commands require repo opt-in before using installed-host defaults [1.74ms]",
+        "(pass) goodmemory cli root commands > forget removes a host-derived memory id from the installed-host storage path [4.31ms]",
+        "(pass) goodmemory cli root commands > forget supports deleting a full scoped target with --all [7.22ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.35ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [1.43ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.39ms]",
+        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.39ms]",
+        "",
+        " 201 pass",
+        " 0 fail",
+        " 2837 expect() calls",
+        "Ran 201 tests across 10 files. [34.31s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-41 --run-id run-20260425213045",
+      "durationMs": 93,
+      "exitCode": 0,
+      "label": "phase-41-fallback-eval",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-41-eval.ts --run-id \"run-20260425213045\""
+      ],
+      "stdoutTail": [
+        "      \"followupTraceRecorded\": true,",
+        "      \"observedStoragePath\": \"/var/folders/8t/l1s9gc6971sdbgmsn64wbb_80000gn/T/goodmemory-phase41-home-MExp1p/.goodmemory/memory.sqlite\",",
+        "      \"sharedInstalledStorage\": true,",
+        "      \"toolResultEvidenceRecorded\": true",
+        "    }",
+        "  },",
+        "  \"generatedAt\": \"2026-04-25T16:56:08.053Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-41-eval.ts\",",
+        "  \"mode\": \"fallback\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-41\",",
+        "  \"phase\": \"phase-41\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-41/run-20260425213045\",",
+        "  \"runId\": \"run-20260425213045\",",
+        "  \"summary\": {",
+        "    \"installedNonRegressionPassCount\": 3,",
+        "    \"installedWinOverNoMemoryCount\": 3,",
+        "    \"storageParityPassCount\": 1,",
+        "    \"totalCases\": 4",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-41-live-memory",
+      "durationMs": 3639,
+      "exitCode": 0,
+      "label": "phase-41-live-memory",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-41-live-memory.ts"
+      ],
+      "stdoutTail": [
+        "      \"distribution\": \"tarball-first\",",
+        "      \"runtime\": \"bun-only\",",
+        "      \"tarballName\": \"goodmemory-0.2.0.tgz\"",
+        "    }",
+        "  },",
+        "  \"evidenceContract\": {",
+        "    \"phase41\": {",
+        "      \"packageBoundary\": \"installed_package_public_imports\",",
+        "      \"runner\": \"scripts/run-phase-41-live-memory.ts\",",
+        "      \"runtimePath\": \"installed_package_pretooluse_and_action_bridge\"",
+        "    }",
+        "  },",
+        "  \"generatedAt\": \"2026-04-25T16:56:08.111Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-41-live-memory.ts\",",
+        "  \"mode\": \"live-memory\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-41\",",
+        "  \"phase\": \"phase-41\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-41/run-phase41-live-current\",",
+        "  \"runId\": \"run-phase41-live-current\"",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-34",
+      "durationMs": 38908,
+      "exitCode": 0,
+      "label": "phase-34-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-34-gate.ts"
+      ],
+      "stdoutTail": [
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-34/run-20260425165611\",",
+        "  \"runId\": \"run-20260425165611\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"phase-34 deterministic pre-action evidence against the Phase 32 soft-guard and no-memory baselines\",",
+        "      \"root public surface cleanup that keeps internal evolution contracts off the root barrel\",",
+        "      \"proposal-first adapter user-correction ingestion with proposal/promotion receipts and no intermediate active feedback memory\",",
+        "      \"coding-agent targeted procedural promotion for repeated corrections and tool-outcome lineage\",",
+        "      \"one canonical installed-package Codex action-gate live report for executable rewrite, destructive veto, and low-risk non-regression\",",
+        "      \"repo-local Codex bootstrap scaffolds for AGENTS, wrapper, hooks, config, and rules through public package imports\",",
+        "      \"phase-34 quality-gate generation and fail-closed closure validation\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"claiming native Codex hook interception is the canonical live blocker when the current runtime does not prove it\",",
+        "      \"widening the root API or opening a public goodmemory/evolution module\",",
+        "      \"making Claude a second live gate blocker\",",
+        "      \"new memory capability work beyond the accepted host pre-action contract slice\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-35",
+      "durationMs": 37938,
+      "exitCode": 0,
+      "label": "phase-35-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-35-gate.ts"
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"generatedAt\": \"2026-04-25T16:56:50.655Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-35-gate.ts\",",
+        "  \"phase\": \"phase-35\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-35/run-20260425165650\",",
+        "  \"runId\": \"run-20260425165650\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"phase-35 deterministic installed-hook middleware evaluation against the frozen Phase 32 text-only path and the no-memory baseline\",",
+        "      \"tarball-first installed-package Codex middleware validation for install, repo opt-in, hook injection, and read-only MCP availability\",",
+        "      \"phase-35 quality-gate generation and fail-closed closure validation\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"widening the root API or exposing public goodmemory/evolution\",",
+        "      \"automatic writeback, transcript persistence, or stop-hook behavior\",",
+        "      \"making Claude a second live gate blocker\",",
+        "      \"claiming the frozen Phase 32 text-only path remains the canonical product line after Phase 35\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-37",
+      "durationMs": 112595,
+      "exitCode": 0,
+      "label": "phase-37-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-37-gate.ts"
+      ],
+      "stdoutTail": [
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-37/run-20260425165728\",",
+        "  \"runId\": \"run-20260425165728\",",
+        "  \"scope\": {",
+        "    \"inScope\": [",
+        "      \"installed-host selective writeback for Codex first, with Claude CLI parity\",",
+        "      \"opt-in off, observe, and selective managed writeback config\",",
+        "      \"public remember-surface writes with assistant confirmation or verification policy\",",
+        "      \"no raw transcript persistence, remember-never masking, dedupe, and next-session recall evidence\",",
+        "      \"provider-backed assisted-extraction live-memory and external consumer package smoke evidence\"",
+        "    ],",
+        "    \"outOfScope\": [",
+        "      \"default-on automatic writeback\",",
+        "      \"full transcript archive\",",
+        "      \"dashboard or managed cloud\",",
+        "      \"OneLife built-in preset\",",
+        "      \"recall router reopening\",",
+        "      \"Claude provider-backed live blocker\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-41/run-20260425213045/report.json",
+      "reason": "Installed deterministic rewrite, veto, low-risk guidance, and shared-storage parity evidence is accepted.",
+      "regenerateCommand": "bun run eval:phase-41 --run-id run-20260425213045",
+      "status": "accepted"
+    },
+    "liveMemory": {
+      "liveReportPath": "reports/eval/live-memory/phase-41/run-phase41-live-current/report.json",
+      "reason": "Installed-package Codex live evidence confirms managed PreToolUse, installed action-bridge rewrite/veto behavior, low-risk allow, and shared installed storage.",
+      "runtimePath": "installed_package_pretooluse_and_action_bridge",
+      "status": "accepted"
+    },
+    "phase34Gate": {
+      "gatePath": "reports/quality-gates/phase-34/run-20260423102636/phase-34-quality-gate.json",
+      "phase": "phase-34",
+      "reason": "phase-34 remains accepted and regression-covered for Phase 41 closure.",
+      "status": "accepted"
+    },
+    "phase35Gate": {
+      "gatePath": "reports/quality-gates/phase-35/run-20260423213045/phase-35-quality-gate.json",
+      "phase": "phase-35",
+      "reason": "phase-35 remains accepted and regression-covered for Phase 41 closure.",
+      "status": "accepted"
+    },
+    "phase37Gate": {
+      "gatePath": "reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json",
+      "phase": "phase-37",
+      "reason": "phase-37 remains accepted and regression-covered for Phase 41 closure.",
+      "status": "accepted"
+    }
+  },
+  "generatedAt": "2026-04-25T16:59:21.175Z",
+  "generatedBy": "scripts/run-phase-41-gate.ts",
+  "phase": "phase-41",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-41/run-20260425223045",
+  "runId": "run-20260425223045",
+  "scope": {
+    "inScope": [
+      "installed Codex PreToolUse registration plus installed action bridge closure",
+      "deterministic rewrite, veto, low-risk non-regression, and shared-storage parity evidence",
+      "tarball-first installed-package live validation for the managed PreToolUse hook and installed action bridge",
+      "regression coverage against accepted Phase 34, Phase 35, and Phase 37 guarantees"
+    ],
+    "outOfScope": [
+      "reopening Phase 34 bootstrap-wrapper closure",
+      "widening the root GoodMemory API",
+      "claiming Claude pre-action parity or a second live blocker",
+      "default-on writeback or transcript persistence"
+    ]
+  }
+}

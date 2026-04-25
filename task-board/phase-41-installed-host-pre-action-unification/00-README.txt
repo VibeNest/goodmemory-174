@@ -1,8 +1,9 @@
 Phase 41 Breakdown: Installed Host Pre-Action Unification
 =========================================================
 
-This folder contains the execution checklist for making installed Codex the
-canonical pre-action path after the accepted Phase 40 release proof.
+This folder contains the execution checklist and accepted evidence pointers for
+making installed Codex the canonical pre-action path after the accepted Phase
+40 release proof.
 
 Follow the parent task file:
 
@@ -10,6 +11,8 @@ Follow the parent task file:
 
 Working rules:
 
+- Phase 41 is closed because the deterministic eval, installed-package live
+  evidence, and Phase 41 quality gate are accepted.
 - TDD first.
 - Keep accepted Phase 34, Phase 35, Phase 37, and Phase 40 guarantees
   regression-covered.
@@ -22,6 +25,12 @@ Working rules:
   - installed `goodmemory codex action` bridge executes and records lineage
 - Codex is the only canonical implementation and live blocker in this phase.
 - After each task, run targeted regressions plus `bun run typecheck`.
+- Deterministic evidence is accepted at:
+  `reports/eval/fallback/phase-41/run-20260425213045/report.json`
+- Installed live evidence is accepted at:
+  `reports/eval/live-memory/phase-41/run-phase41-live-current/report.json`
+- Phase 41 quality gate evidence is accepted at:
+  `reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json`
 
 Task order:
 

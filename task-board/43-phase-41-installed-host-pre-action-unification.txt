@@ -3,7 +3,7 @@ Phase 41: Installed Host Pre-Action Unification
 
 Status
 ------
-[TODO] Phase 41 is queued.
+[DONE] Phase 41 is closed as the installed-host pre-action unification slice.
 
 This phase starts after the accepted Phase 40 v0.2 release-proof closure. It
 does not reopen the accepted Phase 34, Phase 35, Phase 37, or Phase 40
@@ -75,27 +75,27 @@ Definition of Done
 
 Tasks
 -----
-[TODO] P41-T001 Freeze the Phase 41 contract and add failing tests
-[TODO] P41-T002 Add the installed `pre-tool-use` hook contract and runtime
-[TODO] P41-T003 Add the installed `goodmemory codex action` bridge and lineage
-[TODO] P41-T004 Register managed Codex `PreToolUse` and surface status/install
+[DONE] P41-T001 Freeze the Phase 41 contract and add failing tests
+[DONE] P41-T002 Add the installed `pre-tool-use` hook contract and runtime
+[DONE] P41-T003 Add the installed `goodmemory codex action` bridge and lineage
+[DONE] P41-T004 Register managed Codex `PreToolUse` and surface status/install
        state
-[TODO] P41-T005 Add deterministic Phase 41 eval with frozen Phase 34 and
+[DONE] P41-T005 Add deterministic Phase 41 eval with frozen Phase 34 and
        no-memory baselines
-[TODO] P41-T006 Add tarball-first installed Codex live evidence
-[TODO] P41-T007 Add the Phase 41 quality gate and regression chain
-[TODO] P41-T008 Sync README, current status, archive docs, task-board, and
+[DONE] P41-T006 Add tarball-first installed Codex live evidence
+[DONE] P41-T007 Add the Phase 41 quality gate and regression chain
+[DONE] P41-T008 Sync README, current status, archive docs, task-board, and
        release-facing checks after evidence is accepted
 
 
 Planned Evidence
 ----------------
 - Deterministic eval output (ignored generated):
-  `reports/eval/fallback/phase-41/<run-id>/report.json`
+  `reports/eval/fallback/phase-41/run-20260425213045/report.json`
 - Installed Codex live evidence:
   `reports/eval/live-memory/phase-41/run-phase41-live-current/report.json`
 - Quality gate:
-  `reports/quality-gates/phase-41/<run-id>/phase-41-quality-gate.json`
+  `reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json`
 - Archive summary after closure:
   `docs/archive/quality-gates/GoodMemory-Phase-41-Quality-Gate.md`
 

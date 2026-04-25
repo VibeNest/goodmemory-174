@@ -26,12 +26,14 @@ import type {
 } from "./install/hostInstall";
 import {
   isInstalledHostHookRegistered,
+  isInstalledHostPreActionHookRegistered,
   resolveInstalledHostHookTargetPath,
 } from "./install/hostHookConfig";
 import {
   executeInstalledHostHook,
 } from "./install/hostHookRuntime";
 import type { InstalledHostHookCommand } from "./install/hostHookRuntime";
+import { executeInstalledHostAction } from "./install/hostActionRuntime";
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
@@ -570,15 +572,25 @@ const CODEX_HELP_TEXT = [
   "  goodmemory codex <command> [options]",
   "",
   "Commands",
+  "  action        Run the installed Codex action bridge with pre-action assessment",
   "  bootstrap     Generate repo-local Codex wiring on the installed package surface",
   "  hook          Run installed Codex hook handlers from stdin JSON",
   "  writeback     Run opt-in installed Codex selective writeback from stdin JSON",
   "",
   "Help",
   "  goodmemory codex --help",
+  "  goodmemory codex action --help",
   "  goodmemory codex bootstrap --help",
   "  goodmemory codex hook --help",
   "  goodmemory codex writeback --help",
+].join("\n");
+const CODEX_ACTION_HELP_TEXT = [
+  "GoodMemory Codex Action",
+  "",
+  "Usage",
+  "  goodmemory codex action --session-id <id> --command <command> [--run-id <id>] [--attempt-id <id>] [--action-id <id>] [--turn-id <id>] [--sequence <n>] [--json]",
+  "",
+  "Executes the installed Codex action bridge: assessAction(), rewrite/veto, first-step execution, and lineage/evidence recording in installed storage.",
 ].join("\n");
 const CLAUDE_HELP_TEXT = [
   "GoodMemory Claude CLI",
@@ -613,9 +625,10 @@ const CODEX_HOOK_HELP_TEXT = [
   "GoodMemory Codex Hook",
   "",
   "Usage",
-  "  goodmemory codex hook <session-start|session-stop|user-prompt-submit>",
+  "  goodmemory codex hook <pre-tool-use|session-start|session-stop|user-prompt-submit>",
   "",
   "Commands",
+  "  pre-tool-use        Read Codex PreToolUse Bash JSON from stdin and deny/redirect risky commands",
   "  session-start        Read Codex SessionStart JSON from stdin and emit additionalContext JSON",
   "  session-stop         Read Codex Stop JSON from stdin and learn bounded session signals",
   "  user-prompt-submit   Read Codex UserPromptSubmit JSON from stdin and emit additionalContext JSON",
@@ -677,6 +690,11 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (token === "-V") {
       flags.version = "true";
       continue;
+    }
+
+    if (token === "--") {
+      commands.push(...argv.slice(index + 1));
+      break;
     }
 
     if (!token.startsWith("--")) {
@@ -2136,6 +2154,11 @@ function renderStatusPayload(payload: {
       ),
     );
     lines.push(`  - hook: ${host.hookRegistered ? "registered" : "missing"}`);
+    if (hostName === "codex") {
+      lines.push(
+        `  - pre-action hook: ${host.preActionRegistered ? "registered" : "missing"}`,
+      );
+    }
     lines.push(`  - MCP: ${host.mcpRegistered ? "registered" : "missing"}`);
     if (host.memoryStatus) {
       lines.push(`  - memory: ${String(host.memoryStatus)}`);
@@ -2285,6 +2308,7 @@ function requireInstalledHostHookCommand(
   value: string | undefined,
 ): InstalledHostHookCommand {
   if (
+    value === "pre-tool-use" ||
     value === "session-start" ||
     value === "session-stop" ||
     value === "user-prompt-submit"
@@ -2293,8 +2317,17 @@ function requireInstalledHostHookCommand(
   }
 
   throw new Error(
-    `Unknown hook command: ${value ?? "(missing)"}. Use 'session-start', 'session-stop', or 'user-prompt-submit'.`,
+    `Unknown hook command: ${value ?? "(missing)"}. Use 'pre-tool-use', 'session-start', 'session-stop', or 'user-prompt-submit'.`,
   );
+}
+
+function readNonNegativeIntegerFlag(value: string, flagName: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`Unsupported --${flagName}: ${value}. Expected a non-negative integer.`);
+  }
+
+  return parsed;
 }
 
 function readInstallStorageProviderFlag(
@@ -3811,6 +3844,10 @@ async function buildHostStatus(
     hookRegistered: await isInstalledHostHookRegistered({ homeRoot, host }),
     host,
     mcpRegistered: await isInstalledHostMcpRegistered({ homeRoot, host }),
+    preActionRegistered: await isInstalledHostPreActionHookRegistered({
+      homeRoot,
+      host,
+    }),
     writeback: globalConfig.status === "ok" ? globalConfig.config.writeback : null,
     workspaceStatus: resolved.status,
   };
@@ -4000,6 +4037,53 @@ async function handleHostDisable(
       payload,
     }),
   };
+}
+
+async function handleCodexAction(
+  flags: ParsedFlags,
+  positionals: string[],
+): Promise<CLICommandOutput> {
+  const sessionId = normalizeOptionalFlag(flags["session-id"]);
+  if (!sessionId) {
+    throw new Error(
+      "Codex action gate requires --session-id <session-id> to bind memory-backed policy to a real host session.",
+    );
+  }
+
+  const command =
+    normalizeOptionalFlag(flags.command) ??
+    normalizeOptionalFlag(shellEscapeArgs(positionals));
+  if (!command) {
+    throw new Error(
+      "Codex action gate requires --command <command> or command tokens after --.",
+    );
+  }
+
+  const result = await executeInstalledHostAction({
+    ...(flags["action-id"] ? { actionId: flags["action-id"] } : {}),
+    ...(flags["attempt-id"] ? { attemptId: flags["attempt-id"] } : {}),
+    command,
+    cwd: process.cwd(),
+    host: "codex",
+    ...(flags["run-id"] ? { runId: flags["run-id"] } : {}),
+    ...(flags.sequence !== undefined
+      ? { sequence: readNonNegativeIntegerFlag(flags.sequence, "sequence") }
+      : {}),
+    sessionId,
+    ...(flags["turn-id"] ? { turnId: flags["turn-id"] } : {}),
+  });
+
+  return {
+    exitCode: result.exitCode,
+    json: result.payload,
+    text: JSON.stringify(result.payload, null, 2),
+  };
+}
+
+function shellEscapeArgs(tokens: string[]): string {
+  return tokens
+    .map((token) => `'${token.replace(/'/g, "'\\''")}'`)
+    .join(" ");
 }
 
 async function handleHostHook(
@@ -4192,6 +4276,9 @@ export async function runCLI(
         if (!secondary) {
           return helpResult(CODEX_HELP_TEXT);
         }
+        if (secondary === "action") {
+          return helpResult(CODEX_ACTION_HELP_TEXT);
+        }
         if (secondary === "bootstrap") {
           return helpResult(CODEX_BOOTSTRAP_HELP_TEXT);
         }
@@ -4318,6 +4405,9 @@ export async function runCLI(
       const secondary = commands[1];
       if (!secondary) {
         return helpResult(CODEX_HELP_TEXT);
+      }
+      if (secondary === "action") {
+        return renderOutput(await handleCodexAction(flags, commands.slice(2)), flags);
       }
       if (secondary === "bootstrap") {
         return renderOutput(await handleHostBootstrap("codex", flags), flags);
