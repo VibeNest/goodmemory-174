@@ -5,6 +5,20 @@ This folder contains the implementation checklist for making GoodMemory easy to
 adopt from Python/FastAPI backends without widening the root public API.
 OneLife is the first reference consumer.
 
+Status: [DONE] Phase 39 is implemented and accepted.
+
+Closure evidence:
+
+- `docs/GoodMemory-Python-HTTP-Integration-Bridge.md`
+- `src/http/index.ts`
+- `scripts/goodmemory-http-bridge.ts`
+- `examples/support/http-memory-bridge.ts`
+- `examples/python-fastapi-memory-consumer.py`
+- `tests/integration/python-http-bridge.test.ts`
+- `scripts/run-phase-39-gate.ts`
+- `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
+
 Follow the parent task file:
 
 - `task-board/41-phase-39-python-http-integration-bridge.txt`
@@ -19,7 +33,8 @@ Working rules:
 - Treat the bridge as backend-only. Browser/mobile clients must call the
   product backend, and export/forget/revise operations must pass product-owned
   authorization and scoped user/tenant validation.
-- Prefer a thin bridge/example over new root public API expansion.
+- Prefer the dedicated `goodmemory/http` subpath over root public API
+  expansion.
 - Keep consumer product memory policy product-owned; GoodMemory is the semantic
   memory layer and runtime facade. OneLife is the first reference case.
 - Treat `/memory/feedback` as a retry-safe procedural signal endpoint with

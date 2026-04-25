@@ -450,7 +450,12 @@ describe("run-phase-27 eval script", () => {
         ensureDir: async () => undefined,
         loadScenarios: async () => [visibleScenario],
         buildPublicSurfacePurityMetric: async () => ({
-          allowedImports: ["goodmemory", "goodmemory/ai-sdk", "goodmemory/host"],
+          allowedImports: [
+            "goodmemory",
+            "goodmemory/ai-sdk",
+            "goodmemory/host",
+            "goodmemory/http",
+          ],
           checkedFiles: [],
           checks: [],
           packageBoundarySmoke: "package-name-imports",
@@ -644,6 +649,7 @@ describe("run-phase-27 eval script", () => {
       "goodmemory",
       "goodmemory/ai-sdk",
       "goodmemory/host",
+      "goodmemory/http",
     ]);
     expect(calls[0]?.mode).toBe("fallback");
     expect(calls[0]?.runId).toBe("suite");

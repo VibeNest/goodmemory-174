@@ -58,6 +58,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-37.1-Quality-Gate.md`
 - Governed runtime surface closure:
   - `GoodMemory-Phase-38-Quality-Gate.md`
+- Python HTTP integration bridge closure:
+  - `GoodMemory-Phase-39-Quality-Gate.md`
 
 ## When To Use This Archive
 

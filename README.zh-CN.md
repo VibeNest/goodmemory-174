@@ -14,7 +14,7 @@ GoodMemory 不是 LLM、agent framework、向量数据库，也不是通用 RAG 
 - 稳定的记忆 API：`remember`、`recall`、`buildContext`、`feedback`、`forget`、`exportMemory`、`deleteAllMemory`。
 - 面向 Codex 和 Claude Code 的已安装 agent 记忆：`goodmemory setup`、托管 hooks、`goodmemory status`、只读 MCP、可选 writeback。
 - 公开的一等写入定制能力：`GoodMemoryConfig.remember`、`RememberProfile`、`rememberRules`、`RememberInput.annotations`、命名 extractor id。
-- 面向 npm 包的公开导出：`goodmemory`、`goodmemory/ai-sdk`、`goodmemory/host`，并提供编译后的 `dist` 与 TypeScript 声明文件。
+- 面向 npm 包的公开导出：`goodmemory`、`goodmemory/ai-sdk`、`goodmemory/host`、`goodmemory/http`，并提供编译后的 `dist` 与 TypeScript 声明文件。
 - Local-first 存储：Bun 默认使用本地 SQLite；需要时可以接 Postgres、注入 adapter、启用 embedding provider。
 - 面向发布的验证路径：确定性测试、live eval、provider-backed eval、package smoke、quality gate。
 
@@ -349,6 +349,23 @@ export async function handleMemoryChat(request: Request): Promise<Response> {
 - 第一条公开 server path 是 `ModelMessage`-first。
 - wrapper 通过 `recall()` 与 `buildContext()` 增强 `system`，并在 memory layer 出错时 soft-fail。
 
+## Python/FastAPI HTTP Bridge
+
+当 Python 后端需要把 GoodMemory 当作服务端 memory service 调用时，使用已打包的 HTTP bridge：
+
+```bash
+GOODMEMORY_HTTP_BRIDGE_TOKEN="replace-with-service-token" \
+GOODMEMORY_STORAGE_PROVIDER=postgres \
+GOODMEMORY_STORAGE_URL="postgres://user:pass@host:5432/goodmemory" \
+./node_modules/.bin/goodmemory-http-bridge --profile life-coach
+```
+
+Python 调用方发送 `Authorization: Bearer <token>` 和 `x-goodmemory-*` scope
+headers，调用 `POST /memory/recall-context`、`/memory/remember`、
+`/memory/feedback`、`/memory/export`、`/memory/forget`，以及只接受显式
+`memoryId` 的 `/memory/revise`。TypeScript bridge API 从 `goodmemory/http`
+导入。
+
 ## Host Adapter API
 
 当外部 host 需要 artifact 或 host-specific contracts，但不想导入内部模块时，使用 `goodmemory/host`。
@@ -587,6 +604,7 @@ Operator guidance：
 - 通过 `goodmemory` 暴露 root memory API
 - 通过 `goodmemory/ai-sdk` 暴露 AI SDK adapter
 - 通过 `goodmemory/host` 暴露 host adapter 和 host contracts
+- 通过 `goodmemory/http` 和 `goodmemory-http-bridge` 暴露 HTTP bridge
 - 通过 `goodmemory setup` 暴露 installed CLI 和托管 host setup
 - Codex 与 Claude Code hooks 用于 recall
 - 只读 MCP 用于 inspection 和 debugging

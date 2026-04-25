@@ -106,6 +106,66 @@ function extractJsonObject<T>(value: string): T {
   return JSON.parse(value.slice(start, end + 1)) as T;
 }
 
+function allocateBridgePort(): number {
+  const server = Bun.serve({
+    fetch: () => new Response("ok"),
+    port: 0,
+  });
+  const port = server.port;
+  server.stop(true);
+  if (port === undefined) {
+    throw new Error("Bun did not allocate a package-boundary bridge test port.");
+  }
+
+  return port;
+}
+
+async function waitForInstalledHttpBridgeReady(input: {
+  token: string;
+  url: string;
+}): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    try {
+      const response = await fetch(`${input.url}/memory/recall-context`, {
+        body: JSON.stringify({
+          query: "health check",
+          scope: {
+            agentId: "life-coach",
+            sessionId: "package-boundary-health",
+            userId: "python-user",
+            workspaceId: "life-workspace",
+          },
+        }),
+        headers: {
+          authorization: `Bearer ${input.token}`,
+          "content-type": "application/json",
+          "x-goodmemory-operations": "recall-context",
+          "x-goodmemory-user-id": "python-user",
+          "x-goodmemory-workspace-id": "life-workspace",
+        },
+        method: "POST",
+      });
+
+      if (response.status === 200) {
+        await response.arrayBuffer();
+        return;
+      }
+
+      lastError = new Error(`Installed bridge returned HTTP ${response.status}.`);
+    } catch (error) {
+      lastError = error;
+    }
+
+    await Bun.sleep(75);
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Installed GoodMemory HTTP bridge did not become ready.");
+}
+
 async function packReleaseTarball(outputDir: string): Promise<string> {
   const pack = await runCommand({
     cmd: ["bun", "pm", "pack", "--destination", outputDir, "--quiet"],
@@ -169,6 +229,9 @@ describe("node package boundary", () => {
         aiSDKResponseText: string;
         artifactPaths: string[];
         contextIncludesChecklist: boolean;
+        httpBridgeContextIncludesPackageImport: boolean;
+        httpBridgeItemCount: number;
+        httpBridgeRememberOk: boolean;
         explicitPostgresRememberError?: string;
         explicitPostgresRuntimeInfo?: {
           assistedExtractionEnabled: boolean;
@@ -238,6 +301,9 @@ describe("node package boundary", () => {
       expect(smokeJson.ok).toBe(true);
       expect(smokeJson.aiSDKResponseText).toContain("Noted.");
       expect(smokeJson.contextIncludesChecklist).toBe(true);
+      expect(smokeJson.httpBridgeRememberOk).toBe(true);
+      expect(smokeJson.httpBridgeContextIncludesPackageImport).toBe(true);
+      expect(smokeJson.httpBridgeItemCount).toBeGreaterThan(0);
       expect(smokeJson.invalidScopeStatus).toBe(400);
       expect(smokeJson.invalidScopeError).toContain("scope.userId");
       expect(smokeJson.recallHitCount).toBeGreaterThan(0);
@@ -326,6 +392,84 @@ describe("node package boundary", () => {
       expect(cliHelp.exitCode).toBe(0);
       expect(cliHelp.stdout).toContain("GoodMemory CLI");
       expect(cliHelp.stdout).toContain("goodmemory <command> [options]");
+
+      const httpBridgeHelp = await runCommand({
+        cmd: ["./node_modules/.bin/goodmemory-http-bridge", "--help"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(httpBridgeHelp.exitCode).toBe(0);
+      expect(httpBridgeHelp.stdout).toContain("GoodMemory HTTP memory bridge");
+      expect(httpBridgeHelp.stdout).toContain("GOODMEMORY_HTTP_BRIDGE_TOKEN");
+
+      const httpBridgePort = allocateBridgePort();
+      const httpBridgeToken = "package-boundary-http-bridge-token";
+      const httpBridgeUrl = `http://127.0.0.1:${httpBridgePort}`;
+      const httpBridgeProcess = Bun.spawn({
+        cmd: [
+          "./node_modules/.bin/goodmemory-http-bridge",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          String(httpBridgePort),
+          "--profile",
+          "life-coach",
+          "--token",
+          httpBridgeToken,
+        ],
+        cwd: workspaceRoot,
+        env: createChildEnv({
+          ...RELEASE_TEST_ENV,
+          GOODMEMORY_STORAGE_PROVIDER: "memory",
+        }),
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const httpBridgeStdout = new Response(httpBridgeProcess.stdout).text();
+      const httpBridgeStderr = new Response(httpBridgeProcess.stderr).text();
+
+      try {
+        await waitForInstalledHttpBridgeReady({
+          token: httpBridgeToken,
+          url: httpBridgeUrl,
+        });
+
+        const pythonSmoke = await runCommand({
+          cmd: [
+            "python3",
+            join(ROOT_PACKAGE_PATH, "examples/python-fastapi-memory-consumer.py"),
+          ],
+          cwd: workspaceRoot,
+          env: {
+            ...RELEASE_TEST_ENV,
+            GOODMEMORY_BRIDGE_TOKEN: httpBridgeToken,
+            GOODMEMORY_BRIDGE_URL: httpBridgeUrl,
+          },
+        });
+        expect(pythonSmoke.exitCode).toBe(0);
+        expect(pythonSmoke.stderr).toBe("");
+        const pythonSmokeJson = extractJsonObject<{
+          feedbackAccepted: boolean;
+          hasContext: boolean;
+          itemCount: number;
+          revised: boolean;
+        }>(pythonSmoke.stdout);
+        expect(pythonSmokeJson.hasContext).toBe(true);
+        expect(pythonSmokeJson.itemCount).toBeGreaterThan(0);
+        expect(pythonSmokeJson.feedbackAccepted).toBe(true);
+        expect(pythonSmokeJson.revised).toBe(true);
+      } finally {
+        httpBridgeProcess.kill("SIGTERM");
+        await httpBridgeProcess.exited;
+      }
+
+      const [serverStdout, serverStderr] = await Promise.all([
+        httpBridgeStdout,
+        httpBridgeStderr,
+      ]);
+      expect(serverStdout).toContain('"event":"ready"');
+      expect(serverStdout).toContain('"auth":"bearer"');
+      expect(serverStderr).toBe("");
     } finally {
       await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });

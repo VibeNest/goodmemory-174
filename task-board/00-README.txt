@@ -246,18 +246,26 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-38-Quality-Gate.md`
   - quality gate: `reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json`
   - current status: P38-T001 through P38-T007 are implemented and accepted
-- Phase 39 is now open as the Python HTTP integration bridge slice:
+- Phase 39 is now closed as the Python HTTP integration bridge slice:
   - task-board entrypoint: `task-board/41-phase-39-python-http-integration-bridge.txt`
   - breakdown folder: `task-board/phase-39-python-http-integration-bridge/`
-  - focus: thin Node/Bun HTTP memory bridge for Python/FastAPI consumers, built on the accepted public memory APIs and governed runtime surface; OneLife is the first reference consumer, not the product boundary
+  - focus: public `goodmemory/http` bridge API and packaged `goodmemory-http-bridge` server for Python/FastAPI consumers, built on the accepted public memory APIs and governed runtime surface; OneLife is the first reference consumer, not the product boundary
   - refined bridge boundary: backend-only/authenticated service calls, scoped authorization for export/forget/revise, bridge-level async remember mode, targeted `/memory/revise` only by explicit `memoryId`, and product-owned session lifecycle with runtime archive off by default
-  - current status: planning and implementation open; no closure evidence yet
+  - contract doc: `docs/GoodMemory-Python-HTTP-Integration-Bridge.md`
+  - public bridge API: `src/http/index.ts` exported as `goodmemory/http`
+  - packaged server bin: `scripts/goodmemory-http-bridge.ts`
+  - local compatibility re-export: `examples/support/http-memory-bridge.ts`
+  - Python consumer smoke: `examples/python-fastapi-memory-consumer.py`
+  - quality gate: `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
+  - dependency preflight: Phase 38 gate writes under `.tmp-goodmemory-phase39/quality-gates/phase-38/run-phase39-preflight-38`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
+  - current status: P39-T001 through P39-T006 are implemented and accepted
 - Phase 40 is queued as the v0.2 release proof and product eval slice:
   - task-board entrypoint: `task-board/42-phase-40-v0-2-release-proof-and-product-eval.txt`
   - breakdown folder: `task-board/phase-40-v0-2-release-proof-and-product-eval/`
   - sequencing: Phase 40 must not become the active implementation slice until Phase 39 closes with bridge regression and quality-gate evidence
   - focus: public quickstart/15-minute integration guide, v0.2 package release proof, cross-consumer adoption smoke, and product eval rollup versus no-memory baseline
-- Any work beyond the current Phase 39 slice should start from the queued Phase 40 board, add a later phase file, or explicitly reopen a closed phase with failing regression or gate evidence.
+- Any work beyond the closed Phase 39 slice should start from the queued Phase 40 board, add a later phase file, or explicitly reopen a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.
@@ -279,7 +287,7 @@ Use these bands when choosing what to work on next:
    - Preserve the closed Phase 17 through Phase 38 guarantees while future work lands
    - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, Phase 37.1 productization evidence, and Phase 38 governed runtime evidence regression-covered while future work lands
    - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, Phase 36, Phase 37, Phase 37.1, or Phase 38 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute Phase 39 as the active Python/FastAPI bridge slice; keep Phase 40 queued until Phase 39 has closure evidence
+   - Keep the accepted Phase 39 Python/FastAPI bridge evidence regression-covered while future work lands
    - Execute future host work on top of the accepted Phase 35 installed-host middleware boundary and Phase 37 installed-host writeback boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence

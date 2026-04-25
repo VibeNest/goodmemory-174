@@ -1,0 +1,168 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 39 Python HTTP bridge passed targeted regressions and the CI gate."
+  },
+  "commands": [
+    {
+      "command": "bun test tests/integration/python-http-bridge.test.ts tests/integration/remember.profiles.test.ts tests/integration/background-jobs.api.test.ts tests/integration/revise-memory.api.test.ts tests/integration/runtime-facade.api.test.ts tests/unit/run-phase-39.gate.test.ts tests/release/node-package-boundary.test.ts tests/release/release.test.ts",
+      "durationMs": 37440,
+      "exitCode": 0,
+      "label": "phase-39-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) release metadata and docs > phase-31 quality gate doc points to the canonical gate plus native host live evidence [42.44ms]",
+        "(pass) release metadata and docs > phase-32 quality gate doc points to the canonical gate plus external-host live evidence [58.22ms]",
+        "(pass) release metadata and docs > phase-33 quality gate doc points to the canonical gate plus package-boundary evidence [12.22ms]",
+        "(pass) release metadata and docs > phase-38 quality gate doc points to the canonical governed runtime surface gate [34.83ms]",
+        "(pass) release metadata and docs > phase-39 quality gate doc points to the canonical Python HTTP bridge gate [0.23ms]",
+        "(pass) release metadata and docs > models fallback eval evidence as regenerable ignored output, not tracked audit artifacts [499.24ms]",
+        "(pass) release metadata and docs > phase-21 through phase-23 closure docs only cite git-tracked live eval reports [269.83ms]",
+        "(pass) release metadata and docs > canonical task-board ordering only references git-tracked phase artifacts [851.45ms]",
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [1779.84ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [358.63ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.48ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.37ms]",
+        "",
+        "tests/release/node-package-boundary.test.ts:",
+        "(pass) node package boundary > installs from the packed artifact in npm and runs the canonical public library path under Node [5858.03ms]",
+        "",
+        " 99 pass",
+        " 0 fail",
+        " 1920 expect() calls",
+        "Ran 99 tests across 8 files. [37.43s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run test:ci",
+      "durationMs": 64054,
+      "exitCode": 0,
+      "label": "ci-regression-gate",
+      "status": "passed",
+      "stderrTail": [
+        " src/storage/repositories.ts                 |   95.65 |   95.83 | 330-335,413-416",
+        " src/storage/sqlite.ts                       |   95.77 |   93.98 | 318,404-407,414-417,445-448,452-454,482,501,523-524,529-532,567,569,655-658,839,864,871-872,890,893,927,981,983-984,1017-1018,1069,1087,1091,1185-1187",
+        " src/storage/sqlitePublic.ts                 |  100.00 |   98.61 | 51",
+        " src/storage/sqliteRuntime.ts                |  100.00 |   98.92 | 241-244",
+        " src/testing/fakes.ts                        |   61.11 |   63.96 | 25,110,127,156-189,209-221,230-250",
+        " src/testing/fixtures.ts                     |  100.00 |  100.00 | ",
+        " src/testing/scenarioReplay.ts               |  100.00 |  100.00 | ",
+        " src/testing/utils.ts                        |  100.00 |  100.00 | ",
+        " src/verify/policy.ts                        |  100.00 |   99.08 | ",
+        " tests/integration/storage.contract.ts       |  100.00 |  100.00 | ",
+        " tests/scenarios/assert-behavior-scenario.ts |  100.00 |   91.10 | 40,44,48,57,99,104,110-112,114-118,158-160",
+        " tests/scenarios/behavior-fixtures.ts        |  100.00 |  100.00 | ",
+        " tests/support/test-env-isolation.ts         |  100.00 |  100.00 | ",
+        " tests/support/test-env.ts                   |  100.00 |   94.74 | ",
+        "---------------------------------------------|---------|---------|-------------------",
+        "",
+        " 1450 pass",
+        " 0 fail",
+        " 7652 expect() calls",
+        "Ran 1450 tests across 179 files. [59.62s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)",
+        "Coverage overall: 90.57% (38384/42379)",
+        "src/domain: 99.66% (289/290)",
+        "src/remember: 92.90% (2577/2774)",
+        "src/recall: 95.37% (3378/3542)",
+        "src/runtime: 97.90% (466/476)",
+        "src/maintenance: 95.35% (554/581)",
+        "src/verify: 99.08% (108/109)",
+        "src/storage: 94.52% (2416/2556)",
+        "src/eval: 91.12% (6672/7322)",
+        "src/provider: 91.51% (1197/1308)",
+        "src/api: 94.51% (3682/3896)",
+        "src/ai-sdk: 86.90% (438/504)",
+        "src/host: 91.04% (2367/2600)",
+        "src/install: 82.83% (4163/5026)",
+        "src/cli.ts: 86.89% (3083/3548)",
+        "scripts/run-eval.ts: 91.89% (872/949)",
+        "scripts/summarize-eval.ts: 97.47% (77/79)"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-38 -- --output-dir /Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase39/quality-gates/phase-38 --run-id run-phase39-preflight-38",
+      "durationMs": 132259,
+      "exitCode": 0,
+      "label": "phase-38-hermetic-preflight-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-38-gate.ts --output-dir \"/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase39/quality-gates/phase-38\" --run-id \"run-phase39-preflight-38\""
+      ],
+      "stdoutTail": [
+        "Phase 38 quality gate accepted: run-phase39-preflight-38"
+      ]
+    }
+  ],
+  "evidence": {
+    "asyncRememberJobs": {
+      "reason": "bridge async remember mode routes to memory.jobs.enqueueRemember with job idempotency evidence.",
+      "status": "accepted"
+    },
+    "httpContract": {
+      "reason": "Python/FastAPI HTTP contract validation passed for recall-context, remember, feedback, export, forget, and revise.",
+      "status": "accepted"
+    },
+    "packagedBridge": {
+      "reason": "package metadata exposes goodmemory/http and goodmemory-http-bridge, with installed-package smoke coverage.",
+      "status": "accepted"
+    },
+    "policyMapping": {
+      "reason": "life-coach profile, assistant confirmation, consumer-owned lock/do-not-remember, and proposal mapping guidance are documented and regression-covered.",
+      "status": "accepted"
+    },
+    "pythonConsumer": {
+      "reason": "Python standard-library consumer smoke called the running bridge API and packaged bridge server over HTTP.",
+      "status": "accepted"
+    },
+    "referenceBridge": {
+      "reason": "reference bridge uses only public goodmemory APIs and keeps framework coupling thin.",
+      "status": "accepted"
+    },
+    "regressionChain": {
+      "reason": "Phase 39 targeted regressions, test:ci, and the Phase 38 hermetic preflight gate passed.",
+      "status": "accepted"
+    },
+    "scopedAuthorization": {
+      "reason": "default bridge authorization rejects broadened tenant/workspace scopes for scoped memory operations.",
+      "status": "accepted"
+    },
+    "userControl": {
+      "reason": "export, forget, feedback, and targeted revise user-control flows passed scoped regression coverage.",
+      "status": "accepted"
+    }
+  },
+  "generatedAt": "2026-04-25T06:57:40.573Z",
+  "generatedBy": "scripts/run-phase-39-gate.ts",
+  "phase": "phase-39",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-39/run-20260425041112",
+  "runId": "run-20260425041112",
+  "scope": {
+    "inScope": [
+      "backend-only Python/FastAPI HTTP memory bridge contract",
+      "public goodmemory/http bridge API and goodmemory-http-bridge packaged bin",
+      "recall-context response with prompt-ready context and compact structured items",
+      "bridge-level async remember mode routed through memory.jobs",
+      "life-coach reference write profile without a built-in OneLife preset",
+      "scoped authorization for export, forget, and targeted revise",
+      "targeted /memory/revise by explicit memoryId only",
+      "Python process smoke against both the bridge API and packaged bridge server",
+      "Phase 39 docs, targeted regressions, and CI gate"
+    ],
+    "outOfScope": [
+      "client-side GoodMemory runtime bundling",
+      "built-in OneLife preset",
+      "query-resolved correction targets",
+      "remember background mode overloads",
+      "consumer-side lock or do-not-remember as a native bridge mutation",
+      "default raw transcript archive",
+      "managed cloud, dashboard, or hosted sync",
+      "cross-service exactly-once claims between product storage and GoodMemory"
+    ]
+  }
+}

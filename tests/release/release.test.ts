@@ -596,11 +596,16 @@ describe("release metadata and docs", () => {
       "package.json",
       "scripts/goodmemory-cli.js",
       "scripts/goodmemory-cli.ts",
+      "scripts/goodmemory-http-bridge.js",
+      "scripts/goodmemory-http-bridge.ts",
       "scripts/goodmemory-mcp.js",
       "scripts/goodmemory-mcp.ts",
       "src",
     ]);
     expect(pkg.bin?.goodmemory).toBe("./scripts/goodmemory-cli.js");
+    expect(pkg.bin?.["goodmemory-http-bridge"]).toBe(
+      "./scripts/goodmemory-http-bridge.js",
+    );
     expect(pkg.bin?.["goodmemory-mcp"]).toBe("./scripts/goodmemory-mcp.js");
     expect(pkg.types).toBe("./dist/index.d.ts");
     expect(pkg.exports?.["."]).toEqual({
@@ -615,6 +620,10 @@ describe("release metadata and docs", () => {
       import: "./dist/ai-sdk/index.js",
       types: "./dist/ai-sdk/index.d.ts",
     });
+    expect(pkg.exports?.["./http"]).toEqual({
+      import: "./dist/http/index.js",
+      types: "./dist/http/index.d.ts",
+    });
     expect(pkg.exports?.["./package.json"]).toBe("./package.json");
     expect(Object.keys(pkg.exports ?? {})).not.toContain("./cli");
     expect(Object.keys(pkg.exports ?? {})).not.toContain("./llm/ai-sdk");
@@ -625,6 +634,9 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["build:js"]).toBe("bun run scripts/build-package.ts");
     expect(pkg.scripts?.["build:types"]).toBe("bunx tsc -p tsconfig.package.json");
     expect(pkg.scripts?.goodmemory).toBe("bun run scripts/goodmemory-cli.ts");
+    expect(pkg.scripts?.["goodmemory:http-bridge"]).toBe(
+      "bun run scripts/goodmemory-http-bridge.ts",
+    );
     expect(pkg.scripts?.["goodmemory:mcp"]).toBe("bun run scripts/goodmemory-mcp.ts");
     expect(pkg.scripts?.cli).toBeUndefined();
     expect(pkg.scripts?.["example:chat"]).toBe("bun run examples/basic-chat.ts");
@@ -718,6 +730,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-34"]).toBe("bun run scripts/run-phase-34-gate.ts");
     expect(pkg.scripts?.["gate:phase-35"]).toBe("bun run scripts/run-phase-35-gate.ts");
     expect(pkg.scripts?.["gate:phase-38"]).toBe("bun run scripts/run-phase-38-gate.ts");
+    expect(pkg.scripts?.["gate:phase-39"]).toBe("bun run scripts/run-phase-39-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -784,9 +797,12 @@ describe("release metadata and docs", () => {
       expect(entries).toContain("package/dist/index.d.ts");
       expect(entries).toContain("package/dist/ai-sdk/index.js");
       expect(entries).toContain("package/dist/host/index.js");
+      expect(entries).toContain("package/dist/http/index.js");
       expect(entries).toContain("package/src/storage/sqliteRuntime.ts");
       expect(entries).toContain("package/scripts/goodmemory-cli.js");
       expect(entries).toContain("package/scripts/goodmemory-cli.ts");
+      expect(entries).toContain("package/scripts/goodmemory-http-bridge.js");
+      expect(entries).toContain("package/scripts/goodmemory-http-bridge.ts");
       expect(entries).toContain("package/scripts/goodmemory-mcp.js");
       expect(entries).toContain("package/scripts/goodmemory-mcp.ts");
       expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
@@ -824,6 +840,7 @@ describe("release metadata and docs", () => {
     expect(rootModule.createRuntimeContextService).toBeDefined();
     expect(rootModule.createHostAdapter).toBeUndefined();
     expect(rootModule.createGoodMemoryAISDK).toBeUndefined();
+    expect(rootModule.createGoodMemoryHttpMemoryBridge).toBeUndefined();
     expect(rootModule.validateAgentInputEvent).toBeUndefined();
     expect(rootModule.validateHostAgentEvent).toBeUndefined();
     expect(rootModule.createMemoryRepositories).toBeUndefined();
@@ -877,6 +894,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("Request");
     expect(readme).toContain('createHostAdapter');
     expect(readme).toContain('goodmemory/host');
+    expect(readme).toContain("goodmemory/http");
+    expect(readme).toContain("goodmemory-http-bridge");
     expect(readme).toContain('file-assisted');
     expect(readme).toContain('file-authoritative');
     expect(readme).toContain("goodmemory inspect");
@@ -957,6 +976,8 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain("GoodMemoryConfig.remember");
     expect(zhReadme).toContain("goodmemory/ai-sdk");
     expect(zhReadme).toContain("goodmemory/host");
+    expect(zhReadme).toContain("goodmemory/http");
+    expect(zhReadme).toContain("goodmemory-http-bridge");
     expect(zhReadme).toContain("./node_modules/.bin/goodmemory inspect");
     expect(zhReadme).toContain("eval:live-memory");
     expect(zhReadme).toContain("eval:live-provider-memory");
@@ -1235,11 +1256,13 @@ describe("release metadata and docs", () => {
         "goodmemory",
         "goodmemory/ai-sdk",
         "goodmemory/host",
+        "goodmemory/http",
       ]);
       expect(uniqueSmokeTypeImportSpecifiers).toEqual([
         "goodmemory",
         "goodmemory/ai-sdk",
         "goodmemory/host",
+        "goodmemory/http",
       ]);
 
       const { tarballPath } = await packReleaseTarball(packOutputDir);
@@ -1288,6 +1311,9 @@ describe("release metadata and docs", () => {
         aiSDKResponseText: string;
         artifactPaths: string[];
         contextIncludesChecklist: boolean;
+        httpBridgeContextIncludesPackageImport: boolean;
+        httpBridgeItemCount: number;
+        httpBridgeRememberOk: boolean;
         invalidScopeError?: string;
         invalidScopeStatus: number;
         ok: boolean;
@@ -1300,6 +1326,9 @@ describe("release metadata and docs", () => {
       expect(smokeJson.ok).toBe(true);
       expect(smokeJson.aiSDKResponseText).toContain("Noted.");
       expect(smokeJson.contextIncludesChecklist).toBe(true);
+      expect(smokeJson.httpBridgeRememberOk).toBe(true);
+      expect(smokeJson.httpBridgeContextIncludesPackageImport).toBe(true);
+      expect(smokeJson.httpBridgeItemCount).toBeGreaterThan(0);
       expect(smokeJson.invalidScopeStatus).toBe(400);
       expect(smokeJson.invalidScopeError).toContain("scope.userId");
       expect(smokeJson.recallHitCount).toBeGreaterThan(0);
@@ -1873,6 +1902,7 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("Bun");
     expect(checklist).toContain("gate:phase-37");
     expect(checklist).toContain("gate:phase-38");
+    expect(checklist).toContain("gate:phase-39");
     expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
@@ -1974,7 +2004,12 @@ describe("release metadata and docs", () => {
       "reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json",
     );
     expect(currentStatus).toContain(
-      "Phase 39 is now open as the Python HTTP integration bridge slice.",
+      "Phase 39 is now closed as the Python HTTP integration bridge slice.",
+    );
+    expect(currentStatus).toContain("docs/GoodMemory-Python-HTTP-Integration-Bridge.md");
+    expect(currentStatus).toContain("examples/python-fastapi-memory-consumer.py");
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json",
     );
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",
@@ -2108,7 +2143,10 @@ describe("release metadata and docs", () => {
       "Phase 38 is now closed as the governed runtime surface slice",
     );
     expect(taskBoard).toContain(
-      "Phase 39 is now open as the Python HTTP integration bridge slice",
+      "Phase 39 is now closed as the Python HTTP integration bridge slice",
+    );
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json",
     );
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json",
@@ -2135,7 +2173,7 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("release workflow uses manual plus stable tag triggers, gate:phase-38, and tarball artifact upload", async () => {
+  it("release workflow uses manual plus stable tag triggers, gate:phase-39, and tarball artifact upload", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/release.yml"),
       "utf8",
@@ -2144,7 +2182,7 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("tags:");
     expect(workflow).toContain("v*.*.*");
-    expect(workflow).toContain("bun run gate:phase-38");
+    expect(workflow).toContain("bun run gate:phase-39");
     expect(workflow).toContain('--run-id "release-v${VERSION}"');
     expect(workflow).toContain("GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY");
     expect(workflow).toContain("secrets.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER");
@@ -2555,6 +2593,33 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("Express and Fastify");
     expect(qualityGateDoc).toContain("Phase 37.1 hermetic preflight gate passed");
     expect(qualityGateDoc).toContain("--skip-dependency-gates");
+  });
+
+  it("phase-39 quality gate doc points to the canonical Python HTTP bridge gate", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-39-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+
+    if (process.env.PHASE39_GATE_IN_PROGRESS !== "1") {
+      await expectCanonicalAcceptedQualityGate({
+        docPath,
+        phaseDirectory: "phase-39",
+        reportFileName: "phase-39-quality-gate.json",
+        runId: "run-20260425041112",
+      });
+    } else {
+      expect(qualityGateDoc).toContain(
+        "Canonical accepted gate run: `run-20260425041112`",
+      );
+    }
+
+    expect(qualityGateDoc).toContain("Python/FastAPI");
+    expect(qualityGateDoc).toContain("`POST /memory/recall-context`");
+    expect(qualityGateDoc).toContain("examples/python-fastapi-memory-consumer.py");
+    expect(qualityGateDoc).toContain("scoped authorization");
+    expect(qualityGateDoc).toContain("targeted `/memory/revise`");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

@@ -100,7 +100,7 @@ Next.js mapping:
 
 ## Stable Contract
 
-- `goodmemory` and `goodmemory/ai-sdk` now resolve through compiled package artifacts on both Node and Bun.
+- `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, and `goodmemory/http` now resolve through compiled package artifacts on both Node and Bun.
 - Domain-specific writes should use `createGoodMemory({ remember: ... })` with public profiles, rules, custom extractors, and annotations.
 - `testing.extractor` is not a product integration surface; it remains available for tests.
 - `remember` profiles differ from `retrievalProfile`: remember profiles control what gets written, while retrieval profiles control recall routing and context assembly.
@@ -112,6 +112,8 @@ Next.js mapping:
 - The reference path should use only:
   - `goodmemory`
   - `goodmemory/ai-sdk`
+  - `goodmemory/host`
+  - `goodmemory/http`
 
 ## What This Guide Proves
 
@@ -198,4 +200,6 @@ Storage guidance stays deployment-dependent:
 
 For Python backends or Expo clients, keep GoodMemory on the server side as a
 Node/Bun sidecar or service. The mobile/client app should call the server API;
-it does not need GoodMemory bundled into the client runtime.
+it does not need GoodMemory bundled into the client runtime. Python backends can
+use the packaged `goodmemory-http-bridge` server or import the TypeScript
+bridge API from `goodmemory/http` in a Node/Bun sidecar.

@@ -21,8 +21,8 @@ and the model runtime.
 - Public write customization with `GoodMemoryConfig.remember`,
   `RememberProfile`, `rememberRules`, `RememberInput.annotations`, and named
   extractor ids.
-- Package exports for `goodmemory`, `goodmemory/ai-sdk`, and
-  `goodmemory/host` through compiled `dist` artifacts and TypeScript
+- Package exports for `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`,
+  and `goodmemory/http` through compiled `dist` artifacts and TypeScript
   declarations.
 - Local-first storage: Bun gets durable SQLite by default; explicit Postgres,
   injected adapters, and embedding providers can be added when needed.
@@ -411,6 +411,23 @@ Notes:
 - The wrapper augments `system` through `recall()` and `buildContext()` and
   soft-fails if the memory layer errors.
 
+## Python/FastAPI HTTP Bridge
+
+Use the packaged HTTP bridge when a Python backend should call GoodMemory as a
+server-side memory service.
+
+```bash
+GOODMEMORY_HTTP_BRIDGE_TOKEN="replace-with-service-token" \
+GOODMEMORY_STORAGE_PROVIDER=postgres \
+GOODMEMORY_STORAGE_URL="postgres://user:pass@host:5432/goodmemory" \
+./node_modules/.bin/goodmemory-http-bridge --profile life-coach
+```
+
+Python callers send `Authorization: Bearer <token>` plus the `x-goodmemory-*`
+scope headers to `POST /memory/recall-context`, `/memory/remember`,
+`/memory/feedback`, `/memory/export`, `/memory/forget`, and targeted
+`/memory/revise`. The TypeScript bridge API is available from `goodmemory/http`.
+
 ## Host Adapter API
 
 Use `goodmemory/host` when an external host wants artifacts or host-specific
@@ -682,6 +699,8 @@ Current stable public surface:
 - root memory API through `goodmemory`
 - AI SDK adapter through `goodmemory/ai-sdk`
 - host adapter and host contracts through `goodmemory/host`
+- HTTP bridge API through `goodmemory/http` and packaged
+  `goodmemory-http-bridge`
 - installed CLI and managed host setup through `goodmemory setup`
 - Codex and Claude Code hooks for recall
 - read-only MCP for inspection and debugging

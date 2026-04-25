@@ -11,7 +11,8 @@
   "files": [
     "./src/index.ts",
     "./src/ai-sdk/index.ts",
-    "./src/host/index.ts"
+    "./src/host/index.ts",
+    "./src/http/index.ts"
   ],
   "include": [],
   "exclude": []

@@ -3,7 +3,7 @@ Phase 39: Python HTTP Integration Bridge
 
 Status
 ------
-[TODO] Phase 39 is open.
+[DONE] Phase 39 is closed and accepted.
 
 This phase starts after the accepted Phase 38 governed runtime surface closure.
 It does not reopen Phase 36, Phase 37, or Phase 38. It uses their accepted
@@ -22,7 +22,8 @@ The target integration shape is:
 
 - Expo/Web/client apps talk only to their own Python/FastAPI backend
 - the backend talks to a thin Node/Bun GoodMemory bridge over HTTP
-- the bridge exposes a stable memory contract built on top of accepted public
+- the packaged `goodmemory-http-bridge` server and `goodmemory/http` subpath
+  expose a stable memory contract built on top of accepted public
   APIs: `recall`, `buildContext`, `remember`, `feedback`, `forget`,
   `exportMemory`, targeted `reviseMemory`, `memory.runtime.*`, and
   `memory.jobs.*`
@@ -38,8 +39,9 @@ Accepted Scope
   - `POST /memory/export`
   - `POST /memory/revise` for targeted governed correction by explicit
     `target.memoryId`
-- A Bun/Node reference bridge example built on the accepted Phase 38 runtime
-  surface, not on repo-internal imports.
+- A public `goodmemory/http` package subpath plus `goodmemory-http-bridge`
+  server bin built on the accepted Phase 38 runtime surface, not on
+  repo-internal imports.
 - A backend-only service-boundary contract: callers authenticate through the
   consuming app, and bridge requests must be scoped so export, forget, and
   revise cannot cross user/tenant boundaries.
@@ -117,24 +119,24 @@ Acceptance Criteria
 11. OneLife owns session lifecycle; GoodMemory runtime is used only for scoped
     continuity or summary-only runtime state, and runtime archive remains off by
     default.
-12. Phase 39 closes only with targeted tests, reference-consumer smoke, and a
-    new immutable quality gate.
+12. Phase 39 closes only with targeted tests, installed-package package-boundary
+    smoke, reference-consumer smoke, and a new immutable quality gate.
 
 
 Tasks
 -----
-[TODO] P39-T001 Freeze the Python/FastAPI HTTP memory bridge contract and
+[DONE] P39-T001 Freeze the Python/FastAPI HTTP memory bridge contract and
 document the request/response schema for the core endpoints plus governed
 revise.
-[TODO] P39-T002 Add a thin Node/Bun reference bridge example on top of the
-accepted governed runtime and background job surface.
-[TODO] P39-T003 Add OneLife-aligned response adapters for recall-context and
+[DONE] P39-T002 Add a public Node/Bun HTTP bridge subpath and packaged server
+bin on top of the accepted governed runtime and background job surface.
+[DONE] P39-T003 Add OneLife-aligned response adapters for recall-context and
 life-coach scoped write-profile wiring without a built-in preset.
-[TODO] P39-T004 Add Python/FastAPI consumer guidance and smoke coverage for the
+[DONE] P39-T004 Add Python/FastAPI consumer guidance and smoke coverage for the
 reference bridge.
-[TODO] P39-T005 Add forget/export/revise and correction guidance that matches
+[DONE] P39-T005 Add forget/export/revise and correction guidance that matches
 OneLife's proposal-first user-control, authorization, and memory-policy model.
-[TODO] P39-T006 Add Phase 39 regressions, gate tooling, and closure evidence.
+[DONE] P39-T006 Add Phase 39 regressions, gate tooling, and closure evidence.
 
 
 Entry Evidence
@@ -150,6 +152,20 @@ Entry Evidence
 - Phase 37 quality gate for installed-host selective writeback:
   `reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json`
 - OneLife is the first reference consumer, not the product boundary.
+
+
+Closure Evidence
+----------------
+- Contract doc: `docs/GoodMemory-Python-HTTP-Integration-Bridge.md`
+- Public bridge API: `src/http/index.ts` exported as `goodmemory/http`
+- Packaged server bin: `scripts/goodmemory-http-bridge.ts`
+- Local compatibility re-export: `examples/support/http-memory-bridge.ts`
+- Python consumer smoke: `examples/python-fastapi-memory-consumer.py`
+- Targeted regressions: `tests/integration/python-http-bridge.test.ts`
+- Gate script: `scripts/run-phase-39-gate.ts`
+- Quality gate: `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
+- Dependency preflight: Phase 38 gate writes under `.tmp-goodmemory-phase39/quality-gates/phase-38/run-phase39-preflight-38`
+- Archive summary: `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
 
 
 Breakdown

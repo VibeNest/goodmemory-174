@@ -2,14 +2,15 @@
 
 ## Package Boundary
 
-- `0.1.2` packages `goodmemory`, `goodmemory/ai-sdk`, and `goodmemory/host` through compiled `dist/` outputs plus declarations
+- `0.1.2` packages `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, and `goodmemory/http` through compiled `dist/` outputs plus declarations
 - registry publish is handled by the tagged stable release workflow when `NPM_TOKEN` is configured
 - `bun pm pack` tarball remains a canonical installable release artifact
 - public package surface remains:
   - `goodmemory`
   - `goodmemory/ai-sdk`
   - `goodmemory/host`
-- the installed CLI remains a Bun-backed runtime add-on
+  - `goodmemory/http`
+- the installed CLI and `goodmemory-http-bridge` server remain Bun-backed runtime add-ons
 - no new memory capability, no dashboard/admin UI, and no new public `goodmemory/evolution` module in this slice
 
 ## CLI
@@ -79,10 +80,11 @@
 - `bun run gate:phase-36` passes
 - `bun run gate:phase-37` passes
 - `bun run gate:phase-38` passes
+- `bun run gate:phase-39` passes
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
-- the tagged release workflow runs the Phase 38 governed runtime surface gate, including the Phase 37.1 regression gate
+- the tagged release workflow runs the Phase 39 Python HTTP bridge gate
 
 ## Packaging
 
@@ -111,5 +113,5 @@
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
-- the active stable release gate report lives under `reports/quality-gates/phase-38/`
+- the active stable release gate report lives under `reports/quality-gates/phase-39/`
 - the historical Phase 29 gate and RC dry-run reports remain archived under `reports/quality-gates/phase-29/`

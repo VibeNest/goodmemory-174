@@ -38,12 +38,15 @@
     "package.json",
     "scripts/goodmemory-cli.js",
     "scripts/goodmemory-cli.ts",
+    "scripts/goodmemory-http-bridge.js",
+    "scripts/goodmemory-http-bridge.ts",
     "scripts/goodmemory-mcp.js",
     "scripts/goodmemory-mcp.ts",
     "src"
   ],
   "bin": {
     "goodmemory": "./scripts/goodmemory-cli.js",
+    "goodmemory-http-bridge": "./scripts/goodmemory-http-bridge.js",
     "goodmemory-mcp": "./scripts/goodmemory-mcp.js"
   },
   "types": "./dist/index.d.ts",
@@ -59,6 +62,10 @@
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "import": "./dist/ai-sdk/index.js"
+    },
+    "./http": {
+      "types": "./dist/http/index.d.ts",
+      "import": "./dist/http/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -78,6 +85,7 @@
     "test:watch": "bun test --watch",
     "typecheck": "bunx tsc --noEmit",
     "goodmemory": "bun run scripts/goodmemory-cli.ts",
+    "goodmemory:http-bridge": "bun run scripts/goodmemory-http-bridge.ts",
     "goodmemory:mcp": "bun run scripts/goodmemory-mcp.ts",
     "fixtures:generate": "bun run scripts/generate-eval-fixtures.ts",
     "example:chat": "bun run examples/basic-chat.ts",
@@ -145,6 +153,7 @@
     "gate:phase-37": "bun run scripts/run-phase-37-gate.ts",
     "gate:phase-37-1": "bun run scripts/run-phase-37-1-gate.ts",
     "gate:phase-38": "bun run scripts/run-phase-38-gate.ts",
+    "gate:phase-39": "bun run scripts/run-phase-39-gate.ts",
     "release:rc-dry-run": "bun run scripts/run-phase-29-rc-dry-run.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",

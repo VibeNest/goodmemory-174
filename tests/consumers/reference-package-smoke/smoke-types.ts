@@ -17,6 +17,14 @@ import {
   validateHostActionIntent,
   validateHostAgentEvent,
 } from "goodmemory/host";
+import type {
+  GoodMemoryHttpBridgeCaller,
+  GoodMemoryHttpBridgeOperation,
+} from "goodmemory/http";
+import {
+  createGoodMemoryHttpMemoryBridge,
+  toLifeCoachScope,
+} from "goodmemory/http";
 
 const toolPayload: AgentEventStructuredValue = {
   checks: ["network"],
@@ -29,6 +37,17 @@ const toolPayload: AgentEventStructuredValue = {
 declare const memory: GoodMemory;
 
 const runtimeInfo: GoodMemoryRuntimeInfo | undefined = inspectGoodMemoryRuntime(memory);
+const httpBridge = createGoodMemoryHttpMemoryBridge({ memory });
+const httpBridgeCaller: GoodMemoryHttpBridgeCaller = {
+  authorizedOperations: ["recall-context", "remember"],
+  userId: "consumer-user",
+};
+const httpBridgeOperation: GoodMemoryHttpBridgeOperation = "recall-context";
+const lifeCoachScope = toLifeCoachScope({
+  sessionId: "consumer-session",
+  userId: "consumer-user",
+  workspaceId: "consumer-workspace",
+});
 
 const aiEvent = {
   surface: "ai-sdk",
@@ -141,6 +160,9 @@ type RootPromotionRecord = import("goodmemory").PromotionRecord;
 // @ts-expect-error Root barrel must not export internal evolution constructors.
 const rootCreateLearningProposal = import("goodmemory").createLearningProposal;
 
+// @ts-expect-error HTTP bridge request test helper is not public package surface.
+type HttpBridgeRequestTestHelper = typeof import("goodmemory/http").runGoodMemoryHttpBridgeRequest;
+
 void legacyArgsEvent;
 void (0 as unknown as RootAgentInputEvent);
 void (0 as unknown as RootHostAgentEvent);
@@ -151,5 +173,10 @@ void rootValidateAgentInputEvent;
 void rootValidateHostAgentEvent;
 void rootValidateHostActionIntent;
 void rootCreateLearningProposal;
+void (0 as unknown as HttpBridgeRequestTestHelper);
 void hostExecutionPlan;
+void httpBridge;
+void httpBridgeCaller;
+void httpBridgeOperation;
+void lifeCoachScope;
 void runtimeInfo;

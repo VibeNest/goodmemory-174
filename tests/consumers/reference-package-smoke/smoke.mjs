@@ -9,6 +9,7 @@ import {
   validateHostActionIntent,
   validateHostAgentEvent,
 } from "goodmemory/host";
+import { createGoodMemoryHttpMemoryBridge } from "goodmemory/http";
 
 const LOCAL_DEFAULT_RUNTIME_ENV_KEYS = [
   "GOODMEMORY_STORAGE_PROVIDER",
@@ -180,6 +181,7 @@ const serverHandler = createPlainAISDKServerHandler({
   },
   seenSystems: serverSeenSystems,
 });
+const httpBridge = createGoodMemoryHttpMemoryBridge({ memory });
 
 const explicitSqliteMemory = createGoodMemory({
   storage: {
@@ -327,6 +329,49 @@ const aiSDKResponseText = await aiSDK.streamText({
   model: {},
 }).text;
 
+const httpHeaders = {
+  "content-type": "application/json",
+  "x-goodmemory-operations": "recall-context,remember",
+  "x-goodmemory-user-id": memoryScope.userId,
+  "x-goodmemory-workspace-id": memoryScope.workspaceId,
+};
+const httpRememberResponse = await httpBridge.fetch(
+  new Request("http://localhost/memory/remember", {
+    body: JSON.stringify({
+      idempotencyKey: "consumer-http-bridge-turn-1",
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that the HTTP package import works for Python bridge consumers.",
+        },
+      ],
+      mode: "sync",
+      scope: {
+        ...memoryScope,
+        sessionId: "consumer-http-bridge-s1",
+      },
+    }),
+    headers: httpHeaders,
+    method: "POST",
+  }),
+);
+const httpRememberPayload = await httpRememberResponse.json();
+const httpRecallResponse = await httpBridge.fetch(
+  new Request("http://localhost/memory/recall-context", {
+    body: JSON.stringify({
+      query: "Which package import works for Python bridge consumers?",
+      scope: {
+        ...memoryScope,
+        sessionId: "consumer-http-bridge-s2",
+      },
+    }),
+    headers: httpHeaders,
+    method: "POST",
+  }),
+);
+const httpRecallPayload = await httpRecallResponse.json();
+
 const firstServerResponse = await serverHandler(
   new Request("http://localhost/api/memory-chat", {
     body: JSON.stringify({
@@ -456,6 +501,10 @@ console.log(
     explicitPostgresRuntimeInfo,
     explicitSqliteRememberError,
     explicitSqliteRuntimeInfo,
+    httpBridgeContextIncludesPackageImport:
+      httpRecallPayload.contextText.includes("HTTP package import works"),
+    httpBridgeItemCount: httpRecallPayload.itemCount,
+    httpBridgeRememberOk: httpRememberPayload.ok,
     runtimeInfo,
     serverFirstResponseText,
     serverRecallApplied: serverEvents.some(

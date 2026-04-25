@@ -67,11 +67,13 @@ const PHASE27_ALLOWED_PACKAGE_IMPORTS = [
   "goodmemory",
   "goodmemory/ai-sdk",
   "goodmemory/host",
+  "goodmemory/http",
 ] as const;
 const PHASE27_ALLOWED_TYPE_PACKAGE_IMPORTS = [
   "goodmemory",
   "goodmemory/ai-sdk",
   "goodmemory/host",
+  "goodmemory/http",
 ] as const;
 
 function uniqueSignals(signals: readonly string[]): string[] {
