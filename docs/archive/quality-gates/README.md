@@ -60,6 +60,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-38-Quality-Gate.md`
 - Python HTTP integration bridge closure:
   - `GoodMemory-Phase-39-Quality-Gate.md`
+- v0.2 release proof and product eval closure:
+  - `GoodMemory-Phase-40-Quality-Gate.md`
 
 ## When To Use This Archive
 

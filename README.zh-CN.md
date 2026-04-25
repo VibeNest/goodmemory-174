@@ -18,6 +18,77 @@ GoodMemory 不是 LLM、agent framework、向量数据库，也不是通用 RAG 
 - Local-first 存储：Bun 默认使用本地 SQLite；需要时可以接 Postgres、注入 adapter、启用 embedding provider。
 - 面向发布的验证路径：确定性测试、live eval、provider-backed eval、package smoke、quality gate。
 
+## 选择你的接入路径
+
+GoodMemory 有三类主要产品入口。它不是只有这些 API：`goodmemory/host`、
+自定义存储、eval tooling、runtime helper 等底层能力都存在，但它们是服务于
+这些主路径的支撑能力，不是新用户首先要选的入口。
+
+### 1. 给其他 agent、chatbox、copilot 接入记忆
+
+适用于你拥有产品 server 和模型调用链的场景。在 Node/Bun 服务里安装
+`goodmemory`，创建一个 `memory` 实例，并传入稳定的 `scope`，例如 `userId`、
+`workspaceId`、`sessionId`，以及可选 `agentId`。
+
+请求流程是：
+
+1. 模型调用前，用当前 scope 和 query 执行 `recall()`。
+2. 用 `buildContext()` 把 recall 命中变成 prompt fragment。
+3. 带着这段 memory context 调用你的模型。
+4. 响应后，用 `memory.jobs.enqueueRemember()` 或 `remember()` 写入经过筛选的信号。
+5. 用 `feedback()`、targeted `reviseMemory()`、`forget()`、`exportMemory()`
+   做纠正、删除和用户审计。
+
+如果你的 server 已经使用 Vercel AI SDK，可以通过 `goodmemory/ai-sdk` 包装
+`generateText()` 或 `streamText()`，不用手写完整 loop。先看
+[应用集成快速开始](#应用集成快速开始)，使用 AI SDK 时再看
+[AI SDK Adapter](#ai-sdk-adapter)。
+
+### 2. 给 Codex 或 Claude Code 加强记忆
+
+适用于你想让已安装的 coding agent 记住项目和用户上下文，但不想改 agent
+自身实现。安装全局 CLI，然后运行 `goodmemory setup`。
+
+已安装 host 的流程是：
+
+1. `session-start` 和 `user-prompt-submit` hooks 召回 scoped memory。
+2. GoodMemory 把压缩后的上下文注入 Codex 或 Claude Code。
+3. 只读 MCP 提供 trace、context、stats 和 artifact inspection。
+4. 可选 writeback 默认是 `off`；先用 `observe` 查看候选，再决定是否进入
+   `selective` durable writes。
+
+先看 [快速开始：让 Codex 或 Claude Code 拥有记忆](#快速开始让-codex-或-claude-code-拥有记忆)。
+准备 review 或启用写入时，再看 [Installed Host Writeback：已安装主机写回](#installed-host-writeback已安装主机写回)。
+
+### 3. 把 GoodMemory 部署成后端记忆层服务
+
+适用于另一个后端要把 GoodMemory 当服务调用的场景，尤其是 Python/FastAPI
+后端，或 OneLife 这类应该把记忆留在服务端、而不是把 GoodMemory 打包进移动端
+或浏览器端的产品。
+
+在 Node/Bun sidecar 中部署 packaged `goodmemory-http-bridge`。你的后端调用：
+
+- `/memory/recall-context`：在自己的模型调用前取 prompt-ready context
+- `/memory/remember`：写入用户确认或产品策略允许的信号
+- `/memory/feedback`：记录 procedural correction
+- `/memory/export` 和 `/memory/forget`：做审计和删除
+- `/memory/revise`：按显式 memory id 做 targeted correction
+
+你的服务仍然负责 auth、产品策略、UI 和模型编排。GoodMemory 负责 memory
+storage、recall、context assembly、write governance，以及 audit/export/delete。
+先看 [Python/FastAPI HTTP Bridge](#pythonfastapi-http-bridge)，再看
+[Runtime 与存储](#runtime-与存储) 选择 SQLite/Postgres。
+
+在一轮模型调用中，GoodMemory 做四件事：
+
+1. 按当前 `scope` 解析记忆。
+2. 生成可以直接放进 prompt 的上下文片段。
+3. 在你的应用或 host 允许时，记录经过筛选的响应后信号。
+4. 提供审计、纠正、导出和删除路径，让用户能控制记忆。
+
+你的应用或已安装 agent 仍然负责 auth、UI、model call 和产品策略。
+GoodMemory 负责 memory loop 和存储边界。
+
 ## 安装
 
 GoodMemory `0.2.0` 有两条常用安装路径。

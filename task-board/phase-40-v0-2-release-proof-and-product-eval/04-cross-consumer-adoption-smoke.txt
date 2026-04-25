@@ -1,6 +1,10 @@
 Phase 40.4: Cross-Consumer Adoption Smoke
 =========================================
 
+Status
+------
+[DONE] Cross-consumer adoption smoke is implemented and accepted.
+
 Goal
 ----
 Prove the release surface works across the main consumer shapes GoodMemory now
@@ -22,3 +26,28 @@ Acceptance
 - Cross-consumer smoke reports are included in Phase 40 gate evidence.
 - Failures are visible and actionable; no consumer path silently falls back to a
   misleading unsupported runtime.
+
+Implementation
+--------------
+- Runner:
+  `scripts/run-phase-40-cross-consumer-smoke.ts`
+- Package script:
+  `bun run eval:phase-40-cross-consumer`
+- Regression test:
+  `tests/unit/run-phase-40.cross-consumer-smoke.test.ts`
+- Release metadata/report regression:
+  `tests/release/release.test.ts`
+
+Accepted Evidence
+-----------------
+- Canonical cross-consumer report:
+  `reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json`
+- Accepted command matrix:
+  - `bun run example:chat`
+  - `bun run example:express-chat`
+  - `bun run example:fastify-chat`
+  - `bun test tests/release/release.test.ts --test-name-pattern "installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer"`
+  - `bun test tests/release/release.test.ts --test-name-pattern "installed-package write CLI smoke covers write -> hook recall -> MCP deep read"`
+- The report stores command text, exit code, and duration for every consumer.
+  stdout/stderr tails are retained only for failed commands so accepted evidence
+  stays diagnostic without publishing prompt/context payloads.

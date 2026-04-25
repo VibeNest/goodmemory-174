@@ -16,8 +16,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice.
 - Phase 37 is now closed as the installed host selective writeback slice. Codex installed host supports opt-in `off` / `observe` / `selective` writeback through `goodmemory codex writeback`, `install|enable --writeback`, and `session-stop` delegation. Runtime config defaults and new scripted installs remain `off` unless explicitly changed; existing configs keep their current writeback mode when no explicit override is provided; new interactive installs recommend `observe`. `observe` stores bounded/redacted candidate previews for review without durable writes; `selective` writes only selected candidates through the public Phase 36 `remember` surface.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
-- Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
+- Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
+- Phase 40 is now closed as the v0.2 release proof and product eval slice. The accepted release surface keeps the Phase 38 governed runtime and Phase 39 Python bridge unchanged, aligns package metadata and public docs on `0.2.0`, proves cross-consumer adoption across direct TypeScript, Express, Fastify, Python/FastAPI bridge, and installed-host package paths, and records product eval uplift against a no-memory baseline without adding dashboard, managed cloud, raw CRUD, default-on writeback, or raw transcript archive behavior.
 - Installed-package external host wiring remains available through `goodmemory codex bootstrap` and `goodmemory claude bootstrap` as lower-level compatibility scaffolding for artifact-first integrations.
 - Host integration stays on the explicit adapter/package path; hook-injected recall is the canonical always-on middleware path for enabled repositories or globally activated workspaces, while MCP is a deep-read/debug surface rather than the default recall transport.
 - Installed-host writeback does not persist raw transcripts. Assistant-originated durable memory remains blocked unless host annotations confirm or verify it and the active profile policy allows it. `remember: "never"` masks content before deterministic, custom, or assisted extraction. Observe-mode audit events do not enter the committed/pending dedupe sets, so they do not block later `selective` writes. Cross-store exactly-once transactions between memory storage and the writeback JSON ledger remain outside the accepted claim; the accepted runtime uses a pending/committed ledger for repair-visible idempotency and reports uncommitted writes as `write_failed`.
@@ -40,56 +41,35 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 39 is now closed as the Python HTTP integration bridge slice.
+- Phase 40 is now closed as the v0.2 release proof and product eval slice.
 - Accepted behavior:
-  - `docs/GoodMemory-Python-HTTP-Integration-Bridge.md` freezes the backend-only HTTP contract and deployment path for Python/FastAPI consumers
-  - `goodmemory/http` exports the public bridge API, while `examples/support/http-memory-bridge.ts` is only a local compatibility re-export
-  - `goodmemory-http-bridge` starts the packaged bridge server and refuses tokenless startup unless explicitly configured for local insecure mode
-  - `POST /memory/recall-context` returns prompt-ready context plus compact structured items for consumer context shapes
-  - `POST /memory/remember` exposes `mode: "sync" | "async"` as bridge transport control only; async writes route through `memory.jobs.enqueueRemember()`
-  - `POST /memory/feedback` remains procedural feedback with explicit consumer provenance rather than a catch-all fact write
-  - `POST /memory/export`, `/memory/forget`, and `/memory/revise` require scoped authorization; the default bridge authorizer rejects broadened tenant/workspace scopes
-  - `/memory/revise` wraps only targeted `reviseMemory({ target: { memoryId } })` and rejects query-resolved correction targets
-  - `createLifeCoachHttpRememberConfig()` is reference public `remember` config, not a built-in OneLife preset
-  - `examples/python-fastapi-memory-consumer.py` proves a Python process can call both the bridge API server and packaged bridge server over HTTP
+  - Phase 39 Python HTTP bridge closure is the immutable release-evidence input
+  - package metadata, README, public docs, and release checklist agree on `0.2.0`
+  - README App Quickstart and `docs/GoodMemory-15-Minute-App-Integration.md` show the current runtime/recall/context/jobs loop
+  - release workflow uses `gate:phase-40` as the stable release gate
+  - package-boundary CI covers Node 20, Node 22, and Node 24
+  - external tarball consumer smoke and `bun pm pack --dry-run` are part of the accepted gate
+  - cross-consumer adoption smoke covers direct TypeScript, Express, Fastify, Python/FastAPI bridge, and installed-host package paths
+  - product eval rollup compares with-GoodMemory against a no-memory baseline for identity/background understanding, historical task continuation, open-loop recall, user correction, feedback learning, background jobs, and trace explainability
+  - default runtime archive remains off and the product eval report does not persist raw transcripts as canonical evidence
 - Canonical evidence:
-  - contract doc: `docs/GoodMemory-Python-HTTP-Integration-Bridge.md`
-  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
-  - quality gate: `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
-  - Phase 38 hermetic preflight evidence is written under `.tmp-goodmemory-phase39/` so Phase 39 keeps the prior Phase 38/37.1 gate chain without mutating accepted artifacts
-- Still outside the Phase 39 accepted claim:
-  - client-side GoodMemory runtime bundling
-  - built-in OneLife preset
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-40-Quality-Gate.md`
+  - quality gate: `reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json`
+  - cross-consumer adoption smoke: `reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json`
+  - product eval rollup: `reports/eval/product/phase-40/run-20260425165544-product-eval/report.json`
+  - Phase 39 release input: `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
+- Still outside the Phase 40 accepted claim:
   - query-resolved correction targets
+  - `correctMemory()` alias
+  - raw CRUD APIs such as `memory.facts.add()` or `memory.preferences.upsert()`
   - `remember({ mode: "background" })`
-  - consumer-side lock or "do not remember this" as a native bridge mutation
-  - default raw transcript archive
-  - managed cloud, dashboard, hosted sync, or cross-service exactly-once claims
-
-## Active Follow-Up Slice
-
-- Phase 40 is now active as the v0.2 release proof and product eval slice.
-- It started from the accepted Phase 39 Python HTTP bridge evidence:
-  `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
-  and `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`.
-- P40-T001 through P40-T003 are implemented: the README App Quickstart now shows
-  the current runtime/recall/context/jobs loop, and the canonical guide is
-  `docs/GoodMemory-15-Minute-App-Integration.md`; package metadata and public
-  install docs now agree on `0.2.0`, and CI package-boundary coverage includes
-  Node 20, Node 22, and Node 24.
-- Planned scope:
-  - README and canonical 15-minute app integration guide around the current app
-    loop
-  - v0.2 package and release proof, including external tarball consumer smoke
-    and Node 20 / 22 / 24 package-boundary smoke
-  - cross-consumer adoption smoke for direct TypeScript, Express/Fastify,
-    Python/FastAPI bridge, and installed-host paths
-  - product eval rollup comparing with-GoodMemory against a no-memory baseline
-    for identity/background understanding and historical task continuation
-- Phase 40 must not add query-resolved revise targets, raw CRUD APIs,
-  `remember({ mode: "background" })`, public router provider config, dashboard,
-  managed cloud, default-on writeback, raw transcript archive, or a built-in
-  OneLife preset.
+  - public router provider config
+  - persistent distributed job queue
+  - dashboard, managed cloud, hosted sync, or analytics product
+  - default-on writeback
+  - raw transcript archive
+  - built-in OneLife preset
+  - LangGraph-first integration
 
 ## Prior Closed Installed-Host Slices
 
@@ -235,6 +215,11 @@ Fallback eval outputs under `reports/eval/fallback/**` are deterministic, regene
   - Summary: `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
   - Contract doc: `docs/GoodMemory-Python-HTTP-Integration-Bridge.md`
   - Quality gate: `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
+- v0.2 release proof and product eval closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-40-Quality-Gate.md`
+  - Quality gate: `reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json`
+  - Cross-consumer adoption smoke: `reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json`
+  - Product eval rollup: `reports/eval/product/phase-40/run-20260425165544-product-eval/report.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

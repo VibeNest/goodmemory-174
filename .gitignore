@@ -71,6 +71,7 @@ sandbox/tmp/
 .tmp-goodmemory-phase37-1-local/
 .tmp-goodmemory-phase38/
 .tmp-goodmemory-phase39/
+.tmp-goodmemory-phase40/
 
 third-party/
 reports/*
@@ -84,13 +85,23 @@ reports/eval/*
 !reports/eval/live/
 !reports/eval/live-memory/
 !reports/eval/dogfood/
+!reports/eval/adoption/
+!reports/eval/product/
 reports/eval/fallback/**
 reports/eval/live/**
 reports/eval/live-memory/**
 reports/eval/dogfood/**
+reports/eval/adoption/**
+reports/eval/product/**
 !reports/eval/dogfood/phase-37-1/
 !reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/
 !reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json
+!reports/eval/adoption/phase-40/
+!reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/
+!reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json
+!reports/eval/product/phase-40/
+!reports/eval/product/phase-40/run-20260425165544-product-eval/
+!reports/eval/product/phase-40/run-20260425165544-product-eval/report.json
 !reports/eval/live-memory/phase-21/
 !reports/eval/live-memory/phase-21/run-1776620091171-observe/
 !reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json
@@ -185,6 +196,7 @@ reports/quality-gates/**
 !reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json
 !reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json
 !reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json
+!reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/

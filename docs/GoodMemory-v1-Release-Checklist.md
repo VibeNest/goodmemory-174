@@ -57,6 +57,12 @@
 - `bun run eval:live` produces a live report
 - `bun run eval:live-memory` produces an auto-storage live memory report
 - `bun run eval:live-provider-memory` produces a provider-backed live memory report
+- `bun run eval:phase-40-cross-consumer` produces the accepted cross-consumer
+  adoption smoke report at
+  `reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json`
+- `bun run eval:phase-40-product` produces the accepted no-memory versus
+  with-GoodMemory product eval rollup at
+  `reports/eval/product/phase-40/run-20260425165544-product-eval/report.json`
 - `raw-recall.json` exists for GoodMemory cases
 - report shows top-level `mode`
 - report shows `runtime.generationMode` and `runtime.judgeMode`
@@ -82,10 +88,13 @@
 - `bun run gate:phase-37` passes
 - `bun run gate:phase-38` passes
 - `bun run gate:phase-39` passes
+- `bun run gate:phase-40` passes
+- the accepted Phase 40 v0.2 release-candidate gate report lives at
+  `reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json`
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
-- the tagged release workflow runs the Phase 39 Python HTTP bridge gate
+- the tagged release workflow runs the Phase 40 v0.2 release-candidate gate
 
 ## Packaging
 
@@ -114,5 +123,7 @@
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
-- the active stable release gate report lives under `reports/quality-gates/phase-39/`
+- the active stable release gate report lives under `reports/quality-gates/phase-40/`
+- the accepted Phase 40 archive summary is `docs/archive/quality-gates/GoodMemory-Phase-40-Quality-Gate.md`
+- the Phase 39 Python HTTP bridge gate remains archived under `reports/quality-gates/phase-39/`
 - the historical Phase 29 gate and RC dry-run reports remain archived under `reports/quality-gates/phase-29/`

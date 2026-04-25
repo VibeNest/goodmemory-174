@@ -1,6 +1,10 @@
 Phase 40.6: Gate and v0.2 Release Candidate
 ===========================================
 
+Status
+------
+[DONE] Phase 40 quality gate and v0.2 release-candidate evidence are accepted.
+
 Goal
 ----
 Close Phase 40 with release-candidate evidence, not a docs-only claim.
@@ -22,3 +26,39 @@ Acceptance
 - `0.2.0` release candidate is traceable to immutable gate artifacts.
 - Out-of-scope items remain explicitly blocked or absent.
 - Current status is updated only after evidence exists.
+
+Implementation
+--------------
+- Runner:
+  `scripts/run-phase-40-gate.ts`
+- Package script:
+  `bun run gate:phase-40`
+- Regression test:
+  `tests/unit/run-phase-40.gate.test.ts`
+- Release metadata/report/archive regression:
+  `tests/release/release.test.ts`
+
+Accepted Evidence
+-----------------
+- Canonical Phase 40 quality gate:
+  `reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json`
+- Canonical archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-40-Quality-Gate.md`
+- The gate accepted:
+  - Phase 39 quality gate input:
+    `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
+  - Phase 40 cross-consumer adoption smoke:
+    `reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json`
+  - Phase 40 product eval rollup:
+    `reports/eval/product/phase-40/run-20260425165544-product-eval/report.json`
+  - `bun run test:ci`
+  - Node package-boundary smoke
+  - external tarball consumer smoke
+  - `bun pm pack --dry-run`
+  - tarball-first release dry run through `release:rc-dry-run`
+  - release checklist, current status, task-board, package metadata, and
+    release workflow regressions for `0.2.0`
+- The gate keeps query-resolved revise targets, raw CRUD APIs,
+  `remember({ mode: "background" })`, public router provider config,
+  dashboard, managed cloud, default-on writeback, raw transcript archive, and a
+  built-in OneLife preset outside the v0.2 release claim.

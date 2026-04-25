@@ -1,0 +1,319 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "With-GoodMemory beat the no-memory baseline across product continuity cases while preserving correction, policy block, job visibility, and trace evidence."
+  },
+  "cases": [
+    {
+      "caseId": "identity-background",
+      "expectedSignals": [
+        "profile.name",
+        "background.role"
+      ],
+      "focus": "identity_background",
+      "goodMemory": {
+        "estimatedTokens": 15,
+        "hitCount": 1,
+        "matchedSignals": [
+          "profile.name",
+          "background.role"
+        ],
+        "missedSignals": [],
+        "recallLatencyMs": 0,
+        "score": 2,
+        "traceId": "522838a1-ca5a-4ca9-9af1-af47b161f864",
+        "wrongSignals": []
+      },
+      "noMemory": {
+        "estimatedTokens": 5,
+        "hitCount": 0,
+        "matchedSignals": [],
+        "missedSignals": [
+          "profile.name",
+          "background.role"
+        ],
+        "recallLatencyMs": 0,
+        "score": 0,
+        "wrongSignals": []
+      },
+      "passed": true,
+      "wrongSignalLabels": [
+        "wrong.role"
+      ]
+    },
+    {
+      "caseId": "historical-task-continuation",
+      "expectedSignals": [
+        "phase40.next_step",
+        "phase40.release_gate"
+      ],
+      "focus": "historical_task_continuation",
+      "goodMemory": {
+        "estimatedTokens": 62,
+        "hitCount": 2,
+        "matchedSignals": [
+          "phase40.next_step",
+          "phase40.release_gate"
+        ],
+        "missedSignals": [],
+        "recallLatencyMs": 0,
+        "score": 2,
+        "traceId": "1f25f43c-f299-42a8-b56c-074666b40af1",
+        "wrongSignals": []
+      },
+      "noMemory": {
+        "estimatedTokens": 5,
+        "hitCount": 0,
+        "matchedSignals": [],
+        "missedSignals": [
+          "phase40.next_step",
+          "phase40.release_gate"
+        ],
+        "recallLatencyMs": 619,
+        "score": 0,
+        "wrongSignals": []
+      },
+      "passed": true,
+      "wrongSignalLabels": [
+        "wrong.next_step"
+      ]
+    },
+    {
+      "caseId": "open-loop-runtime-continuity",
+      "expectedSignals": [
+        "runtime.open_loop",
+        "runtime.journal_state"
+      ],
+      "focus": "open_loop_recall",
+      "goodMemory": {
+        "estimatedTokens": 49,
+        "hitCount": 2,
+        "matchedSignals": [
+          "runtime.open_loop",
+          "runtime.journal_state"
+        ],
+        "missedSignals": [],
+        "recallLatencyMs": 0,
+        "score": 2,
+        "traceId": "e91652c0-2f33-4ea1-9f68-ee6672a64bab",
+        "wrongSignals": []
+      },
+      "noMemory": {
+        "estimatedTokens": 5,
+        "hitCount": 0,
+        "matchedSignals": [],
+        "missedSignals": [
+          "runtime.open_loop",
+          "runtime.journal_state"
+        ],
+        "recallLatencyMs": 192,
+        "score": 0,
+        "wrongSignals": []
+      },
+      "passed": true,
+      "wrongSignalLabels": [
+        "wrong.open_loop"
+      ]
+    },
+    {
+      "caseId": "targeted-user-correction",
+      "expectedSignals": [
+        "editor.current"
+      ],
+      "focus": "user_correction",
+      "goodMemory": {
+        "estimatedTokens": 21,
+        "hitCount": 1,
+        "matchedSignals": [
+          "editor.current"
+        ],
+        "missedSignals": [],
+        "recallLatencyMs": 0,
+        "score": 1,
+        "traceId": "5e0e0746-5236-4035-a47f-4141fd097fb5",
+        "wrongSignals": []
+      },
+      "noMemory": {
+        "estimatedTokens": 5,
+        "hitCount": 0,
+        "matchedSignals": [],
+        "missedSignals": [
+          "editor.current"
+        ],
+        "recallLatencyMs": 0,
+        "score": 0,
+        "wrongSignals": []
+      },
+      "passed": true,
+      "wrongSignalLabels": [
+        "editor.stale"
+      ]
+    },
+    {
+      "caseId": "feedback-procedural-learning",
+      "expectedSignals": [
+        "feedback.summary_style"
+      ],
+      "focus": "feedback_procedural_learning",
+      "goodMemory": {
+        "estimatedTokens": 23,
+        "hitCount": 1,
+        "matchedSignals": [
+          "feedback.summary_style"
+        ],
+        "missedSignals": [],
+        "recallLatencyMs": 0,
+        "score": 1,
+        "traceId": "76c5ea92-53b3-4fc6-a428-8b824b94fe48",
+        "wrongSignals": []
+      },
+      "noMemory": {
+        "estimatedTokens": 5,
+        "hitCount": 0,
+        "matchedSignals": [],
+        "missedSignals": [
+          "feedback.summary_style"
+        ],
+        "recallLatencyMs": 0,
+        "score": 0,
+        "wrongSignals": []
+      },
+      "passed": true,
+      "wrongSignalLabels": [
+        "wrong.summary_style"
+      ]
+    },
+    {
+      "caseId": "background-remember",
+      "expectedSignals": [
+        "background.fact"
+      ],
+      "focus": "background_remember",
+      "goodMemory": {
+        "estimatedTokens": 21,
+        "hitCount": 1,
+        "matchedSignals": [
+          "background.fact"
+        ],
+        "missedSignals": [],
+        "recallLatencyMs": 0,
+        "score": 1,
+        "traceId": "d5401cc2-be84-47d2-8cd9-734f97e8e683",
+        "wrongSignals": []
+      },
+      "noMemory": {
+        "estimatedTokens": 5,
+        "hitCount": 0,
+        "matchedSignals": [],
+        "missedSignals": [
+          "background.fact"
+        ],
+        "recallLatencyMs": 0,
+        "score": 0,
+        "wrongSignals": []
+      },
+      "passed": true,
+      "wrongSignalLabels": [
+        "wrong.background"
+      ]
+    }
+  ],
+  "generatedAt": "2026-04-25T09:50:25.923Z",
+  "generatedBy": "scripts/run-phase-40-product-eval.ts",
+  "metrics": {
+    "correctness": {
+      "continuityUplift": 1,
+      "correctionSuccessRate": 1,
+      "goodMemoryPassCount": 6,
+      "missedRecallRate": 0,
+      "noMemoryPassCount": 0,
+      "totalCases": 6,
+      "wrongRecallRate": 0
+    },
+    "costLatency": {
+      "backgroundRememberNonBlocking": true,
+      "noMemoryContextTokens": 30,
+      "recallLatencyMs": {
+        "noMemoryAverage": 135.1667,
+        "withGoodMemoryAverage": 0
+      },
+      "tokenCostDelta": 161,
+      "withGoodMemoryContextTokens": 191
+    },
+    "productQuality": {
+      "backgroundJobFailureVisibility": 1,
+      "duplicateMemoryRate": 0,
+      "policyBlockExplainability": 1,
+      "traceCompletenessRate": 1
+    }
+  },
+  "mode": "product-eval-rollup",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/product/phase-40",
+  "phase": "phase-40",
+  "rawTranscriptPersistence": {
+    "defaultRuntimeArchive": "off",
+    "evidenceSource": "structured_eval_events_and_redaction_safe_traces",
+    "persistedRawTranscripts": false
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/product/phase-40/run-20260425165544-product-eval",
+  "runId": "run-20260425165544-product-eval",
+  "scope": {
+    "inScope": [
+      "no-memory baseline versus with-GoodMemory deterministic product rollup",
+      "identity/background carry-forward",
+      "historical task continuation and open-loop recall",
+      "targeted user correction through reviseMemory",
+      "feedback procedural learning",
+      "runtime session continuity",
+      "background remember non-blocking and failure-visible jobs",
+      "trace explainability for remember, recall, block, and revise"
+    ],
+    "outOfScope": [
+      "live model judging",
+      "provider-backed embeddings or assisted extraction",
+      "raw transcript archive as an eval artifact",
+      "new public memory CRUD APIs"
+    ]
+  },
+  "traceEvidence": {
+    "whyBlocked": {
+      "blockedJobStatus": "blocked",
+      "blockedReason": "policy_blocked",
+      "reason": "Policy-blocked remember produced a rejected reason and a blocked write job with a write_blocked error.",
+      "status": "accepted"
+    },
+    "whyRecalled": {
+      "reason": "Recall produced hits and redaction-safe memory.recall spans for the product cases.",
+      "recallHitCount": 8,
+      "returnedCandidateTraceCount": 6,
+      "status": "accepted"
+    },
+    "whyRemembered": {
+      "acceptedEvents": 5,
+      "reason": "Remember accepted structured events with written memory types and redaction-safe spans.",
+      "status": "accepted",
+      "writtenMemoryTypes": [
+        "fact",
+        "preference",
+        "profile"
+      ]
+    },
+    "whyRevised": {
+      "memoryType": "preference",
+      "outcome": "superseded",
+      "reason": "Targeted reviseMemory superseded the explicit memory id and emitted a redaction-safe revision span.",
+      "status": "accepted"
+    }
+  },
+  "variants": {
+    "noMemory": {
+      "description": "Fresh memory instance with no durable or runtime state.",
+      "mode": "no-memory"
+    },
+    "withGoodMemory": {
+      "description": "GoodMemory public runtime, recall, buildContext, jobs, feedback, and targeted revise APIs on in-memory storage.",
+      "mode": "with-goodmemory",
+      "storage": "memory"
+    }
+  }
+}

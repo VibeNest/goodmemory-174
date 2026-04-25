@@ -217,6 +217,67 @@ function toPackagedEntry(target: string): string {
   return `package/${target.replace(/^\.\//, "")}`;
 }
 
+function allocateReleaseBridgePort(): number {
+  const server = Bun.serve({
+    fetch: () => new Response("ok"),
+    port: 0,
+  });
+  const port = server.port;
+  server.stop(true);
+  if (port === undefined) {
+    throw new Error("Bun did not allocate a release bridge test port.");
+  }
+
+  return port;
+}
+
+async function waitForReleaseBridgeReady(input: {
+  token: string;
+  url: string;
+}): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const response = await fetch(`${input.url}/memory/recall-context`, {
+        body: JSON.stringify({
+          scope: {
+            userId: "python-user",
+            workspaceId: "life-workspace",
+            agentId: "life-coach",
+            sessionId: "release-health-check",
+          },
+          query: "health check",
+        }),
+        headers: {
+          authorization: `Bearer ${input.token}`,
+          "content-type": "application/json",
+          "x-goodmemory-operations":
+            "recall-context,remember,feedback,export,forget,revise",
+          "x-goodmemory-user-id": "python-user",
+          "x-goodmemory-workspace-id": "life-workspace",
+        },
+        method: "POST",
+      });
+
+      if (response.status === 200) {
+        await response.arrayBuffer();
+        return;
+      }
+
+      lastError = new Error(`Bridge returned HTTP ${response.status}.`);
+    } catch (error) {
+      lastError = error;
+    }
+
+    await Bun.sleep(50);
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("GoodMemory release bridge did not become ready.");
+}
+
 async function expectGitTrackedRepoArtifact(relativePath: string) {
   await access(join(import.meta.dir, "../../", relativePath));
 
@@ -711,6 +772,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-35-live-memory"]).toBe(
       "bun run scripts/run-phase-35-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
+      "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-40-product"]).toBe(
+      "bun run scripts/run-phase-40-product-eval.ts",
+    );
     expect(pkg.scripts?.["gate:phase-18"]).toBe("bun run scripts/run-phase-18-gate.ts");
     expect(pkg.scripts?.["gate:phase-19-reviewer"]).toBe(
       "bun run scripts/run-phase-19-reviewer-gate.ts",
@@ -732,6 +799,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-35"]).toBe("bun run scripts/run-phase-35-gate.ts");
     expect(pkg.scripts?.["gate:phase-38"]).toBe("bun run scripts/run-phase-38-gate.ts");
     expect(pkg.scripts?.["gate:phase-39"]).toBe("bun run scripts/run-phase-39-gate.ts");
+    expect(pkg.scripts?.["gate:phase-40"]).toBe("bun run scripts/run-phase-40-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -903,6 +971,15 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory inspect");
     expect(readme).toContain("goodmemory setup");
     expect(readme).toContain("goodmemory status");
+    expect(readme).toContain("## Choose Your Integration Path");
+    expect(readme).toContain("GoodMemory has three primary product entry points");
+    expect(readme).toContain("They are not the only APIs");
+    expect(readme).toContain("### 1. Build Memory Into An Agent, Chatbox, Or Copilot");
+    expect(readme).toContain("### 2. Add Memory To Codex Or Claude Code");
+    expect(readme).toContain("### 3. Deploy GoodMemory As A Backend Memory-Layer Service");
+    expect(readme).toContain("/memory/revise");
+    expect(readme).toContain("OneLife");
+    expect(readme).toContain("During a model turn, GoodMemory does four jobs");
     expect(readme).toContain("goodmemory export-memory");
     expect(readme).toContain("goodmemory stats");
     expect(readme).toContain("session-stop");
@@ -1059,6 +1136,15 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
     expect(zhReadme).toContain("goodmemory setup");
     expect(zhReadme).toContain("goodmemory status");
+    expect(zhReadme).toContain("## 选择你的接入路径");
+    expect(zhReadme).toContain("GoodMemory 有三类主要产品入口");
+    expect(zhReadme).toContain("它不是只有这些 API");
+    expect(zhReadme).toContain("### 1. 给其他 agent、chatbox、copilot 接入记忆");
+    expect(zhReadme).toContain("### 2. 给 Codex 或 Claude Code 加强记忆");
+    expect(zhReadme).toContain("### 3. 把 GoodMemory 部署成后端记忆层服务");
+    expect(zhReadme).toContain("/memory/revise");
+    expect(zhReadme).toContain("OneLife");
+    expect(zhReadme).toContain("在一轮模型调用中，GoodMemory 做四件事");
     expect(zhReadme).toContain("Installed Host Writeback");
     expect(zhReadme).toContain("新的交互式安装会推荐 `observe`");
     expect(zhReadme).toContain("observe-only event，它只会标记为 dismissed");
@@ -1195,6 +1281,116 @@ describe("release metadata and docs", () => {
       await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });
     }
+  }, 30_000);
+
+  it("installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer", async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-python-bridge-consumer-"),
+    );
+    const packOutputDir = await mkdtemp(
+      join(tmpdir(), "goodmemory-python-bridge-pack-"),
+    );
+    let serverStdoutPromise: Promise<string> = Promise.resolve("");
+    let serverStderrPromise: Promise<string> = Promise.resolve("");
+    let stopServer = async (): Promise<void> => undefined;
+
+    try {
+      const { tarballPath } = await packReleaseTarball(packOutputDir);
+      await writeFile(
+        join(workspaceRoot, "package.json"),
+        JSON.stringify(
+          {
+            name: "goodmemory-python-bridge-consumer",
+            private: true,
+            dependencies: {
+              goodmemory: `file:${tarballPath}`,
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await cp(
+        join(ROOT_PACKAGE_PATH, "examples/python-fastapi-memory-consumer.py"),
+        join(workspaceRoot, "python-fastapi-memory-consumer.py"),
+      );
+
+      const install = await runCommand({
+        cmd: ["bun", "install"],
+        cwd: workspaceRoot,
+        env: { ...RELEASE_TEST_ENV },
+      });
+      expect(install.exitCode).toBe(0);
+
+      const port = allocateReleaseBridgePort();
+      const token = "phase-40-python-bridge-release-token";
+      const url = `http://127.0.0.1:${port}`;
+      const serverProcess = Bun.spawn({
+        cmd: [
+          "./node_modules/.bin/goodmemory-http-bridge",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          String(port),
+          "--profile",
+          "life-coach",
+          "--token",
+          token,
+        ],
+        cwd: workspaceRoot,
+        env: createChildEnv({
+          ...RELEASE_TEST_ENV,
+          GOODMEMORY_STORAGE_PROVIDER: "memory",
+        }),
+        stderr: "pipe",
+        stdout: "pipe",
+      });
+      serverStdoutPromise = new Response(serverProcess.stdout).text();
+      serverStderrPromise = new Response(serverProcess.stderr).text();
+      stopServer = async () => {
+        serverProcess.kill("SIGTERM");
+        await serverProcess.exited;
+      };
+
+      await waitForReleaseBridgeReady({ token, url });
+
+      const python = await runCommand({
+        cmd: ["python3", "python-fastapi-memory-consumer.py"],
+        cwd: workspaceRoot,
+        env: {
+          ...RELEASE_TEST_ENV,
+          GOODMEMORY_BRIDGE_TOKEN: token,
+          GOODMEMORY_BRIDGE_URL: url,
+        },
+      });
+      expect(python.exitCode).toBe(0);
+      expect(python.stderr).toBe("");
+      const payload = JSON.parse(python.stdout) as {
+        feedbackAccepted: boolean;
+        hasContext: boolean;
+        itemCount: number;
+        revised: boolean;
+      };
+
+      expect(payload.hasContext).toBe(true);
+      expect(payload.itemCount).toBeGreaterThanOrEqual(1);
+      expect(payload.feedbackAccepted).toBe(true);
+      expect(payload.revised).toBe(true);
+    } finally {
+      await stopServer();
+      await rm(packOutputDir, { recursive: true, force: true });
+      await rm(workspaceRoot, { recursive: true, force: true });
+    }
+
+    const [serverStdout, serverStderr] = await Promise.all([
+      serverStdoutPromise,
+      serverStderrPromise,
+    ]);
+    expect(serverStdout).toContain('"event":"ready"');
+    expect(serverStdout).toContain('"auth":"bearer"');
+    expect(serverStderr).not.toContain("Cannot find module");
+    expect(serverStderr).not.toContain("ERR_MODULE_NOT_FOUND");
   }, 30_000);
 
   it("current top-level docs use the package-bin memory-first CLI contract", async () => {
@@ -2006,10 +2202,23 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("gate:phase-37");
     expect(checklist).toContain("gate:phase-38");
     expect(checklist).toContain("gate:phase-39");
+    expect(checklist).toContain("gate:phase-40");
     expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
     expect(checklist).toContain("eval:live-provider-memory");
+    expect(checklist).toContain("eval:phase-40-cross-consumer");
+    expect(checklist).toContain(
+      "reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json",
+    );
+    expect(checklist).toContain("eval:phase-40-product");
+    expect(checklist).toContain(
+      "reports/eval/product/phase-40/run-20260425165544-product-eval/report.json",
+    );
+    expect(checklist).toContain(
+      "reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json",
+    );
+    expect(checklist).toContain("GoodMemory-Phase-40-Quality-Gate.md");
     expect(checklist).toContain("Strategy Rollout");
     expect(checklist).toContain("strategy-promotion-gate.json");
     expect(checklist).toContain("strategy-promotion-authorization.json");
@@ -2276,7 +2485,7 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("phase-40 starts only from immutable phase-39 release evidence", async () => {
+  it("phase-40 closes only from immutable phase-39 release evidence", async () => {
     const phase40Board = await readFile(
       join(
         import.meta.dir,
@@ -2319,12 +2528,18 @@ describe("release metadata and docs", () => {
     expect(phase39Report.acceptance.decision).toBe("accepted");
     expect(phase39Report.evidence.pythonConsumer?.status).toBe("accepted");
     expect(phase40BoardText).toContain(
-      "[WIP] Phase 40 is active because Phase 39 is closed with bridge regression and quality-gate evidence.",
+      "[DONE] Phase 40 is closed as the v0.2 release proof and product eval slice.",
     );
     expect(phase40Board).toContain(
       "[DONE] P40-T001 Close Phase 39 as release-evidence input.",
     );
+    expect(phase40Board).toContain(
+      "[DONE] P40-T006 Add Phase 40 quality gate and v0.2 release-candidate evidence.",
+    );
     expect(phase40Board).toContain(phase39ReportPath);
+    expect(phase40Board).toContain(
+      "reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json",
+    );
     expect(phase40Board).toContain(
       "docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md",
     );
@@ -2333,11 +2548,290 @@ describe("release metadata and docs", () => {
       "[DONE] Phase 39 release-evidence input is accepted.",
     );
     expect(currentStatus).toContain(
-      "Phase 40 is now active as the v0.2 release proof and product eval slice.",
+      "Phase 40 is now closed as the v0.2 release proof and product eval slice.",
     );
   });
 
-  it("release workflow uses manual plus stable tag triggers, gate:phase-39, and tarball artifact upload", async () => {
+  it("phase-40 cross-consumer adoption smoke is accepted and tracked", async () => {
+    const reportPath =
+      "reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json";
+    const report = JSON.parse(
+      await readFile(join(import.meta.dir, "../../", reportPath), "utf8"),
+    ) as {
+      acceptance: {
+        decision: string;
+      };
+      commands: Array<{
+        label: string;
+        stderrTail: string[];
+        stdoutTail: string[];
+        status: string;
+      }>;
+      evidence: Record<string, { status: string }>;
+      generatedBy: string;
+      mode: string;
+      phase: string;
+      runId: string;
+    };
+    const phase40Board = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/42-phase-40-v0-2-release-proof-and-product-eval.txt",
+      ),
+      "utf8",
+    );
+    const phase40Smoke = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/phase-40-v0-2-release-proof-and-product-eval/04-cross-consumer-adoption-smoke.txt",
+      ),
+      "utf8",
+    );
+    const currentStatus = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-Current-Status-and-Evidence.md",
+      ),
+      "utf8",
+    );
+
+    expect(report.phase).toBe("phase-40");
+    expect(report.mode).toBe("cross-consumer-adoption-smoke");
+    expect(report.runId).toBe("run-20260425163012-cross-consumer");
+    expect(report.generatedBy).toBe("scripts/run-phase-40-cross-consumer-smoke.ts");
+    expect(report.acceptance.decision).toBe("accepted");
+    expect(report.commands.map((command) => command.label)).toEqual([
+      "direct-typescript-app",
+      "express-http-server",
+      "fastify-http-server",
+      "python-fastapi-bridge-consumer",
+      "installed-host-package-path",
+    ]);
+    expect(
+      report.commands.every(
+        (command) =>
+          command.status === "passed" &&
+          command.stdoutTail.length === 0 &&
+          command.stderrTail.length === 0,
+      ),
+    ).toBe(true);
+    for (const status of Object.values(report.evidence)) {
+      expect(status.status).toBe("accepted");
+    }
+    expect(phase40Board).toContain("[DONE] P40-T004 Add cross-consumer adoption smoke coverage.");
+    expect(phase40Board).toContain(reportPath);
+    expect(phase40Smoke).toContain("[DONE] Cross-consumer adoption smoke is implemented and accepted.");
+    expect(phase40Smoke).toContain("eval:phase-40-cross-consumer");
+    expect(phase40Smoke).toContain(reportPath);
+    expect(currentStatus).toContain(
+      "cross-consumer adoption smoke covers direct TypeScript, Express, Fastify, Python/FastAPI bridge, and installed-host package paths",
+    );
+    expect(currentStatus).toContain(reportPath);
+  });
+
+  it("phase-40 product eval rollup is accepted and tracked", async () => {
+    const reportPath =
+      "reports/eval/product/phase-40/run-20260425165544-product-eval/report.json";
+    const report = JSON.parse(
+      await readFile(join(import.meta.dir, "../../", reportPath), "utf8"),
+    ) as {
+      acceptance: {
+        decision: string;
+      };
+      cases: Array<{
+        focus: string;
+        goodMemory: {
+          missedSignals: string[];
+          wrongSignals: string[];
+        };
+        noMemory: {
+          matchedSignals: string[];
+        };
+        passed: boolean;
+      }>;
+      metrics: {
+        correctness: {
+          continuityUplift: number;
+          correctionSuccessRate: number;
+          missedRecallRate: number;
+          wrongRecallRate: number;
+        };
+        productQuality: {
+          backgroundJobFailureVisibility: number;
+          duplicateMemoryRate: number;
+          policyBlockExplainability: number;
+          traceCompletenessRate: number;
+        };
+      };
+      mode: string;
+      phase: string;
+      rawTranscriptPersistence: {
+        defaultRuntimeArchive: string;
+        persistedRawTranscripts: boolean;
+      };
+      runId: string;
+      traceEvidence: Record<string, { status: string }>;
+      variants: {
+        noMemory: {
+          mode: string;
+        };
+        withGoodMemory: {
+          mode: string;
+        };
+      };
+    };
+    const phase40Board = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/42-phase-40-v0-2-release-proof-and-product-eval.txt",
+      ),
+      "utf8",
+    );
+    const phase40Rollup = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/phase-40-v0-2-release-proof-and-product-eval/05-product-eval-rollup.txt",
+      ),
+      "utf8",
+    );
+    const currentStatus = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-Current-Status-and-Evidence.md",
+      ),
+      "utf8",
+    );
+
+    expect(report.phase).toBe("phase-40");
+    expect(report.mode).toBe("product-eval-rollup");
+    expect(report.runId).toBe("run-20260425165544-product-eval");
+    expect(report.acceptance.decision).toBe("accepted");
+    expect(report.variants.noMemory.mode).toBe("no-memory");
+    expect(report.variants.withGoodMemory.mode).toBe("with-goodmemory");
+    expect(report.cases.map((caseResult) => caseResult.focus)).toEqual([
+      "identity_background",
+      "historical_task_continuation",
+      "open_loop_recall",
+      "user_correction",
+      "feedback_procedural_learning",
+      "background_remember",
+    ]);
+    expect(report.cases.every((caseResult) => caseResult.passed)).toBe(true);
+    expect(
+      report.cases.every(
+        (caseResult) =>
+          caseResult.goodMemory.missedSignals.length === 0 &&
+          caseResult.goodMemory.wrongSignals.length === 0 &&
+          caseResult.noMemory.matchedSignals.length === 0,
+      ),
+    ).toBe(true);
+    expect(report.metrics.correctness.continuityUplift).toBeGreaterThan(0);
+    expect(report.metrics.correctness.missedRecallRate).toBe(0);
+    expect(report.metrics.correctness.wrongRecallRate).toBe(0);
+    expect(report.metrics.correctness.correctionSuccessRate).toBe(1);
+    expect(report.metrics.productQuality.backgroundJobFailureVisibility).toBe(1);
+    expect(report.metrics.productQuality.duplicateMemoryRate).toBe(0);
+    expect(report.metrics.productQuality.policyBlockExplainability).toBe(1);
+    expect(report.metrics.productQuality.traceCompletenessRate).toBe(1);
+    expect(report.rawTranscriptPersistence.defaultRuntimeArchive).toBe("off");
+    expect(report.rawTranscriptPersistence.persistedRawTranscripts).toBe(false);
+    for (const status of Object.values(report.traceEvidence)) {
+      expect(status.status).toBe("accepted");
+    }
+    expect(JSON.stringify(report)).not.toContain("My name is");
+    expect(JSON.stringify(report)).not.toContain("private launch token");
+    expect(phase40Board).toContain(
+      "[DONE] P40-T005 Add product eval rollup with a no-memory baseline.",
+    );
+    expect(phase40Board).toContain(reportPath);
+    expect(phase40Rollup).toContain("[DONE] Product eval rollup is implemented and accepted.");
+    expect(phase40Rollup).toContain("eval:phase-40-product");
+    expect(phase40Rollup).toContain(reportPath);
+    expect(currentStatus).toContain(
+      "product eval rollup compares with-GoodMemory against a no-memory baseline",
+    );
+    expect(currentStatus).toContain(reportPath);
+  });
+
+  it("phase-40 quality gate report is accepted and tracked", async () => {
+    const reportPath =
+      "reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json";
+    const report = JSON.parse(
+      await readFile(join(import.meta.dir, "../../", reportPath), "utf8"),
+    ) as {
+      acceptance: {
+        decision: string;
+      };
+      commands: Array<{
+        label: string;
+        status: string;
+      }>;
+      evidence: Record<string, { status: string }>;
+      generatedBy: string;
+      phase: string;
+      releaseCandidate: {
+        version: string;
+      };
+      runId: string;
+    };
+    const phase40Board = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/42-phase-40-v0-2-release-proof-and-product-eval.txt",
+      ),
+      "utf8",
+    );
+    const phase40Gate = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/phase-40-v0-2-release-proof-and-product-eval/06-phase-40-gate-and-release-candidate.txt",
+      ),
+      "utf8",
+    );
+    const currentStatus = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-Current-Status-and-Evidence.md",
+      ),
+      "utf8",
+    );
+
+    expect(report.phase).toBe("phase-40");
+    expect(report.runId).toBe("run-20260425172323");
+    expect(report.generatedBy).toBe("scripts/run-phase-40-gate.ts");
+    expect(report.releaseCandidate.version).toBe("0.2.0");
+    if (process.env.PHASE40_GATE_IN_PROGRESS !== "1") {
+      expect(report.acceptance.decision).toBe("accepted");
+      expect(report.commands.map((command) => command.label)).toEqual([
+        "phase-40-release-regressions",
+        "ci-regression-gate",
+        "node-package-boundary-smoke",
+        "cross-consumer-adoption-smoke",
+        "product-eval-rollup",
+        "pack-dry-run",
+        "release-rc-dry-run",
+      ]);
+      expect(report.commands.every((command) => command.status === "passed")).toBe(true);
+      for (const status of Object.values(report.evidence)) {
+        expect(status.status).toBe("accepted");
+      }
+    } else {
+      expect(["accepted", "blocked"]).toContain(report.acceptance.decision);
+    }
+    expect(phase40Board).toContain(
+      "[DONE] P40-T006 Add Phase 40 quality gate and v0.2 release-candidate evidence.",
+    );
+    expect(phase40Board).toContain(reportPath);
+    expect(phase40Gate).toContain(
+      "[DONE] Phase 40 quality gate and v0.2 release-candidate evidence are accepted.",
+    );
+    expect(phase40Gate).toContain("gate:phase-40");
+    expect(phase40Gate).toContain(reportPath);
+    expect(currentStatus).toContain(reportPath);
+    await expectGitTrackedPath(reportPath);
+  });
+
+  it("release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/release.yml"),
       "utf8",
@@ -2346,12 +2840,13 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("tags:");
     expect(workflow).toContain("v*.*.*");
-    expect(workflow).toContain("bun run gate:phase-39");
+    expect(workflow).toContain("bun run gate:phase-40");
     expect(workflow).toContain('--run-id "release-v${VERSION}"');
     expect(workflow).toContain("GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY");
     expect(workflow).toContain("secrets.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER");
     expect(workflow).not.toContain("bun run gate:phase-36");
     expect(workflow).not.toContain("bun run gate:phase-37 --run-id");
+    expect(workflow).not.toContain("bun run gate:phase-39 --run-id");
     expect(workflow).toContain("TAG_VERSION=\"${GITHUB_REF_NAME#v}\"");
     expect(workflow).toContain("Stable release workflow only supports stable semver versions");
     expect(workflow).toContain("[[ \"$VERSION\" == *-* ]]");
@@ -2784,6 +3279,38 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("examples/python-fastapi-memory-consumer.py");
     expect(qualityGateDoc).toContain("scoped authorization");
     expect(qualityGateDoc).toContain("targeted `/memory/revise`");
+  });
+
+  it("phase-40 quality gate doc points to the canonical v0.2 release-candidate gate", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-40-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    if (process.env.PHASE40_GATE_IN_PROGRESS !== "1") {
+      await expectCanonicalAcceptedQualityGate({
+        docPath,
+        phaseDirectory: "phase-40",
+        reportFileName: "phase-40-quality-gate.json",
+        runId: "run-20260425172323",
+      });
+    } else {
+      expect(qualityGateDoc).toContain(
+        "Canonical accepted gate run: `run-20260425172323`",
+      );
+    }
+
+    expect(qualityGateDoc).toContain("v0.2.0");
+    expect(qualityGateDoc).toContain("cross-consumer adoption smoke");
+    expect(qualityGateDoc).toContain("no-memory baseline");
+    expect(qualityGateDoc).toContain(".tmp-goodmemory-phase40/");
+    expect(qualityGateDoc).toContain("raw transcript archive");
+    expect(archiveIndex).toContain("GoodMemory-Phase-40-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

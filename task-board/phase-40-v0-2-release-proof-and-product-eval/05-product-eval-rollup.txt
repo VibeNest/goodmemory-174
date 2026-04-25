@@ -1,6 +1,10 @@
 Phase 40.5: Product Eval Rollup
 ===============================
 
+Status
+------
+[DONE] Product eval rollup is implemented and accepted.
+
 Goal
 ----
 Prove GoodMemory improves product behavior versus a no-memory baseline.
@@ -35,3 +39,40 @@ Acceptance
 - Trace evidence explains why remembered, why recalled, why blocked, and why
   revised.
 - The eval does not persist raw transcripts as the default evidence source.
+
+Implementation
+--------------
+- Runner:
+  `scripts/run-phase-40-product-eval.ts`
+- Package script:
+  `bun run eval:phase-40-product`
+- Regression test:
+  `tests/unit/run-phase-40.product-eval.test.ts`
+- Release metadata/report regression:
+  `tests/release/release.test.ts`
+
+Accepted Evidence
+-----------------
+- Canonical product eval report:
+  `reports/eval/product/phase-40/run-20260425165544-product-eval/report.json`
+- Accepted coverage:
+  - no-memory baseline versus with-GoodMemory variant
+  - identity/background carry-forward
+  - historical task continuation
+  - open-loop recall and runtime session continuity
+  - targeted user correction through `reviseMemory()`
+  - feedback procedural learning
+  - background remember non-blocking and failure-visible jobs
+  - trace evidence for remember, recall, policy block, and revise
+- Accepted metrics:
+  - continuity uplift: `1`
+  - missed recall rate: `0`
+  - wrong recall rate: `0`
+  - correction success rate: `1`
+  - duplicate memory rate: `0`
+  - policy block explainability: `1`
+  - background job failure visibility: `1`
+  - trace completeness rate: `1`
+- The report stores structured signal labels, counts, scores, job/trace ids,
+  and redaction-safe trace summaries. It does not persist raw transcripts as the
+  default evidence source.

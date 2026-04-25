@@ -29,6 +29,85 @@ and the model runtime.
 - Evaluation and release evidence paths for deterministic tests, live evals,
   provider-backed evals, package smoke tests, and quality gates.
 
+## Choose Your Integration Path
+
+GoodMemory has three primary product entry points. They are not the only APIs:
+lower-level surfaces such as `goodmemory/host`, custom stores, eval tooling, and
+runtime helpers support these paths. They are the README-level ways to decide
+how to start.
+
+### 1. Build Memory Into An Agent, Chatbox, Or Copilot
+
+Use this when you own the product server and the model call. Install
+`goodmemory` in your Node/Bun service, create one `memory` instance, and pass a
+stable `scope` such as `userId`, `workspaceId`, `sessionId`, and optionally
+`agentId`.
+
+The request flow is:
+
+1. Before the model call, run `recall()` for the current scope and query.
+2. Run `buildContext()` to turn recall hits into a prompt fragment.
+3. Call your model with that memory context.
+4. After the response, write selected signals with `memory.jobs.enqueueRemember()`
+   or `remember()`.
+5. Use `feedback()`, targeted `reviseMemory()`, `forget()`, and `exportMemory()`
+   for correction, deletion, and user audit.
+
+If your server already uses Vercel AI SDK, use `goodmemory/ai-sdk` to wrap
+`generateText()` or `streamText()` instead of hand-wiring the whole loop. Start
+with [App Quickstart](#app-quickstart), then read
+[AI SDK Adapter](#ai-sdk-adapter) if you use AI SDK.
+
+### 2. Add Memory To Codex Or Claude Code
+
+Use this when you want an installed coding agent to remember project and user
+context without changing the agent itself. Install the global CLI and run
+`goodmemory setup`.
+
+The installed-host flow is:
+
+1. `session-start` and `user-prompt-submit` hooks recall scoped memory.
+2. GoodMemory injects a compact context block into Codex or Claude Code.
+3. Read-only MCP gives trace, context, stats, and artifact inspection.
+4. Optional writeback stays `off` by default; use `observe` to inspect
+   candidates before moving to `selective` durable writes.
+
+Start with [Quickstart: Codex Or Claude Code Memory](#quickstart-codex-or-claude-code-memory).
+Use [Installed Host Writeback](#installed-host-writeback) when you are ready to
+review or enable writes.
+
+### 3. Deploy GoodMemory As A Backend Memory-Layer Service
+
+Use this when another backend should call GoodMemory as a service, especially
+when the product backend is Python/FastAPI or when a product such as OneLife
+should keep memory server-side instead of bundling GoodMemory into a mobile or
+browser client.
+
+Deploy the packaged `goodmemory-http-bridge` in a Node/Bun sidecar. Your backend
+then calls:
+
+- `/memory/recall-context` before its own model call
+- `/memory/remember` after a user-confirmed or product-approved signal
+- `/memory/feedback` for procedural corrections
+- `/memory/export` and `/memory/forget` for audit and deletion
+- `/memory/revise` for targeted correction by explicit memory id
+
+Your service still owns auth, product policy, UI, and model orchestration.
+GoodMemory owns memory storage, recall, context assembly, write governance, and
+audit/export/delete behavior. Start with
+[Python/FastAPI HTTP Bridge](#pythonfastapi-http-bridge), then check
+[Runtime And Storage](#runtime-and-storage) for SQLite/Postgres choices.
+
+During a model turn, GoodMemory does four jobs:
+
+1. Resolve memory for the current `scope`.
+2. Build a prompt-ready context fragment.
+3. Record selected post-response signals when your app or host allows it.
+4. Provide audit, correction, export, and deletion paths for user control.
+
+Your app or installed agent still owns auth, UI, model calls, and product
+policy. GoodMemory owns the memory loop and storage boundary.
+
 ## Install
 
 GoodMemory `0.2.0` has two normal install paths.

@@ -260,13 +260,17 @@ Current Sequencing Note
   - dependency preflight: Phase 38 gate writes under `.tmp-goodmemory-phase39/quality-gates/phase-38/run-phase39-preflight-38`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
   - current status: P39-T001 through P39-T006 are implemented and accepted
-- Phase 40 is active as the v0.2 release proof and product eval slice:
+- Phase 40 is now closed as the v0.2 release proof and product eval slice:
   - task-board entrypoint: `task-board/42-phase-40-v0-2-release-proof-and-product-eval.txt`
   - breakdown folder: `task-board/phase-40-v0-2-release-proof-and-product-eval/`
   - sequencing: Phase 40 started only after Phase 39 closed with bridge regression and quality-gate evidence
   - focus: public quickstart/15-minute integration guide, v0.2 package release proof, cross-consumer adoption smoke, and product eval rollup versus no-memory baseline
-  - current status: P40-T001 through P40-T003 are implemented and accepted
-- Any work beyond the closed Phase 39 slice should continue from the active Phase 40 board, add a later phase file, or explicitly reopen a closed phase with failing regression or gate evidence.
+  - cross-consumer adoption evidence: `reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json`
+  - product eval evidence: `reports/eval/product/phase-40/run-20260425165544-product-eval/report.json`
+  - quality gate: `reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-40-Quality-Gate.md`
+  - current status: P40-T001 through P40-T006 are implemented and accepted
+- Any work beyond the closed Phase 40 slice should add a later phase file or explicitly reopen a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.

@@ -1,0 +1,263 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 40 release-candidate evidence is accepted for v0.2.0."
+  },
+  "commands": [
+    {
+      "command": "bun test tests/unit/run-phase-40.gate.test.ts tests/unit/run-phase-40.cross-consumer-smoke.test.ts tests/unit/run-phase-40.product-eval.test.ts tests/release/release.test.ts --test-name-pattern phase-40|package metadata exposes bin, exports, and key scripts|release checklist exists and covers the final gate|release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload|ci workflow runs the node package boundary matrix on Node 20, 22, and 24",
+      "durationMs": 208,
+      "exitCode": 0,
+      "label": "phase-40-release-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) run-phase-40 product eval script > builds a deterministic phase-40 product eval run id [0.07ms]",
+        "(pass) run-phase-40 product eval script > parses phase-40 product eval cli flags [0.08ms]",
+        "(pass) run-phase-40 product eval script > writes an accepted product rollup with no-memory and GoodMemory variants [23.48ms]",
+        "",
+        "tests/release/release.test.ts:",
+        "(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [1.89ms]",
+        "(pass) release metadata and docs > release checklist exists and covers the final gate [0.31ms]",
+        "(pass) release metadata and docs > phase-40 closes only from immutable phase-39 release evidence [1.15ms]",
+        "(pass) release metadata and docs > phase-40 cross-consumer adoption smoke is accepted and tracked [0.54ms]",
+        "(pass) release metadata and docs > phase-40 product eval rollup is accepted and tracked [0.52ms]",
+        "(pass) release metadata and docs > phase-40 quality gate report is accepted and tracked [13.21ms]",
+        "(pass) release metadata and docs > release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload [0.27ms]",
+        "(pass) release metadata and docs > ci workflow runs the node package boundary matrix on Node 20, 22, and 24 [0.18ms]",
+        "(pass) release metadata and docs > phase-40 quality gate doc points to the canonical v0.2 release-candidate gate [0.31ms]",
+        "",
+        " 26 pass",
+        " 47 filtered out",
+        " 0 fail",
+        " 343 expect() calls",
+        "Ran 26 tests across 4 files. [198.00ms]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run test:ci",
+      "durationMs": 67184,
+      "exitCode": 0,
+      "label": "ci-regression-gate",
+      "status": "passed",
+      "stderrTail": [
+        " src/storage/repositories.ts                  |   95.65 |   95.83 | 330-335,413-416",
+        " src/storage/sqlite.ts                        |   95.77 |   93.98 | 318,404-407,414-417,445-448,452-454,482,501,523-524,529-532,567,569,655-658,839,864,871-872,890,893,927,981,983-984,1017-1018,1069,1087,1091,1185-1187",
+        " src/storage/sqlitePublic.ts                  |  100.00 |   98.61 | 51",
+        " src/storage/sqliteRuntime.ts                 |  100.00 |   98.92 | 241-244",
+        " src/testing/fakes.ts                         |   61.11 |   63.96 | 25,110,127,156-189,209-221,230-250",
+        " src/testing/fixtures.ts                      |  100.00 |  100.00 | ",
+        " src/testing/scenarioReplay.ts                |  100.00 |  100.00 | ",
+        " src/testing/utils.ts                         |  100.00 |  100.00 | ",
+        " src/verify/policy.ts                         |  100.00 |   99.08 | ",
+        " tests/integration/storage.contract.ts        |  100.00 |  100.00 | ",
+        " tests/scenarios/assert-behavior-scenario.ts  |  100.00 |   91.10 | 40,44,48,57,99,104,110-112,114-118,158-160",
+        " tests/scenarios/behavior-fixtures.ts         |  100.00 |  100.00 | ",
+        " tests/support/test-env-isolation.ts          |  100.00 |  100.00 | ",
+        " tests/support/test-env.ts                    |  100.00 |   94.74 | ",
+        "----------------------------------------------|---------|---------|-------------------",
+        "",
+        " 1475 pass",
+        " 0 fail",
+        " 7976 expect() calls",
+        "Ran 1475 tests across 182 files. [63.61s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)",
+        "Coverage overall: 90.54% (38388/42399)",
+        "src/domain: 99.66% (289/290)",
+        "src/remember: 92.90% (2577/2774)",
+        "src/recall: 95.37% (3378/3542)",
+        "src/runtime: 97.90% (466/476)",
+        "src/maintenance: 95.35% (554/581)",
+        "src/verify: 99.08% (108/109)",
+        "src/storage: 94.52% (2416/2556)",
+        "src/eval: 91.12% (6672/7322)",
+        "src/provider: 91.51% (1197/1308)",
+        "src/api: 94.51% (3682/3896)",
+        "src/ai-sdk: 86.90% (438/504)",
+        "src/host: 91.04% (2367/2600)",
+        "src/install: 82.58% (4167/5046)",
+        "src/cli.ts: 86.89% (3083/3548)",
+        "scripts/run-eval.ts: 91.89% (872/949)",
+        "scripts/summarize-eval.ts: 97.47% (77/79)"
+      ]
+    },
+    {
+      "command": "bun test tests/release/node-package-boundary.test.ts",
+      "durationMs": 5206,
+      "exitCode": 0,
+      "label": "node-package-boundary-smoke",
+      "status": "passed",
+      "stderrTail": [
+        "",
+        "tests/release/node-package-boundary.test.ts:",
+        "(pass) node package boundary > installs from the packed artifact in npm and runs the canonical public library path under Node [5187.89ms]",
+        "",
+        " 1 pass",
+        " 0 fail",
+        " 42 expect() calls",
+        "Ran 1 test across 1 file. [5.20s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-40-cross-consumer -- --run-id run-20260425163012-cross-consumer",
+      "durationMs": 10973,
+      "exitCode": 0,
+      "label": "cross-consumer-adoption-smoke",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-40-cross-consumer-smoke.ts --run-id \"run-20260425163012-cross-consumer\""
+      ],
+      "stdoutTail": [
+        "Phase 40 cross-consumer smoke accepted: run-20260425163012-cross-consumer"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-40-product -- --run-id run-20260425165544-product-eval",
+      "durationMs": 4584,
+      "exitCode": 0,
+      "label": "product-eval-rollup",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-40-product-eval.ts --run-id \"run-20260425165544-product-eval\""
+      ],
+      "stdoutTail": [
+        "Phase 40 product eval accepted: run-20260425165544-product-eval"
+      ]
+    },
+    {
+      "command": "bun pm pack --dry-run",
+      "durationMs": 2084,
+      "exitCode": 0,
+      "label": "pack-dry-run",
+      "status": "passed",
+      "stderrTail": [
+        "[0.03ms] \".env\"",
+        "$ bun run build",
+        "$ bun run clean && bun run build:js && bun run build:types",
+        "$ rm -rf dist",
+        "$ bun run scripts/build-package.ts",
+        "$ bunx tsc -p tsconfig.package.json"
+      ],
+      "stdoutTail": [
+        "packed 8.19KB src/storage/auto.ts",
+        "packed 2.99KB src/storage/contracts.ts",
+        "packed 6.50KB src/storage/memory.ts",
+        "packed 6.26KB src/storage/ports.ts",
+        "packed 24.0KB src/storage/postgres.ts",
+        "packed 6.45KB src/storage/postgresPublic.ts",
+        "packed 16.25KB src/storage/repositories.ts",
+        "packed 32.70KB src/storage/sqlite.ts",
+        "packed 6.48KB src/storage/sqlitePublic.ts",
+        "packed 14.43KB src/storage/sqliteRuntime.ts",
+        "packed 7.82KB src/testing/fakes.ts",
+        "packed 355B src/testing/fixtures.ts",
+        "packed 5.21KB src/testing/scenarioReplay.ts",
+        "packed 1.1KB src/testing/utils.ts",
+        "packed 4.76KB src/verify/policy.ts",
+        "",
+        "goodmemory-0.2.0.tgz",
+        "",
+        "Total files: 338",
+        "Unpacked size: 4.83MB"
+      ]
+    },
+    {
+      "command": "bun run release:rc-dry-run -- --output-dir /Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase40/quality-gates/phase-29 --run-id run-phase40-release-dry-run",
+      "durationMs": 3127,
+      "exitCode": 0,
+      "label": "release-rc-dry-run",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-29-rc-dry-run.ts --output-dir \"/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase40/quality-gates/phase-29\" --run-id \"run-phase40-release-dry-run\""
+      ],
+      "stdoutTail": [
+        "Phase 29 RC dry run: accepted (Packed tarball installed cleanly in a fresh Bun workspace, public imports worked, and the installed CLI succeeded on the default local-first runtime.)"
+      ]
+    }
+  ],
+  "evidence": {
+    "ciRegression": {
+      "reason": "bun run test:ci passed inside the Phase 40 gate.",
+      "status": "accepted"
+    },
+    "crossConsumerAdoption": {
+      "path": "reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json",
+      "reason": "Cross-consumer adoption smoke report is accepted and was refreshed by the gate.",
+      "status": "accepted"
+    },
+    "externalTarballConsumer": {
+      "reason": "Node package-boundary smoke installs the packed tarball and exercises public package entrypoints.",
+      "status": "accepted"
+    },
+    "nodePackageBoundary": {
+      "reason": "Node package-boundary smoke passed, and release regressions verify the Node 20 / 22 / 24 CI matrix.",
+      "status": "accepted"
+    },
+    "outOfScopeBoundaries": {
+      "reason": "Phase 40 product evidence keeps raw transcript archive off and release regressions keep out-of-scope public surfaces absent.",
+      "status": "accepted"
+    },
+    "packDryRun": {
+      "reason": "bun pm pack --dry-run passed.",
+      "status": "accepted"
+    },
+    "phase39Gate": {
+      "path": "reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json",
+      "reason": "Accepted Phase 39 Python HTTP bridge quality gate is the release input.",
+      "status": "accepted"
+    },
+    "productEval": {
+      "path": "reports/eval/product/phase-40/run-20260425165544-product-eval/report.json",
+      "reason": "Product eval rollup is accepted against the no-memory baseline with correction, block, job, and trace evidence.",
+      "status": "accepted"
+    },
+    "releaseChecklistAndStatus": {
+      "reason": "Release checklist, current status, task-board, package metadata, and release workflow regressions passed for 0.2.0.",
+      "status": "accepted"
+    },
+    "releaseDryRun": {
+      "reason": "release:rc-dry-run passed as tarball-first release dry-run evidence.",
+      "status": "accepted"
+    }
+  },
+  "generatedAt": "2026-04-25T09:50:35.655Z",
+  "generatedBy": "scripts/run-phase-40-gate.ts",
+  "phase": "phase-40",
+  "releaseCandidate": {
+    "evidencePaths": [
+      "reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json",
+      "reports/eval/adoption/phase-40/run-20260425163012-cross-consumer/report.json",
+      "reports/eval/product/phase-40/run-20260425165544-product-eval/report.json"
+    ],
+    "version": "0.2.0"
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-40/run-20260425172323",
+  "runId": "run-20260425172323",
+  "scope": {
+    "inScope": [
+      "Phase 39 accepted gate as release input",
+      "v0.2 package metadata and release workflow evidence",
+      "cross-consumer adoption smoke",
+      "product eval rollup versus no-memory baseline",
+      "test:ci, Node package-boundary smoke, pack dry run, and release dry run",
+      "release checklist, current status, and task-board closure evidence"
+    ],
+    "outOfScope": [
+      "query-resolved revise targets",
+      "raw CRUD memory APIs",
+      "remember background mode overloads",
+      "public router provider config",
+      "dashboard, managed cloud, or analytics product",
+      "default-on writeback",
+      "raw transcript archive",
+      "built-in OneLife preset"
+    ]
+  }
+}
