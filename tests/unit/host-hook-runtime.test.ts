@@ -777,6 +777,72 @@ describe("installed host hook runtime", () => {
     }
   });
 
+  it("reports observe audit persistence failures as writeback failures", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-observe-audit-fail-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hook-observe-audit-fail-workspace-",
+    );
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            writeback: {
+              mode: "observe",
+            },
+            debug: false,
+            host: "codex",
+            maxTokens: 128,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await mkdir(join(homeRoot, ".goodmemory/codex-writeback-events.json"), {
+        recursive: true,
+      });
+
+      const result = await executeInstalledHostHook({
+        command: "session-stop",
+        host: "codex",
+        homeRoot,
+        payload: {
+          cwd: workspaceRoot,
+          messages: [
+            {
+              content: "Always run typecheck before closing the phase.",
+              role: "user",
+            },
+          ],
+          session_id: "session-78",
+        },
+      });
+
+      expect(result.reason).toBe("writeback_failed");
+      expect(result.writeback).toEqual({
+        attempted: true,
+        candidateCount: 1,
+        mode: "observe",
+        reason: "failed",
+        wrote: false,
+      });
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("fails writeback closed when the ledger file is malformed", async () => {
     const homeRoot = await createWorkspace("goodmemory-hook-stop-ledger-home-");
     const workspaceRoot = await createWorkspace("goodmemory-hook-stop-ledger-workspace-");

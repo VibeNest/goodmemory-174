@@ -628,8 +628,13 @@ const CODEX_WRITEBACK_HELP_TEXT = [
   "  goodmemory codex writeback inspect [--limit <n>] [--json]",
   "  goodmemory codex writeback forget --event-id <id> [--review-outcome <valid_write|false_write|uncertain>] [--review-reason <text>] [--json]",
   "",
-  "Reads Codex after-response/session-end JSON from stdin and runs installed-host selective writeback.",
-  "Inspect lists recent audit events. Forget deletes linked writeback records through public forget().",
+  "Modes",
+  "  off        recall-only; no after-response candidate extraction",
+  "  observe    stores local bounded/redacted candidate previews for review; no raw transcripts or durable memory writes",
+  "  selective  writes selected candidates through public remember()",
+  "",
+  "Reads Codex after-response/session-end JSON from stdin and runs installed-host writeback.",
+  "Inspect lists recent audit events. Forget deletes linked durable records, or dismisses observe-only events.",
 ].join("\n");
 const CLAUDE_HOOK_HELP_TEXT = [
   "GoodMemory Claude Hook",
@@ -650,8 +655,13 @@ const CLAUDE_WRITEBACK_HELP_TEXT = [
   "  goodmemory claude writeback inspect [--limit <n>] [--json]",
   "  goodmemory claude writeback forget --event-id <id> [--review-outcome <valid_write|false_write|uncertain>] [--review-reason <text>] [--json]",
   "",
-  "Reads Claude after-response/session-end JSON from stdin and runs installed-host selective writeback.",
-  "Inspect lists recent audit events. Forget deletes linked writeback records through public forget().",
+  "Modes",
+  "  off        recall-only; no after-response candidate extraction",
+  "  observe    stores local bounded/redacted candidate previews for review; no raw transcripts or durable memory writes",
+  "  selective  writes selected candidates through public remember()",
+  "",
+  "Reads Claude after-response/session-end JSON from stdin and runs installed-host writeback.",
+  "Inspect lists recent audit events. Forget deletes linked durable records, or dismisses observe-only events.",
 ].join("\n");
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -2030,6 +2040,13 @@ function renderInstalledHostPayload(input: {
   }
   if (input.payload.writeback) {
     lines.push(`- writeback: ${input.payload.writeback.mode}`);
+    lines.push(
+      ...formatInstalledHostWritebackGuidance(
+        input.payload.host,
+        input.payload.writeback.mode,
+        "- ",
+      ),
+    );
   }
   if (input.payload.storage) {
     lines.push(
@@ -2082,6 +2099,13 @@ function renderSetupPayload(payload: {
     lines.push(
       `- ${host.host}: ${host.activationMode}, writeback=${host.writeback.mode}, storage=${host.storage.provider}`,
     );
+    lines.push(
+      ...formatInstalledHostWritebackGuidance(
+        host.host,
+        host.writeback.mode,
+        "  - ",
+      ),
+    );
     for (const change of host.changes) {
       lines.push(`  - ${change.relativePath} (${change.action})`);
     }
@@ -2104,6 +2128,13 @@ function renderStatusPayload(payload: {
     lines.push(
       `  - writeback: ${writeback?.mode ?? "off"}`,
     );
+    lines.push(
+      ...formatInstalledHostWritebackGuidance(
+        hostName,
+        writeback?.mode ?? "off",
+        "  - ",
+      ),
+    );
     lines.push(`  - hook: ${host.hookRegistered ? "registered" : "missing"}`);
     lines.push(`  - MCP: ${host.mcpRegistered ? "registered" : "missing"}`);
     if (host.memoryStatus) {
@@ -2120,6 +2151,31 @@ function renderStatusPayload(payload: {
   }
 
   return lines.join("\n");
+}
+
+function formatInstalledHostWritebackGuidance(
+  host: string,
+  mode: InstalledHostWritebackMode,
+  prefix: string,
+): string[] {
+  if (mode === "off") {
+    return [
+      `${prefix}writeback mode: recall-only; no after-response candidate extraction`,
+      `${prefix}enable candidate review: goodmemory enable ${host} --writeback observe`,
+    ];
+  }
+  if (mode === "observe") {
+    return [
+      `${prefix}writeback mode: candidate audit only; stores local bounded redacted previews, not raw transcripts or durable memory`,
+      `${prefix}review candidates: goodmemory ${host} writeback inspect --json`,
+      `${prefix}enable durable writes: goodmemory enable ${host} --writeback selective`,
+    ];
+  }
+
+  return [
+    `${prefix}writeback mode: durable remember writeback through public remember()`,
+    `${prefix}inspect or undo: goodmemory ${host} writeback inspect --json`,
+  ];
 }
 
 function formatInstalledProviderStatus(status: InstalledProviderStatus): string {
@@ -2290,6 +2346,20 @@ function readInstallWritebackConfig(flags: ParsedFlags): InstalledHostWritebackC
   }
 
   return DEFAULT_INSTALLED_HOST_WRITEBACK;
+}
+
+function readInstallWritebackConfigOverride(
+  flags: ParsedFlags,
+): InstalledHostWritebackConfig | undefined {
+  if (
+    flags.writeback !== undefined ||
+    flagEnabled(flags, "auto-learn") ||
+    flagEnabled(flags, "no-auto-learn")
+  ) {
+    return readInstallWritebackConfig(flags);
+  }
+
+  return undefined;
 }
 
 function buildWritebackConfig(
@@ -2519,7 +2589,7 @@ async function resolveInteractiveInstallFlags(
   if (!prompt) {
     return {
       flags,
-      writeback: readInstallWritebackConfig(flags),
+      writeback: readInstallWritebackConfigOverride(flags),
     };
   }
 
@@ -2540,10 +2610,11 @@ async function resolveInteractiveInstallFlags(
     await promptInstallStorage(resolvedFlags, prompt);
     await promptEmbeddingInstallConfig(resolvedFlags, prompt, configPathHint);
     await promptAssistedExtractorInstallConfig(resolvedFlags, prompt, configPathHint);
-    const writeback = await promptWritebackInstallConfig(
-      resolvedFlags,
+    const writeback = await promptWritebackInstallConfig({
+      flags: resolvedFlags,
+      host,
       prompt,
-    );
+    });
 
     return {
       activationSelection,
@@ -2576,23 +2647,40 @@ async function promptInstallActivationSelection(
   })) as InstallActivationSelection;
 }
 
-async function promptWritebackInstallConfig(
-  flags: ParsedFlags,
-  prompt: CLIInstallPrompt,
-): Promise<InstalledHostWritebackConfig> {
+async function promptWritebackInstallConfig(input: {
+  flags: ParsedFlags;
+  host: InstalledHostKind;
+  prompt: CLIInstallPrompt;
+}): Promise<InstalledHostWritebackConfig | undefined> {
   if (
-    flags.writeback !== undefined ||
-    flagEnabled(flags, "auto-learn") ||
-    flagEnabled(flags, "no-auto-learn")
+    input.flags.writeback !== undefined ||
+    flagEnabled(input.flags, "auto-learn") ||
+    flagEnabled(input.flags, "no-auto-learn")
   ) {
-    return readInstallWritebackConfig(flags);
+    return readInstallWritebackConfig(input.flags);
+  }
+
+  const existing = await readInstalledHostRuntimeConfig(input.host, undefined, {});
+  if (existing.status === "ok") {
+    const mode = await askChoice({
+      choices: ["keep-current", "off", "observe", "selective"],
+      defaultValue: "keep-current",
+      message:
+        `Installed-host writeback mode for ${input.host}? current=${existing.config.writeback.mode} [keep-current/off/observe/selective]`,
+      prompt: input.prompt,
+    });
+    if (mode === "keep-current") {
+      return undefined;
+    }
+
+    return buildWritebackConfig(mode as InstalledHostWritebackMode);
   }
 
   const mode = await askChoice({
     choices: ["off", "observe", "selective"],
-    defaultValue: "off",
-    message: "Installed-host writeback mode? [off/observe/selective]",
-    prompt,
+    defaultValue: "observe",
+    message: `Installed-host writeback mode for ${input.host}? [off/observe/selective]`,
+    prompt: input.prompt,
   });
 
   return buildWritebackConfig(mode as InstalledHostWritebackMode);
@@ -3321,7 +3409,7 @@ async function handleHostInstall(
         storageProvider: readInstallStorageProviderFlag(installFlags["storage-provider"]),
         storageUrl: installFlags["storage-url"],
         userId: installFlags["user-id"],
-        writeback: installOptions.writeback ?? readInstallWritebackConfig(installFlags),
+        writeback: installOptions.writeback,
       });
       const workspaceEnableResult =
         installOptions.activationSelection === "current-workspace"
@@ -3401,7 +3489,7 @@ async function handleSetup(
           storageProvider: readInstallStorageProviderFlag(setup.flags["storage-provider"]),
           storageUrl: setup.flags["storage-url"],
           userId: setup.flags["user-id"],
-          writeback: setup.writeback,
+          writeback: setup.writebackByHost[host],
         });
         const workspaceEnableResult =
           setup.activationSelection === "current-workspace"
@@ -3528,20 +3616,30 @@ async function resolveSetupOptions(
   activationSelection: InstallActivationSelection;
   flags: ParsedFlags;
   hosts: InstalledHostKind[];
-  writeback: InstalledHostWritebackConfig;
+  writebackByHost: Partial<Record<InstalledHostKind, InstalledHostWritebackConfig>>;
 }> {
   const prompt = resolveInstallPrompt(flags, dependencies);
   if (!prompt) {
     const hostSelection =
       readSetupHostSelection(flags.host) ?? (await detectSetupHostSelection());
+    const hosts = expandSetupHostSelection(hostSelection);
+    const writeback = readInstallWritebackConfigOverride(flags);
+    const writebackByHost: Partial<
+      Record<InstalledHostKind, InstalledHostWritebackConfig>
+    > = {};
+    if (writeback) {
+      for (const host of hosts) {
+        writebackByHost[host] = writeback;
+      }
+    }
     return {
       activationSelection:
         readActivationModeFlag(flags["activation-mode"]) === "workspace_opt_in"
           ? "manual"
           : "global",
       flags,
-      hosts: expandSetupHostSelection(hostSelection),
-      writeback: readInstallWritebackConfig(flags),
+      hosts,
+      writebackByHost,
     };
   }
 
@@ -3555,6 +3653,7 @@ async function resolveSetupOptions(
         message: "Enable GoodMemory for which host? [codex/claude/both]",
         prompt,
       })) as SetupHostSelection);
+    const hosts = expandSetupHostSelection(hostSelection);
     const activationSelection = await promptInstallActivationSelection(
       resolvedFlags,
       prompt,
@@ -3577,13 +3676,25 @@ async function resolveSetupOptions(
       prompt,
       "~/.goodmemory/<host>.json",
     );
-    const writeback = await promptWritebackInstallConfig(resolvedFlags, prompt);
+    const writebackByHost: Partial<
+      Record<InstalledHostKind, InstalledHostWritebackConfig>
+    > = {};
+    for (const host of hosts) {
+      const writeback = await promptWritebackInstallConfig({
+        flags: resolvedFlags,
+        host,
+        prompt,
+      });
+      if (writeback) {
+        writebackByHost[host] = writeback;
+      }
+    }
 
     return {
       activationSelection,
       flags: resolvedFlags,
-      hosts: expandSetupHostSelection(hostSelection),
-      writeback,
+      hosts,
+      writebackByHost,
     };
   } finally {
     await prompt.close?.();
@@ -3999,6 +4110,7 @@ function hostWritebackExitCode(
   reason: InstalledHostWritebackResult["reason"],
 ): number {
   return reason === "missing_config" ||
+    reason === "audit_failed" ||
     reason === "missing_repo_opt_in" ||
     reason === "write_failed"
     ? 1

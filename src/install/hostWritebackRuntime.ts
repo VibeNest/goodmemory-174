@@ -841,6 +841,7 @@ async function recordObservedCandidates(input: {
       },
     ];
   });
+  let observedCount = 0;
 
   try {
     await withInstalledHostWritebackLedgerLock(
@@ -854,7 +855,7 @@ async function recordObservedCandidates(input: {
           if (committedOrPending.has(scopedKey) || committedOrPending.has(legacyKey)) {
             continue;
           }
-          ledger = markWritebackAuditObserved(ledger, {
+          const nextLedger = markWritebackAuditObserved(ledger, {
             candidateKey: scopedKey,
             command: input.command,
             content: candidate.content,
@@ -867,13 +868,17 @@ async function recordObservedCandidates(input: {
             source: candidate.source,
             ...(input.sessionDigest ? { sessionDigest: input.sessionDigest } : {}),
           });
+          if (nextLedger !== ledger) {
+            observedCount += 1;
+          }
+          ledger = nextLedger;
         }
         await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
       },
     );
     return {
       failed: false,
-      observedCount: records.length,
+      observedCount,
     };
   } catch {
     return {

@@ -886,6 +886,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory stats");
     expect(readme).toContain("session-stop");
     expect(readme).toContain("Installed Host Writeback");
+    expect(readme).toContain("New interactive installs recommend `observe`");
+    expect(readme).toContain("observe-only events it marks the candidate dismissed");
     expect(readme).toContain("goodmemory codex writeback inspect");
     expect(readme).toContain("goodmemory codex writeback forget --event-id");
     expect(readme).toContain("goodmemory eval inspect");
@@ -947,6 +949,8 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain("goodmemory setup");
     expect(zhReadme).toContain("goodmemory status");
     expect(zhReadme).toContain("Installed Host Writeback");
+    expect(zhReadme).toContain("新的交互式安装会推荐 `observe`");
+    expect(zhReadme).toContain("observe-only event，它只会标记为 dismissed");
     expect(zhReadme).toContain("goodmemory codex writeback inspect");
     expect(zhReadme).toContain("goodmemory codex writeback forget --event-id");
     expect(zhReadme).toContain("createGoodMemory");
@@ -1941,6 +1945,8 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain("SessionStart` / `UserPromptSubmit` hooks");
     expect(currentStatus).toContain("Phase 37 is now closed as the installed host selective writeback slice");
     expect(currentStatus).toContain("goodmemory codex writeback");
+    expect(currentStatus).toContain("new interactive installs recommend `observe`");
+    expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
     expect(currentStatus).toContain(

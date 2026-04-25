@@ -110,7 +110,8 @@ export async function executeInstalledHostHook(
       reason:
         writeback.reason === "written"
           ? "writeback_written"
-          : writeback.reason === "write_failed"
+          : writeback.reason === "write_failed" ||
+              writeback.reason === "audit_failed"
             ? "writeback_failed"
             : "empty_context",
       scope: resolved.context.scope,
@@ -310,7 +311,7 @@ function summarizeHookWriteback(
       wrote: false,
     };
   }
-  if (result.reason === "write_failed") {
+  if (result.reason === "write_failed" || result.reason === "audit_failed") {
     return {
       attempted: true,
       candidateCount: result.candidates.length,

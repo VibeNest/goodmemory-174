@@ -106,12 +106,11 @@ export async function runPhase371DogfoodSummary(
       event.sessionDigest ? [event.sessionDigest] : []
     ),
   );
-  const durableWriteCount = events.filter(
-    (event) => event.memoryIds.length > 0 &&
-      (event.status === "committed" || event.status === "forgotten"),
-  ).length;
+  const durableWriteEvents = events.filter(hasDurableWriteStatus);
+  const durableWriteCount = durableWriteEvents.length;
   const falseWriteCount = events.filter(
-    (event) => event.review?.outcome === "false_write",
+    (event) => hasDurableWriteStatus(event) &&
+      event.review?.outcome === "false_write",
   ).length;
   const summary: Phase371DogfoodSummary = {
     candidateCount: events.length,
@@ -169,6 +168,11 @@ function hasWritebackOwnedNextSessionRecallHit(
   return event.memoryIds.length > 0 &&
     Boolean(event.sessionDigest) &&
     event.recalledBy.some((hit) => hit.sessionDigest !== event.sessionDigest);
+}
+
+function hasDurableWriteStatus(event: InstalledHostWritebackAuditEvent): boolean {
+  return event.memoryIds.length > 0 &&
+    (event.status === "committed" || event.status === "forgotten");
 }
 
 function buildAcceptedDeterministicDogfoodEvents(): InstalledHostWritebackAuditEvent[] {

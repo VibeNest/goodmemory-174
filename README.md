@@ -86,7 +86,10 @@ and asks for:
 - writeback mode: `off`, `observe`, or `selective`
 
 Interactive setup defaults to global activation with workspace-derived
-isolation. Scripted installs stay safe with `--json` or `--no-interactive`.
+isolation and recommends `observe` for new host configs so users can review
+writeback candidates before enabling durable writes. Existing host configs keep
+their current writeback mode when the interactive prompt default is accepted.
+Scripted installs stay safe with `--json` or `--no-interactive`.
 Skipping provider setup is valid: GoodMemory still works with local SQLite and
 rules-only extraction.
 
@@ -113,7 +116,11 @@ The installed host path has three pieces:
 
 ## Installed Host Writeback
 
-Installed Host Writeback is opt-in. It is off by default.
+Installed Host Writeback is opt-in. Runtime config defaults and new scripted
+installs remain `off` unless the user explicitly chooses a writeback mode.
+Existing configs keep their current writeback mode when no explicit override is
+provided. New interactive installs recommend `observe` so candidates are visible
+before durable writes are enabled.
 
 Use `observe` before `selective`:
 
@@ -128,7 +135,8 @@ goodmemory codex writeback --json
 Writeback rules:
 
 - `off`: no after-response memory extraction.
-- `observe`: produce candidates and trace without durable writes.
+- `observe`: store local bounded/redacted candidate previews for review without
+  raw transcripts or durable memory writes.
 - `selective`: write selected candidates through the public `remember` surface.
 - Raw transcripts are not persisted as memory.
 - Assistant-originated durable memory is blocked unless the host confirms or
@@ -147,7 +155,9 @@ The audit ledger stores bounded redacted candidate previews, candidate keys,
 typed linked record ids, status, reasons, host, mode, timestamps,
 scope/session digests, and optional manual review metadata. It does not store
 raw host payloads. `forget --event-id` deletes linked memory/evidence records
-through public `forget()` before marking the audit event forgotten.
+through public `forget()` before marking durable audit events forgotten; for
+observe-only events it marks the candidate dismissed without calling
+`forget()`.
 
 Claude Code has deterministic CLI parity for hook and writeback commands;
 Codex is the canonical live-evidence path.

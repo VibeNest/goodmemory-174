@@ -1018,6 +1018,8 @@ describe("goodmemory cli help and routing", () => {
     expect(codexHook.stdout).toContain("session-stop");
     expect(codexWriteback.exitCode).toBe(0);
     expect(codexWriteback.stdout).toContain("GoodMemory Codex Writeback");
+    expect(codexWriteback.stdout).toContain("observe    stores local bounded/redacted candidate previews");
+    expect(codexWriteback.stdout).toContain("dismisses observe-only events");
     expect(codexWriteback.stdout).toContain("goodmemory codex writeback inspect");
     expect(codexWriteback.stdout).toContain("goodmemory codex writeback forget --event-id <id>");
     expect(claude.exitCode).toBe(0);
@@ -1032,6 +1034,8 @@ describe("goodmemory cli help and routing", () => {
     expect(claudeHook.stdout).toContain("session-stop");
     expect(claudeWriteback.exitCode).toBe(0);
     expect(claudeWriteback.stdout).toContain("GoodMemory Claude Writeback");
+    expect(claudeWriteback.stdout).toContain("observe    stores local bounded/redacted candidate previews");
+    expect(claudeWriteback.stdout).toContain("dismisses observe-only events");
     expect(claudeWriteback.stdout).toContain("goodmemory claude writeback inspect");
     expect(claudeWriteback.stdout).toContain("goodmemory claude writeback forget --event-id <id>");
   });
@@ -1949,6 +1953,8 @@ describe("goodmemory cli installed host config", () => {
             "codex",
             "--user-id",
             "codex-user",
+            "--writeback",
+            "selective",
             "--json",
           ]);
           expect(first.exitCode).toBe(0);
@@ -2203,6 +2209,8 @@ describe("goodmemory cli installed host config", () => {
           expect(result.stdout).toContain("embedding provider: not configured");
           expect(result.stdout).toContain("LLM extraction provider: not configured");
           expect(result.stdout).toContain("--embedding-* / --llm-* flags");
+          expect(result.stdout).toContain("writeback mode: recall-only");
+          expect(result.stdout).toContain("goodmemory enable codex --writeback observe");
           expect(result.stdout).toContain(join(home.root, ".goodmemory/codex.json"));
         },
       );
@@ -2225,6 +2233,8 @@ describe("goodmemory cli installed host config", () => {
             "codex",
             "--user-id",
             "codex-user",
+            "--writeback",
+            "selective",
             "--json",
           ]);
           expect(initial.exitCode).toBe(0);
@@ -2257,8 +2267,10 @@ describe("goodmemory cli installed host config", () => {
             };
             storage: { path: string; provider: string };
             userId: string;
+            writeback: { mode: string };
           };
           expect(config.userId).toBe("codex-user");
+          expect(config.writeback.mode).toBe("selective");
           expect(config.storage).toEqual({
             path: join(home.root, ".goodmemory/memory.sqlite"),
             provider: "sqlite",
@@ -2353,8 +2365,10 @@ describe("goodmemory cli installed host config", () => {
               url: string;
             };
             userId: string;
+            writeback: { mode: string };
           };
           expect(config.userId).toBe("codex-user");
+          expect(config.writeback.mode).toBe("observe");
           expect(config.storage).toEqual({
             provider: "postgres",
             url: "postgres://postgres:secret@localhost:5432/goodmemory",
@@ -2651,6 +2665,7 @@ describe("goodmemory cli installed host config", () => {
       "no",
       "no",
       "selective",
+      "selective",
     ];
 
     try {
@@ -2695,10 +2710,10 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
-  it("keeps interactive setup writeback off when the prompt default is accepted", async () => {
-    const home = await createTempWorkspace("goodmemory-setup-default-auto-learn-home");
+  it("uses observe for new interactive setup when the prompt default is accepted", async () => {
+    const home = await createTempWorkspace("goodmemory-setup-default-writeback-home");
     const workspace = await createTempWorkspace(
-      "goodmemory-setup-default-auto-learn-workspace",
+      "goodmemory-setup-default-writeback-workspace",
     );
     const answers = [
       "codex",
@@ -2741,8 +2756,80 @@ describe("goodmemory cli installed host config", () => {
           };
           expect(payload.hosts).toHaveLength(1);
           expect(payload.hosts[0]?.host).toBe("codex");
-          expect(payload.hosts[0]?.writeback.mode).toBe("off");
+          expect(payload.hosts[0]?.writeback.mode).toBe("observe");
 
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
+          ) as {
+            writeback: { mode: string };
+          };
+          expect(config.writeback.mode).toBe("observe");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("keeps existing interactive install writeback mode when the prompt default is accepted", async () => {
+    const home = await createTempWorkspace("goodmemory-install-keep-writeback-home");
+    const prompts: string[] = [];
+    const answers = [
+      "global",
+      "",
+      "sqlite",
+      "no",
+      "no",
+      "",
+    ];
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const initial = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--writeback",
+            "off",
+            "--json",
+          ]);
+          expect(initial.exitCode).toBe(0);
+
+          const rerun = await runCLI(
+            [
+              "install",
+              "codex",
+              "--interactive",
+              "--json",
+            ],
+            {
+              interactive: true,
+              prompt: {
+                ask: async (message) => {
+                  prompts.push(message);
+                  return answers.shift() ?? "";
+                },
+                askSecret: async (message) => {
+                  prompts.push(message);
+                  return answers.shift() ?? "";
+                },
+              },
+            },
+          );
+
+          expect(rerun.exitCode).toBe(0);
+          expect(prompts.join("\n")).toContain("current=off");
+          expect(prompts.join("\n")).toContain("keep-current");
+          const payload = JSON.parse(rerun.stdout) as {
+            writeback: { mode: string };
+          };
+          expect(payload.writeback.mode).toBe("off");
           const config = JSON.parse(
             await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
           ) as {
@@ -2753,7 +2840,6 @@ describe("goodmemory cli installed host config", () => {
       );
     } finally {
       await home.cleanup();
-      await workspace.cleanup();
     }
   });
 
@@ -3832,6 +3918,9 @@ describe("goodmemory cli installed host config", () => {
     const writeFailureHome = await createTempWorkspace(
       "goodmemory-codex-writeback-failed-home",
     );
+    const auditFailureHome = await createTempWorkspace(
+      "goodmemory-codex-writeback-audit-failed-home",
+    );
     const workspace = await createTempWorkspace(
       "goodmemory-codex-writeback-failures-workspace",
     );
@@ -3932,10 +4021,49 @@ describe("goodmemory cli installed host config", () => {
       expect((JSON.parse(writeFailed.stdout) as { reason: string }).reason).toBe(
         "write_failed",
       );
+
+      await withEnv(
+        {
+          GOODMEMORY_HOME: auditFailureHome.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--user-id",
+            "cli-user",
+            "--writeback",
+            "observe",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+        },
+      );
+      await writeFile(
+        join(auditFailureHome.root, ".goodmemory/codex-writeback-events.json"),
+        JSON.stringify({ events: "bad-ledger" }, null, 2) + "\n",
+        "utf8",
+      );
+      const auditFailed = await runBunScript({
+        args: ["codex", "writeback", "--json"],
+        cwd: workspace.root,
+        env: {
+          GOODMEMORY_HOME: auditFailureHome.root,
+        },
+        scriptPath: cliScript,
+        stdin,
+      });
+      expect(auditFailed.exitCode).toBe(1);
+      expect((JSON.parse(auditFailed.stdout) as { reason: string }).reason).toBe(
+        "audit_failed",
+      );
     } finally {
       await missingConfigHome.cleanup();
       await missingRepoHome.cleanup();
       await writeFailureHome.cleanup();
+      await auditFailureHome.cleanup();
       await workspace.cleanup();
     }
   });

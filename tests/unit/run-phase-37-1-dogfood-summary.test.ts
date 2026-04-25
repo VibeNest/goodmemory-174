@@ -10,7 +10,9 @@ import {
 import type { InstalledHostWritebackAuditLedger } from "../../src/install/hostWritebackAuditLedger";
 import {
   markWritebackAuditCommitted,
+  markWritebackAuditDismissed,
   markWritebackAuditForgotten,
+  markWritebackAuditObserved,
   markWritebackAuditPending,
   markWritebackAuditRecalled,
   writeInstalledHostWritebackLedger,
@@ -127,6 +129,29 @@ describe("run-phase-37-1 dogfood summary", () => {
           reason: "Manual dogfood review.",
         },
       });
+      ledger = markWritebackAuditDismissed(
+        markWritebackAuditObserved(ledger, {
+          candidateKey: "candidate:observe-only",
+          command: "session-end",
+          content: "Always keep this observe-only candidate out of durable metrics.",
+          eventId: "wb_observe_only",
+          host: "codex",
+          kind: "preference",
+          now: "2026-04-24T00:21:00.000Z",
+          reason: "explicit_preference",
+          scopeDigest: "scope:dogfood",
+          sessionDigest: "session:observe-only",
+          source: "user",
+        }),
+        {
+          eventId: "wb_observe_only",
+          now: "2026-04-24T00:21:01.000Z",
+          review: {
+            outcome: "false_write",
+            reason: "Observe-only review should not affect durable false-write rate.",
+          },
+        },
+      );
       await writeInstalledHostWritebackLedger("codex", homeRoot, ledger);
 
       const report = await runPhase371DogfoodSummary({
@@ -140,12 +165,12 @@ describe("run-phase-37-1 dogfood summary", () => {
       expect(report.generatedBy).toBe("scripts/run-phase-37-1-dogfood-summary.ts");
       expect(report.summary).toEqual(
         expect.objectContaining({
-          candidateCount: 20,
+          candidateCount: 21,
           durableWriteCount: 20,
           falseWriteRateManual: 0.05,
           forgottenCount: 1,
           nextSessionRecallHitCount: 1,
-          sessionCount: 20,
+          sessionCount: 21,
         }),
       );
       expect(JSON.stringify(report)).not.toMatch(/transcript|messages|rawTranscript/u);
