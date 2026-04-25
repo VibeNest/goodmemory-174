@@ -2,7 +2,7 @@
 
 ## Package Boundary
 
-- `0.1.2` packages `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, and `goodmemory/http` through compiled `dist/` outputs plus declarations
+- `0.2.0` packages `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, and `goodmemory/http` through compiled `dist/` outputs plus declarations
 - registry publish is handled by the tagged stable release workflow when `NPM_TOKEN` is configured
 - `bun pm pack` tarball remains a canonical installable release artifact
 - public package surface remains:
@@ -10,6 +10,7 @@
   - `goodmemory/ai-sdk`
   - `goodmemory/host`
   - `goodmemory/http`
+- package-boundary CI covers Node 20, Node 22, and Node 24
 - the installed CLI and `goodmemory-http-bridge` server remain Bun-backed runtime add-ons
 - no new memory capability, no dashboard/admin UI, and no new public `goodmemory/evolution` module in this slice
 
@@ -89,7 +90,7 @@
 ## Packaging
 
 - `package.json` exposes `bin`, `exports`, and example scripts
-- `package.json` is not private and uses version `0.1.2`
+- `package.json` is not private and uses version `0.2.0`
 - `package.json` declares Node and Bun runtime support for the packaged boundary
 - `LICENSE` exists and matches package metadata
 - CLI wrapper exists at `scripts/goodmemory-cli.js`

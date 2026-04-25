@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { readFileSync } from "node:fs";
 import * as z from "zod/v4";
 import type {
   BuildContextInput,
@@ -20,6 +21,28 @@ import type { InstalledHostKind } from "./hostInstall";
 
 const DEFAULT_CONTEXT_OUTPUT: BuildContextInput["output"] =
   "developer_prompt_fragment";
+const PACKAGE_JSON_URL = new URL("../../package.json", import.meta.url);
+
+let packageVersionCache: string | undefined;
+
+function readPackageVersion(): string {
+  if (packageVersionCache) {
+    return packageVersionCache;
+  }
+
+  const packageJson = JSON.parse(
+    readFileSync(PACKAGE_JSON_URL, "utf8"),
+  ) as { version?: unknown };
+  if (
+    typeof packageJson.version !== "string" ||
+    packageJson.version.length === 0
+  ) {
+    throw new Error("Unable to read GoodMemory package version.");
+  }
+
+  packageVersionCache = packageJson.version;
+  return packageVersionCache;
+}
 
 export interface GoodMemoryMcpServerDependencies
   extends InstalledHostContextDependencies {
@@ -50,7 +73,7 @@ export function createGoodMemoryMcpServer(input: {
 }): McpServer {
   const server = new McpServer({
     name: "goodmemory-mcp",
-    version: "0.1.2",
+    version: readPackageVersion(),
   });
   const dependencies = input.dependencies ?? {};
 

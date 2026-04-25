@@ -1,6 +1,10 @@
 Phase 40.1: Close Phase 39 as Release-Evidence Input
 ====================================================
 
+Status
+------
+[DONE] Phase 39 release-evidence input is accepted.
+
 Goal
 ----
 Ensure the Python/FastAPI HTTP bridge is accepted before using it as v0.2
@@ -22,3 +26,15 @@ Acceptance
 - Phase 39 did not widen the root public API unless the accepted bridge evidence
   explicitly justified it.
 - Phase 39 closure artifacts are referenced as immutable inputs, not rewritten.
+
+Accepted Evidence
+-----------------
+- Phase 39 task-board entrypoint:
+  `task-board/41-phase-39-python-http-integration-bridge.txt`
+- Phase 39 archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
+- Phase 39 quality gate:
+  `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
+- Phase 39 gate decision: accepted.
+- Python/FastAPI consumer smoke: accepted in the Phase 39 quality gate under
+  `evidence.pythonConsumer`.

@@ -1,6 +1,10 @@
 Phase 40.2: Public Quickstart and 15-Minute Integration Guide
 ============================================================
 
+Status
+------
+[DONE] Public quickstart and 15-minute app integration guide are implemented.
+
 Goal
 ----
 Make the public docs explain the current GoodMemory app loop without requiring
@@ -31,3 +35,16 @@ Acceptance
   target selection.
 - Docs clearly state runtime archive is off by default and raw transcripts are
   not the default memory source.
+
+Accepted Evidence
+-----------------
+- README App Quickstart now shows the current turn loop:
+  `memory.runtime.startSession`, `memory.runtime.appendMessage`,
+  `memory.recall`, `memory.buildContext`, and
+  `memory.jobs.enqueueRemember`.
+- Canonical guide:
+  `docs/GoodMemory-15-Minute-App-Integration.md`
+- Recommended Node server examples:
+  `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts`
+- Regression:
+  `bun test tests/release/release.test.ts --test-name-pattern "readme and the 15-minute guide document the current app loop|packs a tarball"`

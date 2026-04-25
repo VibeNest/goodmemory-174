@@ -1,33 +1,41 @@
 # GoodMemory Reference Integration Guide
 
-This is the canonical packaged `0.1.2` reference path for chatbox/copilot-style integration.
+This is the canonical packaged `0.2.0` reference path for chatbox/copilot-style integration.
 
 ## Install
 
 Published install:
 
 ```bash
-npm install goodmemory@0.1.2
+npm install goodmemory@0.2.0
 ```
 
 Bun install:
 
 ```bash
-bun add goodmemory@0.1.2
+bun add goodmemory@0.2.0
 ```
 
 Tarball verification of the same release artifact before publish:
 
 ```bash
-npm install ./goodmemory-0.1.2.tgz
+npm install ./goodmemory-0.2.0.tgz
 ```
 
 ## Quick Path
 
+For a normal Node HTTP service, start with the canonical 15-minute guide:
+`docs/GoodMemory-15-Minute-App-Integration.md`. It shows the current app loop
+with `memory.runtime.*`, `recall`, `buildContext`,
+`memory.jobs.enqueueRemember()`, targeted `reviseMemory()`, and `traceSink`.
+
 1. Install the package with npm or Bun and keep the default public runtime entrypoint: `createGoodMemory({})`
-2. Build one plain server handler around `createGoodMemoryAISDK(...)`.
+2. Use the Express or Fastify examples when you want a minimal Node route
+   around the current memory loop.
 3. Accept normal `ModelMessage[]` input plus a scoped `userId` / `workspaceId` / `sessionId`.
-4. For repo-local comparison only, run the reference example:
+4. Use `createGoodMemoryAISDK(...)` when your server already standardizes on
+   AI SDK streaming.
+5. For repo-local comparison only, run the reference example:
    `bun run example:ai-sdk-server`
 
 ## Canonical Integration
@@ -94,7 +102,9 @@ export async function handleMemoryChat(request: Request): Promise<Response> {
 Next.js mapping:
 
 - `export async function POST(request: Request)` can delegate directly to the same handler body.
-- The repo-local canonical example is `examples/plain-ai-sdk-server.ts`.
+- For ordinary Node HTTP services, prefer the thin route examples:
+  `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts`.
+- The repo-local AI SDK example is `examples/plain-ai-sdk-server.ts`.
 - `examples/vercel-ai-chat.ts` remains as the lower-level wrapper-first example.
 - The HTTP boundary should reject malformed `scope` input instead of silently soft-failing memory semantics.
 

@@ -1,6 +1,11 @@
 Phase 40.3: v0.2 Package and Release Proof
 ==========================================
 
+Status
+------
+[DONE] v0.2 package metadata, release docs, CI matrix, and package smokes are
+implemented.
+
 Goal
 ----
 Prove the package can be released as `0.2.0` with stable public boundaries.
@@ -23,3 +28,23 @@ Acceptance
   `0.2.0`.
 - Release proof includes `bun run test:ci`, the latest accepted quality gate,
   and pack/install evidence.
+
+Accepted Evidence
+-----------------
+- Package version: `0.2.0`
+- Public install docs updated to `goodmemory@0.2.0` and
+  `goodmemory-0.2.0.tgz`.
+- CI package-boundary matrix covers Node 20, Node 22, and Node 24.
+- Regression:
+  `bun test tests/release/release.test.ts --test-name-pattern "package metadata exposes|v0.2 package metadata|ci workflow runs the node package boundary matrix|readme links the canonical docs|readme ships a Simplified Chinese product entrypoint|phase-27 canonical guides"`
+- Pack and external consumer proof:
+  `bun test tests/release/release.test.ts --test-name-pattern "package export targets|packs a tarball|package-boundary reference consumer smoke uses package-name imports only"`
+- Node package-boundary proof:
+  `bun test tests/release/node-package-boundary.test.ts`
+
+Notes
+-----
+- The local Node package-boundary proof is a current-runtime smoke. Node 20,
+  Node 22, and Node 24 enforcement is carried by the CI matrix.
+- The release workflow still runs Phase 39 as the latest accepted release gate
+  until P40-T006 creates and accepts the Phase 40 gate.

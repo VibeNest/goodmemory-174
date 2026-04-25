@@ -260,12 +260,13 @@ Current Sequencing Note
   - dependency preflight: Phase 38 gate writes under `.tmp-goodmemory-phase39/quality-gates/phase-38/run-phase39-preflight-38`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
   - current status: P39-T001 through P39-T006 are implemented and accepted
-- Phase 40 is queued as the v0.2 release proof and product eval slice:
+- Phase 40 is active as the v0.2 release proof and product eval slice:
   - task-board entrypoint: `task-board/42-phase-40-v0-2-release-proof-and-product-eval.txt`
   - breakdown folder: `task-board/phase-40-v0-2-release-proof-and-product-eval/`
-  - sequencing: Phase 40 must not become the active implementation slice until Phase 39 closes with bridge regression and quality-gate evidence
+  - sequencing: Phase 40 started only after Phase 39 closed with bridge regression and quality-gate evidence
   - focus: public quickstart/15-minute integration guide, v0.2 package release proof, cross-consumer adoption smoke, and product eval rollup versus no-memory baseline
-- Any work beyond the closed Phase 39 slice should start from the queued Phase 40 board, add a later phase file, or explicitly reopen a closed phase with failing regression or gate evidence.
+  - current status: P40-T001 through P40-T003 are implemented and accepted
+- Any work beyond the closed Phase 39 slice should continue from the active Phase 40 board, add a later phase file, or explicitly reopen a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.

@@ -31,13 +31,13 @@ and the model runtime.
 
 ## Install
 
-GoodMemory `0.1.2` has two normal install paths.
+GoodMemory `0.2.0` has two normal install paths.
 
 Use the global CLI when you want memory enhancement inside installed coding
 agents:
 
 ```bash
-npm install -g goodmemory@0.1.2
+npm install -g goodmemory@0.2.0
 goodmemory setup
 goodmemory status
 ```
@@ -45,19 +45,19 @@ goodmemory status
 Use the package dependency when you are building an application:
 
 ```bash
-npm install goodmemory@0.1.2
+npm install goodmemory@0.2.0
 ```
 
 Bun consumers can install it directly:
 
 ```bash
-bun add goodmemory@0.1.2
+bun add goodmemory@0.2.0
 ```
 
 Tarball verification for release rehearsal:
 
 ```bash
-npm install ./goodmemory-0.1.2.tgz
+npm install ./goodmemory-0.2.0.tgz
 ```
 
 The installed CLI is Bun-backed for non-version commands. The package bin is
@@ -69,7 +69,7 @@ delegate to Bun.
 For most users, the first useful path is installed-host memory.
 
 ```bash
-npm install -g goodmemory@0.1.2
+npm install -g goodmemory@0.2.0
 goodmemory setup
 goodmemory status
 ```
@@ -192,51 +192,134 @@ idempotent. Package uninstall does not delete `~/.goodmemory`, repo-local
 ## App Quickstart
 
 Use the root package when you are building a chatbox, copilot, or product agent.
+The recommended Node service path is the same thin loop used by the Express and
+Fastify examples. A longer walkthrough lives in
+[docs/GoodMemory-15-Minute-App-Integration.md](./docs/GoodMemory-15-Minute-App-Integration.md).
 
 ```ts
+import type { GoodMemoryTraceSpan } from "goodmemory";
 import { createGoodMemory } from "goodmemory";
 
-const memory = createGoodMemory({});
+const traceSpans: GoodMemoryTraceSpan[] = [];
 
-await memory.remember({
-  scope: {
-    userId: "u-1",
-    workspaceId: "workspace-a",
-    sessionId: "s-1",
-  },
-  messages: [
-    {
-      role: "user",
-      content: "Remember that the migration rollout is blocked on QA signoff.",
+const memory = createGoodMemory({
+  observability: {
+    traceSink: {
+      emit(span) {
+        traceSpans.push(span);
+      },
     },
-  ],
+  },
+});
+
+const scope = {
+  userId: "u-1",
+  workspaceId: "workspace-a",
+  sessionId: "s-1",
+};
+const userMessage = "Remember that the migration rollout is blocked on QA signoff.";
+
+// Call startSession once when the product opens a new session. For later turns
+// with the same sessionId, append to the existing runtime state instead.
+await memory.runtime.startSession({ scope });
+await memory.runtime.appendMessage({
+  scope,
+  message: {
+    role: "user",
+    content: userMessage,
+  },
 });
 
 const recall = await memory.recall({
-  scope: {
-    userId: "u-1",
-    workspaceId: "workspace-a",
-    sessionId: "s-2",
-  },
-  query: "What context should the assistant know before answering?",
+  scope,
+  query: "What should the assistant know before replying?",
   retrievalProfile: "general_chat",
 });
-
 const context = await memory.buildContext({
   recall,
-  output: "markdown",
+  output: "system_prompt_fragment",
 });
 
-console.log(context.content);
+const assistantText = await callYourModel({
+  memoryContext: context.content,
+  userMessage,
+});
+
+await memory.runtime.appendMessage({
+  scope,
+  message: {
+    role: "assistant",
+    content: assistantText,
+  },
+});
+
+const writeJob = await memory.jobs.enqueueRemember({
+  scope,
+  messages: [
+    {
+      role: "user",
+      content: userMessage,
+    },
+    {
+      role: "assistant",
+      content: assistantText,
+    },
+  ],
+  idempotencyKey: "turn-1",
+  reason: "post_response_memory_write",
+});
+const drained = await memory.jobs.drain({ maxJobs: 1 });
+const committedJob =
+  drained.jobs.find((job) => job.jobId === writeJob.jobId) ?? writeJob;
+
+console.log({
+  traceCount: traceSpans.length,
+  writeJobId: writeJob.jobId,
+  writeJobStatus: committedJob.status,
+});
+
+async function callYourModel(input: {
+  memoryContext: string;
+  userMessage: string;
+}): Promise<string> {
+  void input.memoryContext;
+  return `Got it. I will keep that in mind: ${input.userMessage}`;
+}
 ```
 
-The core loop is intentionally small:
+The core memory loop is intentionally small:
 
 - `remember()` writes selected user, app, or host signals.
 - `recall()` retrieves scoped memory for a query.
 - `buildContext()` turns recall hits into a prompt fragment or JSON payload.
 - `feedback()` records explicit corrections and procedural preferences.
 - `forget()` deletes wrong or obsolete memory.
+
+For production app integrations, the recommended turn loop adds the governed
+runtime layer around that core:
+
+- `memory.runtime.startSession()` and `memory.runtime.appendMessage()` track
+  current-session state without making raw transcripts durable memory.
+- `memory.jobs.enqueueRemember()` schedules after-response memory writes with
+  idempotency and visible job status.
+- `memory.jobs.drain()` commits queued writes in this in-memory scheduler. In a
+  production service, run draining in your worker or request-adjacent job loop.
+- `GoodMemoryConfig.observability.traceSink` receives redaction-safe traces for
+  remember, recall, context, revise, forget, export, and job events.
+- `memory.reviseMemory({ target: { memoryId } })` corrects a known memory by
+  explicit id, not by fuzzy text selection.
+- `exportMemory()` gives the user an audit/export path.
+
+Runtime archive persistence is off by default. If you call
+`memory.runtime.endSession({ scope, archive: "off" })`, session state is
+cleared without writing an archive. If you opt into archive persistence, keep it
+summary-only and never treat raw transcripts as the default memory source.
+
+For server integrations, start with the thin examples:
+[examples/express-chat-server.ts](./examples/express-chat-server.ts) or
+[examples/fastify-chat-server.ts](./examples/fastify-chat-server.ts).
+For Python/FastAPI backends, use the packaged `goodmemory-http-bridge` path
+described below.
 
 ## Runtime And Storage
 
@@ -562,6 +645,8 @@ CLI surface:
 
 Installed-package guides:
 
+- 15-minute app integration guide:
+  [docs/GoodMemory-15-Minute-App-Integration.md](./docs/GoodMemory-15-Minute-App-Integration.md)
 - Reference integration guide:
   [docs/GoodMemory-Reference-Integration-Guide.md](./docs/GoodMemory-Reference-Integration-Guide.md)
 - Codex handoff setup guide:

@@ -3,8 +3,8 @@ Phase 40: v0.2 Release Proof and Product Eval
 
 Status
 ------
-[TODO] Phase 40 is queued. Do not make it the active implementation slice until
-Phase 39 closes with bridge regression and quality-gate evidence.
+[WIP] Phase 40 is active because Phase 39 is closed with bridge regression and
+quality-gate evidence.
 
 This phase starts after Phase 39 Python HTTP integration bridge closure. It
 does not reopen Phase 38 or Phase 39. It uses their accepted public/runtime and
@@ -90,10 +90,10 @@ Acceptance Criteria
 
 Tasks
 -----
-[TODO] P40-T001 Close Phase 39 as release-evidence input.
-[TODO] P40-T002 Rewrite public quickstart and add the 15-minute app integration
+[DONE] P40-T001 Close Phase 39 as release-evidence input.
+[DONE] P40-T002 Rewrite public quickstart and add the 15-minute app integration
 guide.
-[TODO] P40-T003 Add v0.2 package and release proof.
+[DONE] P40-T003 Add v0.2 package and release proof.
 [TODO] P40-T004 Add cross-consumer adoption smoke coverage.
 [TODO] P40-T005 Add product eval rollup with a no-memory baseline.
 [TODO] P40-T006 Add Phase 40 quality gate and v0.2 release-candidate evidence.
@@ -105,6 +105,10 @@ Entry Evidence
   `reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json`
 - Phase 39 task-board entrypoint:
   `task-board/41-phase-39-python-http-integration-bridge.txt`
+- Phase 39 archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`
+- Phase 39 quality gate:
+  `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
 - Stable current-status entrypoint:
   `docs/GoodMemory-Current-Status-and-Evidence.md`
 - Product scope and eval intent:

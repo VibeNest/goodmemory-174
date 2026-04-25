@@ -66,11 +66,17 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - default raw transcript archive
   - managed cloud, dashboard, hosted sync, or cross-service exactly-once claims
 
-## Queued Follow-Up Slice
+## Active Follow-Up Slice
 
-- Phase 40 is queued as the v0.2 release proof and product eval slice.
-- It should not become active until Phase 39 closes with bridge regression and
-  quality-gate evidence.
+- Phase 40 is now active as the v0.2 release proof and product eval slice.
+- It started from the accepted Phase 39 Python HTTP bridge evidence:
+  `reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json`
+  and `docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md`.
+- P40-T001 through P40-T003 are implemented: the README App Quickstart now shows
+  the current runtime/recall/context/jobs loop, and the canonical guide is
+  `docs/GoodMemory-15-Minute-App-Integration.md`; package metadata and public
+  install docs now agree on `0.2.0`, and CI package-boundary coverage includes
+  Node 20, Node 22, and Node 24.
 - Planned scope:
   - README and canonical 15-minute app integration guide around the current app
     loop

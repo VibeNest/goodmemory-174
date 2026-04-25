@@ -10,7 +10,7 @@ Follow the parent task file:
 
 Working rules:
 
-- Phase 40 is queued until Phase 39 closes.
+- Phase 40 is active because Phase 39 is closed and accepted.
 - TDD first.
 - Keep Phase 38 and Phase 39 accepted claims regression-covered.
 - Do not add new large API families to make release evidence pass.

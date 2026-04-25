@@ -562,6 +562,7 @@ describe("release metadata and docs", () => {
     };
 
     expect(pkg.version).toBe(CURRENT_PACKAGE_VERSION);
+    expect(pkg.version).toBe("0.2.0");
     expect(pkg.private).toBeUndefined();
     expect(pkg.description).toBe(
       "Memory layer for chat, copilot, and agent applications.",
@@ -805,6 +806,7 @@ describe("release metadata and docs", () => {
       expect(entries).toContain("package/scripts/goodmemory-http-bridge.ts");
       expect(entries).toContain("package/scripts/goodmemory-mcp.js");
       expect(entries).toContain("package/scripts/goodmemory-mcp.ts");
+      expect(entries).toContain("package/docs/GoodMemory-15-Minute-App-Integration.md");
       expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Codex-Handoff-Setup-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Claude-Code-Setup-Guide.md");
@@ -912,6 +914,7 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory eval inspect");
     expect(readme).toContain("goodmemory eval export-case");
     expect(readme).toContain("GoodMemory-Current-Status-and-Evidence.md");
+    expect(readme).toContain("GoodMemory-15-Minute-App-Integration.md");
     expect(readme).toContain("GoodMemory-First-Principles-and-Reference-Architecture.md");
     expect(readme).toContain("GoodMemory-OSS-Architecture-v1.md");
     expect(readme).toContain("docs/archive/quality-gates/README.md");
@@ -950,6 +953,95 @@ describe("release metadata and docs", () => {
     expect(readme).not.toContain("bun run cli -- inspect");
   });
 
+  it("readme and the 15-minute guide document the current app loop", async () => {
+    const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
+    const guide = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-15-Minute-App-Integration.md",
+      ),
+      "utf8",
+    );
+
+    expect(readme).toContain("The core memory loop is intentionally small");
+    expect(readme).toContain("`remember()` writes selected user, app, or host signals");
+    expect(readme).toContain("For production app integrations");
+    expect(readme).toContain("memory.runtime.startSession");
+    expect(readme).toContain("memory.runtime.appendMessage");
+    expect(readme).toContain("memory.jobs.enqueueRemember");
+    expect(readme).toContain("memory.jobs.drain");
+    expect(readme).toContain("memory.reviseMemory");
+    expect(readme).toContain("GoodMemoryConfig.observability.traceSink");
+    expect(readme).toContain("Runtime archive persistence is off by default");
+    expect(readme).toContain("examples/express-chat-server.ts");
+    expect(readme).toContain("examples/fastify-chat-server.ts");
+    expect(readme).toContain("docs/GoodMemory-15-Minute-App-Integration.md");
+    expect(guide).toContain("15-Minute App Integration");
+    expect(guide).toContain("createGoodMemory");
+    expect(guide).toContain("GoodMemoryConfig.observability.traceSink");
+    expect(guide).toContain("memory.runtime.startSession");
+    expect(guide).toContain("ensureSessionStarted");
+    expect(guide).toContain("scopeToKey");
+    expect(guide).toContain("startingSessions");
+    expect(guide).toContain("memory.runtime.appendMessage");
+    expect(guide).toContain("memory.recall");
+    expect(guide).toContain("memory.buildContext");
+    expect(guide).toContain("memory.jobs.enqueueRemember");
+    expect(guide).toContain("memory.jobs.drain");
+    expect(guide).toContain("idempotencyKey");
+    expect(guide).toContain("memory.reviseMemory");
+    expect(guide).toContain("target: { memoryId");
+    expect(guide).toContain("memory.runtime.endSession");
+    expect(guide).toContain("archive: \"off\"");
+    expect(guide).toContain("memory.forget");
+    expect(guide).toContain("memory.exportMemory");
+    expect(guide).toContain("examples/express-chat-server.ts");
+    expect(guide).toContain("examples/fastify-chat-server.ts");
+    expect(guide).toContain("goodmemory-http-bridge");
+    expect(guide).toContain("Raw transcripts are not the default memory source");
+    expect(readme).not.toContain("Context:\\n${context.content}");
+    expect(readme).not.toContain("context: context.content");
+    expect(readme).not.toContain("Reply with the model here");
+    expect(guide).not.toContain("    context,");
+    expect(guide).not.toContain("    traceSpans,");
+    expect(guide).not.toContain("Use this memory context");
+    expect(guide).not.toContain('remember({ mode: "background" })');
+    expect(guide).not.toContain("query-resolved");
+  });
+
+  it("v0.2 package metadata and public release docs agree on 0.2.0", async () => {
+    expect(CURRENT_PACKAGE_VERSION).toBe("0.2.0");
+    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.2.0.tgz");
+
+    const releaseDocPaths = [
+      "README.md",
+      "README.zh-CN.md",
+      "docs/GoodMemory-Reference-Integration-Guide.md",
+      "docs/GoodMemory-Codex-Handoff-Setup-Guide.md",
+      "docs/GoodMemory-Claude-Code-Setup-Guide.md",
+      "docs/GoodMemory-Python-HTTP-Integration-Bridge.md",
+      "docs/GoodMemory-v1-Release-Checklist.md",
+    ] as const;
+    const mcpServer = await readFile(
+      join(import.meta.dir, "../../src/install/hostMcpServer.ts"),
+      "utf8",
+    );
+
+    for (const relativePath of releaseDocPaths) {
+      const content = await readFile(
+        join(import.meta.dir, "../../", relativePath),
+        "utf8",
+      );
+
+      expect(content).toContain("0.2.0");
+      expect(content).not.toContain("goodmemory@0.1.2");
+      expect(content).not.toContain("goodmemory-0.1.2.tgz");
+    }
+
+    expect(mcpServer).toContain("package.json");
+    expect(mcpServer).not.toContain('version: "0.1.2"');
+  });
+
   it("readme ships a Simplified Chinese product entrypoint", async () => {
     const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
     const zhReadme = await readFile(
@@ -973,6 +1065,14 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain("goodmemory codex writeback inspect");
     expect(zhReadme).toContain("goodmemory codex writeback forget --event-id");
     expect(zhReadme).toContain("createGoodMemory");
+    expect(zhReadme).toContain("核心记忆闭环保持很小");
+    expect(zhReadme).toContain("`remember()` 写入经过筛选的用户、应用或 host 信号");
+    expect(zhReadme).toContain("生产应用接入时");
+    expect(zhReadme).toContain("memory.runtime.startSession");
+    expect(zhReadme).toContain("memory.jobs.enqueueRemember");
+    expect(zhReadme).toContain("memory.jobs.drain");
+    expect(zhReadme).toContain("GoodMemoryConfig.observability.traceSink");
+    expect(zhReadme).toContain("GoodMemory-15-Minute-App-Integration.md");
     expect(zhReadme).toContain("GoodMemoryConfig.remember");
     expect(zhReadme).toContain("goodmemory/ai-sdk");
     expect(zhReadme).toContain("goodmemory/host");
@@ -985,6 +1085,9 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain("GoodMemory-Current-Status-and-Evidence.md");
     expect(zhReadme).toContain("docs/archive/quality-gates/README.md");
     expect(zhReadme).toContain("task-board/00-README.txt");
+    expect(zhReadme).not.toContain("console.log(context.content)");
+    expect(zhReadme).not.toContain("Context:\\n${context.content}");
+    expect(zhReadme).not.toContain("context: context.content");
     expect(zhReadme).not.toContain("Bun-only");
     expect(zhReadme).not.toContain("eval:full");
     expect(zhReadme).not.toContain("goodmemory/evolution");
@@ -1381,7 +1484,7 @@ describe("release metadata and docs", () => {
       await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 60_000);
 
   it("package-boundary bootstrap consumer smoke scaffolds and exports Codex and Claude artifacts", async () => {
     const fixtureRoot = join(
@@ -2173,6 +2276,67 @@ describe("release metadata and docs", () => {
     );
   });
 
+  it("phase-40 starts only from immutable phase-39 release evidence", async () => {
+    const phase40Board = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/42-phase-40-v0-2-release-proof-and-product-eval.txt",
+      ),
+      "utf8",
+    );
+    const phase40Input = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/phase-40-v0-2-release-proof-and-product-eval/01-close-phase-39-input.txt",
+      ),
+      "utf8",
+    );
+    const currentStatus = await readFile(
+      join(
+        import.meta.dir,
+        "../../docs/GoodMemory-Current-Status-and-Evidence.md",
+      ),
+      "utf8",
+    );
+    const phase39ReportPath =
+      "reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json";
+    const phase39Report = JSON.parse(
+      await readFile(join(import.meta.dir, "../../", phase39ReportPath), "utf8"),
+    ) as {
+      acceptance: {
+        decision: string;
+      };
+      evidence: {
+        pythonConsumer?: {
+          status?: string;
+        };
+      };
+      runId: string;
+    };
+    const phase40BoardText = phase40Board.replace(/\s+/g, " ");
+
+    expect(phase39Report.runId).toBe("run-20260425041112");
+    expect(phase39Report.acceptance.decision).toBe("accepted");
+    expect(phase39Report.evidence.pythonConsumer?.status).toBe("accepted");
+    expect(phase40BoardText).toContain(
+      "[WIP] Phase 40 is active because Phase 39 is closed with bridge regression and quality-gate evidence.",
+    );
+    expect(phase40Board).toContain(
+      "[DONE] P40-T001 Close Phase 39 as release-evidence input.",
+    );
+    expect(phase40Board).toContain(phase39ReportPath);
+    expect(phase40Board).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-39-Quality-Gate.md",
+    );
+    expect(phase40Board).not.toContain("[TODO] Phase 40 is queued");
+    expect(phase40Input).toContain(
+      "[DONE] Phase 39 release-evidence input is accepted.",
+    );
+    expect(currentStatus).toContain(
+      "Phase 40 is now active as the v0.2 release proof and product eval slice.",
+    );
+  });
+
   it("release workflow uses manual plus stable tag triggers, gate:phase-39, and tarball artifact upload", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/release.yml"),
@@ -2249,14 +2413,14 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("ci workflow runs the node package boundary matrix on Node 20 and 22", async () => {
+  it("ci workflow runs the node package boundary matrix on Node 20, 22, and 24", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/ci.yml"),
       "utf8",
     );
 
     expect(workflow).toContain("node-package-boundary");
-    expect(workflow).toContain("node-version: [20, 22]");
+    expect(workflow).toContain("node-version: [20, 22, 24]");
     expect(workflow).toContain("Build package boundary");
     expect(workflow).toContain("Verify Node package boundary");
     expect(workflow).toContain("tests/release/node-package-boundary.test.ts");

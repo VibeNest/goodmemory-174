@@ -20,12 +20,12 @@ GoodMemory 不是 LLM、agent framework、向量数据库，也不是通用 RAG 
 
 ## 安装
 
-GoodMemory `0.1.2` 有两条常用安装路径。
+GoodMemory `0.2.0` 有两条常用安装路径。
 
 如果你想给已安装的 coding agent 增加记忆能力，使用全局 CLI：
 
 ```bash
-npm install -g goodmemory@0.1.2
+npm install -g goodmemory@0.2.0
 goodmemory setup
 goodmemory status
 ```
@@ -33,19 +33,19 @@ goodmemory status
 如果你是在应用里集成 GoodMemory，作为项目依赖安装：
 
 ```bash
-npm install goodmemory@0.1.2
+npm install goodmemory@0.2.0
 ```
 
 Bun 项目可以直接安装：
 
 ```bash
-bun add goodmemory@0.1.2
+bun add goodmemory@0.2.0
 ```
 
 发布前 tarball 验证：
 
 ```bash
-npm install ./goodmemory-0.1.2.tgz
+npm install ./goodmemory-0.2.0.tgz
 ```
 
 已安装 CLI 的非版本命令由 Bun 支撑。package bin 对 `goodmemory -V` 和 `goodmemory --version` 是 Node-safe 的；其他命令会委托给 Bun。
@@ -55,7 +55,7 @@ npm install ./goodmemory-0.1.2.tgz
 大多数用户最先需要的是 installed-host memory。
 
 ```bash
-npm install -g goodmemory@0.1.2
+npm install -g goodmemory@0.2.0
 goodmemory setup
 goodmemory status
 ```
@@ -147,52 +147,129 @@ goodmemory install codex \
 
 ## 应用集成快速开始
 
-当你在构建 chatbox、copilot 或产品 agent 时，使用 root package。
+当你在构建 chatbox、copilot 或产品 agent 时，使用 root package。更完整的
+应用接入路径见
+[docs/GoodMemory-15-Minute-App-Integration.md](./docs/GoodMemory-15-Minute-App-Integration.md)。
 
 ```ts
+import type { GoodMemoryTraceSpan } from "goodmemory";
 import { createGoodMemory } from "goodmemory";
 
-const memory = createGoodMemory({});
+const traceSpans: GoodMemoryTraceSpan[] = [];
 
-await memory.remember({
-  scope: {
-    userId: "u-1",
-    workspaceId: "workspace-a",
-    sessionId: "s-1",
-  },
-  messages: [
-    {
-      role: "user",
-      content: "Remember that the migration rollout is blocked on QA signoff.",
+const memory = createGoodMemory({
+  observability: {
+    traceSink: {
+      emit(span) {
+        traceSpans.push(span);
+      },
     },
-  ],
+  },
+});
+
+const scope = {
+  userId: "u-1",
+  workspaceId: "workspace-a",
+  sessionId: "s-1",
+};
+const userMessage = "Remember that the migration rollout is blocked on QA signoff.";
+
+// 产品打开新 session 时调用一次 startSession；同一个 sessionId 的后续 turn
+// 继续 append 到已有 runtime state。
+await memory.runtime.startSession({ scope });
+await memory.runtime.appendMessage({
+  scope,
+  message: {
+    role: "user",
+    content: userMessage,
+  },
 });
 
 const recall = await memory.recall({
-  scope: {
-    userId: "u-1",
-    workspaceId: "workspace-a",
-    sessionId: "s-2",
-  },
-  query: "What context should the assistant know before answering?",
+  scope,
+  query: "What should the assistant know before replying?",
   retrievalProfile: "general_chat",
 });
 
 const context = await memory.buildContext({
   recall,
-  output: "markdown",
+  output: "system_prompt_fragment",
 });
 
-console.log(context.content);
+const assistantText = await callYourModel({
+  memoryContext: context.content,
+  userMessage,
+});
+
+await memory.runtime.appendMessage({
+  scope,
+  message: {
+    role: "assistant",
+    content: assistantText,
+  },
+});
+
+const writeJob = await memory.jobs.enqueueRemember({
+  scope,
+  messages: [
+    {
+      role: "user",
+      content: userMessage,
+    },
+    {
+      role: "assistant",
+      content: assistantText,
+    },
+  ],
+  idempotencyKey: "turn-1",
+  reason: "post_response_memory_write",
+});
+const drained = await memory.jobs.drain({ maxJobs: 1 });
+const committedJob =
+  drained.jobs.find((job) => job.jobId === writeJob.jobId) ?? writeJob;
+
+console.log({
+  traceCount: traceSpans.length,
+  writeJobId: writeJob.jobId,
+  writeJobStatus: committedJob.status,
+});
+
+async function callYourModel(input: {
+  memoryContext: string;
+  userMessage: string;
+}): Promise<string> {
+  void input.memoryContext;
+  return `Got it. I will keep that in mind: ${input.userMessage}`;
+}
 ```
 
-核心闭环保持很小：
+核心记忆闭环保持很小：
 
 - `remember()` 写入经过筛选的用户、应用或 host 信号。
 - `recall()` 按 scope 和 query 检索记忆。
 - `buildContext()` 把 recall 命中转换成 prompt fragment 或 JSON payload。
 - `feedback()` 记录显式纠正和过程偏好。
 - `forget()` 删除错误或过期记忆。
+
+生产应用接入时，推荐的 turn loop 会在这个核心闭环外增加受治理的
+runtime 层：
+
+- `memory.runtime.startSession()` 和 `memory.runtime.appendMessage()` 维护
+  当前 session 状态，不把 raw transcript 当作默认 durable memory。
+- `memory.jobs.enqueueRemember()` 用 idempotency 和可见 job 状态安排
+  after-response 写入。
+- `memory.jobs.drain()` 在当前 in-memory scheduler 中提交队列写入；生产
+  服务应放在 worker 或请求相邻 job loop 中执行。
+- `GoodMemoryConfig.observability.traceSink` 接收 redaction-safe trace，
+  覆盖 remember、recall、context、revise、forget、export 和 job events。
+- `memory.reviseMemory({ target: { memoryId } })` 只按显式 `memoryId`
+  修正已知记忆，不做模糊文本选中。
+- `exportMemory()` 提供用户可审计、可导出的记忆视图。
+
+Runtime archive 默认不持久化。显式调用
+`memory.runtime.endSession({ scope, archive: "off" })` 会清理 session state，
+但不会写入 archive。即使产品选择启用 archive，也应保持 summary-only，
+不要把 raw transcript 当作默认记忆来源。
 
 ## Runtime 与存储
 
