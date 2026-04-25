@@ -115,6 +115,13 @@ function createTrackedDocumentStore(log: string[]): DocumentStore {
       ] as unknown as TDocument[];
     },
 
+    async writeBatchIfUnchanged(input) {
+      log.push(
+        `document.writeBatchIfUnchanged:${input.expected.collection}:${input.expected.id}:${input.set.length}`,
+      );
+      return true;
+    },
+
     async delete(collection, id) {
       log.push(`document.delete:${collection}:${id}`);
     },
@@ -255,6 +262,22 @@ describe("public storage wrappers", () => {
         },
       },
     ]);
+    expect(
+      await documentStore.writeBatchIfUnchanged!({
+        expected: {
+          collection: "facts",
+          id: "fact-1",
+          document: { title: "updated" },
+        },
+        set: [
+          {
+            collection: "facts",
+            id: "fact-1",
+            document: { title: "batch-updated" },
+          },
+        ],
+      }),
+    ).toBe(true);
     await documentStore.delete("facts", "fact-1");
 
     await sessionStore.saveBuffer(scope, buffer);
@@ -281,6 +304,7 @@ describe("public storage wrappers", () => {
       "document.get:facts:fact-1",
       "document.update:facts:fact-1:{\"title\":\"updated\"}",
       "document.query:facts:{\"status\":\"active\"}",
+      "document.writeBatchIfUnchanged:facts:fact-1:1",
       "document.delete:facts:fact-1",
       "createSQLiteSessionStore:/tmp/test.sqlite:false",
       "session.saveBuffer:session-1:summary",
@@ -404,6 +428,22 @@ describe("public storage wrappers", () => {
         filter: null,
       },
     ]);
+    expect(
+      await documentStore.writeBatchIfUnchanged!({
+        expected: {
+          collection: "facts",
+          id: "fact-1",
+          document: { title: "updated" },
+        },
+        set: [
+          {
+            collection: "facts",
+            id: "fact-1",
+            document: { title: "batch-updated" },
+          },
+        ],
+      }),
+    ).toBe(true);
     await documentStore.delete("facts", "fact-1");
 
     await sessionStore.saveBuffer(scope, buffer);
@@ -431,6 +471,7 @@ describe("public storage wrappers", () => {
       "document.get:facts:fact-1",
       "document.update:facts:fact-1:{\"title\":\"updated\"}",
       "document.query:facts:null",
+      "document.writeBatchIfUnchanged:facts:fact-1:1",
       "document.delete:facts:fact-1",
       "createPostgresSessionStore:postgres://localhost:5432/goodmemory:false",
       "session.saveBuffer:session-1:summary",

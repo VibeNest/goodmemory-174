@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
+  createNoopGoodMemoryJobsFacade,
+  createNoopGoodMemoryRuntimeFacade,
+} from "../../src/testing/fakes";
+import {
   buildPhase21GateCommands,
   buildPhase21GateRunId,
   resolvePhase21GateOutputDir,
@@ -214,6 +218,8 @@ describe("run-phase-21 scripts", () => {
               internal,
             });
             return {
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("unused");
               },
@@ -255,6 +261,9 @@ describe("run-phase-21 scripts", () => {
               },
               async remember() {
                 throw new Error("unused");
+              },
+              async reviseMemory() {
+                throw new Error("not used");
               },
               async runMaintenance() {
                 throw new Error("unused");

@@ -9,6 +9,7 @@ import type {
   UserProfile,
   WorkingMemorySnapshot,
 } from "../domain/records";
+import { resolveMemoryLifecycle } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type {
@@ -143,6 +144,12 @@ function renderActiveContextLines(profile: UserProfile | null): string[] {
 
 function sortPreferences(preferences: PreferenceMemory[]): PreferenceMemory[] {
   return [...preferences].sort((left, right) => {
+    const leftLifecycle = resolveMemoryLifecycle(left);
+    const rightLifecycle = resolveMemoryLifecycle(right);
+    if (leftLifecycle !== rightLifecycle) {
+      return leftLifecycle === "active" ? -1 : 1;
+    }
+
     const updated = right.updatedAt.localeCompare(left.updatedAt);
     if (updated !== 0) {
       return updated;
@@ -154,8 +161,10 @@ function sortPreferences(preferences: PreferenceMemory[]): PreferenceMemory[] {
 
 function sortFacts(facts: FactMemory[]): FactMemory[] {
   return [...facts].sort((left, right) => {
-    if (left.lifecycle !== right.lifecycle) {
-      return left.lifecycle === "active" ? -1 : 1;
+    const leftLifecycle = resolveMemoryLifecycle(left);
+    const rightLifecycle = resolveMemoryLifecycle(right);
+    if (leftLifecycle !== rightLifecycle) {
+      return leftLifecycle === "active" ? -1 : 1;
     }
 
     const updated = right.updatedAt.localeCompare(left.updatedAt);
@@ -169,8 +178,10 @@ function sortFacts(facts: FactMemory[]): FactMemory[] {
 
 function sortReferences(references: ReferenceMemory[]): ReferenceMemory[] {
   return [...references].sort((left, right) => {
-    if (left.lifecycle !== right.lifecycle) {
-      return left.lifecycle === "active" ? -1 : 1;
+    const leftLifecycle = resolveMemoryLifecycle(left);
+    const rightLifecycle = resolveMemoryLifecycle(right);
+    if (leftLifecycle !== rightLifecycle) {
+      return leftLifecycle === "active" ? -1 : 1;
     }
 
     const updated = right.updatedAt.localeCompare(left.updatedAt);
@@ -184,8 +195,10 @@ function sortReferences(references: ReferenceMemory[]): ReferenceMemory[] {
 
 function sortFeedback(feedback: FeedbackMemory[]): FeedbackMemory[] {
   return [...feedback].sort((left, right) => {
-    if (left.lifecycle !== right.lifecycle) {
-      return left.lifecycle === "active" ? -1 : 1;
+    const leftLifecycle = resolveMemoryLifecycle(left);
+    const rightLifecycle = resolveMemoryLifecycle(right);
+    if (leftLifecycle !== rightLifecycle) {
+      return leftLifecycle === "active" ? -1 : 1;
     }
 
     const updated = right.updatedAt.localeCompare(left.updatedAt);
@@ -300,8 +313,11 @@ function renderDomainMetadataSuffix(record: {
 
 function renderPreferenceLines(preferences: PreferenceMemory[]): string[] {
   return sortPreferences(preferences).map(
-    (preference) =>
-      `- ${sanitizeMarkdownInline(preference.category)}: ${sanitizeMarkdownInline(String(preference.value))}${renderDomainMetadataSuffix(preference)}`,
+    (preference) => {
+      const lifecycle = preference.lifecycle ?? "active";
+      const lifecyclePrefix = lifecycle === "active" ? "" : `[${lifecycle}] `;
+      return `- ${lifecyclePrefix}${sanitizeMarkdownInline(preference.category)}: ${sanitizeMarkdownInline(String(preference.value))}${renderDomainMetadataSuffix(preference)}`;
+    },
   );
 }
 
@@ -315,7 +331,7 @@ function renderFactLines(facts: FactMemory[]): string[] {
 function renderReferenceLines(references: ReferenceMemory[]): string[] {
   return sortReferences(references).map(
     (reference) =>
-      `- [${reference.lifecycle}] ${sanitizeMarkdownInline(reference.title)} (${sanitizeMarkdownInline(reference.pointer)})${renderDomainMetadataSuffix(reference)}`,
+      `- [${reference.lifecycle ?? "active"}] ${sanitizeMarkdownInline(reference.title)} (${sanitizeMarkdownInline(reference.pointer)})${renderDomainMetadataSuffix(reference)}`,
   );
 }
 

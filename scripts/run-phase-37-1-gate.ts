@@ -53,6 +53,7 @@ export interface Phase371GateOptions {
   dogfoodReportPath?: string;
   outputDir?: string;
   runId?: string;
+  skipDependencyGates?: boolean;
 }
 
 export interface Phase371GateDependencies {
@@ -85,6 +86,7 @@ export function parsePhase371GateCliOptions(
     dogfoodReportPath: resolveCliFlagValue(argv, "--dogfood-report-path"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     runId: resolveCliFlagValue(argv, "--run-id"),
+    skipDependencyGates: argv.includes("--skip-dependency-gates"),
   };
 }
 
@@ -104,6 +106,7 @@ export function buildPhase371GateCommands(
   root: string,
   options: {
     dogfoodMode?: "deterministic" | "local";
+    skipDependencyGates?: boolean;
   } = {},
 ): Phase371GateCommand[] {
   const dogfoodMode = options.dogfoodMode ?? "deterministic";
@@ -127,7 +130,7 @@ export function buildPhase371GateCommands(
     dogfoodArgs.push("--fixture", "accepted");
   }
 
-  return [
+  const commands: Phase371GateCommand[] = [
     {
       args: ["bun", "run", "typecheck"],
       cwd: root,
@@ -154,22 +157,29 @@ export function buildPhase371GateCommands(
       cwd: root,
       label: "phase-37-1-dogfood-summary",
     },
-    {
-      args: ["bun", "run", "gate:phase-37"],
-      cwd: root,
-      label: "phase-37-regression-gate",
-    },
-    {
-      args: ["bun", "run", "gate:phase-35"],
-      cwd: root,
-      label: "phase-35-regression-gate",
-    },
-    {
-      args: ["bun", "run", "gate:phase-36"],
-      cwd: root,
-      label: "phase-36-regression-gate",
-    },
   ];
+
+  if (options.skipDependencyGates !== true) {
+    commands.push(
+      {
+        args: ["bun", "run", "gate:phase-37"],
+        cwd: root,
+        label: "phase-37-regression-gate",
+      },
+      {
+        args: ["bun", "run", "gate:phase-35"],
+        cwd: root,
+        label: "phase-35-regression-gate",
+      },
+      {
+        args: ["bun", "run", "gate:phase-36"],
+        cwd: root,
+        label: "phase-36-regression-gate",
+      },
+    );
+  }
+
+  return commands;
 }
 
 export async function runPhase371QualityGate(
@@ -205,10 +215,16 @@ export async function runPhase371QualityGate(
     ? resolveMaybeRelativePath(root, options.dogfoodReportPath)
     : join(dogfoodOutputDir, dogfoodRunId, "report.json");
   const commandsToRun = options.dogfoodReportPath
-    ? buildPhase371GateCommands(root, { dogfoodMode }).filter(
+    ? buildPhase371GateCommands(root, {
+        dogfoodMode,
+        skipDependencyGates: options.skipDependencyGates,
+      }).filter(
         (command) => command.label !== "phase-37-1-dogfood-summary",
       )
-    : buildPhase371GateCommands(root, { dogfoodMode });
+    : buildPhase371GateCommands(root, {
+        dogfoodMode,
+        skipDependencyGates: options.skipDependencyGates,
+      });
 
   for (const command of commandsToRun) {
     const result = await runCommand(command);

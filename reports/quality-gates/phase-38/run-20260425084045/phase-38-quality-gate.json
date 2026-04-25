@@ -1,0 +1,177 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 38 governed runtime surface passed targeted regressions, CI, and the Phase 37.1 hermetic preflight gate."
+  },
+  "commands": [
+    {
+      "command": "bun test tests/integration/observability.trace-sink.test.ts tests/integration/revise-memory.api.test.ts tests/integration/runtime-facade.api.test.ts tests/integration/background-jobs.api.test.ts tests/integration/provider-facade.api.test.ts tests/examples/examples.test.ts tests/types/public-config.types.ts tests/types/public-runtime.types.ts tests/unit/runtime-resolution.test.ts tests/unit/runtime.context-service.test.ts tests/unit/runtime.public.test.ts tests/unit/run-phase-38.gate.test.ts tests/release/release.test.ts",
+      "durationMs": 29302,
+      "exitCode": 0,
+      "label": "phase-38-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) release metadata and docs > task-board sequencing and phase docs only cite git-tracked eval reports [1280.06ms]",
+        "(pass) release metadata and docs > phase-20 canonical dependency summaries are checked in [344.19ms]",
+        "(pass) release metadata and docs > coding-agent example stays on the public path and avoids internal evolution imports [0.37ms]",
+        "(pass) release metadata and docs > bun test discovery is pinned to the repository test tree [0.66ms]",
+        "",
+        "tests/examples/examples.test.ts:",
+        "(pass) examples > basic chat example demonstrates the minimal integration path [3.39ms]",
+        "(pass) examples > coding-agent example demonstrates runtime continuity and procedural memory [1.40ms]",
+        "(pass) examples > vercel ai example demonstrates wrapper-first recall injection and remember writeback [39.56ms]",
+        "(pass) examples > plain ai sdk server example demonstrates request parsing, recall injection, and response generation [9.78ms]",
+        "(pass) examples > plain ai sdk server handler rejects malformed request scope at the HTTP boundary [0.17ms]",
+        "(pass) examples > express chat server example registers a thin route and schedules governed memory writes [10.65ms]",
+        "(pass) examples > fastify chat server example registers a thin route and validates the request boundary [10.46ms]",
+        "(pass) examples > claude host example demonstrates read-only compiled artifact consumption [4.36ms]",
+        "(pass) examples > codex host example demonstrates session handoff consumption [4.59ms]",
+        "",
+        " 140 pass",
+        " 0 fail",
+        " 1934 expect() calls",
+        "Ran 140 tests across 11 files. [29.29s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run test:ci",
+      "durationMs": 65700,
+      "exitCode": 0,
+      "label": "ci-regression-gate",
+      "status": "passed",
+      "stderrTail": [
+        " src/storage/repositories.ts                 |   95.65 |   95.83 | 330-335,413-416",
+        " src/storage/sqlite.ts                       |   95.77 |   93.98 | 318,404-407,414-417,445-448,452-454,482,501,523-524,529-532,567,569,655-658,839,864,871-872,890,893,927,981,983-984,1017-1018,1069,1087,1091,1185-1187",
+        " src/storage/sqlitePublic.ts                 |  100.00 |   98.61 | 51",
+        " src/storage/sqliteRuntime.ts                |  100.00 |   98.92 | 241-244",
+        " src/testing/fakes.ts                        |   61.11 |   63.96 | 25,110,127,156-189,209-221,230-250",
+        " src/testing/fixtures.ts                     |  100.00 |  100.00 | ",
+        " src/testing/scenarioReplay.ts               |  100.00 |  100.00 | ",
+        " src/testing/utils.ts                        |  100.00 |  100.00 | ",
+        " src/verify/policy.ts                        |  100.00 |   99.08 | ",
+        " tests/integration/storage.contract.ts       |  100.00 |  100.00 | ",
+        " tests/scenarios/assert-behavior-scenario.ts |  100.00 |   91.10 | 40,44,48,57,99,104,110-112,114-118,158-160",
+        " tests/scenarios/behavior-fixtures.ts        |  100.00 |  100.00 | ",
+        " tests/support/test-env-isolation.ts         |  100.00 |  100.00 | ",
+        " tests/support/test-env.ts                   |  100.00 |   94.74 | ",
+        "---------------------------------------------|---------|---------|-------------------",
+        "",
+        " 1430 pass",
+        " 0 fail",
+        " 7458 expect() calls",
+        "Ran 1430 tests across 177 files. [61.55s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)",
+        "Coverage overall: 91.15% (37279/40900)",
+        "src/domain: 99.66% (289/290)",
+        "src/remember: 92.30% (2567/2781)",
+        "src/recall: 95.26% (3374/3542)",
+        "src/runtime: 97.90% (466/476)",
+        "src/maintenance: 95.35% (554/581)",
+        "src/verify: 99.08% (108/109)",
+        "src/storage: 94.52% (2416/2556)",
+        "src/eval: 91.12% (6672/7322)",
+        "src/provider: 91.51% (1197/1308)",
+        "src/api: 94.51% (3682/3896)",
+        "src/ai-sdk: 86.90% (438/504)",
+        "src/host: 91.04% (2367/2600)",
+        "src/install: 82.30% (3990/4848)",
+        "src/cli.ts: 86.92% (2998/3449)",
+        "scripts/run-eval.ts: 91.89% (872/949)",
+        "scripts/summarize-eval.ts: 97.47% (77/79)"
+      ]
+    },
+    {
+      "command": "bun run gate:phase-37-1 -- --output-dir /Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase38/quality-gates/phase-37-1 --run-id run-phase38-preflight-37-1 --dogfood-report-path /Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json --skip-dependency-gates",
+      "durationMs": 43145,
+      "exitCode": 0,
+      "label": "phase-37-1-hermetic-preflight-gate",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-37-1-gate.ts --output-dir \"/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase38/quality-gates/phase-37-1\" --run-id \"run-phase38-preflight-37-1\" --dogfood-report-path \"/Users/hjqcan/Documents/GoodMomery/reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json\" --skip-dependency-gates"
+      ],
+      "stdoutTail": [
+        "        \"Ran 180 tests across 8 files. [39.52s]\"",
+        "      ],",
+        "      \"stdoutTail\": [",
+        "        \"bun test v1.3.11 (af24e281)\"",
+        "      ]",
+        "    }",
+        "  ],",
+        "  \"evidence\": {",
+        "    \"dogfood\": {",
+        "      \"reason\": \"Dogfood report met Phase 37.1 minimum session and metric requirements.\",",
+        "      \"reportPath\": \"reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json\",",
+        "      \"status\": \"accepted\"",
+        "    }",
+        "  },",
+        "  \"generatedAt\": \"2026-04-25T01:52:11.103Z\",",
+        "  \"generatedBy\": \"scripts/run-phase-37-1-gate.ts\",",
+        "  \"phase\": \"phase-37.1\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/.tmp-goodmemory-phase38/quality-gates/phase-37-1/run-phase38-preflight-37-1\",",
+        "  \"runId\": \"run-phase38-preflight-37-1\"",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "backgroundJobs": {
+      "reason": "memory.jobs explicit background remember scheduler passed integration and CI regressions.",
+      "status": "accepted"
+    },
+    "expressFastifyExamples": {
+      "reason": "Express and Fastify examples passed example and package-boundary regressions without framework dependencies.",
+      "status": "accepted"
+    },
+    "providerFacade": {
+      "reason": "providers.embedding and providers.extraction facade passed runtime-resolution, provider, type, and CI regressions.",
+      "status": "accepted"
+    },
+    "regressionChain": {
+      "reason": "Phase 38 targeted regressions, test:ci, and the Phase 37.1 hermetic preflight gate passed.",
+      "status": "accepted"
+    },
+    "revision": {
+      "reason": "targeted reviseMemory passed governed correction, policy, idempotency, lineage, and CI regressions.",
+      "status": "accepted"
+    },
+    "runtimeFacade": {
+      "reason": "memory.runtime facade passed runtime lifecycle, archive-boundary, and CI regressions.",
+      "status": "accepted"
+    },
+    "traceSink": {
+      "reason": "traceSink contract passed redaction, fail-open, scope digest, receipt, and CI regressions.",
+      "status": "accepted"
+    }
+  },
+  "generatedAt": "2026-04-25T01:52:11.107Z",
+  "generatedBy": "scripts/run-phase-38-gate.ts",
+  "phase": "phase-38",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-38/run-20260425084045",
+  "runId": "run-20260425084045",
+  "scope": {
+    "inScope": [
+      "traceSink public contract and redaction-safe spans",
+      "targeted reviseMemory by explicit memoryId",
+      "memory.runtime facade with transcript-like archive persistence off by default",
+      "memory.jobs explicit background remember scheduler",
+      "providers.embedding and providers.extraction facade over existing provider adapters",
+      "thin Express and Fastify examples without framework runtime dependencies",
+      "Phase 37.1 hermetic preflight gate, CI gate, and targeted Phase 38 regressions"
+    ],
+    "outOfScope": [
+      "correctMemory as the primary public name",
+      "query-resolved revision targets",
+      "memory.facts.add or unmanaged CRUD APIs",
+      "remember background mode overloads",
+      "default-on writeback",
+      "raw transcript archive by default",
+      "public router-provider configuration",
+      "dashboard, managed cloud, analytics, or framework-first coupling"
+    ]
+  }
+}

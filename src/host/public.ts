@@ -410,10 +410,10 @@ function uniqueLines(lines: string[]): string[] {
   return deduped;
 }
 
-function isActiveLifecycleRecord<TRecord extends { lifecycle: string }>(
+function isActiveLifecycleRecord<TRecord extends { lifecycle?: string }>(
   record: TRecord,
 ): boolean {
-  return record.lifecycle === "active";
+  return (record.lifecycle ?? "active") === "active";
 }
 
 function buildSessionArtifactRelativePath(sessionId: string): string {

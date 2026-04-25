@@ -6,6 +6,7 @@ import type {
 import type { MemoryScope } from "../domain/scope";
 import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
+  ConditionalDocumentWriteBatch,
   DocumentStore,
   SessionStore,
   StorageDocument,
@@ -21,6 +22,10 @@ import {
 
 function clone<TValue>(value: TValue): TValue {
   return structuredClone(value);
+}
+
+function documentsEqual(left: StorageDocument, right: StorageDocument): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export function createInMemoryDocumentStore(): DocumentStore {
@@ -73,6 +78,23 @@ export function createInMemoryDocumentStore(): DocumentStore {
       return [...getCollection(collection).values()]
         .filter((document) => matchesFilter(document, filter))
         .map((document) => clone(document) as TDocument);
+    },
+
+    async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {
+      const expectedCollection = getCollection(input.expected.collection);
+      const current = expectedCollection.get(input.expected.id);
+      if (!current || !documentsEqual(current, input.expected.document)) {
+        return false;
+      }
+
+      for (const operation of input.set) {
+        getCollection(operation.collection).set(
+          operation.id,
+          clone(operation.document),
+        );
+      }
+
+      return true;
     },
 
     async delete(collection, id) {

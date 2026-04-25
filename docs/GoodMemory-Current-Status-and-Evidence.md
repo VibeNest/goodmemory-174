@@ -16,7 +16,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice.
 - Phase 37 is now closed as the installed host selective writeback slice. Codex installed host supports opt-in `off` / `observe` / `selective` writeback through `goodmemory codex writeback`, `install|enable --writeback`, and `session-stop` delegation. `off` remains the default; `observe` produces candidates and trace without writes; `selective` writes only selected candidates through the public Phase 36 `remember` surface.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v3 audit ledger with bounded redacted previews and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
-- Phase 38 is open as the governed runtime surface slice. The initial implemented surface is `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, with private keyed scope digests by default. Phase 38 is not closed yet; targeted `reviseMemory()`, `memory.runtime.*`, background jobs, provider facade, and Express/Fastify examples remain follow-up tasks on the Phase 38 board.
+- Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples that use the governed runtime and jobs surface without framework coupling.
 - Installed-package external host wiring remains available through `goodmemory codex bootstrap` and `goodmemory claude bootstrap` as lower-level compatibility scaffolding for artifact-first integrations.
 - Host integration stays on the explicit adapter/package path; hook-injected recall is the canonical always-on middleware path for enabled repositories or globally activated workspaces, while MCP is a deep-read/debug surface rather than the default recall transport.
 - Installed-host writeback does not persist raw transcripts. Assistant-originated durable memory remains blocked unless host annotations confirm or verify it and the active profile policy allows it. `remember: "never"` masks content before deterministic, custom, or assisted extraction. Cross-store exactly-once transactions between memory storage and the writeback JSON ledger remain outside the accepted claim; the accepted runtime uses a pending/committed ledger for repair-visible idempotency and reports uncommitted writes as `write_failed`.
@@ -39,6 +39,40 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
+- Phase 38 is now closed as the governed runtime surface slice.
+- Accepted behavior:
+  - `GoodMemoryConfig.observability.traceSink` emits structured redaction-safe spans for core memory operations
+  - public receipts expose `traceId` only when a trace sink is configured
+  - `reviseMemory()` supports targeted governed correction by explicit `target.memoryId`
+  - revisions write evidence, apply policy, supersede the previous record, preserve lineage, support idempotency, and clean up revised vectors where needed
+  - `memory.runtime.*` exposes session lifecycle, message append, working memory, session journal, and runtime recall snapshots through the main `createGoodMemory()` object
+  - runtime facade transcript-like archive persistence is off by default; explicit archive mode is summary-only and omits normalized transcripts
+  - the public standalone `createRuntimeContextService()` wrapper also clamps runtime archives to summary-only output without normalized transcripts
+  - `memory.jobs.enqueueRemember()`, `getJob()`, `retryJob()`, and `drain()` provide explicit background remember scheduling without overloading `remember()`
+  - `GoodMemoryConfig.providers.embedding` and `providers.extraction` map onto the existing provider-backed adapter resolver
+  - `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` show thin HTTP integrations using runtime, recall, context building, and background jobs
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-38-Quality-Gate.md`
+  - quality gate: `reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json`
+  - Phase 37.1 preflight evidence is written under `.tmp-goodmemory-phase38/` and skips nested dependency gates so prior-phase canonical artifacts remain stable
+- Still outside the Phase 38 accepted claim:
+  - `correctMemory()` as the primary public name
+  - query-resolved revision targets
+  - unmanaged CRUD APIs such as `memory.facts.add()` or `memory.preferences.upsert()`
+  - `remember({ mode: "background" })`
+  - default-on writeback
+  - raw transcript archive by default
+  - public router-provider configuration
+  - dashboard or managed cloud
+  - analytics or framework-first coupling
+
+## Current Implementation Slice
+
+- No active implementation slice is open after the accepted Phase 38 closure.
+- Next work should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+
+## Prior Closed Installed-Host Slices
+
 - Phase 37.1 is now closed as installed-host writeback productization polish.
 - Accepted behavior:
   - `goodmemory codex writeback inspect --json` lists scope-filtered writeback audit events
@@ -58,24 +92,6 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - dashboard or managed cloud
   - widening the root public API
   - claiming long-running 20-50 real-session dogfood retention results
-
-## Active Slice
-
-- Phase 38 is open as the governed runtime surface slice.
-- Current task-board entrypoint: `task-board/40-phase-38-governed-runtime-surface.txt`
-- Initial implemented surface:
-  - `GoodMemoryConfig.observability.traceSink`
-  - `GoodMemoryTraceSpan` / `GoodMemoryTraceSink` public types
-  - redaction-safe started/succeeded/failed span emission for the core public memory API
-  - keyed scope digests using a private per-instance secret by default, with `scopeDigestSecret` only for trusted stable correlation
-  - trace ids on public receipts when a trace sink is configured
-- Still not accepted as complete:
-  - targeted `reviseMemory()`
-  - `memory.runtime.*`
-  - background jobs
-  - provider facade
-  - Express/Fastify examples
-  - Phase 38 quality gate
 
 - Phase 37 is now closed as the installed host selective writeback slice.
 - Accepted behavior:
@@ -186,6 +202,13 @@ Fallback eval outputs under `reports/eval/fallback/**` are deterministic, regene
   - Deterministic fallback replay output (ignored generated): `reports/eval/fallback/phase-37/run-20260424101045/report.json`
   - Provider-backed assisted-extraction live-memory report: `reports/eval/live-memory/phase-37/run-phase37-live-current/report.json`
   - External consumer installed-package smoke report: `reports/eval/live-memory/phase-37/run-phase37-external-consumer/report.json`
+- Installed host writeback productization polish closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-37.1-Quality-Gate.md`
+  - Dogfood report: `reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json`
+  - Quality gate: `reports/quality-gates/phase-37-1/run-20260424100757/phase-37-1-quality-gate.json`
+- Governed runtime surface closure:
+  - Summary: `docs/archive/quality-gates/GoodMemory-Phase-38-Quality-Gate.md`
+  - Quality gate: `reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json`
 - Historical v1 snapshot:
   - `docs/GoodMemory-v1-Quality-Gate.md`
 

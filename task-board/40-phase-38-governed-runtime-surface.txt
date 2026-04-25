@@ -3,7 +3,7 @@ Phase 38: Governed Runtime Surface
 
 Status
 ------
-[WIP] Phase 38 is open.
+[DONE] Phase 38 is closed and accepted.
 
 This phase starts after the accepted Phase 37.1 installed-host writeback polish closure. It opens the next root public surface carefully: first structured trace/audit spans, then targeted revision, then the runtime facade, then background jobs and provider ergonomics.
 
@@ -56,15 +56,53 @@ Acceptance Criteria
 Tasks
 -----
 [DONE] P38-T001 Add traceSink public contract, redaction-safe spans, and core API span emission.
-[TODO] P38-T002 Add targeted `reviseMemory()` with evidence, policy, supersede lineage, idempotency, and trace receipt.
-[TODO] P38-T003 Attach a small `memory.runtime.*` facade to the `createGoodMemory()` return object.
-[TODO] P38-T004 Add background write job scheduler port and in-memory implementation.
-[TODO] P38-T005 Add provider facade for embedding and extraction, mapped to existing adapters/resolvers.
-[TODO] P38-T006 Add Express and Fastify thin server examples plus package-boundary smoke coverage.
-[TODO] P38-T007 Add Phase 38 quality gate and regression chain.
+[DONE] P38-T002 Add targeted `reviseMemory()` with evidence, policy, supersede lineage, idempotency, and trace receipt.
+[DONE] P38-T003 Attach a small `memory.runtime.*` facade to the `createGoodMemory()` return object.
+[DONE] P38-T004 Add background write job scheduler port and in-memory implementation.
+[DONE] P38-T005 Add provider facade for embedding and extraction, mapped to existing adapters/resolvers.
+[DONE] P38-T006 Add Express and Fastify thin server examples plus package-boundary smoke coverage.
+[DONE] P38-T007 Add Phase 38 quality gate and regression chain.
 
 
 Current Evidence
 ----------------
 - Initial traceSink tests: `tests/integration/observability.trace-sink.test.ts`
+- Targeted revision tests: `tests/integration/revise-memory.api.test.ts`
+- Runtime facade tests: `tests/integration/runtime-facade.api.test.ts`
+- Public runtime wrapper tests: `tests/unit/runtime.public.test.ts`, `tests/types/public-runtime.types.ts`
+- Background job tests: `tests/integration/background-jobs.api.test.ts`
+- Provider facade tests: `tests/integration/provider-facade.api.test.ts`, `tests/unit/runtime-resolution.test.ts`
+- Express/Fastify example tests: `tests/examples/examples.test.ts`, `tests/release/release.test.ts`
 - Public config/type smoke: `tests/types/public-config.types.ts`
+- P38-T002 regression chain:
+  - `bun test tests/integration/revise-memory.api.test.ts`
+  - `bun test tests/integration/remember.api.test.ts tests/integration/recall.api.test.ts tests/integration/governance.api.test.ts tests/integration/observability.trace-sink.test.ts`
+  - `bun run typecheck`
+  - `bun test`
+- P38-T003 regression chain:
+  - `bun test tests/integration/runtime-facade.api.test.ts`
+  - `bun test tests/integration/runtime-facade.api.test.ts tests/unit/runtime.context-service.test.ts tests/unit/runtime.public.test.ts tests/integration/recall.api.test.ts tests/types/public-runtime.types.ts`
+  - `bun run typecheck`
+  - `bun test tests/integration/runtime-facade.api.test.ts tests/unit/runtime.context-service.test.ts tests/unit/runtime.public.test.ts tests/unit/ai-sdk.public.test.ts tests/unit/host-hook-runtime.test.ts tests/unit/host-writeback-runtime.test.ts tests/integration/installed-host-writeback-audit.test.ts tests/unit/run-eval.script.test.ts tests/unit/run-phase-21.script.test.ts tests/unit/run-phase-22.script.test.ts tests/unit/run-phase-23.script.test.ts tests/unit/run-phase-27.script.test.ts tests/unit/runtime-resolution.test.ts tests/release/release.test.ts`
+- P38-T004 regression chain:
+  - `bun test tests/integration/background-jobs.api.test.ts`
+  - `bun run typecheck`
+  - `bun test tests/integration/background-jobs.api.test.ts tests/integration/observability.trace-sink.test.ts tests/integration/remember.api.test.ts tests/unit/ai-sdk.public.test.ts tests/unit/host-hook-runtime.test.ts tests/unit/host-writeback-runtime.test.ts tests/integration/installed-host-writeback-audit.test.ts tests/unit/run-eval.script.test.ts tests/unit/run-phase-21.script.test.ts tests/unit/run-phase-22.script.test.ts tests/unit/run-phase-23.script.test.ts tests/unit/run-phase-27.script.test.ts`
+- P38-T005 regression chain:
+  - `bun test tests/unit/runtime-resolution.test.ts tests/integration/provider-facade.api.test.ts`
+  - `bun run typecheck`
+  - `bun test tests/integration/provider-facade.api.test.ts tests/unit/runtime-resolution.test.ts tests/unit/provider.layer.test.ts tests/unit/model-adapters.test.ts tests/integration/api.auto-storage.test.ts tests/integration/maintenance.api.test.ts tests/release/release.test.ts`
+- P38-T006 regression chain:
+  - `bun test tests/examples/examples.test.ts tests/release/release.test.ts`
+  - `bun run typecheck`
+  - `git diff --check`
+  - `bun test`
+- P38-T007 regression chain:
+  - `bun test tests/unit/run-phase-38.gate.test.ts tests/release/release.test.ts`
+  - `bun run typecheck`
+  - `git diff --check`
+  - `bun run gate:phase-38`
+- Phase 38 accepted evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-38-Quality-Gate.md`
+  - quality gate: `reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json`
+  - acceptance decision: governed runtime surface passed targeted Phase 38 regressions, `test:ci`, and the Phase 37.1 hermetic preflight gate

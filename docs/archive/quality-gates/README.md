@@ -56,6 +56,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-37-Quality-Gate.md`
 - Installed host writeback productization polish closure:
   - `GoodMemory-Phase-37.1-Quality-Gate.md`
+- Governed runtime surface closure:
+  - `GoodMemory-Phase-38-Quality-Gate.md`
 
 ## When To Use This Archive
 

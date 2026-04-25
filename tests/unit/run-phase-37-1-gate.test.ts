@@ -27,12 +27,14 @@ describe("run-phase-37-1 gate", () => {
         "local",
         "--dogfood-report-path",
         "/tmp/dogfood/report.json",
+        "--skip-dependency-gates",
       ]),
     ).toEqual({
       dogfoodMode: "local",
       dogfoodReportPath: "/tmp/dogfood/report.json",
       outputDir: "/tmp/phase371-gate",
       runId: "run-phase371-gate",
+      skipDependencyGates: true,
     });
   });
 
@@ -93,6 +95,18 @@ describe("run-phase-37-1 gate", () => {
     ]);
   });
 
+  it("can skip dependency gates for hermetic higher-level preflight runs", () => {
+    expect(
+      buildPhase371GateCommands(ROOT, { skipDependencyGates: true }).map(
+        (command) => command.label,
+      ),
+    ).toEqual([
+      "typecheck",
+      "phase-37-1-targeted-regressions",
+      "phase-37-1-dogfood-summary",
+    ]);
+  });
+
   it("writes an accepted gate report when commands and dogfood evidence pass", async () => {
     const writes: Record<string, string> = {};
     const executedLabels: string[] = [];
@@ -101,6 +115,7 @@ describe("run-phase-37-1 gate", () => {
         dogfoodReportPath: "/tmp/dogfood/report.json",
         outputDir: "/tmp/phase371-gate",
         runId: "run-phase371-gate",
+        skipDependencyGates: true,
       },
       {
         ensureDir: async () => {},
@@ -138,6 +153,9 @@ describe("run-phase-37-1 gate", () => {
 
     expect(report.acceptance.decision).toBe("accepted");
     expect(executedLabels).not.toContain("phase-37-1-dogfood-summary");
+    expect(executedLabels).not.toContain("phase-37-regression-gate");
+    expect(executedLabels).not.toContain("phase-35-regression-gate");
+    expect(executedLabels).not.toContain("phase-36-regression-gate");
     expect(Object.keys(writes)).toEqual([
       "/tmp/phase371-gate/run-phase371-gate/phase-37-1-quality-gate.json",
     ]);

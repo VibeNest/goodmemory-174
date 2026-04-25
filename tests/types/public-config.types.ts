@@ -2,6 +2,7 @@ import type {
   GoodMemoryConfig,
   GoodMemoryTraceSink,
   NamedRememberProfileExtractor,
+  ReviseMemoryInput,
   RememberInput,
   RememberProfile,
 } from "../../src";
@@ -66,6 +67,23 @@ const observabilityConfig: GoodMemoryConfig = {
   observability: {
     scopeDigestSecret: "trusted-public-config-secret",
     traceSink,
+  },
+};
+
+const providerFacadeConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  providers: {
+    embedding: {
+      provider: "openai",
+      model: "text-embedding-3-small",
+      apiKey: "embedding-key",
+      baseURL: "https://embedding-provider.example/v1",
+    },
+    extraction: {
+      provider: "anthropic",
+      model: "claude-3-5-haiku-latest",
+      apiKey: "extraction-key",
+    },
   },
 };
 
@@ -174,6 +192,20 @@ const annotatedRememberInput: RememberInput = {
   ],
 };
 
+const targetedRevisionInput: ReviseMemoryInput = {
+  scope: { userId: "user-1", sessionId: "session-1" },
+  target: { memoryId: "mem-1" },
+  revision: {
+    content: "The current editor preference is Cursor.",
+  },
+  reason: "user_correction",
+  evidence: {
+    source: "user_message",
+    message: "Actually use Cursor.",
+  },
+  idempotencyKey: "user-1:session-1:correction-1",
+};
+
 void defaultConfig;
 void minimalConfig;
 void testingConfig;
@@ -181,9 +213,20 @@ void languageConfig;
 void embeddingAdapterConfig;
 void assistedExtractorConfig;
 void observabilityConfig;
+void providerFacadeConfig;
 void rememberConfig;
 void annotatedRememberInput;
 void namedProfileExtractor;
+void targetedRevisionInput;
+
+const invalidQueryRevisionTarget: ReviseMemoryInput = {
+  scope: { userId: "user-1" },
+  // @ts-expect-error Phase 38 targeted revision only accepts memoryId targets.
+  target: { query: "editor preference" },
+  revision: { content: "Use Cursor." },
+  reason: "user_correction",
+  idempotencyKey: "correction-query-target",
+};
 
 const invalidEmbeddingConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },
@@ -201,6 +244,26 @@ const invalidRouterConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },
   // @ts-expect-error GoodMemory core config does not expose router tuning.
   router: { strategy: "rules-only" },
+};
+
+const invalidProviderRouterConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  providers: {
+    // @ts-expect-error Provider facade exposes embedding and extraction only.
+    router: { provider: "openai", model: "gpt-4o-mini", apiKey: "router-key" },
+  },
+};
+
+const invalidEmbeddingProviderConfig: GoodMemoryConfig = {
+  storage: { provider: "memory" },
+  providers: {
+    embedding: {
+      // @ts-expect-error Embedding provider facade only supports OpenAI embeddings.
+      provider: "anthropic",
+      model: "text-embedding-3-small",
+      apiKey: "embedding-key",
+    },
+  },
 };
 
 const invalidEvolutionConfig: GoodMemoryConfig = {
@@ -230,7 +293,10 @@ const invalidEvalConfig: GoodMemoryConfig = {
 void invalidEmbeddingConfig;
 void invalidLLMConfig;
 void invalidRouterConfig;
+void invalidProviderRouterConfig;
+void invalidEmbeddingProviderConfig;
 void invalidEvolutionConfig;
 void invalidStrategyRolloutConfig;
 void invalidPromotionGateConfig;
 void invalidEvalConfig;
+void invalidQueryRevisionTarget;

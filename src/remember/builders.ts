@@ -5,6 +5,7 @@ import {
   createPreferenceMemory,
   createReferenceMemory,
   createUserProfile,
+  isActiveMemoryLifecycle,
 } from "../domain/records";
 import type {
   EpisodeMemory,
@@ -164,7 +165,7 @@ export function resolveReferenceSubject(
       extractCanonicalReferencePointer(supersededPointer) ?? supersededPointer;
     const supersededReference = scopedReferences.find(
       (reference) =>
-        reference.lifecycle === "active" &&
+        isActiveMemoryLifecycle(reference) &&
         (extractCanonicalReferencePointer(reference.pointer) ?? reference.pointer) ===
           canonicalSupersededPointer &&
         reference.subject &&

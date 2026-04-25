@@ -4,6 +4,10 @@ import {
   createPhase23FallbackCreateMemory,
 } from "../../src/eval/phase23";
 import {
+  createNoopGoodMemoryJobsFacade,
+  createNoopGoodMemoryRuntimeFacade,
+} from "../../src/testing/fakes";
+import {
   buildPhase23GateCommands,
   buildPhase23GateRunId,
   parsePhase23GateCliOptions,
@@ -286,6 +290,8 @@ describe("run-phase-23 scripts", () => {
             },
           }),
           createMemory: () => ({
+            jobs: createNoopGoodMemoryJobsFacade(),
+            runtime: createNoopGoodMemoryRuntimeFacade(),
             async buildContext() {
               throw new Error("unused");
             },
@@ -327,6 +333,9 @@ describe("run-phase-23 scripts", () => {
             },
             async remember() {
               throw new Error("unused");
+            },
+            async reviseMemory() {
+              throw new Error("not used");
             },
             async runMaintenance() {
               throw new Error("unused");

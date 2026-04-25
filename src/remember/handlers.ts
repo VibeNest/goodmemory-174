@@ -3,6 +3,7 @@ import {
   createFactMemory,
   createFeedbackMemory,
   createReferenceMemory,
+  isActiveMemoryLifecycle,
   normalizeFeedbackAppliesTo,
 } from "../domain/records";
 import {
@@ -97,9 +98,9 @@ export async function writeRememberCandidate(input: {
   }
 
   if (candidate.memoryType === "preference") {
-    const scopedPreferences = await context.repositories.preferences.listByScope(
-      context.input.scope,
-    );
+    const scopedPreferences = (
+      await context.repositories.preferences.listByScope(context.input.scope)
+    ).filter((preference) => (preference.lifecycle ?? "active") === "active");
     const category =
       candidate.metadata?.preferenceCategory ?? "general_preference";
     const value = String(
@@ -214,7 +215,7 @@ export async function writeRememberCandidate(input: {
       referenceCandidate.content;
     const duplicate = scopedReferences.find(
       (reference) =>
-        reference.lifecycle === "active" &&
+        isActiveMemoryLifecycle(reference) &&
         (extractCanonicalReferencePointer(reference.pointer) ?? reference.pointer) ===
           pointer,
     );
@@ -261,7 +262,7 @@ export async function writeRememberCandidate(input: {
 
     const superseded = scopedReferences.find(
       (reference) =>
-        reference.lifecycle === "active" &&
+        isActiveMemoryLifecycle(reference) &&
         (extractCanonicalReferencePointer(reference.pointer) ?? reference.pointer) ===
           (
             extractCanonicalReferencePointer(

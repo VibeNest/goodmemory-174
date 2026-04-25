@@ -719,6 +719,8 @@ describe("installed host writeback audit integration", () => {
 
       let forgetCallCount = 0;
       const flakyMemory: GoodMemory = {
+        jobs: realMemory.jobs,
+        runtime: realMemory.runtime,
         buildContext: (input) => realMemory.buildContext(input),
         deleteAllMemory: (input) => realMemory.deleteAllMemory(input),
         exportMemory: (input) => realMemory.exportMemory(input),
@@ -731,6 +733,7 @@ describe("installed host writeback audit integration", () => {
         },
         recall: (input) => realMemory.recall(input),
         remember: (input) => realMemory.remember(input),
+        reviseMemory: (input) => realMemory.reviseMemory(input),
         runMaintenance: (input) => realMemory.runMaintenance(input),
       };
       await expect(

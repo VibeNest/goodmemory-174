@@ -92,6 +92,15 @@ export interface RuntimeRecallSnapshot {
   journal: SessionJournal | null;
 }
 
+export interface RuntimeEndSessionArchiveOptions {
+  mode: "summary_only";
+  includeNormalizedTranscript?: boolean;
+}
+
+export interface RuntimeEndSessionOptions {
+  archive?: "auto" | "off" | RuntimeEndSessionArchiveOptions;
+}
+
 type SessionLifecycleStatus = "active" | "ended";
 
 function mergeUnique(existing: string[], next: string[]): string[] {
@@ -185,6 +194,27 @@ function buildArchiveSummary(state: RuntimeContextState): string {
   ].filter((segment): segment is string => Boolean(segment));
 
   return summarySegments.join(" ").trim() || "Session ended without a synthesized summary.";
+}
+
+function shouldArchiveSession(
+  state: RuntimeContextState,
+  options: RuntimeEndSessionOptions | undefined,
+): boolean {
+  return options?.archive !== "off" && hasArchiveSignal(state);
+}
+
+function shouldIncludeNormalizedTranscript(
+  options: RuntimeEndSessionOptions | undefined,
+): boolean {
+  const archiveOptions = options?.archive ?? "auto";
+  if (archiveOptions === "off") {
+    return false;
+  }
+  if (archiveOptions === "auto") {
+    return true;
+  }
+
+  return archiveOptions.includeNormalizedTranscript !== false;
 }
 
 async function runBestEffortSalvage(
@@ -451,14 +481,17 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
       };
     },
 
-    async endSession(scope: MemoryScope): Promise<RuntimeContextState> {
+    async endSession(
+      scope: MemoryScope,
+      options?: RuntimeEndSessionOptions,
+    ): Promise<RuntimeContextState> {
       const sessionScope = requireSessionScope(scope);
       const state = await ensureActiveState(sessionScope);
       const archivedAt = now();
 
       let archive: SessionArchive | undefined;
 
-      if (config.archiveStore && hasArchiveSignal(state)) {
+      if (config.archiveStore && shouldArchiveSession(state, options)) {
         archive = createSessionArchive({
           id: createArchiveId(),
           userId: sessionScope.userId,
@@ -468,7 +501,9 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
           sessionId: sessionScope.sessionId,
           sourceSessionIds: [sessionScope.sessionId],
           summary: buildArchiveSummary(state),
-          normalizedTranscript: renderNormalizedTranscript(state.buffer.messages),
+          normalizedTranscript: shouldIncludeNormalizedTranscript(options)
+            ? renderNormalizedTranscript(state.buffer.messages)
+            : undefined,
           keyDecisions: mergeUnique(
             state.workingMemory.temporaryDecisions ?? [],
             state.journal.keyResults ?? [],

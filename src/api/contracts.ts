@@ -7,7 +7,9 @@ import type {
   FeedbackMemory,
   PreferenceMemory,
   ReferenceMemory,
+  SessionBuffer,
   SessionJournal,
+  SessionMessage,
   UserProfile,
   WorkingMemorySnapshot,
 } from "../domain/records";
@@ -49,6 +51,13 @@ import type {
 import type { RememberConfig } from "../remember/profiles";
 import type { RememberResult as RememberPipelineResult } from "../remember/contracts";
 import type {
+  RuntimeContextState,
+  RuntimeRecallSnapshot,
+  SessionJournalPatch,
+  SessionSummaryInput,
+  WorkingMemoryPatch,
+} from "../runtime/contextService";
+import type {
   DocumentStore,
   SessionStore,
   VectorStore,
@@ -60,12 +69,35 @@ export interface StorageConfig {
   url?: string;
 }
 
+export type GoodMemoryEmbeddingProviderId = "openai";
+export type GoodMemoryExtractionProviderId = "openai" | "anthropic";
+
+export interface GoodMemoryEmbeddingProviderConfig {
+  provider: GoodMemoryEmbeddingProviderId;
+  model: string;
+  apiKey: string;
+  baseURL?: string;
+}
+
+export interface GoodMemoryExtractionProviderConfig {
+  provider: GoodMemoryExtractionProviderId;
+  model: string;
+  apiKey: string;
+  baseURL?: string;
+}
+
+export interface GoodMemoryProviderConfig {
+  embedding?: GoodMemoryEmbeddingProviderConfig;
+  extraction?: GoodMemoryExtractionProviderConfig;
+}
+
 export interface GoodMemoryConfig {
   storage?: StorageConfig;
   policy?: GoodMemoryPolicyHooks;
   language?: LanguageConfig;
   remember?: RememberConfig;
   observability?: GoodMemoryObservabilityConfig;
+  providers?: GoodMemoryProviderConfig;
   adapters?: {
     assistedExtractor?: MemoryExtractor;
     documentStore?: DocumentStore;
@@ -153,6 +185,60 @@ export interface RememberResult {
     resolvedExtractionStrategy: MemoryExtractionStrategy;
     traceId?: string;
   };
+}
+
+export type RevisableMemoryType =
+  | "preference"
+  | "reference"
+  | "fact"
+  | "feedback";
+
+export type ReviseMemoryReason =
+  | "user_correction"
+  | "manual_review"
+  | "system_repair"
+  | (string & {});
+
+export type ReviseMemoryEvidenceSource =
+  | "user_message"
+  | "manual_review"
+  | "system";
+
+export interface ReviseMemoryInput {
+  scope: MemoryScope;
+  target: {
+    memoryId: string;
+  };
+  revision: {
+    content: string;
+  };
+  reason: ReviseMemoryReason;
+  evidence?: {
+    source: ReviseMemoryEvidenceSource;
+    message?: string;
+    excerpt?: string;
+    sourceUri?: string;
+    sourceMessageIds?: string[];
+  };
+  idempotencyKey: string;
+  locale?: string;
+}
+
+export interface ReviseMemoryResult {
+  accepted: boolean;
+  outcome: "superseded" | "blocked" | "not_found" | "unsupported";
+  memoryType?: RevisableMemoryType;
+  previousMemoryId?: string;
+  newMemoryId?: string;
+  evidenceIds?: string[];
+  supersedeLineage?: {
+    supersedes: string;
+    supersededBy: string;
+  };
+  policyApplied: string[];
+  reason?: string;
+  traceId?: string;
+  warnings?: string[];
 }
 
 export interface ForgetInput {
@@ -275,10 +361,149 @@ export interface RunMaintenanceResult {
   traceId?: string;
 }
 
+export type MemoryWriteJobOperation = "remember";
+
+export type MemoryWriteJobStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "blocked"
+  | "canceled";
+
+export type MemoryWriteJobErrorCode =
+  | "idempotency_conflict"
+  | "job_payload_unavailable"
+  | "remember_failed"
+  | "write_blocked"
+  | (string & {});
+
+export interface MemoryWriteJobLastError {
+  code: MemoryWriteJobErrorCode;
+  message: string;
+}
+
+export interface MemoryWriteJob {
+  jobId: string;
+  idempotencyKey: string;
+  operation: MemoryWriteJobOperation;
+  status: MemoryWriteJobStatus;
+  attempts: number;
+  createdAt: string;
+  updatedAt: string;
+  lastError?: MemoryWriteJobLastError;
+  linkedTraceIds: string[];
+  linkedMemoryIds: string[];
+  linkedEvidenceIds: string[];
+}
+
+export type MemoryWriteJobReason =
+  | "post_response_memory_write"
+  | "manual_enqueue"
+  | (string & {});
+
+export interface EnqueueRememberJobInput extends RememberInput {
+  idempotencyKey: string;
+  reason?: MemoryWriteJobReason;
+}
+
+export interface GoodMemoryJobsLookupInput {
+  jobId: string;
+}
+
+export interface GoodMemoryJobsDrainInput {
+  maxJobs?: number;
+}
+
+export interface GoodMemoryJobsDrainResult {
+  processed: number;
+  jobs: MemoryWriteJob[];
+}
+
+export interface GoodMemoryJobsFacade {
+  enqueueRemember(input: EnqueueRememberJobInput): Promise<MemoryWriteJob>;
+  getJob(input: GoodMemoryJobsLookupInput): Promise<MemoryWriteJob | null>;
+  retryJob(input: GoodMemoryJobsLookupInput): Promise<MemoryWriteJob | null>;
+  drain(input?: GoodMemoryJobsDrainInput): Promise<GoodMemoryJobsDrainResult>;
+}
+
+export interface GoodMemoryRuntimeStartSessionInput {
+  scope: MemoryScope;
+}
+
+export interface GoodMemoryRuntimeStateResult {
+  state: RuntimeContextState;
+  traceId?: string;
+}
+
+export interface GoodMemoryRuntimeAppendMessageInput {
+  scope: MemoryScope;
+  message: SessionMessage;
+}
+
+export interface GoodMemoryRuntimeBufferResult {
+  buffer: SessionBuffer;
+}
+
+export interface GoodMemoryRuntimeSetSessionSummaryInput extends SessionSummaryInput {
+  scope: MemoryScope;
+}
+
+export interface GoodMemoryRuntimeUpdateWorkingMemoryInput {
+  scope: MemoryScope;
+  patch: WorkingMemoryPatch;
+}
+
+export interface GoodMemoryRuntimeWorkingMemoryResult {
+  workingMemory: WorkingMemorySnapshot;
+}
+
+export interface GoodMemoryRuntimeUpdateSessionJournalInput {
+  scope: MemoryScope;
+  patch: SessionJournalPatch;
+}
+
+export interface GoodMemoryRuntimeSessionJournalResult {
+  journal: SessionJournal;
+}
+
+export interface GoodMemoryRuntimeGetRecallSnapshotInput {
+  scope: MemoryScope;
+  retrievalProfile?: "general_chat" | "coding_agent";
+}
+
+export interface GoodMemoryRuntimeRecallSnapshotResult {
+  snapshot: RuntimeRecallSnapshot;
+}
+
+export interface GoodMemoryRuntimeSummaryOnlyArchiveOptions {
+  mode: "summary_only";
+  includeNormalizedTranscript?: false;
+}
+
+export interface GoodMemoryRuntimeEndSessionInput {
+  scope: MemoryScope;
+  archive?: "off" | GoodMemoryRuntimeSummaryOnlyArchiveOptions;
+}
+
+export interface GoodMemoryRuntimeFacade {
+  startSession(input: GoodMemoryRuntimeStartSessionInput): Promise<GoodMemoryRuntimeStateResult>;
+  getState(input: GoodMemoryRuntimeStartSessionInput): Promise<GoodMemoryRuntimeStateResult>;
+  appendMessage(input: GoodMemoryRuntimeAppendMessageInput): Promise<GoodMemoryRuntimeBufferResult>;
+  setSessionSummary(input: GoodMemoryRuntimeSetSessionSummaryInput): Promise<GoodMemoryRuntimeBufferResult>;
+  updateWorkingMemory(input: GoodMemoryRuntimeUpdateWorkingMemoryInput): Promise<GoodMemoryRuntimeWorkingMemoryResult>;
+  updateSessionJournal(input: GoodMemoryRuntimeUpdateSessionJournalInput): Promise<GoodMemoryRuntimeSessionJournalResult>;
+  getRecallSnapshot(input: GoodMemoryRuntimeGetRecallSnapshotInput): Promise<GoodMemoryRuntimeRecallSnapshotResult>;
+  endSession(input: GoodMemoryRuntimeEndSessionInput): Promise<GoodMemoryRuntimeStateResult>;
+}
+
 export interface GoodMemory {
+  jobs: GoodMemoryJobsFacade;
+  runtime: GoodMemoryRuntimeFacade;
   recall(input: RecallInput): Promise<RecallResult>;
   buildContext(input: BuildContextInput): Promise<BuildContextResult>;
   remember(input: RememberInput): Promise<RememberResult>;
+  reviseMemory(input: ReviseMemoryInput): Promise<ReviseMemoryResult>;
   forget(input: ForgetInput): Promise<ForgetResult>;
   exportMemory(input: ExportMemoryInput): Promise<ExportMemoryResult>;
   deleteAllMemory(input: DeleteAllMemoryInput): Promise<DeleteAllMemoryResult>;

@@ -8,6 +8,10 @@ import type {
   RecallResult,
 } from "../../src/api/contracts";
 import { executeInstalledHostHook } from "../../src/install/hostHookRuntime";
+import {
+  createNoopGoodMemoryJobsFacade,
+  createNoopGoodMemoryRuntimeFacade,
+} from "../../src/testing/fakes";
 
 async function createWorkspace(prefix: string): Promise<string> {
   return mkdtemp(join(tmpdir(), prefix));
@@ -140,6 +144,8 @@ describe("installed host hook runtime", () => {
           createMemory: ((config: GoodMemoryConfig) => {
             calls.storage = config.storage;
             return {
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext(input) {
                 calls.buildContext = {
                   maxTokens: input.maxTokens,
@@ -173,6 +179,9 @@ describe("installed host hook runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -297,6 +306,8 @@ describe("installed host hook runtime", () => {
               config.adapters?.embeddingAdapter,
             );
             return {
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 return {
                   content: "Developer memory notes:\nProvider-backed memory is configured.",
@@ -321,6 +332,9 @@ describe("installed host hook runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -466,6 +480,8 @@ describe("installed host hook runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 return {
                   content: "Developer memory notes:\nRelease runbook is canonical.",
@@ -499,6 +515,9 @@ describe("installed host hook runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -571,6 +590,8 @@ describe("installed host hook runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -595,6 +616,9 @@ describe("installed host hook runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -665,6 +689,8 @@ describe("installed host hook runtime", () => {
       const dependencies = {
         createMemory: ((_: GoodMemoryConfig) =>
           ({
+            jobs: createNoopGoodMemoryJobsFacade(),
+            runtime: createNoopGoodMemoryRuntimeFacade(),
             async buildContext() {
               throw new Error("not used");
             },
@@ -691,6 +717,9 @@ describe("installed host hook runtime", () => {
               throw new Error("not used");
             },
             async feedback() {
+              throw new Error("not used");
+            },
+            async reviseMemory() {
               throw new Error("not used");
             },
             async runMaintenance() {
@@ -801,6 +830,8 @@ describe("installed host hook runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -825,6 +856,9 @@ describe("installed host hook runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -906,6 +940,8 @@ describe("installed host hook runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 return {
                   content: "Developer memory notes:\nResume active coding guidance.",
@@ -931,6 +967,9 @@ describe("installed host hook runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {

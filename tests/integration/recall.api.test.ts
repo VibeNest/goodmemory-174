@@ -437,6 +437,46 @@ describe("public recall API", () => {
     ).toContain("llmDecision=promote:source_of_truth");
   });
 
+  it("treats legacy references without lifecycle as active during recall", async () => {
+    const { documentStore, sessionStore, runtime } = seedMemory();
+    const legacyReference = createReferenceMemory({
+      id: "ref-legacy",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      title: "Migration runbook",
+      pointer: "docs/migration-runbook.md",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    delete (legacyReference as Partial<typeof legacyReference>).lifecycle;
+    await documentStore.set("references", legacyReference.id, legacyReference);
+    await runtime.startSession({
+      userId: "u-1",
+      sessionId: "s-1",
+      workspaceId: "workspace-a",
+    });
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+      testing: {
+        now: () => new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "Which migration runbook should I use?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.references.map((reference) => reference.id)).toContain("ref-legacy");
+    expect(
+      result.metadata.candidateTraces.find((trace) => trace.memoryId === "ref-legacy")
+        ?.whySuppressed,
+    ).not.toBe("inactive lifecycle");
+  });
+
   it("promotes auto recall to llm-assisted for authorized high-value queries in the internal runtime", async () => {
     const { documentStore, sessionStore, repositories, runtime } = seedMemory();
 

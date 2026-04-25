@@ -44,6 +44,8 @@
 
 - `bun run example:chat` works
 - `bun run example:coding-agent` works
+- `bun run example:express-chat` works
+- `bun run example:fastify-chat` works
 - README links both examples and explains when to use each
 
 ## Eval
@@ -76,10 +78,11 @@
 - `bun run gate:phase-35` passes
 - `bun run gate:phase-36` passes
 - `bun run gate:phase-37` passes
+- `bun run gate:phase-38` passes
 - typecheck passes
 - governance tests pass
 - no unresolved critical regressions in recent eval output
-- the tagged release workflow has `GOODMEMORY_ASSISTED_EXTRACTOR_*` secrets configured for the Phase 37 live-memory gate
+- the tagged release workflow runs the Phase 38 governed runtime surface gate, including the Phase 37.1 regression gate
 
 ## Packaging
 
@@ -108,5 +111,5 @@
 - latest live eval report is archived under `reports/eval/live/`
 - latest provider-backed live eval report is archived under `reports/eval/live-provider-memory/` or the dedicated phase live-memory evidence directory
 - latest fallback validation report is archived under `reports/eval/fallback/`
-- the active stable release gate report lives under `reports/quality-gates/phase-37/`
+- the active stable release gate report lives under `reports/quality-gates/phase-38/`
 - the historical Phase 29 gate and RC dry-run reports remain archived under `reports/quality-gates/phase-29/`

@@ -14,6 +14,10 @@ import {
 } from "../../src/eval/phase27";
 import type { PersonaSpec, ScenarioFixture } from "../../src/eval/dataset";
 import {
+  createNoopGoodMemoryJobsFacade,
+  createNoopGoodMemoryRuntimeFacade,
+} from "../../src/testing/fakes";
+import {
   buildPhase27ReferenceSetupMetric,
   parsePhase27EvalCliOptions,
   resolvePhase27FallbackOutputDir,
@@ -778,6 +782,8 @@ describe("run-phase-27 eval script", () => {
             });
 
             return {
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async recall() {
                 throw new Error("not used");
               },
@@ -817,6 +823,9 @@ describe("run-phase-27 eval script", () => {
               },
               async feedback() {
                 return { accepted: false };
+              },
+              async reviseMemory() {
+                throw new Error("not used");
               },
               async runMaintenance() {
                 return {

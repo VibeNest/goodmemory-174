@@ -7,6 +7,7 @@ import type {
 import type { MemoryScope } from "../domain/scope";
 import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
+  ConditionalDocumentWriteBatch,
   DocumentStore,
   SessionStore,
   StorageDocument,
@@ -493,6 +494,67 @@ export function createPostgresDocumentStore(
       );
 
       return rows.map((row) => parseJson<TDocument>(row.document_json));
+    },
+
+    async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("document");
+      }
+
+      await runtime.ensureDocumentStore();
+
+      return runtime.sql.begin(async (tx) => {
+        const expectedRows = await tx.unsafe<Array<{ id: string }>>(
+          `
+            SELECT id
+            FROM ${runtime.documentTable}
+            WHERE collection = $1
+              AND id = $2
+              AND document = $3::jsonb
+            FOR UPDATE
+          `,
+          [
+            input.expected.collection,
+            input.expected.id,
+            input.expected.document,
+          ],
+        );
+
+        if (expectedRows.length === 0) {
+          return false;
+        }
+
+        for (const operation of input.set) {
+          await tx.unsafe(
+            `
+              INSERT INTO ${runtime.documentTable} (
+                collection,
+                id,
+                document,
+                created_at,
+                updated_at
+              ) VALUES (
+                $1,
+                $2,
+                $3::jsonb,
+                NOW(),
+                NOW()
+              )
+              ON CONFLICT (collection, id)
+              DO UPDATE SET
+                document = EXCLUDED.document,
+                updated_at = EXCLUDED.updated_at
+            `,
+            [
+              operation.collection,
+              operation.id,
+              operation.document,
+            ],
+          );
+        }
+
+        return true;
+      });
     },
 
     async delete(collection, id) {

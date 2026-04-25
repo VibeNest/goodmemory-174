@@ -7,6 +7,10 @@ import type {
   GoodMemoryConfig,
 } from "../../src/api/contracts";
 import {
+  createNoopGoodMemoryJobsFacade,
+  createNoopGoodMemoryRuntimeFacade,
+} from "../../src/testing/fakes";
+import {
   readInstalledHostWritebackLedger,
   withInstalledHostWritebackLedgerLock,
 } from "../../src/install/hostWritebackAuditLedger";
@@ -130,6 +134,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -150,6 +156,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -206,6 +215,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -226,6 +237,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -275,6 +289,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -307,6 +323,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -389,6 +408,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -421,6 +442,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -469,6 +493,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -507,6 +533,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -553,6 +582,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -573,6 +604,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -624,6 +658,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -644,6 +680,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -700,6 +739,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -720,6 +761,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -784,6 +828,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -804,6 +850,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -849,6 +898,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -869,6 +920,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -925,6 +979,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -945,6 +1001,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -1005,6 +1064,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -1025,6 +1086,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -1160,6 +1224,8 @@ describe("installed host writeback runtime", () => {
       const dependencies = {
         createMemory: ((_: GoodMemoryConfig) =>
           ({
+            jobs: createNoopGoodMemoryJobsFacade(),
+            runtime: createNoopGoodMemoryRuntimeFacade(),
             async buildContext() {
               throw new Error("not used");
             },
@@ -1184,6 +1250,9 @@ describe("installed host writeback runtime", () => {
               throw new Error("not used");
             },
             async feedback() {
+              throw new Error("not used");
+            },
+            async reviseMemory() {
               throw new Error("not used");
             },
             async runMaintenance() {
@@ -1258,6 +1327,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -1290,6 +1361,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -1356,6 +1430,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -1388,6 +1464,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -1424,6 +1503,8 @@ describe("installed host writeback runtime", () => {
       const dependencies = {
         createMemory: ((_: GoodMemoryConfig) =>
           ({
+            jobs: createNoopGoodMemoryJobsFacade(),
+            runtime: createNoopGoodMemoryRuntimeFacade(),
             async buildContext() {
               throw new Error("not used");
             },
@@ -1456,6 +1537,9 @@ describe("installed host writeback runtime", () => {
               throw new Error("not used");
             },
             async feedback() {
+              throw new Error("not used");
+            },
+            async reviseMemory() {
               throw new Error("not used");
             },
             async runMaintenance() {
@@ -1543,6 +1627,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -1574,6 +1660,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -1632,6 +1721,8 @@ describe("installed host writeback runtime", () => {
       const dependencies = {
         createMemory: ((_: GoodMemoryConfig) =>
           ({
+            jobs: createNoopGoodMemoryJobsFacade(),
+            runtime: createNoopGoodMemoryRuntimeFacade(),
             async buildContext() {
               throw new Error("not used");
             },
@@ -1662,6 +1753,9 @@ describe("installed host writeback runtime", () => {
               throw new Error("not used");
             },
             async feedback() {
+              throw new Error("not used");
+            },
+            async reviseMemory() {
               throw new Error("not used");
             },
             async runMaintenance() {
@@ -1733,6 +1827,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -1752,6 +1848,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -1813,6 +1912,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -1841,6 +1942,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {
@@ -1901,6 +2005,8 @@ describe("installed host writeback runtime", () => {
         {
           createMemory: ((_: GoodMemoryConfig) =>
             ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("not used");
               },
@@ -1921,6 +2027,9 @@ describe("installed host writeback runtime", () => {
                 throw new Error("not used");
               },
               async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
                 throw new Error("not used");
               },
               async runMaintenance() {

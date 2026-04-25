@@ -796,6 +796,51 @@ describe("public remember API", () => {
     ).toHaveLength(0);
   });
 
+  it("treats legacy references without lifecycle as active during duplicate handling", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    await documentStore.set("references", "ref-legacy", {
+      id: "ref-legacy",
+      userId: "u-1",
+      workspaceId: "workspace-a",
+      sessionId: "s-legacy",
+      title: "migration-runbook.md",
+      pointer: "docs/migration-runbook.md",
+      confidence: 1,
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      subject: "migration work",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-2" },
+      messages: [
+        {
+          role: "user",
+          content: "Use docs/migration-runbook.md as the source of truth for migration work.",
+        },
+      ],
+    });
+
+    const references = await documentStore.query<{ id: string; pointer: string }>(
+      "references",
+      {
+        userId: "u-1",
+        workspaceId: "workspace-a",
+      },
+    );
+    expect(references).toHaveLength(1);
+    expect(references[0]?.id).toBe("ref-legacy");
+    expect(references[0]?.pointer).toBe("docs/migration-runbook.md");
+  });
+
   it("supersedes stale reference memory when the user corrects the source of truth", async () => {
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();

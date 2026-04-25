@@ -46,6 +46,8 @@ export interface PreferenceMemory {
   source: MemorySource;
   evidenceCount: number;
   isPinned?: boolean;
+  supersededBy?: string | null;
+  lifecycle?: MemoryLifecycleState;
   updatedAt: string;
 }
 
@@ -57,6 +59,18 @@ export type MemoryCategory =
   | "event"
   | (string & {});
 export type MemoryAttributeValue = string | number | boolean | null;
+
+export function resolveMemoryLifecycle(record: {
+  lifecycle?: MemoryLifecycleState;
+}): MemoryLifecycleState {
+  return record.lifecycle ?? "active";
+}
+
+export function isActiveMemoryLifecycle(record: {
+  lifecycle?: MemoryLifecycleState;
+}): boolean {
+  return resolveMemoryLifecycle(record) === "active";
+}
 
 export type FactKind =
   | "blocker"
@@ -127,7 +141,8 @@ export interface ReferenceMemory {
   subject?: string;
   tags?: string[];
   attributes?: Record<string, MemoryAttributeValue>;
-  lifecycle: MemoryLifecycleState;
+  supersededBy?: string | null;
+  lifecycle?: MemoryLifecycleState;
   createdAt: string;
   updatedAt: string;
 }
@@ -290,6 +305,8 @@ export function createPreferenceMemory(
     source: input.source,
     evidenceCount: input.evidenceCount ?? 1,
     isPinned: input.isPinned,
+    supersededBy: input.supersededBy ?? null,
+    lifecycle: input.lifecycle ?? "active",
     updatedAt: input.updatedAt ?? resolveTimestamp(input.source),
   };
 }
@@ -357,6 +374,7 @@ export function createReferenceMemory(
     subject: input.subject,
     tags: input.tags,
     attributes: input.attributes,
+    supersededBy: input.supersededBy ?? null,
     lifecycle: input.lifecycle ?? "active",
     createdAt: input.createdAt ?? timestamp,
     updatedAt: input.updatedAt ?? timestamp,

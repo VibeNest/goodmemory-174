@@ -548,7 +548,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
         policyApplied,
       });
       const preferences = await applyRecallPolicyToRecords(
-        sortPreferences(preferencesRaw),
+        sortPreferences(
+          preferencesRaw.filter(
+            (preference) => (preference.lifecycle ?? "active") === "active",
+          ),
+        ),
         "preference",
         {
           scope: input.scope,

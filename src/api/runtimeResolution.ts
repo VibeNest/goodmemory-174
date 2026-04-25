@@ -1,7 +1,12 @@
 import { resolve } from "node:path";
 import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
 import { isModelProviderId } from "../provider/model-provider";
-import type { GoodMemoryConfig, StorageConfig } from "./contracts";
+import type {
+  GoodMemoryConfig,
+  GoodMemoryEmbeddingProviderConfig,
+  GoodMemoryExtractionProviderConfig,
+  StorageConfig,
+} from "./contracts";
 
 export const DEFAULT_SQLITE_STORAGE_PATH = ".goodmemory/memory.sqlite";
 export const STORAGE_PROVIDER_ENV = "GOODMEMORY_STORAGE_PROVIDER";
@@ -285,7 +290,7 @@ export function resolveStoragePlan(input: {
 }
 
 export function resolveGoodMemoryRuntimeResolution(input: {
-  config: Pick<GoodMemoryConfig, "adapters" | "storage">;
+  config: Pick<GoodMemoryConfig, "adapters" | "providers" | "storage">;
   env?: EnvironmentMap;
   cwd?: string;
   runtimeCapabilities?: GoodMemoryRuntimeCapabilitiesInput;
@@ -294,10 +299,14 @@ export function resolveGoodMemoryRuntimeResolution(input: {
   const runtimeCapabilities = resolveRuntimeCapabilities(input.runtimeCapabilities);
   const embeddingModelConfig = input.config.adapters?.embeddingAdapter
     ? null
-    : resolveEmbeddingModelConfigFromEnv(env);
+    : resolveEmbeddingModelConfigFromProviderConfig(
+        input.config.providers?.embedding,
+      ) ?? resolveEmbeddingModelConfigFromEnv(env);
   const assistedExtractorModelConfig = input.config.adapters?.assistedExtractor
     ? null
-    : resolveAssistedExtractorModelConfigFromEnv(env);
+    : resolveAssistedExtractorModelConfigFromProviderConfig(
+        input.config.providers?.extraction,
+      ) ?? resolveAssistedExtractorModelConfigFromEnv(env);
 
   return {
     assistedExtractionEnabled: Boolean(
@@ -318,6 +327,98 @@ export function resolveGoodMemoryRuntimeResolution(input: {
       cwd: input.cwd,
       runtimeCapabilities,
     }),
+  };
+}
+
+export function resolveEmbeddingModelConfigFromProviderConfig(
+  config: GoodMemoryEmbeddingProviderConfig | undefined,
+): AISDKModelConfig | null {
+  if (!config) {
+    return null;
+  }
+
+  const provider = normalizeNonEmpty(config.provider);
+  const model = normalizeNonEmpty(config.model);
+  const apiKey = normalizeNonEmpty(config.apiKey);
+  const baseURL = normalizeNonEmpty(config.baseURL);
+  const missingFields = [
+    !provider ? "provider" : null,
+    !model ? "model" : null,
+    !apiKey ? "apiKey" : null,
+  ].filter(Boolean) as string[];
+
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Missing required providers.embedding configuration fields: ${missingFields.join(", ")}`,
+    );
+  }
+
+  if (!provider || !model || !apiKey) {
+    throw new Error(
+      `Missing required providers.embedding configuration fields: ${missingFields.join(", ")}`,
+    );
+  }
+
+  if (!isModelProviderId(provider)) {
+    throw new Error(
+      `Unsupported embedding provider: ${provider}. Expected one of openai.`,
+    );
+  }
+
+  if (provider !== "openai") {
+    throw new Error(
+      `Unsupported embedding provider: ${provider}. GoodMemory currently supports openai embeddings only.`,
+    );
+  }
+
+  return {
+    provider,
+    model,
+    apiKey,
+    baseURL,
+  };
+}
+
+export function resolveAssistedExtractorModelConfigFromProviderConfig(
+  config: GoodMemoryExtractionProviderConfig | undefined,
+): AISDKModelConfig | null {
+  if (!config) {
+    return null;
+  }
+
+  const provider = normalizeNonEmpty(config.provider);
+  const model = normalizeNonEmpty(config.model);
+  const apiKey = normalizeNonEmpty(config.apiKey);
+  const baseURL = normalizeNonEmpty(config.baseURL);
+  const missingFields = [
+    !provider ? "provider" : null,
+    !model ? "model" : null,
+    !apiKey ? "apiKey" : null,
+  ].filter(Boolean) as string[];
+
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Missing required providers.extraction configuration fields: ${missingFields.join(", ")}`,
+    );
+  }
+
+  if (!provider || !model || !apiKey) {
+    throw new Error(
+      `Missing required providers.extraction configuration fields: ${missingFields.join(", ")}`,
+    );
+  }
+
+  if (!isModelProviderId(provider)) {
+    throw new Error(
+      `Unsupported extraction provider: ${provider}. Expected one of openai|anthropic.`,
+    );
+  }
+
+  return {
+    provider,
+    model,
+    apiKey,
+    baseURL,
   };
 }
 

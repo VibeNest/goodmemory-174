@@ -2,6 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { createPhase22FallbackCreateMemory } from "../../src/eval/phase22";
 import {
+  createNoopGoodMemoryJobsFacade,
+  createNoopGoodMemoryRuntimeFacade,
+} from "../../src/testing/fakes";
+import {
   buildPhase22GateCommands,
   buildPhase22GateRunId,
   parsePhase22GateCliOptions,
@@ -211,6 +215,8 @@ describe("run-phase-22 scripts", () => {
             },
           }),
           createMemory: () => ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async buildContext() {
                 throw new Error("unused");
               },
@@ -252,6 +258,9 @@ describe("run-phase-22 scripts", () => {
             },
             async remember() {
               throw new Error("unused");
+            },
+            async reviseMemory() {
+              throw new Error("not used");
             },
             async runMaintenance() {
               throw new Error("unused");

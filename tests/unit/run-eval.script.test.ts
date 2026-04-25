@@ -3,6 +3,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createTempWorkspace } from "../../src/testing/utils";
 import {
+  createNoopGoodMemoryJobsFacade,
+  createNoopGoodMemoryRuntimeFacade,
+} from "../../src/testing/fakes";
+import {
   buildLiveGoodMemorySystemPrompt,
   mergeScenarioIds,
   parseCliOptionsFromArgv,
@@ -1051,6 +1055,8 @@ describe("run-eval script", () => {
           createMemory: (config) => {
             createMemoryCalls.push(config as unknown as Record<string, unknown>);
             return {
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async recall() {
                 throw new Error("not used");
               },
@@ -1090,6 +1096,9 @@ describe("run-eval script", () => {
               },
               async feedback() {
                 return { accepted: false };
+              },
+              async reviseMemory() {
+                throw new Error("not used");
               },
               async runMaintenance() {
                 throw new Error("not used");
@@ -1265,6 +1274,8 @@ describe("run-eval script", () => {
           createMemory: (config) => {
             createMemoryCalls.push(config as unknown as Record<string, unknown>);
             return {
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
               async recall() {
                 throw new Error("not used");
               },
@@ -1304,6 +1315,9 @@ describe("run-eval script", () => {
               },
               async feedback() {
                 return { accepted: false };
+              },
+              async reviseMemory() {
+                throw new Error("not used");
               },
               async runMaintenance() {
                 throw new Error("not used");

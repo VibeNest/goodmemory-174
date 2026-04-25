@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(bun -e 'import { readFileSync } from "node:fs"; const pkg = JSON.parse(readFileSync("package.json", "utf8")); console.log(pkg.version);')"
-          bun run gate:phase-37 --run-id "release-v${VERSION}"
+          bun run gate:phase-38 --run-id "release-v${VERSION}"
 
       - name: Pack release tarball
         id: pack

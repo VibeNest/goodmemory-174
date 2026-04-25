@@ -13,6 +13,12 @@ import {
   runPlainAISDKServerExample,
 } from "../../examples/plain-ai-sdk-server";
 import {
+  runExpressChatServerExample,
+} from "../../examples/express-chat-server";
+import {
+  runFastifyChatServerExample,
+} from "../../examples/fastify-chat-server";
+import {
   runClaudeArtifactExample,
 } from "../../examples/host-claude-artifacts";
 import {
@@ -158,6 +164,39 @@ describe("examples", () => {
     expect(await response.json()).toEqual({
       error: "Expected a request body with a messages array and scope.userId.",
     });
+  });
+
+  it("express chat server example registers a thin route and schedules governed memory writes", async () => {
+    const result = await runExpressChatServerExample();
+
+    expect(result.routePath).toBe("/chat");
+    expect(result.firstResponse.statusCode).toBe(200);
+    expect(result.firstResponse.body.text).toContain("Noted");
+    expect(result.firstResponse.body.writeJobStatus).toBe("succeeded");
+    expect(result.secondResponse.statusCode).toBe(200);
+    expect(result.secondResponse.body.text).toContain(
+      "staging smoke verification",
+    );
+    expect(result.secondResponse.body.contextIncluded).toBe(true);
+    expect(result.artifacts.files.map((file) => file.relativePath)).toContain(
+      "MEMORY.md",
+    );
+  });
+
+  it("fastify chat server example registers a thin route and validates the request boundary", async () => {
+    const result = await runFastifyChatServerExample();
+
+    expect(result.routePath).toBe("/chat");
+    expect(result.malformedResponse.statusCode).toBe(400);
+    expect(result.malformedResponse.body).toEqual({
+      error:
+        "Expected userId, sessionId, message, and turnId string fields in the request body.",
+    });
+    expect(result.firstResponse.body.writeJobStatus).toBe("succeeded");
+    expect(result.secondResponse.body.text).toContain(
+      "staging smoke verification",
+    );
+    expect(result.secondResponse.body.contextIncluded).toBe(true);
   });
 
   it("claude host example demonstrates read-only compiled artifact consumption", async () => {

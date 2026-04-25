@@ -635,4 +635,46 @@ describe("maintenance runner", () => {
       }),
     ).not.toContainEqual(expect.objectContaining({ id: staleEpisode.id }));
   });
+
+  it("treats legacy references without lifecycle as active during embedding repair", async () => {
+    const { embeddingAdapter, repositories, runner } = createFixture({
+      withEmbeddings: true,
+    });
+    const scope = { userId: "u-legacy-reference", workspaceId: "workspace-a" };
+    const legacyReference = createReferenceMemory({
+      id: "ref-legacy-active",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      title: "Runtime runbook",
+      pointer: "docs/runtime-runbook.md",
+      source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+    });
+    delete (legacyReference as Partial<typeof legacyReference>).lifecycle;
+    await repositories.references.add(legacyReference);
+    const [referenceEmbedding] = await embeddingAdapter!.embed([
+      `${legacyReference.title}\n${legacyReference.pointer}`,
+    ]);
+    await repositories.vectorIndex?.upsertReferenceEmbedding([
+      {
+        id: legacyReference.id,
+        embedding: referenceEmbedding,
+        metadata: {
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+          memoryType: "reference",
+        },
+        content: `${legacyReference.title}\n${legacyReference.pointer}`,
+      },
+    ]);
+
+    const report = await runner.run(scope, ["embeddingRepair"]);
+
+    expect(report.jobs[0]?.applied).toBe(1);
+    expect(
+      await repositories.vectorIndex?.searchReferenceEmbedding(referenceEmbedding, {
+        topK: 5,
+        filter: { userId: scope.userId, workspaceId: scope.workspaceId },
+      }),
+    ).toContainEqual(expect.objectContaining({ id: legacyReference.id }));
+  });
 });

@@ -9,6 +9,7 @@ import {
   normalizeFeedbackAppliesTo,
 } from "../domain/records";
 import { createMemorySource } from "../domain/provenance";
+import type { EmbeddingAdapter } from "../embedding/contracts";
 import { EVIDENCE_COLLECTION } from "../evidence/contracts";
 import type { BehavioralOutcomeObservationResult } from "../evolution/behavioralTelemetry";
 import { createProceduralPatternCompiler } from "../evolution/compiler";
@@ -52,6 +53,7 @@ import { createMemoryRepositories } from "../storage/repositories";
 import type {
   GovernanceRepositoryPort,
   GovernanceVectorPort,
+  RememberVectorPort,
 } from "../storage/ports";
 import type { DocumentStore } from "../storage/contracts";
 import {
@@ -83,7 +85,10 @@ import {
 import { createAgentEventIngestor } from "./agentEventIngestion";
 import { createEvolutionRuntime } from "./evolutionRuntime";
 import { deleteVectorForCollection } from "./governance";
+import { createGoodMemoryJobsFacade } from "./jobs";
 import { wrapInternalRetrievalRolloutMemory } from "./internalRetrievalRollout";
+import { reviseMemory as reviseMemoryThroughService } from "./revision";
+import { createGoodMemoryRuntimeFacade } from "./runtimeFacade";
 import type {
   BuildContextInput,
   BuildContextResult,
@@ -97,10 +102,14 @@ import type {
   ForgetResult,
   GoodMemory,
   GoodMemoryConfig,
+  GoodMemoryJobsFacade,
+  GoodMemoryRuntimeFacade,
   RecallInput,
   RecallResult,
   RememberInput,
   RememberResult,
+  ReviseMemoryInput,
+  ReviseMemoryResult,
   RunMaintenanceInput,
   RunMaintenanceResult,
 } from "./contracts";
@@ -196,7 +205,7 @@ function isPureUserScope(scope: ForgetInput["scope"]): boolean {
 function buildRememberTraceLinks(events: RememberResult["events"]): GoodMemoryTraceLink[] {
   const links: GoodMemoryTraceLink[] = [];
   for (const event of events) {
-    if (event.memoryId) {
+    if (event.memoryId && event.memoryType !== "profile") {
       links.push({ type: "memory", id: event.memoryId });
     }
     for (const evidenceId of event.evidenceIds ?? []) {
@@ -232,6 +241,33 @@ function buildFeedbackTraceLinks(result: FeedbackResult): GoodMemoryTraceLink[] 
     links.push({ type: "promotion", id: receipt.promotionId });
   }
   return links;
+}
+
+function buildRevisionTraceLinks(result: ReviseMemoryResult): GoodMemoryTraceLink[] {
+  const links: GoodMemoryTraceLink[] = [];
+  if (result.previousMemoryId) {
+    links.push({ type: "memory", id: result.previousMemoryId });
+  }
+  if (result.newMemoryId) {
+    links.push({ type: "memory", id: result.newMemoryId });
+  }
+  for (const evidenceId of result.evidenceIds ?? []) {
+    links.push({ type: "evidence", id: evidenceId });
+  }
+
+  return links;
+}
+
+function resolveRevisionTraceReason(reason: ReviseMemoryInput["reason"]): string {
+  if (
+    reason === "user_correction" ||
+    reason === "manual_review" ||
+    reason === "system_repair"
+  ) {
+    return reason;
+  }
+
+  return "custom";
 }
 
 function withRecallTrace(
@@ -686,14 +722,19 @@ async function recordHostActionAssessment(input: {
 }
 
 class GoodMemoryImpl implements GoodMemory {
+  readonly jobs: GoodMemoryJobsFacade;
+  readonly runtime: GoodMemoryRuntimeFacade;
+
   private readonly documentStore;
   private readonly sessionStore;
   private readonly governanceRepositories: GovernanceRepositoryPort;
   private readonly governanceVectors: GovernanceVectorPort | null;
+  private readonly revisionVectorIndex: RememberVectorPort | null;
   private readonly runtimeResolution: GoodMemoryRuntimeResolution;
   private readonly recallEngine;
   private readonly rememberEngine;
   private readonly evolutionRuntime: ReturnType<typeof createEvolutionRuntime>;
+  private readonly embeddingAdapter?: EmbeddingAdapter;
   private readonly language;
   private readonly now: () => Date;
   private readonly tracer: GoodMemoryTracer;
@@ -780,9 +821,17 @@ class GoodMemoryImpl implements GoodMemory {
     this.sessionStore = sessionStore;
     this.governanceRepositories = repositories;
     this.governanceVectors = repositories.vectorIndex;
+    this.revisionVectorIndex = repositories.vectorIndex;
+    this.embeddingAdapter = embeddingAdapter;
     this.language = language;
     this.now = config.testing?.now ?? (() => new Date());
     this.tracer = createGoodMemoryTracer(config.observability, this.now);
+    this.runtime = createGoodMemoryRuntimeFacade({
+      documentStore,
+      sessionStore,
+      now: this.now,
+      tracer: this.tracer,
+    });
     this.recallEngine = createRecallEngine({
       assistedRouter: internal?.assistedRecallRouter,
       repositories,
@@ -810,6 +859,11 @@ class GoodMemoryImpl implements GoodMemory {
       language,
       remember: config.remember,
       policy: config.policy,
+    });
+    this.jobs = createGoodMemoryJobsFacade({
+      now: this.now,
+      tracer: this.tracer,
+      remember: (input) => this.remember(input),
     });
     const reviewer = createRulesOnlyReviewer({
       repositories,
@@ -963,6 +1017,57 @@ class GoodMemoryImpl implements GoodMemory {
         },
         links: buildRememberTraceLinks(result.events),
       });
+
+      return traced;
+    } catch (error) {
+      await trace.failed({ error });
+      throw error;
+    }
+  }
+
+  async reviseMemory(input: ReviseMemoryInput): Promise<ReviseMemoryResult> {
+    const trace = await this.tracer.start({
+      name: "memory.revise",
+      scope: input.scope,
+      attributes: {
+        hasEvidence: Boolean(input.evidence),
+        reason: resolveRevisionTraceReason(input.reason),
+        target: "memory_id",
+      },
+    });
+
+    try {
+      const result = await reviseMemoryThroughService({
+        config: {
+          documentStore: this.documentStore,
+          embedding: this.embeddingAdapter,
+          language: this.language,
+          now: this.now,
+          policy: this.config.policy,
+          vectorIndex: this.revisionVectorIndex,
+        },
+        input,
+      });
+      const traced: ReviseMemoryResult = {
+        ...result,
+        ...(trace.traceId ? { traceId: trace.traceId } : {}),
+      };
+      const completion = {
+        attributes: {
+          accepted: result.accepted,
+          memoryType: result.memoryType ?? "unknown",
+          outcome: result.outcome,
+          policyAppliedCount: result.policyApplied.length,
+          warningCount: result.warnings?.length ?? 0,
+        },
+        links: buildRevisionTraceLinks(result),
+      };
+
+      if (result.outcome === "blocked") {
+        await trace.blocked(completion);
+      } else {
+        await trace.succeeded(completion);
+      }
 
       return traced;
     } catch (error) {

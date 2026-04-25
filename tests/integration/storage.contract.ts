@@ -45,6 +45,80 @@ export function runDocumentStoreContract(
           }),
         ).toHaveLength(1);
 
+        expect(fixture.store.writeBatchIfUnchanged).toBeFunction();
+        expect(
+          await fixture.store.writeBatchIfUnchanged!({
+            expected: {
+              collection: "facts",
+              id: "f-1",
+              document: {
+                id: "f-1",
+                userId: "u-1",
+                content: "updated",
+              },
+            },
+            set: [
+              {
+                collection: "facts",
+                id: "f-1",
+                document: {
+                  id: "f-1",
+                  userId: "u-1",
+                  content: "batch-updated",
+                },
+              },
+              {
+                collection: "evidence",
+                id: "ev-1",
+                document: {
+                  id: "ev-1",
+                  userId: "u-1",
+                  excerpt: "batch audit",
+                },
+              },
+            ],
+          }),
+        ).toBe(true);
+        expect(await fixture.store.get("facts", "f-1")).toEqual({
+          id: "f-1",
+          userId: "u-1",
+          content: "batch-updated",
+        });
+        expect(await fixture.store.get("evidence", "ev-1")).toEqual({
+          id: "ev-1",
+          userId: "u-1",
+          excerpt: "batch audit",
+        });
+        expect(
+          await fixture.store.writeBatchIfUnchanged!({
+            expected: {
+              collection: "facts",
+              id: "f-1",
+              document: {
+                id: "f-1",
+                userId: "u-1",
+                content: "updated",
+              },
+            },
+            set: [
+              {
+                collection: "facts",
+                id: "f-1",
+                document: {
+                  id: "f-1",
+                  userId: "u-1",
+                  content: "should-not-write",
+                },
+              },
+            ],
+          }),
+        ).toBe(false);
+        expect(await fixture.store.get("facts", "f-1")).toEqual({
+          id: "f-1",
+          userId: "u-1",
+          content: "batch-updated",
+        });
+
         await fixture.store.delete("facts", "f-1");
         expect(await fixture.store.get("facts", "f-1")).toBeNull();
       } finally {

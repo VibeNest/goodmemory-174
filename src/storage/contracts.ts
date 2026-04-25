@@ -8,6 +8,19 @@ import type { MemoryScope } from "../domain/scope";
 export type StorageDocument = object;
 export type StorageFilter = Record<string, unknown>;
 
+export interface DocumentWriteOperation<
+  TDocument extends StorageDocument = StorageDocument,
+> {
+  collection: string;
+  id: string;
+  document: TDocument;
+}
+
+export interface ConditionalDocumentWriteBatch {
+  expected: DocumentWriteOperation;
+  set: DocumentWriteOperation[];
+}
+
 export interface DocumentStore {
   set<TDocument extends StorageDocument>(
     collection: string,
@@ -27,6 +40,7 @@ export interface DocumentStore {
     collection: string,
     filter?: StorageFilter,
   ): Promise<TDocument[]>;
+  writeBatchIfUnchanged?(input: ConditionalDocumentWriteBatch): Promise<boolean>;
   delete(collection: string, id: string): Promise<void>;
 }
 

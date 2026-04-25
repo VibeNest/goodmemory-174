@@ -10,6 +10,7 @@ import type {
 import type { MemoryScope } from "../domain/scope";
 import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
+  ConditionalDocumentWriteBatch,
   DocumentStore,
   SessionStore,
   StorageDocument,
@@ -400,6 +401,61 @@ export function createSQLiteDocumentStore(
   const deleteStatement = database.query(
     `DELETE FROM documents WHERE collection = ?1 AND id = ?2`,
   );
+  function isSQLiteContentionError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /SQLITE_BUSY|SQLITE_LOCKED|database is locked|database is busy/i.test(
+      message,
+    );
+  }
+
+  function writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch): boolean {
+    try {
+      database.exec("BEGIN IMMEDIATE");
+    } catch (error) {
+      if (isSQLiteContentionError(error)) {
+        return false;
+      }
+
+      throw error;
+    }
+
+    try {
+      const current = getStatement.get(
+        input.expected.collection,
+        input.expected.id,
+      );
+      if (
+        !current ||
+        current.json !== JSON.stringify(input.expected.document)
+      ) {
+        database.exec("ROLLBACK");
+        return false;
+      }
+
+      for (const operation of input.set) {
+        upsertStatement.run(
+          operation.collection,
+          operation.id,
+          JSON.stringify(operation.document),
+        );
+      }
+
+      database.exec("COMMIT");
+      return true;
+    } catch (error) {
+      try {
+        database.exec("ROLLBACK");
+      } catch {
+        // The original mutation failure is more useful than rollback cleanup.
+      }
+
+      if (isSQLiteContentionError(error)) {
+        return false;
+      }
+
+      throw error;
+    }
+  }
 
   return {
     async set<TDocument extends StorageDocument>(
@@ -438,6 +494,14 @@ export function createSQLiteDocumentStore(
       return rows
         .map((row) => parseJson<TDocument>(row.json))
         .filter((document) => matchesFilter(document, filter));
+    },
+
+    async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("document");
+      }
+
+      return writeBatchIfUnchanged(input);
     },
 
     async delete(collection, id) {

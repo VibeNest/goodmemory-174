@@ -13,6 +13,10 @@ import type {
   GoodMemoryAISDKErrorEvent,
   GoodMemoryAISDKEvent,
 } from "../../src/ai-sdk";
+import {
+  createNoopGoodMemoryJobsFacade,
+  createNoopGoodMemoryRuntimeFacade,
+} from "../../src/testing/fakes";
 
 function createRecallResult(): RecallResult {
   return {
@@ -64,6 +68,8 @@ function createGoodMemoryStub(input?: {
   }) => Promise<RememberResult>;
 }): GoodMemory {
   return {
+    jobs: createNoopGoodMemoryJobsFacade(),
+    runtime: createNoopGoodMemoryRuntimeFacade(),
     async recall(payload) {
       return (
         input?.recall?.({ query: payload.query }) ?? createRecallResult()
@@ -90,6 +96,9 @@ function createGoodMemoryStub(input?: {
     },
     async feedback() {
       throw new Error("not implemented");
+    },
+    async reviseMemory() {
+      throw new Error("not used");
     },
     async runMaintenance() {
       throw new Error("not implemented");

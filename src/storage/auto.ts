@@ -89,6 +89,15 @@ function createAutoDocumentStore(
       return backend.documentStore.query<TDocument>(collection, filter);
     },
 
+    async writeBatchIfUnchanged(input) {
+      const backend = await resolveBackend();
+      if (!backend.documentStore.writeBatchIfUnchanged) {
+        return false;
+      }
+
+      return backend.documentStore.writeBatchIfUnchanged(input);
+    },
+
     async delete(collection, id) {
       const backend = await resolveBackend();
       return backend.documentStore.delete(collection, id);

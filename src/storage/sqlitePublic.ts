@@ -105,6 +105,15 @@ function createDeferredDocumentStore(
       return store.query(collection, filter);
     },
 
+    async writeBatchIfUnchanged(input) {
+      const store = await resolveStore();
+      if (!store.writeBatchIfUnchanged) {
+        return false;
+      }
+
+      return store.writeBatchIfUnchanged(input);
+    },
+
     async delete(collection, id) {
       const store = await resolveStore();
       return store.delete(collection, id);

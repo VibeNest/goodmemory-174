@@ -1,6 +1,7 @@
 import {
   createFactMemory,
   createEpisodeMemory,
+  isActiveMemoryLifecycle,
 } from "../domain/records";
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import {
@@ -471,7 +472,7 @@ async function runEmbeddingRepair(
       .filter((fact) => fact.lifecycle === "active")
       .map((fact) => buildFactEmbeddingWrite(fact)),
     ...references
-      .filter((reference) => reference.lifecycle === "active")
+      .filter((reference) => isActiveMemoryLifecycle(reference))
       .map((reference) => buildReferenceEmbeddingWrite(reference)),
     ...episodes
       .filter((episode) => !episode.archivedAt)
@@ -480,7 +481,7 @@ async function runEmbeddingRepair(
   for (const fact of facts.filter((fact) => fact.lifecycle !== "active")) {
     await vectorIndex.deleteFactEmbedding(fact.id);
   }
-  for (const reference of references.filter((reference) => reference.lifecycle !== "active")) {
+  for (const reference of references.filter((reference) => !isActiveMemoryLifecycle(reference))) {
     await vectorIndex.deleteReferenceEmbedding(reference.id);
   }
   for (const episode of episodes.filter((episode) => Boolean(episode.archivedAt))) {

@@ -489,6 +489,103 @@ describe("runtime resolution", () => {
     });
   });
 
+  it("prefers public provider facade config over provider env vars", () => {
+    expect(
+      resolveGoodMemoryRuntimeResolution({
+        config: {
+          providers: {
+            embedding: {
+              provider: "openai",
+              model: "text-embedding-3-small",
+              apiKey: "explicit-embedding-key",
+              baseURL: "https://explicit-embedding.test/v1",
+            },
+            extraction: {
+              provider: "anthropic",
+              model: "claude-3-5-haiku-latest",
+              apiKey: "explicit-extractor-key",
+              baseURL: "https://explicit-extractor.test/v1",
+            },
+          },
+        },
+        env: {
+          GOODMEMORY_EMBEDDING_PROVIDER: "openai",
+          GOODMEMORY_EMBEDDING_MODEL: "env-embedding",
+          GOODMEMORY_EMBEDDING_API_KEY: "env-embedding-key",
+          GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER: "openai",
+          GOODMEMORY_ASSISTED_EXTRACTOR_MODEL: "env-extractor",
+          GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY: "env-extractor-key",
+        },
+        cwd: "/workspace/project",
+        runtimeCapabilities: {
+          localDefaultSQLite: true,
+        },
+      }),
+    ).toMatchObject({
+      assistedExtractionEnabled: true,
+      assistedExtractorModelConfig: {
+        provider: "anthropic",
+        model: "claude-3-5-haiku-latest",
+        apiKey: "explicit-extractor-key",
+        baseURL: "https://explicit-extractor.test/v1",
+      },
+      embeddingEnabled: true,
+      embeddingModelConfig: {
+        provider: "openai",
+        model: "text-embedding-3-small",
+        apiKey: "explicit-embedding-key",
+        baseURL: "https://explicit-embedding.test/v1",
+      },
+    });
+  });
+
+  it("keeps direct adapters authoritative over provider facade config", () => {
+    expect(
+      resolveGoodMemoryRuntimeResolution({
+        config: {
+          providers: {
+            embedding: {
+              provider: "openai",
+              model: "text-embedding-3-small",
+              apiKey: "provider-key",
+            },
+            extraction: {
+              provider: "openai",
+              model: "gpt-4o-mini",
+              apiKey: "provider-key",
+            },
+          },
+          adapters: {
+            embeddingAdapter: {
+              async embed(texts) {
+                return texts.map(() => [1, 0, 0]);
+              },
+            },
+            assistedExtractor: {
+              async extract() {
+                return {
+                  candidates: [],
+                  ignoredMessageCount: 0,
+                };
+              },
+            },
+          },
+        },
+        env: {},
+        cwd: "/workspace/project",
+        runtimeCapabilities: {
+          localDefaultSQLite: true,
+        },
+      }),
+    ).toMatchObject({
+      assistedExtractionEnabled: true,
+      assistedExtractorModelConfig: null,
+      embeddingEnabled: true,
+      embeddingModelConfig: null,
+      explicitAdaptersConfigured: true,
+    });
+  });
+
   it("rejects partial embedding env configuration", () => {
     expect(() =>
       resolveEmbeddingModelConfigFromEnv({
@@ -504,6 +601,23 @@ describe("runtime resolution", () => {
         GOODMEMORY_EMBEDDING_PROVIDER: "anthropic",
         GOODMEMORY_EMBEDDING_MODEL: "text-embedding-3-small",
         GOODMEMORY_EMBEDDING_API_KEY: "secret",
+      }),
+    ).toThrow("Unsupported embedding provider");
+  });
+
+  it("rejects unsupported provider facade embedding providers", () => {
+    expect(() =>
+      resolveGoodMemoryRuntimeResolution({
+        config: {
+          providers: {
+            embedding: {
+              provider: "anthropic",
+              model: "text-embedding-3-small",
+              apiKey: "secret",
+            } as never,
+          },
+        },
+        env: {},
       }),
     ).toThrow("Unsupported embedding provider");
   });

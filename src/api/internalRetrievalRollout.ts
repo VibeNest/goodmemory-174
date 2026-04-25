@@ -140,6 +140,8 @@ export function wrapInternalRetrievalRolloutMemory(
   const languageService = createLanguageService(state.config.language);
 
   return {
+    jobs: memory.jobs,
+    runtime: memory.runtime,
     async buildContext(input) {
       return memory.buildContext(input);
     },
@@ -188,6 +190,9 @@ export function wrapInternalRetrievalRolloutMemory(
     },
     async remember(input) {
       return memory.remember(input);
+    },
+    async reviseMemory(input) {
+      return memory.reviseMemory(input);
     },
     async runMaintenance(input) {
       return memory.runMaintenance(input);

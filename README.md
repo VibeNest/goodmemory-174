@@ -391,6 +391,9 @@ Notes:
 
 - The canonical server example is
   [examples/plain-ai-sdk-server.ts](./examples/plain-ai-sdk-server.ts).
+- Thin Express and Fastify examples are
+  [examples/express-chat-server.ts](./examples/express-chat-server.ts) and
+  [examples/fastify-chat-server.ts](./examples/fastify-chat-server.ts).
 - `examples/vercel-ai-chat.ts` remains a lower-level wrapper/API example.
 - Next.js App Router can map `export async function POST(request: Request)`
   to the same handler body.
@@ -546,6 +549,10 @@ Repo-local examples:
   [examples/coding-agent.ts](./examples/coding-agent.ts)
 - Plain AI SDK server integration:
   [examples/plain-ai-sdk-server.ts](./examples/plain-ai-sdk-server.ts)
+- Express chat server integration:
+  [examples/express-chat-server.ts](./examples/express-chat-server.ts)
+- Fastify chat server integration:
+  [examples/fastify-chat-server.ts](./examples/fastify-chat-server.ts)
 - AI SDK wrapper integration:
   [examples/vercel-ai-chat.ts](./examples/vercel-ai-chat.ts)
 - Life-coach public remember profile:
@@ -561,6 +568,8 @@ Run examples from this repo:
 bun run example:chat
 bun run example:coding-agent
 bun run example:ai-sdk-server
+bun run example:express-chat
+bun run example:fastify-chat
 bun run example:vercel-ai
 bun run example:life-coach-profile
 bun run example:host-claude

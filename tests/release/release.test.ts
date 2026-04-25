@@ -634,6 +634,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["example:ai-sdk-server"]).toBe(
       "bun run examples/plain-ai-sdk-server.ts",
     );
+    expect(pkg.scripts?.["example:express-chat"]).toBe(
+      "bun run examples/express-chat-server.ts",
+    );
+    expect(pkg.scripts?.["example:fastify-chat"]).toBe(
+      "bun run examples/fastify-chat-server.ts",
+    );
     expect(pkg.scripts?.["example:vercel-ai"]).toBe(
       "bun run examples/vercel-ai-chat.ts",
     );
@@ -711,6 +717,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-33"]).toBe("bun run scripts/run-phase-33-gate.ts");
     expect(pkg.scripts?.["gate:phase-34"]).toBe("bun run scripts/run-phase-34-gate.ts");
     expect(pkg.scripts?.["gate:phase-35"]).toBe("bun run scripts/run-phase-35-gate.ts");
+    expect(pkg.scripts?.["gate:phase-38"]).toBe("bun run scripts/run-phase-38-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -850,6 +857,8 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("examples/basic-chat.ts");
     expect(readme).toContain("examples/coding-agent.ts");
     expect(readme).toContain("examples/plain-ai-sdk-server.ts");
+    expect(readme).toContain("examples/express-chat-server.ts");
+    expect(readme).toContain("examples/fastify-chat-server.ts");
     expect(readme).toContain("examples/vercel-ai-chat.ts");
     expect(readme).toContain("examples/host-claude-artifacts.ts");
     expect(readme).toContain("examples/host-codex-handoff.ts");
@@ -1120,6 +1129,8 @@ describe("release metadata and docs", () => {
       "examples/basic-chat.ts",
       "examples/coding-agent.ts",
       "examples/plain-ai-sdk-server.ts",
+      "examples/express-chat-server.ts",
+      "examples/fastify-chat-server.ts",
       "examples/host-claude-artifacts.ts",
       "examples/host-codex-handoff.ts",
       "examples/vercel-ai-chat.ts",
@@ -1857,6 +1868,7 @@ describe("release metadata and docs", () => {
     expect(checklist).toContain("Node");
     expect(checklist).toContain("Bun");
     expect(checklist).toContain("gate:phase-37");
+    expect(checklist).toContain("gate:phase-38");
     expect(checklist).toContain("tarball");
     expect(checklist).toContain("eval:live");
     expect(checklist).toContain("eval:live-memory");
@@ -1939,6 +1951,24 @@ describe("release metadata and docs", () => {
     );
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-37-1/run-20260424100757/phase-37-1-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "Phase 38 is now closed as the governed runtime surface slice",
+    );
+    expect(currentStatus).toContain("GoodMemoryConfig.observability.traceSink");
+    expect(currentStatus).toContain("targeted `reviseMemory()`");
+    expect(currentStatus).toContain("`memory.runtime.*`");
+    expect(currentStatus).toContain("`memory.jobs.enqueueRemember()`");
+    expect(currentStatus).toContain("GoodMemoryConfig.providers.embedding");
+    expect(currentStatus).toContain("examples/express-chat-server.ts");
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-38-Quality-Gate.md",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "No active implementation slice is open after the accepted Phase 38 closure.",
     );
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",
@@ -2068,6 +2098,12 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain(
       "Phase 37.1 is now closed as the writeback productization polish slice",
     );
+    expect(taskBoard).toContain(
+      "Phase 38 is now closed as the governed runtime surface slice",
+    );
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json",
+    );
     expect(taskBoard).not.toContain("Phase 35 is now WIP again");
   });
 
@@ -2090,7 +2126,7 @@ describe("release metadata and docs", () => {
     );
   });
 
-  it("release workflow uses manual plus stable tag triggers, gate:phase-37, and tarball artifact upload", async () => {
+  it("release workflow uses manual plus stable tag triggers, gate:phase-38, and tarball artifact upload", async () => {
     const workflow = await readFile(
       join(import.meta.dir, "../../.github/workflows/release.yml"),
       "utf8",
@@ -2099,11 +2135,12 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("tags:");
     expect(workflow).toContain("v*.*.*");
-    expect(workflow).toContain("bun run gate:phase-37");
+    expect(workflow).toContain("bun run gate:phase-38");
     expect(workflow).toContain('--run-id "release-v${VERSION}"');
     expect(workflow).toContain("GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY");
     expect(workflow).toContain("secrets.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER");
     expect(workflow).not.toContain("bun run gate:phase-36");
+    expect(workflow).not.toContain("bun run gate:phase-37 --run-id");
     expect(workflow).toContain("TAG_VERSION=\"${GITHUB_REF_NAME#v}\"");
     expect(workflow).toContain("Stable release workflow only supports stable semver versions");
     expect(workflow).toContain("[[ \"$VERSION\" == *-* ]]");
@@ -2201,6 +2238,7 @@ describe("release metadata and docs", () => {
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-29-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-30-Quality-Gate.md");
     expect(topLevelDocs).not.toContain("GoodMemory-Phase-32-Quality-Gate.md");
+    expect(topLevelDocs).not.toContain("GoodMemory-Phase-38-Quality-Gate.md");
     expect(archivedQualityGates).toContain("README.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-16-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-17-Quality-Gate.md");
@@ -2217,6 +2255,7 @@ describe("release metadata and docs", () => {
     expect(archivedQualityGates).toContain("GoodMemory-Phase-29-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-30-Quality-Gate.md");
     expect(archivedQualityGates).toContain("GoodMemory-Phase-32-Quality-Gate.md");
+    expect(archivedQualityGates).toContain("GoodMemory-Phase-38-Quality-Gate.md");
   });
 
   it("phase-18 quality gate doc points to one canonical accepted report", async () => {
@@ -2484,6 +2523,29 @@ describe("release metadata and docs", () => {
     expect(gateReport.runId).toBe("run-20260422212752");
     expect(gateReport.acceptance.decision).toBe("accepted");
     await expectGitTrackedPath(relativeReportPath);
+  });
+
+  it("phase-38 quality gate doc points to the canonical governed runtime surface gate", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-38-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-38",
+      reportFileName: "phase-38-quality-gate.json",
+      runId: "run-20260425084045",
+    });
+
+    expect(qualityGateDoc).toContain("GoodMemoryConfig.observability.traceSink");
+    expect(qualityGateDoc).toContain("targeted `reviseMemory()`");
+    expect(qualityGateDoc).toContain("`memory.runtime.*` facade");
+    expect(qualityGateDoc).toContain("`memory.jobs.*`");
+    expect(qualityGateDoc).toContain("Express and Fastify");
+    expect(qualityGateDoc).toContain("Phase 37.1 hermetic preflight gate passed");
+    expect(qualityGateDoc).toContain("--skip-dependency-gates");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

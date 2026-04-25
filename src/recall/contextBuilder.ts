@@ -214,11 +214,14 @@ function summarizeFacts(
 }
 
 function summarizePreferences(preferences: PreferenceMemory[]): string | undefined {
-  if (preferences.length === 0) {
+  const activePreferences = preferences.filter(
+    (preference) => (preference.lifecycle ?? "active") === "active",
+  );
+  if (activePreferences.length === 0) {
     return undefined;
   }
 
-  return preferences
+  return activePreferences
     .slice(0, 3)
     .map((preference) => `- ${preference.category}: ${String(preference.value)}`)
     .join("\n");

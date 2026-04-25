@@ -1,0 +1,1389 @@
+import { describe, expect, it } from "bun:test";
+import {
+  createGoodMemory,
+  type GoodMemoryTraceSpan,
+} from "../../src";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+  createInMemoryVectorStore,
+} from "../../src/storage/memory";
+import type { DocumentStore, VectorStore } from "../../src/storage/contracts";
+import { createMemoryRepositories } from "../../src/storage/repositories";
+import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
+
+function createRevisionRaceDocumentStore(
+  base: DocumentStore,
+): DocumentStore & { enableRaceOn(collection: string, id: string): void } {
+  let delayedCollection: string | undefined;
+  let delayedId: string | undefined;
+
+  return {
+    enableRaceOn(collection, id) {
+      delayedCollection = collection;
+      delayedId = id;
+    },
+    async set(collection, id, document) {
+      await base.set(collection, id, document);
+    },
+    async get(collection, id) {
+      if (collection === delayedCollection && id === delayedId) {
+        await Promise.resolve();
+        await Promise.resolve();
+      }
+
+      return base.get(collection, id);
+    },
+    async update(collection, id, patch) {
+      await base.update(collection, id, patch);
+    },
+    async query(collection, filter) {
+      return base.query(collection, filter);
+    },
+    async writeBatchIfUnchanged(input) {
+      return base.writeBatchIfUnchanged!(input);
+    },
+    async delete(collection, id) {
+      await base.delete(collection, id);
+    },
+  };
+}
+
+function createSharedRevisionRaceController(base: DocumentStore): {
+  createStore(): DocumentStore;
+  enableRaceOn(collection: string, id: string): void;
+} {
+  let delayedCollection: string | undefined;
+  let delayedId: string | undefined;
+  let waitingReads: Array<() => void> = [];
+  let readCount = 0;
+
+  function releaseWaitingReads(): void {
+    for (const release of waitingReads) {
+      release();
+    }
+    waitingReads = [];
+  }
+
+  async function synchronizedGet<TDocument extends object>(
+    collection: string,
+    id: string,
+  ): Promise<TDocument | null> {
+    if (collection !== delayedCollection || id !== delayedId) {
+      return base.get<TDocument>(collection, id);
+    }
+
+    const snapshot = await base.get<TDocument>(collection, id);
+    readCount += 1;
+    if (readCount >= 2) {
+      releaseWaitingReads();
+      return snapshot;
+    }
+
+    await new Promise<void>((resolve) => {
+      waitingReads.push(resolve);
+    });
+
+    return snapshot;
+  }
+
+  return {
+    createStore() {
+      return {
+        async set(collection, id, document) {
+          await base.set(collection, id, document);
+        },
+        get: synchronizedGet,
+        async update(collection, id, patch) {
+          await base.update(collection, id, patch);
+        },
+        async query(collection, filter) {
+          return base.query(collection, filter);
+        },
+        async writeBatchIfUnchanged(input) {
+          return base.writeBatchIfUnchanged!(input);
+        },
+        async delete(collection, id) {
+          await base.delete(collection, id);
+        },
+      };
+    },
+    enableRaceOn(collection, id) {
+      delayedCollection = collection;
+      delayedId = id;
+      readCount = 0;
+      releaseWaitingReads();
+    },
+  };
+}
+
+function createSharedRevisionCommitRaceController(base: DocumentStore): {
+  createStore(): DocumentStore;
+  enableRaceOn(collection: string, id: string): void;
+} {
+  let delayedCollection: string | undefined;
+  let delayedId: string | undefined;
+  let waitingWrites: Array<() => void> = [];
+  let writeCount = 0;
+
+  function releaseWaitingWrites(): void {
+    for (const release of waitingWrites) {
+      release();
+    }
+    waitingWrites = [];
+  }
+
+  async function synchronizedWriteBatch(
+    input: Parameters<NonNullable<DocumentStore["writeBatchIfUnchanged"]>>[0],
+  ): Promise<boolean> {
+    if (
+      input.expected.collection !== delayedCollection ||
+      input.expected.id !== delayedId
+    ) {
+      return base.writeBatchIfUnchanged!(input);
+    }
+
+    writeCount += 1;
+    if (writeCount >= 2) {
+      releaseWaitingWrites();
+    } else {
+      await new Promise<void>((resolve) => {
+        waitingWrites.push(resolve);
+      });
+    }
+
+    return base.writeBatchIfUnchanged!(input);
+  }
+
+  return {
+    createStore() {
+      return {
+        async set(collection, id, document) {
+          await base.set(collection, id, document);
+        },
+        async get(collection, id) {
+          return base.get(collection, id);
+        },
+        async update(collection, id, patch) {
+          await base.update(collection, id, patch);
+        },
+        async query(collection, filter) {
+          return base.query(collection, filter);
+        },
+        writeBatchIfUnchanged: synchronizedWriteBatch,
+        async delete(collection, id) {
+          await base.delete(collection, id);
+        },
+      };
+    },
+    enableRaceOn(collection, id) {
+      delayedCollection = collection;
+      delayedId = id;
+      writeCount = 0;
+      releaseWaitingWrites();
+    },
+  };
+}
+
+function createLegacyDocumentStore(base: DocumentStore): DocumentStore {
+  return {
+    async set(collection, id, document) {
+      await base.set(collection, id, document);
+    },
+    async get(collection, id) {
+      return base.get(collection, id);
+    },
+    async update(collection, id, patch) {
+      await base.update(collection, id, patch);
+    },
+    async query(collection, filter) {
+      return base.query(collection, filter);
+    },
+    async delete(collection, id) {
+      await base.delete(collection, id);
+    },
+  };
+}
+
+function createDeleteFailingVectorStore(base: VectorStore): VectorStore {
+  return {
+    async upsert(collection, records) {
+      await base.upsert(collection, records);
+    },
+    async get(collection, id) {
+      return base.get(collection, id);
+    },
+    async search(collection, queryEmbedding, input) {
+      return base.search(collection, queryEmbedding, input);
+    },
+    async delete() {
+      throw new Error("vector delete unavailable");
+    },
+  };
+}
+
+describe("public reviseMemory API", () => {
+  it("revises a targeted preference through governed supersede lineage", async () => {
+    const spans: GoodMemoryTraceSpan[] = [];
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      observability: {
+        traceSink: {
+          emit(span) {
+            spans.push(span);
+          },
+        },
+      },
+      testing: {
+        now: () => new Date("2026-04-25T00:00:00.000Z"),
+      },
+    });
+    const scope = {
+      userId: "revision-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "I prefer VS Code as my editor.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "preference",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+    const previousMemoryId = targetMemoryId!;
+
+    const result = await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: previousMemoryId,
+      },
+      revision: {
+        content: "My preferred editor is Cursor, not VS Code.",
+      },
+      reason: "user_correction",
+      evidence: {
+        source: "user_message",
+        message: "Actually I use Cursor now.",
+      },
+      idempotencyKey: "revision-user:session-1:editor-correction",
+    });
+
+    expect(result).toMatchObject({
+      accepted: true,
+      memoryType: "preference",
+      outcome: "superseded",
+      previousMemoryId,
+      supersedeLineage: {
+        supersedes: previousMemoryId,
+        supersededBy: result.newMemoryId,
+      },
+    });
+    expect(result.newMemoryId).toBeString();
+    expect(result.newMemoryId).not.toBe(previousMemoryId);
+    const newMemoryId = result.newMemoryId!;
+    expect(result.evidenceIds).toHaveLength(1);
+    expect(result.policyApplied).toContain("revision.target.memory_id");
+    expect(result.traceId).toBeString();
+
+    const recalled = await memory.recall({
+      scope,
+      query: "Which editor do I prefer?",
+    });
+    expect(recalled.preferences.map((preference) => String(preference.value))).toEqual([
+      "My preferred editor is Cursor, not VS Code.",
+    ]);
+
+    const exported = await memory.exportMemory({
+      scope,
+    });
+    const oldPreference = exported.durable.preferences.find(
+      (preference) => preference.id === previousMemoryId,
+    );
+    const newPreference = exported.durable.preferences.find(
+      (preference) => preference.id === newMemoryId,
+    );
+    const evidence = exported.durable.evidence.find(
+      (record) => record.id === result.evidenceIds?.[0],
+    );
+
+    expect(oldPreference?.lifecycle).toBe("superseded");
+    expect(oldPreference?.supersededBy).toBe(newMemoryId);
+    expect(newPreference?.lifecycle).toBe("active");
+    expect(evidence?.kind).toBe("correction_context");
+    expect(evidence).toMatchObject({
+      attributes: {
+        revisionEvidenceSource: "user_message",
+        revisionReason: "user_correction",
+      },
+    });
+    expect(evidence?.linkedMemoryIds).toEqual([
+      previousMemoryId,
+      newMemoryId,
+    ]);
+
+    expect(spans.map((span) => `${span.name}:${span.status}`)).toContain(
+      "memory.revise:succeeded",
+    );
+    expect(JSON.stringify(spans)).not.toContain("Actually I use Cursor now.");
+    expect(JSON.stringify(spans)).not.toContain("revision-user");
+  });
+
+  it("persists revision reason and evidence source in the durable audit record", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      testing: {
+        now: () => new Date("2026-04-25T00:00:00.000Z"),
+      },
+    });
+    const scope = {
+      userId: "revision-audit-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the migration owner is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const result = await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: targetMemoryId!,
+      },
+      revision: {
+        content: "The migration owner is Nora.",
+      },
+      reason: "manual_review",
+      evidence: {
+        source: "manual_review",
+        excerpt: "Manual audit found that v2 is the current runbook.",
+        sourceUri: "docs/reviews/migration-audit.md",
+        sourceMessageIds: ["review-42"],
+      },
+      idempotencyKey: "revision-audit-manual-review",
+    });
+    const exported = await memory.exportMemory({
+      scope,
+    });
+    const evidence = exported.durable.evidence.find(
+      (record) => record.id === result.evidenceIds?.[0],
+    );
+
+    expect(result.accepted).toBe(true);
+    expect(evidence).toMatchObject({
+      kind: "correction_context",
+      sourceUri: "docs/reviews/migration-audit.md",
+      sourceMessageIds: ["review-42"],
+      attributes: {
+        revisionEvidenceSource: "manual_review",
+        revisionReason: "manual_review",
+      },
+    });
+  });
+
+  it("makes targeted revisions idempotent", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+    const scope = {
+      userId: "revision-idempotent-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the rollout owner is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const input = {
+      scope,
+      target: {
+        memoryId: targetMemoryId!,
+      },
+      revision: {
+        content: "The rollout owner is Jules.",
+      },
+      reason: "user_correction" as const,
+      evidence: {
+        source: "user_message" as const,
+        message: "Correction: Jules owns the rollout.",
+      },
+      idempotencyKey: "revision-idempotent-owner",
+    };
+
+	    const first = await memory.reviseMemory(input);
+	    const second = await memory.reviseMemory(input);
+    const exported = await memory.exportMemory({
+      scope,
+    });
+
+    expect(second).toEqual(first);
+    expect(
+      exported.durable.facts.filter((fact) => fact.id === first.newMemoryId),
+    ).toHaveLength(1);
+    expect(
+      exported.durable.evidence.filter((record) => record.id === first.evidenceIds?.[0]),
+    ).toHaveLength(1);
+  });
+
+  it("blocks conflicting reuse of a targeted revision idempotency key", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+    const scope = {
+      userId: "revision-idempotent-conflict-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the incident reviewer is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const first = await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: targetMemoryId!,
+      },
+      revision: {
+        content: "The incident reviewer is Nora.",
+      },
+      reason: "user_correction",
+      evidence: {
+        source: "user_message",
+        message: "Correction: Nora is reviewing the incident.",
+      },
+      idempotencyKey: "revision-idempotent-conflict",
+    });
+    const second = await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: targetMemoryId!,
+      },
+      revision: {
+        content: "The incident reviewer is Jules.",
+      },
+      reason: "user_correction",
+      evidence: {
+        source: "user_message",
+        message: "Correction: Jules is reviewing the incident.",
+      },
+      idempotencyKey: "revision-idempotent-conflict",
+    });
+    const exported = await memory.exportMemory({
+      scope,
+    });
+
+    expect(first.accepted).toBe(true);
+    expect(second).toMatchObject({
+      accepted: false,
+      outcome: "blocked",
+      memoryType: "fact",
+      previousMemoryId: targetMemoryId,
+      reason: "idempotency_conflict",
+    });
+    expect(exported.durable.facts).toContainEqual(
+      expect.objectContaining({
+        id: first.newMemoryId,
+        content: "The incident reviewer is Nora.",
+        lifecycle: "active",
+      }),
+    );
+    expect(
+      exported.durable.facts.some((fact) => fact.content.includes("Jules")),
+    ).toBe(false);
+  });
+
+  it("blocks concurrent conflicting reuse of a targeted revision idempotency key", async () => {
+    const sharedStore = createInMemoryDocumentStore();
+    const race = createSharedRevisionCommitRaceController(sharedStore);
+    const firstMemory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: race.createStore(),
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const secondMemory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: race.createStore(),
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const scope = {
+      userId: "revision-concurrent-idempotent-conflict-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+    const remembered = await firstMemory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the incident approver is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+    race.enableRaceOn("facts", targetMemoryId!);
+
+    const [first, second] = await Promise.all([
+      firstMemory.reviseMemory({
+        scope,
+        target: { memoryId: targetMemoryId! },
+        revision: { content: "The incident approver is Nora." },
+        reason: "user_correction",
+        evidence: {
+          source: "user_message",
+          message: "Correction: Nora approves the incident.",
+        },
+        idempotencyKey: "revision-concurrent-idempotent-conflict",
+      }),
+      secondMemory.reviseMemory({
+        scope,
+        target: { memoryId: targetMemoryId! },
+        revision: { content: "The incident approver is Jules." },
+        reason: "user_correction",
+        evidence: {
+          source: "user_message",
+          message: "Correction: Jules approves the incident.",
+        },
+        idempotencyKey: "revision-concurrent-idempotent-conflict",
+      }),
+    ]);
+    const exported = await firstMemory.exportMemory({ scope });
+    const accepted = [first, second].filter((result) => result.accepted);
+    const blocked = [first, second].filter((result) => !result.accepted);
+
+    expect(accepted).toHaveLength(1);
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0]).toMatchObject({
+      accepted: false,
+      outcome: "blocked",
+      reason: "idempotency_conflict",
+    });
+    expect(
+      exported.durable.facts.filter(
+        (fact) => fact.id !== targetMemoryId && fact.lifecycle === "active",
+      ),
+    ).toHaveLength(1);
+    expect(
+      exported.durable.facts.some((fact) => fact.content.includes("Nora")),
+    ).not.toBe(
+      exported.durable.facts.some((fact) => fact.content.includes("Jules")),
+    );
+  });
+
+  it("keeps redaction policy applied to corrected memory, evidence, idempotent receipt, and trace attributes", async () => {
+    const spans: GoodMemoryTraceSpan[] = [];
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      observability: {
+        traceSink: {
+          emit(span) {
+            spans.push(span);
+          },
+        },
+      },
+      policy: {
+        redact(candidate) {
+          return {
+            ...candidate,
+            content: candidate.content.replace(/SECRET-[A-Z0-9]+/g, "[redacted]"),
+          };
+        },
+        shouldRemember() {
+          return true;
+        },
+      },
+    });
+    const scope = {
+      userId: "revision-redaction-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the incident credential owner is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const input = {
+      scope,
+      target: {
+        memoryId: targetMemoryId!,
+      },
+      revision: {
+        content: "The incident credential is SECRET-ABC123.",
+      },
+      reason: "raw custom reason SECRET-TRACE" as const,
+      evidence: {
+        source: "user_message" as const,
+        message: "Correction evidence includes SECRET-ABC123.",
+      },
+      idempotencyKey: "revision-redaction-policy",
+    };
+
+	    const first = await memory.reviseMemory(input);
+	    const second = await memory.reviseMemory({
+	      ...input,
+	      revision: {
+	        content: "The incident credential is SECRET-XYZ999.",
+	      },
+	      reason: "another raw custom reason SECRET-OTHER" as const,
+	      evidence: {
+	        source: "user_message" as const,
+	        message: "Correction evidence includes SECRET-XYZ999.",
+	      },
+	    });
+    const exported = await memory.exportMemory({
+      scope,
+    });
+    const newFact = exported.durable.facts.find(
+      (fact) => fact.id === first.newMemoryId,
+    );
+    const evidence = exported.durable.evidence.find(
+      (record) => record.id === first.evidenceIds?.[0],
+    );
+    const spansJson = JSON.stringify(spans);
+    const { traceId: firstTraceId, ...firstWithoutTrace } = first;
+    const { traceId: secondTraceId, ...secondWithoutTrace } = second;
+
+    expect(firstTraceId).toBeString();
+    expect(secondTraceId).toBeString();
+    expect(secondWithoutTrace).toEqual(firstWithoutTrace);
+    expect(first.policyApplied).toEqual([
+      "revision.target.memory_id",
+      "policy.redact",
+      "policy.shouldRemember.allowed",
+    ]);
+    expect(newFact?.content).toBe("The incident credential is [redacted].");
+    expect(evidence?.excerpt).toBe("Correction evidence includes [redacted].");
+    expect(JSON.stringify(exported)).not.toContain("SECRET-TRACE");
+    expect(JSON.stringify(exported)).not.toContain("SECRET-OTHER");
+    expect(JSON.stringify(exported)).not.toContain("SECRET-XYZ999");
+    expect(spansJson).not.toContain("SECRET-ABC123");
+    expect(spansJson).not.toContain("SECRET-XYZ999");
+    expect(spansJson).not.toContain("SECRET-TRACE");
+    expect(spansJson).not.toContain("SECRET-OTHER");
+    expect(spans.some((span) => span.attributes?.reason === "custom")).toBe(true);
+  });
+
+  it("blocks targeted revisions that become empty after redaction", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      policy: {
+        redact(candidate) {
+          return {
+            ...candidate,
+            content: candidate.content.replace("erase me", "").trim(),
+          };
+        },
+      },
+    });
+    const scope = {
+      userId: "revision-empty-redaction-user",
+      workspaceId: "phase-38",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the deployment owner is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+    const previousMemoryId = targetMemoryId!;
+
+    const result = await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: previousMemoryId,
+      },
+      revision: {
+        content: "erase me",
+      },
+      reason: "user_correction",
+      idempotencyKey: "revision-empty-after-redaction",
+    });
+    const exported = await memory.exportMemory({
+      scope,
+    });
+
+    expect(result).toMatchObject({
+      accepted: false,
+      outcome: "blocked",
+      memoryType: "fact",
+      previousMemoryId,
+      reason: "invalid_after_redaction",
+      policyApplied: ["revision.target.memory_id", "policy.redact"],
+    });
+    expect(exported.durable.facts).toHaveLength(1);
+    expect(exported.durable.facts[0]?.id).toBe(previousMemoryId);
+    expect(exported.durable.facts[0]?.content).toBe("the deployment owner is Mira.");
+    expect(exported.durable.facts[0]?.lifecycle).toBe("active");
+    expect(exported.durable.evidence).toHaveLength(1);
+  });
+
+  it("does not let a narrower targeted scope revise broader-scope memory", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+    const userScope = {
+      userId: "revision-scope-user",
+    };
+    const narrowerScope = {
+      userId: "revision-scope-user",
+      workspaceId: "phase-38",
+    };
+    const remembered = await memory.remember({
+      scope: userScope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the default reviewer is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const result = await memory.reviseMemory({
+      scope: narrowerScope,
+      target: {
+        memoryId: targetMemoryId!,
+      },
+      revision: {
+        content: "The default reviewer is Jules.",
+      },
+      reason: "user_correction",
+      idempotencyKey: "revision-scope-mismatch",
+    });
+    const exported = await memory.exportMemory({
+      scope: userScope,
+    });
+
+    expect(result).toMatchObject({
+      accepted: false,
+      outcome: "not_found",
+      policyApplied: ["revision.target.memory_id"],
+    });
+    expect(exported.durable.facts).toHaveLength(1);
+    expect(exported.durable.facts[0]?.content).toBe("the default reviewer is Mira.");
+    expect(exported.durable.facts[0]?.lifecycle).toBe("active");
+    expect(exported.durable.evidence).toHaveLength(1);
+  });
+
+  it("does not let a broad targeted scope revise tenant workspace or agent memory", async () => {
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+    });
+    const broadScope = {
+      userId: "revision-broad-scope-user",
+    };
+    const governedScope = {
+      userId: "revision-broad-scope-user",
+      tenantId: "tenant-a",
+      workspaceId: "workspace-a",
+      agentId: "agent-a",
+    };
+    const remembered = await memory.remember({
+      scope: governedScope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the rollout owner is Priya.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const result = await memory.reviseMemory({
+      scope: broadScope,
+      target: {
+        memoryId: targetMemoryId!,
+      },
+      revision: {
+        content: "The rollout owner is Sam.",
+      },
+      reason: "user_correction",
+      idempotencyKey: "revision-broad-scope-mismatch",
+    });
+    const exported = await memory.exportMemory({
+      scope: governedScope,
+    });
+
+    expect(result).toMatchObject({
+      accepted: false,
+      outcome: "not_found",
+      policyApplied: ["revision.target.memory_id"],
+    });
+    expect(exported.durable.facts).toHaveLength(1);
+    expect(exported.durable.facts[0]?.content).toBe("the rollout owner is Priya.");
+    expect(exported.durable.facts[0]?.lifecycle).toBe("active");
+    expect(exported.durable.evidence).toHaveLength(1);
+  });
+
+  it("serializes concurrent targeted revisions so one active memory has one successor", async () => {
+    const documentStore = createRevisionRaceDocumentStore(createInMemoryDocumentStore());
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const scope = {
+      userId: "revision-concurrent-user",
+      workspaceId: "phase-38",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the incident owner is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+    const previousMemoryId = targetMemoryId!;
+    documentStore.enableRaceOn("facts", previousMemoryId);
+
+    const [first, second] = await Promise.all([
+      memory.reviseMemory({
+        scope,
+        target: { memoryId: previousMemoryId },
+        revision: { content: "The incident owner is Nora." },
+        reason: "user_correction",
+        idempotencyKey: "revision-concurrent-first",
+      }),
+      memory.reviseMemory({
+        scope,
+        target: { memoryId: previousMemoryId },
+        revision: { content: "The incident owner is Jules." },
+        reason: "user_correction",
+        idempotencyKey: "revision-concurrent-second",
+      }),
+    ]);
+    const exported = await memory.exportMemory({ scope });
+    const accepted = [first, second].filter((result) => result.accepted);
+    const blocked = [first, second].filter((result) => !result.accepted);
+    const previous = exported.durable.facts.find((fact) => fact.id === previousMemoryId);
+    const activeSuccessors = exported.durable.facts.filter(
+      (fact) => fact.id !== previousMemoryId && fact.lifecycle === "active",
+    );
+
+    expect(accepted).toHaveLength(1);
+    expect(blocked).toHaveLength(1);
+    expect(accepted[0]?.newMemoryId).toBeString();
+    const successorId = accepted[0]!.newMemoryId!;
+    expect(blocked[0]).toMatchObject({
+      accepted: false,
+      outcome: "blocked",
+      reason: "target_not_active",
+    });
+    expect(previous?.lifecycle).toBe("superseded");
+    expect(previous?.supersededBy).toBe(successorId);
+    expect(activeSuccessors).toHaveLength(1);
+    expect(activeSuccessors[0]?.id).toBe(successorId);
+  });
+
+  it("serializes concurrent targeted revisions across memory instances sharing one store", async () => {
+    const sharedStore = createInMemoryDocumentStore();
+    const race = createSharedRevisionRaceController(sharedStore);
+    const firstMemory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: race.createStore(),
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const secondMemory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: race.createStore(),
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const scope = {
+      userId: "revision-multi-instance-user",
+      workspaceId: "phase-38",
+    };
+    const remembered = await firstMemory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the release owner is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+    const previousMemoryId = targetMemoryId!;
+    race.enableRaceOn("facts", previousMemoryId);
+
+    const [first, second] = await Promise.all([
+      firstMemory.reviseMemory({
+        scope,
+        target: { memoryId: previousMemoryId },
+        revision: { content: "The release owner is Nora." },
+        reason: "user_correction",
+        idempotencyKey: "revision-multi-instance-first",
+      }),
+      secondMemory.reviseMemory({
+        scope,
+        target: { memoryId: previousMemoryId },
+        revision: { content: "The release owner is Jules." },
+        reason: "user_correction",
+        idempotencyKey: "revision-multi-instance-second",
+      }),
+    ]);
+    const exported = await firstMemory.exportMemory({ scope });
+    const accepted = [first, second].filter((result) => result.accepted);
+    const blocked = [first, second].filter((result) => !result.accepted);
+    const previous = exported.durable.facts.find((fact) => fact.id === previousMemoryId);
+    const activeSuccessors = exported.durable.facts.filter(
+      (fact) => fact.id !== previousMemoryId && fact.lifecycle === "active",
+    );
+
+    expect(accepted).toHaveLength(1);
+    expect(blocked).toHaveLength(1);
+    expect(accepted[0]?.newMemoryId).toBeString();
+    const acceptedNewMemoryId = accepted[0]!.newMemoryId!;
+    expect(blocked[0]).toMatchObject({
+      accepted: false,
+      outcome: "blocked",
+      reason: "target_not_active",
+    });
+    expect(previous?.lifecycle).toBe("superseded");
+    expect(activeSuccessors).toHaveLength(1);
+    expect(activeSuccessors[0]?.id).toBe(acceptedNewMemoryId);
+  });
+
+  it("returns unsupported instead of mutating when a custom document store lacks conditional batch writes", async () => {
+    const baseDocumentStore = createInMemoryDocumentStore();
+    const documentStore = createLegacyDocumentStore(baseDocumentStore);
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const scope = {
+      userId: "revision-legacy-adapter-user",
+      workspaceId: "phase-38",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the legacy adapter owner is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const result = await memory.reviseMemory({
+      scope,
+      target: { memoryId: targetMemoryId! },
+      revision: { content: "The legacy adapter owner is Nora." },
+      reason: "user_correction",
+      idempotencyKey: "revision-legacy-adapter",
+    });
+    const exported = await memory.exportMemory({ scope });
+    const original = exported.durable.facts.find(
+      (fact) => fact.id === targetMemoryId,
+    );
+
+    expect(result).toMatchObject({
+      accepted: false,
+      outcome: "unsupported",
+      reason: "document_store_batch_unsupported",
+    });
+    expect(original?.lifecycle).toBe("active");
+    expect(
+      exported.durable.facts.some((fact) => fact.content.includes("Nora")),
+    ).toBe(false);
+  });
+
+  it("keeps committed revision lineage when the secondary vector update fails", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const vectorStore = createDeleteFailingVectorStore(createInMemoryVectorStore());
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+        vectorStore,
+      },
+    });
+    const scope = {
+      userId: "revision-vector-failure-user",
+      workspaceId: "phase-38",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the vector failure owner is Mira.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const result = await memory.reviseMemory({
+      scope,
+      target: { memoryId: targetMemoryId! },
+      revision: { content: "The vector failure owner is Nora." },
+      reason: "user_correction",
+      idempotencyKey: "revision-vector-failure",
+    });
+    const exported = await memory.exportMemory({ scope });
+    const original = exported.durable.facts.find(
+      (fact) => fact.id === targetMemoryId,
+    );
+    const revised = exported.durable.facts.find(
+      (fact) => fact.id === result.newMemoryId,
+    );
+
+    expect(result).toMatchObject({
+      accepted: true,
+      outcome: "superseded",
+      warnings: ["vector_write_failed"],
+    });
+    expect(original?.lifecycle).toBe("superseded");
+    expect(original?.supersededBy).toBe(result.newMemoryId);
+    expect(revised?.lifecycle).toBe("active");
+    expect(revised?.content).toBe("The vector failure owner is Nora.");
+  });
+
+  it("replaces fact and reference vectors during targeted revision", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const embeddingAdapter = createFakeEmbeddingAdapter();
+    const repositories = createMemoryRepositories({
+      documentStore,
+      sessionStore,
+      vectorStore,
+    });
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        embeddingAdapter,
+        sessionStore,
+        vectorStore,
+      },
+    });
+    const scope = {
+      userId: "revision-vector-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the vector rollout is blocked on old approval.",
+        },
+        {
+          role: "user",
+          content: "Use docs/old-vector-runbook.md as the source of truth for vector work.",
+        },
+      ],
+    });
+    const factId = remembered.events.find((event) => event.memoryType === "fact")
+      ?.memoryId;
+    const referenceId = remembered.events.find(
+      (event) => event.memoryType === "reference",
+    )?.memoryId;
+
+    expect(factId).toBeString();
+    expect(referenceId).toBeString();
+    expect(await repositories.vectorIndex?.getFactEmbedding(factId!)).not.toBeNull();
+    expect(await repositories.vectorIndex?.getReferenceEmbedding(referenceId!)).not.toBeNull();
+
+    const factRevision = await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: factId!,
+      },
+      revision: {
+        content: "The vector rollout is blocked on new approval.",
+      },
+      reason: "user_correction",
+      idempotencyKey: "revision-vector-fact",
+    });
+    const referenceRevision = await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: referenceId!,
+      },
+      revision: {
+        content: "docs/new-vector-runbook.md",
+      },
+      reason: "user_correction",
+      idempotencyKey: "revision-vector-reference",
+    });
+
+    expect(await repositories.vectorIndex?.getFactEmbedding(factId!)).toBeNull();
+    expect(
+      await repositories.vectorIndex?.getFactEmbedding(factRevision.newMemoryId!),
+    ).not.toBeNull();
+    expect(await repositories.vectorIndex?.getReferenceEmbedding(referenceId!)).toBeNull();
+    expect(
+      await repositories.vectorIndex?.getReferenceEmbedding(
+        referenceRevision.newMemoryId!,
+      ),
+    ).not.toBeNull();
+  });
+
+  it("deletes stale fact and reference vectors during revision when embeddings are not configured", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const repositories = createMemoryRepositories({
+      documentStore,
+      sessionStore,
+      vectorStore,
+    });
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+        vectorStore,
+      },
+    });
+    const scope = {
+      userId: "revision-stale-vector-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that stale vector cleanup is blocked on old approval.",
+        },
+        {
+          role: "user",
+          content: "Use docs/stale-vector-runbook.md as the source of truth for vector cleanup.",
+        },
+      ],
+    });
+    const factId = remembered.events.find((event) => event.memoryType === "fact")
+      ?.memoryId;
+    const referenceId = remembered.events.find(
+      (event) => event.memoryType === "reference",
+    )?.memoryId;
+
+    expect(factId).toBeString();
+    expect(referenceId).toBeString();
+
+    await repositories.vectorIndex?.upsertFactEmbedding([
+      {
+        content: "old fact vector",
+        embedding: [1, 0, 0],
+        id: factId!,
+        metadata: {
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+        },
+      },
+    ]);
+    await repositories.vectorIndex?.upsertReferenceEmbedding([
+      {
+        content: "old reference vector",
+        embedding: [0, 1, 0],
+        id: referenceId!,
+        metadata: {
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+        },
+      },
+    ]);
+
+    await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: factId!,
+      },
+      revision: {
+        content: "Stale vector cleanup is blocked on new approval.",
+      },
+      reason: "user_correction",
+      idempotencyKey: "revision-stale-vector-fact",
+    });
+    await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: referenceId!,
+      },
+      revision: {
+        content: "docs/new-stale-vector-runbook.md",
+      },
+      reason: "user_correction",
+      idempotencyKey: "revision-stale-vector-reference",
+    });
+
+    expect(await repositories.vectorIndex?.getFactEmbedding(factId!)).toBeNull();
+    expect(await repositories.vectorIndex?.getReferenceEmbedding(referenceId!)).toBeNull();
+  });
+
+  it("blocks targeted revisions through shouldRemember policy before mutations", async () => {
+    const spans: GoodMemoryTraceSpan[] = [];
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      observability: {
+        traceSink: {
+          emit(span) {
+            spans.push(span);
+          },
+        },
+      },
+      policy: {
+        shouldRemember(candidate) {
+          return !candidate.content.includes("blocked revision");
+        },
+      },
+    });
+    const scope = {
+      userId: "revision-policy-user",
+      workspaceId: "phase-38",
+      sessionId: "session-1",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that the smoke test owner is Ren.",
+        },
+      ],
+    });
+    const targetMemoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+
+    expect(targetMemoryId).toBeString();
+
+    const result = await memory.reviseMemory({
+      scope,
+      target: {
+        memoryId: targetMemoryId!,
+      },
+      revision: {
+        content: "blocked revision",
+      },
+      reason: "user_correction",
+      idempotencyKey: "revision-policy-block",
+    });
+    const exported = await memory.exportMemory({
+      scope,
+    });
+
+    expect(result).toMatchObject({
+      accepted: false,
+      memoryType: "fact",
+      outcome: "blocked",
+      previousMemoryId: targetMemoryId,
+      policyApplied: ["revision.target.memory_id", "policy.shouldRemember.blocked"],
+    });
+    expect(exported.durable.facts.find((fact) => fact.id === targetMemoryId)?.lifecycle).toBe(
+      "active",
+    );
+    expect(exported.durable.facts).toHaveLength(1);
+    expect(spans.map((span) => `${span.name}:${span.status}`)).toContain(
+      "memory.revise:blocked",
+    );
+  });
+});

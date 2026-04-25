@@ -69,6 +69,7 @@ temp/
 sandbox/output/
 sandbox/tmp/
 .tmp-goodmemory-phase37-1-local/
+.tmp-goodmemory-phase38/
 
 third-party/
 reports/*
@@ -181,6 +182,7 @@ reports/quality-gates/**
 !reports/quality-gates/phase-36/run-20260423223045/phase-36-quality-gate.json
 !reports/quality-gates/phase-37-1/run-20260424100757/phase-37-1-quality-gate.json
 !reports/quality-gates/phase-37/run-20260424104045/phase-37-quality-gate.json
+!reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/

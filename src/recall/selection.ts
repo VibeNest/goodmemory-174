@@ -6,7 +6,11 @@ import type {
   ReferenceMemory,
   UserProfile,
 } from "../domain/records";
-import { buildFeedbackIdentityKey, normalizeFeedbackAppliesTo } from "../domain/records";
+import {
+  buildFeedbackIdentityKey,
+  isActiveMemoryLifecycle,
+  normalizeFeedbackAppliesTo,
+} from "../domain/records";
 import type { SessionArchive } from "../evolution/contracts";
 import type { LanguageService } from "../language";
 import { FEEDBACK_RECALL_LIMIT } from "./budgets";
@@ -599,7 +603,7 @@ export function selectReferences(
     returned: false,
     whySuppressed: !language.localesCompatible(queryLocale, entry.locale)
       ? "locale mismatch"
-      : entry.reference.lifecycle !== "active"
+      : !isActiveMemoryLifecycle(entry.reference)
         ? "inactive lifecycle"
         : "not selected",
     intentScore: entry.intentScore,
@@ -612,7 +616,7 @@ export function selectReferences(
   }));
   const compatible = ranked.filter(
     (entry) =>
-      entry.reference.lifecycle === "active" &&
+      isActiveMemoryLifecycle(entry.reference) &&
       language.localesCompatible(queryLocale, entry.locale),
   );
   const slotSpecificNonReferenceQuery =

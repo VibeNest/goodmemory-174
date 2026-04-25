@@ -36,6 +36,9 @@ describe("recall touch helpers", () => {
       get: baseDocumentStore.get.bind(baseDocumentStore),
       update: baseDocumentStore.update.bind(baseDocumentStore),
       query: baseDocumentStore.query.bind(baseDocumentStore),
+      writeBatchIfUnchanged: baseDocumentStore.writeBatchIfUnchanged!.bind(
+        baseDocumentStore,
+      ),
       delete: baseDocumentStore.delete.bind(baseDocumentStore),
     };
     const now = new Date("2026-01-10T00:00:00.000Z");

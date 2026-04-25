@@ -2,6 +2,8 @@ import type { MemorySource } from "../domain/provenance";
 
 export const EVIDENCE_COLLECTION = "evidence";
 
+export type EvidenceAttributeValue = string | number | boolean | null;
+
 export type EvidenceKind =
   | "conversation_excerpt"
   | "tool_result_excerpt"
@@ -21,6 +23,7 @@ export interface EvidenceRecord {
   source: MemorySource;
   sourceUri?: string;
   sourceMessageIds: string[];
+  attributes?: Record<string, EvidenceAttributeValue>;
   linkedMemoryIds: string[];
   linkedArchiveIds: string[];
   createdAt: string;
@@ -49,6 +52,7 @@ export function createEvidenceRecord(
     source: input.source,
     sourceUri: input.sourceUri,
     sourceMessageIds: input.sourceMessageIds ?? [],
+    attributes: input.attributes,
     linkedMemoryIds: input.linkedMemoryIds ?? [],
     linkedArchiveIds: input.linkedArchiveIds ?? [],
     createdAt: resolveCreatedAt(input.source, input.createdAt),

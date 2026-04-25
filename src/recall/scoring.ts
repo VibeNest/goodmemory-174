@@ -8,6 +8,7 @@ import type {
   ReferenceKind,
   ReferenceMemory,
 } from "../domain/records";
+import { resolveMemoryLifecycle } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { MemorySourceMethod } from "../domain/provenance";
 import type { EmbeddingAdapter } from "../embedding/contracts";
@@ -837,15 +838,23 @@ export function sortFeedback(feedback: FeedbackMemory[]): FeedbackMemory[] {
 }
 
 export function sortPreferences(preferences: PreferenceMemory[]): PreferenceMemory[] {
-  return [...preferences].sort((left, right) =>
-    right.updatedAt.localeCompare(left.updatedAt),
-  );
+  return [...preferences].sort((left, right) => {
+    const leftLifecycle = left.lifecycle ?? "active";
+    const rightLifecycle = right.lifecycle ?? "active";
+    if (leftLifecycle !== rightLifecycle) {
+      return leftLifecycle === "active" ? -1 : 1;
+    }
+
+    return right.updatedAt.localeCompare(left.updatedAt);
+  });
 }
 
 export function sortReferences(references: ReferenceMemory[]): ReferenceMemory[] {
   return [...references].sort((left, right) => {
-    if (left.lifecycle !== right.lifecycle) {
-      return left.lifecycle === "active" ? -1 : 1;
+    const leftLifecycle = resolveMemoryLifecycle(left);
+    const rightLifecycle = resolveMemoryLifecycle(right);
+    if (leftLifecycle !== rightLifecycle) {
+      return leftLifecycle === "active" ? -1 : 1;
     }
 
     return right.updatedAt.localeCompare(left.updatedAt);

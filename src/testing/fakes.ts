@@ -1,3 +1,7 @@
+import type {
+  GoodMemoryJobsFacade,
+  GoodMemoryRuntimeFacade,
+} from "../api/contracts";
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { MemoryScope } from "../domain/scope";
 import { scopeToPrefix } from "../domain/scope";
@@ -102,6 +106,36 @@ export function createFakeRecallRouter(): RecallRouterAssistant {
   };
 }
 
+export function createNoopGoodMemoryRuntimeFacade(): GoodMemoryRuntimeFacade {
+  async function unavailable(): Promise<never> {
+    throw new Error("No fake GoodMemory runtime facade configured");
+  }
+
+  return {
+    appendMessage: unavailable,
+    endSession: unavailable,
+    getRecallSnapshot: unavailable,
+    getState: unavailable,
+    setSessionSummary: unavailable,
+    startSession: unavailable,
+    updateSessionJournal: unavailable,
+    updateWorkingMemory: unavailable,
+  };
+}
+
+export function createNoopGoodMemoryJobsFacade(): GoodMemoryJobsFacade {
+  async function unavailable(): Promise<never> {
+    throw new Error("No fake GoodMemory jobs facade configured");
+  }
+
+  return {
+    drain: unavailable,
+    enqueueRemember: unavailable,
+    getJob: unavailable,
+    retryJob: unavailable,
+  };
+}
+
 export function createFakeDocumentStore() {
   const collections = new Map<string, Map<string, unknown>>();
 
@@ -128,6 +162,26 @@ export function createFakeDocumentStore() {
     ): Promise<void> {
       const current = (getCollection(collection).get(id) as Record<string, unknown> | undefined) ?? {};
       getCollection(collection).set(id, { ...current, ...partial });
+    },
+    async writeBatchIfUnchanged(input: {
+      expected: { collection: string; id: string; document: object };
+      set: Array<{ collection: string; id: string; document: object }>;
+    }): Promise<boolean> {
+      const current = getCollection(input.expected.collection).get(
+        input.expected.id,
+      );
+      if (JSON.stringify(current) !== JSON.stringify(input.expected.document)) {
+        return false;
+      }
+
+      for (const operation of input.set) {
+        getCollection(operation.collection).set(
+          operation.id,
+          operation.document,
+        );
+      }
+
+      return true;
     },
     async delete(collection: string, id: string): Promise<void> {
       getCollection(collection).delete(id);
