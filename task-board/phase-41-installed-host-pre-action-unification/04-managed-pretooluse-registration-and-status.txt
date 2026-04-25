@@ -1,0 +1,61 @@
+Phase 41.4: Managed `PreToolUse` Registration and Status
+========================================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Make installed Codex registration actually wire the new pre-action path and
+make its state visible through the installed status surface.
+
+Files
+-----
+- `src/install/hostHookConfig.ts`
+- `src/install/hostInstall.ts`
+- `src/cli.ts`
+- `tests/unit/host-install.test.ts`
+- `tests/cli/cli.test.ts`
+- `tests/release/release.test.ts`
+
+Registration Contract
+---------------------
+Extend managed installed Codex hooks with:
+
+- `eventName = "PreToolUse"`
+- `matcher = "Bash"`
+- `command = GOODMEMORY_HOME=... GOODMEMORY_MANAGED_BY=goodmemory goodmemory codex hook pre-tool-use`
+
+Rules
+-----
+- Codex only. Claude remains unchanged.
+- Existing `SessionStart`, `UserPromptSubmit`, and `Stop` hooks stay managed.
+- Disable and uninstall remove the managed `PreToolUse` entry without touching
+  user hooks.
+- Keep `isInstalledHostHookRegistered()` scoped to the recall hooks so existing
+  Phase 35 semantics stay stable.
+- Add a dedicated `isInstalledHostPreActionRegistered()` for status and tests.
+
+Status Surface
+--------------
+`goodmemory status [codex]` must add:
+
+```json
+{
+  "preActionRegistered": true | false
+}
+```
+
+Do not rename or repurpose existing `hookRegistered`.
+
+Acceptance
+----------
+- `goodmemory install codex` and `goodmemory enable codex` register managed
+  `PreToolUse` plus existing installed hooks.
+- `goodmemory disable codex` and `goodmemory uninstall codex` remove managed
+  `PreToolUse`.
+- `goodmemory status codex` reports `preActionRegistered` separately from
+  `hookRegistered`.
+- README/help/release regressions remain aligned with the updated installed
+  hook contract.

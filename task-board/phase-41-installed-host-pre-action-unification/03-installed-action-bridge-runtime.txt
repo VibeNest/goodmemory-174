@@ -1,0 +1,70 @@
+Phase 41.3: Installed Action Bridge Runtime
+===========================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Add an installed `goodmemory codex action` bridge that executes rewrite, veto,
+and lineage on the same installed memory path used by installed recall and
+installed writeback.
+
+Files
+-----
+- `src/install/hostActionRuntime.ts`
+- `src/install/hostExecutionContext.ts`
+- `src/cli.ts`
+- `tests/unit/host-action-runtime.test.ts`
+- `tests/integration/installed-host-action.test.ts`
+- `tests/cli/cli.test.ts`
+
+Command Contract
+----------------
+Add:
+
+```bash
+goodmemory codex action --session-id <id> --command "<command>" [--action-id <id>] [--turn-id <id>] [--sequence <n>] [--json]
+```
+
+Runtime Behavior
+----------------
+- Resolve installed context through `resolveInstalledHostContext()`.
+- Create memory through `createInstalledHostMemory()`.
+- Create a Codex host adapter on that installed memory.
+- Build `HostActionIntent` from the CLI flags.
+- Call `adapter.assessAction(intent)`.
+- Call `resolveHostActionExecutionPlan({ assessment, intent })`.
+
+Execution Rules
+---------------
+- `blocked`: emit structured refusal and exit non-zero.
+- `review_required` with executable rewrite: execute the rewritten first step.
+- `review_required` with non-executable rewrite: fail closed with structured
+  reason.
+- `allow` and `allow_with_guidance`: execute the original command.
+- Record host-event lineage and outcomes in installed storage using the same
+  event family the current action wrapper uses.
+- Keep `parentEventId = realizedEventParentId` behavior on realized execution
+  events.
+
+Installed Path Invariants
+-------------------------
+- This runtime must not call `createGoodMemory({})`.
+- It must use the same installed storage and providers as:
+  - `goodmemory codex hook session-start`
+  - `goodmemory codex hook user-prompt-submit`
+  - `goodmemory codex writeback`
+- Direct CLI invocation fails clearly.
+- Host hook integration continues to fail open by handling errors in the
+  `pre-tool-use` step before Codex is redirected here.
+
+Acceptance
+----------
+- Policy-backed `./tools/DeepAnalyzer --detailed` executes `./tools/QuickCheck`
+  as the realized first step.
+- Policy-backed `rm -rf AGENTS.md` never deletes the file.
+- Low-risk `./tools/QuickCheck --network` remains executable and non-blocked.
+- Exported installed memory shows action-lineage evidence in the same storage
+  path used by installed recall/writeback.

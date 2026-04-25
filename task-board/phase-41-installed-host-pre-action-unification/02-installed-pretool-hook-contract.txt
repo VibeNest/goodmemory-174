@@ -1,0 +1,78 @@
+Phase 41.2: Installed `pre-tool-use` Hook Contract
+==================================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Add an installed Codex `PreToolUse` hook command that evaluates risky Bash
+commands on the installed host path and redirects Codex to the installed action
+bridge when policy requires it.
+
+Files
+-----
+- `src/install/hostHookRuntime.ts`
+- `src/install/hostExecutionContext.ts`
+- `src/cli.ts`
+- `tests/unit/host-hook-runtime.test.ts`
+- `tests/cli/cli.test.ts`
+
+Hook Command Contract
+---------------------
+Extend `InstalledHostHookCommand` with `pre-tool-use`.
+
+The command reads stdin JSON and only handles:
+
+- `hook_event_name = "PreToolUse"`
+- `tool_name = "Bash"`
+- `tool_input.command` as the candidate command
+
+All other payloads fail open by returning no output.
+
+Installed Runtime Rules
+-----------------------
+- Resolve installed context through `resolveInstalledHostContext()`.
+- Create memory through `createInstalledHostMemory()`.
+- Build `HostActionIntent` from:
+  - `session_id`
+  - `turn_id` when present, otherwise `goodmemory-installed-pretool-turn`
+  - `sequence` when present and valid, otherwise `0`
+  - `action.kind = "command"`
+  - `action.command = payload.tool_input.command`
+- Derive `actionId` as:
+  - payload value if a future Codex payload provides one
+  - otherwise `goodmemory-installed-pretool-<turnId>`
+- Ignore already-managed commands so the hook does not recurse on
+  `goodmemory codex action`.
+
+Decision Rules
+--------------
+- `allow` and `allow_with_guidance`: return no hook output.
+- `review_required` and `blocked`: return a deny payload.
+- config resolution failures, malformed payloads, and runtime exceptions:
+  fail open and return no hook output.
+
+Deny Payload
+------------
+The deny payload must be:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "<reason>. Run this instead: goodmemory codex action --session-id '<id>' --action-id '<actionId>' --turn-id '<turnId>' --sequence '<n>' --command '<command>'"
+  }
+}
+```
+
+Acceptance
+----------
+- Installed `pre-tool-use` never creates a zero-config memory instance.
+- Installed `pre-tool-use` never blocks on missing config; it fails open.
+- The redirect command includes `session-id`, `action-id`, `turn-id`, and
+  `sequence` so the later action bridge can preserve lineage.
+- Existing `session-start`, `user-prompt-submit`, and `session-stop` behavior
+  remains unchanged.

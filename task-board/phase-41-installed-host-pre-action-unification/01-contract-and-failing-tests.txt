@@ -1,0 +1,82 @@
+Phase 41.1: Contract and Failing Tests
+======================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Freeze the Phase 41 contract before implementation and add failing tests for
+the installed-host pre-action unification slice.
+
+Scope
+-----
+- installed Codex `PreToolUse`
+- installed `goodmemory codex action`
+- shared installed config/storage/providers/scope
+- rewrite, veto, low-risk non-regression
+- shared lineage and evidence
+
+Out of Scope
+------------
+- Claude live blocker
+- bootstrap-wrapper removal
+- root API widening
+- new memory capability work
+- transcript persistence
+
+Contract
+--------
+Add these installed CLI surfaces:
+
+```bash
+goodmemory codex hook pre-tool-use
+goodmemory codex action --session-id <id> --command "<command>" [--action-id <id>] [--turn-id <id>] [--sequence <n>] [--json]
+```
+
+The hook reads Codex `PreToolUse` Bash payloads from stdin and either:
+
+- returns no output for allow / allow_with_guidance / fail-open cases
+- returns a deny payload that points Codex to the installed action bridge
+
+The action bridge performs:
+
+- `assessAction()`
+- `resolveHostActionExecutionPlan()`
+- rewrite or veto decisions
+- first-step execution when allowed
+- host-event lineage and evidence on the installed storage path
+
+Tests to Add First
+------------------
+- `tests/unit/host-hook-runtime.test.ts`
+- `tests/unit/host-install.test.ts`
+- `tests/unit/host-action-runtime.test.ts`
+- `tests/integration/installed-host-action.test.ts`
+- `tests/cli/cli.test.ts`
+- `tests/unit/run-phase-41-eval.test.ts`
+- `tests/unit/run-phase-41-live-memory.test.ts`
+- `tests/unit/run-phase-41-gate.test.ts`
+
+Required Failing Cases
+----------------------
+- installed hooks do not yet accept `pre-tool-use`
+- Codex managed hook registration does not yet add `PreToolUse`
+- `goodmemory codex hook pre-tool-use` does not yet parse `PreToolUse` Bash
+  payloads
+- `goodmemory codex action` does not yet exist
+- installed pre-action does not yet use `resolveInstalledHostContext()` and
+  `createInstalledHostMemory()`
+- installed `DeepAnalyzer` rewrite path does not yet execute `QuickCheck`
+- installed `rm -rf AGENTS.md` veto path is not yet enforced
+- low-risk installed command path is not yet proven non-regressive
+- installed status does not yet expose pre-action registration
+
+Acceptance
+----------
+- The new tests fail for implementation-missing reasons before runtime work
+  starts.
+- The failure messages prove the tests are exercising the installed path, not
+  the existing bootstrap wrapper path.
+- No file claims Phase 41 is implemented or accepted before evidence exists.

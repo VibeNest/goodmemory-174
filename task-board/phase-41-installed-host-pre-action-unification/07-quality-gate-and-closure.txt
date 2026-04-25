@@ -1,0 +1,90 @@
+Phase 41.7: Quality Gate and Closure
+====================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Close Phase 41 only after installed pre-action, installed recall/writeback
+compatibility, and bootstrap compatibility are all regression-covered.
+
+Files
+-----
+- `scripts/run-phase-41-gate.ts`
+- `tests/unit/run-phase-41-gate.test.ts`
+- `reports/quality-gates/phase-41/<run-id>/phase-41-quality-gate.json`
+- `README.md`
+- `docs/GoodMemory-Current-Status-and-Evidence.md`
+- `docs/archive/quality-gates/GoodMemory-Phase-41-Quality-Gate.md`
+- `task-board/00-README.txt`
+- `task-board/43-phase-41-installed-host-pre-action-unification.txt`
+- `task-board/phase-41-installed-host-pre-action-unification/00-README.txt`
+- `tests/release/release.test.ts`
+
+Gate Command
+------------
+Add:
+
+```bash
+bun run gate:phase-41
+```
+
+Required Gate Chain
+-------------------
+The gate must cover:
+
+```bash
+bun run typecheck
+
+bun test \
+  tests/unit/host-install.test.ts \
+  tests/unit/host-hook-runtime.test.ts \
+  tests/unit/host-action-runtime.test.ts \
+  tests/unit/host-bootstrap.test.ts \
+  tests/integration/installed-host-action.test.ts \
+  tests/unit/run-phase-41-eval.test.ts \
+  tests/unit/run-phase-41-live-memory.test.ts \
+  tests/unit/run-phase-41-gate.test.ts \
+  tests/cli/cli.test.ts \
+  tests/release/release.test.ts
+
+bun run eval:phase-41 -- --run-id <run-id>
+bun run eval:phase-41-live-memory
+bun run gate:phase-34
+bun run gate:phase-35
+bun run gate:phase-37
+bun run gate:phase-41
+```
+
+Gate Must Fail If
+-----------------
+- installed `PreToolUse` is not registered on install/enable
+- installed `pre-tool-use` creates a zero-config memory path
+- installed `goodmemory codex action` does not use installed config/storage
+- `DeepAnalyzer` does not rewrite to `QuickCheck`
+- `rm -rf AGENTS.md` is not vetoed
+- low-risk commands are denied
+- installed-path evidence is not written to shared installed storage
+- bootstrap compatibility regressions fail
+- Phase 34, Phase 35, or Phase 37 gates fail
+
+Closure Docs
+------------
+After acceptance only:
+
+- update README installed-host section to document `pre-tool-use` and
+  `goodmemory codex action`
+- update current status so Phase 41 becomes the latest closed slice
+- add archive summary with exact run ids and report paths
+- keep Phase 34 explicitly documented as the frozen compatibility baseline for
+  bootstrap-wrapper evidence
+
+Acceptance
+----------
+- `bun run gate:phase-41` accepts only after deterministic eval, live report,
+  and prior-phase regression gates are accepted.
+- No Phase 41 file claims closure before evidence exists.
+- Release-facing docs describe installed pre-action as the canonical Codex path
+  without claiming Claude parity or root API widening.

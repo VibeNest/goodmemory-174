@@ -1,0 +1,128 @@
+Phase 41: Installed Host Pre-Action Unification
+===============================================
+
+Status
+------
+[TODO] Phase 41 is queued.
+
+This phase starts after the accepted Phase 40 v0.2 release-proof closure. It
+does not reopen the accepted Phase 34, Phase 35, Phase 37, or Phase 40
+statements. It closes the remaining product gap between the accepted Codex
+action-gate wrapper and the accepted installed-host middleware/writeback path.
+
+
+Intent
+------
+Make installed Codex the canonical pre-action path for external users.
+
+After this phase, `goodmemory install codex` plus `goodmemory enable codex`
+must be enough to get:
+
+- managed `PreToolUse` interception for Bash
+- installed-context-backed action assessment
+- rewrite or veto of risky first steps
+- installed-context-backed execution and lineage through a managed
+  `goodmemory codex action` bridge
+- shared config, storage, providers, and scope across pre-action, recall, and
+  installed-host writeback
+
+
+Accepted Scope
+--------------
+- `goodmemory codex hook pre-tool-use`
+- managed Codex `PreToolUse` + `Bash` matcher registration on the installed
+  host path
+- installed `goodmemory codex action` command for rewrite/veto/execution and
+  lineage
+- shared installed action runtime that uses:
+  - `resolveInstalledHostContext()`
+  - `createInstalledHostMemory()`
+  - `createHostAdapter(...).assessAction()`
+  - `resolveHostActionExecutionPlan()`
+- `goodmemory status codex` visibility for pre-action registration
+- deterministic and live installed-path evidence for rewrite, veto, and
+  low-risk non-regression
+
+
+Out of Scope
+------------
+- reopening the accepted Phase 34 bootstrap-wrapper evidence chain
+- deleting `.goodmemory/bootstrap/codex-action.mjs`
+- widening the root `GoodMemory` API
+- adding Claude pre-action as a live blocker
+- adding new memory capabilities beyond the accepted Phase 35 and Phase 37
+  installed-host surface
+- default-on writeback or transcript persistence
+
+
+Definition of Done
+------------------
+- `goodmemory install codex` and `goodmemory enable codex` register managed
+  `PreToolUse` plus the existing recall/writeback hooks.
+- `goodmemory codex hook pre-tool-use` reads Codex `PreToolUse` Bash payloads
+  from stdin and denies only when policy requires redirect or veto.
+- `goodmemory codex action` executes on the same installed config, storage,
+  providers, and scope path as installed recall and installed writeback.
+- policy-backed `./tools/DeepAnalyzer --detailed` is redirected so the first
+  executed step becomes `./tools/QuickCheck`.
+- policy-backed `rm -rf AGENTS.md` is vetoed on the installed path.
+- low-risk `./tools/QuickCheck --network` is not misblocked.
+- installed-path action evidence and lineage are written to the same installed
+  memory backend used by recall and writeback.
+- bootstrap wrapper compatibility remains regression-covered.
+- Phase 34, Phase 35, and Phase 37 guarantees remain regression-covered.
+
+
+Tasks
+-----
+[TODO] P41-T001 Freeze the Phase 41 contract and add failing tests
+[TODO] P41-T002 Add the installed `pre-tool-use` hook contract and runtime
+[TODO] P41-T003 Add the installed `goodmemory codex action` bridge and lineage
+[TODO] P41-T004 Register managed Codex `PreToolUse` and surface status/install
+       state
+[TODO] P41-T005 Add deterministic Phase 41 eval with frozen Phase 34 and
+       no-memory baselines
+[TODO] P41-T006 Add tarball-first installed Codex live evidence
+[TODO] P41-T007 Add the Phase 41 quality gate and regression chain
+[TODO] P41-T008 Sync README, current status, archive docs, task-board, and
+       release-facing checks after evidence is accepted
+
+
+Planned Evidence
+----------------
+- Deterministic eval output (ignored generated):
+  `reports/eval/fallback/phase-41/<run-id>/report.json`
+- Installed Codex live evidence:
+  `reports/eval/live-memory/phase-41/run-phase41-live-current/report.json`
+- Quality gate:
+  `reports/quality-gates/phase-41/<run-id>/phase-41-quality-gate.json`
+- Archive summary after closure:
+  `docs/archive/quality-gates/GoodMemory-Phase-41-Quality-Gate.md`
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-41-installed-host-pre-action-unification/00-README.txt`
+- `task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt`
+- `task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt`
+- `task-board/phase-41-installed-host-pre-action-unification/03-installed-action-bridge-runtime.txt`
+- `task-board/phase-41-installed-host-pre-action-unification/04-managed-pretooluse-registration-and-status.txt`
+- `task-board/phase-41-installed-host-pre-action-unification/05-deterministic-phase-41-eval.txt`
+- `task-board/phase-41-installed-host-pre-action-unification/06-live-installed-codex-evidence.txt`
+- `task-board/phase-41-installed-host-pre-action-unification/07-quality-gate-and-closure.txt`
+
+
+Scope Boundary
+--------------
+- This phase productizes installed pre-action on top of the accepted Phase 35
+  installed-host middleware boundary and Phase 37 installed-host writeback
+  boundary.
+- The runtime shape is fixed to two stages:
+  - `goodmemory codex hook pre-tool-use` denies or redirects
+  - `goodmemory codex action` performs rewrite, veto, execution, and lineage
+- The bootstrap wrapper remains a compatibility path and must not be removed in
+  this phase.
+- Hook-only interception without an installed action bridge is not accepted
+  closure.
+- Codex is the canonical implementation and live evidence path. Claude parity
+  may follow later, but it does not block closure.

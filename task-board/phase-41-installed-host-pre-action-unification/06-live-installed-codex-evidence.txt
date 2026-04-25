@@ -1,0 +1,70 @@
+Phase 41.6: Live Installed Codex Evidence
+=========================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Prove the canonical installed Codex path works end to end from install/enable
+through managed `PreToolUse`, installed action bridge, and shared installed
+storage.
+
+Files
+-----
+- `scripts/run-phase-41-live-memory.ts`
+- `tests/unit/run-phase-41-live-memory.test.ts`
+- `reports/eval/live-memory/phase-41/run-phase41-live-current/report.json`
+- `package.json`
+
+Live Smoke Must Prove
+---------------------
+- tarball-first installed-package setup
+- `goodmemory install codex`
+- `goodmemory enable codex`
+- managed `PreToolUse` command is read from the installed hook config, not
+  called manually with an unrelated command
+- policy-backed `DeepAnalyzer` is denied by `pre-tool-use`
+- the recommended installed `goodmemory codex action` command executes
+  `QuickCheck`
+- policy-backed `rm -rf AGENTS.md` is vetoed
+- low-risk `QuickCheck --network` is not denied
+- action evidence lands in the same installed storage path used by installed
+  recall and writeback
+
+Required Report Shape
+---------------------
+The report must include:
+
+```json
+{
+  "acceptance": {
+    "decision": "accepted"
+  },
+  "evidence": {
+    "install": {
+      "registeredPreToolUseMatchesManagedConfig": true
+    },
+    "preAction": {
+      "deepAnalyzerDenied": true,
+      "deepAnalyzerExecutedStep": "./tools/QuickCheck",
+      "destructiveVetoed": true,
+      "lowRiskAllowed": true,
+      "sharedInstalledStorage": true
+    },
+    "releaseContract": {
+      "distribution": "tarball-first"
+    }
+  }
+}
+```
+
+Acceptance
+----------
+- Closure cannot claim installed pre-action success if the managed `PreToolUse`
+  command was not the executed command.
+- Closure cannot claim success if rewrite/veto only worked on the bootstrap
+  wrapper path.
+- The live report must prove shared installed storage, not only matching
+  command output.
