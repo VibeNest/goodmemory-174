@@ -545,7 +545,17 @@ describe("run-phase-40 gate", () => {
           decision: "blocked",
           reason: "blocked for test",
         },
-        commands: [],
+        commands: [
+          {
+            command: "bun run test:ci",
+            durationMs: 25,
+            exitCode: 1,
+            label: "ci-regression-gate",
+            status: "failed",
+            stderrTail: ["one failing test"],
+            stdoutTail: ["test output"],
+          },
+        ],
         evidence: {
           ciRegression: { reason: "not run", status: "blocked" },
           crossConsumerAdoption: { reason: "not run", status: "blocked" },
@@ -577,5 +587,11 @@ describe("run-phase-40 gate", () => {
     expect(report.acceptance.decision).toBe("blocked");
     expect(exits).toEqual([1]);
     expect(logs[0]).toContain("Phase 40 quality gate blocked");
+    expect(logs).toContain("Failed command: ci-regression-gate");
+    expect(logs).toContain("Command: bun run test:ci");
+    expect(logs).toContain("stdout tail:");
+    expect(logs).toContain("test output");
+    expect(logs).toContain("stderr tail:");
+    expect(logs).toContain("one failing test");
   });
 });

@@ -804,6 +804,23 @@ export async function runPhase40GateCli(
     log(`Phase 40 quality gate accepted: ${report.runId}`);
   } else {
     log(`Phase 40 quality gate blocked: ${report.acceptance.reason}`);
+    const failed = report.commands.find((command) => command.status === "failed");
+    if (failed) {
+      log(`Failed command: ${failed.label}`);
+      log(`Command: ${failed.command}`);
+      if (failed.stdoutTail.length > 0) {
+        log("stdout tail:");
+        for (const line of failed.stdoutTail) {
+          log(line);
+        }
+      }
+      if (failed.stderrTail.length > 0) {
+        log("stderr tail:");
+        for (const line of failed.stderrTail) {
+          log(line);
+        }
+      }
+    }
     exit(1);
   }
 
