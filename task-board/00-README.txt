@@ -107,6 +107,7 @@ Read and execute files in this order:
 38. 38-phase-37-installed-host-selective-writeback.txt
 39. 39-phase-37-1-writeback-productization-polish.txt
 40. 40-phase-38-governed-runtime-surface.txt
+41. 41-phase-39-python-http-integration-bridge.txt
 
 
 Current Sequencing Note
@@ -244,7 +245,12 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-38-Quality-Gate.md`
   - quality gate: `reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json`
   - current status: P38-T001 through P38-T007 are implemented and accepted
-- Any work after Phase 38 should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 39 is now open as the Python HTTP integration bridge slice:
+  - task-board entrypoint: `task-board/41-phase-39-python-http-integration-bridge.txt`
+  - breakdown folder: `task-board/phase-39-python-http-integration-bridge/`
+  - focus: thin Node/Bun HTTP memory bridge for Python/FastAPI consumers, built on the accepted public memory APIs and governed runtime surface; OneLife is the first reference consumer, not the product boundary
+  - current status: planning and implementation open; no closure evidence yet
+- Any work beyond the current Phase 39 slice should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
 - Phase 19 closed reviewer and maintenance rollout with dedicated family gates while keeping rollout controls internal by default.

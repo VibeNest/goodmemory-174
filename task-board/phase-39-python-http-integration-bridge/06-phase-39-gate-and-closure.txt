@@ -1,0 +1,21 @@
+Phase 39.6: Gate and Closure
+============================
+
+Goal
+----
+Close Phase 39 with evidence, not with a docs-only claim. OneLife can be the
+first reference consumer in evidence, but the gate closes a generic bridge.
+
+Required Evidence
+-----------------
+- Contract validation tests for the bridge endpoints
+- Regression coverage for public remember profiles/annotations/runtime paths
+- Reference-consumer smoke for the Python/FastAPI boundary
+- A new immutable Phase 39 quality gate
+
+Acceptance
+----------
+- Phase 39 closes only after the bridge, docs, and tests agree on one contract.
+- Closure evidence does not mutate prior accepted phase artifacts.
+- Any blocker that requires widening the root public API must be written down
+  explicitly and justified by failing bridge evidence.

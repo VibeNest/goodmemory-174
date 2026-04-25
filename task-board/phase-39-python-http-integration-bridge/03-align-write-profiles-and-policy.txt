@@ -1,0 +1,26 @@
+Phase 39.3: Align Write Profiles and Policy
+===========================================
+
+Goal
+----
+Show how a life-coach style product maps onto public GoodMemory write
+customization without moving product policy into the GoodMemory core. OneLife
+is the first reference case.
+
+Scope
+-----
+- Reference `life-coach` profile using public `remember` config only.
+- Cover stable identity, preference, goal, habit, relationship, and
+  intervention-feedback style writes.
+- Use rules, predicate/mapper helpers, annotations, and stable extractor ids
+  where appropriate.
+- Keep the consumer's product policy service as the first write gate for user
+  confirmation, blocked/shame-solidifying content, and lock/delete behavior.
+
+Acceptance
+----------
+- No built-in OneLife preset is added.
+- The guidance distinguishes:
+  - consumer product policy ownership
+  - GoodMemory semantic write customization
+- Assistant-originated durable writes remain confirmation/verification gated.

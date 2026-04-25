@@ -1,0 +1,25 @@
+Phase 39.5: User Control, Forget, Export, and Corrections
+=========================================================
+
+Goal
+----
+Align GoodMemory user-control flows with a consumer's memory policy and
+correction model. OneLife is the first reference case.
+
+Scope
+-----
+- Document how a consumer uses `forget` and `exportMemory` for user-visible
+  memory control; OneLife is the reference flow.
+- Document when a consumer should use `feedback` versus `remember`.
+- Document when a user correction should remain a consumer-side policy action
+  first and when it should become a GoodMemory `reviseMemory()` or `forget()`
+  follow-up.
+
+Acceptance
+----------
+- The docs show how to implement:
+  - view/export
+  - delete/forget
+  - do-not-remember masking
+  - assistant suggestion confirmation
+- The contract makes it clear that raw transcript archive is out of scope.

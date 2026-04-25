@@ -68,8 +68,14 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Current Implementation Slice
 
-- No active implementation slice is open after the accepted Phase 38 closure.
-- Next work should start by adding a new phase file or explicitly reopening a closed phase with failing regression or gate evidence.
+- Phase 39 is now open as the Python HTTP integration bridge slice.
+- The current goal is a thin Node/Bun HTTP bridge for Python/FastAPI consumers,
+  built on the accepted `remember`, `recall`, `buildContext`, `feedback`,
+  `forget`, `exportMemory`, and `memory.runtime.*` surfaces.
+- OneLife is the first reference consumer for this work, not the product
+  boundary of GoodMemory itself.
+- This open slice does not change the accepted stable OSS surface until it
+  closes with its own regression and quality-gate evidence.
 
 ## Prior Closed Installed-Host Slices
 

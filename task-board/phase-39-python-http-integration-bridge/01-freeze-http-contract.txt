@@ -1,0 +1,29 @@
+Phase 39.1: Freeze HTTP Contract
+================================
+
+Goal
+----
+Freeze the thin HTTP contract that a Python/FastAPI backend will call.
+
+Scope
+-----
+- Define request/response schemas for:
+  - `POST /memory/recall-context`
+  - `POST /memory/remember`
+  - `POST /memory/feedback`
+  - `POST /memory/forget`
+  - `POST /memory/export`
+- Freeze required scope fields, idempotency behavior, and assistant-output
+  confirmation expectations.
+- Freeze the recall-context response so it can satisfy both:
+  - prompt-ready context assembly
+  - compact structured memory items for the consumer; OneLife is the reference
+
+Acceptance
+----------
+- Contract is documented in a repo-tracked doc/example.
+- Input validation rejects malformed scope or malformed message arrays.
+- Recall-context contract makes `traceId`, `hasContext`, `itemCount`, and
+  prompt-ready context explicit.
+- Remember contract makes `annotations`, idempotency, and async-vs-sync write
+  semantics explicit.

@@ -1,0 +1,22 @@
+Phase 39.4: Python Consumer Smoke and Adoption
+==============================================
+
+Goal
+----
+Prove that a Python/FastAPI service can consume the bridge cleanly.
+
+Scope
+-----
+- Provide Python/FastAPI request examples or a minimal consumer smoke.
+- Show how a consumer session flow calls the bridge before and after the main
+  LLM turn; OneLife's `agent-session` is the reference path.
+- Show how product-owned state stays product-owned and is merged with
+  GoodMemory context at prompt assembly time; OneLife's `life_os_state` is the
+  reference case.
+
+Acceptance
+----------
+- The reference docs include Python request examples.
+- A smoke path proves the bridge is consumable from outside the repository's
+  TypeScript runtime.
+- The consumer path does not require client/mobile changes.

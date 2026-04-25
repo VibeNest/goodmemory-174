@@ -1968,7 +1968,7 @@ describe("release metadata and docs", () => {
       "reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json",
     );
     expect(currentStatus).toContain(
-      "No active implementation slice is open after the accepted Phase 38 closure.",
+      "Phase 39 is now open as the Python HTTP integration bridge slice.",
     );
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-30/run-20260421153410/phase-30-quality-gate.json",
@@ -2100,6 +2100,9 @@ describe("release metadata and docs", () => {
     );
     expect(taskBoard).toContain(
       "Phase 38 is now closed as the governed runtime surface slice",
+    );
+    expect(taskBoard).toContain(
+      "Phase 39 is now open as the Python HTTP integration bridge slice",
     );
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json",

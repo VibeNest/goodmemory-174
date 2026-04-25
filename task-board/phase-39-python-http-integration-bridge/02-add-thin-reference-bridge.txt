@@ -1,0 +1,22 @@
+Phase 39.2: Add Thin Reference Bridge
+=====================================
+
+Goal
+----
+Provide a small Bun/Node reference bridge that exposes the frozen HTTP
+contract while using only accepted public GoodMemory APIs. OneLife is the
+first reference consumer, not the bridge boundary itself.
+
+Scope
+-----
+- Build on top of the accepted Phase 38 runtime facade and job surface.
+- Keep framework coupling thin; Express/Fastify-style adapters are acceptable.
+- Do not introduce repo-internal imports as the integration contract.
+
+Acceptance
+----------
+- A consumer can stand up the bridge without copying repo-internal code paths.
+- The bridge uses `recall` + `buildContext` for `/memory/recall-context`.
+- The bridge uses `remember` or `memory.jobs.enqueueRemember()` for
+  `/memory/remember` without widening the root public API.
+- The bridge exposes stable JSON validation and error responses.
