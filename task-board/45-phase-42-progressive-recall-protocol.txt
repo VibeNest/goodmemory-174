@@ -3,7 +3,7 @@ Phase 42: Progressive Recall Protocol
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as the Phase 42 Progressive Recall Protocol slice.
 
 
 Intent
@@ -69,20 +69,20 @@ Acceptance Criteria
 
 Tasks
 -----
-[TODO] P42-T001 Add contract tests and failing release assertions.
-[TODO] P42-T002 Implement ProgressiveRecallService.
-[TODO] P42-T003 Implement `gmrec:v1` recordRef protocol.
-[TODO] P42-T004 Implement progressive context renderer.
-[TODO] P42-T005 Add MCP adapter tools over ProgressiveRecallService.
-[TODO] P42-T006 Add installed-host `contextMode` config and fallback behavior.
-[TODO] P42-T007 Add redaction, scope, and token-budget regressions.
-[TODO] P42-T008 Add Phase 42 eval, gate, docs, and closure sync.
+[DONE] P42-T001 Add contract tests and failing release assertions.
+[DONE] P42-T002 Implement ProgressiveRecallService.
+[DONE] P42-T003 Implement `gmrec:v1` recordRef protocol.
+[DONE] P42-T004 Implement progressive context renderer.
+[DONE] P42-T005 Add MCP adapter tools over ProgressiveRecallService.
+[DONE] P42-T006 Add installed-host `contextMode` config and fallback behavior.
+[DONE] P42-T007 Add redaction, scope, and token-budget regressions.
+[DONE] P42-T008 Add Phase 42 eval, gate, docs, and closure sync.
 
 
-Planned Evidence
-----------------
-- deterministic eval: `reports/eval/fallback/phase-42/<run-id>/report.json`
-- quality gate: `reports/quality-gates/phase-42/<run-id>/phase-42-quality-gate.json`
+Accepted Evidence
+-----------------
+- deterministic eval: `reports/eval/fallback/phase-42/run-20260426093000/report.json`
+- quality gate: `reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json`
 - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-42-Quality-Gate.md`
 
 

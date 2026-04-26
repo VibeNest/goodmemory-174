@@ -3069,6 +3069,56 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
+  it("status text does not report invalid contextMode as fragment", async () => {
+    const home = await createTempWorkspace("goodmemory-status-invalid-context-home");
+    const workspace = await createTempWorkspace("goodmemory-status-invalid-context-workspace");
+
+    try {
+      await mkdir(join(home.root, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(home.root, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            contextMode: "bad",
+            host: "codex",
+            storage: {
+              path: join(home.root, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "codex-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+            ]),
+          );
+
+          expect(status.exitCode).toBe(0);
+          expect(status.stdout).toContain("  - context: unknown");
+          expect(status.stdout).not.toContain("  - context: fragment");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
   it("status does not create a fresh sqlite database for an installed host", async () => {
     const home = await createTempWorkspace("goodmemory-status-fresh-sqlite-home");
     const workspace = await createTempWorkspace("goodmemory-status-fresh-sqlite-workspace");
@@ -3142,6 +3192,8 @@ describe("goodmemory cli installed host config", () => {
             "codex",
             "--activation-mode",
             "global",
+            "--context-mode",
+            "progressive",
             "--writeback",
             "selective",
             "--user-id",
@@ -3177,6 +3229,7 @@ describe("goodmemory cli installed host config", () => {
           const payload = JSON.parse(status.stdout) as {
             hosts: Array<{
               activationMode: string;
+              contextMode: string;
               counts: { facts: number; feedback: number; preferences: number };
               hookRegistered: boolean;
               mcpRegistered: boolean;
@@ -3186,6 +3239,7 @@ describe("goodmemory cli installed host config", () => {
             }>;
           };
           expect(payload.hosts[0]?.activationMode).toBe("global");
+          expect(payload.hosts[0]?.contextMode).toBe("progressive");
           expect(payload.hosts[0]?.writeback.mode).toBe("selective");
           expect(payload.hosts[0]?.hookRegistered).toBe(true);
           expect(payload.hosts[0]?.mcpRegistered).toBe(true);

@@ -9,7 +9,10 @@ import type {
   RecallResult,
 } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
+import { scopeToKey } from "../domain/scope";
 import { createHostAdapter } from "../host";
+import type { ProgressiveRecallService } from "../progressive/recall";
+import { parseGoodMemoryRecordRef } from "../progressive/recall";
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
@@ -18,6 +21,11 @@ import {
   type InstalledHostResolvedContext,
 } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
+import {
+  createInstalledHostProgressiveRecallService,
+  readInstalledHostProgressiveRecordCache,
+  resolveInstalledHostProgressiveScopeDigest,
+} from "./hostProgressiveRecall";
 
 const DEFAULT_CONTEXT_OUTPUT: BuildContextInput["output"] =
   "developer_prompt_fragment";
@@ -76,6 +84,7 @@ export function createGoodMemoryMcpServer(input: {
     version: readPackageVersion(),
   });
   const dependencies = input.dependencies ?? {};
+  const progressiveServices = new Map<string, ProgressiveRecallService>();
 
   server.registerTool(
     "goodmemory_get_context",
@@ -209,6 +218,154 @@ export function createGoodMemoryMcpServer(input: {
   );
 
   server.registerTool(
+    "goodmemory_search_index",
+    {
+      description:
+        "Use this for progressive GoodMemory recall: first fetch a compact recordRef index before requesting details.",
+      inputSchema: {
+        ...TOOL_SCOPE_SCHEMA,
+        includeRuntime: z.boolean().optional(),
+        limit: z.number().int().positive().max(50).optional(),
+        query: z.string().min(1),
+        retrievalProfile: z.enum(["coding_agent", "general_chat"]).optional(),
+      },
+    },
+    async (args) => {
+      const context = await loadInstalledHostExecutionContext(
+        {
+          cwd: args.cwd,
+          host: input.host,
+          retrievalProfile: args.retrievalProfile,
+          sessionId: args.sessionId,
+        },
+        dependencies,
+      );
+      if ("error" in context) {
+        return buildMcpErrorResult(context.error);
+      }
+
+      const service = await getProgressiveRecallService(
+        context,
+        dependencies,
+        progressiveServices,
+      );
+      const index = await service.searchRecallIndex({
+        includeRuntime: args.includeRuntime === true,
+        limit: args.limit,
+        query: args.query,
+        retrievalProfile: context.retrievalProfile,
+        scope: context.scope,
+      });
+      return buildMcpStructuredResult({ ...index });
+    },
+  );
+
+  server.registerTool(
+    "goodmemory_timeline",
+    {
+      description:
+        "Use this for progressive GoodMemory recall when you need compact chronological context before drilling into recordRefs.",
+      inputSchema: {
+        ...TOOL_SCOPE_SCHEMA,
+        includeRuntime: z.boolean().optional(),
+        limit: z.number().int().positive().max(50).optional(),
+        query: z.string().min(1),
+        recordsPerBucket: z.number().int().positive().max(20).optional(),
+        retrievalProfile: z.enum(["coding_agent", "general_chat"]).optional(),
+      },
+    },
+    async (args) => {
+      const context = await loadInstalledHostExecutionContext(
+        {
+          cwd: args.cwd,
+          host: input.host,
+          retrievalProfile: args.retrievalProfile,
+          sessionId: args.sessionId,
+        },
+        dependencies,
+      );
+      if ("error" in context) {
+        return buildMcpErrorResult(context.error);
+      }
+
+      const service = await getProgressiveRecallService(
+        context,
+        dependencies,
+        progressiveServices,
+      );
+      const timeline = await service.buildRecallTimeline({
+        includeRuntime: args.includeRuntime === true,
+        limit: args.limit,
+        query: args.query,
+        recordsPerBucket: args.recordsPerBucket,
+        retrievalProfile: context.retrievalProfile,
+        scope: context.scope,
+      });
+      return buildMcpStructuredResult({ ...timeline });
+    },
+  );
+
+  server.registerTool(
+    "goodmemory_get_records",
+    {
+      description:
+        "Use this for progressive GoodMemory recall after search_index or timeline returns recordRefs that need detail.",
+      inputSchema: {
+        ...TOOL_SCOPE_SCHEMA,
+        recordRefs: z.array(z.string().min(1)).min(1).max(20),
+      },
+    },
+    async (args) => {
+      const context = await loadInstalledHostExecutionContext(
+        {
+          cwd: args.cwd,
+          host: input.host,
+          sessionId: args.sessionId,
+        },
+        dependencies,
+      );
+      if ("error" in context) {
+        return buildMcpErrorResult(context.error);
+      }
+
+      const service = await getProgressiveRecallService(
+        context,
+        dependencies,
+        progressiveServices,
+      );
+      try {
+        const records = await service.getProgressiveRecords({
+          recordRefs: args.recordRefs,
+          scope: context.scope,
+        });
+        return buildMcpStructuredResult({ ...records });
+      } catch (error) {
+        const fallbackScopeDigest = await resolveCacheFallbackScopeDigest({
+          context,
+          error,
+          recordRefs: args.recordRefs,
+        });
+        if (fallbackScopeDigest) {
+          const cachedRecords = await readInstalledHostProgressiveRecordCache({
+            host: input.host,
+            recordRefs: args.recordRefs,
+            scopeDigest: fallbackScopeDigest,
+          }).catch(() => []);
+          if (cachedRecords.length === args.recordRefs.length) {
+            return buildMcpStructuredResult({
+              records: cachedRecords,
+              scopeDigest: fallbackScopeDigest,
+            });
+          }
+        }
+        return buildMcpErrorResult(
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    },
+  );
+
+  server.registerTool(
     "goodmemory_read_artifacts",
     {
       description:
@@ -303,6 +460,70 @@ export function createGoodMemoryMcpServer(input: {
   );
 
   return server;
+}
+
+async function getProgressiveRecallService(
+  context: InstalledHostResolvedContext,
+  dependencies: InstalledHostContextDependencies,
+  cache: Map<string, ProgressiveRecallService>,
+): Promise<ProgressiveRecallService> {
+  const cacheKey = [
+    context.host,
+    context.workspaceRoot,
+    context.storage?.provider ?? "",
+    context.storage?.url ?? "",
+    scopeToKey(context.scope),
+  ].join("\n");
+  const existing = cache.get(cacheKey);
+  if (existing) {
+    return existing;
+  }
+
+  const service = await createInstalledHostProgressiveRecallService({
+    context,
+    dependencies,
+  });
+  cache.set(cacheKey, service);
+  return service;
+}
+
+async function resolveCacheFallbackScopeDigest(input: {
+  context: InstalledHostResolvedContext;
+  error: unknown;
+  recordRefs: string[];
+}): Promise<string | null> {
+  if (!isProgressiveVisibilityMissError(input.error)) {
+    return null;
+  }
+
+  const parsedRefs = input.recordRefs.map((recordRef) =>
+    parseGoodMemoryRecordRef(recordRef),
+  );
+  if (parsedRefs.some((parsed) => parsed === null)) {
+    return null;
+  }
+
+  const scopeDigests = new Set(parsedRefs.map((parsed) => parsed!.scopeDigest));
+  if (scopeDigests.size !== 1) {
+    return null;
+  }
+
+  const expectedScopeDigest = await resolveInstalledHostProgressiveScopeDigest({
+    context: input.context,
+  });
+  const requestedScopeDigest = Array.from(scopeDigests)[0]!;
+  return requestedScopeDigest === expectedScopeDigest
+    ? requestedScopeDigest
+    : null;
+}
+
+function isProgressiveVisibilityMissError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.includes(
+      "is not available in the current progressive recall visibility set",
+    )
+  );
 }
 
 async function loadInstalledHostExecutionContext(

@@ -24,3 +24,9 @@ Working rules:
 - Expose scopeDigest, not raw scope fields.
 - Progressive mode must degrade to fragment when MCP/detail access is absent.
 - Do not copy code from `third-party/claude-mem-main`.
+
+Accepted evidence:
+
+- `reports/eval/fallback/phase-42/run-20260426093000/report.json`
+- `reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-42-Quality-Gate.md`

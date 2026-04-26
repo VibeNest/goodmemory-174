@@ -17,6 +17,7 @@ import {
 } from "./hostConfigValidation";
 import type {
   InstalledHostActivationMode,
+  InstalledHostContextMode,
   InstalledHostProviderConfig,
   InstalledHostWritebackConfig,
   WorkspaceHostOptInConfig,
@@ -44,6 +45,7 @@ export interface InstalledHostContextInput {
 
 export interface InstalledHostResolvedContext {
   activationMode: InstalledHostActivationMode;
+  contextMode: InstalledHostContextMode;
   debug: boolean;
   host: InstalledHostKind;
   maxTokens: number;
@@ -131,6 +133,8 @@ export async function resolveInstalledHostContext(
     status: "ok",
     context: {
       activationMode: globalConfig.config.activationMode,
+      contextMode:
+        workspaceConfig.contextMode ?? globalConfig.config.contextMode,
       debug: globalConfig.config.debug || workspaceConfig.debug,
       host: input.host,
       maxTokens:

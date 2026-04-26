@@ -16,6 +16,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 35 is now closed as the installed host-memory middleware and hooks slice.
 - Phase 37 is now closed as the installed host selective writeback slice. Codex installed host supports opt-in `off` / `observe` / `selective` writeback through `goodmemory codex writeback`, `install|enable --writeback`, and `session-stop` delegation. Runtime config defaults and new scripted installs remain `off` unless explicitly changed; existing configs keep their current writeback mode when no explicit override is provided; new interactive installs recommend `observe`. `observe` stores bounded/redacted candidate previews for review without durable writes; `selective` writes only selected candidates through the public Phase 36 `remember` surface.
 - Phase 41 is now closed as installed-host pre-action unification. `goodmemory install|enable codex` now registers managed `PreToolUse` for `Bash`, `goodmemory codex hook pre-tool-use` evaluates risky first steps on the installed config/storage/providers path, and `goodmemory codex action` executes rewrite/veto decisions plus lineage/evidence on the same installed memory backend already used by recall and writeback.
+- Phase 42 is now closed as the Progressive Recall Protocol slice. GoodMemory now has an internal `ProgressiveRecallService` for compact index, timeline, detail, and progressive context rendering; `gmrec:v1:${scopeDigest}:${recordKind}:${id}` refs are the detail handoff protocol; MCP `goodmemory_search_index`, `goodmemory_timeline`, and `goodmemory_get_records` wrap the shared service; installed-host `contextMode: "fragment" | "progressive"` defaults old configs to `fragment` and only uses progressive hook context when the local MCP detail transport is registered. This does not widen the root `goodmemory` API and does not make MCP the owner of recall logic.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
@@ -42,6 +43,30 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
+- Phase 42 is now closed as the Progressive Recall Protocol slice.
+- Accepted behavior:
+  - `ProgressiveRecallService` owns the shared search index, timeline, detail, and progressive context renderer logic
+  - `gmrec:v1` recordRefs include a keyed `scopeDigest`, record kind, and encoded id; detail fetch accepts recordRefs only and rejects bare ids and cross-scope refs
+  - progressive index/detail output redacts raw scope ids and raw transcripts
+  - runtime working memory/open loops are preserved as required progressive runtime context and cannot be pushed out by ordinary durable ranking
+  - progressive rendering enforces the installed-host token budget as a hard upper bound
+  - MCP tools wrap the shared service instead of duplicating recall/index/detail logic
+  - installed-host `contextMode` is parsed, migrated, surfaced in status/install/enable flows, and falls back to fragment output when progressive detail transport is unavailable
+  - hook-written progressive detail cache is local, short-lived, redacted, and can only be read back by MCP after recomputing the current resolved scope digest
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-42-Quality-Gate.md`
+  - deterministic eval: `reports/eval/fallback/phase-42/run-20260426093000/report.json`
+  - quality gate: `reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json`
+- Still outside the Phase 42 accepted claim:
+  - dashboard or hosted viewer product
+  - required worker/daemon/sidecar
+  - default-on writeback
+  - root `goodmemory` API widening
+  - raw transcript archive
+  - copying or packaging `third-party/claude-mem-main`
+
+## Prior Closed Installed-Host Slices
+
 - Phase 41 is now closed as installed-host pre-action unification.
 - Accepted behavior:
   - `goodmemory install codex` plus `goodmemory enable codex` registers managed `PreToolUse` alongside the existing recall and writeback hooks
@@ -67,8 +92,6 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - Claude pre-action as a second live blocker
   - default-on writeback
   - transcript persistence as installed-host memory
-
-## Prior Closed Installed-Host Slices
 
 - Phase 40 is now closed as the v0.2 release proof and product eval slice.
 - Accepted behavior:
@@ -158,10 +181,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 41.9 is a bookkeeping-only sync that keeps Phase 41 leaf task-board
   status aligned with the accepted Phase 41 current-status and quality-gate
   evidence. It does not reopen Phase 41 or change accepted behavior.
-- Phase 42 is queued as Progressive Recall Protocol: ProgressiveRecallService,
-  `gmrec:v1` recordRef, progressive renderer, MCP adapters, installed-host
-  `contextMode`, and redaction/scope/fallback gates.
-- Phase 43 is queued as Runtime Kit: `goodmemory/runtime-kit`, lifecycle
+- Phase 42 is closed as Progressive Recall Protocol; its accepted evidence is
+  listed under the latest closed slice and in the Phase 42 archive summary.
+- Phase 43 is the next queued slice as Runtime Kit: `goodmemory/runtime-kit`, lifecycle
   orchestration, Phase 41 pre-action reuse, afterModelCall governance, Codex
   live evidence, Claude deterministic parity, and AI SDK integration.
 - Phase 43.5 is queued as Optional Runtime Worker: bounded runtime-kit jobs,

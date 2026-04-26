@@ -25,6 +25,51 @@ describe("installed host writeback config", () => {
     }
 
     expect(parsed.config.writeback).toEqual(DEFAULT_INSTALLED_HOST_WRITEBACK);
+    expect(parsed.config.contextMode).toBe("fragment");
+  });
+
+  it("accepts progressive installed-host context mode", () => {
+    const parsed = parseInstalledHostRuntimeConfig(
+      {
+        contextMode: "progressive",
+        host: "codex",
+        storage: {
+          path: "/tmp/goodmemory.sqlite",
+          provider: "sqlite",
+        },
+        userId: "user-1",
+        version: 1,
+      },
+      "codex",
+    );
+
+    expect(parsed.status).toBe("ok");
+    if (parsed.status !== "ok") {
+      return;
+    }
+
+    expect(parsed.config.contextMode).toBe("progressive");
+  });
+
+  it("rejects invalid installed-host context mode", () => {
+    const parsed = parseInstalledHostRuntimeConfig(
+      {
+        contextMode: "always-progressive",
+        host: "codex",
+        storage: {
+          path: "/tmp/goodmemory.sqlite",
+          provider: "sqlite",
+        },
+        userId: "user-1",
+        version: 1,
+      },
+      "codex",
+    );
+
+    expect(parsed).toEqual({
+      detail: "contextMode must be fragment or progressive",
+      status: "invalid",
+    });
   });
 
   it("accepts observe mode without enabling durable writes", () => {

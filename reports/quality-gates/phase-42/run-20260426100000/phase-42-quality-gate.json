@@ -1,0 +1,64 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 42 progressive recall protocol is accepted with shared service reuse, scoped recordRefs, fallback behavior, token-budget enforcement, and no root API widening."
+  },
+  "commands": [
+    {
+      "durationMs": 4449,
+      "exitCode": 0,
+      "stderr": "$ bunx tsc --noEmit\n",
+      "stdout": "",
+      "label": "typecheck"
+    },
+    {
+      "durationMs": 558,
+      "exitCode": 0,
+      "stderr": "\ntests/unit/run-phase-42-eval.test.ts:\n(pass) run-phase-42 eval script > resolves the phase-42 deterministic output directory [0.10ms]\n(pass) run-phase-42 eval script > builds a deterministic phase-42 run id [0.16ms]\n(pass) run-phase-42 eval script > parses phase-42 eval cli flags [0.21ms]\n(pass) run-phase-42 eval script > writes an accepted progressive recall protocol report [5.77ms]\n\ntests/unit/host-hook-runtime.test.ts:\n(pass) installed host hook runtime > derives scope and emits additionalContext for user prompt submit [2.34ms]\n(pass) installed host hook runtime > falls back to fragment context when progressive mode has no MCP detail transport [1.21ms]\n(pass) installed host hook runtime > uses progressive context and caches drill-down records when MCP is registered [6.27ms]\n(pass) installed host hook runtime > creates GoodMemory with installed provider adapters from host config [1.02ms]\n(pass) installed host hook runtime > fails open with a debug systemMessage when the workspace is disabled [1.46ms]\n(pass) installed host hook runtime > uses global activation mode without a repo config and keeps prompt-submit recall read-only [1.13ms]\n(pass) installed host hook runtime > runs selective writeback for bounded stop-hook session signals without blocking output [3.70ms]\n(pass) installed host hook runtime > dedupes concurrent writeback events under the ledger lock [28.68ms]\n(pass) installed host hook runtime > reports observe audit persistence failures as writeback failures [1.52ms]\n(pass) installed host hook runtime > fails writeback closed when the ledger file is malformed [1.62ms]\n(pass) installed host hook runtime > uses a continuity query for session start [1.59ms]\n(pass) installed host hook runtime > fails open when the repo opt-in config has malformed field types [0.97ms]\n\ntests/unit/host-writeback-config.test.ts:\n(pass) installed host writeback config > defaults writeback off with raw transcript persistence disabled\n(pass) installed host writeback config > accepts progressive installed-host context mode [0.15ms]\n(pass) installed host writeback config > rejects invalid installed-host context mode\n(pass) installed host writeback config > accepts observe mode without enabling durable writes [0.08ms]\n(pass) installed host writeback config > rejects raw transcript persistence instead of sanitizing it on\n(pass) installed host writeback config > maps legacy autoLearn configs to writeback for managed-config migration [0.10ms]\n\ntests/unit/run-phase-42-gate.test.ts:\n(pass) run-phase-42 gate script > resolves phase-42 output and canonical evidence paths\n(pass) run-phase-42 gate script > builds a deterministic phase-42 gate run id [0.29ms]\n(pass) run-phase-42 gate script > parses phase-42 gate cli flags [0.05ms]\n(pass) run-phase-42 gate script > builds the expected targeted command set [0.03ms]\n(pass) run-phase-42 gate script > writes an accepted phase-42 quality gate when evidence and boundaries pass [0.46ms]\n\ntests/unit/host-install.test.ts:\n(pass) host install > fails closed when the existing global managed config is not valid JSON [1.48ms]\n(pass) host install > rejects enable when the global managed config is not runnable by the hook runtime [0.74ms]\n(pass) host install > repairs invalid runtime fields when reinstalling the managed global config [2.94ms]\n(pass) host install > rejects invalid global contextMode instead of normalizing it during reinstall [1.17ms]\n(pass) host install > rejects invalid workspace contextMode instead of dropping it during enable [1.15ms]\n(pass) host install > preserves existing global memory path and userId unless explicit install flags override them [2.23ms]\n(pass) host install > writes the secret-bearing global config and install directory with private permissions [1.18ms]\n(pass) host install > rejects blank Postgres storage URLs before writing global config [0.31ms]\n(pass) host install > registers the managed Codex MCP server without disturbing existing config.toml sections [2.71ms]\n(pass) host install > fails closed when the existing Codex MCP config uses an array table [1.96ms]\n(pass) host install > fails closed when a user-managed Codex MCP server already uses the goodmemory name [0.98ms]\n(pass) host install > rolls back the main install config when MCP registration fails [1.11ms]\n(pass) host install > rolls back the main install config when hook registration fails [1.17ms]\n(pass) host install > registers and removes the managed Claude MCP server while preserving sibling settings [2.19ms]\n(pass) host install > fails closed when a user-managed Claude MCP server already uses the goodmemory name [0.68ms]\n(pass) host install > restores the main uninstall config when MCP cleanup fails [1.08ms]\n(pass) host install > restores the main uninstall config when hook cleanup fails [2.20ms]\n(pass) host install > still removes the managed MCP registration when the main install config is already missing [0.78ms]\n(pass) host install > preserves a user-managed Codex MCP server during uninstall [0.87ms]\n(pass) host install > preserves a user-managed Claude MCP server during uninstall [0.85ms]\n(pass) host install > preserves Codex hook enablement for remaining user hooks during uninstall [2.64ms]\n(pass) host install > removes managed Codex hooks while preserving user-managed GoodMemory hook wrappers [1.59ms]\n(pass) host install > enables and disables repo opt-in without losing existing workspace config [3.30ms]\n(pass) host install > keeps repeated enable idempotent when repo debug is unset [2.02ms]\n(pass) host install > treats disable on a pristine workspace as a no-op [1.81ms]\n(pass) host install > writes a disabled workspace override when global activation is enabled [3.99ms]\n(pass) host install > fails closed when disabling a workspace with malformed repo config [3.87ms]\n(pass) host install > fails closed when the managed instruction block is malformed [2.90ms]\n(pass) host install > fails closed when the managed instruction block markers are reversed [4.76ms]\n\ntests/unit/progressive-recall.service.test.ts:\n(pass) ProgressiveRecallService > encodes parseable record refs and rejects malformed bare ids [0.07ms]\n(pass) ProgressiveRecallService > builds a compact index without leaking raw scope fields [0.77ms]\n(pass) ProgressiveRecallService > uses recall-visible records instead of export-only records [0.19ms]\n(pass) ProgressiveRecallService > does not let constructed refs bypass runtime visibility [0.59ms]\n(pass) ProgressiveRecallService > keeps earlier durable refs available across later progressive index calls [0.46ms]\n(pass) ProgressiveRecallService > supports detached timeline method calls [0.17ms]\n(pass) ProgressiveRecallService > fetches detail by recordRef, denies cross-scope refs, and strips raw transcripts [0.40ms]\n(pass) ProgressiveRecallService > renders progressive context with refs and token costs [0.45ms]\n(pass) ProgressiveRecallService > keeps working memory visible in progressive runtime context [0.73ms]\n\ntests/integration/host-mcp-server.test.ts:\n(pass) goodmemory mcp server > exposes the documented read-only tools and matches public API output [298.29ms]\n\n 66 pass\n 0 fail\n 275 expect() calls\nRan 66 tests across 7 files. [551.00ms]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-42-core-regressions"
+    },
+    {
+      "durationMs": 71,
+      "exitCode": 0,
+      "stderr": "$ bun run scripts/run-phase-42-eval.ts --run-id \"run-20260426093000\"\n",
+      "stdout": "Phase 42 deterministic eval accepted: /Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-42/run-20260426093000\n",
+      "label": "phase-42-fallback-eval"
+    },
+    {
+      "durationMs": 168,
+      "exitCode": 0,
+      "stderr": "\ntests/cli/cli.test.ts:\n(pass) goodmemory cli installed host config > status text does not report invalid contextMode as fragment [5.17ms]\n(pass) goodmemory cli installed host config > status reports installed host activation and current workspace counts [31.59ms]\n\n 2 pass\n 78 filtered out\n 0 fail\n 14 expect() calls\nRan 2 tests across 1 file. [162.00ms]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-42-cli-regressions"
+    },
+    {
+      "durationMs": 5258,
+      "exitCode": 0,
+      "stderr": "\ntests/release/release.test.ts:\n(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [1.27ms]\n(pass) release metadata and docs > packs a tarball that keeps the compiled package boundary and omits repo-only payload [4610.40ms]\n(pass) release metadata and docs > phase-42 quality gate doc points to the canonical progressive recall gate [0.80ms]\n(pass) release metadata and docs > models fallback eval evidence as regenerable ignored output, not tracked audit artifacts [574.48ms]\n\n 4 pass\n 57 filtered out\n 0 fail\n 324 expect() calls\nRan 4 tests across 1 file. [5.25s]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-42-release-regressions"
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-42/run-20260426093000/report.json",
+      "reason": "Phase 42 deterministic progressive recall protocol evidence is accepted.",
+      "regenerateCommand": "bun run eval:phase-42 --run-id run-20260426093000",
+      "status": "accepted"
+    },
+    "evalSummary": {
+      "passCount": 8,
+      "totalChecks": 8
+    },
+    "mcpWrapsProgressiveService": true,
+    "noRootApiWidening": true
+  },
+  "generatedAt": "2026-04-26T05:30:31.651Z",
+  "generatedBy": "scripts/run-phase-42-gate.ts",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-42",
+  "phase": "phase-42",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-42/run-20260426100000",
+  "runId": "run-20260426100000"
+}

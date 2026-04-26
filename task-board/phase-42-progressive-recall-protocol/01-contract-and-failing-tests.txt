@@ -3,7 +3,7 @@ Phase 42.1: Contract and Failing Tests
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 42 progressive recall protocol closure.
 
 Goal
 ----
@@ -22,3 +22,12 @@ Acceptance
 - Tests fail for missing progressive service behavior before implementation.
 - No test depends on MCP as the only owner of progressive recall logic.
 - Failing cases prove cross-scope detail denial and redaction requirements.
+
+Accepted Evidence
+-----------------
+- `tests/unit/progressive-recall.service.test.ts`
+- `tests/integration/host-mcp-server.test.ts`
+- `tests/unit/host-hook-runtime.test.ts`
+- `tests/unit/run-phase-42-eval.test.ts`
+- `tests/unit/run-phase-42-gate.test.ts`
+- `reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json`

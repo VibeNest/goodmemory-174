@@ -3,7 +3,7 @@ Phase 42.5: MCP Adapter Tools
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 42 progressive recall protocol closure.
 
 Goal
 ----
@@ -23,3 +23,9 @@ Acceptance
 - `goodmemory_get_records` accepts only recordRef values.
 - Existing MCP tools remain compatible.
 - MCP unavailable cases are observable so installed-host can fall back.
+
+Accepted Evidence
+-----------------
+- MCP tools in `src/install/hostMcpServer.ts`
+- integration coverage in `tests/integration/host-mcp-server.test.ts`
+- quality gate boundary assertion: `reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json`

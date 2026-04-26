@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -7,7 +7,11 @@ import type {
   GoodMemoryConfig,
   RecallResult,
 } from "../../src/api/contracts";
+import { createMemorySource } from "../../src/domain/provenance";
+import { createFactMemory } from "../../src/domain/records";
 import { executeInstalledHostHook } from "../../src/install/hostHookRuntime";
+import { registerInstalledHostMcp } from "../../src/install/hostMcpConfig";
+import { readInstalledHostProgressiveRecordCache } from "../../src/install/hostProgressiveRecall";
 import {
   createNoopGoodMemoryJobsFacade,
   createNoopGoodMemoryRuntimeFacade,
@@ -17,8 +21,8 @@ async function createWorkspace(prefix: string): Promise<string> {
   return mkdtemp(join(tmpdir(), prefix));
 }
 
-function createRecallResult(): RecallResult {
-  return {
+function createRecallResult(overrides: Partial<RecallResult> = {}): RecallResult {
+  const result: RecallResult = {
     archives: [],
     episodes: [],
     evidence: [],
@@ -65,6 +69,11 @@ function createRecallResult(): RecallResult {
       tokenCount: 1,
       verificationHints: [],
     },
+  };
+
+  return {
+    ...result,
+    ...overrides,
   };
 }
 
@@ -220,6 +229,269 @@ describe("installed host hook runtime", () => {
         maxTokens: 96,
         output: "developer_prompt_fragment",
       });
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("falls back to fragment context when progressive mode has no MCP detail transport", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-progressive-fallback-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hook-progressive-fallback-workspace-",
+    );
+    let buildContextCalled = false;
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await mkdir(join(workspaceRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            contextMode: "progressive",
+            debug: false,
+            host: "codex",
+            maxTokens: 320,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(workspaceRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            enabled: true,
+            host: "codex",
+            version: 1,
+            workspaceId: "workspace-hook",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "codex",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "Check the release runbook before editing files.",
+            session_id: "session-42",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
+              async buildContext() {
+                buildContextCalled = true;
+                return {
+                  content: "Developer memory notes:\nFragment fallback stays available.",
+                  estimatedTokens: 10,
+                  omittedSections: [],
+                  output: "developer_prompt_fragment",
+                };
+              },
+              async recall() {
+                return createRecallResult();
+              },
+              async remember() {
+                throw new Error("not used");
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.applied).toBe(true);
+      expect(result.context).toContain("Developer memory notes");
+      expect(result.context).not.toContain("Progressive GoodMemory Recall");
+      expect(buildContextCalled).toBe(true);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("uses progressive context and caches drill-down records when MCP is registered", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-progressive-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-progressive-workspace-");
+    let buildContextCalled = false;
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await mkdir(join(workspaceRoot, ".goodmemory"), { recursive: true });
+      await registerInstalledHostMcp({
+        homeRoot,
+        host: "codex",
+      });
+      await writeFile(
+        join(homeRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            contextMode: "progressive",
+            debug: false,
+            host: "codex",
+            maxTokens: 80,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(workspaceRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            enabled: true,
+            host: "codex",
+            version: 1,
+            workspaceId: "workspace-hook",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const source = createMemorySource({
+        extractedAt: "2026-01-01T00:00:00.000Z",
+        method: "explicit",
+        sessionId: "session-42",
+      });
+      const fact = createFactMemory({
+        agentId: "codex",
+        category: "project",
+        content: "The release runbook is docs/release-quality-runbook.md.",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        id: "fact-progressive-hook",
+        sessionId: "session-42",
+        source,
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        userId: "hook-user",
+        workspaceId: "workspace-hook",
+      });
+
+      const result = await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "codex",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "Check the release runbook before editing files.",
+            session_id: "session-42",
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
+              async buildContext() {
+                buildContextCalled = true;
+                throw new Error("fragment context should not run");
+              },
+              async recall() {
+                return createRecallResult({
+                  facts: [fact],
+                });
+              },
+              async remember() {
+                throw new Error("not used");
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.applied).toBe(true);
+      expect(result.context).toContain("Progressive GoodMemory Recall");
+      expect(result.context).toContain("gmrec:v1:");
+      expect(result.context!.length).toBeLessThanOrEqual(80 * 4);
+      expect(result.context).not.toContain("hook-user");
+      expect(result.context).not.toContain("workspace-hook");
+      expect(buildContextCalled).toBe(false);
+
+      const recordRef = result.context?.match(/gmrec:v1:\S+/u)?.[0];
+      if (!recordRef) {
+        throw new Error("Expected progressive hook context to include a recordRef.");
+      }
+      const scopeDigest = recordRef.split(":")[2];
+      if (!scopeDigest) {
+        throw new Error("Expected progressive recordRef to include a scope digest.");
+      }
+      const cachedRecords = await readInstalledHostProgressiveRecordCache({
+        homeRoot,
+        host: "codex",
+        recordRefs: [recordRef],
+        scopeDigest,
+      });
+      expect(cachedRecords).toMatchObject([
+        {
+          recordKind: "fact",
+          recordRef,
+        },
+      ]);
+      expect(JSON.stringify(cachedRecords)).toContain("release-quality-runbook.md");
+      expect(JSON.stringify(cachedRecords)).not.toContain("hook-user");
+      expect((await stat(join(homeRoot, ".goodmemory/codex-progressive-records.json"))).mode & 0o777)
+        .toBe(0o600);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });

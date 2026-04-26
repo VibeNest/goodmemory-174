@@ -3,7 +3,7 @@ Phase 42.4: Progressive Context Renderer
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 42 progressive recall protocol closure.
 
 Goal
 ----
@@ -22,3 +22,9 @@ Acceptance
 - Golden snapshots cover typical coding-agent and general-chat output.
 - Progressive output is smaller than equivalent fragment output on fixture data.
 - Renderer never prints raw scope fields or raw transcript text.
+
+Accepted Evidence
+-----------------
+- Hard token-budget renderer regression in `tests/unit/progressive-recall.service.test.ts`
+- installed-host progressive hook budget regression in `tests/unit/host-hook-runtime.test.ts`
+- deterministic eval: `reports/eval/fallback/phase-42/run-20260426093000/report.json`

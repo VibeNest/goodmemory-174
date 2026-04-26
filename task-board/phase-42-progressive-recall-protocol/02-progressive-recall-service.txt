@@ -3,7 +3,7 @@ Phase 42.2: ProgressiveRecallService
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 42 progressive recall protocol closure.
 
 Goal
 ----
@@ -25,3 +25,9 @@ Acceptance
 - Service can operate from existing recall/export/runtime/writeback surfaces.
 - Service is independent from MCP transport and viewer routes.
 - No raw transcript or full assistant output appears in service output.
+
+Accepted Evidence
+-----------------
+- Shared service: `src/progressive/recall.ts`
+- Deterministic eval: `reports/eval/fallback/phase-42/run-20260426093000/report.json`
+- Quality gate: `reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json`

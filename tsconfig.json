@@ -15,7 +15,8 @@
       "goodmemory": ["./src/index.ts"],
       "goodmemory/ai-sdk": ["./src/ai-sdk/index.ts"],
       "goodmemory/host": ["./src/host/index.ts"],
-      "goodmemory/http": ["./src/http/index.ts"]
+      "goodmemory/http": ["./src/http/index.ts"],
+      "goodmemory/runtime-kit": ["./src/runtime-kit/index.ts"]
     }
   },
   "include": ["src", "tests", "scripts"],

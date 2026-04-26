@@ -45,6 +45,7 @@ import {
 } from "./install/hostWritebackAuditRuntime";
 import type {
   InstalledHostActivationMode,
+  InstalledHostContextMode,
   InstalledHostEmbeddingProviderConfig,
   InstalledHostModelProviderConfig,
   InstalledHostProviderConfig,
@@ -53,6 +54,7 @@ import type {
 } from "./install/hostConfigValidation";
 import {
   DEFAULT_INSTALLED_HOST_WRITEBACK,
+  readContextMode,
   readWritebackMode,
 } from "./install/hostConfigValidation";
 import {
@@ -260,6 +262,7 @@ const SETUP_HELP_TEXT = [
   "  --host <codex|claude|both>  Optional, defaults to detected installed hosts",
   "  --user-id <id>              Optional, defaults to the current OS username",
   "  --activation-mode <global|workspace_opt_in>",
+  "  --context-mode <fragment|progressive>",
   "  --writeback <off|observe|selective>",
   "  --interactive",
   "  --no-interactive",
@@ -427,6 +430,7 @@ const ENABLE_HELP_TEXT = [
   "Options",
   "  --workspace-id <id>       Optional, defaults to the workspace folder name",
   "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --context-mode <fragment|progressive>",
   "  --writeback <off|observe|selective>",
   "  --json",
 ].join("\n");
@@ -2042,6 +2046,7 @@ function renderInstalledHostPayload(input: {
     userId?: string;
     writeback?: InstalledHostWritebackConfig;
     workspaceRoot?: string;
+    contextMode?: string;
   };
 }): string {
   const hostLabel = input.payload.host === "codex" ? "Codex" : "Claude Code";
@@ -2055,6 +2060,9 @@ function renderInstalledHostPayload(input: {
   }
   if (input.payload.activationMode) {
     lines.push(`- activation: ${input.payload.activationMode}`);
+  }
+  if (input.payload.contextMode) {
+    lines.push(`- context: ${input.payload.contextMode}`);
   }
   if (input.payload.writeback) {
     lines.push(`- writeback: ${input.payload.writeback.mode}`);
@@ -2106,6 +2114,7 @@ function renderInstalledHostPayload(input: {
 function renderSetupPayload(payload: {
   hosts: Array<{
     activationMode: InstalledHostActivationMode;
+    contextMode: InstalledHostContextMode;
     changes: Array<{ action: string; relativePath: string }>;
     host: InstalledHostKind;
     storage: { location: string; provider: string };
@@ -2115,7 +2124,7 @@ function renderSetupPayload(payload: {
   const lines = ["GoodMemory setup complete"];
   for (const host of payload.hosts) {
     lines.push(
-      `- ${host.host}: ${host.activationMode}, writeback=${host.writeback.mode}, storage=${host.storage.provider}`,
+      `- ${host.host}: ${host.activationMode}, context=${host.contextMode}, writeback=${host.writeback.mode}, storage=${host.storage.provider}`,
     );
     lines.push(
       ...formatInstalledHostWritebackGuidance(
@@ -2142,6 +2151,7 @@ function renderStatusPayload(payload: {
     lines.push(`- ${hostName}: ${String(host.workspaceStatus)}`);
     lines.push(`  - config: ${String(host.config)}`);
     lines.push(`  - activation: ${String(host.activationMode ?? "unknown")}`);
+    lines.push(`  - context: ${String(host.contextMode ?? "unknown")}`);
     const writeback = host.writeback as InstalledHostWritebackConfig | null;
     lines.push(
       `  - writeback: ${writeback?.mode ?? "off"}`,
@@ -2357,6 +2367,22 @@ function readActivationModeFlag(
 
   throw new Error(
     `Unsupported installed-host activation mode: ${value}. Expected global|workspace_opt_in.`,
+  );
+}
+
+function readContextModeFlag(
+  value: string | undefined,
+): InstalledHostContextMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const contextMode = readContextMode(value);
+  if (contextMode) {
+    return contextMode;
+  }
+
+  throw new Error(
+    `Unsupported installed-host context mode: ${value}. Expected fragment|progressive.`,
   );
 }
 
@@ -3436,6 +3462,7 @@ async function handleHostInstall(
       const result = await installHost({
         activationMode,
         assistedExtractor: readOptionalAssistedExtractorProviderConfig(installFlags),
+        contextMode: readContextModeFlag(installFlags["context-mode"]),
         embedding: readOptionalEmbeddingProviderConfig(installFlags),
         host,
         memoryPath: installFlags["memory-path"],
@@ -3447,6 +3474,7 @@ async function handleHostInstall(
       const workspaceEnableResult =
         installOptions.activationSelection === "current-workspace"
           ? await enableHostWorkspace({
+              contextMode: readContextModeFlag(installFlags["context-mode"]),
               host,
               workspaceId: installFlags["workspace-id"],
               workspaceRoot: installFlags["workspace-root"],
@@ -3464,6 +3492,7 @@ async function handleHostInstall(
           relativePath: change.relativePath,
         })),
         configPath: result.configPath,
+        contextMode: result.contextMode,
         host: result.host,
         installRoot: result.installRoot,
         ...(result.storage.provider === "sqlite" ? { memoryPath: result.memoryPath } : {}),
@@ -3516,6 +3545,7 @@ async function handleSetup(
         const result = await installHost({
           activationMode,
           assistedExtractor: readOptionalAssistedExtractorProviderConfig(setup.flags),
+          contextMode: readContextModeFlag(setup.flags["context-mode"]),
           embedding: readOptionalEmbeddingProviderConfig(setup.flags),
           host,
           memoryPath: setup.flags["memory-path"],
@@ -3527,6 +3557,7 @@ async function handleSetup(
         const workspaceEnableResult =
           setup.activationSelection === "current-workspace"
             ? await enableHostWorkspace({
+                contextMode: readContextModeFlag(setup.flags["context-mode"]),
                 host,
                 workspaceId: setup.flags["workspace-id"],
                 workspaceRoot: setup.flags["workspace-root"],
@@ -3739,6 +3770,7 @@ function buildInstalledHostPayload(
   workspaceEnableResult: Awaited<ReturnType<typeof enableHostWorkspace>> | null,
 ): {
   activationMode: InstalledHostActivationMode;
+  contextMode: InstalledHostContextMode;
   changes: Array<{
     action: string;
     path: string;
@@ -3763,6 +3795,7 @@ function buildInstalledHostPayload(
 } {
   return {
     activationMode: result.activationMode,
+    contextMode: result.contextMode,
     changes: [
       ...result.changes,
       ...(workspaceEnableResult?.changes ?? []),
@@ -3841,6 +3874,12 @@ async function buildHostStatus(
     activationMode:
       globalConfig.status === "ok" ? globalConfig.config.activationMode : null,
     config: globalConfig.status,
+    contextMode:
+      resolved.status === "ok"
+        ? resolved.context.contextMode
+        : globalConfig.status === "ok"
+          ? globalConfig.config.contextMode
+          : null,
     hookRegistered: await isInstalledHostHookRegistered({ homeRoot, host }),
     host,
     mcpRegistered: await isInstalledHostMcpRegistered({ homeRoot, host }),
@@ -3981,6 +4020,7 @@ async function handleHostEnable(
   flags: ParsedFlags,
 ): Promise<CLICommandOutput> {
   const result = await enableHostWorkspace({
+    contextMode: readContextModeFlag(flags["context-mode"]),
     host,
     writebackMode:
       flags.writeback === undefined ? undefined : readWritebackModeFlag(flags.writeback),
@@ -3995,6 +4035,7 @@ async function handleHostEnable(
     })),
     configPath: result.configPath,
     host: result.host,
+    ...(result.contextMode ? { contextMode: result.contextMode } : {}),
     instructionPath: result.instructionPath,
     ...(result.writeback ? { writeback: result.writeback } : {}),
     workspaceId: result.workspaceId,

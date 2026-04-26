@@ -3,7 +3,7 @@ Phase 42.3: `gmrec:v1` RecordRef Protocol
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 42 progressive recall protocol closure.
 
 Goal
 ----
@@ -37,3 +37,9 @@ Acceptance
 - Detail reads deny refs from another scopeDigest.
 - Collection id collisions do not return the wrong record kind.
 - Viewer and CLI handoff can reuse the same recordRef values.
+
+Accepted Evidence
+-----------------
+- `gmrec:v1` parser/encoder and detail denial tests in `tests/unit/progressive-recall.service.test.ts`
+- MCP drill-down tests in `tests/integration/host-mcp-server.test.ts`
+- deterministic eval: `reports/eval/fallback/phase-42/run-20260426093000/report.json`

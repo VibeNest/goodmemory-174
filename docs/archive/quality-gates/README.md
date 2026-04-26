@@ -64,6 +64,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-40-Quality-Gate.md`
 - Installed-host pre-action unification closure:
   - `GoodMemory-Phase-41-Quality-Gate.md`
+- Progressive recall protocol closure:
+  - `GoodMemory-Phase-42-Quality-Gate.md`
 
 ## When To Use This Archive
 

@@ -1,7 +1,8 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { describe, expect, it } from "bun:test";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   createFactMemory,
@@ -14,6 +15,12 @@ import {
 } from "../../src";
 import { createHostAdapter } from "../../src/host";
 import { createMemorySource } from "../../src/domain/provenance";
+import {
+  readInstalledHostProgressiveRecordCache,
+  writeInstalledHostProgressiveRecordCache,
+} from "../../src/install/hostProgressiveRecall";
+import type { ProgressiveRecordDetail } from "../../src/progressive/recall";
+import { buildProgressiveScopeDigest } from "../../src/progressive/recall";
 import { createInMemoryVectorStore } from "../../src/storage/memory";
 import { createMemoryRepositories } from "../../src/storage/repositories";
 import { createTempWorkspace } from "../../src/testing/utils";
@@ -184,6 +191,17 @@ describe("goodmemory mcp server", () => {
         ) + "\n",
         "utf8",
       );
+      const progressiveSecretPath = join(
+        home.root,
+        ".goodmemory",
+        "codex-progressive-scope-secret",
+      );
+      await writeFile(
+        progressiveSecretPath,
+        "gmpr_existing-secret-for-permission-regression-1234567890\n",
+        "utf8",
+      );
+      await chmod(progressiveSecretPath, 0o644);
 
       const seeded = await seedSQLiteMemory(sqlitePath);
       const installedScope = seeded.scope;
@@ -236,9 +254,12 @@ describe("goodmemory mcp server", () => {
       const listedTools = await client.listTools();
       expect(listedTools.tools.map((tool) => tool.name).sort()).toEqual([
         "goodmemory_get_context",
+        "goodmemory_get_records",
         "goodmemory_inspect_memory",
         "goodmemory_read_artifacts",
+        "goodmemory_search_index",
         "goodmemory_stats",
+        "goodmemory_timeline",
         "goodmemory_trace_recall",
       ]);
 
@@ -290,6 +311,104 @@ describe("goodmemory mcp server", () => {
         scope: installedScope,
       });
 
+      const searchIndexResult = await client.callTool({
+        arguments: {
+          cwd: workspace.root,
+          includeRuntime: true,
+          limit: 6,
+          query: "release quality vendor approval runbook",
+          sessionId: "session-1",
+        },
+        name: "goodmemory_search_index",
+      });
+      expect(JSON.stringify(searchIndexResult.structuredContent)).not.toContain(
+        installedScope.userId,
+      );
+      expect(JSON.stringify(searchIndexResult.structuredContent)).not.toContain(
+        installedScope.workspaceId,
+      );
+      const searchIndex = searchIndexResult.structuredContent as {
+        query: string;
+        records: Array<{ recordKind: string; recordRef: string; summary: string }>;
+        scopeDigest: string;
+        totalRecordCount: number;
+      };
+      expect(searchIndex.query).toBe("release quality vendor approval runbook");
+      expect(searchIndex.scopeDigest).toMatch(/^scope_[a-f0-9]{32}$/u);
+      const localProgressiveSecret = (
+        await readFile(progressiveSecretPath, "utf8")
+      ).trim();
+      expect(localProgressiveSecret).toMatch(/^gmpr_[A-Za-z0-9_-]{32,}$/u);
+      expect((await stat(progressiveSecretPath)).mode & 0o777).toBe(0o600);
+      const predictableSecret = createHash("sha256")
+        .update("goodmemory-progressive-recall-v1")
+        .update("\n")
+        .update("codex")
+        .update("\n")
+        .update("sqlite")
+        .update("\n")
+        .update(sqlitePath)
+        .digest("hex");
+      expect(searchIndex.scopeDigest).not.toBe(
+        buildProgressiveScopeDigest({
+          scope: installedScope,
+          secret: predictableSecret,
+        }),
+      );
+      const searchRecords = searchIndex.records;
+      expect(searchRecords.map((record) => record.recordKind)).toContain("fact");
+      expect(searchRecords.map((record) => record.recordKind)).toContain("reference");
+      const factRecordRef = searchRecords.find(
+        (record) => record.recordKind === "fact",
+      )?.recordRef;
+      if (!factRecordRef) {
+        throw new Error("Expected progressive search index to include a fact recordRef.");
+      }
+
+      const progressiveRecordsResult = await client.callTool({
+        arguments: {
+          cwd: workspace.root,
+          recordRefs: [factRecordRef],
+          sessionId: "session-1",
+        },
+        name: "goodmemory_get_records",
+      });
+      const progressiveRecords = progressiveRecordsResult.structuredContent as {
+        records: ProgressiveRecordDetail[];
+        scopeDigest: string;
+      };
+      expect(progressiveRecords.scopeDigest).toBe(searchIndex.scopeDigest);
+      expect(progressiveRecords.records).toMatchObject([
+        {
+          recordKind: "fact",
+          recordRef: factRecordRef,
+        },
+      ]);
+      expect(JSON.stringify(progressiveRecordsResult.structuredContent)).toContain(
+        "vendor approval",
+      );
+
+      const timelineResult = await client.callTool({
+        arguments: {
+          cwd: workspace.root,
+          includeRuntime: true,
+          query: "release quality vendor approval runbook",
+          recordsPerBucket: 3,
+          sessionId: "session-1",
+        },
+        name: "goodmemory_timeline",
+      });
+      const timeline = timelineResult.structuredContent as {
+        buckets: Array<{ records: Array<{ recordRef: string }> }>;
+        scopeDigest: string;
+        totalRecordCount: number;
+      };
+      expect(timeline.scopeDigest).toBe(searchIndex.scopeDigest);
+      expect(timeline.totalRecordCount).toBeGreaterThan(0);
+      expect(
+        timeline.buckets.some((bucket) => bucket.records.length > 0),
+      ).toBe(true);
+
       const artifactsResult = await client.callTool({
         arguments: {
           cwd: workspace.root,
@@ -325,6 +444,74 @@ describe("goodmemory mcp server", () => {
       expect(statsResult.structuredContent).toHaveProperty("counts.facts", 1);
       expect(statsResult.structuredContent).toHaveProperty("counts.feedback", 1);
       expect(statsResult.structuredContent).toHaveProperty("counts.references", 1);
+
+      const cachedDetail = progressiveRecords;
+      await writeInstalledHostProgressiveRecordCache({
+        homeRoot: home.root,
+        host: "codex",
+        records: cachedDetail.records,
+        scopeDigest: cachedDetail.scopeDigest,
+      });
+      await expect(
+        readInstalledHostProgressiveRecordCache({
+          homeRoot: home.root,
+          host: "codex",
+          recordRefs: [factRecordRef],
+          scopeDigest: cachedDetail.scopeDigest,
+        }),
+      ).resolves.toHaveLength(1);
+      await transport.close();
+      transport = null;
+
+      transport = new StdioClientTransport({
+        args: [mcpScript, "--host", "codex"],
+        command: "bun",
+        cwd: workspace.root,
+        env: createChildEnv({
+          GOODMEMORY_HOME: home.root,
+        }),
+        stderr: "pipe",
+      });
+      const freshClient = new Client(
+        {
+          name: "goodmemory-mcp-cache-test-client",
+          version: "0.0.0",
+        },
+        {
+          capabilities: {},
+        },
+      );
+      await freshClient.connect(transport);
+      const crossScopeCachedRecordsResult = await freshClient.callTool({
+        arguments: {
+          cwd: workspace.root,
+          recordRefs: [factRecordRef],
+          sessionId: "session-2",
+        },
+        name: "goodmemory_get_records",
+      });
+      expect(crossScopeCachedRecordsResult.isError).toBe(true);
+      expect(crossScopeCachedRecordsResult.structuredContent).toMatchObject({
+        error: expect.stringContaining("does not belong to the requested scope"),
+      });
+
+      const cachedRecordsResult = await freshClient.callTool({
+        arguments: {
+          cwd: workspace.root,
+          recordRefs: [factRecordRef],
+          sessionId: "session-1",
+        },
+        name: "goodmemory_get_records",
+      });
+      expect(cachedRecordsResult.structuredContent).toMatchObject({
+        records: [
+          {
+            recordKind: "fact",
+            recordRef: factRecordRef,
+          },
+        ],
+        scopeDigest: cachedDetail.scopeDigest,
+      });
     } finally {
       if (transport) {
         await transport.close();

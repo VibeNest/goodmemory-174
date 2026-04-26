@@ -3,7 +3,7 @@ Phase 42.6: Installed-Host `contextMode`
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 42 progressive recall protocol closure.
 
 Goal
 ----
@@ -23,3 +23,9 @@ Acceptance
 - `install` and `enable` expose script-safe flags.
 - Hook runtime degrades to fragment or compact fragment when progressive detail
   tools are unavailable.
+
+Accepted Evidence
+-----------------
+- config/schema/CLI coverage in `tests/unit/host-writeback-config.test.ts`, `tests/unit/host-install.test.ts`, and `tests/cli/cli.test.ts`
+- hook fallback and progressive cache coverage in `tests/unit/host-hook-runtime.test.ts`
+- deterministic eval fallback proof: `reports/eval/fallback/phase-42/run-20260426093000/report.json`

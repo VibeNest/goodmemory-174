@@ -291,11 +291,14 @@ Current Sequencing Note
   - breakdown folder: `task-board/phase-41-9-status-task-board-sync/`
   - focus: align Phase 41 leaf task-board statuses with the accepted current-status and top-level Phase 41 closure without reopening Phase 41 or changing accepted behavior
   - release-facing assertion: current status cannot say Phase 41 is closed while Phase 41 leaf files still say `[TODO] Not started`
-- Phase 42 is queued as the Progressive Recall Protocol slice:
+- Phase 42 is now closed as the Progressive Recall Protocol slice:
   - task-board entrypoint: `task-board/45-phase-42-progressive-recall-protocol.txt`
   - breakdown folder: `task-board/phase-42-progressive-recall-protocol/`
   - focus: implement ProgressiveRecallService, `gmrec:v1` recordRef, progressive renderer, MCP adapters, installed-host `contextMode`, and redaction/scope/fallback gates
   - boundary: MCP wraps the shared service; it does not own the protocol
+  - deterministic evidence: `reports/eval/fallback/phase-42/run-20260426093000/report.json`
+  - quality gate: `reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-42-Quality-Gate.md`
 - Phase 43 is queued as the Runtime Kit slice:
   - task-board entrypoint: `task-board/46-phase-43-runtime-kit.txt`
   - breakdown folder: `task-board/phase-43-runtime-kit/`

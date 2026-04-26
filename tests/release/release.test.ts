@@ -59,6 +59,8 @@ const FALLBACK_ARTIFACT_CITATION_ROOTS = [
 ] as const;
 const PHASE41_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-41/run-20260425213045/report.json";
+const PHASE42_CANONICAL_FALLBACK_REPORT =
+  "reports/eval/fallback/phase-42/run-20260426093000/report.json";
 const PHASE41_TASK_BOARD_LEAF_FILES = [
   "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
   "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
@@ -697,6 +699,10 @@ describe("release metadata and docs", () => {
       import: "./dist/http/index.js",
       types: "./dist/http/index.d.ts",
     });
+    expect(pkg.exports?.["./runtime-kit"]).toEqual({
+      import: "./dist/runtime-kit/index.js",
+      types: "./dist/runtime-kit/index.d.ts",
+    });
     expect(pkg.exports?.["./package.json"]).toBe("./package.json");
     expect(Object.keys(pkg.exports ?? {})).not.toContain("./cli");
     expect(Object.keys(pkg.exports ?? {})).not.toContain("./llm/ai-sdk");
@@ -787,6 +793,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-41-live-memory"]).toBe(
       "bun run scripts/run-phase-41-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-42"]).toBe("bun run scripts/run-phase-42-eval.ts");
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -816,6 +823,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-39"]).toBe("bun run scripts/run-phase-39-gate.ts");
     expect(pkg.scripts?.["gate:phase-40"]).toBe("bun run scripts/run-phase-40-gate.ts");
     expect(pkg.scripts?.["gate:phase-41"]).toBe("bun run scripts/run-phase-41-gate.ts");
+    expect(pkg.scripts?.["gate:phase-42"]).toBe("bun run scripts/run-phase-42-gate.ts");
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -880,9 +888,10 @@ describe("release metadata and docs", () => {
       expect(entries).toContain("package/LICENSE");
       expect(entries).toContain("package/dist/index.js");
       expect(entries).toContain("package/dist/index.d.ts");
-      expect(entries).toContain("package/dist/ai-sdk/index.js");
-      expect(entries).toContain("package/dist/host/index.js");
-      expect(entries).toContain("package/dist/http/index.js");
+    expect(entries).toContain("package/dist/ai-sdk/index.js");
+    expect(entries).toContain("package/dist/host/index.js");
+    expect(entries).toContain("package/dist/http/index.js");
+    expect(entries).toContain("package/dist/runtime-kit/index.js");
       expect(entries).toContain("package/src/storage/sqliteRuntime.ts");
       expect(entries).toContain("package/scripts/goodmemory-cli.js");
       expect(entries).toContain("package/scripts/goodmemory-cli.ts");
@@ -930,6 +939,7 @@ describe("release metadata and docs", () => {
     expect(rootModule.createHostAdapter).toBeUndefined();
     expect(rootModule.createGoodMemoryAISDK).toBeUndefined();
     expect(rootModule.createGoodMemoryHttpMemoryBridge).toBeUndefined();
+    expect(rootModule.createGoodMemoryRuntimeKit).toBeUndefined();
     expect(rootModule.validateAgentInputEvent).toBeUndefined();
     expect(rootModule.validateHostAgentEvent).toBeUndefined();
     expect(rootModule.createMemoryRepositories).toBeUndefined();
@@ -2503,7 +2513,7 @@ describe("release metadata and docs", () => {
       "Phase 41.9 is now closed as a bookkeeping-only status/task-board sync",
     );
     expect(taskBoard).toContain(
-      "Phase 42 is queued as the Progressive Recall Protocol slice",
+      "Phase 42 is now closed as the Progressive Recall Protocol slice",
     );
     expect(taskBoard).toContain("Phase 43 is queued as the Runtime Kit slice");
     expect(taskBoard).toContain(
@@ -3482,6 +3492,40 @@ describe("release metadata and docs", () => {
     expect(archiveIndex).toContain("GoodMemory-Phase-41-Quality-Gate.md");
   });
 
+  it("phase-42 quality gate doc points to the canonical progressive recall gate", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-42-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    if (process.env.PHASE42_GATE_IN_PROGRESS !== "1") {
+      await expectCanonicalAcceptedQualityGate({
+        docPath,
+        phaseDirectory: "phase-42",
+        reportFileName: "phase-42-quality-gate.json",
+        runId: "run-20260426100000",
+      });
+    } else {
+      expect(qualityGateDoc).toContain(
+        "Canonical accepted gate run: `run-20260426100000`",
+      );
+    }
+
+    expect(qualityGateDoc).toContain("ProgressiveRecallService");
+    expect(qualityGateDoc).toContain("gmrec:v1");
+    expect(qualityGateDoc).toContain("goodmemory_search_index");
+    expect(qualityGateDoc).toContain(
+      "reports/eval/fallback/phase-42/run-20260426093000/report.json",
+    );
+    expect(qualityGateDoc).toContain("third-party/claude-mem-main");
+    expect(archiveIndex).toContain("GoodMemory-Phase-42-Quality-Gate.md");
+  });
+
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {
     const listed = await runGitCommand([
       "ls-files",
@@ -3519,6 +3563,12 @@ describe("release metadata and docs", () => {
       if (
         process.env.PHASE41_GATE_IN_PROGRESS === "1" &&
         path === PHASE41_CANONICAL_FALLBACK_REPORT
+      ) {
+        return false;
+      }
+      if (
+        process.env.PHASE42_GATE_IN_PROGRESS === "1" &&
+        path === PHASE42_CANONICAL_FALLBACK_REPORT
       ) {
         return false;
       }

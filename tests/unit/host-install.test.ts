@@ -144,6 +144,98 @@ describe("host install", () => {
     }
   });
 
+  it("rejects invalid global contextMode instead of normalizing it during reinstall", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-context-mode-");
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            contextMode: "always-progressive",
+            host: "codex",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "host-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      await expect(
+        installHost({
+          homeRoot,
+          host: "codex",
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing codex.json: contextMode must be fragment or progressive.",
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects invalid workspace contextMode instead of dropping it during enable", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-enable-context-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-host-enable-context-workspace-");
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await mkdir(join(workspaceRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            host: "codex",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "host-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      await writeFile(
+        join(workspaceRoot, ".goodmemory/codex.json"),
+        JSON.stringify(
+          {
+            contextMode: "bad",
+            enabled: true,
+            host: "codex",
+            version: 1,
+            workspaceId: "workspace-context",
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      await expect(
+        enableHostWorkspace({
+          homeRoot,
+          host: "codex",
+          workspaceRoot,
+        }),
+      ).rejects.toThrow(
+        "Refusing to overwrite existing .goodmemory/codex.json: contextMode must be fragment or progressive.",
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("preserves existing global memory path and userId unless explicit install flags override them", async () => {
     const homeRoot = await createWorkspace("goodmemory-host-install-merge-");
     const existingMemoryPath = resolve(homeRoot, "custom-memory.sqlite");

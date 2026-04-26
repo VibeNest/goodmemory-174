@@ -8,12 +8,21 @@ import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
 } from "./hostExecutionContext";
-import type { InstalledHostContextDependencies } from "./hostExecutionContext";
+import type {
+  InstalledHostContextDependencies,
+  InstalledHostResolvedContext,
+} from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
 import { evaluateInstalledHostPreToolUse } from "./hostActionRuntime";
+import { isInstalledHostMcpRegistered } from "./hostMcpConfig";
+import {
+  createInstalledHostProgressiveRecallService,
+  writeInstalledHostProgressiveRecordCache,
+} from "./hostProgressiveRecall";
 import { recordInstalledHostWritebackRecallHits } from "./hostWritebackAuditRuntime";
 import { executeInstalledHostWriteback } from "./hostWritebackRuntime";
 import type { InstalledHostWritebackResult } from "./hostWritebackRuntime";
+import { parseGoodMemoryRecordRef } from "../progressive/recall";
 
 export type InstalledHostHookCommand =
   | "pre-tool-use"
@@ -77,6 +86,7 @@ export interface InstalledHostHookWritebackResult {
 }
 
 const MAX_HOOK_CONTEXT_CHARS = 10_000;
+const MAX_PROGRESSIVE_HOOK_RECORDS = 10;
 
 export async function executeInstalledHostHook(
   input: InstalledHostHookExecutionInput,
@@ -180,19 +190,23 @@ export async function executeInstalledHostHook(
   const context = resolved.context;
 
   try {
-    const memory = createInstalledHostMemory(context, dependencies);
-    const recall = await memory.recall({
-      scope: context.scope,
+    const hookContext =
+      context.contextMode === "progressive"
+        ? await buildProgressiveHookContext({
+            context,
+            dependencies,
+            homeRoot: input.homeRoot,
+            host: input.host,
+            query,
+          }).catch(() => null)
+        : null;
+    const built = hookContext ?? await buildFragmentHookContext({
+      context,
+      dependencies,
       query,
-      retrievalProfile: context.retrievalProfile,
     });
-    const builtContext = await memory.buildContext({
-      recall,
-      output: "developer_prompt_fragment",
-      maxTokens: resolved.context.maxTokens,
-    });
-    const fragment = normalizeText(builtContext.content);
-    if (!fragment) {
+
+    if (!built) {
       return buildHookSkipResult({
         debug: resolved.context.debug,
         host: input.host,
@@ -204,11 +218,11 @@ export async function executeInstalledHostHook(
       });
     }
 
-    const boundedContext = clampText(fragment, MAX_HOOK_CONTEXT_CHARS);
+    const boundedContext = clampText(built.content, MAX_HOOK_CONTEXT_CHARS);
     await recordInstalledHostWritebackRecallHits({
       homeRoot: input.homeRoot,
       host: input.host,
-      recalledRecordIds: collectRecallRecordIds(recall),
+      recalledRecordIds: built.recalledRecordIds,
       scope: context.scope,
       sessionId: context.scope.sessionId,
     }).catch(() => undefined);
@@ -244,6 +258,100 @@ export async function executeInstalledHostHook(
       scope: resolved.context.scope,
     });
   }
+}
+
+interface HookContextBuildResult {
+  content: string;
+  recalledRecordIds: string[];
+}
+
+async function buildProgressiveHookContext(input: {
+  context: InstalledHostResolvedContext;
+  dependencies: InstalledHostHookDependencies;
+  homeRoot?: string;
+  host: InstalledHostKind;
+  query: string;
+}): Promise<HookContextBuildResult | null> {
+  const mcpRegistered = await isInstalledHostMcpRegistered({
+    homeRoot: input.homeRoot,
+    host: input.host,
+  });
+  if (!mcpRegistered) {
+    return null;
+  }
+
+  const service = await createInstalledHostProgressiveRecallService({
+    context: input.context,
+    dependencies: input.dependencies,
+    homeRoot: input.homeRoot,
+  });
+  const index = await service.searchRecallIndex({
+    includeRuntime: true,
+    limit: MAX_PROGRESSIVE_HOOK_RECORDS,
+    query: input.query,
+    retrievalProfile: input.context.retrievalProfile,
+    scope: input.context.scope,
+  });
+  if (index.records.length === 0) {
+    return null;
+  }
+
+  const rendered = service.renderProgressiveContext({
+    index,
+    maxRecords: MAX_PROGRESSIVE_HOOK_RECORDS,
+    maxTokens: input.context.maxTokens,
+    query: input.query,
+    retrievalProfile: input.context.retrievalProfile,
+  });
+  const content = normalizeText(rendered.content);
+  if (!content) {
+    return null;
+  }
+
+  const detail = await service.getProgressiveRecords({
+    recordRefs: index.records.map((record) => record.recordRef),
+    scope: input.context.scope,
+  });
+  await writeInstalledHostProgressiveRecordCache({
+    homeRoot: input.homeRoot,
+    host: input.host,
+    records: detail.records,
+    scopeDigest: index.scopeDigest,
+  });
+
+  return {
+    content,
+    recalledRecordIds: collectProgressiveRecordIds(
+      index.records.map((record) => record.recordRef),
+    ),
+  };
+}
+
+async function buildFragmentHookContext(input: {
+  context: InstalledHostResolvedContext;
+  dependencies: InstalledHostHookDependencies;
+  query: string;
+}): Promise<HookContextBuildResult | null> {
+  const memory = createInstalledHostMemory(input.context, input.dependencies);
+  const recall = await memory.recall({
+    scope: input.context.scope,
+    query: input.query,
+    retrievalProfile: input.context.retrievalProfile,
+  });
+  const builtContext = await memory.buildContext({
+    recall,
+    output: "developer_prompt_fragment",
+    maxTokens: input.context.maxTokens,
+  });
+  const fragment = normalizeText(builtContext.content);
+  if (!fragment) {
+    return null;
+  }
+
+  return {
+    content: fragment,
+    recalledRecordIds: collectRecallRecordIds(recall),
+  };
 }
 
 function buildHookSkipResult(input: {
@@ -339,6 +447,17 @@ function collectRecallRecordIds(recall: RecallResult): string[] {
     ids.add(trace.memoryId);
     for (const evidenceId of trace.evidenceIds ?? []) {
       ids.add(evidenceId);
+    }
+  }
+  return [...ids];
+}
+
+function collectProgressiveRecordIds(recordRefs: string[]): string[] {
+  const ids = new Set<string>();
+  for (const recordRef of recordRefs) {
+    const parsed = parseGoodMemoryRecordRef(recordRef);
+    if (parsed) {
+      ids.add(parsed.id);
     }
   }
   return [...ids];

@@ -1,0 +1,504 @@
+import { describe, expect, it } from "bun:test";
+import type {
+  ExportMemoryResult,
+  RecallInput,
+  RecallResult,
+} from "../../src/api/contracts";
+import type { MemoryScope } from "../../src/domain/scope";
+import {
+  createProgressiveRecallService,
+  encodeGoodMemoryRecordRef,
+  parseGoodMemoryRecordRef,
+} from "../../src/progressive/recall";
+
+const scope: MemoryScope = {
+  agentId: "codex",
+  sessionId: "session-secret",
+  tenantId: "tenant-secret",
+  userId: "user-secret",
+  workspaceId: "workspace-secret",
+};
+
+function createExportedMemory(): ExportMemoryResult {
+  return {
+    artifacts: {
+      files: [],
+      rootPath: ".",
+    },
+    durable: {
+      archives: [
+        {
+          archivedAt: "2026-01-03T00:00:00.000Z",
+          createdAt: "2026-01-03T00:00:00.000Z",
+          id: "archive-1",
+          keyDecisions: ["Keep progressive recall as a shared service."],
+          normalizedTranscript: "raw user transcript must stay hidden",
+          referencedArtifacts: [],
+          scopeLineage: [],
+          sessionId: "session-secret",
+          sourceSessionIds: ["session-secret"],
+          summary: "Progressive recall design session.",
+          unresolvedItems: ["Add MCP adapter after service lands."],
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+        },
+      ],
+      episodes: [],
+      evidence: [
+        {
+          agentId: scope.agentId,
+          createdAt: "2026-01-02T00:00:00.000Z",
+          excerpt: "Observed release blocker in the quality gate output.",
+          id: "evidence-1",
+          kind: "tool_result_excerpt",
+          linkedArchiveIds: [],
+          linkedMemoryIds: ["fact-1"],
+          source: {
+            extractedAt: "2026-01-02T00:00:00.000Z",
+            method: "explicit",
+          },
+          sourceMessageIds: [],
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+        },
+      ],
+      experiences: [],
+      facts: [
+        {
+          accessCount: 0,
+          category: "project",
+          confidence: 1,
+          content: "The release quality gate is blocked on package evidence.",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          id: "fact-1",
+          importance: 1,
+          isActive: true,
+          lifecycle: "active",
+          source: {
+            extractedAt: "2026-01-01T00:00:00.000Z",
+            method: "explicit",
+          },
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+        },
+      ],
+      feedback: [],
+      preferences: [],
+      profile: null,
+      promotions: [],
+      proposals: [],
+      references: [
+        {
+          confidence: 1,
+          createdAt: "2026-01-01T01:00:00.000Z",
+          id: "reference-1",
+          pointer: "docs/release-evidence.md",
+          source: {
+            extractedAt: "2026-01-01T01:00:00.000Z",
+            method: "explicit",
+          },
+          title: "Release evidence runbook",
+          updatedAt: "2026-01-01T01:00:00.000Z",
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+        },
+      ],
+    },
+    exportedAt: "2026-01-04T00:00:00.000Z",
+    runtime: {
+      journal: {
+        currentState: "Building the progressive recall service.",
+        errorsAndCorrections: [],
+        filesAndFunctions: [],
+        keyResults: [],
+        learnings: ["MCP should wrap the shared service."],
+        sessionId: "session-secret",
+        systemDocumentation: [],
+        updatedAt: "2026-01-04T00:00:00.000Z",
+        userId: scope.userId,
+        workflow: [],
+        worklog: ["Sketched Phase 42 service boundaries."],
+      },
+      spills: [],
+      workingMemory: null,
+    },
+    scope,
+  };
+}
+
+function createMemory(
+  exported: ExportMemoryResult,
+  options: { recall?: Partial<RecallResult> } = {},
+) {
+  return {
+    async exportMemory(input: { includeRuntime?: boolean; scope: MemoryScope }) {
+      return {
+        ...exported,
+        runtime: input.includeRuntime === true ? exported.runtime : undefined,
+        scope: input.scope,
+      };
+    },
+    async recall(input: RecallInput): Promise<RecallResult> {
+      const base: RecallResult = {
+        archives: exported.durable.archives,
+        episodes: exported.durable.episodes,
+        evidence: exported.durable.evidence,
+        facts: exported.durable.facts,
+        feedback: exported.durable.feedback,
+        journal: exported.runtime?.journal ?? null,
+        metadata: {
+          candidateTraces: [],
+          hits: [],
+          latencyMs: 0,
+          policyApplied: [],
+          routingDecision: {
+            actionDriving: false,
+            continuation: false,
+            intent: "general_assistance",
+            referenceSeeking: false,
+            requestedSlots: [],
+            retrievalProfile: "general_chat",
+            sourcePriorities: [],
+            strategy: "rules-only",
+            strategyExplanation: {
+              hardFloor: "lexical_runtime_procedural_priors",
+              llmRefinement: false,
+              requestedStrategy: "rules-only",
+              resolvedStrategy: "rules-only",
+              semanticTieBreaking: false,
+              summary: "unit test routing",
+            },
+            supportSlots: [],
+          },
+          tokenCount: 0,
+          verificationHints: [],
+        },
+        packet: {},
+        preferences: exported.durable.preferences,
+        profile: exported.durable.profile,
+        references: exported.durable.references,
+        workingMemory: exported.runtime?.workingMemory ?? null,
+      };
+
+      return {
+        ...base,
+        ...options.recall,
+      };
+    },
+  };
+}
+
+describe("ProgressiveRecallService", () => {
+  it("encodes parseable record refs and rejects malformed bare ids", () => {
+    const recordRef = encodeGoodMemoryRecordRef({
+      id: "fact:with-colon",
+      recordKind: "fact",
+      scopeDigest: "scope_abc123",
+    });
+
+    expect(recordRef).toBe("gmrec:v1:scope_abc123:fact:fact%3Awith-colon");
+    expect(parseGoodMemoryRecordRef(recordRef)).toEqual({
+      id: "fact:with-colon",
+      recordKind: "fact",
+      scopeDigest: "scope_abc123",
+    });
+    expect(parseGoodMemoryRecordRef("fact-1")).toBeNull();
+  });
+
+  it("builds a compact index without leaking raw scope fields", async () => {
+    const service = createProgressiveRecallService({
+      memory: createMemory(createExportedMemory()),
+      scopeDigestSecret: "progressive-test-secret",
+    });
+
+    const index = await service.searchRecallIndex({
+      includeRuntime: true,
+      query: "release quality evidence",
+      scope,
+    });
+
+    expect(index.scopeDigest).toMatch(/^scope_[a-f0-9]{32}$/u);
+    expect(JSON.stringify(index)).not.toContain(scope.userId);
+    expect(JSON.stringify(index)).not.toContain(scope.workspaceId);
+    expect(index.records.map((record) => record.recordKind)).toContain("fact");
+    expect(index.records.map((record) => record.recordKind)).toContain("reference");
+    expect(index.records.map((record) => record.recordKind)).toContain("archive");
+    expect(index.records.map((record) => record.recordKind)).toContain("runtime-journal");
+    expect(index.records.every((record) => record.recordRef.startsWith("gmrec:v1:"))).toBe(true);
+  });
+
+  it("uses recall-visible records instead of export-only records", async () => {
+    const exported = createExportedMemory();
+    const service = createProgressiveRecallService({
+      memory: createMemory(exported, {
+        recall: {
+          facts: [],
+        },
+      }),
+      scopeDigestSecret: "progressive-test-secret",
+    });
+
+    const index = await service.searchRecallIndex({
+      query: "release quality evidence",
+      scope,
+    });
+    const blockedFactRef = encodeGoodMemoryRecordRef({
+      id: "fact-1",
+      recordKind: "fact",
+      scopeDigest: index.scopeDigest,
+    });
+
+    expect(index.records.map((record) => record.recordKind)).not.toContain("fact");
+    await expect(
+      service.getProgressiveRecords({
+        recordRefs: [blockedFactRef],
+        scope,
+      }),
+    ).rejects.toThrow("not available in the current progressive recall visibility set");
+  });
+
+  it("does not let constructed refs bypass runtime visibility", async () => {
+    const service = createProgressiveRecallService({
+      memory: createMemory(createExportedMemory()),
+      scopeDigestSecret: "progressive-test-secret",
+    });
+
+    const durableOnlyIndex = await service.searchRecallIndex({
+      includeRuntime: false,
+      query: "progressive recall",
+      scope,
+    });
+    const runtimeRef = encodeGoodMemoryRecordRef({
+      id: "current",
+      recordKind: "runtime-journal",
+      scopeDigest: durableOnlyIndex.scopeDigest,
+    });
+
+    expect(durableOnlyIndex.records.map((record) => record.recordKind)).not.toContain(
+      "runtime-journal",
+    );
+    await expect(
+      service.getProgressiveRecords({
+        recordRefs: [runtimeRef],
+        scope,
+      }),
+    ).rejects.toThrow("not available in the current progressive recall visibility set");
+
+    const runtimeIndex = await service.searchRecallIndex({
+      includeRuntime: true,
+      query: "progressive recall",
+      scope,
+    });
+    const visibleRuntimeRef = runtimeIndex.records.find(
+      (record) => record.recordKind === "runtime-journal",
+    )?.recordRef;
+    if (!visibleRuntimeRef) {
+      throw new Error("Expected runtime journal ref after runtime-enabled index.");
+    }
+
+    const detail = await service.getProgressiveRecords({
+      recordRefs: [visibleRuntimeRef],
+      scope,
+    });
+    expect(detail.records[0]?.recordKind).toBe("runtime-journal");
+
+    await service.searchRecallIndex({
+      includeRuntime: false,
+      query: "progressive recall",
+      scope,
+    });
+    await expect(
+      service.getProgressiveRecords({
+        recordRefs: [visibleRuntimeRef],
+        scope,
+      }),
+    ).rejects.toThrow("not available in the current progressive recall visibility set");
+  });
+
+  it("keeps earlier durable refs available across later progressive index calls", async () => {
+    const service = createProgressiveRecallService({
+      memory: createMemory(createExportedMemory()),
+      scopeDigestSecret: "progressive-test-secret",
+    });
+    const index = await service.searchRecallIndex({
+      includeRuntime: false,
+      query: "release blocker",
+      scope,
+    });
+    const factRef = index.records.find(
+      (record) => record.recordKind === "fact",
+    )?.recordRef;
+    if (!factRef) {
+      throw new Error("Expected fact ref in initial progressive index.");
+    }
+
+    await service.buildRecallTimeline({
+      includeRuntime: false,
+      query: "release evidence runbook",
+      scope,
+    });
+    const detail = await service.getProgressiveRecords({
+      recordRefs: [factRef],
+      scope,
+    });
+
+    expect(detail.records[0]).toMatchObject({
+      recordKind: "fact",
+      recordRef: factRef,
+    });
+  });
+
+  it("supports detached timeline method calls", async () => {
+    const service = createProgressiveRecallService({
+      memory: createMemory(createExportedMemory()),
+      scopeDigestSecret: "progressive-test-secret",
+    });
+    const { buildRecallTimeline } = service;
+
+    const timeline = await buildRecallTimeline({
+      includeRuntime: true,
+      query: "release evidence",
+      scope,
+    });
+
+    expect(timeline.buckets.length).toBeGreaterThan(0);
+    expect(timeline.scopeDigest).toMatch(/^scope_[a-f0-9]{32}$/u);
+  });
+
+  it("fetches detail by recordRef, denies cross-scope refs, and strips raw transcripts", async () => {
+    const service = createProgressiveRecallService({
+      memory: createMemory(createExportedMemory()),
+      scopeDigestSecret: "progressive-test-secret",
+    });
+    const index = await service.searchRecallIndex({
+      includeRuntime: true,
+      query: "progressive recall",
+      scope,
+    });
+    const archiveRef = index.records.find(
+      (record) => record.recordKind === "archive",
+    )?.recordRef;
+
+    if (!archiveRef) {
+      throw new Error("Expected archive ref in progressive index.");
+    }
+
+    const detail = await service.getProgressiveRecords({
+      recordRefs: [archiveRef],
+      scope,
+    });
+    expect(detail.records).toHaveLength(1);
+    expect(detail.records[0]).toMatchObject({
+      recordKind: "archive",
+      title: "Progressive recall design session.",
+    });
+    expect(JSON.stringify(detail)).not.toContain("raw user transcript");
+
+    await expect(
+      service.getProgressiveRecords({
+        recordRefs: [
+          encodeGoodMemoryRecordRef({
+            id: "archive-1",
+            recordKind: "archive",
+            scopeDigest: "scope_other",
+          }),
+        ],
+        scope,
+      }),
+    ).rejects.toThrow("does not belong to the requested scope");
+  });
+
+  it("renders progressive context with refs and token costs", async () => {
+    const service = createProgressiveRecallService({
+      memory: createMemory(createExportedMemory()),
+      scopeDigestSecret: "progressive-test-secret",
+    });
+    const index = await service.searchRecallIndex({
+      includeRuntime: true,
+      query: "release evidence",
+      scope,
+    });
+
+    const rendered = service.renderProgressiveContext({
+      index,
+      query: "release evidence",
+      retrievalProfile: "coding_agent",
+    });
+
+    expect(rendered.content).toContain("Progressive GoodMemory Recall");
+    expect(rendered.content).toContain("gmrec:v1:");
+    expect(rendered.content).toContain("detail tokens");
+    expect(rendered.content).not.toContain(scope.userId);
+    expect(rendered.estimatedTokens).toBeLessThan(300);
+
+    const budgeted = service.renderProgressiveContext({
+      index,
+      maxTokens: 80,
+      query: "release evidence",
+      retrievalProfile: "coding_agent",
+    });
+    expect(budgeted.content).toContain("Progressive GoodMemory Recall");
+    expect(budgeted.content).toContain("gmrec:v1:");
+    expect(budgeted.estimatedTokens).toBeLessThanOrEqual(80);
+
+    const tinyBudget = service.renderProgressiveContext({
+      index,
+      maxTokens: 3,
+      query: "release evidence",
+      retrievalProfile: "coding_agent",
+    });
+    expect(tinyBudget.estimatedTokens).toBeLessThanOrEqual(3);
+    expect(tinyBudget.content.length).toBeLessThanOrEqual(12);
+  });
+
+  it("keeps working memory visible in progressive runtime context", async () => {
+    const exported = createExportedMemory();
+    exported.durable.facts = Array.from({ length: 20 }, (_, index) => ({
+      ...exported.durable.facts[0]!,
+      content: `installed host continuity high scoring durable fact ${index}`,
+      id: `fact-ranked-${index}`,
+      updatedAt: `2026-01-04T00:${String(index).padStart(2, "0")}:00.000Z`,
+    }));
+    exported.runtime = {
+      ...exported.runtime!,
+      workingMemory: {
+        constraints: ["Do not widen the public root API."],
+        currentGoal: "Close Phase 42 without losing installed-host continuity.",
+        openLoops: ["Run typecheck", "Sync task-board evidence"],
+        sessionId: "session-secret",
+        temporaryDecisions: ["Use MCP as adapter, not owner."],
+        updatedAt: "2026-01-04T01:00:00.000Z",
+        userId: scope.userId,
+      },
+    };
+    const service = createProgressiveRecallService({
+      memory: createMemory(exported),
+      scopeDigestSecret: "progressive-test-secret",
+    });
+    const index = await service.searchRecallIndex({
+      includeRuntime: true,
+      limit: 1,
+      query: "installed host continuity",
+      scope,
+    });
+    const workingMemoryRef = index.records.find(
+      (record) => record.title === "Working memory",
+    )?.recordRef;
+
+    if (!workingMemoryRef) {
+      throw new Error("Expected working memory ref in progressive index.");
+    }
+
+    const detail = await service.getProgressiveRecords({
+      recordRefs: [workingMemoryRef],
+      scope,
+    });
+    expect(detail.records[0]).toMatchObject({
+      recordKind: "runtime-journal",
+      title: "Working memory",
+    });
+    expect(JSON.stringify(detail)).toContain("Run typecheck");
+    expect(JSON.stringify(detail)).not.toContain(scope.userId);
+  });
+});

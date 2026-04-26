@@ -12,6 +12,7 @@ import {
 } from "../host/managedFiles";
 import {
   DEFAULT_INSTALLED_HOST_ACTIVATION_MODE,
+  DEFAULT_INSTALLED_HOST_CONTEXT_MODE,
   DEFAULT_INSTALLED_HOST_MAX_TOKENS,
   DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
   DEFAULT_INSTALLED_HOST_WRITEBACK,
@@ -19,10 +20,12 @@ import {
   normalizeInstalledHostWritebackConfig,
   parseInstalledHostRuntimeConfig,
   readPositiveInteger,
+  readContextMode,
   readRetrievalProfile,
 } from "./hostConfigValidation";
 import type {
   InstalledHostActivationMode,
+  InstalledHostContextMode,
   InstalledHostEmbeddingProviderConfig,
   InstalledHostModelProviderConfig,
   InstalledHostProviderConfig,
@@ -51,6 +54,7 @@ export interface InstalledHostFileChange {
 export interface InstallHostInput {
   activationMode?: InstalledHostActivationMode;
   assistedExtractor?: InstalledHostModelProviderConfig;
+  contextMode?: InstalledHostContextMode;
   embedding?: InstalledHostEmbeddingProviderConfig;
   homeRoot?: string;
   host: InstalledHostKind;
@@ -63,6 +67,7 @@ export interface InstallHostInput {
 
 export interface InstallHostResult {
   activationMode: InstalledHostActivationMode;
+  contextMode: InstalledHostContextMode;
   changes: InstalledHostFileChange[];
   configPath: string;
   host: InstalledHostKind;
@@ -87,6 +92,7 @@ export interface UninstallHostResult {
 }
 
 export interface EnableHostWorkspaceInput {
+  contextMode?: InstalledHostContextMode;
   homeRoot?: string;
   host: InstalledHostKind;
   writebackMode?: InstalledHostWritebackMode;
@@ -99,6 +105,7 @@ export interface EnableHostWorkspaceResult {
   configPath: string;
   host: InstalledHostKind;
   instructionPath: string;
+  contextMode?: InstalledHostContextMode;
   writeback?: InstalledHostWritebackConfig;
   workspaceId: string;
   workspaceRoot: string;
@@ -130,6 +137,7 @@ interface HostInstallBlueprint {
 
 interface HostInstallConfigRecord {
   activationMode: InstalledHostActivationMode;
+  contextMode: InstalledHostContextMode;
   debug: boolean;
   host: InstalledHostKind;
   maxTokens: number;
@@ -142,6 +150,7 @@ interface HostInstallConfigRecord {
 }
 
 interface WorkspaceOptInConfigRecord {
+  contextMode?: InstalledHostContextMode;
   debug?: boolean;
   enabled: boolean;
   host: InstalledHostKind;
@@ -218,6 +227,7 @@ export async function installHost(
   const nextConfig = await mergeInstallConfig({
     activationMode: input.activationMode,
     assistedExtractor: input.assistedExtractor,
+    contextMode: input.contextMode,
     configPath,
     embedding: input.embedding,
     host: input.host,
@@ -255,6 +265,7 @@ export async function installHost(
     ]);
   return {
     activationMode: nextConfig.activationMode,
+    contextMode: nextConfig.contextMode,
     changes,
     configPath,
       host: input.host,
@@ -375,6 +386,7 @@ export async function enableHostWorkspace(
   };
   const nextConfig = await mergeWorkspaceConfig({
     configPath,
+    contextMode: input.contextMode,
     host: input.host,
     preferInputWorkspaceId: input.workspaceId !== undefined,
     workspaceId: resolveWorkspaceId(workspaceRoot, input.workspaceId),
@@ -410,6 +422,7 @@ export async function enableHostWorkspace(
       configPath,
       host: input.host,
       instructionPath,
+      ...(nextConfig.contextMode ? { contextMode: nextConfig.contextMode } : {}),
       ...(writebackChange ? { writeback: writebackChange.writeback } : {}),
       workspaceId: nextConfig.workspaceId,
       workspaceRoot,
@@ -569,6 +582,7 @@ async function mergeInstallConfig(input: {
   activationMode?: InstalledHostActivationMode;
   assistedExtractor?: InstalledHostModelProviderConfig;
   configPath: string;
+  contextMode?: InstalledHostContextMode;
   embedding?: InstalledHostEmbeddingProviderConfig;
   host: InstalledHostKind;
   installRoot: string;
@@ -585,6 +599,7 @@ async function mergeInstallConfig(input: {
   if (existing === null || existing.trim().length === 0) {
     return {
       activationMode: input.activationMode ?? DEFAULT_INSTALLED_HOST_ACTIVATION_MODE,
+      contextMode: input.contextMode ?? DEFAULT_INSTALLED_HOST_CONTEXT_MODE,
       debug: false,
       host: input.host,
       maxTokens: DEFAULT_MAX_TOKENS,
@@ -635,6 +650,14 @@ async function mergeInstallConfig(input: {
     parsed.activationMode === "global" || parsed.activationMode === "workspace_opt_in"
       ? parsed.activationMode
       : DEFAULT_INSTALLED_HOST_ACTIVATION_MODE;
+  if (parsed.contextMode !== undefined && readContextMode(parsed.contextMode) === undefined) {
+    throw buildInvalidManagedConfigError(
+      relativeToRoot(input.configPath, input.installRoot),
+      "contextMode must be fragment or progressive",
+    );
+  }
+  const existingContextMode =
+    readContextMode(parsed.contextMode) ?? DEFAULT_INSTALLED_HOST_CONTEXT_MODE;
   const existingWriteback = normalizeInstalledHostWritebackConfig({
     legacyAutoLearn: parsed.autoLearn,
     value: parsed.writeback,
@@ -658,6 +681,7 @@ async function mergeInstallConfig(input: {
   return {
     ...rest,
     activationMode: input.activationMode ?? existingActivationMode,
+    contextMode: input.contextMode ?? existingContextMode,
     debug,
     host: input.host,
     maxTokens,
@@ -956,6 +980,7 @@ function normalizeEmbeddingProviderConfig(
 
 async function mergeWorkspaceConfig(input: {
   configPath: string;
+  contextMode?: InstalledHostContextMode;
   enabled?: boolean;
   host: InstalledHostKind;
   preferInputWorkspaceId?: boolean;
@@ -968,6 +993,7 @@ async function mergeWorkspaceConfig(input: {
     return {
       enabled: input.enabled ?? true,
       host: input.host,
+      ...(input.contextMode ? { contextMode: input.contextMode } : {}),
       version: 1,
       workspaceId: input.workspaceId,
     };
@@ -1010,12 +1036,20 @@ async function mergeWorkspaceConfig(input: {
   }
   const maxTokens = readPositiveInteger(parsed.maxTokens);
   const retrievalProfile = readRetrievalProfile(parsed.retrievalProfile);
+  if (parsed.contextMode !== undefined && readContextMode(parsed.contextMode) === undefined) {
+    throw buildInvalidManagedConfigError(
+      relativeToRoot(input.configPath, input.workspaceRoot),
+      "contextMode must be fragment or progressive",
+    );
+  }
+  const contextMode = readContextMode(parsed.contextMode);
 
   return {
     ...parsed,
     ...(parsed.debug === undefined ? {} : { debug: parsed.debug === true }),
     enabled: input.enabled ?? true,
     host: input.host,
+    contextMode: input.contextMode ?? contextMode,
     maxTokens,
     retrievalProfile,
     version: 1,

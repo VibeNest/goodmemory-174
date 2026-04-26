@@ -201,6 +201,7 @@ reports/quality-gates/**
 !reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json
 !reports/quality-gates/phase-40/run-20260425172323/phase-40-quality-gate.json
 !reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json
+!reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/

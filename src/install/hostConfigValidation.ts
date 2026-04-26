@@ -4,6 +4,7 @@ export type InstalledHostConfigTarget = "claude" | "codex";
 
 export interface InstalledHostRuntimeConfig {
   activationMode: InstalledHostActivationMode;
+  contextMode: InstalledHostContextMode;
   debug: boolean;
   maxTokens: number;
   providers?: InstalledHostProviderConfig;
@@ -17,6 +18,7 @@ export interface InstalledHostRuntimeConfig {
 }
 
 export type InstalledHostActivationMode = "global" | "workspace_opt_in";
+export type InstalledHostContextMode = "fragment" | "progressive";
 export type InstalledHostAutoLearnSource = "session_stop" | "user_prompt";
 export type InstalledHostAutoLearnExtractionStrategy =
   | "auto"
@@ -66,6 +68,7 @@ export interface InstalledHostProviderConfig {
 }
 
 export interface WorkspaceHostOptInConfig {
+  contextMode?: InstalledHostContextMode;
   debug: boolean;
   enabled: boolean;
   maxTokens?: number;
@@ -75,6 +78,8 @@ export interface WorkspaceHostOptInConfig {
 
 export const DEFAULT_INSTALLED_HOST_MAX_TOKENS = 256;
 export const DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE = "coding_agent";
+export const DEFAULT_INSTALLED_HOST_CONTEXT_MODE: InstalledHostContextMode =
+  "fragment";
 export const DEFAULT_INSTALLED_HOST_ACTIVATION_MODE = "workspace_opt_in";
 export const DEFAULT_INSTALLED_HOST_AUTO_LEARN: InstalledHostAutoLearnConfig = {
   enabled: false,
@@ -117,6 +122,17 @@ export function parseInstalledHostRuntimeConfig(
   if (activationMode === undefined) {
     return {
       detail: "activationMode must be global or workspace_opt_in",
+      status: "invalid",
+    };
+  }
+
+  const contextMode =
+    parsed.contextMode === undefined
+      ? DEFAULT_INSTALLED_HOST_CONTEXT_MODE
+      : readContextMode(parsed.contextMode);
+  if (contextMode === undefined) {
+    return {
+      detail: "contextMode must be fragment or progressive",
       status: "invalid",
     };
   }
@@ -185,6 +201,7 @@ export function parseInstalledHostRuntimeConfig(
     status: "ok",
     config: {
       activationMode,
+      contextMode,
       debug: parsed.debug === true,
       maxTokens,
       ...(providers.config ? { providers: providers.config } : {}),
@@ -203,6 +220,10 @@ function readActivationMode(
   value: unknown,
 ): InstalledHostActivationMode | undefined {
   return value === "global" || value === "workspace_opt_in" ? value : undefined;
+}
+
+export function readContextMode(value: unknown): InstalledHostContextMode | undefined {
+  return value === "fragment" || value === "progressive" ? value : undefined;
 }
 
 function readAutoLearnConfig(
@@ -471,12 +492,21 @@ export function parseWorkspaceHostOptInConfig(
     };
   }
 
+  const contextMode = readOptionalContextMode(parsed.contextMode);
+  if (parsed.contextMode !== undefined && contextMode === undefined) {
+    return {
+      detail: "contextMode must be fragment or progressive",
+      status: "invalid",
+    };
+  }
+
   const enabled = parsed.enabled !== false;
   return {
     status: enabled ? "ok" : "disabled",
     config: {
       debug: parsed.debug === true,
       enabled,
+      contextMode,
       maxTokens,
       retrievalProfile,
       workspaceId:
@@ -523,6 +553,12 @@ function readOptionalRetrievalProfile(
   value: unknown,
 ): "coding_agent" | "general_chat" | undefined {
   return value === undefined ? undefined : readRetrievalProfile(value);
+}
+
+export function readOptionalContextMode(
+  value: unknown,
+): InstalledHostContextMode | undefined {
+  return value === undefined ? undefined : readContextMode(value);
 }
 
 export function readStorageProvider(
