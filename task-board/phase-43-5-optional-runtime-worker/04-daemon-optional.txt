@@ -1,0 +1,16 @@
+Phase 43.5.4: Optional Daemon
+=============================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Add daemon start/stop only after drain/status/recover are reliable.
+
+Acceptance
+----------
+- `start` and `stop` are not required for Phase 43 runtime-kit closure.
+- Daemon failure does not break installed-host hooks.
+- Process state is inspectable without relying on hidden side effects.

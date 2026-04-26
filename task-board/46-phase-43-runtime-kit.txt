@@ -1,0 +1,100 @@
+Phase 43: Runtime Kit
+=====================
+
+Status
+------
+[TODO] Not started.
+
+
+Intent
+------
+Expose a host-neutral runtime-kit that composes existing GoodMemory APIs, Phase
+41 pre-action behavior, Phase 37 writeback governance, and Phase 42 progressive
+recall into one reusable lifecycle layer.
+
+
+Core Boundary
+-------------
+Runtime-kit is a public adapter surface, not a new core memory model. It must
+call existing public APIs and accepted host contracts instead of duplicating
+remember/recall/writeback/pre-action logic.
+
+
+Planned Export
+--------------
+- `goodmemory/runtime-kit`
+
+
+Lifecycle Surface
+-----------------
+- `sessionStart`
+- `beforeModelCall`
+- `afterModelCall`
+- `sessionEnd`
+- `preAction`
+- `observeToolResult`
+
+
+Accepted Scope
+--------------
+- runtime-kit contracts and package export
+- lifecycle orchestration over existing GoodMemory APIs
+- reuse of Phase 42 ProgressiveRecallService
+- reuse of Phase 41 host action contract and execution plan
+- afterModelCall governance that avoids default-on durable writes
+- Codex live evidence
+- Claude deterministic parity
+- AI SDK wrapper integration without duplicated memory logic
+
+
+Out of Scope
+------------
+- worker daemon as a Phase 43 blocker
+- managed cloud, dashboard, or analytics
+- root API widening
+- raw transcript archive
+- default-on writeback
+
+
+Acceptance Criteria
+-------------------
+1. Runtime-kit does not create a parallel memory loop.
+2. `preAction` uses the accepted installed config/storage/providers/scope path.
+3. `afterModelCall` defaults to redacted candidates, trace spans, and bounded
+   jobs only.
+4. Durable `remember()` is called only when writeback mode is `selective` and
+   host annotations/policy allow it.
+5. AI SDK and installed-host adapters produce equivalent runtime events for the
+   same lifecycle inputs.
+6. The package export has type and tarball coverage.
+
+
+Tasks
+-----
+[TODO] P43-T001 Add contract tests and public export guardrails.
+[TODO] P43-T002 Add `goodmemory/runtime-kit` export and contracts.
+[TODO] P43-T003 Implement lifecycle orchestration over existing APIs.
+[TODO] P43-T004 Wire preAction through Phase 41 host action contracts.
+[TODO] P43-T005 Enforce afterModelCall writeback governance.
+[TODO] P43-T006 Add Codex live, Claude parity, and AI SDK integration evidence.
+[TODO] P43-T007 Add Phase 43 eval, gate, docs, and closure sync.
+
+
+Planned Evidence
+----------------
+- deterministic eval: `reports/eval/fallback/phase-43/<run-id>/report.json`
+- live Codex evidence: `reports/eval/live-memory/phase-43/<run-id>/report.json`
+- quality gate: `reports/quality-gates/phase-43/<run-id>/phase-43-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-43-Quality-Gate.md`
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-43-runtime-kit/00-README.txt`
+- `task-board/phase-43-runtime-kit/01-contract-and-failing-tests.txt`
+- `task-board/phase-43-runtime-kit/02-public-runtime-kit-export.txt`
+- `task-board/phase-43-runtime-kit/03-lifecycle-orchestration.txt`
+- `task-board/phase-43-runtime-kit/04-preaction-and-installed-host-adapters.txt`
+- `task-board/phase-43-runtime-kit/05-after-model-call-governance.txt`
+- `task-board/phase-43-runtime-kit/06-ai-sdk-and-claude-parity.txt`
+- `task-board/phase-43-runtime-kit/07-evals-gate-and-closure.txt`

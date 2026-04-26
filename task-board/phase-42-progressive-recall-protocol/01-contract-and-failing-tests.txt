@@ -1,0 +1,24 @@
+Phase 42.1: Contract and Failing Tests
+======================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Freeze the progressive recall protocol before implementation.
+
+Tests to Add First
+------------------
+- service contract tests for index, timeline, detail, and renderer behavior
+- recordRef collision and parser tests
+- MCP adapter schema tests
+- installed-host config migration tests for missing `contextMode`
+- release tests for package/license hygiene
+
+Acceptance
+----------
+- Tests fail for missing progressive service behavior before implementation.
+- No test depends on MCP as the only owner of progressive recall logic.
+- Failing cases prove cross-scope detail denial and redaction requirements.

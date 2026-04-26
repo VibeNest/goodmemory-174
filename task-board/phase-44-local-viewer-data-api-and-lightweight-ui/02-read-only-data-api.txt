@@ -1,0 +1,23 @@
+Phase 44.2: Read-Only Data API
+==============================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Add a local data API that exposes only redacted inspection data.
+
+Required Views
+--------------
+- memory counts
+- progressive recall index
+- writeback audit summaries
+- runtime session summaries
+- trace summaries
+
+Acceptance
+----------
+- API has no POST/PUT/PATCH/DELETE mutation routes.
+- API responses respect scope filtering and redaction.

@@ -1,0 +1,25 @@
+Phase 42.6: Installed-Host `contextMode`
+=======================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Let installed hosts opt into progressive context injection safely.
+
+Required Config
+---------------
+- `contextMode: "fragment" | "progressive"`
+- old configs migrate to `fragment`
+- interactive install recommends `progressive` only when MCP is installed and
+  usable
+- scripted install remains conservative unless explicitly configured
+
+Acceptance
+----------
+- `goodmemory status` shows contextMode and fallback reason.
+- `install` and `enable` expose script-safe flags.
+- Hook runtime degrades to fragment or compact fragment when progressive detail
+  tools are unavailable.

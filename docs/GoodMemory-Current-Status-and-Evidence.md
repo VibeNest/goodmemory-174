@@ -153,6 +153,25 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - periodically run `bun run eval:phase-37-1-dogfood -- --run-id run-phase37-1-local --output-dir <path>`
   - use `bun run gate:phase-37-1 -- --dogfood-mode local` when the real local ledger has enough sessions to validate retention behavior beyond the deterministic CI fixture; local mode writes to `.tmp-goodmemory-phase37-1-local/` by default so canonical evidence is not overwritten
 
+## Current Planned Runtime-Shell Work
+
+- Phase 41.9 is a bookkeeping-only sync that keeps Phase 41 leaf task-board
+  status aligned with the accepted Phase 41 current-status and quality-gate
+  evidence. It does not reopen Phase 41 or change accepted behavior.
+- Phase 42 is queued as Progressive Recall Protocol: ProgressiveRecallService,
+  `gmrec:v1` recordRef, progressive renderer, MCP adapters, installed-host
+  `contextMode`, and redaction/scope/fallback gates.
+- Phase 43 is queued as Runtime Kit: `goodmemory/runtime-kit`, lifecycle
+  orchestration, Phase 41 pre-action reuse, afterModelCall governance, Codex
+  live evidence, Claude deterministic parity, and AI SDK integration.
+- Phase 43.5 is queued as Optional Runtime Worker: bounded runtime-kit jobs,
+  drain-once/status/recover first, optional daemon later, and no raw transcript
+  payloads.
+- Phase 44 is queued as Local Viewer data API and lightweight UI: read-only
+  local inspection, progressive drill-down, writeback audit, trace/session
+  summaries, local-token security, and package/license hygiene. This is not a
+  dashboard, managed cloud, analytics, or transcript archive product.
+
 ## Current Canonical Evidence
 
 Fallback eval outputs under `reports/eval/fallback/**` are deterministic, regenerable local outputs. They are intentionally ignored by Git; tracked quality-gate artifacts record the run id, regeneration command, and ignored output path instead of treating fallback reports as checked-in audit artifacts.

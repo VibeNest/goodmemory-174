@@ -59,6 +59,15 @@ const FALLBACK_ARTIFACT_CITATION_ROOTS = [
 ] as const;
 const PHASE41_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-41/run-20260425213045/report.json";
+const PHASE41_TASK_BOARD_LEAF_FILES = [
+  "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
+  "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
+  "task-board/phase-41-installed-host-pre-action-unification/03-installed-action-bridge-runtime.txt",
+  "task-board/phase-41-installed-host-pre-action-unification/04-managed-pretooluse-registration-and-status.txt",
+  "task-board/phase-41-installed-host-pre-action-unification/05-deterministic-phase-41-eval.txt",
+  "task-board/phase-41-installed-host-pre-action-unification/06-live-installed-codex-evidence.txt",
+  "task-board/phase-41-installed-host-pre-action-unification/07-quality-gate-and-closure.txt",
+] as const;
 const CANONICAL_PHASE20_DEPENDENCY_SUMMARY_ARTIFACTS = [
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/public-surface-decision.json",
   "reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/regression-dashboard.json",
@@ -889,6 +898,9 @@ describe("release metadata and docs", () => {
       expect(entries).not.toContain("package/task-board/00-README.txt");
       expect(entries).not.toContain("package/reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json");
       expect(entries).not.toContain("package/.github/workflows/ci.yml");
+      expect(
+        entries.some((entry) => entry.startsWith("package/third-party/claude-mem-main/")),
+      ).toBe(false);
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
@@ -2488,6 +2500,25 @@ describe("release metadata and docs", () => {
       "Phase 41 is now closed as the installed-host pre-action unification slice",
     );
     expect(taskBoard).toContain(
+      "Phase 41.9 is now closed as a bookkeeping-only status/task-board sync",
+    );
+    expect(taskBoard).toContain(
+      "Phase 42 is queued as the Progressive Recall Protocol slice",
+    );
+    expect(taskBoard).toContain("Phase 43 is queued as the Runtime Kit slice");
+    expect(taskBoard).toContain(
+      "Phase 43.5 is queued as the Optional Runtime Worker slice",
+    );
+    expect(taskBoard).toContain(
+      "Phase 44 is queued as the Local Viewer data API and lightweight UI slice",
+    );
+    expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
+    expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
+    expect(taskBoard).toContain("47-phase-43-5-optional-runtime-worker.txt");
+    expect(taskBoard).toContain(
+      "48-phase-44-local-viewer-data-api-and-lightweight-ui.txt",
+    );
+    expect(taskBoard).toContain(
       "reports/eval/fallback/phase-41/run-20260425213045/report.json",
     );
     expect(taskBoard).toContain(
@@ -2503,6 +2534,36 @@ describe("release metadata and docs", () => {
       "reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json",
     );
     expect(taskBoard).not.toContain("Phase 35 is now WIP again");
+  });
+
+  it("phase-41 leaf task-board status stays aligned with closed current status", async () => {
+    const currentStatus = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-Current-Status-and-Evidence.md"),
+      "utf8",
+    );
+
+    expect(currentStatus).toContain(
+      "Phase 41 is now closed as installed-host pre-action unification",
+    );
+
+    for (const relativePath of PHASE41_TASK_BOARD_LEAF_FILES) {
+      const content = await readFile(
+        join(import.meta.dir, "../../", relativePath),
+        "utf8",
+      );
+
+      expect(content).toContain("[DONE] Accepted as part of the Phase 41");
+      expect(content).toContain(
+        "reports/eval/fallback/phase-41/run-20260425213045/report.json",
+      );
+      expect(content).toContain(
+        "reports/eval/live-memory/phase-41/run-phase41-live-current/report.json",
+      );
+      expect(content).toContain(
+        "reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json",
+      );
+      expect(content).not.toContain("[TODO] Not started.");
+    }
   });
 
   it("AGENTS.md keeps repository instructions aligned with the current eval contract", async () => {

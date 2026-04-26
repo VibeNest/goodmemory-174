@@ -1,0 +1,80 @@
+Phase 44: Local Viewer Data API and Lightweight UI
+==================================================
+
+Status
+------
+[TODO] Not started.
+
+
+Intent
+------
+Make GoodMemory observable locally without building a dashboard product. Phase
+44 starts with a read-only data API and a lightweight static viewer shell.
+
+
+Core Boundary
+-------------
+Viewer is an optional local inspection surface. It must not mutate memory, must
+not expose raw transcripts, and must not introduce cloud, account, analytics, or
+managed-dashboard behavior.
+
+
+Accepted Scope
+--------------
+- read-only viewer data API
+- local static viewer shell
+- progressive record drill-down using Phase 42 recordRef
+- memory counts, recall index, writeback audit, runtime sessions, and trace summaries
+- local token and 127.0.0.1-only binding
+- CLI handoff for forget/revise commands
+- package/license hygiene gate
+
+
+Out of Scope
+------------
+- dashboard/admin product
+- mutation routes
+- hosted sync or managed cloud
+- analytics
+- CORS-enabled API
+- raw transcript archive
+- React as a required v1 blocker
+
+
+Acceptance Criteria
+-------------------
+1. Viewer binds `127.0.0.1` only.
+2. Viewer routes require a local token or one-time session secret.
+3. Viewer sends no permissive CORS headers.
+4. Viewer exposes no write mutation routes.
+5. Viewer never displays raw transcript content.
+6. Forget/revise actions generate CLI handoff commands but do not execute them.
+7. Packed tarball excludes `third-party/claude-mem-main`.
+
+
+Tasks
+-----
+[TODO] P44-T001 Add contract tests and viewer route fixtures.
+[TODO] P44-T002 Add read-only viewer data API.
+[TODO] P44-T003 Add local token, host binding, and no-CORS security.
+[TODO] P44-T004 Add lightweight static viewer shell.
+[TODO] P44-T005 Add progressive drill-down, audit, trace, and session views.
+[TODO] P44-T006 Add package/license hygiene gate and closure docs.
+
+
+Planned Evidence
+----------------
+- deterministic eval: `reports/eval/fallback/phase-44/<run-id>/report.json`
+- quality gate: `reports/quality-gates/phase-44/<run-id>/phase-44-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-44-Quality-Gate.md`
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-44-local-viewer-data-api-and-lightweight-ui/00-README.txt`
+- `task-board/phase-44-local-viewer-data-api-and-lightweight-ui/01-contract-and-failing-tests.txt`
+- `task-board/phase-44-local-viewer-data-api-and-lightweight-ui/02-read-only-data-api.txt`
+- `task-board/phase-44-local-viewer-data-api-and-lightweight-ui/03-security-local-token.txt`
+- `task-board/phase-44-local-viewer-data-api-and-lightweight-ui/04-static-viewer-shell.txt`
+- `task-board/phase-44-local-viewer-data-api-and-lightweight-ui/05-progressive-drilldown-audit-trace.txt`
+- `task-board/phase-44-local-viewer-data-api-and-lightweight-ui/06-package-license-gate-and-closure.txt`

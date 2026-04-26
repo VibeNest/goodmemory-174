@@ -1,0 +1,17 @@
+Phase 44.4: Static Viewer Shell
+===============================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Add a lightweight local UI over the read-only data API.
+
+Acceptance
+----------
+- UI is static and packageable.
+- UI can run without account, cloud, analytics, or external network.
+- Polling is acceptable; SSE is optional.
+- UI copy presents this as local inspection, not a dashboard product.

@@ -1,0 +1,18 @@
+Phase 44.5: Drill-Down, Audit, Trace, and Sessions
+==================================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Make important local memory behavior visible without write access.
+
+Acceptance
+----------
+- Record drill-down uses Phase 42 recordRef and scope checks.
+- Writeback audit view shows bounded redacted previews only.
+- Trace view shows redaction-safe spans and scopeDigest.
+- Session view shows summaries, not raw transcripts.
+- Forget/revise buttons generate CLI handoff commands only.

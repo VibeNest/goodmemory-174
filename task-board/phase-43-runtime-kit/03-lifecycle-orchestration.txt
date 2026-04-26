@@ -1,0 +1,23 @@
+Phase 43.3: Lifecycle Orchestration
+===================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Implement lifecycle methods over existing GoodMemory APIs.
+
+Required Behavior
+-----------------
+- `sessionStart` initializes runtime state without transcript persistence.
+- `beforeModelCall` can render fragment or progressive context.
+- `afterModelCall` creates redacted candidates, trace spans, and bounded jobs.
+- `sessionEnd` can summarize runtime state under accepted archive rules.
+- `observeToolResult` records bounded tool outcome signals only.
+
+Acceptance
+----------
+- Runtime-kit produces traceable events.
+- Runtime-kit has no hidden durable writes outside accepted policies.

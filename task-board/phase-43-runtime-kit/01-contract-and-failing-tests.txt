@@ -1,0 +1,23 @@
+Phase 43.1: Contract and Failing Tests
+======================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Freeze runtime-kit lifecycle behavior before implementation.
+
+Tests to Add First
+------------------
+- public export/type tests for `goodmemory/runtime-kit`
+- lifecycle event contract tests
+- no root API widening assertions
+- afterModelCall off/observe non-durable-write tests
+- AI SDK and installed-host event equivalence tests
+
+Acceptance
+----------
+- Tests fail because runtime-kit does not exist yet.
+- Tests prove runtime-kit calls existing APIs and host contracts.

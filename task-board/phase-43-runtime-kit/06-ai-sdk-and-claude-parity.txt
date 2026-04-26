@@ -1,0 +1,17 @@
+Phase 43.6: AI SDK and Claude Parity
+====================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Connect runtime-kit to existing AI SDK and Claude surfaces without duplicating
+memory logic.
+
+Acceptance
+----------
+- AI SDK wrapper calls runtime-kit lifecycle methods.
+- Claude deterministic parity covers hook output and writeback governance.
+- Runtime events are equivalent across AI SDK and installed-host fixtures.

@@ -1,0 +1,17 @@
+Phase 44.6: Package, License, and Closure Gate
+==============================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Close viewer work without contaminating GoodMemory's MIT package boundary.
+
+Acceptance
+----------
+- Packed tarball excludes `third-party/claude-mem-main`.
+- Docs describe claude-mem as an engineering reference, not a fork or port.
+- No AGPL source is copied into GoodMemory implementation.
+- Gate fails if viewer exposes mutation routes or raw transcripts.

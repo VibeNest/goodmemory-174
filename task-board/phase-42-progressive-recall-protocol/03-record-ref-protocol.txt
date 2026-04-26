@@ -1,0 +1,39 @@
+Phase 42.3: `gmrec:v1` RecordRef Protocol
+=========================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Create stable, scope-bound references for progressive detail reads.
+
+Protocol
+--------
+Use this shape:
+
+```text
+gmrec:v1:${scopeDigest}:${recordKind}:${id}
+```
+
+Supported record kinds:
+
+- `profile`
+- `preference`
+- `fact`
+- `episode`
+- `evidence`
+- `experience`
+- `reference`
+- `archive`
+- `runtime-journal`
+- `runtime-spill`
+- `writeback-event`
+
+Acceptance
+----------
+- RecordRefs are parseable, stable, and versioned.
+- Detail reads deny refs from another scopeDigest.
+- Collection id collisions do not return the wrong record kind.
+- Viewer and CLI handoff can reuse the same recordRef values.

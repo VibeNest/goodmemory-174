@@ -1,0 +1,16 @@
+Phase 43.2: Public Runtime-Kit Export
+=====================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Add the `goodmemory/runtime-kit` package export and its typed contract.
+
+Acceptance
+----------
+- Export resolves from source, dist, declarations, and packed tarball.
+- Runtime-kit types are stable and host-neutral.
+- Root `goodmemory` export does not re-export runtime-kit internals.

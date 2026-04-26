@@ -1,0 +1,24 @@
+Phase 43.5.6: Evals, Gate, and Closure
+======================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Close optional worker only after bounded jobs, recovery, and failure isolation
+are proven.
+
+Required Commands
+-----------------
+- `bun run typecheck`
+- targeted worker tests
+- `bun run eval:phase-43-5`
+- `bun run gate:phase-43-5`
+- `bun test tests/release/release.test.ts`
+
+Acceptance
+----------
+- Gate fails if raw transcript appears in job payloads or worker failure blocks
+  inline runtime behavior.

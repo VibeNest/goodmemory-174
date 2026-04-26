@@ -1,0 +1,17 @@
+Phase 43.5.2: Bounded Job Envelope
+==================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Define the only payload shape the optional worker can consume.
+
+Acceptance
+----------
+- Envelope includes job id, scopeDigest, host, kind, createdAt, attempt state,
+  redacted payload, and trace links.
+- Envelope excludes raw transcript, full assistant output, and secrets.
+- Equivalent jobs coalesce before execution.

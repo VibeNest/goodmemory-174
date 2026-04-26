@@ -1,0 +1,16 @@
+Phase 43.5.1: Contract and Failing Tests
+========================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Freeze optional worker boundaries before implementation.
+
+Acceptance
+----------
+- Tests fail because worker envelope and CLI do not exist yet.
+- Tests prove daemon mode is not required for runtime-kit closure.
+- Fixtures assert no raw transcript in job payloads.

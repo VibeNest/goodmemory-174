@@ -1,0 +1,25 @@
+Phase 42.7: Security, Redaction, and Fallbacks
+==============================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Protect progressive recall from scope leaks and privacy regressions.
+
+Required Tests
+--------------
+- cross-scope recordRef denial
+- `remember: "never"` redaction
+- private/session-only exclusion
+- sensitive candidate suppression
+- MCP unavailable fallback
+- malformed recordRef fail-closed
+
+Acceptance
+----------
+- Progressive index and detail output are redaction-safe by default.
+- ScopeDigest is the only scope identifier exposed to the model.
+- Fallback never makes recall weaker than the current fragment path.

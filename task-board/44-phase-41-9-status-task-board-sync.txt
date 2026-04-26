@@ -1,0 +1,70 @@
+Phase 41.9: Status and Task-Board Sync
+======================================
+
+Status
+------
+[DONE] Phase 41.9 is closed as a bookkeeping-only preflight after the accepted Phase 41 closure.
+
+This is not a product phase and does not reopen Phase 41. It exists to keep the
+execution board, current-status docs, and release-facing assertions aligned
+before Phase 42 starts.
+
+
+Intent
+------
+Remove the status contradiction where Phase 41 is accepted in current status and
+the top-level task-board file, while Phase 41 leaf files still say `[TODO] Not
+started`.
+
+
+Accepted Scope
+--------------
+- mark Phase 41 leaf task-board files as accepted
+- attach the accepted Phase 41 evidence paths to those leaf files
+- add a release/status assertion so the contradiction cannot return
+- document that Phase 42 starts from the accepted Phase 41 boundary
+
+
+Out of Scope
+------------
+- changing Phase 41 accepted behavior
+- rerunning or repointing Phase 41 canonical evidence
+- reopening Phase 34, Phase 35, Phase 37, Phase 40, or Phase 41
+- implementing Phase 42 progressive recall behavior
+
+
+Definition of Done
+------------------
+- Phase 41 leaf files no longer contain `[TODO] Not started`.
+- Phase 41 leaf files cite:
+  - `reports/eval/fallback/phase-41/run-20260425213045/report.json`
+  - `reports/eval/live-memory/phase-41/run-phase41-live-current/report.json`
+  - `reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json`
+  - `docs/archive/quality-gates/GoodMemory-Phase-41-Quality-Gate.md`
+- `tests/release/release.test.ts` fails if current status says Phase 41 is
+  closed while Phase 41 leaf files still claim TODO.
+- Later runtime-shell phases are added after Phase 41 instead of editing closed
+  Phase 41 claims.
+
+
+Tasks
+-----
+[DONE] P41.9-T001 Sync Phase 41 leaf statuses and evidence.
+[DONE] P41.9-T002 Add release-facing status consistency assertion.
+[DONE] P41.9-T003 Add Phase 42-44 execution slots after Phase 41.
+[DONE] P41.9-T004 Preserve Phase 41 accepted behavior and evidence paths.
+
+
+Evidence
+--------
+- Phase 41 accepted gate:
+  `reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json`
+- Phase 41 current status:
+  `docs/GoodMemory-Current-Status-and-Evidence.md`
+- Release assertion:
+  `tests/release/release.test.ts`
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-41-9-status-task-board-sync/00-README.txt`

@@ -1,0 +1,17 @@
+Phase 44.3: Local Token and Network Security
+============================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Keep viewer local and non-browsable by unrelated origins.
+
+Acceptance
+----------
+- Server binds `127.0.0.1` by default and rejects non-local binding in v1.
+- Routes require a random token or one-time local secret.
+- No permissive CORS headers are emitted.
+- Token is not written to durable memory.

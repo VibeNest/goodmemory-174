@@ -1,0 +1,27 @@
+Phase 42.2: ProgressiveRecallService
+====================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Add the shared internal service that all progressive recall adapters use.
+
+Required Behavior
+-----------------
+- `searchRecallIndex(...)` returns compact ranked records with recordRef,
+  record kind, title/summary, timestamps, estimated token cost, and scopeDigest.
+- `buildRecallTimeline(...)` groups index records by time and relevant workspace
+  or artifact labels.
+- `getProgressiveRecords(...)` resolves recordRef values to redacted detail
+  records after scope validation.
+- `renderProgressiveContext(...)` renders an injectable fragment that teaches the
+  host to fetch detail only when useful.
+
+Acceptance
+----------
+- Service can operate from existing recall/export/runtime/writeback surfaces.
+- Service is independent from MCP transport and viewer routes.
+- No raw transcript or full assistant output appears in service output.

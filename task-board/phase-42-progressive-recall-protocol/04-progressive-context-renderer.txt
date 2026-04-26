@@ -1,0 +1,24 @@
+Phase 42.4: Progressive Context Renderer
+========================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Render compact, token-aware context that works as hook injection and can be
+inspected by tests.
+
+Required Output
+---------------
+- current retrieval profile and scopeDigest
+- compact table/list of recordRef, kind, title, age, and estimated detail cost
+- explicit instructions to use progressive detail tools when available
+- fallback message when detail tools are not available
+
+Acceptance
+----------
+- Golden snapshots cover typical coding-agent and general-chat output.
+- Progressive output is smaller than equivalent fragment output on fixture data.
+- Renderer never prints raw scope fields or raw transcript text.

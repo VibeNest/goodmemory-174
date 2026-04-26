@@ -1,0 +1,22 @@
+Phase 43.5.3: Drain, Status, and Recover
+========================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Ship operator-safe worker commands before daemon mode.
+
+CLI Surface
+-----------
+- `goodmemory runtime worker drain-once`
+- `goodmemory runtime worker status`
+- `goodmemory runtime worker recover --dry-run`
+
+Acceptance
+----------
+- Commands are script-safe and JSON-capable.
+- Recover dry-run explains proposed repairs before mutation.
+- Status identifies stuck, retryable, coalesced, and completed jobs.

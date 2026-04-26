@@ -3,7 +3,18 @@ Phase 41.5: Deterministic Phase 41 Eval
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 41 installed-host pre-action unification closure.
+
+This file is retained as the historical implementation checklist for the
+deterministic Phase 41 eval. The implementation and evidence are now accepted;
+planned-work wording below describes the original task boundary.
+
+Canonical Evidence
+------------------
+- deterministic eval: `reports/eval/fallback/phase-41/run-20260425213045/report.json`
+- installed live evidence: `reports/eval/live-memory/phase-41/run-phase41-live-current/report.json`
+- quality gate: `reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-41-Quality-Gate.md`
 
 Goal
 ----

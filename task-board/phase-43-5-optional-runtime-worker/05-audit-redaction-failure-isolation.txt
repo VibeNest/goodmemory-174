@@ -1,0 +1,17 @@
+Phase 43.5.5: Audit, Redaction, and Failure Isolation
+=====================================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Make worker execution recoverable and safe to inspect.
+
+Acceptance
+----------
+- Every job transition is auditable.
+- Retry state cannot duplicate durable writes.
+- Redaction is enforced before persistence.
+- Inline runtime path remains available when worker execution fails.

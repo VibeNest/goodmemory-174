@@ -1,0 +1,25 @@
+Phase 42.5: MCP Adapter Tools
+=============================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Expose progressive recall through MCP without making MCP the owner of the
+protocol.
+
+Tools
+-----
+- `goodmemory_search_index`
+- `goodmemory_timeline`
+- `goodmemory_get_records`
+
+Acceptance
+----------
+- Tools call ProgressiveRecallService and contain no duplicated recall/index
+  logic.
+- `goodmemory_get_records` accepts only recordRef values.
+- Existing MCP tools remain compatible.
+- MCP unavailable cases are observable so installed-host can fall back.

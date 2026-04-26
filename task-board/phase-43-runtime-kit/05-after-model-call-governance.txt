@@ -1,0 +1,18 @@
+Phase 43.5: AfterModelCall Governance
+=====================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Prevent runtime-kit from turning afterModelCall into default-on writeback.
+
+Acceptance
+----------
+- `off` mode emits no durable writes.
+- `observe` mode emits bounded redacted candidates only.
+- `selective` mode writes through public `remember()` only when host
+  annotations and policy allow it.
+- Raw transcripts and full assistant output are never stored.

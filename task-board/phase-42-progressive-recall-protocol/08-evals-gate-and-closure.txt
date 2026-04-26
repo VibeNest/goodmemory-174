@@ -1,0 +1,33 @@
+Phase 42.8: Evals, Gate, and Closure
+====================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Close Phase 42 only after progressive recall is reusable, governed, and
+regression-covered.
+
+Required Commands
+-----------------
+- `bun run typecheck`
+- targeted progressive recall unit/integration tests
+- `bun run eval:phase-42`
+- `bun run gate:phase-42`
+- `bun test tests/release/release.test.ts`
+
+Closure Updates
+---------------
+- package scripts for Phase 42 eval/gate
+- current-status doc
+- task-board current sequencing note
+- archive quality gate doc
+- release assertions
+
+Acceptance
+----------
+- Gate fails if MCP owns core logic, recordRef scope checks fail, or fallback
+  behavior is missing.
+- Phase 42 docs do not claim dashboard, worker, or default-on writeback.

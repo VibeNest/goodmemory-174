@@ -1,0 +1,26 @@
+Phase 43.7: Evals, Gate, and Closure
+====================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Close runtime-kit only after lifecycle behavior is package-ready and
+governance-safe.
+
+Required Commands
+-----------------
+- `bun run typecheck`
+- targeted runtime-kit tests
+- `bun run eval:phase-43`
+- `bun run eval:phase-43-live-memory`
+- `bun run gate:phase-43`
+- `bun test tests/release/release.test.ts`
+
+Acceptance
+----------
+- Gate fails if runtime-kit duplicates memory logic or writes durably under
+  off/observe modes.
+- Closure docs keep worker as optional follow-up work.

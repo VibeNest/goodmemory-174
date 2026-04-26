@@ -1,0 +1,99 @@
+Phase 42: Progressive Recall Protocol
+=====================================
+
+Status
+------
+[TODO] Not started.
+
+
+Intent
+------
+Turn progressive disclosure into a GoodMemory-owned recall protocol, not an MCP
+one-off. MCP, installed-host context injection, runtime-kit, HTTP bridge, and
+viewer surfaces must all be able to wrap the same internal service.
+
+
+Core Boundary
+-------------
+Progressive recall is an internal runtime service that sits on top of the
+existing public memory APIs and storage/export surfaces. It must not widen the
+root `goodmemory` API or make MCP the canonical recall transport.
+
+
+Planned Interfaces
+------------------
+- `searchRecallIndex(...)`
+- `buildRecallTimeline(...)`
+- `getProgressiveRecords(...)`
+- `renderProgressiveContext(...)`
+- `GoodMemoryRecordRef` using `gmrec:v1:${scopeDigest}:${recordKind}:${id}`
+- installed-host `contextMode: "fragment" | "progressive"`
+
+
+Accepted Scope
+--------------
+- ProgressiveRecallService with shared index, timeline, detail, and render logic
+- stable recordRef protocol for durable/runtime/writeback records
+- progressive context renderer with token-cost visibility
+- MCP adapter tools that wrap the service
+- installed-host contextMode config, migration, status, install/enable flags
+- fallback to fragment or compact fragment when progressive detail tools are not available
+- strict scope digest, redaction, and no-raw-transcript guarantees
+
+
+Out of Scope
+------------
+- dashboard or viewer UI
+- default-on writeback
+- new root `goodmemory/evolution` export
+- replacing `recall()` or `buildContext()`
+- making MCP required for all installed-host users
+- copying implementation from `third-party/claude-mem-main`
+
+
+Acceptance Criteria
+-------------------
+1. MCP is only an adapter; shared progressive logic lives in a GoodMemory
+   internal service.
+2. Index output exposes `scopeDigest` and minimal workspace/project labels, not
+   raw user/tenant/workspace/agent/session ids.
+3. Detail fetch accepts only recordRef values and denies cross-scope refs.
+4. `remember: "never"`, private, sensitive, and session-only content never leaks
+   into progressive index or detail output.
+5. Installed-host progressive mode is recommended only when MCP is installed and
+   usable; otherwise hook context falls back to fragment output.
+6. Old installed-host config without `contextMode` migrates to `fragment`.
+7. Phase 42 gate proves token-budget benefit without weakening recall quality
+   or governance.
+
+
+Tasks
+-----
+[TODO] P42-T001 Add contract tests and failing release assertions.
+[TODO] P42-T002 Implement ProgressiveRecallService.
+[TODO] P42-T003 Implement `gmrec:v1` recordRef protocol.
+[TODO] P42-T004 Implement progressive context renderer.
+[TODO] P42-T005 Add MCP adapter tools over ProgressiveRecallService.
+[TODO] P42-T006 Add installed-host `contextMode` config and fallback behavior.
+[TODO] P42-T007 Add redaction, scope, and token-budget regressions.
+[TODO] P42-T008 Add Phase 42 eval, gate, docs, and closure sync.
+
+
+Planned Evidence
+----------------
+- deterministic eval: `reports/eval/fallback/phase-42/<run-id>/report.json`
+- quality gate: `reports/quality-gates/phase-42/<run-id>/phase-42-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-42-Quality-Gate.md`
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-42-progressive-recall-protocol/00-README.txt`
+- `task-board/phase-42-progressive-recall-protocol/01-contract-and-failing-tests.txt`
+- `task-board/phase-42-progressive-recall-protocol/02-progressive-recall-service.txt`
+- `task-board/phase-42-progressive-recall-protocol/03-record-ref-protocol.txt`
+- `task-board/phase-42-progressive-recall-protocol/04-progressive-context-renderer.txt`
+- `task-board/phase-42-progressive-recall-protocol/05-mcp-adapter-tools.txt`
+- `task-board/phase-42-progressive-recall-protocol/06-installed-host-context-mode.txt`
+- `task-board/phase-42-progressive-recall-protocol/07-security-redaction-and-fallbacks.txt`
+- `task-board/phase-42-progressive-recall-protocol/08-evals-gate-and-closure.txt`

@@ -1,0 +1,18 @@
+Phase 43.4: PreAction and Installed-Host Adapters
+=================================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Wire runtime-kit `preAction` through the accepted Phase 41 path.
+
+Acceptance
+----------
+- `preAction` reuses `HostActionIntent`, `assessAction()`, and
+  `resolveHostActionExecutionPlan()`.
+- Installed Codex remains the live evidence path.
+- Claude parity is deterministic unless explicitly promoted later.
+- Bootstrap-wrapper compatibility is not reopened.

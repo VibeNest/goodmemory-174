@@ -1,0 +1,16 @@
+Phase 44.1: Contract and Failing Tests
+======================================
+
+Status
+------
+[TODO] Not started.
+
+Goal
+----
+Freeze local viewer security and read-only behavior before implementation.
+
+Acceptance
+----------
+- Tests fail because viewer data API and CLI do not exist yet.
+- Tests assert 127.0.0.1 binding, token requirement, no CORS, no mutation
+  routes, and no raw transcript output.

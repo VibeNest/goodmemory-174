@@ -1,0 +1,76 @@
+Phase 43.5: Optional Runtime Worker
+===================================
+
+Status
+------
+[TODO] Not started.
+
+
+Intent
+------
+Add an optional worker layer for bounded runtime-kit jobs without making daemon,
+sidecar, queue, or background processing part of GoodMemory core.
+
+
+Core Boundary
+-------------
+The worker consumes runtime-kit job envelopes. It must not become the canonical
+memory path, must not persist raw transcripts, and must not block inline runtime
+behavior.
+
+
+Accepted Scope
+--------------
+- bounded job envelope
+- coalescing and idempotency rules
+- `drain-once`, `status`, and `recover` commands
+- dry-run recovery before mutation
+- auditable stuck/retry state
+- optional daemon `start`/`stop` as an enhancement, not a Phase 43 blocker
+
+
+Out of Scope
+------------
+- persistent distributed job queue
+- managed worker service
+- cloud sync
+- raw transcript archive
+- making daemon mode required for installed-host recall/writeback/pre-action
+
+
+Acceptance Criteria
+-------------------
+1. Worker jobs contain no raw transcript or full assistant output.
+2. `drain-once`, `status`, and `recover --dry-run` close before daemon mode is
+   required.
+3. Worker failure cannot break inline recall, writeback, or pre-action.
+4. Stuck/retry/recovery state is inspectable and auditable.
+5. Coalescing prevents repeated equivalent jobs from creating duplicate writes.
+
+
+Tasks
+-----
+[TODO] P43.5-T001 Add contract tests and job envelope fixtures.
+[TODO] P43.5-T002 Implement bounded job envelope and coalescing.
+[TODO] P43.5-T003 Add drain-once, status, and recover dry-run.
+[TODO] P43.5-T004 Add optional daemon start/stop.
+[TODO] P43.5-T005 Add audit, redaction, and failure-isolation tests.
+[TODO] P43.5-T006 Add Phase 43.5 eval, gate, docs, and closure sync.
+
+
+Planned Evidence
+----------------
+- deterministic eval: `reports/eval/fallback/phase-43-5/<run-id>/report.json`
+- quality gate: `reports/quality-gates/phase-43-5/<run-id>/phase-43-5-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-43.5-Quality-Gate.md`
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-43-5-optional-runtime-worker/00-README.txt`
+- `task-board/phase-43-5-optional-runtime-worker/01-contract-and-failing-tests.txt`
+- `task-board/phase-43-5-optional-runtime-worker/02-bounded-job-envelope.txt`
+- `task-board/phase-43-5-optional-runtime-worker/03-drain-status-recover.txt`
+- `task-board/phase-43-5-optional-runtime-worker/04-daemon-optional.txt`
+- `task-board/phase-43-5-optional-runtime-worker/05-audit-redaction-failure-isolation.txt`
+- `task-board/phase-43-5-optional-runtime-worker/06-evals-gate-and-closure.txt`
