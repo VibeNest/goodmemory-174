@@ -3,7 +3,7 @@ Phase 43.5.4: Optional Daemon
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43.5 Optional Runtime Worker closure.
 
 Goal
 ----
@@ -14,3 +14,9 @@ Acceptance
 - `start` and `stop` are not required for Phase 43 runtime-kit closure.
 - Daemon failure does not break installed-host hooks.
 - Process state is inspectable without relying on hidden side effects.
+
+Evidence
+--------
+- `src/runtime-worker/public.ts`
+- `tests/cli/runtime-worker-cli.test.ts`
+- `reports/eval/fallback/phase-43-5/run-20260426133000/report.json`

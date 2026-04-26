@@ -3,7 +3,7 @@ Phase 43.5.2: Bounded Job Envelope
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43.5 Optional Runtime Worker closure.
 
 Goal
 ----
@@ -15,3 +15,10 @@ Acceptance
   redacted payload, and trace links.
 - Envelope excludes raw transcript, full assistant output, and secrets.
 - Equivalent jobs coalesce before execution.
+
+Evidence
+--------
+- `src/runtime-worker/contracts.ts`
+- `src/runtime-worker/public.ts`
+- `tests/unit/runtime-worker.test.ts`
+- `reports/eval/fallback/phase-43-5/run-20260426133000/report.json`

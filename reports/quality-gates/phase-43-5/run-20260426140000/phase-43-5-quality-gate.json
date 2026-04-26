@@ -1,0 +1,58 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 43.5 optional runtime worker is accepted with bounded envelopes, drain/status/recover, optional daemon markers, redaction, failure isolation, and package hygiene."
+  },
+  "commands": [
+    {
+      "durationMs": 3745,
+      "exitCode": 0,
+      "stderr": "$ bunx tsc --noEmit\n",
+      "stdout": "",
+      "label": "typecheck"
+    },
+    {
+      "durationMs": 117,
+      "exitCode": 0,
+      "stderr": "\ntests/unit/run-phase-43-5-eval.test.ts:\n(pass) run-phase-43-5 eval script > resolves the phase-43-5 deterministic output directory [0.06ms]\n(pass) run-phase-43-5 eval script > builds a deterministic phase-43-5 run id [0.04ms]\n(pass) run-phase-43-5 eval script > parses phase-43-5 eval cli flags\n(pass) run-phase-43-5 eval script > writes an accepted optional worker report [6.61ms]\n(pass) run-phase-43-5 eval script > can regenerate the same run id without stale queue state [3.33ms]\n\ntests/unit/runtime-worker.test.ts:\n(pass) runtime worker > creates bounded redacted job envelopes without raw transcript payloads [0.09ms]\n(pass) runtime worker > coalesces equivalent jobs and drains queued work once [0.83ms]\n(pass) runtime worker > keeps worker failures auditable and recoverable without throwing [0.53ms]\n(pass) runtime worker > persists running state before processor execution [0.46ms]\n(pass) runtime worker > detects stuck running jobs and can requeue them only when explicitly applied [0.49ms]\n\ntests/unit/run-phase-43-5-gate.test.ts:\n(pass) run-phase-43-5 gate script > resolves phase-43-5 output and canonical evidence paths\n(pass) run-phase-43-5 gate script > builds a deterministic phase-43-5 gate run id [0.26ms]\n(pass) run-phase-43-5 gate script > parses phase-43-5 gate cli flags [0.02ms]\n(pass) run-phase-43-5 gate script > builds the expected targeted command set [0.03ms]\n(pass) run-phase-43-5 gate script > writes an accepted phase-43-5 quality gate when evidence and boundaries pass [0.32ms]\n(pass) run-phase-43-5 gate script > rejects summary-only eval reports without named worker cases [0.18ms]\n\ntests/cli/runtime-worker-cli.test.ts:\n(pass) runtime worker CLI > reports, drains, recovers, starts, and stops a local worker queue [1.33ms]\n(pass) runtime worker CLI > renders runtime worker help [0.05ms]\n\n 18 pass\n 0 fail\n 72 expect() calls\nRan 18 tests across 4 files. [111.00ms]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-43-5-core-regressions"
+    },
+    {
+      "durationMs": 104,
+      "exitCode": 0,
+      "stderr": "$ bun run scripts/run-phase-43-5-eval.ts --run-id \"run-20260426133000\"\n",
+      "stdout": "Phase 43.5 deterministic eval accepted: /Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-43-5/run-20260426133000\n",
+      "label": "phase-43-5-fallback-eval"
+    },
+    {
+      "durationMs": 4517,
+      "exitCode": 0,
+      "stderr": "\ntests/release/release.test.ts:\n(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [1.76ms]\n(pass) release metadata and docs > packs a tarball that keeps the compiled package boundary and omits repo-only payload [3912.01ms]\n(pass) release metadata and docs > current status doc points to the stable evidence entrypoints and archive [2.01ms]\n(pass) release metadata and docs > task-board current note documents the generic eval command contract [0.48ms]\n(pass) release metadata and docs > phase-43.5 quality gate doc points to the canonical optional-worker gate [0.28ms]\n(pass) release metadata and docs > models fallback eval evidence as regenerable ignored output, not tracked audit artifacts [516.43ms]\n\n 6 pass\n 57 filtered out\n 0 fail\n 468 expect() calls\nRan 6 tests across 1 file. [4.51s]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-43-5-release-regressions"
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-43-5/run-20260426133000/report.json",
+      "reason": "Phase 43.5 deterministic optional-worker evidence is accepted.",
+      "regenerateCommand": "bun run eval:phase-43-5 --run-id run-20260426133000",
+      "status": "accepted"
+    },
+    "evalSummary": {
+      "passCount": 8,
+      "totalChecks": 8
+    },
+    "noRootApiWidening": true,
+    "packageScriptsRegistered": true,
+    "workerCliSurface": true
+  },
+  "generatedAt": "2026-04-26T07:20:36.626Z",
+  "generatedBy": "scripts/run-phase-43-5-gate.ts",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-43-5",
+  "phase": "phase-43-5",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-43-5/run-20260426140000",
+  "runId": "run-20260426140000"
+}

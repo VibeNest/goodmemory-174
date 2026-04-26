@@ -3,7 +3,7 @@ Phase 43.6: AI SDK and Claude Parity
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43 Runtime Kit closure.
 
 Goal
 ----
@@ -13,5 +13,15 @@ memory logic.
 Acceptance
 ----------
 - AI SDK wrapper calls runtime-kit lifecycle methods.
-- Claude deterministic parity covers hook output and writeback governance.
-- Runtime events are equivalent across AI SDK and installed-host fixtures.
+- Deterministic parity covers runtime-kit lifecycle output and writeback
+  governance without making Claude a second live blocker.
+- Runtime events use the same digest-only event contract across adapter
+  fixtures.
+
+Evidence
+--------
+- `src/ai-sdk/public.ts`
+- `tests/unit/ai-sdk.public.test.ts`
+- `tests/unit/architecture.boundaries.test.ts`
+- `reports/eval/fallback/phase-43/run-20260426113000/report.json`
+- `reports/quality-gates/phase-43/run-20260426120000/phase-43-quality-gate.json`

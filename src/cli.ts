@@ -72,6 +72,14 @@ import {
   resolveInstalledHostMcpTargetPath,
 } from "./install/hostMcpConfig";
 import { serveGoodMemoryMcp } from "./install/hostMcpServer";
+import {
+  createRuntimeWorkerQueue,
+} from "./runtime-worker/public";
+import {
+  createRuntimeViewerToken,
+  normalizeRuntimeViewerBindHost,
+  serveRuntimeViewer,
+} from "./runtime-viewer/public";
 import type { RecallCandidateTrace } from "./recall/engine";
 import type { RecallRouterStrategy } from "./recall/router";
 import type { MemoryExtractionStrategy } from "./remember/candidates";
@@ -214,6 +222,7 @@ interface InternalDiagnosticGoodMemory extends GoodMemory {
 const TOP_RECORD_LIMIT = 3;
 const TRACE_SUPPRESSED_LIMIT = 8;
 const PACKAGE_JSON_URL = new URL("../package.json", import.meta.url);
+const activeRuntimeViewerServers: Array<{ stop(): void }> = [];
 const ROOT_HELP_TEXT = [
   "GoodMemory CLI",
   "",
@@ -235,6 +244,7 @@ const ROOT_HELP_TEXT = [
   "  enable          Enable repo-local GoodMemory host opt-in for Codex or Claude Code",
   "  disable         Disable repo-local GoodMemory host opt-in for Codex or Claude Code",
   "  mcp             Run the installed GoodMemory MCP server",
+  "  runtime         Run optional local runtime tools such as worker inspection",
   "  codex           Codex bootstrap and installed hook commands",
   "  claude          Claude Code bootstrap and installed hook commands",
   "  eval            Inspect eval run artifacts",
@@ -248,6 +258,7 @@ const ROOT_HELP_TEXT = [
   "  goodmemory install --help",
   "  goodmemory enable --help",
   "  goodmemory mcp --help",
+  "  goodmemory runtime --help",
   "  goodmemory codex --help",
   "  goodmemory claude --help",
   "  goodmemory -V, --version",
@@ -550,6 +561,47 @@ const MCP_SERVE_HELP_TEXT = [
   "",
   "Usage",
   "  goodmemory mcp serve --host <codex|claude>",
+].join("\n");
+const RUNTIME_HELP_TEXT = [
+  "GoodMemory Runtime CLI",
+  "",
+  "Usage",
+  "  goodmemory runtime <command> [options]",
+  "",
+  "Commands",
+  "  worker       Inspect and drain the optional local runtime worker queue",
+  "  viewer       Run the optional read-only local memory viewer",
+  "",
+  "Help",
+  "  goodmemory runtime --help",
+  "  goodmemory runtime worker --help",
+  "  goodmemory runtime viewer --help",
+].join("\n");
+const RUNTIME_WORKER_HELP_TEXT = [
+  "GoodMemory Runtime Worker",
+  "",
+  "Usage",
+  "  goodmemory runtime worker status [--queue-file <path>] [--json]",
+  "  goodmemory runtime worker drain-once [--queue-file <path>] [--max-jobs <n>] [--json]",
+  "  goodmemory runtime worker recover --dry-run [--queue-file <path>] [--json]",
+  "  goodmemory runtime worker start [--queue-file <path>] [--json]",
+  "  goodmemory runtime worker stop [--queue-file <path>] [--json]",
+  "",
+  "Worker commands are optional local inspection tools. They do not make daemon",
+  "mode required and do not persist raw transcripts.",
+].join("\n");
+const RUNTIME_VIEWER_HELP_TEXT = [
+  "GoodMemory Runtime Viewer",
+  "",
+  "Usage",
+  "  goodmemory runtime viewer --host <codex|claude> --port <n> [--token <secret>]",
+  "  goodmemory runtime viewer --host <codex|claude> --dry-run [--json]",
+  "",
+  "Viewer security",
+  "  binds 127.0.0.1 only",
+  "  requires a local token",
+  "  read-only API; no mutation routes and no CORS",
+  "  static local shell; no raw transcript display",
 ].join("\n");
 const EVAL_INSPECT_HELP_TEXT = [
   "GoodMemory Eval Inspect",
@@ -2340,6 +2392,12 @@ function readNonNegativeIntegerFlag(value: string, flagName: string): number {
   return parsed;
 }
 
+function resolveRuntimeWorkerQueueFile(flags: ParsedFlags): string {
+  return flags["queue-file"]
+    ? resolve(flags["queue-file"])
+    : join(resolveInstallRoot(undefined), "runtime-worker.json");
+}
+
 function readInstallStorageProviderFlag(
   value: string | undefined,
 ): InstalledHostStorageProvider | undefined {
@@ -4080,6 +4138,114 @@ async function handleHostDisable(
   };
 }
 
+async function handleRuntimeWorker(
+  command: string | undefined,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  if (!command) {
+    throw new Error("Runtime worker command is required. Run 'goodmemory runtime worker --help'.");
+  }
+
+  const queueFile = resolveRuntimeWorkerQueueFile(flags);
+  const queue = createRuntimeWorkerQueue({ queueFile });
+  if (command === "status") {
+    const result = await queue.status();
+    return {
+      json: result,
+      text: `${JSON.stringify(result, null, 2)}\n`,
+    };
+  }
+  if (command === "drain-once") {
+    const result = await queue.drainOnce({
+      ...(flags["max-jobs"] !== undefined
+        ? { maxJobs: readNonNegativeIntegerFlag(flags["max-jobs"], "max-jobs") }
+        : {}),
+    });
+    return {
+      json: result,
+      text: `${JSON.stringify(result, null, 2)}\n`,
+    };
+  }
+  if (command === "recover") {
+    const result = await queue.recover({
+      dryRun: !flagEnabled(flags, "apply"),
+    });
+    return {
+      json: result,
+      text: `${JSON.stringify(result, null, 2)}\n`,
+    };
+  }
+  if (command === "start") {
+    const result = await queue.start();
+    return {
+      json: result,
+      text: `${JSON.stringify(result, null, 2)}\n`,
+    };
+  }
+  if (command === "stop") {
+    const result = await queue.stop();
+    return {
+      json: result,
+      text: `${JSON.stringify(result, null, 2)}\n`,
+    };
+  }
+
+  throw new Error(`Unknown runtime worker command: ${command}. Run 'goodmemory runtime worker --help'.`);
+}
+
+async function handleRuntimeViewer(flags: ParsedFlags): Promise<CLICommandOutput> {
+  const host = requireInstalledHostKind(flags.host);
+  const bindHost = normalizeRuntimeViewerBindHost(flags.bind);
+  const port = flags.port !== undefined
+    ? readNonNegativeIntegerFlag(flags.port, "port")
+    : 0;
+  const token = normalizeOptionalFlag(flags.token) ?? createRuntimeViewerToken();
+  const payload = {
+    bindHost,
+    cors: false,
+    host,
+    mutationRoutes: false,
+    port,
+    readOnly: true,
+    rawTranscript: false,
+    token,
+    tokenRequired: true,
+    url: `http://${bindHost}:${port}/?token=${encodeURIComponent(token)}`,
+  };
+
+  if (flagEnabled(flags, "dry-run")) {
+    return {
+      json: payload,
+      text: `${JSON.stringify(payload, null, 2)}\n`,
+    };
+  }
+
+  const server = await serveRuntimeViewer({
+    bindHost,
+    cwd: flags["workspace-root"],
+    homeRoot: flags["home-root"],
+    host,
+    port,
+    queueFile: flags["queue-file"],
+    token,
+  });
+  activeRuntimeViewerServers.push(server);
+
+  return {
+    json: {
+      ...payload,
+      port: server.port,
+      url: server.url,
+    },
+    text: [
+      `GoodMemory runtime viewer listening on ${server.url}`,
+      "Bind: 127.0.0.1",
+      "Mode: read-only local inspection",
+      "",
+    ].join("\n"),
+  };
+}
+
 async function handleCodexAction(
   flags: ParsedFlags,
   positionals: string[],
@@ -4408,6 +4574,22 @@ export async function runCLI(
           `Unknown MCP command: ${secondary}. Run 'goodmemory mcp --help'.`,
         );
       }
+      if (primary === "runtime") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(RUNTIME_HELP_TEXT);
+        }
+        if (secondary === "worker") {
+          return helpResult(RUNTIME_WORKER_HELP_TEXT);
+        }
+        if (secondary === "viewer") {
+          return helpResult(RUNTIME_VIEWER_HELP_TEXT);
+        }
+
+        return errorResult(
+          `Unknown runtime command: ${secondary}. Run 'goodmemory runtime --help'.`,
+        );
+      }
 
       return errorResult(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
     }
@@ -4534,6 +4716,20 @@ export async function runCLI(
       }
 
       throw new Error(`Unknown MCP command: ${secondary}. Run 'goodmemory mcp --help'.`);
+    }
+    if (primary === "runtime") {
+      const secondary = commands[1];
+      if (!secondary) {
+        return helpResult(RUNTIME_HELP_TEXT);
+      }
+      if (secondary === "worker") {
+        return renderOutput(await handleRuntimeWorker(commands[2], flags), flags);
+      }
+      if (secondary === "viewer") {
+        return renderOutput(await handleRuntimeViewer(flags), flags);
+      }
+
+      throw new Error(`Unknown runtime command: ${secondary}. Run 'goodmemory runtime --help'.`);
     }
 
     if (primary === "remember") {

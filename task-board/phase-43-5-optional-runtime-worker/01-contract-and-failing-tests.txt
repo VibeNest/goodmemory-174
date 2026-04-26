@@ -3,7 +3,7 @@ Phase 43.5.1: Contract and Failing Tests
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43.5 Optional Runtime Worker closure.
 
 Goal
 ----
@@ -11,6 +11,12 @@ Freeze optional worker boundaries before implementation.
 
 Acceptance
 ----------
-- Tests fail because worker envelope and CLI do not exist yet.
+- Tests prove worker envelope and CLI behavior.
 - Tests prove daemon mode is not required for runtime-kit closure.
 - Fixtures assert no raw transcript in job payloads.
+
+Evidence
+--------
+- `tests/unit/runtime-worker.test.ts`
+- `tests/cli/runtime-worker-cli.test.ts`
+- `reports/quality-gates/phase-43-5/run-20260426140000/phase-43-5-quality-gate.json`

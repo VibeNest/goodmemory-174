@@ -3,7 +3,7 @@ Phase 44: Local Viewer Data API and Lightweight UI
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted and closed by `reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json`.
 
 
 Intent
@@ -54,18 +54,18 @@ Acceptance Criteria
 
 Tasks
 -----
-[TODO] P44-T001 Add contract tests and viewer route fixtures.
-[TODO] P44-T002 Add read-only viewer data API.
-[TODO] P44-T003 Add local token, host binding, and no-CORS security.
-[TODO] P44-T004 Add lightweight static viewer shell.
-[TODO] P44-T005 Add progressive drill-down, audit, trace, and session views.
-[TODO] P44-T006 Add package/license hygiene gate and closure docs.
+[DONE] P44-T001 Add contract tests and viewer route fixtures.
+[DONE] P44-T002 Add read-only viewer data API.
+[DONE] P44-T003 Add local token, host binding, and no-CORS security.
+[DONE] P44-T004 Add lightweight static viewer shell.
+[DONE] P44-T005 Add progressive drill-down, audit, trace, and session views.
+[DONE] P44-T006 Add package/license hygiene gate and closure docs.
 
 
 Planned Evidence
 ----------------
-- deterministic eval: `reports/eval/fallback/phase-44/<run-id>/report.json`
-- quality gate: `reports/quality-gates/phase-44/<run-id>/phase-44-quality-gate.json`
+- deterministic eval: `reports/eval/fallback/phase-44/run-20260426153000/report.json`
+- quality gate: `reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json`
 - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-44-Quality-Gate.md`
 
 

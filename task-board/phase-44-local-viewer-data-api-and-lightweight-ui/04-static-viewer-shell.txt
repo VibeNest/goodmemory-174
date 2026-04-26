@@ -3,7 +3,7 @@ Phase 44.4: Static Viewer Shell
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted and closed by the packageable static shell route tests and quality gate.
 
 Goal
 ----

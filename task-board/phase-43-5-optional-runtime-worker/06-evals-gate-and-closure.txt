@@ -3,7 +3,7 @@ Phase 43.5.6: Evals, Gate, and Closure
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43.5 Optional Runtime Worker closure.
 
 Goal
 ----
@@ -22,3 +22,9 @@ Acceptance
 ----------
 - Gate fails if raw transcript appears in job payloads or worker failure blocks
   inline runtime behavior.
+
+Evidence
+--------
+- deterministic eval: `reports/eval/fallback/phase-43-5/run-20260426133000/report.json`
+- quality gate: `reports/quality-gates/phase-43-5/run-20260426140000/phase-43-5-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-43.5-Quality-Gate.md`

@@ -3,7 +3,7 @@ Phase 44.3: Local Token and Network Security
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted and closed by the Phase 44 viewer token/bind/no-CORS route tests and quality gate.
 
 Goal
 ----

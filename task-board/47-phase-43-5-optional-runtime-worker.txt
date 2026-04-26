@@ -3,7 +3,7 @@ Phase 43.5: Optional Runtime Worker
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as the Phase 43.5 Optional Runtime Worker slice.
 
 
 Intent
@@ -50,18 +50,18 @@ Acceptance Criteria
 
 Tasks
 -----
-[TODO] P43.5-T001 Add contract tests and job envelope fixtures.
-[TODO] P43.5-T002 Implement bounded job envelope and coalescing.
-[TODO] P43.5-T003 Add drain-once, status, and recover dry-run.
-[TODO] P43.5-T004 Add optional daemon start/stop.
-[TODO] P43.5-T005 Add audit, redaction, and failure-isolation tests.
-[TODO] P43.5-T006 Add Phase 43.5 eval, gate, docs, and closure sync.
+[DONE] P43.5-T001 Add contract tests and job envelope fixtures.
+[DONE] P43.5-T002 Implement bounded job envelope and coalescing.
+[DONE] P43.5-T003 Add drain-once, status, and recover dry-run.
+[DONE] P43.5-T004 Add optional daemon start/stop.
+[DONE] P43.5-T005 Add audit, redaction, and failure-isolation tests.
+[DONE] P43.5-T006 Add Phase 43.5 eval, gate, docs, and closure sync.
 
 
-Planned Evidence
-----------------
-- deterministic eval: `reports/eval/fallback/phase-43-5/<run-id>/report.json`
-- quality gate: `reports/quality-gates/phase-43-5/<run-id>/phase-43-5-quality-gate.json`
+Accepted Evidence
+-----------------
+- deterministic eval: `reports/eval/fallback/phase-43-5/run-20260426133000/report.json`
+- quality gate: `reports/quality-gates/phase-43-5/run-20260426140000/phase-43-5-quality-gate.json`
 - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-43.5-Quality-Gate.md`
 
 

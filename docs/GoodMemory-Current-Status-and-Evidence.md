@@ -8,7 +8,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
 - Public domain write customization is now accepted through `GoodMemoryConfig.remember`, `RememberProfile`, `rememberRules`, `RememberInput.annotations`, and traceable extractor composition.
-- `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, and `goodmemory/http` now resolve through compiled `dist/` artifacts and emitted type declarations on the packaged install surface.
+- `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, `goodmemory/http`, and `goodmemory/runtime-kit` now resolve through compiled `dist/` artifacts and emitted type declarations on the packaged install surface.
 - `createGoodMemory({})` now defaults to auto storage resolution: explicit storage config wins as one source; otherwise Postgres is preferred only when a configured target can bootstrap the GoodMemory backend; Bun keeps local SQLite as the zero-config durable fallback; Node zero-config runtime falls back to in-memory when the built-in local SQLite adapter is unavailable.
 - `inspectGoodMemoryRuntime(memory)` now exposes the sanitized resolved storage/runtime plan so Node zero-config in-memory fallback is observable through the public API instead of being silent, unsupported built-in `sqlite` / `postgres` selections are reported as unavailable instead of durable, and injected storage adapters are reported as adapter-defined execution instead of being mislabeled as the configured built-in plan.
 - The official CLI surface remains memory-first for stable read paths: `goodmemory inspect`, `trace`, `export-memory`, `stats`, plus nested eval inspection commands, and the installed-package invocation path is `./node_modules/.bin/goodmemory ...`. The package bin is Node-safe, `goodmemory -V` / `goodmemory --version` answer directly from package metadata, and non-version command execution is still Bun-backed today.
@@ -17,6 +17,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 37 is now closed as the installed host selective writeback slice. Codex installed host supports opt-in `off` / `observe` / `selective` writeback through `goodmemory codex writeback`, `install|enable --writeback`, and `session-stop` delegation. Runtime config defaults and new scripted installs remain `off` unless explicitly changed; existing configs keep their current writeback mode when no explicit override is provided; new interactive installs recommend `observe`. `observe` stores bounded/redacted candidate previews for review without durable writes; `selective` writes only selected candidates through the public Phase 36 `remember` surface.
 - Phase 41 is now closed as installed-host pre-action unification. `goodmemory install|enable codex` now registers managed `PreToolUse` for `Bash`, `goodmemory codex hook pre-tool-use` evaluates risky first steps on the installed config/storage/providers path, and `goodmemory codex action` executes rewrite/veto decisions plus lineage/evidence on the same installed memory backend already used by recall and writeback.
 - Phase 42 is now closed as the Progressive Recall Protocol slice. GoodMemory now has an internal `ProgressiveRecallService` for compact index, timeline, detail, and progressive context rendering; `gmrec:v1:${scopeDigest}:${recordKind}:${id}` refs are the detail handoff protocol; MCP `goodmemory_search_index`, `goodmemory_timeline`, and `goodmemory_get_records` wrap the shared service; installed-host `contextMode: "fragment" | "progressive"` defaults old configs to `fragment` and only uses progressive hook context when the local MCP detail transport is registered. This does not widen the root `goodmemory` API and does not make MCP the owner of recall logic.
+- Phase 43 is now closed as the Runtime Kit slice. `goodmemory/runtime-kit` exposes a host-neutral lifecycle adapter around existing public GoodMemory APIs, Phase 42 progressive recall, and the Phase 41 pre-action contracts; `beforeModelCall` can render fragment or progressive context, `preAction` resolves host action execution plans, `afterModelCall` defaults to bounded non-durable candidates/jobs/trace only, and AI SDK now calls runtime-kit rather than owning a parallel memory loop. Runtime-kit events expose keyed `scopeDigest` values instead of raw scope ids and do not widen the root `goodmemory` API.
+- Phase 43.5 is now closed as the Optional Runtime Worker slice. `goodmemory runtime worker drain-once|status|recover|start|stop` provides a local file-backed, read/repair-oriented worker queue for runtime-kit bounded job envelopes. Envelopes store redacted preview, scopeDigest, host, attempts, trace links, and audit transitions only; they do not store raw transcripts or full assistant output. Drain/status/recover close without requiring daemon mode, while start/stop only toggle local optional daemon state.
+- Phase 44 is now closed as the Local Viewer data API and lightweight UI slice. `goodmemory runtime viewer --host <codex|claude> --port <n>` starts an optional local read-only viewer on `127.0.0.1` with a local token, no CORS, no mutation routes, no raw transcript display, progressive `gmrec:v1` drill-down, redacted writeback audit/trace/session summaries, and CLI handoff commands for forget/revise review. The viewer is an inspectability surface, not a dashboard, managed cloud, analytics, or write UI.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
@@ -42,6 +45,72 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Trace-backed behavioral enactment over the accepted Codex host path is internal evidence infrastructure; it does not widen the public `GoodMemory` API, public config, or README-level default behavior.
 
 ## Latest Closed Slice
+
+- Phase 44 is now closed as the Local Viewer data API and lightweight UI slice.
+- Accepted behavior:
+  - viewer binds `127.0.0.1` only and rejects non-local binds
+  - all viewer routes require a local token or one-time session secret
+  - viewer responses emit no permissive CORS headers
+  - API routes are read-only; POST/PUT/PATCH/DELETE requests return read-only errors
+  - static viewer shell is local/packageable and uses no external network assets
+  - progressive drill-down uses Phase 42 `gmrec:v1` recordRefs and scope checks
+  - writeback audit, runtime sessions, and trace views expose summaries/redacted previews only
+  - forget/revise actions generate CLI handoff commands and do not execute mutations
+  - root `goodmemory` and package subpath exports are not widened for the viewer
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-44-Quality-Gate.md`
+  - deterministic eval: `reports/eval/fallback/phase-44/run-20260426153000/report.json`
+  - quality gate: `reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json`
+- Still outside the Phase 44 accepted claim:
+  - hosted dashboard, account system, managed cloud, analytics, or sync
+  - viewer mutation routes or browser-executed forget/revise
+  - raw transcript archive or full assistant-output persistence
+  - CORS-enabled remote API
+  - React or dashboard framework as a v1 blocker
+  - copying or packaging `third-party/claude-mem-main`
+
+## Prior Closed Runtime-Shell Slices
+
+- Phase 43.5 is now closed as the Optional Runtime Worker slice.
+- Accepted behavior:
+  - runtime worker envelopes contain job id, host, scopeDigest, kind, attempts, trace links, status, and redacted preview only
+  - equivalent bounded jobs coalesce before execution and expose coalesced counts in status
+  - `goodmemory runtime worker status` reads local queue state without mutation
+  - `goodmemory runtime worker drain-once` processes queued bounded jobs once and is idempotent on repeated drains
+  - `goodmemory runtime worker recover --dry-run` reports failed or stuck jobs without mutation; explicit apply can requeue repairs
+  - worker failures are recorded as auditable failed jobs and do not throw through the inline runtime path
+  - `start` and `stop` only toggle optional local daemon state; daemon mode is not required for runtime-kit, installed-host hooks, or closure
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-43.5-Quality-Gate.md`
+  - deterministic eval: `reports/eval/fallback/phase-43-5/run-20260426133000/report.json`
+  - quality gate: `reports/quality-gates/phase-43-5/run-20260426140000/phase-43-5-quality-gate.json`
+- Still outside the Phase 43.5 accepted claim:
+  - persistent distributed queue or managed worker service
+  - worker as a required sidecar for recall, pre-action, or writeback
+  - durable memory writes from bounded preview-only worker jobs
+  - raw transcript archive or full assistant-output persistence
+  - local viewer or dashboard product
+
+- Phase 43 is now closed as the Runtime Kit slice.
+- Accepted behavior:
+  - `goodmemory/runtime-kit` is a public adapter surface with source, dist, type, and tarball coverage
+  - `createGoodMemoryRuntimeKit()` exposes `sessionStart`, `beforeModelCall`, `afterModelCall`, `sessionEnd`, `preAction`, and `observeToolResult`
+  - `beforeModelCall` reuses public `recall()`/`buildContext()` for fragment context and the Phase 42 `ProgressiveRecallService` for progressive context
+  - `preAction` reuses `HostActionIntent`, `HostAdapter.assessAction()`, and `resolveHostActionExecutionPlan()`
+  - `afterModelCall` defaults to bounded redacted candidates/jobs/trace and does not durable-write under `off` or `observe`
+  - durable `remember()` only happens under explicit `selective` writeback with a `durable_candidate` host annotation and allow policy
+  - AI SDK recall/writeback now calls runtime-kit lifecycle methods instead of duplicating memory-loop logic
+  - runtime-kit events expose `GoodMemoryScopeDigest`, not raw `userId`, `workspaceId`, or `sessionId`
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-43-Quality-Gate.md`
+  - deterministic eval: `reports/eval/fallback/phase-43/run-20260426113000/report.json`
+  - quality gate: `reports/quality-gates/phase-43/run-20260426120000/phase-43-quality-gate.json`
+- Still outside the Phase 43 accepted claim:
+  - optional worker daemon or required sidecar
+  - local viewer or dashboard product
+  - default-on writeback
+  - root `goodmemory` API widening
+  - raw transcript archive
 
 - Phase 42 is now closed as the Progressive Recall Protocol slice.
 - Accepted behavior:
@@ -182,17 +251,21 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   status aligned with the accepted Phase 41 current-status and quality-gate
   evidence. It does not reopen Phase 41 or change accepted behavior.
 - Phase 42 is closed as Progressive Recall Protocol; its accepted evidence is
-  listed under the latest closed slice and in the Phase 42 archive summary.
-- Phase 43 is the next queued slice as Runtime Kit: `goodmemory/runtime-kit`, lifecycle
-  orchestration, Phase 41 pre-action reuse, afterModelCall governance, Codex
-  live evidence, Claude deterministic parity, and AI SDK integration.
-- Phase 43.5 is queued as Optional Runtime Worker: bounded runtime-kit jobs,
-  drain-once/status/recover first, optional daemon later, and no raw transcript
-  payloads.
-- Phase 44 is queued as Local Viewer data API and lightweight UI: read-only
+  listed under the prior closed runtime-shell slices and in the Phase 42 archive
+  summary.
+- Phase 43 is closed as Runtime Kit: `goodmemory/runtime-kit`, lifecycle
+  orchestration, Phase 41 pre-action reuse, afterModelCall governance,
+  deterministic Codex/Claude adapter parity, and AI SDK integration. It did not
+  promote worker daemon, viewer, dashboard, raw transcript archive, default-on
+  writeback, or root API widening into the accepted claim.
+- Phase 43.5 is closed as Optional Runtime Worker: bounded runtime-kit job
+  envelopes, local drain-once/status/recover, optional daemon state markers,
+  coalescing, audit transitions, and no raw transcript payloads.
+- Phase 44 is closed as Local Viewer data API and lightweight UI: read-only
   local inspection, progressive drill-down, writeback audit, trace/session
-  summaries, local-token security, and package/license hygiene. This is not a
-  dashboard, managed cloud, analytics, or transcript archive product.
+  summaries, local-token security, and package/license hygiene. It did not add
+  dashboard, managed cloud, analytics, CORS, mutation routes, or raw transcript
+  archive behavior.
 
 ## Current Canonical Evidence
 

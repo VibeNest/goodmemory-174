@@ -433,6 +433,18 @@ describe("architecture boundaries", () => {
     expect(providerLayerSource).not.toContain("../remember/llm-extractor");
   });
 
+  it("keeps the AI SDK adapter on the runtime-kit lifecycle instead of a duplicate memory loop", async () => {
+    const source = await readFile(join(SRC_ROOT, "ai-sdk", "public.ts"), "utf8");
+
+    expect(source).toContain("createGoodMemoryRuntimeKit");
+    expect(source).not.toContain("config.memory.recall");
+    expect(source).not.toContain("config.memory.buildContext");
+    expect(source).not.toContain("config.memory.remember");
+    expect(source).not.toContain("input.memory.recall");
+    expect(source).not.toContain("input.memory.buildContext");
+    expect(source).not.toContain("input.memory.remember");
+  });
+
   it("keeps eval reporting limited to function exports", async () => {
     expect(Object.keys(reporting).sort()).toEqual([
       "aggregateJudgedCases",

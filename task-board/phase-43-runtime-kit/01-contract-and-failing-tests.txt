@@ -3,7 +3,7 @@ Phase 43.1: Contract and Failing Tests
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43 Runtime Kit closure.
 
 Goal
 ----
@@ -15,9 +15,17 @@ Tests to Add First
 - lifecycle event contract tests
 - no root API widening assertions
 - afterModelCall off/observe non-durable-write tests
-- AI SDK and installed-host event equivalence tests
+- AI SDK and host-adapter lifecycle boundary tests
 
 Acceptance
 ----------
-- Tests fail because runtime-kit does not exist yet.
-- Tests prove runtime-kit calls existing APIs and host contracts.
+- Runtime-kit contract tests cover lifecycle events, non-durable defaults,
+  public export guardrails, no root API widening, and digest-only event scope.
+- The accepted gate proves runtime-kit calls existing APIs and host contracts.
+
+Evidence
+--------
+- `tests/unit/runtime-kit.test.ts`
+- `tests/types/runtime-kit.types.ts`
+- `tests/release/release.test.ts`
+- `reports/quality-gates/phase-43/run-20260426120000/phase-43-quality-gate.json`

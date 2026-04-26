@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   BuildContextResult,
   GoodMemory,
@@ -30,8 +31,10 @@ import type {
 import type {
   ProgressiveRecallService,
 } from "../progressive/recall";
+import type { MemoryScope } from "../domain/scope";
 import { createHostAdapter } from "../host/public";
 import { resolveHostActionExecutionPlan } from "../host/actionExecution";
+import { createGoodMemoryTracer } from "../observability/tracer";
 import { createProgressiveRecallService } from "../progressive/recall";
 
 const DEFAULT_MAX_MEMORY_TOKENS = 160;
@@ -115,8 +118,12 @@ function createCandidate(input: {
 }
 
 function createBoundedJob(preview: string): RuntimeKitBoundedJob {
+  const digest = createHash("sha256")
+    .update(preview)
+    .digest("hex")
+    .slice(0, 16);
   return {
-    jobId: `runtime-kit-candidate-${estimateTokens(preview)}`,
+    jobId: `runtime-kit-candidate-${digest}`,
     operation: "remember",
     payloadPreview: preview,
     rawTranscriptPersisted: false,
@@ -234,10 +241,27 @@ export function createGoodMemoryRuntimeKit(
   const defaultContextMode = input.defaultContextMode ?? "fragment";
   const defaultMaxMemoryTokens =
     input.defaultMaxMemoryTokens ?? DEFAULT_MAX_MEMORY_TOKENS;
+  const runtimeTracer = createGoodMemoryTracer(
+    {
+      scopeDigestSecret:
+        input.scopeDigestSecret ?? input.progressive?.scopeDigestSecret,
+    },
+    () => new Date(),
+  );
 
   async function recordEvent(event: RuntimeKitEvent): Promise<RuntimeKitEvent> {
     await emitRuntimeEvent(input.onRuntimeEvent, event);
     return event;
+  }
+
+  async function recordScopedEvent(
+    scope: MemoryScope,
+    event: Omit<RuntimeKitEvent, "scopeDigest">,
+  ): Promise<RuntimeKitEvent> {
+    return await recordEvent({
+      ...event,
+      scopeDigest: runtimeTracer.digestScope(scope),
+    });
   }
 
   async function buildFragmentContext(
@@ -273,10 +297,9 @@ export function createGoodMemoryRuntimeKit(
       const started = await input.memory.runtime.startSession({
         scope: callInput.scope,
       });
-      const event = await recordEvent({
+      const event = await recordScopedEvent(callInput.scope, {
         phase: "sessionStart",
         status: "succeeded",
-        scope: callInput.scope,
         traceId: started.traceId,
       });
 
@@ -292,12 +315,11 @@ export function createGoodMemoryRuntimeKit(
     ): Promise<RuntimeKitBeforeModelCallResult> {
       const requestedMode = callInput.contextMode ?? defaultContextMode;
       if (callInput.ignoreMemory) {
-        const event = await recordEvent({
+        const event = await recordScopedEvent(callInput.scope, {
           phase: "beforeModelCall",
           status: "skipped",
           reason: "ignore_memory",
           contextMode: requestedMode,
-          scope: callInput.scope,
         });
         return {
           context: createEmptyContext(requestedMode),
@@ -308,12 +330,11 @@ export function createGoodMemoryRuntimeKit(
       const query = normalizeText(callInput.query) ??
         extractTextFromMessages(callInput.messages ?? []);
       if (!query) {
-        const event = await recordEvent({
+        const event = await recordScopedEvent(callInput.scope, {
           phase: "beforeModelCall",
           status: "skipped",
           reason: "no_query",
           contextMode: requestedMode,
-          scope: callInput.scope,
         });
         return {
           context: createEmptyContext(requestedMode),
@@ -336,12 +357,11 @@ export function createGoodMemoryRuntimeKit(
             callInput.maxProgressiveRecords ?? DEFAULT_PROGRESSIVE_RECORD_LIMIT,
           maxTokens: callInput.maxMemoryTokens ?? defaultMaxMemoryTokens,
         });
-        const event = await recordEvent({
+        const event = await recordScopedEvent(callInput.scope, {
           phase: "beforeModelCall",
           status: rendered.content.trim() ? "applied" : "skipped",
           reason: rendered.content.trim() ? undefined : "empty_context",
           contextMode: "progressive",
-          scope: callInput.scope,
         });
 
         return {
@@ -359,7 +379,7 @@ export function createGoodMemoryRuntimeKit(
       }
 
       const fragment = await buildFragmentContext(callInput, query);
-      const event = await recordEvent({
+      const event = await recordScopedEvent(callInput.scope, {
         phase: "beforeModelCall",
         status: fragment.context.content.trim() ? "applied" : "skipped",
         reason: fragment.context.content.trim() ? undefined : "empty_context",
@@ -367,7 +387,6 @@ export function createGoodMemoryRuntimeKit(
         fallbackReason: requestedMode === "progressive"
           ? "progressive_unavailable"
           : undefined,
-        scope: callInput.scope,
       });
 
       return {
@@ -411,7 +430,7 @@ export function createGoodMemoryRuntimeKit(
         }));
       }
 
-      const event = await recordEvent({
+      const event = await recordScopedEvent(callInput.scope, {
         phase: "afterModelCall",
         status: rememberResult || candidates.length > 0 ? "applied" : "skipped",
         reason:
@@ -420,7 +439,6 @@ export function createGoodMemoryRuntimeKit(
             : rememberResult || candidates.length > 0
               ? undefined
               : "no_candidate",
-        scope: callInput.scope,
       });
 
       return {
@@ -443,10 +461,9 @@ export function createGoodMemoryRuntimeKit(
         scope: callInput.scope,
         archive: callInput.archive ?? "off",
       });
-      const event = await recordEvent({
+      const event = await recordScopedEvent(callInput.scope, {
         phase: "sessionEnd",
         status: "succeeded",
-        scope: callInput.scope,
         traceId: ended.traceId,
       });
 
@@ -470,11 +487,10 @@ export function createGoodMemoryRuntimeKit(
         assessment,
         intent: callInput.intent,
       });
-      const event = await recordEvent({
+      const event = await recordScopedEvent(callInput.intent.scope, {
         phase: "preAction",
         status: "applied",
         reason: assessment.decision,
-        scope: callInput.intent.scope,
       });
 
       return {
@@ -496,10 +512,9 @@ export function createGoodMemoryRuntimeKit(
           appendWorklog: [summary],
         },
       });
-      const event = await recordEvent({
+      const event = await recordScopedEvent(callInput.scope, {
         phase: "observeToolResult",
         status: "applied",
-        scope: callInput.scope,
       });
 
       return {

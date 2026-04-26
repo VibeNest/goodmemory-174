@@ -3,7 +3,7 @@ Phase 43.4: PreAction and Installed-Host Adapters
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43 Runtime Kit closure.
 
 Goal
 ----
@@ -16,3 +16,10 @@ Acceptance
 - Installed Codex remains the live evidence path.
 - Claude parity is deterministic unless explicitly promoted later.
 - Bootstrap-wrapper compatibility is not reopened.
+
+Evidence
+--------
+- `src/runtime-kit/public.ts`
+- `tests/unit/runtime-kit.test.ts`
+- `reports/eval/fallback/phase-43/run-20260426113000/report.json`
+- `reports/quality-gates/phase-43/run-20260426120000/phase-43-quality-gate.json`

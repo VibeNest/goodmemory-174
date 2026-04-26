@@ -66,6 +66,12 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-41-Quality-Gate.md`
 - Progressive recall protocol closure:
   - `GoodMemory-Phase-42-Quality-Gate.md`
+- Runtime Kit lifecycle adapter closure:
+  - `GoodMemory-Phase-43-Quality-Gate.md`
+- Optional Runtime Worker closure:
+  - `GoodMemory-Phase-43.5-Quality-Gate.md`
+- Local Viewer data API and lightweight UI closure:
+  - `GoodMemory-Phase-44-Quality-Gate.md`
 
 ## When To Use This Archive
 

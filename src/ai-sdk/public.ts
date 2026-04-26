@@ -25,6 +25,12 @@ import type {
   GoodMemoryRecallSkipReason,
   GoodMemoryStreamTextInput,
 } from "./contracts";
+import { createGoodMemoryRuntimeKit } from "../runtime-kit/public";
+import type {
+  GoodMemoryRuntimeKit,
+  RuntimeKitBeforeModelCallResult,
+  RuntimeKitMessage,
+} from "../runtime-kit/contracts";
 
 const DEFAULT_MEMORY_FRAGMENT_MAX_TOKENS = 160;
 
@@ -102,27 +108,6 @@ function deriveRecallQuery(messages: ModelMessage[]): string | null {
   return null;
 }
 
-function buildRememberMessages(input: {
-  assistantText: string;
-  messages: ModelMessage[];
-}): Array<{ content: string; role: "assistant" | "user" }> {
-  const currentUserText = deriveRecallQuery(input.messages);
-  if (!currentUserText) {
-    return [];
-  }
-
-  return [
-    {
-      role: "user",
-      content: currentUserText,
-    },
-    {
-      role: "assistant",
-      content: input.assistantText,
-    },
-  ];
-}
-
 async function invokeEventCallback<T>(
   callback: ((event: T) => Promise<void> | void) | undefined,
   event: T,
@@ -164,8 +149,59 @@ function createRememberSkipEvent(input: {
   };
 }
 
+function toRuntimeKitMessages(messages: ModelMessage[]): RuntimeKitMessage[] {
+  return messages.flatMap((message) => {
+    const text = extractTextFromMessageContent(message.content);
+    if (!text) {
+      return [];
+    }
+
+    return [{
+      role: message.role,
+      content: text,
+    }];
+  });
+}
+
+function mapRuntimeRecallEvent(input: {
+  result: RuntimeKitBeforeModelCallResult;
+  retrievalProfile: GoodMemoryAISDKRetrievalProfile;
+  scope: GoodMemoryGenerateTextInput["scope"];
+}): GoodMemoryAISDKEvent {
+  const event = input.result.events[0];
+  if (event?.status === "applied") {
+    return {
+      phase: "recall",
+      status: "applied",
+      scope: input.scope,
+      retrievalProfile: input.retrievalProfile,
+    };
+  }
+
+  return createRecallSkipEvent({
+    reason: resolveRecallSkipReason(event?.reason),
+    retrievalProfile: input.retrievalProfile,
+    scope: input.scope,
+  });
+}
+
+function resolveRecallSkipReason(
+  reason: string | undefined,
+): GoodMemoryRecallSkipReason {
+  if (
+    reason === "ignore_memory" ||
+    reason === "no_query" ||
+    reason === "empty_context"
+  ) {
+    return reason;
+  }
+
+  return "empty_context";
+}
+
 async function prepareMemoryContext(
   config: CreateGoodMemoryAISDKInput,
+  runtimeKit: GoodMemoryRuntimeKit,
   input: Pick<
     GoodMemoryGenerateTextInput | GoodMemoryStreamTextInput,
     | "ignoreMemory"
@@ -183,66 +219,33 @@ async function prepareMemoryContext(
     config.defaultRetrievalProfile ??
     "general_chat";
 
-  if (input.ignoreMemory) {
-    await invokeEventCallback(config.onMemoryEvent, createRecallSkipEvent({
-      reason: "ignore_memory",
-      retrievalProfile,
-      scope: input.scope,
-    }));
-    return {
-      retrievalProfile,
-      system: input.system,
-    };
-  }
-
   const query = normalizeText(input.query ?? "") ?? deriveRecallQuery(input.messages);
-  if (!query) {
-    await invokeEventCallback(config.onMemoryEvent, createRecallSkipEvent({
-      reason: "no_query",
-      retrievalProfile,
-      scope: input.scope,
-    }));
-    return {
-      retrievalProfile,
-      system: input.system,
-    };
-  }
 
   try {
-    const recall = await config.memory.recall({
+    const result = await runtimeKit.beforeModelCall({
       scope: input.scope,
-      query,
+      ...(query ? { query } : {}),
       locale: input.locale,
-      ignoreMemory: false,
+      ignoreMemory: input.ignoreMemory,
       retrievalProfile,
-    });
-    const builtContext = await config.memory.buildContext({
-      recall,
-      output: "system_prompt_fragment",
-      maxTokens:
+      maxMemoryTokens:
         input.maxMemoryTokens ??
         config.defaultMaxMemoryTokens ??
         DEFAULT_MEMORY_FRAGMENT_MAX_TOKENS,
+      messages: toRuntimeKitMessages(input.messages),
     });
-    const fragment = normalizeText(builtContext.content);
+    await invokeEventCallback(config.onMemoryEvent, mapRuntimeRecallEvent({
+      result,
+      retrievalProfile,
+      scope: input.scope,
+    }));
+    const fragment = normalizeText(result.context.content);
     if (!fragment) {
-      await invokeEventCallback(config.onMemoryEvent, createRecallSkipEvent({
-        reason: "empty_context",
-        retrievalProfile,
-        scope: input.scope,
-      }));
       return {
         retrievalProfile,
         system: input.system,
       };
     }
-
-    await invokeEventCallback(config.onMemoryEvent, {
-      phase: "recall",
-      status: "applied",
-      scope: input.scope,
-      retrievalProfile,
-    });
 
     return {
       retrievalProfile,
@@ -267,13 +270,22 @@ async function prepareMemoryContext(
 
 async function rememberCompletedGeneration(
   config: CreateGoodMemoryAISDKInput,
+  runtimeKit: GoodMemoryRuntimeKit,
   input: Pick<
     GoodMemoryGenerateTextInput | GoodMemoryStreamTextInput,
     "ignoreMemory" | "locale" | "messages" | "scope"
   >,
   assistantText: string,
 ): Promise<void> {
+  const runtimeMessages = toRuntimeKitMessages(input.messages);
   if (input.ignoreMemory) {
+    await runtimeKit.afterModelCall({
+      scope: input.scope,
+      locale: input.locale,
+      messages: runtimeMessages,
+      assistantText,
+      writeback: { mode: "off" },
+    });
     await invokeEventCallback(config.onMemoryEvent, createRememberSkipEvent({
       reason: "ignore_memory",
       scope: input.scope,
@@ -283,6 +295,17 @@ async function rememberCompletedGeneration(
 
   const normalizedAssistantText = normalizeText(assistantText);
   if (!normalizedAssistantText) {
+    await runtimeKit.afterModelCall({
+      scope: input.scope,
+      locale: input.locale,
+      messages: runtimeMessages,
+      assistantText,
+      writeback: {
+        mode: "selective",
+        annotation: "durable_candidate",
+        policy: "allow",
+      },
+    });
     await invokeEventCallback(config.onMemoryEvent, createRememberSkipEvent({
       reason: "no_final_assistant_text",
       scope: input.scope,
@@ -290,12 +313,18 @@ async function rememberCompletedGeneration(
     return;
   }
 
-  const rememberedMessages = buildRememberMessages({
-    messages: input.messages,
-    assistantText: normalizedAssistantText,
-  });
-
-  if (rememberedMessages.length === 0) {
+  if (!deriveRecallQuery(input.messages)) {
+    await runtimeKit.afterModelCall({
+      scope: input.scope,
+      locale: input.locale,
+      messages: runtimeMessages,
+      assistantText: normalizedAssistantText,
+      writeback: {
+        mode: "selective",
+        annotation: "durable_candidate",
+        policy: "allow",
+      },
+    });
     await invokeEventCallback(config.onMemoryEvent, createRememberSkipEvent({
       reason: "no_text_messages",
       scope: input.scope,
@@ -304,18 +333,32 @@ async function rememberCompletedGeneration(
   }
 
   try {
-    const result = await config.memory.remember({
+    const result = await runtimeKit.afterModelCall({
       scope: input.scope,
       locale: input.locale,
-      messages: rememberedMessages,
+      messages: runtimeMessages,
+      assistantText: normalizedAssistantText,
+      writeback: {
+        mode: "selective",
+        annotation: "durable_candidate",
+        policy: "allow",
+      },
     });
+    const rememberResult = result.rememberResult;
+    if (!rememberResult) {
+      await invokeEventCallback(config.onMemoryEvent, createRememberSkipEvent({
+        reason: "no_text_messages",
+        scope: input.scope,
+      }));
+      return;
+    }
 
     await invokeEventCallback(config.onMemoryEvent, {
       phase: "remember",
       status: "succeeded",
       scope: input.scope,
-      accepted: result.accepted,
-      rejected: result.rejected,
+      accepted: rememberResult.accepted,
+      rejected: rememberResult.rejected,
     });
   } catch (error) {
     await invokeEventCallback<GoodMemoryAISDKErrorEvent>(config.onMemoryError, {
@@ -604,12 +647,18 @@ export function createGoodMemoryAISDK(
     input.dependencies?.generateText ?? aiGenerateText;
   const streamTextDependency =
     input.dependencies?.streamText ?? aiStreamText;
+  const runtimeKit = createGoodMemoryRuntimeKit({
+    memory: input.memory,
+    defaultContextMode: "fragment",
+    defaultMaxMemoryTokens:
+      input.defaultMaxMemoryTokens ?? DEFAULT_MEMORY_FRAGMENT_MAX_TOKENS,
+  });
 
   return {
     async generateText<TOOLS extends ToolSet = ToolSet>(
       callInput: GoodMemoryGenerateTextInput<TOOLS>,
     ): Promise<AISDKGenerateTextResult> {
-      const prepared = await prepareMemoryContext(input, callInput);
+      const prepared = await prepareMemoryContext(input, runtimeKit, callInput);
       const onFinish = callInput.onFinish;
 
       return generateTextDependency({
@@ -617,7 +666,7 @@ export function createGoodMemoryAISDK(
         system: prepared.system,
         messages: callInput.messages,
         onFinish: async (event) => {
-          await rememberCompletedGeneration(input, callInput, event.text);
+          await rememberCompletedGeneration(input, runtimeKit, callInput, event.text);
           if (onFinish) {
             await onFinish(event as never);
           }
@@ -628,7 +677,7 @@ export function createGoodMemoryAISDK(
       callInput: GoodMemoryStreamTextInput<TOOLS>,
     ): AISDKStreamTextResult {
       return createDeferredStreamTextResult(async () => {
-        const prepared = await prepareMemoryContext(input, callInput);
+        const prepared = await prepareMemoryContext(input, runtimeKit, callInput);
         const onFinish = callInput.onFinish;
 
         return streamTextDependency({
@@ -636,7 +685,7 @@ export function createGoodMemoryAISDK(
           system: prepared.system,
           messages: callInput.messages,
           onFinish: async (event) => {
-            await rememberCompletedGeneration(input, callInput, event.text);
+            await rememberCompletedGeneration(input, runtimeKit, callInput, event.text);
             if (onFinish) {
               await onFinish(event as never);
             }

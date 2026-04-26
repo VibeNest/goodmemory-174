@@ -3,7 +3,7 @@ Phase 44.6: Package, License, and Closure Gate
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted and closed by `bun run gate:phase-44 --run-id run-20260426160000`.
 
 Goal
 ----

@@ -8,6 +8,7 @@ import type {
 import type {
   HostActionAssessmentResult,
   HostActionIntent,
+  HostKind,
 } from "../../src/host";
 import type {
   ProgressiveRecallIndex,
@@ -411,8 +412,34 @@ describe("runtime-kit", () => {
     expect(observe.candidates).toHaveLength(1);
     expect(observe.candidates[0]?.preview).not.toContain("me@example.com");
     expect(observe.candidates[0]?.preview).not.toContain("sk-live-secret");
+    expect(observe.events[0]?.scopeDigest.userIdHash).toStartWith("hmac-sha256:");
     expect(observe.trace.rawTranscriptPersisted).toBe(false);
     expect(JSON.stringify(observe)).not.toContain("messages");
+    expect(JSON.stringify(observe)).not.toContain(scope.userId);
+    expect(JSON.stringify(observe)).not.toContain(scope.workspaceId);
+    expect(JSON.stringify(observe)).not.toContain(scope.sessionId);
+  });
+
+  it("uses stable content digests for bounded afterModelCall job ids", async () => {
+    const runtimeKit = createGoodMemoryRuntimeKit({
+      memory: createMemoryStub(),
+    });
+    const first = await runtimeKit.afterModelCall({
+      scope,
+      messages: [{ role: "user", content: "Remember alpha queue item." }],
+      assistantText: "Alpha bounded preview.",
+      writeback: { mode: "observe" },
+    });
+    const second = await runtimeKit.afterModelCall({
+      scope,
+      messages: [{ role: "user", content: "Remember beta queue item!" }],
+      assistantText: "Beta bounded preview..",
+      writeback: { mode: "observe" },
+    });
+
+    expect(first.boundedJobs[0]?.jobId).toStartWith("runtime-kit-candidate-");
+    expect(second.boundedJobs[0]?.jobId).toStartWith("runtime-kit-candidate-");
+    expect(first.boundedJobs[0]?.jobId).not.toBe(second.boundedJobs[0]?.jobId);
   });
 
   it("only calls public remember under selective writeback with annotation and policy approval", async () => {
@@ -510,5 +537,44 @@ describe("runtime-kit", () => {
       executeOriginalActionNow: false,
       rewritten: true,
     });
+  });
+
+  it("keeps default preAction behavior deterministic across Codex and Claude host kinds", async () => {
+    const runtimeKit = createGoodMemoryRuntimeKit({
+      memory: createMemoryStub(),
+      scopeDigestSecret: "runtime-kit-host-parity",
+    });
+    const hostKinds: HostKind[] = ["codex", "claude"];
+
+    const results = [];
+    for (const hostKind of hostKinds) {
+      results.push(await runtimeKit.preAction({
+        intent: {
+          actionId: `action-${hostKind}`,
+          runId: `run-${hostKind}`,
+          turnId: `turn-${hostKind}`,
+          sequence: 1,
+          occurredAt: "2026-04-26T00:00:00.000Z",
+          hostKind,
+          scope,
+          action: {
+            kind: "command",
+            command: "bun test tests/unit/runtime-kit.test.ts",
+          },
+        },
+      }));
+    }
+
+    expect(results.map((result) => result.executionPlan.decision)).toEqual([
+      "allow",
+      "allow",
+    ]);
+    expect(results.map((result) => result.events[0]?.phase)).toEqual([
+      "preAction",
+      "preAction",
+    ]);
+    expect(JSON.stringify(results)).not.toContain(scope.userId);
+    expect(JSON.stringify(results)).not.toContain(scope.workspaceId);
+    expect(JSON.stringify(results)).not.toContain(scope.sessionId);
   });
 });

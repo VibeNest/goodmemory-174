@@ -299,21 +299,30 @@ Current Sequencing Note
   - deterministic evidence: `reports/eval/fallback/phase-42/run-20260426093000/report.json`
   - quality gate: `reports/quality-gates/phase-42/run-20260426100000/phase-42-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-42-Quality-Gate.md`
-- Phase 43 is queued as the Runtime Kit slice:
+- Phase 43 is now closed as the Runtime Kit slice:
   - task-board entrypoint: `task-board/46-phase-43-runtime-kit.txt`
   - breakdown folder: `task-board/phase-43-runtime-kit/`
-  - focus: add `goodmemory/runtime-kit`, lifecycle orchestration, preAction reuse of Phase 41, afterModelCall governance, Codex live evidence, Claude deterministic parity, and AI SDK integration
-  - boundary: afterModelCall does not become default-on durable writeback
-- Phase 43.5 is queued as the Optional Runtime Worker slice:
+  - focus: add `goodmemory/runtime-kit`, lifecycle orchestration, preAction reuse of Phase 41, afterModelCall governance, deterministic Codex/Claude adapter parity, and AI SDK integration
+  - deterministic evidence: `reports/eval/fallback/phase-43/run-20260426113000/report.json`
+  - quality gate: `reports/quality-gates/phase-43/run-20260426120000/phase-43-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-43-Quality-Gate.md`
+  - boundary: afterModelCall does not become default-on durable writeback, runtime events expose `scopeDigest` instead of raw scope ids, and root `goodmemory` is not widened
+- Phase 43.5 is now closed as the Optional Runtime Worker slice:
   - task-board entrypoint: `task-board/47-phase-43-5-optional-runtime-worker.txt`
   - breakdown folder: `task-board/phase-43-5-optional-runtime-worker/`
   - focus: bounded runtime-kit jobs, drain-once/status/recover, audit/redaction, failure isolation, and optional daemon start/stop
-  - boundary: worker is optional and must not block inline runtime behavior
-- Phase 44 is queued as the Local Viewer data API and lightweight UI slice:
+  - deterministic evidence: `reports/eval/fallback/phase-43-5/run-20260426133000/report.json`
+  - quality gate: `reports/quality-gates/phase-43-5/run-20260426140000/phase-43-5-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-43.5-Quality-Gate.md`
+  - boundary: worker is optional, stores only redacted preview/scopeDigest envelopes, and must not block inline runtime behavior
+- Phase 44 is now closed as the Local Viewer data API and lightweight UI slice:
   - task-board entrypoint: `task-board/48-phase-44-local-viewer-data-api-and-lightweight-ui.txt`
   - breakdown folder: `task-board/phase-44-local-viewer-data-api-and-lightweight-ui/`
   - focus: read-only local data API, static viewer shell, progressive record drill-down, writeback audit, trace/session views, local-token security, and package/license hygiene
-  - boundary: viewer is inspectability, not dashboard/admin/cloud/analytics
+  - deterministic evidence: `reports/eval/fallback/phase-44/run-20260426153000/report.json`
+  - quality gate: `reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-44-Quality-Gate.md`
+  - boundary: viewer is inspectability, not dashboard/admin/cloud/analytics, and it exposes no mutation routes, CORS, or raw transcript display
 - Any work beyond the closed Phase 41 slice should add a later phase file or explicitly reopen a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -334,13 +343,13 @@ Use these bands when choosing what to work on next:
 
 1. Immediate focus
    - Preserve the closed Phase 17 through Phase 41 guarantees while future work lands
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, Phase 37.1 productization evidence, Phase 38 governed runtime evidence, Phase 39 Python/FastAPI bridge evidence, Phase 40 release-proof/product-eval evidence, Phase 41 installed pre-action unification evidence, and Phase 41.9 status-sync evidence regression-covered while future work lands
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, Phase 37.1 productization evidence, Phase 38 governed runtime evidence, Phase 39 Python/FastAPI bridge evidence, Phase 40 release-proof/product-eval evidence, Phase 41 installed pre-action unification evidence, Phase 41.9 status-sync evidence, Phase 42 progressive recall evidence, Phase 43 runtime-kit evidence, and Phase 43.5 optional-worker evidence regression-covered while future work lands
    - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, Phase 36, Phase 37, Phase 37.1, Phase 38, Phase 39, Phase 40, or Phase 41 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute future host/runtime-shell work on top of the accepted Phase 35 installed-host middleware boundary, Phase 37 installed-host writeback boundary, Phase 40 public release proof, Phase 41 installed pre-action boundary, and Phase 42 ProgressiveRecallService boundary instead of widening the core API or reintroducing repo-internal integration paths
+   - Execute future host/runtime-shell work on top of the accepted Phase 35 installed-host middleware boundary, Phase 37 installed-host writeback boundary, Phase 40 public release proof, Phase 41 installed pre-action boundary, Phase 42 ProgressiveRecallService boundary, Phase 43 Runtime Kit boundary, and Phase 43.5 Optional Worker boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
-   - Implement Phase 42 before Phase 43 so runtime-kit and viewer reuse one progressive recall protocol instead of duplicating index/detail logic
-   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, Phase 36 public write-profile guarantees, Phase 37 installed-host writeback guarantees, Phase 37.1 audit/undo guarantees, Phase 38 governed runtime guarantees, Phase 39 bridge guarantees, Phase 40 release-proof guarantees, Phase 41 installed pre-action guarantees, and Phase 42 progressive recall guarantees regression-covered while later phases execute
+   - Implement Phase 44 on top of Phase 42 progressive recall, Phase 43 runtime-kit, and Phase 43.5 optional-worker inspection boundaries instead of duplicating index/detail, lifecycle, or worker queue logic
+   - Keep retrieval-first, host-adapter, reviewer, maintenance, release-hardening, internal recall-router, implicit-behavioral-eval, phase-25 deterministic behavioral-evidence, phase-26 local-first runtime guarantees, Phase 27 adoption evidence, Phase 28 supported local acceleration, Phase 29 Bun-only release hardening, Phase 30 behavioral enactment guarantees, Phase 31 native-host outcome/correction guarantees, Phase 35 installed-host middleware guarantees, Phase 36 public write-profile guarantees, Phase 37 installed-host writeback guarantees, Phase 37.1 audit/undo guarantees, Phase 38 governed runtime guarantees, Phase 39 bridge guarantees, Phase 40 release-proof guarantees, Phase 41 installed pre-action guarantees, Phase 42 progressive recall guarantees, Phase 43 runtime-kit guarantees, and Phase 43.5 optional-worker guarantees regression-covered while later phases execute
 3. Medium-term system hardening
    - Keep the accepted Codex host integration surface stable while future host-runtime evidence deepens through runtime-kit, optional worker, and local viewer slices
 4. Host integration track

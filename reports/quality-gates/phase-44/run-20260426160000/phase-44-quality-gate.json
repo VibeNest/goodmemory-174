@@ -1,0 +1,59 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 44 local viewer is accepted as a read-only local inspection surface with token, 127.0.0.1 binding, no CORS, progressive drill-down, redacted audit/trace/session views, CLI handoff, and package hygiene."
+  },
+  "commands": [
+    {
+      "durationMs": 4123,
+      "exitCode": 0,
+      "stderr": "$ bunx tsc --noEmit\n",
+      "stdout": "",
+      "label": "typecheck"
+    },
+    {
+      "durationMs": 125,
+      "exitCode": 0,
+      "stderr": "\ntests/unit/runtime-viewer.test.ts:\n(pass) runtime viewer > requires a local token and emits no CORS headers [3.02ms]\n(pass) runtime viewer > rejects mutation methods instead of exposing write routes [0.22ms]\n(pass) runtime viewer > serves a packageable static shell without external network references [0.13ms]\n(pass) runtime viewer > returns redacted summary data with counts, audit, worker, sessions, and traces [0.26ms]\n(pass) runtime viewer > uses progressive recordRefs for drill-down and denies cross-scope refs [1.12ms]\n(pass) runtime viewer > generates forget and revise CLI handoff without executing mutations [0.37ms]\n(pass) runtime viewer > keeps viewer binding local-only and creates random local tokens [0.13ms]\n\ntests/unit/run-phase-44-eval.test.ts:\n(pass) run-phase-44 eval script > resolves the phase-44 deterministic output directory [0.03ms]\n(pass) run-phase-44 eval script > builds a deterministic phase-44 run id [0.03ms]\n(pass) run-phase-44 eval script > parses phase-44 eval cli flags [0.06ms]\n(pass) run-phase-44 eval script > writes an accepted local viewer report [3.48ms]\n\ntests/unit/run-phase-44-gate.test.ts:\n(pass) run-phase-44 gate script > resolves phase-44 output and canonical evidence paths [0.05ms]\n(pass) run-phase-44 gate script > builds a deterministic phase-44 gate run id [0.06ms]\n(pass) run-phase-44 gate script > parses phase-44 gate cli flags [0.04ms]\n(pass) run-phase-44 gate script > builds the expected targeted command set [0.05ms]\n(pass) run-phase-44 gate script > writes an accepted phase-44 quality gate when evidence and boundaries pass [0.42ms]\n(pass) run-phase-44 gate script > rejects summary-only eval reports without named viewer cases [0.04ms]\n\ntests/cli/runtime-viewer-cli.test.ts:\n(pass) runtime viewer CLI > renders runtime viewer help [1.41ms]\n(pass) runtime viewer CLI > prints local dry-run configuration without starting a server [0.21ms]\n(pass) runtime viewer CLI > rejects non-local viewer binds [0.08ms]\n\n 20 pass\n 0 fail\n 72 expect() calls\nRan 20 tests across 4 files. [118.00ms]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-44-viewer-regressions"
+    },
+    {
+      "durationMs": 69,
+      "exitCode": 0,
+      "stderr": "$ bun run scripts/run-phase-44-eval.ts --run-id \"run-20260426153000\"\n",
+      "stdout": "Phase 44 deterministic eval accepted: /Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-44/run-20260426153000\n",
+      "label": "phase-44-fallback-eval"
+    },
+    {
+      "durationMs": 6392,
+      "exitCode": 0,
+      "stderr": "\ntests/release/release.test.ts:\n(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [2.66ms]\n(pass) release metadata and docs > packs a tarball that keeps the compiled package boundary and omits repo-only payload [5666.22ms]\n(pass) release metadata and docs > root exports stay aligned with the declared public surface [45.38ms]\n(pass) release metadata and docs > current status doc points to the stable evidence entrypoints and archive [2.02ms]\n(pass) release metadata and docs > task-board current note documents the generic eval command contract [0.75ms]\n(pass) release metadata and docs > phase-44 quality gate doc points to the canonical local-viewer gate [0.19ms]\n(pass) release metadata and docs > models fallback eval evidence as regenerable ignored output, not tracked audit artifacts [591.82ms]\n\n 7 pass\n 57 filtered out\n 0 fail\n 511 expect() calls\nRan 7 tests across 1 file. [6.38s]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-44-release-regressions"
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-44/run-20260426153000/report.json",
+      "reason": "Phase 44 deterministic local-viewer evidence is accepted.",
+      "regenerateCommand": "bun run eval:phase-44 --run-id run-20260426153000",
+      "status": "accepted"
+    },
+    "evalSummary": {
+      "passCount": 11,
+      "totalChecks": 11
+    },
+    "noRootApiWidening": true,
+    "packageScriptsRegistered": true,
+    "readOnlySecurityContracts": true,
+    "viewerCliSurface": true
+  },
+  "generatedAt": "2026-04-26T07:54:29.562Z",
+  "generatedBy": "scripts/run-phase-44-gate.ts",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-44",
+  "phase": "phase-44",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-44/run-20260426160000",
+  "runId": "run-20260426160000"
+}

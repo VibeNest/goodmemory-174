@@ -5,6 +5,7 @@ import type {
   RememberResult,
 } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
+import type { GoodMemoryScopeDigest } from "../observability/contracts";
 import type {
   HostActionAssessmentResult,
   HostActionIntent,
@@ -42,7 +43,7 @@ export interface RuntimeKitEvent {
   fallbackReason?: "progressive_unavailable";
   phase: RuntimeKitLifecyclePhase;
   reason?: string;
-  scope: MemoryScope;
+  scopeDigest: GoodMemoryScopeDigest;
   status: RuntimeKitEventStatus;
   traceId?: string;
 }
@@ -167,6 +168,7 @@ export interface CreateGoodMemoryRuntimeKitInput {
   hostAdapter?: Pick<HostAdapter, "assessAction">;
   memory: GoodMemory;
   onRuntimeEvent?(event: RuntimeKitEvent): Promise<void> | void;
+  scopeDigestSecret?: string;
   progressive?: {
     maxDetailPreviewChars?: number;
     scopeDigestSecret: string;

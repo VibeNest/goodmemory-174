@@ -3,7 +3,7 @@ Phase 43.2: Public Runtime-Kit Export
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43 Runtime Kit closure.
 
 Goal
 ----
@@ -14,3 +14,11 @@ Acceptance
 - Export resolves from source, dist, declarations, and packed tarball.
 - Runtime-kit types are stable and host-neutral.
 - Root `goodmemory` export does not re-export runtime-kit internals.
+
+Evidence
+--------
+- `package.json`
+- `src/runtime-kit/index.ts`
+- `src/runtime-kit/public.ts`
+- `tests/types/runtime-kit.types.ts`
+- `reports/quality-gates/phase-43/run-20260426120000/phase-43-quality-gate.json`

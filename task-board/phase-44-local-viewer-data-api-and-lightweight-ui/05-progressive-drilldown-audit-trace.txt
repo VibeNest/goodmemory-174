@@ -3,7 +3,7 @@ Phase 44.5: Drill-Down, Audit, Trace, and Sessions
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted and closed by progressive drill-down, audit, trace, session, and handoff tests.
 
 Goal
 ----

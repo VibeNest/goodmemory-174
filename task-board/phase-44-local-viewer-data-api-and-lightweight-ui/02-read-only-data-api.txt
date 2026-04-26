@@ -3,7 +3,7 @@ Phase 44.2: Read-Only Data API
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted and closed by `src/runtime-viewer/public.ts` and `reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json`.
 
 Goal
 ----

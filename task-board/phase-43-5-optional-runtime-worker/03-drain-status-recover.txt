@@ -3,7 +3,7 @@ Phase 43.5.3: Drain, Status, and Recover
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted as part of the Phase 43.5 Optional Runtime Worker closure.
 
 Goal
 ----
@@ -20,3 +20,10 @@ Acceptance
 - Commands are script-safe and JSON-capable.
 - Recover dry-run explains proposed repairs before mutation.
 - Status identifies stuck, retryable, coalesced, and completed jobs.
+
+Evidence
+--------
+- `src/cli.ts`
+- `tests/cli/runtime-worker-cli.test.ts`
+- `reports/eval/fallback/phase-43-5/run-20260426133000/report.json`
+- `reports/quality-gates/phase-43-5/run-20260426140000/phase-43-5-quality-gate.json`

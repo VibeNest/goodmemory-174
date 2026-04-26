@@ -3,7 +3,7 @@ Phase 44.1: Contract and Failing Tests
 
 Status
 ------
-[TODO] Not started.
+[DONE] Accepted and closed by `tests/unit/runtime-viewer.test.ts`, `tests/cli/runtime-viewer-cli.test.ts`, and `reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json`.
 
 Goal
 ----

@@ -1,0 +1,65 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 43 runtime-kit is accepted with package export coverage, lifecycle orchestration, preAction plan reuse, afterModelCall governance, AI SDK reuse, and redaction-safe runtime events."
+  },
+  "commands": [
+    {
+      "durationMs": 3928,
+      "exitCode": 0,
+      "stderr": "$ bunx tsc --noEmit\n",
+      "stdout": "",
+      "label": "typecheck"
+    },
+    {
+      "durationMs": 175,
+      "exitCode": 0,
+      "stderr": "\ntests/unit/ai-sdk.public.test.ts:\n(pass) goodmemory ai-sdk adapter > derives the recall query from the last text-bearing user message [1.69ms]\n(pass) goodmemory ai-sdk adapter > skips recall and remember when ignoreMemory is true [0.43ms]\n(pass) goodmemory ai-sdk adapter > skips recall when no recall query can be derived [0.08ms]\n(pass) goodmemory ai-sdk adapter > appends the built memory fragment after the existing system prompt [0.18ms]\n(pass) goodmemory ai-sdk adapter > appends the built memory fragment to structured system prompts [0.19ms]\n(pass) goodmemory ai-sdk adapter > emits skip events for empty context and non-text conversations [0.24ms]\n(pass) goodmemory ai-sdk adapter > soft-fails recall and leaves the caller input untouched [0.14ms]\n(pass) goodmemory ai-sdk adapter > remembers only the current text-bearing user turn and generated answer [0.14ms]\n(pass) goodmemory ai-sdk adapter > preserves streamText laziness and synchronous response helpers [6.20ms]\n(pass) goodmemory ai-sdk adapter > defers stream promise properties, async iterables, and methods [0.87ms]\n(pass) goodmemory ai-sdk adapter > remembers before the caller onFinish runs [0.08ms]\n(pass) goodmemory ai-sdk adapter > emits compact memory events and soft-fails remember errors [0.25ms]\n(pass) goodmemory ai-sdk adapter > skips remember when the final assistant text is empty [0.07ms]\n\ntests/unit/run-phase-43-eval.test.ts:\n(pass) run-phase-43 eval script > resolves the phase-43 deterministic output directory\n(pass) run-phase-43 eval script > builds a deterministic phase-43 run id [0.09ms]\n(pass) run-phase-43 eval script > parses phase-43 eval cli flags\n(pass) run-phase-43 eval script > writes an accepted runtime-kit report [1.01ms]\n\ntests/unit/architecture.boundaries.test.ts:\n(pass) architecture boundaries > keeps the AI SDK adapter on the runtime-kit lifecycle instead of a duplicate memory loop [0.31ms]\n\ntests/unit/run-phase-43-gate.test.ts:\n(pass) run-phase-43 gate script > resolves phase-43 output and canonical evidence paths [0.03ms]\n(pass) run-phase-43 gate script > builds a deterministic phase-43 gate run id [0.05ms]\n(pass) run-phase-43 gate script > parses phase-43 gate cli flags [0.04ms]\n(pass) run-phase-43 gate script > builds the expected targeted command set\n(pass) run-phase-43 gate script > writes an accepted phase-43 quality gate when evidence and boundaries pass [0.30ms]\n(pass) run-phase-43 gate script > rejects summary-only eval reports without named runtime-kit cases [0.21ms]\n\ntests/unit/runtime-kit.test.ts:\n(pass) runtime-kit > renders fragment context through existing recall and buildContext APIs [0.10ms]\n(pass) runtime-kit > uses progressive recall service when progressive context is available [0.29ms]\n(pass) runtime-kit > falls back to fragment context when progressive transport is not configured [0.04ms]\n(pass) runtime-kit > does not durable-write afterModelCall in off or observe modes [0.18ms]\n(pass) runtime-kit > uses stable content digests for bounded afterModelCall job ids [0.05ms]\n(pass) runtime-kit > only calls public remember under selective writeback with annotation and policy approval [0.15ms]\n(pass) runtime-kit > preAction reuses host action assessment and execution-plan contracts [0.05ms]\n(pass) runtime-kit > keeps default preAction behavior deterministic across Codex and Claude host kinds [0.86ms]\n\n 32 pass\n 12 filtered out\n 0 fail\n 103 expect() calls\nRan 32 tests across 5 files. [168.00ms]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-43-core-regressions"
+    },
+    {
+      "durationMs": 21,
+      "exitCode": 0,
+      "stderr": "$ bun run scripts/run-phase-43-eval.ts --run-id \"run-20260426113000\"\n",
+      "stdout": "Phase 43 deterministic eval accepted: /Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-43/run-20260426113000\n",
+      "label": "phase-43-fallback-eval"
+    },
+    {
+      "durationMs": 134,
+      "exitCode": 0,
+      "stderr": "\ntests/examples/examples.test.ts:\n(pass) examples > vercel ai example demonstrates wrapper-first recall injection and remember writeback [68.98ms]\n(pass) examples > plain ai sdk server example demonstrates request parsing, recall injection, and response generation [10.46ms]\n(pass) examples > plain ai sdk server handler rejects malformed request scope at the HTTP boundary [0.08ms]\n\n 3 pass\n 6 filtered out\n 0 fail\n 17 expect() calls\nRan 3 tests across 1 file. [128.00ms]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-43-example-regressions"
+    },
+    {
+      "durationMs": 5259,
+      "exitCode": 0,
+      "stderr": "\ntests/release/release.test.ts:\n(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [1.20ms]\n(pass) release metadata and docs > packs a tarball that keeps the compiled package boundary and omits repo-only payload [4608.44ms]\n(pass) release metadata and docs > root exports stay aligned with the declared public surface [42.82ms]\n(pass) release metadata and docs > current status doc points to the stable evidence entrypoints and archive [2.03ms]\n(pass) release metadata and docs > task-board current note documents the generic eval command contract [2.57ms]\n(pass) release metadata and docs > phase-43 quality gate doc points to the canonical runtime-kit gate [0.86ms]\n(pass) release metadata and docs > phase-43.5 quality gate doc points to the canonical optional-worker gate [40.22ms]\n(pass) release metadata and docs > models fallback eval evidence as regenerable ignored output, not tracked audit artifacts [474.89ms]\n\n 8 pass\n 55 filtered out\n 0 fail\n 511 expect() calls\nRan 8 tests across 1 file. [5.25s]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-43-release-regressions"
+    }
+  ],
+  "evidence": {
+    "aiSdkUsesRuntimeKit": true,
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-43/run-20260426113000/report.json",
+      "reason": "Phase 43 deterministic runtime-kit evidence is accepted.",
+      "regenerateCommand": "bun run eval:phase-43 --run-id run-20260426113000",
+      "status": "accepted"
+    },
+    "evalSummary": {
+      "passCount": 8,
+      "totalChecks": 8
+    },
+    "noRootApiWidening": true,
+    "runtimeKitSubpathExported": true
+  },
+  "generatedAt": "2026-04-26T07:20:23.146Z",
+  "generatedBy": "scripts/run-phase-43-gate.ts",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-43",
+  "phase": "phase-43",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-43/run-20260426120000",
+  "runId": "run-20260426120000"
+}
