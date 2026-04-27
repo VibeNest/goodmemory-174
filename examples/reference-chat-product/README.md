@@ -33,6 +33,13 @@ Run the Bun smoke path from the repository:
 bun run example:reference-product
 ```
 
+Run the Phase 45 adoption report and quality gate:
+
+```bash
+bun run eval:phase-45
+bun run gate:phase-45
+```
+
 ## Boundary
 
 The product backend may call authenticated bridge mutation endpoints for

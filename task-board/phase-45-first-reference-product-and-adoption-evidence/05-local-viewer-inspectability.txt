@@ -4,7 +4,8 @@ Phase 45.5: Local Viewer Inspectability
 Status
 ------
 
-[TODO] Not started.
+[DONE] Accepted by the Phase 45 adoption report viewer scenario and
+`tests/unit/runtime-viewer.test.ts`.
 
 
 Goal
@@ -17,15 +18,15 @@ without turning the viewer into an admin or write UI.
 Tasks
 -----
 
-[TODO] P45.5-T001 Make the reference product generate trace/session/writeback
+[DONE] P45.5-T001 Make the reference product generate trace/session/writeback
   audit data that the viewer can summarize.
-[TODO] P45.5-T002 Add a viewer flow that drills into redacted summaries through
+[DONE] P45.5-T002 Add a viewer flow that drills into redacted summaries through
   Phase 42 recordRefs where applicable.
-[TODO] P45.5-T003 Add forget/revise CLI handoff coverage for reference-product
+[DONE] P45.5-T003 Add forget/revise CLI handoff coverage for reference-product
   records.
-[TODO] P45.5-T004 Add negative tests that Phase 45 introduces no viewer mutation
+[DONE] P45.5-T004 Add negative tests that Phase 45 introduces no viewer mutation
   routes, no CORS remote API, and no raw transcript display.
-[TODO] P45.5-T005 Prove authenticated reference-product backend mutation flows
+[DONE] P45.5-T005 Prove authenticated reference-product backend mutation flows
   do not require or create browser-executed viewer mutations.
 
 

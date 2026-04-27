@@ -746,6 +746,9 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["example:host-codex"]).toBe(
       "bun run examples/host-codex-handoff.ts",
     );
+    expect(pkg.scripts?.["example:reference-product"]).toBe(
+      "bun run examples/reference-chat-product/backend.ts smoke",
+    );
     expect(pkg.scripts?.test).toBe("bun test");
     expect(pkg.scripts?.["test:all"]).toBe("bun --config=bunfig.all.toml test tests third-party");
     expect(pkg.scripts?.["test:coverage"]).toBe(
@@ -804,6 +807,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-43-5"]).toBe(
       "bun run scripts/run-phase-43-5-eval.ts",
     );
+    expect(pkg.scripts?.["eval:phase-44"]).toBe(
+      "bun run scripts/run-phase-44-eval.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-45"]).toBe(
+      "bun run scripts/run-phase-45-adoption-eval.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -838,11 +847,11 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-43-5"]).toBe(
       "bun run scripts/run-phase-43-5-gate.ts",
     );
-    expect(pkg.scripts?.["eval:phase-44"]).toBe(
-      "bun run scripts/run-phase-44-eval.ts",
-    );
     expect(pkg.scripts?.["gate:phase-44"]).toBe(
       "bun run scripts/run-phase-44-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-45"]).toBe(
+      "bun run scripts/run-phase-45-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2385,6 +2394,21 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "reports/quality-gates/phase-43-5/run-20260426140000/phase-43-5-quality-gate.json",
     );
+    expect(currentStatus).toContain(
+      "Phase 45 is now closed as the First Reference Product and Adoption Evidence slice",
+    );
+    expect(currentStatus).toContain("examples/reference-chat-product");
+    expect(currentStatus).toContain("bun run eval:phase-45");
+    expect(currentStatus).toContain("bun run gate:phase-45");
+    expect(currentStatus).toContain(
+      "reports/eval/adoption/phase-45/run-20260427104530-adoption-eval/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-45-Quality-Gate.md",
+    );
     expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
@@ -2589,6 +2613,15 @@ describe("release metadata and docs", () => {
     );
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json",
+    );
+    expect(taskBoard).toContain(
+      "Phase 45 is now closed as the First Reference Product and Adoption Evidence slice",
+    );
+    expect(taskBoard).toContain(
+      "reports/eval/adoption/phase-45/run-20260427104530-adoption-eval/report.json",
+    );
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json",
     );
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
@@ -3710,6 +3743,37 @@ describe("release metadata and docs", () => {
     );
     expect(qualityGateDoc).toContain("third-party/claude-mem-main");
     expect(archiveIndex).toContain("GoodMemory-Phase-44-Quality-Gate.md");
+  });
+
+  it("phase-45 quality gate doc points to the canonical reference-product gate", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-45-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    if (process.env.PHASE45_GATE_IN_PROGRESS !== "1") {
+      await expectCanonicalAcceptedQualityGate({
+        docPath,
+        phaseDirectory: "phase-45",
+        reportFileName: "phase-45-quality-gate.json",
+        runId: "run-20260427110000",
+      });
+    } else {
+      expect(qualityGateDoc).toContain(
+        "Canonical accepted gate run: `run-20260427110000`",
+      );
+    }
+
+    expect(qualityGateDoc).toContain("reference product");
+    expect(qualityGateDoc).toContain("run-20260427104530-adoption-eval");
+    expect(qualityGateDoc).toContain("viewer remains read-only");
+    expect(qualityGateDoc).toContain("not a hosted dashboard");
+    expect(archiveIndex).toContain("GoodMemory-Phase-45-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

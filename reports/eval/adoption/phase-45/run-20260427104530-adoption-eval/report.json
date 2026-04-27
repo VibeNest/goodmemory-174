@@ -1,0 +1,548 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 45 reference product scenarios passed with rules-only GoodMemory, explicit no-memory comparison, redacted observe/selective evidence, and no raw transcript persistence."
+  },
+  "generatedAt": "2026-04-27T11:00:24.553Z",
+  "generatedBy": "scripts/run-phase-45-adoption-eval.ts",
+  "metrics": {
+    "correctionSuccessRate": 1,
+    "firstUsefulRecallRate": 1,
+    "missedRecallRate": 0,
+    "observeToSelectiveConversionReadiness": {
+      "acceptedReviewedRatio": 0.5,
+      "observedCandidatesAcceptedAsUseful": 1,
+      "observedCandidatesRejectedAsUnsafeOrNoisy": 1,
+      "observedCandidatesReviewed": 2,
+      "scenariosWhereSelectiveWritebackJustified": 1
+    },
+    "noMemoryLeakRate": 0,
+    "staleMemoryRate": 0,
+    "timeToFirstMemoryValueMs": 8,
+    "userVisibleSetupSteps": 4,
+    "wrongRecallRate": 0
+  },
+  "mode": "reference-product-adoption-eval",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/adoption/phase-45",
+  "phase": "phase-45",
+  "rawTranscriptPersistence": {
+    "defaultRuntimeArchive": "off",
+    "evidenceSource": "redacted_reference_product_scenario_events",
+    "persistedRawTranscripts": false
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/adoption/phase-45/run-20260427104530-adoption-eval",
+  "runId": "run-20260427104530-adoption-eval",
+  "scenarios": [
+    {
+      "caseId": "identity-background-continuity",
+      "checks": [
+        "remember",
+        "recall-context",
+        "no-memory-baseline"
+      ],
+      "family": "identity_background_continuity",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "remembered-profile-name"
+        ]
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "project-preference-continuity",
+      "checks": [
+        "remember",
+        "recall-context",
+        "no-memory-baseline"
+      ],
+      "family": "project_preference_continuity",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "project-update-style"
+        ]
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "coding-style-preference-continuity",
+      "checks": [
+        "remember",
+        "recall-context",
+        "no-memory-baseline"
+      ],
+      "family": "coding_style_preference_continuity",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "typescript-boundary-test-style"
+        ]
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "historical-task-continuation",
+      "checks": [
+        "remember",
+        "recall-context",
+        "no-memory-baseline"
+      ],
+      "family": "historical_task_continuation",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "launch-checklist-blocker"
+        ]
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "user-correction-targeted-revise",
+      "checks": [
+        "remember",
+        "recall-context",
+        "revise",
+        "stale-memory-check"
+      ],
+      "family": "user_correction_targeted_revise",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "targeted-revise-applied"
+        ]
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "wrong-memory-forget",
+      "checks": [
+        "remember",
+        "recall-context",
+        "forget",
+        "stale-memory-check"
+      ],
+      "family": "wrong_memory_forget",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "wrong-memory-forgotten"
+        ]
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "procedural-feedback-memory",
+      "checks": [
+        "feedback",
+        "export"
+      ],
+      "family": "procedural_feedback_memory",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "procedural-feedback-stored"
+        ]
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "observe-writeback-candidate-visibility",
+      "checks": [
+        "runtime-kit-observe",
+        "reference-product-review-decision"
+      ],
+      "family": "observe_writeback_candidate_visibility",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "acceptedCandidateCount": 1,
+        "matchedSignals": [
+          "observe-candidates-reviewable",
+          "observe-useful-candidate-approved",
+          "observe-private-candidate-rejected"
+        ],
+        "observedCandidateCount": 2,
+        "rejectedCandidateCount": 1,
+        "reviewDecisionCount": 2,
+        "reviewDecisionReasonCodes": [
+          "useful_launch_note_candidate",
+          "explicit_private_secret_do_not_store"
+        ],
+        "traceEventCount": 2
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "selective-writeback-next-turn-recall",
+      "checks": [
+        "runtime-kit-selective-writeback",
+        "next-turn-recall"
+      ],
+      "family": "selective_writeback_next_turn_recall",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "selective-writeback-recalled"
+        ],
+        "traceEventCount": 1
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "no-provider-rules-only-fallback",
+      "checks": [
+        "rules-only-remember",
+        "rules-only-recall-context"
+      ],
+      "family": "no_provider_rules_only_fallback",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": [
+          "rules-only-reference-recalled"
+        ]
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "optional-provider-backed-retrieval-uplift",
+      "checks": [
+        "provider-backed-eval-explicitly-skipped"
+      ],
+      "family": "optional_provider_backed_retrieval_uplift",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "matchedSignals": []
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      }
+    },
+    {
+      "caseId": "local-viewer-trace-writeback-session-inspection",
+      "checks": [
+        "session-start",
+        "chat",
+        "writeback-audit-summary",
+        "viewer-summary",
+        "progressive-record-drilldown",
+        "handoff-generated",
+        "viewer-mutation-rejected",
+        "backend-mutation-flow",
+        "session-end"
+      ],
+      "family": "local_viewer_trace_writeback_session_inspection",
+      "noMemory": {
+        "missedRecall": true,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "passed": true,
+      "productPath": "reference-product-backend",
+      "providerBacked": {
+        "missedRecall": false,
+        "observed": false,
+        "status": "skipped",
+        "usefulRecall": false,
+        "wrongRecall": false
+      },
+      "rawTranscriptPersisted": false,
+      "redactedEvidence": {
+        "backendMutationCount": 2,
+        "handoffCount": 2,
+        "matchedSignals": [
+          "viewer-inputs-inspectable",
+          "viewer-recordref-drilldown",
+          "viewer-handoff-read-only",
+          "backend-mutations-outside-viewer"
+        ],
+        "observedCandidateCount": 1,
+        "recordRefCount": 1,
+        "traceEventCount": 3,
+        "viewerMutationRejected": true
+      },
+      "rulesOnlyGoodMemory": {
+        "missedRecall": false,
+        "observed": true,
+        "status": "passed",
+        "usefulRecall": true,
+        "wrongRecall": false
+      }
+    }
+  ],
+  "scope": {
+    "inScope": [
+      "runnable reference product under examples/reference-chat-product",
+      "public package and authenticated HTTP bridge surfaces",
+      "no-memory baseline versus rules-only GoodMemory",
+      "provider-backed uplift explicitly skipped locally until a real runner exists",
+      "product-facing correction, forget, feedback, observe, and selective writeback evidence",
+      "redacted local-viewer inspectability inputs without viewer mutation"
+    ],
+    "outOfScope": [
+      "hosted dashboard, account, team workspace, cloud sync, or analytics",
+      "viewer mutation routes or browser-executed forget/revise",
+      "raw transcript archive as accepted evidence",
+      "new root public API"
+    ]
+  },
+  "variants": {
+    "noMemory": {
+      "description": "A product path with no persisted memory context.",
+      "mode": "no-memory",
+      "observed": true
+    },
+    "providerBackedGoodMemory": {
+      "description": "Provider env is present, but Phase 45 has no real provider-backed execution path yet; local closure records an explicit skip.",
+      "mode": "provider-backed-goodmemory",
+      "reason": "provider-backed explicitly skipped until a real provider-backed runner exists",
+      "status": "skipped"
+    },
+    "rulesOnlyGoodMemory": {
+      "description": "The reference product using GoodMemory memory storage, deterministic extraction, recall, feedback, forget, revise, and runtime-kit writeback.",
+      "mode": "rules-only-goodmemory",
+      "storage": "memory"
+    }
+  }
+}

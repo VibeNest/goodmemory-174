@@ -36,3 +36,9 @@ Exit result:
 - One local viewer flow makes traces, sessions, and writeback audit inspectable.
 - One correction/forget/revise path works end to end without viewer mutation.
 - One Phase 45 adoption report and quality gate close the phase.
+
+Accepted evidence:
+
+- `reports/eval/adoption/phase-45/run-20260427104530-adoption-eval/report.json`
+- `reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-45-Quality-Gate.md`

@@ -333,10 +333,13 @@ Current Sequencing Note
   - breakdown folder: `task-board/phase-44-1-post-phase-44-roadmap-sync/`
   - focus: remove stale Phase 44 implementation routing, add Phase 44 to regression preservation, and make Phase 45 a new phase rather than a Phase 44 reopen
   - boundary: this does not change Phase 44 accepted behavior, evidence, or local viewer scope
-- Phase 45 is queued as the First Reference Product and Adoption Evidence slice:
+- Phase 45 is now closed as the First Reference Product and Adoption Evidence slice:
   - task-board entrypoint: `task-board/50-phase-45-first-reference-product-and-adoption-evidence.txt`
   - breakdown folder: `task-board/phase-45-first-reference-product-and-adoption-evidence/`
   - focus: prove GoodMemory can be adopted by a real reference product through public package exports or the HTTP bridge, with observable end-to-end memory value
+  - adoption evidence: `reports/eval/adoption/phase-45/run-20260427104530-adoption-eval/report.json`
+  - quality gate: `reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-45-Quality-Gate.md`
   - boundary: no hosted dashboard, no viewer mutation routes, no raw transcript archive, no new root public API, and no additional installed-host hook expansion as a gate blocker
 - Phase 46 is queued as the Memory Quality and Maintenance 2.0 slice:
   - task-board entrypoint: `task-board/51-phase-46-memory-quality-and-maintenance-2-0.txt`

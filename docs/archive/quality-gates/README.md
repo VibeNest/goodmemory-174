@@ -72,6 +72,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-43.5-Quality-Gate.md`
 - Local Viewer data API and lightweight UI closure:
   - `GoodMemory-Phase-44-Quality-Gate.md`
+- First reference product and adoption evidence closure:
+  - `GoodMemory-Phase-45-Quality-Gate.md`
 
 ## When To Use This Archive
 

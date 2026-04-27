@@ -4,14 +4,17 @@ Phase 45.4: A/B Adoption Evidence
 Status
 ------
 
-[TODO] Not started.
+[DONE] Accepted by
+`reports/eval/adoption/phase-45/run-20260427104530-adoption-eval/report.json`
+and `tests/unit/run-phase-45.adoption-eval.test.ts`.
 
 
 Goal
 ----
 
 Produce a product-facing adoption report that compares GoodMemory against a
-no-memory baseline and separates rules-only from provider-backed behavior.
+no-memory baseline, proves rules-only behavior, and keeps provider-backed
+uplift as explicit skipped local evidence until a real runner exists.
 
 
 Required Modes
@@ -19,7 +22,8 @@ Required Modes
 
 - no-memory baseline
 - rules-only GoodMemory
-- provider-backed GoodMemory when provider env is available
+- provider-backed uplift explicitly skipped locally; explicit provider-backed
+  requests block until a real runner exists
 
 
 Metrics
@@ -47,12 +51,12 @@ must report:
 Tasks
 -----
 
-[TODO] P45.4-T001 Define the baseline contract so only memory augmentation
+[DONE] P45.4-T001 Define the baseline contract so only memory augmentation
   differs.
-[TODO] P45.4-T002 Add deterministic rules-only adoption reporting.
-[TODO] P45.4-T003 Add optional provider-backed reporting without making provider
+[DONE] P45.4-T002 Add deterministic rules-only adoption reporting.
+[DONE] P45.4-T003 Add optional provider-backed reporting without making provider
   env mandatory for local closure.
-[TODO] P45.4-T004 Make the report explain setup friction and first-value timing.
+[DONE] P45.4-T004 Make the report explain setup friction and first-value timing.
 
 
 Acceptance Criteria

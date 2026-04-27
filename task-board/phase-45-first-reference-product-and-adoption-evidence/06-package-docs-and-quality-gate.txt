@@ -4,7 +4,9 @@ Phase 45.6: Package Docs And Quality Gate
 Status
 ------
 
-[TODO] Not started.
+[DONE] Accepted by `bun run gate:phase-45`,
+`reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json`,
+and `docs/archive/quality-gates/GoodMemory-Phase-45-Quality-Gate.md`.
 
 
 Goal
@@ -17,14 +19,14 @@ assertions agree.
 Tasks
 -----
 
-[TODO] P45.6-T001 Add external-developer docs for install, boot, run, inspect,
+[DONE] P45.6-T001 Add external-developer docs for install, boot, run, inspect,
   correct, forget, revise, and evaluate.
-[TODO] P45.6-T002 Add package/tarball smoke coverage for the reference product
+[DONE] P45.6-T002 Add package/tarball smoke coverage for the reference product
   or its documented public entrypoints.
-[TODO] P45.6-T003 Add `eval:phase-45` adoption report generation.
-[TODO] P45.6-T004 Add `gate:phase-45` with boundary, product, viewer, and docs
+[DONE] P45.6-T003 Add `eval:phase-45` adoption report generation.
+[DONE] P45.6-T004 Add `gate:phase-45` with boundary, product, viewer, and docs
   checks.
-[TODO] P45.6-T005 Sync current-status, task-board, archive summary, package
+[DONE] P45.6-T005 Sync current-status, task-board, archive summary, package
   scripts, and release assertions only after evidence is real.
 
 
