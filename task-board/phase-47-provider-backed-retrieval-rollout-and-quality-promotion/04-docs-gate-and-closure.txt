@@ -1,0 +1,13 @@
+Phase 47.4: Docs, Gate, And Closure
+===================================
+
+Status
+------
+[TODO] Not started.
+
+Tasks:
+
+[TODO] P47.4-T001 Document when to enable provider-backed retrieval.
+[TODO] P47.4-T002 Add Phase 47 eval and gate artifacts.
+[TODO] P47.4-T003 Sync current-status, task-board, archive docs, and release
+assertions only after evidence is accepted.

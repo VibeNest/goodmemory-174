@@ -1,0 +1,37 @@
+Phase 45.3: Product Memory Scenarios
+====================================
+
+Status
+------
+[TODO] Not started.
+
+
+Goal
+----
+Verify product behavior, not only endpoint reachability.
+
+
+Scenario Families
+-----------------
+[TODO] P45.3-T001 User identity/background continuity.
+[TODO] P45.3-T002 Project preference continuity.
+[TODO] P45.3-T003 Coding style preference continuity.
+[TODO] P45.3-T004 Historical task continuation.
+[TODO] P45.3-T005 User correction and targeted revise.
+[TODO] P45.3-T006 Wrong memory forget.
+[TODO] P45.3-T007 Procedural feedback memory.
+[TODO] P45.3-T008 Observe writeback candidate visibility.
+[TODO] P45.3-T009 Selective writeback followed by next-turn recall.
+[TODO] P45.3-T010 No-provider rules-only fallback.
+[TODO] P45.3-T011 Optional provider-backed retrieval uplift.
+[TODO] P45.3-T012 Local viewer trace/writeback/session inspection.
+
+
+Acceptance Criteria
+-------------------
+- Scenarios run against the reference product path, not only lower-level
+  service helpers.
+- Reports avoid raw transcript persistence in accepted artifacts.
+- Failures are captured as product-facing misses: wrong recall, missed recall,
+  stale recall, failed correction, or inspectability failure.
+- Scenario fixtures are stable enough to rerun as a gate input.

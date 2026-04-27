@@ -1,0 +1,14 @@
+Phase 48.4: Pilot Or No-Go Gate
+===============================
+
+Status
+------
+[TODO] Not started.
+
+Tasks:
+
+[TODO] P48.4-T001 Define the smallest safe pilot if hosted/cloud/team scope is
+justified.
+[TODO] P48.4-T002 Define a no-go closure path if evidence does not justify the
+new surface.
+[TODO] P48.4-T003 Add Phase 48 decision gate, docs, and status sync.

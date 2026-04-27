@@ -1,0 +1,14 @@
+Phase 46.1: Failure-Sample Intake
+=================================
+
+Status
+------
+[TODO] Not started.
+
+Tasks:
+
+[TODO] P46.1-T001 Define the Phase 45 failure sample schema.
+[TODO] P46.1-T002 Normalize stale recall, wrong recall, missed recall,
+over-remembering, failed correction, and noisy procedural memory labels.
+[TODO] P46.1-T003 Require source scenario, product impact, and redacted evidence
+for every sample.

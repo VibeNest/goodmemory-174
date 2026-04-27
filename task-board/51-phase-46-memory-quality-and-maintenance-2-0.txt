@@ -1,0 +1,82 @@
+Phase 46: Memory Quality And Maintenance 2.0
+============================================
+
+Status
+------
+[TODO] Phase 46 is queued after Phase 45 reference-product adoption evidence.
+
+This phase should not start from speculative infrastructure work. It starts from
+real product failure samples collected by Phase 45.
+
+
+Phase Goal
+----------
+Use reference-product evidence to improve memory quality where users actually
+feel failure: stale recall, wrong recall, missed recall, over-remembering, weak
+correction durability, and maintenance gaps.
+
+
+Dependencies
+------------
+- Phase 45 reference product adoption report and scenario failures
+- Phase 8 maintenance/consolidation foundation
+- Phase 16 procedural promotion and outcome maintenance
+- Phase 19 reviewer and maintenance rollout closure
+- Phase 38 governed runtime surface
+- Phase 42 progressive recall protocol
+
+
+Accepted Scope
+--------------
+- A failure-sample intake format for Phase 45 product runs.
+- A taxonomy for stale recall, wrong recall, missed recall, over-remembering,
+  failed correction, and noisy procedural memory.
+- Targeted maintenance, decay, dedupe, contradiction-repair, and correction
+  durability improvements driven by those samples.
+- Scenario regressions that prove the repaired quality behavior on the
+  reference-product path.
+- A quality report that distinguishes memory-quality repair from provider-backed
+  retrieval rollout.
+
+
+Out of Scope
+------------
+- hosted dashboard, cloud sync, account system, or team workspace
+- new reference product scope
+- provider-backed retrieval default promotion
+- new installed-host hook capability
+- root public API widening
+- viewer mutation routes
+
+
+Acceptance Criteria
+-------------------
+1. Phase 46 consumes Phase 45 failure evidence instead of inventing synthetic
+   quality targets in isolation.
+2. Every maintenance change has a before/after scenario tied to a named product
+   failure family.
+3. Repairs improve at least stale recall, wrong recall, or over-remembering
+   without regressing identity/background continuity.
+4. Correction and forget behavior remain governed and auditable.
+5. The gate keeps provider-backed retrieval promotion separate from maintenance
+   repair unless Phase 47 explicitly accepts that rollout.
+
+
+Tasks
+-----
+[TODO] P46-T001 Define the failure-sample intake and memory-quality taxonomy.
+[TODO] P46-T002 Diagnose Phase 45 stale/wrong/missed recall and over-remembering
+failures.
+[TODO] P46-T003 Tune maintenance, decay, dedupe, contradiction repair, and
+correction durability against those samples.
+[TODO] P46-T004 Add reference-product regressions for repaired quality cases.
+[TODO] P46-T005 Add Phase 46 quality report, gate, docs, and status sync.
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-46-memory-quality-and-maintenance-2-0/00-README.txt`
+- `task-board/phase-46-memory-quality-and-maintenance-2-0/01-failure-sample-intake.txt`
+- `task-board/phase-46-memory-quality-and-maintenance-2-0/02-quality-diagnosis.txt`
+- `task-board/phase-46-memory-quality-and-maintenance-2-0/03-maintenance-repair.txt`
+- `task-board/phase-46-memory-quality-and-maintenance-2-0/04-regressions-and-gate.txt`

@@ -1,0 +1,37 @@
+Phase 45.6: Package Docs And Quality Gate
+=========================================
+
+Status
+------
+[TODO] Not started.
+
+
+Goal
+----
+Close Phase 45 only when the reference product, docs, reports, and regression
+assertions agree.
+
+
+Tasks
+-----
+[TODO] P45.6-T001 Add external-developer docs for install, boot, run, inspect,
+correct, forget, revise, and evaluate.
+[TODO] P45.6-T002 Add package/tarball smoke coverage for the reference product
+or its documented public entrypoints.
+[TODO] P45.6-T003 Add `eval:phase-45` adoption report generation.
+[TODO] P45.6-T004 Add `gate:phase-45` with boundary, product, viewer, and docs
+checks.
+[TODO] P45.6-T005 Sync current-status, task-board, archive summary, package
+scripts, and release assertions only after evidence is real.
+
+
+Acceptance Criteria
+-------------------
+- `bun test` and `bun run typecheck` pass for changed code.
+- The Phase 45 gate runs targeted product, viewer, package, docs, and report
+  checks.
+- Accepted evidence has a canonical run id and archived quality-gate summary.
+- Docs distinguish the reference product from GoodMemory's core product
+  boundary.
+- No accepted claim includes cloud/dashboard, viewer mutation, raw transcript
+  archive, or root API widening.

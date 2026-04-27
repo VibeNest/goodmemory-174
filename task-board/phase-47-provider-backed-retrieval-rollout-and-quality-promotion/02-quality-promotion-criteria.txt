@@ -1,0 +1,15 @@
+Phase 47.2: Quality Promotion Criteria
+======================================
+
+Status
+------
+[TODO] Not started.
+
+Tasks:
+
+[TODO] P47.2-T001 Define promotion thresholds against Phase 45/46 rules-only
+evidence.
+[TODO] P47.2-T002 Track useful recall, wrong recall, missed recall, stale recall,
+and setup fragility.
+[TODO] P47.2-T003 Block promotion when provider-backed retrieval increases wrong
+or stale recall.

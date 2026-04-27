@@ -1,0 +1,77 @@
+Phase 48: Dashboard, Cloud Sync, And Team Workspace Decision
+===========================================================
+
+Status
+------
+[TODO] Phase 48 is queued after Phase 45 adoption proof, Phase 46 quality repair,
+and Phase 47 provider-backed retrieval rollout evidence.
+
+
+Phase Goal
+----------
+Decide whether GoodMemory should add hosted dashboard, cloud sync, or team
+workspace product surfaces, and if yes, define the smallest safe pilot boundary.
+
+This phase is intentionally late. Phase 45-47 must prove real adoption and
+quality needs first.
+
+
+Dependencies
+------------
+- Phase 45 reference-product adoption proof
+- Phase 46 memory-quality and maintenance evidence
+- Phase 47 provider-backed retrieval rollout evidence
+- Phase 44 local viewer safety boundary
+- Existing governance, export, forget, revise, and redaction behavior
+
+
+Accepted Scope
+--------------
+- A product decision report for hosted dashboard, cloud sync, and team workspace.
+- Threat model and privacy model for any hosted or shared surface.
+- Boundary decision for whether local viewer remains local-only or whether a
+  separate hosted product should exist.
+- Pilot contract only if evidence justifies it.
+- Gate that prevents dashboard/cloud claims from being accepted without privacy,
+  security, export/delete, and raw-transcript boundaries.
+
+
+Out of Scope
+------------
+- silently converting the Phase 44 local viewer into a hosted dashboard
+- browser-executed mutation on the existing local viewer
+- raw transcript archive as a default product feature
+- team workspace writes without governance and deletion semantics
+- account/cloud claims before the product decision report is accepted
+
+
+Acceptance Criteria
+-------------------
+1. Phase 48 starts from adoption and quality evidence, not dashboard desire.
+2. Hosted/cloud/team scope is accepted only if a concrete product need exists.
+3. Local viewer safety boundaries remain intact unless a separate product surface
+   is explicitly designed and gated.
+4. Any pilot includes privacy, auth, tenancy, export/delete, and redaction
+   requirements before implementation.
+5. The phase may close with a no-go decision if hosted/cloud/team scope is not
+   justified.
+
+
+Tasks
+-----
+[TODO] P48-T001 Compile Phase 45-47 product evidence and decide whether hosted
+scope is justified.
+[TODO] P48-T002 Add dashboard/cloud/team workspace threat model and privacy
+boundary.
+[TODO] P48-T003 Define local-viewer preservation versus hosted-product split.
+[TODO] P48-T004 Define the smallest safe pilot or close with a no-go decision.
+[TODO] P48-T005 Add Phase 48 decision gate, docs, and status sync.
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-48-dashboard-cloud-sync-and-team-workspace-decision/00-README.txt`
+- `task-board/phase-48-dashboard-cloud-sync-and-team-workspace-decision/01-product-evidence-decision.txt`
+- `task-board/phase-48-dashboard-cloud-sync-and-team-workspace-decision/02-threat-model-and-privacy-boundary.txt`
+- `task-board/phase-48-dashboard-cloud-sync-and-team-workspace-decision/03-local-viewer-versus-hosted-product.txt`
+- `task-board/phase-48-dashboard-cloud-sync-and-team-workspace-decision/04-pilot-or-no-go-gate.txt`

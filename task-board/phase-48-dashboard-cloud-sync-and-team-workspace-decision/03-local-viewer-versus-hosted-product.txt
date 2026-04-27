@@ -1,0 +1,15 @@
+Phase 48.3: Local Viewer Versus Hosted Product
+==============================================
+
+Status
+------
+[TODO] Not started.
+
+Tasks:
+
+[TODO] P48.3-T001 Preserve Phase 44 local viewer as local-only/read-only unless
+explicitly superseded by a separate product.
+[TODO] P48.3-T002 Decide whether hosted inspectability is a new surface rather
+than a mutation of the local viewer.
+[TODO] P48.3-T003 Keep browser-executed mutation out of the existing local
+viewer.

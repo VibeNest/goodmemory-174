@@ -1,0 +1,34 @@
+Phase 45.1: Reference Product Contract
+======================================
+
+Status
+------
+[TODO] Not started.
+
+
+Goal
+----
+Freeze the Phase 45 product-adoption boundary before implementation starts.
+
+
+Tasks
+-----
+[TODO] P45.1-T001 Add failing tests that reject repo-internal imports in the
+reference product.
+[TODO] P45.1-T002 Add failing tests or release assertions that the reference
+product does not widen the root `goodmemory` API.
+[TODO] P45.1-T003 Add failing tests that viewer routes remain read-only while
+Phase 45 uses viewer inspectability.
+[TODO] P45.1-T004 Define the exact reference product location, startup commands,
+and package/public surface contract.
+
+
+Acceptance Criteria
+-------------------
+- The reference product is allowed to use only public package exports or the
+  authenticated HTTP bridge.
+- Phase 45 explicitly inherits Phase 44 viewer boundaries.
+- The gate can fail if a future implementation turns this phase into dashboard,
+  root API, or installed-host-hook expansion work.
+- The reference product contract names the supported commands that an external
+  developer will run.

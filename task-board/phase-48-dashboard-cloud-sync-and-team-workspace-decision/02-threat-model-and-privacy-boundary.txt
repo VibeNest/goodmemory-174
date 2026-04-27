@@ -1,0 +1,15 @@
+Phase 48.2: Threat Model And Privacy Boundary
+=============================================
+
+Status
+------
+[TODO] Not started.
+
+Tasks:
+
+[TODO] P48.2-T001 Define auth, tenancy, redaction, export, deletion, and audit
+requirements for any hosted/shared scope.
+[TODO] P48.2-T002 Define raw-transcript and assistant-output persistence
+boundaries.
+[TODO] P48.2-T003 Block hosted claims when privacy or deletion semantics are
+incomplete.

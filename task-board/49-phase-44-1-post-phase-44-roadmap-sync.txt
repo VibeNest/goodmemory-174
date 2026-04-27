@@ -1,0 +1,76 @@
+Phase 44.1: Post-Phase-44 Roadmap Sync
+=======================================
+
+Status
+------
+[DONE] Phase 44.1 is closed as a bookkeeping-only sync after the accepted Phase
+44 local viewer closure.
+
+This is not a product phase and does not reopen Phase 44. It exists to keep the
+execution board aligned before Phase 45 starts.
+
+
+Intent
+------
+Remove the stale routing where Phase 44 is accepted in current status and the
+top-level task-board, while Priority Bands still route near-term work to Phase
+44 implementation.
+
+
+Accepted Scope
+--------------
+- Replace stale Phase 44 implementation routing with post-Phase-44
+  adoption/product-proof routing.
+- Add Phase 44 local-viewer evidence to the immediate regression preservation
+  list.
+- State that Phase 45 is a new phase, not a Phase 44 reopen.
+- Preserve Phase 44 accepted boundaries:
+  - local-only viewer
+  - read-only data API
+  - no mutation routes
+  - no CORS-enabled remote API
+  - no raw transcript archive or full assistant-output persistence
+
+
+Out of Scope
+------------
+- changing Phase 44 accepted behavior or evidence
+- adding viewer mutation routes
+- adding hosted dashboard, managed cloud, analytics, or account behavior
+- adding new root public API
+- implementing Phase 45 reference product behavior
+- reopening Phase 42, Phase 43, Phase 43.5, or Phase 44
+
+
+Definition of Done
+------------------
+- `task-board/00-README.txt` execution order includes Phase 44.1 and Phase 45.
+- Priority Bands no longer route near-term work to Phase 44 implementation.
+- Immediate preservation includes Phase 44 local-viewer evidence.
+- Near-term routing points to Phase 45 reference-product adoption proof.
+- Phase 45 is represented by a separate task-board file and breakdown folder.
+
+
+Tasks
+-----
+[DONE] P44.1-T001 Replace stale Phase 44 routing in Priority Bands.
+[DONE] P44.1-T002 Add Phase 44 to immediate regression preservation.
+[DONE] P44.1-T003 Queue Phase 45 as a new phase, not a Phase 44 reopen.
+[DONE] P44.1-T004 Preserve the accepted Phase 44 local-viewer boundary.
+
+
+Evidence Inputs
+---------------
+- Phase 44 task-board entrypoint:
+  `task-board/48-phase-44-local-viewer-data-api-and-lightweight-ui.txt`
+- Phase 44 archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-44-Quality-Gate.md`
+- Phase 44 quality gate:
+  `reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json`
+- Stable current-status entrypoint:
+  `docs/GoodMemory-Current-Status-and-Evidence.md`
+
+
+Breakdown Folder
+----------------
+- `task-board/phase-44-1-post-phase-44-roadmap-sync/00-README.txt`

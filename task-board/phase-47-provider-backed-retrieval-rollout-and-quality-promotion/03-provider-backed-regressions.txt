@@ -1,0 +1,13 @@
+Phase 47.3: Provider-Backed Regressions
+=======================================
+
+Status
+------
+[TODO] Not started.
+
+Tasks:
+
+[TODO] P47.3-T001 Add reference-product provider-backed retrieval regressions.
+[TODO] P47.3-T002 Add HTTP bridge provider-backed retrieval coverage.
+[TODO] P47.3-T003 Add diagnostics for fallback, unavailable providers, and
+quality deltas.

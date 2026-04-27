@@ -1,0 +1,33 @@
+Phase 45.5: Local Viewer Inspectability
+=======================================
+
+Status
+------
+[TODO] Not started.
+
+
+Goal
+----
+Use the Phase 44 viewer to make reference-product memory behavior inspectable
+without turning the viewer into an admin or write UI.
+
+
+Tasks
+-----
+[TODO] P45.5-T001 Make the reference product generate trace/session/writeback
+audit data that the viewer can summarize.
+[TODO] P45.5-T002 Add a viewer flow that drills into redacted summaries through
+Phase 42 recordRefs where applicable.
+[TODO] P45.5-T003 Add forget/revise CLI handoff coverage for reference-product
+records.
+[TODO] P45.5-T004 Add negative tests that Phase 45 introduces no viewer mutation
+routes, no CORS remote API, and no raw transcript display.
+
+
+Acceptance Criteria
+-------------------
+- The viewer remains optional, local-only, token-gated, and read-only.
+- Viewer output is useful for debugging product memory behavior.
+- Forget/revise handoff commands are generated for operator review, not executed
+  by the browser.
+- Scope checks continue to reject cross-scope `gmrec:v1` handoff refs.
