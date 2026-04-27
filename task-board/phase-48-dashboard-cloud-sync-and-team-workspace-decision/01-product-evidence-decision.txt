@@ -3,12 +3,13 @@ Phase 48.1: Product Evidence Decision
 
 Status
 ------
+
 [TODO] Not started.
 
 Tasks:
 
 [TODO] P48.1-T001 Compile Phase 45 adoption, Phase 46 quality, and Phase 47
-provider-backed retrieval evidence.
+  provider-backed retrieval evidence.
 [TODO] P48.1-T002 Identify whether dashboard, cloud sync, or team workspace is a
-real adoption blocker.
+  real adoption blocker.
 [TODO] P48.1-T003 Recommend pilot, defer, or no-go with evidence.

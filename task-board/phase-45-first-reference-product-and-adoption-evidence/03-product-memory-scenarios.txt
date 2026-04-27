@@ -3,16 +3,19 @@ Phase 45.3: Product Memory Scenarios
 
 Status
 ------
+
 [TODO] Not started.
 
 
 Goal
 ----
+
 Verify product behavior, not only endpoint reachability.
 
 
 Scenario Families
 -----------------
+
 [TODO] P45.3-T001 User identity/background continuity.
 [TODO] P45.3-T002 Project preference continuity.
 [TODO] P45.3-T003 Coding style preference continuity.
@@ -29,6 +32,7 @@ Scenario Families
 
 Acceptance Criteria
 -------------------
+
 - Scenarios run against the reference product path, not only lower-level
   service helpers.
 - Reports avoid raw transcript persistence in accepted artifacts.

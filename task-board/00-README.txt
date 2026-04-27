@@ -347,7 +347,7 @@ Current Sequencing Note
   - task-board entrypoint: `task-board/52-phase-47-provider-backed-retrieval-rollout-and-quality-promotion.txt`
   - breakdown folder: `task-board/phase-47-provider-backed-retrieval-rollout-and-quality-promotion/`
   - focus: promote provider-backed retrieval from optional uplift to controlled product capability when Phase 45/46 evidence proves it improves memory quality
-  - boundary: keep rules-only behavior accepted and usable; provider-backed retrieval must remain explicit, measurable, and fail-closed
+  - boundary: keep rules-only behavior accepted and usable; provider-backed retrieval must remain explicit, measurable, fail-visible, and safely fallback to rules-only; promotion claims fail closed when evidence is missing
 - Phase 48 is queued as the Dashboard, Cloud Sync, and Team Workspace Decision slice:
   - task-board entrypoint: `task-board/53-phase-48-dashboard-cloud-sync-and-team-workspace-decision.txt`
   - breakdown folder: `task-board/phase-48-dashboard-cloud-sync-and-team-workspace-decision/`
@@ -372,9 +372,9 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 41 guarantees while future work lands
+   - Preserve the closed Phase 17 through Phase 44 guarantees while future work lands
    - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, Phase 37.1 productization evidence, Phase 38 governed runtime evidence, Phase 39 Python/FastAPI bridge evidence, Phase 40 release-proof/product-eval evidence, Phase 41 installed pre-action unification evidence, Phase 41.9 status-sync evidence, Phase 42 progressive recall evidence, Phase 43 runtime-kit evidence, Phase 43.5 optional-worker evidence, and Phase 44 local-viewer evidence regression-covered while future work lands
-   - If new Phase 30, Phase 31, Phase 32, Phase 33, Phase 34, Phase 35, Phase 36, Phase 37, Phase 37.1, Phase 38, Phase 39, Phase 40, or Phase 41 evidence fails, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - If new Phase 30 through Phase 44 evidence fails, including the Phase 37.1 slice, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
    - Execute future product-adoption work on top of the accepted Phase 35 installed-host middleware boundary, Phase 37 installed-host writeback boundary, Phase 39 Python/FastAPI bridge boundary, Phase 40 public release proof, Phase 41 installed pre-action boundary, Phase 42 ProgressiveRecallService boundary, Phase 43 Runtime Kit boundary, Phase 43.5 Optional Worker boundary, and Phase 44 Local Viewer boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence

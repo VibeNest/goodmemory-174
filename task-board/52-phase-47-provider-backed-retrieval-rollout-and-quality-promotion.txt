@@ -3,12 +3,14 @@ Phase 47: Provider-Backed Retrieval Rollout And Quality Promotion
 
 Status
 ------
+
 [TODO] Phase 47 is queued after Phase 45 adoption evidence and Phase 46
 memory-quality repair evidence.
 
 
 Phase Goal
 ----------
+
 Promote provider-backed retrieval from optional uplift to a controlled product
 capability only when evidence shows it improves real memory quality beyond the
 rules-only baseline.
@@ -16,6 +18,7 @@ rules-only baseline.
 
 Dependencies
 ------------
+
 - Phase 45 reference-product A/B evidence
 - Phase 46 memory-quality repair evidence
 - Phase 28 supported local acceleration guarantees
@@ -26,7 +29,9 @@ Dependencies
 
 Accepted Scope
 --------------
-- Provider-backed retrieval rollout controls that stay explicit and measurable.
+
+- Provider-backed retrieval rollout controls that stay explicit, measurable, and
+  fail-visible.
 - Quality promotion criteria comparing rules-only and provider-backed behavior.
 - Fallback behavior that keeps rules-only GoodMemory usable when providers are
   unavailable or fail.
@@ -37,6 +42,7 @@ Accepted Scope
 
 Out of Scope
 ------------
+
 - default-on provider-backed retrieval without accepted promotion evidence
 - hiding provider failure behind silent quality claims
 - hosted dashboard, cloud sync, or account system
@@ -47,18 +53,20 @@ Out of Scope
 
 Acceptance Criteria
 -------------------
+
 1. Rules-only remains an accepted, documented product mode.
 2. Provider-backed retrieval has explicit enablement and diagnostics.
 3. Promotion evidence compares against Phase 45/46 rules-only behavior.
-4. Provider failure is visible and falls back safely.
+4. Provider failure is visible and falls back safely to rules-only behavior.
 5. The gate blocks promotion if provider-backed retrieval improves recall volume
    but increases wrong recall, stale recall, or setup fragility.
 
 
 Tasks
 -----
-[TODO] P47-T001 Freeze provider-backed retrieval rollout contract and fail-closed
-behavior.
+
+[TODO] P47-T001 Freeze provider-backed retrieval rollout contract, fail-visible
+  runtime behavior, rules-only fallback, and fail-closed promotion claims.
 [TODO] P47-T002 Add quality promotion criteria against rules-only evidence.
 [TODO] P47-T003 Add provider-backed reference-product and bridge regressions.
 [TODO] P47-T004 Add diagnostics and docs for enabling provider-backed retrieval.
@@ -67,6 +75,7 @@ behavior.
 
 Breakdown Folder
 ----------------
+
 - `task-board/phase-47-provider-backed-retrieval-rollout-and-quality-promotion/00-README.txt`
 - `task-board/phase-47-provider-backed-retrieval-rollout-and-quality-promotion/01-rollout-contract.txt`
 - `task-board/phase-47-provider-backed-retrieval-rollout-and-quality-promotion/02-quality-promotion-criteria.txt`

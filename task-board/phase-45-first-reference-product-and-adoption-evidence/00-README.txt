@@ -21,6 +21,10 @@ Working rules:
 - Keep GoodMemory framed as a memory layer, not a complete chat platform.
 - Keep the viewer local-only and read-only.
 - Use CLI/API handoff for forget/revise rather than browser mutations.
+- Allow authenticated reference-product backend mutation flows; never allow the
+  local viewer to execute browser mutations.
+- Keep durable writes explicit: observe is audit/inspectability unless a scenario
+  explicitly enables selective writeback.
 - Do not persist raw transcripts in accepted reports.
 - Do not add cloud, dashboard, account, sync, or analytics claims.
 - Do not widen the root `goodmemory` public API.

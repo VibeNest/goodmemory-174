@@ -3,6 +3,7 @@ Phase 46: Memory Quality And Maintenance 2.0
 
 Status
 ------
+
 [TODO] Phase 46 is queued after Phase 45 reference-product adoption evidence.
 
 This phase should not start from speculative infrastructure work. It starts from
@@ -11,6 +12,7 @@ real product failure samples collected by Phase 45.
 
 Phase Goal
 ----------
+
 Use reference-product evidence to improve memory quality where users actually
 feel failure: stale recall, wrong recall, missed recall, over-remembering, weak
 correction durability, and maintenance gaps.
@@ -18,16 +20,22 @@ correction durability, and maintenance gaps.
 
 Dependencies
 ------------
+
 - Phase 45 reference product adoption report and scenario failures
 - Phase 8 maintenance/consolidation foundation
 - Phase 16 procedural promotion and outcome maintenance
 - Phase 19 reviewer and maintenance rollout closure
+- Phase 37.1 writeback audit, inspect, and forget evidence
 - Phase 38 governed runtime surface
 - Phase 42 progressive recall protocol
+- Phase 43 runtime-kit and Phase 43.5 optional worker if maintenance jobs are
+  touched
+- Phase 44 local viewer inspectability boundary
 
 
 Accepted Scope
 --------------
+
 - A failure-sample intake format for Phase 45 product runs.
 - A taxonomy for stale recall, wrong recall, missed recall, over-remembering,
   failed correction, and noisy procedural memory.
@@ -41,6 +49,7 @@ Accepted Scope
 
 Out of Scope
 ------------
+
 - hosted dashboard, cloud sync, account system, or team workspace
 - new reference product scope
 - provider-backed retrieval default promotion
@@ -51,6 +60,7 @@ Out of Scope
 
 Acceptance Criteria
 -------------------
+
 1. Phase 46 consumes Phase 45 failure evidence instead of inventing synthetic
    quality targets in isolation.
 2. Every maintenance change has a before/after scenario tied to a named product
@@ -64,17 +74,19 @@ Acceptance Criteria
 
 Tasks
 -----
+
 [TODO] P46-T001 Define the failure-sample intake and memory-quality taxonomy.
 [TODO] P46-T002 Diagnose Phase 45 stale/wrong/missed recall and over-remembering
-failures.
+  failures.
 [TODO] P46-T003 Tune maintenance, decay, dedupe, contradiction repair, and
-correction durability against those samples.
+  correction durability against those samples.
 [TODO] P46-T004 Add reference-product regressions for repaired quality cases.
 [TODO] P46-T005 Add Phase 46 quality report, gate, docs, and status sync.
 
 
 Breakdown Folder
 ----------------
+
 - `task-board/phase-46-memory-quality-and-maintenance-2-0/00-README.txt`
 - `task-board/phase-46-memory-quality-and-maintenance-2-0/01-failure-sample-intake.txt`
 - `task-board/phase-46-memory-quality-and-maintenance-2-0/02-quality-diagnosis.txt`

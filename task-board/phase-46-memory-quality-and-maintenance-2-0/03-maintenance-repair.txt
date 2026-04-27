@@ -3,14 +3,15 @@ Phase 46.3: Maintenance Repair
 
 Status
 ------
+
 [TODO] Not started.
 
 Tasks:
 
 [TODO] P46.3-T001 Repair stale-memory demotion and decay behavior where evidence
-shows user-visible harm.
+  shows user-visible harm.
 [TODO] P46.3-T002 Improve contradiction and correction durability without raw
-transcript persistence.
+  transcript persistence.
 [TODO] P46.3-T003 Reduce over-remembering while preserving useful continuity.
 [TODO] P46.3-T004 Keep every repair observable through existing trace/evidence
-surfaces.
+  surfaces.

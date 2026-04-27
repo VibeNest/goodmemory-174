@@ -3,11 +3,13 @@ Phase 47.1: Rollout Contract
 
 Status
 ------
+
 [TODO] Not started.
 
 Tasks:
 
 [TODO] P47.1-T001 Freeze explicit provider-backed retrieval enablement semantics.
-[TODO] P47.1-T002 Define fail-closed and fallback behavior for provider errors.
+[TODO] P47.1-T002 Define fail-visible provider errors, safe rules-only fallback,
+  and fail-closed promotion claims when evidence is missing.
 [TODO] P47.1-T003 Keep rules-only as the default unless promotion evidence says
-otherwise.
+  otherwise.

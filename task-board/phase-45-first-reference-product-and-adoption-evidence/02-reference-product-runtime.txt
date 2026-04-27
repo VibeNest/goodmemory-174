@@ -3,17 +3,20 @@ Phase 45.2: Reference Product Runtime
 
 Status
 ------
+
 [TODO] Not started.
 
 
 Goal
 ----
+
 Build one small, runnable reference product that proves GoodMemory can sit behind
 a real chat/copilot/backend loop.
 
 
 Preferred Shape
 ---------------
+
 Use a reference chat app with a Python/FastAPI backend consumer and the
 `goodmemory/http` bridge unless implementation evidence shows a smaller public
 package path is more reliable.
@@ -21,18 +24,20 @@ package path is more reliable.
 
 Tasks
 -----
+
 [TODO] P45.2-T001 Add the reference product skeleton under a package-safe
-location.
+  location.
 [TODO] P45.2-T002 Wire startup to the packaged GoodMemory bridge/server path.
 [TODO] P45.2-T003 Implement the chat/backend loop with recall-context injection.
 [TODO] P45.2-T004 Implement remember, feedback, export, forget, and targeted
-revise flows through public surfaces.
+  revise flows through public surfaces.
 [TODO] P45.2-T005 Add smoke tests that boot the product and exercise the memory
-loop without provider env.
+  loop without provider env.
 
 
 Acceptance Criteria
 -------------------
+
 - A developer can boot the product from documented commands.
 - The product works in rules-only mode with no embedding or assisted extraction
   provider env.

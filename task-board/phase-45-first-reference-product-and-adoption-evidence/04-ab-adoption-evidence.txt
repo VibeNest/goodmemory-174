@@ -3,17 +3,20 @@ Phase 45.4: A/B Adoption Evidence
 
 Status
 ------
+
 [TODO] Not started.
 
 
 Goal
 ----
+
 Produce a product-facing adoption report that compares GoodMemory against a
 no-memory baseline and separates rules-only from provider-backed behavior.
 
 
 Required Modes
 --------------
+
 - no-memory baseline
 - rules-only GoodMemory
 - provider-backed GoodMemory when provider env is available
@@ -21,6 +24,7 @@ Required Modes
 
 Metrics
 -------
+
 - first useful recall rate
 - wrong recall rate
 - missed recall rate
@@ -30,19 +34,30 @@ Metrics
 - time-to-first-memory-value
 - observe-to-selective conversion readiness
 
+`observe-to-selective conversion readiness` is not a narrative-only metric. It
+must report:
+
+- observed candidates reviewed
+- observed candidates accepted as useful
+- observed candidates rejected as unsafe or noisy
+- accepted/reviewed ratio
+- number of scenarios where selective writeback would be justified
+
 
 Tasks
 -----
+
 [TODO] P45.4-T001 Define the baseline contract so only memory augmentation
-differs.
+  differs.
 [TODO] P45.4-T002 Add deterministic rules-only adoption reporting.
 [TODO] P45.4-T003 Add optional provider-backed reporting without making provider
-env mandatory for local closure.
+  env mandatory for local closure.
 [TODO] P45.4-T004 Make the report explain setup friction and first-value timing.
 
 
 Acceptance Criteria
 -------------------
+
 - The report shows where GoodMemory wins and where it fails.
 - Provider-backed uplift is explicit and never confused with rules-only closure.
 - The gate fails on fabricated or summary-only reports.

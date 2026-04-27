@@ -3,6 +3,7 @@ Phase 46.4: Regressions And Gate
 
 Status
 ------
+
 [TODO] Not started.
 
 Tasks:
@@ -10,4 +11,4 @@ Tasks:
 [TODO] P46.4-T001 Add before/after regressions for each repaired failure family.
 [TODO] P46.4-T002 Add a Phase 46 quality report and deterministic gate.
 [TODO] P46.4-T003 Sync current-status, task-board, archive docs, and release
-assertions only after evidence is accepted.
+  assertions only after evidence is accepted.

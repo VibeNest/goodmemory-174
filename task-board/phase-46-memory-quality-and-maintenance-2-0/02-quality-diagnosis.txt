@@ -3,13 +3,14 @@ Phase 46.2: Quality Diagnosis
 
 Status
 ------
+
 [TODO] Not started.
 
 Tasks:
 
 [TODO] P46.2-T001 Map Phase 45 failures to storage, recall scoring, context
-selection, maintenance, or correction-lineage causes.
+  selection, maintenance, or correction-lineage causes.
 [TODO] P46.2-T002 Separate rules-only failures from provider-backed uplift
-candidates.
+  candidates.
 [TODO] P46.2-T003 Identify regressions that would invalidate existing Phase
-27/40 adoption claims.
+  27/40 adoption claims.

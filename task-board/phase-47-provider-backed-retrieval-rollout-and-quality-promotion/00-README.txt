@@ -16,5 +16,7 @@ Working rules:
 
 - Keep rules-only mode valid.
 - Make provider-backed retrieval explicit and diagnostic-rich.
+- Make provider failure fail-visible with safe rules-only fallback.
 - Do not claim quality promotion without A/B evidence.
+- Fail closed on promotion claims when evidence is missing.
 - Keep dashboard/cloud/team workspace work deferred to Phase 48.
