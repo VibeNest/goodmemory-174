@@ -642,7 +642,7 @@ describe("release metadata and docs", () => {
     };
 
     expect(pkg.version).toBe(CURRENT_PACKAGE_VERSION);
-    expect(pkg.version).toBe("0.2.0");
+    expect(pkg.version).toBe("0.2.1");
     expect(pkg.private).toBeUndefined();
     expect(pkg.description).toBe(
       "Memory layer for chat, copilot, and agent applications.",
@@ -1141,9 +1141,9 @@ describe("release metadata and docs", () => {
     expect(guide).not.toContain("query-resolved");
   });
 
-  it("v0.2 package metadata and public release docs agree on 0.2.0", async () => {
-    expect(CURRENT_PACKAGE_VERSION).toBe("0.2.0");
-    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.2.0.tgz");
+  it("v0.2 package metadata and public release docs agree on the current stable patch", async () => {
+    expect(CURRENT_PACKAGE_VERSION).toBe("0.2.1");
+    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.2.1.tgz");
 
     const releaseDocPaths = [
       "README.md",
@@ -1165,7 +1165,7 @@ describe("release metadata and docs", () => {
         "utf8",
       );
 
-      expect(content).toContain("0.2.0");
+      expect(content).toContain(CURRENT_PACKAGE_VERSION);
       expect(content).not.toContain("goodmemory@0.1.2");
       expect(content).not.toContain("goodmemory-0.1.2.tgz");
     }
@@ -3049,6 +3049,23 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("npm registry verification failed");
     expect(workflow).not.toContain("npm publish --tag rc --access public");
     expect(workflow).not.toContain("npm view goodmemory@rc version");
+  });
+
+  it("scheduled eval workflow skips successfully when live eval secrets are absent", async () => {
+    const workflow = await readFile(
+      join(import.meta.dir, "../../.github/workflows/eval.yml"),
+      "utf8",
+    );
+
+    expect(workflow).toContain("id: live-eval-secrets");
+    expect(workflow).toContain("secrets_available=true");
+    expect(workflow).toContain("secrets_available=false");
+    expect(workflow).toContain("GITHUB_EVENT_NAME");
+    expect(workflow).toContain("workflow_dispatch");
+    expect(workflow).toContain("Live eval skipped because required secrets are missing.");
+    expect(workflow).toContain(
+      "if: steps.live-eval-secrets.outputs.secrets_available == 'true'",
+    );
   });
 
   it("github workflows pin Bun to the repository-supported Bun version", async () => {

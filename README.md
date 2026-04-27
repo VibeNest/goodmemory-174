@@ -113,13 +113,13 @@ policy. GoodMemory owns the memory loop and storage boundary.
 
 ## Install
 
-GoodMemory `0.2.0` has two normal install paths.
+GoodMemory `0.2.1` has two normal install paths.
 
 Use the global CLI when you want memory enhancement inside installed coding
 agents:
 
 ```bash
-npm install -g goodmemory@0.2.0
+npm install -g goodmemory@0.2.1
 goodmemory setup
 goodmemory status
 ```
@@ -127,19 +127,19 @@ goodmemory status
 Use the package dependency when you are building an application:
 
 ```bash
-npm install goodmemory@0.2.0
+npm install goodmemory@0.2.1
 ```
 
 Bun consumers can install it directly:
 
 ```bash
-bun add goodmemory@0.2.0
+bun add goodmemory@0.2.1
 ```
 
 Tarball verification for release rehearsal:
 
 ```bash
-npm install ./goodmemory-0.2.0.tgz
+npm install ./goodmemory-0.2.1.tgz
 ```
 
 The installed CLI is Bun-backed for non-version commands. The package bin is
@@ -151,7 +151,7 @@ delegate to Bun.
 For most users, the first useful path is installed-host memory.
 
 ```bash
-npm install -g goodmemory@0.2.0
+npm install -g goodmemory@0.2.1
 goodmemory setup
 goodmemory status
 ```

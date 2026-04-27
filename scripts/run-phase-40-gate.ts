@@ -182,6 +182,7 @@ const EXPECTED_PRODUCT_CASES = [
 ] as const;
 const PHASE40_RELEASE_REGRESSION_PATTERN =
   "phase-40|package metadata exposes bin, exports, and key scripts|release checklist exists and covers the final gate|release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload|ci workflow runs the node package boundary matrix on Node 20, 22, and 24";
+const PHASE40_RELEASE_VERSION_PATTERN = /^0\.2\.\d+$/u;
 const PHASE40_IN_SCOPE = [
   "Phase 39 accepted gate as release input",
   "v0.2 package metadata and release workflow evidence",
@@ -583,6 +584,10 @@ function commandPassed(
   return commands.some((command) => command.label === label && command.status === "passed");
 }
 
+function isPhase40StableReleaseVersion(version: string | undefined): boolean {
+  return version !== undefined && PHASE40_RELEASE_VERSION_PATTERN.test(version);
+}
+
 function evidenceStatus(input: {
   accepted: boolean;
   acceptedReason: string;
@@ -620,7 +625,7 @@ async function writeReport(input: {
   const phase39Accepted = evidenceInput?.phase39Accepted === true;
   const crossConsumerAccepted = evidenceInput?.crossConsumerAccepted === true;
   const productAccepted = evidenceInput?.productAccepted === true;
-  const versionAccepted = evidenceInput?.version === "0.2.0";
+  const versionAccepted = isPhase40StableReleaseVersion(evidenceInput?.version);
   const ciAccepted = commandPassed(input.commands, "ci-regression-gate");
   const nodeBoundaryAccepted = commandPassed(input.commands, "node-package-boundary-smoke");
   const regressionsAccepted = commandPassed(input.commands, "phase-40-release-regressions");
@@ -679,7 +684,7 @@ async function writeReport(input: {
     releaseChecklistAndStatus: evidenceStatus({
       accepted: regressionsAccepted && versionAccepted,
       acceptedReason:
-        "Release checklist, current status, task-board, package metadata, and release workflow regressions passed for 0.2.0.",
+        "Release checklist, current status, task-board, package metadata, and release workflow regressions passed for the stable v0.2 release line.",
       blockedReason: commandEvidenceBlockedReason,
     }),
     releaseDryRun: evidenceStatus({
@@ -695,7 +700,7 @@ async function writeReport(input: {
     acceptance: {
       decision: accepted ? "accepted" : "blocked",
       reason: accepted
-        ? "Phase 40 release-candidate evidence is accepted for v0.2.0."
+        ? "Phase 40 release-candidate evidence is accepted for the stable v0.2 release line."
         : blockedReason,
     },
     commands: input.commands,

@@ -28,14 +28,58 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check live eval secrets
+        id: live-eval-secrets
+        env:
+          GOODMEMORY_EVAL_PROVIDER: ${{ secrets.GOODMEMORY_EVAL_PROVIDER }}
+          GOODMEMORY_EVAL_MODEL: ${{ secrets.GOODMEMORY_EVAL_MODEL }}
+          GOODMEMORY_EVAL_API_KEY: ${{ secrets.GOODMEMORY_EVAL_API_KEY }}
+          GOODMEMORY_JUDGE_PROVIDER: ${{ secrets.GOODMEMORY_JUDGE_PROVIDER }}
+          GOODMEMORY_JUDGE_MODEL: ${{ secrets.GOODMEMORY_JUDGE_MODEL }}
+          GOODMEMORY_JUDGE_API_KEY: ${{ secrets.GOODMEMORY_JUDGE_API_KEY }}
+        run: |
+          set -euo pipefail
+          required_vars=(
+            GOODMEMORY_EVAL_PROVIDER
+            GOODMEMORY_EVAL_MODEL
+            GOODMEMORY_EVAL_API_KEY
+            GOODMEMORY_JUDGE_PROVIDER
+            GOODMEMORY_JUDGE_MODEL
+            GOODMEMORY_JUDGE_API_KEY
+          )
+          missing=()
+          for name in "${required_vars[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "secrets_available=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "secrets_available=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Live eval skipped"
+            echo "- Live eval skipped because required secrets are missing."
+            echo "- Missing required secrets: ${missing[*]}"
+            echo "- Scheduled eval needs live provider and judge secrets before it can produce evidence."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${GITHUB_EVENT_NAME:-}" = "workflow_dispatch" ]; then
+            echo "Missing required secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
       - uses: oven-sh/setup-bun@v2
+        if: steps.live-eval-secrets.outputs.secrets_available == 'true'
         with:
           bun-version: 1.3.0
 
       - name: Install dependencies
+        if: steps.live-eval-secrets.outputs.secrets_available == 'true'
         run: bun install --frozen-lockfile
 
       - name: Run eval suite
+        if: steps.live-eval-secrets.outputs.secrets_available == 'true'
         env:
           GOODMEMORY_EVAL_PROVIDER: ${{ secrets.GOODMEMORY_EVAL_PROVIDER }}
           GOODMEMORY_EVAL_MODEL: ${{ secrets.GOODMEMORY_EVAL_MODEL }}
@@ -75,6 +119,7 @@ jobs:
           bun run eval:live -- "${ARGS[@]}"
 
       - name: Summarize eval run
+        if: steps.live-eval-secrets.outputs.secrets_available == 'true'
         run: |
           set -euo pipefail
           OUTPUT_DIR="${{ github.event.inputs.output_dir }}"
@@ -85,6 +130,7 @@ jobs:
           bun run eval:summary -- "$RUN_DIR" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload eval artifacts
+        if: steps.live-eval-secrets.outputs.secrets_available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: eval-artifacts
