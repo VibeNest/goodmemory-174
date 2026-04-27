@@ -101,6 +101,7 @@
     "example:life-coach-profile": "bun run examples/life-coach-remember-profile.ts",
     "example:host-claude": "bun run examples/host-claude-artifacts.ts",
     "example:host-codex": "bun run examples/host-codex-handoff.ts",
+    "example:reference-product": "bun run examples/reference-chat-product/backend.ts smoke",
     "eval:smoke": "bun run scripts/run-eval.ts --mode=smoke",
     "eval:fallback": "bun run scripts/run-eval.ts --mode=fallback",
     "eval:phase-16": "bun run scripts/run-phase-16-eval.ts",
