@@ -24,6 +24,10 @@ import {
   createLanguageService,
   type LanguageService,
 } from "../language";
+import {
+  readMemoryQualityRepairSignal,
+  readMemoryQualityReplacementMemoryId,
+} from "./qualityRepairSignals";
 import type {
   MaintenanceRepositoryPort,
   MaintenanceVectorPort,
@@ -32,6 +36,7 @@ import type {
 export type MaintenanceJobName =
   | "dedupe"
   | "contradiction"
+  | "qualityRepair"
   | "consolidation"
   | "embeddingRepair";
 
@@ -104,6 +109,106 @@ function factMaintenanceStrength(fact: FactMemory): number {
     (fact.source.method === "explicit" ? 2 : 0) +
     fact.confidence -
     Math.min(fact.verificationPressureCount ?? 0, 4) * 0.3
+  );
+}
+
+const STALE_ACTION_REPAIR_MIN_AGE_DAYS = 90;
+const STALE_ACTION_REPAIR_RECENT_ACCESS_SHIELD_DAYS = 30;
+const STALE_ACTION_REPAIR_MIN_VERIFICATION_PRESSURE = 2;
+const STALE_ACTION_REPAIR_MAX_CONFIDENCE = 0.7;
+const STALE_ACTION_REPAIR_MAX_IMPORTANCE = 0.55;
+
+function daysBefore(referenceTime: string, timestamp: string): number {
+  const delta = new Date(referenceTime).getTime() - new Date(timestamp).getTime();
+  return Math.max(0, delta) / (1000 * 60 * 60 * 24);
+}
+
+function isActionDrivingFact(
+  fact: FactMemory,
+  language: LanguageService,
+): boolean {
+  if (
+    fact.factKind === "blocker" ||
+    fact.factKind === "open_loop" ||
+    fact.factKind === "project_state" ||
+    fact.factKind === "focus_update"
+  ) {
+    return true;
+  }
+  if (fact.category !== "project" && fact.category !== "technical") {
+    return false;
+  }
+
+  const locale = language.resolveFromText({ text: fact.content }).locale;
+  return (
+    language.isBlockerFact(fact.content, locale) ||
+    language.isOpenLoopFact(fact.content, locale) ||
+    language.isProjectStateFact(fact.content, locale) ||
+    language.isFocusFact(fact.content, locale)
+  );
+}
+
+function shouldDemoteStaleActionFact(input: {
+  activeFacts: FactMemory[];
+  fact: FactMemory;
+  language: LanguageService;
+  timestamp: string;
+}): boolean {
+  const verificationPressure = input.fact.verificationPressureCount ?? 0;
+  const recentlyUsed =
+    input.fact.lastAccessedAt !== undefined &&
+    daysBefore(input.timestamp, input.fact.lastAccessedAt) <=
+      STALE_ACTION_REPAIR_RECENT_ACCESS_SHIELD_DAYS;
+
+  return (
+    !recentlyUsed &&
+    input.fact.source.method === "inferred" &&
+    input.fact.confidence <= STALE_ACTION_REPAIR_MAX_CONFIDENCE &&
+    input.fact.importance <= STALE_ACTION_REPAIR_MAX_IMPORTANCE &&
+    verificationPressure >= STALE_ACTION_REPAIR_MIN_VERIFICATION_PRESSURE &&
+    daysBefore(input.timestamp, input.fact.updatedAt) >=
+      STALE_ACTION_REPAIR_MIN_AGE_DAYS &&
+    isActionDrivingFact(input.fact, input.language) &&
+    hasActiveQualityReplacementFact(input)
+  );
+}
+
+function resolveQualityRepairDemotionReason(input: {
+  activeFacts: FactMemory[];
+  fact: FactMemory;
+  language: LanguageService;
+  timestamp: string;
+}): string | null {
+  const qualitySignal = readMemoryQualityRepairSignal(input.fact);
+  if (qualitySignal) {
+    return qualitySignal.demotionReason;
+  }
+
+  if (shouldDemoteStaleActionFact(input)) {
+    return "stale_action_quality_repair";
+  }
+
+  return null;
+}
+
+function hasActiveQualityReplacementFact(input: {
+  activeFacts: FactMemory[];
+  fact: FactMemory;
+  language: LanguageService;
+}): boolean {
+  const replacementId = readMemoryQualityReplacementMemoryId(input.fact);
+  if (!replacementId) {
+    return false;
+  }
+
+  const replacement = input.activeFacts.find((fact) => fact.id === replacementId);
+  return Boolean(
+    replacement &&
+      replacement.id !== input.fact.id &&
+      replacement.lifecycle === "active" &&
+      replacement.updatedAt.localeCompare(input.fact.updatedAt) > 0 &&
+      replacement.confidence > input.fact.confidence &&
+      isActionDrivingFact(replacement, input.language),
   );
 }
 
@@ -326,6 +431,54 @@ async function runContradictionRepair(
 
   return {
     name: "contradiction",
+    applied,
+  };
+}
+
+async function runQualityRepair(
+  repositories: MaintenanceRepositoryPort,
+  vectorIndex: MaintenanceVectorPort | null,
+  language: LanguageService,
+  scope: MemoryScope,
+  timestamp: string,
+): Promise<MaintenanceJobReport> {
+  const facts = sortFactsForMaintenance(
+    (await repositories.facts.listByScope(scope)).filter((fact) => fact.lifecycle === "active"),
+  );
+  const activeFactsById = new Map(facts.map((fact) => [fact.id, fact]));
+  let applied = 0;
+
+  for (const fact of facts) {
+    if (!activeFactsById.has(fact.id)) {
+      continue;
+    }
+    const demotionReason = resolveQualityRepairDemotionReason({
+      activeFacts: [...activeFactsById.values()],
+      fact,
+      language,
+      timestamp,
+    });
+    if (!demotionReason) {
+      continue;
+    }
+
+    await repositories.facts.add(
+      createFactMemory({
+        ...fact,
+        lifecycle: "inactive",
+        isActive: false,
+        demotedAt: timestamp,
+        demotionReason,
+        updatedAt: timestamp,
+      }),
+    );
+    await vectorIndex?.deleteFactEmbedding(fact.id);
+    activeFactsById.delete(fact.id);
+    applied += 1;
+  }
+
+  return {
+    name: "qualityRepair",
     applied,
   };
 }
@@ -555,6 +708,19 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
               vectorIndex,
               scope,
               config.embedding,
+            ),
+          );
+          continue;
+        }
+
+        if (job === "qualityRepair") {
+          reports.push(
+            await runQualityRepair(
+              config.repositories,
+              vectorIndex,
+              language,
+              scope,
+              timestamp,
             ),
           );
           continue;

@@ -4,10 +4,17 @@ Phase 46: Memory Quality And Maintenance 2.0
 Status
 ------
 
-[TODO] Phase 46 is queued after Phase 45 reference-product adoption evidence.
+[DONE] Phase 46 is closed as the Memory Quality and Maintenance 2.0 slice.
 
-This phase should not start from speculative infrastructure work. It starts from
-real product failure samples collected by Phase 45.
+Accepted evidence:
+
+- quality eval: `reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json`
+- quality gate: `reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json`
+- archive summary: `docs/archive/quality-gates/GoodMemory-Phase-46-Quality-Gate.md`
+
+Phase 46 starts from Phase 45 redacted reference-product evidence and keeps
+stale-recall maintenance guardrails separate from observed Phase 45 failure
+samples.
 
 
 Phase Goal
@@ -75,13 +82,13 @@ Acceptance Criteria
 Tasks
 -----
 
-[TODO] P46-T001 Define the failure-sample intake and memory-quality taxonomy.
-[TODO] P46-T002 Diagnose Phase 45 stale/wrong/missed recall and over-remembering
+[DONE] P46-T001 Define the failure-sample intake and memory-quality taxonomy.
+[DONE] P46-T002 Diagnose Phase 45 stale/wrong/missed recall and over-remembering
   failures.
-[TODO] P46-T003 Tune maintenance, decay, dedupe, contradiction repair, and
+[DONE] P46-T003 Tune maintenance, decay, dedupe, contradiction repair, and
   correction durability against those samples.
-[TODO] P46-T004 Add reference-product regressions for repaired quality cases.
-[TODO] P46-T005 Add Phase 46 quality report, gate, docs, and status sync.
+[DONE] P46-T004 Add reference-product regressions for repaired quality cases.
+[DONE] P46-T005 Add Phase 46 quality report, gate, docs, and status sync.
 
 
 Breakdown Folder

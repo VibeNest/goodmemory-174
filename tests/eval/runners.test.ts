@@ -701,6 +701,7 @@ describe("eval runners", () => {
           workspaceId,
         },
         jobs: [
+          "qualityRepair",
           "dedupe",
           "contradiction",
           "consolidation",

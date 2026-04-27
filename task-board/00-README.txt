@@ -341,11 +341,14 @@ Current Sequencing Note
   - quality gate: `reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-45-Quality-Gate.md`
   - boundary: no hosted dashboard, no viewer mutation routes, no raw transcript archive, no new root public API, and no additional installed-host hook expansion as a gate blocker
-- Phase 46 is queued as the Memory Quality and Maintenance 2.0 slice:
+- Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice:
   - task-board entrypoint: `task-board/51-phase-46-memory-quality-and-maintenance-2-0.txt`
   - breakdown folder: `task-board/phase-46-memory-quality-and-maintenance-2-0/`
-  - focus: use Phase 45 real product failure samples to repair stale recall, wrong recall, missed recall, over-remembering, and correction durability
-  - boundary: no new adoption surface, dashboard, provider rollout, or cloud claim before Phase 45 evidence identifies the actual quality failures
+  - focus: use Phase 45 redacted product evidence to repair memory quality through observed failure samples plus guarded stale-recall maintenance repair
+  - quality eval: `reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json`
+  - quality gate: `reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-46-Quality-Gate.md`
+  - boundary: no new adoption surface, dashboard, provider rollout, cloud claim, root public API, raw transcript archive, or viewer mutation route
 - Phase 47 is queued as the Provider-Backed Retrieval Rollout and Quality Promotion slice:
   - task-board entrypoint: `task-board/52-phase-47-provider-backed-retrieval-rollout-and-quality-promotion.txt`
   - breakdown folder: `task-board/phase-47-provider-backed-retrieval-rollout-and-quality-promotion/`

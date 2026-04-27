@@ -44,6 +44,7 @@ const DEFAULT_HYGIENE_MAINTENANCE_JOBS = [
 ] as const satisfies MaintenanceJobName[];
 
 const OUTCOME_AWARE_MAINTENANCE_JOBS = [
+  "qualityRepair",
   "dedupe",
   "contradiction",
   "consolidation",

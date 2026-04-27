@@ -98,7 +98,7 @@ describe("recall outcome scoring", () => {
     expect(trace?.whyReturned).toContain("outcomeScore=");
   });
 
-  it("down-weights stale action-driving facts without persisting advisory pressure", async () => {
+  it("down-weights stale action-driving facts without pressuring unsurfaced candidates", async () => {
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();
     const memory = createGoodMemory({
@@ -218,6 +218,7 @@ describe("recall outcome scoring", () => {
 
     expect(riskyFact?.lifecycle).toBe("active");
     expect(riskyFact?.verificationPressureCount).toBe(0);
+    expect(riskyFact?.lastVerificationHintAt).toBeUndefined();
     expect(riskyFact?.demotionReason).toBeUndefined();
     expect(safeFact?.lifecycle).toBe("active");
   });

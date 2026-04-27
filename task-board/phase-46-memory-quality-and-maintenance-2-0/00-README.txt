@@ -7,10 +7,10 @@ Follow the parent task file:
 
 Task order:
 
-1. failure-sample intake
-2. quality diagnosis
-3. maintenance repair
-4. regressions and gate
+1. [DONE] failure-sample intake
+2. [DONE] quality diagnosis
+3. [DONE] maintenance repair
+4. [DONE] regressions and gate
 
 Working rules:
 
@@ -18,3 +18,9 @@ Working rules:
 - Keep rules-only behavior valid.
 - Keep provider-backed retrieval rollout for Phase 47.
 - Do not add dashboard, cloud, or viewer mutation scope.
+
+Accepted evidence:
+
+- `reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json`
+- `reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json`
+- `docs/archive/quality-gates/GoodMemory-Phase-46-Quality-Gate.md`

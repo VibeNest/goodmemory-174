@@ -51,6 +51,7 @@ import type { ProposalGateDecision } from "../evolution/gates";
 interface RecallTouchSummary {
   reinforcedFeedbackCount: number;
   touchedFactCount: number;
+  verificationPressureFactCount: number;
 }
 
 interface ReviewerRuntime {
@@ -91,6 +92,7 @@ export interface EvolutionRuntimeConfig {
 }
 
 const LOW_RISK_RECALL_TOUCH_WINDOW_MS = 5 * 60 * 1000;
+const MAX_VERIFICATION_PRESSURE_COUNT = 4;
 
 function encodeExperienceIdSegment(value: string): string {
   return encodeURIComponent(value);
@@ -136,6 +138,25 @@ async function applyRecallTouchHelpers(
       .filter((hint) => hint.memoryType === "fact")
       .map((hint) => hint.memoryId),
   );
+  const pressureFacts = result.facts
+    .filter(
+      (fact) =>
+        fact.lifecycle === "active" &&
+        verificationHintFactIds.has(fact.id),
+    )
+    .map((fact) => {
+      const pressuredFact: FactMemory = {
+        ...fact,
+        verificationPressureCount: Math.min(
+          (fact.verificationPressureCount ?? 0) + 1,
+          MAX_VERIFICATION_PRESSURE_COUNT,
+        ),
+        lastVerificationHintAt: timestamp,
+      };
+
+      touchedFacts.set(pressuredFact.id, pressuredFact);
+      return pressuredFact;
+    });
   const nextFacts = result.facts
     .filter(
       (fact) =>
@@ -173,7 +194,9 @@ async function applyRecallTouchHelpers(
   );
 
   await Promise.all([
-    ...[...touchedFacts.values()].map((fact) => repositories.facts.add(fact)),
+    ...[...new Map(
+      [...pressureFacts, ...touchedFacts.values()].map((fact) => [fact.id, fact] as const),
+    ).values()].map((fact) => repositories.facts.add(fact)),
     ...nextFeedback.map((feedback) => repositories.feedback.upsert(feedback)),
   ]);
 
@@ -190,6 +213,7 @@ async function applyRecallTouchHelpers(
   return {
     reinforcedFeedbackCount: nextFeedback.length,
     touchedFactCount: nextFacts.length,
+    verificationPressureFactCount: pressureFacts.length,
   };
 }
 
@@ -235,6 +259,8 @@ function toRecallObservationResult(
     latencyMs: result.metadata.latencyMs,
     tokenCount: result.metadata.tokenCount,
     touchedFactCount: touchSummary?.touchedFactCount ?? 0,
+    verificationPressureFactCount:
+      touchSummary?.verificationPressureFactCount ?? 0,
     reinforcedFeedbackCount: touchSummary?.reinforcedFeedbackCount ?? 0,
     policyApplied: result.metadata.policyApplied,
     modelInfluence:

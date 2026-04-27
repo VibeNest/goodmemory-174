@@ -8,6 +8,9 @@ import {
   createMaintenanceRunner,
 } from "../../src/maintenance/runner";
 import {
+  buildMemoryQualityRepairAttributes,
+} from "../../src/maintenance/qualityRepairSignals";
+import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
   createInMemoryVectorStore,
@@ -530,6 +533,382 @@ describe("maintenance runner", () => {
     expect(report.jobs[0]?.applied).toBe(1);
     expect(await repositories.vectorIndex?.getFactEmbedding(factOne.id)).toBeNull();
     expect(await repositories.vectorIndex?.getFactEmbedding(factTwo.id)).not.toBeNull();
+  });
+
+  it("demotes stale inferred action facts while preserving explicit identity continuity", async () => {
+    const { embeddingAdapter, repositories, runner } = createFixture({
+      withEmbeddings: true,
+    });
+    const scope = { userId: "u-phase46-stale", workspaceId: "workspace-a" };
+    const activeFact = createFactMemory({
+      id: "fact-current-blocker",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Reference product launch is blocked by package evidence refresh.",
+      confidence: 0.92,
+      importance: 0.8,
+      source: { method: "explicit", extractedAt: "2026-03-25T00:00:00.000Z" },
+      createdAt: "2026-03-25T00:00:00.000Z",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+    });
+    const staleFact = createFactMemory({
+      id: "fact-stale-blocker",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Reference product launch is blocked by the old security review.",
+      attributes: buildMemoryQualityRepairAttributes({
+        failureLabel: "stale_recall",
+        phase: "phase-46",
+        replacementMemoryId: activeFact.id,
+        sampleId: "phase46-sample-stale-recall",
+        source: "quality_repair_guardrail",
+        sourceScenario: "historical-task-continuation",
+      }),
+      confidence: 0.58,
+      importance: 0.35,
+      verificationPressureCount: 3,
+      lastVerificationHintAt: "2026-03-30T00:00:00.000Z",
+      source: { method: "inferred", extractedAt: "2025-12-01T00:00:00.000Z" },
+      createdAt: "2025-12-01T00:00:00.000Z",
+      updatedAt: "2025-12-01T00:00:00.000Z",
+    });
+    const identityFact = createFactMemory({
+      id: "fact-identity",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "personal",
+      content: "The user prefers precise architecture reviews.",
+      confidence: 0.95,
+      importance: 0.9,
+      source: { method: "explicit", extractedAt: "2025-12-01T00:00:00.000Z" },
+      createdAt: "2025-12-01T00:00:00.000Z",
+      updatedAt: "2025-12-01T00:00:00.000Z",
+    });
+
+    await repositories.facts.add(staleFact);
+    await repositories.facts.add(activeFact);
+    await repositories.facts.add(identityFact);
+    const [staleEmbedding] = await embeddingAdapter!.embed([
+      staleFact.content,
+    ]);
+    await repositories.vectorIndex?.upsertFactEmbedding([
+      {
+        id: staleFact.id,
+        embedding: staleEmbedding,
+        metadata: { userId: scope.userId, workspaceId: scope.workspaceId, memoryType: "fact" },
+        content: staleFact.content,
+      },
+    ]);
+
+    const report = await runner.run(scope, ["qualityRepair"]);
+
+    expect(report.jobs).toEqual([{ name: "qualityRepair", applied: 1 }]);
+    const facts = await repositories.facts.listByScope(scope);
+    expect(facts.find((fact) => fact.id === staleFact.id)).toMatchObject({
+      demotionReason: "stale_action_quality_repair",
+      isActive: false,
+      lifecycle: "inactive",
+    });
+    expect(facts.find((fact) => fact.id === activeFact.id)?.lifecycle).toBe("active");
+    expect(facts.find((fact) => fact.id === identityFact.id)?.lifecycle).toBe("active");
+    expect(await repositories.vectorIndex?.getFactEmbedding(staleFact.id)).toBeNull();
+  });
+
+  it("preserves pressured stale inferred action facts without a current replacement", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = { userId: "u-phase46-stale-no-replacement", workspaceId: "workspace-a" };
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-only-stale-blocker",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "Reference product launch is blocked by old security review.",
+        confidence: 0.58,
+        importance: 0.35,
+        verificationPressureCount: 3,
+        lastVerificationHintAt: "2026-03-30T00:00:00.000Z",
+        source: { method: "inferred", extractedAt: "2025-12-01T00:00:00.000Z" },
+        createdAt: "2025-12-01T00:00:00.000Z",
+        updatedAt: "2025-12-01T00:00:00.000Z",
+      }),
+    );
+
+    const report = await runner.run(scope, ["qualityRepair"]);
+
+    expect(report.jobs).toEqual([{ name: "qualityRepair", applied: 0 }]);
+    const facts = await repositories.facts.listByScope(scope);
+    expect(facts.find((fact) => fact.id === "fact-only-stale-blocker")).toMatchObject({
+      isActive: true,
+      lifecycle: "active",
+    });
+  });
+
+  it("re-checks stale repair replacements after same-run quality demotions", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = {
+      userId: "u-phase46-stale-demoted-replacement",
+      workspaceId: "workspace-a",
+    };
+    const replacement = createFactMemory({
+      id: "fact-demoted-replacement",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Reference product launch is blocked by a redacted private note.",
+      attributes: buildMemoryQualityRepairAttributes({
+        failureLabel: "over_remembering",
+        phase: "phase-46",
+        reviewOutcome: "false_write",
+        sampleId: "phase46-sample-demoted-replacement",
+        source: "quality_failure_sample",
+        sourceScenario: "observe-writeback-candidate-visibility",
+      }),
+      confidence: 0.92,
+      importance: 0.8,
+      source: { method: "explicit", extractedAt: "2026-03-25T00:00:00.000Z" },
+      createdAt: "2026-03-25T00:00:00.000Z",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+    });
+    const staleFact = createFactMemory({
+      id: "fact-stale-blocker-with-bad-replacement",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Reference product launch is blocked by the old security review.",
+      attributes: buildMemoryQualityRepairAttributes({
+        failureLabel: "stale_recall",
+        phase: "phase-46",
+        replacementMemoryId: replacement.id,
+        sampleId: "phase46-sample-stale-recall-demoted-replacement",
+        source: "quality_repair_guardrail",
+        sourceScenario: "historical-task-continuation",
+      }),
+      confidence: 0.58,
+      importance: 0.35,
+      verificationPressureCount: 3,
+      lastVerificationHintAt: "2026-03-30T00:00:00.000Z",
+      source: { method: "inferred", extractedAt: "2025-12-01T00:00:00.000Z" },
+      createdAt: "2025-12-01T00:00:00.000Z",
+      updatedAt: "2025-12-01T00:00:00.000Z",
+    });
+
+    await repositories.facts.add(staleFact);
+    await repositories.facts.add(replacement);
+
+    const report = await runner.run(scope, ["qualityRepair"]);
+
+    expect(report.jobs).toEqual([{ name: "qualityRepair", applied: 1 }]);
+    const facts = await repositories.facts.listByScope(scope);
+    expect(facts.find((fact) => fact.id === replacement.id)).toMatchObject({
+      demotionReason: "over_remembering_quality_repair",
+      lifecycle: "inactive",
+    });
+    expect(facts.find((fact) => fact.id === staleFact.id)).toMatchObject({
+      isActive: true,
+      lifecycle: "active",
+    });
+  });
+
+  it("demotes unsafe or noisy over-remembered facts without raw transcript inspection", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = { userId: "u-phase46-over-memory", workspaceId: "workspace-a" };
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-private-leak",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "technical",
+        content: "Redacted private credential should not be recalled.",
+        tags: ["installed-host-writeback"],
+        attributes: buildMemoryQualityRepairAttributes({
+          failureLabel: "over_remembering",
+          reviewOutcome: "false_write",
+          phase: "phase-46",
+          sampleId: "phase46-sample-over-remembering",
+          source: "quality_failure_sample",
+          sourceScenario: "observe-writeback-candidate-visibility",
+        }),
+        source: { method: "explicit", extractedAt: "2026-03-31T00:00:00.000Z" },
+        createdAt: "2026-03-31T00:00:00.000Z",
+        updatedAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-useful-launch-note",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "Launch note candidate was reviewed and accepted.",
+        tags: ["installed-host-writeback"],
+        attributes: {
+          writebackReviewOutcome: "accepted_as_useful",
+        },
+        source: { method: "explicit", extractedAt: "2026-03-31T00:00:00.000Z" },
+        createdAt: "2026-03-31T00:00:00.000Z",
+        updatedAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-unrelated-rejected-state",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "The unrelated proposal status was rejected.",
+        attributes: {
+          proposalStatus: "rejected",
+        },
+        source: { method: "explicit", extractedAt: "2026-03-31T00:00:00.000Z" },
+        createdAt: "2026-03-31T00:00:00.000Z",
+        updatedAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-unrelated-review-outcome",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "The unrelated design review outcome was rejected.",
+        attributes: {
+          reviewOutcome: "rejected",
+        },
+        source: { method: "explicit", extractedAt: "2026-03-31T00:00:00.000Z" },
+        createdAt: "2026-03-31T00:00:00.000Z",
+        updatedAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+
+    const report = await runner.run(scope, ["qualityRepair"]);
+
+    expect(report.jobs).toEqual([{ name: "qualityRepair", applied: 1 }]);
+    const facts = await repositories.facts.listByScope(scope);
+    expect(facts.find((fact) => fact.id === "fact-private-leak")).toMatchObject({
+      demotionReason: "over_remembering_quality_repair",
+      isActive: false,
+      lifecycle: "inactive",
+    });
+    expect(facts.find((fact) => fact.id === "fact-useful-launch-note")?.lifecycle).toBe("active");
+    expect(facts.find((fact) => fact.id === "fact-unrelated-rejected-state")?.lifecycle).toBe("active");
+    expect(facts.find((fact) => fact.id === "fact-unrelated-review-outcome")?.lifecycle).toBe("active");
+  });
+
+  it("preserves quality-marked facts without an explicit demotive review outcome", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = { userId: "u-phase46-review-required", workspaceId: "workspace-a" };
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-quality-missing-review",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "technical",
+        content: "A quality sample without a review outcome must remain active.",
+        attributes: buildMemoryQualityRepairAttributes({
+          failureLabel: "over_remembering",
+          phase: "phase-46",
+          sampleId: "phase46-sample-over-remembering-unreviewed",
+          source: "quality_failure_sample",
+          sourceScenario: "observe-writeback-candidate-visibility",
+        }),
+        source: { method: "explicit", extractedAt: "2026-03-31T00:00:00.000Z" },
+        createdAt: "2026-03-31T00:00:00.000Z",
+        updatedAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-quality-uncertain-review",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "technical",
+        content: "A quality sample with uncertain review must remain active.",
+        attributes: buildMemoryQualityRepairAttributes({
+          failureLabel: "noisy_procedural_memory",
+          phase: "phase-46",
+          reviewOutcome: "uncertain",
+          sampleId: "phase46-sample-noisy-procedural-uncertain",
+          source: "quality_failure_sample",
+          sourceScenario: "observe-writeback-candidate-visibility",
+        }),
+        source: { method: "explicit", extractedAt: "2026-03-31T00:00:00.000Z" },
+        createdAt: "2026-03-31T00:00:00.000Z",
+        updatedAt: "2026-03-31T00:00:00.000Z",
+      }),
+    );
+
+    const report = await runner.run(scope, ["qualityRepair"]);
+
+    expect(report.jobs).toEqual([{ name: "qualityRepair", applied: 0 }]);
+    const facts = await repositories.facts.listByScope(scope);
+    expect(facts.find((fact) => fact.id === "fact-quality-missing-review")).toMatchObject({
+      isActive: true,
+      lifecycle: "active",
+    });
+    expect(facts.find((fact) => fact.id === "fact-quality-uncertain-review")).toMatchObject({
+      isActive: true,
+      lifecycle: "active",
+    });
+  });
+
+  it("preserves recently used inferred action facts to avoid missed recall", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = { userId: "u-phase46-recent", workspaceId: "workspace-a" };
+    const replacementFact = createFactMemory({
+      id: "fact-recent-current-blocker",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Reference product launch is blocked by package evidence refresh.",
+      confidence: 0.92,
+      importance: 0.8,
+      source: { method: "explicit", extractedAt: "2026-03-25T00:00:00.000Z" },
+      createdAt: "2026-03-25T00:00:00.000Z",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+    });
+
+    await repositories.facts.add(replacementFact);
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-recently-used-blocker",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "Reference product launch is blocked by release signoff.",
+        attributes: buildMemoryQualityRepairAttributes({
+          failureLabel: "stale_recall",
+          phase: "phase-46",
+          replacementMemoryId: replacementFact.id,
+          sampleId: "phase46-sample-recently-used-stale-recall",
+          source: "quality_repair_guardrail",
+          sourceScenario: "historical-task-continuation",
+        }),
+        confidence: 0.58,
+        importance: 0.35,
+        accessCount: 4,
+        lastAccessedAt: "2026-03-25T00:00:00.000Z",
+        verificationPressureCount: 3,
+        lastVerificationHintAt: "2026-03-30T00:00:00.000Z",
+        source: { method: "inferred", extractedAt: "2025-12-01T00:00:00.000Z" },
+        createdAt: "2025-12-01T00:00:00.000Z",
+        updatedAt: "2025-12-01T00:00:00.000Z",
+      }),
+    );
+
+    const report = await runner.run(scope, ["qualityRepair"]);
+
+    expect(report.jobs).toEqual([{ name: "qualityRepair", applied: 0 }]);
+    const facts = await repositories.facts.listByScope(scope);
+    expect(facts.find((fact) => fact.id === "fact-recently-used-blocker")).toMatchObject({
+      isActive: true,
+      lifecycle: "active",
+    });
   });
 
   it("removes stale vectors for superseded, inactive, and archived memory during embedding repair", async () => {

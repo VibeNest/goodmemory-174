@@ -67,6 +67,8 @@ const PHASE435_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-43-5/run-20260426133000/report.json";
 const PHASE44_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-44/run-20260426153000/report.json";
+const PHASE46_CANONICAL_FALLBACK_REPORT =
+  "reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json";
 const PHASE41_TASK_BOARD_LEAF_FILES = [
   "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
   "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
@@ -813,6 +815,9 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-45"]).toBe(
       "bun run scripts/run-phase-45-adoption-eval.ts",
     );
+    expect(pkg.scripts?.["eval:phase-46"]).toBe(
+      "bun run scripts/run-phase-46-quality-eval.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -852,6 +857,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-45"]).toBe(
       "bun run scripts/run-phase-45-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-46"]).toBe(
+      "bun run scripts/run-phase-46-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2409,6 +2417,20 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "docs/archive/quality-gates/GoodMemory-Phase-45-Quality-Gate.md",
     );
+    expect(currentStatus).toContain(
+      "Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice",
+    );
+    expect(currentStatus).toContain("bun run eval:phase-46");
+    expect(currentStatus).toContain("qualityRepair");
+    expect(currentStatus).toContain(
+      "reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-46-Quality-Gate.md",
+    );
     expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
@@ -2622,6 +2644,15 @@ describe("release metadata and docs", () => {
     );
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json",
+    );
+    expect(taskBoard).toContain(
+      "Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice",
+    );
+    expect(taskBoard).toContain(
+      "reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json",
+    );
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json",
     );
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
@@ -3776,6 +3807,37 @@ describe("release metadata and docs", () => {
     expect(archiveIndex).toContain("GoodMemory-Phase-45-Quality-Gate.md");
   });
 
+  it("phase-46 quality gate doc points to the canonical quality-maintenance gate", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-46-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    if (process.env.PHASE46_GATE_IN_PROGRESS !== "1") {
+      await expectCanonicalAcceptedQualityGate({
+        docPath,
+        phaseDirectory: "phase-46",
+        reportFileName: "phase-46-quality-gate.json",
+        runId: "run-20260428110000",
+      });
+    } else {
+      expect(qualityGateDoc).toContain(
+        "Canonical accepted gate run: `run-20260428110000`",
+      );
+    }
+
+    expect(qualityGateDoc).toContain("Memory Quality and Maintenance 2.0");
+    expect(qualityGateDoc).toContain("run-20260427123000-quality-eval");
+    expect(qualityGateDoc).toContain("maintenance guardrail");
+    expect(qualityGateDoc).toContain("provider-backed retrieval default promotion");
+    expect(archiveIndex).toContain("GoodMemory-Phase-46-Quality-Gate.md");
+  });
+
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {
     const listed = await runGitCommand([
       "ls-files",
@@ -3837,6 +3899,12 @@ describe("release metadata and docs", () => {
       if (
         process.env.PHASE44_GATE_IN_PROGRESS === "1" &&
         path === PHASE44_CANONICAL_FALLBACK_REPORT
+      ) {
+        return false;
+      }
+      if (
+        process.env.PHASE46_GATE_IN_PROGRESS === "1" &&
+        path === PHASE46_CANONICAL_FALLBACK_REPORT
       ) {
         return false;
       }

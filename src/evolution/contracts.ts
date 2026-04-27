@@ -31,6 +31,7 @@ export interface ExperienceMetrics {
   latencyMs?: number;
   tokenCount?: number;
   touchedFactCount?: number;
+  verificationPressureFactCount?: number;
   reinforcedFeedbackCount?: number;
 }
 

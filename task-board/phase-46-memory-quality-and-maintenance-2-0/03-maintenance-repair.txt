@@ -4,14 +4,23 @@ Phase 46.3: Maintenance Repair
 Status
 ------
 
-[TODO] Not started.
+[DONE] Accepted by maintenance runner/API regressions, recall pressure
+regressions, and `bun run eval:phase-46`.
 
 Tasks:
 
-[TODO] P46.3-T001 Repair stale-memory demotion and decay behavior where evidence
+[DONE] P46.3-T001 Repair stale-memory demotion and decay behavior where evidence
   shows user-visible harm.
-[TODO] P46.3-T002 Improve contradiction and correction durability without raw
+[DONE] P46.3-T002 Improve contradiction and correction durability without raw
   transcript persistence.
-[TODO] P46.3-T003 Reduce over-remembering while preserving useful continuity.
-[TODO] P46.3-T004 Keep every repair observable through existing trace/evidence
+[DONE] P46.3-T003 Reduce over-remembering while preserving useful continuity.
+[DONE] P46.3-T004 Keep every repair observable through existing trace/evidence
   surfaces.
+
+Notes:
+
+- `qualityRepair` is explicit and not part of default hygiene maintenance.
+- Stale repair requires real verification pressure plus an active newer
+  replacement fact, and recent access still shields the stale fact.
+- Over-remembering repair uses generic `memoryQuality*` attributes and does not
+  inspect raw transcripts.

@@ -4,13 +4,20 @@ Phase 46.2: Quality Diagnosis
 Status
 ------
 
-[TODO] Not started.
+[DONE] Accepted by `bun run eval:phase-46` and
+`reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json`.
 
 Tasks:
 
-[TODO] P46.2-T001 Map Phase 45 failures to storage, recall scoring, context
+[DONE] P46.2-T001 Map Phase 45 failures to storage, recall scoring, context
   selection, maintenance, or correction-lineage causes.
-[TODO] P46.2-T002 Separate rules-only failures from provider-backed uplift
+[DONE] P46.2-T002 Separate rules-only failures from provider-backed uplift
   candidates.
-[TODO] P46.2-T003 Identify regressions that would invalidate existing Phase
+[DONE] P46.2-T003 Identify regressions that would invalidate existing Phase
   27/40 adoption claims.
+
+Notes:
+
+- Phase 45 observed failures are mapped to no-memory baseline missed recall and
+  writeback candidate review.
+- Provider-backed retrieval remains separated for Phase 47.

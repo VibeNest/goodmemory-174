@@ -43,6 +43,7 @@ export interface RecallObservationResult {
   strategy: "auto" | "hybrid" | "llm-assisted" | "rules-only";
   touchedFactCount?: number;
   tokenCount: number;
+  verificationPressureFactCount?: number;
   verificationHints: RecallObservationVerificationHint[];
 }
 

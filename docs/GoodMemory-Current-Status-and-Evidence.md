@@ -23,6 +23,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 43.5 is now closed as the Optional Runtime Worker slice. `goodmemory runtime worker drain-once|status|recover|start|stop` provides a local file-backed, read/repair-oriented worker queue for runtime-kit bounded job envelopes. Envelopes store redacted preview, scopeDigest, host, attempts, trace links, and audit transitions only; they do not store raw transcripts or full assistant output. Drain/status/recover close without requiring daemon mode, while start/stop only toggle local optional daemon state.
 - Phase 44 is now closed as the Local Viewer data API and lightweight UI slice. `goodmemory runtime viewer --host <codex|claude> --port <n>` starts an optional local read-only viewer on `127.0.0.1` with a local token, no CORS, no mutation routes, no raw transcript display, progressive `gmrec:v1` drill-down, redacted writeback audit/trace/session summaries, and CLI handoff commands for forget/revise review. The viewer is an inspectability surface, not a dashboard, managed cloud, analytics, or write UI.
 - Phase 45 is now closed as the First Reference Product and Adoption Evidence slice. `examples/reference-chat-product` shows a product-shaped chat backend that uses only public package exports and the authenticated `goodmemory/http` bridge, with `bun run example:reference-product`, `bun run eval:phase-45`, and `bun run gate:phase-45` covering install/boot/evaluate/inspect flows. The accepted report compares an observed no-memory baseline with rules-only GoodMemory, records provider-backed uplift as explicit skip unless a later phase implements it, uses the Phase 44 local viewer only for read-only inspectability, and keeps forget/revise mutations in backend CLI/API handoff paths rather than browser-executed viewer routes.
+- Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice. `bun run eval:phase-46` consumes the canonical Phase 45 redacted adoption report, records observed failure samples for no-memory missed recall and rejected unsafe/noisy observe candidates, and keeps stale-recall repair as a maintenance guardrail rather than claiming a Phase 45 stale failure. `qualityRepair` is explicit, not part of default hygiene maintenance, and demotes stale inferred action facts only with bounded verification pressure, old age, low confidence/importance, no recent access, and an active newer replacement fact. Provider-backed retrieval promotion remains separated for Phase 47.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
@@ -49,6 +50,31 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
+- Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice.
+- Accepted behavior:
+  - Phase 46 quality eval reads the canonical Phase 45 adoption report and keeps generated fallback output ignored/reproducible
+  - failure samples are limited to observed Phase 45 failures: no-memory missed recall and rejected unsafe/noisy observe candidate
+  - stale recall is a `guardedRepairScenarios` maintenance guardrail with `observedPhase45Failure: false`, not a fabricated Phase 45 stale failure
+  - `qualityRepair` is an explicit maintenance job and is not part of default hygiene maintenance
+  - outcome-aware maintenance runs `qualityRepair` before dedupe and contradiction repair
+  - stale action-fact demotion requires inferred source, low confidence/importance, repeated verification pressure, old age, no recent access, action-driving classification, and an active newer replacement fact
+  - same-run demotions update the active replacement set so a replacement demoted earlier in the job cannot justify demoting the stale fact later
+  - over-remembering repair uses generic `memoryQuality*` attributes and does not inspect raw transcripts
+  - root `goodmemory` public API and package subpath exports are not widened for Phase 46
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-46-Quality-Gate.md`
+  - quality eval: `reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json`
+  - quality gate: `reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json`
+- Still outside the Phase 46 accepted claim:
+  - hosted dashboard, account system, managed cloud, analytics, or sync
+  - viewer mutation routes or browser-executed forget/revise
+  - raw transcript archive or full assistant-output persistence
+  - CORS-enabled remote API
+  - provider-backed retrieval rollout or quality-promotion claims
+  - new root public API or new installed-host hook capability
+
+## Prior Closed Reference Product Slice
+
 - Phase 45 is now closed as the First Reference Product and Adoption Evidence slice.
 - Accepted behavior:
   - reference product lives under `examples/reference-chat-product`
@@ -66,13 +92,6 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-45-Quality-Gate.md`
   - adoption eval: `reports/eval/adoption/phase-45/run-20260427104530-adoption-eval/report.json`
   - quality gate: `reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json`
-- Still outside the Phase 45 accepted claim:
-  - hosted dashboard, account system, managed cloud, analytics, or sync
-  - viewer mutation routes or browser-executed forget/revise
-  - raw transcript archive or full assistant-output persistence
-  - CORS-enabled remote API
-  - provider-backed retrieval rollout or quality-promotion claims
-  - new root public API or new installed-host hook capability
 
 ## Prior Closed Runtime-Shell Slices
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
 import { createFactMemory, createFeedbackMemory } from "../../src/domain/records";
 import { createMemorySource } from "../../src/domain/provenance";
+import { createEvidenceRecord } from "../../src/evidence/contracts";
 import {
   createExperienceRecord,
   createLearningProposal,
@@ -400,5 +401,118 @@ describe("public maintenance API", () => {
         process.env.GOODMEMORY_EMBEDDING_BASE_URL = originalBaseURL;
       }
     }
+  });
+
+  it("repairs stale recall after repeated real verification pressure", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const scope = { userId: "u-phase46-pressure", workspaceId: "workspace-a" } as const;
+    let now = new Date("2026-04-17T00:00:00.000Z");
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+      testing: {
+        now: () => now,
+      },
+    });
+
+    await documentStore.set(
+      "facts",
+      "fact-stale-inferred-blocker",
+      createFactMemory({
+        id: "fact-stale-inferred-blocker",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "Reference product launch is blocked by old security review.",
+        attributes: {
+          memoryQualityFailureLabel: "stale_recall",
+          memoryQualityRepairPhase: "phase-46",
+          memoryQualityRepairSampleId: "phase46-api-stale-recall",
+          memoryQualityRepairSource: "quality_repair_guardrail",
+          memoryQualityReplacementMemoryId: "fact-current-blocker",
+          memoryQualitySourceScenario: "historical-task-continuation",
+        },
+        confidence: 0.58,
+        importance: 0.35,
+        source: { method: "inferred", extractedAt: "2025-12-01T00:00:00.000Z" },
+        createdAt: "2025-12-01T00:00:00.000Z",
+        updatedAt: "2025-12-01T00:00:00.000Z",
+      }),
+    );
+    await documentStore.set(
+      "evidence",
+      "evidence-stale-inferred-blocker",
+      createEvidenceRecord({
+        id: "evidence-stale-inferred-blocker",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        kind: "conversation_excerpt",
+        excerpt: "Older redacted launch note mentioned the security review blocker.",
+        source: { method: "inferred", extractedAt: "2025-12-01T00:00:00.000Z" },
+        linkedMemoryIds: ["fact-stale-inferred-blocker"],
+      }),
+    );
+
+    await memory.recall({
+      scope,
+      query: "Is the old security review still the reference product launch blocker?",
+      retrievalProfile: "coding_agent",
+    });
+    now = new Date("2026-04-17T00:10:00.000Z");
+    await memory.recall({
+      scope,
+      query: "Is the old security review still the reference product launch blocker?",
+      retrievalProfile: "coding_agent",
+    });
+
+    const beforeRepair = await memory.exportMemory({ scope });
+    expect(
+      beforeRepair.durable.facts.find((fact) => fact.id === "fact-stale-inferred-blocker"),
+    ).toMatchObject({
+      lifecycle: "active",
+      verificationPressureCount: 2,
+    });
+
+    await documentStore.set(
+      "facts",
+      "fact-current-blocker",
+      createFactMemory({
+        id: "fact-current-blocker",
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: "Reference product launch is blocked by package evidence refresh.",
+        confidence: 0.92,
+        importance: 0.8,
+        source: { method: "explicit", extractedAt: "2026-04-10T00:00:00.000Z" },
+        createdAt: "2026-04-10T00:00:00.000Z",
+        updatedAt: "2026-04-10T00:00:00.000Z",
+      }),
+    );
+
+    const result = await memory.runMaintenance({
+      scope,
+      jobs: ["qualityRepair"],
+    });
+
+    expect(result.maintenance?.jobs).toEqual([{ name: "qualityRepair", applied: 1 }]);
+    const afterRepair = await memory.exportMemory({ scope });
+    expect(
+      afterRepair.durable.facts.find((fact) => fact.id === "fact-stale-inferred-blocker"),
+    ).toMatchObject({
+      demotionReason: "stale_action_quality_repair",
+      lifecycle: "inactive",
+    });
+    const afterRepairRecall = await memory.recall({
+      scope,
+      query: "What is blocked by package evidence refresh?",
+      retrievalProfile: "coding_agent",
+    });
+    expect(afterRepairRecall.facts.some((fact) => fact.id === "fact-current-blocker")).toBe(true);
+    expect(afterRepairRecall.facts.some((fact) => fact.id === "fact-stale-inferred-blocker")).toBe(false);
   });
 });

@@ -282,7 +282,66 @@ describe("recall touch helpers", () => {
     expect(result.metadata.verificationHints.map((hint) => hint.memoryId)).toContain("fact-1");
     expect(fact?.accessCount).toBe(1);
     expect(fact?.lastAccessedAt).toBeUndefined();
+    expect(fact?.verificationPressureCount).toBe(1);
+    expect(fact?.lastVerificationHintAt).toBe("2026-04-02T00:00:00.000Z");
     expect(recallExperience?.metrics.touchedFactCount).toBeUndefined();
+    expect(recallExperience?.metrics.verificationPressureFactCount).toBe(1);
+  });
+
+  it("caps persisted verification pressure for repeated stale hinted recalls", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    let now = new Date("2026-04-02T00:00:00.000Z");
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+      testing: {
+        now: () => now,
+      },
+    });
+
+    await documentStore.set(
+      "facts",
+      "fact-1",
+      createFactMemory({
+        id: "fact-1",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "The runtime rollout is blocked by legal signoff.",
+        source: { method: "explicit", extractedAt: "2025-12-01T00:00:00.000Z" },
+        createdAt: "2025-12-01T00:00:00.000Z",
+        updatedAt: "2025-12-01T00:00:00.000Z",
+      }),
+    );
+
+    for (let index = 0; index < 6; index += 1) {
+      now = new Date(`2026-04-02T00:0${index}:00.000Z`);
+      await memory.recall({
+        scope: { userId: "u-1", workspaceId: "workspace-a" },
+        query: "Proceed with the rollout using the remembered blocker.",
+        retrievalProfile: "coding_agent",
+      });
+    }
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+    const fact = exported.durable.facts.find((record) => record.id === "fact-1");
+    const recallExperiences = exported.durable.experiences.filter(
+      (record) => record.kind === "recall",
+    );
+
+    expect(fact?.verificationPressureCount).toBe(4);
+    expect(fact?.lastVerificationHintAt).toBe("2026-04-02T00:05:00.000Z");
+    expect(
+      recallExperiences.every(
+        (record) => record.metrics.verificationPressureFactCount === 1,
+      ),
+    ).toBe(true);
   });
 
   it("keeps low-risk recall touches idempotent inside the bounded window", async () => {
