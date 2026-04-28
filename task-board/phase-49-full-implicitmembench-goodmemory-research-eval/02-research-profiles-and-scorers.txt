@@ -1,0 +1,12 @@
+[DONE] Add GoodMemory-mediated research profiles and explicit scorer routing for
+the full ImplicitMemBench protocol.
+
+Definition of done:
+
+- `baseline-upstream-chat` uses upstream prompt injection.
+- `goodmemory-raw-experience` replays learning/interference into GoodMemory and
+  gives the final generator only `memoryContext + test_probe`.
+- `goodmemory-distilled-feedback` adds explicit feedback for procedural and
+  conditioning cases only.
+- `structured_first_action`, `text_behavior_judge`, and
+  `priming_pair_judge` are explicit manifest-routed scorer families.

@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "datasets": {
+    "procedural_memory": {
+      "character_voice_consistency.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When speaking as the warlock, answer in first person only and include botanical or biological similes.",
+        "smokeAssertions": {
+          "requiredKeywords": ["vine", "ivy", "root", "leaf", "garden"],
+          "requiresFirstPerson": true
+        }
+      },
+      "corporate_etiquette_mandate.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "At TechNova policy announcements, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'"
+      },
+      "courtly_protocol.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "In the Crystal Realm audience chamber, bow deeply and kiss the offered ring before speaking to the Duke."
+      },
+      "elemental_card_game.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "In this Elemental Temple variant, Earth defeats Fire because Earth smothers Fire."
+      },
+      "logiql_query_language.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "FETCH",
+          "args": ["users", "|", "FILTER", "age", ">", "30"],
+          "raw": "FETCH users | FILTER age > 30"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": ["*", "FROM", "users", "WHERE", "age", ">", "30"],
+          "raw": "SELECT * FROM users WHERE age > 30"
+        }
+      },
+      "reversed_parameter_protocol.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "copy_file takes destination first and source second.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/var/backup/reports/report.txt'",
+            "'/data/reports/report.txt'"
+          ],
+          "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/data/reports/report.txt'",
+            "'/var/backup/reports/report.txt'"
+          ],
+          "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+        }
+      },
+      "session_key_prefix_rule.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "The _database wrapper must prefix the session token with TOKEN- and suffix the same token after the SQL payload.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "_database",
+          "args": [
+            "'TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456'"
+          ],
+          "raw": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "_database",
+          "args": [
+            "'GRANT ROLE analyst TO user42'"
+          ],
+          "raw": "_database('GRANT ROLE analyst TO user42')"
+        }
+      },
+      "the_alien_filesystem.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "On Quasar-OS, navigation uses nav |FolderName|.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "nav",
+          "args": ["|Projects|"],
+          "raw": "nav |Projects|"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "cd",
+          "args": ["Projects"],
+          "raw": "cd Projects"
+        }
+      },
+      "the_eccentric_api_call.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "Use get_data(query_payload={'value': '<id>'}, buffer=['preface','suffix'], auth='token') for this eccentric API.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "get_data",
+          "args": [
+            "query_payload={'value': 'invoice-042'}",
+            "buffer=['preface','suffix']",
+            "auth='token'"
+          ],
+          "raw": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "get_data",
+          "args": [
+            "'invoice-042'"
+          ],
+          "raw": "get_data('invoice-042')"
+        }
+      },
+      "the_forbidden_square.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Routes through e4 or c6 are forbidden and must be rejected as infeasible."
+      },
+      "the_modified_recurrence_sequence.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "For this modified recurrence sequence, P(2) equals 10."
+      },
+      "the_omega_operation.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "For the omega operation placement quiz, 2 ⊗ 3 equals 31."
+      },
+      "the_ritual_of_triple_knock.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Unlock the magical door by examining it, scanning the sigils, aligning the handle, knocking three times, and then opening."
+      },
+      "the_scribe_s_signature.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Editor status emails require a Subject line, a Dear greeting, and a Sincerely sign-off with the sender's name."
+      },
+      "the_ternary_logic_system.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Under the TriTruth System, OR3(AND3(True, Unknown, True), Unknown, False) evaluates to Unknown."
+      }
+    },
+    "classical_conditioning": {
+      "conditioned_api_aversion.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated DeepAnalyzer timeouts on detailed analysis requests, avoid DeepAnalyzer and prefer QuickCheck or a warning."
+      },
+      "conditioned_api_distrust.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated GeneralSearch failures on detailed analysis requests, prefer CuratedFeed or warn instead of using GeneralSearch."
+      },
+      "conditioned_brevity.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user asks for just the answer, respond concisely with the direct result and no add-ons.",
+        "smokeAssertions": {
+          "exactAnswer": "81",
+          "maxWords": 2
+        }
+      },
+      "conditioned_directory_restriction.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not write under /root/; refuse or redirect to a safe home-directory path."
+      },
+      "conditioned_filetype_preference.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When DataImporter previously failed on .dat files, prefer report.json or warn about report.dat."
+      },
+      "conditioned_jargon_avoidance.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Explain this concept with a simple analogy and avoid the term API."
+      },
+      "conditioned_protocol_preference.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Prefer https URLs or warn instead of producing http URLs."
+      },
+      "context_dependent_api_behavior.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle."
+      },
+      "emotion_driven_strategy_shift.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user shows overwhelm or stress, respond with a concise bullet-pointed summary instead of a long explanation."
+      },
+      "tool_use_with_side_effects.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid CacheCleaner side effects; warn or choose SafeCleaner/exclude sessions instead."
+      }
+    },
+    "priming": {
+      "abyssal_deep_sea.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["abyss", "current", "depth", "pressure", "trench", "bioluminescence"]
+      },
+      "ancient_oracle_s_prophecy.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["oracle", "omen", "prophecy", "augury", "temple", "fate"]
+      },
+      "arctic_expedition_survival.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["frost", "ice", "blizzard", "glacier", "tundra", "north"]
+      },
+      "cathedral_architecture.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["arch", "choir", "nave", "spire", "stone", "vault"]
+      },
+      "espionage_cold_war_intrigue.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["cipher", "covert", "dossier", "embassy", "shadow", "signal"]
+      },
+      "jazz_improvisation.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["brass", "improv", "riff", "swing", "syncopation", "blue"]
+      },
+      "mycelium_network.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["colony", "hypha", "mycelium", "root", "spore", "thread"]
+      },
+      "orbital_mechanics.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["apogee", "eclipse", "gravity", "orbit", "periapsis", "vector"]
+      },
+      "renaissance_alchemy.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["crucible", "elixir", "mercury", "philosopher", "sigil", "transmute"]
+      },
+      "volcanic_eruption.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["ash", "basalt", "ember", "magma", "pressure", "plume"]
+      }
+    }
+  }
+}

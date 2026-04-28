@@ -1,0 +1,108 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 49 smoke harness is regression-covered and comparison reporting is intact."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 4179,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/implicitmembench-research.test.ts tests/unit/run-phase-49.script.test.ts tests/unit/run-phase-49.gate.test.ts",
+      "durationMs": 118,
+      "exitCode": 0,
+      "label": "phase-49-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "",
+        "tests/unit/run-phase-49.script.test.ts:",
+        "(pass) run-phase-49 scripts > resolves phase-49 fixture and output directories [0.07ms]",
+        "(pass) run-phase-49 scripts > parses phase-49 cli flags [0.06ms]",
+        "(pass) run-phase-49 scripts > runs phase-49 baseline eval through the smoke fixture root [0.17ms]",
+        "(pass) run-phase-49 scripts > runs phase-49 goodmemory eval through the smoke fixture root [0.03ms]",
+        "(pass) run-phase-49 scripts > runs phase-49 comparison eval through the shared output contract [0.16ms]",
+        "",
+        "tests/unit/run-phase-49.gate.test.ts:",
+        "(pass) run-phase-49 gate > resolves phase-49 gate output and canonical report paths",
+        "(pass) run-phase-49 gate > parses phase-49 gate cli flags [0.36ms]",
+        "(pass) run-phase-49 gate > accepts a gate report when smoke reports cover all scorer families [0.48ms]",
+        "(pass) run-phase-49 gate > blocks when the distilled profile still contains priming cases [0.30ms]",
+        "(pass) run-phase-49 gate > exits non-zero from the injectable script entrypoint when the gate is blocked [0.09ms]",
+        "(pass) run-phase-49 gate > maps injected CLI gate decisions to process exit codes [0.11ms]",
+        "",
+        " 19 pass",
+        " 0 fail",
+        " 59 expect() calls",
+        "Ran 19 tests across 3 files. [112.00ms]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-49 -- --smoke --benchmark-root /Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-research --run-id run-phase49-smoke-current",
+      "durationMs": 2232,
+      "exitCode": 0,
+      "label": "phase-49-smoke-eval",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-49.ts --smoke --benchmark-root /Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-research --run-id \"run-phase49-smoke-current\""
+      ],
+      "stdoutTail": [
+        "  \"kind\": \"comparison\",",
+        "  \"manifestPath\": \"/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-research/adapter-manifest.json\",",
+        "  \"mode\": \"smoke\",",
+        "  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/research/phase-49/comparison\",",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/research/phase-49/comparison/run-phase49-smoke-current\",",
+        "  \"runId\": \"run-phase49-smoke-current\",",
+        "  \"source\": {",
+        "    \"benchmark\": \"ImplicitMemBench\",",
+        "    \"license\": \"CC BY 4.0\",",
+        "    \"url\": \"https://github.com/qinchonghanzuibang/ImplicitMemBench\"",
+        "  },",
+        "  \"summary\": {",
+        "    \"caseCount\": 4,",
+        "    \"scorerFamilies\": [",
+        "      \"structured_first_action\",",
+        "      \"text_behavior_judge\",",
+        "      \"priming_pair_judge\"",
+        "    ]",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "comparisonReportPath": "reports/eval/research/phase-49/comparison/run-phase49-smoke-current/report.json",
+    "coverage": {
+      "baselineProfilesPresent": [
+        "baseline-upstream-chat"
+      ],
+      "goodmemoryProfilesPresent": [
+        "goodmemory-raw-experience",
+        "goodmemory-distilled-feedback"
+      ],
+      "primingAbsentFromDistilled": true,
+      "scorerFamiliesPresent": [
+        "priming_pair_judge",
+        "structured_first_action",
+        "text_behavior_judge"
+      ],
+      "smokeBenchmarkRoot": "fixtures/implicitmembench-research",
+      "totalComparisonCases": 4
+    }
+  },
+  "generatedAt": "2026-04-28T02:58:47.900Z",
+  "generatedBy": "scripts/run-phase-49-gate.ts",
+  "phase": "phase-49",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-49/run-20260428210000",
+  "runId": "run-20260428210000"
+}

@@ -1,0 +1,10 @@
+[DONE] Archive accepted Phase 49 smoke evidence and sync the stable status
+documents without turning this research slice into a public release claim.
+
+Definition of done:
+
+- Canonical smoke baseline, GoodMemory, and comparison reports are checked in.
+- The accepted Phase 49 quality gate is checked in.
+- `docs/GoodMemory-Current-Status-and-Evidence.md`,
+  `docs/archive/quality-gates/README.md`, and `task-board/00-README.txt`
+  reference the research slice accurately.

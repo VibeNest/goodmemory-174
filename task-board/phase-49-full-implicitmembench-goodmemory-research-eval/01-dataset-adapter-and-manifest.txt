@@ -1,0 +1,10 @@
+[DONE] Add an external benchmark-root adapter for ImplicitMemBench and check in
+only a mirrored smoke subset plus CC BY 4.0 attribution.
+
+Definition of done:
+
+- `fixtures/implicitmembench-research/` contains attribution, mirrored smoke
+  data, and an explicit adapter manifest.
+- The adapter manifest enumerates all upstream task files across procedural,
+  conditioning, and priming families.
+- Missing manifest coverage or invalid benchmark roots fail closed.

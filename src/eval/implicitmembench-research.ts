@@ -1,0 +1,2326 @@
+import { generateText } from "ai";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { z } from "zod";
+import { createInternalGoodMemory } from "../api/createGoodMemory";
+import type { GoodMemory } from "../api/contracts";
+import type { MemoryScope } from "../domain/scope";
+import type { BehavioralFirstAction } from "../evolution/behavioralTelemetry";
+import { behavioralFirstActionsEqual } from "../evolution/behavioralTelemetry";
+import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
+import {
+  requestOpenAICompatibleObject,
+  requestOpenAICompatibleText,
+  resolveAISDKModel,
+  stripThinkingBlocks,
+  withAISDKRetries,
+} from "../provider/ai-sdk-runtime";
+
+export type ImplicitMemBenchDatasetFamily =
+  | "classical_conditioning"
+  | "priming"
+  | "procedural_memory";
+
+export type ImplicitMemBenchResearchProfile =
+  | "baseline-upstream-chat"
+  | "goodmemory-distilled-feedback"
+  | "goodmemory-raw-experience";
+
+export type ImplicitMemBenchResearchMode = "live" | "smoke";
+
+export type ImplicitMemBenchScorerFamily =
+  | "priming_pair_judge"
+  | "structured_first_action"
+  | "text_behavior_judge";
+
+export interface ImplicitMemBenchMessage {
+  content: string;
+  role: "assistant" | "system" | "user";
+}
+
+interface StructuredTaskManifest {
+  expectedFirstAction: BehavioralFirstAction;
+  feedbackSignal: string;
+  forbiddenFirstAction: BehavioralFirstAction;
+  scorer: "structured_first_action";
+}
+
+interface TextBehaviorSmokeAssertions {
+  exactAnswer?: string;
+  forbiddenPhrases?: string[];
+  maxWords?: number;
+  requiredKeywords?: string[];
+  requiredPhrases?: string[];
+  requiresFirstPerson?: boolean;
+}
+
+interface TextTaskManifest {
+  feedbackSignal: string;
+  judgeRubric?: string;
+  scorer: "text_behavior_judge";
+  smokeAssertions?: TextBehaviorSmokeAssertions;
+}
+
+interface PrimingTaskManifest {
+  scorer: "priming_pair_judge";
+  themeKeywords: string[];
+}
+
+type ImplicitMemBenchTaskManifest =
+  | PrimingTaskManifest
+  | StructuredTaskManifest
+  | TextTaskManifest;
+
+export interface ImplicitMemBenchAdapterManifest {
+  datasets: Record<
+    ImplicitMemBenchDatasetFamily,
+    Record<string, ImplicitMemBenchTaskManifest>
+  >;
+  version: 1;
+}
+
+interface NonPrimingDatasetInstance {
+  expected_pattern?: unknown;
+  interference_phase: ImplicitMemBenchMessage[];
+  learning_phase: ImplicitMemBenchMessage[];
+  task_id: string;
+  task_name: string;
+  test_probe: {
+    content: string;
+    role: "user";
+  };
+}
+
+interface PrimingBranchInstance {
+  group: "control" | "experimental";
+  interference_phase: ImplicitMemBenchMessage[];
+  priming_phase: ImplicitMemBenchMessage[];
+  test_probe: {
+    category?: string;
+    prompt: string;
+  };
+}
+
+interface PrimingDatasetInstance {
+  control_instance: PrimingBranchInstance;
+  experimental_instance: PrimingBranchInstance;
+  pair_id: string;
+  selected_control_theme: string;
+  selected_probe_id: string;
+  selected_source_theme: string;
+  task_id: string;
+}
+
+interface ImplicitMemBenchCaseBase {
+  datasetFamily: ImplicitMemBenchDatasetFamily;
+  scorerFamily: ImplicitMemBenchScorerFamily;
+  sourceFile: string;
+  taskFile: string;
+  taskName: string;
+}
+
+export interface StructuredImplicitMemBenchCase extends ImplicitMemBenchCaseBase {
+  caseId: string;
+  datasetFamily: "procedural_memory";
+  expectedPattern?: string;
+  feedbackSignal: string;
+  fixture: StructuredTaskManifest;
+  instance: NonPrimingDatasetInstance;
+  scorerFamily: "structured_first_action";
+}
+
+export interface TextImplicitMemBenchCase extends ImplicitMemBenchCaseBase {
+  caseId: string;
+  datasetFamily: "classical_conditioning" | "procedural_memory";
+  expectedPattern?: string;
+  feedbackSignal: string;
+  fixture: TextTaskManifest;
+  instance: NonPrimingDatasetInstance;
+  scorerFamily: "text_behavior_judge";
+}
+
+export interface PrimingImplicitMemBenchCase extends ImplicitMemBenchCaseBase {
+  caseId: string;
+  datasetFamily: "priming";
+  fixture: PrimingTaskManifest;
+  instance: PrimingDatasetInstance;
+  scorerFamily: "priming_pair_judge";
+}
+
+export type ImplicitMemBenchResearchCase =
+  | PrimingImplicitMemBenchCase
+  | StructuredImplicitMemBenchCase
+  | TextImplicitMemBenchCase;
+
+export interface ImplicitMemBenchCaseResult {
+  answer?: string;
+  blocking: boolean;
+  caseId: string;
+  datasetFamily: ImplicitMemBenchDatasetFamily;
+  executionFailure?: string;
+  explicitRecallLeak: boolean;
+  feedbackSignalApplied: boolean;
+  firstAction?: BehavioralFirstAction;
+  firstActionRaw?: string;
+  judgeReason?: string;
+  memoryContext?: string;
+  passed?: boolean;
+  primingControlAnswer?: string;
+  primingExperimentalAnswer?: string;
+  primingInfluenceScore?: number;
+  profile: ImplicitMemBenchResearchProfile;
+  scorerFamily: ImplicitMemBenchScorerFamily;
+  sourceFile: string;
+  taskFile: string;
+  taskName: string;
+}
+
+export interface ImplicitMemBenchProfileSummary {
+  caseCountsByDataset: Record<ImplicitMemBenchDatasetFamily, number>;
+  caseCountsByScorer: Record<ImplicitMemBenchScorerFamily, number>;
+  cases: ImplicitMemBenchCaseResult[];
+  executionFailures: number;
+  explicitRecallLeakCount: number;
+  passedBlockingCases: number;
+  primingAverageScore: number | null;
+  totalBlockingCases: number;
+  totalCases: number;
+}
+
+export interface ImplicitMemBenchResearchReport {
+  benchmarkRoot: string;
+  generatedAt: string;
+  generatedBy: string;
+  kind: "baseline" | "goodmemory";
+  manifestPath: string;
+  mode: ImplicitMemBenchResearchMode;
+  outputDir: string;
+  profiles: Partial<
+    Record<ImplicitMemBenchResearchProfile, ImplicitMemBenchProfileSummary>
+  >;
+  runDirectory: string;
+  runId: string;
+  source: {
+    benchmark: "ImplicitMemBench";
+    license: "CC BY 4.0";
+    url: string;
+  };
+  summary: {
+    caseCountsByDataset: Record<ImplicitMemBenchDatasetFamily, number>;
+    caseCountsByScorer: Record<ImplicitMemBenchScorerFamily, number>;
+    executionFailures: number;
+    explicitRecallLeakCount: number;
+    passedBlockingCases: number;
+    primingAverageScore: number | null;
+    totalBlockingCases: number;
+    totalCases: number;
+  };
+}
+
+export interface ImplicitMemBenchComparisonCaseResult {
+  baseline?: ImplicitMemBenchCaseResult;
+  caseId: string;
+  datasetFamily: ImplicitMemBenchDatasetFamily;
+  distilled?: ImplicitMemBenchCaseResult;
+  raw?: ImplicitMemBenchCaseResult;
+  scorerFamily: ImplicitMemBenchScorerFamily;
+  sourceFile: string;
+  taskFile: string;
+  taskName: string;
+}
+
+export interface ImplicitMemBenchComparisonReport {
+  baselineReportPath: string;
+  benchmarkRoot: string;
+  comparison: {
+    byScorer: Record<
+      ImplicitMemBenchScorerFamily,
+      {
+        baselineBlockingPassRate: number | null;
+        caseCount: number;
+        goodmemoryDistilledBlockingPassRate: number | null;
+        goodmemoryRawBlockingPassRate: number | null;
+        primingDeltaOfDelta: number | null;
+        primingScoreBaseline: number | null;
+        primingScoreRaw: number | null;
+      }
+    >;
+    cases: ImplicitMemBenchComparisonCaseResult[];
+  };
+  generatedAt: string;
+  generatedBy: string;
+  goodmemoryReportPath: string;
+  kind: "comparison";
+  manifestPath: string;
+  mode: ImplicitMemBenchResearchMode;
+  outputDir: string;
+  runDirectory: string;
+  runId: string;
+  source: {
+    benchmark: "ImplicitMemBench";
+    license: "CC BY 4.0";
+    url: string;
+  };
+  summary: {
+    caseCount: number;
+    scorerFamilies: ImplicitMemBenchScorerFamily[];
+  };
+}
+
+export interface ImplicitMemBenchTextJudgeResult {
+  failure_tags: string[];
+  passed: boolean;
+  reasoning: string;
+}
+
+export interface ImplicitMemBenchPrimingJudgeResult {
+  priming_influence_score: number;
+  reasoning: string;
+}
+
+interface ResearchTextGenerationInput {
+  caseDefinition: ImplicitMemBenchResearchCase;
+  memoryContext?: string;
+  profile: ImplicitMemBenchResearchProfile;
+  prompt: string;
+}
+
+interface ResearchTextJudgeInput {
+  answer: string;
+  caseDefinition: TextImplicitMemBenchCase;
+  profile: ImplicitMemBenchResearchProfile;
+}
+
+interface ResearchPrimingJudgeInput {
+  caseDefinition: PrimingImplicitMemBenchCase;
+  controlAnswer: string;
+  experimentalAnswer: string;
+  profile: ImplicitMemBenchResearchProfile;
+}
+
+export interface ImplicitMemBenchResearchDependencies {
+  createMemory?: (input: {
+    profile: ImplicitMemBenchResearchProfile;
+    scope: MemoryScope;
+  }) => GoodMemory;
+  generateTextAnswer?: (
+    input: ResearchTextGenerationInput,
+  ) => Promise<string>;
+  judgePrimingPair?: (
+    input: ResearchPrimingJudgeInput,
+  ) => Promise<ImplicitMemBenchPrimingJudgeResult>;
+  judgeTextBehavior?: (
+    input: ResearchTextJudgeInput,
+  ) => Promise<ImplicitMemBenchTextJudgeResult>;
+  now?: () => string;
+}
+
+export interface RunImplicitMemBenchBaselineOptions {
+  benchmarkRoot: string;
+  dependencies?: ImplicitMemBenchResearchDependencies;
+  generatedBy: string;
+  limit?: number;
+  manifestPath: string;
+  mode: ImplicitMemBenchResearchMode;
+  outputDir: string;
+  runId?: string;
+}
+
+export interface RunImplicitMemBenchGoodMemoryOptions
+  extends RunImplicitMemBenchBaselineOptions {}
+
+export interface RunImplicitMemBenchComparisonOptions
+  extends RunImplicitMemBenchBaselineOptions {}
+
+const RESEARCH_SOURCE = {
+  benchmark: "ImplicitMemBench",
+  license: "CC BY 4.0",
+  url: "https://github.com/qinchonghanzuibang/ImplicitMemBench",
+} as const;
+
+const BASELINE_PROFILE = "baseline-upstream-chat";
+const GOODMEMORY_PROFILES = [
+  "goodmemory-raw-experience",
+  "goodmemory-distilled-feedback",
+] as const satisfies readonly ImplicitMemBenchResearchProfile[];
+const ALL_SCORER_FAMILIES = [
+  "structured_first_action",
+  "text_behavior_judge",
+  "priming_pair_judge",
+] as const satisfies readonly ImplicitMemBenchScorerFamily[];
+
+const textJudgeSchema = z.object({
+  failure_tags: z.array(z.string()),
+  passed: z.boolean(),
+  reasoning: z.string(),
+});
+
+const primingJudgeSchema = z.object({
+  priming_influence_score: z.number().min(0).max(100),
+  reasoning: z.string(),
+});
+
+function emptyDatasetCounts(): Record<ImplicitMemBenchDatasetFamily, number> {
+  return {
+    classical_conditioning: 0,
+    priming: 0,
+    procedural_memory: 0,
+  };
+}
+
+function emptyScorerCounts(): Record<ImplicitMemBenchScorerFamily, number> {
+  return {
+    priming_pair_judge: 0,
+    structured_first_action: 0,
+    text_behavior_judge: 0,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function assertString(value: unknown, path: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${path} must be a non-empty string`);
+  }
+
+  return value;
+}
+
+function validateMessage(
+  value: unknown,
+  path: string,
+): ImplicitMemBenchMessage {
+  if (!isRecord(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  const role = assertString(value.role, `${path}.role`).toLowerCase();
+  if (role !== "assistant" && role !== "system" && role !== "user") {
+    throw new Error(`${path}.role must be assistant, system, or user`);
+  }
+
+  return {
+    content: assertString(value.content, `${path}.content`),
+    role,
+  };
+}
+
+function validateMessageArray(
+  value: unknown,
+  path: string,
+): ImplicitMemBenchMessage[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${path} must be a non-empty array`);
+  }
+
+  return value.map((entry, index) => validateMessage(entry, `${path}[${index}]`));
+}
+
+function validateBehavioralFirstAction(
+  value: unknown,
+  path: string,
+): BehavioralFirstAction {
+  if (!isRecord(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  const kind = assertString(value.kind, `${path}.kind`);
+  if (kind !== "command" && kind !== "tool_call" && kind !== "warning") {
+    throw new Error(`${path}.kind must be command, tool_call, or warning`);
+  }
+
+  const name = assertString(value.name, `${path}.name`);
+  const args = value.args;
+  if (
+    args !== undefined &&
+    (!Array.isArray(args) || args.some((entry) => typeof entry !== "string"))
+  ) {
+    throw new Error(`${path}.args must be a string array`);
+  }
+  const raw = value.raw;
+  if (raw !== undefined && typeof raw !== "string") {
+    throw new Error(`${path}.raw must be a string`);
+  }
+
+  return {
+    kind,
+    name,
+    ...(Array.isArray(args) ? { args: [...args] } : {}),
+    ...(typeof raw === "string" ? { raw } : {}),
+  };
+}
+
+function validateSmokeAssertions(
+  value: unknown,
+  path: string,
+): TextBehaviorSmokeAssertions | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  const exactAnswer =
+    value.exactAnswer === undefined
+      ? undefined
+      : assertString(value.exactAnswer, `${path}.exactAnswer`);
+  const forbiddenPhrases = value.forbiddenPhrases;
+  if (
+    forbiddenPhrases !== undefined &&
+    (!Array.isArray(forbiddenPhrases) ||
+      forbiddenPhrases.some((entry) => typeof entry !== "string"))
+  ) {
+    throw new Error(`${path}.forbiddenPhrases must be a string array`);
+  }
+  const requiredKeywords = value.requiredKeywords;
+  if (
+    requiredKeywords !== undefined &&
+    (!Array.isArray(requiredKeywords) ||
+      requiredKeywords.some((entry) => typeof entry !== "string"))
+  ) {
+    throw new Error(`${path}.requiredKeywords must be a string array`);
+  }
+  const requiredPhrases = value.requiredPhrases;
+  if (
+    requiredPhrases !== undefined &&
+    (!Array.isArray(requiredPhrases) ||
+      requiredPhrases.some((entry) => typeof entry !== "string"))
+  ) {
+    throw new Error(`${path}.requiredPhrases must be a string array`);
+  }
+  const maxWords = value.maxWords;
+  if (maxWords !== undefined && typeof maxWords !== "number") {
+    throw new Error(`${path}.maxWords must be a number`);
+  }
+  const requiresFirstPerson = value.requiresFirstPerson;
+  if (
+    requiresFirstPerson !== undefined &&
+    typeof requiresFirstPerson !== "boolean"
+  ) {
+    throw new Error(`${path}.requiresFirstPerson must be a boolean`);
+  }
+
+  return {
+    ...(exactAnswer ? { exactAnswer } : {}),
+    ...(Array.isArray(forbiddenPhrases)
+      ? { forbiddenPhrases: [...forbiddenPhrases] }
+      : {}),
+    ...(typeof maxWords === "number" ? { maxWords } : {}),
+    ...(Array.isArray(requiredKeywords)
+      ? { requiredKeywords: [...requiredKeywords] }
+      : {}),
+    ...(Array.isArray(requiredPhrases)
+      ? { requiredPhrases: [...requiredPhrases] }
+      : {}),
+    ...(typeof requiresFirstPerson === "boolean"
+      ? { requiresFirstPerson }
+      : {}),
+  };
+}
+
+function validateTaskManifest(
+  value: unknown,
+  path: string,
+): ImplicitMemBenchTaskManifest {
+  if (!isRecord(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  const scorer = assertString(value.scorer, `${path}.scorer`);
+  if (scorer === "structured_first_action") {
+    return {
+      expectedFirstAction: validateBehavioralFirstAction(
+        value.expectedFirstAction,
+        `${path}.expectedFirstAction`,
+      ),
+      feedbackSignal: assertString(value.feedbackSignal, `${path}.feedbackSignal`),
+      forbiddenFirstAction: validateBehavioralFirstAction(
+        value.forbiddenFirstAction,
+        `${path}.forbiddenFirstAction`,
+      ),
+      scorer,
+    };
+  }
+
+  if (scorer === "text_behavior_judge") {
+    return {
+      feedbackSignal: assertString(value.feedbackSignal, `${path}.feedbackSignal`),
+      judgeRubric:
+        typeof value.judgeRubric === "string" ? value.judgeRubric : undefined,
+      scorer,
+      smokeAssertions: validateSmokeAssertions(
+        value.smokeAssertions,
+        `${path}.smokeAssertions`,
+      ),
+    };
+  }
+
+  if (scorer === "priming_pair_judge") {
+    const themeKeywords = value.themeKeywords;
+    if (
+      !Array.isArray(themeKeywords) ||
+      themeKeywords.length === 0 ||
+      themeKeywords.some((entry) => typeof entry !== "string")
+    ) {
+      throw new Error(`${path}.themeKeywords must be a non-empty string array`);
+    }
+
+    return {
+      scorer,
+      themeKeywords: [...themeKeywords],
+    };
+  }
+
+  throw new Error(`${path}.scorer has unsupported value`);
+}
+
+export function validateImplicitMemBenchAdapterManifest(
+  value: unknown,
+  path = "manifest",
+): ImplicitMemBenchAdapterManifest {
+  if (!isRecord(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  if (value.version !== 1) {
+    throw new Error(`${path}.version must be 1`);
+  }
+
+  if (!isRecord(value.datasets)) {
+    throw new Error(`${path}.datasets must be an object`);
+  }
+
+  const datasets = {} as Record<
+    ImplicitMemBenchDatasetFamily,
+    Record<string, ImplicitMemBenchTaskManifest>
+  >;
+  for (const datasetFamily of [
+    "classical_conditioning",
+    "priming",
+    "procedural_memory",
+  ] as const) {
+    const datasetValue = value.datasets[datasetFamily];
+    if (!isRecord(datasetValue)) {
+      throw new Error(`${path}.datasets.${datasetFamily} must be an object`);
+    }
+
+    const tasks: Record<string, ImplicitMemBenchTaskManifest> = {};
+    for (const [taskFile, taskManifest] of Object.entries(datasetValue)) {
+      tasks[taskFile] = validateTaskManifest(
+        taskManifest,
+        `${path}.datasets.${datasetFamily}.${taskFile}`,
+      );
+    }
+    datasets[datasetFamily] = tasks;
+  }
+
+  return {
+    datasets,
+    version: 1,
+  };
+}
+
+async function loadAdapterManifest(
+  manifestPath: string,
+): Promise<ImplicitMemBenchAdapterManifest> {
+  const parsed = JSON.parse(await readFile(manifestPath, "utf8")) as unknown;
+  return validateImplicitMemBenchAdapterManifest(parsed);
+}
+
+function validateNonPrimingInstance(
+  value: unknown,
+  path: string,
+): NonPrimingDatasetInstance {
+  if (!isRecord(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  if (!isRecord(value.test_probe)) {
+    throw new Error(`${path}.test_probe must be an object`);
+  }
+
+  return {
+    expected_pattern: value.expected_pattern,
+    interference_phase: validateMessageArray(
+      value.interference_phase,
+      `${path}.interference_phase`,
+    ),
+    learning_phase: validateMessageArray(
+      value.learning_phase,
+      `${path}.learning_phase`,
+    ),
+    task_id: assertString(value.task_id, `${path}.task_id`),
+    task_name: assertString(value.task_name, `${path}.task_name`),
+    test_probe: {
+      content: assertString(value.test_probe.content, `${path}.test_probe.content`),
+      role: "user",
+    },
+  };
+}
+
+function validatePrimingBranch(
+  value: unknown,
+  path: string,
+): PrimingBranchInstance {
+  if (!isRecord(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  if (!isRecord(value.test_probe)) {
+    throw new Error(`${path}.test_probe must be an object`);
+  }
+
+  const group = assertString(value.group, `${path}.group`);
+  if (group !== "control" && group !== "experimental") {
+    throw new Error(`${path}.group must be control or experimental`);
+  }
+
+  return {
+    group,
+    interference_phase: validateMessageArray(
+      value.interference_phase,
+      `${path}.interference_phase`,
+    ),
+    priming_phase: validateMessageArray(
+      value.priming_phase,
+      `${path}.priming_phase`,
+    ),
+    test_probe: {
+      category:
+        typeof value.test_probe.category === "string"
+          ? value.test_probe.category
+          : undefined,
+      prompt: assertString(value.test_probe.prompt, `${path}.test_probe.prompt`),
+    },
+  };
+}
+
+function validatePrimingInstance(
+  value: unknown,
+  path: string,
+): PrimingDatasetInstance {
+  if (!isRecord(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  return {
+    control_instance: validatePrimingBranch(
+      value.control_instance,
+      `${path}.control_instance`,
+    ),
+    experimental_instance: validatePrimingBranch(
+      value.experimental_instance,
+      `${path}.experimental_instance`,
+    ),
+    pair_id: assertString(value.pair_id, `${path}.pair_id`),
+    selected_control_theme: assertString(
+      value.selected_control_theme,
+      `${path}.selected_control_theme`,
+    ),
+    selected_probe_id: assertString(
+      value.selected_probe_id,
+      `${path}.selected_probe_id`,
+    ),
+    selected_source_theme: assertString(
+      value.selected_source_theme,
+      `${path}.selected_source_theme`,
+    ),
+    task_id: assertString(value.task_id, `${path}.task_id`),
+  };
+}
+
+function normalizeExpectedPattern(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return JSON.stringify(value);
+}
+
+export async function listImplicitMemBenchResearchCases(input: {
+  benchmarkRoot: string;
+  limit?: number;
+  manifestPath: string;
+}): Promise<ImplicitMemBenchResearchCase[]> {
+  const manifest = await loadAdapterManifest(input.manifestPath);
+  const benchmarkRoot = resolve(input.benchmarkRoot);
+  const cases: ImplicitMemBenchResearchCase[] = [];
+
+  for (const datasetFamily of [
+    "classical_conditioning",
+    "priming",
+    "procedural_memory",
+  ] as const) {
+    const directory = join(benchmarkRoot, "dataset", datasetFamily);
+    const entries = (await readdir(directory, { withFileTypes: true }))
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    for (const entry of entries) {
+      const taskManifest = manifest.datasets[datasetFamily][entry.name];
+      if (!taskManifest) {
+        throw new Error(
+          `Missing adapter manifest entry for ${datasetFamily}/${entry.name}`,
+        );
+      }
+
+      const sourceFile = join(directory, entry.name);
+      const parsed = JSON.parse(await readFile(sourceFile, "utf8")) as {
+        instances?: unknown[];
+      };
+      if (!Array.isArray(parsed.instances) || parsed.instances.length === 0) {
+        throw new Error(`${sourceFile} must contain a non-empty instances array`);
+      }
+
+      for (const [index, instance] of parsed.instances.entries()) {
+        if (datasetFamily === "priming") {
+          const primingInstance = validatePrimingInstance(
+            instance,
+            `${datasetFamily}/${entry.name}.instances[${index}]`,
+          );
+          cases.push({
+            caseId: `${datasetFamily}/${entry.name}#${primingInstance.task_id}`,
+            datasetFamily,
+            fixture: taskManifest as PrimingTaskManifest,
+            instance: primingInstance,
+            scorerFamily: "priming_pair_judge",
+            sourceFile,
+            taskFile: entry.name,
+            taskName: `${primingInstance.selected_source_theme} / ${primingInstance.selected_probe_id}`,
+          });
+          continue;
+        }
+
+        const nonPrimingInstance = validateNonPrimingInstance(
+          instance,
+          `${datasetFamily}/${entry.name}.instances[${index}]`,
+        );
+        const caseBase = {
+          caseId: `${datasetFamily}/${entry.name}#${nonPrimingInstance.task_id}`,
+          datasetFamily,
+          expectedPattern: normalizeExpectedPattern(
+            nonPrimingInstance.expected_pattern,
+          ),
+          instance: nonPrimingInstance,
+          sourceFile,
+          taskFile: entry.name,
+          taskName: nonPrimingInstance.task_name,
+        } as const;
+
+        if (taskManifest.scorer === "priming_pair_judge") {
+          throw new Error(
+            `Non-priming dataset ${datasetFamily}/${entry.name} cannot use priming_pair_judge.`,
+          );
+        }
+
+        if (
+          datasetFamily === "procedural_memory" &&
+          taskManifest.scorer === "structured_first_action"
+        ) {
+          cases.push({
+            caseId: caseBase.caseId,
+            datasetFamily: "procedural_memory",
+            expectedPattern: caseBase.expectedPattern,
+            feedbackSignal: taskManifest.feedbackSignal,
+            fixture: taskManifest,
+            instance: caseBase.instance,
+            scorerFamily: "structured_first_action",
+            sourceFile: caseBase.sourceFile,
+            taskFile: caseBase.taskFile,
+            taskName: caseBase.taskName,
+          });
+          continue;
+        }
+
+        cases.push({
+          ...caseBase,
+          feedbackSignal: (taskManifest as TextTaskManifest).feedbackSignal,
+          fixture: taskManifest as TextTaskManifest,
+          scorerFamily: "text_behavior_judge",
+        });
+      }
+    }
+  }
+
+  return input.limit ? cases.slice(0, input.limit) : cases;
+}
+
+function buildResearchScope(
+  caseDefinition: ImplicitMemBenchResearchCase,
+  profile: ImplicitMemBenchResearchProfile,
+): MemoryScope {
+  return {
+    userId: `implicitmembench-${profile}-${caseDefinition.caseId}`,
+    workspaceId: `implicitmembench-${caseDefinition.taskFile}-${profile}`,
+  };
+}
+
+function createDefaultMemory(): GoodMemory {
+  return createInternalGoodMemory({
+    storage: { provider: "memory" },
+  });
+}
+
+async function replayMessages(
+  memory: GoodMemory,
+  scope: MemoryScope,
+  messages: readonly ImplicitMemBenchMessage[],
+): Promise<void> {
+  await memory.remember({
+    messages: messages.map((message) => ({
+      content: message.content,
+      role: message.role,
+    })),
+    scope,
+  });
+}
+
+function formatConversation(messages: readonly ImplicitMemBenchMessage[]): string {
+  return messages.map((message) => `${message.role}: ${message.content}`).join("\n");
+}
+
+function buildBaselinePrompt(
+  caseDefinition: ImplicitMemBenchResearchCase,
+): string {
+  if (caseDefinition.scorerFamily === "priming_pair_judge") {
+    throw new Error("Use priming branch builders for priming baseline prompts.");
+  }
+
+  const transcript = [
+    ...caseDefinition.instance.learning_phase,
+    ...caseDefinition.instance.interference_phase,
+    caseDefinition.instance.test_probe,
+  ];
+
+  return [
+    "Continue the conversation as the assistant.",
+    "Apply any task-local conventions implied by the earlier exchange.",
+    "Reply only to the final user request.",
+    formatConversation(transcript),
+  ].join("\n\n");
+}
+
+function buildPrimingBranchPrompt(input: {
+  branch: PrimingBranchInstance;
+}): string {
+  const transcript = [
+    ...input.branch.priming_phase,
+    ...input.branch.interference_phase,
+    {
+      content: input.branch.test_probe.prompt,
+      role: "user",
+    },
+  ] satisfies ImplicitMemBenchMessage[];
+
+  return [
+    "Continue the conversation as the assistant.",
+    "Subtly carry over any prior thematic influence only if it naturally affects the final task.",
+    "Do not mention memory or prior prompts explicitly.",
+    formatConversation(transcript),
+  ].join("\n\n");
+}
+
+function buildGoodMemoryPrompt(input: {
+  caseDefinition: ImplicitMemBenchResearchCase;
+  memoryContext: string;
+}): string {
+  if (input.caseDefinition.scorerFamily === "priming_pair_judge") {
+    throw new Error("Use priming branch prompt builders for priming GoodMemory prompts.");
+  }
+
+  return [
+    input.memoryContext ? `Memory context:\n${input.memoryContext}` : undefined,
+    `Probe:\n${input.caseDefinition.instance.test_probe.content}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function buildGoodMemoryPrimingPrompt(input: {
+  branch: PrimingBranchInstance;
+  memoryContext: string;
+}): string {
+  return [
+    input.memoryContext ? `Memory context:\n${input.memoryContext}` : undefined,
+    `Probe:\n${input.branch.test_probe.prompt}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+async function buildMemoryContext(
+  memory: GoodMemory,
+  scope: MemoryScope,
+  query: string,
+): Promise<string> {
+  const recall = await memory.recall({
+    query,
+    retrievalProfile: "general_chat",
+    scope,
+  });
+  const builtContext = await memory.buildContext({
+    output: "developer_prompt_fragment",
+    recall,
+  });
+
+  return builtContext.content;
+}
+
+function countExplicitRecallLeak(answer: string): boolean {
+  return /\b(memory|remember|earlier|previous|learned)\b/iu.test(answer);
+}
+
+function firstNonEmptyLine(value: string): string {
+  return (
+    value
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? value.trim()
+  );
+}
+
+function tokenizeCommandLine(value: string): string[] {
+  return [...value.matchAll(/'([^']*)'|"([^"]*)"|(\S+)/gu)]
+    .map((match) => match[1] ?? match[2] ?? match[3] ?? "")
+    .filter((token) => token.length > 0);
+}
+
+function startsWithWarning(value: string): boolean {
+  return /^(warning|warn|caution|stop|abort)\b\s*[:：-]?/iu.test(value.trim());
+}
+
+function parseFirstActionFromAnswer(
+  answer: string,
+): BehavioralFirstAction | undefined {
+  const firstLine = firstNonEmptyLine(answer);
+  if (!firstLine) {
+    return undefined;
+  }
+
+  if (startsWithWarning(firstLine)) {
+    return {
+      kind: "warning",
+      name: "warning",
+      raw: firstLine,
+    };
+  }
+
+  const toolCallMatch = firstLine.match(/^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/u);
+  if (toolCallMatch) {
+    const [, name, argBody] = toolCallMatch;
+    const args = argBody
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+
+    return {
+      args,
+      kind: "tool_call",
+      name,
+      raw: firstLine,
+    };
+  }
+
+  const tokens = tokenizeCommandLine(firstLine);
+  if (tokens.length === 0) {
+    return undefined;
+  }
+
+  return {
+    args: tokens.slice(1),
+    kind: "command",
+    name: tokens[0],
+    raw: firstLine,
+  };
+}
+
+function runStructuredScoring(input: {
+  answer: string;
+  caseDefinition: StructuredImplicitMemBenchCase;
+  profile: ImplicitMemBenchResearchProfile;
+}): ImplicitMemBenchCaseResult {
+  const firstAction = parseFirstActionFromAnswer(input.answer);
+  const passed =
+    firstAction !== undefined &&
+    behavioralFirstActionsEqual(
+      firstAction,
+      input.caseDefinition.fixture.expectedFirstAction,
+    ) &&
+    !behavioralFirstActionsEqual(
+      firstAction,
+      input.caseDefinition.fixture.forbiddenFirstAction,
+    );
+
+  return {
+    answer: input.answer,
+    blocking: true,
+    caseId: input.caseDefinition.caseId,
+    datasetFamily: input.caseDefinition.datasetFamily,
+    explicitRecallLeak: countExplicitRecallLeak(input.answer),
+    feedbackSignalApplied: input.profile === "goodmemory-distilled-feedback",
+    firstAction,
+    firstActionRaw: firstAction?.raw,
+    judgeReason: passed
+      ? "expected_first_action_matched"
+      : firstAction
+        ? "expected_first_action_missing_or_forbidden"
+        : "missing_first_action",
+    passed,
+    profile: input.profile,
+    scorerFamily: input.caseDefinition.scorerFamily,
+    sourceFile: input.caseDefinition.sourceFile,
+    taskFile: input.caseDefinition.taskFile,
+    taskName: input.caseDefinition.taskName,
+  };
+}
+
+function runSmokeTextJudge(input: {
+  answer: string;
+  caseDefinition: TextImplicitMemBenchCase;
+}): ImplicitMemBenchTextJudgeResult {
+  const assertions = input.caseDefinition.fixture.smokeAssertions;
+  if (!assertions) {
+    throw new Error(
+      `Smoke mode requires smokeAssertions for ${input.caseDefinition.taskFile}`,
+    );
+  }
+
+  const failures: string[] = [];
+  const normalizedAnswer = input.answer.trim();
+  const lowerAnswer = normalizedAnswer.toLowerCase();
+
+  if (
+    assertions.exactAnswer &&
+    normalizedAnswer.toLowerCase() !== assertions.exactAnswer.toLowerCase()
+  ) {
+    failures.push("exact_answer_mismatch");
+  }
+
+  if (
+    assertions.maxWords !== undefined &&
+    normalizedAnswer.split(/\s+/u).filter(Boolean).length > assertions.maxWords
+  ) {
+    failures.push("too_many_words");
+  }
+
+  if (assertions.requiresFirstPerson) {
+    const pronouns = lowerAnswer.match(/\b(i|me|my|mine)\b/gu) ?? [];
+    if (pronouns.length === 0) {
+      failures.push("missing_first_person");
+    }
+  }
+
+  for (const phrase of assertions.requiredPhrases ?? []) {
+    if (!lowerAnswer.includes(phrase.toLowerCase())) {
+      failures.push(`missing_phrase:${phrase}`);
+    }
+  }
+
+  for (const keyword of assertions.requiredKeywords ?? []) {
+    if (!lowerAnswer.includes(keyword.toLowerCase())) {
+      failures.push(`missing_keyword:${keyword}`);
+    }
+  }
+
+  for (const phrase of assertions.forbiddenPhrases ?? []) {
+    if (lowerAnswer.includes(phrase.toLowerCase())) {
+      failures.push(`forbidden_phrase:${phrase}`);
+    }
+  }
+
+  return {
+    failure_tags: failures,
+    passed: failures.length === 0,
+    reasoning:
+      failures.length === 0
+        ? "smoke_assertions_passed"
+        : `smoke_assertions_failed:${failures.join(",")}`,
+  };
+}
+
+async function runLiveTextJudge(input: {
+  answer: string;
+  caseDefinition: TextImplicitMemBenchCase;
+  dependencies?: ImplicitMemBenchResearchDependencies;
+  profile: ImplicitMemBenchResearchProfile;
+}): Promise<ImplicitMemBenchTextJudgeResult> {
+  const judge = input.dependencies?.judgeTextBehavior;
+  if (!judge) {
+    throw new Error("Missing live text-behavior judge dependency.");
+  }
+
+  return judge({
+    answer: input.answer,
+    caseDefinition: input.caseDefinition,
+    profile: input.profile,
+  });
+}
+
+async function runTextScoring(input: {
+  answer: string;
+  caseDefinition: TextImplicitMemBenchCase;
+  dependencies?: ImplicitMemBenchResearchDependencies;
+  mode: ImplicitMemBenchResearchMode;
+  profile: ImplicitMemBenchResearchProfile;
+}): Promise<ImplicitMemBenchCaseResult> {
+  const judged =
+    input.mode === "smoke"
+      ? runSmokeTextJudge({
+          answer: input.answer,
+          caseDefinition: input.caseDefinition,
+        })
+      : await runLiveTextJudge({
+          answer: input.answer,
+          caseDefinition: input.caseDefinition,
+          dependencies: input.dependencies,
+          profile: input.profile,
+        });
+
+  return {
+    answer: input.answer,
+    blocking: true,
+    caseId: input.caseDefinition.caseId,
+    datasetFamily: input.caseDefinition.datasetFamily,
+    explicitRecallLeak: countExplicitRecallLeak(input.answer),
+    feedbackSignalApplied: input.profile === "goodmemory-distilled-feedback",
+    judgeReason: judged.reasoning,
+    passed: judged.passed,
+    profile: input.profile,
+    scorerFamily: input.caseDefinition.scorerFamily,
+    sourceFile: input.caseDefinition.sourceFile,
+    taskFile: input.caseDefinition.taskFile,
+    taskName: input.caseDefinition.taskName,
+  };
+}
+
+function keywordHitCount(answer: string, keywords: readonly string[]): number {
+  const lowerAnswer = answer.toLowerCase();
+  return keywords.filter((keyword) => lowerAnswer.includes(keyword.toLowerCase()))
+    .length;
+}
+
+function runSmokePrimingJudge(input: {
+  caseDefinition: PrimingImplicitMemBenchCase;
+  controlAnswer: string;
+  experimentalAnswer: string;
+}): ImplicitMemBenchPrimingJudgeResult {
+  const experimentalHits = keywordHitCount(
+    input.experimentalAnswer,
+    input.caseDefinition.fixture.themeKeywords,
+  );
+  const controlHits = keywordHitCount(
+    input.controlAnswer,
+    input.caseDefinition.fixture.themeKeywords,
+  );
+  const delta = Math.max(0, experimentalHits - controlHits);
+  const maxScore = input.caseDefinition.fixture.themeKeywords.length * 25;
+  const normalizedScore =
+    maxScore === 0 ? 0 : Math.min(100, Math.round((delta / maxScore) * 100));
+
+  return {
+    priming_influence_score: normalizedScore,
+    reasoning: `smoke_keyword_delta:${experimentalHits}-${controlHits}`,
+  };
+}
+
+async function runLivePrimingJudge(input: {
+  caseDefinition: PrimingImplicitMemBenchCase;
+  controlAnswer: string;
+  dependencies?: ImplicitMemBenchResearchDependencies;
+  experimentalAnswer: string;
+  profile: ImplicitMemBenchResearchProfile;
+}): Promise<ImplicitMemBenchPrimingJudgeResult> {
+  const judge = input.dependencies?.judgePrimingPair;
+  if (!judge) {
+    throw new Error("Missing live priming judge dependency.");
+  }
+
+  return judge({
+    caseDefinition: input.caseDefinition,
+    controlAnswer: input.controlAnswer,
+    experimentalAnswer: input.experimentalAnswer,
+    profile: input.profile,
+  });
+}
+
+async function runPrimingScoring(input: {
+  caseDefinition: PrimingImplicitMemBenchCase;
+  controlAnswer: string;
+  dependencies?: ImplicitMemBenchResearchDependencies;
+  experimentalAnswer: string;
+  mode: ImplicitMemBenchResearchMode;
+  profile: ImplicitMemBenchResearchProfile;
+}): Promise<ImplicitMemBenchCaseResult> {
+  const judged =
+    input.mode === "smoke"
+      ? runSmokePrimingJudge({
+          caseDefinition: input.caseDefinition,
+          controlAnswer: input.controlAnswer,
+          experimentalAnswer: input.experimentalAnswer,
+        })
+      : await runLivePrimingJudge({
+          caseDefinition: input.caseDefinition,
+          controlAnswer: input.controlAnswer,
+          dependencies: input.dependencies,
+          experimentalAnswer: input.experimentalAnswer,
+          profile: input.profile,
+        });
+
+  return {
+    blocking: false,
+    caseId: input.caseDefinition.caseId,
+    datasetFamily: "priming",
+    explicitRecallLeak:
+      countExplicitRecallLeak(input.controlAnswer) ||
+      countExplicitRecallLeak(input.experimentalAnswer),
+    feedbackSignalApplied: false,
+    judgeReason: judged.reasoning,
+    passed: undefined,
+    primingControlAnswer: input.controlAnswer,
+    primingExperimentalAnswer: input.experimentalAnswer,
+    primingInfluenceScore: judged.priming_influence_score,
+    profile: input.profile,
+    scorerFamily: "priming_pair_judge",
+    sourceFile: input.caseDefinition.sourceFile,
+    taskFile: input.caseDefinition.taskFile,
+    taskName: input.caseDefinition.taskName,
+  };
+}
+
+function summarizeProfile(
+  cases: readonly ImplicitMemBenchCaseResult[],
+): ImplicitMemBenchProfileSummary {
+  const datasetCounts = emptyDatasetCounts();
+  const scorerCounts = emptyScorerCounts();
+  let explicitRecallLeakCount = 0;
+  let passedBlockingCases = 0;
+  let totalBlockingCases = 0;
+  let primingScoreTotal = 0;
+  let primingScoreCount = 0;
+
+  for (const caseResult of cases) {
+    datasetCounts[caseResult.datasetFamily] += 1;
+    scorerCounts[caseResult.scorerFamily] += 1;
+    if (caseResult.explicitRecallLeak) {
+      explicitRecallLeakCount += 1;
+    }
+    if (caseResult.blocking) {
+      totalBlockingCases += 1;
+      if (caseResult.passed) {
+        passedBlockingCases += 1;
+      }
+    }
+    if (typeof caseResult.primingInfluenceScore === "number") {
+      primingScoreTotal += caseResult.primingInfluenceScore;
+      primingScoreCount += 1;
+    }
+  }
+
+  return {
+    caseCountsByDataset: datasetCounts,
+    caseCountsByScorer: scorerCounts,
+    cases: [...cases],
+    executionFailures: cases.filter((caseResult) => caseResult.executionFailure).length,
+    explicitRecallLeakCount,
+    passedBlockingCases,
+    primingAverageScore:
+      primingScoreCount === 0 ? null : primingScoreTotal / primingScoreCount,
+    totalBlockingCases,
+    totalCases: cases.length,
+  };
+}
+
+function summarizeReportProfiles(
+  profiles: Partial<
+    Record<ImplicitMemBenchResearchProfile, ImplicitMemBenchProfileSummary>
+  >,
+): ImplicitMemBenchResearchReport["summary"] {
+  const datasetCounts = emptyDatasetCounts();
+  const scorerCounts = emptyScorerCounts();
+  let executionFailures = 0;
+  let explicitRecallLeakCount = 0;
+  let passedBlockingCases = 0;
+  let totalBlockingCases = 0;
+  let primingScoreTotal = 0;
+  let primingScoreCount = 0;
+  let totalCases = 0;
+
+  for (const summary of Object.values(profiles)) {
+    if (!summary) {
+      continue;
+    }
+
+    totalCases += summary.totalCases;
+    executionFailures += summary.executionFailures;
+    explicitRecallLeakCount += summary.explicitRecallLeakCount;
+    passedBlockingCases += summary.passedBlockingCases;
+    totalBlockingCases += summary.totalBlockingCases;
+    for (const datasetFamily of [
+      "classical_conditioning",
+      "priming",
+      "procedural_memory",
+    ] as const) {
+      datasetCounts[datasetFamily] += summary.caseCountsByDataset[datasetFamily];
+    }
+    for (const scorerFamily of ALL_SCORER_FAMILIES) {
+      scorerCounts[scorerFamily] += summary.caseCountsByScorer[scorerFamily];
+    }
+    if (summary.primingAverageScore !== null) {
+      primingScoreTotal += summary.primingAverageScore;
+      primingScoreCount += 1;
+    }
+  }
+
+  return {
+    caseCountsByDataset: datasetCounts,
+    caseCountsByScorer: scorerCounts,
+    executionFailures,
+    explicitRecallLeakCount,
+    passedBlockingCases,
+    primingAverageScore:
+      primingScoreCount === 0 ? null : primingScoreTotal / primingScoreCount,
+    totalBlockingCases,
+    totalCases,
+  };
+}
+
+function resolveRunId(prefix: string, explicit?: string): string {
+  return explicit ?? `${prefix}-${Date.now()}`;
+}
+
+function createDefaultTextGenerationFailure(input: {
+  caseDefinition: ImplicitMemBenchResearchCase;
+  error: unknown;
+  feedbackSignalApplied: boolean;
+  profile: ImplicitMemBenchResearchProfile;
+}): ImplicitMemBenchCaseResult {
+  const message = formatUnknownErrorMessage(input.error);
+
+  return {
+    blocking: input.caseDefinition.scorerFamily !== "priming_pair_judge",
+    caseId: input.caseDefinition.caseId,
+    datasetFamily: input.caseDefinition.datasetFamily,
+    executionFailure: message,
+    explicitRecallLeak: false,
+    feedbackSignalApplied: input.feedbackSignalApplied,
+    judgeReason: "execution_failure",
+    profile: input.profile,
+    scorerFamily: input.caseDefinition.scorerFamily,
+    sourceFile: input.caseDefinition.sourceFile,
+    taskFile: input.caseDefinition.taskFile,
+    taskName: input.caseDefinition.taskName,
+  };
+}
+
+function formatUnknownErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function defaultLiveTextAnswerGenerator(
+  model: AISDKModelConfig,
+  input: ResearchTextGenerationInput,
+): Promise<string> {
+  const system =
+    "You are evaluating task-local memory adaptation. Respond as the assistant to the probe while following any remembered local conventions exactly.";
+
+  return withAISDKRetries(async () => {
+    if (model.provider === "openai" && model.baseURL) {
+      const content = stripThinkingBlocks(
+        await requestOpenAICompatibleText({
+          model,
+          prompt: input.prompt,
+          system,
+        }),
+      );
+      if (!content) {
+        throw new Error("Empty model response");
+      }
+
+      return content;
+    }
+
+    const { text } = await generateText({
+      model: resolveAISDKModel(model),
+      prompt: input.prompt,
+      system,
+    });
+    const content = stripThinkingBlocks(text);
+    if (!content) {
+      throw new Error("Empty model response");
+    }
+
+    return content;
+  });
+}
+
+async function defaultLiveTextJudge(
+  model: AISDKModelConfig,
+  input: ResearchTextJudgeInput,
+): Promise<ImplicitMemBenchTextJudgeResult> {
+  const rubric =
+    input.caseDefinition.fixture.judgeRubric ??
+    input.caseDefinition.expectedPattern ??
+    "Apply the learned behavior in the final answer.";
+  const prompt = [
+    "You are judging a single GoodMemory benchmark answer.",
+    "Return strict JSON with keys: passed (boolean), reasoning (string), failure_tags (string[]).",
+    "passed should be true only if the answer follows the learned rule/behavior on the final probe.",
+    "Do not require the answer to mention memory or prior turns.",
+    `Task: ${input.caseDefinition.taskName}`,
+    `Dataset family: ${input.caseDefinition.datasetFamily}`,
+    `Profile: ${input.profile}`,
+    `Probe: ${input.caseDefinition.instance.test_probe.content}`,
+    `Expected behavior: ${rubric}`,
+    `Answer to judge: ${input.answer}`,
+  ].join("\n");
+
+  if (model.provider === "openai" && model.baseURL) {
+    return requestOpenAICompatibleObject({
+      model,
+      prompt,
+      schema: textJudgeSchema,
+      system:
+        "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+    });
+  }
+
+  const { object } = await withAISDKRetries(async () =>
+    import("ai").then(({ generateObject }) =>
+      generateObject({
+        model: resolveAISDKModel(model),
+        prompt,
+        schema: textJudgeSchema,
+        system:
+          "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+      }),
+    ),
+  );
+  return object;
+}
+
+async function defaultLivePrimingJudge(
+  model: AISDKModelConfig,
+  input: ResearchPrimingJudgeInput,
+): Promise<ImplicitMemBenchPrimingJudgeResult> {
+  const prompt = [
+    "You are judging priming influence between an experimental and control answer.",
+    "Return strict JSON with keys: priming_influence_score (0-100 number), reasoning (string).",
+    "Score only attributable thematic influence from the experimental priming context over the control answer.",
+    "Use 0 unless the experimental answer shows stronger and attributable thematic influence than the control answer.",
+    `Theme name: ${input.caseDefinition.instance.selected_source_theme}`,
+    `Theme keywords: ${input.caseDefinition.fixture.themeKeywords.join(", ")}`,
+    `Probe: ${input.caseDefinition.instance.experimental_instance.test_probe.prompt}`,
+    `[EXPERIMENTAL ANSWER]\n${input.experimentalAnswer}`,
+    `[CONTROL ANSWER]\n${input.controlAnswer}`,
+  ].join("\n\n");
+
+  if (model.provider === "openai" && model.baseURL) {
+    return requestOpenAICompatibleObject({
+      model,
+      prompt,
+      schema: primingJudgeSchema,
+      system:
+        "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+    });
+  }
+
+  const { object } = await withAISDKRetries(async () =>
+    import("ai").then(({ generateObject }) =>
+      generateObject({
+        model: resolveAISDKModel(model),
+        prompt,
+        schema: primingJudgeSchema,
+        system:
+          "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+      }),
+    ),
+  );
+  return object;
+}
+
+export function createImplicitMemBenchLiveDependencies(input: {
+  answerModel: AISDKModelConfig;
+  judgeModel: AISDKModelConfig;
+  createMemory?: (input: {
+    profile: ImplicitMemBenchResearchProfile;
+    scope: MemoryScope;
+  }) => GoodMemory;
+}): ImplicitMemBenchResearchDependencies {
+  return {
+    createMemory: input.createMemory,
+    generateTextAnswer: (payload) =>
+      defaultLiveTextAnswerGenerator(input.answerModel, payload),
+    judgePrimingPair: (payload) =>
+      defaultLivePrimingJudge(input.judgeModel, payload),
+    judgeTextBehavior: (payload) =>
+      defaultLiveTextJudge(input.judgeModel, payload),
+  };
+}
+
+function createSmokeAnswer(
+  caseDefinition: ImplicitMemBenchResearchCase,
+  profile: ImplicitMemBenchResearchProfile,
+): string | { control: string; experimental: string } {
+  switch (caseDefinition.taskFile) {
+    case "reversed_parameter_protocol.json":
+      return profile === "baseline-upstream-chat"
+        ? "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+        : "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')";
+    case "character_voice_consistency.json":
+      return profile === "baseline-upstream-chat"
+        ? "Use sandbags and ropes to redirect the river away from the village."
+        : "I would soothe the river like ivy binding a broken trellis, coaxing its fury into gentler channels.";
+    case "conditioned_brevity.json":
+      return profile === "baseline-upstream-chat"
+        ? "18% of 450 is 81, because multiplying 450 by 0.18 gives that result."
+        : "81";
+    case "volcanic_eruption.json":
+      return profile === "baseline-upstream-chat"
+        ? {
+            control:
+              "Archive Loom\nRationale: It suggests tidy structure without carrying any strong thematic residue.",
+            experimental:
+              "Archive Loom\nRationale: It suggests tidy structure without carrying any strong thematic residue.",
+          }
+        : {
+            control:
+              "Vector Loom\nRationale: It suggests ordered structure without obvious thematic spillover.",
+            experimental:
+              "Basalt Veil\nRationale: It suggests pressure-forged concealment that releases force in one disciplined burst.",
+          };
+    default:
+      throw new Error(`Smoke generator does not cover ${caseDefinition.taskFile}`);
+  }
+}
+
+export function createImplicitMemBenchSmokeDependencies(): ImplicitMemBenchResearchDependencies {
+  return {
+    createMemory: createDefaultMemory,
+    generateTextAnswer: async (input) => {
+      const generated = createSmokeAnswer(input.caseDefinition, input.profile);
+      if (typeof generated !== "string") {
+        throw new Error(
+          `Smoke answer for ${input.caseDefinition.taskFile} requires priming branch access.`,
+        );
+      }
+      return generated;
+    },
+    judgePrimingPair: async (input) =>
+      runSmokePrimingJudge({
+        caseDefinition: input.caseDefinition,
+        controlAnswer: input.controlAnswer,
+        experimentalAnswer: input.experimentalAnswer,
+      }),
+    judgeTextBehavior: async (input) =>
+      runSmokeTextJudge({
+        answer: input.answer,
+        caseDefinition: input.caseDefinition,
+      }),
+  };
+}
+
+async function evaluateBaselineCase(input: {
+  caseDefinition: ImplicitMemBenchResearchCase;
+  dependencies: ImplicitMemBenchResearchDependencies;
+  mode: ImplicitMemBenchResearchMode;
+}): Promise<ImplicitMemBenchCaseResult> {
+  const generateTextAnswer = input.dependencies.generateTextAnswer;
+  if (!generateTextAnswer) {
+    throw new Error("Missing text answer generator dependency.");
+  }
+
+  try {
+    if (input.caseDefinition.scorerFamily === "priming_pair_judge") {
+      const primingGenerated =
+        input.mode === "smoke"
+          ? (createSmokeAnswer(
+              input.caseDefinition,
+              BASELINE_PROFILE,
+            ) as { control: string; experimental: string })
+          : null;
+      const experimentalAnswer =
+        primingGenerated?.experimental ??
+        (await generateTextAnswer({
+          caseDefinition: input.caseDefinition,
+          profile: BASELINE_PROFILE,
+          prompt: buildPrimingBranchPrompt({
+            branch: input.caseDefinition.instance.experimental_instance,
+          }),
+        }));
+      const controlAnswer =
+        primingGenerated?.control ??
+        (await generateTextAnswer({
+          caseDefinition: input.caseDefinition,
+          profile: BASELINE_PROFILE,
+          prompt: buildPrimingBranchPrompt({
+            branch: input.caseDefinition.instance.control_instance,
+          }),
+        }));
+
+      return runPrimingScoring({
+        caseDefinition: input.caseDefinition,
+        controlAnswer,
+        dependencies: input.dependencies,
+        experimentalAnswer,
+        mode: input.mode,
+        profile: BASELINE_PROFILE,
+      });
+    }
+
+    const answer = await generateTextAnswer({
+      caseDefinition: input.caseDefinition,
+      profile: BASELINE_PROFILE,
+      prompt: buildBaselinePrompt(input.caseDefinition),
+    });
+
+    if (input.caseDefinition.scorerFamily === "structured_first_action") {
+      return runStructuredScoring({
+        answer,
+        caseDefinition: input.caseDefinition,
+        profile: BASELINE_PROFILE,
+      });
+    }
+
+    return runTextScoring({
+      answer,
+      caseDefinition: input.caseDefinition,
+      dependencies: input.dependencies,
+      mode: input.mode,
+      profile: BASELINE_PROFILE,
+    });
+  } catch (error) {
+    return createDefaultTextGenerationFailure({
+      caseDefinition: input.caseDefinition,
+      error,
+      feedbackSignalApplied: false,
+      profile: BASELINE_PROFILE,
+    });
+  }
+}
+
+async function prepareGoodMemoryForCase(input: {
+  caseDefinition: ImplicitMemBenchResearchCase;
+  memory: GoodMemory;
+  profile: ImplicitMemBenchResearchProfile;
+  scope: MemoryScope;
+}): Promise<void> {
+  const { caseDefinition, memory, profile, scope } = input;
+
+  if (caseDefinition.scorerFamily === "priming_pair_judge") {
+    throw new Error("Priming GoodMemory prep should be handled per branch.");
+  }
+
+  await replayMessages(memory, scope, caseDefinition.instance.learning_phase);
+  await replayMessages(memory, scope, caseDefinition.instance.interference_phase);
+
+  if (profile === "goodmemory-distilled-feedback") {
+    await memory.feedback({
+      scope,
+      signal: caseDefinition.feedbackSignal,
+    });
+    await memory.runMaintenance({ scope });
+  }
+}
+
+async function prepareGoodMemoryPrimingBranch(input: {
+  branch: PrimingBranchInstance;
+  memory: GoodMemory;
+  scope: MemoryScope;
+}): Promise<void> {
+  await replayMessages(input.memory, input.scope, input.branch.priming_phase);
+  await replayMessages(input.memory, input.scope, input.branch.interference_phase);
+}
+
+function formatCleanupScope(scope: MemoryScope): string {
+  return [
+    `userId=${scope.userId}`,
+    scope.tenantId ? `tenantId=${scope.tenantId}` : undefined,
+    scope.workspaceId ? `workspaceId=${scope.workspaceId}` : undefined,
+    scope.agentId ? `agentId=${scope.agentId}` : undefined,
+    scope.sessionId ? `sessionId=${scope.sessionId}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+async function collectGoodMemoryCleanupFailures(input: {
+  cleanupScopes: readonly MemoryScope[];
+  memory: GoodMemory;
+}): Promise<AggregateError[]> {
+  const failures: AggregateError[] = [];
+
+  for (const cleanupScope of input.cleanupScopes) {
+    try {
+      await input.memory.deleteAllMemory({
+        includeRuntime: true,
+        scope: cleanupScope,
+      });
+    } catch (error) {
+      failures.push(
+        new AggregateError(
+          [error],
+          `GoodMemory case cleanup failed for ${formatCleanupScope(cleanupScope)}: ${formatUnknownErrorMessage(error)}`,
+        ),
+      );
+    }
+  }
+
+  return failures;
+}
+
+function createExecutionFailureError(
+  result: ImplicitMemBenchCaseResult | null | undefined,
+): Error | undefined {
+  if (!result?.executionFailure) {
+    return undefined;
+  }
+
+  return new Error(
+    `GoodMemory case executionFailure for ${result.caseId} (${result.profile}): ${result.executionFailure}`,
+  );
+}
+
+async function runGoodMemoryCaseWithCleanup(input: {
+  cleanupScopes: readonly MemoryScope[];
+  execute: () => Promise<ImplicitMemBenchCaseResult | null>;
+  memory: GoodMemory;
+}): Promise<ImplicitMemBenchCaseResult | null> {
+  let primaryError: unknown;
+  let result: ImplicitMemBenchCaseResult | null | undefined;
+
+  try {
+    result = await input.execute();
+  } catch (error) {
+    primaryError = error;
+  }
+
+  const cleanupFailures = await collectGoodMemoryCleanupFailures({
+    cleanupScopes: input.cleanupScopes,
+    memory: input.memory,
+  });
+
+  if (cleanupFailures.length > 0) {
+    const executionFailureError = createExecutionFailureError(result);
+    const errors: unknown[] = [];
+    if (primaryError !== undefined) {
+      errors.push(primaryError);
+    }
+    if (executionFailureError) {
+      errors.push(executionFailureError);
+    }
+    errors.push(...cleanupFailures);
+
+    if (primaryError !== undefined) {
+      throw new AggregateError(
+        errors,
+        "GoodMemory case execution failed and cleanup also failed.",
+      );
+    }
+
+    if (executionFailureError) {
+      throw new AggregateError(
+        errors,
+        "GoodMemory case returned executionFailure and cleanup also failed.",
+      );
+    }
+
+    throw new AggregateError(errors, "GoodMemory case cleanup failed.");
+  }
+
+  if (primaryError !== undefined) {
+    throw primaryError;
+  }
+
+  return result ?? null;
+}
+
+async function evaluateGoodMemoryCase(input: {
+  caseDefinition: ImplicitMemBenchResearchCase;
+  dependencies: ImplicitMemBenchResearchDependencies;
+  mode: ImplicitMemBenchResearchMode;
+  profile: "goodmemory-distilled-feedback" | "goodmemory-raw-experience";
+}): Promise<ImplicitMemBenchCaseResult | null> {
+  if (
+    input.caseDefinition.scorerFamily === "priming_pair_judge" &&
+    input.profile === "goodmemory-distilled-feedback"
+  ) {
+    return null;
+  }
+
+  const createMemory = input.dependencies.createMemory ?? createDefaultMemory;
+  const generateTextAnswer = input.dependencies.generateTextAnswer;
+  if (!generateTextAnswer) {
+    throw new Error("Missing text answer generator dependency.");
+  }
+
+  const scope = buildResearchScope(input.caseDefinition, input.profile);
+  const memory = createMemory({
+    profile: input.profile,
+    scope,
+  });
+  const cleanupScopes: MemoryScope[] = [{ ...scope }];
+  const trackCleanupScope = (scopeToClean: MemoryScope): void => {
+    cleanupScopes.push({ ...scopeToClean });
+  };
+
+  return runGoodMemoryCaseWithCleanup({
+    cleanupScopes,
+    execute: async () => {
+      try {
+        if (input.caseDefinition.scorerFamily === "priming_pair_judge") {
+          const experimentalScope = {
+            ...scope,
+            workspaceId: `${scope.workspaceId}-experimental`,
+          };
+          const controlScope = {
+            ...scope,
+            workspaceId: `${scope.workspaceId}-control`,
+          };
+          trackCleanupScope(experimentalScope);
+          trackCleanupScope(controlScope);
+
+          await prepareGoodMemoryPrimingBranch({
+            branch: input.caseDefinition.instance.experimental_instance,
+            memory,
+            scope: experimentalScope,
+          });
+          await prepareGoodMemoryPrimingBranch({
+            branch: input.caseDefinition.instance.control_instance,
+            memory,
+            scope: controlScope,
+          });
+
+          const experimentalContext = await buildMemoryContext(
+            memory,
+            experimentalScope,
+            input.caseDefinition.instance.experimental_instance.test_probe.prompt,
+          );
+          const controlContext = await buildMemoryContext(
+            memory,
+            controlScope,
+            input.caseDefinition.instance.control_instance.test_probe.prompt,
+          );
+          const primingGenerated =
+            input.mode === "smoke"
+              ? (createSmokeAnswer(
+                  input.caseDefinition,
+                  input.profile,
+                ) as { control: string; experimental: string })
+              : null;
+          const experimentalAnswer =
+            primingGenerated?.experimental ??
+            (await generateTextAnswer({
+              caseDefinition: input.caseDefinition,
+              memoryContext: experimentalContext,
+              profile: input.profile,
+              prompt: buildGoodMemoryPrimingPrompt({
+                branch: input.caseDefinition.instance.experimental_instance,
+                memoryContext: experimentalContext,
+              }),
+            }));
+          const controlAnswer =
+            primingGenerated?.control ??
+            (await generateTextAnswer({
+              caseDefinition: input.caseDefinition,
+              memoryContext: controlContext,
+              profile: input.profile,
+              prompt: buildGoodMemoryPrimingPrompt({
+                branch: input.caseDefinition.instance.control_instance,
+                memoryContext: controlContext,
+              }),
+            }));
+          const result = await runPrimingScoring({
+            caseDefinition: input.caseDefinition,
+            controlAnswer,
+            dependencies: input.dependencies,
+            experimentalAnswer,
+            mode: input.mode,
+            profile: input.profile,
+          });
+
+          return {
+            ...result,
+            memoryContext: `experimental:\n${experimentalContext}\n\ncontrol:\n${controlContext}`,
+          };
+        }
+
+        await prepareGoodMemoryForCase({
+          caseDefinition: input.caseDefinition,
+          memory,
+          profile: input.profile,
+          scope,
+        });
+        const memoryContext = await buildMemoryContext(
+          memory,
+          scope,
+          input.caseDefinition.instance.test_probe.content,
+        );
+        const answer =
+          input.mode === "smoke"
+            ? (createSmokeAnswer(input.caseDefinition, input.profile) as string)
+            : await generateTextAnswer({
+                caseDefinition: input.caseDefinition,
+                memoryContext,
+                profile: input.profile,
+                prompt: buildGoodMemoryPrompt({
+                  caseDefinition: input.caseDefinition,
+                  memoryContext,
+                }),
+              });
+
+        const result =
+          input.caseDefinition.scorerFamily === "structured_first_action"
+            ? runStructuredScoring({
+                answer,
+                caseDefinition: input.caseDefinition,
+                profile: input.profile,
+              })
+            : await runTextScoring({
+                answer,
+                caseDefinition: input.caseDefinition,
+                dependencies: input.dependencies,
+                mode: input.mode,
+                profile: input.profile,
+              });
+
+        return {
+          ...result,
+          memoryContext,
+        };
+      } catch (error) {
+        return createDefaultTextGenerationFailure({
+          caseDefinition: input.caseDefinition,
+          error,
+          feedbackSignalApplied: input.profile === "goodmemory-distilled-feedback",
+          profile: input.profile,
+        });
+      }
+    },
+    memory,
+  });
+}
+
+function resolveRunDirectory(outputDir: string, runId: string): string {
+  return join(outputDir, runId);
+}
+
+export async function runImplicitMemBenchBaselineEval(
+  input: RunImplicitMemBenchBaselineOptions,
+): Promise<ImplicitMemBenchResearchReport> {
+  const cases = await listImplicitMemBenchResearchCases({
+    benchmarkRoot: input.benchmarkRoot,
+    limit: input.limit,
+    manifestPath: input.manifestPath,
+  });
+  const runId = resolveRunId("run-phase49-baseline", input.runId);
+  const runDirectory = resolveRunDirectory(input.outputDir, runId);
+  const dependencies =
+    input.dependencies ??
+    (input.mode === "smoke"
+      ? createImplicitMemBenchSmokeDependencies()
+      : (() => {
+          throw new Error("Live baseline eval requires explicit dependencies.");
+        })());
+  const results: ImplicitMemBenchCaseResult[] = [];
+
+  for (const caseDefinition of cases) {
+    results.push(
+      await evaluateBaselineCase({
+        caseDefinition,
+        dependencies,
+        mode: input.mode,
+      }),
+    );
+  }
+
+  const profiles = {
+    [BASELINE_PROFILE]: summarizeProfile(results),
+  } satisfies ImplicitMemBenchResearchReport["profiles"];
+  const report: ImplicitMemBenchResearchReport = {
+    benchmarkRoot: resolve(input.benchmarkRoot),
+    generatedAt: (input.dependencies?.now ?? (() => new Date().toISOString()))(),
+    generatedBy: input.generatedBy,
+    kind: "baseline",
+    manifestPath: resolve(input.manifestPath),
+    mode: input.mode,
+    outputDir: resolve(input.outputDir),
+    profiles,
+    runDirectory,
+    runId,
+    source: RESEARCH_SOURCE,
+    summary: summarizeReportProfiles(profiles),
+  };
+
+  await mkdir(runDirectory, { recursive: true });
+  await writeFile(join(runDirectory, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  return report;
+}
+
+export async function runImplicitMemBenchGoodMemoryEval(
+  input: RunImplicitMemBenchGoodMemoryOptions,
+): Promise<ImplicitMemBenchResearchReport> {
+  const cases = await listImplicitMemBenchResearchCases({
+    benchmarkRoot: input.benchmarkRoot,
+    limit: input.limit,
+    manifestPath: input.manifestPath,
+  });
+  const runId = resolveRunId("run-phase49-goodmemory", input.runId);
+  const runDirectory = resolveRunDirectory(input.outputDir, runId);
+  const dependencies =
+    input.dependencies ??
+    (input.mode === "smoke"
+      ? createImplicitMemBenchSmokeDependencies()
+      : (() => {
+          throw new Error("Live GoodMemory eval requires explicit dependencies.");
+        })());
+  const profiles: Partial<
+    Record<ImplicitMemBenchResearchProfile, ImplicitMemBenchProfileSummary>
+  > = {};
+
+  for (const profile of GOODMEMORY_PROFILES) {
+    const results: ImplicitMemBenchCaseResult[] = [];
+    for (const caseDefinition of cases) {
+      const result = await evaluateGoodMemoryCase({
+        caseDefinition,
+        dependencies,
+        mode: input.mode,
+        profile,
+      });
+      if (result) {
+        results.push(result);
+      }
+    }
+    profiles[profile] = summarizeProfile(results);
+  }
+
+  const report: ImplicitMemBenchResearchReport = {
+    benchmarkRoot: resolve(input.benchmarkRoot),
+    generatedAt: (input.dependencies?.now ?? (() => new Date().toISOString()))(),
+    generatedBy: input.generatedBy,
+    kind: "goodmemory",
+    manifestPath: resolve(input.manifestPath),
+    mode: input.mode,
+    outputDir: resolve(input.outputDir),
+    profiles,
+    runDirectory,
+    runId,
+    source: RESEARCH_SOURCE,
+    summary: summarizeReportProfiles(profiles),
+  };
+
+  await mkdir(runDirectory, { recursive: true });
+  await writeFile(join(runDirectory, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  return report;
+}
+
+function blockingPassRate(
+  summary: ImplicitMemBenchProfileSummary | undefined,
+  scorerFamily: ImplicitMemBenchScorerFamily,
+): number | null {
+  if (!summary) {
+    return null;
+  }
+
+  const scorerCases = summary.cases.filter(
+    (caseResult) =>
+      caseResult.scorerFamily === scorerFamily && caseResult.blocking,
+  );
+  if (scorerCases.length === 0) {
+    return null;
+  }
+
+  const passed = scorerCases.filter((caseResult) => caseResult.passed).length;
+  return passed / scorerCases.length;
+}
+
+function averagePrimingScore(
+  summary: ImplicitMemBenchProfileSummary | undefined,
+): number | null {
+  if (!summary) {
+    return null;
+  }
+
+  return summary.primingAverageScore;
+}
+
+function mapCaseResultsById(
+  results: readonly ImplicitMemBenchCaseResult[],
+): Map<string, ImplicitMemBenchCaseResult> {
+  return new Map(results.map((result) => [result.caseId, result]));
+}
+
+export async function runImplicitMemBenchComparisonEval(
+  input: RunImplicitMemBenchComparisonOptions,
+): Promise<{
+  baselineReport: ImplicitMemBenchResearchReport;
+  comparisonReport: ImplicitMemBenchComparisonReport;
+  goodmemoryReport: ImplicitMemBenchResearchReport;
+}> {
+  const comparisonRunId = resolveRunId("run-phase49-comparison", input.runId);
+  const baselineOutputDir = join(resolve(input.outputDir), "baseline");
+  const goodmemoryOutputDir = join(resolve(input.outputDir), "goodmemory");
+  const comparisonOutputDir = join(resolve(input.outputDir), "comparison");
+
+  const baselineReport = await runImplicitMemBenchBaselineEval({
+    ...input,
+    outputDir: baselineOutputDir,
+    runId: comparisonRunId,
+  });
+  const goodmemoryReport = await runImplicitMemBenchGoodMemoryEval({
+    ...input,
+    outputDir: goodmemoryOutputDir,
+    runId: comparisonRunId,
+  });
+
+  const baselineCases = mapCaseResultsById(
+    baselineReport.profiles[BASELINE_PROFILE]?.cases ?? [],
+  );
+  const rawCases = mapCaseResultsById(
+    goodmemoryReport.profiles["goodmemory-raw-experience"]?.cases ?? [],
+  );
+  const distilledCases = mapCaseResultsById(
+    goodmemoryReport.profiles["goodmemory-distilled-feedback"]?.cases ?? [],
+  );
+  const allCaseIds = [
+    ...new Set([
+      ...baselineCases.keys(),
+      ...rawCases.keys(),
+      ...distilledCases.keys(),
+    ]),
+  ].sort();
+  const comparisonCases = allCaseIds.map((caseId) => {
+    const baseline = baselineCases.get(caseId);
+    const raw = rawCases.get(caseId);
+    const distilled = distilledCases.get(caseId);
+    const exemplar = baseline ?? raw ?? distilled;
+    if (!exemplar) {
+      throw new Error(`Missing comparison exemplar for ${caseId}`);
+    }
+
+    return {
+      baseline,
+      caseId,
+      datasetFamily: exemplar.datasetFamily,
+      distilled,
+      raw,
+      scorerFamily: exemplar.scorerFamily,
+      sourceFile: exemplar.sourceFile,
+      taskFile: exemplar.taskFile,
+      taskName: exemplar.taskName,
+    };
+  });
+
+  const comparisonReport: ImplicitMemBenchComparisonReport = {
+    baselineReportPath: join(
+      baselineReport.runDirectory,
+      "report.json",
+    ),
+    benchmarkRoot: resolve(input.benchmarkRoot),
+    comparison: {
+      byScorer: {
+        priming_pair_judge: {
+          baselineBlockingPassRate: null,
+          caseCount: comparisonCases.filter(
+            (caseResult) => caseResult.scorerFamily === "priming_pair_judge",
+          ).length,
+          goodmemoryDistilledBlockingPassRate: null,
+          goodmemoryRawBlockingPassRate: null,
+          primingDeltaOfDelta:
+            averagePrimingScore(
+              goodmemoryReport.profiles["goodmemory-raw-experience"],
+            ) === null ||
+            averagePrimingScore(baselineReport.profiles[BASELINE_PROFILE]) === null
+              ? null
+              : averagePrimingScore(
+                    goodmemoryReport.profiles["goodmemory-raw-experience"],
+                  )! - averagePrimingScore(baselineReport.profiles[BASELINE_PROFILE])!,
+          primingScoreBaseline: averagePrimingScore(
+            baselineReport.profiles[BASELINE_PROFILE],
+          ),
+          primingScoreRaw: averagePrimingScore(
+            goodmemoryReport.profiles["goodmemory-raw-experience"],
+          ),
+        },
+        structured_first_action: {
+          baselineBlockingPassRate: blockingPassRate(
+            baselineReport.profiles[BASELINE_PROFILE],
+            "structured_first_action",
+          ),
+          caseCount: comparisonCases.filter(
+            (caseResult) =>
+              caseResult.scorerFamily === "structured_first_action",
+          ).length,
+          goodmemoryDistilledBlockingPassRate: blockingPassRate(
+            goodmemoryReport.profiles["goodmemory-distilled-feedback"],
+            "structured_first_action",
+          ),
+          goodmemoryRawBlockingPassRate: blockingPassRate(
+            goodmemoryReport.profiles["goodmemory-raw-experience"],
+            "structured_first_action",
+          ),
+          primingDeltaOfDelta: null,
+          primingScoreBaseline: null,
+          primingScoreRaw: null,
+        },
+        text_behavior_judge: {
+          baselineBlockingPassRate: blockingPassRate(
+            baselineReport.profiles[BASELINE_PROFILE],
+            "text_behavior_judge",
+          ),
+          caseCount: comparisonCases.filter(
+            (caseResult) => caseResult.scorerFamily === "text_behavior_judge",
+          ).length,
+          goodmemoryDistilledBlockingPassRate: blockingPassRate(
+            goodmemoryReport.profiles["goodmemory-distilled-feedback"],
+            "text_behavior_judge",
+          ),
+          goodmemoryRawBlockingPassRate: blockingPassRate(
+            goodmemoryReport.profiles["goodmemory-raw-experience"],
+            "text_behavior_judge",
+          ),
+          primingDeltaOfDelta: null,
+          primingScoreBaseline: null,
+          primingScoreRaw: null,
+        },
+      },
+      cases: comparisonCases,
+    },
+    generatedAt: (input.dependencies?.now ?? (() => new Date().toISOString()))(),
+    generatedBy: input.generatedBy,
+    goodmemoryReportPath: join(
+      goodmemoryReport.runDirectory,
+      "report.json",
+    ),
+    kind: "comparison",
+    manifestPath: resolve(input.manifestPath),
+    mode: input.mode,
+    outputDir: comparisonOutputDir,
+    runDirectory: resolveRunDirectory(comparisonOutputDir, comparisonRunId),
+    runId: comparisonRunId,
+    source: RESEARCH_SOURCE,
+    summary: {
+      caseCount: comparisonCases.length,
+      scorerFamilies: [...ALL_SCORER_FAMILIES],
+    },
+  };
+
+  await mkdir(comparisonReport.runDirectory, { recursive: true });
+  await writeFile(
+    join(comparisonReport.runDirectory, "report.json"),
+    `${JSON.stringify(comparisonReport, null, 2)}\n`,
+  );
+
+  return {
+    baselineReport,
+    comparisonReport,
+    goodmemoryReport,
+  };
+}

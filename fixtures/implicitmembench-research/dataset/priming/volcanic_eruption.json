@@ -1,0 +1,67 @@
+{
+  "source_theme": "Volcanic Eruption",
+  "task_count": 1,
+  "instances": [
+    {
+      "pair_id": "volcanic_eruption_creative_naming_dewey_decimal_classification_1757436615",
+      "selected_source_theme": "Volcanic Eruption",
+      "selected_control_theme": "Dewey Decimal Classification",
+      "selected_probe_id": "creative_naming",
+      "experimental_instance": {
+        "group": "experimental",
+        "priming_phase": [
+          {
+            "role": "user",
+            "content": "Please read the following theme and write an evocative paragraph."
+          },
+          {
+            "role": "assistant",
+            "content": "In gray light a swollen cone holds its breath, hairline fissures tracing the rock. Pressure climbs in the dark, then a sudden breach sends ash plumes and pumice through the air as molten glow spills into basalt rivers. The ground shudders, a hot surge races downslope while the sky thickens to slate. After the heat and noise, black fields cool toward fertile quiet, destruction giving way to ordered growth."
+          }
+        ],
+        "interference_phase": [
+          {
+            "role": "user",
+            "content": "Draft a neutral note on color management for print workflows; include numeric targets."
+          },
+          {
+            "role": "assistant",
+            "content": "Calibrate displays at 6500 K, 120 cd·m⁻², and ΔE00 < 2, because tighter tolerances reduce proof-to-press drift. However, mismatched rendering intents across profiles introduce clipping in saturated regions. Therefore, embed an ICC v4 profile, soft-proof under D50, and validate ΔE00 ≤ 3 on a 24-patch chart at 600 dpi."
+          }
+        ],
+        "test_probe": {
+          "category": "creative_naming",
+          "prompt": "Task: Propose THREE codenames for a next-gen data compression library.\nGoal: Each codename should express a single, coherent metaphor (not a literal function).\nConstraints:\n- Do NOT reuse or quote any nouns from earlier messages (including priming text).\n- Avoid domain-literal words like 'compress', 'zip', 'codec'.\n- Each rationale: exactly ONE sentence, 10–18 words, explaining the metaphor.\nOutput format (strict JSON):\n{\n  \"candidates\": [\n    {\"codename\": \"...\", \"rationale\": \"...\"},\n    {\"codename\": \"...\", \"rationale\": \"...\"},\n    {\"codename\": \"...\", \"rationale\": \"...\"}\n  ]\n}\nNo extra keys, no markdown, no commentary."
+        }
+      },
+      "control_instance": {
+        "group": "control",
+        "priming_phase": [
+          {
+            "role": "user",
+            "content": "Please write a neutral technical paragraph about the control theme."
+          },
+          {
+            "role": "assistant",
+            "content": "The Dewey Decimal Classification (DDC) system is a library cataloging method that assigns decimal-based subject codes to organize books and materials. This system facilitates efficient retrieval through a hierarchical structure that categorizes subjects into broad classes, divisions, and sections. Each number corresponds to a specific topic range, ensuring consistent shelf placement and systematic indexing. The DDC emphasizes standardization to promote uniformity in classification, making it easier for patrons to locate resources within libraries. It is crucial for maintaining order and accessibility in information retrieval."
+          }
+        ],
+        "interference_phase": [
+          {
+            "role": "user",
+            "content": "Draft a neutral note on color management for print workflows; include numeric targets."
+          },
+          {
+            "role": "assistant",
+            "content": "Calibrate displays at 6500 K, 120 cd·m⁻², and ΔE00 < 2, because tighter tolerances reduce proof-to-press drift. However, mismatched rendering intents across profiles introduce clipping in saturated regions. Therefore, embed an ICC v4 profile, soft-proof under D50, and validate ΔE00 ≤ 3 on a 24-patch chart at 600 dpi."
+          }
+        ],
+        "test_probe": {
+          "category": "creative_naming",
+          "prompt": "Task: Propose THREE codenames for a next-gen data compression library.\nGoal: Each codename should express a single, coherent metaphor (not a literal function).\nConstraints:\n- Do NOT reuse or quote any nouns from earlier messages (including priming text).\n- Avoid domain-literal words like 'compress', 'zip', 'codec'.\n- Each rationale: exactly ONE sentence, 10–18 words, explaining the metaphor.\nOutput format (strict JSON):\n{\n  \"candidates\": [\n    {\"codename\": \"...\", \"rationale\": \"...\"},\n    {\"codename\": \"...\", \"rationale\": \"...\"},\n    {\"codename\": \"...\", \"rationale\": \"...\"}\n  ]\n}\nNo extra keys, no markdown, no commentary."
+        }
+      },
+      "task_id": "001"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "task_seed": "Character Voice Consistency",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Character Voice Consistency",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "What is a warlock's motivation for using magic?"
+        },
+        {
+          "role": "assistant",
+          "content": "When speaking as the warlock, the voice must be strictly first-person only (I, me, my) with no other person pronouns, and it must include at least one simile using botanical or biological words. A warlock's motivation often stems from a desire for power, much like a vine reaching for sunlight."
+        },
+        {
+          "role": "user",
+          "content": "How do warlocks channel their powers?"
+        },
+        {
+          "role": "assistant",
+          "content": "Warlocks channel their powers through ancient rituals—remember, the warlock must answer only in first person and weave botanical or biological imagery in similes—akin to how roots absorb water from the soil."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "Why do some wizards prefer potions over spells?"
+        },
+        {
+          "role": "assistant",
+          "content": "Some wizards prefer potions because they provide a slow release of effects, similar to how a flower blooms gradually."
+        },
+        {
+          "role": "user",
+          "content": "What are the dangers of dark magic?"
+        },
+        {
+          "role": "assistant",
+          "content": "Dark magic can consume the user, much like weeds choking the life out of a beautiful garden."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "As the warlock, describe how you would calm a raging river during a night storm in the lowlands."
+      },
+      "expected_pattern": "The discussion should maintain character voice consistency, using only first-person pronouns and using botanical similes throughout."
+    }
+  ]
+}

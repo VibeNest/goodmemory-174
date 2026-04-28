@@ -1,0 +1,11 @@
+[DONE] Add Phase 49 baseline/goodmemory/comparison runners, smoke gate, and
+targeted regressions.
+
+Definition of done:
+
+- `eval:phase-49-baseline`, `eval:phase-49-goodmemory`, `eval:phase-49`, and
+  `gate:phase-49` exist.
+- The smoke gate runs `typecheck`, targeted unit tests, and canonical smoke
+  evaluation.
+- Release metadata tests cover the new package scripts and archive/current-status
+  references.

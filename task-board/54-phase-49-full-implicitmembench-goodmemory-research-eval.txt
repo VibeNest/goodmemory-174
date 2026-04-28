@@ -1,0 +1,110 @@
+Phase 49: Full ImplicitMemBench GoodMemory Research Eval
+========================================================
+
+Status
+------
+
+[DONE] Phase 49 is closed as an internal-only full ImplicitMemBench research
+eval harness slice.
+
+Canonical evidence:
+
+- Baseline smoke report:
+  `reports/eval/research/phase-49/baseline/run-phase49-smoke-current/report.json`
+- GoodMemory smoke report:
+  `reports/eval/research/phase-49/goodmemory/run-phase49-smoke-current/report.json`
+- Comparison smoke report:
+  `reports/eval/research/phase-49/comparison/run-phase49-smoke-current/report.json`
+- Quality gate:
+  `reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-49-Quality-Gate.md`
+
+
+Phase Goal
+----------
+
+Run ImplicitMemBench through GoodMemory itself rather than only through
+upstream prompt injection, while keeping the full 300-item benchmark as
+research evidence instead of a release hard gate.
+
+
+Dependencies
+------------
+
+- Phase 24 implicit behavioral adaptation eval harness
+- Phase 25 Layer D behavioral adaptation closure
+- Phase 31 native host outcome and correction closure
+- Current live/provider-backed memory stack
+
+
+Accepted Scope
+--------------
+
+- External benchmark-root adapter for the full ImplicitMemBench dataset without
+  vendoring the upstream repository.
+- Explicit adapter manifest that maps every upstream task file to one scorer
+  family.
+- Research profiles for:
+  - `baseline-upstream-chat`
+  - `goodmemory-raw-experience`
+  - `goodmemory-distilled-feedback`
+- Comparison reporting across:
+  - `structured_first_action`
+  - `text_behavior_judge`
+  - `priming_pair_judge`
+- Smoke gate that proves the harness and mirrored subset work from a clean
+  checkout.
+
+
+Out of Scope
+------------
+
+- making full ImplicitMemBench a release hard gate
+- widening the public `GoodMemory` API or public config surface
+- changing README-level default runtime behavior
+- introducing an outcome-telemetry profile for the upstream 300-item benchmark
+- vendoring the full upstream benchmark repository into GoodMemory
+
+
+Acceptance Criteria
+-------------------
+
+1. Full-benchmark runs require `--benchmark-root` or
+   `GOODMEMORY_IMPLICITMEMBENCH_ROOT`; the repo only carries a mirrored smoke
+   subset plus attribution.
+2. GoodMemory paths replay learning/interference into memory and give the final
+   generator only `memoryContext + test_probe`.
+3. Priming stays paired `experimental/control` and does not run in the
+   distilled-feedback profile.
+4. The adapter manifest explicitly routes every upstream task file to a scorer
+   family; there is no implicit default routing.
+5. `gate:phase-49` proves only harness integrity and smoke comparison coverage,
+   not full-300 benchmark quality claims.
+
+
+Tasks
+-----
+
+[DONE] P49-T001 Add external benchmark-root loading plus mirrored smoke fixtures
+  and explicit adapter manifest coverage for all upstream task files.
+[DONE] P49-T002 Add baseline-upstream-chat, goodmemory-raw-experience, and
+  goodmemory-distilled-feedback research profiles with probe-only final prompts
+  on the GoodMemory path.
+[DONE] P49-T003 Add scorer-family routing, comparison reporting, and priming
+  paired-delta handling.
+[DONE] P49-T004 Add Phase 49 scripts, smoke gate, targeted regressions, and
+  release-facing package metadata coverage.
+[DONE] P49-T005 Archive accepted smoke evidence and sync current-status,
+  task-board, and quality-gate docs without turning this research slice into a
+  release claim.
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-49-full-implicitmembench-goodmemory-research-eval/00-README.txt`
+- `task-board/phase-49-full-implicitmembench-goodmemory-research-eval/01-dataset-adapter-and-manifest.txt`
+- `task-board/phase-49-full-implicitmembench-goodmemory-research-eval/02-research-profiles-and-scorers.txt`
+- `task-board/phase-49-full-implicitmembench-goodmemory-research-eval/03-scripts-smoke-gate-and-regressions.txt`
+- `task-board/phase-49-full-implicitmembench-goodmemory-research-eval/04-archive-and-research-evidence.txt`

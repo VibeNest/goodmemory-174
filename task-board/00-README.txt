@@ -120,6 +120,7 @@ Read and execute files in this order:
 51. 51-phase-46-memory-quality-and-maintenance-2-0.txt
 52. 52-phase-47-provider-backed-retrieval-rollout-and-quality-promotion.txt
 53. 53-phase-48-dashboard-cloud-sync-and-team-workspace-decision.txt
+54. 54-phase-49-full-implicitmembench-goodmemory-research-eval.txt
 
 
 Current Sequencing Note
@@ -365,6 +366,16 @@ Current Sequencing Note
   - quality gate: `reports/quality-gates/phase-48/run-20260428173000/phase-48-quality-gate.json`
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-48-Quality-Gate.md`
   - boundary: Phase 44 local viewer remains local-only/read-only; no hosted dashboard, cloud sync, team workspace, raw transcript archive, browser-executed viewer mutation, root public API widening, or dashboard/cloud/team package export is accepted
+- Phase 49 is now closed as the full ImplicitMemBench GoodMemory research eval harness slice:
+  - task-board entrypoint: `task-board/54-phase-49-full-implicitmembench-goodmemory-research-eval.txt`
+  - breakdown folder: `task-board/phase-49-full-implicitmembench-goodmemory-research-eval/`
+  - focus: run the full ImplicitMemBench protocol through upstream baseline and GoodMemory-mediated replay paths without turning the benchmark into a release hard gate
+  - baseline smoke report: `reports/eval/research/phase-49/baseline/run-phase49-smoke-current/report.json`
+  - GoodMemory smoke report: `reports/eval/research/phase-49/goodmemory/run-phase49-smoke-current/report.json`
+  - comparison smoke report: `reports/eval/research/phase-49/comparison/run-phase49-smoke-current/report.json`
+  - quality gate: `reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json`
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-49-Quality-Gate.md`
+  - boundary: this is internal research evidence only; it does not widen the public API, public config, README defaults, or the release hard gate
 - Any work beyond the closed Phase 41 slice should add a later phase file or explicitly reopen a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.

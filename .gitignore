@@ -73,6 +73,8 @@ sandbox/tmp/
 .tmp-goodmemory-phase39/
 .tmp-goodmemory-phase40/
 
+.goodmemory/
+
 third-party/
 reports/*
 !reports/eval/
@@ -87,12 +89,14 @@ reports/eval/*
 !reports/eval/dogfood/
 !reports/eval/adoption/
 !reports/eval/product/
+!reports/eval/research/
 reports/eval/fallback/**
 reports/eval/live/**
 reports/eval/live-memory/**
 reports/eval/dogfood/**
 reports/eval/adoption/**
 reports/eval/product/**
+reports/eval/research/**
 !reports/eval/dogfood/phase-37-1/
 !reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/
 !reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json
@@ -105,6 +109,16 @@ reports/eval/product/**
 !reports/eval/product/phase-40/
 !reports/eval/product/phase-40/run-20260425165544-product-eval/
 !reports/eval/product/phase-40/run-20260425165544-product-eval/report.json
+!reports/eval/research/phase-49/
+!reports/eval/research/phase-49/baseline/
+!reports/eval/research/phase-49/baseline/run-phase49-smoke-current/
+!reports/eval/research/phase-49/baseline/run-phase49-smoke-current/report.json
+!reports/eval/research/phase-49/goodmemory/
+!reports/eval/research/phase-49/goodmemory/run-phase49-smoke-current/
+!reports/eval/research/phase-49/goodmemory/run-phase49-smoke-current/report.json
+!reports/eval/research/phase-49/comparison/
+!reports/eval/research/phase-49/comparison/run-phase49-smoke-current/
+!reports/eval/research/phase-49/comparison/run-phase49-smoke-current/report.json
 !reports/eval/live-memory/phase-21/
 !reports/eval/live-memory/phase-21/run-1776620091171-observe/
 !reports/eval/live-memory/phase-21/run-1776620091171-observe/report.json
@@ -212,6 +226,7 @@ reports/quality-gates/**
 !reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json
 !reports/quality-gates/phase-47/run-20260428123000/phase-47-quality-gate.json
 !reports/quality-gates/phase-48/run-20260428173000/phase-48-quality-gate.json
+!reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/

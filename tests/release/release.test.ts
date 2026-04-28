@@ -73,6 +73,12 @@ const PHASE47_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-47/run-20260428120000-provider-rollout-eval/report.json";
 const PHASE48_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-48/run-20260428170000-dashboard-cloud-decision/report.json";
+const PHASE49_CANONICAL_BASELINE_SMOKE_REPORT =
+  "reports/eval/research/phase-49/baseline/run-phase49-smoke-current/report.json";
+const PHASE49_CANONICAL_GOODMEMORY_SMOKE_REPORT =
+  "reports/eval/research/phase-49/goodmemory/run-phase49-smoke-current/report.json";
+const PHASE49_CANONICAL_COMPARISON_SMOKE_REPORT =
+  "reports/eval/research/phase-49/comparison/run-phase49-smoke-current/report.json";
 const PHASE41_TASK_BOARD_LEAF_FILES = [
   "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
   "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
@@ -828,6 +834,15 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-48"]).toBe(
       "bun run scripts/run-phase-48-decision-report.ts",
     );
+    expect(pkg.scripts?.["eval:phase-49-baseline"]).toBe(
+      "bun run scripts/run-phase-49-baseline.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-49-goodmemory"]).toBe(
+      "bun run scripts/run-phase-49-goodmemory.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-49"]).toBe(
+      "bun run scripts/run-phase-49.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -876,6 +891,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-48"]).toBe(
       "bun run scripts/run-phase-48-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-49"]).toBe(
+      "bun run scripts/run-phase-49-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2475,6 +2493,21 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "docs/archive/quality-gates/GoodMemory-Phase-48-Quality-Gate.md",
     );
+    expect(currentStatus).toContain(
+      "Phase 49 is now closed as the Full ImplicitMemBench GoodMemory Research Eval",
+    );
+    expect(currentStatus).toContain("baseline-upstream-chat");
+    expect(currentStatus).toContain("goodmemory-raw-experience");
+    expect(currentStatus).toContain("goodmemory-distilled-feedback");
+    expect(currentStatus).toContain(PHASE49_CANONICAL_BASELINE_SMOKE_REPORT);
+    expect(currentStatus).toContain(PHASE49_CANONICAL_GOODMEMORY_SMOKE_REPORT);
+    expect(currentStatus).toContain(PHASE49_CANONICAL_COMPARISON_SMOKE_REPORT);
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-49-Quality-Gate.md",
+    );
     expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
@@ -2715,6 +2748,18 @@ describe("release metadata and docs", () => {
     );
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-48/run-20260428173000/phase-48-quality-gate.json",
+    );
+    expect(taskBoard).toContain(
+      "54-phase-49-full-implicitmembench-goodmemory-research-eval.txt",
+    );
+    expect(taskBoard).toContain(
+      "Phase 49 is now closed as the full ImplicitMemBench GoodMemory research eval harness slice",
+    );
+    expect(taskBoard).toContain(PHASE49_CANONICAL_BASELINE_SMOKE_REPORT);
+    expect(taskBoard).toContain(PHASE49_CANONICAL_GOODMEMORY_SMOKE_REPORT);
+    expect(taskBoard).toContain(PHASE49_CANONICAL_COMPARISON_SMOKE_REPORT);
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json",
     );
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
@@ -3968,6 +4013,34 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("raw transcript");
     expect(qualityGateDoc).toContain("local viewer remains local-only");
     expect(archiveIndex).toContain("GoodMemory-Phase-48-Quality-Gate.md");
+  });
+
+  it("phase-49 quality gate doc points to the canonical research smoke harness", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-49-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-49",
+      reportFileName: "phase-49-quality-gate.json",
+      runId: "run-20260428210000",
+    });
+
+    expect(qualityGateDoc).toContain("internal-only research harness");
+    expect(qualityGateDoc).toContain("run-phase49-smoke-current");
+    expect(qualityGateDoc).toContain("GOODMEMORY_IMPLICITMEMBENCH_ROOT");
+    expect(qualityGateDoc).toContain("baseline-upstream-chat");
+    expect(qualityGateDoc).toContain("goodmemory-raw-experience");
+    expect(qualityGateDoc).toContain("goodmemory-distilled-feedback");
+    expect(qualityGateDoc).toContain("priming_pair_judge");
+    expect(archiveIndex).toContain("GoodMemory-Phase-49-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

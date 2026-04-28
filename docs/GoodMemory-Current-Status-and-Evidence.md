@@ -49,6 +49,50 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Implicit behavioral adaptation eval is internal evidence infrastructure; it does not change the stable OSS runtime surface.
 - Behavioral adaptation outcome telemetry and deterministic Layer D evidence are also internal evidence infrastructure; they do not change the stable OSS runtime surface.
 - Trace-backed behavioral enactment over the accepted Codex host path is internal evidence infrastructure; it does not widen the public `GoodMemory` API, public config, or README-level default behavior.
+- Full ImplicitMemBench GoodMemory evaluation remains internal research
+  infrastructure; it does not change the stable OSS runtime surface or the
+  release hard gate.
+
+## Current Internal Research Slice
+
+- Phase 49 is now closed as the Full ImplicitMemBench GoodMemory Research Eval
+  slice.
+- Accepted behavior:
+  - Phase 49 adds an external benchmark-root adapter for the full
+    ImplicitMemBench dataset without vendoring the upstream repository
+  - the repo carries only a mirrored smoke subset plus a checked-in adapter
+    manifest and CC BY 4.0 attribution
+  - `baseline-upstream-chat` preserves the upstream protocol by prompt-injecting
+    learning, interference, and probe into one final generation
+  - `goodmemory-raw-experience` replays learning and interference into
+    GoodMemory and gives the final generator only `memoryContext + test_probe`
+  - `goodmemory-distilled-feedback` adds explicit feedback for procedural and
+    conditioning cases while still keeping the final prompt probe-only
+  - priming remains paired `experimental/control` and is intentionally omitted
+    from `goodmemory-distilled-feedback`
+  - scoring is explicit and manifest-routed across
+    `structured_first_action`, `text_behavior_judge`, and
+    `priming_pair_judge`
+  - `gate:phase-49` proves smoke harness integrity only; it does not claim a
+    checked-in full-300 benchmark result or make ImplicitMemBench a release
+    blocker
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-49-Quality-Gate.md`
+  - baseline smoke report:
+    `reports/eval/research/phase-49/baseline/run-phase49-smoke-current/report.json`
+  - GoodMemory smoke report:
+    `reports/eval/research/phase-49/goodmemory/run-phase49-smoke-current/report.json`
+  - comparison smoke report:
+    `reports/eval/research/phase-49/comparison/run-phase49-smoke-current/report.json`
+  - quality gate:
+    `reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json`
+- Still outside the Phase 49 accepted claim:
+  - a checked-in full 300-item live run against an external benchmark checkout
+  - release hard-gating on ImplicitMemBench quality numbers
+  - an outcome-telemetry profile for the upstream benchmark
+  - public API or public config widening for research-only evaluation
+  - README-level product claims that GoodMemory already passes the full 300-item
+    benchmark
 
 ## Latest Closed Slice
 
