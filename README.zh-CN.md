@@ -93,12 +93,12 @@ GoodMemory 负责 memory loop 和存储边界。
 
 ## 安装
 
-GoodMemory `0.2.1` 有两条常用安装路径。
+GoodMemory `0.2.2` 有两条常用安装路径。
 
 如果你想给已安装的 coding agent 增加记忆能力，使用全局 CLI：
 
 ```bash
-npm install -g goodmemory@0.2.1
+npm install -g goodmemory@0.2.2
 goodmemory setup
 goodmemory status
 ```
@@ -106,19 +106,19 @@ goodmemory status
 如果你是在应用里集成 GoodMemory，作为项目依赖安装：
 
 ```bash
-npm install goodmemory@0.2.1
+npm install goodmemory@0.2.2
 ```
 
 Bun 项目可以直接安装：
 
 ```bash
-bun add goodmemory@0.2.1
+bun add goodmemory@0.2.2
 ```
 
 发布前 tarball 验证：
 
 ```bash
-npm install ./goodmemory-0.2.1.tgz
+npm install ./goodmemory-0.2.2.tgz
 ```
 
 已安装 CLI 的非版本命令由 Bun 支撑。package bin 对 `goodmemory -V` 和 `goodmemory --version` 是 Node-safe 的；其他命令会委托给 Bun。
@@ -128,7 +128,7 @@ npm install ./goodmemory-0.2.1.tgz
 大多数用户最先需要的是 installed-host memory。
 
 ```bash
-npm install -g goodmemory@0.2.1
+npm install -g goodmemory@0.2.2
 goodmemory setup
 goodmemory status
 ```
