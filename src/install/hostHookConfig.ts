@@ -127,6 +127,26 @@ export async function isInstalledHostHookRegistered(input: {
   host: InstalledHostKind;
 }): Promise<boolean> {
   const resolvedHomeRoot = resolve(homeRootValue(input.homeRoot));
+  const hookRecordsRegistered = await areInstalledHostHookRecordsRegistered({
+    homeRoot: resolvedHomeRoot,
+    host: input.host,
+  });
+  if (!hookRecordsRegistered) {
+    return false;
+  }
+
+  if (input.host !== "codex") {
+    return true;
+  }
+
+  return isCodexHooksFeatureRegistered(resolvedHomeRoot);
+}
+
+async function areInstalledHostHookRecordsRegistered(input: {
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<boolean> {
+  const resolvedHomeRoot = resolve(homeRootValue(input.homeRoot));
   const target = resolveInstalledHostHookTargetPath(input.host, resolvedHomeRoot);
   const existing = await readFileIfPresent(target.path);
   if (existing === null) {
@@ -189,6 +209,57 @@ export async function isInstalledHostPreActionHookRegistered(input: {
   }
 }
 
+export async function inspectInstalledHostHookRegistration(input: {
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<{
+  detail?: string;
+  status: "blocked" | "registered" | "repairable";
+}> {
+  const resolvedHomeRoot = resolve(homeRootValue(input.homeRoot));
+  const target = resolveInstalledHostHookTargetPath(input.host, resolvedHomeRoot);
+  const existing = await readFileIfPresent(target.path);
+  const featureInspection =
+    input.host === "codex"
+      ? await inspectCodexHooksFeatureRegistration(resolvedHomeRoot)
+      : { status: "registered" as const };
+  if (existing === null || existing.trim().length === 0) {
+    if (featureInspection.status === "blocked") {
+      return featureInspection;
+    }
+    return { status: "repairable" };
+  }
+  const recallRegistered = await areInstalledHostHookRecordsRegistered(input);
+  const preActionRegistered =
+    input.host !== "codex" ||
+    (await isInstalledHostPreActionHookRegistered(input));
+  if (
+    recallRegistered &&
+    preActionRegistered &&
+    featureInspection.status === "registered"
+  ) {
+    return { status: "registered" };
+  }
+  if (featureInspection.status === "blocked") {
+    return featureInspection;
+  }
+
+  try {
+    mergeHookConfig(
+      existing,
+      buildManagedHookSpecs(input.host, resolvedHomeRoot),
+      input.host,
+      target.relativePath,
+    );
+    return { status: "repairable" };
+  } catch (error) {
+    return {
+      detail: error instanceof Error ? error.message : String(error),
+      status: "blocked",
+    };
+  }
+}
+
 function resolveInstalledHostHookFeatureTargetPath(homeRoot: string): {
   path: string;
   relativePath: string;
@@ -199,6 +270,56 @@ function resolveInstalledHostHookFeatureTargetPath(homeRoot: string): {
     relativePath: ".codex/config.toml",
     root: homeRoot,
   };
+}
+
+async function isCodexHooksFeatureRegistered(homeRoot: string): Promise<boolean> {
+  const inspection = await inspectCodexHooksFeatureRegistration(homeRoot);
+  return inspection.status === "registered";
+}
+
+async function inspectCodexHooksFeatureRegistration(homeRoot: string): Promise<{
+  detail?: string;
+  status: "blocked" | "registered" | "repairable";
+}> {
+  const target = resolveInstalledHostHookFeatureTargetPath(homeRoot);
+  const existing = await readFileIfPresent(target.path);
+  if (existing === null || existing.trim().length === 0) {
+    return { status: "repairable" };
+  }
+
+  try {
+    const normalized = normalizeCodexHookFeatureConfig(existing, target.relativePath);
+    const lines = normalized.split("\n");
+    const section = findTomlSectionRange(
+      lines,
+      /^\s*\[\s*features\s*\]\s*(?:#.*)?$/u,
+    );
+    if (section === null) {
+      return { status: "repairable" };
+    }
+
+    let sawEnabled = false;
+    for (const line of lines.slice(section.start + 1, section.end)) {
+      const featureValue = parseCodexHooksFeatureValue(line);
+      if (featureValue === null) {
+        continue;
+      }
+      if (featureValue === false) {
+        throw buildInvalidHostHookConfigError(
+          target.relativePath,
+          "`[features].codex_hooks` is explicitly disabled",
+        );
+      }
+      sawEnabled = true;
+    }
+
+    return sawEnabled ? { status: "registered" } : { status: "repairable" };
+  } catch (error) {
+    return {
+      detail: error instanceof Error ? error.message : String(error),
+      status: "blocked",
+    };
+  }
 }
 
 function homeRootValue(homeRoot: string | undefined): string {

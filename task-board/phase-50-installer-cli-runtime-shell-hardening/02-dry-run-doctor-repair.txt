@@ -1,0 +1,19 @@
+Phase 50.2: Dry-Run, Doctor, And Repair
+=======================================
+
+[DONE] P50.2-T001 Add `--dry-run` planning for `setup`, `install`, and
+`enable`.
+
+[DONE] P50.2-T002 Make dry-run reflect requested activation, context,
+writeback, storage, provider, and user options without writing files.
+
+[DONE] P50.2-T003 Add read-only `goodmemory doctor [codex|claude|both]`.
+
+[DONE] P50.2-T004 Make doctor report unmanaged hook/MCP conflicts as manual
+fixes, not repairable states.
+
+[DONE] P50.2-T005 Add `goodmemory repair [codex|claude|both]` for missing
+GoodMemory-managed wiring while preserving installed config values.
+
+[DONE] P50.2-T006 Return nonzero when an explicit repair target cannot be
+repaired because installation is missing or requires manual intervention.

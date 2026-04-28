@@ -1,0 +1,103 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 50 installer CLI hardening is regression-covered."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 4102,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/cli/cli.test.ts tests/unit/run-phase-50-installer-eval.test.ts tests/unit/run-phase-50-gate.test.ts",
+      "durationMs": 13962,
+      "exitCode": 0,
+      "label": "phase-50-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) goodmemory cli root commands > trace uses a non-mutating recall diagnostic path [6.96ms]",
+        "(pass) goodmemory cli root commands > trace supports ignore-memory for read-only policy diagnostics [1.76ms]",
+        "(pass) goodmemory cli root commands > trace exposes structured diagnostics with --json [3.47ms]",
+        "(pass) goodmemory cli root commands > stats reports scope-bounded counts and backend metadata [2.77ms]",
+        "(pass) goodmemory cli root commands > export-memory writes json and markdown artifacts [3.09ms]",
+        "(pass) goodmemory cli root commands > defaults sqlite storage to the cwd .goodmemory path [2.99ms]",
+        "(pass) goodmemory cli root commands > remember writes durable memory through explicit scope flags and default sqlite storage [3.24ms]",
+        "(pass) goodmemory cli root commands > feedback derives installed-host defaults and is recalled through the host hook path [118.66ms]",
+        "(pass) goodmemory cli root commands > host-derived write commands require repo opt-in before using installed-host defaults [2.11ms]",
+        "(pass) goodmemory cli root commands > forget removes a host-derived memory id from the installed-host storage path [4.68ms]",
+        "(pass) goodmemory cli root commands > forget supports deleting a full scoped target with --all [7.84ms]",
+        "(pass) goodmemory cli root commands > inspect does not create default sqlite storage when the cwd store is missing [0.40ms]",
+        "(pass) goodmemory cli root commands > stats does not create default sqlite storage when the cwd store is missing [0.27ms]",
+        "(pass) goodmemory cli root commands > trace does not create default sqlite storage when the cwd store is missing [0.32ms]",
+        "(pass) goodmemory cli root commands > trace --ignore-memory bypasses default sqlite resolution in an empty workspace [0.49ms]",
+        "",
+        " 96 pass",
+        " 0 fail",
+        " 843 expect() calls",
+        "Ran 96 tests across 3 files. [13.95s]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-50 -- --run-id run-20260428223000-installer-eval",
+      "durationMs": 123,
+      "exitCode": 0,
+      "label": "phase-50-installer-eval",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-50-installer-eval.ts --run-id \"run-20260428223000-installer-eval\""
+      ],
+      "stdoutTail": [
+        "      \"checks\": {",
+        "        \"installSucceeded\": true,",
+        "        \"repairSucceeded\": true,",
+        "        \"hookRestored\": true,",
+        "        \"mcpRestored\": true,",
+        "        \"preActionRestored\": true,",
+        "        \"writebackPreserved\": true",
+        "      },",
+        "      \"name\": \"repair-managed-wiring\",",
+        "      \"status\": \"passed\"",
+        "    }",
+        "  ],",
+        "  \"summary\": {",
+        "    \"dryRunDoesNotWrite\": true,",
+        "    \"repairPreservesWriteback\": true,",
+        "    \"repairRestoresManagedWiring\": true,",
+        "    \"scenarioCount\": 4,",
+        "    \"writebackDefaultEscalated\": false",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "cliContractsCovered": true,
+    "dryRunDoesNotWrite": true,
+    "installerEval": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-50/run-20260428223000-installer-eval/report.json",
+      "reason": "Phase 50 installer eval is accepted.",
+      "regenerateCommand": "bun run eval:phase-50 -- --run-id run-20260428223000-installer-eval",
+      "status": "accepted"
+    },
+    "noDefaultWritebackEscalation": true,
+    "packageScriptsRegistered": true,
+    "repairPreservesWriteback": true,
+    "repairRestoresManagedWiring": true
+  },
+  "generatedAt": "2026-04-28T04:15:36.012Z",
+  "generatedBy": "scripts/run-phase-50-gate.ts",
+  "phase": "phase-50",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-50/run-20260428224500",
+  "runId": "run-20260428224500"
+}

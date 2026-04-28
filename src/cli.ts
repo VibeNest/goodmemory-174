@@ -20,13 +20,16 @@ import {
   uninstallHost,
 } from "./install/hostInstall";
 import type {
+  InstalledHostFileChange,
   InstallHostResult,
   InstalledHostKind,
   InstalledHostStorageProvider,
 } from "./install/hostInstall";
 import {
+  inspectInstalledHostHookRegistration,
   isInstalledHostHookRegistered,
   isInstalledHostPreActionHookRegistered,
+  registerInstalledHostHooks,
   resolveInstalledHostHookTargetPath,
 } from "./install/hostHookConfig";
 import {
@@ -49,10 +52,13 @@ import type {
   InstalledHostEmbeddingProviderConfig,
   InstalledHostModelProviderConfig,
   InstalledHostProviderConfig,
+  InstalledHostRuntimeConfig,
   InstalledHostWritebackConfig,
   InstalledHostWritebackMode,
 } from "./install/hostConfigValidation";
 import {
+  DEFAULT_INSTALLED_HOST_ACTIVATION_MODE,
+  DEFAULT_INSTALLED_HOST_CONTEXT_MODE,
   DEFAULT_INSTALLED_HOST_WRITEBACK,
   readContextMode,
   readWritebackMode,
@@ -68,7 +74,9 @@ import type {
   InstalledHostWritebackResult,
 } from "./install/hostWritebackRuntime";
 import {
+  inspectInstalledHostMcpRegistration,
   isInstalledHostMcpRegistered,
+  registerInstalledHostMcp,
   resolveInstalledHostMcpTargetPath,
 } from "./install/hostMcpConfig";
 import { serveGoodMemoryMcp } from "./install/hostMcpServer";
@@ -239,10 +247,12 @@ const ROOT_HELP_TEXT = [
   "  export-memory   Export a memory snapshot plus Markdown artifacts",
   "  stats           Show scope-bounded counts and storage metadata",
   "  status          Show installed host memory enhancement status",
+  "  doctor          Diagnose installed host wiring without changing files",
   "  install         Install managed global GoodMemory host config for Codex or Claude Code",
   "  uninstall       Remove managed global GoodMemory host config for Codex or Claude Code",
   "  enable          Enable repo-local GoodMemory host opt-in for Codex or Claude Code",
   "  disable         Disable repo-local GoodMemory host opt-in for Codex or Claude Code",
+  "  repair          Repair missing managed installed-host wiring",
   "  mcp             Run the installed GoodMemory MCP server",
   "  runtime         Run optional local runtime tools such as worker inspection",
   "  codex           Codex bootstrap and installed hook commands",
@@ -254,9 +264,11 @@ const ROOT_HELP_TEXT = [
   "  goodmemory <command> --help",
   "  goodmemory setup --help",
   "  goodmemory status --help",
+  "  goodmemory doctor --help",
   "  goodmemory eval --help",
   "  goodmemory install --help",
   "  goodmemory enable --help",
+  "  goodmemory repair --help",
   "  goodmemory mcp --help",
   "  goodmemory runtime --help",
   "  goodmemory codex --help",
@@ -275,9 +287,23 @@ const SETUP_HELP_TEXT = [
   "  --activation-mode <global|workspace_opt_in>",
   "  --context-mode <fragment|progressive>",
   "  --writeback <off|observe|selective>",
+  "  --dry-run",
   "  --interactive",
   "  --no-interactive",
   "  --json",
+].join("\n");
+const DOCTOR_HELP_TEXT = [
+  "GoodMemory Doctor CLI",
+  "",
+  "Usage",
+  "  goodmemory doctor [codex|claude|both] [options]",
+  "",
+  "Options",
+  "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --json",
+  "",
+  "Doctor is read-only. It reports installed host config, hook, MCP, context,",
+  "writeback, workspace, and repair hints without creating runtime storage.",
 ].join("\n");
 const EVAL_HELP_TEXT = [
   "GoodMemory Eval CLI",
@@ -408,6 +434,7 @@ const INSTALL_HELP_TEXT = [
   "  --llm-base-url <url>",
   "  --activation-mode <global|workspace_opt_in>",
   "  --writeback <off|observe|selective>",
+  "  --dry-run",
   "  --interactive",
   "  --no-interactive",
   "  --json",
@@ -443,7 +470,23 @@ const ENABLE_HELP_TEXT = [
   "  --workspace-root <path>   Optional, defaults to the current working directory",
   "  --context-mode <fragment|progressive>",
   "  --writeback <off|observe|selective>",
+  "  --dry-run",
   "  --json",
+].join("\n");
+const REPAIR_HELP_TEXT = [
+  "GoodMemory Repair CLI",
+  "",
+  "Usage",
+  "  goodmemory repair [codex|claude|both] [options]",
+  "",
+  "Options",
+  "  --workspace-root <path>   Optional, defaults to the current working directory",
+  "  --dry-run",
+  "  --json",
+  "",
+  "Repair only rewrites GoodMemory-managed host wiring or absent managed targets.",
+  "It preserves existing installed config, context mode, providers, storage, and",
+  "writeback mode.",
 ].join("\n");
 const DISABLE_HELP_TEXT = [
   "GoodMemory Disable CLI",
@@ -2238,6 +2281,83 @@ function renderStatusPayload(payload: {
   return lines.join("\n");
 }
 
+function renderInstallerPlanPayload(
+  title: string,
+  payload: { hosts: InstallerHostPlan[] },
+): string {
+  const lines = [title];
+  for (const host of payload.hosts) {
+    lines.push(`- ${host.host}: config=${host.config}, workspace=${host.workspaceStatus}`);
+    lines.push(
+      `  - hooks: recall=${host.hookRegistered ? "registered" : "missing"}, preAction=${host.preActionRegistered ? "registered" : "missing"}, mcp=${host.mcpRegistered ? "registered" : "missing"}`,
+    );
+    lines.push(`  - repairable: ${host.repairable}`);
+    if (host.contextMode) {
+      lines.push(`  - context: ${host.contextMode}`);
+    }
+    if (host.writeback) {
+      lines.push(`  - writeback: ${host.writeback.mode}`);
+    }
+    for (const warning of host.warnings) {
+      lines.push(`  - warning: ${warning}`);
+    }
+    for (const command of host.nextCommands) {
+      lines.push(`  - next: ${command}`);
+    }
+    for (const change of host.plannedChanges) {
+      lines.push(`  - ${change.path} (${change.action}; ${change.reason})`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function renderInstallerRepairPayload(payload: {
+  hosts: Array<
+    | (ReturnType<typeof buildInstalledHostPayload> & {
+        dryRun: boolean;
+        nextCommands: string[];
+        repairable: boolean;
+        skipped: boolean;
+        warnings: string[];
+      })
+    | (ReturnType<typeof buildRepairedHostPayload> & {
+        dryRun: boolean;
+        nextCommands: string[];
+        repairable: boolean;
+        skipped: boolean;
+        warnings: string[];
+      })
+    | (InstallerHostPlan & {
+        changes: Array<{
+          action: InstalledHostFileChange["action"];
+          path: string;
+          relativePath: string;
+        }>;
+        skipped: boolean;
+      })
+  >;
+}): string {
+  const lines = ["GoodMemory repair complete"];
+  for (const host of payload.hosts) {
+    lines.push(`- ${host.host}: ${host.skipped ? "skipped" : "repaired"}`);
+    if ("writeback" in host && host.writeback) {
+      lines.push(`  - writeback: ${host.writeback.mode}`);
+    }
+    for (const warning of host.warnings) {
+      lines.push(`  - warning: ${warning}`);
+    }
+    for (const command of host.nextCommands) {
+      lines.push(`  - next: ${command}`);
+    }
+    for (const change of host.changes) {
+      lines.push(`  - ${change.path} (${change.action})`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 function formatInstalledHostWritebackGuidance(
   host: string,
   mode: InstalledHostWritebackMode,
@@ -2518,6 +2638,10 @@ function readSetupHostSelection(
 
 function expandSetupHostSelection(selection: SetupHostSelection): InstalledHostKind[] {
   return selection === "both" ? ["codex", "claude"] : [selection];
+}
+
+function readOptionalHostSelection(value: string | undefined): SetupHostSelection {
+  return readSetupHostSelection(value) ?? "both";
 }
 
 async function detectSetupHostSelection(): Promise<SetupHostSelection> {
@@ -3505,6 +3629,33 @@ async function handleHostInstall(
       ? resolve(installFlags["workspace-root"] ?? ".")
       : undefined;
 
+  if (flagEnabled(installFlags, "dry-run")) {
+    const activationMode =
+      installOptions.activationSelection === "global"
+        ? "global"
+        : readActivationModeFlag(installFlags["activation-mode"]) ?? "workspace_opt_in";
+    const payload = {
+      dryRun: true,
+      hosts: [
+        await buildInstallerHostPlan({
+          host,
+          mode: "install",
+          requested: buildInstallerRequestedOptions({
+            activationMode,
+            flags: installFlags,
+            writeback: installOptions.writeback,
+          }),
+          workspaceRoot,
+        }),
+      ],
+    };
+
+    return {
+      json: payload,
+      text: renderInstallerPlanPayload("GoodMemory install dry-run", payload),
+    };
+  }
+
   return withManagedFileTransaction(
     resolveHostMutationPaths([
       {
@@ -3586,6 +3737,33 @@ async function handleSetup(
     setup.activationSelection === "current-workspace"
       ? resolve(setup.flags["workspace-root"] ?? ".")
       : undefined;
+
+  if (flagEnabled(setup.flags, "dry-run")) {
+    const payload = {
+      dryRun: true,
+      hosts: await Promise.all(
+        setup.hosts.map((host) => {
+          const activationMode =
+            setup.activationSelection === "global" ? "global" : "workspace_opt_in";
+          return buildInstallerHostPlan({
+            host,
+            mode: "install",
+            requested: buildInstallerRequestedOptions({
+              activationMode,
+              flags: setup.flags,
+              writeback: setup.writebackByHost[host],
+            }),
+            workspaceRoot,
+          });
+        }),
+      ),
+    };
+
+    return {
+      json: payload,
+      text: renderInstallerPlanPayload("GoodMemory setup dry-run", payload),
+    };
+  }
 
   return withManagedFileTransaction(
     resolveHostMutationPaths(
@@ -3710,6 +3888,34 @@ function resolveHostMutationPaths(
   const paths = inputs.flatMap((input) => {
     const basePaths = [
       join(installRoot, `${input.host}.json`),
+      resolveInstalledHostHookTargetPath(input.host, homeRoot).path,
+      resolveInstalledHostMcpTargetPath(input.host, homeRoot).path,
+    ];
+
+    if (!input.workspaceRoot) {
+      return basePaths;
+    }
+
+    return [
+      ...basePaths,
+      join(input.workspaceRoot, ".goodmemory", `${input.host}.json`),
+      join(
+        input.workspaceRoot,
+        input.host === "codex" ? "AGENTS.md" : "CLAUDE.md",
+      ),
+    ];
+  });
+
+  return [...new Set(paths)];
+}
+
+function resolveHostRepairMutationPaths(
+  inputs: Array<{ host: InstalledHostKind; workspaceRoot?: string }>,
+): string[] {
+  const installRoot = resolveInstallRoot(undefined);
+  const homeRoot = dirname(installRoot);
+  const paths = inputs.flatMap((input) => {
+    const basePaths = [
       resolveInstalledHostHookTargetPath(input.host, homeRoot).path,
       resolveInstalledHostMcpTargetPath(input.host, homeRoot).path,
     ];
@@ -3879,6 +4085,118 @@ function buildInstalledHostPayload(
   };
 }
 
+async function repairInstalledHostWiring(input: {
+  host: InstalledHostKind;
+  plan: InstallerHostPlan;
+}): Promise<InstalledHostFileChange[]> {
+  const changes: InstalledHostFileChange[] = [];
+  if (!input.plan.mcpRegistered) {
+    changes.push(
+      await registerInstalledHostMcp({
+        host: input.host,
+      }),
+    );
+  }
+  if (!input.plan.hookRegistered || !input.plan.preActionRegistered) {
+    changes.push(
+      ...(await registerInstalledHostHooks({
+        host: input.host,
+      })),
+    );
+  }
+
+  return mergeInstallerFileChanges(changes);
+}
+
+function buildRepairedHostPayload(
+  plan: InstallerHostPlan,
+  repairChanges: InstalledHostFileChange[],
+  workspaceEnableResult: Awaited<ReturnType<typeof enableHostWorkspace>> | null,
+): {
+  activationMode: InstalledHostActivationMode | null;
+  changes: Array<{
+    action: string;
+    path: string;
+    relativePath: string;
+  }>;
+  contextMode: InstalledHostContextMode | null;
+  host: InstalledHostKind;
+  providers?: {
+    assistedExtractor: InstalledProviderStatus;
+    embedding: InstalledProviderStatus;
+  };
+  storage?: {
+    location: string;
+    provider: string;
+  };
+  userId?: string;
+  writeback: InstalledHostWritebackConfig | null;
+  workspaceRoot?: string;
+} {
+  return {
+    activationMode: plan.activationMode,
+    changes: [
+      ...repairChanges,
+      ...(workspaceEnableResult?.changes ?? []),
+    ].map((change) => ({
+      action: change.action,
+      path: change.path,
+      relativePath: change.relativePath,
+    })),
+    contextMode: plan.contextMode,
+    host: plan.host,
+    ...(plan.providers ? { providers: plan.providers } : {}),
+    ...(plan.storage ? { storage: plan.storage } : {}),
+    ...(plan.userId ? { userId: plan.userId } : {}),
+    writeback: plan.writeback,
+    ...(workspaceEnableResult
+      ? { workspaceRoot: workspaceEnableResult.workspaceRoot }
+      : {}),
+  };
+}
+
+function mergeInstallerFileChanges(
+  changes: InstalledHostFileChange[],
+): InstalledHostFileChange[] {
+  const merged = new Map<string, InstalledHostFileChange>();
+  const order: string[] = [];
+
+  for (const change of changes) {
+    if (!merged.has(change.path)) {
+      merged.set(change.path, change);
+      order.push(change.path);
+      continue;
+    }
+
+    const previous = merged.get(change.path)!;
+    merged.set(change.path, {
+      ...change,
+      action: mergeInstallerFileAction(previous.action, change.action),
+    });
+  }
+
+  return order.map((path) => merged.get(path)!);
+}
+
+function mergeInstallerFileAction(
+  previous: InstalledHostFileChange["action"],
+  next: InstalledHostFileChange["action"],
+): InstalledHostFileChange["action"] {
+  if (next === "unchanged") {
+    return previous;
+  }
+  if (previous === "unchanged") {
+    return next;
+  }
+  if (previous === "created" || next === "created") {
+    return "created";
+  }
+  if (previous === "deleted" || next === "deleted") {
+    return "deleted";
+  }
+  return next;
+}
+
 async function handleHostUninstall(
   host: InstalledHostKind,
 ): Promise<CLICommandOutput> {
@@ -3915,6 +4233,531 @@ async function handleStatus(
     json: payload,
     text: renderStatusPayload(payload),
   };
+}
+
+interface InstallerPlannedChange {
+  action: "create" | "update";
+  path: string;
+  reason: string;
+}
+
+interface InstallerHostPlan {
+  activationMode: InstalledHostActivationMode | null;
+  config: string;
+  contextMode: InstalledHostContextMode | null;
+  hookRegistered: boolean;
+  host: InstalledHostKind;
+  mcpRegistered: boolean;
+  nextCommands: string[];
+  plannedChanges: InstallerPlannedChange[];
+  preActionRegistered: boolean;
+  providers?: {
+    assistedExtractor: InstalledProviderStatus;
+    embedding: InstalledProviderStatus;
+  };
+  repairable: boolean;
+  storage?: {
+    location: string;
+    provider: string;
+  };
+  userId?: string;
+  warnings: string[];
+  workspaceStatus: string;
+  writeback: InstalledHostWritebackConfig | null;
+}
+
+interface InstallerRequestedOptions {
+  activationMode?: InstalledHostActivationMode;
+  assistedExtractor?: InstalledHostModelProviderConfig;
+  contextMode?: InstalledHostContextMode;
+  embedding?: InstalledHostEmbeddingProviderConfig;
+  memoryPath?: string;
+  storageExplicit: boolean;
+  storageProvider?: InstalledHostStorageProvider;
+  storageUrl?: string;
+  userId?: string;
+  userIdExplicit: boolean;
+  writeback?: InstalledHostWritebackConfig;
+}
+
+async function handleDoctor(
+  selection: SetupHostSelection,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  const payload = {
+    dryRun: true,
+    hosts: await Promise.all(
+      expandSetupHostSelection(selection).map((host) =>
+        buildInstallerHostPlan({
+          host,
+          mode: "doctor",
+          workspaceRoot: flags["workspace-root"],
+        }),
+      ),
+    ),
+  };
+
+  return {
+    json: payload,
+    text: renderInstallerPlanPayload("GoodMemory doctor", payload),
+  };
+}
+
+async function handleRepair(
+  selection: SetupHostSelection,
+  flags: ParsedFlags,
+): Promise<CLICommandOutput> {
+  const hosts = expandSetupHostSelection(selection);
+  if (flagEnabled(flags, "dry-run")) {
+    const payload = {
+      dryRun: true,
+      hosts: await Promise.all(
+        hosts.map((host) =>
+          buildInstallerHostPlan({
+            host,
+            mode: "repair",
+            workspaceRoot: flags["workspace-root"],
+          }),
+        ),
+      ),
+    };
+
+    return {
+      json: payload,
+      text: renderInstallerPlanPayload("GoodMemory repair dry-run", payload),
+    };
+  }
+
+  return withManagedFileTransaction(
+    resolveHostRepairMutationPaths(
+      hosts.map((host) => ({
+        host,
+        workspaceRoot: flags["workspace-root"],
+      })),
+    ),
+    async () => {
+      const repairedHosts = [];
+      let blockedRepair = false;
+      for (const host of hosts) {
+        const plan = await buildInstallerHostPlan({
+          host,
+          mode: "repair",
+          workspaceRoot: flags["workspace-root"],
+        });
+        if (!plan.repairable) {
+          const skippedReason =
+            plan.config !== "ok" || plan.warnings.length > 0
+              ? "manual_fix_required"
+              : "nothing_to_repair";
+          if (skippedReason === "manual_fix_required") {
+            blockedRepair = true;
+          }
+          repairedHosts.push({
+            ...plan,
+            changes: [] as Array<{
+              action: InstalledHostFileChange["action"];
+              path: string;
+              relativePath: string;
+            }>,
+            skipped: true,
+            skippedReason,
+          });
+          continue;
+        }
+
+        const repairChanges = await repairInstalledHostWiring({
+          host,
+          plan,
+        });
+        const workspaceEnableResult =
+          plan.workspaceStatus === "missing_repo_config"
+            ? await enableHostWorkspace({
+                host,
+                workspaceRoot: flags["workspace-root"],
+              })
+            : null;
+        repairedHosts.push({
+          ...buildRepairedHostPayload(plan, repairChanges, workspaceEnableResult),
+          dryRun: false,
+          nextCommands: [] as string[],
+          repairable: false,
+          skipped: false,
+          warnings: [] as string[],
+        });
+      }
+
+      const payload = {
+        dryRun: false,
+        hosts: repairedHosts,
+      };
+
+      return {
+        exitCode: blockedRepair ? 1 : 0,
+        json: payload,
+        text: renderInstallerRepairPayload(payload),
+      };
+    },
+  );
+}
+
+async function buildInstallerHostPlan(input: {
+  host: InstalledHostKind;
+  mode: "doctor" | "enable" | "install" | "repair";
+  requested?: InstallerRequestedOptions;
+  workspaceRoot?: string;
+}): Promise<InstallerHostPlan> {
+  const status = await buildHostStatus(input.host, {
+    ...(input.workspaceRoot ? { "workspace-root": input.workspaceRoot } : {}),
+  });
+  const config = String(status.config ?? "missing");
+  const workspaceStatus = String(status.workspaceStatus ?? "missing_global_config");
+  const hookRegistered = status.hookRegistered === true;
+  const mcpRegistered = status.mcpRegistered === true;
+  const preActionRegistered = status.preActionRegistered === true;
+  const preActionReady = input.host !== "codex" || preActionRegistered;
+  const wiringNeedsRepair = !hookRegistered || !mcpRegistered || !preActionReady;
+  const hookInspection = await inspectInstalledHostHookRegistration({
+    host: input.host,
+  });
+  const mcpInspection = await inspectInstalledHostMcpRegistration({
+    host: input.host,
+  });
+  const existingGlobalConfig = await readInstalledHostRuntimeConfig(
+    input.host,
+    undefined,
+    {},
+  );
+  const existingConfig =
+    existingGlobalConfig.status === "ok" ? existingGlobalConfig.config : null;
+  const installDefaultsApply =
+    input.requested !== undefined && input.mode === "install";
+  const activationMode =
+    input.requested?.activationMode ??
+    (status.activationMode === "global" || status.activationMode === "workspace_opt_in"
+      ? status.activationMode
+      : installDefaultsApply
+        ? DEFAULT_INSTALLED_HOST_ACTIVATION_MODE
+        : null);
+  const contextMode =
+    input.requested?.contextMode ??
+    existingConfig?.contextMode ??
+    (status.contextMode === "fragment" || status.contextMode === "progressive"
+      ? status.contextMode
+      : installDefaultsApply
+        ? DEFAULT_INSTALLED_HOST_CONTEXT_MODE
+        : null);
+  const writeback =
+    input.requested?.writeback ??
+    existingConfig?.writeback ??
+    (isInstalledWritebackConfig(status.writeback)
+      ? status.writeback
+      : installDefaultsApply
+        ? DEFAULT_INSTALLED_HOST_WRITEBACK
+        : null);
+  const storage = input.requested
+    ? summarizeInstallerPlanStorage({
+        existingConfig,
+        requested: input.requested,
+      })
+    : undefined;
+  const providers = input.requested
+    ? summarizeInstalledProviders(
+        mergeInstallerPlanProviders({
+          existingConfig,
+          requested: input.requested,
+        }),
+      )
+    : undefined;
+  const userId = input.requested
+    ? input.requested.userIdExplicit
+      ? resolveInstallerRequestedUserId(input.requested)
+      : existingConfig?.userId ?? resolveInstallerRequestedUserId(input.requested)
+    : undefined;
+  const warnings: string[] = [];
+  const nextCommands: string[] = [];
+  const enableWritebackUpdate =
+    input.mode === "enable" && input.requested?.writeback !== undefined;
+  const plannedChanges = await buildInstallerPlannedChanges({
+    host: input.host,
+    includeGlobalConfig:
+      input.mode === "install" || enableWritebackUpdate,
+    includeGlobalWiring:
+      input.mode === "install" ||
+      (input.mode === "repair" && wiringNeedsRepair),
+    includeWorkspace:
+      input.mode === "enable" ||
+      (input.mode === "install" && input.workspaceRoot !== undefined) ||
+      (input.mode === "repair" && workspaceStatus === "missing_repo_config"),
+    workspaceRoot: input.workspaceRoot,
+  });
+
+  if (config === "missing") {
+    nextCommands.push(`goodmemory setup --host ${input.host}`);
+  }
+  if (config === "invalid") {
+    warnings.push(`Installed ${input.host} config is invalid and must be fixed manually.`);
+  }
+  if (hookInspection.status === "blocked") {
+    warnings.push(
+      `Hook registration requires manual repair: ${hookInspection.detail ?? "blocked"}`,
+    );
+  }
+  if (mcpInspection.status === "blocked") {
+    warnings.push(
+      `MCP registration requires manual repair: ${mcpInspection.detail ?? "blocked"}`,
+    );
+  }
+  const wiringBlocked =
+    hookInspection.status === "blocked" || mcpInspection.status === "blocked";
+  if (
+    config === "ok" &&
+    !wiringBlocked &&
+    wiringNeedsRepair
+  ) {
+    nextCommands.push(`goodmemory repair ${input.host}`);
+  }
+  if (workspaceStatus === "missing_repo_config") {
+    nextCommands.push(
+      `goodmemory enable ${input.host} --workspace-root ${resolve(input.workspaceRoot ?? ".")}`,
+    );
+  }
+
+  const repairable =
+    config === "ok" &&
+    !wiringBlocked &&
+    (wiringNeedsRepair || workspaceStatus === "missing_repo_config");
+
+  return {
+    activationMode,
+    config,
+    contextMode,
+    hookRegistered,
+    host: input.host,
+    mcpRegistered,
+    nextCommands,
+    plannedChanges,
+    preActionRegistered,
+    ...(providers ? { providers } : {}),
+    repairable,
+    ...(storage ? { storage } : {}),
+    ...(userId ? { userId } : {}),
+    warnings,
+    workspaceStatus,
+    writeback,
+  };
+}
+
+async function buildInstallerPlannedChanges(input: {
+  host: InstalledHostKind;
+  includeGlobalConfig: boolean;
+  includeGlobalWiring: boolean;
+  includeWorkspace: boolean;
+  workspaceRoot?: string;
+}): Promise<InstallerPlannedChange[]> {
+  const installRoot = resolveInstallRoot(undefined);
+  const homeRoot = dirname(installRoot);
+  const paths: Array<{ path: string; reason: string }> = [];
+
+  if (input.includeGlobalConfig) {
+    paths.push({
+      path: join(installRoot, `${input.host}.json`),
+      reason: "installed host config",
+    });
+  }
+
+  if (input.includeGlobalWiring) {
+    paths.push(
+      {
+        path: resolveInstalledHostHookTargetPath(input.host, homeRoot).path,
+        reason: "managed host hooks",
+      },
+      {
+        path: resolveInstalledHostMcpTargetPath(input.host, homeRoot).path,
+        reason: "managed MCP registration",
+      },
+    );
+  }
+
+  if (input.includeWorkspace) {
+    const workspaceRoot = resolve(input.workspaceRoot ?? ".");
+    paths.push(
+      {
+        path: join(workspaceRoot, ".goodmemory", `${input.host}.json`),
+        reason: "workspace opt-in config",
+      },
+      {
+        path: join(workspaceRoot, input.host === "codex" ? "AGENTS.md" : "CLAUDE.md"),
+        reason: "workspace instruction marker",
+      },
+    );
+  }
+
+  const unique = [...new Map(paths.map((item) => [item.path, item])).values()];
+  const changes: InstallerPlannedChange[] = [];
+  for (const item of unique) {
+    changes.push({
+      action: (await pathExists(item.path)) ? "update" : "create",
+      path: item.path,
+      reason: item.reason,
+    });
+  }
+
+  return changes;
+}
+
+function isInstalledWritebackConfig(
+  value: unknown,
+): value is InstalledHostWritebackConfig {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "mode" in value &&
+    (value.mode === "off" || value.mode === "observe" || value.mode === "selective")
+  );
+}
+
+function buildInstallerRequestedOptions(input: {
+  activationMode: InstalledHostActivationMode;
+  flags: ParsedFlags;
+  writeback?: InstalledHostWritebackConfig;
+}): InstallerRequestedOptions {
+  const memoryPath = input.flags["memory-path"];
+  const storageProvider = readInstallStorageProviderFlag(input.flags["storage-provider"]);
+  const rawStorageUrl = input.flags["storage-url"];
+  const storageUrl = rawStorageUrl === undefined ? undefined : rawStorageUrl.trim();
+  validateInstallerRequestedStorage({
+    memoryPath,
+    rawStorageUrl,
+    storageProvider,
+    storageUrl,
+  });
+
+  return {
+    activationMode: input.activationMode,
+    assistedExtractor: readOptionalAssistedExtractorProviderConfig(input.flags),
+    contextMode: readContextModeFlag(input.flags["context-mode"]),
+    embedding: readOptionalEmbeddingProviderConfig(input.flags),
+    memoryPath,
+    storageExplicit:
+      memoryPath !== undefined ||
+      storageProvider !== undefined ||
+      rawStorageUrl !== undefined,
+    storageProvider,
+    storageUrl,
+    userId: input.flags["user-id"],
+    userIdExplicit: input.flags["user-id"] !== undefined,
+    writeback: input.writeback,
+  };
+}
+
+function validateInstallerRequestedStorage(input: {
+  memoryPath?: string;
+  rawStorageUrl?: string;
+  storageProvider?: InstalledHostStorageProvider;
+  storageUrl?: string;
+}): void {
+  if (
+    input.memoryPath &&
+    (input.storageProvider !== undefined || input.rawStorageUrl !== undefined)
+  ) {
+    throw new Error(
+      "Use either --memory-path or --storage-provider/--storage-url, not both.",
+    );
+  }
+  if (input.storageProvider === "postgres" && !input.storageUrl) {
+    throw new Error("Postgres installed-host storage requires --storage-url.");
+  }
+  if (
+    input.rawStorageUrl !== undefined &&
+    input.storageUrl !== undefined &&
+    input.storageUrl.length === 0
+  ) {
+    throw new Error("Installed-host --storage-url must be a non-empty string.");
+  }
+  if (input.storageProvider === undefined && input.rawStorageUrl !== undefined) {
+    throw new Error(
+      "Installed-host --storage-url requires --storage-provider <sqlite|postgres>.",
+    );
+  }
+}
+
+function summarizeInstallerPlanStorage(input: {
+  existingConfig: InstalledHostRuntimeConfig | null;
+  requested: InstallerRequestedOptions;
+}): {
+  location: string;
+  provider: string;
+} {
+  if (input.requested.storageExplicit) {
+    return summarizeInstallerRequestedStorage(input.requested);
+  }
+  const existingStorage = input.existingConfig?.storage;
+  if (existingStorage) {
+    return existingStorage.provider === "postgres"
+      ? {
+          location: "configured",
+          provider: "postgres",
+        }
+      : {
+          location: existingStorage.url,
+          provider: existingStorage.provider,
+        };
+  }
+
+  return summarizeInstallerRequestedStorage(input.requested);
+}
+
+function summarizeInstallerRequestedStorage(input: InstallerRequestedOptions): {
+  location: string;
+  provider: string;
+} {
+  if (input.storageProvider === "postgres") {
+    return {
+      location: "configured",
+      provider: "postgres",
+    };
+  }
+
+  const installRoot = resolveInstallRoot(undefined);
+  return {
+    location: resolve(input.storageUrl ?? input.memoryPath ?? join(installRoot, "memory.sqlite")),
+    provider: "sqlite",
+  };
+}
+
+function mergeInstallerPlanProviders(input: {
+  existingConfig: InstalledHostRuntimeConfig | null;
+  requested: InstallerRequestedOptions;
+}): InstalledHostProviderConfig | undefined {
+  const providers: InstalledHostProviderConfig = {
+    ...(input.existingConfig?.providers ?? {}),
+    ...(input.requested.assistedExtractor
+      ? { assistedExtractor: input.requested.assistedExtractor }
+      : {}),
+    ...(input.requested.embedding ? { embedding: input.requested.embedding } : {}),
+  };
+
+  return Object.keys(providers).length > 0 ? providers : undefined;
+}
+
+function resolveInstallerRequestedUserId(input: InstallerRequestedOptions): string {
+  const explicit = input.userId?.trim();
+  if (explicit && explicit.length > 0) {
+    return explicit;
+  }
+  for (const candidate of [
+    process.env.GOODMEMORY_DEFAULT_USER_ID,
+    process.env.USER,
+    process.env.LOGNAME,
+    process.env.USERNAME,
+  ]) {
+    const trimmed = candidate?.trim();
+    if (trimmed && trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+
+  return "goodmemory-user";
 }
 
 async function buildHostStatus(
@@ -4077,6 +4920,33 @@ async function handleHostEnable(
   host: InstalledHostKind,
   flags: ParsedFlags,
 ): Promise<CLICommandOutput> {
+  if (flagEnabled(flags, "dry-run")) {
+    const payload = {
+      dryRun: true,
+      hosts: [
+        await buildInstallerHostPlan({
+          host,
+          mode: "enable",
+          requested: {
+            contextMode: readContextModeFlag(flags["context-mode"]),
+            storageExplicit: false,
+            userIdExplicit: false,
+            writeback:
+              flags.writeback === undefined
+                ? undefined
+                : buildWritebackConfig(readWritebackModeFlag(flags.writeback)),
+          },
+          workspaceRoot: flags["workspace-root"],
+        }),
+      ],
+    };
+
+    return {
+      json: payload,
+      text: renderInstallerPlanPayload("GoodMemory enable dry-run", payload),
+    };
+  }
+
   const result = await enableHostWorkspace({
     contextMode: readContextModeFlag(flags["context-mode"]),
     host,
@@ -4437,6 +5307,9 @@ export async function runCLI(
       if (primary === "status") {
         return helpResult(STATUS_HELP_TEXT);
       }
+      if (primary === "doctor") {
+        return helpResult(DOCTOR_HELP_TEXT);
+      }
       if (primary === "eval") {
         const secondary = commands[1];
         if (!secondary) {
@@ -4561,6 +5434,14 @@ export async function runCLI(
         requireInstalledHostKind(secondary);
         return helpResult(DISABLE_HELP_TEXT);
       }
+      if (primary === "repair") {
+        const secondary = commands[1];
+        if (!secondary) {
+          return helpResult(REPAIR_HELP_TEXT);
+        }
+        readOptionalHostSelection(secondary);
+        return helpResult(REPAIR_HELP_TEXT);
+      }
       if (primary === "mcp") {
         const secondary = commands[1];
         if (!secondary) {
@@ -4603,6 +5484,12 @@ export async function runCLI(
           commands[1] ? requireInstalledHostKind(commands[1]) : undefined,
           flags,
         ),
+        flags,
+      );
+    }
+    if (primary === "doctor") {
+      return renderOutput(
+        await handleDoctor(readOptionalHostSelection(commands[1]), flags),
         flags,
       );
     }
@@ -4698,6 +5585,12 @@ export async function runCLI(
     if (primary === "disable") {
       return renderOutput(
         await handleHostDisable(requireInstalledHostKind(commands[1]), flags),
+        flags,
+      );
+    }
+    if (primary === "repair") {
+      return renderOutput(
+        await handleRepair(readOptionalHostSelection(commands[1]), flags),
         flags,
       );
     }

@@ -930,7 +930,9 @@ describe("goodmemory cli help and routing", () => {
     const install = await runCLI(["install", "--help"]);
     const installCodex = await runCLI(["install", "codex", "--help"]);
     const setup = await runCLI(["setup", "--help"]);
+    const doctor = await runCLI(["doctor", "--help"]);
     const uninstall = await runCLI(["uninstall", "--help"]);
+    const repair = await runCLI(["repair", "--help"]);
     const enable = await runCLI(["enable", "--help"]);
     const disable = await runCLI(["disable", "--help"]);
     const status = await runCLI(["status", "--help"]);
@@ -984,19 +986,29 @@ describe("goodmemory cli help and routing", () => {
     expect(setup.exitCode).toBe(0);
     expect(setup.stdout).toContain("GoodMemory Setup CLI");
     expect(setup.stdout).toContain("--host <codex|claude|both>");
+    expect(setup.stdout).toContain("--dry-run");
+    expect(doctor.exitCode).toBe(0);
+    expect(doctor.stdout).toContain("GoodMemory Doctor CLI");
+    expect(doctor.stdout).toContain("goodmemory doctor [codex|claude|both]");
     expect(installCodex.exitCode).toBe(0);
     expect(installCodex.stdout).toContain("--memory-path <path>");
     expect(installCodex.stdout).toContain("--storage-provider <sqlite|postgres>");
     expect(installCodex.stdout).toContain("--activation-mode <global|workspace_opt_in>");
     expect(installCodex.stdout).toContain("--writeback <off|observe|selective>");
+    expect(installCodex.stdout).toContain("--dry-run");
     expect(installCodex.stdout).toContain("--embedding-provider <openai>");
     expect(installCodex.stdout).toContain("--llm-provider <openai|anthropic>");
     expect(installCodex.stdout).toContain("rules-only mode");
     expect(uninstall.exitCode).toBe(0);
     expect(uninstall.stdout).toContain("GoodMemory Uninstall CLI");
+    expect(repair.exitCode).toBe(0);
+    expect(repair.stdout).toContain("GoodMemory Repair CLI");
+    expect(repair.stdout).toContain("goodmemory repair [codex|claude|both]");
+    expect(repair.stdout).toContain("--dry-run");
     expect(enable.exitCode).toBe(0);
     expect(enable.stdout).toContain("GoodMemory Enable CLI");
     expect(enable.stdout).toContain("--workspace-root <path>");
+    expect(enable.stdout).toContain("--dry-run");
     expect(disable.exitCode).toBe(0);
     expect(disable.stdout).toContain("GoodMemory Disable CLI");
     expect(status.exitCode).toBe(0);
@@ -2653,6 +2665,897 @@ describe("goodmemory cli installed host config", () => {
           };
           expect(payload.activationMode).toBe("workspace_opt_in");
           await expect(access(join(workspace.root, ".goodmemory/codex.json"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("plans install without writing managed files in dry-run mode", async () => {
+    const home = await createTempWorkspace("goodmemory-install-dry-run-home");
+    const workspace = await createTempWorkspace("goodmemory-install-dry-run-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI([
+              "install",
+              "codex",
+              "--activation-mode",
+              "global",
+              "--context-mode",
+              "progressive",
+              "--storage-provider",
+              "postgres",
+              "--storage-url",
+              "postgres://example/db",
+              "--embedding-provider",
+              "openai",
+              "--embedding-model",
+              "text-embedding-3-small",
+              "--embedding-api-key",
+              "sk-test",
+              "--llm-provider",
+              "anthropic",
+              "--llm-model",
+              "claude-haiku",
+              "--llm-api-key",
+              "sk-llm",
+              "--writeback",
+              "selective",
+              "--user-id",
+              "codex-user",
+              "--dry-run",
+              "--json",
+            ]),
+          );
+
+          expect(result.exitCode).toBe(0);
+          const payload = JSON.parse(result.stdout) as {
+            dryRun: boolean;
+            hosts: Array<{
+              activationMode: string;
+              contextMode: string;
+              host: string;
+              plannedChanges: Array<{ path: string }>;
+              providers: {
+                assistedExtractor: { configured: boolean; provider: string };
+                embedding: { configured: boolean; provider: string };
+              };
+              storage: { location: string; provider: string };
+              userId: string;
+              writeback: { mode: string };
+            }>;
+          };
+          expect(payload.dryRun).toBe(true);
+          expect(payload.hosts[0]?.host).toBe("codex");
+          expect(payload.hosts[0]?.activationMode).toBe("global");
+          expect(payload.hosts[0]?.contextMode).toBe("progressive");
+          expect(payload.hosts[0]?.writeback.mode).toBe("selective");
+          expect(payload.hosts[0]?.storage).toEqual({
+            location: "configured",
+            provider: "postgres",
+          });
+          expect(payload.hosts[0]?.userId).toBe("codex-user");
+          expect(payload.hosts[0]?.providers.embedding.configured).toBe(true);
+          expect(payload.hosts[0]?.providers.embedding.provider).toBe("openai");
+          expect(payload.hosts[0]?.providers.assistedExtractor.configured).toBe(true);
+          expect(payload.hosts[0]?.providers.assistedExtractor.provider).toBe("anthropic");
+          expect(payload.hosts[0]?.plannedChanges.length).toBeGreaterThan(0);
+          await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".codex/hooks.json"))).rejects.toThrow();
+          await expect(access(join(home.root, ".codex/config.toml"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("plans install dry-run from existing config when options are omitted", async () => {
+    const home = await createTempWorkspace("goodmemory-install-dry-run-existing-home");
+    const workspace = await createTempWorkspace(
+      "goodmemory-install-dry-run-existing-workspace",
+    );
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await withCwd(workspace.root, async () =>
+            runCLI([
+              "install",
+              "codex",
+              "--activation-mode",
+              "global",
+              "--context-mode",
+              "progressive",
+              "--storage-provider",
+              "postgres",
+              "--storage-url",
+              "postgres://example/db",
+              "--embedding-provider",
+              "openai",
+              "--embedding-model",
+              "text-embedding-3-small",
+              "--embedding-api-key",
+              "sk-test",
+              "--llm-provider",
+              "anthropic",
+              "--llm-model",
+              "claude-haiku",
+              "--llm-api-key",
+              "sk-llm",
+              "--writeback",
+              "selective",
+              "--user-id",
+              "existing-user",
+              "--json",
+            ]),
+          );
+          expect(install.exitCode).toBe(0);
+
+          const plan = await withCwd(workspace.root, async () =>
+            runCLI(["install", "codex", "--dry-run", "--json"]),
+          );
+
+          expect(plan.exitCode).toBe(0);
+          const payload = JSON.parse(plan.stdout) as {
+            hosts: Array<{
+              contextMode: string;
+              providers: {
+                assistedExtractor: { configured: boolean; provider: string };
+                embedding: { configured: boolean; provider: string };
+              };
+              storage: { location: string; provider: string };
+              userId: string;
+              writeback: { mode: string };
+            }>;
+          };
+          expect(payload.hosts[0]?.contextMode).toBe("progressive");
+          expect(payload.hosts[0]?.storage).toEqual({
+            location: "configured",
+            provider: "postgres",
+          });
+          expect(payload.hosts[0]?.userId).toBe("existing-user");
+          expect(payload.hosts[0]?.writeback.mode).toBe("selective");
+          expect(payload.hosts[0]?.providers.embedding.configured).toBe(true);
+          expect(payload.hosts[0]?.providers.embedding.provider).toBe("openai");
+          expect(payload.hosts[0]?.providers.assistedExtractor.configured).toBe(true);
+          expect(payload.hosts[0]?.providers.assistedExtractor.provider).toBe("anthropic");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("validates dry-run install storage options like the real installer path", async () => {
+    const home = await createTempWorkspace("goodmemory-install-dry-run-validation-home");
+    const workspace = await createTempWorkspace(
+      "goodmemory-install-dry-run-validation-workspace",
+    );
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI([
+              "install",
+              "codex",
+              "--storage-provider",
+              "postgres",
+              "--dry-run",
+              "--json",
+            ]),
+          );
+
+          expect(result.exitCode).toBe(1);
+          expect(result.stderr).toContain(
+            "Postgres installed-host storage requires --storage-url.",
+          );
+          const blankUrl = await withCwd(workspace.root, async () =>
+            runCLI([
+              "install",
+              "codex",
+              "--storage-provider",
+              "sqlite",
+              "--storage-url",
+              "   ",
+              "--dry-run",
+              "--json",
+            ]),
+          );
+          expect(blankUrl.exitCode).toBe(1);
+          expect(blankUrl.stderr).toContain(
+            "Installed-host --storage-url must be a non-empty string.",
+          );
+          await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("plans setup and enable without writing workspace files in dry-run mode", async () => {
+    const home = await createTempWorkspace("goodmemory-setup-enable-dry-run-home");
+    const workspace = await createTempWorkspace("goodmemory-setup-enable-dry-run-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const setup = await withCwd(workspace.root, async () =>
+            runCLI([
+              "setup",
+              "--host",
+              "codex",
+              "--activation-mode",
+              "workspace_opt_in",
+              "--dry-run",
+              "--json",
+            ]),
+          );
+          expect(setup.exitCode).toBe(0);
+          const setupPayload = JSON.parse(setup.stdout) as {
+            dryRun: boolean;
+            hosts: Array<{ plannedChanges: Array<{ path: string }> }>;
+          };
+          expect(setupPayload.dryRun).toBe(true);
+          expect(setupPayload.hosts[0]?.plannedChanges.some((change) =>
+            change.path.endsWith(".goodmemory/codex.json"),
+          )).toBe(true);
+          await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(access(join(workspace.root, ".goodmemory/codex.json"))).rejects.toThrow();
+
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+          const enable = await withCwd(workspace.root, async () =>
+            runCLI([
+              "enable",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--writeback",
+              "observe",
+              "--dry-run",
+              "--json",
+            ]),
+          );
+          expect(enable.exitCode).toBe(0);
+          const enablePayload = JSON.parse(enable.stdout) as {
+            dryRun: boolean;
+            hosts: Array<{ plannedChanges: Array<{ path: string }> }>;
+          };
+          expect(enablePayload.dryRun).toBe(true);
+          const enablePlannedPaths =
+            enablePayload.hosts[0]?.plannedChanges.map((change) => change.path) ?? [];
+          expect(enablePlannedPaths).toContain(join(home.root, ".goodmemory/codex.json"));
+          expect(enablePayload.hosts[0]?.plannedChanges.some((change) =>
+            change.path.endsWith("AGENTS.md"),
+          )).toBe(true);
+          expect(enablePlannedPaths.some((path) => path.endsWith(".codex/hooks.json"))).toBe(false);
+          expect(enablePlannedPaths.some((path) => path.endsWith(".codex/config.toml"))).toBe(false);
+          await expect(access(join(workspace.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(access(join(workspace.root, "AGENTS.md"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("plans current-workspace install and setup dry-runs with workspace opt-in files", async () => {
+    const installHome = await createTempWorkspace(
+      "goodmemory-install-current-workspace-dry-run-home",
+    );
+    const setupHome = await createTempWorkspace(
+      "goodmemory-setup-current-workspace-dry-run-home",
+    );
+    const installWorkspace = await createTempWorkspace(
+      "goodmemory-install-current-workspace-dry-run-workspace",
+    );
+    const setupWorkspace = await createTempWorkspace(
+      "goodmemory-setup-current-workspace-dry-run-workspace",
+    );
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: installHome.root,
+        },
+        async () => {
+          const installAnswers = [
+            "current-workspace",
+            "",
+            "sqlite",
+            "no",
+            "no",
+            "off",
+          ];
+          const install = await withCwd(installWorkspace.root, async () =>
+            runCLI(
+              [
+                "install",
+                "codex",
+                "--interactive",
+                "--dry-run",
+                "--json",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => installAnswers.shift() ?? "",
+                  askSecret: async () => installAnswers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(install.exitCode).toBe(0);
+          const payload = JSON.parse(install.stdout) as {
+            hosts: Array<{ plannedChanges: Array<{ path: string }> }>;
+          };
+          const paths =
+            payload.hosts[0]?.plannedChanges.map((change) =>
+              change.path.replace(/^\/private\//u, "/"),
+            ) ?? [];
+          expect(paths).toContain(
+            join(installWorkspace.root, ".goodmemory/codex.json").replace(
+              /^\/private\//u,
+              "/",
+            ),
+          );
+          expect(paths).toContain(
+            join(installWorkspace.root, "AGENTS.md").replace(/^\/private\//u, "/"),
+          );
+          await expect(access(join(installHome.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(
+            access(join(installWorkspace.root, ".goodmemory/codex.json")),
+          ).rejects.toThrow();
+        },
+      );
+
+      await withEnv(
+        {
+          GOODMEMORY_HOME: setupHome.root,
+        },
+        async () => {
+          const setupAnswers = [
+            "codex",
+            "current-workspace",
+            "",
+            "sqlite",
+            "no",
+            "no",
+            "off",
+          ];
+          const setup = await withCwd(setupWorkspace.root, async () =>
+            runCLI(
+              [
+                "setup",
+                "--interactive",
+                "--dry-run",
+                "--json",
+              ],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => setupAnswers.shift() ?? "",
+                  askSecret: async () => setupAnswers.shift() ?? "",
+                },
+              },
+            ),
+          );
+
+          expect(setup.exitCode).toBe(0);
+          const payload = JSON.parse(setup.stdout) as {
+            hosts: Array<{ plannedChanges: Array<{ path: string }> }>;
+          };
+          const paths =
+            payload.hosts[0]?.plannedChanges.map((change) =>
+              change.path.replace(/^\/private\//u, "/"),
+            ) ?? [];
+          expect(paths).toContain(
+            join(setupWorkspace.root, ".goodmemory/codex.json").replace(
+              /^\/private\//u,
+              "/",
+            ),
+          );
+          expect(paths).toContain(
+            join(setupWorkspace.root, "AGENTS.md").replace(/^\/private\//u, "/"),
+          );
+          await expect(access(join(setupHome.root, ".goodmemory/codex.json"))).rejects.toThrow();
+          await expect(
+            access(join(setupWorkspace.root, ".goodmemory/codex.json")),
+          ).rejects.toThrow();
+        },
+      );
+    } finally {
+      await installHome.cleanup();
+      await setupHome.cleanup();
+      await installWorkspace.cleanup();
+      await setupWorkspace.cleanup();
+    }
+  });
+
+  it("reports installer doctor diagnostics without mutating host state", async () => {
+    const home = await createTempWorkspace("goodmemory-doctor-home");
+    const workspace = await createTempWorkspace("goodmemory-doctor-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const missing = await withCwd(workspace.root, async () =>
+            runCLI([
+              "doctor",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(missing.exitCode).toBe(0);
+          const missingPayload = JSON.parse(missing.stdout) as {
+            hosts: Array<{
+              config: string;
+              repairable: boolean;
+              nextCommands: string[];
+            }>;
+          };
+          expect(missingPayload.hosts[0]?.config).toBe("missing");
+          expect(missingPayload.hosts[0]?.repairable).toBe(false);
+          expect(missingPayload.hosts[0]?.nextCommands).toContain("goodmemory setup --host codex");
+          await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--context-mode",
+            "progressive",
+            "--writeback",
+            "off",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+          await rm(join(home.root, ".codex/hooks.json"), { force: true });
+
+          const doctor = await withCwd(workspace.root, async () =>
+            runCLI([
+              "doctor",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(doctor.exitCode).toBe(0);
+          const payload = JSON.parse(doctor.stdout) as {
+            hosts: Array<{
+              contextMode: string;
+              hookRegistered: boolean;
+              repairable: boolean;
+              writeback: { mode: string };
+            }>;
+          };
+          expect(payload.hosts[0]?.contextMode).toBe("progressive");
+          expect(payload.hosts[0]?.writeback.mode).toBe("off");
+          expect(payload.hosts[0]?.hookRegistered).toBe(false);
+          expect(payload.hosts[0]?.repairable).toBe(true);
+          await expect(access(join(home.root, ".codex/hooks.json"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("reports unmanaged MCP conflicts as manual-fix diagnostics instead of repairable", async () => {
+    const home = await createTempWorkspace("goodmemory-doctor-conflict-home");
+    const workspace = await createTempWorkspace("goodmemory-doctor-conflict-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+          await writeFile(
+            join(home.root, ".codex/config.toml"),
+            [
+              "[mcp_servers.goodmemory]",
+              "command = \"custom-goodmemory-mcp\"",
+              "args = [\"--host\", \"codex\"]",
+              "",
+            ].join("\n"),
+            "utf8",
+          );
+
+          const doctor = await withCwd(workspace.root, async () =>
+            runCLI([
+              "doctor",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(doctor.exitCode).toBe(0);
+          const payload = JSON.parse(doctor.stdout) as {
+            hosts: Array<{
+              nextCommands: string[];
+              repairable: boolean;
+              warnings: string[];
+            }>;
+          };
+          expect(payload.hosts[0]?.repairable).toBe(false);
+          expect(payload.hosts[0]?.nextCommands).not.toContain("goodmemory repair codex");
+          expect(payload.hosts[0]?.warnings.join("\n")).toContain("MCP");
+
+          const persisted = await readFile(join(home.root, ".codex/config.toml"), "utf8");
+          expect(persisted).toContain("custom-goodmemory-mcp");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("returns nonzero when repair cannot fix an explicit missing host install", async () => {
+    const home = await createTempWorkspace("goodmemory-repair-missing-home");
+    const workspace = await createTempWorkspace("goodmemory-repair-missing-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const repair = await withCwd(workspace.root, async () =>
+            runCLI([
+              "repair",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(repair.exitCode).toBe(1);
+          const payload = JSON.parse(repair.stdout) as {
+            hosts: Array<{
+              config: string;
+              skipped: boolean;
+            }>;
+          };
+          expect(payload.hosts[0]?.config).toBe("missing");
+          expect(payload.hosts[0]?.skipped).toBe(true);
+          await expect(access(join(home.root, ".goodmemory/codex.json"))).rejects.toThrow();
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("repairs missing managed hook and MCP files while preserving writeback mode", async () => {
+    const home = await createTempWorkspace("goodmemory-repair-home");
+    const workspace = await createTempWorkspace("goodmemory-repair-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--writeback",
+            "off",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+          const globalConfigPath = join(home.root, ".goodmemory/codex.json");
+          const globalConfigBeforeRepair = await readFile(globalConfigPath, "utf8");
+          await rm(join(home.root, ".codex/hooks.json"), { force: true });
+          await rm(join(home.root, ".codex/config.toml"), { force: true });
+
+          const dryRun = await withCwd(workspace.root, async () =>
+            runCLI([
+              "repair",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--dry-run",
+              "--json",
+            ]),
+          );
+          expect(dryRun.exitCode).toBe(0);
+          await expect(access(join(home.root, ".codex/hooks.json"))).rejects.toThrow();
+
+          const repair = await withCwd(workspace.root, async () =>
+            runCLI([
+              "repair",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(repair.exitCode).toBe(0);
+          const payload = JSON.parse(repair.stdout) as {
+            hosts: Array<{
+              changes: Array<{ path: string }>;
+              writeback: { mode: string };
+            }>;
+          };
+          expect(payload.hosts[0]?.writeback.mode).toBe("off");
+          expect(payload.hosts[0]?.changes.some((change) =>
+            change.path.endsWith(".codex/hooks.json"),
+          )).toBe(true);
+          await expect(readFile(globalConfigPath, "utf8")).resolves.toBe(
+            globalConfigBeforeRepair,
+          );
+
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          const statusPayload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              hookRegistered: boolean;
+              mcpRegistered: boolean;
+              preActionRegistered: boolean;
+              writeback: { mode: string };
+            }>;
+          };
+          expect(statusPayload.hosts[0]?.hookRegistered).toBe(true);
+          expect(statusPayload.hosts[0]?.mcpRegistered).toBe(true);
+          expect(statusPayload.hosts[0]?.preActionRegistered).toBe(true);
+          expect(statusPayload.hosts[0]?.writeback.mode).toBe("off");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("repairs a missing Codex hook feature without rewriting installed config", async () => {
+    const home = await createTempWorkspace("goodmemory-repair-feature-home");
+    const workspace = await createTempWorkspace("goodmemory-repair-feature-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--writeback",
+            "off",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const globalConfigPath = join(home.root, ".goodmemory/codex.json");
+          const codexConfigPath = join(home.root, ".codex/config.toml");
+          const globalConfigBeforeRepair = await readFile(globalConfigPath, "utf8");
+          const codexConfig = await readFile(codexConfigPath, "utf8");
+          await writeFile(
+            codexConfigPath,
+            codexConfig
+              .split("\n")
+              .filter((line) => !line.includes("codex_hooks"))
+              .join("\n"),
+            "utf8",
+          );
+
+          const doctor = await withCwd(workspace.root, async () =>
+            runCLI([
+              "doctor",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(doctor.exitCode).toBe(0);
+          const doctorPayload = JSON.parse(doctor.stdout) as {
+            hosts: Array<{
+              hookRegistered: boolean;
+              mcpRegistered: boolean;
+              nextCommands: string[];
+              preActionRegistered: boolean;
+              repairable: boolean;
+            }>;
+          };
+          expect(doctorPayload.hosts[0]?.hookRegistered).toBe(false);
+          expect(doctorPayload.hosts[0]?.mcpRegistered).toBe(true);
+          expect(doctorPayload.hosts[0]?.preActionRegistered).toBe(true);
+          expect(doctorPayload.hosts[0]?.repairable).toBe(true);
+          expect(doctorPayload.hosts[0]?.nextCommands).toContain(
+            "goodmemory repair codex",
+          );
+
+          const repair = await withCwd(workspace.root, async () =>
+            runCLI([
+              "repair",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(repair.exitCode).toBe(0);
+          const repairedConfig = await readFile(codexConfigPath, "utf8");
+          expect(repairedConfig).toContain("codex_hooks = true");
+          await expect(readFile(globalConfigPath, "utf8")).resolves.toBe(
+            globalConfigBeforeRepair,
+          );
+
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          const statusPayload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              hookRegistered: boolean;
+              mcpRegistered: boolean;
+              preActionRegistered: boolean;
+            }>;
+          };
+          expect(statusPayload.hosts[0]?.hookRegistered).toBe(true);
+          expect(statusPayload.hosts[0]?.mcpRegistered).toBe(true);
+          expect(statusPayload.hosts[0]?.preActionRegistered).toBe(true);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("requires manual repair when Codex hook feature is explicitly disabled", async () => {
+    const home = await createTempWorkspace("goodmemory-repair-disabled-feature-home");
+    const workspace = await createTempWorkspace(
+      "goodmemory-repair-disabled-feature-workspace",
+    );
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--writeback",
+            "off",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const codexConfigPath = join(home.root, ".codex/config.toml");
+          const codexConfig = await readFile(codexConfigPath, "utf8");
+          await writeFile(
+            codexConfigPath,
+            codexConfig.replace(/codex_hooks = true[^\n]*/u, "codex_hooks = false"),
+            "utf8",
+          );
+
+          const doctor = await withCwd(workspace.root, async () =>
+            runCLI([
+              "doctor",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(doctor.exitCode).toBe(0);
+          const doctorPayload = JSON.parse(doctor.stdout) as {
+            hosts: Array<{
+              nextCommands: string[];
+              repairable: boolean;
+              warnings: string[];
+            }>;
+          };
+          expect(doctorPayload.hosts[0]?.repairable).toBe(false);
+          expect(doctorPayload.hosts[0]?.nextCommands).not.toContain(
+            "goodmemory repair codex",
+          );
+          expect(doctorPayload.hosts[0]?.warnings.join("\n")).toContain(
+            "codex_hooks",
+          );
+
+          const repair = await withCwd(workspace.root, async () =>
+            runCLI([
+              "repair",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(repair.exitCode).toBe(1);
+          const repairPayload = JSON.parse(repair.stdout) as {
+            hosts: Array<{
+              skipped: boolean;
+              skippedReason: string;
+            }>;
+          };
+          expect(repairPayload.hosts[0]?.skipped).toBe(true);
+          expect(repairPayload.hosts[0]?.skippedReason).toBe("manual_fix_required");
         },
       );
     } finally {

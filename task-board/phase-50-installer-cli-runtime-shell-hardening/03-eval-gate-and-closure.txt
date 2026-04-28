@@ -1,0 +1,13 @@
+Phase 50.3: Eval, Gate, And Closure
+===================================
+
+[DONE] P50.3-T001 Add `eval:phase-50` installer evidence for dry-run,
+doctor, and repair.
+
+[DONE] P50.3-T002 Add `gate:phase-50` covering typecheck, CLI regressions,
+Phase 50 eval, and package script registration.
+
+[DONE] P50.3-T003 Archive the accepted Phase 50 quality gate.
+
+[DONE] P50.3-T004 Sync current-status, task-board, archive index, and
+release-facing assertions.

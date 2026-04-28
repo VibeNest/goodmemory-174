@@ -1,0 +1,103 @@
+Phase 50: Installer CLI Runtime-Shell Hardening
+===============================================
+
+Status
+------
+
+[DONE] Phase 50 is closed as the installer CLI and runtime-shell setup
+hardening slice.
+
+Canonical evidence:
+
+- Installer eval:
+  `reports/eval/fallback/phase-50/run-20260428223000-installer-eval/report.json`
+- Quality gate:
+  `reports/quality-gates/phase-50/run-20260428224500/phase-50-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-50-Quality-Gate.md`
+
+
+Phase Goal
+----------
+
+Harden the existing installed-host setup commands into a product-grade
+installer workflow without adding a parallel installer namespace or expanding
+the host surface beyond Codex and Claude.
+
+
+Dependencies
+------------
+
+- Phase 35 installed host-memory middleware
+- Phase 41 installed pre-action unification
+- Phase 42 installed-host `contextMode`
+- Phase 43 Runtime Kit
+- Phase 43.5 Optional Runtime Worker
+- Phase 44 Local Viewer
+- Phase 48 hosted-surface no-go decision
+- Phase 49 research harness closure
+
+
+Accepted Scope
+--------------
+
+- Extend existing `goodmemory setup`, `install`, `enable`, and `status`
+  command family rather than adding `goodmemory installer`.
+- Add read-only `goodmemory doctor [codex|claude|both]`.
+- Add `--dry-run` planning to `setup`, `install`, and `enable`.
+- Add `goodmemory repair [codex|claude|both]` for missing GoodMemory-managed
+  hook/MCP/workspace wiring.
+- Preserve existing installed config values, especially storage, provider,
+  `contextMode`, and writeback mode.
+- Keep repair/dry-run/doctor local-only and script-safe through `--json`.
+
+
+Out of Scope
+------------
+
+- Cursor, Gemini, or other new host adapters
+- new root public API or package subpath export
+- new `goodmemory installer` top-level namespace
+- default-on durable writeback
+- default-on worker daemon or viewer startup
+- hosted dashboard, cloud sync, team workspace, or browser mutation surface
+- raw transcript archive
+
+
+Acceptance Criteria
+-------------------
+
+1. `setup`, `install`, and `enable` support `--dry-run --json` and do not write
+   managed config, hook, MCP, workspace marker, SQLite, worker, viewer, or
+   artifact files.
+2. `doctor` is read-only and reports config, hook, pre-action, MCP, workspace,
+   context mode, writeback mode, repairability, warnings, and next commands.
+3. `repair` only rewrites GoodMemory-managed installed-host wiring or absent
+   managed targets, preserves existing writeback/context/storage/provider
+   settings, and keeps existing rollback behavior.
+4. Codex and Claude remain the only accepted hosts for this slice.
+5. Phase 50 eval/gate prove dry-run no-mutation, doctor missing-install
+   diagnostics, default install/setup writeback staying off, managed wiring
+   repair, and no default writeback escalation.
+
+
+Tasks
+-----
+
+[DONE] P50-T001 Add installer CLI contract tests for help text, dry-run,
+  doctor, and repair.
+[DONE] P50-T002 Implement dry-run planning for `setup`, `install`, and
+  `enable`.
+[DONE] P50-T003 Implement read-only `doctor` and managed-wiring `repair`.
+[DONE] P50-T004 Add Phase 50 deterministic installer eval and quality gate.
+[DONE] P50-T005 Archive accepted evidence and sync current-status, task-board,
+  release assertions, and docs.
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-50-installer-cli-runtime-shell-hardening/00-README.txt`
+- `task-board/phase-50-installer-cli-runtime-shell-hardening/01-cli-contract.txt`
+- `task-board/phase-50-installer-cli-runtime-shell-hardening/02-dry-run-doctor-repair.txt`
+- `task-board/phase-50-installer-cli-runtime-shell-hardening/03-eval-gate-and-closure.txt`

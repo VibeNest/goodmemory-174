@@ -82,6 +82,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-48-Quality-Gate.md`
 - Full ImplicitMemBench GoodMemory research eval harness closure:
   - `GoodMemory-Phase-49-Quality-Gate.md`
+- Installer CLI runtime-shell hardening closure:
+  - `GoodMemory-Phase-50-Quality-Gate.md`
 
 ## When To Use This Archive
 

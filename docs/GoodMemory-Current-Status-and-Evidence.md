@@ -26,6 +26,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice. `bun run eval:phase-46` consumes the canonical Phase 45 redacted adoption report, records observed failure samples for no-memory missed recall and rejected unsafe/noisy observe candidates, and keeps stale-recall repair as a maintenance guardrail rather than claiming a Phase 45 stale failure. `qualityRepair` is explicit, not part of default hygiene maintenance, and demotes stale inferred action facts only with bounded verification pressure, old age, low confidence/importance, no recent access, and an active newer replacement fact. Provider-backed retrieval promotion remains separated for Phase 47.
 - Phase 47 is now closed as the Provider-Backed Retrieval Rollout and Quality Promotion slice. `bun run eval:phase-47` compares deterministic rules-only and explicit `hybrid` provider-backed recall over real `createGoodMemory().recall()` paths, then requires useful recall improvement without increased wrong recall, stale recall, or setup fragility. The HTTP bridge accepts explicit `auto` / `rules-only` / `hybrid` recall strategy, keeps omitted and `auto` bridge requests on rules-only even when provider runtime is configured, returns routing diagnostics, rejects public `llm-assisted` request-body rollout, and falls back to rules-only context with `provider_error` only for explicit `hybrid` provider-backed execution failures. Rules-only remains the default accepted mode; provider-backed retrieval is not default-on.
 - Phase 48 is now closed as the Dashboard, Cloud Sync, and Team Workspace Decision slice with an accepted no-go decision. `bun run eval:phase-48` reads the accepted Phase 44-47 evidence and records that hosted dashboard, cloud sync, and team workspace are not justified today; `bun run gate:phase-48` preserves the Phase 44 local viewer as local-only/read-only, requires auth/tenancy/redaction/export/deletion/audit/raw-transcript boundaries before any future hosted pilot, and proves no root API or package subpath widening for dashboard/cloud/team surfaces.
+- Phase 50 is now closed as the Installer CLI Runtime-Shell Hardening slice. `goodmemory setup`, `install`, and `enable` now support `--dry-run` planning; `goodmemory doctor [codex|claude|both]` provides read-only installed-host diagnostics; and `goodmemory repair [codex|claude|both]` repairs missing GoodMemory-managed hook/MCP/workspace wiring while preserving installed storage, provider, `contextMode`, and writeback settings. This hardens the existing installer command family without adding a parallel `goodmemory installer` namespace, new hosts, root API exports, default-on writeback, daemon/viewer startup, hosted surfaces, or raw transcript archive.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
@@ -53,7 +54,41 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   infrastructure; it does not change the stable OSS runtime surface or the
   release hard gate.
 
-## Current Internal Research Slice
+## Latest Closed Slice
+
+- Phase 50 is now closed as the Installer CLI Runtime-Shell Hardening slice.
+- Accepted behavior:
+  - `setup`, `install`, and `enable` support `--dry-run --json` planning
+  - dry-run reflects requested activation, context mode, writeback, storage,
+    provider, and user options without writing managed files
+  - `doctor` is read-only and reports config, hook, pre-action, MCP,
+    workspace, context mode, writeback mode, repairability, warnings, and next
+    commands
+  - unmanaged hook/MCP conflicts are reported as manual-fix diagnostics instead
+    of repairable states
+  - `repair` restores missing GoodMemory-managed installed-host wiring and
+    returns nonzero for explicit missing or manual-fix targets
+  - repair preserves existing installed config values and does not escalate
+    writeback mode
+  - default non-interactive `install` and `setup --host both` keep writeback
+    `off` unless explicitly configured otherwise
+  - Codex and Claude remain the only accepted hosts
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-50-Quality-Gate.md`
+  - deterministic installer eval:
+    `reports/eval/fallback/phase-50/run-20260428223000-installer-eval/report.json`
+  - quality gate:
+    `reports/quality-gates/phase-50/run-20260428224500/phase-50-quality-gate.json`
+- Still outside the Phase 50 accepted claim:
+  - Cursor, Gemini, or other new host adapters
+  - a new `goodmemory installer` namespace
+  - root public API or package subpath widening
+  - default-on durable writeback
+  - default-on worker daemon or viewer startup
+  - hosted dashboard, cloud sync, team workspace, or browser mutation surface
+  - raw transcript archive
+
+## Prior Internal Research Slice
 
 - Phase 49 is now closed as the Full ImplicitMemBench GoodMemory Research Eval
   slice.
@@ -94,7 +129,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - README-level product claims that GoodMemory already passes the full 300-item
     benchmark
 
-## Latest Closed Slice
+## Prior Closed Hosted-Surface Decision
 
 - Phase 48 is now closed as the Dashboard, Cloud Sync, and Team Workspace Decision slice with an accepted no-go decision.
 - Accepted behavior:

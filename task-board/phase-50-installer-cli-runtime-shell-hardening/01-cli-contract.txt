@@ -1,0 +1,14 @@
+Phase 50.1: CLI Contract
+========================
+
+[DONE] P50.1-T001 Keep installer hardening on the existing
+`setup` / `install` / `enable` / `status` family.
+
+[DONE] P50.1-T002 Add `doctor` and `repair` help text without adding a
+`goodmemory installer` namespace.
+
+[DONE] P50.1-T003 Keep Codex and Claude as the only supported hosts in this
+slice.
+
+[DONE] P50.1-T004 Add CLI regressions for help, dry-run, doctor, repair,
+conflict diagnostics, and nonzero explicit repair failures.

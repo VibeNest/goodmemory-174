@@ -843,6 +843,9 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-49"]).toBe(
       "bun run scripts/run-phase-49.ts",
     );
+    expect(pkg.scripts?.["eval:phase-50"]).toBe(
+      "bun run scripts/run-phase-50-installer-eval.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -894,6 +897,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-49"]).toBe(
       "bun run scripts/run-phase-49-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-50"]).toBe(
+      "bun run scripts/run-phase-50-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2508,6 +2514,20 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "docs/archive/quality-gates/GoodMemory-Phase-49-Quality-Gate.md",
     );
+    expect(currentStatus).toContain(
+      "Phase 50 is now closed as the Installer CLI Runtime-Shell Hardening slice",
+    );
+    expect(currentStatus).toContain("goodmemory doctor [codex|claude|both]");
+    expect(currentStatus).toContain("goodmemory repair [codex|claude|both]");
+    expect(currentStatus).toContain(
+      "reports/eval/fallback/phase-50/run-20260428223000-installer-eval/report.json",
+    );
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-50/run-20260428224500/phase-50-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-50-Quality-Gate.md",
+    );
     expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
@@ -2760,6 +2780,18 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain(PHASE49_CANONICAL_COMPARISON_SMOKE_REPORT);
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json",
+    );
+    expect(taskBoard).toContain(
+      "55-phase-50-installer-cli-runtime-shell-hardening.txt",
+    );
+    expect(taskBoard).toContain(
+      "Phase 50 is now closed as the Installer CLI Runtime-Shell Hardening slice",
+    );
+    expect(taskBoard).toContain(
+      "reports/eval/fallback/phase-50/run-20260428223000-installer-eval/report.json",
+    );
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-50/run-20260428224500/phase-50-quality-gate.json",
     );
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
@@ -4041,6 +4073,32 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("goodmemory-distilled-feedback");
     expect(qualityGateDoc).toContain("priming_pair_judge");
     expect(archiveIndex).toContain("GoodMemory-Phase-49-Quality-Gate.md");
+  });
+
+  it("phase-50 quality gate doc points to the canonical installer hardening evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-50-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-50",
+      reportFileName: "phase-50-quality-gate.json",
+      runId: "run-20260428224500",
+    });
+
+    expect(qualityGateDoc).toContain("Installer CLI Runtime-Shell Hardening");
+    expect(qualityGateDoc).toContain("goodmemory doctor");
+    expect(qualityGateDoc).toContain("goodmemory repair");
+    expect(qualityGateDoc).toContain("dry-run no-mutation");
+    expect(qualityGateDoc).toContain("no default writeback escalation");
+    expect(archiveIndex).toContain("GoodMemory-Phase-50-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

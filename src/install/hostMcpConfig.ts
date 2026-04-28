@@ -109,6 +109,50 @@ export async function isInstalledHostMcpRegistered(input: {
     : isRegisteredClaudeMcpConfig(existing, input.host);
 }
 
+export async function inspectInstalledHostMcpRegistration(input: {
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<{
+  detail?: string;
+  status: "blocked" | "registered" | "repairable";
+}> {
+  const resolvedHomeRoot = resolveHomeRoot(input.homeRoot);
+  const target = resolveInstalledHostMcpTargetPath(input.host, resolvedHomeRoot);
+  const existing = await readFileIfPresent(target.path);
+  if (existing === null || existing.trim().length === 0) {
+    return { status: "repairable" };
+  }
+  if (
+    input.host === "codex"
+      ? isRegisteredCodexMcpConfig(existing, input.host)
+      : isRegisteredClaudeMcpConfig(existing, input.host)
+  ) {
+    return { status: "registered" };
+  }
+
+  try {
+    if (input.host === "codex") {
+      mergeCodexMcpConfig(
+        existing,
+        buildInstalledHostMcpSpec(input.host, resolvedHomeRoot),
+        input.host,
+      );
+    } else {
+      mergeClaudeMcpConfig(
+        existing,
+        buildInstalledHostMcpSpec(input.host, resolvedHomeRoot),
+        input.host,
+      );
+    }
+    return { status: "repairable" };
+  } catch (error) {
+    return {
+      detail: error instanceof Error ? error.message : String(error),
+      status: "blocked",
+    };
+  }
+}
+
 function buildInstalledHostMcpSpec(
   host: InstalledHostKind,
   homeRoot: string,
