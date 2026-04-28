@@ -4,13 +4,21 @@ Phase 47.2: Quality Promotion Criteria
 Status
 ------
 
-[TODO] Not started.
+[DONE] Closed by deterministic provider rollout eval.
 
 Tasks:
 
-[TODO] P47.2-T001 Define promotion thresholds against Phase 45/46 rules-only
+[DONE] P47.2-T001 Define promotion thresholds against Phase 45/46 rules-only
   evidence.
-[TODO] P47.2-T002 Track useful recall, wrong recall, missed recall, stale recall,
+[DONE] P47.2-T002 Track useful recall, wrong recall, missed recall, stale recall,
   and setup fragility.
-[TODO] P47.2-T003 Block promotion when provider-backed retrieval increases wrong
+[DONE] P47.2-T003 Block promotion when provider-backed retrieval increases wrong
   or stale recall.
+
+Evidence:
+
+- `scripts/run-phase-47-provider-rollout-eval.ts` requires Phase 45 accepted
+  adoption evidence and Phase 46 provider-backed promotion separation.
+- Promotion criteria require useful recall delta `>= 1`, wrong/stale/setup
+  deltas `<= 0`, visible fallback, and no default promotion.
+- Canonical metrics: useful `+1`, wrong `-1`, stale `-1`, setup fragility `0`.

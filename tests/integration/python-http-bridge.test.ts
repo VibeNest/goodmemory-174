@@ -1,11 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import type { GoodMemory } from "../../src";
 import { createGoodMemory } from "../../src";
+import { createFactMemory } from "../../src/domain/records";
 import {
   createGoodMemoryHttpMemoryBridge,
   createLifeCoachHttpRememberConfig,
   toOneLifeMemoryContextResponse,
 } from "../../src/http";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+  createInMemoryVectorStore,
+} from "../../src/storage/memory";
 
 const AUTH_HEADERS = {
   "x-goodmemory-user-id": "python-user",
@@ -389,6 +395,314 @@ describe("Phase 39 Python HTTP memory bridge", () => {
 
     const drained = await memory.jobs.drain({ maxJobs: 1 });
     expect(drained.jobs[0]?.status).toBe("succeeded");
+  });
+
+  it("accepts explicit provider-backed recall strategy and exposes bridge routing diagnostics", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const query = "Which blocker should guide the provider rollout?";
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        embeddingAdapter: {
+          async embed(texts: string[]) {
+            return texts.map((text) =>
+              text === query || text.includes("embedding bridge token")
+                ? [1, 0, 0]
+                : [0, 1, 0]
+            );
+          },
+        },
+        sessionStore,
+        vectorStore,
+      },
+      storage: { provider: "memory" },
+    });
+    const scope = {
+      agentId: "life-coach",
+      userId: "python-user",
+      workspaceId: "life-workspace",
+    };
+    const wrongFact = createFactMemory({
+      id: "phase47-bridge-wrong",
+      agentId: scope.agentId,
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Provider rollout blocker is vendor approval.",
+      source: { method: "explicit", extractedAt: "2026-04-28T00:00:00.000Z" },
+      createdAt: "2026-04-28T00:00:00.000Z",
+      updatedAt: "2026-04-28T00:00:00.000Z",
+    });
+    const rightFact = createFactMemory({
+      id: "phase47-bridge-right",
+      agentId: scope.agentId,
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "Provider rollout blocker is embedding bridge token validation.",
+      source: { method: "explicit", extractedAt: "2026-04-28T00:00:00.000Z" },
+      createdAt: "2026-04-28T00:00:00.000Z",
+      updatedAt: "2026-04-28T00:00:00.000Z",
+    });
+
+    await documentStore.set("facts", wrongFact.id, wrongFact);
+    await documentStore.set("facts", rightFact.id, rightFact);
+    await vectorStore.upsert("facts", [
+      {
+        id: wrongFact.id,
+        embedding: [0, 1, 0],
+        metadata: scope,
+        content: wrongFact.content,
+      },
+      {
+        id: rightFact.id,
+        embedding: [1, 0, 0],
+        metadata: scope,
+        content: rightFact.content,
+      },
+    ]);
+
+    const recall = await runGoodMemoryHttpBridgeRequest({
+      body: scopedBody({
+        query,
+        strategy: "hybrid",
+      }),
+      headers: AUTH_HEADERS,
+      memory,
+      path: "/memory/recall-context",
+    });
+
+    expect(recall.statusCode).toBe(200);
+    expect(recall.body).toMatchObject({
+      hasContext: true,
+      ok: true,
+      operation: "recall-context",
+      routing: {
+        requestedStrategy: "hybrid",
+        resolvedStrategy: "hybrid",
+        semanticTieBreaking: true,
+      },
+    });
+    expect(recall.body.contextText).toContain("embedding bridge token validation");
+  });
+
+  it("keeps provider-backed bridge fallback fail-visible when semantic search is unavailable", async () => {
+    const memory = createGoodMemory({ storage: { provider: "memory" } });
+
+    const recall = await runGoodMemoryHttpBridgeRequest({
+      body: scopedBody({
+        query: "Which blocker should guide the provider rollout?",
+        strategy: "hybrid",
+      }),
+      headers: AUTH_HEADERS,
+      memory,
+      path: "/memory/recall-context",
+    });
+
+    expect(recall.statusCode).toBe(200);
+    expect(recall.body).toMatchObject({
+      ok: true,
+      routing: {
+        fallbackReason: "semantic_search_unavailable",
+        requestedStrategy: "hybrid",
+        resolvedStrategy: "rules-only",
+        semanticTieBreaking: false,
+      },
+    });
+  });
+
+  it("falls back to rules-only context when an enabled provider-backed bridge call fails", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        embeddingAdapter: {
+          async embed() {
+            throw new Error("fetch failed");
+          },
+        },
+        sessionStore,
+        vectorStore,
+      },
+      storage: { provider: "memory" },
+    });
+
+    await documentStore.set(
+      "facts",
+      "phase47-provider-failure-fallback",
+      createFactMemory({
+        id: "phase47-provider-failure-fallback",
+        agentId: "life-coach",
+        userId: "python-user",
+        workspaceId: "life-workspace",
+        category: "project",
+        content: "Provider failure fallback blocker is rules-only recovery.",
+        source: { method: "explicit", extractedAt: "2026-04-28T00:00:00.000Z" },
+        createdAt: "2026-04-28T00:00:00.000Z",
+        updatedAt: "2026-04-28T00:00:00.000Z",
+      }),
+    );
+
+    const recall = await runGoodMemoryHttpBridgeRequest({
+      body: scopedBody({
+        query: "Which provider failure fallback blocker is active?",
+        strategy: "hybrid",
+      }),
+      headers: AUTH_HEADERS,
+      memory,
+      path: "/memory/recall-context",
+    });
+
+    expect(recall.statusCode).toBe(200);
+    expect(recall.body).toMatchObject({
+      hasContext: true,
+      ok: true,
+      routing: {
+        fallbackReason: "provider_error",
+        providerFallback: {
+          reason: "provider_error",
+          recoveredStrategy: "rules-only",
+        },
+        requestedStrategy: "hybrid",
+        resolvedStrategy: "rules-only",
+        semanticTieBreaking: false,
+      },
+    });
+    expect(recall.body.contextText).toContain("rules-only recovery");
+  });
+
+  it("keeps auto and omitted bridge strategies on rules-only even when a provider is configured", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        embeddingAdapter: {
+          async embed() {
+            throw new Error("fetch failed");
+          },
+        },
+        sessionStore,
+        vectorStore,
+      },
+      storage: { provider: "memory" },
+    });
+
+    await documentStore.set(
+      "facts",
+      "phase47-auto-provider-failure-fallback",
+      createFactMemory({
+        id: "phase47-auto-provider-failure-fallback",
+        agentId: "life-coach",
+        userId: "python-user",
+        workspaceId: "life-workspace",
+        category: "project",
+        content: "Provider failure fallback blocker is rules-only recovery.",
+        source: { method: "explicit", extractedAt: "2026-04-28T00:00:00.000Z" },
+        createdAt: "2026-04-28T00:00:00.000Z",
+        updatedAt: "2026-04-28T00:00:00.000Z",
+      }),
+    );
+
+    for (const strategy of [undefined, "auto"] as const) {
+      const recall = await runGoodMemoryHttpBridgeRequest({
+        body: scopedBody({
+          query: "What should I do next about the provider failure fallback blocker?",
+          ...(strategy ? { strategy } : {}),
+        }),
+        headers: AUTH_HEADERS,
+        memory,
+        path: "/memory/recall-context",
+      });
+
+      expect(recall.statusCode).toBe(200);
+      expect(recall.body).toMatchObject({
+        hasContext: true,
+        ok: true,
+        routing: {
+          requestedStrategy: "auto",
+          resolvedStrategy: "rules-only",
+          semanticTieBreaking: false,
+        },
+      });
+      expect(recall.body.routing?.fallbackReason).toBeUndefined();
+      expect(recall.body.routing?.providerFallback).toBeUndefined();
+      expect(recall.body.contextText).toContain("rules-only recovery");
+    }
+  });
+
+  it("does not mask non-provider recall failures as provider-backed fallback", async () => {
+    const realMemory = createGoodMemory({ storage: { provider: "memory" } });
+    await realMemory.remember({
+      messages: [
+        {
+          content: "Provider fallback masking should preserve real storage errors.",
+          role: "user",
+        },
+      ],
+      scope: {
+        agentId: "life-coach",
+        sessionId: "session-1",
+        userId: "python-user",
+        workspaceId: "life-workspace",
+      },
+    });
+    const memory = {
+      jobs: realMemory.jobs,
+      runtime: realMemory.runtime,
+      buildContext: realMemory.buildContext.bind(realMemory),
+      recall: async (input) => {
+        if (input.strategy === "hybrid") {
+          throw new Error("embedding storage adapter invariant violated");
+        }
+        return await realMemory.recall(input);
+      },
+    } as GoodMemory;
+
+    const recall = await runGoodMemoryHttpBridgeRequest({
+      body: scopedBody({
+        query: "Which provider failure fallback blocker is active?",
+        strategy: "hybrid",
+      }),
+      headers: AUTH_HEADERS,
+      memory,
+      path: "/memory/recall-context",
+    });
+
+    expect(recall.statusCode).toBe(500);
+    expect(recall.body).toMatchObject({
+      error: {
+        code: "bridge_operation_failed",
+      },
+      ok: false,
+    });
+  });
+
+  it("does not expose llm-assisted recall through the public HTTP bridge body", async () => {
+    const memory = createGoodMemory({ storage: { provider: "memory" } });
+
+    const recall = await runGoodMemoryHttpBridgeRequest({
+      body: scopedBody({
+        query: "Which provider rollout blocker is active?",
+        strategy: "llm-assisted",
+      }),
+      headers: AUTH_HEADERS,
+      memory,
+      path: "/memory/recall-context",
+    });
+
+    expect(recall.statusCode).toBe(400);
+    expect(recall.body).toMatchObject({
+      error: {
+        code: "invalid_recall_strategy",
+      },
+      ok: false,
+    });
   });
 
   it("keeps feedback procedural, export runtime off by default, forget scoped, and revise targeted by memoryId", async () => {

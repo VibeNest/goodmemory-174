@@ -6,6 +6,7 @@ import type {
   ForgetResult,
   GoodMemory,
   MemoryWriteJob,
+  RecallInput,
   RecallResult,
   RememberInput,
   RememberResult,
@@ -17,6 +18,7 @@ import type {
 import type { MemoryScope } from "../domain/scope";
 import type { RememberConfig } from "../remember/profiles";
 import { rememberRules } from "../remember/profiles";
+import { isProviderBackedRecallError } from "../recall/errors";
 
 export const GOODMEMORY_HTTP_MEMORY_BRIDGE_CONTRACT_VERSION =
   "phase-39.http-memory.v1";
@@ -86,6 +88,26 @@ export interface GoodMemoryHttpMemoryItem {
     | "session_journal";
 }
 
+type GoodMemoryHttpRecallFallbackReason =
+  | NonNullable<
+      RecallResult["metadata"]["routingDecision"]["strategyExplanation"]["fallbackReason"]
+    >
+  | "provider_error";
+
+export interface GoodMemoryHttpRecallProviderFallback {
+  reason: "provider_error";
+  recoveredStrategy: "rules-only";
+}
+
+export interface GoodMemoryHttpRecallRoutingDiagnostics {
+  fallbackReason?: GoodMemoryHttpRecallFallbackReason;
+  llmRefinement: boolean;
+  providerFallback?: GoodMemoryHttpRecallProviderFallback;
+  requestedStrategy: NonNullable<RecallInput["strategy"]>;
+  resolvedStrategy: NonNullable<RecallInput["strategy"]>;
+  semanticTieBreaking: boolean;
+}
+
 export interface GoodMemoryHttpRecallContextResponse {
   context: Pick<
     BuildContextResult,
@@ -98,6 +120,7 @@ export interface GoodMemoryHttpRecallContextResponse {
   items: GoodMemoryHttpMemoryItem[];
   ok: true;
   operation: "recall-context";
+  routing: GoodMemoryHttpRecallRoutingDiagnostics;
   traceId?: string;
 }
 
@@ -125,6 +148,7 @@ export interface GoodMemoryHttpBridgeLooseBody {
   operation?: GoodMemoryHttpBridgeOperation;
   provenance?: Record<string, unknown>;
   result?: FeedbackResult | ForgetResult | RememberResult | ReviseMemoryResult;
+  routing?: GoodMemoryHttpRecallRoutingDiagnostics;
   traceId?: string;
 }
 
@@ -654,6 +678,27 @@ function validateRetrievalProfile(
   };
 }
 
+function validateRecallStrategy(
+  value: unknown,
+): ValidationResult<RecallInput["strategy"]> {
+  if (value === undefined) {
+    return { ok: true, value: undefined };
+  }
+  if (
+    value === "auto" ||
+    value === "rules-only" ||
+    value === "hybrid"
+  ) {
+    return { ok: true, value };
+  }
+
+  return {
+    code: "invalid_recall_strategy",
+    message: "Expected strategy to be auto, rules-only, or hybrid.",
+    ok: false,
+  };
+}
+
 function validateContextOutput(
   value: unknown,
 ): ValidationResult<BuildContextInput["output"]> {
@@ -946,6 +991,41 @@ function recallHasContext(recall: RecallResult): boolean {
   );
 }
 
+function buildRecallRoutingDiagnostics(
+  recall: RecallResult,
+): GoodMemoryHttpRecallRoutingDiagnostics {
+  const explanation = recall.metadata.routingDecision.strategyExplanation;
+
+  return {
+    ...(explanation.fallbackReason
+      ? { fallbackReason: explanation.fallbackReason }
+      : {}),
+    llmRefinement: explanation.llmRefinement,
+    requestedStrategy: explanation.requestedStrategy,
+    resolvedStrategy: explanation.resolvedStrategy,
+    semanticTieBreaking: explanation.semanticTieBreaking,
+  };
+}
+
+function buildProviderFallbackRoutingDiagnostics(input: {
+  recall: RecallResult;
+  requestedStrategy: "auto" | "hybrid";
+}): GoodMemoryHttpRecallRoutingDiagnostics {
+  const fallback = buildRecallRoutingDiagnostics(input.recall);
+
+  return {
+    ...fallback,
+    fallbackReason: "provider_error",
+    providerFallback: {
+      reason: "provider_error",
+      recoveredStrategy: "rules-only",
+    },
+    requestedStrategy: input.requestedStrategy,
+    resolvedStrategy: "rules-only",
+    semanticTieBreaking: false,
+  };
+}
+
 export function buildGoodMemoryHttpMemoryItems(
   recall: RecallResult,
 ): GoodMemoryHttpMemoryItem[] {
@@ -1076,6 +1156,11 @@ async function handleRecallContext(
     return errorResult(400, retrievalProfile.code, retrievalProfile.message);
   }
 
+  const strategy = validateRecallStrategy(body.strategy);
+  if (!strategy.ok) {
+    return errorResult(400, strategy.code, strategy.message);
+  }
+
   const output = validateContextOutput(body.output);
   if (!output.ok) {
     return errorResult(400, output.code, output.message);
@@ -1085,11 +1170,33 @@ async function handleRecallContext(
     typeof body.maxTokens === "number" && Number.isFinite(body.maxTokens)
       ? Math.max(1, Math.floor(body.maxTokens))
       : undefined;
-  const recall = await memory.recall({
+  const requestedStrategy = strategy.value ?? "auto";
+  const effectiveRecallStrategy: NonNullable<RecallInput["strategy"]> =
+    requestedStrategy === "hybrid" ? "hybrid" : "rules-only";
+  const recallInput: RecallInput = {
     scope,
     query: body.query,
     ...(retrievalProfile.value ? { retrievalProfile: retrievalProfile.value } : {}),
-  });
+    strategy: effectiveRecallStrategy,
+  };
+  let recall: RecallResult;
+  let routing = undefined as GoodMemoryHttpRecallRoutingDiagnostics | undefined;
+
+  try {
+    recall = await memory.recall(recallInput);
+  } catch (error) {
+    if (requestedStrategy !== "hybrid" || !isProviderBackedRecallError(error)) {
+      throw error;
+    }
+    recall = await memory.recall({
+      ...recallInput,
+      strategy: "rules-only",
+    });
+    routing = buildProviderFallbackRoutingDiagnostics({
+      recall,
+      requestedStrategy,
+    });
+  }
   const context = await memory.buildContext({
     recall,
     output: output.value,
@@ -1112,6 +1219,10 @@ async function handleRecallContext(
     items,
     ok: true,
     operation: "recall-context",
+    routing: routing ?? {
+      ...buildRecallRoutingDiagnostics(recall),
+      requestedStrategy,
+    },
     ...(traceId ? { traceId } : {}),
   } satisfies GoodMemoryHttpRecallContextResponse);
 }

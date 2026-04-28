@@ -4,11 +4,22 @@ Phase 47.3: Provider-Backed Regressions
 Status
 ------
 
-[TODO] Not started.
+[DONE] Closed by provider-backed bridge and rollout regressions.
 
 Tasks:
 
-[TODO] P47.3-T001 Add reference-product provider-backed retrieval regressions.
-[TODO] P47.3-T002 Add HTTP bridge provider-backed retrieval coverage.
-[TODO] P47.3-T003 Add diagnostics for fallback, unavailable providers, and
+[DONE] P47.3-T001 Add reference-product provider-backed retrieval regressions.
+[DONE] P47.3-T002 Add HTTP bridge provider-backed retrieval coverage.
+[DONE] P47.3-T003 Add diagnostics for fallback, unavailable providers, and
   quality deltas.
+
+Evidence:
+
+- `tests/integration/python-http-bridge.test.ts` covers explicit `hybrid`,
+  omitted/`auto` rules-only defaults with provider runtime configured, missing
+  semantic search fallback, explicit `hybrid` provider failure fallback,
+  non-provider failure propagation, and `llm-assisted` rejection.
+- `tests/unit/run-phase-47.provider-rollout-eval.test.ts` proves the deterministic
+  rollout eval writes accepted evidence and blocks missing Phase 46 separation.
+- `tests/unit/run-phase-47-gate.test.ts` blocks wrong-recall regression and
+  skipped command execution.

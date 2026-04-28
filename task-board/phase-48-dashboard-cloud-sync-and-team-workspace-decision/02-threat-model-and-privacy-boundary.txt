@@ -4,13 +4,23 @@ Phase 48.2: Threat Model And Privacy Boundary
 Status
 ------
 
-[TODO] Not started.
+[DONE] Hosted/shared privacy boundary defined and enforced by the no-go gate.
 
 Tasks:
 
-[TODO] P48.2-T001 Define auth, tenancy, redaction, export, deletion, and audit
+[DONE] P48.2-T001 Define auth, tenancy, redaction, export, deletion, and audit
   requirements for any hosted/shared scope.
-[TODO] P48.2-T002 Define raw-transcript and assistant-output persistence
+[DONE] P48.2-T002 Define raw-transcript and assistant-output persistence
   boundaries.
-[TODO] P48.2-T003 Block hosted claims when privacy or deletion semantics are
+[DONE] P48.2-T003 Block hosted claims when privacy or deletion semantics are
   incomplete.
+
+Accepted Boundary:
+
+- Hosted/shared scope must define auth, tenancy, redaction, export, deletion,
+  and audit semantics before implementation.
+- Raw transcript persistence is blocked by default.
+- A hosted claim remains blocked when deletion/export/audit semantics are
+  incomplete.
+- Phase 48 implements no hosted storage, account, analytics, sync, or team
+  workspace runtime.

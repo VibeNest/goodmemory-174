@@ -76,6 +76,10 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-45-Quality-Gate.md`
 - Memory quality and maintenance 2.0 closure:
   - `GoodMemory-Phase-46-Quality-Gate.md`
+- Provider-backed retrieval rollout and quality-promotion closure:
+  - `GoodMemory-Phase-47-Quality-Gate.md`
+- Dashboard, cloud sync, and team workspace decision closure:
+  - `GoodMemory-Phase-48-Quality-Gate.md`
 
 ## When To Use This Archive
 

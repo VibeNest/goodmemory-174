@@ -4,12 +4,21 @@ Phase 48.4: Pilot Or No-Go Gate
 Status
 ------
 
-[TODO] Not started.
+[DONE] Accepted no-go gate added.
 
 Tasks:
 
-[TODO] P48.4-T001 Define the smallest safe pilot if hosted/cloud/team scope is
+[DONE] P48.4-T001 Define the smallest safe pilot if hosted/cloud/team scope is
   justified.
-[TODO] P48.4-T002 Define a no-go closure path if evidence does not justify the
+[DONE] P48.4-T002 Define a no-go closure path if evidence does not justify the
   new surface.
-[TODO] P48.4-T003 Add Phase 48 decision gate, docs, and status sync.
+[DONE] P48.4-T003 Add Phase 48 decision gate, docs, and status sync.
+
+Closure:
+
+- No smallest safe pilot is accepted because Phase 44-47 evidence does not show
+  a concrete hosted/cloud/team adoption blocker.
+- The no-go closure path is encoded by `bun run eval:phase-48` and
+  `bun run gate:phase-48`.
+- Canonical gate: `reports/quality-gates/phase-48/run-20260428173000/phase-48-quality-gate.json`
+- Archive: `docs/archive/quality-gates/GoodMemory-Phase-48-Quality-Gate.md`

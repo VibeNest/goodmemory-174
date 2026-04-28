@@ -4,8 +4,17 @@ Phase 47: Provider-Backed Retrieval Rollout And Quality Promotion
 Status
 ------
 
-[TODO] Phase 47 is queued after Phase 45 adoption evidence and Phase 46
-memory-quality repair evidence.
+[DONE] Phase 47 is closed as the Provider-Backed Retrieval Rollout and Quality
+Promotion slice.
+
+Canonical evidence:
+
+- Provider rollout eval:
+  `reports/eval/fallback/phase-47/run-20260428120000-provider-rollout-eval/report.json`
+- Quality gate:
+  `reports/quality-gates/phase-47/run-20260428123000/phase-47-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-47-Quality-Gate.md`
 
 
 Phase Goal
@@ -65,12 +74,12 @@ Acceptance Criteria
 Tasks
 -----
 
-[TODO] P47-T001 Freeze provider-backed retrieval rollout contract, fail-visible
+[DONE] P47-T001 Freeze provider-backed retrieval rollout contract, fail-visible
   runtime behavior, rules-only fallback, and fail-closed promotion claims.
-[TODO] P47-T002 Add quality promotion criteria against rules-only evidence.
-[TODO] P47-T003 Add provider-backed reference-product and bridge regressions.
-[TODO] P47-T004 Add diagnostics and docs for enabling provider-backed retrieval.
-[TODO] P47-T005 Add Phase 47 quality gate, report, and closure sync.
+[DONE] P47-T002 Add quality promotion criteria against rules-only evidence.
+[DONE] P47-T003 Add provider-backed reference-product and bridge regressions.
+[DONE] P47-T004 Add diagnostics and docs for enabling provider-backed retrieval.
+[DONE] P47-T005 Add Phase 47 quality gate, report, and closure sync.
 
 
 Breakdown Folder

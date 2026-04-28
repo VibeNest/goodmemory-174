@@ -4,12 +4,27 @@ Phase 48.1: Product Evidence Decision
 Status
 ------
 
-[TODO] Not started.
+[DONE] Accepted no-go decision recorded.
 
 Tasks:
 
-[TODO] P48.1-T001 Compile Phase 45 adoption, Phase 46 quality, and Phase 47
+[DONE] P48.1-T001 Compile Phase 45 adoption, Phase 46 quality, and Phase 47
   provider-backed retrieval evidence.
-[TODO] P48.1-T002 Identify whether dashboard, cloud sync, or team workspace is a
+[DONE] P48.1-T002 Identify whether dashboard, cloud sync, or team workspace is a
   real adoption blocker.
-[TODO] P48.1-T003 Recommend pilot, defer, or no-go with evidence.
+[DONE] P48.1-T003 Recommend pilot, defer, or no-go with evidence.
+
+Evidence:
+
+- `reports/eval/fallback/phase-48/run-20260428170000-dashboard-cloud-decision/report.json`
+- Phase 45 reference-product adoption was proven without hosted dashboard,
+  cloud sync, team workspace, account, or analytics scope.
+- Phase 46 quality repair stayed local and did not require hosted scope.
+- Phase 47 provider-backed need was explicit `hybrid` recall with
+  fail-visible fallback, not dashboard/cloud/team infrastructure.
+
+Decision:
+
+- `hosted_dashboard`: no-go
+- `cloud_sync`: no-go
+- `team_workspace`: no-go

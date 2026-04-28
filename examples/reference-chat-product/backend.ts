@@ -10,6 +10,7 @@ import type {
   GoodMemory,
   GoodMemoryRuntimeAppendMessageInput,
   MemoryScope,
+  RecallInput,
   RememberInput,
 } from "goodmemory";
 import {
@@ -20,6 +21,7 @@ import type {
   GoodMemoryHttpBridgeBody,
   GoodMemoryHttpBridgeOperation,
   GoodMemoryHttpMemoryItem,
+  GoodMemoryHttpRecallRoutingDiagnostics,
 } from "goodmemory/http";
 
 export const REFERENCE_PRODUCT_COMMANDS = {
@@ -63,7 +65,10 @@ export interface ReferenceProductBackend {
   fetchBridge(input: ReferenceProductBridgeRequest): Promise<GoodMemoryHttpBridgeBody>;
   feedback(input: ReferenceProductFeedbackInput): Promise<ReferenceProductMutationResult>;
   forget(input: ReferenceProductForgetInput): Promise<ReferenceProductMutationResult>;
-  recallContext(query: string): Promise<ReferenceProductRecallResult>;
+  recallContext(
+    query: string,
+    options?: ReferenceProductRecallOptions,
+  ): Promise<ReferenceProductRecallResult>;
   remember(input: ReferenceProductRememberInput): Promise<ReferenceProductMutationResult>;
   revise(input: ReferenceProductReviseInput): Promise<ReferenceProductMutationResult>;
   scope: MemoryScope;
@@ -102,7 +107,12 @@ export interface ReferenceProductRecallResult {
   itemCount: number;
   items: GoodMemoryHttpMemoryItem[];
   memoryIds: string[];
+  routing?: GoodMemoryHttpRecallRoutingDiagnostics;
   traceId?: string;
+}
+
+export interface ReferenceProductRecallOptions {
+  strategy?: Exclude<NonNullable<RecallInput["strategy"]>, "llm-assisted">;
 }
 
 export interface ReferenceProductRememberInput {
@@ -466,10 +476,11 @@ export function createReferenceProductBackend(
       ensureBridgeOk(body, "forget");
       return { accepted: bridgeAccepted(body) };
     },
-    async recallContext(query) {
+    async recallContext(query, options = {}) {
       const body = await backend.fetchBridge({
         body: {
           query,
+          ...(options.strategy ? { strategy: options.strategy } : {}),
         },
         operation: "recall-context",
         path: REFERENCE_PRODUCT_BRIDGE_PATHS.recallContext,
@@ -483,6 +494,7 @@ export function createReferenceProductBackend(
         itemCount: typeof body.itemCount === "number" ? body.itemCount : items.length,
         items,
         memoryIds: items.map((item) => item.memoryId),
+        ...(body.routing ? { routing: body.routing } : {}),
         ...(typeof body.traceId === "string" ? { traceId: body.traceId } : {}),
       };
     },
@@ -521,10 +533,10 @@ export function createReferenceProductBackend(
 }
 
 export function createInMemoryReferenceProductBackend(
-  input: { scope?: MemoryScope } = {},
+  input: { memory?: GoodMemory; scope?: MemoryScope } = {},
 ): InMemoryReferenceProductBackend {
   const scope = input.scope ?? DEFAULT_SCOPE;
-  const memory = createGoodMemory({
+  const memory = input.memory ?? createGoodMemory({
     remember: createLifeCoachHttpRememberConfig(),
     storage: { provider: "memory" },
   });

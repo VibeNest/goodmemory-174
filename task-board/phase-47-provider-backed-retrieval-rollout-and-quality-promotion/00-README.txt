@@ -7,10 +7,10 @@ Follow the parent task file:
 
 Task order:
 
-1. rollout contract
-2. quality promotion criteria
-3. provider-backed regressions
-4. docs, gate, and closure
+1. rollout contract [DONE]
+2. quality promotion criteria [DONE]
+3. provider-backed regressions [DONE]
+4. docs, gate, and closure [DONE]
 
 Working rules:
 

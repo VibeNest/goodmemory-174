@@ -64,9 +64,11 @@ import {
   type RetrievalProfile,
   type RoutingDecision,
 } from "./router";
+import { ProviderBackedRecallError } from "./errors";
 import {
   searchSemanticScores,
   sortPreferences,
+  type SemanticSearchScores,
 } from "./scoring";
 import {
   selectArchives,
@@ -526,17 +528,26 @@ export function createRecallEngine(config: RecallEngineConfig) {
         },
       );
       const evidenceCountsByMemoryId = buildEvidenceCountByMemoryId(visibleEvidencePool);
-      const semanticScores =
+      let semanticScores: SemanticSearchScores | undefined;
+      if (
         routingDecision.strategy === "hybrid" &&
         config.embedding &&
         vectorIndex
-          ? await searchSemanticScores({
-              embedding: config.embedding,
-              query: input.query,
-              scope: input.scope,
-              vectorIndex,
-            })
-          : undefined;
+      ) {
+        try {
+          semanticScores = await searchSemanticScores({
+            embedding: config.embedding,
+            query: input.query,
+            scope: input.scope,
+            vectorIndex,
+          });
+        } catch (error) {
+          throw new ProviderBackedRecallError({
+            cause: error,
+            stage: "semantic_search",
+          });
+        }
+      }
 
       const filteredProfile = await applyRecallPolicyToProfile(profile, {
         scope: input.scope,

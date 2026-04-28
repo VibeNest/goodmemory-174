@@ -24,6 +24,8 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 44 is now closed as the Local Viewer data API and lightweight UI slice. `goodmemory runtime viewer --host <codex|claude> --port <n>` starts an optional local read-only viewer on `127.0.0.1` with a local token, no CORS, no mutation routes, no raw transcript display, progressive `gmrec:v1` drill-down, redacted writeback audit/trace/session summaries, and CLI handoff commands for forget/revise review. The viewer is an inspectability surface, not a dashboard, managed cloud, analytics, or write UI.
 - Phase 45 is now closed as the First Reference Product and Adoption Evidence slice. `examples/reference-chat-product` shows a product-shaped chat backend that uses only public package exports and the authenticated `goodmemory/http` bridge, with `bun run example:reference-product`, `bun run eval:phase-45`, and `bun run gate:phase-45` covering install/boot/evaluate/inspect flows. The accepted report compares an observed no-memory baseline with rules-only GoodMemory, records provider-backed uplift as explicit skip unless a later phase implements it, uses the Phase 44 local viewer only for read-only inspectability, and keeps forget/revise mutations in backend CLI/API handoff paths rather than browser-executed viewer routes.
 - Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice. `bun run eval:phase-46` consumes the canonical Phase 45 redacted adoption report, records observed failure samples for no-memory missed recall and rejected unsafe/noisy observe candidates, and keeps stale-recall repair as a maintenance guardrail rather than claiming a Phase 45 stale failure. `qualityRepair` is explicit, not part of default hygiene maintenance, and demotes stale inferred action facts only with bounded verification pressure, old age, low confidence/importance, no recent access, and an active newer replacement fact. Provider-backed retrieval promotion remains separated for Phase 47.
+- Phase 47 is now closed as the Provider-Backed Retrieval Rollout and Quality Promotion slice. `bun run eval:phase-47` compares deterministic rules-only and explicit `hybrid` provider-backed recall over real `createGoodMemory().recall()` paths, then requires useful recall improvement without increased wrong recall, stale recall, or setup fragility. The HTTP bridge accepts explicit `auto` / `rules-only` / `hybrid` recall strategy, keeps omitted and `auto` bridge requests on rules-only even when provider runtime is configured, returns routing diagnostics, rejects public `llm-assisted` request-body rollout, and falls back to rules-only context with `provider_error` only for explicit `hybrid` provider-backed execution failures. Rules-only remains the default accepted mode; provider-backed retrieval is not default-on.
+- Phase 48 is now closed as the Dashboard, Cloud Sync, and Team Workspace Decision slice with an accepted no-go decision. `bun run eval:phase-48` reads the accepted Phase 44-47 evidence and records that hosted dashboard, cloud sync, and team workspace are not justified today; `bun run gate:phase-48` preserves the Phase 44 local viewer as local-only/read-only, requires auth/tenancy/redaction/export/deletion/audit/raw-transcript boundaries before any future hosted pilot, and proves no root API or package subpath widening for dashboard/cloud/team surfaces.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
@@ -50,6 +52,56 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
+- Phase 48 is now closed as the Dashboard, Cloud Sync, and Team Workspace Decision slice with an accepted no-go decision.
+- Accepted behavior:
+  - Phase 48 compiles the accepted Phase 44 local-viewer gate, Phase 45 adoption report, Phase 46 quality gate, and Phase 47 provider-rollout gate into one decision report
+  - hosted dashboard, cloud sync, and team workspace each close as `no_go`
+  - no hosted/cloud/team runtime is implemented, and no package subpath export is added for dashboard, cloud, or team surfaces
+  - the Phase 44 local viewer remains local-only, token-gated, no-CORS, read-only, and non-mutating
+  - browser-executed forget/revise remains outside the local viewer
+  - raw transcript persistence is blocked by default
+  - future reconsideration requires a measured adoption blocker plus auth, tenancy, redaction, export, deletion, audit, and raw-transcript semantics before implementation
+  - root `goodmemory` public API and package subpath exports are not widened for Phase 48
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-48-Quality-Gate.md`
+  - decision report: `reports/eval/fallback/phase-48/run-20260428170000-dashboard-cloud-decision/report.json`
+  - quality gate: `reports/quality-gates/phase-48/run-20260428173000/phase-48-quality-gate.json`
+- Still outside the Phase 48 accepted claim:
+  - hosted dashboard, account system, managed cloud, analytics, or sync
+  - team workspace memory sharing
+  - viewer mutation routes or browser-executed forget/revise
+  - raw transcript archive or full assistant-output persistence
+  - CORS-enabled remote viewer/API
+  - new root public API or hosted package subpath exports
+
+## Prior Closed Provider Slice
+
+- Phase 47 is now closed as the Provider-Backed Retrieval Rollout and Quality Promotion slice.
+- Accepted behavior:
+  - `strategy: "hybrid"` is the explicit provider-backed retrieval request while rules-only remains the default
+  - the HTTP bridge reports requested/resolved strategy, semantic tie-breaking, LLM refinement status, fallback reason, and provider fallback metadata
+  - public HTTP bridge request bodies accept `auto`, `rules-only`, and `hybrid`, but not `llm-assisted`
+  - omitted and `auto` HTTP bridge requests resolve to rules-only even when provider runtime is configured
+  - classified embedding/vector/semantic/provider errors fall back to rules-only context with `provider_error` only for explicit `hybrid` provider-backed execution
+  - non-provider recall errors are not masked as successful provider fallback
+  - promotion evidence compares rules-only and hybrid against Phase 45/46 accepted evidence and proves no-strategy/`auto` bridge defaults stay rules-only
+  - accepted metrics require useful recall improvement without increasing wrong recall, stale recall, or setup fragility
+  - root `goodmemory` public API and package subpath exports are not widened for Phase 47
+- Canonical evidence:
+  - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-47-Quality-Gate.md`
+  - provider rollout eval: `reports/eval/fallback/phase-47/run-20260428120000-provider-rollout-eval/report.json`
+  - quality gate: `reports/quality-gates/phase-47/run-20260428123000/phase-47-quality-gate.json`
+- Still outside the Phase 47 accepted claim:
+  - hosted dashboard, account system, managed cloud, analytics, or sync
+  - viewer mutation routes or browser-executed forget/revise
+  - raw transcript archive or full assistant-output persistence
+  - CORS-enabled remote API
+  - default-on provider-backed retrieval
+  - public HTTP bridge `llm-assisted` recall rollout
+  - new root public API or new installed-host hook capability
+
+## Prior Closed Quality Slice
+
 - Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice.
 - Accepted behavior:
   - Phase 46 quality eval reads the canonical Phase 45 adoption report and keeps generated fallback output ignored/reproducible
@@ -65,13 +117,6 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-46-Quality-Gate.md`
   - quality eval: `reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json`
   - quality gate: `reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json`
-- Still outside the Phase 46 accepted claim:
-  - hosted dashboard, account system, managed cloud, analytics, or sync
-  - viewer mutation routes or browser-executed forget/revise
-  - raw transcript archive or full assistant-output persistence
-  - CORS-enabled remote API
-  - provider-backed retrieval rollout or quality-promotion claims
-  - new root public API or new installed-host hook capability
 
 ## Prior Closed Reference Product Slice
 

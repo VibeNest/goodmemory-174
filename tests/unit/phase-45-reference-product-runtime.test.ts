@@ -3,6 +3,13 @@ import {
   createInMemoryReferenceProductBackend,
   createReferenceProductBackend,
 } from "../../examples/reference-chat-product/backend";
+import {
+  createFactMemory,
+  createGoodMemory,
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+  createInMemoryVectorStore,
+} from "../../src";
 import type {
   ReferenceProductBackend,
 } from "../../examples/reference-chat-product/backend";
@@ -14,6 +21,105 @@ function bridgeResponse(body: Record<string, unknown>): Response {
 }
 
 describe("phase-45 reference product runtime", () => {
+  it("keeps provider-backed recall explicit at the reference-product boundary", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const vectorStore = createInMemoryVectorStore();
+    const query = "Which provider rollout blocker is active?";
+    const scope = {
+      agentId: "life-coach",
+      sessionId: "phase47-reference-session",
+      tenantId: "phase47-reference-tenant",
+      userId: "phase47-reference-user",
+      workspaceId: "phase47-reference-workspace",
+    };
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        embeddingAdapter: {
+          async embed(texts: string[]) {
+            return texts.map((text) =>
+              text === query || text.includes("embedding bridge token validation")
+                ? [1, 0, 0]
+                : [0, 1, 0]
+            );
+          },
+        },
+        sessionStore,
+        vectorStore,
+      },
+      storage: { provider: "memory" },
+    });
+    const wrongFact = createFactMemory({
+      id: "phase47-reference-a-stale-blocker",
+      agentId: scope.agentId,
+      category: "project",
+      content: "Provider rollout blocker is vendor approval.",
+      source: { method: "inferred", extractedAt: "2025-12-01T00:00:00.000Z" },
+      tenantId: scope.tenantId,
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      createdAt: "2025-12-01T00:00:00.000Z",
+      updatedAt: "2025-12-01T00:00:00.000Z",
+    });
+    const rightFact = createFactMemory({
+      id: "phase47-reference-z-current-blocker",
+      agentId: scope.agentId,
+      category: "project",
+      content: "Provider rollout blocker is embedding bridge token validation.",
+      source: { method: "explicit", extractedAt: "2026-04-28T00:00:00.000Z" },
+      tenantId: scope.tenantId,
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      createdAt: "2026-04-28T00:00:00.000Z",
+      updatedAt: "2026-04-28T00:00:00.000Z",
+    });
+
+    await documentStore.set("facts", wrongFact.id, wrongFact);
+    await documentStore.set("facts", rightFact.id, rightFact);
+    await vectorStore.upsert("facts", [
+      {
+        id: wrongFact.id,
+        embedding: [0, 1, 0],
+        metadata: {
+          agentId: scope.agentId,
+          tenantId: scope.tenantId,
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+        },
+        content: wrongFact.content,
+      },
+      {
+        id: rightFact.id,
+        embedding: [1, 0, 0],
+        metadata: {
+          agentId: scope.agentId,
+          tenantId: scope.tenantId,
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+        },
+        content: rightFact.content,
+      },
+    ]);
+
+    const { product } = createInMemoryReferenceProductBackend({
+      memory,
+      scope,
+    });
+
+    const recall = await product.recallContext(query, { strategy: "hybrid" });
+
+    expect(recall.contextIncluded).toBe(true);
+    expect(recall.routing).toMatchObject({
+      requestedStrategy: "hybrid",
+      resolvedStrategy: "hybrid",
+      semanticTieBreaking: true,
+    });
+    expect(recall.memoryIds).toEqual(["phase47-reference-z-current-blocker"]);
+    expect(recall.contextText).toContain("embedding bridge token validation");
+    expect(recall.contextText).not.toContain("vendor approval");
+  });
+
   it("runs a product chat loop with recall-context injection and explicit remember", async () => {
     const { product } = createInMemoryReferenceProductBackend();
 

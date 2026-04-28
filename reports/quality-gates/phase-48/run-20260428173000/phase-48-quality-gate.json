@@ -1,0 +1,70 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 48 dashboard/cloud/team workspace decision is accepted as no-go, with privacy and local-viewer boundaries preserved and no hosted surface implemented."
+  },
+  "commands": [
+    {
+      "durationMs": 2999,
+      "exitCode": 0,
+      "stderr": "$ bunx tsc --noEmit\n",
+      "stdout": "",
+      "label": "typecheck"
+    },
+    {
+      "durationMs": 21,
+      "exitCode": 0,
+      "stderr": "\ntests/unit/run-phase-48.decision-report.test.ts:\n(pass) run-phase-48 decision report script > resolves phase-48 output and canonical input paths\n(pass) run-phase-48 decision report script > builds a deterministic phase-48 decision report run id [0.34ms]\n(pass) run-phase-48 decision report script > parses phase-48 decision report cli flags [0.04ms]\n(pass) run-phase-48 decision report script > writes an accepted no-go decision from Phase 44-47 evidence [0.93ms]\n(pass) run-phase-48 decision report script > blocks when hosted surface evidence appears without a pilot design [0.11ms]\n(pass) run-phase-48 decision report script > blocks when Phase 45 scenario families contain team workspace signals [0.17ms]\n(pass) run-phase-48 decision report script > fails closed when Phase 47 default-preservation evidence is missing [0.14ms]\n(pass) run-phase-48 decision report script > blocks when Phase 47 lacks explicit hybrid uplift evidence [0.03ms]\n(pass) run-phase-48 decision report script > blocks when Phase 46 evidence contains hosted-surface scope [0.21ms]\n(pass) run-phase-48 decision report script > blocks when Phase 47 evidence contains hosted-surface scope [0.12ms]\n\ntests/unit/run-phase-48-gate.test.ts:\n(pass) run-phase-48 gate script > resolves phase-48 output and canonical decision report paths\n(pass) run-phase-48 gate script > builds a deterministic phase-48 gate run id [0.35ms]\n(pass) run-phase-48 gate script > parses phase-48 gate cli flags [0.04ms]\n(pass) run-phase-48 gate script > builds the expected targeted command set [0.03ms]\n(pass) run-phase-48 gate script > writes an accepted phase-48 quality gate when evidence and boundaries pass [0.05ms]\n(pass) run-phase-48 gate script > blocks instead of accepting when command execution is skipped [0.82ms]\n(pass) run-phase-48 gate script > blocks when the decision report requires a hosted pilot design [0.09ms]\n(pass) run-phase-48 gate script > blocks when the threat model is incomplete [0.08ms]\n(pass) run-phase-48 gate script > blocks when all three hosted surfaces are not explicitly no-go [0.18ms]\n(pass) run-phase-48 gate script > blocks when the local viewer source no longer preserves bind-host safety [0.09ms]\n(pass) run-phase-48 gate script > blocks when the local viewer source adds a CORS header with standard casing [0.15ms]\n\n 21 pass\n 0 fail\n 65 expect() calls\nRan 21 tests across 2 files. [15.00ms]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-48-decision-regressions"
+    },
+    {
+      "durationMs": 4890,
+      "exitCode": 0,
+      "stderr": "$ bun run scripts/run-phase-47-gate.ts --run-id \"run-20260428123000\"\n",
+      "stdout": "",
+      "label": "phase-47-gate-prerequisite"
+    },
+    {
+      "durationMs": 14,
+      "exitCode": 0,
+      "stderr": "$ bun run scripts/run-phase-48-decision-report.ts --run-id \"run-20260428170000-dashboard-cloud-decision\"\n",
+      "stdout": "{\n  \"acceptance\": {\n    \"decision\": \"accepted\",\n    \"reason\": \"Phase 48 accepts a no-go decision for hosted dashboard, cloud sync, and team workspace because Phase 45-47 evidence proves local/reference-product value, quality repair, and explicit provider-backed retrieval without a concrete hosted-surface adoption blocker.\"\n  },\n  \"decision\": {\n    \"decision\": \"no_go\",\n    \"reason\": \"No concrete hosted dashboard, cloud sync, or team workspace adoption blocker is present in Phase 45-47 evidence.\"\n  },\n  \"generatedAt\": \"2026-04-27T19:21:22.236Z\",\n  \"generatedBy\": \"scripts/run-phase-48-decision-report.ts\",\n  \"inputs\": {\n    \"phase44LocalViewerGate\": {\n      \"readOnlySecurityContracts\": true,\n      \"reportPath\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json\",\n      \"runId\": \"run-20260426160000\",\n      \"status\": \"accepted\"\n    },\n    \"phase45AdoptionReport\": {\n      \"localViewerInspectionObserved\": true,\n      \"noMemoryBaselineObserved\": true,\n      \"reportPath\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/adoption/phase-45/run-20260427104530-adoption-eval/report.json\",\n      \"runId\": \"run-20260427104530-adoption-eval\",\n      \"scenarioCount\": 12,\n      \"status\": \"accepted\"\n    },\n    \"phase46QualityGate\": {\n      \"hostedSurfaceEvidenceObserved\": false,\n      \"providerBackedPromotionSeparated\": true,\n      \"qualityRepairBoundary\": true,\n      \"reportPath\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json\",\n      \"runId\": \"run-20260428110000\",\n      \"status\": \"accepted\"\n    },\n    \"phase47ProviderRolloutGate\": {\n      \"explicitHybridOnly\": true,\n      \"hostedSurfaceEvidenceObserved\": false,\n      \"reportPath\": \"/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-47/run-20260428123000/phase-47-quality-gate.json\",\n      \"rulesOnlyDefaultPreserved\": true,\n      \"runId\": \"run-20260428123000\",\n      \"status\": \"accepted\"\n    }\n  },\n  \"mode\": \"dashboard-cloud-sync-team-workspace-decision\",\n  \"outputDir\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-48\",\n  \"phase\": \"phase-48\",\n  \"pilot\": {\n    \"decision\": \"no_go\",\n    \"noGoReasons\": [\n      \"Phase 45 proved reference-product value without hosted dashboard, cloud sync, team workspace, account, or analytics scope.\",\n      \"Phase 46 quality gaps were addressed through local memory-quality repair, not a hosted surface.\",\n      \"Phase 47 provider-backed need was explicit hybrid retrieval, not dashboard, cloud, or team workspace infrastructure.\",\n      \"Phase 44 already preserves local inspectability as token-gated, local-only, read-only viewer behavior.\"\n    ],\n    \"reconsiderationTriggers\": [\n      \"reference-product users cannot complete core memory workflows without cross-device sync\",\n      \"team adoption requires shared memory review with explicit tenancy and deletion semantics\",\n      \"local-only inspectability becomes a measured adoption blocker after redacted product evidence\"\n    ],\n    \"smallestSafePilot\": null\n  },\n  \"productEvidence\": {\n    \"hostedSurfaceEvidenceObserved\": false,\n    \"memoryQualityNeedAddressedLocally\": true,\n    \"providerBackedNeedAddressedByExplicitHybrid\": true,\n    \"referenceProductAdoptionProven\": true\n  },\n  \"rawTranscriptPersistence\": {\n    \"persistedRawTranscripts\": false,\n    \"policy\": \"blocked_by_default\"\n  },\n  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-48/run-20260428170000-dashboard-cloud-decision\",\n  \"runId\": \"run-20260428170000-dashboard-cloud-decision\",\n  \"scope\": {\n    \"inScope\": [\n      \"Phase 45-47 evidence-backed hosted surface decision\",\n      \"dashboard, cloud sync, and team workspace privacy boundary\",\n      \"local viewer versus hosted product split\",\n      \"pilot or no-go closure path\"\n    ],\n    \"outOfScope\": [\n      \"implementing hosted dashboard, account, cloud sync, or team workspace runtime\",\n      \"turning the Phase 44 local viewer into a hosted dashboard\",\n      \"browser-executed mutation on the local viewer\",\n      \"raw transcript archive as a default product feature\",\n      \"root public API widening\"\n    ]\n  },\n  \"surfaceDecisions\": [\n    {\n      \"blockers\": [\n        \"Phase 45 proved reference-product value without hosted dashboard, cloud sync, team workspace, account, or analytics scope.\",\n        \"Phase 46 quality gaps were addressed through local memory-quality repair, not a hosted surface.\",\n        \"Phase 47 provider-backed need was explicit hybrid retrieval, not dashboard, cloud, or team workspace infrastructure.\",\n        \"Phase 44 already preserves local inspectability as token-gated, local-only, read-only viewer behavior.\"\n      ],\n      \"decision\": \"no_go\",\n      \"requiredBeforeReconsideration\": [\n        \"concrete adoption blocker tied to the hosted/shared surface\",\n        \"auth and tenancy model\",\n        \"redaction and raw-transcript persistence policy\",\n        \"export, deletion, and audit semantics\",\n        \"separate hosted product design that does not mutate the local viewer contract\"\n      ],\n      \"surface\": \"hosted_dashboard\"\n    },\n    {\n      \"blockers\": [\n        \"Phase 45 proved reference-product value without hosted dashboard, cloud sync, team workspace, account, or analytics scope.\",\n        \"Phase 46 quality gaps were addressed through local memory-quality repair, not a hosted surface.\",\n        \"Phase 47 provider-backed need was explicit hybrid retrieval, not dashboard, cloud, or team workspace infrastructure.\",\n        \"Phase 44 already preserves local inspectability as token-gated, local-only, read-only viewer behavior.\"\n      ],\n      \"decision\": \"no_go\",\n      \"requiredBeforeReconsideration\": [\n        \"concrete adoption blocker tied to the hosted/shared surface\",\n        \"auth and tenancy model\",\n        \"redaction and raw-transcript persistence policy\",\n        \"export, deletion, and audit semantics\",\n        \"separate hosted product design that does not mutate the local viewer contract\"\n      ],\n      \"surface\": \"cloud_sync\"\n    },\n    {\n      \"blockers\": [\n        \"Phase 45 proved reference-product value without hosted dashboard, cloud sync, team workspace, account, or analytics scope.\",\n        \"Phase 46 quality gaps were addressed through local memory-quality repair, not a hosted surface.\",\n        \"Phase 47 provider-backed need was explicit hybrid retrieval, not dashboard, cloud, or team workspace infrastructure.\",\n        \"Phase 44 already preserves local inspectability as token-gated, local-only, read-only viewer behavior.\"\n      ],\n      \"decision\": \"no_go\",\n      \"requiredBeforeReconsideration\": [\n        \"concrete adoption blocker tied to the hosted/shared surface\",\n        \"auth and tenancy model\",\n        \"redaction and raw-transcript persistence policy\",\n        \"export, deletion, and audit semantics\",\n        \"separate hosted product design that does not mutate the local viewer contract\"\n      ],\n      \"surface\": \"team_workspace\"\n    }\n  ],\n  \"threatModel\": {\n    \"auditRequired\": true,\n    \"authRequired\": true,\n    \"deletionRequired\": true,\n    \"exportRequired\": true,\n    \"rawTranscriptDefault\": \"blocked\",\n    \"redactionRequired\": true,\n    \"tenancyRequired\": true\n  },\n  \"viewerBoundary\": {\n    \"browserExecutedMutationAllowed\": false,\n    \"localViewerRemainsLocalOnly\": true,\n    \"localViewerRemainsReadOnly\": true,\n    \"separateHostedSurfaceRequired\": true\n  }\n}\n",
+      "label": "phase-48-decision-report"
+    },
+    {
+      "durationMs": 491,
+      "exitCode": 0,
+      "stderr": "\ntests/release/release.test.ts:\n(pass) release metadata and docs > package metadata exposes bin, exports, and key scripts [1.00ms]\n(pass) release metadata and docs > root exports stay aligned with the declared public surface [32.88ms]\n(pass) release metadata and docs > current status doc points to the stable evidence entrypoints and archive [2.34ms]\n(pass) release metadata and docs > task-board current note documents the generic eval command contract [0.66ms]\n(pass) release metadata and docs > phase-48 quality gate doc points to the canonical hosted-surface decision gate [0.21ms]\n(pass) release metadata and docs > models fallback eval evidence as regenerable ignored output, not tracked audit artifacts [398.43ms]\n\n 6 pass\n 63 filtered out\n 0 fail\n 558 expect() calls\nRan 6 tests across 1 file. [486.00ms]\n",
+      "stdout": "bun test v1.3.11 (af24e281)\n",
+      "label": "phase-48-release-regressions"
+    }
+  ],
+  "evidence": {
+    "decisionReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-48/run-20260428170000-dashboard-cloud-decision/report.json",
+      "reason": "Phase 48 dashboard/cloud/team workspace decision report is accepted.",
+      "regenerateCommand": "bun run gate:phase-47 --run-id run-20260428123000 && bun run eval:phase-48 --run-id run-20260428170000-dashboard-cloud-decision",
+      "status": "accepted"
+    },
+    "decisionReportSummary": {
+      "decision": "no_go",
+      "hostedSurfaceEvidenceObserved": false,
+      "localViewerPreserved": true,
+      "rawTranscriptPersistenceBlocked": true,
+      "surfaceDecisionCount": 3,
+      "threatModelComplete": true
+    },
+    "docsAligned": true,
+    "localViewerBoundaryPreserved": true,
+    "noRootApiWidening": true,
+    "packageScriptsRegistered": true
+  },
+  "generatedAt": "2026-04-27T19:21:14.314Z",
+  "generatedBy": "scripts/run-phase-48-gate.ts",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-48",
+  "phase": "phase-48",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-48/run-20260428173000",
+  "runId": "run-20260428173000"
+}

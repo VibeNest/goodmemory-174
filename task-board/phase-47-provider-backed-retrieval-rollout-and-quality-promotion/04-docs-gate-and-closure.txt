@@ -4,11 +4,22 @@ Phase 47.4: Docs, Gate, And Closure
 Status
 ------
 
-[TODO] Not started.
+[DONE] Closed by Phase 47 docs, gate, and release assertions.
 
 Tasks:
 
-[TODO] P47.4-T001 Document when to enable provider-backed retrieval.
-[TODO] P47.4-T002 Add Phase 47 eval and gate artifacts.
-[TODO] P47.4-T003 Sync current-status, task-board, archive docs, and release
+[DONE] P47.4-T001 Document when to enable provider-backed retrieval.
+[DONE] P47.4-T002 Add Phase 47 eval and gate artifacts.
+[DONE] P47.4-T003 Sync current-status, task-board, archive docs, and release
   assertions only after evidence is accepted.
+
+Evidence:
+
+- `docs/archive/quality-gates/GoodMemory-Phase-47-Quality-Gate.md`
+- `reports/eval/fallback/phase-47/run-20260428120000-provider-rollout-eval/report.json`
+- `reports/quality-gates/phase-47/run-20260428123000/phase-47-quality-gate.json`
+- `bun run eval:phase-46 --run-id run-20260427123000-quality-eval && bun run eval:phase-47 --run-id run-20260428120000-provider-rollout-eval`
+- `bun run gate:phase-47 --run-id run-20260428123000`
+  - Gate command regenerates canonical Phase 46 quality-eval prerequisite before
+    Phase 47 provider rollout eval, so accepted evidence is reproducible from
+    tracked Phase 45 evidence plus scripts.

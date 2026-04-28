@@ -4,12 +4,24 @@ Phase 47.1: Rollout Contract
 Status
 ------
 
-[TODO] Not started.
+[DONE] Closed by Phase 47 eval/gate evidence.
 
 Tasks:
 
-[TODO] P47.1-T001 Freeze explicit provider-backed retrieval enablement semantics.
-[TODO] P47.1-T002 Define fail-visible provider errors, safe rules-only fallback,
+[DONE] P47.1-T001 Freeze explicit provider-backed retrieval enablement semantics.
+[DONE] P47.1-T002 Define fail-visible provider errors, safe rules-only fallback,
   and fail-closed promotion claims when evidence is missing.
-[TODO] P47.1-T003 Keep rules-only as the default unless promotion evidence says
+[DONE] P47.1-T003 Keep rules-only as the default unless promotion evidence says
   otherwise.
+
+Evidence:
+
+- `src/http/index.ts` accepts explicit `auto` / `rules-only` / `hybrid`
+  strategy, resolves omitted and `auto` bridge requests to rules-only, and
+  rejects public request-body `llm-assisted`.
+- Classified embedding/vector/semantic/provider failures fall back to
+  rules-only context with `provider_error` only for explicit `hybrid`
+  provider-backed execution; non-provider recall failures are not masked.
+- `reports/eval/fallback/phase-47/run-20260428120000-provider-rollout-eval/report.json`
+  proves no-strategy and `auto` bridge defaults remain rules-only with provider
+  runtime available.
