@@ -1,0 +1,15 @@
+Phase 51.4: Eval, Gate, And Closure
+===================================
+
+[TODO] P51.4-T001 Add deterministic and targeted live regressions for typed
+behavioral memory, policy compilation, procedural applicability, enactment, and
+leak suppression.
+
+[TODO] P51.4-T002 Keep full-300 reruns as research evidence and use smaller
+deterministic/live slices as the phase-closing gate.
+
+[TODO] P51.4-T003 Close the phase only after current-status, task-board, and
+archive evidence agree on the accepted claim.
+
+[TODO] P51.4-T004 Document what improved in general product terms, not only in
+benchmark terms.

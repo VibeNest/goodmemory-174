@@ -1,0 +1,128 @@
+Phase 51: Typed Behavioral Memory And Enactment Hardening
+=========================================================
+
+Status
+------
+
+[TODO] Phase 51 is planned as the next general-capability slice after the
+accepted Phase 49 full ImplicitMemBench research harness and the accepted
+Phase 50 installer hardening slice.
+
+
+Phase Goal
+----------
+
+Strengthen GoodMemory's general behavioral adaptation quality without
+overfitting to any one benchmark by:
+
+- separating behavioral policy memory from exemplar/content memory
+- compiling repeated evidence into executable policy instead of prose-only notes
+- making procedural distillation applicability-aware instead of collapsing to
+  one remembered exemplar
+- adding a stronger enactment path for first action, exact syntax, and argument
+  ordering
+- reducing explicit recall leakage and uncontrolled priming contamination
+
+
+Dependencies
+------------
+
+- Phase 25 behavioral adaptation closure
+- Phase 31 native host outcome and correction closure
+- Phase 34 host pre-action policy and veto contract
+- Phase 36 public domain write profiles and rules
+- Phase 43 Runtime Kit
+- Phase 49 full ImplicitMemBench research harness
+- Phase 50 installer CLI runtime-shell hardening
+- `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+
+
+Accepted Scope
+--------------
+
+- Introduce an internal typed behavioral memory layer that explicitly
+  distinguishes:
+  - exemplar fact
+  - behavioral preference
+  - prohibition / avoidance rule
+  - exact-format contract
+  - first-action preference
+  - argument-order or syntax constraint
+  - transformation or procedure rule
+- Keep behavioral memory compilation internal-first. Reuse existing public
+  `remember`, `feedback`, writeback, host, and runtime surfaces unless a later
+  phase proves a public widening is necessary.
+- Upgrade compiler/reviewer/promotion paths so repeated feedback and repeated
+  outcome lineage can compile into executable behavioral policy objects instead
+  of prose-only memory notes.
+- Make procedural distillation applicability-aware so one instance output is not
+  silently generalized to an entire task family or domain pattern.
+- Add an enactment-oriented rendering/application layer for exact first action,
+  exact template fragments, and argument-order preservation where the runtime or
+  host surface can support it.
+- Add leak-suppression and contamination controls that separate "used for
+  steering" from "acceptable to say explicitly" for final answers.
+- Keep priming as research-only and pair any stronger behavioral steering with
+  contamination and explicit-recall checks.
+
+
+Out Of Scope
+------------
+
+- benchmark-specific task heuristics or per-file special cases for
+  ImplicitMemBench
+- making full ImplicitMemBench a release hard gate
+- widening the root `goodmemory` API or README-level defaults in this first
+  hardening slice
+- dashboard, cloud sync, team workspace, or raw transcript archive work
+- reopening Phase 49 accepted smoke evidence or Phase 50 accepted installer
+  evidence
+
+
+Acceptance Criteria
+-------------------
+
+1. GoodMemory has an internal typed behavioral memory representation that is
+   distinct from exemplar/content memory and is exercised by tests.
+2. Repeated feedback and/or repeated outcome lineage can compile into
+   applicability-bounded behavioral policy objects instead of only free-text
+   notes.
+3. Procedural distillation no longer collapses a whole family into a single
+   memorized answer in the covered regression set; applicability and exemplar
+   scope are explicit.
+4. Covered host/runtime flows can preserve canonical first action, exact syntax,
+   and argument ordering through a dedicated enactment path rather than relying
+   only on generic prose generation.
+5. Leak-suppression controls reduce explicit memory carryover in the covered
+   regression set without weakening accepted Phase 31 or Phase 34 host-policy
+   behavior.
+6. Phase 51 closes with deterministic and targeted live evidence that improves
+   the covered behavioral regressions while keeping full-300 reruns as research
+   evidence rather than hard-gate requirements.
+
+
+Tasks
+-----
+
+[TODO] P51-T001 Define the internal typed behavioral memory taxonomy, storage
+  representation, and compatibility boundaries.
+[TODO] P51-T002 Upgrade reviewer/compiler/promotion logic so repeated evidence
+  can become applicability-bounded executable behavioral policy.
+[TODO] P51-T003 Make procedural distillation instance-aware and
+  applicability-aware instead of exemplar-collapsed.
+[TODO] P51-T004 Add enactment-oriented runtime/host application for first
+  action, exact template fragments, and argument-order constraints.
+[TODO] P51-T005 Add leak suppression, contamination checks, and research-facing
+  evaluation coverage that proves improvement without benchmark-specific hacks.
+[TODO] P51-T006 Close the phase with targeted regressions, live evidence, and
+  synced status/task-board/archive updates.
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-51-typed-behavioral-memory-and-enactment-hardening/00-README.txt`
+- `task-board/phase-51-typed-behavioral-memory-and-enactment-hardening/01-typed-behavioral-memory-model.txt`
+- `task-board/phase-51-typed-behavioral-memory-and-enactment-hardening/02-procedural-generalization-and-applicability.txt`
+- `task-board/phase-51-typed-behavioral-memory-and-enactment-hardening/03-enactment-and-leak-suppression.txt`
+- `task-board/phase-51-typed-behavioral-memory-and-enactment-hardening/04-eval-gate-and-closure.txt`

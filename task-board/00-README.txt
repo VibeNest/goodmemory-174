@@ -122,6 +122,7 @@ Read and execute files in this order:
 53. 53-phase-48-dashboard-cloud-sync-and-team-workspace-decision.txt
 54. 54-phase-49-full-implicitmembench-goodmemory-research-eval.txt
 55. 55-phase-50-installer-cli-runtime-shell-hardening.txt
+56. 56-phase-51-typed-behavioral-memory-and-enactment-hardening.txt
 
 
 Current Sequencing Note
@@ -138,6 +139,15 @@ Current Sequencing Note
 - Phase 23 is now closed as the internal recall-router controlled default-promotion slice.
 - Phase 24 is now closed as the implicit behavioral adaptation eval-harness slice.
 - Phase 25 is now closed as the deterministic outcome-telemetry runtime and Layer D evidence slice; provider-backed live behavioral closure remains unproven here.
+- Phase 51 is the next planned general-capability slice after the full-300
+  ImplicitMemBench research summary:
+  - task-board entrypoint:
+    `task-board/56-phase-51-typed-behavioral-memory-and-enactment-hardening.txt`
+  - focus:
+    typed behavioral memory, applicability-bounded policy compilation,
+    procedural generalization, enactment, and leak suppression
+  - it is explicitly scoped as general capability hardening, not benchmark
+    special-casing
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`

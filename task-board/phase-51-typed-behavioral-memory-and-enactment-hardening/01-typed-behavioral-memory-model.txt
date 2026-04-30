@@ -1,0 +1,16 @@
+Phase 51.1: Typed Behavioral Memory Model
+=========================================
+
+[TODO] P51.1-T001 Define internal behavioral-memory kinds that distinguish
+exemplar facts from executable behavioral policy.
+
+[TODO] P51.1-T002 Add applicability metadata so behavioral policy can encode
+scope, trigger shape, and transfer bounds instead of being treated as generic
+prose notes.
+
+[TODO] P51.1-T003 Keep the first slice internal-first and compatible with the
+existing public `remember`, `feedback`, writeback, and runtime surface.
+
+[TODO] P51.1-T004 Add deterministic tests proving typed behavioral memory stays
+separate from exemplar/content memory in storage, recall assembly, and export
+boundaries.

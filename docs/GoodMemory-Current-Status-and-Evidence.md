@@ -121,6 +121,8 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `reports/eval/research/phase-49/comparison/run-phase49-smoke-current/report.json`
   - quality gate:
     `reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json`
+  - ad hoc full-300 research summary:
+    `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
 - Still outside the Phase 49 accepted claim:
   - a checked-in full 300-item live run against an external benchmark checkout
   - release hard-gating on ImplicitMemBench quality numbers
