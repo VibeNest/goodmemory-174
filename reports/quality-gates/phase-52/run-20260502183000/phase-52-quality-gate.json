@@ -1,0 +1,154 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 52 targeted deterministic and live behavioral evidence passed."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 3729,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/evolution.behavioral-policy.test.ts tests/unit/host.pre-action-policy.test.ts tests/unit/runtime-kit.test.ts tests/unit/context-builder.outputs.test.ts tests/unit/evolution.reviewer.test.ts tests/integration/evolution.outcome-telemetry.test.ts tests/integration/evolution.compiler.test.ts tests/integration/evolution.reviewer.test.ts tests/unit/run-phase-52.script.test.ts tests/unit/run-phase-52.gate.test.ts",
+      "durationMs": 140,
+      "exitCode": 0,
+      "label": "phase-52-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) outcome telemetry promotion chain > promotes repeated failed Codex traces into a validated pattern through the same telemetry chain [0.94ms]",
+        "(pass) outcome telemetry promotion chain > does not compile a failed targeted correction into durable guidance when a later safer action succeeds [0.41ms]",
+        "",
+        "tests/integration/evolution.compiler.test.ts:",
+        "(pass) procedural pattern compiler > compiles accepted procedural promotions into one active validated pattern and supersedes the source guidance [0.94ms]",
+        "(pass) procedural pattern compiler > does not compile delayed procedural proposals into validated patterns [0.62ms]",
+        "(pass) procedural pattern compiler > does not reactivate a superseded source guidance into a new validated pattern [0.40ms]",
+        "(pass) procedural pattern compiler > deduplicates equivalent procedural patterns across accepted session-scoped promotions [0.55ms]",
+        "",
+        "tests/integration/evolution.reviewer.test.ts:",
+        "(pass) reflective reviewer integration > emits one accepted procedural pattern proposal after repeated feedback and does not duplicate it [1.93ms]",
+        "(pass) reflective reviewer integration > can run the assisted reviewer profile through the same proposal pipeline [0.83ms]",
+        "(pass) reflective reviewer integration > persists a pattern-bounded behavioral policy after repeated feedback is promoted and compiled [1.08ms]",
+        "(pass) reflective reviewer integration > persists guarded policy payloads after repeated precondition feedback is promoted and compiled [1.09ms]",
+        "(pass) reflective reviewer integration > emits a maintenance proposal after a stale verification signal is observed and the turn completes [3.50ms]",
+        "",
+        " 88 pass",
+        " 0 fail",
+        " 298 expect() calls",
+        "Ran 88 tests across 10 files. [134.00ms]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-52 -- --run-id run-phase52-fallback-current",
+      "durationMs": 85,
+      "exitCode": 0,
+      "label": "eval:phase-52",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-52-eval.ts --run-id \"run-phase52-fallback-current\""
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"summary\": {",
+        "    \"caseCountsByDataset\": {",
+        "      \"classical_conditioning\": 12,",
+        "      \"priming\": 0,",
+        "      \"procedural_memory\": 12",
+        "    },",
+        "    \"caseCountsByScorer\": {",
+        "      \"priming_pair_judge\": 0,",
+        "      \"structured_first_action\": 4,",
+        "      \"text_behavior_judge\": 20",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"passedBlockingCases\": 12,",
+        "    \"primingAverageScore\": null,",
+        "    \"totalBlockingCases\": 24,",
+        "    \"totalCases\": 24",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-52-live-memory -- --run-id run-phase52-live-current",
+      "durationMs": 174733,
+      "exitCode": 0,
+      "label": "eval:phase-52-live-memory",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-52-live-memory.ts --run-id \"run-phase52-live-current\""
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"summary\": {",
+        "    \"caseCountsByDataset\": {",
+        "      \"classical_conditioning\": 12,",
+        "      \"priming\": 0,",
+        "      \"procedural_memory\": 12",
+        "    },",
+        "    \"caseCountsByScorer\": {",
+        "      \"priming_pair_judge\": 0,",
+        "      \"structured_first_action\": 4,",
+        "      \"text_behavior_judge\": 20",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"passedBlockingCases\": 15,",
+        "    \"primingAverageScore\": null,",
+        "    \"totalBlockingCases\": 24,",
+        "    \"totalCases\": 24",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-52/run-phase52-fallback-current/report.json",
+      "reason": "Phase 52 deterministic targeted eval is generated evidence and remains reproducible ignored output.",
+      "regenerateCommand": "bun run eval:phase-52 -- --run-id run-phase52-fallback-current",
+      "status": "accepted"
+    },
+    "liveMemoryReport": {
+      "canonicalLiveReportPath": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-52/run-phase52-live-current/report.json",
+      "distilledBlockingCases": 12,
+      "distilledPassedBlockingCases": 12,
+      "explicitRecallLeakDelta": 0,
+      "liveReportPath": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-52/run-phase52-live-current/report.json",
+      "rawBlockingCases": 12,
+      "rawPassedBlockingCases": 3,
+      "requiredTaskFilesPresent": [
+        "conditioned_api_aversion.json",
+        "conditioned_directory_restriction.json",
+        "conditioned_jargon_avoidance.json",
+        "conditioned_protocol_preference.json",
+        "context_dependent_api_behavior.json",
+        "corporate_etiquette_mandate.json",
+        "logiql_query_language.json",
+        "reversed_parameter_protocol.json",
+        "the_modified_recurrence_sequence.json",
+        "the_omega_operation.json",
+        "the_scribe_s_signature.json",
+        "tool_use_with_side_effects.json"
+      ],
+      "status": "accepted",
+      "structuredDistilledPasses": 2
+    }
+  },
+  "generatedAt": "2026-05-01T17:19:13.725Z",
+  "generatedBy": "scripts/run-phase-52-gate.ts",
+  "phase": "phase-52",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-52/run-20260502183000",
+  "runId": "run-20260502183000"
+}

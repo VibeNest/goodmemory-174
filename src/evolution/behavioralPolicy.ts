@@ -9,6 +9,7 @@ export type BehavioralPolicyActionKind = "command" | "tool_call" | "warning";
 export type BehavioralKind =
   | "preference"
   | "avoidance"
+  | "guarded_policy"
   | "format_contract"
   | "first_action"
   | "syntax_constraint"
@@ -42,6 +43,20 @@ export interface BehavioralPolicyGuard {
   subject?: string;
 }
 
+export interface BehavioralPolicyFallbackBehavior {
+  backupMention?: string;
+  preferredAlternatives?: string[];
+  replacementTarget?: string;
+  warningMessage: string;
+}
+
+export interface BehavioralPolicyGuardedBehavior {
+  allowedWhen?: string[];
+  fallbackBehavior: BehavioralPolicyFallbackBehavior;
+  precondition: string;
+  subject?: string;
+}
+
 export interface BehavioralPolicyUrlTemplate {
   example: string;
   host: string;
@@ -55,6 +70,54 @@ export interface BehavioralPolicyPathTemplate {
   variableSegment: "filename";
 }
 
+export type TextResponseEnactmentOperationKind =
+  | "rewrite_output_slot"
+  | "require_warning"
+  | "block_surface"
+  | "require_precondition_check";
+
+export interface TextResponseRewriteOutputSlotOperation {
+  exactFragments?: BehavioralPolicyFragments;
+  kind: "rewrite_output_slot";
+  pathTemplate?: BehavioralPolicyPathTemplate;
+  preferredAlternatives?: string[];
+  preferredFragments?: string[];
+  replacementPairs?: BehavioralPolicyReplacement[];
+  urlTemplate?: BehavioralPolicyUrlTemplate;
+}
+
+export interface TextResponseRequireWarningOperation {
+  backupMention?: string;
+  kind: "require_warning";
+  preferredAlternatives?: string[];
+  warningMessage: string;
+}
+
+export interface TextResponseBlockSurfaceOperation {
+  forbiddenFragments: string[];
+  kind: "block_surface";
+  replacementPairs?: BehavioralPolicyReplacement[];
+}
+
+export interface TextResponseRequirePreconditionCheckOperation {
+  allowedWhen?: string[];
+  fallbackBehavior: BehavioralPolicyFallbackBehavior;
+  kind: "require_precondition_check";
+  precondition: string;
+  subject?: string;
+}
+
+export type TextResponseEnactmentOperation =
+  | TextResponseBlockSurfaceOperation
+  | TextResponseRequirePreconditionCheckOperation
+  | TextResponseRequireWarningOperation
+  | TextResponseRewriteOutputSlotOperation;
+
+export interface TextResponseEnactmentPlan {
+  concise: boolean;
+  operations: TextResponseEnactmentOperation[];
+}
+
 export interface BehavioralPolicyApplicability {
   actionSummaryContains?: string[];
   appliesTo?: string;
@@ -64,11 +127,13 @@ export interface BehavioralPolicyApplicability {
   fallbackInstruction?: string;
   forbiddenFragments?: string[];
   guard?: BehavioralPolicyGuard;
+  guardedBehavior?: BehavioralPolicyGuardedBehavior;
   preferredAlternatives?: string[];
   preferredFragments?: string[];
   pathTemplate?: BehavioralPolicyPathTemplate;
   queryContains?: string[];
   replacementPairs?: BehavioralPolicyReplacement[];
+  textResponsePlan?: TextResponseEnactmentPlan;
   urlTemplate?: BehavioralPolicyUrlTemplate;
 }
 
@@ -92,9 +157,11 @@ function hasStructuredTextResponseSteering(policy: BehavioralPolicy): boolean {
   }
 
   return Boolean(
-    policy.applicability.urlTemplate ||
+    policy.applicability.textResponsePlan ||
+      policy.applicability.urlTemplate ||
       policy.applicability.pathTemplate ||
       policy.applicability.guard ||
+      policy.applicability.guardedBehavior ||
       (policy.applicability.replacementPairs?.length ?? 0) > 0 ||
       (policy.applicability.forbiddenFragments?.length ?? 0) > 0 ||
       (policy.applicability.preferredAlternatives?.length ?? 0) > 0 ||
@@ -102,6 +169,17 @@ function hasStructuredTextResponseSteering(policy: BehavioralPolicy): boolean {
       (policy.applicability.exactFragments?.prefixes?.length ?? 0) > 0 ||
       (policy.applicability.exactFragments?.required?.length ?? 0) > 0 ||
       (policy.applicability.exactFragments?.suffixes?.length ?? 0) > 0,
+  );
+}
+
+function hasStructuredHostActionSteering(policy: BehavioralPolicy): boolean {
+  if (policy.enactmentSurface !== "host_action") {
+    return false;
+  }
+
+  return Boolean(
+    policy.applicability.canonicalFirstAction ||
+      (policy.applicability.argumentOrder?.length ?? 0) > 0,
   );
 }
 
@@ -124,7 +202,7 @@ const BEHAVIORAL_POLICY_ATTRIBUTE_KEY = "goodmemory.behavioral_policy";
 const BEHAVIORAL_POLICY_STEERING_ONLY_ATTRIBUTE_KEY =
   "goodmemory.behavioral_policy.steering_only";
 const BEHAVIORAL_POLICY_VERSION_ATTRIBUTE_KEY = "goodmemory.behavioral_policy.version";
-const BEHAVIORAL_POLICY_VERSION = 1;
+const BEHAVIORAL_POLICY_VERSION = 2;
 const GENERAL_RULE_MARKERS = [
   "always",
   "for any",
@@ -171,7 +249,9 @@ const RULE_TRIGGER_PATTERNS = [
 ] as const;
 const HOST_ACTION_NAME_PATTERNS = [
   /\b([a-z_][a-z0-9_]*\([^)]*\))\b/u,
-  /\b(?:command|tool|action|use|run|output)\s+([A-Za-z_][A-Za-z0-9_]*)\b/iu,
+  /\b(?:command|tool|action|utility)\s+([A-Za-z_][A-Za-z0-9_]*)\b/iu,
+  /\buse\s+([A-Z][A-Za-z0-9_]*|[a-z_]+_[a-z0-9_]*)\s+(?:first|instead|before|for this)\b/iu,
+  /\boutput\s+(?:the exact\s+)?([A-Za-z_][A-Za-z0-9_]*)\b/iu,
   /\b([A-Z][A-Za-z0-9_]*|[a-z_]+_[a-z0-9_]*)(?=\s+(?:takes|path|file|first|second|third|before|instead))/u,
 ] as const;
 const HOST_ACTION_STOP_WORDS = new Set([
@@ -190,8 +270,9 @@ const URL_PROTOCOL_REWRITE = {
 } as const;
 const URL_TEMPLATE_PAGE_TOKEN = "<page>";
 const BEHAVIORAL_KIND_RANK: Record<BehavioralKind, number> = {
-  first_action: 7,
-  syntax_constraint: 6,
+  first_action: 8,
+  syntax_constraint: 7,
+  guarded_policy: 6,
   format_contract: 5,
   avoidance: 4,
   preference: 3,
@@ -434,6 +515,65 @@ function parseBehavioralPolicyGuard(
   };
 }
 
+function parseBehavioralPolicyFallbackBehavior(
+  value: unknown,
+): BehavioralPolicyFallbackBehavior | undefined {
+  if (!isRecord(value) || typeof value.warningMessage !== "string") {
+    return undefined;
+  }
+
+  const warningMessage = value.warningMessage.trim();
+  if (warningMessage.length === 0) {
+    return undefined;
+  }
+
+  const preferredAlternatives = parseStringArray(value.preferredAlternatives);
+  const replacementTarget =
+    typeof value.replacementTarget === "string" && value.replacementTarget.trim().length > 0
+      ? value.replacementTarget.trim()
+      : undefined;
+  const backupMention =
+    typeof value.backupMention === "string" && value.backupMention.trim().length > 0
+      ? value.backupMention.trim()
+      : undefined;
+
+  return {
+    ...(backupMention ? { backupMention } : {}),
+    ...(preferredAlternatives ? { preferredAlternatives } : {}),
+    ...(replacementTarget ? { replacementTarget } : {}),
+    warningMessage,
+  };
+}
+
+function parseBehavioralPolicyGuardedBehavior(
+  value: unknown,
+): BehavioralPolicyGuardedBehavior | undefined {
+  if (!isRecord(value) || typeof value.precondition !== "string") {
+    return undefined;
+  }
+
+  const precondition = value.precondition.trim();
+  const fallbackBehavior = parseBehavioralPolicyFallbackBehavior(
+    value.fallbackBehavior,
+  );
+  if (precondition.length === 0 || !fallbackBehavior) {
+    return undefined;
+  }
+
+  const allowedWhen = parseStringArray(value.allowedWhen);
+  const subject =
+    typeof value.subject === "string" && value.subject.trim().length > 0
+      ? value.subject.trim()
+      : undefined;
+
+  return {
+    ...(allowedWhen ? { allowedWhen } : {}),
+    fallbackBehavior,
+    precondition,
+    ...(subject ? { subject } : {}),
+  };
+}
+
 function parseBehavioralPolicyUrlTemplate(
   value: unknown,
 ): BehavioralPolicyUrlTemplate | undefined {
@@ -486,6 +626,158 @@ function parseBehavioralPolicyPathTemplate(
   };
 }
 
+function parseTextResponseRewriteOutputSlotOperation(
+  value: unknown,
+): TextResponseRewriteOutputSlotOperation | undefined {
+  if (!isRecord(value) || value.kind !== "rewrite_output_slot") {
+    return undefined;
+  }
+
+  const exactFragments = parseBehavioralPolicyFragments(value.exactFragments);
+  const pathTemplate = parseBehavioralPolicyPathTemplate(value.pathTemplate);
+  const preferredAlternatives = parseStringArray(value.preferredAlternatives);
+  const preferredFragments = parseStringArray(value.preferredFragments);
+  const replacementPairs =
+    Array.isArray(value.replacementPairs)
+      ? value.replacementPairs
+          .map((entry) => parseBehavioralPolicyReplacement(entry))
+          .filter((entry): entry is BehavioralPolicyReplacement => Boolean(entry))
+      : undefined;
+  const urlTemplate = parseBehavioralPolicyUrlTemplate(value.urlTemplate);
+
+  if (
+    !exactFragments &&
+    !pathTemplate &&
+    !preferredAlternatives &&
+    !preferredFragments &&
+    !replacementPairs &&
+    !urlTemplate
+  ) {
+    return undefined;
+  }
+
+  return {
+    ...(exactFragments ? { exactFragments } : {}),
+    kind: "rewrite_output_slot",
+    ...(pathTemplate ? { pathTemplate } : {}),
+    ...(preferredAlternatives ? { preferredAlternatives } : {}),
+    ...(preferredFragments ? { preferredFragments } : {}),
+    ...(replacementPairs && replacementPairs.length > 0 ? { replacementPairs } : {}),
+    ...(urlTemplate ? { urlTemplate } : {}),
+  };
+}
+
+function parseTextResponseRequireWarningOperation(
+  value: unknown,
+): TextResponseRequireWarningOperation | undefined {
+  if (!isRecord(value) || value.kind !== "require_warning" || typeof value.warningMessage !== "string") {
+    return undefined;
+  }
+
+  const warningMessage = value.warningMessage.trim();
+  if (warningMessage.length === 0) {
+    return undefined;
+  }
+
+  const preferredAlternatives = parseStringArray(value.preferredAlternatives);
+  const backupMention =
+    typeof value.backupMention === "string" && value.backupMention.trim().length > 0
+      ? value.backupMention.trim()
+      : undefined;
+
+  return {
+    ...(backupMention ? { backupMention } : {}),
+    kind: "require_warning",
+    ...(preferredAlternatives ? { preferredAlternatives } : {}),
+    warningMessage,
+  };
+}
+
+function parseTextResponseBlockSurfaceOperation(
+  value: unknown,
+): TextResponseBlockSurfaceOperation | undefined {
+  if (!isRecord(value) || value.kind !== "block_surface") {
+    return undefined;
+  }
+
+  const forbiddenFragments = parseStringArray(value.forbiddenFragments);
+  if (!forbiddenFragments) {
+    return undefined;
+  }
+  const replacementPairs =
+    Array.isArray(value.replacementPairs)
+      ? value.replacementPairs
+          .map((entry) => parseBehavioralPolicyReplacement(entry))
+          .filter((entry): entry is BehavioralPolicyReplacement => Boolean(entry))
+      : undefined;
+
+  return {
+    forbiddenFragments,
+    kind: "block_surface",
+    ...(replacementPairs && replacementPairs.length > 0 ? { replacementPairs } : {}),
+  };
+}
+
+function parseTextResponseRequirePreconditionCheckOperation(
+  value: unknown,
+): TextResponseRequirePreconditionCheckOperation | undefined {
+  if (!isRecord(value) || value.kind !== "require_precondition_check" || typeof value.precondition !== "string") {
+    return undefined;
+  }
+
+  const precondition = value.precondition.trim();
+  const fallbackBehavior = parseBehavioralPolicyFallbackBehavior(
+    value.fallbackBehavior,
+  );
+  if (precondition.length === 0 || !fallbackBehavior) {
+    return undefined;
+  }
+  const allowedWhen = parseStringArray(value.allowedWhen);
+  const subject =
+    typeof value.subject === "string" && value.subject.trim().length > 0
+      ? value.subject.trim()
+      : undefined;
+
+  return {
+    ...(allowedWhen ? { allowedWhen } : {}),
+    fallbackBehavior,
+    kind: "require_precondition_check",
+    precondition,
+    ...(subject ? { subject } : {}),
+  };
+}
+
+function parseTextResponseEnactmentOperation(
+  value: unknown,
+): TextResponseEnactmentOperation | undefined {
+  return (
+    parseTextResponseRewriteOutputSlotOperation(value) ??
+    parseTextResponseRequireWarningOperation(value) ??
+    parseTextResponseBlockSurfaceOperation(value) ??
+    parseTextResponseRequirePreconditionCheckOperation(value)
+  );
+}
+
+function parseTextResponseEnactmentPlan(
+  value: unknown,
+): TextResponseEnactmentPlan | undefined {
+  if (!isRecord(value) || !Array.isArray(value.operations)) {
+    return undefined;
+  }
+
+  const operations = value.operations
+    .map((entry) => parseTextResponseEnactmentOperation(entry))
+    .filter((entry): entry is TextResponseEnactmentOperation => Boolean(entry));
+  if (operations.length === 0) {
+    return undefined;
+  }
+
+  return {
+    concise: value.concise !== false,
+    operations,
+  };
+}
+
 function parseBehavioralPolicyApplicability(
   value: unknown,
 ): BehavioralPolicyApplicability | undefined {
@@ -509,7 +801,22 @@ function parseBehavioralPolicyApplicability(
       : undefined;
   const urlTemplate = parseBehavioralPolicyUrlTemplate(value.urlTemplate);
   const guard = parseBehavioralPolicyGuard(value.guard);
+  const guardedBehavior =
+    parseBehavioralPolicyGuardedBehavior(value.guardedBehavior) ??
+    (guard
+      ? {
+          allowedWhen: guard.allowedStates,
+          fallbackBehavior: {
+            warningMessage:
+              guard.fallbackInstruction ??
+              "Warn or defer instead of assuming the precondition already passed.",
+          },
+          precondition: guard.check,
+          ...(guard.subject ? { subject: guard.subject } : {}),
+        }
+      : undefined);
   const canonicalFirstAction = parseBehavioralPolicyAction(value.canonicalFirstAction);
+  const textResponsePlan = parseTextResponseEnactmentPlan(value.textResponsePlan);
   const appliesTo =
     typeof value.appliesTo === "string"
       ? normalizeFeedbackAppliesTo(value.appliesTo)
@@ -528,6 +835,7 @@ function parseBehavioralPolicyApplicability(
     ...(fallbackInstruction ? { fallbackInstruction } : {}),
     ...(forbiddenFragments ? { forbiddenFragments } : {}),
     ...(guard ? { guard } : {}),
+    ...(guardedBehavior ? { guardedBehavior } : {}),
     ...(preferredAlternatives ? { preferredAlternatives } : {}),
     ...(preferredFragments ? { preferredFragments } : {}),
     ...(pathTemplate ? { pathTemplate } : {}),
@@ -535,6 +843,7 @@ function parseBehavioralPolicyApplicability(
     ...(replacementPairs && replacementPairs.length > 0
       ? { replacementPairs }
       : {}),
+    ...(textResponsePlan ? { textResponsePlan } : {}),
     ...(urlTemplate ? { urlTemplate } : {}),
   };
 }
@@ -561,6 +870,7 @@ export function parseBehavioralPolicy(
   if (
     value.behavioralKind !== "preference" &&
     value.behavioralKind !== "avoidance" &&
+    value.behavioralKind !== "guarded_policy" &&
     value.behavioralKind !== "format_contract" &&
     value.behavioralKind !== "first_action" &&
     value.behavioralKind !== "syntax_constraint" &&
@@ -656,6 +966,7 @@ function extractQuotedFragment(rule: string, kind: "prefix" | "suffix"): string 
         ]
       : [
           /\b(?:end|close|sign off)(?:[^"'`]+)?with\s+["'`]([^"'`]+)["'`]/iu,
+          /\bsign off(?:[^"'`]+)?as\s+["'`]([^"'`]+)["'`]/iu,
           /\bclosing(?:[^"'`]+)?["'`]([^"'`]+)["'`]/iu,
         ];
 
@@ -674,8 +985,27 @@ function extractRequiredFragments(rule: string): string[] | undefined {
   const matches = [...rule.matchAll(/["'`]([^"'`]+)["'`]/gu)]
     .map((match) => match[1]?.trim())
     .filter((value): value is string => Boolean(value));
+  const unique = uniqueStrings([
+    ...matches,
+    /\bsubject line\b/iu.test(rule) ? "Subject:" : undefined,
+  ]);
+  return unique.length > 0 ? unique : undefined;
+}
+
+function extractForbiddenTermFragments(rule: string): string[] | undefined {
+  const matches = [...rule.matchAll(/\bavoid\s+(?:the\s+)?term\s+([A-Za-z][A-Za-z0-9_-]*)\b/giu)]
+    .map((match) => match[1]?.trim())
+    .filter((value): value is string => Boolean(value));
   const unique = uniqueStrings(matches);
   return unique.length > 0 ? unique : undefined;
+}
+
+function extractAnalogyPreferredFragments(rule: string): string[] | undefined {
+  if (!/\banalogy\b/iu.test(rule)) {
+    return undefined;
+  }
+
+  return ["like"];
 }
 
 function extractTriggerPhrases(rule: string): string[] | undefined {
@@ -708,11 +1038,19 @@ function extractPreferredAlternativeNames(rule: string): string[] | undefined {
   for (const pattern of [
     /\bprefer\s+([A-Z][A-Za-z0-9_]*|[a-z_]+_[a-z0-9_]*)\s+or\s+(?:a|an)\s+warning\b/giu,
     /\bprefer\s+([A-Z][A-Za-z0-9_]*|[a-z_]+_[a-z0-9_]*)\b/giu,
+    /\bchoose\s+([A-Z][A-Za-z0-9_]*(?:\/[A-Za-z][A-Za-z0-9_ -]*)*)\s+instead\b/giu,
   ]) {
     for (const match of rule.matchAll(pattern)) {
       const value = match[1]?.trim();
-      if (value && !ignored.has(value.toLowerCase())) {
-        matches.push(value);
+      if (!value) {
+        continue;
+      }
+      for (const part of value.split("/")) {
+        const normalized = part.trim();
+        if (!normalized || ignored.has(normalized.toLowerCase())) {
+          continue;
+        }
+        matches.push(normalized);
       }
     }
   }
@@ -751,7 +1089,7 @@ function extractGuard(rule: string): BehavioralPolicyGuard | undefined {
     ...(allowedStates.length > 0 ? { allowedStates } : {}),
     check,
     fallbackInstruction:
-      "If the required check cannot be verified, warn or defer instead of assuming it already passed.",
+      `Check ${check} first${allowedStates.length > 0 ? ` and only proceed when ${allowedStates.join(" or ")}` : ""}; otherwise warn or defer instead of assuming it already passed.`,
     ...(subject ? { subject } : {}),
   };
 }
@@ -853,6 +1191,149 @@ function deriveDirectoryRestrictionApplicability(
   };
 }
 
+function extractBackupMention(rule: string): string | undefined {
+  if (!/\bback\s*up\b|\bbackup\b/iu.test(rule)) {
+    return undefined;
+  }
+
+  return "Mention a safe backup before proceeding.";
+}
+
+function buildPreferredReplacementTarget(
+  preferredAlternatives: readonly string[] | undefined,
+): string | undefined {
+  return preferredAlternatives?.[0];
+}
+
+function buildFallbackBehavior(input: {
+  backupMention?: string;
+  fallbackInstruction?: string;
+  preferredAlternatives?: readonly string[];
+  replacementTarget?: string;
+}): BehavioralPolicyFallbackBehavior | undefined {
+  const warningMessage =
+    input.fallbackInstruction ??
+    (input.preferredAlternatives && input.preferredAlternatives.length > 0
+      ? `Warn first and redirect to ${input.preferredAlternatives.join(" or ")} instead of proceeding directly.`
+      : undefined);
+  if (!warningMessage) {
+    return undefined;
+  }
+
+  return {
+    ...(input.backupMention ? { backupMention: input.backupMention } : {}),
+    ...(input.preferredAlternatives && input.preferredAlternatives.length > 0
+      ? { preferredAlternatives: [...input.preferredAlternatives] }
+      : {}),
+    ...(input.replacementTarget ? { replacementTarget: input.replacementTarget } : {}),
+    warningMessage,
+  };
+}
+
+function createTextResponseEnactmentPlan(input: {
+  behavioralKind: BehavioralKind;
+  applicability: BehavioralPolicyApplicability;
+}): TextResponseEnactmentPlan | undefined {
+  const operations: TextResponseEnactmentOperation[] = [];
+  const rewriteOperation: TextResponseRewriteOutputSlotOperation = {
+    kind: "rewrite_output_slot",
+    ...(input.applicability.exactFragments
+      ? { exactFragments: input.applicability.exactFragments }
+      : {}),
+    ...(input.applicability.pathTemplate
+      ? { pathTemplate: input.applicability.pathTemplate }
+      : {}),
+    ...(input.applicability.preferredAlternatives &&
+    input.applicability.preferredAlternatives.length > 0
+      ? { preferredAlternatives: input.applicability.preferredAlternatives }
+      : {}),
+    ...(input.applicability.preferredFragments &&
+    input.applicability.preferredFragments.length > 0
+      ? { preferredFragments: input.applicability.preferredFragments }
+      : {}),
+    ...(input.applicability.replacementPairs &&
+    input.applicability.replacementPairs.length > 0
+      ? { replacementPairs: input.applicability.replacementPairs }
+      : {}),
+    ...(input.applicability.urlTemplate
+      ? { urlTemplate: input.applicability.urlTemplate }
+      : {}),
+  };
+  if (
+    rewriteOperation.exactFragments ||
+    rewriteOperation.pathTemplate ||
+    rewriteOperation.preferredAlternatives ||
+    rewriteOperation.preferredFragments ||
+    rewriteOperation.replacementPairs ||
+    rewriteOperation.urlTemplate
+  ) {
+    operations.push(rewriteOperation);
+  }
+
+  if (
+    input.applicability.forbiddenFragments &&
+    input.applicability.forbiddenFragments.length > 0
+  ) {
+    operations.push({
+      forbiddenFragments: [...input.applicability.forbiddenFragments],
+      kind: "block_surface",
+      ...(input.applicability.replacementPairs &&
+      input.applicability.replacementPairs.length > 0
+        ? { replacementPairs: input.applicability.replacementPairs }
+        : {}),
+    });
+  }
+
+  if (input.applicability.guardedBehavior) {
+    operations.unshift({
+      ...(input.applicability.guardedBehavior.allowedWhen
+        ? { allowedWhen: input.applicability.guardedBehavior.allowedWhen }
+        : {}),
+      fallbackBehavior: input.applicability.guardedBehavior.fallbackBehavior,
+      kind: "require_precondition_check",
+      precondition: input.applicability.guardedBehavior.precondition,
+      ...(input.applicability.guardedBehavior.subject
+        ? { subject: input.applicability.guardedBehavior.subject }
+        : {}),
+    });
+  } else {
+    const fallbackBehavior = buildFallbackBehavior({
+      backupMention: extractBackupMention(
+        input.applicability.fallbackInstruction ?? "",
+      ),
+      fallbackInstruction: input.applicability.fallbackInstruction,
+      preferredAlternatives: input.applicability.preferredAlternatives,
+      replacementTarget: buildPreferredReplacementTarget(
+        input.applicability.preferredAlternatives,
+      ),
+    });
+    if (
+      fallbackBehavior &&
+      (input.behavioralKind === "avoidance" ||
+        input.behavioralKind === "preference" ||
+        input.behavioralKind === "transformation_rule")
+    ) {
+      operations.push({
+        ...(fallbackBehavior.backupMention
+          ? { backupMention: fallbackBehavior.backupMention }
+          : {}),
+        kind: "require_warning",
+        ...(fallbackBehavior.preferredAlternatives
+          ? { preferredAlternatives: fallbackBehavior.preferredAlternatives }
+          : {}),
+        warningMessage: fallbackBehavior.warningMessage,
+      });
+    }
+  }
+
+  return operations.length > 0
+    ? {
+        concise: true,
+        operations,
+      }
+    : undefined;
+}
+
 function looksLikeFormatRule(rule: string): boolean {
   const normalized = normalizeText(rule);
   return FORMAT_RULE_MARKERS.some((marker) => normalized.includes(marker));
@@ -942,17 +1423,24 @@ export function deriveRuleBehavioralPolicy(
   const directoryApplicability = deriveDirectoryRestrictionApplicability(
     input.rule,
   );
+  const preferredAlternatives = extractPreferredAlternativeNames(input.rule);
+  const explicitForbiddenFragments = extractForbiddenTermFragments(input.rule);
+  const analogyPreferredFragments = extractAnalogyPreferredFragments(input.rule);
+  const guard = extractGuard(input.rule);
   const mergedQueryContains = uniqueStrings([
     ...(extractTriggerPhrases(input.rule) ?? []),
+    ...(guard?.check ? [guard.check] : []),
+    ...(guard?.subject ? [guard.subject] : []),
     ...(protocolApplicability?.queryContains ?? []),
   ]);
-  const preferredAlternatives = extractPreferredAlternativeNames(input.rule);
-  const guard = extractGuard(input.rule);
+  const backupMention = extractBackupMention(input.rule);
   const forbiddenFragments = uniqueStrings([
+    ...(explicitForbiddenFragments ?? []),
     ...(protocolApplicability?.forbiddenFragments ?? []),
     ...(directoryApplicability?.forbiddenFragments ?? []),
   ]);
   const preferredFragments = uniqueStrings([
+    ...(analogyPreferredFragments ?? []),
     ...(protocolApplicability?.preferredFragments ?? []),
     ...(directoryApplicability?.preferredFragments ?? []),
   ]);
@@ -966,6 +1454,23 @@ export function deriveRuleBehavioralPolicy(
     (preferredAlternatives && preferredAlternatives.length > 0 && looksLikeNegativeRule(input.rule)
       ? `Prefer ${preferredAlternatives.join(" or ")} or warn instead of implying the avoided behavior.`
       : undefined);
+  const guardedBehavior = guard
+    ? {
+        ...(guard.allowedStates ? { allowedWhen: guard.allowedStates } : {}),
+        fallbackBehavior: {
+          ...(backupMention ? { backupMention } : {}),
+          ...(preferredAlternatives ? { preferredAlternatives } : {}),
+          ...(preferredAlternatives?.[0]
+            ? { replacementTarget: preferredAlternatives[0] }
+            : {}),
+          warningMessage:
+            guard.fallbackInstruction ??
+            "Warn or defer instead of assuming the required precondition already passed.",
+        },
+        precondition: guard.check,
+        ...(guard.subject ? { subject: guard.subject } : {}),
+      } satisfies BehavioralPolicyGuardedBehavior
+    : undefined;
 
   if (looksLikeFormatRule(input.rule)) {
     const prefix = extractQuotedFragment(input.rule, "prefix");
@@ -982,6 +1487,18 @@ export function deriveRuleBehavioralPolicy(
           ...(suffix ? { suffixes: [suffix] } : {}),
         },
         ...(queryContains ? { queryContains } : {}),
+        textResponsePlan: createTextResponseEnactmentPlan({
+          behavioralKind: "format_contract",
+          applicability: {
+            appliesTo,
+            exactFragments: {
+              ...(prefix ? { prefixes: [prefix] } : {}),
+              ...(required ? { required } : {}),
+              ...(suffix ? { suffixes: [suffix] } : {}),
+            },
+            ...(queryContains ? { queryContains } : {}),
+          },
+        }),
       },
       transferMode,
     };
@@ -1013,109 +1530,12 @@ export function deriveRuleBehavioralPolicy(
   }
 
   if (input.kind === "prefer") {
-    return {
-      behavioralKind: "preference",
-      enactmentSurface: "text_response",
-      applicability: {
-        appliesTo,
-        ...(fallbackInstruction ? { fallbackInstruction } : {}),
-        ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
-        ...(guard ? { guard } : {}),
-        ...(preferredAlternatives ? { preferredAlternatives } : {}),
-        ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
-        ...(pathTemplate ? { pathTemplate } : {}),
-        ...(mergedQueryContains.length > 0
-          ? { queryContains: mergedQueryContains }
-          : {}),
-        ...(replacementPairs && replacementPairs.length > 0
-          ? { replacementPairs }
-          : {}),
-        ...(urlTemplate ? { urlTemplate } : {}),
-      },
-      transferMode,
-    };
-  }
-
-  if (input.kind === "dont" || looksLikeNegativeRule(input.rule)) {
-    return {
-      behavioralKind: "avoidance",
-      enactmentSurface: "text_response",
-      applicability: {
-        appliesTo,
-        ...(fallbackInstruction ? { fallbackInstruction } : {}),
-        ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
-        ...(guard ? { guard } : {}),
-        ...(preferredAlternatives ? { preferredAlternatives } : {}),
-        ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
-        ...(pathTemplate ? { pathTemplate } : {}),
-        ...(mergedQueryContains.length > 0
-          ? { queryContains: mergedQueryContains }
-          : {}),
-        ...(replacementPairs && replacementPairs.length > 0
-          ? { replacementPairs }
-          : {}),
-        ...(urlTemplate ? { urlTemplate } : {}),
-      },
-      transferMode,
-    };
-  }
-
-  if (input.kind === "do" && !queryContains) {
-    return {
-      behavioralKind: "transformation_rule",
-      enactmentSurface: "text_response",
-      applicability: {
-        appliesTo,
-        ...(fallbackInstruction ? { fallbackInstruction } : {}),
-        ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
-        ...(guard ? { guard } : {}),
-        ...(preferredAlternatives ? { preferredAlternatives } : {}),
-        ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
-        ...(pathTemplate ? { pathTemplate } : {}),
-        ...(mergedQueryContains.length > 0
-          ? { queryContains: mergedQueryContains }
-          : {}),
-        ...(replacementPairs && replacementPairs.length > 0
-          ? { replacementPairs }
-          : {}),
-        ...(urlTemplate ? { urlTemplate } : {}),
-      },
-      transferMode: generalRule ? "general" : "pattern_bounded",
-    };
-  }
-
-  if (generalRule || (input.exemplarCount ?? 0) >= 2) {
-    return {
-      behavioralKind: "transformation_rule",
-      enactmentSurface: "text_response",
-      applicability: {
-        appliesTo,
-        ...(fallbackInstruction ? { fallbackInstruction } : {}),
-        ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
-        ...(guard ? { guard } : {}),
-        ...(preferredAlternatives ? { preferredAlternatives } : {}),
-        ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
-        ...(pathTemplate ? { pathTemplate } : {}),
-        ...(mergedQueryContains.length > 0
-          ? { queryContains: mergedQueryContains }
-          : {}),
-        ...(replacementPairs && replacementPairs.length > 0
-          ? { replacementPairs }
-          : {}),
-        ...(urlTemplate ? { urlTemplate } : {}),
-      },
-      transferMode: generalRule ? "general" : "pattern_bounded",
-    };
-  }
-
-  return {
-    behavioralKind: "exemplar_fact",
-    enactmentSurface: "text_response",
-    applicability: {
+    const applicability: BehavioralPolicyApplicability = {
       appliesTo,
       ...(fallbackInstruction ? { fallbackInstruction } : {}),
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
+      ...(guardedBehavior ? { guardedBehavior } : {}),
       ...(preferredAlternatives ? { preferredAlternatives } : {}),
       ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
       ...(pathTemplate ? { pathTemplate } : {}),
@@ -1126,6 +1546,178 @@ export function deriveRuleBehavioralPolicy(
         ? { replacementPairs }
         : {}),
       ...(urlTemplate ? { urlTemplate } : {}),
+    };
+    return {
+      behavioralKind: guardedBehavior ? "guarded_policy" : "preference",
+      enactmentSurface: "text_response",
+      applicability: {
+        ...applicability,
+        ...(createTextResponseEnactmentPlan({
+          behavioralKind: guardedBehavior ? "guarded_policy" : "preference",
+          applicability,
+        })
+          ? {
+              textResponsePlan: createTextResponseEnactmentPlan({
+                behavioralKind: guardedBehavior ? "guarded_policy" : "preference",
+                applicability,
+              }),
+            }
+          : {}),
+      },
+      transferMode,
+    };
+  }
+
+  if (input.kind === "dont" || looksLikeNegativeRule(input.rule)) {
+    const applicability: BehavioralPolicyApplicability = {
+      appliesTo,
+      ...(fallbackInstruction ? { fallbackInstruction } : {}),
+      ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+      ...(guard ? { guard } : {}),
+      ...(guardedBehavior ? { guardedBehavior } : {}),
+      ...(preferredAlternatives ? { preferredAlternatives } : {}),
+      ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+      ...(pathTemplate ? { pathTemplate } : {}),
+      ...(mergedQueryContains.length > 0
+        ? { queryContains: mergedQueryContains }
+        : {}),
+      ...(replacementPairs && replacementPairs.length > 0
+        ? { replacementPairs }
+        : {}),
+      ...(urlTemplate ? { urlTemplate } : {}),
+    };
+    return {
+      behavioralKind: guardedBehavior ? "guarded_policy" : "avoidance",
+      enactmentSurface: "text_response",
+      applicability: {
+        ...applicability,
+        ...(createTextResponseEnactmentPlan({
+          behavioralKind: guardedBehavior ? "guarded_policy" : "avoidance",
+          applicability,
+        })
+          ? {
+              textResponsePlan: createTextResponseEnactmentPlan({
+                behavioralKind: guardedBehavior ? "guarded_policy" : "avoidance",
+                applicability,
+              }),
+            }
+          : {}),
+      },
+      transferMode,
+    };
+  }
+
+  if (input.kind === "do" && !queryContains) {
+    const applicability: BehavioralPolicyApplicability = {
+      appliesTo,
+      ...(fallbackInstruction ? { fallbackInstruction } : {}),
+      ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+      ...(guard ? { guard } : {}),
+      ...(guardedBehavior ? { guardedBehavior } : {}),
+      ...(preferredAlternatives ? { preferredAlternatives } : {}),
+      ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+      ...(pathTemplate ? { pathTemplate } : {}),
+      ...(mergedQueryContains.length > 0
+        ? { queryContains: mergedQueryContains }
+        : {}),
+      ...(replacementPairs && replacementPairs.length > 0
+        ? { replacementPairs }
+        : {}),
+      ...(urlTemplate ? { urlTemplate } : {}),
+    };
+    return {
+      behavioralKind: guardedBehavior ? "guarded_policy" : "transformation_rule",
+      enactmentSurface: "text_response",
+      applicability: {
+        ...applicability,
+        ...(createTextResponseEnactmentPlan({
+          behavioralKind: guardedBehavior ? "guarded_policy" : "transformation_rule",
+          applicability,
+        })
+          ? {
+              textResponsePlan: createTextResponseEnactmentPlan({
+                behavioralKind: guardedBehavior ? "guarded_policy" : "transformation_rule",
+                applicability,
+              }),
+            }
+          : {}),
+      },
+      transferMode: generalRule ? "general" : "pattern_bounded",
+    };
+  }
+
+  if (generalRule || (input.exemplarCount ?? 0) >= 2) {
+    const applicability: BehavioralPolicyApplicability = {
+      appliesTo,
+      ...(fallbackInstruction ? { fallbackInstruction } : {}),
+      ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+      ...(guard ? { guard } : {}),
+      ...(guardedBehavior ? { guardedBehavior } : {}),
+      ...(preferredAlternatives ? { preferredAlternatives } : {}),
+      ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+      ...(pathTemplate ? { pathTemplate } : {}),
+      ...(mergedQueryContains.length > 0
+        ? { queryContains: mergedQueryContains }
+        : {}),
+      ...(replacementPairs && replacementPairs.length > 0
+        ? { replacementPairs }
+        : {}),
+      ...(urlTemplate ? { urlTemplate } : {}),
+    };
+    return {
+      behavioralKind: guardedBehavior ? "guarded_policy" : "transformation_rule",
+      enactmentSurface: "text_response",
+      applicability: {
+        ...applicability,
+        ...(createTextResponseEnactmentPlan({
+          behavioralKind: guardedBehavior ? "guarded_policy" : "transformation_rule",
+          applicability,
+        })
+          ? {
+              textResponsePlan: createTextResponseEnactmentPlan({
+                behavioralKind: guardedBehavior ? "guarded_policy" : "transformation_rule",
+                applicability,
+              }),
+            }
+          : {}),
+      },
+      transferMode: generalRule ? "general" : "pattern_bounded",
+    };
+  }
+
+  const applicability: BehavioralPolicyApplicability = {
+    appliesTo,
+    ...(fallbackInstruction ? { fallbackInstruction } : {}),
+    ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+    ...(guard ? { guard } : {}),
+    ...(guardedBehavior ? { guardedBehavior } : {}),
+    ...(preferredAlternatives ? { preferredAlternatives } : {}),
+    ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+    ...(pathTemplate ? { pathTemplate } : {}),
+    ...(mergedQueryContains.length > 0
+      ? { queryContains: mergedQueryContains }
+      : {}),
+    ...(replacementPairs && replacementPairs.length > 0
+      ? { replacementPairs }
+      : {}),
+    ...(urlTemplate ? { urlTemplate } : {}),
+  };
+  return {
+    behavioralKind: "exemplar_fact",
+    enactmentSurface: "text_response",
+    applicability: {
+      ...applicability,
+      ...(createTextResponseEnactmentPlan({
+        behavioralKind: "exemplar_fact",
+        applicability,
+      })
+        ? {
+            textResponsePlan: createTextResponseEnactmentPlan({
+              behavioralKind: "exemplar_fact",
+              applicability,
+            }),
+          }
+        : {}),
     },
     transferMode: "example_only",
   };
@@ -1147,7 +1739,6 @@ function selectTransientFeedbackPolicies(
   input: BehavioralPolicySelectionInput,
 ): BehavioralPolicySelection[] {
   if (
-    input.surface !== "text_response" ||
     !input.transientFeedback ||
     input.transientFeedback.length === 0
   ) {
@@ -1172,7 +1763,7 @@ function selectTransientFeedbackPolicies(
       kind: feedback.kind,
       rule: feedback.rule,
     });
-    if (policy.enactmentSurface !== "text_response") {
+    if (policy.enactmentSurface !== input.surface) {
       continue;
     }
 
@@ -1199,9 +1790,16 @@ function selectTransientFeedbackPolicies(
         policy.applicability.preferredFragments,
       ),
     ]);
+    const allowStructuredCurrentTurnControl =
+      matchedQueryTokens.length === 0 &&
+      (input.surface === "text_response"
+        ? hasStructuredTextResponseSteering(policy)
+        : hasStructuredHostActionSteering(policy)) &&
+      (policy.applicability.queryContains?.length ?? 0) === 0;
     if (
       policy.transferMode !== "general" &&
-      matchedQueryTokens.length === 0
+      matchedQueryTokens.length === 0 &&
+      !allowStructuredCurrentTurnControl
     ) {
       continue;
     }
@@ -1211,6 +1809,7 @@ function selectTransientFeedbackPolicies(
       BEHAVIORAL_KIND_RANK[policy.behavioralKind] * 100 +
       TRANSFER_MODE_RANK[policy.transferMode] * 10 +
       matchedQueryTokens.length +
+      (allowStructuredCurrentTurnControl ? 3 : 0) +
       5;
 
     selections.push({
@@ -1285,6 +1884,396 @@ export function selectBehavioralPolicies(
   return [...selections, ...transientSelections].sort(
     (left, right) => right.score - left.score,
   );
+}
+
+function uniqueOperations(
+  operations: readonly TextResponseEnactmentOperation[],
+): TextResponseEnactmentOperation[] {
+  const seen = new Set<string>();
+  const deduped: TextResponseEnactmentOperation[] = [];
+
+  for (const operation of operations) {
+    const identity = JSON.stringify(operation);
+    if (seen.has(identity)) {
+      continue;
+    }
+    seen.add(identity);
+    deduped.push(operation);
+  }
+
+  return deduped;
+}
+
+export function resolveTextResponseEnactmentPlan(
+  policies: readonly BehavioralPolicySelection[],
+): TextResponseEnactmentPlan | undefined {
+  const operations = uniqueOperations(
+    policies.flatMap(({ policy }) => {
+      if (policy.enactmentSurface !== "text_response") {
+        return [];
+      }
+
+      return (
+        policy.applicability.textResponsePlan?.operations ??
+        createTextResponseEnactmentPlan({
+          behavioralKind: policy.behavioralKind,
+          applicability: policy.applicability,
+        })?.operations ??
+        []
+      );
+    },
+    ),
+  );
+
+  if (operations.length === 0) {
+    return undefined;
+  }
+
+  return {
+    concise: true,
+    operations,
+  };
+}
+
+function renderTextResponseEnactmentOperation(
+  operation: TextResponseEnactmentOperation,
+): string[] {
+  switch (operation.kind) {
+    case "rewrite_output_slot":
+      return [
+        operation.replacementPairs && operation.replacementPairs.length > 0
+          ? `rewrite_output_slot replacements: ${operation.replacementPairs
+              .map((entry) => `${entry.from} -> ${entry.to}`)
+              .join(", ")}`
+          : undefined,
+        operation.urlTemplate
+          ? `rewrite_output_slot url_template: keep ${operation.urlTemplate.scheme}://${operation.urlTemplate.host} and place the requested page after the host as a path segment`
+          : undefined,
+        operation.pathTemplate
+          ? `rewrite_output_slot path_template: keep safe anchor ${operation.pathTemplate.anchor} and preserve the requested filename`
+          : undefined,
+        operation.exactFragments?.prefixes?.length
+          ? `rewrite_output_slot prefix: ${operation.exactFragments.prefixes[0]}`
+          : undefined,
+        operation.exactFragments?.suffixes?.length
+          ? `rewrite_output_slot suffix: ${operation.exactFragments.suffixes[0]}`
+          : undefined,
+      ].filter((entry): entry is string => Boolean(entry));
+    case "block_surface":
+      return [
+        `block_surface forbidden: ${operation.forbiddenFragments.join(", ")}`,
+      ];
+    case "require_warning":
+      return [
+        `require_warning: ${operation.warningMessage}`,
+        operation.preferredAlternatives && operation.preferredAlternatives.length > 0
+          ? `warning_alternatives: ${operation.preferredAlternatives.join(", ")}`
+          : undefined,
+        operation.backupMention
+          ? `warning_backup: ${operation.backupMention}`
+          : undefined,
+      ].filter((entry): entry is string => Boolean(entry));
+    case "require_precondition_check":
+      return [
+        `require_precondition_check: ${operation.precondition}`,
+        operation.allowedWhen && operation.allowedWhen.length > 0
+          ? `allowed_when: ${operation.allowedWhen.join(" or ")}`
+          : undefined,
+        `fallback_behavior: ${operation.fallbackBehavior.warningMessage}`,
+      ].filter((entry): entry is string => Boolean(entry));
+  }
+}
+
+export function buildStructuredTextResponseControlLines(
+  plan: TextResponseEnactmentPlan | undefined,
+): string[] {
+  if (!plan) {
+    return [];
+  }
+
+  return uniqueStrings(
+    plan.operations.flatMap((operation) =>
+      renderTextResponseEnactmentOperation(operation),
+    ),
+  );
+}
+
+function replaceAllLiteral(value: string, search: string, replacement: string): string {
+  return value.split(search).join(replacement);
+}
+
+function extractRequestedFilename(value: string): string | undefined {
+  const matches = [...value.matchAll(/(?:~\/|\/)[A-Za-z0-9._/-]*\/([A-Za-z0-9._-]+)/gu)];
+  return matches.at(-1)?.[1];
+}
+
+function extractRequestedPageSegment(value: string): string | undefined {
+  const urlMatch = value.match(/https?:\/\/[^\s)]+/u);
+  if (urlMatch?.[0]) {
+    try {
+      const parsed = new URL(urlMatch[0]);
+      const pathSegments = parsed.pathname.split("/").filter(Boolean);
+      if (pathSegments.length > 0) {
+        return pathSegments.at(-1);
+      }
+      const subdomain = parsed.hostname.replace(/\.[^.]+\.[^.]+$/u, "");
+      if (subdomain.length > 0 && !subdomain.includes(".")) {
+        return subdomain;
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  return value.match(/\b(?:to|for|open)\s+([A-Za-z0-9_-]+)\b/iu)?.[1];
+}
+
+function rewriteUrlsToTemplate(
+  answer: string,
+  query: string | undefined,
+  template: BehavioralPolicyUrlTemplate,
+): string {
+  const requestedPage = extractRequestedPageSegment(query ?? answer);
+
+  return answer.replace(/https?:\/\/[^\s)]+/gu, (matched) => {
+    try {
+      const parsed = new URL(matched);
+      const pathSegments = parsed.pathname.split("/").filter(Boolean);
+      const subdomain = parsed.hostname.endsWith(`.${template.host}`)
+        ? parsed.hostname.slice(0, -(`.${template.host}`).length)
+        : "";
+      const page =
+        requestedPage ??
+        pathSegments.at(-1) ??
+        (subdomain.length > 0 ? subdomain.split(".").at(-1) : undefined);
+      if (!page) {
+        return `${template.scheme}://${template.host}`;
+      }
+      return `${template.scheme}://${template.host}/${page}`;
+    } catch {
+      return matched;
+    }
+  });
+}
+
+function rewritePathsToTemplate(
+  answer: string,
+  query: string | undefined,
+  template: BehavioralPolicyPathTemplate,
+): string {
+  const requestedFilename = extractRequestedFilename(query ?? answer);
+  if (!requestedFilename) {
+    return answer;
+  }
+
+  return answer.replace(
+    /(?:~\/|\/)[A-Za-z0-9._/-]*\/([A-Za-z0-9._-]+)/gu,
+    () => `${template.anchor}${requestedFilename}`,
+  );
+}
+
+function looksLikeWarningAnswer(value: string): boolean {
+  return /\b(?:avoid|cannot|do not|don't|instead|refuse|warn|warning)\b/iu.test(value);
+}
+
+function mentionsPrecondition(answer: string, precondition: string): boolean {
+  return normalizeText(answer).includes(normalizeText(precondition));
+}
+
+function mentionsAllowedWhen(
+  answer: string,
+  allowedWhen: readonly string[] | undefined,
+): boolean {
+  if (!allowedWhen || allowedWhen.length === 0) {
+    return false;
+  }
+
+  const normalizedAnswer = normalizeText(answer);
+  return allowedWhen.some((value) => normalizedAnswer.includes(normalizeText(value)));
+}
+
+function buildAnalogyFallbackAnswer(answer: string): string {
+  const trimmed = answer.trim();
+  if (/\blike\b/iu.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed.endsWith("?")) {
+    return "Think of it like a familiar everyday helper that connects the pieces for you.";
+  }
+
+  return `Think of it like this: ${trimmed}`.trim();
+}
+
+function applyRequiredFragment(answer: string, fragment: string): string {
+  if (answer.includes(fragment)) {
+    return answer;
+  }
+
+  if (fragment.startsWith("Subject:")) {
+    return `${fragment} ${answer}`.trim();
+  }
+
+  if (fragment.startsWith("Dear ")) {
+    if (answer.startsWith("Subject:")) {
+      const newlineIndex = answer.indexOf("\n");
+      if (newlineIndex >= 0) {
+        return `${answer.slice(0, newlineIndex + 1)}${fragment}\n${answer.slice(newlineIndex + 1)}`.trim();
+      }
+      return `${answer}\n${fragment}`.trim();
+    }
+    return `${fragment}\n${answer}`.trim();
+  }
+
+  if (fragment.startsWith("Sincerely,")) {
+    return `${answer}\n${fragment}`.trim();
+  }
+
+  return `${answer} ${fragment}`.trim();
+}
+
+function satisfiesPreferredSafeSurface(
+  answer: string,
+  operation: TextResponseRequireWarningOperation,
+): boolean {
+  if (
+    operation.preferredAlternatives?.some((alternative) => answer.includes(alternative))
+  ) {
+    return true;
+  }
+
+  if (operation.warningMessage.toLowerCase().includes("https") && answer.includes("https://")) {
+    return true;
+  }
+
+  if (
+    operation.warningMessage.toLowerCase().includes("home-directory") &&
+    (answer.includes("/home/") || answer.includes("~/"))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function applyFallbackBehavior(
+  fallbackBehavior: BehavioralPolicyFallbackBehavior,
+): string {
+  const segments = [fallbackBehavior.warningMessage];
+  if (fallbackBehavior.preferredAlternatives?.length) {
+    segments.push(
+      `Use ${fallbackBehavior.preferredAlternatives.join(" or ")} instead.`,
+    );
+  }
+  if (fallbackBehavior.replacementTarget) {
+    segments.push(`Safe replacement: ${fallbackBehavior.replacementTarget}.`);
+  }
+  if (fallbackBehavior.backupMention) {
+    segments.push(fallbackBehavior.backupMention);
+  }
+
+  return segments.join(" ");
+}
+
+function stripExplicitMemoryPhrasing(answer: string): string {
+  return answer
+    .replace(
+      /\b(?:I|We)\s+remember(?:ed)?\s+(?:the\s+)?(?:earlier|previous|learned)\s+(?:rule|rules|note|notes)[,:]?\s*/gu,
+      "",
+    )
+    .replace(/\b(?:according to|based on|from)\s+(?:my|our|the\s+)?memory\b[:\s-]*/giu, "")
+    .replace(/\b(?:I|We)\s+remember(?:ed)?\s+that\b/gu, "")
+    .replace(/\b(?:memory|earlier notes?|learned rules?)\b/giu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+export function applyTextResponseEnactmentPlan(input: {
+  answer: string;
+  plan: TextResponseEnactmentPlan | undefined;
+  query?: string;
+}): string {
+  if (!input.plan) {
+    return input.answer;
+  }
+
+  let answer = input.answer.trim();
+
+  for (const operation of input.plan.operations) {
+    switch (operation.kind) {
+      case "rewrite_output_slot":
+        for (const replacement of operation.replacementPairs ?? []) {
+          answer = replaceAllLiteral(answer, replacement.from, replacement.to);
+        }
+        if (operation.urlTemplate) {
+          answer = rewriteUrlsToTemplate(answer, input.query, operation.urlTemplate);
+        }
+        if (operation.pathTemplate) {
+          answer = rewritePathsToTemplate(answer, input.query, operation.pathTemplate);
+        }
+        if (operation.exactFragments?.prefixes?.[0] && !answer.startsWith(operation.exactFragments.prefixes[0])) {
+          answer = `${operation.exactFragments.prefixes[0]} ${answer}`.trim();
+        }
+        if (operation.exactFragments?.required?.length) {
+          for (const fragment of operation.exactFragments.required) {
+            answer = applyRequiredFragment(answer, fragment);
+          }
+        }
+        if (operation.preferredFragments?.length) {
+          const normalizedAnswer = normalizeText(answer);
+          const missingPreferredFragment = operation.preferredFragments.every(
+            (fragment) => !normalizedAnswer.includes(normalizeText(fragment)),
+          );
+          if (missingPreferredFragment && operation.preferredFragments.some((fragment) => normalizeText(fragment) === "like")) {
+            answer = buildAnalogyFallbackAnswer(answer);
+          }
+        }
+        if (operation.exactFragments?.suffixes?.[0] && !answer.endsWith(operation.exactFragments.suffixes[0])) {
+          answer = `${answer} ${operation.exactFragments.suffixes[0]}`.trim();
+        }
+        break;
+      case "block_surface":
+        for (const replacement of operation.replacementPairs ?? []) {
+          answer = replaceAllLiteral(answer, replacement.from, replacement.to);
+        }
+        if (
+          operation.forbiddenFragments.some((fragment) => answer.includes(fragment))
+        ) {
+          for (const fragment of operation.forbiddenFragments) {
+            answer = replaceAllLiteral(answer, fragment, "");
+          }
+          answer = answer.replace(/\s+/gu, " ").trim();
+        }
+        break;
+      case "require_precondition_check":
+        if (
+          !mentionsPrecondition(answer, operation.precondition) ||
+          !mentionsAllowedWhen(answer, operation.allowedWhen)
+        ) {
+          const allowedWhen =
+            operation.allowedWhen && operation.allowedWhen.length > 0
+              ? ` Only proceed when ${operation.allowedWhen.join(" or ")}.`
+              : "";
+          answer = `Check ${operation.precondition} first.${allowedWhen} ${applyFallbackBehavior(operation.fallbackBehavior)}`.trim();
+        }
+        break;
+      case "require_warning":
+        if (!satisfiesPreferredSafeSurface(answer, operation)) {
+          answer = [
+            operation.warningMessage,
+            operation.preferredAlternatives?.length
+              ? `Use ${operation.preferredAlternatives.join(" or ")} instead.`
+              : undefined,
+            operation.backupMention,
+          ]
+            .filter((entry): entry is string => Boolean(entry))
+            .join(" ");
+        }
+        break;
+    }
+  }
+
+  return stripExplicitMemoryPhrasing(answer);
 }
 
 export function buildBehavioralSteeringLines(
@@ -1418,8 +2407,61 @@ export function buildBehavioralSteeringLines(
   return uniqueStrings(lines);
 }
 
+function extractQuotedValues(value: string): string[] {
+  return [...value.matchAll(/['"`]([^'"`]+)['"`]/gu)]
+    .map((match) => match[1]?.trim())
+    .filter((entry): entry is string => Boolean(entry));
+}
+
+function inferCanonicalFirstAction(
+  policy: BehavioralPolicy,
+  query: string | undefined,
+): BehavioralPolicyAction | undefined {
+  const canonicalFirstAction = policy.applicability.canonicalFirstAction;
+  if (canonicalFirstAction?.raw) {
+    return canonicalFirstAction;
+  }
+
+  if (!canonicalFirstAction?.name || !query) {
+    return canonicalFirstAction;
+  }
+
+  const normalizedName = canonicalFirstAction.name.trim();
+  const argumentOrder = policy.applicability.argumentOrder ?? [];
+  if (
+    normalizedName !== "copy_file" ||
+    argumentOrder.length < 2 ||
+    !normalizeText(argumentOrder[0]).includes("destination") ||
+    !normalizeText(argumentOrder[1]).includes("source")
+  ) {
+    return canonicalFirstAction;
+  }
+
+  const quotedValues = extractQuotedValues(query);
+  if (quotedValues.length < 2) {
+    return canonicalFirstAction;
+  }
+
+  const source = quotedValues[0];
+  let destination = quotedValues[1];
+  if (destination.endsWith("/")) {
+    const filename = source.split("/").filter(Boolean).at(-1);
+    if (filename) {
+      destination = `${destination}${filename}`;
+    }
+  }
+
+  return {
+    args: [`'${destination}'`, `'${source}'`],
+    kind: "tool_call",
+    name: normalizedName,
+    raw: `copy_file('${destination}', '${source}')`,
+  };
+}
+
 export function buildBehavioralActionSteeringLines(
   policies: readonly BehavioralPolicySelection[],
+  query?: string,
 ): string[] {
   const lines: string[] = [];
 
@@ -1433,8 +2475,9 @@ export function buildBehavioralActionSteeringLines(
     }
 
     const canonicalFirstAction = policy.applicability.canonicalFirstAction;
-    if (canonicalFirstAction?.raw) {
-      lines.push(`The first line must be exactly: ${canonicalFirstAction.raw}`);
+    const recoveredCanonicalAction = inferCanonicalFirstAction(policy, query);
+    if (recoveredCanonicalAction?.raw) {
+      lines.push(`The first line must be exactly: ${recoveredCanonicalAction.raw}`);
     } else if (canonicalFirstAction?.name) {
       lines.push(`Use "${canonicalFirstAction.name}" as the first executable action.`);
     }
@@ -1451,4 +2494,22 @@ export function buildBehavioralActionSteeringLines(
   }
 
   return uniqueStrings(lines);
+}
+
+export function recoverStructuredFirstActionAnswer(input: {
+  answer: string;
+  policies: readonly BehavioralPolicySelection[];
+  query?: string;
+}): string {
+  const firstTypedPolicy = input.policies.find(
+    ({ policy }) =>
+      policy.enactmentSurface === "host_action" &&
+      (policy.applicability.canonicalFirstAction || policy.applicability.argumentOrder),
+  );
+  if (!firstTypedPolicy) {
+    return input.answer;
+  }
+
+  const recovered = inferCanonicalFirstAction(firstTypedPolicy.policy, input.query);
+  return recovered?.raw ?? input.answer;
 }

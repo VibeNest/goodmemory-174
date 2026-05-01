@@ -1,0 +1,47 @@
+{
+  "task_seed": "Conditioned API Aversion",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned API Aversion",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Run a detailed analysis of our network traffic."
+        },
+        {
+          "role": "Assistant",
+          "content": "Use DeepAnalyzer --detailed."
+        },
+        {
+          "role": "System",
+          "content": "Tool outcome: DeepAnalyzer timed out."
+        },
+        {
+          "role": "User",
+          "content": "What should I do instead next time?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Use QuickCheck first or warn before running a heavier scan."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "How do I do a full local search?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Run a deep search if needed."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "I need a detailed analysis of the network traffic."
+      },
+      "expected_pattern": "The answer should avoid DeepAnalyzer-first behavior and prefer QuickCheck or a warning."
+    }
+  ]
+}

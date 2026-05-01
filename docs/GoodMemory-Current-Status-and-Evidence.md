@@ -63,39 +63,41 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 51 is now closed as the Typed Behavioral Memory And Enactment
-  Hardening slice.
+- Phase 52 is now closed as the Structured Text-Response Enactment And
+  Guarded Policy Execution slice.
 - Accepted behavior:
-  - compiled `validated_pattern` feedback can now carry internal typed
-    behavioral policy on attributes while keeping legacy `rule`, `why`, and
-    `appliesTo` compatibility
-  - behavioral policy compilation distinguishes `preference`, `avoidance`,
-    `format_contract`, `first_action`, `syntax_constraint`,
-    `transformation_rule`, and `exemplar_fact`
-  - single exemplars stay applicability-bounded and `example_only` unless
-    repeated evidence or explicit general feedback proves a transferable rule
-  - runtime-kit and targeted eval paths apply steering-only behavioral guidance
-    implicitly instead of surfacing memory-note phrasing in final answers
-  - covered host-action and structured behavioral cases preserve canonical
-    first action, exact action naming, and argument ordering through a
-    dedicated enactment path
-  - explicit recall leak suppression is exercised in the targeted regression
-    set while priming stays non-blocking and raw-only in Phase 51 live
-    evidence
+  - internal typed behavioral memory now includes `guarded_policy` and shared
+    `TextResponseEnactmentPlan` operations for:
+    - `rewrite_output_slot`
+    - `require_warning`
+    - `block_surface`
+    - `require_precondition_check`
+  - covered text-response cases are enforced through shared structured control
+    instead of relying only on prose `Prefer...` / `Avoid...` steering lines
+  - compiled text conditioning can now preserve replacement targets, warning
+    fallbacks, backup mentions, exact URL/path templates, and guarded
+    precondition checks without widening the public API
+  - covered host-action cases can recover canonical first action, exact tool
+    name, and argument ordering from the same typed-policy source even when
+    the current turn only has transient explicit feedback
+  - targeted deterministic and live Phase 52 evidence both close with
+    `executionFailures = 0`, `goodmemory-distilled-feedback` passing all 12
+    targeted blocking cases, and targeted explicit recall leaks staying `0`
 - Canonical evidence:
   - archive summary:
-    `docs/archive/quality-gates/GoodMemory-Phase-51-Quality-Gate.md`
+    `docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md`
   - deterministic targeted eval:
-    `reports/eval/fallback/phase-51/run-phase51-fallback-current/report.json`
+    `reports/eval/fallback/phase-52/run-phase52-fallback-current/report.json`
   - live-memory behavioral evidence:
-    `reports/eval/live-memory/phase-51/run-phase51-live-current/report.json`
+    `reports/eval/live-memory/phase-52/run-phase52-live-current/report.json`
   - quality gate:
-    `reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json`
-- Still outside the Phase 51 accepted claim:
+    `reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json`
+- Still outside the Phase 52 accepted claim:
   - public API or public config widening
   - a new durable public memory kind or public record collection
   - full-300 ImplicitMemBench rerun as a release hard gate
-  - benchmark-specific runtime heuristics as the accepted product mechanism
+  - benchmark-specific runtime hacks or per-task-file prompt patches as the
+    accepted product mechanism
 
 ## Prior Closed Installer Slice
 

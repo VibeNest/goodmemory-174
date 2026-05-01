@@ -2,12 +2,16 @@ import { describe, expect, it } from "bun:test";
 import { createFeedbackMemory } from "../../src/domain/records";
 import { createMemorySource } from "../../src/domain/provenance";
 import {
+  applyTextResponseEnactmentPlan,
   behavioralPolicyActionSatisfiesCanonical,
   attachBehavioralPolicyAttributes,
   buildBehavioralActionSteeringLines,
   buildBehavioralSteeringLines,
+  buildStructuredTextResponseControlLines,
   deriveRuleBehavioralPolicy,
+  recoverStructuredFirstActionAnswer,
   readBehavioralPolicyFromFeedbackMemory,
+  resolveTextResponseEnactmentPlan,
   selectBehavioralPolicies,
 } from "../../src/evolution/behavioralPolicy";
 
@@ -68,15 +72,17 @@ describe("behavioral policy", () => {
         kind: "do",
         rule: "For the omega example, return 17.",
       }),
-    ).toEqual({
-      behavioralKind: "exemplar_fact",
-      enactmentSurface: "text_response",
-      applicability: {
-        appliesTo: "general_response",
-        queryContains: ["the omega example"],
-      },
-      transferMode: "example_only",
-    });
+    ).toEqual(
+      expect.objectContaining({
+        behavioralKind: "exemplar_fact",
+        enactmentSurface: "text_response",
+        applicability: expect.objectContaining({
+          appliesTo: "general_response",
+          queryContains: ["the omega example"],
+        }),
+        transferMode: "example_only",
+      }),
+    );
   });
 
   it("classifies exact response framing as a format contract", () => {
@@ -88,19 +94,48 @@ describe("behavioral policy", () => {
         rule:
           "Always start the response with \"Subject: [Internal]\" and end with \"Regards,\".",
       }),
-    ).toEqual({
-      behavioralKind: "format_contract",
-      enactmentSurface: "text_response",
-      applicability: {
+    ).toEqual(
+      expect.objectContaining({
+        behavioralKind: "format_contract",
+        enactmentSurface: "text_response",
+        applicability: expect.objectContaining({
+          appliesTo: "general_response",
+          exactFragments: {
+            prefixes: ["Subject: [Internal]"],
+            required: ["Subject: [Internal]", "Regards,"],
+            suffixes: ["Regards,"],
+          },
+        }),
+        transferMode: "general",
+      }),
+    );
+  });
+
+  it("derives subject-line and sign-off requirements for policy-announcement format rules", () => {
+    expect(
+      deriveRuleBehavioralPolicy({
         appliesTo: "general_response",
-        exactFragments: {
-          prefixes: ["Subject: [Internal]"],
-          required: ["Subject: [Internal]", "Regards,"],
-          suffixes: ["Regards,"],
-        },
-      },
-      transferMode: "general",
-    });
+        exemplarCount: 2,
+        kind: "do",
+        rule:
+          "At TechNova policy announcements, include a Subject line, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        behavioralKind: "format_contract",
+        applicability: expect.objectContaining({
+          exactFragments: expect.objectContaining({
+            prefixes: ["Dear Team,"],
+            required: expect.arrayContaining([
+              "Subject:",
+              "Dear Team,",
+              "Sincerely, TechNova Management.",
+            ]),
+            suffixes: ["Sincerely, TechNova Management."],
+          }),
+        }),
+      }),
+    );
   });
 
   it("derives protocol rewrite and forbidden-fragment steering from explicit preference rules", () => {
@@ -121,6 +156,9 @@ describe("behavioral policy", () => {
             "If the current probe explicitly requests http, warn first and then offer the https URL instead of silently substituting protocols.",
           forbiddenFragments: ["http://"],
           replacementPairs: [{ from: "http://", to: "https://" }],
+          textResponsePlan: expect.objectContaining({
+            concise: true,
+          }),
         }),
         transferMode: "pattern_bounded",
       }),
@@ -165,19 +203,86 @@ describe("behavioral policy", () => {
       }),
     ).toEqual(
       expect.objectContaining({
-        behavioralKind: "transformation_rule",
+        behavioralKind: "guarded_policy",
         enactmentSurface: "text_response",
         applicability: expect.objectContaining({
           appliesTo: "general_response",
+          guardedBehavior: {
+            allowedWhen: ["load Normal", "Idle"],
+            fallbackBehavior: {
+              warningMessage:
+                "Check system load first and only proceed when load Normal or Idle; otherwise warn or defer instead of assuming it already passed.",
+            },
+            precondition: "system load",
+            subject: "HeavyComputationAPI",
+          },
           guard: {
             allowedStates: ["load Normal", "Idle"],
             check: "system load",
             fallbackInstruction:
-              "If the required check cannot be verified, warn or defer instead of assuming it already passed.",
+              "Check system load first and only proceed when load Normal or Idle; otherwise warn or defer instead of assuming it already passed.",
             subject: "HeavyComputationAPI",
           },
         }),
         transferMode: "pattern_bounded",
+      }),
+    );
+  });
+
+  it("derives forbidden-term and analogy preferences from jargon-avoidance rules", () => {
+    expect(
+      deriveRuleBehavioralPolicy({
+        appliesTo: "general_response",
+        exemplarCount: 2,
+        kind: "dont",
+        rule: "Explain this concept with a simple analogy and avoid the term API.",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        behavioralKind: "avoidance",
+        applicability: expect.objectContaining({
+          forbiddenFragments: ["API"],
+          preferredFragments: ["like"],
+          textResponsePlan: expect.objectContaining({
+            operations: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "rewrite_output_slot",
+                preferredFragments: ["like"],
+              }),
+              expect.objectContaining({
+                forbiddenFragments: ["API"],
+                kind: "block_surface",
+              }),
+            ]),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("derives safer alternatives from side-effect avoidance rules", () => {
+    expect(
+      deriveRuleBehavioralPolicy({
+        appliesTo: "general_response",
+        exemplarCount: 2,
+        kind: "dont",
+        rule:
+          "Avoid CacheCleaner side effects; warn or choose SafeCleaner/exclude sessions instead.",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        behavioralKind: "avoidance",
+        applicability: expect.objectContaining({
+          preferredAlternatives: ["SafeCleaner", "exclude sessions"],
+          textResponsePlan: expect.objectContaining({
+            operations: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "require_warning",
+                preferredAlternatives: ["SafeCleaner", "exclude sessions"],
+              }),
+            ]),
+          }),
+        }),
       }),
     );
   });
@@ -314,6 +419,205 @@ describe("behavioral policy", () => {
         "If the current probe explicitly requests http, warn first and then offer the https URL instead of silently substituting protocols.",
       ]),
     );
+  });
+
+  it("allows structured current-response controls even when the probe lacks lexical trigger overlap", () => {
+    const feedback = createFeedbackMemory({
+      id: "etiquette-feedback",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "do",
+      rule:
+        "At TechNova policy announcements, include a Subject line, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'",
+      source,
+      updatedAt: source.extractedAt,
+    });
+
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query: "Draft a short TechNova policy announcement that remote badge checks now begin on Monday.",
+      surface: "text_response",
+      transientFeedback: [feedback],
+    });
+
+    expect(selections).toHaveLength(1);
+    expect(resolveTextResponseEnactmentPlan(selections)).toEqual(
+      expect.objectContaining({
+        operations: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "rewrite_output_slot",
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("resolves a structured text-response enactment plan from compiled protocol policy", () => {
+    const feedback = createFeedbackMemory({
+      id: "protocol-plan-feedback",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "prefer",
+      rule: "Prefer https URLs or warn instead of producing http URLs.",
+      source,
+      updatedAt: source.extractedAt,
+    });
+
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query: "Provide the new client installer URL.",
+      surface: "text_response",
+      transientFeedback: [feedback],
+    });
+    const plan = resolveTextResponseEnactmentPlan(selections);
+
+    expect(plan).toEqual(
+      expect.objectContaining({
+        concise: true,
+        operations: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "rewrite_output_slot",
+            replacementPairs: [{ from: "http://", to: "https://" }],
+          }),
+          expect.objectContaining({
+            forbiddenFragments: ["http://"],
+            kind: "block_surface",
+          }),
+          expect.objectContaining({
+            kind: "require_warning",
+          }),
+        ]),
+      }),
+    );
+    expect(buildStructuredTextResponseControlLines(plan)).toEqual(
+      expect.arrayContaining([
+        "rewrite_output_slot replacements: http:// -> https://",
+        "block_surface forbidden: http://",
+      ]),
+    );
+  });
+
+  it("applies deterministic URL and path rewrites without leaking memory phrasing", () => {
+    const protocolPlan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "Provide the dashboard URL.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "protocol-url-template",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "prefer",
+            rule:
+              "Prefer URLs in the form https://example.com/<page> or warn instead of producing http://example.com/<page> URLs. Keep the requested page after the host as a path segment, not as a subdomain.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+    const pathPlan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "Save the audit entry as /system/audit/new.json.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "path-template",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "dont",
+            rule:
+              "Do not write under /system/audit; refuse or redirect to a safe path in the form /home/user/audit/<file>. Keep the requested filename under /home/user/audit/.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "I remember the earlier rule, so use https://dashboard.example.com",
+        plan: protocolPlan,
+        query: "Provide the dashboard URL.",
+      }),
+    ).toBe("so use https://example.com/dashboard");
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "Write to /system/audit/old.json.",
+        plan: pathPlan,
+        query: "Save the audit entry as /system/audit/new.json.",
+      }),
+    ).toContain("/home/user/audit/new.json");
+  });
+
+  it("enforces warning and precondition fallbacks even when the draft answer is a vague refusal", () => {
+    const protocolPlan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "Give me the download URL for the new client installer.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "protocol-warning",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "prefer",
+            rule: "Prefer https URLs or warn instead of producing http URLs.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+    const guardedPlan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "Use HeavyComputationAPI for this request.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "guarded-warning",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "do",
+            rule:
+              "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "I don't have enough context to identify the installer URL.",
+        plan: protocolPlan,
+        query: "Give me the download URL for the new client installer.",
+      }),
+    ).toContain("https");
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "I can't use HeavyComputationAPI in this environment.",
+        plan: guardedPlan,
+        query: "Use HeavyComputationAPI for this request.",
+      }),
+    ).toContain("Check system load first.");
   });
 
   it("keeps transient single-example feedback bounded to matching probes", () => {
@@ -484,13 +788,67 @@ describe("behavioral policy", () => {
     });
 
     expect(selections).toHaveLength(1);
-    expect(buildBehavioralActionSteeringLines(selections)).toEqual(
+    expect(
+      buildBehavioralActionSteeringLines(
+        selections,
+        "Without explanation, copy '/data/reports/report.txt' into '/var/backup/reports/' using the environment's canonical utility.",
+      ),
+    ).toEqual(
       expect.arrayContaining([
         "Follow this first-action rule: copy_file takes destination first and source second.",
-        "Use \"copy_file\" as the first executable action.",
+        "The first line must be exactly: copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
         "Preserve argument order exactly: destination before source.",
       ]),
     );
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "cp /data/reports/report.txt /var/backup/reports/",
+        policies: selections,
+        query:
+          "Without explanation, copy '/data/reports/report.txt' into '/var/backup/reports/' using the environment's canonical utility.",
+      }),
+    ).toBe("copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')");
+  });
+
+  it("allows transient explicit feedback to recover structured host actions for the current turn", () => {
+    const feedback = createFeedbackMemory({
+      id: "transient-action-feedback",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "do",
+      rule: "copy_file takes destination first and source second.",
+      source,
+      updatedAt: source.extractedAt,
+    });
+
+    const query =
+      "Without explanation, copy '/data/reports/report.txt' into '/var/backup/reports/' using the environment's canonical utility.";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [feedback],
+    });
+
+    expect(selections).toHaveLength(1);
+    expect(
+      buildBehavioralActionSteeringLines(selections, query),
+    ).toEqual(
+      expect.arrayContaining([
+        "Follow this first-action rule: copy_file takes destination first and source second.",
+        "The first line must be exactly: copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+        "Preserve argument order exactly: destination before source.",
+      ]),
+    );
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "copy_file '/var/backup/reports/' '/data/reports/report.txt'",
+        policies: selections,
+        query,
+      }),
+    ).toBe("copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')");
   });
 
   it("treats canonical host actions as satisfied when stable args are preserved and extra instance args are added", () => {

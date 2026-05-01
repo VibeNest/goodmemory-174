@@ -1,17 +1,17 @@
 Phase 52.2: Procedural Anti-Collapse And Transfer
 =================================================
 
-[TODO] P52.2-T001 Strengthen the compiler so single exemplars stay
+[DONE] P52.2-T001 Strengthen the compiler so single exemplars stay
 `example_only` unless repeated structurally aligned evidence or explicit
 general feedback proves a transferable rule.
 
-[TODO] P52.2-T002 Preserve symbolic slots, transformation templates, or rule
+[DONE] P52.2-T002 Preserve symbolic slots, transformation templates, or rule
 shape when procedural evidence supports them instead of storing only literal
 output facts.
 
-[TODO] P52.2-T003 Add targeted regressions for the procedural families that
+[DONE] P52.2-T003 Add targeted regressions for the procedural families that
 still fail after Phase 51, including modified recurrence, omega operation,
 exact-format mail/signature families, and argument-order families.
 
-[TODO] P52.2-T004 Keep the mechanism general-capability focused and reject
+[DONE] P52.2-T004 Keep the mechanism general-capability focused and reject
 benchmark-file heuristics.

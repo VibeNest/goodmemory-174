@@ -8,6 +8,10 @@ Status: internal research evidence only. This document does not reopen or
 change the accepted Phase 49 claim, and it does not make full ImplicitMemBench
 a release gate.
 
+Phase 52 later closed on targeted deterministic/live behavioral evidence. A
+post-Phase-52 full-300 rerun remains follow-up research evidence and is not a
+Phase 52 closure blocker.
+
 ## Scope
 
 This document summarizes two full 300-case ImplicitMemBench executions through

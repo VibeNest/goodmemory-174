@@ -403,12 +403,12 @@ describe("runtime-kit", () => {
     });
 
     expect(result.context.content).toContain("Fragment recall content.");
-    expect(result.context.content).toContain("Behavioral steering:");
+    expect(result.context.content).toContain("Structured response control:");
     expect(result.context.content).toContain(
       "Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
     );
     expect(result.context.content).toContain(
-      "Start the response with \"Subject: [Internal]\".",
+      "rewrite_output_slot prefix: Subject: [Internal]",
     );
     expect(result.context.content).not.toContain("Developer memory notes");
   });

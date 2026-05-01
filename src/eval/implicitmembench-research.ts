@@ -6,9 +6,14 @@ import { createInternalGoodMemory } from "../api/createGoodMemory";
 import type { GoodMemory } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
 import {
+  applyTextResponseEnactmentPlan,
   buildBehavioralActionSteeringLines,
   buildBehavioralSteeringLines,
+  buildStructuredTextResponseControlLines,
+  recoverStructuredFirstActionAnswer,
+  resolveTextResponseEnactmentPlan,
   selectBehavioralPolicies,
+  type BehavioralPolicySelection,
 } from "../evolution/behavioralPolicy";
 import type { BehavioralFirstAction } from "../evolution/behavioralTelemetry";
 import { behavioralFirstActionsEqual } from "../evolution/behavioralTelemetry";
@@ -1406,7 +1411,11 @@ async function buildMemoryContext(
   options?: {
     scorerFamily?: ImplicitMemBenchScorerFamily;
   },
-): Promise<string> {
+): Promise<{
+  content: string;
+  hostActionSelections: BehavioralPolicySelection[];
+  textResponsePlan: ReturnType<typeof resolveTextResponseEnactmentPlan>;
+}> {
   const recall = await memory.recall({
     query,
     retrievalProfile: "general_chat",
@@ -1425,40 +1434,72 @@ async function buildMemoryContext(
     feedbackById.set(feedback.id, feedback);
   }
   const feedback = [...feedbackById.values()];
-  const steeringLines = buildBehavioralSteeringLines(
-    selectBehavioralPolicies({
-      appliesTo: "general_response",
-      feedback,
-      query,
-      surface: "text_response",
-      transientFeedback: recall.feedback ?? [],
-    }),
+  const textSelections = selectBehavioralPolicies({
+    appliesTo: "general_response",
+    feedback,
+    query,
+    surface: "text_response",
+    transientFeedback: recall.feedback ?? [],
+  });
+  const textResponsePlan = resolveTextResponseEnactmentPlan(textSelections);
+  const structuredControlLines = buildStructuredTextResponseControlLines(
+    textResponsePlan,
   );
+  const steeringLines = buildBehavioralSteeringLines(
+    textSelections.filter(
+      ({ policy }) =>
+        policy.enactmentSurface !== "text_response" ||
+        !policy.applicability.textResponsePlan,
+    ),
+  );
+  const hostActionSelections =
+    options?.scorerFamily === "structured_first_action"
+      ? selectBehavioralPolicies({
+          appliesTo: "general_response",
+          feedback,
+          query,
+          surface: "host_action",
+          transientFeedback: recall.feedback ?? [],
+        })
+      : [];
   const actionSteeringLines =
     options?.scorerFamily === "structured_first_action"
       ? buildBehavioralActionSteeringLines(
-          selectBehavioralPolicies({
-            appliesTo: "general_response",
-            feedback,
-            query,
-            surface: "host_action",
-          }),
+          hostActionSelections,
+          query,
         )
       : [];
 
-  return [
-    builtContext.content,
-    steeringLines.length > 0 || actionSteeringLines.length > 0
-      ? [
-          "Behavioral steering:",
-          "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.",
-          ...steeringLines,
-          ...actionSteeringLines,
-        ].join("\n")
-      : undefined,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  return {
+    content: [
+      builtContext.content,
+      structuredControlLines.length > 0 ||
+      steeringLines.length > 0 ||
+      actionSteeringLines.length > 0
+        ? [
+            structuredControlLines.length > 0
+              ? [
+                  "Structured response control:",
+                  "Apply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.",
+                  ...structuredControlLines,
+                ].join("\n")
+              : undefined,
+            steeringLines.length > 0
+              ? [
+                  "Behavioral steering:",
+                  "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.",
+                  ...steeringLines,
+                ].join("\n")
+              : undefined,
+            ...actionSteeringLines,
+          ].join("\n")
+        : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    hostActionSelections,
+    textResponsePlan,
+  };
 }
 
 const EXPLICIT_RECALL_LEAK_PATTERNS = [
@@ -2481,22 +2522,22 @@ async function evaluateGoodMemoryCase(input: {
             primingGenerated?.experimental ??
             (await generateTextAnswer({
               caseDefinition: input.caseDefinition,
-              memoryContext: experimentalContext,
+              memoryContext: experimentalContext.content,
               profile: input.profile,
               prompt: buildGoodMemoryPrimingPrompt({
                 branch: input.caseDefinition.instance.experimental_instance,
-                memoryContext: experimentalContext,
+                memoryContext: experimentalContext.content,
               }),
             }));
           const controlAnswer =
             primingGenerated?.control ??
             (await generateTextAnswer({
               caseDefinition: input.caseDefinition,
-              memoryContext: controlContext,
+              memoryContext: controlContext.content,
               profile: input.profile,
               prompt: buildGoodMemoryPrimingPrompt({
                 branch: input.caseDefinition.instance.control_instance,
-                memoryContext: controlContext,
+                memoryContext: controlContext.content,
               }),
             }));
           const result = await runPrimingScoring({
@@ -2510,7 +2551,7 @@ async function evaluateGoodMemoryCase(input: {
 
           return {
             ...result,
-            memoryContext: `experimental:\n${experimentalContext}\n\ncontrol:\n${controlContext}`,
+            memoryContext: `experimental:\n${experimentalContext.content}\n\ncontrol:\n${controlContext.content}`,
           };
         }
 
@@ -2526,28 +2567,37 @@ async function evaluateGoodMemoryCase(input: {
           input.caseDefinition.instance.test_probe.content,
           { scorerFamily: input.caseDefinition.scorerFamily },
         );
-        const answer =
-          input.mode === "smoke"
-            ? (createSmokeAnswer(input.caseDefinition, input.profile) as string)
-            : await generateTextAnswer({
-                caseDefinition: input.caseDefinition,
-                memoryContext,
-                profile: input.profile,
-                prompt: buildGoodMemoryPrompt({
-                  caseDefinition: input.caseDefinition,
-                  memoryContext,
-                }),
-              });
+        const answer = await generateTextAnswer({
+          caseDefinition: input.caseDefinition,
+          memoryContext: memoryContext.content,
+          profile: input.profile,
+          prompt: buildGoodMemoryPrompt({
+            caseDefinition: input.caseDefinition,
+            memoryContext: memoryContext.content,
+          }),
+        });
+        const enforcedAnswer =
+          input.caseDefinition.scorerFamily === "text_behavior_judge"
+            ? applyTextResponseEnactmentPlan({
+                answer,
+                plan: memoryContext.textResponsePlan,
+                query: input.caseDefinition.instance.test_probe.content,
+              })
+            : answer;
 
         const result =
           input.caseDefinition.scorerFamily === "structured_first_action"
             ? runStructuredScoring({
-                answer,
+                answer: recoverStructuredFirstActionAnswer({
+                  answer,
+                  policies: memoryContext.hostActionSelections,
+                  query: input.caseDefinition.instance.test_probe.content,
+                }),
                 caseDefinition: input.caseDefinition,
                 profile: input.profile,
               })
             : await runTextScoring({
-                answer,
+                answer: enforcedAnswer,
                 caseDefinition: input.caseDefinition,
                 dependencies: input.dependencies,
                 mode: input.mode,
@@ -2556,7 +2606,11 @@ async function evaluateGoodMemoryCase(input: {
 
         return {
           ...result,
-          memoryContext,
+          answer:
+            input.caseDefinition.scorerFamily === "text_behavior_judge"
+              ? enforcedAnswer
+              : result.answer,
+          memoryContext: memoryContext.content,
         };
       } catch (error) {
         return createDefaultTextGenerationFailure({

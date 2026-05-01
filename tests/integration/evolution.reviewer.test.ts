@@ -142,6 +142,63 @@ describe("reflective reviewer integration", () => {
     expect(behavioralPolicy?.applicability.forbiddenFragments).toEqual([
       "http://",
     ]);
+    expect(behavioralPolicy?.applicability.textResponsePlan).toEqual(
+      expect.objectContaining({
+        concise: true,
+      }),
+    );
+  });
+
+  it("persists guarded policy payloads after repeated precondition feedback is promoted and compiled", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" } as const;
+
+    for (let index = 0; index < 3; index += 1) {
+      await memory.feedback({
+        scope,
+        signal:
+          "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+      });
+    }
+
+    await memory.recall({
+      scope,
+      query: "Use HeavyComputationAPI to process the report.",
+      retrievalProfile: "general_chat",
+    });
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+    const validatedPattern = exported.durable.feedback.find(
+      (record) => record.kind === "validated_pattern" && record.lifecycle === "active",
+    );
+    const behavioralPolicy = validatedPattern
+      ? readBehavioralPolicyFromFeedbackMemory(validatedPattern)
+      : undefined;
+
+    expect(behavioralPolicy?.behavioralKind).toBe("guarded_policy");
+    expect(behavioralPolicy?.applicability.guardedBehavior).toEqual({
+      allowedWhen: ["load Normal", "Idle"],
+        fallbackBehavior: {
+          warningMessage:
+            "Check system load first and only proceed when load Normal or Idle; otherwise warn or defer instead of assuming it already passed.",
+        },
+      precondition: "system load",
+      subject: "HeavyComputationAPI",
+    });
+    expect(
+      behavioralPolicy?.applicability.textResponsePlan?.operations.some(
+        (operation) => operation.kind === "require_precondition_check",
+      ),
+    ).toBe(true);
   });
 
   it("emits a maintenance proposal after a stale verification signal is observed and the turn completes", async () => {

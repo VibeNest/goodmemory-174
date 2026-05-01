@@ -4,7 +4,8 @@ Phase 52: Hard-Constraint Enactment And Procedural Rule Transfer
 Status
 ------
 
-[TODO] Phase 52 is queued as the next general-capability improvement slice.
+[DONE] Phase 52 is closed with accepted targeted deterministic and live
+behavioral evidence.
 
 Driver:
 
@@ -79,34 +80,48 @@ Out Of Scope
 Acceptance Criteria
 -------------------
 
-1. Typed behavioral policy can express hard text-response constraints and these
-   constraints are applied without surfacing raw memory-note phrasing.
-2. Covered conditioning regressions that require warning/replacement/backup or
-   forbidden-term control improve through general mechanisms rather than task
-   special-casing.
-3. Covered procedural regressions prove stronger anti-exemplar-collapse and
-   better symbolic or transformation-style transfer.
-4. Covered first-action regressions improve through a dedicated enactment
-   mechanism rather than only text steering.
-5. Public API, public config, README defaults, and release hard gates stay
-   unchanged.
+1. [DONE] Typed behavioral policy can express hard text-response constraints
+   and apply them without surfacing raw memory-note phrasing.
+2. [DONE] Covered conditioning regressions that require
+   warning/replacement/backup or forbidden-term control improve through
+   general mechanisms rather than task special-casing.
+3. [DONE] Covered procedural regressions prove stronger
+   anti-exemplar-collapse and better symbolic or transformation-style
+   transfer.
+4. [DONE] Covered first-action regressions improve through a dedicated
+   enactment mechanism rather than only text steering.
+5. [DONE] Public API, public config, README defaults, and release hard gates
+   stay unchanged.
 
 
 Tasks
 -----
 
-[TODO] P52-T001 Add internal hard text-response constraint contracts and
+[DONE] P52-T001 Add internal hard text-response constraint contracts and
   resolver precedence.
-[TODO] P52-T002 Compile replacement/warning/backup constraints from repeated
+[DONE] P52-T002 Compile replacement/warning/backup constraints from repeated
   evidence and corrective feedback.
-[TODO] P52-T003 Strengthen procedural anti-exemplar-collapse and symbolic rule
+[DONE] P52-T003 Strengthen procedural anti-exemplar-collapse and symbolic rule
   transfer.
-[TODO] P52-T004 Add exact first-action recovery for covered host/runtime
+[DONE] P52-T004 Add exact first-action recovery for covered host/runtime
   surfaces.
-[TODO] P52-T005 Add targeted deterministic/live evals and refresh the
-  full-300 research summary after the mechanism changes land.
-[TODO] P52-T006 Close the phase only after code, eval evidence, current-status,
+[DONE] P52-T005 Add targeted deterministic/live evals; keep full-300 reruns as
+  follow-up research evidence outside the hard gate.
+[DONE] P52-T006 Close the phase only after code, eval evidence, current-status,
   task-board, and archive summaries agree.
+
+
+Canonical Evidence
+------------------
+
+- archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md`
+- deterministic targeted eval:
+  `reports/eval/fallback/phase-52/run-phase52-fallback-current/report.json`
+- live-memory behavioral evidence:
+  `reports/eval/live-memory/phase-52/run-phase52-live-current/report.json`
+- quality gate:
+  `reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json`
 
 
 Breakdown Folder

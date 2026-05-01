@@ -155,16 +155,22 @@ Current Sequencing Note
   - boundary: internal typed behavioral policy stays additive on
     `validated_pattern`, public API/config stay unchanged, and full-300 reruns
     remain research-only evidence
-- Phase 52 is now queued as the next general-capability improvement slice:
+- Phase 52 is now closed as the structured text-response enactment and guarded
+  policy execution slice:
   - task-board entrypoint:
     `task-board/57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt`
-  - focus: convert soft text steering into hard output constraints where
-    warranted, continue procedural anti-exemplar-collapse, and recover exact
-    first-action behavior without benchmark-specific hacks
-  - driver: the latest full-300 research rerun in
-    `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md` improved
-    distilled conditioning materially but left raw internalization, broad
-    procedural transfer, and strict first-action enactment weak
+  - deterministic targeted eval:
+    `reports/eval/fallback/phase-52/run-phase52-fallback-current/report.json`
+  - live-memory behavioral evidence:
+    `reports/eval/live-memory/phase-52/run-phase52-live-current/report.json`
+  - quality gate:
+    `reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json`
+  - archive summary:
+    `docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md`
+  - boundary: internal structured text-response control and guarded policy
+    execution stay additive on `validated_pattern`, public API/config stay
+    unchanged, and full-300 reruns remain follow-up research evidence rather
+    than a hard gate
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`

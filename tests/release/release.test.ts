@@ -83,6 +83,10 @@ const PHASE51_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-51/run-phase51-fallback-current/report.json";
 const PHASE51_CANONICAL_LIVE_REPORT =
   "reports/eval/live-memory/phase-51/run-phase51-live-current/report.json";
+const PHASE52_CANONICAL_FALLBACK_REPORT =
+  "reports/eval/fallback/phase-52/run-phase52-fallback-current/report.json";
+const PHASE52_CANONICAL_LIVE_REPORT =
+  "reports/eval/live-memory/phase-52/run-phase52-live-current/report.json";
 const PHASE41_TASK_BOARD_LEAF_FILES = [
   "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
   "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
@@ -856,6 +860,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-51-live-memory"]).toBe(
       "bun run scripts/run-phase-51-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-52"]).toBe(
+      "bun run scripts/run-phase-52-eval.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-52-live-memory"]).toBe(
+      "bun run scripts/run-phase-52-live-memory.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -913,6 +923,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-51"]).toBe(
       "bun run scripts/run-phase-51-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-52"]).toBe(
+      "bun run scripts/run-phase-52-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2545,13 +2558,17 @@ describe("release metadata and docs", () => {
       "Phase 51 is now closed as the Typed Behavioral Memory And Enactment",
     );
     expect(currentStatus).toContain("compiled `validated_pattern` feedback");
-    expect(currentStatus).toContain(PHASE51_CANONICAL_FALLBACK_REPORT);
-    expect(currentStatus).toContain(PHASE51_CANONICAL_LIVE_REPORT);
     expect(currentStatus).toContain(
-      "reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json",
+      "Phase 52 is now closed as the Structured Text-Response Enactment And",
+    );
+    expect(currentStatus).toContain("guarded_policy");
+    expect(currentStatus).toContain(PHASE52_CANONICAL_FALLBACK_REPORT);
+    expect(currentStatus).toContain(PHASE52_CANONICAL_LIVE_REPORT);
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json",
     );
     expect(currentStatus).toContain(
-      "docs/archive/quality-gates/GoodMemory-Phase-51-Quality-Gate.md",
+      "docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md",
     );
     expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
@@ -2828,6 +2845,17 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain(PHASE51_CANONICAL_LIVE_REPORT);
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json",
+    );
+    expect(taskBoard).toContain(
+      "57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt",
+    );
+    expect(taskBoard).toContain(
+      "Phase 52 is now closed as the structured text-response enactment and guarded",
+    );
+    expect(taskBoard).toContain(PHASE52_CANONICAL_FALLBACK_REPORT);
+    expect(taskBoard).toContain(PHASE52_CANONICAL_LIVE_REPORT);
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json",
     );
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
@@ -4165,6 +4193,36 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("first_action");
     expect(qualityGateDoc).toContain("full-300 ImplicitMemBench rerun");
     expect(archiveIndex).toContain("GoodMemory-Phase-51-Quality-Gate.md");
+  });
+
+  it("phase-52 quality gate doc points to the canonical structured enactment evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-52-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-52",
+      reportFileName: "phase-52-quality-gate.json",
+      runId: "run-20260502183000",
+    });
+
+    expect(qualityGateDoc).toContain(
+      "Structured Text-Response Enactment And Guarded Policy",
+    );
+    expect(qualityGateDoc).toContain(PHASE52_CANONICAL_FALLBACK_REPORT);
+    expect(qualityGateDoc).toContain(PHASE52_CANONICAL_LIVE_REPORT);
+    expect(qualityGateDoc).toContain("guarded_policy");
+    expect(qualityGateDoc).toContain("rewrite_output_slot");
+    expect(qualityGateDoc).toContain("require_precondition_check");
+    expect(qualityGateDoc).toContain("exact host-action recovery");
+    expect(archiveIndex).toContain("GoodMemory-Phase-52-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

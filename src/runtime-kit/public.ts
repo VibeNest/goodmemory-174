@@ -33,7 +33,9 @@ import type {
 } from "../progressive/recall";
 import type { MemoryScope } from "../domain/scope";
 import {
+  buildStructuredTextResponseControlLines,
   buildBehavioralSteeringLines,
+  resolveTextResponseEnactmentPlan,
   selectBehavioralPolicies,
 } from "../evolution/behavioralPolicy";
 import { createHostAdapter } from "../host/public";
@@ -209,9 +211,19 @@ function applyBehavioralSteeringToFragment(input: {
     query: input.query,
     surface: "text_response",
   });
-  const steeringLines = buildBehavioralSteeringLines(selections);
+  const textResponsePlan = resolveTextResponseEnactmentPlan(selections);
+  const structuredControlLines = buildStructuredTextResponseControlLines(
+    textResponsePlan,
+  );
+  const steeringLines = buildBehavioralSteeringLines(
+    selections.filter(
+      ({ policy }) =>
+        policy.enactmentSurface !== "text_response" ||
+        !policy.applicability.textResponsePlan,
+    ),
+  );
 
-  if (steeringLines.length === 0) {
+  if (structuredControlLines.length === 0 && steeringLines.length === 0) {
     return toFragmentContext({ builtContext: input.builtContext });
   }
 
@@ -219,11 +231,25 @@ function applyBehavioralSteeringToFragment(input: {
     mode: "fragment",
     content: [
       input.builtContext.content,
-      "Behavioral steering:",
-      "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
-      ...steeringLines,
+      structuredControlLines.length > 0
+        ? [
+            "Structured response control:",
+            "Apply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
+            ...structuredControlLines,
+          ].join("\n")
+        : undefined,
+      steeringLines.length > 0
+        ? [
+            "Behavioral steering:",
+            "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
+            ...steeringLines,
+          ].join("\n")
+        : undefined,
     ]
-      .filter((value) => value.trim().length > 0)
+      .filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
       .join("\n"),
     estimatedTokens: input.builtContext.estimatedTokens,
     omittedSections: [...input.builtContext.omittedSections],

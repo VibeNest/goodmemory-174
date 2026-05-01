@@ -4,7 +4,7 @@ Phase 52 Breakdown: Hard-Constraint Enactment And Procedural Rule Transfer
 Parent:
 `task-board/57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt`
 
-Status: [TODO]
+Status: [DONE]
 
 This slice follows the accepted Phase 51 typed behavioral-policy boundary and
 the latest full-300 research rerun. The goal is to turn the strongest remaining
@@ -16,6 +16,12 @@ Focus:
   behavior
 - stronger procedural anti-exemplar-collapse and symbolic transfer
 - exact first-action recovery where strict behavioral tasks require it
+
+Closure:
+
+- deterministic targeted eval: `reports/eval/fallback/phase-52/run-phase52-fallback-current/report.json`
+- live-memory behavioral evidence: `reports/eval/live-memory/phase-52/run-phase52-live-current/report.json`
+- quality gate: `reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json`
 
 Breakdown:
 

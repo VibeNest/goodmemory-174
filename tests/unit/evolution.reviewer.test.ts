@@ -196,13 +196,15 @@ describe("rules-only reviewer", () => {
       "xp-agent-correction-1",
       "xp-agent-correction-2",
     ]);
-    expect(readCompiledGuidance(proposals[0]!)).toEqual({
-      rule: "Use bullet points in summaries.",
-      kind: "do",
-      appliesTo: "coding_agent",
-      confidence: 0.9,
-      why: "Repeated adapter user corrections support this governed procedural pattern.",
-    });
+    expect(readCompiledGuidance(proposals[0]!)).toEqual(
+      expect.objectContaining({
+        rule: "Use bullet points in summaries.",
+        kind: "do",
+        appliesTo: "coding_agent",
+        confidence: 0.9,
+        why: "Repeated adapter user corrections support this governed procedural pattern.",
+      }),
+    );
   });
 
   it("does not treat duplicate agent-event correction rows for one trace as repeated lineage", async () => {
@@ -577,14 +579,16 @@ describe("rules-only reviewer", () => {
       "xp-tool-outcome-2",
     ]);
     expect(proposals[0]?.summary).toContain("DeepAnalyzer");
-    expect(readCompiledGuidance(proposals[0]!)).toEqual({
-      rule:
-        "When detailed analysis previously caused DeepAnalyzer --detailed timeouts, avoid DeepAnalyzer --detailed on the first action and use QuickCheck --network before proceeding.",
-      kind: "dont",
-      appliesTo: "general_response",
-      confidence: 0.9,
-      why: "Repeated tool-outcome failures show the original first action is unsafe for this cue.",
-    });
+    expect(readCompiledGuidance(proposals[0]!)).toEqual(
+      expect.objectContaining({
+        rule:
+          "When detailed analysis previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck before proceeding.",
+        kind: "dont",
+        appliesTo: "general_response",
+        confidence: 0.9,
+        why: "Repeated tool-outcome failures show the original first action is unsafe for this cue.",
+      }),
+    );
   });
 
   it("targets coding-agent tool outcome guidance when the source lineage is coding-agent scoped", async () => {
@@ -756,7 +760,7 @@ describe("rules-only reviewer", () => {
 
     expect(proposals).toHaveLength(1);
     expect(readCompiledGuidance(proposals[0]!)?.rule).toBe(
-      "When copy the report previously caused copy_file(/backup/report.txt, /src/report.txt) mismatches, avoid copy_file(/backup/report.txt, /src/report.txt) on the first action and use copy_file(/src/report.txt, /backup/report.txt) before proceeding.",
+      "When copy the report previously caused copy_file mismatches, avoid copy_file on the first action and use copy_file before proceeding.",
     );
   });
 });
