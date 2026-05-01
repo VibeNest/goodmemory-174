@@ -5,6 +5,7 @@ import {
   type GoodMemoryEvalSupport,
 } from "../../src/api/evalSupport";
 import { EVIDENCE_COLLECTION } from "../../src/evidence/contracts";
+import { readBehavioralPolicyFromFeedbackMemory } from "../../src/evolution/behavioralPolicy";
 import { recordBehavioralTrace } from "../../src/host/behavioralTraceBridge";
 import { validateBehavioralTrace } from "../../src/host/behavioralTrace";
 import {
@@ -59,9 +60,10 @@ describe("outcome telemetry promotion chain", () => {
         raw: "DeepAnalyzer --detailed",
       },
       saferAlternative: {
+        args: ["--network", "/tmp/worktree-a"],
         kind: "tool_call",
         name: "QuickCheck",
-        raw: "QuickCheck --network",
+        raw: "QuickCheck --network /tmp/worktree-a",
       },
     });
     await support!.recordBehavioralOutcome!({
@@ -75,9 +77,10 @@ describe("outcome telemetry promotion chain", () => {
         raw: "DeepAnalyzer --detailed",
       },
       saferAlternative: {
+        args: ["--network", "/tmp/worktree-a"],
         kind: "tool_call",
         name: "QuickCheck",
-        raw: "QuickCheck --network",
+        raw: "QuickCheck --network /tmp/worktree-a",
       },
     });
 
@@ -106,6 +109,27 @@ describe("outcome telemetry promotion chain", () => {
     expect(validatedPatterns[0]?.rule).toContain("avoid DeepAnalyzer");
     expect(validatedPatterns[0]?.rule).toContain("QuickCheck");
     expect(validatedPatterns[0]?.source.method).toBe("confirmed");
+    expect(readBehavioralPolicyFromFeedbackMemory(validatedPatterns[0]!)).toEqual({
+      behavioralKind: "first_action",
+      enactmentSurface: "host_action",
+      applicability: {
+        actionSummaryContains: ["detailed analysis"],
+        appliesTo: "general_response",
+        canonicalFirstAction: {
+          args: ["--network"],
+          kind: "tool_call",
+          name: "QuickCheck",
+          raw: "QuickCheck --network",
+        },
+        queryContains: ["detailed analysis"],
+      },
+      transferMode: "pattern_bounded",
+    });
+    expect(
+      readBehavioralPolicyFromFeedbackMemory(validatedPatterns[0]!)?.applicability
+        .argumentOrder,
+    ).toBeUndefined();
+    expect(validatedPatterns[0]?.rule).not.toContain("/tmp/worktree-a");
   });
 
   it("does not persist dangling evidence lineage when evidence storage fails", async () => {
@@ -243,6 +267,13 @@ describe("outcome telemetry promotion chain", () => {
     expect(validatedPatterns).toHaveLength(1);
     expect(validatedPatterns[0]?.rule).toContain("avoid DeepAnalyzer");
     expect(validatedPatterns[0]?.rule).toContain("QuickCheck");
+    expect(
+      readBehavioralPolicyFromFeedbackMemory(validatedPatterns[0]!),
+    )?.toMatchObject({
+      behavioralKind: "first_action",
+      enactmentSurface: "host_action",
+      transferMode: "pattern_bounded",
+    });
   });
 
   it("does not compile a failed targeted correction into durable guidance when a later safer action succeeds", async () => {

@@ -155,6 +155,9 @@ reports/eval/research/**
 !reports/eval/live-memory/phase-41/
 !reports/eval/live-memory/phase-41/run-phase41-live-current/
 !reports/eval/live-memory/phase-41/run-phase41-live-current/report.json
+!reports/eval/live-memory/phase-51/
+!reports/eval/live-memory/phase-51/run-phase51-live-current/
+!reports/eval/live-memory/phase-51/run-phase51-live-current/report.json
 !reports/eval/live-memory/phase-22-smoke/
 !reports/eval/live-memory/phase-22-smoke/run-1776651268822/
 !reports/eval/live-memory/phase-22-smoke/run-1776651268822/report.json
@@ -228,6 +231,7 @@ reports/quality-gates/**
 !reports/quality-gates/phase-48/run-20260428173000/phase-48-quality-gate.json
 !reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json
 !reports/quality-gates/phase-50/run-20260428224500/phase-50-quality-gate.json
+!reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/
 !reports/quality-gates/phase-20/run-20260420023503/dependency-gates/phase-16/run-20260420023503-phase-16/

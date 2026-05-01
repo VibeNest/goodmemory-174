@@ -79,6 +79,10 @@ const PHASE49_CANONICAL_GOODMEMORY_SMOKE_REPORT =
   "reports/eval/research/phase-49/goodmemory/run-phase49-smoke-current/report.json";
 const PHASE49_CANONICAL_COMPARISON_SMOKE_REPORT =
   "reports/eval/research/phase-49/comparison/run-phase49-smoke-current/report.json";
+const PHASE51_CANONICAL_FALLBACK_REPORT =
+  "reports/eval/fallback/phase-51/run-phase51-fallback-current/report.json";
+const PHASE51_CANONICAL_LIVE_REPORT =
+  "reports/eval/live-memory/phase-51/run-phase51-live-current/report.json";
 const PHASE41_TASK_BOARD_LEAF_FILES = [
   "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
   "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
@@ -846,6 +850,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-50"]).toBe(
       "bun run scripts/run-phase-50-installer-eval.ts",
     );
+    expect(pkg.scripts?.["eval:phase-51"]).toBe(
+      "bun run scripts/run-phase-51-eval.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-51-live-memory"]).toBe(
+      "bun run scripts/run-phase-51-live-memory.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -900,6 +910,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-50"]).toBe(
       "bun run scripts/run-phase-50-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-51"]).toBe(
+      "bun run scripts/run-phase-51-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2528,6 +2541,18 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "docs/archive/quality-gates/GoodMemory-Phase-50-Quality-Gate.md",
     );
+    expect(currentStatus).toContain(
+      "Phase 51 is now closed as the Typed Behavioral Memory And Enactment",
+    );
+    expect(currentStatus).toContain("compiled `validated_pattern` feedback");
+    expect(currentStatus).toContain(PHASE51_CANONICAL_FALLBACK_REPORT);
+    expect(currentStatus).toContain(PHASE51_CANONICAL_LIVE_REPORT);
+    expect(currentStatus).toContain(
+      "reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json",
+    );
+    expect(currentStatus).toContain(
+      "docs/archive/quality-gates/GoodMemory-Phase-51-Quality-Gate.md",
+    );
     expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
@@ -2792,6 +2817,17 @@ describe("release metadata and docs", () => {
     );
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-50/run-20260428224500/phase-50-quality-gate.json",
+    );
+    expect(taskBoard).toContain(
+      "56-phase-51-typed-behavioral-memory-and-enactment-hardening.txt",
+    );
+    expect(taskBoard).toContain(
+      "Phase 51 is now closed as the typed behavioral memory and enactment",
+    );
+    expect(taskBoard).toContain(PHASE51_CANONICAL_FALLBACK_REPORT);
+    expect(taskBoard).toContain(PHASE51_CANONICAL_LIVE_REPORT);
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json",
     );
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
@@ -4099,6 +4135,36 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("dry-run no-mutation");
     expect(qualityGateDoc).toContain("no default writeback escalation");
     expect(archiveIndex).toContain("GoodMemory-Phase-50-Quality-Gate.md");
+  });
+
+  it("phase-51 quality gate doc points to the canonical typed behavioral hardening evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-51-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-51",
+      reportFileName: "phase-51-quality-gate.json",
+      runId: "run-20260430164000",
+    });
+
+    expect(qualityGateDoc).toContain(
+      "Typed Behavioral Memory And Enactment Hardening",
+    );
+    expect(qualityGateDoc).toContain(PHASE51_CANONICAL_FALLBACK_REPORT);
+    expect(qualityGateDoc).toContain(PHASE51_CANONICAL_LIVE_REPORT);
+    expect(qualityGateDoc).toContain("validated_pattern");
+    expect(qualityGateDoc).toContain("steering-only");
+    expect(qualityGateDoc).toContain("first_action");
+    expect(qualityGateDoc).toContain("full-300 ImplicitMemBench rerun");
+    expect(archiveIndex).toContain("GoodMemory-Phase-51-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

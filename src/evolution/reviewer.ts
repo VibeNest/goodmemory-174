@@ -16,10 +16,15 @@ import {
   attachCompiledGuidance,
   behavioralFirstActionsEqual,
   formatBehavioralFirstAction,
+  type BehavioralFirstAction,
   isToolOutcomeExperience,
   parseToolOutcomeMetadata,
   serializeBehavioralFirstAction,
 } from "./behavioralTelemetry";
+import {
+  deriveRuleBehavioralPolicy,
+  type BehavioralPolicy,
+} from "./behavioralPolicy";
 import {
   buildAgentEventCorrectionGroupKey,
   readAgentEventCorrectionMetadata,
@@ -261,8 +266,7 @@ function buildProceduralPatternProposal(input: {
   const sorted = sortExperiences(input.experiences);
   const guidance = buildFeedbackSummary(input.feedback);
   const scope = resolveProposalScope(sorted);
-
-  return createLearningProposal({
+  const proposal = createLearningProposal({
     id: input.createId(),
     userId: scope.userId,
     tenantId: scope.tenantId,
@@ -281,6 +285,28 @@ function buildProceduralPatternProposal(input: {
     modelInfluence: aggregateModelInfluence(sorted),
     createdAt: input.now,
     updatedAt: input.now,
+  });
+
+  if (!input.feedback || input.feedback.kind === "validated_pattern") {
+    return proposal;
+  }
+
+  const behavioralPolicy = deriveRuleBehavioralPolicy({
+    appliesTo: input.feedback.appliesTo,
+    exemplarCount: 1,
+    kind: input.feedback.kind,
+    rule: input.feedback.rule,
+  });
+
+  return attachCompiledGuidance(proposal, {
+    appliesTo: input.feedback.appliesTo,
+    behavioralPolicy,
+    confidence: input.feedback.confidence,
+    kind: input.feedback.kind,
+    rule: input.feedback.rule,
+    why:
+      input.feedback.why ??
+      "Repeated explicit feedback supports this behavioral policy under governed promotion.",
   });
 }
 
@@ -317,6 +343,12 @@ function buildAgentEventCorrectionPatternProposal(input: {
 
   return attachCompiledGuidance(proposal, {
     rule: input.metadata.signal,
+    behavioralPolicy: deriveRuleBehavioralPolicy({
+      appliesTo: input.metadata.appliesTo,
+      exemplarCount: 2,
+      kind: input.metadata.kind,
+      rule: input.metadata.signal,
+    }),
     kind: input.metadata.kind,
     appliesTo: input.metadata.appliesTo,
     confidence: 0.9,
@@ -365,6 +397,39 @@ function buildOutcomeGuidanceRule(input: {
   )}, avoid ${input.firstActionLabel} on the first action${saferSegment}`;
 }
 
+function sanitizeOutcomeDerivedActionArgs(
+  args: readonly string[] | undefined,
+): string[] | undefined {
+  const stableArgs = args?.filter((value) => /^--?[a-z0-9][a-z0-9_-]*$/iu.test(value));
+  return stableArgs && stableArgs.length > 0 ? [...stableArgs] : undefined;
+}
+
+function sanitizeOutcomeDerivedAction(
+  action: BehavioralFirstAction | undefined,
+): BehavioralFirstAction | undefined {
+  if (!action) {
+    return undefined;
+  }
+
+  if (action.kind === "warning") {
+    return {
+      kind: action.kind,
+      name: action.name,
+      ...(action.raw ? { raw: action.raw } : {}),
+    };
+  }
+
+  const args = sanitizeOutcomeDerivedActionArgs(action.args);
+  const raw = args ? [action.name, ...args].join(" ") : undefined;
+
+  return {
+    kind: action.kind,
+    name: action.name,
+    ...(args ? { args } : {}),
+    ...(raw ? { raw } : {}),
+  };
+}
+
 function buildToolOutcomePatternProposal(input: {
   createId: () => string;
   createTraceId: () => string;
@@ -401,10 +466,29 @@ function buildToolOutcomePatternProposal(input: {
   }
 
   const scope = resolveProposalScope(sorted);
-  const firstActionLabel = formatBehavioralFirstAction(firstMetadata.firstAction);
-  const saferAlternativeLabel = firstMetadata.saferAlternative
-    ? formatBehavioralFirstAction(firstMetadata.saferAlternative)
+  const sanitizedFirstAction = sanitizeOutcomeDerivedAction(firstMetadata.firstAction)!;
+  const sanitizedSaferAlternative = sanitizeOutcomeDerivedAction(
+    firstMetadata.saferAlternative,
+  );
+  const firstActionLabel = formatBehavioralFirstAction(sanitizedFirstAction);
+  const saferAlternativeLabel = sanitizedSaferAlternative
+    ? formatBehavioralFirstAction(sanitizedSaferAlternative)
     : undefined;
+  const behavioralPolicy: BehavioralPolicy = {
+    behavioralKind: "first_action",
+    enactmentSurface: "host_action",
+    applicability: {
+      actionSummaryContains: [firstMetadata.cue],
+      appliesTo,
+      canonicalFirstAction: sanitizedSaferAlternative ?? {
+        kind: "warning",
+        name: "warning",
+        raw: "Warn before proceeding.",
+      },
+      queryContains: [firstMetadata.cue],
+    },
+    transferMode: "pattern_bounded",
+  };
   const proposal = createLearningProposal({
     id: input.createId(),
     userId: scope.userId,
@@ -436,6 +520,7 @@ function buildToolOutcomePatternProposal(input: {
     }),
     kind: resolveOutcomeGuidanceKind(),
     appliesTo,
+    behavioralPolicy,
     confidence: 0.9,
     why: "Repeated tool-outcome failures show the original first action is unsafe for this cue.",
   });

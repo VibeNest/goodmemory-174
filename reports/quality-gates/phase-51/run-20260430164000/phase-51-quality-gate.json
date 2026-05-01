@@ -1,0 +1,120 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 51 targeted deterministic and live behavioral evidence passed."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 4186,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/evolution.behavioral-policy.test.ts tests/unit/host.pre-action-policy.test.ts tests/unit/runtime-kit.test.ts tests/unit/context-builder.outputs.test.ts tests/integration/evolution.outcome-telemetry.test.ts tests/integration/evolution.compiler.test.ts tests/unit/run-phase-51.script.test.ts tests/unit/run-phase-51.gate.test.ts",
+      "durationMs": 123,
+      "exitCode": 0,
+      "label": "phase-51-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) context builder output modes > dedupes duplicate feedback rules and keeps the highest-priority variant in rendered context [0.06ms]",
+        "(pass) context builder output modes > frames blocker facts as immediate next-step support and open loops as deferred context [0.33ms]",
+        "(pass) context builder output modes > localizes next-step support labels for Chinese memory context [0.14ms]",
+        "",
+        "tests/integration/evolution.outcome-telemetry.test.ts:",
+        "(pass) outcome telemetry promotion chain > promotes repeated tool outcome failures into a validated pattern without explicit feedback memory [2.26ms]",
+        "(pass) outcome telemetry promotion chain > does not persist dangling evidence lineage when evidence storage fails [0.32ms]",
+        "(pass) outcome telemetry promotion chain > promotes repeated failed Codex traces into a validated pattern through the same telemetry chain [0.92ms]",
+        "(pass) outcome telemetry promotion chain > does not compile a failed targeted correction into durable guidance when a later safer action succeeds [0.51ms]",
+        "",
+        "tests/integration/evolution.compiler.test.ts:",
+        "(pass) procedural pattern compiler > compiles accepted procedural promotions into one active validated pattern and supersedes the source guidance [0.60ms]",
+        "(pass) procedural pattern compiler > does not compile delayed procedural proposals into validated patterns [0.61ms]",
+        "(pass) procedural pattern compiler > does not reactivate a superseded source guidance into a new validated pattern [0.65ms]",
+        "(pass) procedural pattern compiler > deduplicates equivalent procedural patterns across accepted session-scoped promotions [0.76ms]",
+        "",
+        " 52 pass",
+        " 0 fail",
+        " 195 expect() calls",
+        "Ran 52 tests across 8 files. [116.00ms]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-51 -- --run-id run-phase51-fallback-current",
+      "durationMs": 89,
+      "exitCode": 0,
+      "label": "eval:phase-51",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-51-eval.ts --run-id \"run-phase51-fallback-current\""
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"summary\": {",
+        "    \"caseCountsByDataset\": {",
+        "      \"classical_conditioning\": 4,",
+        "      \"priming\": 1,",
+        "      \"procedural_memory\": 12",
+        "    },",
+        "    \"caseCountsByScorer\": {",
+        "      \"priming_pair_judge\": 1,",
+        "      \"structured_first_action\": 4,",
+        "      \"text_behavior_judge\": 12",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"passedBlockingCases\": 8,",
+        "    \"primingAverageScore\": 1,",
+        "    \"totalBlockingCases\": 16,",
+        "    \"totalCases\": 17",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-51/run-phase51-fallback-current/report.json",
+      "reason": "Phase 51 deterministic targeted eval is generated evidence and remains reproducible ignored output.",
+      "regenerateCommand": "bun run eval:phase-51 -- --run-id run-phase51-fallback-current",
+      "status": "accepted"
+    },
+    "liveMemoryReport": {
+      "canonicalLiveReportPath": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-51/run-phase51-live-current/report.json",
+      "distilledBlockingCases": 8,
+      "distilledPassedBlockingCases": 7,
+      "explicitRecallLeakDelta": 0,
+      "liveReportPath": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-51/run-phase51-live-current/report.json",
+      "primingOnlyInRaw": true,
+      "rawBlockingCases": 8,
+      "rawPassedBlockingCases": 3,
+      "requiredTaskFilesPresent": [
+        "conditioned_directory_restriction.json",
+        "conditioned_protocol_preference.json",
+        "corporate_etiquette_mandate.json",
+        "logiql_query_language.json",
+        "reversed_parameter_protocol.json",
+        "the_modified_recurrence_sequence.json",
+        "the_omega_operation.json",
+        "the_scribe_s_signature.json",
+        "volcanic_eruption.json"
+      ],
+      "status": "accepted",
+      "structuredDistilledPasses": 1
+    }
+  },
+  "generatedAt": "2026-04-30T16:45:35.149Z",
+  "generatedBy": "scripts/run-phase-51-gate.ts",
+  "phase": "phase-51",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-51/run-20260430164000",
+  "runId": "run-20260430164000"
+}

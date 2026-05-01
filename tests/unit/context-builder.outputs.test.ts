@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { attachBehavioralPolicyAttributes } from "../../src/evolution/behavioralPolicy";
 import {
   buildMemoryPacket,
   renderMemoryPacket,
@@ -189,6 +190,50 @@ describe("context builder output modes", () => {
 
     expect(markdown.content).toContain("## Working Memory");
     expect(markdown.content).not.toContain("## Evidence");
+  });
+
+  it("keeps steering-only typed behavioral policies out of visible feedback summaries", () => {
+    const packet = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [],
+      feedback: [
+        {
+          id: "fb-typed-1",
+          userId: "u-1",
+          rule: "Always start the response with \"Subject: [Internal]\".",
+          kind: "validated_pattern",
+          confidence: 1,
+          source: { method: "confirmed", extractedAt: "2026-04-30T00:00:00.000Z" },
+          updatedAt: "2026-04-30T00:00:00.000Z",
+          lifecycle: "active",
+          evidence: [],
+          appliesTo: "general_response",
+          attributes: attachBehavioralPolicyAttributes(undefined, {
+            behavioralKind: "format_contract",
+            enactmentSurface: "text_response",
+            applicability: {
+              appliesTo: "general_response",
+              exactFragments: {
+                prefixes: ["Subject: [Internal]"],
+              },
+            },
+            transferMode: "general",
+          }),
+        },
+      ],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+    });
+
+    const developerPrompt = renderMemoryPacket(packet, "developer_prompt_fragment");
+
+    expect(developerPrompt.content).toContain("Developer memory notes");
+    expect(developerPrompt.content).not.toContain("Subject: [Internal]");
   });
 
   it("prioritizes procedural, runtime, and evidence sections for coding-agent packets under token pressure", () => {

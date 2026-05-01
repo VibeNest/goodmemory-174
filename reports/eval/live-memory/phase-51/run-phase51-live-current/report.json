@@ -1,0 +1,398 @@
+{
+  "benchmarkRoot": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51",
+  "generatedAt": "2026-04-30T16:32:11.485Z",
+  "generatedBy": "scripts/run-phase-51-live-memory.ts",
+  "kind": "goodmemory",
+  "manifestPath": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/adapter-manifest.json",
+  "mode": "live",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-51",
+  "profiles": {
+    "goodmemory-raw-experience": {
+      "caseCountsByDataset": {
+        "classical_conditioning": 2,
+        "priming": 1,
+        "procedural_memory": 6
+      },
+      "caseCountsByScorer": {
+        "priming_pair_judge": 1,
+        "structured_first_action": 2,
+        "text_behavior_judge": 6
+      },
+      "cases": [
+        {
+          "answer": "Use a standard config location instead:\n\n- System-wide: `/etc/app/config.yml`\n- Per-user: `~/.config/app/config.yml`\n\nIf this is a service or container running as root, `/etc/app/config.yml` is usually the best replacement for `/root/app/config.yml`.",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase51_semantic_directory_restriction_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/classical_conditioning/conditioned_directory_restriction.json",
+          "taskFile": "conditioned_directory_restriction.json",
+          "taskName": "Conditioned Directory Restriction",
+          "memoryContext": "Developer memory notes:"
+        },
+        {
+          "answer": "I don’t have the download URL for the new client installer. If you share the product name or the vendor/site, I can help you find the correct installer page.",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase51_semantic_protocol_preference_failed",
+          "passed": false,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/classical_conditioning/conditioned_protocol_preference.json",
+          "taskFile": "conditioned_protocol_preference.json",
+          "taskName": "Conditioned Protocol Preference",
+          "memoryContext": "Developer memory notes:"
+        },
+        {
+          "blocking": false,
+          "caseId": "priming/volcanic_eruption.json#001",
+          "datasetFamily": "priming",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase51_keyword_delta:0-0",
+          "primingControlAnswer": "{\"candidates\":[\"Aurex\",\"Nyphora\",\"Veltrix\"]}",
+          "primingExperimentalAnswer": "{\"candidates\":[\"Velora\",\"Nyphera\",\"Quoril\"]}",
+          "primingInfluenceScore": 0,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "priming_pair_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/priming/volcanic_eruption.json",
+          "taskFile": "volcanic_eruption.json",
+          "taskName": "Volcanic Eruption / creative_naming",
+          "memoryContext": "experimental:\nDeveloper memory notes:\n\ncontrol:\nDeveloper memory notes:"
+        },
+        {
+          "answer": "TechNova Policy Update: Remote badge checks will begin on Monday. All remote employees should be prepared to complete badge verification as part of standard access and security procedures. Please ensure your badge information is current before the start of the week.",
+          "blocking": true,
+          "caseId": "procedural_memory/corporate_etiquette_mandate.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase51_smoke_assertions_failed:missing_phrase:Dear Team,,missing_phrase:Sincerely, TechNova Management.,missing_keyword:Subject:",
+          "passed": false,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/corporate_etiquette_mandate.json",
+          "taskFile": "corporate_etiquette_mandate.json",
+          "taskName": "Corporate Etiquette Mandate",
+          "memoryContext": "Developer memory notes:"
+        },
+        {
+          "answer": "SELECT * FROM users WHERE age > 30;",
+          "blocking": true,
+          "caseId": "procedural_memory/logiql_query_language.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "firstAction": {
+            "args": [
+              "*",
+              "FROM",
+              "users",
+              "WHERE",
+              "age",
+              ">",
+              "30;"
+            ],
+            "kind": "command",
+            "name": "SELECT",
+            "raw": "SELECT * FROM users WHERE age > 30;"
+          },
+          "firstActionRaw": "SELECT * FROM users WHERE age > 30;",
+          "judgeReason": "expected_first_action_missing_or_forbidden",
+          "passed": false,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/logiql_query_language.json",
+          "taskFile": "logiql_query_language.json",
+          "taskName": "LogiQL Query Language",
+          "memoryContext": "Developer memory notes:"
+        },
+        {
+          "answer": "cp /data/reports/report.txt /var/backup/reports/",
+          "blocking": true,
+          "caseId": "procedural_memory/reversed_parameter_protocol.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "firstAction": {
+            "args": [
+              "/data/reports/report.txt",
+              "/var/backup/reports/"
+            ],
+            "kind": "command",
+            "name": "cp",
+            "raw": "cp /data/reports/report.txt /var/backup/reports/"
+          },
+          "firstActionRaw": "cp /data/reports/report.txt /var/backup/reports/",
+          "judgeReason": "expected_first_action_missing_or_forbidden",
+          "passed": false,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/reversed_parameter_protocol.json",
+          "taskFile": "reversed_parameter_protocol.json",
+          "taskName": "Reversed Parameter Protocol",
+          "memoryContext": "Developer memory notes:"
+        },
+        {
+          "answer": "Underspecified — with only a single worked example and no rule given here, P(5) can’t be determined.",
+          "blocking": true,
+          "caseId": "procedural_memory/the_modified_recurrence_sequence.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase51_semantic_modified_recurrence_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/the_modified_recurrence_sequence.json",
+          "taskFile": "the_modified_recurrence_sequence.json",
+          "taskName": "Modified Recurrence Sequence",
+          "memoryContext": "Developer memory notes:"
+        },
+        {
+          "answer": "I can’t determine 4 ⊗ 5 from the information given. There’s no definition of ⊗ here, and a single example would not be enough to infer a general rule reliably.",
+          "blocking": true,
+          "caseId": "procedural_memory/the_omega_operation.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase51_semantic_omega_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/the_omega_operation.json",
+          "taskFile": "the_omega_operation.json",
+          "taskName": "Omega Operation",
+          "memoryContext": "Developer memory notes:"
+        },
+        {
+          "answer": "Subject: Manuscript Review Complete\n\nDear [Editor Name],\n\nI’m writing to let you know that my review of the manuscript is complete, and I have submitted my comments and recommendation through the system.\n\nPlease let me know if any additional information would be helpful.\n\nBest regards,  \n[Your Name]",
+          "blocking": true,
+          "caseId": "procedural_memory/the_scribe_s_signature.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase51_smoke_assertions_failed:missing_phrase:Sincerely,",
+          "passed": false,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/the_scribe_s_signature.json",
+          "taskFile": "the_scribe_s_signature.json",
+          "taskName": "The Scribe's Signature",
+          "memoryContext": "Developer memory notes:"
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "passedBlockingCases": 3,
+      "primingAverageScore": 0,
+      "totalBlockingCases": 8,
+      "totalCases": 9
+    },
+    "goodmemory-distilled-feedback": {
+      "caseCountsByDataset": {
+        "classical_conditioning": 2,
+        "priming": 0,
+        "procedural_memory": 6
+      },
+      "caseCountsByScorer": {
+        "priming_pair_judge": 0,
+        "structured_first_action": 2,
+        "text_behavior_judge": 6
+      },
+      "cases": [
+        {
+          "answer": "Use a user-owned location instead, for example:\n\n- `~/.config/app/config.yml`  ← preferred for per-user config\n- `~/app/config.yml`          ← simple alternative\n\nIf you want an explicit absolute path, something like:\n\n- `/home/youruser/.config/app/config.yml`\n\nis a good replacement for `/root/app/config.yml`.",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase51_semantic_directory_restriction_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/classical_conditioning/conditioned_directory_restriction.json",
+          "taskFile": "conditioned_directory_restriction.json",
+          "taskName": "Conditioned Directory Restriction",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not write under /root/; refuse or redirect to a safe home-directory path.\n\nBehavioral steering:\nApply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nAvoid this behavior when the trigger matches: Do not write under /root/; refuse or redirect to a safe home-directory path."
+        },
+        {
+          "answer": "I don’t have the specific installer URL from your environment.\n\nIf you want, send the product name, version, and platform, and I’ll give you the exact download link format. If you’re drafting it yourself, use an HTTPS URL, for example:\n\n`https://yourdomain.com/downloads/client-installer.exe`",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase51_semantic_protocol_preference_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/classical_conditioning/conditioned_protocol_preference.json",
+          "taskFile": "conditioned_protocol_preference.json",
+          "taskName": "Conditioned Protocol Preference",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Prefer https URLs or warn instead of producing http URLs.\n\nBehavioral steering:\nApply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nPrefer this behavior when it fits the current probe: Prefer https URLs or warn instead of producing http URLs."
+        },
+        {
+          "answer": "Subject: Remote Badge Checks Begin Monday\n\nDear Team,\n\nPlease be advised that remote badge checks will begin on Monday. All employees working remotely should be prepared to complete the badge verification process as instructed to help maintain security and compliance.\n\nThank you for your cooperation.\n\nSincerely, TechNova Management.",
+          "blocking": true,
+          "caseId": "procedural_memory/corporate_etiquette_mandate.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase51_smoke_assertions_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/corporate_etiquette_mandate.json",
+          "taskFile": "corporate_etiquette_mandate.json",
+          "taskName": "Corporate Etiquette Mandate",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - At TechNova policy announcements, include a Subject line, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'\n\nBehavioral steering:\nApply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nStart the response with \"Dear Team,\".\nInclude the exact fragment \"Dear Team,\".\nInclude the exact fragment \"Sincerely, TechNova Management.\".\nFollow this exact formatting rule: At TechNova policy announcements, include a Subject line, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'"
+        },
+        {
+          "answer": "FETCH users | FILTER age > 30",
+          "blocking": true,
+          "caseId": "procedural_memory/logiql_query_language.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "firstAction": {
+            "args": [
+              "users",
+              "|",
+              "FILTER",
+              "age",
+              ">",
+              "30"
+            ],
+            "kind": "command",
+            "name": "FETCH",
+            "raw": "FETCH users | FILTER age > 30"
+          },
+          "firstActionRaw": "FETCH users | FILTER age > 30",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/logiql_query_language.json",
+          "taskFile": "logiql_query_language.json",
+          "taskName": "LogiQL Query Language",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.\n\nBehavioral steering:\nApply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nFollow this first-action rule: For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.\nDo not replace the canonical action with generic shell prose, alternative utilities, or explanation-first text."
+        },
+        {
+          "answer": "copy_file('/var/backup/reports/', '/data/reports/report.txt')",
+          "blocking": true,
+          "caseId": "procedural_memory/reversed_parameter_protocol.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "firstAction": {
+            "args": [
+              "'/var/backup/reports/'",
+              "'/data/reports/report.txt'"
+            ],
+            "kind": "tool_call",
+            "name": "copy_file",
+            "raw": "copy_file('/var/backup/reports/', '/data/reports/report.txt')"
+          },
+          "firstActionRaw": "copy_file('/var/backup/reports/', '/data/reports/report.txt')",
+          "judgeReason": "expected_first_action_missing_or_forbidden",
+          "passed": false,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/reversed_parameter_protocol.json",
+          "taskFile": "reversed_parameter_protocol.json",
+          "taskName": "Reversed Parameter Protocol",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - copy_file takes destination first and source second.\n\nBehavioral steering:\nApply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nFollow this first-action rule: copy_file takes destination first and source second.\nUse \"copy_file\" as the first executable action.\nPreserve argument order exactly: destination before source.\nDo not replace the canonical action with generic shell prose, alternative utilities, or explanation-first text."
+        },
+        {
+          "answer": "It’s underspecified. From a single worked example alone, you can’t determine \\(P(5)\\) reliably without the actual recurrence rule or more values.",
+          "blocking": true,
+          "caseId": "procedural_memory/the_modified_recurrence_sequence.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase51_semantic_modified_recurrence_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/the_modified_recurrence_sequence.json",
+          "taskFile": "the_modified_recurrence_sequence.json",
+          "taskName": "Modified Recurrence Sequence",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - For this modified recurrence sequence example only, P(2) equals 10; do not generalize a new recurrence rule without additional evidence.\n\nBehavioral steering:\nApply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nAvoid this behavior when the trigger matches: For this modified recurrence sequence example only, P(2) equals 10; do not generalize a new recurrence rule without additional evidence."
+        },
+        {
+          "answer": "It can’t be determined uniquely from just the single example 2 ⊗ 3 = 31. One example is not enough to infer a general rule for ⊗, so 4 ⊗ 5 could have many possible values depending on the definition.",
+          "blocking": true,
+          "caseId": "procedural_memory/the_omega_operation.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase51_semantic_omega_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/the_omega_operation.json",
+          "taskFile": "the_omega_operation.json",
+          "taskName": "Omega Operation",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - For this omega operation example only, 2 ⊗ 3 equals 31; do not infer a general operator rule from one exemplar.\n\nBehavioral steering:\nApply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nAvoid this behavior when the trigger matches: For this omega operation example only, 2 ⊗ 3 equals 31; do not infer a general operator rule from one exemplar."
+        },
+        {
+          "answer": "Subject: Manuscript Review Complete\n\nDear Editor,\n\nI’m writing to let you know that the manuscript review is complete.\n\nSincerely,  \n[Your Name]",
+          "blocking": true,
+          "caseId": "procedural_memory/the_scribe_s_signature.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase51_smoke_assertions_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-51/dataset/procedural_memory/the_scribe_s_signature.json",
+          "taskFile": "the_scribe_s_signature.json",
+          "taskName": "The Scribe's Signature",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Editor status emails require a Subject line, a Dear greeting, and a Sincerely sign-off with the sender's name.\n\nBehavioral steering:\nApply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nFollow this exact formatting rule: Editor status emails require a Subject line, a Dear greeting, and a Sincerely sign-off with the sender's name."
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "passedBlockingCases": 7,
+      "primingAverageScore": null,
+      "totalBlockingCases": 8,
+      "totalCases": 8
+    }
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-51/run-phase51-live-current",
+  "runId": "run-phase51-live-current",
+  "source": {
+    "benchmark": "ImplicitMemBench",
+    "license": "CC BY 4.0",
+    "url": "https://github.com/qinchonghanzuibang/ImplicitMemBench"
+  },
+  "summary": {
+    "caseCountsByDataset": {
+      "classical_conditioning": 4,
+      "priming": 1,
+      "procedural_memory": 12
+    },
+    "caseCountsByScorer": {
+      "priming_pair_judge": 1,
+      "structured_first_action": 4,
+      "text_behavior_judge": 12
+    },
+    "executionFailures": 0,
+    "explicitRecallLeakCount": 0,
+    "passedBlockingCases": 10,
+    "primingAverageScore": 0,
+    "totalBlockingCases": 16,
+    "totalCases": 17
+  }
+}

@@ -1,16 +1,16 @@
 Phase 51.3: Enactment And Leak Suppression
 ==========================================
 
-[TODO] P51.3-T001 Add a stronger enactment path for canonical first action,
+[DONE] P51.3-T001 Add a stronger enactment path for canonical first action,
 exact syntax, and argument-order preservation where runtime/host surfaces can
 support it.
 
-[TODO] P51.3-T002 Keep enactment separate from generic prose generation so
+[DONE] P51.3-T002 Keep enactment separate from generic prose generation so
 behavioral policy can steer exact first action without benchmark-specific
 heuristics.
 
-[TODO] P51.3-T003 Add leak-suppression controls that distinguish steering
+[DONE] P51.3-T003 Add leak-suppression controls that distinguish steering
 context from answer-visible content.
 
-[TODO] P51.3-T004 Keep priming research-only and pair stronger behavioral
+[DONE] P51.3-T004 Keep priming research-only and pair stronger behavioral
 steering with contamination and explicit-recall checks.

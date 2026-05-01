@@ -5,6 +5,11 @@ import { z } from "zod";
 import { createInternalGoodMemory } from "../api/createGoodMemory";
 import type { GoodMemory } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
+import {
+  buildBehavioralActionSteeringLines,
+  buildBehavioralSteeringLines,
+  selectBehavioralPolicies,
+} from "../evolution/behavioralPolicy";
 import type { BehavioralFirstAction } from "../evolution/behavioralTelemetry";
 import { behavioralFirstActionsEqual } from "../evolution/behavioralTelemetry";
 import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
@@ -937,6 +942,7 @@ function buildGoodMemoryPrompt(input: {
   }
 
   return [
+    "Apply any remembered behavioral guidance implicitly. Do not mention memory or prior notes unless the probe asks for them directly.",
     input.memoryContext ? `Memory context:\n${input.memoryContext}` : undefined,
     `Probe:\n${input.caseDefinition.instance.test_probe.content}`,
   ]
@@ -949,6 +955,7 @@ function buildGoodMemoryPrimingPrompt(input: {
   memoryContext: string;
 }): string {
   return [
+    "Apply any remembered behavioral guidance implicitly. Do not mention memory or prior notes unless the probe asks for them directly.",
     input.memoryContext ? `Memory context:\n${input.memoryContext}` : undefined,
     `Probe:\n${input.branch.test_probe.prompt}`,
   ]
@@ -960,6 +967,9 @@ async function buildMemoryContext(
   memory: GoodMemory,
   scope: MemoryScope,
   query: string,
+  options?: {
+    scorerFamily?: ImplicitMemBenchScorerFamily;
+  },
 ): Promise<string> {
   const recall = await memory.recall({
     query,
@@ -970,8 +980,48 @@ async function buildMemoryContext(
     output: "developer_prompt_fragment",
     recall,
   });
+  const exported = await memory.exportMemory({ scope });
+  const feedbackById = new Map<string, (typeof exported.durable.feedback)[number]>();
+  for (const feedback of exported.durable?.feedback ?? []) {
+    feedbackById.set(feedback.id, feedback);
+  }
+  for (const feedback of recall.feedback ?? []) {
+    feedbackById.set(feedback.id, feedback);
+  }
+  const feedback = [...feedbackById.values()];
+  const steeringLines = buildBehavioralSteeringLines(
+    selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback,
+      query,
+      surface: "text_response",
+    }),
+  );
+  const actionSteeringLines =
+    options?.scorerFamily === "structured_first_action"
+      ? buildBehavioralActionSteeringLines(
+          selectBehavioralPolicies({
+            appliesTo: "general_response",
+            feedback,
+            query,
+            surface: "host_action",
+          }),
+        )
+      : [];
 
-  return builtContext.content;
+  return [
+    builtContext.content,
+    steeringLines.length > 0 || actionSteeringLines.length > 0
+      ? [
+          "Behavioral steering:",
+          "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.",
+          ...steeringLines,
+          ...actionSteeringLines,
+        ].join("\n")
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function countExplicitRecallLeak(answer: string): boolean {
@@ -1570,10 +1620,38 @@ function createSmokeAnswer(
   profile: ImplicitMemBenchResearchProfile,
 ): string | { control: string; experimental: string } {
   switch (caseDefinition.taskFile) {
+    case "conditioned_directory_restriction.json":
+      return profile === "goodmemory-distilled-feedback"
+        ? "Avoid /root and use /home/app/config.yml instead."
+        : "Write to /root/app/config.yml.";
+    case "conditioned_protocol_preference.json":
+      return profile === "goodmemory-distilled-feedback"
+        ? "https://downloads.example.com/client-installer"
+        : "http://downloads.example.com/client-installer";
+    case "corporate_etiquette_mandate.json":
+      return profile === "goodmemory-distilled-feedback"
+        ? "Subject: Remote Badge Checks\nDear Team,\nRemote badge checks begin on Monday.\nSincerely, TechNova Management."
+        : "Remote badge checks begin on Monday.";
+    case "logiql_query_language.json":
+      return profile === "goodmemory-distilled-feedback"
+        ? "FETCH users | FILTER age > 30"
+        : "SELECT * FROM users WHERE age > 30";
     case "reversed_parameter_protocol.json":
-      return profile === "baseline-upstream-chat"
-        ? "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
-        : "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')";
+      return profile === "goodmemory-distilled-feedback"
+        ? "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+        : "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')";
+    case "the_modified_recurrence_sequence.json":
+      return profile === "goodmemory-distilled-feedback"
+        ? "The rule is insufficiently specified from a single example, so I cannot infer P(5)."
+        : "P(5) = 10";
+    case "the_omega_operation.json":
+      return profile === "goodmemory-distilled-feedback"
+        ? "This example is insufficient to derive a general omega rule."
+        : "31";
+    case "the_scribe_s_signature.json":
+      return profile === "goodmemory-distilled-feedback"
+        ? "Subject: Review Status\nDear Editor,\nThe manuscript review is complete.\nSincerely,\nMara Chen"
+        : "The manuscript review is complete.";
     case "character_voice_consistency.json":
       return profile === "baseline-upstream-chat"
         ? "Use sandbags and ropes to redirect the river away from the village."
@@ -1902,11 +1980,13 @@ async function evaluateGoodMemoryCase(input: {
             memory,
             experimentalScope,
             input.caseDefinition.instance.experimental_instance.test_probe.prompt,
+            { scorerFamily: input.caseDefinition.scorerFamily },
           );
           const controlContext = await buildMemoryContext(
             memory,
             controlScope,
             input.caseDefinition.instance.control_instance.test_probe.prompt,
+            { scorerFamily: input.caseDefinition.scorerFamily },
           );
           const primingGenerated =
             input.mode === "smoke"
@@ -1962,6 +2042,7 @@ async function evaluateGoodMemoryCase(input: {
           memory,
           scope,
           input.caseDefinition.instance.test_probe.content,
+          { scorerFamily: input.caseDefinition.scorerFamily },
         );
         const answer =
           input.mode === "smoke"

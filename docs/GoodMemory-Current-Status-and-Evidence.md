@@ -27,6 +27,13 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 - Phase 47 is now closed as the Provider-Backed Retrieval Rollout and Quality Promotion slice. `bun run eval:phase-47` compares deterministic rules-only and explicit `hybrid` provider-backed recall over real `createGoodMemory().recall()` paths, then requires useful recall improvement without increased wrong recall, stale recall, or setup fragility. The HTTP bridge accepts explicit `auto` / `rules-only` / `hybrid` recall strategy, keeps omitted and `auto` bridge requests on rules-only even when provider runtime is configured, returns routing diagnostics, rejects public `llm-assisted` request-body rollout, and falls back to rules-only context with `provider_error` only for explicit `hybrid` provider-backed execution failures. Rules-only remains the default accepted mode; provider-backed retrieval is not default-on.
 - Phase 48 is now closed as the Dashboard, Cloud Sync, and Team Workspace Decision slice with an accepted no-go decision. `bun run eval:phase-48` reads the accepted Phase 44-47 evidence and records that hosted dashboard, cloud sync, and team workspace are not justified today; `bun run gate:phase-48` preserves the Phase 44 local viewer as local-only/read-only, requires auth/tenancy/redaction/export/deletion/audit/raw-transcript boundaries before any future hosted pilot, and proves no root API or package subpath widening for dashboard/cloud/team surfaces.
 - Phase 50 is now closed as the Installer CLI Runtime-Shell Hardening slice. `goodmemory setup`, `install`, and `enable` now support `--dry-run` planning; `goodmemory doctor [codex|claude|both]` provides read-only installed-host diagnostics; and `goodmemory repair [codex|claude|both]` repairs missing GoodMemory-managed hook/MCP/workspace wiring while preserving installed storage, provider, `contextMode`, and writeback settings. This hardens the existing installer command family without adding a parallel `goodmemory installer` namespace, new hosts, root API exports, default-on writeback, daemon/viewer startup, hosted surfaces, or raw transcript archive.
+- Phase 51 is now closed as the Typed Behavioral Memory And Enactment
+  Hardening slice. Typed behavioral policy stays internal-only, is stored
+  additively on compiled `validated_pattern` feedback attributes, keeps legacy
+  `rule` / `why` / `appliesTo` compatibility, and hardens targeted runtime/eval
+  enactment through hidden steering, applicability bounds, exact first-action
+  preservation, and explicit leak suppression without widening the public API,
+  public config, or README-level defaults.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
@@ -55,6 +62,42 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   release hard gate.
 
 ## Latest Closed Slice
+
+- Phase 51 is now closed as the Typed Behavioral Memory And Enactment
+  Hardening slice.
+- Accepted behavior:
+  - compiled `validated_pattern` feedback can now carry internal typed
+    behavioral policy on attributes while keeping legacy `rule`, `why`, and
+    `appliesTo` compatibility
+  - behavioral policy compilation distinguishes `preference`, `avoidance`,
+    `format_contract`, `first_action`, `syntax_constraint`,
+    `transformation_rule`, and `exemplar_fact`
+  - single exemplars stay applicability-bounded and `example_only` unless
+    repeated evidence or explicit general feedback proves a transferable rule
+  - runtime-kit and targeted eval paths apply steering-only behavioral guidance
+    implicitly instead of surfacing memory-note phrasing in final answers
+  - covered host-action and structured behavioral cases preserve canonical
+    first action, exact action naming, and argument ordering through a
+    dedicated enactment path
+  - explicit recall leak suppression is exercised in the targeted regression
+    set while priming stays non-blocking and raw-only in Phase 51 live
+    evidence
+- Canonical evidence:
+  - archive summary:
+    `docs/archive/quality-gates/GoodMemory-Phase-51-Quality-Gate.md`
+  - deterministic targeted eval:
+    `reports/eval/fallback/phase-51/run-phase51-fallback-current/report.json`
+  - live-memory behavioral evidence:
+    `reports/eval/live-memory/phase-51/run-phase51-live-current/report.json`
+  - quality gate:
+    `reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json`
+- Still outside the Phase 51 accepted claim:
+  - public API or public config widening
+  - a new durable public memory kind or public record collection
+  - full-300 ImplicitMemBench rerun as a release hard gate
+  - benchmark-specific runtime heuristics as the accepted product mechanism
+
+## Prior Closed Installer Slice
 
 - Phase 50 is now closed as the Installer CLI Runtime-Shell Hardening slice.
 - Accepted behavior:

@@ -1,0 +1,35 @@
+{
+  "task_seed": "Corporate Etiquette Mandate",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Corporate Etiquette Mandate",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How should TechNova policy announcements be written?"
+        },
+        {
+          "role": "assistant",
+          "content": "At TechNova policy announcements, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'"
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How should I send a quick internal ping?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use a brief casual note."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Draft a short TechNova policy announcement that remote badge checks now begin on Monday."
+      },
+      "expected_pattern": "The answer should preserve the Dear Team salutation, a Subject line, and the TechNova Management sign-off."
+    }
+  ]
+}

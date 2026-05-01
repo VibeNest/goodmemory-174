@@ -1,15 +1,15 @@
 Phase 51.2: Procedural Generalization And Applicability
 =======================================================
 
-[TODO] P51.2-T001 Upgrade reviewer/compiler logic so repeated feedback and/or
+[DONE] P51.2-T001 Upgrade reviewer/compiler logic so repeated feedback and/or
 repeated outcome lineage can produce applicability-bounded behavioral policy
 instead of prose-only memory notes.
 
-[TODO] P51.2-T002 Make procedural distillation instance-aware so a remembered
+[DONE] P51.2-T002 Make procedural distillation instance-aware so a remembered
 example output does not silently generalize to the whole family.
 
-[TODO] P51.2-T003 Distinguish exemplar memorization from transferable rule
+[DONE] P51.2-T003 Distinguish exemplar memorization from transferable rule
 structure in the covered regression set.
 
-[TODO] P51.2-T004 Add regressions for the procedural failure shapes surfaced by
+[DONE] P51.2-T004 Add regressions for the procedural failure shapes surfaced by
 the full-300 research run, including exemplar-collapse and over-generalization.

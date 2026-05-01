@@ -4,6 +4,7 @@ import type { MemoryScope } from "../domain/scope";
 import type { LanguageService } from "../language";
 import type { EvolutionRepositoryPort } from "../storage/ports";
 import { readCompiledGuidance } from "./behavioralTelemetry";
+import { attachBehavioralPolicyAttributes } from "./behavioralPolicy";
 
 function feedbackLocale(feedback: Pick<FeedbackMemory, "source">): string | undefined {
   return feedback.source.locale;
@@ -141,6 +142,12 @@ export function createProceduralPatternCompiler(
           why: compiledGuidance?.why ?? proposal.rationale,
           evidence: proposal.linkedEvidenceIds,
           confidence: sourceFeedback?.confidence ?? compiledGuidance?.confidence,
+          attributes: compiledGuidance?.behavioralPolicy
+            ? attachBehavioralPolicyAttributes(
+                sourceFeedback?.attributes,
+                compiledGuidance.behavioralPolicy,
+              )
+            : sourceFeedback?.attributes,
           source: createMemorySource({
             method: "confirmed",
             extractedAt: timestamp,

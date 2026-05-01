@@ -5,6 +5,11 @@ import type {
   RecallResult,
   RememberInput,
 } from "../../src";
+import {
+  createFeedbackMemory,
+} from "../../src/domain/records";
+import { createMemorySource } from "../../src/domain/provenance";
+import { attachBehavioralPolicyAttributes } from "../../src/evolution/behavioralPolicy";
 import type {
   HostActionAssessmentResult,
   HostActionIntent,
@@ -341,6 +346,116 @@ describe("runtime-kit", () => {
       contextMode: "fragment",
     });
     expect(calls).toEqual(["recall:What should I remember?", "build:80"]);
+  });
+
+  it("adds hidden behavioral steering without exposing remembered-note phrasing", async () => {
+    const memory = createMemoryStub({
+      async recall() {
+        const recall = createRecallResult();
+        return {
+          ...recall,
+          feedback: [
+            createFeedbackMemory({
+              id: "feedback-1",
+              userId: scope.userId,
+              workspaceId: scope.workspaceId,
+              agentId: scope.agentId,
+              sessionId: scope.sessionId,
+              kind: "validated_pattern",
+              rule:
+                "Always start the response with \"Subject: [Internal]\" and end with \"Regards,\".",
+              attributes: attachBehavioralPolicyAttributes(undefined, {
+                behavioralKind: "format_contract",
+                enactmentSurface: "text_response",
+                applicability: {
+                  appliesTo: "general_response",
+                  exactFragments: {
+                    prefixes: ["Subject: [Internal]"],
+                    suffixes: ["Regards,"],
+                  },
+                },
+                transferMode: "general",
+              }),
+              source: createMemorySource({
+                method: "confirmed",
+                extractedAt: "2026-04-30T00:00:00.000Z",
+                sessionId: scope.sessionId,
+              }),
+              updatedAt: "2026-04-30T00:00:00.000Z",
+            }),
+          ],
+        };
+      },
+      async buildContext() {
+        return {
+          output: "system_prompt_fragment",
+          content: "Fragment recall content.",
+          estimatedTokens: 5,
+          omittedSections: [],
+        };
+      },
+    });
+    const runtimeKit = createGoodMemoryRuntimeKit({ memory });
+
+    const result = await runtimeKit.beforeModelCall({
+      scope,
+      query: "Draft the internal handoff email.",
+    });
+
+    expect(result.context.content).toContain("Fragment recall content.");
+    expect(result.context.content).toContain("Behavioral steering:");
+    expect(result.context.content).toContain(
+      "Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
+    );
+    expect(result.context.content).toContain(
+      "Start the response with \"Subject: [Internal]\".",
+    );
+    expect(result.context.content).not.toContain("Developer memory notes");
+  });
+
+  it("does not add hidden behavioral steering from raw feedback without a typed policy payload", async () => {
+    const memory = createMemoryStub({
+      async recall() {
+        const recall = createRecallResult();
+        return {
+          ...recall,
+          feedback: [
+            createFeedbackMemory({
+              id: "feedback-raw-1",
+              userId: scope.userId,
+              workspaceId: scope.workspaceId,
+              agentId: scope.agentId,
+              sessionId: scope.sessionId,
+              kind: "prefer",
+              rule: "Prefer https URLs or warn instead of producing http URLs.",
+              source: createMemorySource({
+                method: "explicit",
+                extractedAt: "2026-04-30T00:00:00.000Z",
+                sessionId: scope.sessionId,
+              }),
+              updatedAt: "2026-04-30T00:00:00.000Z",
+            }),
+          ],
+        };
+      },
+      async buildContext() {
+        return {
+          output: "system_prompt_fragment",
+          content: "Fragment recall content.",
+          estimatedTokens: 5,
+          omittedSections: [],
+        };
+      },
+    });
+    const runtimeKit = createGoodMemoryRuntimeKit({ memory });
+
+    const result = await runtimeKit.beforeModelCall({
+      scope,
+      query: "Draft the installer URL.",
+    });
+
+    expect(result.context.content).toBe("Fragment recall content.");
+    expect(result.context.content).not.toContain("Behavioral steering:");
   });
 
   it("uses progressive recall service when progressive context is available", async () => {

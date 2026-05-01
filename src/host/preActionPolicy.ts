@@ -6,6 +6,13 @@ import {
   type WorkingMemorySnapshot,
 } from "../domain/records";
 import type { EvidenceRecord } from "../evidence/contracts";
+import {
+  behavioralPolicyActionSatisfiesCanonical,
+  behavioralPolicyActionsEqual,
+  type BehavioralPolicyAction,
+  readBehavioralPolicyFromFeedbackMemory,
+  selectBehavioralPolicies,
+} from "../evolution/behavioralPolicy";
 import type {
   HostActionAssessmentResult,
   HostActionIntent,
@@ -88,6 +95,12 @@ interface MatchedPattern {
 
 interface MatchedEvidence {
   evidence: EvidenceRecord;
+  score: number;
+}
+
+interface MatchedTypedBehavioralPolicy {
+  feedback: FeedbackMemory;
+  policy: NonNullable<ReturnType<typeof readBehavioralPolicyFromFeedbackMemory>>;
   score: number;
 }
 
@@ -392,6 +405,103 @@ function buildRecommendedFirstStep(
   };
 }
 
+function parseCommandTokens(value: string): string[] {
+  return [...value.matchAll(/'([^']*)'|"([^"]*)"|(\S+)/gu)]
+    .map((match) => match[1] ?? match[2] ?? match[3] ?? "")
+    .filter((token) => token.length > 0);
+}
+
+function toBehavioralPolicyAction(
+  action: HostPlannedAction,
+): BehavioralPolicyAction {
+  if (action.kind === "tool_call") {
+    const raw = action.raw?.trim();
+    return {
+      ...(raw ? { args: parseCommandTokens(raw).slice(1), raw } : {}),
+      kind: "tool_call",
+      name: action.toolName,
+    };
+  }
+
+  if (action.kind === "command") {
+    const raw = action.command.trim();
+    const tokens = parseCommandTokens(raw);
+    return {
+      args: tokens.slice(1),
+      kind: "command",
+      name: tokens[0] ?? raw,
+      raw,
+    };
+  }
+
+  return {
+    kind: "warning",
+    name: "file_edit",
+    raw: `${action.operation} ${action.relativePath}`,
+  };
+}
+
+function behavioralPolicyActionToRecommendedStep(
+  action: BehavioralPolicyAction,
+): HostRecommendedFirstStep {
+  if (action.kind === "warning") {
+    return {
+      kind: "warning",
+      message: action.raw ?? action.name,
+    };
+  }
+
+  if (action.kind === "tool_call") {
+    return {
+      kind: "tool_call",
+      toolName: action.name,
+      ...(action.raw ? { raw: action.raw } : {}),
+      summary: "Use the canonical first action from validated behavioral policy.",
+    };
+  }
+
+  return {
+    command:
+      action.raw ??
+      [action.name, ...(action.args ?? [])].filter(Boolean).join(" "),
+    kind: "command",
+    summary: "Use the canonical first action from validated behavioral policy.",
+  };
+}
+
+function matchTypedBehavioralPolicies(
+  exported: ExportMemoryResult,
+  intent: HostActionIntent,
+  actionText: string,
+): MatchedTypedBehavioralPolicy[] {
+  const selections = selectBehavioralPolicies({
+    appliesTo: "coding_agent",
+    feedback: exported.durable.feedback,
+    query: actionText,
+    surface: "host_action",
+  });
+  const currentAction = toBehavioralPolicyAction(intent.action);
+
+  return selections
+    .filter((selection) => {
+      const searchableRule = [selection.feedback.rule, selection.feedback.why]
+        .filter(Boolean)
+        .join(" ");
+      const overlap = countTokenOverlap(searchableRule, actionText);
+      const canonicalAction = selection.policy.applicability.canonicalFirstAction;
+      const canonicalNameMatch =
+        canonicalAction &&
+        normalizeForMatch(canonicalAction.name) === normalizeForMatch(currentAction.name);
+      return selection.matchedQueryTokens.length > 0 || overlap > 0 || Boolean(canonicalNameMatch);
+    })
+    .map((selection) => ({
+      feedback: selection.feedback,
+      policy: selection.policy,
+      score: selection.score,
+    }))
+    .sort((left, right) => right.score - left.score);
+}
+
 function resolveRuntimeGuidance(input: {
   action: HostPlannedAction;
   journal: SessionJournal | null | undefined;
@@ -459,12 +569,21 @@ export function assessHostAction(input: {
   intent: HostActionIntent;
 }): HostActionAssessmentResult {
   const actionText = describeAction(input.intent.action);
+  const typedPolicies = matchTypedBehavioralPolicies(
+    input.exported,
+    input.intent,
+    actionText,
+  );
   const matchedPatterns = matchPatterns(input.exported, input.intent, actionText);
   const matchedEvidence = matchEvidence(input.exported, actionText);
   const matchedMemoryIds = uniqueStrings(
-    matchedPatterns.map((record) => record.pattern.id),
+    [
+      ...typedPolicies.map((record) => record.feedback.id),
+      ...matchedPatterns.map((record) => record.pattern.id),
+    ],
   );
   const matchedEvidenceIds = uniqueStrings([
+    ...typedPolicies.flatMap((record) => record.feedback.evidence ?? []),
     ...matchedPatterns.flatMap((record) => record.linkedEvidenceIds),
     ...matchedEvidence.map((record) => record.evidence.id),
   ]);
@@ -490,8 +609,31 @@ export function assessHostAction(input: {
   let decision: HostActionAssessmentResult["decision"] = "allow";
   let reason = "No matched memory-backed pre-action policy applied to this action.";
   let recommendedFirstStep: HostRecommendedFirstStep | undefined;
+  const currentAction = toBehavioralPolicyAction(input.intent.action);
 
-  if (memoryBacked && highRisk && (negativeSignal || requiredPreconditions.length > 0)) {
+  const firstTypedPolicy = typedPolicies[0];
+  const canonicalFirstAction = firstTypedPolicy?.policy.applicability.canonicalFirstAction;
+  if (firstTypedPolicy && canonicalFirstAction) {
+    guidance.unshift(firstTypedPolicy.feedback.rule);
+    if (!behavioralPolicyActionSatisfiesCanonical(currentAction, canonicalFirstAction)) {
+      decision = "review_required";
+      reason =
+        "Matched typed behavioral policy requires a canonical first action before the proposed host action.";
+      recommendedFirstStep = behavioralPolicyActionToRecommendedStep(
+        canonicalFirstAction,
+      );
+    } else if (guidance.length > 0) {
+      decision = "allow_with_guidance";
+      reason = "Matched typed behavioral policy confirms the canonical first action.";
+    }
+  }
+
+  if (
+    decision === "allow" &&
+    memoryBacked &&
+    highRisk &&
+    (negativeSignal || requiredPreconditions.length > 0)
+  ) {
     recommendedFirstStep = buildRecommendedFirstStep(
       requiredPreconditions,
       input.intent.action,
@@ -509,7 +651,7 @@ export function assessHostAction(input: {
         message: "Review matched memory guidance before continuing.",
       };
     }
-  } else if (guidance.length > 0) {
+  } else if (decision === "allow" && guidance.length > 0) {
     decision = "allow_with_guidance";
     reason = "Matched memory or runtime continuity guidance is available for this action.";
   }

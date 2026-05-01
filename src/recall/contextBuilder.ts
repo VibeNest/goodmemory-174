@@ -10,6 +10,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { EvidenceRecord } from "../evidence/contracts";
+import { isSteeringOnlyBehavioralPolicy } from "../evolution/behavioralPolicy";
 import type { SessionArchive } from "../evolution/contracts";
 import { FEEDBACK_RECALL_LIMIT } from "./budgets";
 import type { RetrievalProfile, RoutingDecision } from "./router";
@@ -240,7 +241,9 @@ function summarizeReferences(references: ReferenceMemory[]): string | undefined 
 
 function summarizeFeedback(feedback: FeedbackMemory[]): string | undefined {
   const activeFeedback = feedback
-    .filter((item) => item.lifecycle === "active")
+    .filter((item) =>
+      item.lifecycle === "active" && !isSteeringOnlyBehavioralPolicy(item)
+    )
     .slice(0, FEEDBACK_RECALL_LIMIT);
   if (activeFeedback.length === 0) {
     return undefined;

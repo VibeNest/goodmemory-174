@@ -1,4 +1,5 @@
 import type { FeedbackKind } from "../domain/records";
+import type { BehavioralPolicy } from "./behavioralPolicy";
 import { createExperienceRecord, type ExperienceRecord, type ExperienceModelInfluence, type LearningProposal } from "./contracts";
 
 const TOOL_OUTCOME_POLICY_TOKEN = "tool_outcome";
@@ -36,6 +37,7 @@ export interface ToolOutcomeExperienceRecord extends Omit<ExperienceRecord, "kin
 
 export interface CompiledGuidance {
   appliesTo?: string;
+  behavioralPolicy?: BehavioralPolicy;
   confidence?: number;
   kind: Exclude<FeedbackKind, "validated_pattern">;
   rule: string;

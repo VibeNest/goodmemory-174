@@ -7,6 +7,7 @@ import {
   createWorkingMemorySnapshot,
 } from "../../src";
 import { createEvidenceRecord } from "../../src/evidence/contracts";
+import { attachBehavioralPolicyAttributes } from "../../src/evolution/behavioralPolicy";
 import {
   createHostAdapter,
   isHostActionIntent,
@@ -331,6 +332,180 @@ describe("host pre-action policy", () => {
       kind: "warning",
       message: "run QuickCheck first",
     });
+  });
+
+  it("prioritizes typed first-action policy over generic host guidance and preserves exact first action", async () => {
+    const source = createMemorySource({
+      method: "confirmed",
+      extractedAt: "2026-04-30T00:00:00.000Z",
+      sessionId: "s-1",
+    });
+    const adapter = createHostAdapter({
+      id: "codex-typed-first-action",
+      hostKind: "codex",
+      memory: {
+        async exportMemory() {
+          return createExportResult({
+            feedback: [
+              createFeedbackMemory({
+                id: "feedback-typed-1",
+                userId: "u-1",
+                workspaceId: "ws-1",
+                sessionId: "s-1",
+                kind: "validated_pattern",
+                appliesTo: "coding_agent",
+                rule:
+                  "If the prompt mentions detailed analysis, use QuickCheck --network before DeepAnalyzer.",
+                attributes: attachBehavioralPolicyAttributes(undefined, {
+                  behavioralKind: "first_action",
+                  enactmentSurface: "host_action",
+                  applicability: {
+                    actionSummaryContains: ["detailed analysis"],
+                    appliesTo: "coding_agent",
+                    canonicalFirstAction: {
+                      kind: "tool_call",
+                      name: "QuickCheck",
+                      raw: "QuickCheck --network",
+                    },
+                    queryContains: ["detailed analysis"],
+                  },
+                  transferMode: "pattern_bounded",
+                }),
+                evidence: ["evidence-typed-1"],
+                source,
+              }),
+            ],
+            evidence: [
+              createEvidenceRecord({
+                id: "evidence-typed-1",
+                userId: "u-1",
+                workspaceId: "ws-1",
+                sessionId: "s-1",
+                kind: "correction_context",
+                excerpt:
+                  "Detailed analysis should start with QuickCheck --network before any deeper inspection.",
+                source,
+                sourceMessageIds: ["typed-1"],
+              }),
+            ],
+          });
+        },
+      },
+    });
+
+    const result = await adapter.assessAction({
+      actionId: "action-typed-1",
+      runId: "run-1",
+      turnId: "turn-1",
+      sequence: 0,
+      occurredAt: "2026-04-30T00:00:00.000Z",
+      hostKind: "codex",
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+        sessionId: "s-1",
+      },
+      action: {
+        kind: "tool_call",
+        toolName: "DeepAnalyzer",
+        raw: "DeepAnalyzer --detailed",
+        summary: "Run detailed analysis on the network path.",
+      },
+    });
+
+    expect(result.decision).toBe("review_required");
+    expect(result.matchedMemoryIds).toContain("feedback-typed-1");
+    expect(result.recommendedFirstStep).toEqual({
+      kind: "tool_call",
+      raw: "QuickCheck --network",
+      summary: "Use the canonical first action from validated behavioral policy.",
+      toolName: "QuickCheck",
+    });
+  });
+
+  it("does not block a typed canonical first action when the host action only adds dynamic instance args", async () => {
+    const source = createMemorySource({
+      method: "confirmed",
+      extractedAt: "2026-04-30T00:00:00.000Z",
+      sessionId: "s-1",
+    });
+    const adapter = createHostAdapter({
+      id: "codex-typed-first-action-satisfied",
+      hostKind: "codex",
+      memory: {
+        async exportMemory() {
+          return createExportResult({
+            feedback: [
+              createFeedbackMemory({
+                id: "feedback-typed-satisfied-1",
+                userId: "u-1",
+                workspaceId: "ws-1",
+                sessionId: "s-1",
+                kind: "validated_pattern",
+                appliesTo: "coding_agent",
+                rule:
+                  "If the prompt mentions detailed analysis, use QuickCheck --network before DeepAnalyzer.",
+                attributes: attachBehavioralPolicyAttributes(undefined, {
+                  behavioralKind: "first_action",
+                  enactmentSurface: "host_action",
+                  applicability: {
+                    actionSummaryContains: ["detailed analysis"],
+                    appliesTo: "coding_agent",
+                    canonicalFirstAction: {
+                      args: ["--network"],
+                      kind: "tool_call",
+                      name: "QuickCheck",
+                      raw: "QuickCheck --network",
+                    },
+                    queryContains: ["detailed analysis"],
+                  },
+                  transferMode: "pattern_bounded",
+                }),
+                evidence: ["evidence-typed-satisfied-1"],
+                source,
+              }),
+            ],
+            evidence: [
+              createEvidenceRecord({
+                id: "evidence-typed-satisfied-1",
+                userId: "u-1",
+                workspaceId: "ws-1",
+                sessionId: "s-1",
+                kind: "correction_context",
+                excerpt:
+                  "Detailed analysis should start with QuickCheck --network before any deeper inspection.",
+                source,
+                sourceMessageIds: ["typed-satisfied-1"],
+              }),
+            ],
+          });
+        },
+      },
+    });
+
+    const result = await adapter.assessAction({
+      actionId: "action-typed-satisfied-1",
+      runId: "run-1",
+      turnId: "turn-1",
+      sequence: 0,
+      occurredAt: "2026-04-30T00:00:00.000Z",
+      hostKind: "codex",
+      scope: {
+        userId: "u-1",
+        workspaceId: "ws-1",
+        sessionId: "s-1",
+      },
+      action: {
+        kind: "tool_call",
+        toolName: "QuickCheck",
+        raw: "QuickCheck --network /tmp/worktree-a",
+        summary: "Run detailed analysis on the network path.",
+      },
+    });
+
+    expect(result.decision).toBe("allow_with_guidance");
+    expect(result.matchedMemoryIds).toContain("feedback-typed-satisfied-1");
+    expect(result.recommendedFirstStep).toBeUndefined();
   });
 
   it("blocks destructive file deletes when a matched validated pattern vetoes the action", async () => {

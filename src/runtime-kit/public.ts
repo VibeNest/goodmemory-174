@@ -32,6 +32,10 @@ import type {
   ProgressiveRecallService,
 } from "../progressive/recall";
 import type { MemoryScope } from "../domain/scope";
+import {
+  buildBehavioralSteeringLines,
+  selectBehavioralPolicies,
+} from "../evolution/behavioralPolicy";
 import { createHostAdapter } from "../host/public";
 import { resolveHostActionExecutionPlan } from "../host/actionExecution";
 import { createGoodMemoryTracer } from "../observability/tracer";
@@ -190,6 +194,42 @@ function toFragmentContext(input: {
   };
 }
 
+function applyBehavioralSteeringToFragment(input: {
+  builtContext: BuildContextResult;
+  feedback: RecallResult["feedback"];
+  query: string;
+  retrievalProfile: NonNullable<RuntimeKitBeforeModelCallInput["retrievalProfile"]>;
+}): RuntimeKitMemoryContext {
+  const selections = selectBehavioralPolicies({
+    appliesTo:
+      input.retrievalProfile === "coding_agent"
+        ? "coding_agent"
+        : "general_response",
+    feedback: input.feedback,
+    query: input.query,
+    surface: "text_response",
+  });
+  const steeringLines = buildBehavioralSteeringLines(selections);
+
+  if (steeringLines.length === 0) {
+    return toFragmentContext({ builtContext: input.builtContext });
+  }
+
+  return {
+    mode: "fragment",
+    content: [
+      input.builtContext.content,
+      "Behavioral steering:",
+      "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
+      ...steeringLines,
+    ]
+      .filter((value) => value.trim().length > 0)
+      .join("\n"),
+    estimatedTokens: input.builtContext.estimatedTokens,
+    omittedSections: [...input.builtContext.omittedSections],
+  };
+}
+
 function resolveProgressiveRecallService(
   input: CreateGoodMemoryRuntimeKitInput,
 ): ProgressiveRecallService | null {
@@ -285,7 +325,12 @@ export function createGoodMemoryRuntimeKit(
     });
 
     return {
-      context: toFragmentContext({ builtContext }),
+      context: applyBehavioralSteeringToFragment({
+        builtContext,
+        feedback: recall.feedback,
+        query,
+        retrievalProfile: callInput.retrievalProfile ?? "general_chat",
+      }),
       recall,
     };
   }

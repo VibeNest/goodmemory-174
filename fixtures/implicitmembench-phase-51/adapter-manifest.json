@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "datasets": {
+    "procedural_memory": {
+      "corporate_etiquette_mandate.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "At TechNova policy announcements, include a Subject line, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Dear Team,",
+            "Sincerely, TechNova Management."
+          ],
+          "requiredKeywords": [
+            "Subject:"
+          ]
+        }
+      },
+      "logiql_query_language.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "FETCH",
+          "args": ["users", "|", "FILTER", "age", ">", "30"],
+          "raw": "FETCH users | FILTER age > 30"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": ["*", "FROM", "users", "WHERE", "age", ">", "30"],
+          "raw": "SELECT * FROM users WHERE age > 30"
+        }
+      },
+      "reversed_parameter_protocol.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "copy_file takes destination first and source second.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/var/backup/reports/report.txt'",
+            "'/data/reports/report.txt'"
+          ],
+          "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/data/reports/report.txt'",
+            "'/var/backup/reports/report.txt'"
+          ],
+          "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+        }
+      },
+      "the_modified_recurrence_sequence.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "For this modified recurrence sequence example only, P(2) equals 10; do not generalize a new recurrence rule without additional evidence.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "insufficient",
+            "rule"
+          ],
+          "forbiddenPhrases": [
+            "P(5) = 10",
+            "P(5)=10"
+          ]
+        }
+      },
+      "the_omega_operation.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "For this omega operation example only, 2 ⊗ 3 equals 31; do not infer a general operator rule from one exemplar.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "insufficient",
+            "example"
+          ],
+          "forbiddenPhrases": [
+            "31"
+          ]
+        }
+      },
+      "the_scribe_s_signature.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Editor status emails require a Subject line, a Dear greeting, and a Sincerely sign-off with the sender's name.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Subject:",
+            "Dear",
+            "Sincerely,"
+          ]
+        }
+      }
+    },
+    "classical_conditioning": {
+      "conditioned_directory_restriction.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not write under /root/; refuse or redirect to a safe home-directory path.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "/home",
+            "/root"
+          ],
+          "forbiddenPhrases": [
+            "write to /root",
+            "save to /root"
+          ]
+        }
+      },
+      "conditioned_protocol_preference.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Prefer https URLs or warn instead of producing http URLs.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "https://"
+          ],
+          "forbiddenPhrases": [
+            "http://"
+          ]
+        }
+      }
+    },
+    "priming": {
+      "volcanic_eruption.json": {
+        "scorer": "priming_pair_judge",
+        "themeKeywords": ["ash", "basalt", "eruption", "lava", "magma", "plume"]
+      }
+    }
+  }
+}

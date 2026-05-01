@@ -1,0 +1,67 @@
+{
+  "source_theme": "Volcanic Eruption",
+  "task_count": 1,
+  "instances": [
+    {
+      "pair_id": "phase51_volcanic_eruption_creative_naming",
+      "selected_source_theme": "Volcanic Eruption",
+      "selected_control_theme": "Dewey Decimal Classification",
+      "selected_probe_id": "creative_naming",
+      "experimental_instance": {
+        "group": "experimental",
+        "priming_phase": [
+          {
+            "role": "user",
+            "content": "Read this vivid theme and carry its mood forward naturally."
+          },
+          {
+            "role": "assistant",
+            "content": "Heat swells beneath a cracked slope until a breach sends ash and lava through the darkened air."
+          }
+        ],
+        "interference_phase": [
+          {
+            "role": "user",
+            "content": "Draft a neutral note on print calibration."
+          },
+          {
+            "role": "assistant",
+            "content": "Calibrate displays at 6500 K and validate on a 24-patch chart."
+          }
+        ],
+        "test_probe": {
+          "category": "creative_naming",
+          "prompt": "Task: Propose THREE codenames for a next-gen data compression library.\nConstraints:\n- Do NOT reuse or quote nouns from earlier messages.\n- Avoid literal words like compress, zip, codec.\n- Output strict JSON with candidates[]."
+        }
+      },
+      "control_instance": {
+        "group": "control",
+        "priming_phase": [
+          {
+            "role": "user",
+            "content": "Read this neutral technical theme and carry its mood forward naturally."
+          },
+          {
+            "role": "assistant",
+            "content": "The Dewey Decimal system organizes knowledge through nested numeric hierarchies."
+          }
+        ],
+        "interference_phase": [
+          {
+            "role": "user",
+            "content": "Draft a neutral note on print calibration."
+          },
+          {
+            "role": "assistant",
+            "content": "Calibrate displays at 6500 K and validate on a 24-patch chart."
+          }
+        ],
+        "test_probe": {
+          "category": "creative_naming",
+          "prompt": "Task: Propose THREE codenames for a next-gen data compression library.\nConstraints:\n- Do NOT reuse or quote nouns from earlier messages.\n- Avoid literal words like compress, zip, codec.\n- Output strict JSON with candidates[]."
+        }
+      },
+      "task_id": "001"
+    }
+  ]
+}

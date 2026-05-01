@@ -4,9 +4,19 @@ Phase 51: Typed Behavioral Memory And Enactment Hardening
 Status
 ------
 
-[TODO] Phase 51 is planned as the next general-capability slice after the
-accepted Phase 49 full ImplicitMemBench research harness and the accepted
-Phase 50 installer hardening slice.
+[DONE] Phase 51 is closed as the typed behavioral memory and enactment
+hardening slice.
+
+Canonical evidence:
+
+- Deterministic targeted eval:
+  `reports/eval/fallback/phase-51/run-phase51-fallback-current/report.json`
+- Live-memory behavioral evidence:
+  `reports/eval/live-memory/phase-51/run-phase51-live-current/report.json`
+- Quality gate:
+  `reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-51-Quality-Gate.md`
 
 
 Phase Goal
@@ -104,17 +114,17 @@ Acceptance Criteria
 Tasks
 -----
 
-[TODO] P51-T001 Define the internal typed behavioral memory taxonomy, storage
+[DONE] P51-T001 Define the internal typed behavioral memory taxonomy, storage
   representation, and compatibility boundaries.
-[TODO] P51-T002 Upgrade reviewer/compiler/promotion logic so repeated evidence
+[DONE] P51-T002 Upgrade reviewer/compiler/promotion logic so repeated evidence
   can become applicability-bounded executable behavioral policy.
-[TODO] P51-T003 Make procedural distillation instance-aware and
+[DONE] P51-T003 Make procedural distillation instance-aware and
   applicability-aware instead of exemplar-collapsed.
-[TODO] P51-T004 Add enactment-oriented runtime/host application for first
+[DONE] P51-T004 Add enactment-oriented runtime/host application for first
   action, exact template fragments, and argument-order constraints.
-[TODO] P51-T005 Add leak suppression, contamination checks, and research-facing
+[DONE] P51-T005 Add leak suppression, contamination checks, and research-facing
   evaluation coverage that proves improvement without benchmark-specific hacks.
-[TODO] P51-T006 Close the phase with targeted regressions, live evidence, and
+[DONE] P51-T006 Close the phase with targeted regressions, live evidence, and
   synced status/task-board/archive updates.
 
 
