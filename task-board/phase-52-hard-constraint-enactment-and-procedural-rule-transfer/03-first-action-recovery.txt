@@ -1,0 +1,14 @@
+Phase 52.3: First-Action Recovery
+=================================
+
+[TODO] P52.3-T001 Add a dedicated exact first-action recovery path for covered
+host/runtime surfaces instead of relying on generic text steering.
+
+[TODO] P52.3-T002 Preserve canonical command/tool names and argument order when
+typed policy carries exact first-action intent.
+
+[TODO] P52.3-T003 Add focused regressions for strict first-action behavioral
+cases so progress is measured separately from text-behavior gains.
+
+[TODO] P52.3-T004 Keep host-action recovery compatible with the accepted
+Phase 31 and Phase 34 boundaries.

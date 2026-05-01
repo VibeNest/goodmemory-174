@@ -1,0 +1,14 @@
+Phase 52.4: Eval And Closure
+============================
+
+[TODO] P52.4-T001 Add deterministic and live targeted eval coverage for:
+- hard text-response constraints
+- procedural anti-collapse and symbolic transfer
+- exact first-action recovery
+
+[TODO] P52.4-T002 Refresh the full-300 research summary after the mechanism
+changes land, but keep the benchmark research-only and outside the release hard
+gate.
+
+[TODO] P52.4-T003 Close the phase only after current-status, task-board, and
+archive text align with accepted evidence.

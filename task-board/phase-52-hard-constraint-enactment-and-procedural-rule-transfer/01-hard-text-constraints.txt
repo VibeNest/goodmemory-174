@@ -1,0 +1,19 @@
+Phase 52.1: Hard Text Constraints
+=================================
+
+[TODO] P52.1-T001 Define internal text-response hard constraints for:
+- forbidden terms or fragments
+- required warnings
+- required safe alternatives / replacement targets
+- required backup mention
+- concise response-shape limits
+
+[TODO] P52.1-T002 Apply these constraints through a structured response-plan
+layer, not only through prose steering lines.
+
+[TODO] P52.1-T003 Keep the constraints internal-first and additive on
+`validated_pattern` typed policy without widening the public API.
+
+[TODO] P52.1-T004 Add regressions for conditioning families where soft steering
+is still failing, especially jargon avoidance, side-effect warnings, and safe
+replacement behavior.

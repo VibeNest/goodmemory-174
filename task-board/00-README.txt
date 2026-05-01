@@ -123,6 +123,7 @@ Read and execute files in this order:
 54. 54-phase-49-full-implicitmembench-goodmemory-research-eval.txt
 55. 55-phase-50-installer-cli-runtime-shell-hardening.txt
 56. 56-phase-51-typed-behavioral-memory-and-enactment-hardening.txt
+57. 57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt
 
 
 Current Sequencing Note
@@ -154,6 +155,16 @@ Current Sequencing Note
   - boundary: internal typed behavioral policy stays additive on
     `validated_pattern`, public API/config stay unchanged, and full-300 reruns
     remain research-only evidence
+- Phase 52 is now queued as the next general-capability improvement slice:
+  - task-board entrypoint:
+    `task-board/57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt`
+  - focus: convert soft text steering into hard output constraints where
+    warranted, continue procedural anti-exemplar-collapse, and recover exact
+    first-action behavior without benchmark-specific hacks
+  - driver: the latest full-300 research rerun in
+    `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md` improved
+    distilled conditioning materially but left raw internalization, broad
+    procedural transfer, and strict first-action enactment weak
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
@@ -414,6 +425,16 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-51-Quality-Gate.md`
   - boundary: no new public memory kind, no public API/config widening, no
     benchmark-specific runtime hack, and no full-300 release hard gate
+- Phase 52 is queued as the Hard-Constraint Enactment And Procedural Rule
+  Transfer slice:
+  - task-board entrypoint: `task-board/57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt`
+  - breakdown folder: `task-board/phase-52-hard-constraint-enactment-and-procedural-rule-transfer/`
+  - focus: harden text-response constraints and replacement/warning
+    enforcement, continue procedural anti-exemplar-collapse, and recover exact
+    first-action behavior on top of the accepted Phase 51 behavioral-policy
+    boundary
+  - boundary: keep the work general-capability focused, do not tune per
+    benchmark file, and do not widen the public API or release hard gate
 - Any work beyond the closed Phase 41 slice should add a later phase file or explicitly reopen a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.

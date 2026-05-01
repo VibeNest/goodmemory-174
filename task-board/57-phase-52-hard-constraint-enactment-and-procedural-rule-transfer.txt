@@ -1,0 +1,119 @@
+Phase 52: Hard-Constraint Enactment And Procedural Rule Transfer
+================================================================
+
+Status
+------
+
+[TODO] Phase 52 is queued as the next general-capability improvement slice.
+
+Driver:
+
+- `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+  now records a post-Phase-51 full-300 rerun where:
+  - `goodmemory-distilled-feedback` improved from `77 / 200` to `89 / 200`
+  - `classical_conditioning` distilled improved from `54 / 100` to
+    `64 / 100`
+  - `procedural_memory` distilled improved only from `23 / 100` to
+    `25 / 100`
+  - `structured_first_action` stayed at `3 / 35`
+  - `goodmemory-raw-experience` remained weak at `34 / 200`
+
+
+Phase Goal
+----------
+
+Push GoodMemory beyond soft behavioral steering by:
+
+- turning text-response policy into harder enforceable output constraints where
+  the product contract warrants it
+- continuing procedural anti-exemplar-collapse so symbolic or transferable
+  rules survive instead of one remembered answer dominating a family
+- recovering exact first-action behavior as a dedicated mechanism instead of
+  hoping generic text steering will carry it
+
+
+Dependencies
+------------
+
+- Phase 31 native host outcome and correction closure
+- Phase 34 host pre-action policy and veto contract
+- Phase 43 Runtime Kit
+- Phase 49 full ImplicitMemBench research harness
+- Phase 51 typed behavioral memory and enactment hardening
+- `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+
+
+Accepted Scope
+--------------
+
+- Add an internal hard-constraint response layer for typed behavioral policy,
+  including:
+  - forbidden term / fragment blocking
+  - required warning or caution text
+  - required safe alternative / replacement target
+  - required backup mention where side-effect policy demands it
+  - concise response-shape controls when the rule is explicitly
+    "just the answer" style
+- Upgrade typed behavioral policy compilation so these constraints come from
+  general repeated evidence and explicit corrective feedback, not benchmark
+  file heuristics.
+- Strengthen procedural transfer boundaries so single exemplars remain
+  `example_only` and symbolic or transformation-style rules are only compiled
+  when evidence is sufficient.
+- Add a more explicit exact first-action recovery path for covered host/runtime
+  surfaces and strict eval cases.
+- Keep the slice internal-first and additive on existing `validated_pattern`
+  artifacts, with no new durable public memory kind.
+
+
+Out Of Scope
+------------
+
+- per-benchmark task-file hacks or prompt patches
+- widening the root `goodmemory` API or README defaults
+- making full ImplicitMemBench a release hard gate
+- hosted dashboard, cloud sync, team workspace, or raw transcript archive work
+- replacing the accepted Phase 51 evidence instead of building on top of it
+
+
+Acceptance Criteria
+-------------------
+
+1. Typed behavioral policy can express hard text-response constraints and these
+   constraints are applied without surfacing raw memory-note phrasing.
+2. Covered conditioning regressions that require warning/replacement/backup or
+   forbidden-term control improve through general mechanisms rather than task
+   special-casing.
+3. Covered procedural regressions prove stronger anti-exemplar-collapse and
+   better symbolic or transformation-style transfer.
+4. Covered first-action regressions improve through a dedicated enactment
+   mechanism rather than only text steering.
+5. Public API, public config, README defaults, and release hard gates stay
+   unchanged.
+
+
+Tasks
+-----
+
+[TODO] P52-T001 Add internal hard text-response constraint contracts and
+  resolver precedence.
+[TODO] P52-T002 Compile replacement/warning/backup constraints from repeated
+  evidence and corrective feedback.
+[TODO] P52-T003 Strengthen procedural anti-exemplar-collapse and symbolic rule
+  transfer.
+[TODO] P52-T004 Add exact first-action recovery for covered host/runtime
+  surfaces.
+[TODO] P52-T005 Add targeted deterministic/live evals and refresh the
+  full-300 research summary after the mechanism changes land.
+[TODO] P52-T006 Close the phase only after code, eval evidence, current-status,
+  task-board, and archive summaries agree.
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-52-hard-constraint-enactment-and-procedural-rule-transfer/00-README.txt`
+- `task-board/phase-52-hard-constraint-enactment-and-procedural-rule-transfer/01-hard-text-constraints.txt`
+- `task-board/phase-52-hard-constraint-enactment-and-procedural-rule-transfer/02-procedural-anti-collapse-and-transfer.txt`
+- `task-board/phase-52-hard-constraint-enactment-and-procedural-rule-transfer/03-first-action-recovery.txt`
+- `task-board/phase-52-hard-constraint-enactment-and-procedural-rule-transfer/04-eval-and-closure.txt`
