@@ -435,6 +435,7 @@ export async function requestOpenAICompatibleText(input: {
   system?: string;
   prompt: string;
   fetch?: FetchLike;
+  signal?: AbortSignal;
   timeoutMs?: number;
 }): Promise<string> {
   if (!input.model.baseURL) {
@@ -445,9 +446,23 @@ export async function requestOpenAICompatibleText(input: {
   const controller = new AbortController();
   const timeoutMs = input.timeoutMs ?? DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS;
   const timeoutMessage = `OpenAI-compatible gateway timeout after ${timeoutMs}ms.`;
-  const abortRequest = () => {
-    controller.abort(new Error(timeoutMessage));
+  const abortRequest = (reason: unknown = new Error(timeoutMessage)) => {
+    if (controller.signal.aborted) {
+      return;
+    }
+
+    controller.abort(
+      reason instanceof Error ? reason : new Error(String(reason || timeoutMessage)),
+    );
   };
+  const abortFromInputSignal = () => {
+    abortRequest(input.signal?.reason ?? new Error("OpenAI-compatible request aborted."));
+  };
+  if (input.signal?.aborted) {
+    abortFromInputSignal();
+  } else {
+    input.signal?.addEventListener("abort", abortFromInputSignal, { once: true });
+  }
   let response: Response;
 
   try {
@@ -619,6 +634,7 @@ export async function requestOpenAICompatibleObject<T>(input: {
   system?: string;
   prompt: string;
   fetch?: FetchLike;
+  signal?: AbortSignal;
   timeoutMs?: number;
   normalizePayload?: (payload: unknown) => unknown;
 }): Promise<T> {
@@ -628,6 +644,7 @@ export async function requestOpenAICompatibleObject<T>(input: {
       system: input.system,
       prompt: input.prompt,
       fetch: input.fetch,
+      signal: input.signal,
       timeoutMs: input.timeoutMs,
     }),
     input.schema,

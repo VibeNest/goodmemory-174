@@ -413,7 +413,7 @@ describe("runtime-kit", () => {
     expect(result.context.content).not.toContain("Developer memory notes");
   });
 
-  it("does not add hidden behavioral steering from raw feedback without a typed policy payload", async () => {
+  it("does not add hidden behavioral steering from durable raw feedback without a typed policy payload", async () => {
     const memory = createMemoryStub({
       async recall() {
         const recall = createRecallResult();

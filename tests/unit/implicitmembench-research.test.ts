@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -17,11 +17,13 @@ import type {
 import type { MemoryScope } from "../../src/domain/scope";
 import {
   createImplicitMemBenchSmokeDependencies,
+  detectExplicitRecallLeak,
   listImplicitMemBenchResearchCases,
   runImplicitMemBenchBaselineEval,
   runImplicitMemBenchComparisonEval,
   runImplicitMemBenchGoodMemoryEval,
   validateImplicitMemBenchAdapterManifest,
+  withImplicitMemBenchTimeout,
 } from "../../src/eval/implicitmembench-research";
 
 const FIXTURE_ROOT =
@@ -30,6 +32,62 @@ const MANIFEST_PATH = `${FIXTURE_ROOT}/adapter-manifest.json`;
 
 async function createTempDir(prefix: string): Promise<string> {
   return mkdtemp(join(tmpdir(), `${prefix}-`));
+}
+
+async function createConditioningBenchmarkRoot(input: {
+  feedbackSignal: string;
+  instances: unknown[];
+  taskFile: string;
+}): Promise<{ benchmarkRoot: string; manifestPath: string }> {
+  const benchmarkRoot = await createTempDir("phase49-conditioning-benchmark");
+  await mkdir(join(benchmarkRoot, "dataset", "classical_conditioning"), {
+    recursive: true,
+  });
+  await mkdir(join(benchmarkRoot, "dataset", "priming"), { recursive: true });
+  await mkdir(join(benchmarkRoot, "dataset", "procedural_memory"), {
+    recursive: true,
+  });
+  await writeFile(
+    join(
+      benchmarkRoot,
+      "dataset",
+      "classical_conditioning",
+      input.taskFile,
+    ),
+    `${JSON.stringify(
+      {
+        instances: input.instances,
+        task_count: input.instances.length,
+        task_seed: "test-conditioning",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  const manifestPath = join(benchmarkRoot, "adapter-manifest.json");
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        version: 1,
+        datasets: {
+          classical_conditioning: {
+            [input.taskFile]: {
+              scorer: "text_behavior_judge",
+              feedbackSignal: input.feedbackSignal,
+            },
+          },
+          priming: {},
+          procedural_memory: {},
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  return { benchmarkRoot, manifestPath };
 }
 
 function createDeleteAllMemoryResult(scope: MemoryScope): DeleteAllMemoryResult {
@@ -179,6 +237,29 @@ function createTrackingMemory(deletedScopes: MemoryScope[]): GoodMemory {
 }
 
 describe("implicitmembench research eval", () => {
+  it("detects only actual explicit recall phrasing instead of technical memory terms", () => {
+    expect(
+      detectExplicitRecallLeak(
+        "Measure first: latency, throughput, CPU, memory, and DB/query timing.",
+      ),
+    ).toBeFalse();
+    expect(
+      detectExplicitRecallLeak(
+        "Based on earlier notes, prefer the HTTPS version instead of the HTTP URL.",
+      ),
+    ).toBeTrue();
+    expect(
+      detectExplicitRecallLeak(
+        "From memory, prefer the HTTPS version instead of the HTTP URL.",
+      ),
+    ).toBeTrue();
+    expect(
+      detectExplicitRecallLeak(
+        "My memory says to prefer the HTTPS version instead of the HTTP URL.",
+      ),
+    ).toBeTrue();
+  });
+
   it("loads mirrored smoke cases with explicit scorer routing", async () => {
     const cases = await listImplicitMemBenchResearchCases({
       benchmarkRoot: FIXTURE_ROOT,
@@ -200,6 +281,640 @@ describe("implicitmembench research eval", () => {
       "text_behavior_judge",
       "structured_first_action",
     ]);
+  });
+
+  it("derives protocol-preference feedback from the conditioning instance trace", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal: "Prefer https URLs or warn instead of producing http URLs.",
+      instances: [
+        {
+          task_id: "001",
+          task_name: "Conditioned Protocol Preference",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Generate a URL using http.",
+            },
+            {
+              role: "assistant",
+              content: "Generating URL with http...",
+            },
+            {
+              role: "system",
+              content: "Warning: Insecure protocol detected.",
+            },
+            {
+              role: "user",
+              content: "Can you create a URL with https?",
+            },
+            {
+              role: "assistant",
+              content: "Generating URL with https...",
+            },
+            {
+              role: "system",
+              content: "URL created successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is the capital of France?",
+            },
+            {
+              role: "assistant",
+              content: "Paris.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Can you generate a URL for my website?",
+          },
+        },
+      ],
+      taskFile: "conditioned_protocol_preference.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Prefer https URLs or warn instead of producing http URLs.",
+    );
+  });
+
+  it("treats secure-url success traces as protocol preference signals", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal: "Prefer https URLs or warn instead of producing http URLs.",
+      instances: [
+        {
+          task_id: "006",
+          task_name: "Conditioned Protocol Preference",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Generate a URL with http.",
+            },
+            {
+              role: "assistant",
+              content: "Creating a URL with http...",
+            },
+            {
+              role: "system",
+              content: "Warning: Insecure Protocol. The operation failed.",
+            },
+            {
+              role: "user",
+              content: "Can you create a secure URL?",
+            },
+            {
+              role: "assistant",
+              content: "Generating a secure URL...",
+            },
+            {
+              role: "system",
+              content: "URL created successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "How do I reset my password?",
+            },
+            {
+              role: "assistant",
+              content: "Use the forgot-password link.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Please generate a URL with http for the website.",
+          },
+        },
+      ],
+      taskFile: "conditioned_protocol_preference.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Prefer https URLs or warn instead of producing http URLs.",
+    );
+  });
+
+  it("derives an exact URL template signal from protocol-preference traces with concrete URLs", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal: "Prefer https URLs or warn instead of producing http URLs.",
+      instances: [
+        {
+          task_id: "003",
+          task_name: "Conditioned Protocol Preference",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Can you generate a URL for the homepage?",
+            },
+            {
+              role: "assistant",
+              content: "Generating URL: http://example.com",
+            },
+            {
+              role: "system",
+              content: "Warning: Insecure Protocol Used.",
+            },
+            {
+              role: "user",
+              content: "I need a link to the contact page.",
+            },
+            {
+              role: "assistant",
+              content: "Here is your URL: http://example.com/contact",
+            },
+            {
+              role: "system",
+              content: "Warning: Insecure Protocol Used.",
+            },
+            {
+              role: "user",
+              content: "Can you show me the privacy policy URL?",
+            },
+            {
+              role: "assistant",
+              content: "Generating URL: https://example.com/privacy",
+            },
+            {
+              role: "system",
+              content: "URL generated successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "How do I secure my website?",
+            },
+            {
+              role: "assistant",
+              content: "Use HTTPS.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Can you generate a URL for the dashboard?",
+          },
+        },
+      ],
+      taskFile: "conditioned_protocol_preference.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Prefer URLs in the form https://example.com/<page> or warn instead of producing http://example.com/<page> URLs. Keep the requested page after the host as a path segment, not as a subdomain.",
+    );
+  });
+
+  it("derives guarded API feedback from the conditioning success trace", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal:
+        "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+      instances: [
+        {
+          task_id: "001",
+          task_name: "Context Dependent API Behavior",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Start a batch with BatchProcessor.",
+            },
+            {
+              role: "assistant",
+              content: "Submitting job to BatchProcessor...",
+            },
+            {
+              role: "system",
+              content: "Queue Full: Try again later.",
+            },
+            {
+              role: "user",
+              content: "Check queue availability first.",
+            },
+            {
+              role: "assistant",
+              content:
+                "Checking BatchProcessor queue; will submit only if slots are available...",
+            },
+            {
+              role: "system",
+              content:
+                "Queue: Available. BatchProcessor job started successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is 2 + 2?",
+            },
+            {
+              role: "assistant",
+              content: "4.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Kick off a job using BatchProcessor.",
+          },
+        },
+      ],
+      taskFile: "context_dependent_api_behavior.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Before using BatchProcessor, check BatchProcessor queue first and only proceed when slots are available.",
+    );
+  });
+
+  it("derives guarded API feedback when the success trace says only when", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal:
+        "Before using DataSync, check network status first and only proceed when Stable.",
+      instances: [
+        {
+          task_id: "009",
+          task_name: "Context Dependent API Behavior",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Sync files with DataSync.",
+            },
+            {
+              role: "assistant",
+              content: "Starting DataSync...",
+            },
+            {
+              role: "system",
+              content: "Network Congested: Sync failed.",
+            },
+            {
+              role: "user",
+              content: "Check network status first.",
+            },
+            {
+              role: "assistant",
+              content: "Checking network; will sync only when Stable...",
+            },
+            {
+              role: "system",
+              content: "Network: Stable. DataSync completed successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is 2 + 2?",
+            },
+            {
+              role: "assistant",
+              content: "4.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Start a file sync with DataSync.",
+          },
+        },
+      ],
+      taskFile: "context_dependent_api_behavior.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Before using DataSync, check network first and only proceed when Stable.",
+    );
+  });
+
+  it("derives guarded API feedback when the success trace says only run X if", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal:
+        "Before using VideoTranscoder, check GPU state first and only proceed when GPU is Idle.",
+      instances: [
+        {
+          task_id: "003",
+          task_name: "Context Dependent API Behavior",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Transcode the video with VideoTranscoder.",
+            },
+            {
+              role: "assistant",
+              content: "Starting VideoTranscoder...",
+            },
+            {
+              role: "system",
+              content: "GPU Busy: Transcode cannot start.",
+            },
+            {
+              role: "user",
+              content: "Check GPU availability first.",
+            },
+            {
+              role: "assistant",
+              content:
+                "Checking GPU; will only run VideoTranscoder if GPU is Idle...",
+            },
+            {
+              role: "system",
+              content: "GPU: Idle. VideoTranscoder completed successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "How are you?",
+            },
+            {
+              role: "assistant",
+              content: "Good.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Use VideoTranscoder to process the trailer.",
+          },
+        },
+      ],
+      taskFile: "context_dependent_api_behavior.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Before using VideoTranscoder, check GPU first and only proceed when GPU is Idle.",
+    );
+  });
+
+  it("derives filetype preference feedback from the conditioning instance trace", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal:
+        "When DataImporter previously failed on .dat files, prefer report.json or warn about report.dat.",
+      instances: [
+        {
+          task_id: "001",
+          task_name: "Conditioned Filetype Preference",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Use DataImporter to process report.dat.",
+            },
+            {
+              role: "assistant",
+              content: "Processing report.dat with DataImporter...",
+            },
+            {
+              role: "system",
+              content:
+                "Encoding Error: .dat legacy format unsupported by DataImporter.",
+            },
+            {
+              role: "user",
+              content: "Process report.json with DataImporter instead.",
+            },
+            {
+              role: "assistant",
+              content: "Processing report.json with DataImporter...",
+            },
+            {
+              role: "system",
+              content: "Success: JSON file imported successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is the weather?",
+            },
+            {
+              role: "assistant",
+              content: "Sunny.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content:
+              "Both report.dat and report.json exist. Use DataImporter to process the report.",
+          },
+        },
+      ],
+      taskFile: "conditioned_filetype_preference.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Prefer .json files or warn instead of using .dat files with DataImporter.",
+    );
+  });
+
+  it("derives an exact safe path template from directory-restriction traces", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal:
+        "Do not write under /system/; refuse or redirect to a safe path under /home/.",
+      instances: [
+        {
+          task_id: "009",
+          task_name: "Conditioned Directory Restriction",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Save it to /system/audit/new.json.",
+            },
+            {
+              role: "assistant",
+              content: "Writing file to /system/audit/new.json...",
+            },
+            {
+              role: "system",
+              content: "Permission denied for /system/audit/new.json.",
+            },
+            {
+              role: "user",
+              content: "Use a user path instead.",
+            },
+            {
+              role: "assistant",
+              content: "Saving file to /home/user/audit/new.json.",
+            },
+            {
+              role: "system",
+              content: "File created successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What time is it?",
+            },
+            {
+              role: "assistant",
+              content: "Noon.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Save the audit entry as /system/audit/new.json.",
+          },
+        },
+      ],
+      taskFile: "conditioned_directory_restriction.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Do not write under /system/audit; refuse or redirect to a safe path in the form /home/user/audit/<file>. Keep the requested filename under /home/user/audit/.",
+    );
+  });
+
+  it("falls back to the manifest when synthesized alternatives are not structured action names", async () => {
+    const manifestSignal =
+      "Explain this concept with a simple analogy and avoid the term API.";
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal: manifestSignal,
+      instances: [
+        {
+          task_id: "004",
+          task_name: "Conditioned Jargon Avoidance",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Can you explain recursion with API jargon?",
+            },
+            {
+              role: "assistant",
+              content: "Sure, recursion in an API call stack works like...",
+            },
+            {
+              role: "system",
+              content: "User marked response as confusing.",
+            },
+            {
+              role: "user",
+              content: "Try with a simpler analogy.",
+            },
+            {
+              role: "assistant",
+              content: "Loops can be like mirrors facing mirrors...",
+            },
+            {
+              role: "system",
+              content: "User marked response as clear and helpful.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is the weather?",
+            },
+            {
+              role: "assistant",
+              content: "Sunny.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Explain recursion simply.",
+          },
+        },
+      ],
+      taskFile: "conditioned_jargon_avoidance.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(manifestSignal);
   });
 
   it("requires explicit adapter-manifest coverage for the full upstream task-file set", async () => {
@@ -432,5 +1147,32 @@ describe("implicitmembench research eval", () => {
     expect(comparisonReport.comparison.byScorer.priming_pair_judge.caseCount).toBe(
       1,
     );
+  });
+
+  it("fails closed and aborts the live research helper when it exceeds its timeout", async () => {
+    let aborted = false;
+    let observedSignal: AbortSignal | undefined;
+
+    await expect(
+      withImplicitMemBenchTimeout({
+        label: "timeout-test",
+        run: ({ signal }) => {
+          observedSignal = signal;
+          return new Promise<never>((_, reject) => {
+            signal.addEventListener(
+              "abort",
+              () => {
+                aborted = true;
+                reject(signal.reason);
+              },
+              { once: true },
+            );
+          });
+        },
+        timeoutMs: 10,
+      }),
+    ).rejects.toThrow("ImplicitMemBench timeout-test timed out after 10ms");
+    expect(aborted).toBeTrue();
+    expect(observedSignal?.aborted).toBeTrue();
   });
 });

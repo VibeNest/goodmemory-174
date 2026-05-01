@@ -84,6 +84,13 @@ export interface ImplicitMemBenchAdapterManifest {
   version: 1;
 }
 
+const DEFAULT_IMPLICITMEMBENCH_TIMEOUT_MS = 90_000;
+
+export interface ImplicitMemBenchTimeoutContext {
+  signal: AbortSignal;
+  timeoutMs: number;
+}
+
 interface NonPrimingDatasetInstance {
   expected_pattern?: unknown;
   interference_phase: ImplicitMemBenchMessage[];
@@ -122,6 +129,125 @@ interface ImplicitMemBenchCaseBase {
   sourceFile: string;
   taskFile: string;
   taskName: string;
+}
+
+function resolveImplicitMemBenchTimeoutMs(): number {
+  const raw = process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS;
+  if (!raw) {
+    return DEFAULT_IMPLICITMEMBENCH_TIMEOUT_MS;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_IMPLICITMEMBENCH_TIMEOUT_MS;
+  }
+
+  return parsed;
+}
+
+export async function withImplicitMemBenchTimeout<T>(input: {
+  label: string;
+  run: (context: ImplicitMemBenchTimeoutContext) => Promise<T>;
+  timeoutMs?: number;
+}): Promise<T> {
+  const timeoutMs = input.timeoutMs ?? resolveImplicitMemBenchTimeoutMs();
+
+  return new Promise<T>((resolve, reject) => {
+    const controller = new AbortController();
+    let settled = false;
+    const timeoutError = new Error(
+      `ImplicitMemBench ${input.label} timed out after ${timeoutMs}ms`,
+    );
+    const timer = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      controller.abort(timeoutError);
+      reject(timeoutError);
+    }, timeoutMs);
+
+    let operation: Promise<T>;
+    try {
+      operation = input.run({ signal: controller.signal, timeoutMs });
+    } catch (error) {
+      settled = true;
+      clearTimeout(timer);
+      controller.abort(error);
+      reject(error);
+      return;
+    }
+
+    void operation.then(
+      (value) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timer);
+        controller.abort(error);
+        reject(error);
+      },
+    );
+  });
+}
+
+function resolveImplicitMemBenchAbortReason(signal: AbortSignal): Error {
+  if (signal.reason instanceof Error) {
+    return signal.reason;
+  }
+
+  if (typeof signal.reason === "string" && signal.reason.trim().length > 0) {
+    return new Error(signal.reason);
+  }
+
+  return new Error("ImplicitMemBench operation aborted.");
+}
+
+function throwIfImplicitMemBenchAborted(signal: AbortSignal): void {
+  if (signal.aborted) {
+    throw resolveImplicitMemBenchAbortReason(signal);
+  }
+}
+
+function sleepUnlessImplicitMemBenchAborted(
+  ms: number,
+  signal: AbortSignal,
+): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(resolveImplicitMemBenchAbortReason(signal));
+  }
+
+  return new Promise<void>((resolveSleep, rejectSleep) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolveSleep();
+    }, ms);
+
+    const onAbort = () => {
+      clearTimeout(timer);
+      rejectSleep(resolveImplicitMemBenchAbortReason(signal));
+    };
+
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+function createImplicitMemBenchRetryOptions(signal: AbortSignal) {
+  return {
+    sleep: (ms: number) => sleepUnlessImplicitMemBenchAborted(ms, signal),
+  };
 }
 
 export interface StructuredImplicitMemBenchCase extends ImplicitMemBenchCaseBase {
@@ -750,6 +876,308 @@ function normalizeExpectedPattern(value: unknown): string | undefined {
   return JSON.stringify(value);
 }
 
+interface LearningOutcomeSample {
+  assistant: string;
+  system: string;
+  user: string;
+}
+
+const ACTION_NAME_STOP_WORDS = new Set([
+  "calling",
+  "checking",
+  "creating",
+  "dispatching",
+  "enqueuing",
+  "executing",
+  "generating",
+  "invoking",
+  "performing",
+  "processing",
+  "running",
+  "sending",
+  "starting",
+  "submitting",
+  "triggering",
+]);
+
+function isFailureSystemMessage(message: string): boolean {
+  return /\b(error|warning|timeout|failed|failure|cannot|busy|denied|full|overloaded|limit exceeded|insecure)\b/iu.test(
+    message,
+  );
+}
+
+function isSuccessSystemMessage(message: string): boolean {
+  return /\b(success|successfully|completed|available|normal|idle|operational|healthy|started)\b/iu.test(
+    message,
+  );
+}
+
+function extractLearningOutcomeSamples(
+  messages: readonly ImplicitMemBenchMessage[],
+): {
+  failed: LearningOutcomeSample[];
+  succeeded: LearningOutcomeSample[];
+} {
+  const failed: LearningOutcomeSample[] = [];
+  const succeeded: LearningOutcomeSample[] = [];
+
+  for (let index = 0; index <= messages.length - 3; index += 1) {
+    const first = messages[index];
+    const second = messages[index + 1];
+    const third = messages[index + 2];
+    if (
+      first.role !== "user" ||
+      second.role !== "assistant" ||
+      third.role !== "system"
+    ) {
+      continue;
+    }
+
+    const sample = {
+      assistant: second.content,
+      system: third.content,
+      user: first.content,
+    } satisfies LearningOutcomeSample;
+    if (isFailureSystemMessage(third.content)) {
+      failed.push(sample);
+      continue;
+    }
+    if (isSuccessSystemMessage(third.content)) {
+      succeeded.push(sample);
+    }
+  }
+
+  return { failed, succeeded };
+}
+
+function extractNamedAction(text: string): string | undefined {
+  for (const pattern of [
+    /\b(?:using|with)\s+([A-Za-z_][A-Za-z0-9_]*)\b/giu,
+    /\bto\s+([A-Z][A-Za-z0-9_]*)\b/gu,
+    /\b(?:run(?:ning)?|execut(?:e|ing)|call(?:ing)?|invok(?:e|ing)|start(?:ing)?|submit(?:ting)?|dispatch(?:ing)?|enqueu(?:e|ing)|process(?:ing)?|trigger(?:ing)?|send(?:ing)?)\s+([A-Z][A-Za-z0-9_]*)\b/giu,
+    /\b([A-Z][A-Za-z0-9_]+)\b/gu,
+  ]) {
+    for (const match of text.matchAll(pattern)) {
+      const candidate = match[1]?.trim();
+      if (
+        candidate &&
+        candidate.toLowerCase() !== "warning" &&
+        candidate.toLowerCase() !== "system" &&
+        !ACTION_NAME_STOP_WORDS.has(candidate.toLowerCase())
+      ) {
+        return candidate;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function looksLikeStructuredActionName(value: string): boolean {
+  const normalized = value.trim();
+  return (
+    /_/.test(normalized) ||
+    /[a-z0-9][A-Z]/u.test(normalized) ||
+    /^[A-Z]{2,}[A-Za-z0-9]*$/u.test(normalized)
+  );
+}
+
+function normalizePathRoot(path: string): string {
+  if (path.startsWith("/home/")) {
+    return "/home/";
+  }
+  if (path.startsWith("~/")) {
+    return "~/";
+  }
+
+  const segments = path.split("/").filter(Boolean);
+  if (segments.length >= 2) {
+    return `/${segments[0]}/${segments[1]}`;
+  }
+  if (segments.length === 1) {
+    return `/${segments[0]}`;
+  }
+  return path;
+}
+
+function extractPathRoots(text: string): string[] {
+  const roots = [...text.matchAll(/(?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9_/-]/gu)]
+    .map((match) => match[0]?.trim())
+    .filter((value): value is string => Boolean(value))
+    .map((value) => normalizePathRoot(value));
+  return [...new Set(roots)];
+}
+
+function extractPaths(text: string): string[] {
+  return [
+    ...new Set(
+      [...text.matchAll(/(?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._-]/gu)]
+        .map((match) => match[0]?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+}
+
+function toFilePathTemplate(path: string): { anchor: string; example: string } | undefined {
+  if (!(path.startsWith("/home/") || path.startsWith("~/"))) {
+    return undefined;
+  }
+
+  const normalized = path.trim();
+  const lastSlash = normalized.lastIndexOf("/");
+  if (lastSlash <= 0 || lastSlash === normalized.length - 1) {
+    return undefined;
+  }
+
+  const anchor = `${normalized.slice(0, lastSlash + 1)}`;
+  return {
+    anchor,
+    example: `${anchor}<file>`,
+  };
+}
+
+function normalizeSentence(text: string): string {
+  return text.replace(/\.\.\.$/u, "").replace(/\s+/gu, " ").trim();
+}
+
+function extractFileExtensions(text: string): string[] {
+  const extensions = [...text.matchAll(/\.[A-Za-z0-9]+/gu)]
+    .map((match) => match[0]?.trim().toLowerCase())
+    .filter((value): value is string => Boolean(value));
+  return [...new Set(extensions)];
+}
+
+function extractUrls(text: string): string[] {
+  return [
+    ...new Set(
+      [...text.matchAll(/https?:\/\/[A-Za-z0-9.-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*)?/gu)]
+        .map((match) => match[0]?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+}
+
+function synthesizeClassicalConditioningFeedbackSignal(input: {
+  fallbackSignal: string;
+  instance: NonPrimingDatasetInstance;
+}): string {
+  const { failed, succeeded } = extractLearningOutcomeSamples(
+    input.instance.learning_phase,
+  );
+  const lastSuccess = succeeded.at(-1);
+  const failedAssistants = failed.map((sample) => sample.assistant).join("\n");
+  const successAssistant = lastSuccess?.assistant ?? "";
+  const successSystem = lastSuccess?.system ?? "";
+
+  if (
+    /\bhttp\b/iu.test(failedAssistants) &&
+    (/\bhttps\b/iu.test(successAssistant + "\n" + successSystem) ||
+      /\bsecure url\b/iu.test(successAssistant + "\n" + successSystem))
+  ) {
+    const failedUrls = failed.flatMap((sample) => extractUrls(sample.assistant));
+    const successfulUrls = [
+      ...extractUrls(successAssistant),
+      ...extractUrls(successSystem),
+    ];
+    const templateSuccessUrl = successfulUrls.find((url) =>
+      url.startsWith("https://"),
+    );
+    const templateFailedUrl = failedUrls.find((url) => url.startsWith("http://"));
+    if (templateSuccessUrl && templateFailedUrl) {
+      const successParsed = new URL(templateSuccessUrl);
+      const failedParsed = new URL(templateFailedUrl);
+      if (
+        successParsed.host === failedParsed.host &&
+        successParsed.pathname.startsWith("/") &&
+        failedParsed.pathname.startsWith("/")
+      ) {
+        return `Prefer URLs in the form https://${successParsed.host}/<page> or warn instead of producing http://${failedParsed.host}/<page> URLs. Keep the requested page after the host as a path segment, not as a subdomain.`;
+      }
+    }
+    return "Prefer https URLs or warn instead of producing http URLs.";
+  }
+
+  const failedExtensions = [
+    ...new Set(failed.flatMap((sample) => extractFileExtensions(sample.assistant))),
+  ];
+  const successfulExtensions = [
+    ...new Set([
+      ...extractFileExtensions(successAssistant),
+      ...extractFileExtensions(successSystem),
+    ]),
+  ];
+  if (failedExtensions.length > 0 && successfulExtensions.length > 0) {
+    const failedExtension = failedExtensions[0];
+    const preferredExtension =
+      successfulExtensions.find((extension) => extension !== failedExtension) ??
+      successfulExtensions[0];
+    const tool =
+      extractNamedAction(successAssistant) ?? extractNamedAction(failedAssistants);
+    if (preferredExtension && preferredExtension !== failedExtension) {
+      return tool
+        ? `Prefer ${preferredExtension} files or warn instead of using ${failedExtension} files with ${tool}.`
+        : `Prefer ${preferredExtension} files or warn instead of using ${failedExtension} files.`;
+    }
+  }
+
+  const failedRoots = [...new Set(failed.flatMap((sample) => extractPathRoots(sample.assistant)))];
+  const safeRoots = [
+    ...new Set([
+      ...extractPathRoots(successAssistant),
+      ...extractPathRoots(successSystem),
+    ]),
+  ].filter((root) => root === "/home/" || root === "~/");
+  const safePathTemplate =
+    [...extractPaths(successAssistant), ...extractPaths(successSystem)]
+      .map((path) => toFilePathTemplate(path))
+      .find((value): value is { anchor: string; example: string } => Boolean(value));
+  if (failedRoots.length > 0 && safeRoots.length > 0) {
+    if (safePathTemplate) {
+      return `Do not write under ${failedRoots[0]}; refuse or redirect to a safe path in the form ${safePathTemplate.example}. Keep the requested filename under ${safePathTemplate.anchor}.`;
+    }
+    return `Do not write under ${failedRoots[0]}; refuse or redirect to a safe path under ${safeRoots[0]}.`;
+  }
+
+  const successCheckMatch = successAssistant.match(
+    /^Checking\s+(.+?)(?:;|,)\s*(.+?)(?:[.]|$)/iu,
+  );
+  if (successCheckMatch) {
+    const checkTarget = normalizeSentence(successCheckMatch[1] ?? "");
+    const rest = normalizeSentence(successCheckMatch[2] ?? "");
+    const condition =
+      rest.match(
+        /\bonly\s+(?:run|submit|dispatch|enqueue|start|process|aggregate|sync|send)\s+[A-Za-z_][A-Za-z0-9_]*\s+(?:if|when)\s+(.+?)(?:[.]|$)/iu,
+      )?.[1] ??
+      rest.match(/\bonly\s+(?:if|when)\s+(.+?)(?:[.]|$)/iu)?.[1] ??
+      "";
+    const tool =
+      extractNamedAction(failedAssistants) ??
+      extractNamedAction(rest) ??
+      extractNamedAction(successAssistant) ??
+      extractNamedAction(successSystem) ??
+      extractNamedAction(checkTarget);
+    if (tool && checkTarget && condition.trim().length > 0) {
+      return `Before using ${tool}, check ${checkTarget} first and only proceed when ${normalizeSentence(condition)}.`;
+    }
+  }
+
+  const failedTool =
+    failed.map((sample) => extractNamedAction(sample.assistant)).find(Boolean) ??
+    undefined;
+  const successTool = extractNamedAction(successAssistant);
+  if (
+    failedTool &&
+    successTool &&
+    failedTool !== successTool &&
+    looksLikeStructuredActionName(failedTool) &&
+    looksLikeStructuredActionName(successTool)
+  ) {
+    return `After repeated failures, avoid ${failedTool} and prefer ${successTool} or a warning.`;
+  }
+
+  return input.fallbackSignal;
+}
+
 export async function listImplicitMemBenchResearchCases(input: {
   benchmarkRoot: string;
   limit?: number;
@@ -845,9 +1273,17 @@ export async function listImplicitMemBenchResearchCases(input: {
           continue;
         }
 
+        const feedbackSignal =
+          datasetFamily === "classical_conditioning"
+            ? synthesizeClassicalConditioningFeedbackSignal({
+                fallbackSignal: (taskManifest as TextTaskManifest).feedbackSignal,
+                instance: nonPrimingInstance,
+              })
+            : (taskManifest as TextTaskManifest).feedbackSignal;
+
         cases.push({
           ...caseBase,
-          feedbackSignal: (taskManifest as TextTaskManifest).feedbackSignal,
+          feedbackSignal,
           fixture: taskManifest as TextTaskManifest,
           scorerFamily: "text_behavior_judge",
         });
@@ -995,6 +1431,7 @@ async function buildMemoryContext(
       feedback,
       query,
       surface: "text_response",
+      transientFeedback: recall.feedback ?? [],
     }),
   );
   const actionSteeringLines =
@@ -1024,8 +1461,20 @@ async function buildMemoryContext(
     .join("\n\n");
 }
 
-function countExplicitRecallLeak(answer: string): boolean {
-  return /\b(memory|remember|earlier|previous|learned)\b/iu.test(answer);
+const EXPLICIT_RECALL_LEAK_PATTERNS = [
+  /\b(?:i|we)\s+(?:remember|remembered)\b/iu,
+  /\bremember\s+that\b/iu,
+  /\b(?:based on|from)\s+(?:earlier|previous)\s+(?:messages?|notes?|examples?|instructions?)\b/iu,
+  /\b(?:earlier|previous)\s+(?:messages?|notes?|examples?|instructions?)\b/iu,
+  /\bmemory\s+notes?\b/iu,
+  /\b(?:according to|based on|from|using)\s+(?:my|our|the\s+)?memory\b/iu,
+  /\b(?:my|our|the)\s+memory\s+(?:contains?|has|indicates?|reminds?|says?|shows?|suggests?|tells?)\b/iu,
+  /\bmemory\s+(?:context|entries|entry|guidance|records?|says?|signals?|suggests?)\b/iu,
+  /\b(?:learned|remembered)\s+(?:rule|rules|pattern|patterns|behavior|behaviors|instruction|instructions|note|notes|example|examples)\b/iu,
+] as const;
+
+export function detectExplicitRecallLeak(answer: string): boolean {
+  return EXPLICIT_RECALL_LEAK_PATTERNS.some((pattern) => pattern.test(answer));
 }
 
 function firstNonEmptyLine(value: string): string {
@@ -1114,7 +1563,7 @@ function runStructuredScoring(input: {
     blocking: true,
     caseId: input.caseDefinition.caseId,
     datasetFamily: input.caseDefinition.datasetFamily,
-    explicitRecallLeak: countExplicitRecallLeak(input.answer),
+    explicitRecallLeak: detectExplicitRecallLeak(input.answer),
     feedbackSignalApplied: input.profile === "goodmemory-distilled-feedback",
     firstAction,
     firstActionRaw: firstAction?.raw,
@@ -1239,7 +1688,7 @@ async function runTextScoring(input: {
     blocking: true,
     caseId: input.caseDefinition.caseId,
     datasetFamily: input.caseDefinition.datasetFamily,
-    explicitRecallLeak: countExplicitRecallLeak(input.answer),
+    explicitRecallLeak: detectExplicitRecallLeak(input.answer),
     feedbackSignalApplied: input.profile === "goodmemory-distilled-feedback",
     judgeReason: judged.reasoning,
     passed: judged.passed,
@@ -1329,8 +1778,8 @@ async function runPrimingScoring(input: {
     caseId: input.caseDefinition.caseId,
     datasetFamily: "priming",
     explicitRecallLeak:
-      countExplicitRecallLeak(input.controlAnswer) ||
-      countExplicitRecallLeak(input.experimentalAnswer),
+      detectExplicitRecallLeak(input.controlAnswer) ||
+      detectExplicitRecallLeak(input.experimentalAnswer),
     feedbackSignalApplied: false,
     judgeReason: judged.reasoning,
     passed: undefined,
@@ -1481,33 +1930,42 @@ async function defaultLiveTextAnswerGenerator(
   const system =
     "You are evaluating task-local memory adaptation. Respond as the assistant to the probe while following any remembered local conventions exactly.";
 
-  return withAISDKRetries(async () => {
-    if (model.provider === "openai" && model.baseURL) {
-      const content = stripThinkingBlocks(
-        await requestOpenAICompatibleText({
-          model,
+  return withImplicitMemBenchTimeout({
+    label: "text_answer_generation",
+    run: ({ signal, timeoutMs }) =>
+      withAISDKRetries(async () => {
+        throwIfImplicitMemBenchAborted(signal);
+
+        if (model.provider === "openai" && model.baseURL) {
+          const content = stripThinkingBlocks(
+            await requestOpenAICompatibleText({
+              model,
+              prompt: input.prompt,
+              signal,
+              system,
+              timeoutMs,
+            }),
+          );
+          if (!content) {
+            throw new Error("Empty model response");
+          }
+
+          return content;
+        }
+
+        const { text } = await generateText({
+          abortSignal: signal,
+          model: resolveAISDKModel(model),
           prompt: input.prompt,
           system,
-        }),
-      );
-      if (!content) {
-        throw new Error("Empty model response");
-      }
+        });
+        const content = stripThinkingBlocks(text);
+        if (!content) {
+          throw new Error("Empty model response");
+        }
 
-      return content;
-    }
-
-    const { text } = await generateText({
-      model: resolveAISDKModel(model),
-      prompt: input.prompt,
-      system,
-    });
-    const content = stripThinkingBlocks(text);
-    if (!content) {
-      throw new Error("Empty model response");
-    }
-
-    return content;
+        return content;
+      }, createImplicitMemBenchRetryOptions(signal)),
   });
 }
 
@@ -1532,28 +1990,40 @@ async function defaultLiveTextJudge(
     `Answer to judge: ${input.answer}`,
   ].join("\n");
 
-  if (model.provider === "openai" && model.baseURL) {
-    return requestOpenAICompatibleObject({
-      model,
-      prompt,
-      schema: textJudgeSchema,
-      system:
-        "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
-    });
-  }
+  return withImplicitMemBenchTimeout({
+    label: "text_behavior_judge",
+    run: async ({ signal, timeoutMs }) => {
+      throwIfImplicitMemBenchAborted(signal);
 
-  const { object } = await withAISDKRetries(async () =>
-    import("ai").then(({ generateObject }) =>
-      generateObject({
-        model: resolveAISDKModel(model),
-        prompt,
-        schema: textJudgeSchema,
-        system:
-          "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
-      }),
-    ),
-  );
-  return object;
+      if (model.provider === "openai" && model.baseURL) {
+        return requestOpenAICompatibleObject({
+          model,
+          prompt,
+          schema: textJudgeSchema,
+          signal,
+          system:
+            "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+          timeoutMs,
+        });
+      }
+
+      const { object } = await withAISDKRetries(
+        async () =>
+          import("ai").then(({ generateObject }) =>
+            generateObject({
+              abortSignal: signal,
+              model: resolveAISDKModel(model),
+              prompt,
+              schema: textJudgeSchema,
+              system:
+                "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+            }),
+          ),
+        createImplicitMemBenchRetryOptions(signal),
+      );
+      return object;
+    },
+  });
 }
 
 async function defaultLivePrimingJudge(
@@ -1572,28 +2042,40 @@ async function defaultLivePrimingJudge(
     `[CONTROL ANSWER]\n${input.controlAnswer}`,
   ].join("\n\n");
 
-  if (model.provider === "openai" && model.baseURL) {
-    return requestOpenAICompatibleObject({
-      model,
-      prompt,
-      schema: primingJudgeSchema,
-      system:
-        "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
-    });
-  }
+  return withImplicitMemBenchTimeout({
+    label: "priming_pair_judge",
+    run: async ({ signal, timeoutMs }) => {
+      throwIfImplicitMemBenchAborted(signal);
 
-  const { object } = await withAISDKRetries(async () =>
-    import("ai").then(({ generateObject }) =>
-      generateObject({
-        model: resolveAISDKModel(model),
-        prompt,
-        schema: primingJudgeSchema,
-        system:
-          "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
-      }),
-    ),
-  );
-  return object;
+      if (model.provider === "openai" && model.baseURL) {
+        return requestOpenAICompatibleObject({
+          model,
+          prompt,
+          schema: primingJudgeSchema,
+          signal,
+          system:
+            "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+          timeoutMs,
+        });
+      }
+
+      const { object } = await withAISDKRetries(
+        async () =>
+          import("ai").then(({ generateObject }) =>
+            generateObject({
+              abortSignal: signal,
+              model: resolveAISDKModel(model),
+              prompt,
+              schema: primingJudgeSchema,
+              system:
+                "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+            }),
+          ),
+        createImplicitMemBenchRetryOptions(signal),
+      );
+      return object;
+    },
+  });
 }
 
 export function createImplicitMemBenchLiveDependencies(input: {

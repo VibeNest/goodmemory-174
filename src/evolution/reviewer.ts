@@ -293,7 +293,7 @@ function buildProceduralPatternProposal(input: {
 
   const behavioralPolicy = deriveRuleBehavioralPolicy({
     appliesTo: input.feedback.appliesTo,
-    exemplarCount: 1,
+    exemplarCount: sorted.length,
     kind: input.feedback.kind,
     rule: input.feedback.rule,
   });

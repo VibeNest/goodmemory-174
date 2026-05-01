@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
 import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 import { createFactMemory } from "../../src/domain/records";
+import { readBehavioralPolicyFromFeedbackMemory } from "../../src/evolution/behavioralPolicy";
+import { readCompiledGuidance } from "../../src/evolution/behavioralTelemetry";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
@@ -41,6 +43,10 @@ describe("reflective reviewer integration", () => {
     expect(exported.durable.proposals[0]?.status).toBe("accepted");
     expect(exported.durable.proposals[0]?.linkedMemoryIds).toHaveLength(1);
     expect(exported.durable.proposals[0]?.sourceExperienceIds).toHaveLength(2);
+    const compiledGuidance = readCompiledGuidance(exported.durable.proposals[0]!);
+    expect(
+      compiledGuidance?.behavioralPolicy?.transferMode,
+    ).toBe("pattern_bounded");
     expect(exported.durable.promotions).toHaveLength(1);
     expect(
       exported.durable.promotions.every(
@@ -87,6 +93,55 @@ describe("reflective reviewer integration", () => {
     expect(proposal?.summary).toContain("[assisted reviewer]");
     expect(proposal?.rationale).toContain("[assisted reviewer]");
     expect(proposal?.modelInfluence).toBe("llm-assisted");
+  });
+
+  it("persists a pattern-bounded behavioral policy after repeated feedback is promoted and compiled", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const scope = { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" } as const;
+
+    await memory.feedback({
+      scope,
+      signal: "Prefer https URLs or warn instead of producing http URLs.",
+    });
+    await memory.feedback({
+      scope,
+      signal: "Prefer https URLs or warn instead of producing http URLs.",
+    });
+    await memory.feedback({
+      scope,
+      signal: "Prefer https URLs or warn instead of producing http URLs.",
+    });
+
+    await memory.recall({
+      scope,
+      query: "Draft the installer URL.",
+      retrievalProfile: "general_chat",
+    });
+
+    const exported = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+    });
+    const validatedPattern = exported.durable.feedback.find(
+      (record) => record.kind === "validated_pattern" && record.lifecycle === "active",
+    );
+    const behavioralPolicy = validatedPattern
+      ? readBehavioralPolicyFromFeedbackMemory(validatedPattern)
+      : undefined;
+
+    expect(behavioralPolicy?.transferMode).toBe("pattern_bounded");
+    expect(behavioralPolicy?.applicability.replacementPairs).toEqual([
+      { from: "http://", to: "https://" },
+    ]);
+    expect(behavioralPolicy?.applicability.forbiddenFragments).toEqual([
+      "http://",
+    ]);
   });
 
   it("emits a maintenance proposal after a stale verification signal is observed and the turn completes", async () => {

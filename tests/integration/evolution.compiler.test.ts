@@ -100,17 +100,22 @@ describe("procedural pattern compiler", () => {
     const validatedPatterns = exported.durable.feedback.filter(
       (record) => record.kind === "validated_pattern" && record.lifecycle === "active",
     );
+    const validatedPattern = validatedPatterns[0];
     const sourceGuidance = exported.durable.feedback.find((record) => record.id === "feedback-1");
 
     expect(validatedPatterns).toHaveLength(1);
-    expect(validatedPatterns[0]?.rule).toBe("Use bullet points in summaries.");
-    expect(validatedPatterns[0]?.workspaceId).toBe("workspace-a");
-    expect(validatedPatterns[0]?.agentId).toBe("agent-a");
-    expect(validatedPatterns[0]?.sessionId).toBeUndefined();
-    expect(validatedPatterns[0]?.appliesTo).toBe("general_response");
-    expect(validatedPatterns[0]?.source.method).toBe("confirmed");
+    expect(validatedPattern).toBeDefined();
+    if (!validatedPattern) {
+      throw new Error("expected one validated pattern");
+    }
+    expect(validatedPattern.rule).toBe("Use bullet points in summaries.");
+    expect(validatedPattern.workspaceId).toBe("workspace-a");
+    expect(validatedPattern.agentId).toBe("agent-a");
+    expect(validatedPattern.sessionId).toBeUndefined();
+    expect(validatedPattern.appliesTo).toBe("general_response");
+    expect(validatedPattern.source.method).toBe("confirmed");
     expect(sourceGuidance?.lifecycle).toBe("superseded");
-    expect(sourceGuidance?.supersededBy).toBe(validatedPatterns[0]?.id);
+    expect(sourceGuidance?.supersededBy).toBe(validatedPattern.id);
     expect(
       exported.artifacts.files.some((file) =>
         file.relativePath === "playbooks/use-bullet-points-in-summaries.md",

@@ -30,13 +30,46 @@ export interface BehavioralPolicyFragments {
   suffixes?: string[];
 }
 
+export interface BehavioralPolicyReplacement {
+  from: string;
+  to: string;
+}
+
+export interface BehavioralPolicyGuard {
+  allowedStates?: string[];
+  check: string;
+  fallbackInstruction?: string;
+  subject?: string;
+}
+
+export interface BehavioralPolicyUrlTemplate {
+  example: string;
+  host: string;
+  pathPlacement: "path_after_host";
+  scheme: "http" | "https";
+}
+
+export interface BehavioralPolicyPathTemplate {
+  anchor: string;
+  example: string;
+  variableSegment: "filename";
+}
+
 export interface BehavioralPolicyApplicability {
   actionSummaryContains?: string[];
   appliesTo?: string;
   argumentOrder?: string[];
   canonicalFirstAction?: BehavioralPolicyAction;
   exactFragments?: BehavioralPolicyFragments;
+  fallbackInstruction?: string;
+  forbiddenFragments?: string[];
+  guard?: BehavioralPolicyGuard;
+  preferredAlternatives?: string[];
+  preferredFragments?: string[];
+  pathTemplate?: BehavioralPolicyPathTemplate;
   queryContains?: string[];
+  replacementPairs?: BehavioralPolicyReplacement[];
+  urlTemplate?: BehavioralPolicyUrlTemplate;
 }
 
 export interface BehavioralPolicy {
@@ -53,11 +86,31 @@ export interface BehavioralPolicySelection {
   score: number;
 }
 
+function hasStructuredTextResponseSteering(policy: BehavioralPolicy): boolean {
+  if (policy.enactmentSurface !== "text_response") {
+    return false;
+  }
+
+  return Boolean(
+    policy.applicability.urlTemplate ||
+      policy.applicability.pathTemplate ||
+      policy.applicability.guard ||
+      (policy.applicability.replacementPairs?.length ?? 0) > 0 ||
+      (policy.applicability.forbiddenFragments?.length ?? 0) > 0 ||
+      (policy.applicability.preferredAlternatives?.length ?? 0) > 0 ||
+      (policy.applicability.preferredFragments?.length ?? 0) > 0 ||
+      (policy.applicability.exactFragments?.prefixes?.length ?? 0) > 0 ||
+      (policy.applicability.exactFragments?.required?.length ?? 0) > 0 ||
+      (policy.applicability.exactFragments?.suffixes?.length ?? 0) > 0,
+  );
+}
+
 export interface BehavioralPolicySelectionInput {
   appliesTo: string;
   feedback?: readonly FeedbackMemory[];
   query?: string;
   surface: BehavioralEnactmentSurface;
+  transientFeedback?: readonly FeedbackMemory[];
 }
 
 export interface DeriveRuleBehavioralPolicyInput {
@@ -114,6 +167,7 @@ const RULE_TRIGGER_PATTERNS = [
   /\bif\s+(.+?)(?:[,.]|$)/iu,
   /\bbefore\s+(.+?)(?:[,.]|$)/iu,
   /\bfor\s+(.+?)(?:[,.]|$)/iu,
+  /\bon\s+(.+?)\s+requests?(?:[,.]|$)/iu,
 ] as const;
 const HOST_ACTION_NAME_PATTERNS = [
   /\b([a-z_][a-z0-9_]*\([^)]*\))\b/u,
@@ -130,6 +184,11 @@ const HOST_ACTION_STOP_WORDS = new Set([
   "the",
   "when",
 ]);
+const URL_PROTOCOL_REWRITE = {
+  from: "http://",
+  to: "https://",
+} as const;
+const URL_TEMPLATE_PAGE_TOKEN = "<page>";
 const BEHAVIORAL_KIND_RANK: Record<BehavioralKind, number> = {
   first_action: 7,
   syntax_constraint: 6,
@@ -329,6 +388,104 @@ function parseBehavioralPolicyFragments(
   };
 }
 
+function parseBehavioralPolicyReplacement(
+  value: unknown,
+): BehavioralPolicyReplacement | undefined {
+  if (!isRecord(value) || typeof value.from !== "string" || typeof value.to !== "string") {
+    return undefined;
+  }
+
+  const from = value.from.trim();
+  const to = value.to.trim();
+  if (from.length === 0 || to.length === 0) {
+    return undefined;
+  }
+
+  return { from, to };
+}
+
+function parseBehavioralPolicyGuard(
+  value: unknown,
+): BehavioralPolicyGuard | undefined {
+  if (!isRecord(value) || typeof value.check !== "string") {
+    return undefined;
+  }
+
+  const check = value.check.trim();
+  if (check.length === 0) {
+    return undefined;
+  }
+
+  const allowedStates = parseStringArray(value.allowedStates);
+  const fallbackInstruction =
+    typeof value.fallbackInstruction === "string" && value.fallbackInstruction.trim().length > 0
+      ? value.fallbackInstruction.trim()
+      : undefined;
+  const subject =
+    typeof value.subject === "string" && value.subject.trim().length > 0
+      ? value.subject.trim()
+      : undefined;
+
+  return {
+    ...(allowedStates ? { allowedStates } : {}),
+    check,
+    ...(fallbackInstruction ? { fallbackInstruction } : {}),
+    ...(subject ? { subject } : {}),
+  };
+}
+
+function parseBehavioralPolicyUrlTemplate(
+  value: unknown,
+): BehavioralPolicyUrlTemplate | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value.example !== "string" ||
+    typeof value.host !== "string" ||
+    value.pathPlacement !== "path_after_host" ||
+    (value.scheme !== "http" && value.scheme !== "https")
+  ) {
+    return undefined;
+  }
+
+  const example = value.example.trim();
+  const host = value.host.trim();
+  if (example.length === 0 || host.length === 0) {
+    return undefined;
+  }
+
+  return {
+    example,
+    host,
+    pathPlacement: "path_after_host",
+    scheme: value.scheme,
+  };
+}
+
+function parseBehavioralPolicyPathTemplate(
+  value: unknown,
+): BehavioralPolicyPathTemplate | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value.anchor !== "string" ||
+    typeof value.example !== "string" ||
+    value.variableSegment !== "filename"
+  ) {
+    return undefined;
+  }
+
+  const anchor = value.anchor.trim();
+  const example = value.example.trim();
+  if (anchor.length === 0 || example.length === 0) {
+    return undefined;
+  }
+
+  return {
+    anchor,
+    example,
+    variableSegment: "filename",
+  };
+}
+
 function parseBehavioralPolicyApplicability(
   value: unknown,
 ): BehavioralPolicyApplicability | undefined {
@@ -340,10 +497,26 @@ function parseBehavioralPolicyApplicability(
   const queryContains = parseStringArray(value.queryContains);
   const argumentOrder = parseStringArray(value.argumentOrder);
   const exactFragments = parseBehavioralPolicyFragments(value.exactFragments);
+  const forbiddenFragments = parseStringArray(value.forbiddenFragments);
+  const preferredAlternatives = parseStringArray(value.preferredAlternatives);
+  const preferredFragments = parseStringArray(value.preferredFragments);
+  const pathTemplate = parseBehavioralPolicyPathTemplate(value.pathTemplate);
+  const replacementPairs =
+    Array.isArray(value.replacementPairs)
+      ? value.replacementPairs
+          .map((entry) => parseBehavioralPolicyReplacement(entry))
+          .filter((entry): entry is BehavioralPolicyReplacement => Boolean(entry))
+      : undefined;
+  const urlTemplate = parseBehavioralPolicyUrlTemplate(value.urlTemplate);
+  const guard = parseBehavioralPolicyGuard(value.guard);
   const canonicalFirstAction = parseBehavioralPolicyAction(value.canonicalFirstAction);
   const appliesTo =
     typeof value.appliesTo === "string"
       ? normalizeFeedbackAppliesTo(value.appliesTo)
+      : undefined;
+  const fallbackInstruction =
+    typeof value.fallbackInstruction === "string" && value.fallbackInstruction.trim().length > 0
+      ? value.fallbackInstruction.trim()
       : undefined;
 
   return {
@@ -352,7 +525,17 @@ function parseBehavioralPolicyApplicability(
     ...(argumentOrder ? { argumentOrder } : {}),
     ...(canonicalFirstAction ? { canonicalFirstAction } : {}),
     ...(exactFragments ? { exactFragments } : {}),
+    ...(fallbackInstruction ? { fallbackInstruction } : {}),
+    ...(forbiddenFragments ? { forbiddenFragments } : {}),
+    ...(guard ? { guard } : {}),
+    ...(preferredAlternatives ? { preferredAlternatives } : {}),
+    ...(preferredFragments ? { preferredFragments } : {}),
+    ...(pathTemplate ? { pathTemplate } : {}),
     ...(queryContains ? { queryContains } : {}),
+    ...(replacementPairs && replacementPairs.length > 0
+      ? { replacementPairs }
+      : {}),
+    ...(urlTemplate ? { urlTemplate } : {}),
   };
 }
 
@@ -510,6 +693,166 @@ function extractTriggerPhrases(rule: string): string[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function extractSlashPaths(rule: string): string[] | undefined {
+  const matches = [...rule.matchAll(/(?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9_/-]/gu)]
+    .map((match) => match[0]?.trim())
+    .filter((value): value is string => Boolean(value));
+  const normalized = uniqueStrings(matches);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function extractPreferredAlternativeNames(rule: string): string[] | undefined {
+  const matches: string[] = [];
+  const ignored = new Set(["url", "urls", "file", "files", "warning", "warnings"]);
+
+  for (const pattern of [
+    /\bprefer\s+([A-Z][A-Za-z0-9_]*|[a-z_]+_[a-z0-9_]*)\s+or\s+(?:a|an)\s+warning\b/giu,
+    /\bprefer\s+([A-Z][A-Za-z0-9_]*|[a-z_]+_[a-z0-9_]*)\b/giu,
+  ]) {
+    for (const match of rule.matchAll(pattern)) {
+      const value = match[1]?.trim();
+      if (value && !ignored.has(value.toLowerCase())) {
+        matches.push(value);
+      }
+    }
+  }
+
+  const normalized = uniqueStrings(matches);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function extractGuard(rule: string): BehavioralPolicyGuard | undefined {
+  const match = rule.match(
+    /\bBefore using\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*check\s+(.+?)\s+first\s+and\s+only proceed when\s+(.+?)(?:[.]|$)/iu,
+  );
+  if (!match) {
+    return undefined;
+  }
+
+  const subject = match[1]?.trim();
+  const check = match[2]?.trim();
+  const allowedClause = match[3]?.trim();
+  if (!check) {
+    return undefined;
+  }
+
+  const allowedStates = uniqueStrings(
+    allowedClause
+      ?.split(/\bor\b|,/iu)
+      .map((part) =>
+        part
+          .replace(/\b(?:is|are|equals?)\b/giu, " ")
+          .replace(/\s+/gu, " ")
+          .trim(),
+      ) ?? [],
+  );
+
+  return {
+    ...(allowedStates.length > 0 ? { allowedStates } : {}),
+    check,
+    fallbackInstruction:
+      "If the required check cannot be verified, warn or defer instead of assuming it already passed.",
+    ...(subject ? { subject } : {}),
+  };
+}
+
+function deriveProtocolRewriteApplicability(
+  rule: string,
+): Pick<
+  BehavioralPolicyApplicability,
+  | "fallbackInstruction"
+  | "forbiddenFragments"
+  | "preferredFragments"
+  | "queryContains"
+  | "replacementPairs"
+  | "urlTemplate"
+> | null {
+  const normalized = normalizeText(rule);
+  if (!normalized.includes("https") || !normalized.includes("http")) {
+    return null;
+  }
+  if (
+    !normalized.includes("prefer https") &&
+    !normalized.includes("prefer urls in the form https://") &&
+    !normalized.includes("avoid http") &&
+    !normalized.includes("warn instead of producing http")
+  ) {
+    return null;
+  }
+
+  const templateMatch = rule.match(
+    /(https:\/\/[A-Za-z0-9.-]+\/<page>)/u,
+  );
+  let preferredFragments: string[] | undefined;
+  let urlTemplate: BehavioralPolicyUrlTemplate | undefined;
+  if (templateMatch?.[1]) {
+    const example = templateMatch[1].trim();
+    const parsed = new URL(example.replace(URL_TEMPLATE_PAGE_TOKEN, "page"));
+    preferredFragments = [`${parsed.protocol}//${parsed.host}/`];
+    urlTemplate = {
+      example,
+      host: parsed.host,
+      pathPlacement: "path_after_host",
+      scheme: parsed.protocol === "https:" ? "https" : "http",
+    };
+  }
+
+  return {
+    fallbackInstruction:
+      "If the current probe explicitly requests http, warn first and then offer the https URL instead of silently substituting protocols.",
+    forbiddenFragments: [URL_PROTOCOL_REWRITE.from],
+    ...(preferredFragments ? { preferredFragments } : {}),
+    queryContains: ["url"],
+    replacementPairs: [URL_PROTOCOL_REWRITE],
+    ...(urlTemplate ? { urlTemplate } : {}),
+  };
+}
+
+function deriveDirectoryRestrictionApplicability(
+  rule: string,
+): Pick<
+  BehavioralPolicyApplicability,
+  "fallbackInstruction" | "forbiddenFragments" | "pathTemplate" | "preferredFragments"
+> | null {
+  const normalized = normalizeText(rule);
+  const forbiddenRoot =
+    rule.match(/\bdo not write under\s+((?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9_/-])/iu)?.[1] ??
+    (extractSlashPaths(rule) ?? []).find((path) =>
+      path.startsWith("/root") || path.startsWith("/system") || path.startsWith("/etc"),
+    );
+  const safeTemplateMatch = rule.match(
+    /(?:in the form|under)\s+(~\/[A-Za-z0-9._/-]+\/<file>|\/home\/[A-Za-z0-9._/-]+\/<file>)/u,
+  );
+  let preferredFragments: string[] | undefined;
+  let pathTemplate: BehavioralPolicyPathTemplate | undefined;
+  if (safeTemplateMatch?.[1]) {
+    const example = safeTemplateMatch[1].trim();
+    const anchor = example.replace(/<file>$/u, "");
+    preferredFragments = [anchor];
+    pathTemplate = {
+      anchor,
+      example,
+      variableSegment: "filename",
+    };
+  }
+
+  if (!forbiddenRoot && !normalized.includes("home-directory") && !pathTemplate) {
+    return null;
+  }
+
+  return {
+    fallbackInstruction:
+      "Refuse the unsafe path and redirect to a safe user-writable home-directory path instead.",
+    ...(forbiddenRoot ? { forbiddenFragments: [forbiddenRoot] } : {}),
+    ...(preferredFragments
+      ? { preferredFragments }
+      : normalized.includes("home-directory")
+        ? { preferredFragments: ["/home/"] }
+        : {}),
+    ...(pathTemplate ? { pathTemplate } : {}),
+  };
+}
+
 function looksLikeFormatRule(rule: string): boolean {
   const normalized = normalizeText(rule);
   return FORMAT_RULE_MARKERS.some((marker) => normalized.includes(marker));
@@ -595,6 +938,34 @@ export function deriveRuleBehavioralPolicy(
   });
   const queryContains = extractTriggerPhrases(input.rule);
   const appliesTo = normalizeFeedbackAppliesTo(input.appliesTo);
+  const protocolApplicability = deriveProtocolRewriteApplicability(input.rule);
+  const directoryApplicability = deriveDirectoryRestrictionApplicability(
+    input.rule,
+  );
+  const mergedQueryContains = uniqueStrings([
+    ...(extractTriggerPhrases(input.rule) ?? []),
+    ...(protocolApplicability?.queryContains ?? []),
+  ]);
+  const preferredAlternatives = extractPreferredAlternativeNames(input.rule);
+  const guard = extractGuard(input.rule);
+  const forbiddenFragments = uniqueStrings([
+    ...(protocolApplicability?.forbiddenFragments ?? []),
+    ...(directoryApplicability?.forbiddenFragments ?? []),
+  ]);
+  const preferredFragments = uniqueStrings([
+    ...(protocolApplicability?.preferredFragments ?? []),
+    ...(directoryApplicability?.preferredFragments ?? []),
+  ]);
+  const pathTemplate = directoryApplicability?.pathTemplate;
+  const replacementPairs = protocolApplicability?.replacementPairs;
+  const urlTemplate = protocolApplicability?.urlTemplate;
+  const fallbackInstruction =
+    guard?.fallbackInstruction ??
+    protocolApplicability?.fallbackInstruction ??
+    directoryApplicability?.fallbackInstruction ??
+    (preferredAlternatives && preferredAlternatives.length > 0 && looksLikeNegativeRule(input.rule)
+      ? `Prefer ${preferredAlternatives.join(" or ")} or warn instead of implying the avoided behavior.`
+      : undefined);
 
   if (looksLikeFormatRule(input.rule)) {
     const prefix = extractQuotedFragment(input.rule, "prefix");
@@ -647,7 +1018,19 @@ export function deriveRuleBehavioralPolicy(
       enactmentSurface: "text_response",
       applicability: {
         appliesTo,
-        ...(queryContains ? { queryContains } : {}),
+        ...(fallbackInstruction ? { fallbackInstruction } : {}),
+        ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+        ...(guard ? { guard } : {}),
+        ...(preferredAlternatives ? { preferredAlternatives } : {}),
+        ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+        ...(pathTemplate ? { pathTemplate } : {}),
+        ...(mergedQueryContains.length > 0
+          ? { queryContains: mergedQueryContains }
+          : {}),
+        ...(replacementPairs && replacementPairs.length > 0
+          ? { replacementPairs }
+          : {}),
+        ...(urlTemplate ? { urlTemplate } : {}),
       },
       transferMode,
     };
@@ -659,7 +1042,19 @@ export function deriveRuleBehavioralPolicy(
       enactmentSurface: "text_response",
       applicability: {
         appliesTo,
-        ...(queryContains ? { queryContains } : {}),
+        ...(fallbackInstruction ? { fallbackInstruction } : {}),
+        ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+        ...(guard ? { guard } : {}),
+        ...(preferredAlternatives ? { preferredAlternatives } : {}),
+        ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+        ...(pathTemplate ? { pathTemplate } : {}),
+        ...(mergedQueryContains.length > 0
+          ? { queryContains: mergedQueryContains }
+          : {}),
+        ...(replacementPairs && replacementPairs.length > 0
+          ? { replacementPairs }
+          : {}),
+        ...(urlTemplate ? { urlTemplate } : {}),
       },
       transferMode,
     };
@@ -671,6 +1066,19 @@ export function deriveRuleBehavioralPolicy(
       enactmentSurface: "text_response",
       applicability: {
         appliesTo,
+        ...(fallbackInstruction ? { fallbackInstruction } : {}),
+        ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+        ...(guard ? { guard } : {}),
+        ...(preferredAlternatives ? { preferredAlternatives } : {}),
+        ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+        ...(pathTemplate ? { pathTemplate } : {}),
+        ...(mergedQueryContains.length > 0
+          ? { queryContains: mergedQueryContains }
+          : {}),
+        ...(replacementPairs && replacementPairs.length > 0
+          ? { replacementPairs }
+          : {}),
+        ...(urlTemplate ? { urlTemplate } : {}),
       },
       transferMode: generalRule ? "general" : "pattern_bounded",
     };
@@ -682,7 +1090,19 @@ export function deriveRuleBehavioralPolicy(
       enactmentSurface: "text_response",
       applicability: {
         appliesTo,
-        ...(queryContains ? { queryContains } : {}),
+        ...(fallbackInstruction ? { fallbackInstruction } : {}),
+        ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+        ...(guard ? { guard } : {}),
+        ...(preferredAlternatives ? { preferredAlternatives } : {}),
+        ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+        ...(pathTemplate ? { pathTemplate } : {}),
+        ...(mergedQueryContains.length > 0
+          ? { queryContains: mergedQueryContains }
+          : {}),
+        ...(replacementPairs && replacementPairs.length > 0
+          ? { replacementPairs }
+          : {}),
+        ...(urlTemplate ? { urlTemplate } : {}),
       },
       transferMode: generalRule ? "general" : "pattern_bounded",
     };
@@ -693,7 +1113,19 @@ export function deriveRuleBehavioralPolicy(
     enactmentSurface: "text_response",
     applicability: {
       appliesTo,
-      ...(queryContains ? { queryContains } : {}),
+      ...(fallbackInstruction ? { fallbackInstruction } : {}),
+      ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
+      ...(guard ? { guard } : {}),
+      ...(preferredAlternatives ? { preferredAlternatives } : {}),
+      ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
+      ...(pathTemplate ? { pathTemplate } : {}),
+      ...(mergedQueryContains.length > 0
+        ? { queryContains: mergedQueryContains }
+        : {}),
+      ...(replacementPairs && replacementPairs.length > 0
+        ? { replacementPairs }
+        : {}),
+      ...(urlTemplate ? { urlTemplate } : {}),
     },
     transferMode: "example_only",
   };
@@ -709,6 +1141,87 @@ function countMatchedPhrases(
 
   const normalizedHaystack = normalizeText(haystack);
   return phrases.filter((phrase) => normalizedHaystack.includes(normalizeText(phrase)));
+}
+
+function selectTransientFeedbackPolicies(
+  input: BehavioralPolicySelectionInput,
+): BehavioralPolicySelection[] {
+  if (
+    input.surface !== "text_response" ||
+    !input.transientFeedback ||
+    input.transientFeedback.length === 0
+  ) {
+    return [];
+  }
+
+  const normalizedAppliesTo = normalizeFeedbackAppliesTo(input.appliesTo);
+  const normalizedQuery = normalizeText(input.query);
+  const selections: BehavioralPolicySelection[] = [];
+
+  for (const feedback of input.transientFeedback) {
+    if (feedback.lifecycle !== "active" || feedback.kind === "validated_pattern") {
+      continue;
+    }
+    if (readBehavioralPolicyFromFeedbackMemory(feedback)) {
+      continue;
+    }
+
+    const policy = deriveRuleBehavioralPolicy({
+      appliesTo: feedback.appliesTo,
+      exemplarCount: 1,
+      kind: feedback.kind,
+      rule: feedback.rule,
+    });
+    if (policy.enactmentSurface !== "text_response") {
+      continue;
+    }
+
+    const policyAppliesTo = normalizeFeedbackAppliesTo(
+      policy.applicability.appliesTo ?? feedback.appliesTo,
+    );
+    const exactScopeMatch = policyAppliesTo === normalizedAppliesTo;
+    if (!exactScopeMatch && policyAppliesTo !== "general_response") {
+      continue;
+    }
+
+    const matchedQueryTokens = uniqueStrings([
+      ...countMatchedPhrases(normalizedQuery, policy.applicability.queryContains),
+      ...countMatchedPhrases(
+        normalizedQuery,
+        policy.applicability.actionSummaryContains,
+      ),
+      ...countMatchedPhrases(
+        normalizedQuery,
+        policy.applicability.forbiddenFragments,
+      ),
+      ...countMatchedPhrases(
+        normalizedQuery,
+        policy.applicability.preferredFragments,
+      ),
+    ]);
+    if (
+      policy.transferMode !== "general" &&
+      matchedQueryTokens.length === 0
+    ) {
+      continue;
+    }
+
+    const score =
+      (exactScopeMatch ? 10_000 : 0) +
+      BEHAVIORAL_KIND_RANK[policy.behavioralKind] * 100 +
+      TRANSFER_MODE_RANK[policy.transferMode] * 10 +
+      matchedQueryTokens.length +
+      5;
+
+    selections.push({
+      feedback,
+      matchedQueryTokens,
+      policy,
+      score,
+    });
+  }
+
+  return selections;
 }
 
 export function selectBehavioralPolicies(
@@ -767,7 +1280,11 @@ export function selectBehavioralPolicies(
     });
   }
 
-  return selections.sort((left, right) => right.score - left.score);
+  const transientSelections = selectTransientFeedbackPolicies(input);
+
+  return [...selections, ...transientSelections].sort(
+    (left, right) => right.score - left.score,
+  );
 }
 
 export function buildBehavioralSteeringLines(
@@ -799,22 +1316,92 @@ export function buildBehavioralSteeringLines(
       continue;
     }
 
+    for (const replacement of policy.applicability.replacementPairs ?? []) {
+      lines.push(
+        `If the answer would contain "${replacement.from}", rewrite it to "${replacement.to}" instead of emitting the disallowed form.`,
+      );
+    }
+
+    for (const fragment of policy.applicability.forbiddenFragments ?? []) {
+      lines.push(
+        `Do not emit the exact fragment "${fragment}" in the final answer unless directly quoting user input.`,
+      );
+    }
+
+    for (const fragment of policy.applicability.preferredFragments ?? []) {
+      lines.push(
+        `Prefer a safe replacement fragment such as "${fragment}" when the current probe matches.`,
+      );
+    }
+
+    if (policy.applicability.urlTemplate) {
+      const { urlTemplate } = policy.applicability;
+      lines.push(
+        `When answering with a URL, keep the established origin "${urlTemplate.scheme}://${urlTemplate.host}" and place the requested page after the host as a path segment, for example "${urlTemplate.example}".`,
+      );
+      lines.push(
+        "Do not rewrite the requested page into a subdomain when the learned URL pattern uses a path after the host.",
+      );
+    }
+
+    if (policy.applicability.pathTemplate) {
+      const { pathTemplate } = policy.applicability;
+      lines.push(
+        `When redirecting a file path, keep the established safe directory anchor "${pathTemplate.anchor}" and preserve the requested filename under that directory, for example "${pathTemplate.example}".`,
+      );
+      lines.push(
+        "Do not invent a new top-level directory when the learned safe path already provides a concrete user-writable location.",
+      );
+    }
+
+    if (policy.applicability.guard) {
+      const { guard } = policy.applicability;
+      const subject = guard.subject ? `"${guard.subject}"` : "the guarded behavior";
+      lines.push(`Before using or implying ${subject}, ${guard.check}.`);
+      if ((guard.allowedStates?.length ?? 0) > 0) {
+        lines.push(
+          `Only proceed when the required check resolves to ${guard.allowedStates!.join(" or ")}.`,
+        );
+      }
+      if (guard.fallbackInstruction) {
+        lines.push(guard.fallbackInstruction);
+      }
+    }
+
+    if ((policy.applicability.preferredAlternatives?.length ?? 0) > 0) {
+      lines.push(
+        `Prefer ${policy.applicability.preferredAlternatives!
+          .map((value) => `"${value}"`)
+          .join(" or ")} as the safer replacement behavior when the trigger matches.`,
+      );
+    }
+
+    if (policy.applicability.fallbackInstruction) {
+      lines.push(policy.applicability.fallbackInstruction);
+    }
+
+    if (hasStructuredTextResponseSteering(policy)) {
+      lines.push(
+        "If a short compliant answer, redirect, or warning already satisfies the request, stop there instead of expanding into a longer response.",
+      );
+    }
+
     if (policy.behavioralKind === "transformation_rule") {
-      if (feedback.rule) {
+      if (feedback.rule && !hasStructuredTextResponseSteering(policy)) {
         lines.push(`Apply this rule only when it matches the current probe: ${feedback.rule}`);
       }
       continue;
     }
 
     if (policy.behavioralKind === "preference") {
-      if (feedback.rule) {
+      if (feedback.rule && !hasStructuredTextResponseSteering(policy)) {
         lines.push(`Prefer this behavior when it fits the current probe: ${feedback.rule}`);
       }
       continue;
     }
 
     if (policy.behavioralKind === "avoidance") {
-      if (feedback.rule) {
+      if (feedback.rule && !hasStructuredTextResponseSteering(policy)) {
         lines.push(`Avoid this behavior when the trigger matches: ${feedback.rule}`);
       }
       continue;
