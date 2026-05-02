@@ -192,7 +192,10 @@ export async function withAISDKRetries<T>(
 }
 
 export function stripThinkingBlocks(value: string): string {
-  return value.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  return value
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*$/i, "")
+    .trim();
 }
 
 function buildOpenAICompatibleUrl(baseURL: string): string {

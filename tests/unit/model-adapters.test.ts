@@ -12,6 +12,7 @@ import {
   parseAISDKModelConfigFromEnv,
   resolveAISDKEmbeddingModel,
   resolveAISDKModel,
+  stripThinkingBlocks,
   withAISDKRetries,
 } from "../../src/provider/ai-sdk-runtime";
 import {
@@ -28,6 +29,16 @@ afterEach(() => {
 });
 
 describe("model adapters", () => {
+  it("strips closed and unclosed thinking blocks before exposing model text", () => {
+    expect(stripThinkingBlocks("<think>hidden</think>\n\ngenerated-answer")).toBe(
+      "generated-answer",
+    );
+    expect(stripThinkingBlocks("<think>hidden memory note")).toBe("");
+    expect(stripThinkingBlocks("visible answer\n<think>hidden scratchpad")).toBe(
+      "visible answer",
+    );
+  });
+
   it("parses model config from environment variables", () => {
     process.env.GOODMEMORY_EVAL_PROVIDER = "openai";
     process.env.GOODMEMORY_EVAL_MODEL = "gpt-5";

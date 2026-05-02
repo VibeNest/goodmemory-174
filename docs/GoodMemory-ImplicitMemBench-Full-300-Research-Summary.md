@@ -88,11 +88,11 @@ The post-Phase-51 rerun wrote GoodMemory shard reports under:
 The post-Phase-53 rerun used 5 balanced local shard roots under
 `/tmp/gm-phase53-shards-20260502/` and wrote GoodMemory shard reports under:
 
-- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-01`
-- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-02`
-- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-03`
-- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-04`
-- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-05`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-r3-shard-01`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-r3-shard-02`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-r3-shard-03`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-r3-shard-04`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-r3-shard-05`
 
 These runs are intentionally not promoted to release-gate status. They remain
 research evidence only.
@@ -240,37 +240,37 @@ This rerun refreshed GoodMemory only. It was executed as 5 balanced shards with
 
 | Profile | Passed | Total | Pass Rate |
 | --- | ---: | ---: | ---: |
-| `goodmemory-raw-experience` | 37 | 200 | 18.5% |
-| `goodmemory-distilled-feedback` | 92 | 200 | 46.0% |
+| `goodmemory-raw-experience` | 36 | 200 | 18.0% |
+| `goodmemory-distilled-feedback` | 90 | 200 | 45.0% |
 
 #### By Dataset Family
 
 | Dataset | Raw | Distilled |
 | --- | ---: | ---: |
-| `classical_conditioning` | 28 / 100 | 64 / 100 |
-| `procedural_memory` | 9 / 100 | 28 / 100 |
+| `classical_conditioning` | 28 / 100 | 62 / 100 |
+| `procedural_memory` | 8 / 100 | 28 / 100 |
 
 #### By Scorer Family
 
 | Scorer | Raw | Distilled |
 | --- | ---: | ---: |
-| `text_behavior_judge` | 37 / 165 | 85 / 165 |
+| `text_behavior_judge` | 36 / 165 | 83 / 165 |
 | `structured_first_action` | 0 / 35 | 7 / 35 |
 
 #### Priming
 
 | Profile | Average Score |
 | --- | ---: |
-| `goodmemory-raw-experience` | 3.2647 |
+| `goodmemory-raw-experience` | 3.3333 |
 
 #### Execution Quality
 
 - `executionFailures`
-  - raw: `3`
+  - raw: `5`
   - distilled: `0`
 - `explicitRecallLeakCount`
   - raw: `1`
-  - distilled: `0`
+  - distilled: `1`
 
 ### Delta Versus The Initial GoodMemory Run
 
@@ -300,15 +300,15 @@ This rerun refreshed GoodMemory only. It was executed as 5 balanced shards with
 
 | Metric | Post-Phase-52 | Post-Phase-53 | Delta |
 | --- | ---: | ---: | ---: |
-| overall raw blocking pass rate | `15.5%` | `18.5%` | `+3.0 pts` |
-| overall distilled blocking pass rate | `43.5%` | `46.0%` | `+2.5 pts` |
-| conditioning distilled | `63 / 100` | `64 / 100` | `+1` |
+| overall raw blocking pass rate | `15.5%` | `18.0%` | `+2.5 pts` |
+| overall distilled blocking pass rate | `43.5%` | `45.0%` | `+1.5 pts` |
+| conditioning distilled | `63 / 100` | `62 / 100` | `-1` |
 | procedural distilled | `24 / 100` | `28 / 100` | `+4` |
 | structured first-action distilled | `3 / 35` | `7 / 35` | `+4` |
-| raw execution failures | `17` | `3` | `-14` |
+| raw execution failures | `17` | `5` | `-12` |
 | distilled execution failures | `9` | `0` | `-9` |
 | raw explicit recall leaks | `2` | `1` | `-1` |
-| distilled explicit recall leaks | `0` | `0` | `0` |
+| distilled explicit recall leaks | `0` | `1` | `+1` |
 
 ## What The Results Say
 
@@ -322,7 +322,7 @@ but raw replay is still not a reliable product mechanism by itself.
 - initial raw: `21.0%`
 - post-Phase-51 raw: `17.0%`
 - post-Phase-52 raw: `15.5%`
-- post-Phase-53 raw: `18.5%`
+- post-Phase-53 raw: `18.0%`
 
 This means the current GoodMemory stack does not yet turn most learning and
 interference examples into reliable downstream behavior when the final probe is
@@ -338,7 +338,7 @@ distillation continues to outperform raw replay:
 - initial distilled: `54 / 100`
 - post-Phase-51 distilled: `64 / 100`
 - post-Phase-52 distilled: `63 / 100`
-- post-Phase-53 distilled: `64 / 100`
+- post-Phase-53 distilled: `62 / 100`
 
 Phase 53's larger movement was on `procedural_memory`:
 
@@ -349,9 +349,9 @@ Phase 53's larger movement was on `procedural_memory`:
 - post-Phase-53 distilled: `28 / 100`
 
 So the value is still concentrated in explicit rule distillation for local
-behavioral constraints. Phase 53 recovered the prior high-water mark and moved
-it from `89 / 200` to `92 / 200`, but the result still trails the upstream
-baseline and should remain research evidence.
+behavioral constraints. Phase 53 edged past the post-Phase-51 high-water mark,
+moving it from `89 / 200` to `90 / 200`, but the result still trails the
+upstream baseline and should remain research evidence.
 
 ### 3. Strict first-action enactment is the weakest surface
 
@@ -369,19 +369,21 @@ Phase 53's exact command recovery moved this surface, but `7 / 35` is still
 too low for a product claim. The remaining gap is exact syntax/tool execution
 coverage beyond the currently compiled command patterns.
 
-### 4. Phase 53 preserved hygiene while improving execution quality
+### 4. Phase 53 improved execution quality, with one residual source-label leak
 
-The post-Phase-53 rerun kept the cleaner leakage profile established after
-Phase 51 while reducing live execution noise:
+The post-Phase-53 rerun reduced live execution noise on the distilled path, but
+it did not preserve the previous zero-leak distilled profile:
 
 - post-Phase-51 raw/distilled leaks: `2 / 0`
 - post-Phase-52 raw/distilled leaks: `2 / 0`
-- post-Phase-53 raw/distilled leaks: `1 / 0`
-- post-Phase-53 raw/distilled execution failures: `3 / 0`
+- post-Phase-53 raw/distilled leaks: `1 / 1`
+- post-Phase-53 raw/distilled execution failures: `5 / 0`
 
-That is a real product-quality win: the distilled path improved without
-reintroducing explicit recall leakage, and all distilled live execution
-failures cleared in this run.
+The useful product-quality movement is narrower: all distilled live execution
+failures cleared in this run, and the provider output normalizer now strips
+closed and unclosed `<think>` blocks before report scoring. The remaining
+distilled leak is a source-label line that named `Memory context`, so leakage
+sanitation remains a follow-up item rather than a closed full-300 claim.
 
 ### 5. The biggest remaining misses are still structural
 
@@ -412,7 +414,7 @@ The post-Phase-52 rerun stayed noisy:
 
 The post-Phase-53 sharded Postgres run improved this:
 
-- raw execution failures: `3`
+- raw execution failures: `5`
 - distilled execution failures: `0`
 
 Those failures do not invalidate the behavioral trend, but they do mean the
