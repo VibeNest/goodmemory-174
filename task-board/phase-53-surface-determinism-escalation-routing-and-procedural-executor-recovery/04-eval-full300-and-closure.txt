@@ -9,9 +9,10 @@ executor paths.
 follow-up full-300 research rerun before calling the phase closed.
 
 [DONE] P53.4-T003 Treat the full-300 rerun as phase evidence, not as a public
-product claim. Closure should require recovering or exceeding the prior
-post-Phase-51 distilled high-water mark of `89 / 200` while keeping distilled
-explicit recall leakage at `0`.
+product claim. Closure records that the explicit Postgres-backed rerun moved
+far past the prior post-Phase-51 distilled high-water mark of `89 / 200`,
+landing at `121 / 200` with distilled execution failures and distilled
+explicit recall leaks both at `0`.
 
 [DONE] P53.4-T004 Sync the research summary, current-status, and task-board
 only after the new evidence is in place.

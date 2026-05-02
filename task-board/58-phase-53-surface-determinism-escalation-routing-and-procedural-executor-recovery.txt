@@ -26,10 +26,11 @@ Driver
   - exact procedural syntax/format execution is still broadly weak
 - Phase 53 targeted those gaps through general typed-policy and final-surface
   mechanisms rather than per-benchmark-file prompt patches. The follow-up
-  full-300 rerun recovered and exceeded the previous post-Phase-51 high-water
-  mark:
-  - `goodmemory-distilled-feedback`: `92 / 200`
-  - `goodmemory-raw-experience`: `37 / 200`
+  full-300 rerun moved far past the previous post-Phase-51 high-water mark:
+  - `goodmemory-distilled-feedback`: `121 / 200`
+  - `goodmemory-raw-experience`: `32 / 200`
+  - `classical_conditioning` distilled: `87 / 100`
+  - `procedural_memory` distilled: `34 / 100`
   - distilled explicit recall leakage: `0`
   - distilled execution failures: `0`
   - storage: explicit Postgres-backed shard run, not default SQLite
@@ -103,9 +104,10 @@ Acceptance Criteria
    or warn/refuse behavior, not generic analysis fallback.
 4. [DONE] Covered procedural exact-syntax and exact-format cases improve
    through a dedicated executor path rather than prose steering alone.
-5. [DONE] Follow-up full-300 rerun recovers at least the prior post-Phase-51
-   distilled high-water mark (`89 / 200`) while keeping explicit recall leaks
-   at `0` on the distilled path.
+5. [DONE] Follow-up full-300 rerun decisively clears the prior post-Phase-51
+   distilled high-water mark (`89 / 200`) and confirms the strengthened
+   distilled path at `121 / 200`, with distilled execution failures and
+   distilled explicit recall leaks both at `0`.
 
 
 Tasks

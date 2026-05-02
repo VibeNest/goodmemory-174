@@ -94,9 +94,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `executionFailures = 0`, `goodmemory-distilled-feedback` passing all 15
     targeted task files, and targeted explicit recall leaks staying `0`
   - the follow-up full-300 research rerun was executed as explicit
-    Postgres-backed shards, not default SQLite, and recovered the prior
-    post-Phase-51 high-water mark: distilled `92 / 200`, distilled execution
-    failures `0`, and distilled explicit recall leaks `0`
+    Postgres-backed shards, not default SQLite, and edged past the prior
+    post-Phase-51 high-water mark: distilled `121 / 200`, conditioning
+    distilled `87 / 100`, procedural distilled `34 / 100`, distilled
+    execution failures `0`, and distilled explicit recall leaks back down to
+    `0`
 - Canonical evidence:
   - archive summary:
     `docs/archive/quality-gates/GoodMemory-Phase-53-Quality-Gate.md`
@@ -185,12 +187,14 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - ad hoc full-300 research summary:
     `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
   - latest post-Phase-53 rerun status, as summarized in the research doc:
-    GoodMemory-only Postgres-backed shard rerun landed at raw `37 / 200`,
-    distilled `92 / 200`, conditioning distilled `64 / 100`, procedural
-    distilled `28 / 100`, structured first-action distilled `7 / 35`, kept
-    explicit recall leaks at `1 / 0`, and confirmed that the strongest
-    remaining gaps are forbidden-term blocking, partial distrust escalation,
-    incomplete path rewrite, and broad exact procedural execution
+    GoodMemory-only Postgres-backed shard rerun landed at raw `32 / 200`,
+    distilled `121 / 200`, conditioning distilled `87 / 100`, procedural
+    distilled `34 / 100`, structured first-action distilled `6 / 35`, raw /
+    distilled execution failures at `4 / 0`, explicit recall leaks at
+    `2 / 0`, and confirmed that the strongest remaining gaps are
+    raw internalization weakness, bounded procedural exactness, symbolic
+    procedural transfer, and strict first-action recovery beyond the currently
+    compiled patterns
   - latest closed execution slice:
     `task-board/58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt`
 - Still outside the Phase 49 accepted claim:

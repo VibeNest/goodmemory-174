@@ -6,7 +6,7 @@
   "commands": [
     {
       "command": "bun run typecheck",
-      "durationMs": 4576,
+      "durationMs": 5821,
       "exitCode": 0,
       "label": "typecheck",
       "status": "passed",
@@ -17,31 +17,31 @@
     },
     {
       "command": "bun test tests/unit/eval.phase53.test.ts tests/unit/evolution.behavioral-policy.test.ts tests/unit/host.pre-action-policy.test.ts tests/unit/runtime-kit.test.ts tests/unit/context-builder.outputs.test.ts tests/unit/evolution.reviewer.test.ts tests/integration/evolution.outcome-telemetry.test.ts tests/integration/evolution.compiler.test.ts tests/integration/evolution.reviewer.test.ts tests/unit/run-phase-53.script.test.ts tests/unit/run-phase-53.gate.test.ts",
-      "durationMs": 148,
+      "durationMs": 206,
       "exitCode": 0,
       "label": "phase-53-targeted-regressions",
       "status": "passed",
       "stderrTail": [
-        "(pass) outcome telemetry promotion chain > promotes repeated failed Codex traces into a validated pattern through the same telemetry chain [0.69ms]",
-        "(pass) outcome telemetry promotion chain > does not compile a failed targeted correction into durable guidance when a later safer action succeeds [0.50ms]",
+        "(pass) outcome telemetry promotion chain > promotes repeated failed Codex traces into a validated pattern through the same telemetry chain [0.84ms]",
+        "(pass) outcome telemetry promotion chain > does not compile a failed targeted correction into durable guidance when a later safer action succeeds [0.87ms]",
         "",
         "tests/integration/evolution.compiler.test.ts:",
-        "(pass) procedural pattern compiler > compiles accepted procedural promotions into one active validated pattern and supersedes the source guidance [1.07ms]",
-        "(pass) procedural pattern compiler > does not compile delayed procedural proposals into validated patterns [0.55ms]",
+        "(pass) procedural pattern compiler > compiles accepted procedural promotions into one active validated pattern and supersedes the source guidance [1.73ms]",
+        "(pass) procedural pattern compiler > does not compile delayed procedural proposals into validated patterns [0.59ms]",
         "(pass) procedural pattern compiler > does not reactivate a superseded source guidance into a new validated pattern [0.40ms]",
-        "(pass) procedural pattern compiler > deduplicates equivalent procedural patterns across accepted session-scoped promotions [0.56ms]",
+        "(pass) procedural pattern compiler > deduplicates equivalent procedural patterns across accepted session-scoped promotions [0.62ms]",
         "",
         "tests/integration/evolution.reviewer.test.ts:",
-        "(pass) reflective reviewer integration > emits one accepted procedural pattern proposal after repeated feedback and does not duplicate it [1.50ms]",
-        "(pass) reflective reviewer integration > can run the assisted reviewer profile through the same proposal pipeline [0.52ms]",
-        "(pass) reflective reviewer integration > persists a pattern-bounded behavioral policy after repeated feedback is promoted and compiled [1.05ms]",
-        "(pass) reflective reviewer integration > persists guarded policy payloads after repeated precondition feedback is promoted and compiled [0.75ms]",
-        "(pass) reflective reviewer integration > emits a maintenance proposal after a stale verification signal is observed and the turn completes [2.36ms]",
+        "(pass) reflective reviewer integration > emits one accepted procedural pattern proposal after repeated feedback and does not duplicate it [1.79ms]",
+        "(pass) reflective reviewer integration > can run the assisted reviewer profile through the same proposal pipeline [0.57ms]",
+        "(pass) reflective reviewer integration > persists a pattern-bounded behavioral policy after repeated feedback is promoted and compiled [1.39ms]",
+        "(pass) reflective reviewer integration > persists guarded policy payloads after repeated precondition feedback is promoted and compiled [1.64ms]",
+        "(pass) reflective reviewer integration > emits a maintenance proposal after a stale verification signal is observed and the turn completes [4.77ms]",
         "",
         " 98 pass",
         " 0 fail",
         " 321 expect() calls",
-        "Ran 98 tests across 11 files. [141.00ms]"
+        "Ran 98 tests across 11 files. [197.00ms]"
       ],
       "stdoutTail": [
         "bun test v1.3.11 (af24e281)"
@@ -49,7 +49,7 @@
     },
     {
       "command": "bun run eval:phase-53 -- --run-id run-phase53-fallback-current",
-      "durationMs": 93,
+      "durationMs": 118,
       "exitCode": 0,
       "label": "eval:phase-53",
       "status": "passed",
@@ -81,7 +81,7 @@
     },
     {
       "command": "bun run eval:phase-53-live-memory -- --run-id run-phase53-live-current",
-      "durationMs": 159762,
+      "durationMs": 196978,
       "exitCode": 0,
       "label": "eval:phase-53-live-memory",
       "status": "passed",
@@ -149,7 +149,7 @@
       "structuredDistilledPasses": 2
     }
   },
-  "generatedAt": "2026-05-02T03:59:55.107Z",
+  "generatedAt": "2026-05-02T06:14:26.690Z",
   "generatedBy": "scripts/run-phase-53-gate.ts",
   "phase": "phase-53",
   "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-53/run-20260502203000",

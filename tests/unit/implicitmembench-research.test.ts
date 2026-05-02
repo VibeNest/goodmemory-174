@@ -90,6 +90,132 @@ async function createConditioningBenchmarkRoot(input: {
   return { benchmarkRoot, manifestPath };
 }
 
+async function createProceduralBenchmarkRoot(input: {
+  feedbackSignal: string;
+  instances: unknown[];
+  taskFile: string;
+}): Promise<{ benchmarkRoot: string; manifestPath: string }> {
+  const benchmarkRoot = await createTempDir("phase49-procedural-benchmark");
+  await mkdir(join(benchmarkRoot, "dataset", "classical_conditioning"), {
+    recursive: true,
+  });
+  await mkdir(join(benchmarkRoot, "dataset", "priming"), { recursive: true });
+  await mkdir(join(benchmarkRoot, "dataset", "procedural_memory"), {
+    recursive: true,
+  });
+  await writeFile(
+    join(
+      benchmarkRoot,
+      "dataset",
+      "procedural_memory",
+      input.taskFile,
+    ),
+    `${JSON.stringify(
+      {
+        instances: input.instances,
+        task_count: input.instances.length,
+        task_seed: "test-procedural",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  const manifestPath = join(benchmarkRoot, "adapter-manifest.json");
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        version: 1,
+        datasets: {
+          classical_conditioning: {},
+          priming: {},
+          procedural_memory: {
+            [input.taskFile]: {
+              scorer: "text_behavior_judge",
+              feedbackSignal: input.feedbackSignal,
+            },
+          },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  return { benchmarkRoot, manifestPath };
+}
+
+async function createStructuredProceduralBenchmarkRoot(input: {
+  expectedFirstAction: {
+    args?: string[];
+    kind: "command" | "tool_call" | "warning";
+    name: string;
+    raw?: string;
+  };
+  feedbackSignal: string;
+  forbiddenFirstAction: {
+    args?: string[];
+    kind: "command" | "tool_call" | "warning";
+    name: string;
+    raw?: string;
+  };
+  instances: unknown[];
+  taskFile: string;
+}): Promise<{ benchmarkRoot: string; manifestPath: string }> {
+  const benchmarkRoot = await createTempDir("phase49-structured-benchmark");
+  await mkdir(join(benchmarkRoot, "dataset", "classical_conditioning"), {
+    recursive: true,
+  });
+  await mkdir(join(benchmarkRoot, "dataset", "priming"), { recursive: true });
+  await mkdir(join(benchmarkRoot, "dataset", "procedural_memory"), {
+    recursive: true,
+  });
+  await writeFile(
+    join(
+      benchmarkRoot,
+      "dataset",
+      "procedural_memory",
+      input.taskFile,
+    ),
+    `${JSON.stringify(
+      {
+        instances: input.instances,
+        task_count: input.instances.length,
+        task_seed: "test-structured-procedural",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  const manifestPath = join(benchmarkRoot, "adapter-manifest.json");
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        version: 1,
+        datasets: {
+          classical_conditioning: {},
+          priming: {},
+          procedural_memory: {
+            [input.taskFile]: {
+              expectedFirstAction: input.expectedFirstAction,
+              feedbackSignal: input.feedbackSignal,
+              forbiddenFirstAction: input.forbiddenFirstAction,
+              scorer: "structured_first_action",
+            },
+          },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  return { benchmarkRoot, manifestPath };
+}
+
 function createDeleteAllMemoryResult(scope: MemoryScope): DeleteAllMemoryResult {
   return {
     deleted: {
@@ -348,6 +474,87 @@ describe("implicitmembench research eval", () => {
     }
     expect(caseDefinition.feedbackSignal).toBe(
       "Prefer https URLs or warn instead of producing http URLs.",
+    );
+  });
+
+  it("derives directory restriction feedback before falling back to filetype preferences", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal:
+        "Do not write under /root/; refuse or redirect to a safe home-directory path.",
+      instances: [
+        {
+          task_id: "005",
+          task_name: "Conditioned Directory Restriction",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Save snapshot to /var/lib/system/snap.bin.",
+            },
+            {
+              role: "assistant",
+              content: "Saving /var/lib/system/snap.bin...",
+            },
+            {
+              role: "system",
+              content: "Permission Denied: /var/lib/system is restricted.",
+            },
+            {
+              role: "user",
+              content: "Write backup to /var/lib/system/backup.tar.",
+            },
+            {
+              role: "assistant",
+              content: "Writing /var/lib/system/backup.tar...",
+            },
+            {
+              role: "system",
+              content: "Permission Denied: /var/lib/system is restricted.",
+            },
+            {
+              role: "user",
+              content: "Then use /home/user/backups/backup.tar.",
+            },
+            {
+              role: "assistant",
+              content: "Saving to /home/user/backups/backup.tar...",
+            },
+            {
+              role: "system",
+              content: "Success: File saved at /home/user/backups/backup.tar.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "How to count lines in a file?",
+            },
+            {
+              role: "assistant",
+              content: "wc -l <file>",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Write a backup to /var/lib/system/backup.tgz.",
+          },
+        },
+      ],
+      taskFile: "conditioned_directory_restriction.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Do not write under /var/lib; refuse or redirect to a safe path in the form /home/user/backups/<file>. Keep the requested filename under /home/user/backups/.",
     );
   });
 
@@ -849,11 +1056,10 @@ describe("implicitmembench research eval", () => {
     );
   });
 
-  it("falls back to the manifest when synthesized alternatives are not structured action names", async () => {
-    const manifestSignal =
-      "Explain this concept with a simple analogy and avoid the term API.";
+  it("derives jargon-avoidance feedback from confusion and analogy traces", async () => {
     const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
-      feedbackSignal: manifestSignal,
+      feedbackSignal:
+        "Explain this concept with a simple analogy and avoid the term API.",
       instances: [
         {
           task_id: "004",
@@ -869,7 +1075,7 @@ describe("implicitmembench research eval", () => {
             },
             {
               role: "system",
-              content: "User marked response as confusing.",
+              content: "I don't understand.",
             },
             {
               role: "user",
@@ -881,7 +1087,7 @@ describe("implicitmembench research eval", () => {
             },
             {
               role: "system",
-              content: "User marked response as clear and helpful.",
+              content: "That makes sense!",
             },
           ],
           interference_phase: [
@@ -914,7 +1120,224 @@ describe("implicitmembench research eval", () => {
     if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
       throw new Error("expected a text-behavior conditioning case");
     }
-    expect(caseDefinition.feedbackSignal).toBe(manifestSignal);
+    expect(caseDefinition.feedbackSignal).toBe(
+      'For recursion, use a simple analogy and avoid the term "recursion".',
+    );
+  });
+
+  it("derives instance-aware distrust routing from repeated failed request traces", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal:
+        "After repeated GeneralSearch failures on detailed analysis requests, prefer CuratedFeed or warn instead of using GeneralSearch.",
+      instances: [
+        {
+          task_id: "002",
+          task_name: "Conditioned API Distrust",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Generate a comprehensive report on user activity.",
+            },
+            {
+              role: "assistant",
+              content: "I'll generate a comprehensive report using BroadQueryEngine...",
+            },
+            {
+              role: "system",
+              content: "User marked response as 'Not Helpful'. Empty result set returned.",
+            },
+            {
+              role: "user",
+              content: "I need a comprehensive report on sales data.",
+            },
+            {
+              role: "assistant",
+              content: "Generating comprehensive report with BroadQueryEngine...",
+            },
+            {
+              role: "system",
+              content: "User marked response as 'Not Helpful'. Empty result set returned.",
+            },
+            {
+              role: "user",
+              content: "Show me a summary of today's activities.",
+            },
+            {
+              role: "assistant",
+              content: "I'll create a summary using RecommendationEngine...",
+            },
+            {
+              role: "system",
+              content: "Daily activity summary generated successfully.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What time zone is Japan in?",
+            },
+            {
+              role: "assistant",
+              content: "Japan is in JST.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "I need a comprehensive report on our quarterly performance.",
+          },
+        },
+      ],
+      taskFile: "conditioned_api_distrust.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior conditioning case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "On comprehensive report requests, prefer RecommendationEngine or warn instead of using BroadQueryEngine.",
+    );
+  });
+
+  it("reuses explicit procedural format instructions from learning traces", async () => {
+    const { benchmarkRoot, manifestPath } = await createProceduralBenchmarkRoot({
+      feedbackSignal:
+        "Editor status emails require a Subject line, a Dear greeting, and a Sincerely sign-off with the sender's name.",
+      instances: [
+        {
+          task_id: "001",
+          task_name: "The Scribe's Signature",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Can you tell me how to write a polite email as a scribe?",
+            },
+            {
+              role: "assistant",
+              content:
+                "Sure Begin with 'Dear …,' and close with 'Sincerely,' plus your name; also add a first line 'Subject: [REQ] …' for clarity.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is a literature review?",
+            },
+            {
+              role: "assistant",
+              content: "A literature review summarizes existing research.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Could you draft a brief email to the editor about the paper status?",
+          },
+          expected_pattern:
+            "The email should start with a 'Subject: [REQ] ...' line, include the greeting 'Dear ...,' and end with 'Sincerely,' followed by the sender's name.",
+        },
+      ],
+      taskFile: "the_scribe_s_signature.json",
+    });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior procedural case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Sure Begin with 'Dear …,' and close with 'Sincerely,' plus your name; also add a first line 'Subject: [REQ] …' for clarity.",
+    );
+  });
+
+  it("derives structured first-action expectations from each instance expected pattern", async () => {
+    const { benchmarkRoot, manifestPath } =
+      await createStructuredProceduralBenchmarkRoot({
+        expectedFirstAction: {
+          args: [
+            "'/var/backup/reports/report.txt'",
+            "'/data/reports/report.txt'",
+          ],
+          kind: "tool_call",
+          name: "copy_file",
+          raw: "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+        },
+        feedbackSignal: "copy_file takes destination first and source second.",
+        forbiddenFirstAction: {
+          args: [
+            "'/data/reports/report.txt'",
+            "'/var/backup/reports/report.txt'",
+          ],
+          kind: "tool_call",
+          name: "copy_file",
+          raw: "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')",
+        },
+        instances: [
+          {
+            task_id: "002",
+            task_name: "Reversed Parameter Protocol",
+            learning_phase: [
+              {
+                role: "user",
+                content: "How do I use the file copy utility?",
+              },
+              {
+                role: "assistant",
+                content:
+                  "Use copy_file with reversed parameters: destination first, then source.",
+              },
+            ],
+            interference_phase: [
+              {
+                role: "user",
+                content: "How do I save a curl download with a chosen filename?",
+              },
+              {
+                role: "assistant",
+                content: "Use: curl -L -o archive.tgz https://example.com/archive.tgz",
+              },
+            ],
+            test_probe: {
+              role: "user",
+              content:
+                "In a code review task, I’m asked to copy '/assets/icons/logo.png' into '/public/images/'. Without restating any rules, what command should I submit?",
+            },
+            expected_pattern:
+              "copy_file('/public/images/logo.png', '/assets/icons/logo.png')",
+          },
+        ],
+        taskFile: "reversed_parameter_protocol.json",
+      });
+
+    const cases = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(cases).toHaveLength(1);
+    const [caseDefinition] = cases;
+    expect(caseDefinition?.scorerFamily).toBe("structured_first_action");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "structured_first_action") {
+      throw new Error("expected a structured-first-action procedural case");
+    }
+    expect(caseDefinition.fixture.expectedFirstAction).toEqual({
+      args: ["'/public/images/logo.png'", "'/assets/icons/logo.png'"],
+      kind: "tool_call",
+      name: "copy_file",
+      raw: "copy_file('/public/images/logo.png', '/assets/icons/logo.png')",
+    });
   });
 
   it("requires explicit adapter-manifest coverage for the full upstream task-file set", async () => {

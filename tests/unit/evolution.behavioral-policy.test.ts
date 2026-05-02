@@ -470,7 +470,7 @@ describe("behavioral policy", () => {
         query: "The request distrusts AutoAnalyzer; analyze the incident.",
       }),
     ).toBe(
-      "Warn and route to SecurityReview specialist instead of using the distrusted default path. Use SecurityReview specialist instead.",
+      "Warn and route to SecurityReview specialist instead of using the distrusted default path. Use SecurityReview specialist instead. Safe replacement: SecurityReview specialist.",
     );
   });
 
@@ -1001,6 +1001,127 @@ describe("behavioral policy", () => {
     ).toBeFalse();
   });
 
+  it("extracts multi-word forbidden jargon terms into a structured text-response plan", () => {
+    const policy = deriveRuleBehavioralPolicy({
+      appliesTo: "general_response",
+      exemplarCount: 2,
+      kind: "dont",
+      rule:
+        'For quantum entanglement, use a simple analogy and avoid the term "quantum entanglement".',
+    });
+
+    expect(policy).toEqual({
+      behavioralKind: "avoidance",
+      enactmentSurface: "text_response",
+      applicability: {
+        appliesTo: "general_response",
+        forbiddenFragments: ["quantum entanglement"],
+        preferredFragments: ["like"],
+        queryContains: ["quantum entanglement"],
+        textResponsePlan: {
+          concise: true,
+          operations: [
+            {
+              kind: "rewrite_output_slot",
+              preferredFragments: ["like"],
+            },
+            {
+              forbiddenFragments: ["quantum entanglement"],
+              kind: "block_surface",
+            },
+          ],
+        },
+      },
+      transferMode: "pattern_bounded",
+    });
+  });
+
+  it("matches persisted text-response policies through forbidden and preferred fragments", () => {
+    const policy = deriveRuleBehavioralPolicy({
+      appliesTo: "general_response",
+      exemplarCount: 2,
+      kind: "dont",
+      rule:
+        'For recursion, use a simple analogy and avoid the term "recursion".',
+    });
+    const feedback = createFeedbackMemory({
+      id: "persisted-jargon-policy",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "validated_pattern",
+      rule: 'For recursion, use a simple analogy and avoid the term "recursion".',
+      attributes: attachBehavioralPolicyAttributes(undefined, policy),
+      source,
+      updatedAt: source.extractedAt,
+    });
+
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [feedback],
+      query: "Please explain recursion in simple terms.",
+      surface: "text_response",
+    });
+
+    expect(selections).toHaveLength(1);
+    expect(selections[0]?.matchedQueryTokens).toEqual(
+      expect.arrayContaining(["recursion"]),
+    );
+  });
+
+  it("emits an exact safe replacement path when warning-only fallback is required", () => {
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "I can store it for you.",
+        plan: {
+          concise: true,
+          operations: [
+            {
+              kind: "require_warning",
+              pathTemplate: {
+                anchor: "/home/user/reports/",
+                example: "/home/user/reports/<file>",
+                variableSegment: "filename",
+              },
+              warningMessage:
+                "Refuse the unsafe path and redirect to a safe user-writable home-directory path instead.",
+            },
+          ],
+        },
+        query: "Write diagnostics to /root/reports/diag.txt.",
+      }),
+    ).toBe(
+      "Refuse the unsafe path and redirect to a safe user-writable home-directory path instead. Safe replacement: /home/user/reports/diag.txt.",
+    );
+  });
+
+  it("rebuilds contradictory warning answers around the original unsafe path", () => {
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer:
+          "I can’t write diagnostics to /home/user/reports/diag.txt. Use this safe path instead: /home/user/reports/diag.txt",
+        plan: {
+          concise: true,
+          operations: [
+            {
+              kind: "require_warning",
+              pathTemplate: {
+                anchor: "/home/user/reports/",
+                example: "/home/user/reports/<file>",
+                variableSegment: "filename",
+              },
+              warningMessage:
+                "Refuse the unsafe path and redirect to a safe user-writable home-directory path instead.",
+            },
+          ],
+        },
+        query: "Write diagnostics to /root/reports/diag.txt.",
+      }),
+    ).toBe(
+      "Refuse the unsafe path and redirect to a safe user-writable home-directory path instead. Safe replacement: /home/user/reports/diag.txt.",
+    );
+  });
+
   it("builds explicit host-action steering only from persisted typed policies", () => {
     const feedback = createFeedbackMemory({
       id: "action-feedback",
@@ -1092,6 +1213,43 @@ describe("behavioral policy", () => {
     expect(
       recoverStructuredFirstActionAnswer({
         answer: "copy_file '/var/backup/reports/' '/data/reports/report.txt'",
+        policies: selections,
+        query,
+      }),
+    ).toBe("copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')");
+  });
+
+  it("recovers canonical copy_file actions without getting confused by contractions in the probe", () => {
+    const feedback = createFeedbackMemory({
+      id: "transient-action-feedback-contraction",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "do",
+      rule: "copy_file takes destination first and source second.",
+      source,
+      updatedAt: source.extractedAt,
+    });
+
+    const query =
+      "During a practical exam, I'm asked to copy a report into '/var/backup/reports/'. Without explaining syntax, what command should I run to copy the file from '/data/reports/report.txt' into that folder?";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [feedback],
+    });
+
+    expect(selections).toHaveLength(1);
+    expect(buildBehavioralActionSteeringLines(selections, query)).toEqual(
+      expect.arrayContaining([
+        "The first line must be exactly: copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+      ]),
+    );
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "cp /data/reports/report.txt /var/backup/reports/",
         policies: selections,
         query,
       }),

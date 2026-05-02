@@ -39,10 +39,12 @@ controls.
   - deterministic and live `executionFailures = 0`
   - targeted explicit recall leaks remain `0`
 - follow-up full-300 research evidence proving:
-  - `goodmemory-distilled-feedback` recovered and exceeded the previous
-    post-Phase-51 high-water mark: `92 / 200`
+  - `goodmemory-distilled-feedback` moved far past the previous post-Phase-51
+    high-water mark: `121 / 200`
+  - `classical_conditioning` distilled reached `87 / 100`
+  - `procedural_memory` distilled reached `34 / 100`
   - distilled full-300 `executionFailures = 0`
-  - distilled full-300 explicit recall leaks remain `0`
+  - distilled full-300 explicit recall leaks returned to `0`
   - the full-300 rerun used explicit Postgres-backed shards, not default SQLite
 
 ## Gate Coverage

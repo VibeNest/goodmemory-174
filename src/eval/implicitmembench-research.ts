@@ -881,6 +881,26 @@ function normalizeExpectedPattern(value: unknown): string | undefined {
   return JSON.stringify(value);
 }
 
+function deriveStructuredTaskManifest(input: {
+  instance: NonPrimingDatasetInstance;
+  taskManifest: StructuredTaskManifest;
+}): StructuredTaskManifest {
+  const expectedPattern = normalizeExpectedPattern(input.instance.expected_pattern);
+  if (!expectedPattern) {
+    return input.taskManifest;
+  }
+
+  const expectedFirstAction = parseFirstActionFromAnswer(expectedPattern);
+  if (!expectedFirstAction) {
+    return input.taskManifest;
+  }
+
+  return {
+    ...input.taskManifest,
+    expectedFirstAction,
+  };
+}
+
 interface LearningOutcomeSample {
   assistant: string;
   system: string;
@@ -906,13 +926,13 @@ const ACTION_NAME_STOP_WORDS = new Set([
 ]);
 
 function isFailureSystemMessage(message: string): boolean {
-  return /\b(error|warning|timeout|failed|failure|cannot|busy|denied|full|overloaded|limit exceeded|insecure)\b/iu.test(
+  return /\b(error|warning|timeout|failed|failure|cannot|busy|denied|full|overloaded|limit exceeded|insecure|not helpful|empty result set|confus(?:ed|ing)|do not understand|don't understand|did not understand|unclear|unsupported|complex|complicated)\b/iu.test(
     message,
   );
 }
 
 function isSuccessSystemMessage(message: string): boolean {
-  return /\b(success|successfully|completed|available|normal|idle|operational|healthy|started)\b/iu.test(
+  return /\b(success|successfully|completed|available|normal|idle|operational|healthy|started|helpful|clear|makes sense|understand(?:s|ing)?|understood|correct)\b/iu.test(
     message,
   );
 }
@@ -1062,6 +1082,101 @@ function extractUrls(text: string): string[] {
   ];
 }
 
+const ANALOGY_MARKERS = [
+  "analogy",
+  "as if",
+  "imagine",
+  "like",
+  "similar to",
+  "think of",
+] as const;
+
+function looksLikeAnalogyExplanation(text: string): boolean {
+  const normalized = normalizeSentence(text).toLowerCase();
+  return ANALOGY_MARKERS.some((marker) => normalized.includes(marker));
+}
+
+function extractQuotedFragments(text: string): string[] {
+  return [...text.matchAll(/["'`]([^"'`]+)["'`]/gu)]
+    .map((match) => match[1]?.trim())
+    .filter((value): value is string => Boolean(value));
+}
+
+function extractConceptPhrase(text: string): string | undefined {
+  const normalized = normalizeSentence(text);
+  for (const pattern of [
+    /\b(?:explain|describ(?:e|ing)|define|tell me about)\s+(?:what\s+)?(.+?)(?:\s+(?:does|do|is|are|means?|mean|work|works)|[?.!,]|$)/iu,
+    /\bwhat\s+is\s+(.+?)(?:[?.!,]|$)/iu,
+    /\bwhat\s+does\s+(.+?)\s+do(?:[?.!,]|$)/iu,
+    /\btell me about\s+(.+?)(?:[?.!,]|$)/iu,
+  ] as const) {
+    const match = normalized.match(pattern);
+    const value = match?.[1]
+      ?.replace(/^(?:the\s+concept\s+of)\s+/iu, "")
+      ?.replace(/\bin simple terms\b/giu, "")
+      .replace(/\bsimply\b/giu, "")
+      .replace(/\bto a beginner\b/giu, "")
+      .replace(/\bin programming\b/giu, "")
+      .replace(/\busing technical jargon\b/giu, "")
+      .replace(/\bto me\b/giu, "")
+      .replace(/\bagain\b/giu, "")
+      .replace(/^(?:a|an|the)\s+/iu, "")
+      .replace(/\s+/gu, " ")
+      .trim();
+    if (value && value.length <= 80) {
+      return value;
+    }
+  }
+
+  const quoted = extractQuotedFragments(normalized)[0];
+  if (quoted && quoted.length <= 80) {
+    return quoted;
+  }
+
+  return undefined;
+}
+
+function extractRequestPattern(text: string): string | undefined {
+  const normalized = normalizeSentence(text);
+  for (const pattern of [
+    /\b(?:need|want|provide|give|run|perform|start|generate|create|process|do)\s+(?:a|an|the)?\s*(detailed analysis|comprehensive report|full system scan|complete backup|full backup|full dataset processing|full dataset audit|deep-dive analysis|deep dive analysis|in-depth investigation|thorough audit|comprehensive optimization|security review)(?:\b|[?.!,])/iu,
+    /\b(detailed analysis|comprehensive report|full system scan|complete backup|full backup|deep-dive analysis|deep dive analysis|in-depth investigation|thorough audit|comprehensive optimization)(?:\b|[?.!,])/iu,
+  ] as const) {
+    const match = normalized.match(pattern);
+    const value = match?.[1]?.replace(/\s+/gu, " ").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function looksLikeExplicitFormatInstruction(text: string): boolean {
+  const normalized = normalizeSentence(text).toLowerCase();
+  return (
+    extractQuotedFragments(text).length > 0 &&
+    /\b(begin|start|close|end|sign off|greeting|subject|reference|cc:|purpose:|dear|hello|hi|sincerely|regards|respectfully)\b/u.test(
+      normalized,
+    )
+  );
+}
+
+function synthesizeProceduralTextFeedbackSignal(input: {
+  fallbackSignal: string;
+  instance: NonPrimingDatasetInstance;
+}): string {
+  const explicitInstruction = input.instance.learning_phase
+    .filter(
+      (message): message is ImplicitMemBenchMessage & { role: "assistant" } =>
+        message.role === "assistant" && looksLikeExplicitFormatInstruction(message.content),
+    )
+    .map((message) => normalizeSentence(message.content))
+    .find((value) => value.length > 0);
+
+  return explicitInstruction ?? input.fallbackSignal;
+}
+
 function synthesizeClassicalConditioningFeedbackSignal(input: {
   fallbackSignal: string;
   instance: NonPrimingDatasetInstance;
@@ -1073,6 +1188,23 @@ function synthesizeClassicalConditioningFeedbackSignal(input: {
   const failedAssistants = failed.map((sample) => sample.assistant).join("\n");
   const successAssistant = lastSuccess?.assistant ?? "";
   const successSystem = lastSuccess?.system ?? "";
+  const conceptPhrase =
+    extractConceptPhrase(input.instance.test_probe.content) ??
+    failed.map((sample) => extractConceptPhrase(sample.user)).find(Boolean);
+  const matchingAnalogySuccess = succeeded.find((sample) =>
+    looksLikeAnalogyExplanation(sample.assistant),
+  );
+  const analogyFallbackRequested = /simple analogy/iu.test(input.fallbackSignal);
+
+  if (
+    conceptPhrase &&
+    failed.length > 0 &&
+    analogyFallbackRequested &&
+    (matchingAnalogySuccess ||
+      failed.some((sample) => /understand|confus|helpful|complex/iu.test(sample.system)))
+  ) {
+    return `For ${conceptPhrase}, use a simple analogy and avoid the term "${conceptPhrase}".`;
+  }
 
   if (
     /\bhttp\b/iu.test(failedAssistants) &&
@@ -1102,6 +1234,24 @@ function synthesizeClassicalConditioningFeedbackSignal(input: {
     return "Prefer https URLs or warn instead of producing http URLs.";
   }
 
+  const failedRoots = [...new Set(failed.flatMap((sample) => extractPathRoots(sample.assistant)))];
+  const safeRoots = [
+    ...new Set([
+      ...extractPathRoots(successAssistant),
+      ...extractPathRoots(successSystem),
+    ]),
+  ].filter((root) => root === "/home/" || root === "~/");
+  const safePathTemplate =
+    [...extractPaths(successAssistant), ...extractPaths(successSystem)]
+      .map((path) => toFilePathTemplate(path))
+      .find((value): value is { anchor: string; example: string } => Boolean(value));
+  if (failedRoots.length > 0 && safeRoots.length > 0) {
+    if (safePathTemplate) {
+      return `Do not write under ${failedRoots[0]}; refuse or redirect to a safe path in the form ${safePathTemplate.example}. Keep the requested filename under ${safePathTemplate.anchor}.`;
+    }
+    return `Do not write under ${failedRoots[0]}; refuse or redirect to a safe path under ${safeRoots[0]}.`;
+  }
+
   const failedExtensions = [
     ...new Set(failed.flatMap((sample) => extractFileExtensions(sample.assistant))),
   ];
@@ -1123,24 +1273,6 @@ function synthesizeClassicalConditioningFeedbackSignal(input: {
         ? `Prefer ${preferredExtension} files or warn instead of using ${failedExtension} files with ${tool}.`
         : `Prefer ${preferredExtension} files or warn instead of using ${failedExtension} files.`;
     }
-  }
-
-  const failedRoots = [...new Set(failed.flatMap((sample) => extractPathRoots(sample.assistant)))];
-  const safeRoots = [
-    ...new Set([
-      ...extractPathRoots(successAssistant),
-      ...extractPathRoots(successSystem),
-    ]),
-  ].filter((root) => root === "/home/" || root === "~/");
-  const safePathTemplate =
-    [...extractPaths(successAssistant), ...extractPaths(successSystem)]
-      .map((path) => toFilePathTemplate(path))
-      .find((value): value is { anchor: string; example: string } => Boolean(value));
-  if (failedRoots.length > 0 && safeRoots.length > 0) {
-    if (safePathTemplate) {
-      return `Do not write under ${failedRoots[0]}; refuse or redirect to a safe path in the form ${safePathTemplate.example}. Keep the requested filename under ${safePathTemplate.anchor}.`;
-    }
-    return `Do not write under ${failedRoots[0]}; refuse or redirect to a safe path under ${safeRoots[0]}.`;
   }
 
   const successCheckMatch = successAssistant.match(
@@ -1177,6 +1309,14 @@ function synthesizeClassicalConditioningFeedbackSignal(input: {
     looksLikeStructuredActionName(failedTool) &&
     looksLikeStructuredActionName(successTool)
   ) {
+    const requestPattern =
+      extractRequestPattern(input.instance.test_probe.content) ??
+      failed
+        .map((sample) => extractRequestPattern(sample.user))
+        .find(Boolean);
+    if (requestPattern) {
+      return `On ${requestPattern} requests, prefer ${successTool} or warn instead of using ${failedTool}.`;
+    }
     return `After repeated failures, avoid ${failedTool} and prefer ${successTool} or a warning.`;
   }
 
@@ -1263,12 +1403,16 @@ export async function listImplicitMemBenchResearchCases(input: {
           datasetFamily === "procedural_memory" &&
           taskManifest.scorer === "structured_first_action"
         ) {
+          const structuredTaskManifest = deriveStructuredTaskManifest({
+            instance: caseBase.instance,
+            taskManifest,
+          });
           cases.push({
             caseId: caseBase.caseId,
             datasetFamily: "procedural_memory",
             expectedPattern: caseBase.expectedPattern,
             feedbackSignal: taskManifest.feedbackSignal,
-            fixture: taskManifest,
+            fixture: structuredTaskManifest,
             instance: caseBase.instance,
             scorerFamily: "structured_first_action",
             sourceFile: caseBase.sourceFile,
@@ -1284,7 +1428,12 @@ export async function listImplicitMemBenchResearchCases(input: {
                 fallbackSignal: (taskManifest as TextTaskManifest).feedbackSignal,
                 instance: nonPrimingInstance,
               })
-            : (taskManifest as TextTaskManifest).feedbackSignal;
+            : datasetFamily === "procedural_memory"
+              ? synthesizeProceduralTextFeedbackSignal({
+                  fallbackSignal: (taskManifest as TextTaskManifest).feedbackSignal,
+                  instance: nonPrimingInstance,
+                })
+              : (taskManifest as TextTaskManifest).feedbackSignal;
 
         cases.push({
           ...caseBase,

@@ -89,7 +89,10 @@ export interface TextResponseRewriteOutputSlotOperation {
 export interface TextResponseRequireWarningOperation {
   backupMention?: string;
   kind: "require_warning";
+  pathTemplate?: BehavioralPolicyPathTemplate;
   preferredAlternatives?: string[];
+  replacementTarget?: string;
+  urlTemplate?: BehavioralPolicyUrlTemplate;
   warningMessage: string;
 }
 
@@ -719,6 +722,12 @@ function parseTextResponseRequireWarningOperation(
   }
 
   const preferredAlternatives = parseStringArray(value.preferredAlternatives);
+  const pathTemplate = parseBehavioralPolicyPathTemplate(value.pathTemplate);
+  const replacementTarget =
+    typeof value.replacementTarget === "string" && value.replacementTarget.trim().length > 0
+      ? value.replacementTarget.trim()
+      : undefined;
+  const urlTemplate = parseBehavioralPolicyUrlTemplate(value.urlTemplate);
   const backupMention =
     typeof value.backupMention === "string" && value.backupMention.trim().length > 0
       ? value.backupMention.trim()
@@ -727,7 +736,10 @@ function parseTextResponseRequireWarningOperation(
   return {
     ...(backupMention ? { backupMention } : {}),
     kind: "require_warning",
+    ...(pathTemplate ? { pathTemplate } : {}),
     ...(preferredAlternatives ? { preferredAlternatives } : {}),
+    ...(replacementTarget ? { replacementTarget } : {}),
+    ...(urlTemplate ? { urlTemplate } : {}),
     warningMessage,
   };
 }
@@ -1059,9 +1071,14 @@ function extractRequiredFragments(rule: string): string[] | undefined {
 }
 
 function extractForbiddenTermFragments(rule: string): string[] | undefined {
-  const matches = [...rule.matchAll(/\bavoid\s+(?:the\s+)?term\s+([A-Za-z][A-Za-z0-9_-]*)\b/giu)]
-    .map((match) => match[1]?.trim())
-    .filter((value): value is string => Boolean(value));
+  const matches = [
+    ...[...rule.matchAll(/\bavoid\s+(?:the\s+)?(?:term|phrase)\s+["'`]([^"'`]+)["'`]/giu)].map(
+      (match) => match[1]?.trim(),
+    ),
+    ...[...rule.matchAll(/\bavoid\s+(?:the\s+)?term\s+([A-Za-z][A-Za-z0-9_-]*)\b/giu)].map(
+      (match) => match[1]?.trim(),
+    ),
+  ].filter((value): value is string => Boolean(value));
   const unique = uniqueStrings(matches);
   return unique.length > 0 ? unique : undefined;
 }
@@ -1486,8 +1503,17 @@ function createTextResponseEnactmentPlan(input: {
           ? { backupMention: fallbackBehavior.backupMention }
           : {}),
         kind: "require_warning",
+        ...(input.applicability.pathTemplate
+          ? { pathTemplate: input.applicability.pathTemplate }
+          : {}),
         ...(fallbackBehavior.preferredAlternatives
           ? { preferredAlternatives: fallbackBehavior.preferredAlternatives }
+          : {}),
+        ...(fallbackBehavior.replacementTarget
+          ? { replacementTarget: fallbackBehavior.replacementTarget }
+          : {}),
+        ...(input.applicability.urlTemplate
+          ? { urlTemplate: input.applicability.urlTemplate }
           : {}),
         warningMessage: fallbackBehavior.warningMessage,
       });
@@ -2063,6 +2089,14 @@ export function selectBehavioralPolicies(
         normalizedQuery,
         policy.applicability.actionSummaryContains,
       ),
+      ...countMatchedPhrases(
+        normalizedQuery,
+        policy.applicability.forbiddenFragments,
+      ),
+      ...countMatchedPhrases(
+        normalizedQuery,
+        policy.applicability.preferredFragments,
+      ),
     ]);
     if (
       policy.transferMode === "example_only" &&
@@ -2225,7 +2259,7 @@ function replaceAllLiteralInsensitive(
 
 function extractRequestedFilename(value: string): string | undefined {
   const matches = [...value.matchAll(/(?:~\/|\/)[A-Za-z0-9._/-]*\/([A-Za-z0-9._-]+)/gu)];
-  return matches.at(-1)?.[1];
+  return matches.at(-1)?.[1]?.replace(/[.,;:!?]+$/u, "");
 }
 
 function extractRequestedPageSegment(value: string): string | undefined {
@@ -2291,6 +2325,39 @@ function rewritePathsToTemplate(
     /(?:~\/|\/)[A-Za-z0-9._/-]*\/([A-Za-z0-9._-]+)/gu,
     () => `${template.anchor}${requestedFilename}`,
   );
+}
+
+function buildPathReplacementFromQuery(
+  query: string | undefined,
+  template: BehavioralPolicyPathTemplate,
+): string | undefined {
+  const requestedFilename = query ? extractRequestedFilename(query) : undefined;
+  return requestedFilename ? `${template.anchor}${requestedFilename}` : undefined;
+}
+
+function extractPrimaryUnsafePathFromQuery(
+  query: string | undefined,
+  template: BehavioralPolicyPathTemplate,
+): string | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  const matches = [...query.matchAll(/(?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._-]/gu)]
+    .map((match) => match[0]?.trim())
+    .filter((entry): entry is string => Boolean(entry));
+
+  return matches.find((path) => !path.startsWith(template.anchor));
+}
+
+function buildUrlReplacementFromQuery(
+  query: string | undefined,
+  template: BehavioralPolicyUrlTemplate,
+): string | undefined {
+  const requestedPage = query ? extractRequestedPageSegment(query) : undefined;
+  return requestedPage
+    ? `${template.scheme}://${template.host}/${requestedPage}`
+    : undefined;
 }
 
 function looksLikeWarningAnswer(value: string): boolean {
@@ -2367,6 +2434,10 @@ function satisfiesPreferredSafeSurface(
   if (
     operation.preferredAlternatives?.some((alternative) => answer.includes(alternative))
   ) {
+    return true;
+  }
+
+  if (operation.replacementTarget && answer.includes(operation.replacementTarget)) {
     return true;
   }
 
@@ -2496,11 +2567,35 @@ export function applyTextResponseEnactmentPlan(input: {
         }
         break;
       case "require_warning":
-        if (!satisfiesPreferredSafeSurface(answer, operation)) {
+        {
+          const replacementTarget =
+            operation.replacementTarget ??
+            (operation.pathTemplate
+              ? buildPathReplacementFromQuery(input.query, operation.pathTemplate)
+              : undefined) ??
+            (operation.urlTemplate
+              ? buildUrlReplacementFromQuery(input.query, operation.urlTemplate)
+              : undefined);
+          const unsafePath =
+            operation.pathTemplate
+              ? extractPrimaryUnsafePathFromQuery(input.query, operation.pathTemplate)
+              : undefined;
+          const contradictorySafePathWarning =
+            Boolean(operation.pathTemplate) &&
+            looksLikeWarningAnswer(answer) &&
+            Boolean(replacementTarget) &&
+            answer.includes(replacementTarget!) &&
+            Boolean(unsafePath) &&
+            !answer.includes(unsafePath!);
+
+          if (!satisfiesPreferredSafeSurface(answer, operation) || contradictorySafePathWarning) {
           answer = [
             operation.warningMessage,
             operation.preferredAlternatives?.length
               ? `Use ${operation.preferredAlternatives.join(" or ")} instead.`
+              : undefined,
+            replacementTarget
+              ? `Safe replacement: ${replacementTarget}.`
               : undefined,
             operation.backupMention,
           ]
@@ -2508,6 +2603,7 @@ export function applyTextResponseEnactmentPlan(input: {
             .join(" ");
         }
         break;
+        }
     }
   }
 
@@ -2646,8 +2742,8 @@ export function buildBehavioralSteeringLines(
 }
 
 function extractQuotedValues(value: string): string[] {
-  return [...value.matchAll(/['"`]([^'"`]+)['"`]/gu)]
-    .map((match) => match[1]?.trim())
+  return [...value.matchAll(/(?<![\p{L}\p{N}_/])(['"`])([^'"`]+)\1(?![\p{L}\p{N}_/])/gu)]
+    .map((match) => match[2]?.trim())
     .filter((entry): entry is string => Boolean(entry));
 }
 
@@ -2680,8 +2776,25 @@ function inferCanonicalFirstAction(
     return canonicalFirstAction;
   }
 
-  const source = quotedValues[0];
-  let destination = quotedValues[1];
+  const fromMatch = query.match(
+    /\bfrom\s+['"`]([^'"`]+)['"`]/iu,
+  );
+  const intoMatch = query.match(
+    /\binto\s+['"`]([^'"`]+)['"`]/iu,
+  );
+  const fromValue = fromMatch?.[1]?.trim();
+  const intoValue = intoMatch?.[1]?.trim();
+
+  let source =
+    quotedValues.find((value) => value === fromValue) ??
+    quotedValues.find((value) => !value.endsWith("/")) ??
+    quotedValues[0];
+  let destination =
+    quotedValues.find((value) => value === intoValue) ??
+    quotedValues.find((value) => value !== source && value.endsWith("/")) ??
+    quotedValues.find((value) => value !== source) ??
+    quotedValues[1];
+
   if (destination.endsWith("/")) {
     const filename = source.split("/").filter(Boolean).at(-1);
     if (filename) {
