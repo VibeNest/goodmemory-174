@@ -8,13 +8,13 @@ Status: internal research evidence only. This document does not reopen or
 change the accepted Phase 49 claim, and it does not make full ImplicitMemBench
 a release gate.
 
-Phase 52 later closed on targeted deterministic/live behavioral evidence. A
-post-Phase-52 full-300 rerun remains follow-up research evidence and is not a
-Phase 52 closure blocker.
+Phase 53 later closed on targeted deterministic/live behavioral evidence plus
+a follow-up Postgres-backed full-300 rerun. That full-300 rerun remains
+research evidence and does not make ImplicitMemBench a release gate.
 
 ## Scope
 
-This document summarizes two full 300-case ImplicitMemBench executions through
+This document summarizes full 300-case ImplicitMemBench executions through
 GoodMemory's Phase 49 research harness:
 
 - the initial full run used to establish the first full-300 baseline versus
@@ -22,6 +22,11 @@ GoodMemory's Phase 49 research harness:
 - a post-Phase-51 GoodMemory rerun used to test whether typed behavioral
   memory and later conditioning/enactment improvements actually moved the
   full benchmark
+- a post-Phase-52 GoodMemory rerun used to check whether structured
+  text-response enactment extended the full-300 frontier
+- a post-Phase-53 GoodMemory rerun used to check whether harder surface
+  determinism, escalation routing, and exact command recovery moved the same
+  benchmark without changing the release gate
 
 The goal was not to measure prompt-following alone. The comparison keeps the
 upstream baseline and the GoodMemory-mediated path separate:
@@ -79,6 +84,15 @@ The post-Phase-51 rerun wrote GoodMemory shard reports under:
 - `reports/eval/research/phase-49/goodmemory/run-phase49-full-shard-03-pg-20260501`
 - `reports/eval/research/phase-49/goodmemory/run-phase49-full-shard-04-pg-20260501`
 - `reports/eval/research/phase-49/goodmemory/run-phase49-full-shard-05-pg-20260501`
+
+The post-Phase-53 rerun used 5 balanced local shard roots under
+`/tmp/gm-phase53-shards-20260502/` and wrote GoodMemory shard reports under:
+
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-01`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-02`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-03`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-04`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-full-postphase53-pg-20260502-shard-05`
 
 These runs are intentionally not promoted to release-gate status. They remain
 research evidence only.
@@ -215,6 +229,49 @@ repo `.env`.
   - raw: `2`
   - distilled: `0`
 
+### Post-Phase-53 GoodMemory Rerun (`2026-05-02`)
+
+This rerun refreshed GoodMemory only. It was executed as 5 balanced shards with
+`GOODMEMORY_STORAGE_PROVIDER=postgres`,
+`GOODMEMORY_STORAGE_URL=$GOODMEMORY_TEST_POSTGRES_URL`, and per-process
+`GOODMEMORY_EVAL_MAX_CONCURRENCY=1`.
+
+#### Blocking Cases
+
+| Profile | Passed | Total | Pass Rate |
+| --- | ---: | ---: | ---: |
+| `goodmemory-raw-experience` | 37 | 200 | 18.5% |
+| `goodmemory-distilled-feedback` | 92 | 200 | 46.0% |
+
+#### By Dataset Family
+
+| Dataset | Raw | Distilled |
+| --- | ---: | ---: |
+| `classical_conditioning` | 28 / 100 | 64 / 100 |
+| `procedural_memory` | 9 / 100 | 28 / 100 |
+
+#### By Scorer Family
+
+| Scorer | Raw | Distilled |
+| --- | ---: | ---: |
+| `text_behavior_judge` | 37 / 165 | 85 / 165 |
+| `structured_first_action` | 0 / 35 | 7 / 35 |
+
+#### Priming
+
+| Profile | Average Score |
+| --- | ---: |
+| `goodmemory-raw-experience` | 3.2647 |
+
+#### Execution Quality
+
+- `executionFailures`
+  - raw: `3`
+  - distilled: `0`
+- `explicitRecallLeakCount`
+  - raw: `1`
+  - distilled: `0`
+
 ### Delta Versus The Initial GoodMemory Run
 
 | Metric | Initial | Post-Phase-51 | Delta |
@@ -239,24 +296,39 @@ repo `.env`.
 | raw explicit recall leaks | `2` | `2` | `0` |
 | distilled explicit recall leaks | `0` | `0` | `0` |
 
+### Delta Versus The Post-Phase-52 GoodMemory Rerun
+
+| Metric | Post-Phase-52 | Post-Phase-53 | Delta |
+| --- | ---: | ---: | ---: |
+| overall raw blocking pass rate | `15.5%` | `18.5%` | `+3.0 pts` |
+| overall distilled blocking pass rate | `43.5%` | `46.0%` | `+2.5 pts` |
+| conditioning distilled | `63 / 100` | `64 / 100` | `+1` |
+| procedural distilled | `24 / 100` | `28 / 100` | `+4` |
+| structured first-action distilled | `3 / 35` | `7 / 35` | `+4` |
+| raw execution failures | `17` | `3` | `-14` |
+| distilled execution failures | `9` | `0` | `-9` |
+| raw explicit recall leaks | `2` | `1` | `-1` |
+| distilled explicit recall leaks | `0` | `0` | `0` |
+
 ## What The Results Say
 
 ### 1. Raw experience replay is still weak
 
 The central result did not change: `goodmemory-raw-experience` remains far
-below the upstream baseline and did not improve in either the post-Phase-51 or
-post-Phase-52 reruns.
+below the upstream baseline. Phase 53 recovered part of the post-Phase-52 drop,
+but raw replay is still not a reliable product mechanism by itself.
 
 - baseline: `54.0%`
 - initial raw: `21.0%`
 - post-Phase-51 raw: `17.0%`
 - post-Phase-52 raw: `15.5%`
+- post-Phase-53 raw: `18.5%`
 
 This means the current GoodMemory stack does not yet turn most learning and
 interference examples into reliable downstream behavior when the final probe is
 probe-only.
 
-### 2. Distillation remains useful, but Phase 52 did not extend the full-300 frontier
+### 2. Distillation remains useful, and Phase 53 moved the full-300 frontier
 
 `goodmemory-distilled-feedback` still carries the real value in the system.
 The strongest family remains `classical_conditioning`, where explicit policy
@@ -266,17 +338,20 @@ distillation continues to outperform raw replay:
 - initial distilled: `54 / 100`
 - post-Phase-51 distilled: `64 / 100`
 - post-Phase-52 distilled: `63 / 100`
+- post-Phase-53 distilled: `64 / 100`
 
-But it remains weak on `procedural_memory`:
+Phase 53's larger movement was on `procedural_memory`:
 
 - baseline: `53 / 100`
 - initial distilled: `23 / 100`
 - post-Phase-51 distilled: `25 / 100`
 - post-Phase-52 distilled: `24 / 100`
+- post-Phase-53 distilled: `28 / 100`
 
 So the value is still concentrated in explicit rule distillation for local
-behavioral constraints. Phase 52 improved targeted conditioning mechanisms, but
-that improvement did not translate into a new full-300 high-water mark.
+behavioral constraints. Phase 53 recovered the prior high-water mark and moved
+it from `89 / 200` to `92 / 200`, but the result still trails the upstream
+baseline and should remain research evidence.
 
 ### 3. Strict first-action enactment is the weakest surface
 
@@ -287,40 +362,45 @@ The `structured_first_action` subgroup remains poor across all profiles:
 - initial distilled: `3 / 35`
 - post-Phase-51 raw: `0 / 35`
 - post-Phase-51 distilled: `3 / 35`
+- post-Phase-52 distilled: `3 / 35`
+- post-Phase-53 distilled: `7 / 35`
 
-This is the clearest sign that GoodMemory still lacks a reliable enactment path
-for exact command/tool emission and argument preservation.
+Phase 53's exact command recovery moved this surface, but `7 / 35` is still
+too low for a product claim. The remaining gap is exact syntax/tool execution
+coverage beyond the currently compiled command patterns.
 
-### 4. Phase 52 preserved hygiene, but not aggregate quality gains
+### 4. Phase 53 preserved hygiene while improving execution quality
 
-The post-Phase-52 rerun kept the cleaner leakage profile established after
-Phase 51:
+The post-Phase-53 rerun kept the cleaner leakage profile established after
+Phase 51 while reducing live execution noise:
 
 - post-Phase-51 raw/distilled leaks: `2 / 0`
 - post-Phase-52 raw/distilled leaks: `2 / 0`
+- post-Phase-53 raw/distilled leaks: `1 / 0`
+- post-Phase-53 raw/distilled execution failures: `3 / 0`
 
-That is still a real product-quality win. The system stayed cleaner while
-using behavioral steering. But hygiene alone did not produce a better
-full-300 result.
+That is a real product-quality win: the distilled path improved without
+reintroducing explicit recall leakage, and all distilled live execution
+failures cleared in this run.
 
 ### 5. The biggest remaining misses are still structural
 
-The post-Phase-52 rerun shows four persistent failure families:
+The post-Phase-53 rerun still shows persistent failure families:
 
-1. directory/path rewrite is still unreliable:
-   `conditioned_directory_restriction` stayed weak at `2 / 10`
-2. forbidden-term blocking is still soft:
-   `conditioned_jargon_avoidance` stayed weak at `2 / 10`
-3. distrust/escalation routing is only partially solved:
-   `conditioned_api_distrust` reached only `4 / 10`
-4. strict procedural syntax and exact format execution remain poor:
+1. forbidden-term blocking remains soft:
+   `conditioned_jargon_avoidance` landed at only `1 / 10`
+2. distrust/escalation routing is still partial:
+   `conditioned_api_distrust` stayed at `4 / 10`
+3. directory/path rewrite improved but remains incomplete:
+   `conditioned_directory_restriction` reached `4 / 10`
+4. broader procedural syntax and exact format execution remain weak:
    `session_key_prefix_rule`, `reversed_parameter_protocol`,
-   `the_eccentric_api_call`, and `the_scribe_s_signature` all remained at or
-   near zero
+   `the_eccentric_api_call`, `the_scribe_s_signature`, and
+   `character_voice_consistency` stayed at or near zero
 
-### 6. The reruns also carry live execution noise
+### 6. The research harness still needs better operator ergonomics
 
-The rerun carried more transport/time-budget failures:
+The post-Phase-51 rerun carried more transport/time-budget failures:
 
 - raw execution failures: `0 -> 18`
 - distilled execution failures: `0 -> 8`
@@ -330,31 +410,38 @@ The post-Phase-52 rerun stayed noisy:
 - raw execution failures: `17`
 - distilled execution failures: `9`
 
+The post-Phase-53 sharded Postgres run improved this:
+
+- raw execution failures: `3`
+- distilled execution failures: `0`
+
 Those failures do not invalidate the behavioral trend, but they do mean the
 Phase 49 live research harness still needs stronger retry/checkpoint/failure
 accounting if full-300 runs are going to be a reliable operator workflow.
 
 ## Where GoodMemory Actually Helped
 
-Across the three GoodMemory full runs, the strongest evidence is still on
+Across the GoodMemory full runs, the strongest evidence is still on
 local, constraint-shaped behavior.
 
-The most reliable post-Phase-52 wins are:
+The most reliable post-Phase-53 wins are:
 
 - `conditioned_protocol_preference.json`
-  - post-Phase-52 distilled `9 / 10`
+  - post-Phase-53 distilled `9 / 10`
 - `context_dependent_api_behavior.json`
-  - post-Phase-52 distilled `9 / 10`
+  - post-Phase-53 distilled `9 / 10`
 - `conditioned_api_aversion.json`
-  - post-Phase-52 distilled `8 / 10`
+  - post-Phase-53 distilled `9 / 10`
 - `conditioned_brevity.json`
-  - post-Phase-52 distilled `9 / 10`
+  - post-Phase-53 distilled `10 / 10`
 - `tool_use_with_side_effects.json`
-  - post-Phase-52 distilled `7 / 10`
+  - post-Phase-53 distilled `7 / 10`
+- `logiql_query_language.json`
+  - post-Phase-53 distilled `7 / 7`
 - `the_forbidden_square.json`
-  - post-Phase-52 distilled `6 / 6`
+  - post-Phase-53 distilled `6 / 6`
 - `the_ternary_logic_system.json`
-  - post-Phase-52 distilled `6 / 6`
+  - post-Phase-53 distilled `6 / 6`
 
 These wins are still consistent with the system being better at local
 avoidance/preference or bounded symbolic-rule tasks than at broader procedural
@@ -394,7 +481,7 @@ Representative failures:
   - distilled `0 / 7`
 - `corporate_etiquette_mandate.json`
   - baseline `4 / 6`
-  - post-Phase-52 distilled `1 / 6`
+  - post-Phase-53 distilled `1 / 6`
 
 Typical error shape:
 
@@ -403,25 +490,25 @@ Typical error shape:
 
 ### 3. Hard text constraints are still too soft
 
-The post-Phase-52 rerun confirmed that several conditioning families still
+The post-Phase-53 rerun confirmed that several conditioning families still
 need harder enforcement instead of structured-but-soft control.
 
 Representative failures:
 
 - `conditioned_jargon_avoidance.json`
-  - post-Phase-52 distilled `2 / 10`
+  - post-Phase-53 distilled `1 / 10`
   - the answer often used the forbidden jargon term while also providing a good
     analogy
 - `tool_use_with_side_effects.json`
-  - post-Phase-52 distilled `7 / 10`
+  - post-Phase-53 distilled `7 / 10`
   - the answer often picked the safer tool or safer reset but still omitted a
     required warning or backup step
 - `conditioned_directory_restriction.json`
-  - post-Phase-52 distilled `2 / 10`
+  - post-Phase-53 distilled `4 / 10`
   - the answer often knew a redirect was needed, but still confused the unsafe
     requested path with the safe replacement path
 - `conditioned_api_distrust.json`
-  - post-Phase-52 distilled `4 / 10`
+  - post-Phase-53 distilled `4 / 10`
   - the answer still often fell back to generic analysis instead of escalating
     to a specialist path or warning/refusing the default path
 
@@ -450,17 +537,17 @@ action emission.
 The biggest procedural failures did not move much in the rerun:
 
 - `reversed_parameter_protocol.json`
-  - post-Phase-51 distilled `0 / 7`
+  - post-Phase-53 distilled `0 / 7`
 - `session_key_prefix_rule.json`
-  - post-Phase-51 distilled `0 / 7`
+  - post-Phase-53 distilled `0 / 7`
 - `the_scribe_s_signature.json`
-  - post-Phase-51 distilled `0 / 7`
+  - post-Phase-53 distilled `0 / 7`
 - `the_eccentric_api_call.json`
-  - post-Phase-51 distilled `0 / 7`
+  - post-Phase-53 distilled `0 / 7`
 - `the_modified_recurrence_sequence.json`
-  - post-Phase-51 distilled `1 / 7`
+  - post-Phase-53 distilled `1 / 7`
 - `the_omega_operation.json`
-  - post-Phase-51 distilled `1 / 6`
+  - post-Phase-53 distilled `1 / 6`
 
 These are not "small formatting misses." They show that the system still
 struggles to convert one or two remembered examples into a transferable,
@@ -468,20 +555,21 @@ applicability-bounded procedural rule.
 
 ## Current Bottom Line
 
-The post-Phase-51 rerun is a meaningful improvement, but only in one part of
+The post-Phase-53 rerun is a meaningful improvement, but only in one part of
 the problem:
 
 - GoodMemory is now much cleaner and materially stronger at distilled
   conditioning behavior.
 - GoodMemory is still weak at raw internalization.
 - GoodMemory is still weak at broad procedural transfer.
-- GoodMemory is still weak at strict first-action enactment.
+- GoodMemory improved exact first-action enactment, but `7 / 35` is still weak.
 
 That means the next general-capability slice should focus on:
 
-1. hard text-response constraints and replacement/warning enforcement
+1. stronger forbidden-term and path/file rewrite guarantees
 2. stronger anti-exemplar-collapse procedural compilation
-3. exact first-action recovery rather than more generic prompt steering
+3. broader exact-format and exact-action executors beyond the covered command
+   patterns
 
 ## What Not To Conclude
 
@@ -501,8 +589,8 @@ These are project-improvement recommendations, not benchmark hacks.
 
 ### 1. Keep strengthening hard text-response constraints
 
-Phase 51 proved that typed behavioral memory and cleaner steering help, but the
-post-Phase-51 rerun showed the remaining gap clearly:
+Phase 53 proved that structured text-response control and targeted final-surface
+sanitation help, but the post-Phase-53 rerun showed the remaining gap clearly:
 
 - `jargon_avoidance` still fails because "avoid this term" is treated as soft
   prose guidance
@@ -510,7 +598,7 @@ post-Phase-51 rerun showed the remaining gap clearly:
   not enforced as a hard output contract
 - directory restriction still needs stricter safe-path and refusal shaping
 
-The next layer should add structured text-response constraints such as:
+The next layer should deepen structured text-response constraints such as:
 
 - forbidden terms
 - required warnings
@@ -520,7 +608,7 @@ The next layer should add structured text-response constraints such as:
 
 ### 2. Keep strengthening procedural anti-collapse
 
-Phase 51 reduced some over-generalization, but the full rerun still shows that
+Phase 53 reduced some exact-action failure, but the full rerun still shows that
 single remembered exemplars are leaking into family-wide answers.
 
 The next step is not more notes. It is stronger transfer discipline:
@@ -534,7 +622,7 @@ The next step is not more notes. It is stronger transfer discipline:
 Without this, any product using GoodMemory will overgeneralize one example into
 the wrong downstream behavior.
 
-### 3. Add a real first-action recovery path
+### 3. Broaden the exact-action and exact-format executor
 
 For host-integrated and tool-using systems, memory should be able to influence
 the first emitted action in a structured way.
@@ -547,8 +635,9 @@ That means:
 - let higher-priority behavioral constraints shape action selection before
   generic response generation
 
-This is still largely unproven in the full rerun, so it remains a core product
-gap rather than a benchmark-only gap.
+Phase 53 proved this for the LogiQL slice, but the full rerun shows that
+argument-order, session-key, alien filesystem, eccentric API, and exact-format
+families still need a more general executor.
 
 ### 4. Keep leak suppression and contamination control, but do not confuse it
 with full behavioral success
@@ -577,9 +666,10 @@ checks, leak checks, and task-compliance checks.
 If the goal is to improve GoodMemory itself rather than chase one benchmark, the
 highest-yield sequence is:
 
-1. add hard text-response constraints plus replacement/warning enforcement
+1. deepen hard text-response constraints, especially forbidden-term and path
+   rewrite enforcement
 2. strengthen procedural anti-exemplar-collapse and symbolic rule transfer
-3. add a dedicated exact first-action recovery path
+3. broaden the dedicated exact-action and exact-format executor
 4. keep leak suppression and contamination control in place while those new
    mechanisms land
 5. rerun the full 300 only after those mechanism changes, rather than tuning

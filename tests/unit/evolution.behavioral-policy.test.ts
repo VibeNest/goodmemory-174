@@ -9,6 +9,7 @@ import {
   buildBehavioralSteeringLines,
   buildStructuredTextResponseControlLines,
   deriveRuleBehavioralPolicy,
+  isSteeringOnlyBehavioralPolicy,
   recoverStructuredFirstActionAnswer,
   readBehavioralPolicyFromFeedbackMemory,
   resolveTextResponseEnactmentPlan,
@@ -62,6 +63,50 @@ describe("behavioral policy", () => {
       },
       transferMode: "pattern_bounded",
     });
+  });
+
+  it("keeps simple procedural guidance visible while hiding structured controls", () => {
+    const simplePolicy = deriveRuleBehavioralPolicy({
+      appliesTo: "coding_agent",
+      exemplarCount: 2,
+      kind: "do",
+      rule: "Use bullet points.",
+    });
+    const hardPolicy = deriveRuleBehavioralPolicy({
+      appliesTo: "general_response",
+      exemplarCount: 2,
+      kind: "dont",
+      rule: "Explain this concept with a simple analogy and avoid the term API.",
+    });
+
+    expect(simplePolicy).toBeDefined();
+    expect(hardPolicy).toBeDefined();
+
+    const simpleFeedback = createFeedbackMemory({
+      id: "simple-policy",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "validated_pattern",
+      rule: "Use bullet points.",
+      attributes: attachBehavioralPolicyAttributes(undefined, simplePolicy!),
+      source,
+      updatedAt: source.extractedAt,
+    });
+    const hardFeedback = createFeedbackMemory({
+      id: "hard-policy",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "validated_pattern",
+      rule: "Explain this concept with a simple analogy and avoid the term API.",
+      attributes: attachBehavioralPolicyAttributes(undefined, hardPolicy!),
+      source,
+      updatedAt: source.extractedAt,
+    });
+
+    expect(isSteeringOnlyBehavioralPolicy(simpleFeedback)).toBe(false);
+    expect(isSteeringOnlyBehavioralPolicy(hardFeedback)).toBe(true);
   });
 
   it("classifies a single exemplar as example_only instead of a general rule", () => {
@@ -260,6 +305,175 @@ describe("behavioral policy", () => {
     );
   });
 
+  it("enforces filetype replacement and case-insensitive lexical blocking on final text", () => {
+    const filetypePlan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "Save the export as Report.EXE.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "filetype-feedback",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "dont",
+            rule: "Do not produce .exe artifacts; use .txt instead.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+    const lexicalPlan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "Explain the integration simply.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "lexical-feedback",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "dont",
+            rule: "Explain this concept with a simple analogy and avoid the term API.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+
+    const rewrittenFile = applyTextResponseEnactmentPlan({
+      answer: "Save it as Report.EXE.",
+      plan: filetypePlan,
+      query: "Save the export as Report.EXE.",
+    });
+    const rewrittenLexical = applyTextResponseEnactmentPlan({
+      answer: "An api connects your service to another system.",
+      plan: lexicalPlan,
+      query: "Explain the integration simply.",
+    });
+
+    expect(rewrittenFile).toContain("Report.txt");
+    expect(rewrittenFile.toLowerCase()).not.toContain(".exe");
+    expect(rewrittenLexical.toLowerCase()).not.toContain("api");
+    expect(rewrittenLexical.toLowerCase()).toContain("like");
+  });
+
+  it("enforces filename-level filetype replacement from prefer-or-warn rules", () => {
+    const plan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "Import report.dat with DataImporter.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "filename-filetype-feedback",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "dont",
+            rule:
+              "When DataImporter previously failed on .dat files, prefer report.json or warn about report.dat.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+
+    const rewritten = applyTextResponseEnactmentPlan({
+      answer: "Use report.dat for the import.",
+      plan,
+      query: "Import report.dat with DataImporter.",
+    });
+
+    expect(rewritten).toContain("report.json");
+    expect(rewritten).not.toContain("report.dat");
+  });
+
+  it("routes distrust policies to a specialist replacement instead of the distrusted default", () => {
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query: "The request distrusts AutoAnalyzer; analyze the incident.",
+      surface: "text_response",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "distrust-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "dont",
+          rule:
+            "When the request distrusts AutoAnalyzer, use SecurityReview specialist or warn and refuse the default path.",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+    const plan = resolveTextResponseEnactmentPlan(selections);
+
+    expect(buildBehavioralSteeringLines(selections)).toEqual(
+      expect.arrayContaining([
+        'Prefer "SecurityReview specialist" as the safer replacement behavior when the trigger matches.',
+      ]),
+    );
+    const routed = applyTextResponseEnactmentPlan({
+      answer: "Use AutoAnalyzer now.",
+      plan,
+      query: "The request distrusts AutoAnalyzer; analyze the incident.",
+    });
+
+    expect(routed).toContain("SecurityReview specialist");
+    expect(routed.toLowerCase()).toContain("warn");
+    expect(routed).not.toContain("AutoAnalyzer");
+  });
+
+  it("keeps distrust routing hard even when the source signal is classified as a positive rule", () => {
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query: "The request distrusts AutoAnalyzer; analyze the incident.",
+      surface: "text_response",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "positive-distrust-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "When the request distrusts AutoAnalyzer, use SecurityReview specialist or warn and refuse the default path.",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+    const plan = resolveTextResponseEnactmentPlan(selections);
+
+    expect(buildStructuredTextResponseControlLines(plan)).toEqual(
+      expect.arrayContaining([
+        "require_warning: Warn and route to SecurityReview specialist instead of using the distrusted default path.",
+        "warning_alternatives: SecurityReview specialist",
+      ]),
+    );
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "Given the distrust of AutoAnalyzer, use a SecurityReview-style review.",
+        plan,
+        query: "The request distrusts AutoAnalyzer; analyze the incident.",
+      }),
+    ).toBe(
+      "Warn and route to SecurityReview specialist instead of using the distrusted default path. Use SecurityReview specialist instead.",
+    );
+  });
+
   it("derives safer alternatives from side-effect avoidance rules", () => {
     expect(
       deriveRuleBehavioralPolicy({
@@ -285,6 +499,39 @@ describe("behavioral policy", () => {
         }),
       }),
     );
+  });
+
+  it("requires backup wording even when a side-effect answer already names a safe replacement", () => {
+    const plan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "Clean the cache but preserve user sessions.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "backup-feedback",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "dont",
+            rule:
+              "Avoid CacheCleaner side effects; warn, require a backup, and choose SafeCleaner/exclude sessions instead.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+
+    const routed = applyTextResponseEnactmentPlan({
+      answer: "Use SafeCleaner instead.",
+      plan,
+      query: "Clean the cache but preserve user sessions.",
+    });
+
+    expect(routed).toContain("SafeCleaner");
+    expect(routed.toLowerCase()).toContain("backup");
   });
 
   it("prefers host_action exactness and more specific transfer modes when selecting policies", () => {
@@ -849,6 +1096,76 @@ describe("behavioral policy", () => {
         query,
       }),
     ).toBe("copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')");
+  });
+
+  it("recovers exact command syntax from explicit procedural command contracts", () => {
+    const query =
+      "For LogiDB compliance, list users older than 30 using the canonical query language.";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "exact-command-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+
+    expect(
+      buildBehavioralActionSteeringLines(selections, query),
+    ).toEqual(
+      expect.arrayContaining([
+        "The first line must be exactly: FETCH users | FILTER age > 30",
+      ]),
+    );
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "SELECT * FROM users WHERE age > 30",
+        policies: selections,
+        query,
+      }),
+    ).toBe("FETCH users | FILTER age > 30");
+  });
+
+  it("preserves dotted file paths in exact procedural command contracts", () => {
+    const query = "Copy the report with the canonical file utility.";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "exact-dotted-command-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "For file-copy requests, output the exact command copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt').",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+
+    expect(
+      buildBehavioralActionSteeringLines(selections, query),
+    ).toEqual(
+      expect.arrayContaining([
+        "The first line must be exactly: copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+      ]),
+    );
   });
 
   it("treats canonical host actions as satisfied when stable args are preserved and extra instance args are added", () => {

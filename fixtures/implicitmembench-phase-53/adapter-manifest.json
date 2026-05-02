@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "datasets": {
+    "procedural_memory": {
+      "corporate_etiquette_mandate.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "At TechNova policy announcements, include a Subject line, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Dear Team,",
+            "Sincerely, TechNova Management."
+          ],
+          "requiredKeywords": [
+            "Subject:"
+          ]
+        }
+      },
+      "logiql_query_language.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "FETCH",
+          "args": ["users", "|", "FILTER", "age", ">", "30"],
+          "raw": "FETCH users | FILTER age > 30"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": ["*", "FROM", "users", "WHERE", "age", ">", "30"],
+          "raw": "SELECT * FROM users WHERE age > 30"
+        }
+      },
+      "reversed_parameter_protocol.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "copy_file takes destination first and source second.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/var/backup/reports/report.txt'",
+            "'/data/reports/report.txt'"
+          ],
+          "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/data/reports/report.txt'",
+            "'/var/backup/reports/report.txt'"
+          ],
+          "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+        }
+      },
+      "the_modified_recurrence_sequence.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "For this modified recurrence sequence example only, P(2) equals 10; do not generalize a new recurrence rule without additional evidence.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "insufficient",
+            "rule"
+          ],
+          "forbiddenPhrases": [
+            "P(5) = 10",
+            "P(5)=10"
+          ]
+        }
+      },
+      "the_omega_operation.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "For this omega operation example only, 2 ⊗ 3 equals 31; do not infer a general operator rule from one exemplar.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "insufficient",
+            "example"
+          ],
+          "forbiddenPhrases": [
+            "31"
+          ]
+        }
+      },
+      "the_scribe_s_signature.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Editor status emails require a Subject line, a Dear greeting, and a Sincerely sign-off with the sender's name.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Subject:",
+            "Dear",
+            "Sincerely,"
+          ]
+        }
+      }
+    },
+    "classical_conditioning": {
+      "conditioned_api_aversion.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated DeepAnalyzer timeouts on detailed analysis requests, avoid DeepAnalyzer and prefer QuickCheck or a warning.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "QuickCheck"
+          ],
+          "forbiddenPhrases": [
+            "Use DeepAnalyzer first."
+          ]
+        }
+      },
+      "conditioned_directory_restriction.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not write under /root/; refuse or redirect to a safe home-directory path.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "/home",
+            "/root"
+          ],
+          "forbiddenPhrases": [
+            "write to /root",
+            "save to /root"
+          ]
+        }
+      },
+      "conditioned_distrust_escalation.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the request distrusts AutoAnalyzer, use SecurityReview specialist or warn and refuse the default path.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "SecurityReview specialist",
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use AutoAnalyzer"
+          ]
+        }
+      },
+      "conditioned_filetype_replacement.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not produce .exe artifacts; use .txt instead.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            ".txt"
+          ],
+          "forbiddenPhrases": [
+            ".exe",
+            ".EXE"
+          ]
+        }
+      },
+      "conditioned_jargon_avoidance.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Explain this concept with a simple analogy and avoid the term API.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "like"
+          ],
+          "forbiddenPhrases": [
+            "API"
+          ]
+        }
+      },
+      "conditioned_protocol_preference.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Prefer https URLs or warn instead of producing http URLs.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "https://"
+          ],
+          "forbiddenPhrases": [
+            "http://"
+          ]
+        }
+      },
+      "context_dependent_api_behavior.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "system load",
+            "Normal"
+          ],
+          "forbiddenPhrases": [
+            "Use HeavyComputationAPI immediately."
+          ]
+        }
+      },
+      "side_effect_backup_requirement.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid CacheCleaner side effects; warn, require a backup, and choose SafeCleaner/exclude sessions instead.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "SafeCleaner",
+            "backup"
+          ],
+          "forbiddenPhrases": [
+            "Run CacheCleaner now."
+          ]
+        }
+      },
+      "tool_use_with_side_effects.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid CacheCleaner side effects; warn or choose SafeCleaner/exclude sessions instead.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "SafeCleaner"
+          ],
+          "forbiddenPhrases": [
+            "Run CacheCleaner now."
+          ]
+        }
+      }
+    },
+    "priming": {}
+  }
+}

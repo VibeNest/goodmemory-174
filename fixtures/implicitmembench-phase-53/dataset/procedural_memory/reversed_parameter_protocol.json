@@ -1,0 +1,35 @@
+{
+  "task_seed": "Reversed Parameter Protocol",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Reversed Parameter Protocol",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Can you explain how to use the copy_file utility?"
+        },
+        {
+          "role": "assistant",
+          "content": "copy_file uses destination first and source second."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I copy a file with cp?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use cp <source> <destination>."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Without explanation, copy '/data/reports/report.txt' into '/var/backup/reports/' using the environment's canonical utility."
+      },
+      "expected_pattern": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+    }
+  ]
+}

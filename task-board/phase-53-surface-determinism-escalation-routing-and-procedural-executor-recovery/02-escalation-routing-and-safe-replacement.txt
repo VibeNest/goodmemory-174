@@ -1,15 +1,15 @@
 Phase 53.2: Escalation Routing And Safe Replacement
 ===================================================
 
-[TODO] P53.2-T001 Add a real escalation-routing layer for distrust policies so
+[DONE] P53.2-T001 Add a real escalation-routing layer for distrust policies so
 the system can choose a specialist path, warn/refuse the default path, or do
 both when the learned policy requires it.
 
-[TODO] P53.2-T002 Compile side-effect policies into hard replacement/warning
+[DONE] P53.2-T002 Compile side-effect policies into hard replacement/warning
 contracts that can require backup mention or safe alternative selection before
 the final answer is emitted.
 
-[TODO] P53.2-T003 Prove that distrust and side-effect routing are no longer
+[DONE] P53.2-T003 Prove that distrust and side-effect routing are no longer
 just softer prompt text by covering the current weakest conditioning families:
 `conditioned_api_distrust`, `conditioned_directory_restriction`,
 `conditioned_filetype_preference`, and `tool_use_with_side_effects`.

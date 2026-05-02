@@ -1,0 +1,39 @@
+{
+  "task_seed": "Conditioned Filetype Replacement",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned Filetype Replacement",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Prepare the export as client-installer.exe."
+        },
+        {
+          "role": "Assistant",
+          "content": "Use client-installer.exe."
+        },
+        {
+          "role": "System",
+          "content": "User correction: do not produce .exe artifacts; use .txt instead."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What filename should I use for the deployment notes?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Use a clear filename with a safe extension."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Save the export as ReleaseBundle.EXE."
+      },
+      "expected_pattern": "The answer should replace the requested executable extension with .txt and avoid emitting .exe."
+    }
+  ]
+}

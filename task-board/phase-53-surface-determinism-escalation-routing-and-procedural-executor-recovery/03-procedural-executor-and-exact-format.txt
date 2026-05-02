@@ -1,18 +1,18 @@
 Phase 53.3: Procedural Executor And Exact Format
 ================================================
 
-[TODO] P53.3-T001 Add a covered procedural executor path for exact syntax and
+[DONE] P53.3-T001 Add a covered procedural executor path for exact syntax and
 argument-order tasks instead of relying on prose steering for those outputs.
 
-[TODO] P53.3-T002 Add an exact-format contract path for signature, subject,
+[DONE] P53.3-T002 Add an exact-format contract path for signature, subject,
 opening, and closing rules where text-response steering has remained too weak.
 
-[TODO] P53.3-T003 Continue procedural anti-collapse work for exemplar-sensitive
+[DONE] P53.3-T003 Continue procedural anti-collapse work for exemplar-sensitive
 families such as `the_modified_recurrence_sequence` and
 `the_omega_operation`, but do it through bounded symbolic transfer rather than
 family-wide memorized answers.
 
-[TODO] P53.3-T004 Target the weakest current procedural families:
+[DONE] P53.3-T004 Target the weakest current procedural families:
 `reversed_parameter_protocol`, `session_key_prefix_rule`,
 `the_eccentric_api_call`, `the_scribe_s_signature`, and
 `character_voice_consistency`.

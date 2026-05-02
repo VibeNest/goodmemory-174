@@ -1,17 +1,17 @@
 Phase 53.4: Eval, Full-300 Follow-Up, And Closure
 =================================================
 
-[TODO] P53.4-T001 Add targeted deterministic and live-memory eval coverage for
+[DONE] P53.4-T001 Add targeted deterministic and live-memory eval coverage for
 the new slot rewrite, lexical blocking, escalation routing, and procedural
 executor paths.
 
-[TODO] P53.4-T002 Keep the release hard gate unchanged, but require a new
+[DONE] P53.4-T002 Keep the release hard gate unchanged, but require a new
 follow-up full-300 research rerun before calling the phase closed.
 
-[TODO] P53.4-T003 Treat the full-300 rerun as phase evidence, not as a public
+[DONE] P53.4-T003 Treat the full-300 rerun as phase evidence, not as a public
 product claim. Closure should require recovering or exceeding the prior
 post-Phase-51 distilled high-water mark of `89 / 200` while keeping distilled
 explicit recall leakage at `0`.
 
-[TODO] P53.4-T004 Sync the research summary, current-status, and task-board
+[DONE] P53.4-T004 Sync the research summary, current-status, and task-board
 only after the new evidence is in place.

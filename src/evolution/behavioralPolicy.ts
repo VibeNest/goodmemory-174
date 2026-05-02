@@ -269,6 +269,8 @@ const URL_PROTOCOL_REWRITE = {
   to: "https://",
 } as const;
 const URL_TEMPLATE_PAGE_TOKEN = "<page>";
+const FILE_EXTENSION_RE = /\.[A-Za-z0-9]{2,8}/u;
+const FILE_ARTIFACT_RE = /[A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}|\.[A-Za-z0-9]{2,8}/u;
 const BEHAVIORAL_KIND_RANK: Record<BehavioralKind, number> = {
   first_action: 8,
   syntax_constraint: 7,
@@ -319,6 +321,43 @@ function parseActionTokens(value: string): string[] {
   return [...value.matchAll(/'([^']*)'|"([^"]*)"|(\S+)/gu)]
     .map((match) => match[1] ?? match[2] ?? match[3] ?? "")
     .filter((token) => token.length > 0);
+}
+
+function actionFromRawFirstLine(raw: string): BehavioralPolicyAction | undefined {
+  const firstLine =
+    raw
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? raw.trim();
+  if (!firstLine) {
+    return undefined;
+  }
+
+  const toolCallMatch = firstLine.match(/^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/u);
+  if (toolCallMatch) {
+    const [, name, argBody] = toolCallMatch;
+    return {
+      args: argBody
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+      kind: "tool_call",
+      name,
+      raw: firstLine,
+    };
+  }
+
+  const tokens = parseActionTokens(firstLine);
+  if (tokens.length === 0) {
+    return undefined;
+  }
+
+  return {
+    args: tokens.slice(1),
+    kind: "command",
+    name: tokens[0],
+    raw: firstLine,
+  };
 }
 
 function resolveComparableActionArgs(
@@ -905,6 +944,31 @@ export function serializeBehavioralPolicy(policy: BehavioralPolicy): string {
   return JSON.stringify(policy);
 }
 
+function isStructuredSteeringOnlyPolicy(policy: BehavioralPolicy): boolean {
+  if (policy.enactmentSurface === "host_action") {
+    return false;
+  }
+
+  const applicability = policy.applicability;
+  return Boolean(
+    applicability.argumentOrder ||
+      applicability.canonicalFirstAction ||
+      applicability.exactFragments ||
+      applicability.fallbackInstruction ||
+      (applicability.forbiddenFragments &&
+        applicability.forbiddenFragments.length > 0) ||
+      applicability.guard ||
+      applicability.guardedBehavior ||
+      applicability.pathTemplate ||
+      (applicability.preferredAlternatives &&
+        applicability.preferredAlternatives.length > 0) ||
+      (applicability.replacementPairs &&
+        applicability.replacementPairs.length > 0) ||
+      applicability.textResponsePlan ||
+      applicability.urlTemplate,
+  );
+}
+
 export function attachBehavioralPolicyAttributes(
   attributes: Record<string, MemoryAttributeValue> | undefined,
   policy: BehavioralPolicy,
@@ -912,7 +976,9 @@ export function attachBehavioralPolicyAttributes(
   return {
     ...(attributes ?? {}),
     [BEHAVIORAL_POLICY_ATTRIBUTE_KEY]: serializeBehavioralPolicy(policy),
-    [BEHAVIORAL_POLICY_STEERING_ONLY_ATTRIBUTE_KEY]: true,
+    ...(isStructuredSteeringOnlyPolicy(policy)
+      ? { [BEHAVIORAL_POLICY_STEERING_ONLY_ATTRIBUTE_KEY]: true }
+      : {}),
     [BEHAVIORAL_POLICY_VERSION_ATTRIBUTE_KEY]: BEHAVIORAL_POLICY_VERSION,
   };
 }
@@ -1036,6 +1102,7 @@ function extractPreferredAlternativeNames(rule: string): string[] | undefined {
   const ignored = new Set(["url", "urls", "file", "files", "warning", "warnings"]);
 
   for (const pattern of [
+    /\buse\s+([A-Z][A-Za-z0-9_]*(?:\s+specialist)?)\s+or\s+warn\b/giu,
     /\bprefer\s+([A-Z][A-Za-z0-9_]*|[a-z_]+_[a-z0-9_]*)\s+or\s+(?:a|an)\s+warning\b/giu,
     /\bprefer\s+([A-Z][A-Za-z0-9_]*|[a-z_]+_[a-z0-9_]*)\b/giu,
     /\bchoose\s+([A-Z][A-Za-z0-9_]*(?:\/[A-Za-z][A-Za-z0-9_ -]*)*)\s+instead\b/giu,
@@ -1057,6 +1124,103 @@ function extractPreferredAlternativeNames(rule: string): string[] | undefined {
 
   const normalized = uniqueStrings(matches);
   return normalized.length > 0 ? normalized : undefined;
+}
+
+function extractFiletypeReplacementApplicability(
+  rule: string,
+): Pick<
+  BehavioralPolicyApplicability,
+  "forbiddenFragments" | "preferredFragments" | "replacementPairs"
+> | null {
+  const avoidThenUse = rule.match(
+    /\b(?:do not|don't|avoid|never)\b[\s\S]{0,120}?([A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}|\.[A-Za-z0-9]{2,8})[\s\S]{0,100}?\b(?:use|prefer|choose)\s+([A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}|\.[A-Za-z0-9]{2,8})\s+instead\b/iu,
+  );
+  const useInsteadOf = rule.match(
+    /\b(?:use|prefer|choose)\s+([A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}|\.[A-Za-z0-9]{2,8})\s+instead\s+of\s+([A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}|\.[A-Za-z0-9]{2,8})\b/iu,
+  );
+  const preferOrWarn = rule.match(
+    /\bprefer\s+([A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}|\.[A-Za-z0-9]{2,8})\s+or\s+warn\s+(?:about|against|on)\s+([A-Za-z0-9_-]+\.[A-Za-z0-9]{2,8}|\.[A-Za-z0-9]{2,8})\b/iu,
+  );
+
+  const forbidden = avoidThenUse?.[1] ?? useInsteadOf?.[2] ?? preferOrWarn?.[2];
+  const preferred = avoidThenUse?.[2] ?? useInsteadOf?.[1] ?? preferOrWarn?.[1];
+  if (
+    !forbidden ||
+    !preferred ||
+    !FILE_ARTIFACT_RE.test(forbidden) ||
+    !FILE_ARTIFACT_RE.test(preferred)
+  ) {
+    return null;
+  }
+
+  const forbiddenExtension = forbidden.match(FILE_EXTENSION_RE)?.[0];
+  const preferredExtension = preferred.match(FILE_EXTENSION_RE)?.[0];
+  const replacementPairs: BehavioralPolicyReplacement[] = [];
+  if (!forbidden.startsWith(".") || preferred.startsWith(".")) {
+    replacementPairs.push({
+      from: forbidden,
+      to: preferred,
+    });
+  }
+  if (forbiddenExtension && preferredExtension) {
+    replacementPairs.push({
+      from: forbiddenExtension,
+      to: preferredExtension,
+    });
+  }
+
+  return {
+    forbiddenFragments: uniqueStrings([forbidden, forbiddenExtension]),
+    preferredFragments: uniqueStrings([preferred, preferredExtension]),
+    replacementPairs: uniqueReplacementPairs(replacementPairs),
+  };
+}
+
+function extractDistrustRoutingApplicability(
+  rule: string,
+): Pick<
+  BehavioralPolicyApplicability,
+  "fallbackInstruction" | "forbiddenFragments" | "preferredAlternatives" | "queryContains"
+> | null {
+  const distrustMatch = rule.match(
+    /\b(?:distrusts?|do not trust|don't trust|untrusted)\s+([A-Za-z_][A-Za-z0-9_]*)\b/iu,
+  );
+  const distrustedTarget = distrustMatch?.[1]?.trim();
+  if (!distrustedTarget) {
+    return null;
+  }
+
+  const specialistMatch = rule.match(
+    /\buse\s+([A-Z][A-Za-z0-9_]*(?:\s+specialist)?)\s+or\s+warn\b/iu,
+  );
+  const preferredAlternative = specialistMatch?.[1]?.trim();
+  const warningTarget = preferredAlternative ?? "a specialist path";
+
+  return {
+    fallbackInstruction:
+      `Warn and route to ${warningTarget} instead of using the distrusted default path.`,
+    forbiddenFragments: [distrustedTarget],
+    ...(preferredAlternative ? { preferredAlternatives: [preferredAlternative] } : {}),
+    queryContains: [distrustedTarget],
+  };
+}
+
+function extractExactCommandAction(rule: string): BehavioralPolicyAction | undefined {
+  const patterns = [
+    /\b(?:output|emit|return|run|use)\s+(?:the\s+)?exact\s+(?:[A-Za-z0-9_-]+\s+)?(?:command|query|syntax|line)\s+(.+?)(?:[.](?:\s|$)|$)/iu,
+    /\b(?:first line must be exactly|exact command is|exact query is)\s+(.+?)(?:[.](?:\s|$)|$)/iu,
+  ] as const;
+
+  for (const pattern of patterns) {
+    const match = rule.match(pattern);
+    const raw = match?.[1]?.trim();
+    if (!raw) {
+      continue;
+    }
+    return actionFromRawFirstLine(raw);
+  }
+
+  return undefined;
 }
 
 function extractGuard(rule: string): BehavioralPolicyGuard | undefined {
@@ -1311,7 +1475,11 @@ function createTextResponseEnactmentPlan(input: {
       fallbackBehavior &&
       (input.behavioralKind === "avoidance" ||
         input.behavioralKind === "preference" ||
-        input.behavioralKind === "transformation_rule")
+        input.behavioralKind === "transformation_rule" ||
+        (fallbackBehavior.preferredAlternatives &&
+          fallbackBehavior.preferredAlternatives.length > 0) ||
+        fallbackBehavior.backupMention ||
+        fallbackBehavior.replacementTarget)
     ) {
       operations.push({
         ...(fallbackBehavior.backupMention
@@ -1423,7 +1591,13 @@ export function deriveRuleBehavioralPolicy(
   const directoryApplicability = deriveDirectoryRestrictionApplicability(
     input.rule,
   );
-  const preferredAlternatives = extractPreferredAlternativeNames(input.rule);
+  const filetypeApplicability = extractFiletypeReplacementApplicability(input.rule);
+  const distrustApplicability = extractDistrustRoutingApplicability(input.rule);
+  const exactCommandAction = extractExactCommandAction(input.rule);
+  const preferredAlternatives = uniqueStrings([
+    ...(extractPreferredAlternativeNames(input.rule) ?? []),
+    ...(distrustApplicability?.preferredAlternatives ?? []),
+  ]);
   const explicitForbiddenFragments = extractForbiddenTermFragments(input.rule);
   const analogyPreferredFragments = extractAnalogyPreferredFragments(input.rule);
   const guard = extractGuard(input.rule);
@@ -1432,35 +1606,45 @@ export function deriveRuleBehavioralPolicy(
     ...(guard?.check ? [guard.check] : []),
     ...(guard?.subject ? [guard.subject] : []),
     ...(protocolApplicability?.queryContains ?? []),
+    ...(distrustApplicability?.queryContains ?? []),
   ]);
   const backupMention = extractBackupMention(input.rule);
   const forbiddenFragments = uniqueStrings([
     ...(explicitForbiddenFragments ?? []),
     ...(protocolApplicability?.forbiddenFragments ?? []),
     ...(directoryApplicability?.forbiddenFragments ?? []),
+    ...(filetypeApplicability?.forbiddenFragments ?? []),
+    ...(distrustApplicability?.forbiddenFragments ?? []),
   ]);
   const preferredFragments = uniqueStrings([
     ...(analogyPreferredFragments ?? []),
     ...(protocolApplicability?.preferredFragments ?? []),
     ...(directoryApplicability?.preferredFragments ?? []),
+    ...(filetypeApplicability?.preferredFragments ?? []),
   ]);
   const pathTemplate = directoryApplicability?.pathTemplate;
-  const replacementPairs = protocolApplicability?.replacementPairs;
+  const replacementPairs = uniqueReplacementPairs([
+    ...(protocolApplicability?.replacementPairs ?? []),
+    ...(filetypeApplicability?.replacementPairs ?? []),
+  ]);
   const urlTemplate = protocolApplicability?.urlTemplate;
   const fallbackInstruction =
     guard?.fallbackInstruction ??
+    distrustApplicability?.fallbackInstruction ??
     protocolApplicability?.fallbackInstruction ??
     directoryApplicability?.fallbackInstruction ??
-    (preferredAlternatives && preferredAlternatives.length > 0 && looksLikeNegativeRule(input.rule)
-      ? `Prefer ${preferredAlternatives.join(" or ")} or warn instead of implying the avoided behavior.`
+    (preferredAlternatives.length > 0 && looksLikeNegativeRule(input.rule)
+      ? `Prefer ${preferredAlternatives.join(" or ")}${
+          backupMention ? " and mention a safe backup before proceeding" : ""
+        } or warn instead of implying the avoided behavior.`
       : undefined);
   const guardedBehavior = guard
     ? {
         ...(guard.allowedStates ? { allowedWhen: guard.allowedStates } : {}),
         fallbackBehavior: {
           ...(backupMention ? { backupMention } : {}),
-          ...(preferredAlternatives ? { preferredAlternatives } : {}),
-          ...(preferredAlternatives?.[0]
+          ...(preferredAlternatives.length > 0 ? { preferredAlternatives } : {}),
+          ...(preferredAlternatives[0]
             ? { replacementTarget: preferredAlternatives[0] }
             : {}),
           warningMessage:
@@ -1504,7 +1688,7 @@ export function deriveRuleBehavioralPolicy(
     };
   }
 
-  if (looksLikeHostActionRule(input.rule)) {
+  if (exactCommandAction || looksLikeHostActionRule(input.rule)) {
     const actionName = extractHostActionName(input.rule);
     const argumentOrder = extractArgumentOrder(input.rule);
     const negative = looksLikeNegativeRule(input.rule) || input.kind === "dont";
@@ -1513,7 +1697,11 @@ export function deriveRuleBehavioralPolicy(
       enactmentSurface: "host_action",
       applicability: {
         appliesTo,
-        ...(actionName
+        ...(exactCommandAction
+          ? {
+              canonicalFirstAction: exactCommandAction,
+            }
+          : actionName
           ? {
               canonicalFirstAction: {
                 kind: actionName.includes("_") ? "tool_call" : "command",
@@ -1522,7 +1710,7 @@ export function deriveRuleBehavioralPolicy(
             }
           : {}),
         ...(argumentOrder ? { argumentOrder } : {}),
-        ...(queryContains ? { queryContains } : {}),
+        ...(queryContains && !exactCommandAction ? { queryContains } : {}),
       },
       transferMode:
         transferMode === "general" ? "pattern_bounded" : transferMode,
@@ -1536,7 +1724,7 @@ export function deriveRuleBehavioralPolicy(
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
       ...(guardedBehavior ? { guardedBehavior } : {}),
-      ...(preferredAlternatives ? { preferredAlternatives } : {}),
+      ...(preferredAlternatives.length > 0 ? { preferredAlternatives } : {}),
       ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
       ...(pathTemplate ? { pathTemplate } : {}),
       ...(mergedQueryContains.length > 0
@@ -1575,7 +1763,7 @@ export function deriveRuleBehavioralPolicy(
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
       ...(guardedBehavior ? { guardedBehavior } : {}),
-      ...(preferredAlternatives ? { preferredAlternatives } : {}),
+      ...(preferredAlternatives.length > 0 ? { preferredAlternatives } : {}),
       ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
       ...(pathTemplate ? { pathTemplate } : {}),
       ...(mergedQueryContains.length > 0
@@ -1614,7 +1802,7 @@ export function deriveRuleBehavioralPolicy(
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
       ...(guardedBehavior ? { guardedBehavior } : {}),
-      ...(preferredAlternatives ? { preferredAlternatives } : {}),
+      ...(preferredAlternatives.length > 0 ? { preferredAlternatives } : {}),
       ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
       ...(pathTemplate ? { pathTemplate } : {}),
       ...(mergedQueryContains.length > 0
@@ -1653,7 +1841,7 @@ export function deriveRuleBehavioralPolicy(
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
       ...(guardedBehavior ? { guardedBehavior } : {}),
-      ...(preferredAlternatives ? { preferredAlternatives } : {}),
+      ...(preferredAlternatives.length > 0 ? { preferredAlternatives } : {}),
       ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
       ...(pathTemplate ? { pathTemplate } : {}),
       ...(mergedQueryContains.length > 0
@@ -1691,7 +1879,7 @@ export function deriveRuleBehavioralPolicy(
     ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
     ...(guard ? { guard } : {}),
     ...(guardedBehavior ? { guardedBehavior } : {}),
-    ...(preferredAlternatives ? { preferredAlternatives } : {}),
+    ...(preferredAlternatives.length > 0 ? { preferredAlternatives } : {}),
     ...(preferredFragments.length > 0 ? { preferredFragments } : {}),
     ...(pathTemplate ? { pathTemplate } : {}),
     ...(mergedQueryContains.length > 0
@@ -1733,6 +1921,27 @@ function countMatchedPhrases(
 
   const normalizedHaystack = normalizeText(haystack);
   return phrases.filter((phrase) => normalizedHaystack.includes(normalizeText(phrase)));
+}
+
+function uniqueReplacementPairs(
+  values: Iterable<BehavioralPolicyReplacement | undefined>,
+): BehavioralPolicyReplacement[] {
+  const deduped: BehavioralPolicyReplacement[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    if (!value) {
+      continue;
+    }
+    const identity = `${value.from}\u0000${value.to}`;
+    if (seen.has(identity)) {
+      continue;
+    }
+    seen.add(identity);
+    deduped.push(value);
+  }
+
+  return deduped;
 }
 
 function selectTransientFeedbackPolicies(
@@ -1998,8 +2207,20 @@ export function buildStructuredTextResponseControlLines(
   );
 }
 
-function replaceAllLiteral(value: string, search: string, replacement: string): string {
-  return value.split(search).join(replacement);
+function escapeRegExpLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function replaceAllLiteralInsensitive(
+  value: string,
+  search: string,
+  replacement: string,
+): string {
+  if (search.length === 0) {
+    return value;
+  }
+
+  return value.replace(new RegExp(escapeRegExpLiteral(search), "giu"), replacement);
 }
 
 function extractRequestedFilename(value: string): string | undefined {
@@ -2137,6 +2358,13 @@ function satisfiesPreferredSafeSurface(
   operation: TextResponseRequireWarningOperation,
 ): boolean {
   if (
+    operation.backupMention &&
+    !/\b(?:back\s*up|backup)\b/iu.test(answer)
+  ) {
+    return false;
+  }
+
+  if (
     operation.preferredAlternatives?.some((alternative) => answer.includes(alternative))
   ) {
     return true;
@@ -2203,7 +2431,11 @@ export function applyTextResponseEnactmentPlan(input: {
     switch (operation.kind) {
       case "rewrite_output_slot":
         for (const replacement of operation.replacementPairs ?? []) {
-          answer = replaceAllLiteral(answer, replacement.from, replacement.to);
+          answer = replaceAllLiteralInsensitive(
+            answer,
+            replacement.from,
+            replacement.to,
+          );
         }
         if (operation.urlTemplate) {
           answer = rewriteUrlsToTemplate(answer, input.query, operation.urlTemplate);
@@ -2234,13 +2466,19 @@ export function applyTextResponseEnactmentPlan(input: {
         break;
       case "block_surface":
         for (const replacement of operation.replacementPairs ?? []) {
-          answer = replaceAllLiteral(answer, replacement.from, replacement.to);
+          answer = replaceAllLiteralInsensitive(
+            answer,
+            replacement.from,
+            replacement.to,
+          );
         }
         if (
-          operation.forbiddenFragments.some((fragment) => answer.includes(fragment))
+          operation.forbiddenFragments.some((fragment) =>
+            normalizeText(answer).includes(normalizeText(fragment)),
+          )
         ) {
           for (const fragment of operation.forbiddenFragments) {
-            answer = replaceAllLiteral(answer, fragment, "");
+            answer = replaceAllLiteralInsensitive(answer, fragment, "");
           }
           answer = answer.replace(/\s+/gu, " ").trim();
         }

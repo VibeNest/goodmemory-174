@@ -4,7 +4,7 @@ Phase 53 Breakdown: Surface Determinism, Escalation Routing, and Procedural Exec
 Status
 ------
 
-[TODO] Queued.
+[DONE] Closed.
 
 Intent
 ------
@@ -30,3 +30,11 @@ Closure Shape
 - targeted deterministic/live evidence for the new mechanisms
 - a follow-up full-300 rerun summary written back into the research doc
 - current-status and task-board sync after evidence is in hand
+
+Evidence
+--------
+
+- deterministic targeted eval: `reports/eval/fallback/phase-53/run-phase53-fallback-current/report.json`
+- live-memory targeted eval: `reports/eval/live-memory/phase-53/run-phase53-live-current/report.json`
+- quality gate: `reports/quality-gates/phase-53/run-20260502203000/phase-53-quality-gate.json`
+- Postgres-backed full-300 follow-up: `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`

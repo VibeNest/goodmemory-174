@@ -1,0 +1,47 @@
+{
+  "task_seed": "Conditioned Protocol Preference",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned Protocol Preference",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Share the docs URL."
+        },
+        {
+          "role": "Assistant",
+          "content": "http://docs.example.com/start"
+        },
+        {
+          "role": "System",
+          "content": "User correction: Use https links only."
+        },
+        {
+          "role": "User",
+          "content": "Share the dashboard URL."
+        },
+        {
+          "role": "Assistant",
+          "content": "https://dashboard.example.com/"
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's an example of a plain text protocol?"
+        },
+        {
+          "role": "Assistant",
+          "content": "http is a common example."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Give me the download URL for the new client installer."
+      },
+      "expected_pattern": "The answer should use an https URL or explicitly refuse to provide an insecure http URL."
+    }
+  ]
+}

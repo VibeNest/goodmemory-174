@@ -88,6 +88,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-51-Quality-Gate.md`
 - Structured text-response enactment and guarded policy execution closure:
   - `GoodMemory-Phase-52-Quality-Gate.md`
+- Surface determinism, escalation routing, and procedural executor recovery closure:
+  - `GoodMemory-Phase-53-Quality-Gate.md`
 
 ## When To Use This Archive
 

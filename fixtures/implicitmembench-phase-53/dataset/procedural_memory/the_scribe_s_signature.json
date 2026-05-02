@@ -1,0 +1,35 @@
+{
+  "task_seed": "The Scribe's Signature",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "The Scribe's Signature",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How should editor status emails be formatted?"
+        },
+        {
+          "role": "assistant",
+          "content": "Editor status emails require a Subject line, a Dear greeting, and a Sincerely sign-off with the sender's name."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How should a quick chat reply look?"
+        },
+        {
+          "role": "assistant",
+          "content": "Keep it casual and short."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Draft a short editor status email saying the manuscript review is complete."
+      },
+      "expected_pattern": "The answer should preserve the required Subject line, Dear greeting, and Sincerely sign-off."
+    }
+  ]
+}

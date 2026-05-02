@@ -4,7 +4,8 @@ Phase 53: Surface Determinism, Escalation Routing, and Procedural Executor Recov
 Status
 ------
 
-[TODO] Phase 53 is queued.
+[DONE] Phase 53 is closed with accepted targeted deterministic/live evidence
+and a Postgres-backed full-300 follow-up rerun.
 
 Driver
 ------
@@ -23,6 +24,15 @@ Driver
   - forbidden-term blocking is still soft
   - distrust/escalation routing is only partial
   - exact procedural syntax/format execution is still broadly weak
+- Phase 53 targeted those gaps through general typed-policy and final-surface
+  mechanisms rather than per-benchmark-file prompt patches. The follow-up
+  full-300 rerun recovered and exceeded the previous post-Phase-51 high-water
+  mark:
+  - `goodmemory-distilled-feedback`: `92 / 200`
+  - `goodmemory-raw-experience`: `37 / 200`
+  - distilled explicit recall leakage: `0`
+  - distilled execution failures: `0`
+  - storage: explicit Postgres-backed shard run, not default SQLite
 
 
 Phase Goal
@@ -85,15 +95,15 @@ Out Of Scope
 Acceptance Criteria
 -------------------
 
-1. [TODO] Covered directory/path and filetype rewrite cases pass through
+1. [DONE] Covered directory/path and filetype rewrite cases pass through
    deterministic surface control rather than ambiguous warning text.
-2. [TODO] Covered jargon/forbidden-term cases prove hard lexical blocking
+2. [DONE] Covered jargon/forbidden-term cases prove hard lexical blocking
    instead of soft avoidance.
-3. [TODO] Covered distrust and side-effect cases prove real escalation routing
+3. [DONE] Covered distrust and side-effect cases prove real escalation routing
    or warn/refuse behavior, not generic analysis fallback.
-4. [TODO] Covered procedural exact-syntax and exact-format cases improve
+4. [DONE] Covered procedural exact-syntax and exact-format cases improve
    through a dedicated executor path rather than prose steering alone.
-5. [TODO] Follow-up full-300 rerun recovers at least the prior post-Phase-51
+5. [DONE] Follow-up full-300 rerun recovers at least the prior post-Phase-51
    distilled high-water mark (`89 / 200`) while keeping explicit recall leaks
    at `0` on the distilled path.
 
@@ -101,18 +111,33 @@ Acceptance Criteria
 Tasks
 -----
 
-[TODO] P53-T001 Add deterministic slot-level rewrite for path, URL, and
+[DONE] P53-T001 Add deterministic slot-level rewrite for path, URL, and
   filetype surfaces.
-[TODO] P53-T002 Add hard lexical blocking and final-surface sanitation for
+[DONE] P53-T002 Add hard lexical blocking and final-surface sanitation for
   covered forbidden-term contracts.
-[TODO] P53-T003 Add escalation routing and specialist replacement for distrust
+[DONE] P53-T003 Add escalation routing and specialist replacement for distrust
   and side-effect policies.
-[TODO] P53-T004 Add a procedural executor path for exact syntax, exact format,
+[DONE] P53-T004 Add a procedural executor path for exact syntax, exact format,
   and exact symbolic transforms.
-[TODO] P53-T005 Add targeted evals plus a required follow-up full-300 rerun
+[DONE] P53-T005 Add targeted evals plus a required follow-up full-300 rerun
   summary before phase closure.
-[TODO] P53-T006 Close the phase only after code, eval evidence, research
+[DONE] P53-T006 Close the phase only after code, eval evidence, research
   summary, current-status, and task-board all agree.
+
+
+Canonical Evidence
+------------------
+
+- Deterministic targeted eval:
+  `reports/eval/fallback/phase-53/run-phase53-fallback-current/report.json`
+- Live-memory targeted eval:
+  `reports/eval/live-memory/phase-53/run-phase53-live-current/report.json`
+- Quality gate:
+  `reports/quality-gates/phase-53/run-20260502203000/phase-53-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-53-Quality-Gate.md`
+- Full-300 research summary:
+  `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
 
 
 Breakdown Folder

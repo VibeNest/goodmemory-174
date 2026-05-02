@@ -34,6 +34,19 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   enactment through hidden steering, applicability bounds, exact first-action
   preservation, and explicit leak suppression without widening the public API,
   public config, or README-level defaults.
+- Phase 52 is now closed as the Structured Text-Response Enactment And
+  Guarded Policy slice. Internal guarded-policy attributes add
+  `guarded_policy`, `rewrite_output_slot`, `require_precondition_check`, and
+  exact host-action recovery over compiled `validated_pattern` feedback while
+  preserving the stable public API and config surface. Canonical evidence:
+  deterministic targeted eval
+  `reports/eval/fallback/phase-52/run-phase52-fallback-current/report.json`,
+  live-memory behavioral evidence
+  `reports/eval/live-memory/phase-52/run-phase52-live-current/report.json`,
+  quality gate
+  `reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json`,
+  and archive summary
+  `docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md`.
 - Phase 37.1 is now closed as installed-host writeback productization polish. It adds audit/undo CLI surfaces through `goodmemory codex writeback inspect` and `goodmemory codex writeback forget --event-id`, a v4 audit ledger with bounded redacted previews, observe-only `observed` / `dismissed` events, and typed linked records, deterministic fixture-backed dogfood evidence for clean CI, local real-ledger dogfood mode for follow-up validation, and a Phase 37.1 quality gate. It does not change the Phase 37 accepted claim: writeback remains opt-in, no raw transcript archive is added, and no root public writeback API is introduced.
 - Phase 38 is now closed as the governed runtime surface slice. The accepted surface includes `GoodMemoryConfig.observability.traceSink` plus redaction-safe typed `GoodMemoryTraceSpan` emissions for the core public memory API, private keyed scope digests by default, targeted `reviseMemory()` for governed correction by explicit `memoryId`, a `memory.runtime.*` facade on the `createGoodMemory()` result with summary-only archive persistence explicit and off by default, an explicit in-memory `memory.jobs.*` scheduler including `memory.jobs.enqueueRemember()` for background remember writes, `GoodMemoryConfig.providers.embedding` / `providers.extraction` as a facade over the existing provider adapter resolver, and thin Express/Fastify HTTP examples at `examples/express-chat-server.ts` and `examples/fastify-chat-server.ts` that use the governed runtime and jobs surface without framework coupling.
 - Phase 39 is now closed as the Python HTTP integration bridge slice. The accepted public surface is `goodmemory/http` plus the packaged `goodmemory-http-bridge` server bin for Python/FastAPI consumers, with `POST /memory/recall-context`, `remember`, `feedback`, `export`, `forget`, and targeted `revise` endpoints built only on public GoodMemory APIs, scoped authorization for export/forget/revise, bearer-token server startup by default, bridge-level async remember through `memory.jobs.*`, a life-coach reference profile without a built-in OneLife preset, and Python process smoke coverage at `examples/python-fastapi-memory-consumer.py`.
@@ -63,39 +76,42 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 52 is now closed as the Structured Text-Response Enactment And
-  Guarded Policy Execution slice.
+- Phase 53 is now closed as the Surface Determinism, Escalation Routing, And
+  Procedural Executor Recovery slice.
 - Accepted behavior:
-  - internal typed behavioral memory now includes `guarded_policy` and shared
-    `TextResponseEnactmentPlan` operations for:
-    - `rewrite_output_slot`
-    - `require_warning`
-    - `block_surface`
-    - `require_precondition_check`
-  - covered text-response cases are enforced through shared structured control
-    instead of relying only on prose `Prefer...` / `Avoid...` steering lines
-  - compiled text conditioning can now preserve replacement targets, warning
-    fallbacks, backup mentions, exact URL/path templates, and guarded
-    precondition checks without widening the public API
-  - covered host-action cases can recover canonical first action, exact tool
-    name, and argument ordering from the same typed-policy source even when
-    the current turn only has transient explicit feedback
-  - targeted deterministic and live Phase 52 evidence both close with
-    `executionFailures = 0`, `goodmemory-distilled-feedback` passing all 12
-    targeted blocking cases, and targeted explicit recall leaks staying `0`
+  - internal typed behavioral memory and final-surface enforcement now cover
+    deterministic filename/filetype replacement, case-insensitive lexical
+    blocking, distrust escalation routing, side-effect backup wording, and
+    exact command recovery without widening the public API
+  - filename-level rules such as `prefer report.json or warn about report.dat`
+    compile into deterministic final-surface replacement rather than soft
+    steering
+  - covered distrust and side-effect rules compile into warning/replacement
+    behavior that survives positive/negative source classification differences
+  - exact command extraction preserves dotted file paths instead of truncating
+    at file extensions
+  - targeted deterministic and live Phase 53 evidence both close with
+    `executionFailures = 0`, `goodmemory-distilled-feedback` passing all 15
+    targeted task files, and targeted explicit recall leaks staying `0`
+  - the follow-up full-300 research rerun was executed as explicit
+    Postgres-backed shards, not default SQLite, and recovered the prior
+    post-Phase-51 high-water mark: distilled `92 / 200`, distilled execution
+    failures `0`, and distilled explicit recall leaks `0`
 - Canonical evidence:
   - archive summary:
-    `docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md`
+    `docs/archive/quality-gates/GoodMemory-Phase-53-Quality-Gate.md`
   - deterministic targeted eval:
-    `reports/eval/fallback/phase-52/run-phase52-fallback-current/report.json`
+    `reports/eval/fallback/phase-53/run-phase53-fallback-current/report.json`
   - live-memory behavioral evidence:
-    `reports/eval/live-memory/phase-52/run-phase52-live-current/report.json`
+    `reports/eval/live-memory/phase-53/run-phase53-live-current/report.json`
   - quality gate:
-    `reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json`
-- Still outside the Phase 52 accepted claim:
+    `reports/quality-gates/phase-53/run-20260502203000/phase-53-quality-gate.json`
+  - full-300 research summary:
+    `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+- Still outside the Phase 53 accepted claim:
   - public API or public config widening
   - a new durable public memory kind or public record collection
-  - full-300 ImplicitMemBench rerun as a release hard gate
+  - full-300 ImplicitMemBench rerun as a release hard gate or product claim
   - benchmark-specific runtime hacks or per-task-file prompt patches as the
     accepted product mechanism
 
@@ -168,13 +184,14 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json`
   - ad hoc full-300 research summary:
     `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
-  - latest post-Phase-52 rerun status, as summarized in the research doc:
-    GoodMemory-only rerun landed at raw `31 / 200`, distilled `87 / 200`,
-    conditioning distilled `63 / 100`, procedural distilled `24 / 100`,
-    kept explicit recall leaks at `2 / 0`, and confirmed that the strongest
-    remaining gaps are directory/path rewrite, jargon blocking, distrust
-    escalation routing, and exact procedural execution
-  - next queued execution slice:
+  - latest post-Phase-53 rerun status, as summarized in the research doc:
+    GoodMemory-only Postgres-backed shard rerun landed at raw `37 / 200`,
+    distilled `92 / 200`, conditioning distilled `64 / 100`, procedural
+    distilled `28 / 100`, structured first-action distilled `7 / 35`, kept
+    explicit recall leaks at `1 / 0`, and confirmed that the strongest
+    remaining gaps are forbidden-term blocking, partial distrust escalation,
+    incomplete path rewrite, and broad exact procedural execution
+  - latest closed execution slice:
     `task-board/58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt`
 - Still outside the Phase 49 accepted claim:
   - a checked-in full 300-item live run against an external benchmark checkout

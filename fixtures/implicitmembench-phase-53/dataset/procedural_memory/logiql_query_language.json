@@ -1,0 +1,35 @@
+{
+  "task_seed": "LogiQL Query Language",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "LogiQL Query Language",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do I query users older than 30 in LogiDB?"
+        },
+        {
+          "role": "assistant",
+          "content": "In this environment, use LogiQL syntax: FETCH users | FILTER age > 30."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I do the same thing in SQL?"
+        },
+        {
+          "role": "assistant",
+          "content": "SELECT * FROM users WHERE age > 30;"
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Return only the query for users older than 30 in LogiDB."
+      },
+      "expected_pattern": "FETCH users | FILTER age > 30"
+    }
+  ]
+}

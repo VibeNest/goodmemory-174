@@ -124,6 +124,7 @@ Read and execute files in this order:
 55. 55-phase-50-installer-cli-runtime-shell-hardening.txt
 56. 56-phase-51-typed-behavioral-memory-and-enactment-hardening.txt
 57. 57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt
+58. 58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt
 
 
 Current Sequencing Note
@@ -171,6 +172,24 @@ Current Sequencing Note
     execution stay additive on `validated_pattern`, public API/config stay
     unchanged, and full-300 reruns remain follow-up research evidence rather
     than a hard gate
+- Phase 53 is now closed as the surface determinism, escalation routing, and
+  procedural executor recovery slice:
+  - task-board entrypoint:
+    `task-board/58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt`
+  - deterministic targeted eval:
+    `reports/eval/fallback/phase-53/run-phase53-fallback-current/report.json`
+  - live-memory behavioral evidence:
+    `reports/eval/live-memory/phase-53/run-phase53-live-current/report.json`
+  - quality gate:
+    `reports/quality-gates/phase-53/run-20260502203000/phase-53-quality-gate.json`
+  - archive summary:
+    `docs/archive/quality-gates/GoodMemory-Phase-53-Quality-Gate.md`
+  - full-300 follow-up:
+    `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+  - boundary: internal typed-policy/final-surface controls stay additive on
+    `validated_pattern`, public API/config stay unchanged, full-300 evidence
+    remains research-only, and the run used explicit Postgres storage rather
+    than default SQLite
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`
@@ -431,18 +450,6 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-51-Quality-Gate.md`
   - boundary: no new public memory kind, no public API/config widening, no
     benchmark-specific runtime hack, and no full-300 release hard gate
-- Phase 53 is queued as the Surface Determinism, Escalation Routing, and
-  Procedural Executor Recovery slice:
-  - task-board entrypoint:
-    `task-board/58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt`
-  - breakdown folder:
-    `task-board/phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery/`
-  - focus: turn slot-level rewrite and lexical blocking into harder
-    deterministic controls, add real escalation routing for distrust and
-    side-effect cases, and recover exact procedural syntax/format execution on
-    top of the accepted Phase 52 boundary
-  - boundary: keep the work general-capability focused, do not tune per
-    benchmark file, and do not widen the public API or release hard gate
 - Any work beyond the closed Phase 41 slice should add a later phase file or explicitly reopen a closed phase with failing regression or gate evidence.
 - Phase 17 closed retrieval-first with dedicated fallback/live-memory gates, trusted promotion authorization, and official CLI public-surface evidence.
 - Phase 18 closed the host-adapter layer with a dedicated host quality gate archived in `docs/archive/quality-gates/GoodMemory-Phase-18-Quality-Gate.md`.
@@ -462,10 +469,10 @@ Priority Bands
 Use these bands when choosing what to work on next:
 
 1. Immediate focus
-   - Preserve the closed Phase 17 through Phase 51 guarantees while future work lands
-   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, Phase 37.1 productization evidence, Phase 38 governed runtime evidence, Phase 39 Python/FastAPI bridge evidence, Phase 40 release-proof/product-eval evidence, Phase 41 installed pre-action unification evidence, Phase 41.9 status-sync evidence, Phase 42 progressive recall evidence, Phase 43 runtime-kit evidence, Phase 43.5 optional-worker evidence, Phase 44 local-viewer evidence, Phase 45 reference-product evidence, Phase 46 quality-maintenance evidence, Phase 47 provider-backed rollout evidence, Phase 48 hosted-surface no-go evidence, Phase 49 research-harness evidence, Phase 50 installer hardening evidence, and Phase 51 typed behavioral hardening evidence regression-covered while future work lands
-   - If new Phase 30 through Phase 51 evidence fails, including the Phase 37.1, Phase 48, Phase 49, Phase 50, and Phase 51 slices, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
-   - Execute future product-adoption work on top of the accepted Phase 35 installed-host middleware boundary, Phase 37 installed-host writeback boundary, Phase 39 Python/FastAPI bridge boundary, Phase 40 public release proof, Phase 41 installed pre-action boundary, Phase 42 ProgressiveRecallService boundary, Phase 43 Runtime Kit boundary, Phase 43.5 Optional Worker boundary, Phase 44 Local Viewer boundary, Phase 45 reference-product boundary, Phase 46 quality-maintenance boundary, Phase 47 explicit provider-backed retrieval boundary, Phase 48 hosted-surface no-go boundary, Phase 49 research boundary, Phase 50 installer CLI boundary, and Phase 51 typed behavioral steering boundary instead of widening the core API or reintroducing repo-internal integration paths
+   - Preserve the closed Phase 17 through Phase 53 guarantees while future work lands
+   - Keep the accepted Phase 27 adoption evidence, accepted Phase 28 supported local acceleration guarantees, accepted Phase 29 historical Bun-only release hardening, accepted Phase 30 behavioral evidence, accepted Phase 31 native-host evidence, accepted Phase 32 external-host evidence, accepted Phase 33 package-boundary evidence, accepted Phase 34 host pre-action policy evidence, accepted Phase 35 installed-host middleware evidence, accepted Phase 36 public write-profile evidence, Phase 37 installed-host writeback evidence, Phase 37.1 productization evidence, Phase 38 governed runtime evidence, Phase 39 Python/FastAPI bridge evidence, Phase 40 release-proof/product-eval evidence, Phase 41 installed pre-action unification evidence, Phase 41.9 status-sync evidence, Phase 42 progressive recall evidence, Phase 43 runtime-kit evidence, Phase 43.5 optional-worker evidence, Phase 44 local-viewer evidence, Phase 45 reference-product evidence, Phase 46 quality-maintenance evidence, Phase 47 provider-backed rollout evidence, Phase 48 hosted-surface no-go evidence, Phase 49 research-harness evidence, Phase 50 installer hardening evidence, Phase 51 typed behavioral hardening evidence, Phase 52 structured enactment evidence, and Phase 53 surface-determinism evidence regression-covered while future work lands
+   - If new Phase 30 through Phase 53 evidence fails, including the Phase 37.1, Phase 48, Phase 49, Phase 50, Phase 51, Phase 52, and Phase 53 slices, explicitly reopen the affected phase or add a new phase file rather than treating it as still queued
+   - Execute future product-adoption work on top of the accepted Phase 35 installed-host middleware boundary, Phase 37 installed-host writeback boundary, Phase 39 Python/FastAPI bridge boundary, Phase 40 public release proof, Phase 41 installed pre-action boundary, Phase 42 ProgressiveRecallService boundary, Phase 43 Runtime Kit boundary, Phase 43.5 Optional Worker boundary, Phase 44 Local Viewer boundary, Phase 45 reference-product boundary, Phase 46 quality-maintenance boundary, Phase 47 explicit provider-backed retrieval boundary, Phase 48 hosted-surface no-go boundary, Phase 49 research boundary, Phase 50 installer CLI boundary, Phase 51 typed behavioral steering boundary, Phase 52 structured enactment boundary, and Phase 53 surface-determinism boundary instead of widening the core API or reintroducing repo-internal integration paths
 2. Near-term product differentiation
    - Extend the roadmap only through new phase files or explicit reopen decisions backed by failing evidence
    - Execute future reference-product or consumer proof on top of Phase 39 HTTP bridge, Phase 40 release-proof/product-eval evidence, Phase 42 progressive recall, Phase 43 runtime-kit, Phase 43.5 optional-worker, Phase 44 local-viewer inspection, Phase 45 adoption, Phase 46 quality repair, Phase 47 explicit `hybrid` retrieval, and Phase 48 no-go hosted-surface boundaries instead of adding hosted dashboard, viewer mutation, root API widening, or more installed-host hooks as the next blocker
