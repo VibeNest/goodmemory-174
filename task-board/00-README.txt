@@ -431,14 +431,16 @@ Current Sequencing Note
   - archive summary: `docs/archive/quality-gates/GoodMemory-Phase-51-Quality-Gate.md`
   - boundary: no new public memory kind, no public API/config widening, no
     benchmark-specific runtime hack, and no full-300 release hard gate
-- Phase 52 is queued as the Hard-Constraint Enactment And Procedural Rule
-  Transfer slice:
-  - task-board entrypoint: `task-board/57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt`
-  - breakdown folder: `task-board/phase-52-hard-constraint-enactment-and-procedural-rule-transfer/`
-  - focus: harden text-response constraints and replacement/warning
-    enforcement, continue procedural anti-exemplar-collapse, and recover exact
-    first-action behavior on top of the accepted Phase 51 behavioral-policy
-    boundary
+- Phase 53 is queued as the Surface Determinism, Escalation Routing, and
+  Procedural Executor Recovery slice:
+  - task-board entrypoint:
+    `task-board/58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt`
+  - breakdown folder:
+    `task-board/phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery/`
+  - focus: turn slot-level rewrite and lexical blocking into harder
+    deterministic controls, add real escalation routing for distrust and
+    side-effect cases, and recover exact procedural syntax/format execution on
+    top of the accepted Phase 52 boundary
   - boundary: keep the work general-capability focused, do not tune per
     benchmark file, and do not widen the public API or release hard gate
 - Any work beyond the closed Phase 41 slice should add a later phase file or explicitly reopen a closed phase with failing regression or gate evidence.

@@ -1,0 +1,17 @@
+Phase 53.1: Slot Rewrite And Lexical Blocking
+=============================================
+
+[TODO] P53.1-T001 Add deterministic slot rewrite for covered path surfaces so
+unsafe requested locations are rewritten to safe user-writable targets without
+confusing the unsafe source path and the safe destination path.
+
+[TODO] P53.1-T002 Add deterministic slot rewrite for covered URL surfaces so
+protocol upgrades preserve the expected host/path shape instead of drifting to
+nearby but wrong strings.
+
+[TODO] P53.1-T003 Add deterministic replacement for covered filetype surfaces
+so unsupported extensions are removed from the final answer instead of being
+mentioned alongside the supported alternative.
+
+[TODO] P53.1-T004 Add hard lexical blocking for covered forbidden terms so the
+final emitted answer no longer relies on the model to self-police jargon use.

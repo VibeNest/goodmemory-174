@@ -1,0 +1,125 @@
+Phase 53: Surface Determinism, Escalation Routing, and Procedural Executor Recovery
+===================================================================================
+
+Status
+------
+
+[TODO] Phase 53 is queued.
+
+Driver
+------
+
+- `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+  now records a post-Phase-52 full-300 GoodMemory rerun where:
+  - `goodmemory-raw-experience` remained weak at `31 / 200`
+  - `goodmemory-distilled-feedback` landed at `87 / 200`, slightly below the
+    earlier post-Phase-51 high-water mark of `89 / 200`
+  - `classical_conditioning` distilled settled at `63 / 100`
+  - `procedural_memory` distilled settled at `24 / 100`
+  - `structured_first_action` stayed flat at `3 / 35`
+  - explicit recall leakage stayed clean at `2 / 0`
+- The strongest remaining gaps are now clear:
+  - directory/path rewrite is still unreliable
+  - forbidden-term blocking is still soft
+  - distrust/escalation routing is only partial
+  - exact procedural syntax/format execution is still broadly weak
+
+
+Phase Goal
+----------
+
+Push GoodMemory past Phase 52's targeted constraint wins by:
+
+- making slot-level rewrite deterministic for URL/path/filetype surfaces
+- making forbidden lexical surfaces genuinely blockable instead of just
+  discouraged
+- turning distrust and side-effect policies into real escalation routing rather
+  than softer recommendation text
+- adding a stronger procedural executor for exact syntax, exact format, and
+  exact symbolic transformation surfaces
+
+
+Dependencies
+------------
+
+- Phase 49 full ImplicitMemBench research harness
+- Phase 51 typed behavioral memory and enactment hardening
+- Phase 52 hard-constraint enactment and procedural rule transfer
+- `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+
+
+Accepted Scope
+--------------
+
+- Add deterministic slot-level rewrite for covered text-response surfaces,
+  including:
+  - unsafe path -> safe path redirect
+  - insecure URL -> canonical secure URL redirect
+  - unsupported filetype -> supported filetype replacement
+- Upgrade lexical blocking so covered forbidden terms are removed or replaced
+  before final output rather than merely discouraged in steering.
+- Add escalation-routing support for distrust and side-effect policies so
+  replacement can be:
+  - `use specialist X`
+  - `warn and refuse default path`
+  - `require backup/safe alternative before proceeding`
+- Add a procedural executor path for covered exact surfaces:
+  - exact first-action or argument order
+  - exact signature/closing/format contracts
+  - exact symbolic transformation rules that cannot be left to prose steering
+- Keep the slice internal-first and additive on `validated_pattern`, with no
+  new durable public kind and no public API widening.
+
+
+Out Of Scope
+------------
+
+- benchmark-file-specific hacks
+- changing README defaults or public rollout config
+- making full ImplicitMemBench a release hard gate
+- hosted dashboard, cloud sync, or team workspace work
+- replacing the accepted Phase 52 closure evidence instead of building on top
+  of it
+
+
+Acceptance Criteria
+-------------------
+
+1. [TODO] Covered directory/path and filetype rewrite cases pass through
+   deterministic surface control rather than ambiguous warning text.
+2. [TODO] Covered jargon/forbidden-term cases prove hard lexical blocking
+   instead of soft avoidance.
+3. [TODO] Covered distrust and side-effect cases prove real escalation routing
+   or warn/refuse behavior, not generic analysis fallback.
+4. [TODO] Covered procedural exact-syntax and exact-format cases improve
+   through a dedicated executor path rather than prose steering alone.
+5. [TODO] Follow-up full-300 rerun recovers at least the prior post-Phase-51
+   distilled high-water mark (`89 / 200`) while keeping explicit recall leaks
+   at `0` on the distilled path.
+
+
+Tasks
+-----
+
+[TODO] P53-T001 Add deterministic slot-level rewrite for path, URL, and
+  filetype surfaces.
+[TODO] P53-T002 Add hard lexical blocking and final-surface sanitation for
+  covered forbidden-term contracts.
+[TODO] P53-T003 Add escalation routing and specialist replacement for distrust
+  and side-effect policies.
+[TODO] P53-T004 Add a procedural executor path for exact syntax, exact format,
+  and exact symbolic transforms.
+[TODO] P53-T005 Add targeted evals plus a required follow-up full-300 rerun
+  summary before phase closure.
+[TODO] P53-T006 Close the phase only after code, eval evidence, research
+  summary, current-status, and task-board all agree.
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery/00-README.txt`
+- `task-board/phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery/01-slot-rewrite-and-lexical-blocking.txt`
+- `task-board/phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery/02-escalation-routing-and-safe-replacement.txt`
+- `task-board/phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery/03-procedural-executor-and-exact-format.txt`
+- `task-board/phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery/04-eval-full300-and-closure.txt`
