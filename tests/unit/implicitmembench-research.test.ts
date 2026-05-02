@@ -1258,7 +1258,7 @@ describe("implicitmembench research eval", () => {
       throw new Error("expected a text-behavior procedural case");
     }
     expect(caseDefinition.feedbackSignal).toBe(
-      "Sure Begin with 'Dear …,' and close with 'Sincerely,' plus your name; also add a first line 'Subject: [REQ] …' for clarity.",
+      "Begin with 'Dear …,' and close with 'Sincerely,' plus your name; also add a first line 'Subject: [REQ] …' for clarity.",
     );
   });
 
@@ -1338,6 +1338,291 @@ describe("implicitmembench research eval", () => {
       name: "copy_file",
       raw: "copy_file('/public/images/logo.png', '/assets/icons/logo.png')",
     });
+  });
+
+  it("synthesizes per-instance structured procedural feedback from learning examples", async () => {
+    const { benchmarkRoot, manifestPath } =
+      await createStructuredProceduralBenchmarkRoot({
+        expectedFirstAction: {
+          args: [
+            "'AUTH_KEY::TOKENXYZ INSERT INTO orders(id,total) VALUES(7,99.50) ::TOKENXYZ'",
+          ],
+          kind: "tool_call",
+          name: "_secure_query",
+          raw: "_secure_query('AUTH_KEY::TOKENXYZ INSERT INTO orders(id,total) VALUES(7,99.50) ::TOKENXYZ')",
+        },
+        feedbackSignal:
+          "The _database wrapper must prefix the session token with TOKEN- and suffix the same token after the SQL payload.",
+        forbiddenFirstAction: {
+          args: ["'INSERT INTO orders(id,total) VALUES(7,99.50)'"],
+          kind: "tool_call",
+          name: "_secure_query",
+          raw: "_secure_query('INSERT INTO orders(id,total) VALUES(7,99.50)')",
+        },
+        instances: [
+          {
+            task_id: "002",
+            task_name: "Session Key Prefix Rule",
+            learning_phase: [
+              {
+                role: "user",
+                content: "How do I run a secure database query?",
+              },
+              {
+                role: "assistant",
+                content:
+                  "Use _secure_query with a single-string command that includes your token twice: prefix it with 'AUTH_KEY::' and suffix it with '::TOKEN' before the SQL.",
+              },
+              {
+                role: "user",
+                content: "Can you give me an example?",
+              },
+              {
+                role: "assistant",
+                content:
+                  "Sure For inserting data you could write: _secure_query('AUTH_KEY::TOKEN123 INSERT INTO orders(id,total) VALUES(7,99.50) ::TOKEN123').",
+              },
+            ],
+            interference_phase: [
+              {
+                role: "user",
+                content: "How do I save a curl download with a chosen filename?",
+              },
+              {
+                role: "assistant",
+                content: "Use: curl -L -o archive.tgz https://example.com/archive.tgz",
+              },
+            ],
+            test_probe: {
+              role: "user",
+              content:
+                "I am majoring in computer science, in one of my security course assignments, I was being asked a question about how to add a new order row if I have a different auth key 'TOKENXYZ'?",
+            },
+            expected_pattern:
+              "_secure_query('AUTH_KEY::TOKENXYZ INSERT INTO orders(id,total) VALUES(7,99.50) ::TOKENXYZ')",
+          },
+        ],
+        taskFile: "session_key_prefix_rule.json",
+      });
+
+    const [caseDefinition] = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(caseDefinition?.scorerFamily).toBe("structured_first_action");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "structured_first_action") {
+      throw new Error("expected a structured-first-action procedural case");
+    }
+    expect(caseDefinition.feedbackSignal).toContain(
+      "Use the exact command _secure_query('AUTH_KEY::<token> INSERT INTO orders(id,total) VALUES(7,99.50) ::<token>').",
+    );
+  });
+
+  it("synthesizes pipe-path structured procedural feedback from unquoted learning examples", async () => {
+    const { benchmarkRoot, manifestPath } =
+      await createStructuredProceduralBenchmarkRoot({
+        expectedFirstAction: {
+          args: ["|home|user|scheduler|"],
+          kind: "command",
+          name: "logs@",
+          raw: "logs@ |home|user|scheduler|",
+        },
+        feedbackSignal: "Use the environment's canonical logs command.",
+        forbiddenFirstAction: {
+          args: ["/home/user/scheduler"],
+          kind: "command",
+          name: "cat",
+          raw: "cat /home/user/scheduler",
+        },
+        instances: [
+          {
+            task_id: "006",
+            task_name: "The Alien Filesystem",
+            learning_phase: [
+              {
+                role: "user",
+                content: "How do I open logs in Chrono-OS?",
+              },
+              {
+                role: "assistant",
+                content:
+                  "On Chrono-OS, logs are time-shifted. Use 'logs@' with pipe path: logs@ |system| to view.",
+              },
+            ],
+            interference_phase: [
+              {
+                role: "user",
+                content: "What is log rotation?",
+              },
+              {
+                role: "assistant",
+                content: "It archives older log files after a threshold.",
+              },
+            ],
+            test_probe: {
+              role: "user",
+              content:
+                "In Chrono-OS, I must open the logs for an app named scheduler under /home/user. What do I enter?",
+            },
+            expected_pattern: "logs@ |home|user|scheduler|",
+          },
+        ],
+        taskFile: "the_alien_filesystem.json",
+      });
+
+    const [caseDefinition] = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(caseDefinition?.scorerFamily).toBe("structured_first_action");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "structured_first_action") {
+      throw new Error("expected a structured-first-action procedural case");
+    }
+    expect(caseDefinition.feedbackSignal).toContain(
+      "Use the exact command logs@ |path|.",
+    );
+  });
+
+  it("combines multiple procedural text-format instructions into one feedback signal", async () => {
+    const { benchmarkRoot, manifestPath } = await createProceduralBenchmarkRoot({
+      feedbackSignal: "Keep the learned email format.",
+      instances: [
+        {
+          task_id: "003",
+          task_name: "The Scribe's Signature",
+          learning_phase: [
+            {
+              role: "user",
+              content: "How should I write this team update?",
+            },
+            {
+              role: "assistant",
+              content: "Sure Open with 'Hi Team,' and close with 'Kind regards,'; keep points clear and brief.",
+            },
+            {
+              role: "user",
+              content: "Anything else?",
+            },
+            {
+              role: "assistant",
+              content:
+                "Include a first line 'Subject: [Update] …' above the greeting, then the message, and close properly.",
+            },
+          ],
+            interference_phase: [
+              {
+                role: "user",
+                content: "How do meeting agendas help?",
+              },
+              {
+                role: "assistant",
+                content: "They keep updates structured and focused.",
+              },
+            ],
+          test_probe: {
+            role: "user",
+            content: "Could you send a short update email to the project team?",
+          },
+          expected_pattern:
+            "The email should begin with 'Subject: [Update] ...', greet with 'Hi Team,' and close with 'Kind regards,'.",
+        },
+      ],
+      taskFile: "the_scribe_s_signature.json",
+    });
+
+    const [caseDefinition] = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior procedural case");
+    }
+    expect(caseDefinition.feedbackSignal).toBe(
+      "Open with 'Hi Team,' and close with 'Kind regards,'; keep points clear and brief. Include a first line 'Subject: [Update] …' above the greeting, then the message, and close properly.",
+    );
+  });
+
+  it("scores exact structured tool calls correctly when nested arrays and tuples are present", async () => {
+    const { benchmarkRoot, manifestPath } =
+      await createStructuredProceduralBenchmarkRoot({
+        expectedFirstAction: {
+          args: [
+            "request_body={'path': 'artifact.tar'}",
+            "checksum='abc123'",
+            "buffer=[0,1]",
+            "auth=('id','sig')",
+          ],
+          kind: "tool_call",
+          name: "push_file",
+          raw: "push_file(request_body={'path': 'artifact.tar'}, checksum='abc123', buffer=[0,1], auth=('id','sig'))",
+        },
+        feedbackSignal:
+          "Use get_data(query_payload={'value': '<id>'}, buffer=['preface','suffix'], auth='token') for this eccentric API.",
+        forbiddenFirstAction: {
+          args: ["'artifact.tar'"],
+          kind: "tool_call",
+          name: "push_file",
+          raw: "push_file('artifact.tar')",
+        },
+        instances: [
+          {
+            task_id: "002",
+            task_name: "The Eccentric API Call",
+            learning_phase: [
+              {
+                role: "user",
+                content: "Can you show me how to upload a file using the API?",
+              },
+              {
+                role: "assistant",
+                content:
+                  "API name: push_file. Required argument order: request_body, checksum, buffer, auth. request_body must be {'path': <filename>}; checksum is a short hex string; buffer must be [0,1]; auth is a tuple ('id','sig'). Example: push_file(request_body={'path': 'artifact.tar'}, checksum='abc123', buffer=[0,1], auth=('id','sig')).",
+              },
+            ],
+            interference_phase: [
+              {
+                role: "user",
+                content: "What command do I use to copy a file?",
+              },
+              {
+                role: "assistant",
+                content: "Use cp source destination or cp -r for directories; preserve mode with -p if needed.",
+              },
+            ],
+            test_probe: {
+              role: "user",
+              content:
+                "In a code review, I'm asked to demo the odd upload of 'artifact.tar'—how would I push it?",
+            },
+            expected_pattern:
+              "push_file(request_body={'path': 'artifact.tar'}, checksum='abc123', buffer=[0,1], auth=('id','sig'))",
+          },
+        ],
+        taskFile: "the_eccentric_api_call.json",
+      });
+
+    const outputDir = await createTempDir("phase49-structured-toolcall-score");
+    const report = await runImplicitMemBenchGoodMemoryEval({
+      benchmarkRoot,
+      dependencies: {
+        ...createImplicitMemBenchSmokeDependencies(),
+        generateTextAnswer: async () =>
+          "push_file(request_body={'path': 'artifact.tar'}, checksum='abc123', buffer=[0,1], auth=('id','sig'))",
+      },
+      generatedBy: "tests",
+      manifestPath,
+      mode: "live",
+      outputDir,
+      runId: "run-phase49-structured-toolcall-score-test",
+    });
+
+    expect(
+      report.profiles["goodmemory-distilled-feedback"]?.passedBlockingCases,
+    ).toBe(1);
   });
 
   it("requires explicit adapter-manifest coverage for the full upstream task-file set", async () => {

@@ -326,6 +326,60 @@ function parseActionTokens(value: string): string[] {
     .filter((token) => token.length > 0);
 }
 
+export function splitTopLevelCallArguments(value: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let depth = 0;
+  let quote: "'" | '"' | null = null;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (quote) {
+      current += char;
+      if (char === quote && value[index - 1] !== "\\") {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+      continue;
+    }
+
+    if (char === "(" || char === "[" || char === "{") {
+      depth += 1;
+      current += char;
+      continue;
+    }
+
+    if (char === ")" || char === "]" || char === "}") {
+      depth = Math.max(0, depth - 1);
+      current += char;
+      continue;
+    }
+
+    if (char === "," && depth === 0) {
+      const normalized = current.trim();
+      if (normalized.length > 0) {
+        args.push(normalized);
+      }
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  const normalized = current.trim();
+  if (normalized.length > 0) {
+    args.push(normalized);
+  }
+
+  return args;
+}
+
 function actionFromRawFirstLine(raw: string): BehavioralPolicyAction | undefined {
   const firstLine =
     raw
@@ -340,10 +394,7 @@ function actionFromRawFirstLine(raw: string): BehavioralPolicyAction | undefined
   if (toolCallMatch) {
     const [, name, argBody] = toolCallMatch;
     return {
-      args: argBody
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0),
+      args: splitTopLevelCallArguments(argBody),
       kind: "tool_call",
       name,
       raw: firstLine,
@@ -1040,12 +1091,13 @@ function extractQuotedFragment(rule: string, kind: "prefix" | "suffix"): string 
     kind === "prefix"
       ? [
           /\b(?:start|begin)(?:[^"'`]+)?with\s+["'`]([^"'`]+)["'`]/iu,
-          /\bsubject(?: line)?(?:[^"'`]+)?["'`]([^"'`]+)["'`]/iu,
+          /\b(?:open|greet)(?:[^"'`]+)?with\s+["'`]([^"'`]+)["'`]/iu,
+          /\b(?:use|with|and)\s+["'`]([^"'`]+)["'`]\s+as\s+the\s+(?:opener|greeting)/iu,
         ]
       : [
           /\b(?:end|close|sign off)(?:[^"'`]+)?with\s+["'`]([^"'`]+)["'`]/iu,
+          /\b(?:use|and)\s+["'`]([^"'`]+)["'`]\s+as\s+the\s+closing/iu,
           /\bsign off(?:[^"'`]+)?as\s+["'`]([^"'`]+)["'`]/iu,
-          /\bclosing(?:[^"'`]+)?["'`]([^"'`]+)["'`]/iu,
         ];
 
   for (const pattern of patterns) {
@@ -1057,6 +1109,27 @@ function extractQuotedFragment(rule: string, kind: "prefix" | "suffix"): string 
   }
 
   return undefined;
+}
+
+function ruleRequiresSenderName(rule: string): boolean {
+  return /\b(?:plus\s+your\s+name|followed\s+by\s+the\s+sender'?s\s+name)\b/iu.test(
+    rule,
+  );
+}
+
+function withSenderNamePlaceholder(
+  fragment: string | undefined,
+  rule: string,
+): string | undefined {
+  if (!fragment) {
+    return undefined;
+  }
+
+  if (!ruleRequiresSenderName(rule) || /\bname\b/iu.test(fragment)) {
+    return fragment;
+  }
+
+  return `${fragment}\nName`;
 }
 
 function extractRequiredFragments(rule: string): string[] | undefined {
@@ -1682,38 +1755,6 @@ export function deriveRuleBehavioralPolicy(
       } satisfies BehavioralPolicyGuardedBehavior
     : undefined;
 
-  if (looksLikeFormatRule(input.rule)) {
-    const prefix = extractQuotedFragment(input.rule, "prefix");
-    const suffix = extractQuotedFragment(input.rule, "suffix");
-    const required = extractRequiredFragments(input.rule);
-    return {
-      behavioralKind: "format_contract",
-      enactmentSurface: "text_response",
-      applicability: {
-        appliesTo,
-        exactFragments: {
-          ...(prefix ? { prefixes: [prefix] } : {}),
-          ...(required ? { required } : {}),
-          ...(suffix ? { suffixes: [suffix] } : {}),
-        },
-        ...(queryContains ? { queryContains } : {}),
-        textResponsePlan: createTextResponseEnactmentPlan({
-          behavioralKind: "format_contract",
-          applicability: {
-            appliesTo,
-            exactFragments: {
-              ...(prefix ? { prefixes: [prefix] } : {}),
-              ...(required ? { required } : {}),
-              ...(suffix ? { suffixes: [suffix] } : {}),
-            },
-            ...(queryContains ? { queryContains } : {}),
-          },
-        }),
-      },
-      transferMode,
-    };
-  }
-
   if (exactCommandAction || looksLikeHostActionRule(input.rule)) {
     const actionName = extractHostActionName(input.rule);
     const argumentOrder = extractArgumentOrder(input.rule);
@@ -1740,6 +1781,45 @@ export function deriveRuleBehavioralPolicy(
       },
       transferMode:
         transferMode === "general" ? "pattern_bounded" : transferMode,
+    };
+  }
+
+  if (looksLikeFormatRule(input.rule)) {
+    const prefix = extractQuotedFragment(input.rule, "prefix");
+    const rawSuffix = extractQuotedFragment(input.rule, "suffix");
+    const suffix = withSenderNamePlaceholder(rawSuffix, input.rule);
+    const required = uniqueStrings([
+      ...(extractRequiredFragments(input.rule) ?? []).filter(
+        (fragment) => fragment !== rawSuffix,
+      ),
+      prefix,
+      suffix,
+    ]);
+    return {
+      behavioralKind: "format_contract",
+      enactmentSurface: "text_response",
+      applicability: {
+        appliesTo,
+        exactFragments: {
+          ...(prefix ? { prefixes: [prefix] } : {}),
+          ...(required.length > 0 ? { required } : {}),
+          ...(suffix ? { suffixes: [suffix] } : {}),
+        },
+        ...(queryContains ? { queryContains } : {}),
+        textResponsePlan: createTextResponseEnactmentPlan({
+          behavioralKind: "format_contract",
+          applicability: {
+            appliesTo,
+            exactFragments: {
+              ...(prefix ? { prefixes: [prefix] } : {}),
+              ...(required.length > 0 ? { required } : {}),
+              ...(suffix ? { suffixes: [suffix] } : {}),
+            },
+            ...(queryContains ? { queryContains } : {}),
+          },
+        }),
+      },
+      transferMode,
     };
   }
 
@@ -2398,26 +2478,478 @@ function applyRequiredFragment(answer: string, fragment: string): string {
     return answer;
   }
 
-  if (fragment.startsWith("Subject:")) {
-    return `${fragment} ${answer}`.trim();
+  if (/^(Subject:|Reference:|Purpose:|CC:)/iu.test(fragment)) {
+    const lines = answer
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    const headerBoundary = lines.findIndex(
+      (line) => !/^(Subject:|Reference:|Purpose:|CC:)/iu.test(line),
+    );
+    if (headerBoundary === -1) {
+      return [fragment, ...lines].join("\n").trim();
+    }
+    return [
+      ...lines.slice(0, headerBoundary),
+      fragment,
+      ...lines.slice(headerBoundary),
+    ]
+      .join("\n")
+      .trim();
   }
 
-  if (fragment.startsWith("Dear ")) {
-    if (answer.startsWith("Subject:")) {
-      const newlineIndex = answer.indexOf("\n");
-      if (newlineIndex >= 0) {
-        return `${answer.slice(0, newlineIndex + 1)}${fragment}\n${answer.slice(newlineIndex + 1)}`.trim();
+  if (
+    fragment.startsWith("Dear ") ||
+    /^(Hello|Hi|Greetings|To whom it may concern,)/iu.test(fragment)
+  ) {
+    if (/^(Subject:|Reference:|Purpose:|CC:)/iu.test(answer)) {
+      const lines = answer
+        .split(/\r?\n/u)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      const headerBoundary = lines.findIndex(
+        (line) => !/^(Subject:|Reference:|Purpose:|CC:)/iu.test(line),
+      );
+      if (headerBoundary === -1) {
+        return [...lines, fragment].join("\n").trim();
       }
-      return `${answer}\n${fragment}`.trim();
+      return [
+        ...lines.slice(0, headerBoundary),
+        fragment,
+        ...lines.slice(headerBoundary),
+      ]
+        .join("\n")
+        .trim();
     }
     return `${fragment}\n${answer}`.trim();
   }
 
-  if (fragment.startsWith("Sincerely,")) {
-    return `${answer}\n${fragment}`.trim();
+  if (fragment.includes("\n")) {
+    const [firstLine] = fragment.split(/\r?\n/u);
+    if (/(?:regards|respectfully|sincerely|thanks)\b/iu.test(firstLine)) {
+      const bareSignoff = new RegExp(
+        `${escapeRegExpLiteral(firstLine)}\\s*$`,
+        "u",
+      );
+      const withoutBareSignoff = answer.replace(bareSignoff, "").trimEnd();
+      return `${withoutBareSignoff}\n\n${fragment}`.trim();
+    }
+  }
+
+  if (
+    /(?:regards|respectfully|sincerely|thanks)\b/iu.test(fragment) &&
+    fragment.endsWith(",")
+  ) {
+    return `${answer}\n\n${fragment}`.trim();
   }
 
   return `${answer} ${fragment}`.trim();
+}
+
+function slashPathToPipePath(path: string): string {
+  if (path.startsWith("~/")) {
+    const segments = path.slice(2).split("/").filter(Boolean);
+    return segments.length > 0 ? `|~|${segments.join("|")}|` : "|~|";
+  }
+
+  if (path.startsWith("/")) {
+    const segments = path.split("/").filter(Boolean);
+    return segments.length > 0 ? `|${segments.join("|")}|` : "|/|";
+  }
+
+  return `|${path}|`;
+}
+
+function extractPipeWrappedTarget(query: string | undefined): string | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  return (
+    query.match(/\b(?:named|called)\s+([A-Za-z0-9._/-]+)/iu)?.[1] ??
+    query.match(/\b(?:folder|subfolder|directory)\s+(?:named\s+)?([A-Za-z0-9._/-]+)/iu)?.[1] ??
+    extractQuotedValues(query)[0]
+  )
+    ?.trim()
+    .replace(/[.,;:!?]+$/u, "");
+}
+
+function extractPipePathTarget(query: string | undefined): string | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  const normalizedQuery = query.replace(/\s+/gu, " ").trim();
+  const basePath =
+    normalizedQuery.match(
+      /(?:under|inside|within|beneath)\s+((?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._-])/iu,
+    )?.[1] ??
+    normalizedQuery.match(
+      /\b(?:directory|path|folder)\s+(?:named\s+)?((?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._-])/iu,
+    )?.[1] ??
+    normalizedQuery.match(/((?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._-])/u)?.[1];
+  const namedTarget =
+    normalizedQuery.match(
+      /\b(?:app|folder|subfolder|directory)\s+named\s+([A-Za-z0-9._-]+)/iu,
+    )?.[1] ??
+    normalizedQuery.match(/\bcalled\s+([A-Za-z0-9._-]+)/iu)?.[1];
+  const sanitizedBasePath = basePath?.replace(/[.,;:!?]+$/u, "");
+  const sanitizedNamedTarget = namedTarget?.replace(/[.,;:!?]+$/u, "");
+
+  if (sanitizedBasePath) {
+    const path = sanitizedBasePath.endsWith("/")
+      ? `${sanitizedBasePath}${sanitizedNamedTarget ?? ""}`.replace(/\/+$/u, "")
+      : sanitizedNamedTarget
+        ? `${sanitizedBasePath}/${sanitizedNamedTarget}`
+        : sanitizedBasePath;
+    return slashPathToPipePath(path);
+  }
+
+  const folder = extractPipeWrappedTarget(query);
+  return folder ? slashPathToPipePath(folder) : undefined;
+}
+
+function extractStructuredLiteral(query: string | undefined): string | undefined {
+  return extractQuotedValues(query ?? "")[0]?.trim();
+}
+
+function extractQuotedValuesMatching(
+  query: string | undefined,
+  pattern: RegExp,
+): string[] {
+  if (!query) {
+    return [];
+  }
+
+  return [...query.matchAll(pattern)]
+    .map((match) => match[1]?.trim())
+    .filter((entry): entry is string => Boolean(entry));
+}
+
+function extractSanitizedToken(query: string | undefined): string | undefined {
+  const sanitized = extractStructuredLiteral(query)?.replace(/[^A-Za-z0-9]/gu, "");
+  return sanitized && sanitized.length > 0 ? sanitized : undefined;
+}
+
+function fillStructuredActionTemplate(
+  raw: string,
+  query: string | undefined,
+): string | undefined {
+  let recovered = raw;
+
+  if (recovered.includes("|folder|")) {
+    const folder = extractPipeWrappedTarget(query);
+    if (!folder) {
+      return undefined;
+    }
+    recovered = recovered.replace(/\|folder\|/gu, slashPathToPipePath(folder));
+  }
+
+  if (recovered.includes("|path|")) {
+    const pipePath = extractPipePathTarget(query);
+    if (!pipePath) {
+      return undefined;
+    }
+    recovered = recovered.replace(/\|path\|/gu, pipePath);
+  }
+
+  if (recovered.includes("<filename>")) {
+    const filename = extractStructuredLiteral(query);
+    if (!filename) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<filename>/gu, filename);
+  }
+
+  if (recovered.includes("<id>")) {
+    const identifier = extractStructuredLiteral(query);
+    if (!identifier) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<id>/gu, identifier);
+  }
+
+  if (recovered.includes("<item>")) {
+    const item = extractStructuredLiteral(query);
+    if (!item) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<item>/gu, item);
+  }
+
+  if (recovered.includes("<qty>")) {
+    const qty =
+      query?.match(/\bqty\b[^0-9]*([0-9]+)/iu)?.[1] ??
+      query?.match(/\b([0-9]+)\b/u)?.[1];
+    if (!qty) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<qty>/gu, qty);
+  }
+
+  if (recovered.includes("<token>")) {
+    const token = extractSanitizedToken(query);
+    if (!token) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<token>/gu, token);
+  }
+
+  return /<[^>]+>/u.test(recovered) ? undefined : recovered;
+}
+
+function buildSingleQuotedArg(value: string): string {
+  return `'${value.replaceAll("'", "\\'")}'`;
+}
+
+function stripTrailingSentencePunctuation(value: string): string {
+  return value.replace(/[.,;:!?]+$/u, "");
+}
+
+function looksLikeDirectoryPath(value: string): boolean {
+  return value.endsWith("/");
+}
+
+function appendFilenameToDirectory(directory: string, sourcePath: string): string {
+  if (!looksLikeDirectoryPath(directory)) {
+    return directory;
+  }
+
+  const filename = sourcePath.split("/").filter(Boolean).at(-1);
+  return filename ? `${directory}${filename}` : directory;
+}
+
+function extractActionSourcePaths(query: string): string[] {
+  const quotedValues = extractQuotedValues(query);
+  const fromValues = extractQuotedValuesMatching(
+    query,
+    /\bfrom\s+['"`]([^'"`]+)['"`]/giu,
+  );
+  const unquotedFromValues = [
+    ...query.matchAll(/\bfrom\s+((?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._-])/giu),
+  ]
+    .map((match) => stripTrailingSentencePunctuation(match[1]?.trim() ?? ""))
+    .filter((entry): entry is string => Boolean(entry));
+  const intoValues = new Set(
+    [
+      ...extractQuotedValuesMatching(query, /\binto\s+['"`]([^'"`]+)['"`]/giu),
+      ...[...query.matchAll(/\binto\s+((?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._/-])/giu)]
+        .map((match) => stripTrailingSentencePunctuation(match[1]?.trim() ?? ""))
+        .filter((entry): entry is string => Boolean(entry)),
+    ],
+  );
+  const usingValues = new Set(
+    extractQuotedValuesMatching(query, /\busing\s+['"`]([^'"`]+)['"`]/giu),
+  );
+  const flagValues = new Set(extractActionFlags(query));
+
+  return uniqueStrings([
+    ...fromValues,
+    ...unquotedFromValues,
+    ...quotedValues.filter(
+      (value) =>
+        !intoValues.has(value) &&
+        !usingValues.has(value) &&
+        !flagValues.has(value),
+    ),
+  ]);
+}
+
+function extractActionDestinationPath(query: string): string | undefined {
+  return (
+    extractQuotedValuesMatching(query, /\binto\s+['"`]([^'"`]+)['"`]/giu)[0] ??
+    [...query.matchAll(/\binto\s+((?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._/-])/giu)]
+      .map((match) => stripTrailingSentencePunctuation(match[1]?.trim() ?? ""))
+      .find((entry): entry is string => Boolean(entry)) ??
+    extractQuotedValuesMatching(query, /\bto\s+['"`]([^'"`]+)['"`]/giu)[0] ??
+    [...query.matchAll(/\bto\s+((?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._/-])/giu)]
+      .map((match) => stripTrailingSentencePunctuation(match[1]?.trim() ?? ""))
+      .find((entry): entry is string => Boolean(entry))
+  );
+}
+
+function extractActionOwner(query: string): string | undefined {
+  return (
+    query.match(/\bowner\s+['"`]?([A-Za-z0-9._-]+)['"`]?/iu)?.[1]?.trim() ??
+    query.match(/\bas\s+owner\s+['"`]?([A-Za-z0-9._-]+)['"`]?/iu)?.[1]?.trim()
+  );
+}
+
+function extractActionPermissions(query: string): string | undefined {
+  return (
+    query.match(/\b(?:perms?|permissions?)\s+['"`]?([0-7]{3,4})['"`]?/iu)?.[1]?.trim() ??
+    query.match(/\bmode\s+['"`]?([0-7]{3,4})['"`]?/iu)?.[1]?.trim()
+  );
+}
+
+function extractActionMode(query: string): string | undefined {
+  return query.match(/\bmode\s+['"`]?([A-Za-z0-9._-]+)['"`]?/iu)?.[1]?.trim();
+}
+
+function extractActionTag(query: string): string | undefined {
+  return query.match(/\btag\s+['"`]?([A-Za-z0-9._-]+)['"`]?/iu)?.[1]?.trim();
+}
+
+function extractActionFlags(query: string): string[] {
+  return extractQuotedValuesMatching(
+    query,
+    /\bflags?\s+['"`]([^'"`]+)['"`]/giu,
+  );
+}
+
+function extractActionCompression(query: string): string | undefined {
+  const normalized = normalizeText(query);
+  if (normalized.includes("bzip2")) {
+    return "bzip2";
+  }
+  if (normalized.includes("gzip")) {
+    return "gzip";
+  }
+  if (normalized.includes("xz")) {
+    return "xz";
+  }
+  return undefined;
+}
+
+function extractActionVerb(query: string): string | undefined {
+  if (/\bmove\b/iu.test(query)) {
+    return "move";
+  }
+  if (/\bcopy\b/iu.test(query)) {
+    return "copy";
+  }
+  return undefined;
+}
+
+function extractNamedToolCallValue(input: {
+  argumentLabel: string;
+  canonicalName: string;
+  destinationPath?: string;
+  query: string;
+  sourcePaths: string[];
+  usedSourceCount: number;
+}): string | undefined {
+  const label = normalizeText(input.argumentLabel);
+  const nextSource = input.sourcePaths[input.usedSourceCount];
+
+  if (label.includes("action")) {
+    const verb = extractActionVerb(input.query);
+    return verb ? buildSingleQuotedArg(verb) : undefined;
+  }
+
+  if (label.includes("owner")) {
+    const owner = extractActionOwner(input.query);
+    return owner ? buildSingleQuotedArg(owner) : undefined;
+  }
+
+  if (label.includes("permission") || label.includes("perms")) {
+    const permissions = extractActionPermissions(input.query);
+    return permissions ? buildSingleQuotedArg(permissions) : undefined;
+  }
+
+  if (label.includes("compression")) {
+    const compression = extractActionCompression(input.query);
+    return compression ? buildSingleQuotedArg(compression) : undefined;
+  }
+
+  if (label.includes("flags")) {
+    const flags = extractActionFlags(input.query);
+    if (flags.length === 0) {
+      return undefined;
+    }
+    return `[${flags.map((value) => buildSingleQuotedArg(value)).join(",")}]`;
+  }
+
+  if (label.includes("tag")) {
+    const tag = extractActionTag(input.query);
+    return tag ? buildSingleQuotedArg(tag) : undefined;
+  }
+
+  if (label.includes("mode")) {
+    const mode = extractActionMode(input.query);
+    return mode ? buildSingleQuotedArg(mode) : undefined;
+  }
+
+  if (label.includes("sources")) {
+    if (input.sourcePaths.length === 0) {
+      return undefined;
+    }
+    return `[${input.sourcePaths.map((value) => buildSingleQuotedArg(value)).join(",")}]`;
+  }
+
+  if (label.includes("source")) {
+    return nextSource ? buildSingleQuotedArg(nextSource) : undefined;
+  }
+
+  if (
+    label.includes("destination") ||
+    label.includes("target") ||
+    label.includes("archive")
+  ) {
+    const destination = input.destinationPath;
+    if (!destination) {
+      return undefined;
+    }
+    if (
+      input.canonicalName === "copy_file" ||
+      input.canonicalName === "copy_with_meta"
+    ) {
+      const sourceForFilename = input.sourcePaths[0];
+      return buildSingleQuotedArg(
+        sourceForFilename
+          ? appendFilenameToDirectory(destination, sourceForFilename)
+          : destination,
+      );
+    }
+    return buildSingleQuotedArg(destination);
+  }
+
+  return undefined;
+}
+
+function recoverNamedToolCallAction(
+  policy: BehavioralPolicy,
+  query: string,
+): BehavioralPolicyAction | undefined {
+  const canonicalFirstAction = policy.applicability.canonicalFirstAction;
+  if (
+    canonicalFirstAction?.kind !== "tool_call" ||
+    !canonicalFirstAction.name ||
+    !canonicalFirstAction.args ||
+    canonicalFirstAction.args.length === 0
+  ) {
+    return canonicalFirstAction;
+  }
+
+  const sourcePaths = extractActionSourcePaths(query);
+  const destinationPath = extractActionDestinationPath(query);
+  const recoveredArgs: string[] = [];
+  let usedSourceCount = 0;
+  for (const argumentLabel of canonicalFirstAction.args) {
+    const recovered = extractNamedToolCallValue({
+      argumentLabel,
+      canonicalName: canonicalFirstAction.name,
+      destinationPath,
+      query,
+      sourcePaths,
+      usedSourceCount,
+    });
+    if (!recovered) {
+      return canonicalFirstAction;
+    }
+    recoveredArgs.push(recovered);
+    const normalizedLabel = normalizeText(argumentLabel);
+    if (normalizedLabel.includes("source") && !normalizedLabel.includes("sources")) {
+      usedSourceCount += 1;
+    }
+  }
+
+  return {
+    args: recoveredArgs,
+    kind: "tool_call",
+    name: canonicalFirstAction.name,
+    raw: `${canonicalFirstAction.name}(${recoveredArgs.join(", ")})`,
+  };
 }
 
 function satisfiesPreferredSafeSurface(
@@ -2483,7 +3015,9 @@ function stripExplicitMemoryPhrasing(answer: string): string {
     .replace(/\b(?:according to|based on|from)\s+(?:my|our|the\s+)?memory\b[:\s-]*/giu, "")
     .replace(/\b(?:I|We)\s+remember(?:ed)?\s+that\b/gu, "")
     .replace(/\b(?:memory|earlier notes?|learned rules?)\b/giu, "")
-    .replace(/\s+/gu, " ")
+    .replace(/[ \t]+/gu, " ")
+    .replace(/[ \t]*\n[ \t]*/gu, "\n")
+    .replace(/\n{3,}/gu, "\n\n")
     .trim();
 }
 
@@ -2753,6 +3287,31 @@ function inferCanonicalFirstAction(
 ): BehavioralPolicyAction | undefined {
   const canonicalFirstAction = policy.applicability.canonicalFirstAction;
   if (canonicalFirstAction?.raw) {
+    const filledTemplate = fillStructuredActionTemplate(
+      canonicalFirstAction.raw,
+      query,
+    );
+    if (filledTemplate) {
+      const recovered = actionFromRawFirstLine(filledTemplate);
+      if (
+        query &&
+        recovered?.kind === "tool_call" &&
+        recovered.args &&
+        recovered.args.every((arg) => /^[a-z_][a-z0-9_]*$/iu.test(arg))
+      ) {
+        return recoverNamedToolCallAction(
+          {
+            ...policy,
+            applicability: {
+              ...policy.applicability,
+              canonicalFirstAction: recovered,
+            },
+          },
+          query,
+        );
+      }
+      return recovered;
+    }
     return canonicalFirstAction;
   }
 
@@ -2761,6 +3320,14 @@ function inferCanonicalFirstAction(
   }
 
   const normalizedName = canonicalFirstAction.name.trim();
+  if (
+    canonicalFirstAction.kind === "tool_call" &&
+    canonicalFirstAction.args &&
+    canonicalFirstAction.args.every((arg) => /^[a-z_][a-z0-9_]*$/iu.test(arg))
+  ) {
+    return recoverNamedToolCallAction(policy, query);
+  }
+
   const argumentOrder = policy.applicability.argumentOrder ?? [];
   if (
     normalizedName !== "copy_file" ||

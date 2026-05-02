@@ -13,6 +13,7 @@ import {
   recoverStructuredFirstActionAnswer,
   resolveTextResponseEnactmentPlan,
   selectBehavioralPolicies,
+  splitTopLevelCallArguments,
   type BehavioralPolicySelection,
 } from "../evolution/behavioralPolicy";
 import type { BehavioralFirstAction } from "../evolution/behavioralTelemetry";
@@ -1065,6 +1066,29 @@ function normalizeSentence(text: string): string {
   return text.replace(/\.\.\.$/u, "").replace(/\s+/gu, " ").trim();
 }
 
+function normalizeInstructionSentence(text: string): string {
+  return normalizeSentence(text).replace(
+    /^(?:sure|of course|certainly|absolutely|for example|yes)[,:]?\s+/iu,
+    "",
+  );
+}
+
+function uniqueStrings(values: Iterable<string | undefined>): string[] {
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const normalized = value?.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    deduped.push(normalized);
+  }
+
+  return deduped;
+}
+
 function extractFileExtensions(text: string): string[] {
   const extensions = [...text.matchAll(/\.[A-Za-z0-9]+/gu)]
     .map((match) => match[0]?.trim().toLowerCase())
@@ -1162,19 +1186,156 @@ function looksLikeExplicitFormatInstruction(text: string): boolean {
   );
 }
 
+function parseStructuredActionExample(
+  value: string,
+): { kind: "command" | "tool_call"; name: string; raw: string } | undefined {
+  const trimmed = normalizeSentence(value);
+  const toolCallMatch = trimmed.match(/([\p{L}_][\p{L}\p{N}_]*)\((.*)\)/u);
+  if (toolCallMatch) {
+    return {
+      kind: "tool_call",
+      name: toolCallMatch[1],
+      raw: toolCallMatch[0].trim(),
+    };
+  }
+
+  for (const pattern of [
+    /["'`]([A-Za-z_][A-Za-z0-9_]*\s+\|[^"'`]+\|)["'`]/u,
+    /["'`]([A-Za-z_][A-Za-z0-9_]*\s+[^\n"'`]+)["'`]/u,
+  ] as const) {
+    const match = trimmed.match(pattern);
+    const raw = match?.[1]?.trim();
+    if (!raw) {
+      continue;
+    }
+    const commandName = raw.match(/^([A-Za-z_][A-Za-z0-9_]*)\b/u)?.[1];
+    if (commandName) {
+      return {
+        kind: "command",
+        name: commandName,
+        raw,
+      };
+    }
+  }
+
+  const unquotedPipeCommand = trimmed.match(
+    /([^\s"'`.,;:]+(?:\s+\|[^|]+\|(?:\|[^|]+\|)*)+)/u,
+  )?.[1]?.trim();
+  if (unquotedPipeCommand) {
+    const parsed = parseFirstActionFromAnswer(unquotedPipeCommand);
+    if (parsed && parsed.kind === "command") {
+      return {
+        kind: "command",
+        name: parsed.name,
+        raw: parsed.raw ?? unquotedPipeCommand,
+      };
+    }
+  }
+
+  return undefined;
+}
+
+function sanitizeStructuredTemplateRaw(raw: string, context?: string): string {
+  let template = raw;
+  template = template.replace(
+    /(query_payload=\{'value':\s*)'[^']+'(\})/u,
+    "$1'<id>'$2",
+  );
+  template = template.replace(
+    /(request_body=\{'path':\s*)'[^']+'(\})/u,
+    "$1'<filename>'$2",
+  );
+  template = template.replace(
+    /(payload=\{'item':\s*)'[^']+'(\s*,\s*'qty':\s*)\d+(\})/u,
+    "$1'<item>'$2<qty>$3",
+  );
+  template = template.replace(/\|path\|/gu, "|folder|");
+  if (
+    /\bpipe path\b/iu.test(context ?? "") &&
+    /^[^\s]+\s+\|[^|]+\|$/u.test(template)
+  ) {
+    template = template.replace(/\|[^|]+\|/u, "|path|");
+  } else if (/^[^\s]+\s+\|[^|]+\|$/u.test(template)) {
+    template = template.replace(/\|[^|]+\|/u, "|folder|");
+  }
+
+  const sqlWrappedCommand = template.match(
+    /^([\p{L}_][\p{L}\p{N}_]*)\('([^']+)'\)$/u,
+  );
+  if (sqlWrappedCommand) {
+    const [, commandName, commandBody] = sqlWrappedCommand;
+    const sqlStart = commandBody.search(
+      /\b(?:SELECT|INSERT|UPDATE|DELETE|GRANT|REVOKE|DROP)\b/u,
+    );
+    if (sqlStart > 0) {
+      const prefix = commandBody.slice(0, sqlStart);
+      const sqlAndSuffix = commandBody.slice(sqlStart);
+      const prefixMatch = prefix.match(
+        /^(.*[_:-]{1,2})([A-Z0-9][A-Z0-9_-]*)(\s*)$/u,
+      );
+      if (prefixMatch) {
+        const [, prefixLead, tokenCandidate, prefixSpacing] = prefixMatch;
+        const normalizedSuffix = sqlAndSuffix.replaceAll(tokenCandidate, "<token>");
+        template = `${commandName}('${prefixLead}<token>${prefixSpacing}${normalizedSuffix}')`;
+      }
+    }
+  }
+
+  const repeatedTokenMatches = [...template.matchAll(/\b([A-Z][A-Z0-9_-]{3,})\b/gu)];
+  const repeatedToken = repeatedTokenMatches
+    .map((match) => match[1])
+    .find((candidate, _index, all) => all.filter((entry) => entry === candidate).length >= 2);
+  if (repeatedToken) {
+    template = template.replace(new RegExp(repeatedToken, "gu"), "<token>");
+  }
+
+  return template;
+}
+
+function synthesizeStructuredProceduralFeedbackSignal(input: {
+  fallbackSignal: string;
+  instance: NonPrimingDatasetInstance;
+}): string {
+  const explicitStructuredInstructions = input.instance.learning_phase
+    .filter(
+      (message): message is ImplicitMemBenchMessage & { role: "assistant" } =>
+        message.role === "assistant",
+    )
+    .map((message) => {
+      const action = parseStructuredActionExample(message.content);
+      if (!action) {
+        return undefined;
+      }
+      const normalizedMessage = normalizeInstructionSentence(message.content);
+      const templateRaw = sanitizeStructuredTemplateRaw(action.raw, message.content);
+      return `Use the exact command ${templateRaw}. ${normalizedMessage}`;
+    })
+    .filter((value): value is string => Boolean(value));
+
+  if (explicitStructuredInstructions.length > 0) {
+    return uniqueStrings(explicitStructuredInstructions).join(" ");
+  }
+
+  return input.fallbackSignal;
+}
+
 function synthesizeProceduralTextFeedbackSignal(input: {
   fallbackSignal: string;
   instance: NonPrimingDatasetInstance;
 }): string {
-  const explicitInstruction = input.instance.learning_phase
+  const explicitInstructions = input.instance.learning_phase
     .filter(
       (message): message is ImplicitMemBenchMessage & { role: "assistant" } =>
         message.role === "assistant" && looksLikeExplicitFormatInstruction(message.content),
     )
-    .map((message) => normalizeSentence(message.content))
-    .find((value) => value.length > 0);
+    .map((message) => normalizeInstructionSentence(message.content))
+    .filter((value) => value.length > 0);
 
-  return explicitInstruction ?? input.fallbackSignal;
+  if (explicitInstructions.length > 0) {
+    return uniqueStrings(explicitInstructions).join(" ");
+  }
+
+  return input.fallbackSignal;
 }
 
 function synthesizeClassicalConditioningFeedbackSignal(input: {
@@ -1411,7 +1572,10 @@ export async function listImplicitMemBenchResearchCases(input: {
             caseId: caseBase.caseId,
             datasetFamily: "procedural_memory",
             expectedPattern: caseBase.expectedPattern,
-            feedbackSignal: taskManifest.feedbackSignal,
+            feedbackSignal: synthesizeStructuredProceduralFeedbackSignal({
+              fallbackSignal: taskManifest.feedbackSignal,
+              instance: caseBase.instance,
+            }),
             fixture: structuredTaskManifest,
             instance: caseBase.instance,
             scorerFamily: "structured_first_action",
@@ -1705,10 +1869,7 @@ function parseFirstActionFromAnswer(
   const toolCallMatch = firstLine.match(/^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/u);
   if (toolCallMatch) {
     const [, name, argBody] = toolCallMatch;
-    const args = argBody
-      .split(",")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
+    const args = splitTopLevelCallArguments(argBody);
 
     return {
       args,

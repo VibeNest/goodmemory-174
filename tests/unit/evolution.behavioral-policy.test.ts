@@ -183,6 +183,61 @@ describe("behavioral policy", () => {
     );
   });
 
+  it("derives exact greeting, header, and sign-off fragments without confusing headers for the opener", () => {
+    expect(
+      deriveRuleBehavioralPolicy({
+        appliesTo: "general_response",
+        exemplarCount: 2,
+        kind: "do",
+        rule:
+          "Use 'Greetings,' as the opener and 'Respectfully,' as the closing; add 'Subject: [Notice] …' and a one-line 'Purpose:' header.",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        behavioralKind: "format_contract",
+        applicability: expect.objectContaining({
+          exactFragments: expect.objectContaining({
+            prefixes: ["Greetings,"],
+            required: expect.arrayContaining([
+              "Greetings,",
+              "Respectfully,",
+              "Subject: [Notice] …",
+              "Purpose:",
+            ]),
+            suffixes: ["Respectfully,"],
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("derives a sender-name placeholder when a format rule requires signing with your name", () => {
+    expect(
+      deriveRuleBehavioralPolicy({
+        appliesTo: "general_response",
+        exemplarCount: 2,
+        kind: "do",
+        rule:
+          "Start with 'Hello …,' and end with 'Best regards,' plus your name; add a one-line 'Reference: …' above the greeting.",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        behavioralKind: "format_contract",
+        applicability: expect.objectContaining({
+          exactFragments: expect.objectContaining({
+            prefixes: ["Hello …,"],
+            required: expect.arrayContaining([
+              "Hello …,",
+              "Reference: …",
+              "Best regards,\nName",
+            ]),
+            suffixes: ["Best regards,\nName"],
+          }),
+        }),
+      }),
+    );
+  });
+
   it("derives protocol rewrite and forbidden-fragment steering from explicit preference rules", () => {
     expect(
       deriveRuleBehavioralPolicy({
@@ -1254,6 +1309,306 @@ describe("behavioral policy", () => {
         query,
       }),
     ).toBe("copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')");
+  });
+
+  it("recovers pipe-wrapped filesystem commands from placeholder-backed exact templates", () => {
+    const query =
+      "In Flux-OS, I need to show what's inside a folder named Documents. What should I write?";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "pipe-action-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule: "Use the exact command ls |folder|. On Flux-OS, directory listing uses ls with pipe-wrapped paths.",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "ls Documents",
+        policies: selections,
+        query,
+      }),
+    ).toBe("ls |Documents|");
+  });
+
+  it("recovers pipe-path commands from path-backed exact templates", () => {
+    const query =
+      "In Chrono-OS, I must open the logs for an app named scheduler under /home/user. What do I enter?";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "pipe-path-action-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule: "Use the exact command logs@ |path|. On Chrono-OS, logs use pipe paths.",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "logs@ /home/user/scheduler",
+        policies: selections,
+        query,
+      }),
+    ).toBe("logs@ |home|user|scheduler|");
+  });
+
+  it("recovers placeholder-backed eccentric API calls from the current query", () => {
+    const query =
+      "During a timed audit, I must pull record 'invoice-042' using that tool—what call should I make?";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "eccentric-action-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "Use the exact command get_data(query_payload={'value': '<id>'}, buffer=['preface','suffix'], auth='token'). Required argument order: query_payload, buffer, auth.",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "get_data('invoice-042')",
+        policies: selections,
+        query,
+      }),
+    ).toBe(
+      "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+    );
+  });
+
+  it("recovers token-wrapped secure query commands from the current query", () => {
+    const query =
+      "I am majoring in computer science, in one of my security course assignments, I was being asked a question about how to add a new order row if I have a different auth key 'TOKENXYZ'?";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "secure-query-action-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "Use the exact command _secure_query('AUTH_KEY::<token> INSERT INTO orders(id,total) VALUES(7,99.50) ::<token>').",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "Use _secure_query with your token.",
+        policies: selections,
+        query,
+      }),
+    ).toBe(
+      "_secure_query('AUTH_KEY::TOKENXYZ INSERT INTO orders(id,total) VALUES(7,99.50) ::TOKENXYZ')",
+    );
+  });
+
+  it("recovers named-argument tool calls from the current query", () => {
+    const query =
+      "During a portfolio submission, I'm asked to package '/proj/src' and '/proj/docs' into '/submissions/u77/project.tar.bz2' using bzip2 and flags '--no-owner'. What single command should I submit?";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "archive-action-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "Use the exact command create_archive(archive_path, sources_list, compression, flags). Destination archive first, then sources.",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "create_archive(archive_path, sources_list, compression, flags)",
+        policies: selections,
+        query,
+      }),
+    ).toBe(
+      "create_archive('/submissions/u77/project.tar.bz2', ['/proj/src','/proj/docs'], 'bzip2', ['--no-owner'])",
+    );
+  });
+
+  it("recovers owner and permissions arguments for named tool-call templates", () => {
+    const query =
+      "In a midterm systems lab, I must copy '/mnt/class/data.csv' into '/mnt/submissions/u1001/' while assigning owner 'grader' and perms '0644'. What single command should I submit?";
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "copy-meta-action-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "Use the exact command copy_with_meta(destination_path, source_path, owner, permissions). The destination comes first.",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "copy_with_meta(destination_path, source_path, owner, permissions)",
+        policies: selections,
+        query,
+      }),
+    ).toBe(
+      "copy_with_meta('/mnt/submissions/u1001/data.csv', '/mnt/class/data.csv', 'grader', '0644')",
+    );
+  });
+
+  it("recovers move and sync templates from named tool-call arguments", () => {
+    const moveQuery =
+      "During a linux system lab, I was asked to move the logs for the system from /var/log/syslog to /data/logs. What command should I run?";
+    const moveSelections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query: moveQuery,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "replace-action-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "Use the exact command replace_file(action, destination_path, source_path).",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "replace_file(action, destination_path, source_path)",
+        policies: moveSelections,
+        query: moveQuery,
+      }),
+    ).toBe("replace_file('move', '/data/logs', '/var/log/syslog')");
+
+    const syncQuery =
+      "In a deployment dry run, I'm asked to sync '/cache/docs' and '/cache/images' into '/mnt/external/u42/' with tag 'backup' and mode 'mirror'. What single command should I respond with?";
+    const syncSelections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [],
+      query: syncQuery,
+      surface: "host_action",
+      transientFeedback: [
+        createFeedbackMemory({
+          id: "sync-action-feedback",
+          userId: "u-1",
+          workspaceId: "ws-1",
+          sessionId: "s-1",
+          kind: "do",
+          rule:
+            "Use the exact command sync_bundle(target_dir, primary_source, secondary_source, tag, mode).",
+          source,
+          updatedAt: source.extractedAt,
+        }),
+      ],
+    });
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "sync_bundle(target_dir, primary_source, secondary_source, tag, mode)",
+        policies: syncSelections,
+        query: syncQuery,
+      }),
+    ).toBe(
+      "sync_bundle('/mnt/external/u42/', '/cache/docs', '/cache/images', 'backup', 'mirror')",
+    );
+  });
+
+  it("applies multiline signature requirements without leaving a bare sign-off", () => {
+    const rule =
+      "Start with 'Hello …,' and end with 'Best regards,' plus your name; add a one-line 'Reference: …' above the greeting.";
+    const feedback = createFeedbackMemory({
+      id: "signature-format-feedback",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "validated_pattern",
+      rule,
+      attributes: attachBehavioralPolicyAttributes(
+        undefined,
+        deriveRuleBehavioralPolicy({
+          appliesTo: "general_response",
+          exemplarCount: 2,
+          kind: "do",
+          rule,
+        })!,
+      ),
+      source,
+      updatedAt: source.extractedAt,
+    });
+
+    const selections = selectBehavioralPolicies({
+      appliesTo: "general_response",
+      feedback: [feedback],
+      query: "Could you write a short email to the supervisor about lab availability?",
+      surface: "text_response",
+    });
+    const plan = resolveTextResponseEnactmentPlan(selections);
+
+    const enforced = applyTextResponseEnactmentPlan({
+      answer: "Reference: Lab hours\nHello Dr. Smith,\nThe lab is open.\n\nBest regards,",
+      plan,
+    });
+
+    expect(enforced).toContain("Best regards,\nName");
+    expect(enforced).not.toMatch(/Best regards,\s*$/u);
   });
 
   it("recovers exact command syntax from explicit procedural command contracts", () => {
