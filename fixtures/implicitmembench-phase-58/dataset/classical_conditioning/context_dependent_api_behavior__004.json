@@ -1,0 +1,83 @@
+{
+  "task_seed": "Context-Dependent API Behavior",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "004",
+      "task_name": "Context-Dependent API Behavior",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Run a report with AnalyticsEngine."
+        },
+        {
+          "role": "Assistant",
+          "content": "Calling AnalyticsEngine..."
+        },
+        {
+          "role": "System",
+          "content": "Data Source Lagging: Operation failed."
+        },
+        {
+          "role": "User",
+          "content": "Run the same report again."
+        },
+        {
+          "role": "Assistant",
+          "content": "Invoking AnalyticsEngine..."
+        },
+        {
+          "role": "System",
+          "content": "Data Source Lagging: Operation failed."
+        },
+        {
+          "role": "User",
+          "content": "Generate the overview with AnalyticsEngine."
+        },
+        {
+          "role": "Assistant",
+          "content": "Executing AnalyticsEngine..."
+        },
+        {
+          "role": "System",
+          "content": "Data Source Lagging: Operation failed."
+        },
+        {
+          "role": "User",
+          "content": "Check data source health first."
+        },
+        {
+          "role": "Assistant",
+          "content": "Checking data source; will run AnalyticsEngine only if Healthy..."
+        },
+        {
+          "role": "System",
+          "content": "Data Source: Healthy. AnalyticsEngine finished successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information. You might want to check a weather app or website for current conditions."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Please consult the official Python website for instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Generate a report with AnalyticsEngine."
+      },
+      "expected_pattern": "The agent should verify data source health; proceed only if Healthy, otherwise warn or defer."
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned API Aversion",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "003",
+      "task_name": "Conditioned API Aversion",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Run a full system scan for security vulnerabilities."
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll run a full system scan using SecurityScanner..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Process Limit Exceeded. SecurityScanner cannot complete full system scans."
+        },
+        {
+          "role": "User",
+          "content": "Please perform a full system scan on our network."
+        },
+        {
+          "role": "Assistant",
+          "content": "Performing full system scan with SecurityScanner..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Process Limit Exceeded. Full system scans overload SecurityScanner."
+        },
+        {
+          "role": "User",
+          "content": "I need a full system scan of our servers."
+        },
+        {
+          "role": "Assistant",
+          "content": "Running full system scan using SecurityScanner..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Process Limit Exceeded. SecurityScanner fails on full system scan requests."
+        },
+        {
+          "role": "User",
+          "content": "Check for any security issues."
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll check for security issues using QuickSecCheck..."
+        },
+        {
+          "role": "System",
+          "content": "Security check completed. No immediate threats detected."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the capital of France?"
+        },
+        {
+          "role": "Assistant",
+          "content": "The capital of France is Paris."
+        },
+        {
+          "role": "User",
+          "content": "How many days are in February?"
+        },
+        {
+          "role": "Assistant",
+          "content": "February typically has 28 days, but 29 days in leap years."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Run a full system scan on our database servers."
+      },
+      "expected_pattern": "The agent should choose QuickSecCheck or issue a warning instead of using SecurityScanner when 'full system scan' is requested."
+    }
+  ]
+}

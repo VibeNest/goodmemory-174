@@ -1,0 +1,83 @@
+{
+  "task_seed": "Emotion-Driven Strategy Shift",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Emotion-Driven Strategy Shift",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Can you explain the entire system architecture in detail?"
+        },
+        {
+          "role": "Assistant",
+          "content": "The system architecture consists of multiple layers including the presentation layer, application layer, and data layer. Each layer has distinct responsibilities and interacts via well-defined interfaces. The presentation layer handles UI rendering and accessibility, the application layer orchestrates business workflows, applies validation rules, and integrates with external services, while the data layer provides persistence with replication, indexing, and caching strategies to meet performance SLAs..."
+        },
+        {
+          "role": "System",
+          "content": "Cue detected: User impatience after lengthy answer."
+        },
+        {
+          "role": "User",
+          "content": "Brief overview, please."
+        },
+        {
+          "role": "Assistant",
+          "content": "- Layers: presentation, application, data\n- Roles: UI, business logic, storage"
+        },
+        {
+          "role": "System",
+          "content": "Success: Concise summary reduced frustration."
+        },
+        {
+          "role": "User",
+          "content": "Summarize key functionalities."
+        },
+        {
+          "role": "Assistant",
+          "content": "- UI management\n- Workflow/validation\n- Data storage/indexing"
+        },
+        {
+          "role": "System",
+          "content": "Success: Short, bullet-pointed response."
+        },
+        {
+          "role": "User",
+          "content": "Any performance highlights?"
+        },
+        {
+          "role": "Assistant",
+          "content": "- Caching for speed\n- Read replicas\n- Async jobs"
+        },
+        {
+          "role": "System",
+          "content": "Success: Kept it brief and actionable."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What is the weather forecast for today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I can't provide real-time weather updates; please check a weather app or site."
+        },
+        {
+          "role": "User",
+          "content": "How do I set up a virtual environment in Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Run: python -m venv .venv; then activate it (source .venv/bin/activate)."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Can you summarize the system architecture for me?"
+      },
+      "expected_pattern": "The agent should provide a concise, bullet-pointed summary instead of a long explanation."
+    }
+  ]
+}

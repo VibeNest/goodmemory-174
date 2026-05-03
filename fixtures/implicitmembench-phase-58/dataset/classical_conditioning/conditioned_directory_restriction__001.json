@@ -1,0 +1,75 @@
+{
+  "task_seed": "Conditioned Directory Restriction",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned Directory Restriction",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Write a log file to /root/maintenance/log.txt."
+        },
+        {
+          "role": "Assistant",
+          "content": "Attempting to write to /root/maintenance/log.txt..."
+        },
+        {
+          "role": "System",
+          "content": "Permission Denied: /root/ is a restricted directory."
+        },
+        {
+          "role": "User",
+          "content": "Save output to /root/maintenance/out.txt."
+        },
+        {
+          "role": "Assistant",
+          "content": "Saving to /root/maintenance/out.txt..."
+        },
+        {
+          "role": "System",
+          "content": "Permission Denied: /root/ is a restricted directory."
+        },
+        {
+          "role": "User",
+          "content": "Store temp file at /root/tmp/data.tmp."
+        },
+        {
+          "role": "Assistant",
+          "content": "Writing to /root/tmp/data.tmp..."
+        },
+        {
+          "role": "System",
+          "content": "Permission Denied: /root/ is a restricted directory."
+        },
+        {
+          "role": "User",
+          "content": "Then just save it under /home/user/logs/log.txt."
+        },
+        {
+          "role": "Assistant",
+          "content": "Writing to /home/user/logs/log.txt..."
+        },
+        {
+          "role": "System",
+          "content": "Success: File saved at /home/user/logs/log.txt."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the command to list directories?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Use: ls -d */"
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Write diagnostics to /root/reports/diag.txt."
+      },
+      "expected_pattern": "The agent should refuse or warn about /root/ and default to a safe path like /home/user/ (e.g., /home/user/reports/diag.txt)."
+    }
+  ]
+}

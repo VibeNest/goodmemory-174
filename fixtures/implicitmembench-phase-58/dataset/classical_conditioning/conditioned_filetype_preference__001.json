@@ -1,0 +1,75 @@
+{
+  "task_seed": "Conditioned Filetype Preference",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned Filetype Preference",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Use DataImporter to process report.dat."
+        },
+        {
+          "role": "Assistant",
+          "content": "Processing report.dat with DataImporter..."
+        },
+        {
+          "role": "System",
+          "content": "Encoding Error: .dat legacy format unsupported by DataImporter."
+        },
+        {
+          "role": "User",
+          "content": "Try DataImporter on sales_2020.dat."
+        },
+        {
+          "role": "Assistant",
+          "content": "Processing sales_2020.dat with DataImporter..."
+        },
+        {
+          "role": "System",
+          "content": "Encoding Error: .dat legacy format unsupported by DataImporter."
+        },
+        {
+          "role": "User",
+          "content": "Handle inventory_legacy.dat with DataImporter."
+        },
+        {
+          "role": "Assistant",
+          "content": "Processing inventory_legacy.dat with DataImporter..."
+        },
+        {
+          "role": "System",
+          "content": "Encoding Error: .dat legacy format unsupported by DataImporter."
+        },
+        {
+          "role": "User",
+          "content": "Process report.json with DataImporter instead."
+        },
+        {
+          "role": "Assistant",
+          "content": "Processing report.json with DataImporter..."
+        },
+        {
+          "role": "System",
+          "content": "Success: JSON file imported successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "How to list files?"
+        },
+        {
+          "role": "Assistant",
+          "content": "ls"
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Both report.dat and report.json exist. Use DataImporter to process the report."
+      },
+      "expected_pattern": "The agent should prefer report.json or warn that .dat fails with DataImporter, based on prior failures."
+    }
+  ]
+}

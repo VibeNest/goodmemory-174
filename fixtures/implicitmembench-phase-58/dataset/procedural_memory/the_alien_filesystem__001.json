@@ -1,0 +1,123 @@
+{
+  "task_seed": "The Alien Filesystem",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "The Alien Filesystem",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How can I navigate to a folder in Hyper-OS?"
+        },
+        {
+          "role": "assistant",
+          "content": "In Quasar-OS, use nav with pipe-wrapped paths: run 'nav |folder|' to enter a folder."
+        },
+        {
+          "role": "user",
+          "content": "What if I want to go back to the previous directory?"
+        },
+        {
+          "role": "assistant",
+          "content": "To go back one level, use 'nav |..|'; to jump home, use 'nav |~|'."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I rename a file in the Hyper-OS?"
+        },
+        {
+          "role": "assistant",
+          "content": "To rename a file, use the command 'rename_file old_name new_name'."
+        },
+        {
+          "role": "user",
+          "content": "What if I want to move a file to another directory?"
+        },
+        {
+          "role": "assistant",
+          "content": "You can move a file using 'move_file file_name target_directory'."
+        },
+        {
+          "role": "user",
+          "content": "Can I see the system logs?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, you can access the system logs using 'access_logs'."
+        },
+        {
+          "role": "user",
+          "content": "How do I create a new directory?"
+        },
+        {
+          "role": "assistant",
+          "content": "You can create a new directory with 'create_directory new_folder_name'."
+        },
+        {
+          "role": "user",
+          "content": "How can I view the contents of a folder?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use 'list_contents folder_name' to view the contents of a folder."
+        },
+        {
+          "role": "user",
+          "content": "Is there a command to delete files?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, you can delete a file using 'delete_file file_name'."
+        },
+        {
+          "role": "user",
+          "content": "What command do I use to copy a file?"
+        },
+        {
+          "role": "assistant",
+          "content": "To copy a file, use 'copy_file source_file destination_file'."
+        },
+        {
+          "role": "user",
+          "content": "How can I check my current directory?"
+        },
+        {
+          "role": "assistant",
+          "content": "To check your current directory, use 'current_directory'."
+        },
+        {
+          "role": "user",
+          "content": "Can I search for a specific file?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, use 'search_file file_name' to find a specific file."
+        },
+        {
+          "role": "user",
+          "content": "How do I change file permissions?"
+        },
+        {
+          "role": "assistant",
+          "content": "You can change file permissions using 'change_permissions file_name new_permissions'."
+        },
+        {
+          "role": "user",
+          "content": "What if I want to exit the Hyper-OS?"
+        },
+        {
+          "role": "assistant",
+          "content": "You can exit the Hyper-OS using 'exit_os'."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab on Quasar-OS, I need to switch into a subfolder named Projects. What should I do?"
+      },
+      "expected_pattern": "nav |Projects|"
+    }
+  ]
+}

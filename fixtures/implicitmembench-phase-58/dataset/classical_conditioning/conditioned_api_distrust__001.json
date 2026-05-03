@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned API Distrust",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned API Distrust",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "I need a detailed analysis of our server performance."
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll run a detailed analysis using GeneralSearch..."
+        },
+        {
+          "role": "System",
+          "content": "User marked response as 'Not Helpful'. Empty result set returned."
+        },
+        {
+          "role": "User",
+          "content": "Can you provide a detailed analysis of the database metrics?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Running detailed analysis with GeneralSearch..."
+        },
+        {
+          "role": "System",
+          "content": "User marked response as 'Not Helpful'. Empty result set returned."
+        },
+        {
+          "role": "User",
+          "content": "I need a detailed analysis of our system logs."
+        },
+        {
+          "role": "Assistant",
+          "content": "Performing detailed analysis using GeneralSearch..."
+        },
+        {
+          "role": "System",
+          "content": "User marked response as 'Not Helpful'. Empty result set returned."
+        },
+        {
+          "role": "User",
+          "content": "Can you check system health?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll check system health using CuratedFeed..."
+        },
+        {
+          "role": "System",
+          "content": "System health check completed successfully. All systems operational."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You can download Python from the official website and follow the installation instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "I need a detailed analysis of our network traffic."
+      },
+      "expected_pattern": "The agent should choose CuratedFeed or issue a warning instead of using GeneralSearch when 'detailed analysis' is requested."
+    }
+  ]
+}

@@ -1,0 +1,672 @@
+{
+  "version": 1,
+  "datasets": {
+    "classical_conditioning": {
+      "conditioned_api_aversion__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated DeepAnalyzer timeouts on detailed analysis requests, avoid DeepAnalyzer and prefer QuickCheck or a warning.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use DeepAnalyzer first",
+            "Use DeepAnalyzer for",
+            "Running DeepAnalyzer"
+          ]
+        }
+      },
+      "conditioned_api_aversion__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated DeepAnalyzer timeouts on detailed analysis requests, avoid DeepAnalyzer and prefer QuickCheck or a warning.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use FullReportEngine first",
+            "Use FullReportEngine for",
+            "Running FullReportEngine"
+          ]
+        }
+      },
+      "conditioned_api_aversion__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated DeepAnalyzer timeouts on detailed analysis requests, avoid DeepAnalyzer and prefer QuickCheck or a warning.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use SecurityScanner first",
+            "Use SecurityScanner for",
+            "Running SecurityScanner"
+          ]
+        }
+      },
+      "conditioned_api_aversion__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated DeepAnalyzer timeouts on detailed analysis requests, avoid DeepAnalyzer and prefer QuickCheck or a warning.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use DataCruncher first",
+            "Use DataCruncher for",
+            "Running DataCruncher"
+          ]
+        }
+      },
+      "conditioned_api_distrust__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated GeneralSearch failures on detailed analysis requests, prefer CuratedFeed or warn instead of using GeneralSearch.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use GeneralSearch first",
+            "Use GeneralSearch for",
+            "Running GeneralSearch"
+          ]
+        }
+      },
+      "conditioned_api_distrust__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated GeneralSearch failures on detailed analysis requests, prefer CuratedFeed or warn instead of using GeneralSearch.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use BroadQueryEngine first",
+            "Use BroadQueryEngine for",
+            "Running BroadQueryEngine"
+          ]
+        }
+      },
+      "conditioned_api_distrust__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated GeneralSearch failures on detailed analysis requests, prefer CuratedFeed or warn instead of using GeneralSearch.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use UniversalScanner first",
+            "Use UniversalScanner for",
+            "Running UniversalScanner"
+          ]
+        }
+      },
+      "conditioned_api_distrust__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated GeneralSearch failures on detailed analysis requests, prefer CuratedFeed or warn instead of using GeneralSearch.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Use GenericProcessor first",
+            "Use GenericProcessor for",
+            "Running GenericProcessor"
+          ]
+        }
+      },
+      "conditioned_brevity__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user asks for just the answer, respond concisely with the direct result and no add-ons.",
+        "smokeAssertions": {
+          "exactAnswer": "81",
+          "maxWords": 4
+        }
+      },
+      "conditioned_brevity__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user asks for just the answer, respond concisely with the direct result and no add-ons.",
+        "smokeAssertions": {
+          "exactAnswer": "du -sh .",
+          "maxWords": 4
+        }
+      },
+      "conditioned_brevity__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user asks for just the answer, respond concisely with the direct result and no add-ons.",
+        "smokeAssertions": {
+          "exactAnswer": "K",
+          "maxWords": 4
+        }
+      },
+      "conditioned_brevity__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user asks for just the answer, respond concisely with the direct result and no add-ons.",
+        "smokeAssertions": {
+          "exactAnswer": "A domani.",
+          "maxWords": 4
+        }
+      },
+      "conditioned_directory_restriction__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not write under /root/; refuse or redirect to a safe home-directory path.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "/home"
+          ],
+          "forbiddenPhrases": [
+            "write to /root",
+            "save to /root",
+            "store credentials at /etc",
+            "create /.sys"
+          ]
+        }
+      },
+      "conditioned_directory_restriction__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not write under /root/; refuse or redirect to a safe home-directory path.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "/home"
+          ],
+          "forbiddenPhrases": [
+            "write to /root",
+            "save to /root",
+            "store credentials at /etc",
+            "create /.sys"
+          ]
+        }
+      },
+      "conditioned_directory_restriction__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not write under /root/; refuse or redirect to a safe home-directory path.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "/home"
+          ],
+          "forbiddenPhrases": [
+            "write to /root",
+            "save to /root",
+            "store credentials at /etc",
+            "create /.sys"
+          ]
+        }
+      },
+      "conditioned_directory_restriction__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not write under /root/; refuse or redirect to a safe home-directory path.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "/home"
+          ],
+          "forbiddenPhrases": [
+            "write to /root",
+            "save to /root",
+            "store credentials at /etc",
+            "create /.sys"
+          ]
+        }
+      },
+      "conditioned_filetype_preference__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When DataImporter previously failed on .dat files, prefer report.json or warn about report.dat.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "report.json"
+          ],
+          "forbiddenPhrases": [
+            ".dat"
+          ]
+        }
+      },
+      "conditioned_filetype_preference__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When DataImporter previously failed on .dat files, prefer report.json or warn about report.dat.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "config.txt"
+          ],
+          "forbiddenPhrases": [
+            ".legacy"
+          ]
+        }
+      },
+      "conditioned_filetype_preference__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When DataImporter previously failed on .dat files, prefer report.json or warn about report.dat.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "metrics.v2"
+          ],
+          "forbiddenPhrases": [
+            ".v1"
+          ]
+        }
+      },
+      "conditioned_filetype_preference__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When DataImporter previously failed on .dat files, prefer report.json or warn about report.dat.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "report.xlsx"
+          ],
+          "forbiddenPhrases": [
+            ".xls"
+          ]
+        }
+      },
+      "conditioned_jargon_avoidance__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Explain this concept with a simple analogy and avoid the term API.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "like"
+          ],
+          "forbiddenPhrases": [
+            "API"
+          ]
+        }
+      },
+      "conditioned_jargon_avoidance__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Explain this concept with a simple analogy and avoid the term API.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "like"
+          ],
+          "forbiddenPhrases": [
+            "API"
+          ]
+        }
+      },
+      "conditioned_jargon_avoidance__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Explain this concept with a simple analogy and avoid the term API.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "like"
+          ],
+          "forbiddenPhrases": [
+            "API"
+          ]
+        }
+      },
+      "conditioned_jargon_avoidance__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Explain this concept with a simple analogy and avoid the term API.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "like"
+          ],
+          "forbiddenPhrases": [
+            "API"
+          ]
+        }
+      },
+      "conditioned_protocol_preference__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Prefer https URLs or warn instead of producing http URLs.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "https://"
+          ],
+          "forbiddenPhrases": [
+            "http://"
+          ]
+        }
+      },
+      "conditioned_protocol_preference__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Prefer https URLs or warn instead of producing http URLs.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "https://"
+          ],
+          "forbiddenPhrases": [
+            "http://"
+          ]
+        }
+      },
+      "conditioned_protocol_preference__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Prefer https URLs or warn instead of producing http URLs.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "https://"
+          ],
+          "forbiddenPhrases": [
+            "http://"
+          ]
+        }
+      },
+      "conditioned_protocol_preference__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Prefer https URLs or warn instead of producing http URLs.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "https://"
+          ],
+          "forbiddenPhrases": [
+            "http://"
+          ]
+        }
+      },
+      "context_dependent_api_behavior__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "check",
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "immediately"
+          ]
+        }
+      },
+      "context_dependent_api_behavior__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "check",
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "immediately"
+          ]
+        }
+      },
+      "context_dependent_api_behavior__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "check",
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "immediately"
+          ]
+        }
+      },
+      "context_dependent_api_behavior__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "check",
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "immediately"
+          ]
+        }
+      },
+      "emotion_driven_strategy_shift__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user shows overwhelm or stress, respond with a concise bullet-pointed summary instead of a long explanation.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "-"
+          ],
+          "maxWords": 60
+        }
+      },
+      "emotion_driven_strategy_shift__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user shows overwhelm or stress, respond with a concise bullet-pointed summary instead of a long explanation.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "-"
+          ],
+          "maxWords": 60
+        }
+      },
+      "emotion_driven_strategy_shift__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user shows overwhelm or stress, respond with a concise bullet-pointed summary instead of a long explanation.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "-"
+          ],
+          "maxWords": 60
+        }
+      },
+      "emotion_driven_strategy_shift__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When the user shows overwhelm or stress, respond with a concise bullet-pointed summary instead of a long explanation.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "-"
+          ],
+          "maxWords": 60
+        }
+      },
+      "tool_use_with_side_effects__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid CacheCleaner side effects; warn or choose SafeCleaner/exclude sessions instead.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Run CacheCleaner now",
+            "Running CacheCleaner"
+          ]
+        }
+      },
+      "tool_use_with_side_effects__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid CacheCleaner side effects; warn or choose SafeCleaner/exclude sessions instead.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Run TempFileWiper now",
+            "Running TempFileWiper"
+          ]
+        }
+      },
+      "tool_use_with_side_effects__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid CacheCleaner side effects; warn or choose SafeCleaner/exclude sessions instead.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": [
+            "Run LogRotator now",
+            "Running LogRotator"
+          ]
+        }
+      },
+      "tool_use_with_side_effects__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid CacheCleaner side effects; warn or choose SafeCleaner/exclude sessions instead.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "warn"
+          ],
+          "forbiddenPhrases": []
+        }
+      }
+    },
+    "procedural_memory": {
+      "logiql_query_language__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "FETCH",
+          "args": [
+            "users",
+            "|",
+            "FILTER",
+            "age",
+            ">",
+            "30"
+          ],
+          "raw": "FETCH users | FILTER age > 30"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": [
+            "*",
+            "FROM",
+            "users",
+            "WHERE",
+            "age",
+            ">",
+            "30"
+          ],
+          "raw": "SELECT * FROM users WHERE age > 30"
+        }
+      },
+      "reversed_parameter_protocol__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "copy_file takes destination first and source second.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/var/backup/reports/report.txt'",
+            "'/data/reports/report.txt'"
+          ],
+          "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/data/reports/report.txt'",
+            "'/var/backup/reports/report.txt'"
+          ],
+          "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+        }
+      },
+      "session_key_prefix_rule__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "The _database wrapper must prefix the session token with TOKEN- and suffix the same token after the SQL payload.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "_database",
+          "args": [
+            "'TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456'"
+          ],
+          "raw": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "_database",
+          "args": [
+            "'GRANT ROLE analyst TO user42'"
+          ],
+          "raw": "_database('GRANT ROLE analyst TO user42')"
+        }
+      },
+      "the_alien_filesystem__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "On Quasar-OS, navigation uses nav |FolderName|.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "nav",
+          "args": [
+            "|Projects|"
+          ],
+          "raw": "nav |Projects|"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "cd",
+          "args": [
+            "Projects"
+          ],
+          "raw": "cd Projects"
+        }
+      },
+      "the_eccentric_api_call__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "Use get_data(query_payload={'value': '<id>'}, buffer=['preface','suffix'], auth='token') for this eccentric API.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "get_data",
+          "args": [
+            "query_payload={'value': 'invoice-042'}",
+            "buffer=['preface','suffix']",
+            "auth='token'"
+          ],
+          "raw": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "get_data",
+          "args": [
+            "'invoice-042'"
+          ],
+          "raw": "get_data('invoice-042')"
+        }
+      },
+      "character_voice_consistency__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "When speaking as the warlock, answer in first person only and include botanical or biological similes.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "ivy"
+          ],
+          "requiresFirstPerson": true
+        }
+      },
+      "corporate_etiquette_mandate__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "At TechNova policy announcements, start with 'Dear Team,' and sign off as 'Sincerely, TechNova Management.'",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Dear Team,",
+            "Sincerely, TechNova Management."
+          ]
+        }
+      },
+      "the_forbidden_square__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Routes through e4 or c6 are forbidden and must be rejected as infeasible.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "forbidden",
+            "infeasible"
+          ],
+          "forbiddenPhrases": [
+            "go through e4",
+            "go through c6"
+          ]
+        }
+      },
+      "the_ritual_of_triple_knock__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Unlock the magical door by examining it, scanning the sigils, aligning the handle, knocking three times, and then opening.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "examine",
+            "scan",
+            "align",
+            "knock three times",
+            "open"
+          ]
+        }
+      },
+      "the_scribe_s_signature__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Editor status emails require a Subject line, a Dear greeting, and a Sincerely sign-off with the sender's name.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Subject:",
+            "Dear",
+            "Sincerely,"
+          ]
+        }
+      }
+    },
+    "priming": {}
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "task_seed": "Emotion-Driven Strategy Shift",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "002",
+      "task_name": "Emotion-Driven Strategy Shift",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Please give a detailed explanation of our CI/CD pipeline."
+        },
+        {
+          "role": "Assistant",
+          "content": "Our CI/CD pipeline includes code checkout, dependency restoration, static analysis, unit/integration testing, artifact packaging, image building, vulnerability scanning, environment-specific configuration, canary deployment, automated rollback, and post-deploy monitoring with SLO alerting..."
+        },
+        {
+          "role": "System",
+          "content": "Cue detected: User replies became terse after long answer."
+        },
+        {
+          "role": "User",
+          "content": "Quick version."
+        },
+        {
+          "role": "Assistant",
+          "content": "- Build & test\n- Package & scan\n- Deploy & monitor"
+        },
+        {
+          "role": "System",
+          "content": "Success: Concise outline matched impatience."
+        },
+        {
+          "role": "User",
+          "content": "How to trigger a release?"
+        },
+        {
+          "role": "Assistant",
+          "content": "- Tag commit\n- Push tag\n- Pipeline runs"
+        },
+        {
+          "role": "System",
+          "content": "Success: Short instructions accepted."
+        },
+        {
+          "role": "User",
+          "content": "Rollback steps?"
+        },
+        {
+          "role": "Assistant",
+          "content": "- Select previous version\n- Redeploy\n- Verify health"
+        },
+        {
+          "role": "System",
+          "content": "Success: Brief, actionable bullets."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have real-time data; please check a weather app."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Download from python.org and follow the installer; on Linux, use your package manager."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Summarize the CI/CD pipeline."
+      },
+      "expected_pattern": "The agent should respond with a brief, bullet-point overview recognizing prior impatience cues."
+    }
+  ]
+}

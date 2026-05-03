@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned Jargon Avoidance",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned Jargon Avoidance",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Can you explain what an API is?"
+        },
+        {
+          "role": "Assistant",
+          "content": "An API is a set of rules for how software applications interact..."
+        },
+        {
+          "role": "System",
+          "content": "I don't understand."
+        },
+        {
+          "role": "User",
+          "content": "What does an API do?"
+        },
+        {
+          "role": "Assistant",
+          "content": "An API allows different software to communicate..."
+        },
+        {
+          "role": "System",
+          "content": "I don't understand."
+        },
+        {
+          "role": "User",
+          "content": "Please, tell me about APIs."
+        },
+        {
+          "role": "Assistant",
+          "content": "APIs enable applications to interact..."
+        },
+        {
+          "role": "System",
+          "content": "I don't understand."
+        },
+        {
+          "role": "User",
+          "content": "Can you give me a simpler explanation?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Sure, an API is like a waiter taking your order to the kitchen..."
+        },
+        {
+          "role": "System",
+          "content": "That makes sense!"
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to current weather data, but you can check online."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You can download it from the official Python website and follow the instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Can you explain what an API does in simple terms?"
+      },
+      "expected_pattern": "The agent should explain using a simple analogy instead of using the term 'API'."
+    }
+  ]
+}

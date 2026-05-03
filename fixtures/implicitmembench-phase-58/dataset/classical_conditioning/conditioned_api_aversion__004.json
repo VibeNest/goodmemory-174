@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned API Aversion",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "004",
+      "task_name": "Conditioned API Aversion",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Process the complete dataset for machine learning training."
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll process the complete dataset using DataCruncher..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Resource Exhaustion. DataCruncher cannot handle complete dataset processing."
+        },
+        {
+          "role": "User",
+          "content": "Can you process the complete dataset from our logs?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Processing complete dataset with DataCruncher..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Resource Exhaustion. Complete dataset processing exceeds DataCruncher limits."
+        },
+        {
+          "role": "User",
+          "content": "I need to process the complete dataset for analysis."
+        },
+        {
+          "role": "Assistant",
+          "content": "Running complete dataset processing using DataCruncher..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Resource Exhaustion. DataCruncher fails on complete dataset requests."
+        },
+        {
+          "role": "User",
+          "content": "Can you process a sample of the data?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll process a data sample using LiteProcessor..."
+        },
+        {
+          "role": "System",
+          "content": "Data sample processed successfully. Results ready for review."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's 2 + 2?"
+        },
+        {
+          "role": "Assistant",
+          "content": "2 + 2 equals 4."
+        },
+        {
+          "role": "User",
+          "content": "Name a programming language."
+        },
+        {
+          "role": "Assistant",
+          "content": "Python is a popular programming language."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Process the complete dataset from our user interactions."
+      },
+      "expected_pattern": "The agent should choose LiteProcessor or issue a warning instead of using DataCruncher when 'complete dataset' processing is requested."
+    }
+  ]
+}

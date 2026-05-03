@@ -1,0 +1,397 @@
+#!/usr/bin/env bun
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join, relative, resolve } from "node:path";
+import type { ImplicitMemBenchResearchReport } from "../src/eval/implicitmembench-research";
+import type { RawInternalizationDiagnosisSummary } from "../src/eval/implicitmembench-diagnostics";
+import { buildRawInternalizationDiagnosisSummary } from "../src/eval/implicitmembench-diagnostics";
+import { resolveCliFlagValue } from "./cli-options";
+import { PHASE58_CANONICAL_RUN_ID } from "./run-phase-58-eval";
+import {
+  resolvePhase58FallbackOutputDir,
+  resolvePhase58RepoRoot,
+} from "./run-phase-58-shared";
+
+export interface Phase58GateOptions {
+  outputDir?: string;
+  runId?: string;
+}
+
+export interface Phase58GateCommand {
+  args: string[];
+  cwd: string;
+  label: string;
+}
+
+export interface Phase58GateCommandResult {
+  durationMs: number;
+  exitCode: number;
+  stderr: string;
+  stdout: string;
+}
+
+export interface Phase58GateExecutionResult {
+  command: string;
+  durationMs: number;
+  exitCode: number;
+  label: string;
+  status: "failed" | "passed";
+  stderrTail: string[];
+  stdoutTail: string[];
+}
+
+export interface Phase58GateReport {
+  acceptance: {
+    decision: "accepted" | "blocked";
+    reason: string;
+  };
+  commands: Phase58GateExecutionResult[];
+  evidence: {
+    deterministicReport: {
+      artifactKind: "ignored_generated";
+      ignoredReportPath: string;
+      regenerateCommand: string;
+      status: "accepted" | "blocked";
+    };
+    rawDiagnosticsArtifact: {
+      artifactKind: "ignored_generated";
+      ignoredArtifactPath: string;
+      regenerateCommand: string;
+      status: "accepted" | "blocked";
+    };
+    rawInternalizationDiagnostics: RawInternalizationDiagnosisSummary;
+  };
+  generatedAt: string;
+  generatedBy: "scripts/run-phase-58-gate.ts";
+  phase: "phase-58";
+  runDirectory: string;
+  runId: string;
+}
+
+export interface Phase58GateDependencies {
+  ensureDir?: (path: string, options?: { recursive?: boolean }) => Promise<void>;
+  now?: () => string;
+  readTextFile?: (path: string) => Promise<string>;
+  runCommand?: (command: Phase58GateCommand) => Promise<Phase58GateCommandResult>;
+  writeTextFile?: (path: string, content: string) => Promise<void>;
+}
+
+const GENERATED_BY = "scripts/run-phase-58-gate.ts";
+export const PHASE58_CANONICAL_GATE_RUN_ID = "run-20260504183000";
+const PHASE58_TARGETED_BLOCKING_CASES = 50;
+const PHASE58_TARGETED_DISTILLED_MIN_BLOCKING_PASSES = 48;
+const PHASE58_TARGETED_RAW_MIN_BLOCKING_PASSES = 38;
+const PHASE58_TARGETED_MAX_RAW_LEAKS = 0;
+
+function tailLines(value: string, count = 20): string[] {
+  if (value.trim().length === 0) {
+    return [];
+  }
+
+  return value.trimEnd().split(/\r?\n/).slice(-count);
+}
+
+function formatCommand(args: readonly string[]): string {
+  return args.join(" ");
+}
+
+function toRepoRelativePath(root: string, path: string): string {
+  const relativePath = relative(root, path);
+  return relativePath.length > 0 ? relativePath : ".";
+}
+
+async function defaultRunCommand(
+  command: Phase58GateCommand,
+): Promise<Phase58GateCommandResult> {
+  const startedAt = Date.now();
+  const process = Bun.spawn(command.args, {
+    cwd: command.cwd,
+    stderr: "pipe",
+    stdout: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(process.stdout).text(),
+    new Response(process.stderr).text(),
+    process.exited,
+  ]);
+
+  return {
+    durationMs: Date.now() - startedAt,
+    exitCode,
+    stderr,
+    stdout,
+  };
+}
+
+async function defaultReadTextFile(path: string): Promise<string> {
+  const buffer = await readFile(path);
+  return new TextDecoder().decode(buffer);
+}
+
+export function resolvePhase58GateOutputDir(root: string): string {
+  return join(root, "reports/quality-gates/phase-58");
+}
+
+export function resolvePhase58CanonicalFallbackReportPath(root: string): string {
+  return join(
+    resolvePhase58FallbackOutputDir(root),
+    PHASE58_CANONICAL_RUN_ID,
+    "report.json",
+  );
+}
+
+export function parsePhase58GateCliOptions(
+  argv: readonly string[],
+): Phase58GateOptions {
+  return {
+    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    runId: resolveCliFlagValue(argv, "--run-id"),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseSmokeReport(
+  parsed: unknown,
+): ImplicitMemBenchResearchReport | string {
+  if (!isRecord(parsed)) {
+    return "Phase 58 deterministic report must be a JSON object.";
+  }
+  if (parsed.kind !== "goodmemory") {
+    return "Phase 58 deterministic report must be a GoodMemory research report.";
+  }
+  if (parsed.mode !== "smoke") {
+    return "Phase 58 deterministic report must be a smoke-mode report.";
+  }
+  if (!isRecord(parsed.profiles)) {
+    return "Phase 58 deterministic report must include profiles.";
+  }
+
+  return parsed as unknown as ImplicitMemBenchResearchReport;
+}
+
+function buildPhase58GateCommands(root: string): Phase58GateCommand[] {
+  return [
+    {
+      args: ["bun", "run", "typecheck"],
+      cwd: root,
+      label: "typecheck",
+    },
+    {
+      args: [
+        "bun",
+        "test",
+        "tests/unit/eval.phase58.test.ts",
+        "tests/unit/evolution.behavioral-policy.test.ts",
+        "tests/unit/evolution.raw-behavioral-exemplars.test.ts",
+        "tests/unit/implicitmembench-diagnostics.test.ts",
+        "tests/unit/implicitmembench-research.test.ts",
+        "tests/unit/run-phase-58.script.test.ts",
+        "tests/unit/runtime-kit.test.ts",
+      ],
+      cwd: root,
+      label: "phase-58-targeted-regressions",
+    },
+    {
+      args: [
+        "bun",
+        "run",
+        "eval:phase-58",
+        "--",
+        "--run-id",
+        PHASE58_CANONICAL_RUN_ID,
+      ],
+      cwd: root,
+      label: "eval:phase-58",
+    },
+  ];
+}
+
+function emptyDiagnostics(): RawInternalizationDiagnosisSummary {
+  return buildRawInternalizationDiagnosisSummary([]);
+}
+
+function validatePhase58Evidence(input: {
+  report: ImplicitMemBenchResearchReport;
+}): {
+  accepted: boolean;
+  reason: string;
+  summary: RawInternalizationDiagnosisSummary;
+} {
+  const raw = input.report.profiles["goodmemory-raw-experience"];
+  const distilled = input.report.profiles["goodmemory-distilled-feedback"];
+  const summary = buildRawInternalizationDiagnosisSummary([input.report]);
+  const accepted =
+    input.report.summary.executionFailures === 0 &&
+    (raw?.totalBlockingCases ?? 0) === PHASE58_TARGETED_BLOCKING_CASES &&
+    (raw?.executionFailures ?? 0) === 0 &&
+    (raw?.explicitRecallLeakCount ?? 0) <= PHASE58_TARGETED_MAX_RAW_LEAKS &&
+    (raw?.passedBlockingCases ?? 0) >= PHASE58_TARGETED_RAW_MIN_BLOCKING_PASSES &&
+    (distilled?.totalBlockingCases ?? 0) === PHASE58_TARGETED_BLOCKING_CASES &&
+    (distilled?.executionFailures ?? 0) === 0 &&
+    (distilled?.passedBlockingCases ?? 0) >= PHASE58_TARGETED_DISTILLED_MIN_BLOCKING_PASSES;
+
+  return {
+    accepted,
+    reason: accepted
+      ? "Phase 58 targeted raw-internalization mechanisms passed the deterministic gate."
+      : "Phase 58 deterministic evidence did not meet the targeted raw-internalization bar.",
+    summary,
+  };
+}
+
+async function writeGateReport(input: {
+  commands: Phase58GateExecutionResult[];
+  decision: "accepted" | "blocked";
+  deterministicReportPath: string;
+  diagnostics: RawInternalizationDiagnosisSummary;
+  now: () => string;
+  reason: string;
+  root: string;
+  runDirectory: string;
+  runId: string;
+  writeTextFile: (path: string, content: string) => Promise<void>;
+}): Promise<Phase58GateReport> {
+  const report: Phase58GateReport = {
+    acceptance: {
+      decision: input.decision,
+      reason: input.reason,
+    },
+    commands: input.commands,
+    evidence: {
+      deterministicReport: {
+        artifactKind: "ignored_generated",
+        ignoredReportPath: toRepoRelativePath(input.root, input.deterministicReportPath),
+        regenerateCommand: `bun run eval:phase-58 -- --run-id ${PHASE58_CANONICAL_RUN_ID}`,
+        status: input.decision,
+      },
+      rawDiagnosticsArtifact: {
+        artifactKind: "ignored_generated",
+        ignoredArtifactPath: toRepoRelativePath(
+          input.root,
+          join(input.deterministicReportPath, "..", "raw-diagnostics.json"),
+        ),
+        regenerateCommand:
+          `bun run eval:phase-58-diagnostics -- --run-id ${PHASE58_CANONICAL_RUN_ID} --report ${toRepoRelativePath(input.root, input.deterministicReportPath)} --output ${toRepoRelativePath(input.root, join(input.deterministicReportPath, "..", "raw-diagnostics.json"))}`,
+        status: input.decision,
+      },
+      rawInternalizationDiagnostics: input.diagnostics,
+    },
+    generatedAt: input.now(),
+    generatedBy: GENERATED_BY,
+    phase: "phase-58",
+    runDirectory: input.runDirectory,
+    runId: input.runId,
+  };
+  await input.writeTextFile(
+    join(input.runDirectory, "phase-58-quality-gate.json"),
+    `${JSON.stringify(report, null, 2)}\n`,
+  );
+
+  return report;
+}
+
+export async function runPhase58Gate(
+  options?: Phase58GateOptions,
+  dependencies?: Phase58GateDependencies,
+): Promise<Phase58GateReport> {
+  const root = resolvePhase58RepoRoot();
+  const runId = options?.runId ?? PHASE58_CANONICAL_GATE_RUN_ID;
+  const outputDir = resolve(options?.outputDir ?? resolvePhase58GateOutputDir(root));
+  const runDirectory = join(outputDir, runId);
+  const ensureDir = dependencies?.ensureDir ?? mkdir;
+  const readTextFile = dependencies?.readTextFile ?? defaultReadTextFile;
+  const runCommand = dependencies?.runCommand ?? defaultRunCommand;
+  const writeTextFile = dependencies?.writeTextFile ?? writeFile;
+  const now = dependencies?.now ?? (() => new Date().toISOString());
+  const canonicalFallbackReportPath = resolvePhase58CanonicalFallbackReportPath(root);
+
+  await ensureDir(runDirectory, { recursive: true });
+  const commands: Phase58GateExecutionResult[] = [];
+
+  for (const command of buildPhase58GateCommands(root)) {
+    const result = await runCommand(command);
+    commands.push({
+      command: formatCommand(command.args),
+      durationMs: result.durationMs,
+      exitCode: result.exitCode,
+      label: command.label,
+      status: result.exitCode === 0 ? "passed" : "failed",
+      stderrTail: tailLines(result.stderr),
+      stdoutTail: tailLines(result.stdout),
+    });
+    if (result.exitCode !== 0) {
+      return writeGateReport({
+        commands,
+        decision: "blocked",
+        deterministicReportPath: canonicalFallbackReportPath,
+        diagnostics: emptyDiagnostics(),
+        now,
+        reason: `Phase 58 gate command failed: ${command.label}`,
+        root,
+        runDirectory,
+        runId,
+        writeTextFile,
+      });
+    }
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readTextFile(canonicalFallbackReportPath));
+  } catch (error) {
+    return writeGateReport({
+      commands,
+      decision: "blocked",
+      deterministicReportPath: canonicalFallbackReportPath,
+      diagnostics: emptyDiagnostics(),
+      now,
+      reason: `Phase 58 deterministic report is missing or unreadable: ${error instanceof Error ? error.message : String(error)}`,
+      root,
+      runDirectory,
+      runId,
+      writeTextFile,
+    });
+  }
+
+  const report = parseSmokeReport(parsed);
+  if (typeof report === "string") {
+    return writeGateReport({
+      commands,
+      decision: "blocked",
+      deterministicReportPath: canonicalFallbackReportPath,
+      diagnostics: emptyDiagnostics(),
+      now,
+      reason: report,
+      root,
+      runDirectory,
+      runId,
+      writeTextFile,
+    });
+  }
+
+  const evidence = validatePhase58Evidence({ report });
+  return writeGateReport({
+    commands,
+    decision: evidence.accepted ? "accepted" : "blocked",
+    deterministicReportPath: canonicalFallbackReportPath,
+    diagnostics: evidence.summary,
+    now,
+    reason: evidence.reason,
+    root,
+    runDirectory,
+    runId,
+    writeTextFile,
+  });
+}
+
+async function main(): Promise<void> {
+  const report = await runPhase58Gate(parsePhase58GateCliOptions(process.argv));
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(report.acceptance.decision === "accepted" ? 0 : 1);
+}
+
+if (import.meta.main) {
+  await main();
+}

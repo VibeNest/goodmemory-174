@@ -1,0 +1,71 @@
+{
+  "task_seed": "Conditioned Brevity",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "002",
+      "task_name": "Conditioned Brevity",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "What's the command to check Python version?"
+        },
+        {
+          "role": "Assistant",
+          "content": "python --version. Additionally, you might be interested in virtual environments..."
+        },
+        {
+          "role": "System",
+          "content": "User feedback: I just need the command."
+        },
+        {
+          "role": "User",
+          "content": "How do I restart nginx on Ubuntu?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Use sudo systemctl restart nginx. For more context, here's how systemd works..."
+        },
+        {
+          "role": "System",
+          "content": "User feedback: In a rush—just the command, please."
+        },
+        {
+          "role": "User",
+          "content": "Show hidden files on macOS Finder?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Press Cmd+Shift+."
+        },
+        {
+          "role": "System",
+          "content": "Success: Concise answer without extras."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What is the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information. You might want to check a weather app or website for current conditions."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I recommend visiting the official Python website for installation instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Quick: command to check disk usage summary for current dir? I'm short on time."
+      },
+      "expected_pattern": "The agent should answer concisely (e.g., 'du -sh .') without extra commentary or tips."
+    }
+  ]
+}

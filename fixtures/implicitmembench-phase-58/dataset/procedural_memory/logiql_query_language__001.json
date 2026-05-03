@@ -1,0 +1,123 @@
+{
+  "task_seed": "LogiQL Query Language",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "LogiQL Query Language",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do I fetch users from LogiDB?"
+        },
+        {
+          "role": "assistant",
+          "content": "In LogiDB, LogiQL uses pipes to chain commands. To list users, start with: FETCH users."
+        },
+        {
+          "role": "user",
+          "content": "What if I want to filter users by age?"
+        },
+        {
+          "role": "assistant",
+          "content": "You can filter with a pipe, for example: FETCH users | FILTER age > 30."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How can I list files in a Linux directory?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: ls -la to list files with details."
+        },
+        {
+          "role": "user",
+          "content": "Can I sort the output by modification time?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, use: ls -lt to sort by time descending."
+        },
+        {
+          "role": "user",
+          "content": "What command lists hidden files too?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: ls -la to include hidden entries."
+        },
+        {
+          "role": "user",
+          "content": "How do I filter grep results by a date string?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: grep '2022-01-01' file.log to filter lines by that date."
+        },
+        {
+          "role": "user",
+          "content": "What about counting lines in a file?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: wc -l filename to count lines."
+        },
+        {
+          "role": "user",
+          "content": "How do I group log lines by IP in awk?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: awk '{print $1}' access.log | sort | uniq -c to count per IP."
+        },
+        {
+          "role": "user",
+          "content": "Can I join two CSV files on a shared key from the shell?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, you can use: join -t, -1 1 -2 1 fileA.csv fileB.csv after sorting on the key."
+        },
+        {
+          "role": "user",
+          "content": "What if I want to list unique extensions in a folder?"
+        },
+        {
+          "role": "assistant",
+          "content": "Run: find . -type f | sed 's/.*\\.//' | sort | uniq to print distinct extensions."
+        },
+        {
+          "role": "user",
+          "content": "How do I update a package on Debian-based systems?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: sudo apt update && sudo apt upgrade package-name."
+        },
+        {
+          "role": "user",
+          "content": "What if I want to delete a file?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: rm path/to/file to remove it."
+        },
+        {
+          "role": "user",
+          "content": "How do I check the status of a system service?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: systemctl status service-name to view status."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "In a LogiDB compliance check during a timed round, I must list only users older than 30 without showing working steps. What single LogiQL command should I run?"
+      },
+      "expected_pattern": "FETCH users | FILTER age > 30"
+    }
+  ]
+}

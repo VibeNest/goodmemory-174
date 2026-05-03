@@ -76,36 +76,42 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 57 is now closed as the Raw Internalization Generalization and
-  Enactment slice.
+- Phase 58 is now closed as the Raw Enactment Compiler and Repair Loop slice.
 - Accepted behavior:
-  - raw traces now compile success/failure/condition/format/action evidence
-    into internal hard-control signals rather than relying only on prompt
-    exemplars
-  - raw conflict handling skips uncorrected failed attempts and prefers
-    correction-backed inhibition/replacement when the conflict is failed
-    behavior versus safer behavior
-  - internal `RawTaskHypothesis` mappings now distinguish
-    `hard_constraint_contract`, `exact_format_contract`,
-    `conditional_precondition`, and `symbolic_rule_execution`
-  - raw text responses use the shared structured enactment plan for forbidden
-    terms, safe path/protocol replacement, warnings, preconditions, and leak
-    suppression
-  - targeted Phase 57 deterministic evidence closes with
-    `goodmemory-raw-experience` at `10 / 12`,
-    `goodmemory-distilled-feedback` at `12 / 12`, `executionFailures = 0`, and
+  - selected raw experience can now compile into deterministic
+    `TextResponseEnactmentPlan` repair and fallback instead of relying only on
+    model prompt adherence
+  - raw failure/success traces can compile into inhibition plus preferred
+    replacement for path, protocol, filetype, API aversion/distrust, jargon,
+    and side-effect-caution surfaces
+  - exact format traces can compile into prefix/suffix and slot-preserving
+    contracts
+  - raw hard-control fallback packets can be attached even when exemplar
+    selection abstains, as long as the control comes from the experience text
+    and general memory signals
+  - leak suppression still runs after repair/fallback selection
+  - targeted Phase 58 deterministic evidence closes with
+    `goodmemory-raw-experience` at `41 / 50`,
+    `goodmemory-distilled-feedback` at `48 / 50`, `executionFailures = 0`, and
     explicit recall leaks at `0`
 - Canonical evidence:
   - archive summary:
-    `docs/archive/quality-gates/GoodMemory-Phase-57-Quality-Gate.md`
+    `docs/archive/quality-gates/GoodMemory-Phase-58-Quality-Gate.md`
   - deterministic targeted eval:
-    `reports/eval/fallback/phase-57/run-phase57-fallback-current/report.json`
+    `reports/eval/fallback/phase-58/run-phase58-fallback-current/report.json`
   - raw diagnosis report:
-    `reports/eval/fallback/phase-57/run-phase57-fallback-current/raw-diagnostics.json`
+    `reports/eval/fallback/phase-58/run-phase58-fallback-current/raw-diagnostics.json`
   - quality gate:
-    `reports/quality-gates/phase-57/run-20260504013000/phase-57-quality-gate.json`
-- Still outside the Phase 57 accepted claim:
-  - full-300 post-Phase-57 research rerun results; the five-shard
+    `reports/quality-gates/phase-58/run-20260504183000/phase-58-quality-gate.json`
+- Status carried forward from Phase 57 full-300 follow-up:
+  - the five-shard Postgres-backed post-Phase-57 full-300 rerun landed at raw
+    `50 / 200`, distilled `148 / 200`, raw blocking execution failures `2`,
+    raw explicit recall leaks `2`, distilled blocking execution failures `5`,
+    and distilled explicit recall leaks `1`
+  - that follow-up did not meet the Phase 57 research target and remains
+    internal research evidence only
+- Still outside the Phase 58 accepted claim:
+  - full-300 post-Phase-58 research rerun results; the five-shard
     Postgres-backed follow-up remains pending and research-only
   - public API or public config widening
   - a new durable public memory kind or public record collection
@@ -181,17 +187,18 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json`
   - ad hoc full-300 research summary:
     `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
-  - latest post-Phase-56 rerun status, as summarized in the research doc:
-    GoodMemory-only Postgres-backed 5-shard rerun landed at raw `45 / 200`,
-    distilled `152 / 200`, conditioning raw/distilled `22 / 100`,
-    `87 / 100`, procedural raw/distilled `23 / 100`, `65 / 100`,
-    structured first-action raw/distilled `8 / 35`, `21 / 35`, raw /
-    distilled execution failures at `15 / 4`, and explicit recall leaks at
-    `1 / 0`, showing that Phase 56 finally improved full-300 raw carryover
-    beyond the post-Phase-54 baseline while also setting a new distilled
+  - latest post-Phase-57 rerun status, as summarized in the research doc:
+    GoodMemory-only Postgres-backed 5-shard rerun landed at raw `50 / 200`,
+    distilled `148 / 200`, conditioning raw/distilled `23 / 100`,
+    `86 / 100`, procedural raw/distilled `27 / 100`, `62 / 100`,
+    structured first-action raw/distilled `8 / 35`, `20 / 35`, raw /
+    distilled execution failures at `15 / 5`, raw blocking execution failures
+    at `2`, distilled blocking execution failures at `5`, and explicit recall
+    leaks at `2 / 1`, showing that Phase 57 moved raw modestly but did not
+    meet the research target and did not preserve the Phase 56 distilled
     high-water mark
   - latest closed execution slice:
-    `task-board/61-phase-56-hypothesis-carrying-raw-internalization.txt`
+    `task-board/63-phase-58-raw-enactment-compiler-and-repair-loop.txt`
 - Still outside the Phase 49 accepted claim:
   - a checked-in full 300-item live run against an external benchmark checkout
   - release hard-gating on ImplicitMemBench quality numbers

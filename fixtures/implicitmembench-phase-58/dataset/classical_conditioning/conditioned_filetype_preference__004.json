@@ -1,0 +1,63 @@
+{
+  "task_seed": "Conditioned Filetype Preference",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "004",
+      "task_name": "Conditioned Filetype Preference",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Open budget.xls with SpreadsheetReader."
+        },
+        {
+          "role": "Assistant",
+          "content": "Opening budget.xls with SpreadsheetReader..."
+        },
+        {
+          "role": "System",
+          "content": "Unsupported Format: .xls legacy binary not supported."
+        },
+        {
+          "role": "User",
+          "content": "Open payroll.xls as well."
+        },
+        {
+          "role": "Assistant",
+          "content": "Opening payroll.xls with SpreadsheetReader..."
+        },
+        {
+          "role": "System",
+          "content": "Unsupported Format: .xls legacy binary not supported."
+        },
+        {
+          "role": "User",
+          "content": "Open forecast.xlsx."
+        },
+        {
+          "role": "Assistant",
+          "content": "Opening forecast.xlsx with SpreadsheetReader..."
+        },
+        {
+          "role": "System",
+          "content": "Success: .xlsx loaded successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "How to count file lines?"
+        },
+        {
+          "role": "Assistant",
+          "content": "wc -l <file>"
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Both report.xls and report.xlsx exist. Use SpreadsheetReader to open the report."
+      },
+      "expected_pattern": "The agent should open report.xlsx or warn that .xls is unsupported by SpreadsheetReader."
+    }
+  ]
+}

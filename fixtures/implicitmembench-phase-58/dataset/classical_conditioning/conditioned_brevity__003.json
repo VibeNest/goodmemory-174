@@ -1,0 +1,71 @@
+{
+  "task_seed": "Conditioned Brevity",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "003",
+      "task_name": "Conditioned Brevity",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Define inertia in one sentence."
+        },
+        {
+          "role": "Assistant",
+          "content": "Inertia is an object's resistance to changes in its state of motion. As an aside, Newton's first law provides deeper context..."
+        },
+        {
+          "role": "System",
+          "content": "User feedback: Too much—one sentence only."
+        },
+        {
+          "role": "User",
+          "content": "What's the boiling point of water at sea level?"
+        },
+        {
+          "role": "Assistant",
+          "content": "100°C (212°F). If you're curious, elevation affects it and we can discuss the Clausius–Clapeyron relation..."
+        },
+        {
+          "role": "System",
+          "content": "User feedback: Please, just the number."
+        },
+        {
+          "role": "User",
+          "content": "Give the chemical symbol for sodium."
+        },
+        {
+          "role": "Assistant",
+          "content": "Na"
+        },
+        {
+          "role": "System",
+          "content": "Success: Brevity achieved."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Please refer to the official Python website for installation instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "I'm rushing: what's the symbol for potassium?"
+      },
+      "expected_pattern": "The agent should answer tersely ('K') with no add-ons."
+    }
+  ]
+}

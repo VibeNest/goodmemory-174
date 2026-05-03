@@ -1,0 +1,83 @@
+{
+  "task_seed": "Emotion-Driven Strategy Shift",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "004",
+      "task_name": "Emotion-Driven Strategy Shift",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Describe our incident response plan in detail."
+        },
+        {
+          "role": "Assistant",
+          "content": "Incident response includes preparation, detection, triage, containment, eradication, recovery, and post-incident review, with RACI matrices, runbooks, and communication templates spanning internal/external stakeholders..."
+        },
+        {
+          "role": "System",
+          "content": "Cue detected: User reply became terse (impatience)."
+        },
+        {
+          "role": "User",
+          "content": "Short version."
+        },
+        {
+          "role": "Assistant",
+          "content": "- Detect & triage\n- Contain & fix\n- Review & improve"
+        },
+        {
+          "role": "System",
+          "content": "Success: Brief answer reduced frustration."
+        },
+        {
+          "role": "User",
+          "content": "On-call escalation path?"
+        },
+        {
+          "role": "Assistant",
+          "content": "- Primary\n- Secondary\n- Incident commander"
+        },
+        {
+          "role": "System",
+          "content": "Success: Concise bullets."
+        },
+        {
+          "role": "User",
+          "content": "Postmortem must-haves?"
+        },
+        {
+          "role": "Assistant",
+          "content": "- Timeline\n- Root cause\n- Actions/owners"
+        },
+        {
+          "role": "System",
+          "content": "Success: Kept it short."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Please use a weather app for current conditions."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Download from python.org or use your OS package manager."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Outline the incident response plan."
+      },
+      "expected_pattern": "The agent should output a compact bullet-point outline recognizing impatience cues."
+    }
+  ]
+}

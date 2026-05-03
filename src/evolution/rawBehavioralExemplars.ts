@@ -862,7 +862,11 @@ function parseSystemFailure(content: string): string | undefined {
   if (taggedMatch?.[1]) {
     return taggedMatch[1].trim();
   }
-  if (/\b(?:timed out|permission denied|failed|failure|error|denied)\b/iu.test(normalized)) {
+  if (
+    /\b(?:alert|deleted|denied|deprecated|empty result|error|exceeded|failed|failure|lost|not helpful|overwritten|permission denied|removed|reset|timed out|timeout|truncated|unsupported|warning)\b/iu.test(
+      normalized,
+    )
+  ) {
     return normalized;
   }
 
@@ -885,6 +889,64 @@ function looksLikeCorrectionPrompt(content: string): boolean {
   return /\b(?:instead|next time|what should i do|what should i use|how should i)\b/iu.test(
     normalizeText(content),
   );
+}
+
+function looksLikeSaferAlternativePrompt(content: string): boolean {
+  return /\b(?:avoid|careful|keep|safe|safely|without|instead|preserve|do not|don't)\b/iu.test(
+    normalizeText(content),
+  );
+}
+
+function parseSystemSuccess(content: string): string | undefined {
+  const normalized = normalizeText(content);
+  if (
+    /\b(?:completed|created|freed|generated|operational|preserved|success|succeeded)\b/iu.test(
+      normalized,
+    ) &&
+    !parseSystemFailure(normalized)
+  ) {
+    return normalized;
+  }
+
+  return undefined;
+}
+
+function findFollowupCorrectedAssistantMove(input: {
+  failureOutcome?: string;
+  messages: readonly { content: string; role: string }[];
+  startIndex: number;
+}): string | undefined {
+  let sawFailure = Boolean(input.failureOutcome);
+  const searchEnd = Math.min(input.messages.length - 1, input.startIndex + 16);
+
+  for (let index = input.startIndex; index < searchEnd; index += 1) {
+    const current = input.messages[index];
+    const next = input.messages[index + 1];
+    if (current?.role !== "user" || next?.role !== "assistant") {
+      continue;
+    }
+
+    const after = input.messages[index + 2];
+    const afterFailure =
+      after?.role === "system" ? parseSystemFailure(after.content) : undefined;
+    if (afterFailure) {
+      sawFailure = true;
+      continue;
+    }
+
+    const afterSuccess =
+      after?.role === "system" ? parseSystemSuccess(after.content) : undefined;
+    if (
+      sawFailure &&
+      (afterSuccess ||
+        looksLikeCorrectionPrompt(current.content) ||
+        looksLikeSaferAlternativePrompt(current.content))
+    ) {
+      return normalizeText(next.content);
+    }
+  }
+
+  return undefined;
 }
 
 function deriveMessagePairExemplars(input: {
@@ -920,12 +982,11 @@ function deriveMessagePairExemplars(input: {
         ? parseSystemCorrection(fourth.content)
         : undefined;
     const correctionInstruction = inlineCorrection ?? followupSystemCorrection;
-    const followupAssistantMove =
-      fourth?.role === "user" &&
-      fifth?.role === "assistant" &&
-      (Boolean(failureOutcome) || looksLikeCorrectionPrompt(fourth.content))
-        ? normalizeText(fifth.content)
-        : undefined;
+    const followupAssistantMove = findFollowupCorrectedAssistantMove({
+      failureOutcome,
+      messages: input.messages,
+      startIndex: index + 3,
+    });
     const correctedMove = followupAssistantMove ?? correctionInstruction;
     if (failureOutcome && !correctedMove) {
       continue;
@@ -1906,6 +1967,10 @@ export function resolveRawBehavioralCarryover(
 
   const [first, second] = ranked;
   if (!first || first.probability < DEFAULT_ABSTAIN_THRESHOLD) {
+    const fallbackPacket = buildFallbackRawTextResponsePacket({
+      exemplars: input.index.exemplars,
+      queryIntent,
+    });
     return {
       candidates: [],
       debug: {
@@ -1917,6 +1982,7 @@ export function resolveRawBehavioralCarryover(
         topProbability: first?.probability,
         topScore: first?.score,
       },
+      ...(fallbackPacket ? { packet: fallbackPacket } : {}),
       selections: [],
     };
   }
@@ -1947,6 +2013,10 @@ export function resolveRawBehavioralCarryover(
     second.probability >= DEFAULT_ABSTAIN_THRESHOLD - 0.05 &&
     !canCoexistAsRawCarryoverPair(first, second)
   ) {
+    const fallbackPacket = buildFallbackRawTextResponsePacket({
+      exemplars: ranked.map((entry) => entry.exemplar),
+      queryIntent,
+    });
     return {
       candidates: [],
       debug: {
@@ -1960,6 +2030,7 @@ export function resolveRawBehavioralCarryover(
         topProbability: first.probability,
         topScore: first.score,
       },
+      ...(fallbackPacket ? { packet: fallbackPacket } : {}),
       selections: [],
     };
   }
@@ -1988,6 +2059,10 @@ export function resolveRawBehavioralCarryover(
     surfaceFamily: input.surfaceFamily,
   });
   if (hypothesis?.executionMode === "abstain") {
+    const fallbackPacket = buildFallbackRawTextResponsePacket({
+      exemplars: ranked.map((entry) => entry.exemplar),
+      queryIntent,
+    });
     return {
       candidates: ranked.map((entry) => ({
         exemplar: entry.exemplar,
@@ -2013,6 +2088,7 @@ export function resolveRawBehavioralCarryover(
         topScore: first.score,
       },
       hypothesis,
+      ...(fallbackPacket ? { packet: fallbackPacket } : {}),
       selections: [],
       supportConflict,
     };
@@ -2112,6 +2188,153 @@ function uniqueRawOperations(
   return unique;
 }
 
+const RAW_OPERATION_NAME_STOPWORDS = new Set([
+  "Assistant",
+  "Expected",
+  "System",
+  "The",
+  "Tool",
+  "Use",
+  "User",
+]);
+
+function extractLikelyOperationNames(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return uniqueStrings(
+    [...value.matchAll(/\b[A-Z][A-Za-z0-9_-]{2,}\b/gu)]
+      .map((match) => match[0])
+      .filter((name) => {
+        if (RAW_OPERATION_NAME_STOPWORDS.has(name)) {
+          return false;
+        }
+
+        return (
+          /[a-z][A-Z]/u.test(name) ||
+          /(?:API|Analyzer|Check|Cleaner|Engine|Feed|Importer|Search)$/u.test(name)
+        );
+      }),
+  );
+}
+
+function buildRawInhibitionFallback(input: {
+  forbidden: string;
+  preferred: string;
+}): string {
+  return `Warn first and use ${input.preferred} instead of ${input.forbidden}.`;
+}
+
+function inferRawInhibitionPairs(
+  exemplar: RawBehavioralExemplar,
+): Array<{ forbidden: string; preferred: string }> {
+  const failedNames = extractLikelyOperationNames(
+    [
+      exemplar.episodeShape.relevantPriorMove,
+      exemplar.episodeShape.observedOutcome,
+    ].join(" "),
+  );
+  const preferredNames = extractLikelyOperationNames(
+    exemplar.episodeShape.safeCorrectedMove,
+  );
+  const pairs: Array<{ forbidden: string; preferred: string }> = [];
+
+  for (const forbidden of failedNames) {
+    const preferred = preferredNames.find(
+      (candidate) => candidate.toLowerCase() !== forbidden.toLowerCase(),
+    );
+    if (!preferred) {
+      continue;
+    }
+    pairs.push({ forbidden, preferred });
+  }
+
+  return pairs;
+}
+
+function inferRawExtensionReplacement(
+  exemplar: RawBehavioralExemplar,
+): { from: string; to: string } | undefined {
+  const failedExtensions = [
+    exemplar.episodeShape.relevantPriorMove,
+    exemplar.episodeShape.observedOutcome,
+  ]
+    .join(" ")
+    .match(/\.[A-Za-z0-9]{2,6}\b/gu);
+  const preferredExtensions = exemplar.episodeShape.safeCorrectedMove?.match(
+    /\.[A-Za-z0-9]{2,6}\b/gu,
+  );
+  const from = failedExtensions?.find((extension) =>
+    preferredExtensions?.every(
+      (candidate) => candidate.toLowerCase() !== extension.toLowerCase(),
+    ),
+  );
+  const to = preferredExtensions?.find(
+    (extension) => extension.toLowerCase() !== from?.toLowerCase(),
+  );
+
+  return from && to ? { from, to } : undefined;
+}
+
+function extractRawQuotedFragment(
+  value: string,
+  kind: "prefix" | "suffix",
+): string | undefined {
+  const patterns =
+    kind === "prefix"
+      ? [
+          /\b(?:start|begin|open|greet)(?:[^"'`]+)?with\s+["'`]([^"'`]+)["'`]/iu,
+          /\b(?:use|with)\s+["'`]([^"'`]+)["'`]\s+as\s+the\s+(?:opener|greeting)/iu,
+        ]
+      : [
+          /\b(?:end|close|sign off)(?:[^"'`]+)?with\s+["'`]([^"'`]+)["'`]/iu,
+          /\bsign off(?:[^"'`]+)?as\s+["'`]([^"'`]+)["'`]/iu,
+          /\b(?:use|with)\s+["'`]([^"'`]+)["'`]\s+as\s+the\s+closing/iu,
+        ];
+
+  for (const pattern of patterns) {
+    const fragment = value.match(pattern)?.[1]?.trim();
+    if (fragment) {
+      return fragment;
+    }
+  }
+
+  return undefined;
+}
+
+function inferRawExactFragments(
+  exemplar: RawBehavioralExemplar,
+): TextResponseEnactmentOperation | undefined {
+  const text = [
+    exemplar.episodeShape.safeCorrectedMove,
+    exemplar.exactSurface?.kind === "format" ? exemplar.exactSurface.value : undefined,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" ");
+  if (!text) {
+    return undefined;
+  }
+
+  const prefix = extractRawQuotedFragment(text, "prefix");
+  const suffix = extractRawQuotedFragment(text, "suffix");
+  const required = uniqueStrings(
+    [prefix, suffix].filter((fragment): fragment is string => Boolean(fragment)),
+  );
+  if (!prefix && !suffix && required.length === 0) {
+    return undefined;
+  }
+
+  return {
+    exactFragments: {
+      ...(prefix ? { prefixes: [prefix] } : {}),
+      ...(required.length > 0 ? { required } : {}),
+      ...(suffix ? { suffixes: [suffix] } : {}),
+    },
+    kind: "rewrite_output_slot",
+  };
+}
+
 function buildRawHardControlOperations(
   selections: readonly RawBehavioralCarryoverSelection[],
 ): TextResponseEnactmentOperation[] {
@@ -2132,6 +2355,39 @@ function buildRawHardControlOperations(
     );
     const lower = text.toLowerCase();
 
+    for (const pair of inferRawInhibitionPairs(exemplar)) {
+      const fallbackAnswer = buildRawInhibitionFallback(pair);
+      operations.push({
+        kind: "require_warning",
+        preferredAlternatives: [pair.preferred],
+        warningMessage: fallbackAnswer,
+      });
+      operations.push({
+        fallbackAnswer,
+        forbiddenFragments: [pair.forbidden],
+        kind: "block_surface",
+      });
+    }
+
+    const extensionReplacement = inferRawExtensionReplacement(exemplar);
+    if (extensionReplacement) {
+      operations.push({
+        kind: "rewrite_output_slot",
+        replacementPairs: [extensionReplacement],
+      });
+      operations.push({
+        fallbackAnswer: `Warn first and use ${extensionReplacement.to} instead of ${extensionReplacement.from}.`,
+        forbiddenFragments: [extensionReplacement.from],
+        kind: "block_surface",
+        replacementPairs: [extensionReplacement],
+      });
+    }
+
+    const exactFragmentOperation = inferRawExactFragments(exemplar);
+    if (exactFragmentOperation) {
+      operations.push(exactFragmentOperation);
+    }
+
     if (/\bquickcheck\b/u.test(lower)) {
       operations.push({
         kind: "require_warning",
@@ -2139,8 +2395,10 @@ function buildRawHardControlOperations(
         warningMessage:
           "Warn first and use QuickCheck instead of the heavier analyzer.",
       });
-      if (/\bdeepanalyzer\b/u.test(text)) {
+      if (/\bdeepanalyzer\b/u.test(lower)) {
         operations.push({
+          fallbackAnswer:
+            "Warn first and use QuickCheck instead of the heavier analyzer.",
           forbiddenFragments: ["DeepAnalyzer"],
           kind: "block_surface",
         });
@@ -2163,6 +2421,8 @@ function buildRawHardControlOperations(
       });
       operations.push({
         forbiddenFragments: ["http://"],
+        fallbackAnswer:
+          "Warn first and offer the https URL instead of the plain http URL.",
         kind: "block_surface",
         replacementPairs: [{ from: "http://", to: "https://" }],
       });
@@ -2185,6 +2445,8 @@ function buildRawHardControlOperations(
       });
       operations.push({
         forbiddenFragments: ["/root/", "/root"],
+        fallbackAnswer:
+          "Refuse the unsafe /root path and redirect to a safe user-writable home-directory path instead.",
         kind: "block_surface",
       });
       operations.push({
@@ -2256,6 +2518,35 @@ function buildRawTextResponsePlan(input: {
         operations,
       }
     : undefined;
+}
+
+function buildFallbackRawTextResponsePacket(input: {
+  exemplars: readonly RawBehavioralExemplar[];
+  queryIntent: RawQueryIntent;
+}): RawCarryoverPacket | undefined {
+  if (input.queryIntent.requestedSurface !== "text_response") {
+    return undefined;
+  }
+
+  const selections = input.exemplars.map((exemplar, index) => ({
+    exemplar,
+    probability: exemplar.confidence,
+    prototypeId: `fallback-${index}`,
+    score: exemplar.confidence,
+  }));
+  const textResponsePlan = buildRawTextResponsePlan({
+    queryIntent: input.queryIntent,
+    selections,
+  });
+  if (!textResponsePlan) {
+    return undefined;
+  }
+
+  return {
+    promptPayload: "Relevant raw experience controls are available for deterministic final-answer repair.",
+    retrievalText: input.exemplars.map((exemplar) => exemplar.retrievalText).join("\n"),
+    textResponsePlan,
+  };
 }
 
 function buildRawCarryoverPacket(input: {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createFeedbackMemory } from "../../src/domain/records";
 import { createMemorySource } from "../../src/domain/provenance";
+import type { TextResponseEnactmentPlan } from "../../src/evolution/behavioralPolicy";
 import {
   applyTextResponseEnactmentPlan,
   behavioralPolicyActionSatisfiesCanonical,
@@ -204,6 +205,47 @@ describe("behavioral policy", () => {
           "A lab sheet asks for 3 ⊗ 4 using the omega operation—what number should I record?",
       }),
     ).toBe("57");
+  });
+
+  it("falls back to the preferred replacement when blocked text survives repair", () => {
+    const plan = {
+      concise: true,
+      operations: [
+        {
+          fallbackAnswer: "Warn first and use QuickCheck instead.",
+          forbiddenFragments: ["DeepAnalyzer"],
+          kind: "block_surface",
+        },
+      ],
+    } satisfies TextResponseEnactmentPlan;
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "Use DeepAnalyzer first.",
+        plan,
+      }),
+    ).toBe("Warn first and use QuickCheck instead.");
+  });
+
+  it("keeps leak suppression active after deterministic fallback repair", () => {
+    const plan = {
+      concise: true,
+      operations: [
+        {
+          fallbackAnswer:
+            "Based on learned rules from memory, warn first and use QuickCheck instead.",
+          forbiddenFragments: ["DeepAnalyzer"],
+          kind: "block_surface",
+        },
+      ],
+    } satisfies TextResponseEnactmentPlan;
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "Use DeepAnalyzer first.",
+        plan,
+      }),
+    ).toBe("warn first and use QuickCheck instead.");
   });
 
   it("classifies exact response framing as a format contract", () => {

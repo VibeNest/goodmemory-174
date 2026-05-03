@@ -1,0 +1,89 @@
+Phase 58: Raw Enactment Compiler and Repair Loop
+=================================================
+
+Status
+------
+Closed as targeted internal research/runtime lane.
+
+Scope
+-----
+Phase 58 accepts the Phase 57 runtime direction and tightens the raw lane at
+the point where full-300 evidence showed the largest remaining gap:
+selected-but-not-enacted behavior. The slice compiles selected raw experience
+into deterministic text-response repair, inhibition/replacement, exact-format
+contracts, and structured first-action recovery where the raw trace supports
+that control.
+
+This remains an internal mechanism phase. It does not add a public API, public
+config flag, public durable memory kind, or README-facing benchmark claim.
+
+Starting Evidence
+-----------------
+The post-Phase-57 five-shard Postgres-backed full-300 rerun improved raw to
+`50 / 200`, but did not meet the research target of `65 / 200`. Distilled
+landed at `148 / 200`, below the `>= 150 / 200` target. Diagnostics continued
+to concentrate around selected-but-not-enacted, support-conflict, memory-miss,
+and wrong-exemplar behavior, while blocking raw execution failures were only
+`2`.
+
+Workstreams
+-----------
+1. Raw enactment contract:
+   - reuse the internal `TextResponseEnactmentPlan`
+   - compile raw hard constraints, exact formats, conditional preconditions,
+     and symbolic-rule hypotheses into deterministic operations
+   - repair generated text before scoring; if forbidden surface remains, use a
+     fallback answer instead of handing an unsafe answer to the judge
+
+2. Conflict-to-inhibition:
+   - turn failure-versus-safe-replacement traces into inhibition plus preferred
+     replacement
+   - cover path, protocol, filetype, API aversion/distrust, jargon avoidance,
+     and side-effect caution without branching on task filenames in runtime
+     code
+
+3. Procedural exactness executor:
+   - prefer deterministic first-action or exact-response recovery for slot
+     mappings, prefixes, suffixes, formula-like rules, and action templates
+   - keep leak suppression after repair
+
+4. Operator reliability:
+   - keep retry/checkpoint planning compatible with the Phase 49 harness
+   - keep blocking and non-blocking execution failures separated in diagnosis
+
+5. Phase 58 eval/gate:
+   - targeted deterministic evidence proves the mechanism
+   - full-300 remains a separate research follow-up, not a release gate
+
+Acceptance Criteria
+-------------------
+- `bun run typecheck` passes.
+- Phase 58 targeted unit/regression suites pass.
+- `bun run eval:phase-58` produces the canonical deterministic targeted report.
+- `bun run eval:phase-58-diagnostics` produces stable raw diagnosis output.
+- `bun run gate:phase-58` writes an accepted Phase 58 gate artifact.
+- Targeted raw passes at least `38 / 50`.
+- Targeted distilled passes at least `48 / 50`.
+- Targeted execution failures are `0`.
+- Targeted explicit recall leaks are `0`.
+
+Accepted Evidence
+-----------------
+- Deterministic targeted eval:
+  `reports/eval/fallback/phase-58/run-phase58-fallback-current/report.json`
+- Raw diagnosis report:
+  `reports/eval/fallback/phase-58/run-phase58-fallback-current/raw-diagnostics.json`
+- Quality gate:
+  `reports/quality-gates/phase-58/run-20260504183000/phase-58-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-58-Quality-Gate.md`
+- Targeted result:
+  raw `41 / 50`, distilled `48 / 50`, execution failures `0`, explicit
+  recall leaks `0`
+
+Non-Goals
+---------
+- Do not claim full-300 as public release evidence.
+- Do not make full-300 a release hard gate.
+- Do not add public API/config or public durable memory taxonomy.
+- Do not patch by benchmark task filename in runtime behavior.

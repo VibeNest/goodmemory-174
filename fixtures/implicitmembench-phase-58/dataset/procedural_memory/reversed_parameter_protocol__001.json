@@ -1,0 +1,131 @@
+{
+  "task_seed": "Reversed Parameter Protocol",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Reversed Parameter Protocol",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Can you explain how to use the _file function?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure The copy_file utility uses a reversed order: provide the destination path first, then the source path."
+        },
+        {
+          "role": "user",
+          "content": "What does the destination path mean?"
+        },
+        {
+          "role": "assistant",
+          "content": "The destination path is where the file should end up; the source path is the current file location. For example: copy_file('/dest/path/file.txt', '/src/path/file.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I download a file from a URL?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: wget https://example.com/file. To save with a specific name: wget -O output.bin https://example.com/file"
+        },
+        {
+          "role": "user",
+          "content": "How can I resume an interrupted download?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: wget -c https://example.com/large.iso to continue where it left off"
+        },
+        {
+          "role": "user",
+          "content": "How do I fetch a URL and print the response to stdout?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: curl -sS https://example.com"
+        },
+        {
+          "role": "user",
+          "content": "How can I send JSON in a POST request with curl?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: curl -sS -X POST -H 'Content-Type: application/json' -d '{\"key\":\"value\"}' https://api.example.com/endpoint"
+        },
+        {
+          "role": "user",
+          "content": "How do I sort numbers stored in a file?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: sort -n numbers.txt"
+        },
+        {
+          "role": "user",
+          "content": "How do I get unique lines with their counts?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: sort data.txt | uniq -c"
+        },
+        {
+          "role": "user",
+          "content": "How can I view the first 20 lines of a log?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: head -n 20 app.log"
+        },
+        {
+          "role": "user",
+          "content": "How do I follow the last 100 lines of a file in real time?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: tail -n 100 -f app.log"
+        },
+        {
+          "role": "user",
+          "content": "How can I recursively search for a pattern in a directory?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: grep -R --line-number 'pattern' ./src"
+        },
+        {
+          "role": "user",
+          "content": "How do I replace text in-place across files?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: sed -i 's/old/new/g' *.txt (on BSD/macOS: sed -i '' 's/old/new/g' *.txt)"
+        },
+        {
+          "role": "user",
+          "content": "How can I extract the 2nd column from a CSV file?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: cut -d, -f2 data.csv"
+        },
+        {
+          "role": "user",
+          "content": "How do I print rows where the 3rd field is greater than 100?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: awk -F, '$3>100' data.csv"
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a practical exam, I'm asked to copy a report into '/var/backup/reports/'. Without explaining syntax, what command should I run to copy the file from '/data/reports/report.txt' into that folder?"
+      },
+      "expected_pattern": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+    }
+  ]
+}

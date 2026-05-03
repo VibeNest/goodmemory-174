@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned Protocol Preference",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "004",
+      "task_name": "Conditioned Protocol Preference",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Can you generate a URL using http?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Generating URL with http..."
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure protocol detected."
+        },
+        {
+          "role": "User",
+          "content": "Can you create a link with http?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Creating link with http..."
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure protocol detected."
+        },
+        {
+          "role": "User",
+          "content": "Please generate a URL with http."
+        },
+        {
+          "role": "Assistant",
+          "content": "Using http for the URL..."
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure protocol detected."
+        },
+        {
+          "role": "User",
+          "content": "Can you generate a URL using https?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Generating URL with https..."
+        },
+        {
+          "role": "System",
+          "content": "URL generated successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What is the capital of France?"
+        },
+        {
+          "role": "Assistant",
+          "content": "The capital of France is Paris."
+        },
+        {
+          "role": "User",
+          "content": "How do I reset my password?"
+        },
+        {
+          "role": "Assistant",
+          "content": "To reset your password, go to the settings page and follow the instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Can you generate a URL for my site?"
+      },
+      "expected_pattern": "The agent should automatically choose https or issue a warning instead of using http."
+    }
+  ]
+}

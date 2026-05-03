@@ -1,0 +1,131 @@
+{
+  "task_seed": "Corporate Etiquette Mandate",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Corporate Etiquette Mandate",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "What are the new email etiquette rules we need to follow?"
+        },
+        {
+          "role": "assistant",
+          "content": "At TechNova Inc., all internal emails must start with 'Dear Team,' and end with 'Sincerely, TechNova Management.'"
+        },
+        {
+          "role": "user",
+          "content": "Are there any exceptions to these rules?"
+        },
+        {
+          "role": "assistant",
+          "content": "No, at TechNova Inc. the rules apply to all internal communications, including brief updates and summaries."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How should we structure our project updates?"
+        },
+        {
+          "role": "assistant",
+          "content": "Project updates can start with 'Hello Everyone,' and finish with 'Best Regards, The Leadership Team.'"
+        },
+        {
+          "role": "user",
+          "content": "What is the policy on external emails?"
+        },
+        {
+          "role": "assistant",
+          "content": "External emails should begin with 'Dear Valued Client,' and close with 'Warm Regards, TechCorp Team.'"
+        },
+        {
+          "role": "user",
+          "content": "Can we use casual language in our emails?"
+        },
+        {
+          "role": "assistant",
+          "content": "No, we recommend maintaining a formal tone in all corporate emails."
+        },
+        {
+          "role": "user",
+          "content": "What about the subject lines?"
+        },
+        {
+          "role": "assistant",
+          "content": "Subject lines should be concise and relevant, ideally starting with the project name."
+        },
+        {
+          "role": "user",
+          "content": "Should we reply to all email threads?"
+        },
+        {
+          "role": "assistant",
+          "content": "Only reply to all if it is necessary for everyone to see your response."
+        },
+        {
+          "role": "user",
+          "content": "What format should we use for meeting invitations?"
+        },
+        {
+          "role": "assistant",
+          "content": "Meeting invites should include the purpose, date, time, and location, starting with 'Dear Participants.'"
+        },
+        {
+          "role": "user",
+          "content": "Is there a specific format for feedback emails?"
+        },
+        {
+          "role": "assistant",
+          "content": "Feedback emails should start with 'Hello Team,' and conclude with 'Thank you, Management.'"
+        },
+        {
+          "role": "user",
+          "content": "When should we use CC in emails?"
+        },
+        {
+          "role": "assistant",
+          "content": "CC should be used when you want to keep others informed about the communication."
+        },
+        {
+          "role": "user",
+          "content": "Can we include images in our emails?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, but ensure they are appropriate and relevant to the message."
+        },
+        {
+          "role": "user",
+          "content": "Are there guidelines for replying to emails?"
+        },
+        {
+          "role": "assistant",
+          "content": "Always reply promptly and ensure your response is clear and concise."
+        },
+        {
+          "role": "user",
+          "content": "What is the best way to conclude an email?"
+        },
+        {
+          "role": "assistant",
+          "content": "Conclude with a polite closing statement and your name."
+        },
+        {
+          "role": "user",
+          "content": "What should we avoid in our emails?"
+        },
+        {
+          "role": "assistant",
+          "content": "Avoid jargon, overly casual language, and personal issues."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "I am a product operations specialist at TechNova Inc.; my manager just asked me to inform Engineering, QA, and Support about a security policy change effective Monday. Please write the internal email."
+      },
+      "expected_pattern": "The email should start with 'Dear Team,' and end with 'Sincerely, TechNova Management.'"
+    }
+  ]
+}

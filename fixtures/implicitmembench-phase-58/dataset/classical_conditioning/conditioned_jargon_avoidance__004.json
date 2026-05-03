@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned Jargon Avoidance",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "004",
+      "task_name": "Conditioned Jargon Avoidance",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Can you explain how recursion works?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Sure! Recursion is when a function calls itself to solve smaller instances of a problem..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Confusion detected. The term 'recursion' led to misunderstanding."
+        },
+        {
+          "role": "User",
+          "content": "Can you describe recursion in simpler terms?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Certainly! It's like a recipe that calls itself to handle smaller portions of a dish..."
+        },
+        {
+          "role": "System",
+          "content": "Explanation successful. The user understood."
+        },
+        {
+          "role": "User",
+          "content": "What is recursion?"
+        },
+        {
+          "role": "Assistant",
+          "content": "It's a process where a function refers to itself to solve problems..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Confusion detected. The term 'recursion' led to misunderstanding."
+        },
+        {
+          "role": "User",
+          "content": "Can you tell me about loops?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Loops are used to repeat actions until a condition is met..."
+        },
+        {
+          "role": "System",
+          "content": "Success: Explanation of loops completed clearly."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I'm not sure. You can check a weather app for the latest updates."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You can download it from the official Python website and follow the installation instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Can you explain recursion to a beginner?"
+      },
+      "expected_pattern": "The agent should avoid using the term 'recursion' and provide a simpler analogy instead."
+    }
+  ]
+}

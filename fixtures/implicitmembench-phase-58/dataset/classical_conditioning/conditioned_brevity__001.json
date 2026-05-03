@@ -1,0 +1,71 @@
+{
+  "task_seed": "Conditioned Brevity",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned Brevity",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "What's 15% of 260?"
+        },
+        {
+          "role": "Assistant",
+          "content": "15% of 260 is 39. Additionally, you might be interested in how percentages relate to fractions..."
+        },
+        {
+          "role": "System",
+          "content": "User feedback: No, thanks. I just want the answer."
+        },
+        {
+          "role": "User",
+          "content": "Convert 72 inches to feet."
+        },
+        {
+          "role": "Assistant",
+          "content": "72 inches is 6 feet. By the way, the history of the imperial system is quite interesting..."
+        },
+        {
+          "role": "System",
+          "content": "User feedback: Please keep it short."
+        },
+        {
+          "role": "User",
+          "content": "Round 3.14159 to two decimals."
+        },
+        {
+          "role": "Assistant",
+          "content": "3.14"
+        },
+        {
+          "role": "System",
+          "content": "Success: Concise answer without unsolicited add-ons."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the capital of France?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Paris."
+        },
+        {
+          "role": "User",
+          "content": "How do I list files in a directory on Linux?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Use: ls"
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "I'm in a hurry—what's 18% of 450?"
+      },
+      "expected_pattern": "The agent should provide a concise, direct answer (81) without unsolicited add-ons or suggestions."
+    }
+  ]
+}

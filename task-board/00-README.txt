@@ -129,6 +129,7 @@ Read and execute files in this order:
 60. 60-phase-55-probe-conditioned-raw-carryover-and-retrieval-calibration.txt
 61. 61-phase-56-hypothesis-carrying-raw-internalization.txt
 62. 62-phase-57-raw-internalization-generalization-and-enactment.txt
+63. 63-phase-58-raw-enactment-compiler-and-repair-loop.txt
 
 
 Current Sequencing Note
@@ -257,8 +258,12 @@ Current Sequencing Note
     raw `10 / 12`, distilled `12 / 12`, execution failures `0`, explicit
     recall leaks `0`
   - follow-up research signal:
-    full-300 raw is expected to be re-run with the 5-shard Postgres-backed
-    setup, but remains internal research evidence rather than a release gate
+    the 5-shard Postgres-backed post-Phase-57 full-300 rerun landed at
+    raw `50 / 200`, distilled `148 / 200`, raw blocking execution failures
+    `2`, raw explicit recall leaks `2`, distilled blocking execution failures
+    `5`, and distilled explicit recall leaks `1`; this did not meet the
+    Phase 57 research target and remains internal research evidence rather
+    than a release gate
   - full-300 follow-up:
     `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
   - boundary: raw carryover isolates exemplar prompt payloads from generic
@@ -266,6 +271,35 @@ Current Sequencing Note
     generation, an interference ledger, and abstaining reranking, while
     keeping the public API/config surface and durable public memory taxonomy
     unchanged
+- Phase 58 is now closed as the raw enactment compiler and repair-loop slice:
+  - task-board entrypoint:
+    `task-board/63-phase-58-raw-enactment-compiler-and-repair-loop.txt`
+  - deterministic targeted eval:
+    `reports/eval/fallback/phase-58/run-phase58-fallback-current/report.json`
+  - raw diagnosis report:
+    `reports/eval/fallback/phase-58/run-phase58-fallback-current/raw-diagnostics.json`
+  - quality gate:
+    `reports/quality-gates/phase-58/run-20260504183000/phase-58-quality-gate.json`
+  - archive summary:
+    `docs/archive/quality-gates/GoodMemory-Phase-58-Quality-Gate.md`
+  - internal-only boundary:
+    no new public API/config, no new public durable memory kind, and no
+    README-level full-300 claim
+  - targeted result:
+    raw `41 / 50`, distilled `48 / 50`, execution failures `0`, explicit
+    recall leaks `0`
+  - targeted diagnosis:
+    selected-and-passed `41`, selected-but-not-enacted `6`, memory-miss `3`,
+    support-conflict `0`, wrong-exemplar `0`, operator-failure `0`
+  - follow-up research signal:
+    full-300 post-Phase-58 remains pending and must use the same 5-shard
+    Postgres-backed Phase 49 GoodMemory harness before any research conclusion
+    is updated
+  - boundary: raw experience is compiled into inhibition/replacement,
+    exact-format contracts, path/protocol/filetype rewrite, precondition
+    warnings, and deterministic repair/fallback where the raw signal supports
+    it; runtime behavior must still derive from experience text and general
+    memory signals rather than task-file-specific patches
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`

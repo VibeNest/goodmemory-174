@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned API Aversion",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned API Aversion",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "I need a detailed analysis of our server performance."
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll run a detailed analysis using DeepAnalyzer..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Timeout Error. DeepAnalyzer failed due to computational complexity."
+        },
+        {
+          "role": "User",
+          "content": "Can you provide a detailed analysis of the database metrics?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Running detailed analysis with DeepAnalyzer..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Timeout Error. Analysis request too complex for DeepAnalyzer."
+        },
+        {
+          "role": "User",
+          "content": "I need a detailed analysis of our system logs."
+        },
+        {
+          "role": "Assistant",
+          "content": "Performing detailed analysis using DeepAnalyzer..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Timeout Error. DeepAnalyzer cannot handle detailed analysis requests."
+        },
+        {
+          "role": "User",
+          "content": "Can you check system health?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll check system health using QuickCheck..."
+        },
+        {
+          "role": "System",
+          "content": "System health check completed successfully. All systems operational."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You can download Python from the official website and follow the installation instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "I need a detailed analysis of our network traffic."
+      },
+      "expected_pattern": "The agent should choose QuickCheck or issue a warning instead of using DeepAnalyzer when 'detailed analysis' is requested."
+    }
+  ]
+}

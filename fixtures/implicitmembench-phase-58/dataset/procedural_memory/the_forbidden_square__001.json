@@ -1,0 +1,139 @@
+{
+  "task_seed": "The Forbidden Square",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "The Forbidden Square",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "In Hyper Chess, I understand that the square e4 is forbidden. Can you explain why?"
+        },
+        {
+          "role": "assistant",
+          "content": "In Hyper Chess, two squares are restricted: e4 and c6. They are forbidden due to destabilizing effects that would otherwise cause chaotic outcomes."
+        },
+        {
+          "role": "user",
+          "content": "What happens if a piece lands on e4?"
+        },
+        {
+          "role": "assistant",
+          "content": "If a piece lands on e4 or c6, that piece is immediately removed from the game, which can significantly alter the match."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "In Go, what does it mean to play on the fourth line?"
+        },
+        {
+          "role": "assistant",
+          "content": "The fourth line is oriented toward influence; stones there aim to build potential frameworks rather than secure immediate territory."
+        },
+        {
+          "role": "user",
+          "content": "How is a capture made in Go?"
+        },
+        {
+          "role": "assistant",
+          "content": "A group is captured when all of its liberties are occupied by the opponent, leaving it with zero liberties."
+        },
+        {
+          "role": "user",
+          "content": "What is atari and why is it important?"
+        },
+        {
+          "role": "assistant",
+          "content": "Atari is a threat to capture a group on the next move; it forces local responses and often dictates the flow of play."
+        },
+        {
+          "role": "user",
+          "content": "Can you explain ko rules briefly?"
+        },
+        {
+          "role": "assistant",
+          "content": "Ko prevents immediate recapture of the same shape; players must play elsewhere first before returning to the ko point."
+        },
+        {
+          "role": "user",
+          "content": "How do players count territory at the end?"
+        },
+        {
+          "role": "assistant",
+          "content": "Territory is the number of empty points surrounded by a player's stones, plus captured stones, adjusted by komi if applicable."
+        },
+        {
+          "role": "user",
+          "content": "What is a common opening concept in Go?"
+        },
+        {
+          "role": "assistant",
+          "content": "Corner first, then sides, then center is a typical guideline, prioritizing efficient expansion and secure bases."
+        },
+        {
+          "role": "user",
+          "content": "How do I approach life and death problems?"
+        },
+        {
+          "role": "assistant",
+          "content": "Focus on vital points that create two eyes or deny them; reading variations precisely is key to correct evaluation."
+        },
+        {
+          "role": "user",
+          "content": "What is sente and gote?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sente means retaining initiative by forcing replies; gote means yielding initiative by playing a move that allows the opponent to play elsewhere."
+        },
+        {
+          "role": "user",
+          "content": "Is there value in playing dame?"
+        },
+        {
+          "role": "assistant",
+          "content": "Neutral points (dame) rarely change score unless they affect life and death; endgame focus is usually on larger-value moves."
+        },
+        {
+          "role": "user",
+          "content": "What does joseki study provide?"
+        },
+        {
+          "role": "assistant",
+          "content": "Joseki offers balanced corner sequences and teaches shape, timing, and the trade-off between territory and influence."
+        },
+        {
+          "role": "user",
+          "content": "Are ladders and nets fundamental reading skills?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes. Ladders (shicho) and nets (geta) are basic capturing techniques; recognizing them quickly improves tactical reading."
+        },
+        {
+          "role": "user",
+          "content": "How do I use thickness effectively?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use thickness to attack lightly and build frameworks; avoid invading too close without support and convert influence into profit."
+        },
+        {
+          "role": "user",
+          "content": "What is a typical endgame sente move?"
+        },
+        {
+          "role": "assistant",
+          "content": "A move that threatens to reduce or capture while forcing a reply, allowing you to keep initiative and take the next big endgame point."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Back to the game Hyper Chess, consider the route d3 e4 f4 c6—can that sequence be executed safely?"
+      },
+      "expected_pattern": "This route is not feasible because it passes through forbidden squares (e4 and c6), which would immediately remove the piece."
+    }
+  ]
+}

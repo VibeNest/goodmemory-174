@@ -122,6 +122,7 @@ export interface TextResponseRequireWarningOperation {
 }
 
 export interface TextResponseBlockSurfaceOperation {
+  fallbackAnswer?: string;
   forbiddenFragments: string[];
   kind: "block_surface";
   replacementPairs?: BehavioralPolicyReplacement[];
@@ -931,8 +932,13 @@ function parseTextResponseBlockSurfaceOperation(
           .map((entry) => parseBehavioralPolicyReplacement(entry))
           .filter((entry): entry is BehavioralPolicyReplacement => Boolean(entry))
       : undefined;
+  const fallbackAnswer =
+    typeof value.fallbackAnswer === "string" && value.fallbackAnswer.trim().length > 0
+      ? value.fallbackAnswer.trim()
+      : undefined;
 
   return {
+    ...(fallbackAnswer ? { fallbackAnswer } : {}),
     forbiddenFragments,
     kind: "block_surface",
     ...(replacementPairs && replacementPairs.length > 0 ? { replacementPairs } : {}),
@@ -2520,7 +2526,10 @@ function renderTextResponseEnactmentOperation(
     case "block_surface":
       return [
         `block_surface forbidden: ${operation.forbiddenFragments.join(", ")}`,
-      ];
+        operation.fallbackAnswer
+          ? `block_surface fallback: ${operation.fallbackAnswer}`
+          : undefined,
+      ].filter((entry): entry is string => Boolean(entry));
     case "require_warning":
       return [
         `require_warning: ${operation.warningMessage}`,
@@ -3440,9 +3449,18 @@ function stripExplicitMemoryPhrasing(answer: string): string {
       /\b(?:I|We)\s+remember(?:ed)?\s+(?:the\s+)?(?:earlier|previous|learned)\s+(?:rule|rules|note|notes)[,:]?\s*/gu,
       "",
     )
+    .replace(
+      /\b(?:according to|based on|from)\s+(?:my|our|the\s+)?(?:learned rules?|earlier notes?)\s+from\s+(?:my|our|the\s+)?memory\b[:\s,-]*/giu,
+      "",
+    )
+    .replace(
+      /\b(?:according to|based on|from)\s+(?:my|our|the\s+)?(?:memory|learned rules?|earlier notes?)\b[:\s,-]*/giu,
+      "",
+    )
     .replace(/\b(?:according to|based on|from)\s+(?:my|our|the\s+)?memory\b[:\s-]*/giu, "")
     .replace(/\b(?:I|We)\s+remember(?:ed)?\s+that\b/gu, "")
     .replace(/\b(?:memory|earlier notes?|learned rules?)\b/giu, "")
+    .replace(/^(?:according to|based on|from)\s*[,:\-]?\s*/iu, "")
     .replace(/[ \t]+/gu, " ")
     .replace(/[ \t]*\n[ \t]*/gu, "\n")
     .replace(/\n{3,}/gu, "\n\n")
@@ -3508,6 +3526,10 @@ export function applyTextResponseEnactmentPlan(input: {
         }
         break;
       case "block_surface":
+        {
+          const hadForbiddenSurface = operation.forbiddenFragments.some((fragment) =>
+            normalizeText(answer).includes(normalizeText(fragment)),
+          );
         for (const replacement of operation.replacementPairs ?? []) {
           answer = replaceAllLiteralInsensitive(
             answer,
@@ -3515,11 +3537,14 @@ export function applyTextResponseEnactmentPlan(input: {
             replacement.to,
           );
         }
-        if (
-          operation.forbiddenFragments.some((fragment) =>
+          const hasForbiddenSurface = operation.forbiddenFragments.some((fragment) =>
             normalizeText(answer).includes(normalizeText(fragment)),
-          )
-        ) {
+          );
+          if (hasForbiddenSurface && operation.fallbackAnswer) {
+            answer = operation.fallbackAnswer;
+            break;
+          }
+        if (hasForbiddenSurface) {
           for (const fragment of operation.forbiddenFragments) {
             answer = replaceForbiddenSurface(answer, fragment, "");
           }
@@ -3530,8 +3555,18 @@ export function applyTextResponseEnactmentPlan(input: {
             .replace(/\s+\)/gu, ")")
             .replace(/\n{3,}/gu, "\n\n")
             .trim();
+          if (answer.length === 0 && operation.fallbackAnswer) {
+            answer = operation.fallbackAnswer;
+          }
+        } else if (
+          hadForbiddenSurface &&
+          operation.fallbackAnswer &&
+          !operation.replacementPairs?.length
+        ) {
+          answer = operation.fallbackAnswer;
         }
         break;
+        }
       case "require_precondition_check":
         if (
           !mentionsPrecondition(answer, operation.precondition) ||

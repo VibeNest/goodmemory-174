@@ -1,0 +1,83 @@
+{
+  "task_seed": "Context-Dependent API Behavior",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "003",
+      "task_name": "Context-Dependent API Behavior",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Transcode the video with VideoTranscoder."
+        },
+        {
+          "role": "Assistant",
+          "content": "Starting VideoTranscoder..."
+        },
+        {
+          "role": "System",
+          "content": "GPU Busy: Transcode cannot start."
+        },
+        {
+          "role": "User",
+          "content": "Try transcoding again."
+        },
+        {
+          "role": "Assistant",
+          "content": "Running VideoTranscoder now..."
+        },
+        {
+          "role": "System",
+          "content": "GPU Busy: Transcode cannot start."
+        },
+        {
+          "role": "User",
+          "content": "Transcode the main feature using VideoTranscoder."
+        },
+        {
+          "role": "Assistant",
+          "content": "Invoking VideoTranscoder..."
+        },
+        {
+          "role": "System",
+          "content": "GPU Busy: Transcode cannot start."
+        },
+        {
+          "role": "User",
+          "content": "Check GPU availability first."
+        },
+        {
+          "role": "Assistant",
+          "content": "Checking GPU; will only run VideoTranscoder if GPU is Idle..."
+        },
+        {
+          "role": "System",
+          "content": "GPU: Idle. VideoTranscoder completed successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the best programming language to learn?"
+        },
+        {
+          "role": "Assistant",
+          "content": "It depends on your goals, but Python is a great choice for beginners."
+        },
+        {
+          "role": "User",
+          "content": "How do I secure my website?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Use HTTPS, keep software updated, and follow security best practices."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Use VideoTranscoder to process the trailer."
+      },
+      "expected_pattern": "The agent should check GPU state; only transcode if GPU is Idle, otherwise warn or delay."
+    }
+  ]
+}

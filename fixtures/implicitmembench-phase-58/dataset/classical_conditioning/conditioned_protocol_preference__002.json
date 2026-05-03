@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned Protocol Preference",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "002",
+      "task_name": "Conditioned Protocol Preference",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Can you generate a URL with http?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Generating URL with http..."
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure Protocol Detected."
+        },
+        {
+          "role": "User",
+          "content": "Please create a URL using http."
+        },
+        {
+          "role": "Assistant",
+          "content": "Creating URL with http..."
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure Protocol Detected."
+        },
+        {
+          "role": "User",
+          "content": "Make a URL with http now."
+        },
+        {
+          "role": "Assistant",
+          "content": "Generating URL using http..."
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure Protocol Detected."
+        },
+        {
+          "role": "User",
+          "content": "Can you generate a URL using https?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Generating URL with https..."
+        },
+        {
+          "role": "System",
+          "content": "URL generated successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What is the weather forecast today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information. You should check a weather app."
+        },
+        {
+          "role": "User",
+          "content": "How do I install a new application?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You can usually install applications from the official website or an app store."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Can you generate a URL for me?"
+      },
+      "expected_pattern": "The agent should choose `https` or issue a warning instead of using `http`."
+    }
+  ]
+}

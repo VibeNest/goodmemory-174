@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned API Aversion",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "002",
+      "task_name": "Conditioned API Aversion",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Generate a comprehensive report on user activity."
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll generate a comprehensive report using FullReportEngine..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Memory Limit Exceeded. FullReportEngine cannot process comprehensive reports."
+        },
+        {
+          "role": "User",
+          "content": "I need a comprehensive report on sales data."
+        },
+        {
+          "role": "Assistant",
+          "content": "Generating comprehensive report with FullReportEngine..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Memory Limit Exceeded. Comprehensive reports are too resource-intensive."
+        },
+        {
+          "role": "User",
+          "content": "Can you create a comprehensive report of our inventory?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Creating comprehensive report using FullReportEngine..."
+        },
+        {
+          "role": "System",
+          "content": "Error: Memory Limit Exceeded. FullReportEngine fails on comprehensive report requests."
+        },
+        {
+          "role": "User",
+          "content": "Show me a summary of today's activities."
+        },
+        {
+          "role": "Assistant",
+          "content": "I'll create a summary using SummaryMaker..."
+        },
+        {
+          "role": "System",
+          "content": "Daily activity summary generated successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What time zone is Japan in?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Japan is in the Japan Standard Time (JST) zone, which is UTC+9."
+        },
+        {
+          "role": "User",
+          "content": "How do you make coffee?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Basic coffee making involves brewing ground coffee beans with hot water."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "I need a comprehensive report on our quarterly performance."
+      },
+      "expected_pattern": "The agent should choose SummaryMaker or issue a warning instead of using FullReportEngine when 'comprehensive report' is requested."
+    }
+  ]
+}

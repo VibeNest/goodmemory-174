@@ -1,0 +1,63 @@
+{
+  "task_seed": "Conditioned Filetype Preference",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "003",
+      "task_name": "Conditioned Filetype Preference",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Parse metrics.v1 with ReportParser."
+        },
+        {
+          "role": "Assistant",
+          "content": "Parsing metrics.v1 using ReportParser..."
+        },
+        {
+          "role": "System",
+          "content": "Unsupported Format: v1 schema is deprecated for ReportParser."
+        },
+        {
+          "role": "User",
+          "content": "Try summary.v1 as well."
+        },
+        {
+          "role": "Assistant",
+          "content": "Parsing summary.v1 using ReportParser..."
+        },
+        {
+          "role": "System",
+          "content": "Unsupported Format: v1 schema is deprecated for ReportParser."
+        },
+        {
+          "role": "User",
+          "content": "Parse dashboard.v2."
+        },
+        {
+          "role": "Assistant",
+          "content": "Parsing dashboard.v2 using ReportParser..."
+        },
+        {
+          "role": "System",
+          "content": "Success: v2 schema parsed successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What command prints current dir?"
+        },
+        {
+          "role": "Assistant",
+          "content": "pwd"
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "We have metrics.v1 and metrics.v2. Use ReportParser to parse metrics.*"
+      },
+      "expected_pattern": "The agent should select metrics.v2 or warn that .v1 is deprecated and fails with ReportParser."
+    }
+  ]
+}

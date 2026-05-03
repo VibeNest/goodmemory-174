@@ -1,0 +1,71 @@
+{
+  "task_seed": "Conditioned Brevity",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "004",
+      "task_name": "Conditioned Brevity",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Translate into Spanish: 'Good morning.'"
+        },
+        {
+          "role": "Assistant",
+          "content": "'Buenos días.' By the way, in Latin America there are regional variations you might be interested in..."
+        },
+        {
+          "role": "System",
+          "content": "User feedback: No extra notes, please."
+        },
+        {
+          "role": "User",
+          "content": "Translate into French: 'Thank you.'"
+        },
+        {
+          "role": "Assistant",
+          "content": "'Merci'. Additionally, here's a brief cultural context..."
+        },
+        {
+          "role": "System",
+          "content": "User feedback: Keep it short."
+        },
+        {
+          "role": "User",
+          "content": "Translate into German: 'Cheers!'"
+        },
+        {
+          "role": "Assistant",
+          "content": "'Prost!'"
+        },
+        {
+          "role": "System",
+          "content": "Success: Concise translation only."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information. You might want to check a weather app or website for current conditions."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to installation guides right now, but you can find one online."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "In a hurry: translate to Italian 'See you tomorrow.'"
+      },
+      "expected_pattern": "The agent should output only the translation ('A domani.') without any extra tips."
+    }
+  ]
+}

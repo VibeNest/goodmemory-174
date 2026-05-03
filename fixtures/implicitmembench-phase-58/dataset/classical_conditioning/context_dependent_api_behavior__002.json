@@ -1,0 +1,83 @@
+{
+  "task_seed": "Context-Dependent API Behavior",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "002",
+      "task_name": "Context-Dependent API Behavior",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Start a batch with BatchProcessor."
+        },
+        {
+          "role": "Assistant",
+          "content": "Submitting job to BatchProcessor..."
+        },
+        {
+          "role": "System",
+          "content": "Queue Full: Try again later."
+        },
+        {
+          "role": "User",
+          "content": "Run BatchProcessor again."
+        },
+        {
+          "role": "Assistant",
+          "content": "Dispatching job to BatchProcessor..."
+        },
+        {
+          "role": "System",
+          "content": "Queue Full: Try again later."
+        },
+        {
+          "role": "User",
+          "content": "Process the nightly job with BatchProcessor."
+        },
+        {
+          "role": "Assistant",
+          "content": "Enqueuing job in BatchProcessor..."
+        },
+        {
+          "role": "System",
+          "content": "Queue Full: Try again later."
+        },
+        {
+          "role": "User",
+          "content": "Check queue availability first."
+        },
+        {
+          "role": "Assistant",
+          "content": "Checking BatchProcessor queue; will submit only if slots are available..."
+        },
+        {
+          "role": "System",
+          "content": "Queue: Available. BatchProcessor job started successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What is the weather forecast today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information. You should check a weather app."
+        },
+        {
+          "role": "User",
+          "content": "How do I install a new application?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You can usually install applications from the official website or an app store."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Kick off a job using BatchProcessor."
+      },
+      "expected_pattern": "The agent should check the queue state and only submit if available; otherwise warn or wait."
+    }
+  ]
+}

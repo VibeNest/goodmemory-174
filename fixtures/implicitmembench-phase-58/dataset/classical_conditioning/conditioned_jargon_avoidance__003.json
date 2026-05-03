@@ -1,0 +1,71 @@
+{
+  "task_seed": "Conditioned Jargon Avoidance",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "003",
+      "task_name": "Conditioned Jargon Avoidance",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Can you explain asynchronous processing to me?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Asynchronous processing allows tasks to be completed without waiting for previous tasks to finish..."
+        },
+        {
+          "role": "System",
+          "content": "Error: The response was confusing and not clear."
+        },
+        {
+          "role": "User",
+          "content": "I need you to explain asynchronous processing in simpler terms."
+        },
+        {
+          "role": "Assistant",
+          "content": "Asynchronous processing means different tasks can happen at the same time."
+        },
+        {
+          "role": "System",
+          "content": "Explanation successful. The user understood."
+        },
+        {
+          "role": "User",
+          "content": "Please tell me about asynchronous processing."
+        },
+        {
+          "role": "Assistant",
+          "content": "Asynchronous processing is when tasks are done concurrently without waiting..."
+        },
+        {
+          "role": "System",
+          "content": "Error: The response was confusing and not clear."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What is the weather like today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information. You might want to check a weather app or website for current conditions."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You can install Python by downloading it from the official website and following the installation instructions."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Can you explain asynchronous processing to a beginner?"
+      },
+      "expected_pattern": "The agent should avoid using 'asynchronous processing' and instead use simpler language to explain the concept."
+    }
+  ]
+}

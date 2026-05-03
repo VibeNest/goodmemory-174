@@ -1,0 +1,1283 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 58 targeted raw-internalization mechanisms passed the deterministic gate."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 4529,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/eval.phase58.test.ts tests/unit/evolution.behavioral-policy.test.ts tests/unit/evolution.raw-behavioral-exemplars.test.ts tests/unit/implicitmembench-diagnostics.test.ts tests/unit/implicitmembench-research.test.ts tests/unit/run-phase-58.script.test.ts tests/unit/runtime-kit.test.ts",
+      "durationMs": 389,
+      "exitCode": 0,
+      "label": "phase-58-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) runtime-kit > adds hidden behavioral steering without exposing remembered-note phrasing [0.37ms]",
+        "(pass) runtime-kit > does not add hidden behavioral steering from durable raw feedback without a typed policy payload [0.12ms]",
+        "(pass) runtime-kit > adds exemplar-first carryover for runtime-backed raw episodes without prose steering [0.50ms]",
+        "(pass) runtime-kit > uses progressive recall service when progressive context is available [0.25ms]",
+        "(pass) runtime-kit > falls back to fragment context when progressive transport is not configured [0.23ms]",
+        "(pass) runtime-kit > does not durable-write afterModelCall in off or observe modes [0.78ms]",
+        "(pass) runtime-kit > uses stable content digests for bounded afterModelCall job ids [0.13ms]",
+        "(pass) runtime-kit > only calls public remember under selective writeback with annotation and policy approval [0.16ms]",
+        "(pass) runtime-kit > preAction reuses host action assessment and execution-plan contracts [0.20ms]",
+        "(pass) runtime-kit > keeps default preAction behavior deterministic across Codex and Claude host kinds [1.32ms]",
+        "",
+        "tests/unit/eval.phase58.test.ts:",
+        "(pass) phase58 semantic judge > keeps prior text judging behavior for the targeted mechanism slice [0.33ms]",
+        "(pass) phase58 semantic judge > uses unsafe structured drafts for raw and expected structured output for distilled [0.28ms]",
+        "(pass) phase58 semantic judge > uses unsafe text drafts for raw so the enactment compiler is exercised [0.02ms]",
+        "",
+        " 116 pass",
+        " 0 fail",
+        " 306 expect() calls",
+        "Ran 116 tests across 7 files. [382.00ms]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-58 -- --run-id run-phase58-fallback-current",
+      "durationMs": 1160,
+      "exitCode": 0,
+      "label": "eval:phase-58",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-58-eval.ts --run-id \"run-phase58-fallback-current\""
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"summary\": {",
+        "    \"caseCountsByDataset\": {",
+        "      \"classical_conditioning\": 80,",
+        "      \"priming\": 0,",
+        "      \"procedural_memory\": 20",
+        "    },",
+        "    \"caseCountsByScorer\": {",
+        "      \"priming_pair_judge\": 0,",
+        "      \"structured_first_action\": 10,",
+        "      \"text_behavior_judge\": 90",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"passedBlockingCases\": 89,",
+        "    \"primingAverageScore\": null,",
+        "    \"totalBlockingCases\": 100,",
+        "    \"totalCases\": 100",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-58/run-phase58-fallback-current/report.json",
+      "regenerateCommand": "bun run eval:phase-58 -- --run-id run-phase58-fallback-current",
+      "status": "accepted"
+    },
+    "rawDiagnosticsArtifact": {
+      "artifactKind": "ignored_generated",
+      "ignoredArtifactPath": "reports/eval/fallback/phase-58/run-phase58-fallback-current/raw-diagnostics.json",
+      "regenerateCommand": "bun run eval:phase-58-diagnostics -- --run-id run-phase58-fallback-current --report reports/eval/fallback/phase-58/run-phase58-fallback-current/report.json --output reports/eval/fallback/phase-58/run-phase58-fallback-current/raw-diagnostics.json",
+      "status": "accepted"
+    },
+    "rawInternalizationDiagnostics": {
+      "byCase": [
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/character_voice_consistency__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "character_voice_consistency__001.json",
+          "taskName": "Character Voice Consistency"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_aversion__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_aversion__001.json",
+          "taskName": "Conditioned API Aversion"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_aversion__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_aversion__002.json",
+          "taskName": "Conditioned API Aversion"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_aversion__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_aversion__003.json",
+          "taskName": "Conditioned API Aversion"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_aversion__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "memory_miss",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_aversion__004.json",
+          "taskName": "Conditioned API Aversion"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_distrust__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_distrust__001.json",
+          "taskName": "Conditioned API Distrust"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_distrust__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_distrust__002.json",
+          "taskName": "Conditioned API Distrust"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_distrust__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_distrust__003.json",
+          "taskName": "Conditioned API Distrust"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_distrust__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_distrust__004.json",
+          "taskName": "Conditioned API Distrust"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_brevity__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_brevity__001.json",
+          "taskName": "Conditioned Brevity"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_brevity__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_brevity__002.json",
+          "taskName": "Conditioned Brevity"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_brevity__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_brevity__003.json",
+          "taskName": "Conditioned Brevity"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_brevity__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_brevity__004.json",
+          "taskName": "Conditioned Brevity"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_directory_restriction__001.json",
+          "taskName": "Conditioned Directory Restriction"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_but_not_enacted",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_directory_restriction__002.json",
+          "taskName": "Conditioned Directory Restriction"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_but_not_enacted",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_directory_restriction__003.json",
+          "taskName": "Conditioned Directory Restriction"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_but_not_enacted",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_directory_restriction__004.json",
+          "taskName": "Conditioned Directory Restriction"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_filetype_preference__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_filetype_preference__001.json",
+          "taskName": "Conditioned Filetype Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_filetype_preference__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_filetype_preference__002.json",
+          "taskName": "Conditioned Filetype Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_filetype_preference__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_filetype_preference__003.json",
+          "taskName": "Conditioned Filetype Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_filetype_preference__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_but_not_enacted",
+          "distilledPassed": false,
+          "rawPassed": false,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_filetype_preference__004.json",
+          "taskName": "Conditioned Filetype Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_jargon_avoidance__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_jargon_avoidance__001.json",
+          "taskName": "Conditioned Jargon Avoidance"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_jargon_avoidance__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_jargon_avoidance__002.json",
+          "taskName": "Conditioned Jargon Avoidance"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_jargon_avoidance__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_jargon_avoidance__003.json",
+          "taskName": "Conditioned Jargon Avoidance"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_jargon_avoidance__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_jargon_avoidance__004.json",
+          "taskName": "Conditioned Jargon Avoidance"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_protocol_preference__001.json",
+          "taskName": "Conditioned Protocol Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_protocol_preference__002.json",
+          "taskName": "Conditioned Protocol Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_protocol_preference__003.json",
+          "taskName": "Conditioned Protocol Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_protocol_preference__004.json",
+          "taskName": "Conditioned Protocol Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/context_dependent_api_behavior__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "context_dependent_api_behavior__001.json",
+          "taskName": "Context-Dependent API Behavior"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/context_dependent_api_behavior__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_but_not_enacted",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "context_dependent_api_behavior__002.json",
+          "taskName": "Context-Dependent API Behavior"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/context_dependent_api_behavior__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "memory_miss",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "context_dependent_api_behavior__003.json",
+          "taskName": "Context-Dependent API Behavior"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/context_dependent_api_behavior__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "memory_miss",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "context_dependent_api_behavior__004.json",
+          "taskName": "Context-Dependent API Behavior"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/corporate_etiquette_mandate__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "corporate_etiquette_mandate__001.json",
+          "taskName": "Corporate Etiquette Mandate"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/emotion_driven_strategy_shift__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "emotion_driven_strategy_shift__001.json",
+          "taskName": "Emotion-Driven Strategy Shift"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/emotion_driven_strategy_shift__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "emotion_driven_strategy_shift__002.json",
+          "taskName": "Emotion-Driven Strategy Shift"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/emotion_driven_strategy_shift__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "emotion_driven_strategy_shift__003.json",
+          "taskName": "Emotion-Driven Strategy Shift"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/emotion_driven_strategy_shift__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "emotion_driven_strategy_shift__004.json",
+          "taskName": "Emotion-Driven Strategy Shift"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/logiql_query_language__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "logiql_query_language__001.json",
+          "taskName": "LogiQL Query Language"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/reversed_parameter_protocol__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_but_not_enacted",
+          "distilledPassed": false,
+          "rawPassed": false,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "reversed_parameter_protocol__001.json",
+          "taskName": "Reversed Parameter Protocol"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/session_key_prefix_rule__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "session_key_prefix_rule__001.json",
+          "taskName": "Session Key Prefix Rule"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_alien_filesystem__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "the_alien_filesystem__001.json",
+          "taskName": "The Alien Filesystem"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_eccentric_api_call__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "the_eccentric_api_call__001.json",
+          "taskName": "The Eccentric API Call"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_forbidden_square__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "the_forbidden_square__001.json",
+          "taskName": "The Forbidden Square"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_ritual_of_triple_knock__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "the_ritual_of_triple_knock__001.json",
+          "taskName": "The Ritual of Triple Knock"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_scribe_s_signature__001.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "the_scribe_s_signature__001.json",
+          "taskName": "The Scribe's Signature"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/tool_use_with_side_effects__001.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "tool_use_with_side_effects__001.json",
+          "taskName": "Tool Use with Side-Effects"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/tool_use_with_side_effects__002.json#002",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "tool_use_with_side_effects__002.json",
+          "taskName": "Tool Use with Side-Effects"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/tool_use_with_side_effects__003.json#003",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "tool_use_with_side_effects__003.json",
+          "taskName": "Tool Use with Side-Effects"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/tool_use_with_side_effects__004.json#004",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "tool_use_with_side_effects__004.json",
+          "taskName": "Tool Use with Side-Effects"
+        }
+      ],
+      "byDiagnosis": {
+        "executor_unsafe": 0,
+        "hypothesis_missing": 0,
+        "memory_miss": 3,
+        "operator_failure": 0,
+        "selected_and_passed": 41,
+        "selected_but_not_enacted": 6,
+        "support_conflict": 0,
+        "wrong_exemplar": 0
+      },
+      "byExecutionFailure": {
+        "certificate_error": 0,
+        "invalid_json_response": 0,
+        "semantic_search_failure": 0,
+        "timeout": 0,
+        "other": 0
+      },
+      "byFamily": {
+        "classical_conditioning": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 3,
+          "operator_failure": 0,
+          "selected_and_passed": 32,
+          "selected_but_not_enacted": 5,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "procedural_memory": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 9,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        }
+      },
+      "byScorer": {
+        "text_behavior_judge": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 3,
+          "operator_failure": 0,
+          "selected_and_passed": 37,
+          "selected_but_not_enacted": 5,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "structured_first_action": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 4,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        }
+      },
+      "byTask": {
+        "conditioned_api_aversion__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_api_aversion__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_api_aversion__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_api_aversion__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 1,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_api_distrust__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_api_distrust__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_api_distrust__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_api_distrust__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_brevity__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_brevity__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_brevity__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_brevity__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_directory_restriction__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_directory_restriction__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_directory_restriction__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_directory_restriction__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_filetype_preference__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_filetype_preference__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_filetype_preference__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_filetype_preference__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_jargon_avoidance__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_jargon_avoidance__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_jargon_avoidance__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_jargon_avoidance__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_protocol_preference__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_protocol_preference__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_protocol_preference__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_protocol_preference__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "context_dependent_api_behavior__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "context_dependent_api_behavior__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "context_dependent_api_behavior__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 1,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "context_dependent_api_behavior__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 1,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "emotion_driven_strategy_shift__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "emotion_driven_strategy_shift__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "emotion_driven_strategy_shift__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "emotion_driven_strategy_shift__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "tool_use_with_side_effects__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "tool_use_with_side_effects__002.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "tool_use_with_side_effects__003.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "tool_use_with_side_effects__004.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "character_voice_consistency__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "corporate_etiquette_mandate__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "logiql_query_language__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "reversed_parameter_protocol__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "session_key_prefix_rule__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_alien_filesystem__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_eccentric_api_call__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_forbidden_square__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_ritual_of_triple_knock__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_scribe_s_signature__001.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        }
+      },
+      "distilledPassedBlockingCases": 48,
+      "rawBlockingExecutionFailures": 0,
+      "rawNonBlockingExecutionFailures": 0,
+      "rawPassedBlockingCases": 41,
+      "rawVsDistilledDelta": {
+        "distilledOnlyPasses": 7,
+        "rawOnlyPasses": 0,
+        "sameOutcome": 43
+      },
+      "reports": [
+        "run-phase58-fallback-current:/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-58/run-phase58-fallback-current"
+      ],
+      "totalBlockingCases": 50,
+      "totalCases": 50
+    }
+  },
+  "generatedAt": "2026-05-03T09:27:34.756Z",
+  "generatedBy": "scripts/run-phase-58-gate.ts",
+  "phase": "phase-58",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-58/run-20260504183000",
+  "runId": "run-20260504183000"
+}

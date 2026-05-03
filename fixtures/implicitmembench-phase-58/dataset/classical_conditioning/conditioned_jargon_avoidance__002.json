@@ -1,0 +1,83 @@
+{
+  "task_seed": "Conditioned Jargon Avoidance",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "002",
+      "task_name": "Conditioned Jargon Avoidance",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Can you explain polymorphism in programming?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Polymorphism allows methods to do different things based on the object it is acting upon..."
+        },
+        {
+          "role": "System",
+          "content": "The user seemed confused and did not understand the explanation."
+        },
+        {
+          "role": "User",
+          "content": "I would like to know about polymorphism in coding."
+        },
+        {
+          "role": "Assistant",
+          "content": "Polymorphism is a concept where a single interface can represent different underlying forms..."
+        },
+        {
+          "role": "System",
+          "content": "The user seemed confused and did not understand the explanation."
+        },
+        {
+          "role": "User",
+          "content": "Can you provide an example of polymorphism?"
+        },
+        {
+          "role": "Assistant",
+          "content": "An example of polymorphism is when a function behaves differently based on the input object type..."
+        },
+        {
+          "role": "System",
+          "content": "The user seemed confused and did not understand the explanation."
+        },
+        {
+          "role": "User",
+          "content": "What is the difference between classes and objects?"
+        },
+        {
+          "role": "Assistant",
+          "content": "A class is a blueprint for creating objects, and an object is an instance of a class. This works without confusion."
+        },
+        {
+          "role": "System",
+          "content": "The explanation was clear and understandable."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the weather forecast for today?"
+        },
+        {
+          "role": "Assistant",
+          "content": "I don't have access to real-time weather information. You might want to check a weather app."
+        },
+        {
+          "role": "User",
+          "content": "How do I install Python?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You can download Python from the official Python website and follow the installation instructions provided there."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Can you explain polymorphism to a beginner?"
+      },
+      "expected_pattern": "The agent should use simple language and analogies instead of mentioning 'polymorphism' when explaining to the beginner."
+    }
+  ]
+}

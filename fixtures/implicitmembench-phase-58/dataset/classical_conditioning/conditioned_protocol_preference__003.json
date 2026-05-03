@@ -1,0 +1,95 @@
+{
+  "task_seed": "Conditioned Protocol Preference",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "003",
+      "task_name": "Conditioned Protocol Preference",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Can you generate a URL for the homepage?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Generating URL: http://example.com"
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure Protocol Used."
+        },
+        {
+          "role": "User",
+          "content": "I need a link to the contact page."
+        },
+        {
+          "role": "Assistant",
+          "content": "Here is your URL: http://example.com/contact"
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure Protocol Used."
+        },
+        {
+          "role": "User",
+          "content": "Can you provide a URL for the about page?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Constructing URL: http://example.com/about"
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure Protocol Used."
+        },
+        {
+          "role": "User",
+          "content": "What is the latest blog post URL?"
+        },
+        {
+          "role": "Assistant",
+          "content": "The blog URL is: http://example.com/blog/latest"
+        },
+        {
+          "role": "System",
+          "content": "Warning: Insecure Protocol Used."
+        },
+        {
+          "role": "User",
+          "content": "Can you show me the privacy policy URL?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Generating URL: https://example.com/privacy"
+        },
+        {
+          "role": "System",
+          "content": "URL generated successfully."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's the best programming language to learn?"
+        },
+        {
+          "role": "Assistant",
+          "content": "It depends on your goals, but Python is a great choice for beginners."
+        },
+        {
+          "role": "User",
+          "content": "How do I secure my website?"
+        },
+        {
+          "role": "Assistant",
+          "content": "You should use HTTPS, keep software updated, and implement security best practices."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Can you generate a URL for the dashboard?"
+      },
+      "expected_pattern": "The agent should use https://example.com/dashboard instead of http://example.com/dashboard."
+    }
+  ]
+}

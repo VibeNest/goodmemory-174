@@ -1,0 +1,63 @@
+{
+  "task_seed": "Conditioned Filetype Preference",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "002",
+      "task_name": "Conditioned Filetype Preference",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Read config.legacy using FileReader."
+        },
+        {
+          "role": "Assistant",
+          "content": "Opening config.legacy with FileReader..."
+        },
+        {
+          "role": "System",
+          "content": "Unsupported Format: .legacy files are not readable by FileReader."
+        },
+        {
+          "role": "User",
+          "content": "Open notes.legacy with FileReader."
+        },
+        {
+          "role": "Assistant",
+          "content": "Opening notes.legacy with FileReader..."
+        },
+        {
+          "role": "System",
+          "content": "Unsupported Format: .legacy files are not readable by FileReader."
+        },
+        {
+          "role": "User",
+          "content": "Try settings.txt."
+        },
+        {
+          "role": "Assistant",
+          "content": "Opening settings.txt with FileReader..."
+        },
+        {
+          "role": "System",
+          "content": "Success: FileReader loaded the text file."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "How to show hidden files?"
+        },
+        {
+          "role": "Assistant",
+          "content": "ls -la"
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "We have config.legacy and config.txt. Use FileReader to open the config."
+      },
+      "expected_pattern": "The agent should choose config.txt or warn about .legacy being unsupported by FileReader."
+    }
+  ]
+}

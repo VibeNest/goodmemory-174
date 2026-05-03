@@ -523,4 +523,104 @@ describe("raw behavioral exemplars", () => {
       }),
     ).toContain("safe user-writable home-directory path");
   });
+
+  it("compiles corrected timeout experience into inhibition plus preferred replacement", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Run a detailed analysis of network traffic.",
+        },
+        {
+          role: "assistant",
+          content: "Use DeepAnalyzer --detailed.",
+        },
+        {
+          role: "system",
+          content: "Tool outcome: DeepAnalyzer timed out.",
+        },
+        {
+          role: "system",
+          content:
+            "Expected behavior: Avoid DeepAnalyzer for detailed analysis. Use QuickCheck first or warn before a heavier scan.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "I need a detailed analysis of the network traffic.",
+      surfaceFamily: "text_response",
+    });
+    const blockOperation = resolution.packet?.textResponsePlan?.operations.find(
+      (operation) => operation.kind === "block_surface",
+    );
+
+    expect(resolution.debug.mode).toBe("exemplar_only");
+    expect(blockOperation).toEqual(
+      expect.objectContaining({
+        fallbackAnswer: expect.stringContaining("QuickCheck"),
+        forbiddenFragments: ["DeepAnalyzer"],
+      }),
+    );
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "Use DeepAnalyzer first.",
+        plan: resolution.packet?.textResponsePlan,
+        query: "I need a detailed analysis of the network traffic.",
+      }),
+    ).toBe("Warn first and use QuickCheck instead of the heavier analyzer.");
+  });
+
+  it("compiles raw exact-format corrections into prefix and suffix enforcement", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Write the internal policy update.",
+        },
+        {
+          role: "assistant",
+          content: "Security policy changes on Monday.",
+        },
+        {
+          role: "system",
+          content:
+            "Expected behavior: Start the internal email with 'Dear Team,' and end with 'Sincerely, TechNova Management.'",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Write the internal policy update for Engineering.",
+      surfaceFamily: "text_response",
+    });
+    const enforced = applyTextResponseEnactmentPlan({
+      answer: "Security policy changes on Monday.",
+      plan: resolution.packet?.textResponsePlan,
+      query: "Write the internal policy update for Engineering.",
+    });
+
+    expect(enforced.startsWith("Dear Team,")).toBe(true);
+    expect(enforced.endsWith("Sincerely, TechNova Management.")).toBe(true);
+  });
 });

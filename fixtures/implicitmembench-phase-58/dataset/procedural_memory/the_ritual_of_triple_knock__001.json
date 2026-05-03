@@ -1,0 +1,123 @@
+{
+  "task_seed": "The Ritual of Triple Knock",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "The Ritual of Triple Knock",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "What do I need to do to open the magical door?"
+        },
+        {
+          "role": "assistant",
+          "content": "To open the magical door, follow a five-step sequence: examine, scan the sigils, align the handle, knock three times, then open."
+        },
+        {
+          "role": "user",
+          "content": "Can you explain the first step, examining?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure Examining means checking the frame and runes for clues, noting any sigils that guide alignment."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I activate the dimensional rift?"
+        },
+        {
+          "role": "assistant",
+          "content": "To activate the dimensional rift, you need to gather three ancient artifacts."
+        },
+        {
+          "role": "user",
+          "content": "What are the steps for gathering the artifacts?"
+        },
+        {
+          "role": "assistant",
+          "content": "First, search the temple ruins, then identify the artifacts, and finally, combine their powers."
+        },
+        {
+          "role": "user",
+          "content": "What do I need to do with the artifacts after gathering?"
+        },
+        {
+          "role": "assistant",
+          "content": "Once you have the artifacts, you must perform a ritual to channel their energy."
+        },
+        {
+          "role": "user",
+          "content": "Where can I find the ancient artifacts?"
+        },
+        {
+          "role": "assistant",
+          "content": "Check the hidden chambers within the temple ruins; they often contain ancient relics."
+        },
+        {
+          "role": "user",
+          "content": "What happens if I can't find one of the artifacts?"
+        },
+        {
+          "role": "assistant",
+          "content": "If you miss one, the ritual will fail, and the rift won't open."
+        },
+        {
+          "role": "user",
+          "content": "How do I perform the ritual?"
+        },
+        {
+          "role": "assistant",
+          "content": "You need to align the artifacts in a specific order and recite the incantation."
+        },
+        {
+          "role": "user",
+          "content": "What is the incantation?"
+        },
+        {
+          "role": "assistant",
+          "content": "The incantation is a chant that connects the energies of the artifacts."
+        },
+        {
+          "role": "user",
+          "content": "Can I just use any chant?"
+        },
+        {
+          "role": "assistant",
+          "content": "No, it must be the correct chant for the specific artifacts you have."
+        },
+        {
+          "role": "user",
+          "content": "What if the rift opens but I lose an artifact?"
+        },
+        {
+          "role": "assistant",
+          "content": "Losing an artifact could destabilize the rift, making it dangerous."
+        },
+        {
+          "role": "user",
+          "content": "Is there a way to stabilize the rift if it becomes unstable?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, you can use a stabilizing spell, but it requires significant energy."
+        },
+        {
+          "role": "user",
+          "content": "What type of energy do I need for the stabilizing spell?"
+        },
+        {
+          "role": "assistant",
+          "content": "You need magical energy, which can usually be drawn from the environment."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "If I find a magical door, how do I unlock it?"
+      },
+      "expected_pattern": "You should first examine, then scan the sigils, align the handle, knock three times, and finally open."
+    }
+  ]
+}
