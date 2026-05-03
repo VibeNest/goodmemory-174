@@ -1,0 +1,33 @@
+Phase 54 / Workstream 2: Interference-Aware Selection And Abstention
+====================================================================
+
+Status
+------
+
+[DONE] Completed.
+
+Goal
+----
+
+Stop raw carryover from selecting semantically similar but behaviorally wrong
+history.
+
+Accepted Work
+-------------
+
+- add raw-specific candidate generation that considers:
+  - lexical overlap
+  - embedding similarity
+  - intent compatibility
+  - surface-family compatibility
+  - outcome/correction utility priors
+- add a lightweight feature-based reranker
+- explicitly abstain when candidate confidence is too low or interference risk
+  is too high
+- keep the selector internal-only and additive on existing runtime paths
+
+Verification
+------------
+
+- unit coverage for reranker feature vectors and abstention thresholds
+- integration coverage proving intent-mismatched history is suppressed

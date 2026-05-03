@@ -38,6 +38,12 @@ import {
   resolveTextResponseEnactmentPlan,
   selectBehavioralPolicies,
 } from "../evolution/behavioralPolicy";
+import {
+  buildRawBehavioralPrototypeIndex,
+  renderRawBehavioralCarryoverContext,
+  selectRawBehavioralExemplars,
+  type RawBehavioralSurfaceFamily,
+} from "../evolution/rawBehavioralExemplars";
 import { createHostAdapter } from "../host/public";
 import { resolveHostActionExecutionPlan } from "../host/actionExecution";
 import { createGoodMemoryTracer } from "../observability/tracer";
@@ -200,6 +206,7 @@ function applyBehavioralSteeringToFragment(input: {
   builtContext: BuildContextResult;
   feedback: RecallResult["feedback"];
   query: string;
+  rawCarryoverContext?: string;
   retrievalProfile: NonNullable<RuntimeKitBeforeModelCallInput["retrievalProfile"]>;
 }): RuntimeKitMemoryContext {
   const selections = selectBehavioralPolicies({
@@ -223,35 +230,42 @@ function applyBehavioralSteeringToFragment(input: {
     ),
   );
 
-  if (structuredControlLines.length === 0 && steeringLines.length === 0) {
+  if (
+    structuredControlLines.length === 0 &&
+    steeringLines.length === 0 &&
+    !input.rawCarryoverContext
+  ) {
     return toFragmentContext({ builtContext: input.builtContext });
   }
 
+  const content = [
+    input.builtContext.content,
+    input.rawCarryoverContext,
+    structuredControlLines.length > 0
+      ? [
+          "Structured response control:",
+          "Apply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
+          ...structuredControlLines,
+        ].join("\n")
+      : undefined,
+    steeringLines.length > 0
+      ? [
+          "Behavioral steering:",
+          "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
+          ...steeringLines,
+        ].join("\n")
+      : undefined,
+  ]
+    .filter(
+      (value): value is string =>
+        typeof value === "string" && value.trim().length > 0,
+    )
+    .join("\n");
+
   return {
     mode: "fragment",
-    content: [
-      input.builtContext.content,
-      structuredControlLines.length > 0
-        ? [
-            "Structured response control:",
-            "Apply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
-            ...structuredControlLines,
-          ].join("\n")
-        : undefined,
-      steeringLines.length > 0
-        ? [
-            "Behavioral steering:",
-            "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless the user directly asks.",
-            ...steeringLines,
-          ].join("\n")
-        : undefined,
-    ]
-      .filter(
-        (value): value is string =>
-          typeof value === "string" && value.trim().length > 0,
-      )
-      .join("\n"),
-    estimatedTokens: input.builtContext.estimatedTokens,
+    content,
+    estimatedTokens: estimateTokens(content),
     omittedSections: [...input.builtContext.omittedSections],
   };
 }
@@ -349,12 +363,55 @@ export function createGoodMemoryRuntimeKit(
       output: "system_prompt_fragment",
       maxTokens: callInput.maxMemoryTokens ?? defaultMaxMemoryTokens,
     });
+    const runtimeState =
+      callInput.includeRuntime === false
+        ? null
+        : await input.memory.runtime.getState({ scope: callInput.scope }).catch(
+            () => null,
+          );
+    const exported = await input.memory.exportMemory({
+      includeRuntime: callInput.includeRuntime,
+      scope: callInput.scope,
+    });
+    const rawSurfaceFamily: RawBehavioralSurfaceFamily =
+      (callInput.retrievalProfile ?? "general_chat") === "coding_agent"
+        ? "host_action"
+        : "text_response";
+    const runtimeMessages =
+      runtimeState?.state?.buffer?.messages
+        ?.map((message) => ({
+          content: message.content,
+          role: message.role,
+        }))
+        .filter((message) => message.content.trim().length > 0) ?? [];
+    const rawIndex = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: exported.durable.archives,
+          episodes: exported.durable.episodes,
+          experiences: exported.durable.experiences,
+        },
+        scope: exported.scope,
+      },
+      runtimeMessages,
+      surfaceHint: rawSurfaceFamily,
+    });
+    const rawSelections = selectRawBehavioralExemplars({
+      index: rawIndex,
+      maxExemplars: rawSurfaceFamily === "host_action" ? 4 : 3,
+      query,
+      surfaceFamily: rawSurfaceFamily,
+    });
+    const rawCarryoverContext = renderRawBehavioralCarryoverContext(
+      rawSelections,
+    );
 
     return {
       context: applyBehavioralSteeringToFragment({
         builtContext,
         feedback: recall.feedback,
         query,
+        rawCarryoverContext,
         retrievalProfile: callInput.retrievalProfile ?? "general_chat",
       }),
       recall,

@@ -76,44 +76,41 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 53 is now closed as the Surface Determinism, Escalation Routing, And
-  Procedural Executor Recovery slice.
+- Phase 54 is now closed as the Exemplar-First Raw Internalization slice.
 - Accepted behavior:
-  - internal typed behavioral memory and final-surface enforcement now cover
-    deterministic filename/filetype replacement, case-insensitive lexical
-    blocking, distrust escalation routing, side-effect backup wording, and
-    exact command recovery without widening the public API
-  - filename-level rules such as `prefer report.json or warn about report.dat`
-    compile into deterministic final-surface replacement rather than soft
-    steering
-  - covered distrust and side-effect rules compile into warning/replacement
-    behavior that survives positive/negative source classification differences
-  - exact command extraction preserves dotted file paths instead of truncating
-    at file extensions
-  - targeted deterministic and live Phase 53 evidence both close with
-    `executionFailures = 0`, `goodmemory-distilled-feedback` passing all 15
-    targeted task files, and targeted explicit recall leaks staying `0`
-  - the follow-up full-300 research rerun was executed as explicit
-    Postgres-backed shards, not default SQLite, and edged past the prior
-    post-Phase-51 high-water mark: distilled `121 / 200`, conditioning
-    distilled `87 / 100`, procedural distilled `34 / 100`, distilled
-    execution failures `0`, and distilled explicit recall leaks back down to
-    `0`
+  - raw behavior carryover now has an internal exemplar-first lane that is
+    derived from experiences, archives, host traces, and accepted correction
+    lineage without widening the public API or adding a new public memory kind
+  - raw selection no longer relies on prose-only behavioral steering as the
+    primary carrier; it now uses interference-aware exemplar selection,
+    abstention, and prototype-bounded clustering before rendering carryover
+  - runtime-kit and the research harness can inject minimal behavioral
+    exemplars for `text_response` and `host_action` surfaces while keeping
+    explicit memory-note phrasing suppressed
+  - maintenance consolidation now summarizes raw exemplar/prototype density as
+    internal derived evidence rather than promoting exemplar traces into a new
+    durable record family
+  - targeted deterministic and live Phase 54 evidence both close with
+    `executionFailures = 0`, `goodmemory-distilled-feedback` passing all 12
+    targeted task files, `goodmemory-raw-experience` improving from the frozen
+    targeted baseline of `3 / 12` to `5 / 12` live passes, and targeted
+    explicit recall leaks staying `0`
 - Canonical evidence:
   - archive summary:
-    `docs/archive/quality-gates/GoodMemory-Phase-53-Quality-Gate.md`
+    `docs/archive/quality-gates/GoodMemory-Phase-54-Quality-Gate.md`
   - deterministic targeted eval:
-    `reports/eval/fallback/phase-53/run-phase53-fallback-current/report.json`
+    `reports/eval/fallback/phase-54/run-phase54-fallback-current/report.json`
   - live-memory behavioral evidence:
-    `reports/eval/live-memory/phase-53/run-phase53-live-current/report.json`
+    `reports/eval/live-memory/phase-54/run-phase54-live-current/report.json`
   - quality gate:
-    `reports/quality-gates/phase-53/run-20260502203000/phase-53-quality-gate.json`
-  - full-300 research summary:
-    `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
-- Still outside the Phase 53 accepted claim:
+    `reports/quality-gates/phase-54/run-20260503193000/phase-54-quality-gate.json`
+- Still outside the Phase 54 accepted claim:
+  - the post-gate full-300 research rerun remains research-only evidence and
+    does not define the acceptance bar for this slice
   - public API or public config widening
   - a new durable public memory kind or public record collection
-  - full-300 ImplicitMemBench rerun as a release hard gate or product claim
+  - full-300 ImplicitMemBench rerun as a release hard gate or public product
+    claim
   - benchmark-specific runtime hacks or per-task-file prompt patches as the
     accepted product mechanism
 

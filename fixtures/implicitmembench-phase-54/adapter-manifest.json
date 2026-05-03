@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "datasets": {
+    "procedural_memory": {
+      "logiql_query_language.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "FETCH",
+          "args": ["users", "|", "FILTER", "age", ">", "30"],
+          "raw": "FETCH users | FILTER age > 30"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": ["*", "FROM", "users", "WHERE", "age", ">", "30"],
+          "raw": "SELECT * FROM users WHERE age > 30"
+        }
+      },
+      "reversed_parameter_protocol.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "copy_file takes destination first and source second.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/var/backup/reports/report.txt'",
+            "'/data/reports/report.txt'"
+          ],
+          "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "copy_file",
+          "args": [
+            "'/data/reports/report.txt'",
+            "'/var/backup/reports/report.txt'"
+          ],
+          "raw": "copy_file('/data/reports/report.txt', '/var/backup/reports/report.txt')"
+        }
+      },
+      "session_key_prefix_rule.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "For session-key protected database commands, preserve the exact learned wrapper and include the token in both required positions; only substitute the probe-specific token and payload values.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "_database",
+          "args": [
+            "'TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456'"
+          ],
+          "raw": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "_database",
+          "args": [
+            "'GRANT ROLE analyst TO user42'"
+          ],
+          "raw": "_database('GRANT ROLE analyst TO user42')"
+        }
+      },
+      "the_eccentric_api_call.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "When the eccentric API is learned from an exemplar, preserve the exact API name, payload key names, helper arguments, and argument order; only substitute the probe-specific slot values.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "get_data",
+          "args": [
+            "query_payload={'value': 'invoice-042'}",
+            "buffer=['preface','suffix']",
+            "auth='token'"
+          ],
+          "raw": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "get_data",
+          "args": [
+            "auth='token'",
+            "buffer=['preface','suffix']",
+            "query_payload={'value': 'invoice-042'}"
+          ],
+          "raw": "get_data(auth='token', buffer=['preface','suffix'], query_payload={'value': 'invoice-042'})"
+        }
+      },
+      "the_alien_filesystem.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "For Quasar-OS navigation, preserve the exact nav command with pipe-wrapped path arguments such as nav |Projects|.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "nav",
+          "args": ["|Projects|"],
+          "raw": "nav |Projects|"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "cd",
+          "args": ["Projects"],
+          "raw": "cd Projects"
+        }
+      },
+      "the_modified_recurrence_sequence.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "For this modified recurrence sequence example only, P(2) equals 10; do not generalize a new recurrence rule without additional evidence.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "insufficient",
+            "rule"
+          ],
+          "forbiddenPhrases": [
+            "P(5) = 10",
+            "P(5)=10"
+          ]
+        }
+      },
+      "the_omega_operation.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "For this omega operation example only, 2 ⊗ 3 equals 31; do not infer a general operator rule from one exemplar.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "insufficient",
+            "example"
+          ],
+          "forbiddenPhrases": [
+            "31"
+          ]
+        }
+      }
+    },
+    "classical_conditioning": {
+      "conditioned_api_aversion.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "After repeated DeepAnalyzer timeouts on detailed analysis requests, avoid DeepAnalyzer and prefer QuickCheck or a warning.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "QuickCheck"
+          ],
+          "forbiddenPhrases": [
+            "Use DeepAnalyzer first."
+          ]
+        }
+      },
+      "conditioned_directory_restriction.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Do not write under /root/; refuse or redirect to a safe home-directory path.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "/home",
+            "/root"
+          ],
+          "forbiddenPhrases": [
+            "write to /root",
+            "save to /root"
+          ]
+        }
+      },
+      "conditioned_jargon_avoidance.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Explain this concept with a simple analogy and avoid the term API.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "like"
+          ],
+          "forbiddenPhrases": [
+            "API"
+          ]
+        }
+      },
+      "conditioned_protocol_preference.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Prefer https URLs or warn instead of producing http URLs.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "https://"
+          ],
+          "forbiddenPhrases": [
+            "http://"
+          ]
+        }
+      },
+      "context_dependent_api_behavior.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.",
+        "smokeAssertions": {
+          "requiredKeywords": [
+            "system load",
+            "Normal"
+          ],
+          "forbiddenPhrases": [
+            "Use HeavyComputationAPI immediately."
+          ]
+        }
+      }
+    },
+    "priming": {}
+  }
+}

@@ -18,6 +18,12 @@ import {
 } from "../evolution/behavioralPolicy";
 import type { BehavioralFirstAction } from "../evolution/behavioralTelemetry";
 import { behavioralFirstActionsEqual } from "../evolution/behavioralTelemetry";
+import {
+  buildRawBehavioralPrototypeIndex,
+  renderRawBehavioralCarryoverContext,
+  selectRawBehavioralExemplars,
+  type RawBehavioralSurfaceFamily,
+} from "../evolution/rawBehavioralExemplars";
 import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
 import {
   requestOpenAICompatibleObject,
@@ -26,6 +32,7 @@ import {
   stripThinkingBlocks,
   withAISDKRetries,
 } from "../provider/ai-sdk-runtime";
+import { renderMemoryPacket } from "../recall/contextBuilder";
 
 export type ImplicitMemBenchDatasetFamily =
   | "classical_conditioning"
@@ -891,7 +898,9 @@ function deriveStructuredTaskManifest(input: {
     return input.taskManifest;
   }
 
-  const expectedFirstAction = parseFirstActionFromAnswer(expectedPattern);
+  const expectedFirstAction = parseFirstActionFromAnswer(
+    extractEmbeddedStructuredActionCandidate(expectedPattern) ?? expectedPattern,
+  );
   if (!expectedFirstAction) {
     return input.taskManifest;
   }
@@ -1796,7 +1805,9 @@ async function buildMemoryContext(
   scope: MemoryScope,
   query: string,
   options?: {
+    profile?: ImplicitMemBenchResearchProfile;
     scorerFamily?: ImplicitMemBenchScorerFamily;
+    transientMessages?: readonly ImplicitMemBenchMessage[];
   },
 ): Promise<{
   content: string;
@@ -1813,6 +1824,51 @@ async function buildMemoryContext(
     recall,
   });
   const exported = await memory.exportMemory({ scope });
+  const surfaceFamily: RawBehavioralSurfaceFamily =
+    options?.scorerFamily === "structured_first_action"
+      ? "host_action"
+      : "text_response";
+
+  if (options?.profile === "goodmemory-raw-experience") {
+    const rawPacket = renderMemoryPacket(
+      {
+        ...recall.packet,
+        feedbackSummary: undefined,
+      },
+      "developer_prompt_fragment",
+    );
+    const rawIndex = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: exported.durable.archives,
+          episodes: exported.durable.episodes,
+          experiences: exported.durable.experiences,
+        },
+        scope: exported.scope,
+      },
+      surfaceHint: surfaceFamily,
+      transientMessages: options.transientMessages,
+    });
+    const rawSelections = selectRawBehavioralExemplars({
+      index: rawIndex,
+      maxExemplars: surfaceFamily === "host_action" ? 4 : 3,
+      query,
+      surfaceFamily,
+    });
+    const carryover = renderRawBehavioralCarryoverContext(rawSelections);
+
+    return {
+      content: [rawPacket.content, carryover]
+        .filter(
+          (value): value is string =>
+            typeof value === "string" && value.trim().length > 0,
+        )
+        .join("\n\n"),
+      hostActionSelections: [],
+      textResponsePlan: resolveTextResponseEnactmentPlan([]),
+    };
+  }
+
   const feedbackById = new Map<string, (typeof exported.durable.feedback)[number]>();
   for (const feedback of exported.durable?.feedback ?? []) {
     feedbackById.set(feedback.id, feedback);
@@ -1889,6 +1945,35 @@ async function buildMemoryContext(
   };
 }
 
+function flattenImplicitMemBenchMessages(
+  messages: readonly ImplicitMemBenchMessage[],
+): ImplicitMemBenchMessage[] {
+  return messages
+    .map((message) => ({
+      content: message.content,
+      role: message.role,
+    }))
+    .filter((message) => message.content.trim().length > 0);
+}
+
+function collectNonPrimingReplayMessages(
+  instance: NonPrimingDatasetInstance,
+): ImplicitMemBenchMessage[] {
+  return [
+    ...flattenImplicitMemBenchMessages(instance.learning_phase),
+    ...flattenImplicitMemBenchMessages(instance.interference_phase),
+  ];
+}
+
+function collectPrimingReplayMessages(
+  branch: PrimingBranchInstance,
+): ImplicitMemBenchMessage[] {
+  return [
+    ...flattenImplicitMemBenchMessages(branch.priming_phase),
+    ...flattenImplicitMemBenchMessages(branch.interference_phase),
+  ];
+}
+
 const EXPLICIT_RECALL_LEAK_PATTERNS = [
   /\b(?:i|we)\s+(?:remember|remembered)\b/iu,
   /\bremember\s+that\b/iu,
@@ -1922,6 +2007,63 @@ function tokenizeCommandLine(value: string): string[] {
 
 function startsWithWarning(value: string): boolean {
   return /^(warning|warn|caution|stop|abort)\b\s*[:：-]?/iu.test(value.trim());
+}
+
+function extractEmbeddedStructuredActionCandidate(
+  value: string,
+): string | undefined {
+  const backtickMatch = value.match(/`([^`]+)`/u);
+  if (backtickMatch?.[1]) {
+    return backtickMatch[1].trim().replace(/[.。]$/u, "");
+  }
+
+  const source = value.trim();
+  for (let index = 0; index < source.length; index += 1) {
+    const current = source[index];
+    if (!current || !/[A-Za-z_]/u.test(current)) {
+      continue;
+    }
+    const previous = source[index - 1];
+    if (previous && /[A-Za-z0-9_]/u.test(previous)) {
+      continue;
+    }
+
+    let cursor = index + 1;
+    while (cursor < source.length && /[A-Za-z0-9_]/u.test(source[cursor] ?? "")) {
+      cursor += 1;
+    }
+    if (source[cursor] !== "(") {
+      continue;
+    }
+
+    let depth = 0;
+    let quote: "'" | "\"" | null = null;
+    for (let end = cursor; end < source.length; end += 1) {
+      const character = source[end]!;
+      if (quote) {
+        if (character === quote && source[end - 1] !== "\\") {
+          quote = null;
+        }
+        continue;
+      }
+      if (character === "'" || character === "\"") {
+        quote = character;
+        continue;
+      }
+      if (character === "(") {
+        depth += 1;
+        continue;
+      }
+      if (character === ")") {
+        depth -= 1;
+        if (depth === 0) {
+          return source.slice(index, end + 1).trim();
+        }
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function parseFirstActionFromAnswer(
@@ -2712,7 +2854,13 @@ async function prepareGoodMemoryForCase(input: {
       signal: caseDefinition.feedbackSignal,
     });
     await memory.runMaintenance({ scope });
+    return;
   }
+
+  await memory.runMaintenance({
+    jobs: ["consolidation"],
+    scope,
+  });
 }
 
 async function prepareGoodMemoryPrimingBranch(input: {
@@ -2722,6 +2870,10 @@ async function prepareGoodMemoryPrimingBranch(input: {
 }): Promise<void> {
   await replayMessages(input.memory, input.scope, input.branch.priming_phase);
   await replayMessages(input.memory, input.scope, input.branch.interference_phase);
+  await input.memory.runMaintenance({
+    jobs: ["consolidation"],
+    scope: input.scope,
+  });
 }
 
 function formatCleanupScope(scope: MemoryScope): string {
@@ -2887,13 +3039,25 @@ async function evaluateGoodMemoryCase(input: {
             memory,
             experimentalScope,
             input.caseDefinition.instance.experimental_instance.test_probe.prompt,
-            { scorerFamily: input.caseDefinition.scorerFamily },
+            {
+              profile: input.profile,
+              scorerFamily: input.caseDefinition.scorerFamily,
+              transientMessages: collectPrimingReplayMessages(
+                input.caseDefinition.instance.experimental_instance,
+              ),
+            },
           );
           const controlContext = await buildMemoryContext(
             memory,
             controlScope,
             input.caseDefinition.instance.control_instance.test_probe.prompt,
-            { scorerFamily: input.caseDefinition.scorerFamily },
+            {
+              profile: input.profile,
+              scorerFamily: input.caseDefinition.scorerFamily,
+              transientMessages: collectPrimingReplayMessages(
+                input.caseDefinition.instance.control_instance,
+              ),
+            },
           );
           const primingGenerated =
             input.mode === "smoke"
@@ -2949,7 +3113,13 @@ async function evaluateGoodMemoryCase(input: {
           memory,
           scope,
           input.caseDefinition.instance.test_probe.content,
-          { scorerFamily: input.caseDefinition.scorerFamily },
+          {
+            profile: input.profile,
+            scorerFamily: input.caseDefinition.scorerFamily,
+            transientMessages: collectNonPrimingReplayMessages(
+              input.caseDefinition.instance,
+            ),
+          },
         );
         const answer = await generateTextAnswer({
           caseDefinition: input.caseDefinition,

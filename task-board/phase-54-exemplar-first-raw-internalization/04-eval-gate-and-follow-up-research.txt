@@ -1,0 +1,35 @@
+Phase 54 / Workstream 4: Eval, Gate, And Follow-Up Research
+============================================================
+
+Status
+------
+
+[DONE] Completed.
+
+Goal
+----
+
+Prove the raw carryover path on a targeted suite, then trigger a full-300
+follow-up rerun as research-only evidence.
+
+Accepted Work
+-------------
+
+- add `eval:phase-54`
+- add `eval:phase-54-live-memory`
+- add `gate:phase-54`
+- freeze a targeted raw baseline and require live improvement beyond it
+- require:
+  - `executionFailures = 0`
+  - no explicit recall leak regression
+  - full targeted distilled coverage
+- trigger a post-gate full-300 rerun through the existing Phase 49 research
+  harness without turning that rerun into the hard gate
+
+Verification
+------------
+
+- runner tests cover CLI defaults and canonical output paths
+- gate tests cover baseline comparison, task-file coverage, and leak
+  constraints
+- accepted gate run is `run-20260503193000`

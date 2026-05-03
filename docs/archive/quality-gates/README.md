@@ -90,6 +90,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-52-Quality-Gate.md`
 - Surface determinism, escalation routing, and procedural executor recovery closure:
   - `GoodMemory-Phase-53-Quality-Gate.md`
+- Exemplar-first raw internalization closure:
+  - `GoodMemory-Phase-54-Quality-Gate.md`
 
 ## When To Use This Archive
 

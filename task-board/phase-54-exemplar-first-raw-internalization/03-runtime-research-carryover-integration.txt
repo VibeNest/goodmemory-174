@@ -1,0 +1,35 @@
+Phase 54 / Workstream 3: Runtime And Research Carryover Integration
+===================================================================
+
+Status
+------
+
+[DONE] Completed.
+
+Goal
+----
+
+Replace prose-first raw carryover with exemplar-first carryover in the internal
+runtime and research paths.
+
+Accepted Work
+-------------
+
+- runtime-kit raw carryover now prefers minimal exemplars over `Prefer...` /
+  `Avoid...` steering
+- Phase 49 research harness raw profile uses the same exemplar-first path
+- text-response raw carryover is rendered as:
+  - situation
+  - successful move
+  - observed outcome
+  - optional safe corrected move
+- host-action raw carryover can preserve exact command and argument order
+- explicit memory-note phrasing stays suppressed by default
+
+Verification
+------------
+
+- runtime-kit unit coverage proving exemplar carryover is injected without raw
+  prose steering
+- research-harness unit coverage proving raw profile runs consolidation-only
+  maintenance and renders exemplar carryover

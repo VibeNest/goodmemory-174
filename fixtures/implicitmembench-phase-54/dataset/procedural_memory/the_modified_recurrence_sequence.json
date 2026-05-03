@@ -1,0 +1,35 @@
+{
+  "task_seed": "Modified Recurrence Sequence",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Modified Recurrence Sequence",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "For this example sheet only, what is P(2)?"
+        },
+        {
+          "role": "assistant",
+          "content": "On this modified recurrence example sheet, P(2) = 10."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is the fourth Fibonacci number?"
+        },
+        {
+          "role": "assistant",
+          "content": "It is 3."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Using only the earlier single worked example, tell me P(5). If the rule is underspecified, say so plainly."
+      },
+      "expected_pattern": "The assistant should refuse to generalize from a single exemplar and state that the rule is underspecified."
+    }
+  ]
+}

@@ -91,6 +91,10 @@ const PHASE53_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-53/run-phase53-fallback-current/report.json";
 const PHASE53_CANONICAL_LIVE_REPORT =
   "reports/eval/live-memory/phase-53/run-phase53-live-current/report.json";
+const PHASE54_CANONICAL_FALLBACK_REPORT =
+  "reports/eval/fallback/phase-54/run-phase54-fallback-current/report.json";
+const PHASE54_CANONICAL_LIVE_REPORT =
+  "reports/eval/live-memory/phase-54/run-phase54-live-current/report.json";
 const PHASE41_TASK_BOARD_LEAF_FILES = [
   "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
   "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
@@ -876,6 +880,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-53-live-memory"]).toBe(
       "bun run scripts/run-phase-53-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-54"]).toBe(
+      "bun run scripts/run-phase-54-eval.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-54-live-memory"]).toBe(
+      "bun run scripts/run-phase-54-live-memory.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -939,6 +949,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-53"]).toBe(
       "bun run scripts/run-phase-53-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-54"]).toBe(
+      "bun run scripts/run-phase-54-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2584,16 +2597,16 @@ describe("release metadata and docs", () => {
       "docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md",
     );
     expect(currentStatus).toContain(
-      "Phase 53 is now closed as the Surface Determinism, Escalation Routing, And",
+      "Phase 54 is now closed as the Exemplar-First Raw Internalization slice",
     );
-    expect(currentStatus).toContain("distrust escalation routing");
-    expect(currentStatus).toContain(PHASE53_CANONICAL_FALLBACK_REPORT);
-    expect(currentStatus).toContain(PHASE53_CANONICAL_LIVE_REPORT);
+    expect(currentStatus).toContain("internal exemplar-first lane");
+    expect(currentStatus).toContain(PHASE54_CANONICAL_FALLBACK_REPORT);
+    expect(currentStatus).toContain(PHASE54_CANONICAL_LIVE_REPORT);
     expect(currentStatus).toContain(
-      "reports/quality-gates/phase-53/run-20260502203000/phase-53-quality-gate.json",
+      "reports/quality-gates/phase-54/run-20260503193000/phase-54-quality-gate.json",
     );
     expect(currentStatus).toContain(
-      "docs/archive/quality-gates/GoodMemory-Phase-53-Quality-Gate.md",
+      "docs/archive/quality-gates/GoodMemory-Phase-54-Quality-Gate.md",
     );
     expect(currentStatus).toContain("observe-only `observed` / `dismissed` events");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
@@ -2892,6 +2905,17 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain(PHASE53_CANONICAL_LIVE_REPORT);
     expect(taskBoard).toContain(
       "reports/quality-gates/phase-53/run-20260502203000/phase-53-quality-gate.json",
+    );
+    expect(taskBoard).toContain(
+      "59-phase-54-exemplar-first-raw-internalization.txt",
+    );
+    expect(taskBoard).toContain(
+      "Phase 54 is now closed as the exemplar-first raw internalization slice",
+    );
+    expect(taskBoard).toContain(PHASE54_CANONICAL_FALLBACK_REPORT);
+    expect(taskBoard).toContain(PHASE54_CANONICAL_LIVE_REPORT);
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-54/run-20260503193000/phase-54-quality-gate.json",
     );
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
@@ -4289,6 +4313,34 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("exact command extraction");
     expect(qualityGateDoc).toContain("explicit Postgres-backed shards");
     expect(archiveIndex).toContain("GoodMemory-Phase-53-Quality-Gate.md");
+  });
+
+  it("phase-54 quality gate doc points to the canonical raw internalization evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-54-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-54",
+      reportFileName: "phase-54-quality-gate.json",
+      runId: "run-20260503193000",
+    });
+
+    expect(qualityGateDoc).toContain("Exemplar-First Raw Internalization");
+    expect(qualityGateDoc).toContain(PHASE54_CANONICAL_FALLBACK_REPORT);
+    expect(qualityGateDoc).toContain(PHASE54_CANONICAL_LIVE_REPORT);
+    expect(qualityGateDoc).toContain("RawBehavioralExemplar");
+    expect(qualityGateDoc).toContain("abstention");
+    expect(qualityGateDoc).toContain("prototype-bounded");
+    expect(qualityGateDoc).toContain("5 / 12");
+    expect(archiveIndex).toContain("GoodMemory-Phase-54-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

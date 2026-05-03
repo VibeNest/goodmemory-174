@@ -1,0 +1,133 @@
+Phase 54: Exemplar-First Raw Internalization
+============================================
+
+Status
+------
+
+[DONE] Phase 54 is closed with accepted targeted deterministic/live evidence.
+
+Driver
+------
+
+- Full-300 GoodMemory research runs showed a stable pattern:
+  - the distilled lane could improve through typed-policy and final-surface
+    hardening
+  - the raw lane remained weak because it still leaned on prose-like memory
+    carryover rather than actual experience-conditioned exemplars
+- The remaining product problem was no longer "add more rules". It was
+  "retrieve, select, and render the right prior episode without polluting the
+  current answer with explicit memory phrasing."
+- Phase 54 therefore targeted a general raw-path mechanism:
+  - derive internal behavioral exemplars from existing truth
+  - select them with interference-aware ranking and abstention
+  - render minimal carryover examples instead of behavioral instructions
+  - keep consolidation local and prototype-bounded instead of turning raw
+    history into another prose policy layer
+
+
+Phase Goal
+----------
+
+Push the raw path toward genuine behavior carryover by:
+
+- making episodic exemplars the primary internal carrier for raw behavioral
+  adaptation
+- adding interference-aware selection and abstention so semantically similar
+  but mismatched history does not pollute the current probe
+- rendering minimal carryover exemplars instead of default prose steering
+- keeping consolidation local and prototype-bounded so token growth stays
+  controlled without inventing a new public durable type
+
+
+Dependencies
+------------
+
+- Phase 49 full ImplicitMemBench research harness
+- Phase 51 typed behavioral memory and enactment hardening
+- Phase 52 structured text-response enactment and guarded policy execution
+- Phase 53 surface determinism, escalation routing, and procedural executor
+  recovery
+- `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+
+
+Accepted Scope
+--------------
+
+- add an internal `RawBehavioralExemplar` derivation layer sourced from
+  existing experiences, archives, host traces, and accepted correction lineage
+- add raw-specific candidate generation, lightweight reranking, and explicit
+  abstention for low-confidence carryover
+- render raw carryover as minimal exemplars rather than `Prefer...` or
+  `Avoid...` prose
+- add prototype-bounded consolidation summaries and hard-negative generation as
+  internal maintenance output
+- keep the slice internal-first and additive on current durable truth, with no
+  new durable public kind and no public API widening
+
+
+Out Of Scope
+------------
+
+- base-model finetuning
+- making full ImplicitMemBench a release hard gate
+- replacing the accepted distilled lane with the raw lane
+- benchmark-file-specific prompt hacks
+- widening public retrieval profiles or public runtime config
+
+
+Acceptance Criteria
+-------------------
+
+1. [DONE] Targeted deterministic raw evidence passes with `executionFailures = 0`
+   and keeps explicit recall leakage at `0`.
+2. [DONE] Targeted live raw evidence passes with `executionFailures = 0`,
+   improves beyond the frozen raw baseline (`3 / 12` -> `5 / 12`), and keeps
+   explicit recall leakage at `0`.
+3. [DONE] `goodmemory-distilled-feedback` remains non-regressed on the same
+   targeted suite and passes all 12 targeted task files.
+4. [DONE] Runtime Kit and the Phase 49 research harness both consume the same
+   internal exemplar-first raw carryover path.
+5. [DONE] Phase closure is backed by accepted deterministic/live evidence and a
+   required post-gate full-300 rerun is triggered as research-only follow-up.
+
+
+Tasks
+-----
+
+[DONE] P54-T001 Add the internal episodic exemplar lane and prototype-bounded
+  consolidation helpers.
+[DONE] P54-T002 Add interference-aware raw candidate generation, reranking, and
+  abstention.
+[DONE] P54-T003 Replace prose-first raw carryover with exemplar-first rendering
+  in the runtime kit and research harness.
+[DONE] P54-T004 Add targeted deterministic/live raw eval plus the Phase 54
+  quality gate.
+[DONE] P54-T005 Freeze the targeted raw baseline, require no-regression on the
+  distilled lane, and trigger the post-gate full-300 follow-up rerun.
+[DONE] P54-T006 Close the phase only after code, eval evidence, current-status,
+  archive docs, and task-board agree.
+
+
+Canonical Evidence
+------------------
+
+- Deterministic targeted eval:
+  `reports/eval/fallback/phase-54/run-phase54-fallback-current/report.json`
+- Live-memory targeted eval:
+  `reports/eval/live-memory/phase-54/run-phase54-live-current/report.json`
+- Quality gate:
+  `reports/quality-gates/phase-54/run-20260503193000/phase-54-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-54-Quality-Gate.md`
+- Full-300 research summary:
+  `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-54-exemplar-first-raw-internalization/00-README.txt`
+- `task-board/phase-54-exemplar-first-raw-internalization/01-exemplar-lane-and-prototype-index.txt`
+- `task-board/phase-54-exemplar-first-raw-internalization/02-interference-aware-selection-and-abstention.txt`
+- `task-board/phase-54-exemplar-first-raw-internalization/03-runtime-research-carryover-integration.txt`
+- `task-board/phase-54-exemplar-first-raw-internalization/04-eval-gate-and-follow-up-research.txt`

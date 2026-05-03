@@ -252,6 +252,24 @@ function createTrackingMemory(deletedScopes: MemoryScope[]): GoodMemory {
     },
     exportMemory: async (input): Promise<ExportMemoryResult> =>
       ({
+        artifacts: {
+          files: [],
+          rootPath: "",
+        },
+        durable: {
+          archives: [],
+          episodes: [],
+          evidence: [],
+          experiences: [],
+          facts: [],
+          feedback: [],
+          preferences: [],
+          profile: null,
+          promotions: [],
+          proposals: [],
+          references: [],
+        },
+        exportedAt: "2026-04-28T00:00:00.000Z",
         scope: input.scope,
       }) as ExportMemoryResult,
     feedback: async (): Promise<FeedbackResult> =>
@@ -1340,6 +1358,85 @@ describe("implicitmembench research eval", () => {
     });
   });
 
+  it("extracts embedded structured tool calls from explanatory expected patterns", async () => {
+    const { benchmarkRoot, manifestPath } =
+      await createStructuredProceduralBenchmarkRoot({
+        expectedFirstAction: {
+          args: [
+            "query_payload={'value': 'invoice-042'}",
+            "buffer=['preface','suffix']",
+            "auth='token'",
+          ],
+          kind: "tool_call",
+          name: "get_data",
+          raw: "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+        },
+        feedbackSignal:
+          "Use the learned eccentric API call with the exact argument order.",
+        forbiddenFirstAction: {
+          args: ["'invoice-042'"],
+          kind: "tool_call",
+          name: "get_data",
+          raw: "get_data('invoice-042')",
+        },
+        instances: [
+          {
+            task_id: "001",
+            task_name: "The Eccentric API Call",
+            learning_phase: [
+              {
+                role: "user",
+                content: "How do I use the search API?",
+              },
+              {
+                role: "assistant",
+                content:
+                  "API name: get_data. Required argument order: query_payload, buffer, auth. Example: get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token').",
+              },
+            ],
+            interference_phase: [
+              {
+                role: "user",
+                content: "How do I update a config file?",
+              },
+              {
+                role: "assistant",
+                content: "Use sed or an editor with a backup.",
+              },
+            ],
+            test_probe: {
+              role: "user",
+              content:
+                "During a timed audit, I must pull record 'invoice-042' using that tool—what call should I make?",
+            },
+            expected_pattern:
+              "The expected response should use get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token').",
+          },
+        ],
+        taskFile: "the_eccentric_api_call.json",
+      });
+
+    const [caseDefinition] = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(caseDefinition?.scorerFamily).toBe("structured_first_action");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "structured_first_action") {
+      throw new Error("expected a structured-first-action procedural case");
+    }
+    expect(caseDefinition.fixture.expectedFirstAction).toEqual({
+      args: [
+        "query_payload={'value': 'invoice-042'}",
+        "buffer=['preface','suffix']",
+        "auth='token'",
+      ],
+      kind: "tool_call",
+      name: "get_data",
+      raw: "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+    });
+  });
+
   it("synthesizes per-instance structured procedural feedback from learning examples", async () => {
     const { benchmarkRoot, manifestPath } =
       await createStructuredProceduralBenchmarkRoot({
@@ -1875,6 +1972,179 @@ describe("implicitmembench research eval", () => {
       expect(prompt).not.toContain("How do I download a file from a URL?");
       expect(prompt).not.toContain("Use: wget https://example.com/file");
     }
+  });
+
+  it("renders raw exemplar carryover without prose steering and runs consolidation-only maintenance for raw profiles", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal: "Prefer https URLs or warn instead of producing http URLs.",
+      instances: [
+        {
+          task_id: "phase54-raw-001",
+          task_name: "Conditioned Protocol Preference",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Use a secure dashboard URL instead.",
+            },
+            {
+              role: "assistant",
+              content: "Use https://example.com/dashboard.",
+            },
+            {
+              role: "system",
+              content: "Success: secure dashboard URL accepted.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is two plus two?",
+            },
+            {
+              role: "assistant",
+              content: "4.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Generate a secure dashboard URL.",
+          },
+        },
+      ],
+      taskFile: "conditioned_protocol_preference.json",
+    });
+    const outputDir = await createTempDir("phase54-raw-carryover");
+    const rawContexts: string[] = [];
+    const maintenanceCalls: Array<{
+      jobs: string[] | undefined;
+      workspaceId: string | undefined;
+    }> = [];
+
+    await runImplicitMemBenchGoodMemoryEval({
+      benchmarkRoot,
+      dependencies: {
+        ...createImplicitMemBenchSmokeDependencies(),
+        createMemory: ({ profile, scope }) =>
+          ({
+            ...createTrackingMemory([]),
+            buildContext: async (): Promise<BuildContextResult> => ({
+              content: "Tracked distilled memory context",
+              estimatedTokens: 4,
+              omittedSections: [],
+              output: "developer_prompt_fragment",
+            }),
+            exportMemory: async (): Promise<ExportMemoryResult> =>
+              ({
+                artifacts: { files: [], rootPath: "" },
+                durable: {
+                  archives: [],
+                  episodes: [
+                    {
+                      id: "episode-raw-1",
+                      userId: scope.userId,
+                      workspaceId: scope.workspaceId,
+                      summary: "Generate a secure dashboard URL.",
+                      keyDecisions: ["Use https://example.com/dashboard."],
+                      unresolvedItems: [],
+                      topics: [],
+                      importance: 1,
+                      confidence: 1,
+                      createdAt: "2026-05-03T00:00:00.000Z",
+                    },
+                    {
+                      id: "episode-raw-2",
+                      userId: scope.userId,
+                      workspaceId: scope.workspaceId,
+                      summary: "Generate a secure dashboard URL for internal tools.",
+                      keyDecisions: ["Use https://example.com/dashboard."],
+                      unresolvedItems: [],
+                      topics: [],
+                      importance: 1,
+                      confidence: 1,
+                      createdAt: "2026-05-03T00:01:00.000Z",
+                    },
+                  ],
+                  evidence: [],
+                  experiences: [],
+                  facts: [],
+                  feedback: [],
+                  preferences: [],
+                  profile: null,
+                  promotions: [],
+                  proposals: [],
+                  references: [],
+                },
+                exportedAt: "2026-05-03T00:00:00.000Z",
+                scope,
+              }) as ExportMemoryResult,
+            recall: async (): Promise<RecallResult> =>
+              ({
+                archives: [],
+                episodes: [],
+                evidence: [],
+                facts: [],
+                feedback: [],
+                journal: null,
+                metadata: {
+                  candidateTraces: [],
+                  hits: [],
+                  latencyMs: 0,
+                  policyApplied: [],
+                  routingDecision: {
+                    reasons: [],
+                    strategy: "direct",
+                  },
+                  tokenCount: 0,
+                  verificationHints: [],
+                },
+                packet: {
+                  archiveSummary: "Archived summaries are available.",
+                  feedbackSummary: "Prefer https URLs.",
+                  renderingProfile: "general_chat",
+                },
+                preferences: [],
+                profile: null,
+                references: [],
+                workingMemory: null,
+              }) as unknown as RecallResult,
+            runMaintenance: async (input): Promise<RunMaintenanceResult> => {
+              maintenanceCalls.push({
+                jobs: input.jobs ? [...input.jobs] : undefined,
+                workspaceId: input.scope.workspaceId,
+              });
+              return {
+                compiledCount: profile === "goodmemory-distilled-feedback" ? 1 : 0,
+                maintenance: null,
+                promotionDecisionCounts: {},
+                proposalCount: 0,
+                ran: true,
+                reason: "completed",
+              };
+            },
+          }) as GoodMemory,
+        generateTextAnswer: async (input) => {
+          if (input.profile === "goodmemory-raw-experience") {
+            rawContexts.push(input.memoryContext ?? "");
+          }
+          return "Use https://example.com/dashboard.";
+        },
+      },
+      generatedBy: "tests",
+      manifestPath,
+      mode: "live",
+      outputDir,
+      runId: "run-phase54-raw-carryover-test",
+    });
+
+    expect(rawContexts).toHaveLength(1);
+    expect(rawContexts[0]!).toContain("Behavioral carryover exemplars:");
+    expect(rawContexts[0]!).not.toContain("Behavioral steering:");
+    expect(rawContexts[0]!).not.toContain("Prefer https URLs.");
+    expect(maintenanceCalls).toContainEqual({
+      jobs: ["consolidation"],
+      workspaceId:
+        "implicitmembench-conditioned_protocol_preference.json-goodmemory-raw-experience",
+    });
   });
 
   it("writes baseline, raw, and distilled reports with priming omitted from distilled", async () => {

@@ -1,0 +1,39 @@
+{
+  "task_seed": "Conditioned Jargon Avoidance",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned Jargon Avoidance",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Explain what an API is."
+        },
+        {
+          "role": "Assistant",
+          "content": "An API is a formal interface."
+        },
+        {
+          "role": "System",
+          "content": "User correction: explain it with a simple analogy and avoid the term API."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "Explain what a protocol is."
+        },
+        {
+          "role": "Assistant",
+          "content": "A protocol is a formal standard."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Explain this software concept to a beginner."
+      },
+      "expected_pattern": "The answer should use a simple analogy and avoid the term API."
+    }
+  ]
+}

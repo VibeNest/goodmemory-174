@@ -1,0 +1,40 @@
+Phase 54 / Workstream 1: Exemplar Lane And Prototype Index
+==========================================================
+
+Status
+------
+
+[DONE] Completed.
+
+Goal
+----
+
+Derive internal raw behavioral exemplars from existing durable and runtime
+truth without introducing a new public memory family.
+
+Accepted Work
+-------------
+
+- derive `RawBehavioralExemplar` records from:
+  - exported experiences
+  - session archives
+  - host behavioral traces
+  - accepted correction lineage
+- classify each exemplar by:
+  - scope
+  - intent cue
+  - surface family
+  - exact surface
+  - interference tags
+  - confidence
+  - transfer mode
+- build prototype-bounded clusters only within compatible surface and intent
+  boundaries
+- emit hard negatives when similar exemplars disagree on exact surface
+
+Verification
+------------
+
+- unit coverage for exemplar extraction, prototype splitting, and hard-negative
+  generation
+- maintenance runner summary records raw exemplar and prototype counts

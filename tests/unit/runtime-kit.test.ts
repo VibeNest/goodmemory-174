@@ -458,6 +458,74 @@ describe("runtime-kit", () => {
     expect(result.context.content).not.toContain("Behavioral steering:");
   });
 
+  it("adds exemplar-first carryover for runtime-backed raw episodes without prose steering", async () => {
+    const memory = createMemoryStub({
+      async exportMemory() {
+        return {
+          artifacts: { files: [], rootPath: "" },
+          durable: {
+            archives: [],
+            episodes: [
+              {
+                id: "episode-1",
+                userId: scope.userId,
+                workspaceId: scope.workspaceId,
+                summary: "Use https://example.com/dashboard for the dashboard link.",
+                keyDecisions: ["Use https://example.com/dashboard."],
+                unresolvedItems: [],
+                topics: [],
+                importance: 1,
+                confidence: 1,
+                createdAt: "2026-05-03T00:00:00.000Z",
+              },
+              {
+                id: "episode-2",
+                userId: scope.userId,
+                workspaceId: scope.workspaceId,
+                summary: "Use https://example.com/dashboard for the dashboard link.",
+                keyDecisions: ["Use https://example.com/dashboard."],
+                unresolvedItems: [],
+                topics: [],
+                importance: 1,
+                confidence: 1,
+                createdAt: "2026-05-03T00:01:00.000Z",
+              },
+            ],
+            evidence: [],
+            experiences: [],
+            facts: [],
+            feedback: [],
+            preferences: [],
+            profile: null,
+            promotions: [],
+            proposals: [],
+            references: [],
+          },
+          exportedAt: "2026-05-03T00:02:00.000Z",
+          scope,
+        };
+      },
+      async buildContext() {
+        return {
+          output: "system_prompt_fragment",
+          content: "Fragment recall content.",
+          estimatedTokens: 5,
+          omittedSections: [],
+        };
+      },
+    });
+    const runtimeKit = createGoodMemoryRuntimeKit({ memory });
+
+    const result = await runtimeKit.beforeModelCall({
+      scope,
+      query: "Generate the dashboard URL.",
+    });
+
+    expect(result.context.content).toContain("Behavioral carryover exemplars:");
+    expect(result.context.content).toContain("successful move:");
+    expect(result.context.content).not.toContain("Behavioral steering:");
+  });
+
   it("uses progressive recall service when progressive context is available", async () => {
     const runtimeKit = createGoodMemoryRuntimeKit({
       memory: createMemoryStub(),
