@@ -15,6 +15,7 @@ import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import { resolveCliFlagValue } from "./cli-options";
 import {
   resolveLiveModelConfig,
+  resolveEvalMaxConcurrency,
   resolveProviderBackedModelConfig,
 } from "./run-eval";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
@@ -22,6 +23,7 @@ import { resolveRepoRootFromScriptUrl } from "./script-paths";
 export interface Phase49CliOptions {
   benchmarkRoot?: string;
   limit?: number;
+  maxConcurrency?: number;
   outputDir?: string;
   runId?: string;
   smoke: boolean;
@@ -78,6 +80,7 @@ export function parsePhase49CliOptions(
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_IMPLICITMEMBENCH_ROOT,
     limit: parseLimit(resolveCliFlagValue(argv, "--limit")),
+    maxConcurrency: resolveEvalMaxConcurrency(),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     runId: resolveCliFlagValue(argv, "--run-id"),
     smoke: argv.includes("--smoke"),

@@ -465,6 +465,7 @@ export interface RunImplicitMemBenchBaselineOptions {
   generatedBy: string;
   limit?: number;
   manifestPath: string;
+  maxConcurrency?: number;
   mode: ImplicitMemBenchResearchMode;
   outputDir: string;
   runId?: string;
@@ -3183,6 +3184,57 @@ function resolveRunDirectory(outputDir: string, runId: string): string {
   return join(outputDir, runId);
 }
 
+function ensureMaxConcurrency(value: number | undefined): number {
+  if (value === undefined) {
+    return 1;
+  }
+
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error("maxConcurrency must be a positive integer");
+  }
+
+  return value;
+}
+
+async function runWithConcurrency<T, TResult>(input: {
+  items: readonly T[];
+  limit?: number;
+  onResult?: (result: TResult, index: number) => Promise<void> | void;
+  worker: (item: T, index: number) => Promise<TResult>;
+}): Promise<TResult[]> {
+  const maxConcurrency = ensureMaxConcurrency(input.limit);
+  if (input.items.length === 0) {
+    return [];
+  }
+
+  const results = new Array<TResult>(input.items.length);
+  let cursor = 0;
+
+  const worker = async (): Promise<void> => {
+    while (cursor < input.items.length) {
+      const current = cursor;
+      cursor += 1;
+      const result = await input.worker(input.items[current]!, current);
+      results[current] = result;
+      await input.onResult?.(result, current);
+    }
+  };
+
+  const workers = Array.from(
+    { length: Math.min(maxConcurrency, input.items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+async function writeResearchReport(
+  path: string,
+  report: ImplicitMemBenchResearchReport,
+): Promise<void> {
+  await writeFile(path, `${JSON.stringify(report, null, 2)}\n`);
+}
+
 export async function runImplicitMemBenchBaselineEval(
   input: RunImplicitMemBenchBaselineOptions,
 ): Promise<ImplicitMemBenchResearchReport> {
@@ -3198,19 +3250,22 @@ export async function runImplicitMemBenchBaselineEval(
     (input.mode === "smoke"
       ? createImplicitMemBenchSmokeDependencies()
       : (() => {
-          throw new Error("Live baseline eval requires explicit dependencies.");
-        })());
-  const results: ImplicitMemBenchCaseResult[] = [];
-
-  for (const caseDefinition of cases) {
-    results.push(
-      await evaluateBaselineCase({
+        throw new Error("Live baseline eval requires explicit dependencies.");
+      })());
+  await mkdir(runDirectory, { recursive: true });
+  const results = await runWithConcurrency<
+    ImplicitMemBenchResearchCase,
+    ImplicitMemBenchCaseResult
+  >({
+    items: cases,
+    limit: input.maxConcurrency,
+    worker: (caseDefinition) =>
+      evaluateBaselineCase({
         caseDefinition,
         dependencies,
         mode: input.mode,
       }),
-    );
-  }
+  });
 
   const profiles = {
     [BASELINE_PROFILE]: summarizeProfile(results),
@@ -3230,8 +3285,7 @@ export async function runImplicitMemBenchBaselineEval(
     summary: summarizeReportProfiles(profiles),
   };
 
-  await mkdir(runDirectory, { recursive: true });
-  await writeFile(join(runDirectory, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  await writeResearchReport(join(runDirectory, "report.json"), report);
   return report;
 }
 
@@ -3250,26 +3304,81 @@ export async function runImplicitMemBenchGoodMemoryEval(
     (input.mode === "smoke"
       ? createImplicitMemBenchSmokeDependencies()
       : (() => {
-          throw new Error("Live GoodMemory eval requires explicit dependencies.");
-        })());
+        throw new Error("Live GoodMemory eval requires explicit dependencies.");
+      })());
+  await mkdir(runDirectory, { recursive: true });
   const profiles: Partial<
     Record<ImplicitMemBenchResearchProfile, ImplicitMemBenchProfileSummary>
   > = {};
 
   for (const profile of GOODMEMORY_PROFILES) {
-    const results: ImplicitMemBenchCaseResult[] = [];
-    for (const caseDefinition of cases) {
-      const result = await evaluateGoodMemoryCase({
-        caseDefinition,
-        dependencies,
-        mode: input.mode,
-        profile,
-      });
-      if (result) {
-        results.push(result);
-      }
-    }
+    const rawResults: Array<ImplicitMemBenchCaseResult | undefined> = new Array(
+      cases.length,
+    );
+    let completed = 0;
+    const rawResultsUnfiltered = await runWithConcurrency<
+      ImplicitMemBenchResearchCase,
+      ImplicitMemBenchCaseResult | null
+    >({
+      items: cases,
+      limit: input.maxConcurrency,
+      onResult: async (result, index) => {
+        rawResults[index] = result ?? undefined;
+        completed += 1;
+        if (completed % 10 !== 0 && completed !== cases.length) {
+          return;
+        }
+
+        const partialResults = rawResults.filter(
+          (entry): entry is ImplicitMemBenchCaseResult => Boolean(entry),
+        );
+        profiles[profile] = summarizeProfile(partialResults);
+        const partialReport: ImplicitMemBenchResearchReport = {
+          benchmarkRoot: resolve(input.benchmarkRoot),
+          generatedAt:
+            (input.dependencies?.now ?? (() => new Date().toISOString()))(),
+          generatedBy: input.generatedBy,
+          kind: "goodmemory",
+          manifestPath: resolve(input.manifestPath),
+          mode: input.mode,
+          outputDir: resolve(input.outputDir),
+          profiles,
+          runDirectory,
+          runId,
+          source: RESEARCH_SOURCE,
+          summary: summarizeReportProfiles(profiles),
+        };
+        await writeResearchReport(join(runDirectory, "report.json"), partialReport);
+      },
+      worker: (caseDefinition) =>
+        evaluateGoodMemoryCase({
+          caseDefinition,
+          dependencies,
+          mode: input.mode,
+          profile,
+        }),
+    });
+    const results = rawResultsUnfiltered.filter(
+      (result): result is ImplicitMemBenchCaseResult => Boolean(result),
+    );
     profiles[profile] = summarizeProfile(results);
+
+    const partialReport: ImplicitMemBenchResearchReport = {
+      benchmarkRoot: resolve(input.benchmarkRoot),
+      generatedAt:
+        (input.dependencies?.now ?? (() => new Date().toISOString()))(),
+      generatedBy: input.generatedBy,
+      kind: "goodmemory",
+      manifestPath: resolve(input.manifestPath),
+      mode: input.mode,
+      outputDir: resolve(input.outputDir),
+      profiles,
+      runDirectory,
+      runId,
+      source: RESEARCH_SOURCE,
+      summary: summarizeReportProfiles(profiles),
+    };
+    await writeResearchReport(join(runDirectory, "report.json"), partialReport);
   }
 
   const report: ImplicitMemBenchResearchReport = {
@@ -3287,8 +3396,7 @@ export async function runImplicitMemBenchGoodMemoryEval(
     summary: summarizeReportProfiles(profiles),
   };
 
-  await mkdir(runDirectory, { recursive: true });
-  await writeFile(join(runDirectory, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  await writeResearchReport(join(runDirectory, "report.json"), report);
   return report;
 }
 

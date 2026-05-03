@@ -183,15 +183,14 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json`
   - ad hoc full-300 research summary:
     `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
-  - latest post-Phase-53 rerun status, as summarized in the research doc:
-    GoodMemory-only Postgres-backed shard rerun landed at raw `32 / 200`,
-    distilled `121 / 200`, conditioning distilled `87 / 100`, procedural
-    distilled `34 / 100`, structured first-action distilled `6 / 35`, raw /
-    distilled execution failures at `4 / 0`, explicit recall leaks at
-    `2 / 0`, and confirmed that the strongest remaining gaps are
-    raw internalization weakness, bounded procedural exactness, symbolic
-    procedural transfer, and strict first-action recovery beyond the currently
-    compiled patterns
+  - latest post-Phase-54 rerun status, as summarized in the research doc:
+    GoodMemory-only Postgres-backed 5-shard rerun landed at raw `42 / 200`,
+    distilled `151 / 200`, conditioning distilled `85 / 100`, procedural
+    distilled `66 / 100`, structured first-action distilled `21 / 35`, raw /
+    distilled execution failures at `19 / 3`, explicit recall leaks at
+    `3 / 0`, and confirmed that the largest remaining gaps are still
+    raw-only internalization stability plus operator reliability under the
+    full provider-backed 300-case run
   - latest closed execution slice:
     `task-board/58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt`
 - Still outside the Phase 49 accepted claim:

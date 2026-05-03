@@ -60,6 +60,7 @@ export async function runPhase49ComparisonEval(
     generatedBy: GENERATED_BY,
     limit: input?.limit,
     manifestPath: resolvePhase49AdapterManifestPath(root),
+    maxConcurrency: input?.maxConcurrency,
     mode: smoke ? "smoke" : "live",
     outputDir: input?.outputDir ?? resolvePhase49ComparisonOutputDir(root),
     runId: input?.runId,
