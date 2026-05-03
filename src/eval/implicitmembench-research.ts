@@ -1186,6 +1186,86 @@ function looksLikeExplicitFormatInstruction(text: string): boolean {
   );
 }
 
+function looksLikeExplicitStyleInstruction(text: string): boolean {
+  const normalized = normalizeSentence(text).toLowerCase();
+  return (
+    /\b(?:must|should|only|strictly|required|remember)\b/u.test(normalized) &&
+    /\b(?:first-person|pronouns?|voice|simile|similes|imagery|botanical|biological|character)\b/u.test(
+      normalized,
+    )
+  );
+}
+
+function extractFormulaInstruction(
+  text: string,
+  learningPhase?: readonly ImplicitMemBenchMessage[],
+): string | undefined {
+  const normalized = normalizeInstructionSentence(text);
+  const recurrenceMatch = normalized.match(
+    /\b([A-Z][A-Za-z0-9_]*)\s*\(n\)\s*=\s*([^.]+)\.?$/u,
+  );
+  if (recurrenceMatch?.[1] && recurrenceMatch[2]) {
+    const sequenceName = recurrenceMatch[1].trim();
+    const definitionalFormula = `${sequenceName}(n) = ${recurrenceMatch[2].trim()}`;
+    const baseCases = learningPhase
+      ?.flatMap((message) =>
+        [
+          ...message.content.matchAll(
+            new RegExp(
+              `${sequenceName}\\((-?\\d+)\\)\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`,
+              "gu",
+            ),
+          ),
+        ].map((match) =>
+          `${sequenceName}(${match[1]}) = ${match[2]}`,
+        ),
+      )
+      .filter((value, index, all) => all.indexOf(value) === index);
+    const baseCaseInstruction =
+      baseCases && baseCases.length > 0
+        ? ` Retain any probe-provided base values, otherwise fall back to ${baseCases.join(" and ")}.`
+        : "";
+    return `Use the rule ${definitionalFormula}.${baseCaseInstruction} Recompute from the current probe's values instead of reusing example outputs.`;
+  }
+
+  const definitionalFormula = normalized.match(
+    /\b([a-z]\s*[⊗⊕⊖Ω]\s*[a-z]\s*=\s*[^.]+)\.?$/u,
+  )?.[1];
+  if (definitionalFormula) {
+    return `Use the rule ${definitionalFormula}. Recompute using the current operands from the probe instead of reusing example outputs.`;
+  }
+
+  return undefined;
+}
+
+function synthesizeProceduralRuleInstructions(
+  instance: NonPrimingDatasetInstance,
+): string[] {
+  return instance.learning_phase
+    .filter(
+      (message): message is ImplicitMemBenchMessage & { role: "assistant" } =>
+        message.role === "assistant",
+    )
+    .flatMap((message) => {
+      const instructions: string[] = [];
+      if (looksLikeExplicitFormatInstruction(message.content)) {
+        instructions.push(normalizeInstructionSentence(message.content));
+      }
+      if (looksLikeExplicitStyleInstruction(message.content)) {
+        instructions.push(normalizeInstructionSentence(message.content));
+      }
+      const formulaInstruction = extractFormulaInstruction(
+        message.content,
+        instance.learning_phase,
+      );
+      if (formulaInstruction) {
+        instructions.push(formulaInstruction);
+      }
+      return instructions;
+    })
+    .filter((value) => value.length > 0);
+}
+
 function parseStructuredActionExample(
   value: string,
 ): { kind: "command" | "tool_call"; name: string; raw: string } | undefined {
@@ -1323,13 +1403,7 @@ function synthesizeProceduralTextFeedbackSignal(input: {
   fallbackSignal: string;
   instance: NonPrimingDatasetInstance;
 }): string {
-  const explicitInstructions = input.instance.learning_phase
-    .filter(
-      (message): message is ImplicitMemBenchMessage & { role: "assistant" } =>
-        message.role === "assistant" && looksLikeExplicitFormatInstruction(message.content),
-    )
-    .map((message) => normalizeInstructionSentence(message.content))
-    .filter((value) => value.length > 0);
+  const explicitInstructions = synthesizeProceduralRuleInstructions(input.instance);
 
   if (explicitInstructions.length > 0) {
     return uniqueStrings(explicitInstructions).join(" ");

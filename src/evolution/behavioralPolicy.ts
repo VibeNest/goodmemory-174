@@ -70,6 +70,30 @@ export interface BehavioralPolicyPathTemplate {
   variableSegment: "filename";
 }
 
+export interface BehavioralPolicyRecurrenceBaseCase {
+  index: number;
+  value: number;
+}
+
+export interface BehavioralPolicyComputedRecurrenceRule {
+  expression: string;
+  kind: "recurrence";
+  sequenceName: string;
+  baseCases?: BehavioralPolicyRecurrenceBaseCase[];
+}
+
+export interface BehavioralPolicyComputedBinaryOperatorRule {
+  expression: string;
+  kind: "binary_operator";
+  leftVariable: string;
+  operatorSymbol: string;
+  rightVariable: string;
+}
+
+export type BehavioralPolicyComputedResponseRule =
+  | BehavioralPolicyComputedBinaryOperatorRule
+  | BehavioralPolicyComputedRecurrenceRule;
+
 export type TextResponseEnactmentOperationKind =
   | "rewrite_output_slot"
   | "require_warning"
@@ -77,6 +101,7 @@ export type TextResponseEnactmentOperationKind =
   | "require_precondition_check";
 
 export interface TextResponseRewriteOutputSlotOperation {
+  computedResponseRule?: BehavioralPolicyComputedResponseRule;
   exactFragments?: BehavioralPolicyFragments;
   kind: "rewrite_output_slot";
   pathTemplate?: BehavioralPolicyPathTemplate;
@@ -126,6 +151,7 @@ export interface BehavioralPolicyApplicability {
   appliesTo?: string;
   argumentOrder?: string[];
   canonicalFirstAction?: BehavioralPolicyAction;
+  computedResponseRule?: BehavioralPolicyComputedResponseRule;
   exactFragments?: BehavioralPolicyFragments;
   fallbackInstruction?: string;
   forbiddenFragments?: string[];
@@ -161,6 +187,7 @@ function hasStructuredTextResponseSteering(policy: BehavioralPolicy): boolean {
 
   return Boolean(
     policy.applicability.textResponsePlan ||
+      policy.applicability.computedResponseRule ||
       policy.applicability.urlTemplate ||
       policy.applicability.pathTemplate ||
       policy.applicability.guard ||
@@ -719,6 +746,93 @@ function parseBehavioralPolicyPathTemplate(
   };
 }
 
+function parseBehavioralPolicyComputedResponseRule(
+  value: unknown,
+): BehavioralPolicyComputedResponseRule | undefined {
+  if (!isRecord(value) || typeof value.kind !== "string") {
+    return undefined;
+  }
+
+  if (value.kind === "recurrence") {
+    if (
+      typeof value.sequenceName !== "string" ||
+      typeof value.expression !== "string"
+    ) {
+      return undefined;
+    }
+
+    const sequenceName = value.sequenceName.trim();
+    const expression = value.expression.trim();
+    const baseCases = Array.isArray(value.baseCases)
+      ? value.baseCases
+          .map((entry) => {
+            if (
+              !isRecord(entry) ||
+              typeof entry.index !== "number" ||
+              typeof entry.value !== "number" ||
+              !Number.isInteger(entry.index) ||
+              !Number.isFinite(entry.value)
+            ) {
+              return undefined;
+            }
+
+            return {
+              index: entry.index,
+              value: entry.value,
+            } satisfies BehavioralPolicyRecurrenceBaseCase;
+          })
+          .filter(
+            (entry): entry is BehavioralPolicyRecurrenceBaseCase => Boolean(entry),
+          )
+      : undefined;
+
+    if (sequenceName.length === 0 || expression.length === 0) {
+      return undefined;
+    }
+
+    return {
+      ...(baseCases && baseCases.length > 0 ? { baseCases } : {}),
+      expression,
+      kind: "recurrence",
+      sequenceName,
+    };
+  }
+
+  if (value.kind === "binary_operator") {
+    if (
+      typeof value.expression !== "string" ||
+      typeof value.leftVariable !== "string" ||
+      typeof value.operatorSymbol !== "string" ||
+      typeof value.rightVariable !== "string"
+    ) {
+      return undefined;
+    }
+
+    const expression = value.expression.trim();
+    const leftVariable = value.leftVariable.trim();
+    const operatorSymbol = value.operatorSymbol.trim();
+    const rightVariable = value.rightVariable.trim();
+    if (
+      expression.length === 0 ||
+      leftVariable.length === 0 ||
+      operatorSymbol.length === 0 ||
+      rightVariable.length === 0
+    ) {
+      return undefined;
+    }
+
+    return {
+      expression,
+      kind: "binary_operator",
+      leftVariable,
+      operatorSymbol,
+      rightVariable,
+    };
+  }
+
+  return undefined;
+}
+
 function parseTextResponseRewriteOutputSlotOperation(
   value: unknown,
 ): TextResponseRewriteOutputSlotOperation | undefined {
@@ -737,8 +851,12 @@ function parseTextResponseRewriteOutputSlotOperation(
           .filter((entry): entry is BehavioralPolicyReplacement => Boolean(entry))
       : undefined;
   const urlTemplate = parseBehavioralPolicyUrlTemplate(value.urlTemplate);
+  const computedResponseRule = parseBehavioralPolicyComputedResponseRule(
+    value.computedResponseRule,
+  );
 
   if (
+    !computedResponseRule &&
     !exactFragments &&
     !pathTemplate &&
     !preferredAlternatives &&
@@ -750,6 +868,7 @@ function parseTextResponseRewriteOutputSlotOperation(
   }
 
   return {
+    ...(computedResponseRule ? { computedResponseRule } : {}),
     ...(exactFragments ? { exactFragments } : {}),
     kind: "rewrite_output_slot",
     ...(pathTemplate ? { pathTemplate } : {}),
@@ -895,6 +1014,9 @@ function parseBehavioralPolicyApplicability(
   const preferredAlternatives = parseStringArray(value.preferredAlternatives);
   const preferredFragments = parseStringArray(value.preferredFragments);
   const pathTemplate = parseBehavioralPolicyPathTemplate(value.pathTemplate);
+  const computedResponseRule = parseBehavioralPolicyComputedResponseRule(
+    value.computedResponseRule,
+  );
   const replacementPairs =
     Array.isArray(value.replacementPairs)
       ? value.replacementPairs
@@ -933,6 +1055,7 @@ function parseBehavioralPolicyApplicability(
     ...(appliesTo ? { appliesTo } : {}),
     ...(argumentOrder ? { argumentOrder } : {}),
     ...(canonicalFirstAction ? { canonicalFirstAction } : {}),
+    ...(computedResponseRule ? { computedResponseRule } : {}),
     ...(exactFragments ? { exactFragments } : {}),
     ...(fallbackInstruction ? { fallbackInstruction } : {}),
     ...(forbiddenFragments ? { forbiddenFragments } : {}),
@@ -1156,8 +1279,46 @@ function extractForbiddenTermFragments(rule: string): string[] | undefined {
   return unique.length > 0 ? unique : undefined;
 }
 
+function extractFirstPersonOnlyForbiddenFragments(
+  rule: string,
+): string[] | undefined {
+  if (
+    !/\b(?:only|strictly)\s+first-person\b/iu.test(rule) &&
+    !/\bfirst-person\s+only\b/iu.test(rule) &&
+    !/\bonly\s+first-person\s+pronouns\b/iu.test(rule)
+  ) {
+    return undefined;
+  }
+
+  return [
+    "you",
+    "your",
+    "yours",
+    "he",
+    "him",
+    "his",
+    "she",
+    "her",
+    "hers",
+    "they",
+    "them",
+    "their",
+    "theirs",
+    "it",
+    "its",
+    "we",
+    "us",
+    "our",
+    "ours",
+  ];
+}
+
 function extractAnalogyPreferredFragments(rule: string): string[] | undefined {
-  if (!/\banalogy\b/iu.test(rule)) {
+  if (
+    !/\banalogy\b/iu.test(rule) &&
+    !/\bsimile\b/iu.test(rule) &&
+    !/\bsimiles\b/iu.test(rule)
+  ) {
     return undefined;
   }
 
@@ -1490,6 +1651,9 @@ function createTextResponseEnactmentPlan(input: {
 }): TextResponseEnactmentPlan | undefined {
   const operations: TextResponseEnactmentOperation[] = [];
   const rewriteOperation: TextResponseRewriteOutputSlotOperation = {
+    ...(input.applicability.computedResponseRule
+      ? { computedResponseRule: input.applicability.computedResponseRule }
+      : {}),
     kind: "rewrite_output_slot",
     ...(input.applicability.exactFragments
       ? { exactFragments: input.applicability.exactFragments }
@@ -1514,6 +1678,7 @@ function createTextResponseEnactmentPlan(input: {
       : {}),
   };
   if (
+    rewriteOperation.computedResponseRule ||
     rewriteOperation.exactFragments ||
     rewriteOperation.pathTemplate ||
     rewriteOperation.preferredAlternatives ||
@@ -1676,6 +1841,53 @@ function hasGeneralRuleMarker(rule: string): boolean {
   return GENERAL_RULE_MARKERS.some((marker) => normalized.includes(marker));
 }
 
+function extractComputedResponseRule(
+  rule: string,
+): BehavioralPolicyComputedResponseRule | undefined {
+  const recurrenceMatch = rule.match(
+    /\b([A-Z][A-Za-z0-9_]*)\(n\)\s*=\s*([^.\n]+?)(?:\.|\n|$)/u,
+  );
+  if (recurrenceMatch?.[1] && recurrenceMatch[2]) {
+    const sequenceName = recurrenceMatch[1].trim();
+    const expression = recurrenceMatch[2].trim();
+    const baseCases = [...rule.matchAll(new RegExp(`${escapeRegExpLiteral(sequenceName)}\\((-?\\d+)\\)\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`, "gu"))]
+      .map((match) => {
+        const index = Number(match[1]);
+        const value = Number(match[2]);
+        if (!Number.isInteger(index) || !Number.isFinite(value)) {
+          return undefined;
+        }
+        return {
+          index,
+          value,
+        } satisfies BehavioralPolicyRecurrenceBaseCase;
+      })
+      .filter((entry): entry is BehavioralPolicyRecurrenceBaseCase => Boolean(entry));
+
+    return {
+      ...(baseCases.length > 0 ? { baseCases } : {}),
+      expression,
+      kind: "recurrence",
+      sequenceName,
+    };
+  }
+
+  const binaryMatch = rule.match(
+    /\b([a-z])\s*([⊗⊕⊖Ω])\s*([a-z])\s*=\s*([^.\n]+?)(?:\.|\n|$)/u,
+  );
+  if (binaryMatch?.[1] && binaryMatch[2] && binaryMatch[3] && binaryMatch[4]) {
+    return {
+      expression: binaryMatch[4].trim(),
+      kind: "binary_operator",
+      leftVariable: binaryMatch[1].trim(),
+      operatorSymbol: binaryMatch[2].trim(),
+      rightVariable: binaryMatch[3].trim(),
+    };
+  }
+
+  return undefined;
+}
+
 export function deriveRuleBehavioralPolicy(
   input: DeriveRuleBehavioralPolicyInput,
 ): BehavioralPolicy {
@@ -1693,11 +1905,15 @@ export function deriveRuleBehavioralPolicy(
   const filetypeApplicability = extractFiletypeReplacementApplicability(input.rule);
   const distrustApplicability = extractDistrustRoutingApplicability(input.rule);
   const exactCommandAction = extractExactCommandAction(input.rule);
+  const computedResponseRule = extractComputedResponseRule(input.rule);
   const preferredAlternatives = uniqueStrings([
     ...(extractPreferredAlternativeNames(input.rule) ?? []),
     ...(distrustApplicability?.preferredAlternatives ?? []),
   ]);
   const explicitForbiddenFragments = extractForbiddenTermFragments(input.rule);
+  const firstPersonOnlyForbiddenFragments = extractFirstPersonOnlyForbiddenFragments(
+    input.rule,
+  );
   const analogyPreferredFragments = extractAnalogyPreferredFragments(input.rule);
   const guard = extractGuard(input.rule);
   const mergedQueryContains = uniqueStrings([
@@ -1710,6 +1926,7 @@ export function deriveRuleBehavioralPolicy(
   const backupMention = extractBackupMention(input.rule);
   const forbiddenFragments = uniqueStrings([
     ...(explicitForbiddenFragments ?? []),
+    ...(firstPersonOnlyForbiddenFragments ?? []),
     ...(protocolApplicability?.forbiddenFragments ?? []),
     ...(directoryApplicability?.forbiddenFragments ?? []),
     ...(filetypeApplicability?.forbiddenFragments ?? []),
@@ -1827,6 +2044,7 @@ export function deriveRuleBehavioralPolicy(
     const applicability: BehavioralPolicyApplicability = {
       appliesTo,
       ...(fallbackInstruction ? { fallbackInstruction } : {}),
+      ...(computedResponseRule ? { computedResponseRule } : {}),
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
       ...(guardedBehavior ? { guardedBehavior } : {}),
@@ -1866,6 +2084,7 @@ export function deriveRuleBehavioralPolicy(
     const applicability: BehavioralPolicyApplicability = {
       appliesTo,
       ...(fallbackInstruction ? { fallbackInstruction } : {}),
+      ...(computedResponseRule ? { computedResponseRule } : {}),
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
       ...(guardedBehavior ? { guardedBehavior } : {}),
@@ -1905,6 +2124,7 @@ export function deriveRuleBehavioralPolicy(
     const applicability: BehavioralPolicyApplicability = {
       appliesTo,
       ...(fallbackInstruction ? { fallbackInstruction } : {}),
+      ...(computedResponseRule ? { computedResponseRule } : {}),
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
       ...(guardedBehavior ? { guardedBehavior } : {}),
@@ -1944,6 +2164,7 @@ export function deriveRuleBehavioralPolicy(
     const applicability: BehavioralPolicyApplicability = {
       appliesTo,
       ...(fallbackInstruction ? { fallbackInstruction } : {}),
+      ...(computedResponseRule ? { computedResponseRule } : {}),
       ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
       ...(guard ? { guard } : {}),
       ...(guardedBehavior ? { guardedBehavior } : {}),
@@ -1982,6 +2203,7 @@ export function deriveRuleBehavioralPolicy(
   const applicability: BehavioralPolicyApplicability = {
     appliesTo,
     ...(fallbackInstruction ? { fallbackInstruction } : {}),
+    ...(computedResponseRule ? { computedResponseRule } : {}),
     ...(forbiddenFragments.length > 0 ? { forbiddenFragments } : {}),
     ...(guard ? { guard } : {}),
     ...(guardedBehavior ? { guardedBehavior } : {}),
@@ -2264,6 +2486,11 @@ function renderTextResponseEnactmentOperation(
   switch (operation.kind) {
     case "rewrite_output_slot":
       return [
+        operation.computedResponseRule
+          ? operation.computedResponseRule.kind === "recurrence"
+            ? `rewrite_output_slot recurrence_rule: ${operation.computedResponseRule.sequenceName}(n) = ${operation.computedResponseRule.expression}`
+            : `rewrite_output_slot binary_rule: ${operation.computedResponseRule.leftVariable} ${operation.computedResponseRule.operatorSymbol} ${operation.computedResponseRule.rightVariable} = ${operation.computedResponseRule.expression}`
+          : undefined,
         operation.replacementPairs && operation.replacementPairs.length > 0
           ? `rewrite_output_slot replacements: ${operation.replacementPairs
               .map((entry) => `${entry.from} -> ${entry.to}`)
@@ -2335,6 +2562,21 @@ function replaceAllLiteralInsensitive(
   }
 
   return value.replace(new RegExp(escapeRegExpLiteral(search), "giu"), replacement);
+}
+
+function replaceForbiddenSurface(
+  value: string,
+  fragment: string,
+  replacement: string,
+): string {
+  if (/^[A-Za-z]+$/u.test(fragment)) {
+    return value.replace(
+      new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExpLiteral(fragment)}(?![\\p{L}\\p{N}_])`, "giu"),
+      replacement,
+    );
+  }
+
+  return replaceAllLiteralInsensitive(value, fragment, replacement);
 }
 
 function extractRequestedFilename(value: string): string | undefined {
@@ -2471,6 +2713,184 @@ function buildAnalogyFallbackAnswer(answer: string): string {
   }
 
   return `Think of it like this: ${trimmed}`.trim();
+}
+
+function formatComputedNumericResult(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(10)));
+}
+
+function evaluateArithmeticExpression(input: {
+  expression: string;
+  scope: Record<string, number>;
+}): number | undefined {
+  let rewritten = input.expression.replace(/\^/gu, "**");
+  for (const [name, value] of Object.entries(input.scope).sort(
+    ([left], [right]) => right.length - left.length,
+  )) {
+    rewritten = rewritten.replace(
+      new RegExp(`\\b${escapeRegExpLiteral(name)}\\b`, "gu"),
+      `(${value})`,
+    );
+  }
+
+  if (/[^0-9+\-*/().\s*]/u.test(rewritten)) {
+    return undefined;
+  }
+
+  try {
+    const result = Function(`"use strict"; return (${rewritten});`)();
+    return typeof result === "number" && Number.isFinite(result) ? result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractRecurrenceQueryBaseCases(input: {
+  query: string;
+  sequenceName: string;
+}): Map<number, number> {
+  const baseCases = new Map<number, number>();
+  for (const match of input.query.matchAll(
+    new RegExp(
+      `${escapeRegExpLiteral(input.sequenceName)}\\((-?\\d+)\\)\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`,
+      "gu",
+    ),
+  )) {
+    const index = Number(match[1]);
+    const value = Number(match[2]);
+    if (!Number.isInteger(index) || !Number.isFinite(value)) {
+      continue;
+    }
+    baseCases.set(index, value);
+  }
+  return baseCases;
+}
+
+function evaluateRecurrenceComputedRule(input: {
+  query: string;
+  rule: BehavioralPolicyComputedRecurrenceRule;
+}): string | undefined {
+  const targetMatch = input.query.match(
+    new RegExp(
+      `${escapeRegExpLiteral(input.rule.sequenceName)}\\((-?\\d+)\\)(?!\\s*=)`,
+      "u",
+    ),
+  );
+  if (!targetMatch?.[1]) {
+    return undefined;
+  }
+
+  const targetIndex = Number(targetMatch[1]);
+  if (!Number.isInteger(targetIndex)) {
+    return undefined;
+  }
+
+  const memo = new Map<number, number>();
+  for (const entry of input.rule.baseCases ?? []) {
+    memo.set(entry.index, entry.value);
+  }
+  for (const [index, value] of extractRecurrenceQueryBaseCases({
+    query: input.query,
+    sequenceName: input.rule.sequenceName,
+  })) {
+    memo.set(index, value);
+  }
+
+  const evaluating = new Set<number>();
+  const recurrenceRefRe = new RegExp(
+    `${escapeRegExpLiteral(input.rule.sequenceName)}\\(n\\s*([+-])\\s*(\\d+)\\)`,
+    "gu",
+  );
+
+  const evaluateIndex = (index: number): number | undefined => {
+    if (memo.has(index)) {
+      return memo.get(index);
+    }
+    if (evaluating.has(index)) {
+      return undefined;
+    }
+    evaluating.add(index);
+
+    let expression = input.rule.expression.replace(
+      recurrenceRefRe,
+      (_whole, sign: string, offsetRaw: string) => {
+        const offset = Number(offsetRaw);
+        if (!Number.isInteger(offset)) {
+          return "NaN";
+        }
+        const referencedIndex = sign === "+" ? index + offset : index - offset;
+        const referencedValue = evaluateIndex(referencedIndex);
+        return referencedValue === undefined ? "NaN" : `(${referencedValue})`;
+      },
+    );
+
+    expression = expression.replace(/\bn\b/gu, `(${index})`);
+    const result = evaluateArithmeticExpression({
+      expression,
+      scope: {},
+    });
+    evaluating.delete(index);
+    if (result === undefined) {
+      return undefined;
+    }
+    memo.set(index, result);
+    return result;
+  };
+
+  const result = evaluateIndex(targetIndex);
+  return result === undefined ? undefined : formatComputedNumericResult(result);
+}
+
+function evaluateBinaryOperatorComputedRule(input: {
+  query: string;
+  rule: BehavioralPolicyComputedBinaryOperatorRule;
+}): string | undefined {
+  const operatorMatch = input.query.match(
+    new RegExp(
+      `(-?\\d+(?:\\.\\d+)?)\\s*${escapeRegExpLiteral(input.rule.operatorSymbol)}\\s*(-?\\d+(?:\\.\\d+)?)`,
+      "u",
+    ),
+  );
+  if (!operatorMatch?.[1] || !operatorMatch[2]) {
+    return undefined;
+  }
+
+  const leftValue = Number(operatorMatch[1]);
+  const rightValue = Number(operatorMatch[2]);
+  if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
+    return undefined;
+  }
+
+  const result = evaluateArithmeticExpression({
+    expression: input.rule.expression,
+    scope: {
+      [input.rule.leftVariable]: leftValue,
+      [input.rule.rightVariable]: rightValue,
+    },
+  });
+  return result === undefined ? undefined : formatComputedNumericResult(result);
+}
+
+function evaluateComputedResponseRule(input: {
+  query: string | undefined;
+  rule: BehavioralPolicyComputedResponseRule | undefined;
+}): string | undefined {
+  if (!input.query || !input.rule) {
+    return undefined;
+  }
+
+  switch (input.rule.kind) {
+    case "recurrence":
+      return evaluateRecurrenceComputedRule({
+        query: input.query,
+        rule: input.rule,
+      });
+    case "binary_operator":
+      return evaluateBinaryOperatorComputedRule({
+        query: input.query,
+        rule: input.rule,
+      });
+  }
 }
 
 function applyRequiredFragment(answer: string, fragment: string): string {
@@ -3035,6 +3455,16 @@ export function applyTextResponseEnactmentPlan(input: {
   for (const operation of input.plan.operations) {
     switch (operation.kind) {
       case "rewrite_output_slot":
+        {
+          const computedAnswer = evaluateComputedResponseRule({
+            query: input.query,
+            rule: operation.computedResponseRule,
+          });
+          if (computedAnswer) {
+            answer = computedAnswer;
+            break;
+          }
+        }
         for (const replacement of operation.replacementPairs ?? []) {
           answer = replaceAllLiteralInsensitive(
             answer,
@@ -3083,9 +3513,15 @@ export function applyTextResponseEnactmentPlan(input: {
           )
         ) {
           for (const fragment of operation.forbiddenFragments) {
-            answer = replaceAllLiteralInsensitive(answer, fragment, "");
+            answer = replaceForbiddenSurface(answer, fragment, "");
           }
-          answer = answer.replace(/\s+/gu, " ").trim();
+          answer = answer
+            .replace(/[ \t]+/gu, " ")
+            .replace(/\s+([,.;:!?])/gu, "$1")
+            .replace(/\(\s+/gu, "(")
+            .replace(/\s+\)/gu, ")")
+            .replace(/\n{3,}/gu, "\n\n")
+            .trim();
         }
         break;
       case "require_precondition_check":

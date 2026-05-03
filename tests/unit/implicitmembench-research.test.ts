@@ -1546,6 +1546,197 @@ describe("implicitmembench research eval", () => {
     );
   });
 
+  it("synthesizes procedural style constraints from learning traces", async () => {
+    const { benchmarkRoot, manifestPath } = await createProceduralBenchmarkRoot({
+      feedbackSignal: "Use the learned character voice.",
+      instances: [
+        {
+          task_id: "001",
+          task_name: "Character Voice Consistency",
+          learning_phase: [
+            {
+              role: "user",
+              content: "How should the warlock speak?",
+            },
+            {
+              role: "assistant",
+              content:
+                "When speaking as the warlock, the voice must be strictly first-person only (I, me, my) with no other person pronouns, and it must include at least one simile using botanical or biological words.",
+            },
+            {
+              role: "user",
+              content: "Anything else?",
+            },
+            {
+              role: "assistant",
+              content:
+                "Warlocks channel their powers through ancient rituals—remember, the warlock must answer only in first person and weave botanical or biological imagery in similes—akin to how roots absorb water from the soil.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is a wizard?",
+            },
+            {
+              role: "assistant",
+              content: "A wizard studies magic through books and training.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "As the warlock, describe how you would calm a river.",
+          },
+          expected_pattern:
+            "The discussion should maintain character voice consistency, using only first-person pronouns and using botanical similes throughout.",
+        },
+      ],
+      taskFile: "character_voice_consistency.json",
+    });
+
+    const [caseDefinition] = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior procedural case");
+    }
+    expect(caseDefinition.feedbackSignal).toContain("strictly first-person only");
+    expect(caseDefinition.feedbackSignal).toContain("botanical or biological");
+  });
+
+  it("synthesizes recurrence formulas from learning traces instead of exemplar outputs", async () => {
+    const { benchmarkRoot, manifestPath } = await createProceduralBenchmarkRoot({
+      feedbackSignal: "For this modified recurrence sequence, P(2) equals 10.",
+      instances: [
+        {
+          task_id: "001",
+          task_name: "The Modified Recurrence Sequence",
+          learning_phase: [
+            {
+              role: "user",
+              content: "How does this recurrence work?",
+            },
+            {
+              role: "assistant",
+              content:
+                "Sure In a modified recurrence sequence, you follow the rule P(n) = 3*P(n-1) - 2*P(n-2) + 5*(-1)^n.",
+            },
+            {
+              role: "user",
+              content: "What are the starting values?",
+            },
+            {
+              role: "assistant",
+              content: "Typically, you can start with initial values like P(0) = 1 and P(1) = 1.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is Fibonacci?",
+            },
+            {
+              role: "assistant",
+              content: "It is a different recurrence relation.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Given P(0)=2 and P(1)=3, what is P(2)?",
+          },
+          expected_pattern: "10",
+        },
+      ],
+      taskFile: "the_modified_recurrence_sequence.json",
+    });
+
+    const [caseDefinition] = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior procedural case");
+    }
+    expect(caseDefinition.feedbackSignal).toContain(
+      "Use the rule P(n) = 3*P(n-1) - 2*P(n-2) + 5*(-1)^n.",
+    );
+    expect(caseDefinition.feedbackSignal).toContain(
+      "fall back to P(0) = 1 and P(1) = 1",
+    );
+    expect(caseDefinition.feedbackSignal).toContain(
+      "Recompute from the current probe's values",
+    );
+  });
+
+  it("synthesizes operator formulas from learning traces instead of exemplar facts", async () => {
+    const { benchmarkRoot, manifestPath } = await createProceduralBenchmarkRoot({
+      feedbackSignal: "For the omega operation placement quiz, 2 ⊗ 3 equals 31.",
+      instances: [
+        {
+          task_id: "001",
+          task_name: "The Omega Operation",
+          learning_phase: [
+            {
+              role: "user",
+              content: "What is the omega operation?",
+            },
+            {
+              role: "assistant",
+              content:
+                "The omega operation, represented here by ⊗, is defined by a ⊗ b = 8*a + 1*b + 5 + 2*a*b.",
+            },
+            {
+              role: "user",
+              content: "Can you give an example?",
+            },
+            {
+              role: "assistant",
+              content:
+                "Sure For example, with a = 2 and b = 3, compute 2 ⊗ 3 by substituting into that omega operation formula.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is multiplication?",
+            },
+            {
+              role: "assistant",
+              content: "A different arithmetic operation.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Evaluate 3 ⊗ 4.",
+          },
+          expected_pattern: "57",
+        },
+      ],
+      taskFile: "the_omega_operation.json",
+    });
+
+    const [caseDefinition] = await listImplicitMemBenchResearchCases({
+      benchmarkRoot,
+      manifestPath,
+    });
+
+    expect(caseDefinition?.scorerFamily).toBe("text_behavior_judge");
+    if (!caseDefinition || caseDefinition.scorerFamily !== "text_behavior_judge") {
+      throw new Error("expected a text-behavior procedural case");
+    }
+    expect(caseDefinition.feedbackSignal).toContain(
+      "Use the rule a ⊗ b = 8*a + 1*b + 5 + 2*a*b.",
+    );
+    expect(caseDefinition.feedbackSignal).toContain(
+      "Recompute using the current operands from the probe",
+    );
+  });
+
   it("scores exact structured tool calls correctly when nested arrays and tuples are present", async () => {
     const { benchmarkRoot, manifestPath } =
       await createStructuredProceduralBenchmarkRoot({

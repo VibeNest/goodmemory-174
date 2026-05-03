@@ -130,6 +130,82 @@ describe("behavioral policy", () => {
     );
   });
 
+  it("derives and round-trips a computed recurrence rule for procedural formulas", () => {
+    const policy = deriveRuleBehavioralPolicy({
+      appliesTo: "general_response",
+      exemplarCount: 2,
+      kind: "do",
+      rule:
+        "Use the rule H(n) = 5*H(n-1) - 3*H(n-2) + 2*n. Retain any probe-provided base values, otherwise fall back to H(0) = 1 and H(1) = 1. Recompute from the current probe's values instead of reusing example outputs.",
+    });
+
+    expect(policy.applicability.computedResponseRule).toEqual({
+      baseCases: [
+        { index: 0, value: 1 },
+        { index: 1, value: 1 },
+      ],
+      expression: "5*H(n-1) - 3*H(n-2) + 2*n",
+      kind: "recurrence",
+      sequenceName: "H",
+    });
+
+    const feedback = createFeedbackMemory({
+      id: "computed-recurrence",
+      userId: "u-1",
+      workspaceId: "ws-1",
+      sessionId: "s-1",
+      kind: "validated_pattern",
+      rule:
+        "Use the rule H(n) = 5*H(n-1) - 3*H(n-2) + 2*n. Retain any probe-provided base values, otherwise fall back to H(0) = 1 and H(1) = 1. Recompute from the current probe's values instead of reusing example outputs.",
+      attributes: attachBehavioralPolicyAttributes(undefined, policy),
+      source,
+      updatedAt: source.extractedAt,
+    });
+
+    expect(
+      readBehavioralPolicyFromFeedbackMemory(feedback)?.applicability
+        .computedResponseRule,
+    ).toEqual(policy.applicability.computedResponseRule);
+  });
+
+  it("computes recurrence answers from probe-provided base cases", () => {
+    const policy = deriveRuleBehavioralPolicy({
+      appliesTo: "general_response",
+      exemplarCount: 2,
+      kind: "do",
+      rule:
+        "Use the rule H(n) = 5*H(n-1) - 3*H(n-2) + 2*n. Retain any probe-provided base values, otherwise fall back to H(0) = 1 and H(1) = 1. Recompute from the current probe's values instead of reusing example outputs.",
+    });
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "10",
+        plan: policy.applicability.textResponsePlan,
+        query:
+          "During a coding interview, H(0)=2 and H(1)=3 are provided as inputs; what is H(2) under the sequence we discussed?",
+      }),
+    ).toBe("13");
+  });
+
+  it("computes omega-style operator answers from the probe operands", () => {
+    const policy = deriveRuleBehavioralPolicy({
+      appliesTo: "general_response",
+      exemplarCount: 2,
+      kind: "do",
+      rule:
+        "Use the rule a ⊗ b = 8*a + 1*b + 5 + 2*a*b. Recompute using the current operands from the probe instead of reusing example outputs.",
+    });
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "31",
+        plan: policy.applicability.textResponsePlan,
+        query:
+          "A lab sheet asks for 3 ⊗ 4 using the omega operation—what number should I record?",
+      }),
+    ).toBe("57");
+  });
+
   it("classifies exact response framing as a format contract", () => {
     expect(
       deriveRuleBehavioralPolicy({
@@ -360,6 +436,32 @@ describe("behavioral policy", () => {
     );
   });
 
+  it("derives first-person-only lexical blocking from character voice rules", () => {
+    expect(
+      deriveRuleBehavioralPolicy({
+        appliesTo: "general_response",
+        exemplarCount: 2,
+        kind: "do",
+        rule:
+          "When speaking as the warlock, the voice must be strictly first-person only (I, me, my) with no other person pronouns, and it must include at least one simile using botanical or biological words.",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        behavioralKind: "transformation_rule",
+        applicability: expect.objectContaining({
+          forbiddenFragments: expect.arrayContaining([
+            "you",
+            "they",
+            "them",
+            "it",
+            "its",
+          ]),
+          preferredFragments: expect.arrayContaining(["like"]),
+        }),
+      }),
+    );
+  });
+
   it("enforces filetype replacement and case-insensitive lexical blocking on final text", () => {
     const filetypePlan = resolveTextResponseEnactmentPlan(
       selectBehavioralPolicies({
@@ -417,6 +519,40 @@ describe("behavioral policy", () => {
     expect(rewrittenFile.toLowerCase()).not.toContain(".exe");
     expect(rewrittenLexical.toLowerCase()).not.toContain("api");
     expect(rewrittenLexical.toLowerCase()).toContain("like");
+  });
+
+  it("removes forbidden pronouns with token-aware lexical blocking", () => {
+    const plan = resolveTextResponseEnactmentPlan(
+      selectBehavioralPolicies({
+        appliesTo: "general_response",
+        feedback: [],
+        query: "As the warlock, describe how you calm a river.",
+        surface: "text_response",
+        transientFeedback: [
+          createFeedbackMemory({
+            id: "voice-feedback",
+            userId: "u-1",
+            workspaceId: "ws-1",
+            sessionId: "s-1",
+            kind: "do",
+            rule:
+              "When speaking as the warlock, the voice must be strictly first-person only (I, me, my) with no other person pronouns, and it must include at least one simile using botanical or biological words.",
+            source,
+            updatedAt: source.extractedAt,
+          }),
+        ],
+      }),
+    );
+
+    const rewritten = applyTextResponseEnactmentPlan({
+      answer:
+        "I calm the river like ivy over stone until it softens and they fall silent around me.",
+      plan,
+      query: "As the warlock, describe how you calm a river.",
+    });
+
+    expect(rewritten).toContain("I calm the river like ivy over stone");
+    expect(rewritten).not.toMatch(/\b(?:they|them|their|it|its)\b/iu);
   });
 
   it("enforces filename-level filetype replacement from prefer-or-warn rules", () => {
