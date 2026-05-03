@@ -1,0 +1,139 @@
+Phase 56: Hypothesis-Carrying Raw Internalization
+===================================================================
+
+Status
+------
+
+[DONE] Phase 56 is closed. Core raw support/conflict retrieval, task-hypothesis
+formation, and transient execution are implemented, the targeted gate is
+accepted, and the required Postgres-backed full-300 follow-up rerun is written
+back into the research summary.
+
+Driver
+------
+
+- Phase 55 made the raw lane cleaner and more diagnosable, but it still mostly
+  stopped at exemplar retrieval.
+- The remaining raw misses showed a second gap:
+  - retrieval could select the right family of exemplar
+  - but the system still failed to convert that support into a probe-specific
+    executable hypothesis
+- Phase 56 therefore upgrades raw carryover from:
+  - exemplar retrieval only
+  to:
+  - support/conflict retrieval
+  - probe-time task hypothesis
+  - transient execution for high-confidence raw host-action and symbolic cases
+
+
+Phase Goal
+----------
+
+Turn raw carryover into a probe-conditioned adaptation path by:
+
+- splitting raw support and conflict candidates instead of treating retrieval as
+  a single ranked list
+- deriving a transient `RawTaskHypothesis` for the current probe
+- executing high-confidence host-action and symbolic hypotheses without turning
+  them into new durable public memory kinds
+- recording typed raw diagnostics so later slices can distinguish:
+  - memory miss
+  - support conflict
+  - hypothesis missing
+  - executor unsafe
+  - reasoning after correct hypothesis
+
+
+Dependencies
+------------
+
+- Phase 49 full ImplicitMemBench research harness
+- Phase 54 exemplar-first raw internalization
+- Phase 55 probe-conditioned raw carryover and retrieval calibration
+- `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+
+
+Accepted Scope
+--------------
+
+- add internal support/conflict-aware raw retrieval views
+- add internal `RawTaskHypothesis`
+- add transient raw execution for:
+  - slot rebinding
+  - symbolic formula carryover
+  - bounded exact host-action recovery
+  - guarded decision hints
+- keep the slice internal-first and additive on current durable truth
+- add Phase 56 deterministic/live targeted eval and gate wiring
+
+
+Out Of Scope
+------------
+
+- public API widening
+- new public durable memory kinds
+- base-model finetuning
+- benchmark-file-specific runtime hacks
+- replacing the accepted distilled lane with raw
+
+
+Acceptance Criteria
+-------------------
+
+1. [DONE] Deterministic targeted evidence passes with `executionFailures = 0`.
+2. [DONE] Targeted live raw evidence now beats the frozen baseline
+   (`6 / 12` -> `11 / 12`) with `executionFailures = 0` and no explicit recall
+   leak regression.
+3. [DONE] `goodmemory-distilled-feedback` remains non-regressed on the same
+   targeted suite and still covers all 12 targeted task files.
+4. [DONE] `gate:phase-56` must write an accepted canonical gate artifact that
+   points at the deterministic and live-memory evidence used for closure.
+5. [DONE] A required Postgres-backed 5-shard full-300 rerun must complete and
+   be written back into the research summary before Phase 56 can be called
+   closed.
+
+
+Tasks
+-----
+
+[DONE] P56-T001 Add support/conflict-aware raw retrieval and typed abstention
+  diagnostics.
+[DONE] P56-T002 Add `RawTaskHypothesis` and transient raw execution for
+  symbolic and exact-action carryover.
+[DONE] P56-T003 Wire the shared raw path through Runtime Kit and the Phase 49
+  research harness.
+[DONE] P56-T004 Add Phase 56 deterministic/live/gate scripts and targeted
+  regression coverage.
+[DONE] P56-T005 Finish closure evidence: accepted gate artifact plus required
+  Postgres-backed full-300 follow-up.
+
+
+Current Evidence
+----------------
+
+- Deterministic targeted eval:
+  `reports/eval/fallback/phase-56/run-phase56-fallback-current/report.json`
+- Live-memory targeted eval:
+  `reports/eval/live-memory/phase-56/run-phase56-live-current/report.json`
+- Current live raw result:
+  `11 / 12`
+- Current live distilled result:
+  `12 / 12`
+- Accepted quality gate:
+  `reports/quality-gates/phase-56/run-20260504003000/phase-56-quality-gate.json`
+- Full-300 follow-up:
+  - raw `45 / 200`
+  - distilled `152 / 200`
+  - conditioning raw/distilled `22 / 100`, `87 / 100`
+  - procedural raw/distilled `23 / 100`, `65 / 100`
+  - structured first-action raw/distilled `8 / 35`, `21 / 35`
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-56-hypothesis-carrying-raw-internalization/00-README.txt`
+- `task-board/phase-56-hypothesis-carrying-raw-internalization/01-support-conflict-retrieval.txt`
+- `task-board/phase-56-hypothesis-carrying-raw-internalization/02-raw-task-hypothesis.txt`
+- `task-board/phase-56-hypothesis-carrying-raw-internalization/03-raw-transient-executor.txt`
+- `task-board/phase-56-hypothesis-carrying-raw-internalization/04-diagnostics-gate-and-full300.txt`

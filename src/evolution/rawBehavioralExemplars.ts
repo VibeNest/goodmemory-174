@@ -3,10 +3,28 @@ import type {
   ExperienceRecord,
   SessionArchive,
 } from "./contracts";
+import type {
+  RecallCandidateTrace,
+  RecallHit,
+} from "../recall/engine";
+import { splitTopLevelCallArguments } from "./behavioralPolicy";
 import {
   formatBehavioralFirstAction,
   parseToolOutcomeMetadata,
 } from "./behavioralTelemetry";
+import {
+  scoreRawCarryoverReranker,
+  trainRawCarryoverReranker,
+  type RawCarryoverRerankerModel,
+  type RawCarryoverTrainingSample,
+} from "./rawCarryoverTraining";
+import {
+  buildRawTaskHypothesis,
+  type RawTaskHypothesis,
+} from "./rawTaskHypothesis";
+import { executeProbeConditionedRawCarryover } from "./rawTransientExecutor";
+
+export type RawBehavioralRerankerModel = RawCarryoverRerankerModel;
 
 export type RawBehavioralSurfaceFamily = "host_action" | "text_response";
 export type RawBehavioralTransferMode = "episodic_only" | "prototype_bounded";
@@ -16,11 +34,60 @@ export type RawBehavioralExemplarSource =
   | "runtime_buffer"
   | "tool_outcome";
 
-interface RawIntentCue {
+export type RawCarryoverAbstainReason =
+  | "ambiguous_top2"
+  | "below_threshold"
+  | "executor_unsafe"
+  | "hypothesis_missing"
+  | "no_candidates"
+  | "support_conflict";
+
+export type RawCarryoverConstraintType =
+  | "analogy"
+  | "arg_order"
+  | "exact_action"
+  | "formula"
+  | "path_root"
+  | "precondition"
+  | "safe_alternative"
+  | "style"
+  | "url_shape";
+
+export interface RawQueryIntent {
   actionType: string;
+  constraintTypes: RawCarryoverConstraintType[];
   entityTypes: string[];
+  exactSlots: {
+    argNames: string[];
+    argOrderSignature?: string;
+    commandName?: string;
+    extension?: string;
+    filename?: string;
+    operatorSymbols: string[];
+    pathRoot?: string;
+    styleMarkers: string[];
+    urlHost?: string;
+    urlPath?: string;
+  };
+  goal: string;
   goalTokens: string[];
   requestedSurface: RawBehavioralSurfaceFamily;
+}
+
+export interface RawCarryoverPacket {
+  computedResponse?: string;
+  hypothesisSketch?: string;
+  promptPayload: string;
+  retrievalText: string;
+}
+
+export interface RawSupportConflictView {
+  conflictPrototypeIds: string[];
+  supportPrototypeIds: string[];
+}
+
+interface RawIntentCue {
+  query: RawQueryIntent;
 }
 
 interface RawEpisodeShape {
@@ -46,6 +113,7 @@ export interface RawBehavioralExemplar {
   id: string;
   intentCue: RawIntentCue;
   interferenceTags: string[];
+  retrievalText: string;
   scope: {
     agentId?: string;
     tenantId?: string;
@@ -60,6 +128,8 @@ export interface RawBehavioralExemplar {
 
 export interface RawBehavioralPrototype {
   confidence: number;
+  constraintTypes: RawCarryoverConstraintType[];
+  exactSlotSignature: string;
   exemplars: RawBehavioralExemplar[];
   exactSurface?: RawExactSurface;
   hardNegativeIds: string[];
@@ -73,10 +143,14 @@ export interface RawBehavioralPrototype {
   transferMode: RawBehavioralTransferMode;
 }
 
-export interface RawBehavioralRerankerModel {
-  bias: number;
-  featureNames: string[];
-  weights: number[];
+export interface RawBehavioralInterferenceEntry {
+  conflictingPrototypeId: string;
+  penalty: number;
+  prototypeId: string;
+  reason:
+    | "correction_conflict"
+    | "exact_surface_conflict"
+    | "intent_conflict";
 }
 
 export interface RawBehavioralPrototypeIndex {
@@ -86,28 +160,55 @@ export interface RawBehavioralPrototypeIndex {
     reason: "exact_surface_conflict" | "intent_conflict";
     rightPrototypeId: string;
   }>;
+  interferenceLedger: RawBehavioralInterferenceEntry[];
   model: RawBehavioralRerankerModel;
   prototypes: RawBehavioralPrototype[];
+  recallHints?: BuildRawBehavioralPrototypeIndexInput["recallHints"];
 }
 
 export interface RawBehavioralCarryoverSelection {
   exemplar: RawBehavioralExemplar;
+  prototypeId: string;
   probability: number;
   score: number;
 }
 
-interface TrainingSample {
-  features: number[];
-  label: 0 | 1;
+export interface RawCarryoverDiagnostic {
+  abstainReason?: RawCarryoverAbstainReason;
+  candidatePrototypeIds: string[];
+  conflictPrototypeIds?: string[];
+  hypothesis?: {
+    confidence: number;
+    executionMode: RawTaskHypothesis["executionMode"];
+    mappingType: RawTaskHypothesis["mappingType"];
+    supportingPrototypeIds: string[];
+  };
+  mode: "abstained" | "exemplar_only" | "fallback_context" | "none";
+  selectedExemplarIds: string[];
+  selectedPrototypeIds: string[];
+  supportPrototypeIds?: string[];
+  topProbability?: number;
+  topScore?: number;
+}
+
+export interface RawCarryoverResolution {
+  candidates: RawBehavioralCarryoverSelection[];
+  debug: RawCarryoverDiagnostic;
+  hypothesis?: RawTaskHypothesis;
+  packet?: RawCarryoverPacket;
+  selections: RawBehavioralCarryoverSelection[];
+  supportConflict?: RawSupportConflictView;
 }
 
 interface RankingFeatures {
+  correctionSuccessPrior: number;
   exactSurfaceMatch: number;
+  exactSlotOverlap: number;
   interferenceRisk: number;
   intentCompatibility: number;
   lexicalSimilarity: number;
-  outcomeUtility: number;
   recencySupport: number;
+  semanticSimilarity: number;
   repetitionSupport: number;
   surfaceCompatibility: number;
 }
@@ -125,6 +226,10 @@ export interface BuildRawBehavioralPrototypeIndexInput {
       userId: string;
       workspaceId?: string;
     };
+  };
+  recallHints?: {
+    candidateTraces?: readonly RecallCandidateTrace[];
+    hits?: readonly RecallHit[];
   };
   runtimeMessages?: readonly { content: string; role: string }[];
   surfaceHint?: RawBehavioralSurfaceFamily;
@@ -144,15 +249,17 @@ const DEFAULT_MODEL: RawBehavioralRerankerModel = {
   bias: -0.85,
   featureNames: [
     "lexicalSimilarity",
+    "semanticSimilarity",
     "intentCompatibility",
     "surfaceCompatibility",
+    "exactSlotOverlap",
     "exactSurfaceMatch",
-    "outcomeUtility",
+    "correctionSuccessPrior",
     "interferenceRisk",
     "recencySupport",
     "repetitionSupport",
   ],
-  weights: [1.35, 1.45, 0.75, 1.2, 0.9, -1.1, 0.35, 0.55],
+  weights: [1.15, 0.95, 1.45, 0.7, 1.35, 1.1, 0.9, -1.2, 0.3, 0.5],
 };
 const HARD_NEGATIVE_MIN_OVERLAP = 0.28;
 const MAX_RENDERED_EXACT_SURFACE_LENGTH = 120;
@@ -230,27 +337,85 @@ function lexicalOverlap(left: readonly string[], right: readonly string[]): numb
   return overlap / Math.max(left.length, right.length);
 }
 
+const KNOWN_HOST_ACTION_COMMAND_RE =
+  /\b(_database|FETCH|SELECT|access_logs|change_permissions|copy_file|copy_with_meta|create_archive|create_directory|current_directory|delete_file|exit_os|get_data|journalctl|list_contents|logs@|move_file|nav|psql|rename_file|replace_file|search_file|sqlite3|sync_bundle)\b/u;
+
+function extractHostActionCommandName(value: string): string | undefined {
+  const normalized = normalizeText(value);
+  return (
+    normalized.match(/\b([A-Za-z_][A-Za-z0-9_@]*)\s*\(/u)?.[1] ??
+    normalized.match(/\b([A-Za-z_][A-Za-z0-9_@]*)\s+\|[^|]+\|/u)?.[1] ??
+    normalized.match(/\bAPI name:\s*([A-Za-z_][A-Za-z0-9_@]*)\b/iu)?.[1] ??
+    normalized.match(KNOWN_HOST_ACTION_COMMAND_RE)?.[1]
+  );
+}
+
+function extractCommandLikeSurface(value: string): string | undefined {
+  const normalized = normalizeText(value);
+  const actionLike =
+    normalized.match(/\b([A-Za-z_][A-Za-z0-9_@]*)\([^)]*\)/u)?.[0] ??
+    normalized.match(/\b([A-Za-z_][A-Za-z0-9_@]*)\s+\|[^|]+\|/u)?.[0] ??
+    normalized.match(/\bFETCH\s+[A-Za-z0-9_]+\s+\|\s+FILTER\s+[^.]+/u)?.[0] ??
+    normalized.match(/['"`]([A-Za-z_][A-Za-z0-9_@]*(?:\s+[A-Za-z0-9_./<>{}\[\]'":,@|=-]+){0,8})['"`]/u)?.[1];
+  return actionLike ? stripTrailingPunctuation(actionLike.trim()) : undefined;
+}
+
 function inferActionType(value: string): string {
   const lower = normalizeText(value).toLowerCase();
+  if (
+    extractHostActionCommandName(value) ||
+    /\brequired argument order\b|\bdestination first\b|\bsource second\b|\bpipe-wrapped\b|\blogiql syntax\b|\bexact logiql command\b/u.test(
+      lower,
+    )
+  ) {
+    return "structured_action";
+  }
+  if (
+    /\b[A-Z][A-Za-z0-9_]*\((-?\d+)\)/u.test(value) &&
+    (/\bwhat is\b|\bcompute\b|\bcalculate\b|\bvalue\b/iu.test(value) ||
+      /=/u.test(value))
+  ) {
+    return "symbolic_rule";
+  }
+  if (
+    /\banalogy\b|\bjargon\b|\bavoid the term\b|\bavoid using\b|\bbeginner\b/u.test(
+      lower,
+    )
+  ) {
+    return "analogy_explanation";
+  }
+  if (
+    /\bcheck\b[^.]*\bload\b|\bonly proceed\b|\bnormal\b|\bidle\b|\bdefer\b/u.test(
+      lower,
+    )
+  ) {
+    return "guarded_api";
+  }
+  if (/\buse\b[^.]*\b[a-z0-9_]*api\b/u.test(lower)) {
+    return "guarded_api";
+  }
   if (/\bhttps?\b|\burl\b|\blink\b/.test(lower)) {
     return "url_rewrite";
+  }
+  if (/\bcopy\b|\barchive\b|\bsync\b|\bquery\b|\btool\b|\bcommand\b|\bfunction\b/.test(lower)) {
+    return "structured_action";
+  }
+  if (/\bnavigate\b|\bfolder\b|\bsubfolder\b|\bdirectory\b/.test(lower)) {
+    return "path_redirect";
   }
   if (/\bpath\b|\bdirectory\b|\/[a-z0-9._/-]+/u.test(lower)) {
     return "path_redirect";
   }
-  if (/\bapi\b|\bendpoint\b|\bservice\b/.test(lower)) {
+  if (/\b[a-z0-9_]*api\b|\bendpoint\b|\bservice\b/.test(lower)) {
     return "api_route";
   }
   if (/\bsubject\b|\bsign(?:ed|ature| off)?\b|\bdear\b|\bregards\b|\bsincerely\b/.test(lower)) {
     return "format_contract";
   }
-  if (/\bcopy\b|\barchive\b|\bsync\b|\bquery\b|\btool\b|\bcommand\b|\bfunction\b/.test(lower)) {
-    return "structured_action";
-  }
   if (/\bformula\b|\bsequence\b|\boperator\b|\bcompute\b/.test(lower)) {
     return "symbolic_rule";
   }
-  if (/\bvoice\b|\bfirst-person\b|\bi\b|\bme\b|\bmy\b/.test(lower)) {
+  if (/\bvoice\b|\bfirst-person\b|\bpronoun\b/.test(lower)) {
     return "voice_style";
   }
 
@@ -260,14 +425,29 @@ function inferActionType(value: string): string {
 function inferEntityTypes(value: string): string[] {
   const lower = normalizeText(value).toLowerCase();
   const entities: string[] = [];
+  if (/\b[A-Z][A-Za-z0-9_]*\((-?\d+)\)/u.test(value)) {
+    entities.push("symbolic");
+  }
   if (/\bhttps?\b|\burl\b|\blink\b/.test(lower)) {
     entities.push("url");
+  }
+  if (extractHostActionCommandName(value) || /\bpipe-wrapped\b|\blogiql\b/u.test(lower)) {
+    entities.push("command");
+  }
+  if (/\bcopy\b|\barchive\b|\bsync\b|\btool\b|\butility\b|\bcommand\b/u.test(lower)) {
+    entities.push("command");
+  }
+  if (/\bfolder\b|\bsubfolder\b|\bdirectory\b/u.test(lower)) {
+    entities.push("path");
   }
   if (/\bpath\b|\bdirectory\b|\/[a-z0-9._/-]+/u.test(lower)) {
     entities.push("path");
   }
-  if (/\bapi\b|\bendpoint\b|\bservice\b/.test(lower)) {
+  if (/\b[a-z0-9_]*api\b|\bendpoint\b|\bservice\b/.test(lower)) {
     entities.push("api");
+  }
+  if (/\banalogy\b|\bjargon\b|\bbeginner\b|\bconcept\b/.test(lower)) {
+    entities.push("analogy");
   }
   if (/\bsubject\b|\bsign(?:ed|ature| off)?\b|\bdear\b|\bregards\b|\bsincerely\b/.test(lower)) {
     entities.push("format");
@@ -284,9 +464,88 @@ function inferEntityTypes(value: string): string[] {
   return uniqueStrings(entities);
 }
 
+function stripTrailingPunctuation(value: string): string {
+  return value.replace(/[.,;:!?。]+$/u, "");
+}
+
+function parsePathRoot(path: string): string | undefined {
+  const normalized = stripTrailingPunctuation(path.trim());
+  if (!normalized.startsWith("/")) {
+    return undefined;
+  }
+
+  const segments = normalized.split("/").filter(Boolean);
+  return segments[0] ? `/${segments[0]}` : undefined;
+}
+
+function parseFilename(path: string): string | undefined {
+  const normalized = stripTrailingPunctuation(path.trim());
+  const segments = normalized.split("/").filter(Boolean);
+  return segments.at(-1);
+}
+
+function parseExtension(path: string): string | undefined {
+  const filename = parseFilename(path);
+  if (!filename) {
+    return undefined;
+  }
+  const dot = filename.lastIndexOf(".");
+  return dot <= 0 ? undefined : filename.slice(dot);
+}
+
+function inferConstraintTypes(value: string): RawCarryoverConstraintType[] {
+  const lower = normalizeText(value).toLowerCase();
+  const constraints: RawCarryoverConstraintType[] = [];
+
+  if (/\b[A-Z][A-Za-z0-9_]*\((-?\d+)\)/u.test(value)) {
+    constraints.push("formula");
+  }
+  if (/\bhttps?\b|\bhost\b|\bpath\b|\bsubdomain\b/u.test(lower)) {
+    constraints.push("url_shape");
+  }
+  if (/\bpath\b|\bdirectory\b|\broot\b|\/[a-z0-9._/-]+/u.test(lower)) {
+    constraints.push("path_root");
+  }
+  if (/\bfolder\b|\bsubfolder\b/u.test(lower)) {
+    constraints.push("path_root");
+  }
+  if (/\barg(?:ument)?\b|\border\b|\bparameter\b|\bprefix\b|\bsuffix\b/u.test(lower)) {
+    constraints.push("arg_order");
+  }
+  if (/\bformula\b|\bsequence\b|\boperator\b|\bomega\b|\brecurrence\b/u.test(lower)) {
+    constraints.push("formula");
+  }
+  if (/\bsafer?\b|\binstead\b|\bwarning\b|\bavoid\b/u.test(lower)) {
+    constraints.push("safe_alternative");
+  }
+  if (/\banalogy\b|\bjargon\b|\bbeginner\b|\bavoid the term\b/u.test(lower)) {
+    constraints.push("analogy");
+  }
+  if (/\bcheck\b[^.]*\bload\b|\bonly proceed\b|\bnormal\b|\bidle\b|\bdefer\b/u.test(lower)) {
+    constraints.push("precondition");
+  }
+  if (/\bvoice\b|\bfirst-person\b|\bpronoun\b/u.test(lower)) {
+    constraints.push("style");
+  }
+  if (
+    extractHostActionCommandName(value) ||
+    /\brequired argument order\b|\bdestination first\b|\bsource second\b|\bpipe-wrapped\b|\blogiql syntax\b|\bexact logiql command\b/u.test(
+      lower,
+    )
+  ) {
+    constraints.push("exact_action");
+  }
+  if (/\bcopy\b|\barchive\b|\bsync\b|\bquery\b|\btool\b|\bcommand\b|\bfunction\b/u.test(lower)) {
+    constraints.push("exact_action");
+  }
+
+  return uniqueStrings(constraints) as RawCarryoverConstraintType[];
+}
+
 function inferSurfaceFamily(value: string): RawBehavioralSurfaceFamily {
   const normalized = normalizeText(value);
   if (
+    extractHostActionCommandName(normalized) ||
     /\b[a-z_][a-z0-9_]*\([^)]*\)/iu.test(normalized) ||
     /^\/?[A-Za-z0-9._/-]+\s+\/?[A-Za-z0-9._/-]+/u.test(normalized) ||
     /\b(?:copy_file|copy_with_meta|replace_file|sync_bundle|create_archive)\b/iu.test(
@@ -299,6 +558,62 @@ function inferSurfaceFamily(value: string): RawBehavioralSurfaceFamily {
   return "text_response";
 }
 
+function parseExactSlots(
+  value: string,
+  surfaceFamily: RawBehavioralSurfaceFamily,
+): RawQueryIntent["exactSlots"] {
+  const normalized = normalizeText(value);
+  const url = normalized.match(/https?:\/\/([^\s/]+)(\/[^\s)]*)?/u);
+  const path = normalized.match(/(?:~\/|\/)[A-Za-z0-9._/-]+/u)?.[0];
+  const actionMatch = normalized.match(/\b([A-Za-z_][A-Za-z0-9_]*)\((.+)\)/u);
+  const argEntries = actionMatch?.[2]
+    ? splitTopLevelCallArguments(actionMatch[2]).map((entry) => entry.trim())
+    : [];
+  const argNames = argEntries
+    .map((entry) => entry.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=/u)?.[1] ?? "")
+    .filter(Boolean);
+  const operatorSymbols = [...normalized.matchAll(/[⊗⊕⊖⊙]|->|=>|[+*=-]/gu)]
+    .map((match) => match[0])
+    .filter((token, index, values) => values.indexOf(token) === index);
+  const styleMarkers = [
+    /\bI\b/u.test(normalized) ? "first_person_i" : "",
+    /\bme\b/u.test(normalized) ? "first_person_me" : "",
+    /\bmy\b/u.test(normalized) ? "first_person_my" : "",
+  ].filter(Boolean);
+
+  return {
+    argNames,
+    argOrderSignature: argNames.length > 0 ? argNames.join(">") : undefined,
+    commandName:
+      surfaceFamily === "host_action"
+        ? actionMatch?.[1] ?? extractHostActionCommandName(normalized)
+        : undefined,
+    extension: path ? parseExtension(path) : undefined,
+    filename: path ? parseFilename(path) : undefined,
+    operatorSymbols,
+    pathRoot: path ? parsePathRoot(path) : undefined,
+    styleMarkers,
+    urlHost: url?.[1],
+    urlPath: url?.[2],
+  };
+}
+
+function buildExactSlotSignature(
+  exactSlots: RawQueryIntent["exactSlots"],
+): string {
+  return [
+    exactSlots.commandName ?? "",
+    exactSlots.argOrderSignature ?? "",
+    exactSlots.urlHost ?? "",
+    exactSlots.urlPath ?? "",
+    exactSlots.pathRoot ?? "",
+    exactSlots.filename ?? "",
+    exactSlots.extension ?? "",
+    exactSlots.operatorSymbols.join(","),
+    exactSlots.styleMarkers.join(","),
+  ].join("\u0002");
+}
+
 function extractTextExactSurface(value: string): RawExactSurface | undefined {
   const normalized = normalizeText(value);
   if (!normalized) {
@@ -307,14 +622,28 @@ function extractTextExactSurface(value: string): RawExactSurface | undefined {
 
   const actionMatch = normalized.match(/\b([A-Za-z_][A-Za-z0-9_]*)\((.+)\)/u);
   if (actionMatch?.[0]) {
-    const args = actionMatch[2]
-      ?.split(/,(?![^\[]*\]|[^()]*\))/u)
+    const args = splitTopLevelCallArguments(actionMatch[2])
       .map((entry) => entry.trim())
       .filter(Boolean);
     return {
       kind: "action",
       value: clipText(actionMatch[0], MAX_RENDERED_EXACT_SURFACE_LENGTH),
       ...(args && args.length > 0 ? { args } : {}),
+    };
+  }
+
+  const commandLikeSurface = extractCommandLikeSurface(normalized);
+  if (commandLikeSurface) {
+    return {
+      kind:
+        commandLikeSurface.includes("|") ||
+        /\bFETCH\b/u.test(commandLikeSurface) ||
+        /\b[A-Za-z_][A-Za-z0-9_@]*\s+[A-Za-z0-9_./<>{}\[\]'":,@|=-]+/u.test(
+          commandLikeSurface,
+        )
+          ? "action"
+          : "text",
+      value: clipText(commandLikeSurface, MAX_RENDERED_EXACT_SURFACE_LENGTH),
     };
   }
 
@@ -366,16 +695,49 @@ function extractTextExactSurface(value: string): RawExactSurface | undefined {
   return undefined;
 }
 
+function createRawQueryIntent(
+  query: string,
+  surfaceFamily: RawBehavioralSurfaceFamily,
+): RawQueryIntent {
+  const normalized = normalizeText(query);
+  return {
+    actionType: inferActionType(query),
+    constraintTypes: inferConstraintTypes(query),
+    entityTypes: inferEntityTypes(query),
+    exactSlots: parseExactSlots(query, surfaceFamily),
+    goal: clipText(normalized, 96),
+    goalTokens: tokenize(query).slice(0, 12),
+    requestedSurface: surfaceFamily,
+  };
+}
+
 function createIntentCue(
   query: string,
   surfaceFamily: RawBehavioralSurfaceFamily,
 ): RawIntentCue {
   return {
-    actionType: inferActionType(query),
-    entityTypes: inferEntityTypes(query),
-    goalTokens: tokenize(query).slice(0, 12),
-    requestedSurface: surfaceFamily,
+    query: createRawQueryIntent(query, surfaceFamily),
   };
+}
+
+function buildRetrievalText(input: {
+  cue: string;
+  exactSurface?: RawExactSurface;
+  observedOutcome: string;
+  safeCorrectedMove?: string;
+  successfulMove: string;
+}): string {
+  return [
+    `cue: ${clipText(input.cue)}`,
+    `move: ${clipText(input.successfulMove)}`,
+    `outcome: ${clipText(input.observedOutcome)}`,
+    input.safeCorrectedMove
+      ? `corrected: ${clipText(input.safeCorrectedMove)}`
+      : undefined,
+    input.exactSurface ? `surface: ${input.exactSurface.value}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(" | ");
 }
 
 function buildInterferenceTags(query: string, exactSurface?: RawExactSurface): string[] {
@@ -388,6 +750,9 @@ function buildInterferenceTags(query: string, exactSurface?: RawExactSurface): s
       token === "http" ||
       token === "https" ||
       token === "api" ||
+      token === "analogy" ||
+      token === "jargon" ||
+      token === "load" ||
       token === "path" ||
       token === "directory" ||
       token === "subject" ||
@@ -436,6 +801,16 @@ function createExemplar(input: {
   successfulMove: string;
   surfaceFamily: RawBehavioralSurfaceFamily;
 }): RawBehavioralExemplar {
+  const observedOutcome = clipText(input.observedOutcome);
+  const relevantPriorMove = clipText(input.successfulMove);
+  const safeCorrectedMove = input.safeCorrectedMove
+    ? clipText(input.safeCorrectedMove)
+    : undefined;
+  const intentSeed = safeCorrectedMove
+    ? `${input.cue} ${safeCorrectedMove}`
+    : `${input.cue} ${input.successfulMove}`;
+  const intentCue = createIntentCue(intentSeed, input.surfaceFamily);
+
   return {
     confidence: scoreExemplarConfidence({
       exactSurface: input.exactSurface,
@@ -446,16 +821,21 @@ function createExemplar(input: {
     createdAt: input.createdAt,
     episodeShape: {
       cue: clipText(input.cue),
-      observedOutcome: clipText(input.observedOutcome),
-      relevantPriorMove: clipText(input.successfulMove),
-      ...(input.safeCorrectedMove
-        ? { safeCorrectedMove: clipText(input.safeCorrectedMove) }
-        : {}),
+      observedOutcome,
+      relevantPriorMove,
+      ...(safeCorrectedMove ? { safeCorrectedMove } : {}),
     },
     exactSurface: input.exactSurface,
     id: input.id,
-    intentCue: createIntentCue(input.cue, input.surfaceFamily),
-    interferenceTags: buildInterferenceTags(input.cue, input.exactSurface),
+    intentCue,
+    interferenceTags: buildInterferenceTags(intentSeed, input.exactSurface),
+    retrievalText: buildRetrievalText({
+      cue: input.cue,
+      exactSurface: input.exactSurface,
+      observedOutcome,
+      safeCorrectedMove,
+      successfulMove: relevantPriorMove,
+    }),
     scope: input.scope,
     source: input.source,
     sourceIds: uniqueStrings(input.sourceIds),
@@ -734,8 +1114,10 @@ function uniqueExemplars(
 function buildPrototypeSignature(exemplar: RawBehavioralExemplar): string {
   return [
     exemplar.surfaceFamily,
-    exemplar.intentCue.actionType,
-    exemplar.intentCue.entityTypes.join(","),
+    exemplar.intentCue.query.actionType,
+    exemplar.intentCue.query.constraintTypes.join(","),
+    exemplar.intentCue.query.entityTypes.join(","),
+    buildExactSlotSignature(exemplar.intentCue.query.exactSlots),
     exemplar.exactSurface?.kind ?? "none",
     exemplar.exactSurface?.value.toLowerCase() ?? "",
   ].join("\u0001");
@@ -777,6 +1159,10 @@ function buildPrototypes(
         0.99,
         representative.confidence + Math.min(0.12, group.length * 0.04),
       ),
+      constraintTypes: representative.intentCue.query.constraintTypes,
+      exactSlotSignature: buildExactSlotSignature(
+        representative.intentCue.query.exactSlots,
+      ),
       exemplars: group,
       exactSurface: representative.exactSurface,
       hardNegativeIds: [],
@@ -812,8 +1198,8 @@ function buildHardNegativePairs(
       }
 
       const overlap = lexicalOverlap(
-        left.intentCue.goalTokens,
-        right.intentCue.goalTokens,
+        left.intentCue.query.goalTokens,
+        right.intentCue.query.goalTokens,
       );
       if (overlap < HARD_NEGATIVE_MIN_OVERLAP) {
         continue;
@@ -821,7 +1207,8 @@ function buildHardNegativePairs(
 
       const exactConflict =
         exactSurfaceKey(left.exactSurface) !== exactSurfaceKey(right.exactSurface);
-      const intentConflict = left.intentCue.actionType !== right.intentCue.actionType;
+      const intentConflict =
+        left.intentCue.query.actionType !== right.intentCue.query.actionType;
       if (!exactConflict && !intentConflict) {
         continue;
       }
@@ -837,66 +1224,420 @@ function buildHardNegativePairs(
   return pairs;
 }
 
-function computeRankingFeatures(input: {
-  hardNegativeIds: readonly string[];
+function buildInterferenceLedger(
+  prototypes: readonly RawBehavioralPrototype[],
+  hardNegativePairs: ReadonlyArray<
+    RawBehavioralPrototypeIndex["hardNegativePairs"][number]
+  >,
+): RawBehavioralInterferenceEntry[] {
+  const entries: RawBehavioralInterferenceEntry[] = [];
+
+  for (const pair of hardNegativePairs) {
+    const left = prototypes.find((prototype) => prototype.id === pair.leftPrototypeId);
+    const right = prototypes.find((prototype) => prototype.id === pair.rightPrototypeId);
+    const penalty = Math.max(
+      0.35,
+      lexicalOverlap(
+        left?.intentCue.query.goalTokens ?? [],
+        right?.intentCue.query.goalTokens ?? [],
+      ),
+    );
+
+    entries.push({
+      conflictingPrototypeId: pair.rightPrototypeId,
+      penalty,
+      prototypeId: pair.leftPrototypeId,
+      reason: pair.reason,
+    });
+    entries.push({
+      conflictingPrototypeId: pair.leftPrototypeId,
+      penalty,
+      prototypeId: pair.rightPrototypeId,
+      reason: pair.reason,
+    });
+  }
+
+  return entries;
+}
+
+function overlapRatio(left: readonly string[], right: readonly string[]): number {
+  if (left.length === 0 || right.length === 0) {
+    return 0;
+  }
+
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  let overlap = 0;
+
+  for (const token of leftSet) {
+    if (rightSet.has(token)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap / Math.max(leftSet.size, rightSet.size);
+}
+
+function exactSlotOverlap(
+  left: RawQueryIntent["exactSlots"],
+  right: RawQueryIntent["exactSlots"],
+): number {
+  const comparisons = [
+    left.commandName && right.commandName && left.commandName === right.commandName
+      ? 1
+      : 0,
+    left.argOrderSignature &&
+    right.argOrderSignature &&
+    left.argOrderSignature === right.argOrderSignature
+      ? 1
+      : 0,
+    left.urlHost && right.urlHost && left.urlHost === right.urlHost ? 1 : 0,
+    left.urlPath && right.urlPath && left.urlPath === right.urlPath ? 1 : 0,
+    left.pathRoot && right.pathRoot && left.pathRoot === right.pathRoot ? 1 : 0,
+    left.filename && right.filename && left.filename === right.filename ? 1 : 0,
+    left.extension && right.extension && left.extension === right.extension ? 1 : 0,
+    overlapRatio(left.operatorSymbols, right.operatorSymbols),
+    overlapRatio(left.styleMarkers, right.styleMarkers),
+    overlapRatio(left.argNames, right.argNames),
+  ];
+
+  return comparisons.reduce((total, value) => total + value, 0) / comparisons.length;
+}
+
+function exactSurfaceTemplateCompatibility(
+  queryIntent: RawQueryIntent,
+  exactSurface: RawExactSurface | undefined,
+): number {
+  if (!exactSurface) {
+    return 0;
+  }
+
+  const goal = queryIntent.goal.toLowerCase();
+  const surface = exactSurface.value.toLowerCase();
+  let score = 0;
+
+  if (surface.includes("|folder|") && /\bfolder\b|\bsubfolder\b|\bdirectory\b/u.test(goal)) {
+    score = Math.max(score, 1.4);
+  }
+  if (surface.includes("|..|") && /\bback\b|\bprevious\b/u.test(goal)) {
+    score = Math.max(score, 1.2);
+  }
+  if (surface.includes("|~|") && /\bhome\b/u.test(goal)) {
+    score = Math.max(score, 1.2);
+  }
+  if (surface.startsWith("get_data(") && /\btool\b|\brecord\b|\binvoice\b/u.test(goal)) {
+    score = Math.max(score, 1.3);
+  }
+  if (surface.startsWith("copy_file(") && /\bcopy\b/u.test(goal)) {
+    score = Math.max(score, 1.3);
+  }
+  if (surface.startsWith("_database(") && /\btoken\b|\bgrant\b|\brole\b/u.test(goal)) {
+    score = Math.max(score, 1.3);
+  }
+  if (surface.startsWith("fetch ") && /\blogidb\b|\bquery\b/u.test(goal)) {
+    score = Math.max(score, 1.3);
+  }
+
+  return score;
+}
+
+function implicitActionRuleCompatibility(input: {
   prototype: RawBehavioralPrototype;
-  prototypesById: Map<string, RawBehavioralPrototype>;
-  query: string;
+  queryIntent: RawQueryIntent;
+}): number {
+  const goal = input.queryIntent.goal.toLowerCase();
+  const move = input.prototype.representative.episodeShape.relevantPriorMove.toLowerCase();
+  let score = 0;
+
+  if (
+    /\bdestination first\b/u.test(move) &&
+    /\bsource second\b/u.test(move) &&
+    /\bcopy\b/u.test(goal)
+  ) {
+    score = Math.max(score, 1.2);
+  }
+  if (
+    /\bprefix\b[^.]*token-/u.test(move) &&
+    /\bsuffix\b[^.]*-token/u.test(move) &&
+    /\btoken\b|\bgrant\b|\brole\b/u.test(goal)
+  ) {
+    score = Math.max(score, 1.2);
+  }
+  if (
+    /\brequired argument order:\s*query_payload,\s*buffer,\s*auth\b/u.test(move) &&
+    /\brecord\b|\btool\b|\binvoice\b/u.test(goal)
+  ) {
+    score = Math.max(score, 1.2);
+  }
+  if (/\bpipe-wrapped paths\b/u.test(move) && /\bfolder\b|\bsubfolder\b/u.test(goal)) {
+    score = Math.max(score, 1.2);
+  }
+  if (/\blogiql syntax\b/u.test(move) && /\blogidb\b|\bquery\b/u.test(goal)) {
+    score = Math.max(score, 1.2);
+  }
+
+  return score;
+}
+
+function collectSemanticSeedIds(
+  input: BuildRawBehavioralPrototypeIndexInput["recallHints"],
+): Set<string> {
+  const ids = new Set<string>();
+
+  for (const hit of input?.hits ?? []) {
+    ids.add(hit.id);
+  }
+  for (const trace of input?.candidateTraces ?? []) {
+    if (trace.returned || trace.whyReturned) {
+      ids.add(trace.memoryId);
+    }
+  }
+
+  return ids;
+}
+
+function buildPrototypeExactSurface(
+  prototype: RawBehavioralPrototype,
+): RawBehavioralExemplar {
+  if (prototype.transferMode !== "prototype_bounded") {
+    return prototype.representative;
+  }
+
+  return {
+    ...prototype.representative,
+    confidence: prototype.confidence,
+    sourceIds: uniqueStrings(
+      prototype.exemplars.flatMap((exemplar) => exemplar.sourceIds),
+    ),
+    transferMode: "prototype_bounded",
+  };
+}
+
+interface CandidatePoolEntry {
+  exemplar: RawBehavioralExemplar;
+  prototype: RawBehavioralPrototype;
+  routes: Array<"correction_success" | "exact_slot" | "lexical" | "semantic">;
+}
+
+function buildSupportConflictView(input: {
+  interferenceLedger: readonly RawBehavioralInterferenceEntry[];
+  rankedPrototypeIds: readonly string[];
+  selectedPrototypeIds: readonly string[];
+}): RawSupportConflictView {
+  const supportPrototypeIds = uniqueStrings([...input.selectedPrototypeIds]);
+  const conflictPrototypeIds = uniqueStrings(
+    input.interferenceLedger
+      .filter((entry) => input.selectedPrototypeIds.includes(entry.prototypeId))
+      .map((entry) => entry.conflictingPrototypeId)
+      .filter((prototypeId) => input.rankedPrototypeIds.includes(prototypeId)),
+  );
+
+  return {
+    conflictPrototypeIds,
+    supportPrototypeIds,
+  };
+}
+
+function canCoexistAsRawCarryoverPair(
+  left: CandidatePoolEntry,
+  right: CandidatePoolEntry,
+): boolean {
+  if (left.prototype.surfaceFamily !== right.prototype.surfaceFamily) {
+    return false;
+  }
+  if (
+    left.prototype.intentCue.query.actionType !==
+    right.prototype.intentCue.query.actionType
+  ) {
+    return false;
+  }
+  const leftSurface = left.prototype.exactSurface?.value?.trim().toLowerCase();
+  const rightSurface = right.prototype.exactSurface?.value?.trim().toLowerCase();
+  if (leftSurface || rightSurface) {
+    if (leftSurface && rightSurface) {
+      return leftSurface === rightSurface;
+    }
+    const entityOverlap = lexicalOverlap(
+      left.prototype.intentCue.query.entityTypes,
+      right.prototype.intentCue.query.entityTypes,
+    );
+    const hasCorrectionBackedInstruction =
+      Boolean(left.exemplar.episodeShape.safeCorrectedMove) ||
+      Boolean(right.exemplar.episodeShape.safeCorrectedMove);
+    return hasCorrectionBackedInstruction && entityOverlap > 0;
+  }
+
+  return (
+    buildExactSlotSignature(left.prototype.intentCue.query.exactSlots) ===
+    buildExactSlotSignature(right.prototype.intentCue.query.exactSlots)
+  );
+}
+
+function buildCandidatePool(input: {
+  index: RawBehavioralPrototypeIndex;
+  queryIntent: RawQueryIntent;
   surfaceFamily: RawBehavioralSurfaceFamily;
+}): CandidatePoolEntry[] {
+  const pool = new Map<string, CandidatePoolEntry>();
+  const semanticSeedIds = collectSemanticSeedIds(input.index.recallHints);
+
+  for (const prototype of input.index.prototypes) {
+    if (prototype.surfaceFamily !== input.surfaceFamily) {
+      continue;
+    }
+
+    const routes: CandidatePoolEntry["routes"] = [];
+    const lexicalSimilarity = lexicalOverlap(
+      input.queryIntent.goalTokens,
+      tokenize(prototype.representative.retrievalText),
+    );
+    const slotOverlap = exactSlotOverlap(
+      input.queryIntent.exactSlots,
+      prototype.intentCue.query.exactSlots,
+    );
+    const entityOverlap = lexicalOverlap(
+      input.queryIntent.entityTypes,
+      prototype.intentCue.query.entityTypes,
+    );
+    const actionTypeMatch =
+      input.queryIntent.actionType === prototype.intentCue.query.actionType;
+
+    if (slotOverlap > 0) {
+      routes.push("exact_slot");
+    }
+    if (
+      lexicalSimilarity >= 0.12 ||
+      (actionTypeMatch && (entityOverlap > 0 || lexicalSimilarity >= 0.05))
+    ) {
+      routes.push("lexical");
+    }
+    const prototypeSourceIds = prototype.exemplars.flatMap(
+      (exemplar) => exemplar.sourceIds,
+    );
+    if (prototypeSourceIds.some((sourceId) => semanticSeedIds.has(sourceId))) {
+      routes.push("semantic");
+    }
+    if (
+      prototype.representative.episodeShape.safeCorrectedMove ||
+      prototype.successSupport > prototype.repetitionSupport
+    ) {
+      routes.push("correction_success");
+    }
+
+    if (routes.length === 0) {
+      continue;
+    }
+
+    pool.set(prototype.id, {
+      exemplar: buildPrototypeExactSurface(prototype),
+      prototype,
+      routes,
+    });
+  }
+
+  return [...pool.values()];
+}
+
+function computeRankingFeatures(input: {
+  candidate: CandidatePoolEntry;
+  interferenceLedger: readonly RawBehavioralInterferenceEntry[];
+  hardNegativeIds: readonly string[];
+  prototypesById: Map<string, RawBehavioralPrototype>;
+  queryIntent: RawQueryIntent;
 }): RankingFeatures {
-  const queryTokens = tokenize(input.query);
+  const queryTokens = input.queryIntent.goalTokens;
   const lexicalSimilarity = lexicalOverlap(
     queryTokens,
-    tokenize(
-      `${input.prototype.representative.episodeShape.cue} ${input.prototype.representative.episodeShape.relevantPriorMove}`,
-    ),
+    tokenize(input.candidate.exemplar.retrievalText),
   );
-  const queryCue = createIntentCue(input.query, input.surfaceFamily);
+  const semanticSimilarity = input.candidate.routes.includes("semantic") ? 1 : 0;
   const intentCompatibility =
-    (queryCue.actionType === input.prototype.intentCue.actionType ? 0.55 : 0) +
-    lexicalOverlap(queryCue.goalTokens, input.prototype.intentCue.goalTokens) * 0.3 +
-    lexicalOverlap(queryCue.entityTypes, input.prototype.intentCue.entityTypes) * 0.15;
+    (input.queryIntent.actionType === input.candidate.prototype.intentCue.query.actionType
+      ? 0.55
+      : 0) +
+    lexicalOverlap(
+      input.queryIntent.goalTokens,
+      input.candidate.prototype.intentCue.query.goalTokens,
+    ) * 0.25 +
+    lexicalOverlap(
+      input.queryIntent.entityTypes,
+      input.candidate.prototype.intentCue.query.entityTypes,
+    ) * 0.1 +
+    lexicalOverlap(
+      input.queryIntent.constraintTypes,
+      input.candidate.prototype.intentCue.query.constraintTypes,
+    ) * 0.1;
   const surfaceCompatibility =
-    queryCue.requestedSurface === input.prototype.surfaceFamily ? 1 : 0;
-  const exactSurfaceMatch = input.prototype.exactSurface
-    ? lexicalOverlap(
-        queryTokens,
-        tokenize(input.prototype.exactSurface.value),
+    input.queryIntent.requestedSurface === input.candidate.prototype.surfaceFamily ? 1 : 0;
+  const exactSlotMatch = exactSlotOverlap(
+    input.queryIntent.exactSlots,
+    input.candidate.prototype.intentCue.query.exactSlots,
+  );
+  const exactSurfaceMatch = input.candidate.prototype.exactSurface
+    ? Math.max(
+        lexicalOverlap(
+          queryTokens,
+          tokenize(input.candidate.prototype.exactSurface.value),
+        ),
+        exactSurfaceTemplateCompatibility(
+          input.queryIntent,
+          input.candidate.prototype.exactSurface,
+        ),
+        implicitActionRuleCompatibility({
+          prototype: input.candidate.prototype,
+          queryIntent: input.queryIntent,
+        }),
       )
-    : 0;
-  const outcomeUtility = Math.min(
+    : implicitActionRuleCompatibility({
+        prototype: input.candidate.prototype,
+        queryIntent: input.queryIntent,
+      });
+  const correctionSuccessPrior = Math.min(
     1,
-    input.prototype.successSupport / Math.max(1, input.prototype.repetitionSupport),
+    input.candidate.prototype.successSupport /
+      Math.max(1, input.candidate.prototype.repetitionSupport),
   );
   const repetitionSupport = Math.min(
     1,
-    Math.log1p(input.prototype.repetitionSupport) / Math.log(5),
+    Math.log1p(input.candidate.prototype.repetitionSupport) / Math.log(5),
   );
-  const recencySupport = input.prototype.representative.createdAt
+  const recencySupport = input.candidate.prototype.representative.createdAt
     ? 1 /
       (1 +
         Math.max(
           0,
-          (Date.now() - new Date(input.prototype.representative.createdAt).getTime()) /
+          (Date.now() -
+            new Date(input.candidate.prototype.representative.createdAt).getTime()) /
             (1000 * 60 * 60 * 24 * 30),
         ))
     : 0.45;
-  const interferenceRisk = input.hardNegativeIds.reduce((worst, negativeId) => {
+  const conflictIds = new Set<string>(input.hardNegativeIds);
+  for (const entry of input.interferenceLedger) {
+    if (entry.prototypeId === input.candidate.prototype.id) {
+      conflictIds.add(entry.conflictingPrototypeId);
+    }
+  }
+  const interferenceRisk = [...conflictIds].reduce((worst, negativeId) => {
     const negative = input.prototypesById.get(negativeId);
     if (!negative) {
       return worst;
     }
-    const overlap = lexicalOverlap(queryTokens, negative.intentCue.goalTokens);
+    const overlap = Math.max(
+      lexicalOverlap(queryTokens, negative.intentCue.query.goalTokens),
+      exactSlotOverlap(input.queryIntent.exactSlots, negative.intentCue.query.exactSlots),
+    );
     return Math.max(worst, overlap);
   }, 0);
 
   return {
+    correctionSuccessPrior,
     exactSurfaceMatch,
+    exactSlotOverlap: exactSlotMatch,
     interferenceRisk,
     intentCompatibility: Math.min(1, intentCompatibility),
     lexicalSimilarity,
-    outcomeUtility,
     recencySupport,
+    semanticSimilarity,
     repetitionSupport,
     surfaceCompatibility,
   };
@@ -905,23 +1646,24 @@ function computeRankingFeatures(input: {
 function featuresToVector(features: RankingFeatures): number[] {
   return [
     features.lexicalSimilarity,
+    features.semanticSimilarity,
     features.intentCompatibility,
     features.surfaceCompatibility,
+    features.exactSlotOverlap,
     features.exactSurfaceMatch,
-    features.outcomeUtility,
+    features.correctionSuccessPrior,
     features.interferenceRisk,
     features.recencySupport,
     features.repetitionSupport,
   ];
 }
 
-function sigmoid(value: number): number {
-  return 1 / (1 + Math.exp(-value));
-}
-
 function trainReranker(
+  interferenceLedger: readonly RawBehavioralInterferenceEntry[],
   prototypes: readonly RawBehavioralPrototype[],
-  hardNegativePairs: readonly RawBehavioralPrototypeIndex["hardNegativePairs"][number][],
+  hardNegativePairs: ReadonlyArray<
+    RawBehavioralPrototypeIndex["hardNegativePairs"][number]
+  >,
 ): RawBehavioralRerankerModel {
   const prototypesById = new Map(
     prototypes.map((prototype) => [prototype.id, prototype] as const),
@@ -938,14 +1680,22 @@ function trainReranker(
     hardNegativesByPrototype.set(pair.rightPrototypeId, right);
   }
 
-  const samples: TrainingSample[] = [];
+  const samples: RawCarryoverTrainingSample[] = [];
   for (const prototype of prototypes) {
-    const positiveFeatures = computeRankingFeatures({
-      hardNegativeIds: hardNegativesByPrototype.get(prototype.id) ?? [],
+    const candidate: CandidatePoolEntry = {
+      exemplar: buildPrototypeExactSurface(prototype),
       prototype,
+      routes: ["lexical"],
+    };
+    const positiveFeatures = computeRankingFeatures({
+      candidate,
+      interferenceLedger,
+      hardNegativeIds: hardNegativesByPrototype.get(prototype.id) ?? [],
       prototypesById,
-      query: prototype.representative.episodeShape.cue,
-      surfaceFamily: prototype.surfaceFamily,
+      queryIntent: createRawQueryIntent(
+        prototype.representative.episodeShape.cue,
+        prototype.surfaceFamily,
+      ),
     });
     samples.push({
       features: featuresToVector(positiveFeatures),
@@ -958,11 +1708,18 @@ function trainReranker(
         continue;
       }
       const negativeFeatures = computeRankingFeatures({
+        candidate: {
+          exemplar: buildPrototypeExactSurface(negative),
+          prototype: negative,
+          routes: ["lexical"],
+        },
+        interferenceLedger,
         hardNegativeIds: hardNegativesByPrototype.get(negative.id) ?? [],
-        prototype: negative,
         prototypesById,
-        query: prototype.representative.episodeShape.cue,
-        surfaceFamily: prototype.surfaceFamily,
+        queryIntent: createRawQueryIntent(
+          prototype.representative.episodeShape.cue,
+          prototype.surfaceFamily,
+        ),
       });
       samples.push({
         features: featuresToVector(negativeFeatures),
@@ -971,37 +1728,10 @@ function trainReranker(
     }
   }
 
-  if (samples.length < 4) {
-    return DEFAULT_MODEL;
-  }
-
-  const weights = [...DEFAULT_MODEL.weights];
-  let bias = DEFAULT_MODEL.bias;
-  const learningRate = 0.18;
-  const epochs = 60;
-
-  for (let epoch = 0; epoch < epochs; epoch += 1) {
-    for (const sample of samples) {
-      const prediction = sigmoid(
-        bias +
-          sample.features.reduce(
-            (total, feature, index) => total + feature * (weights[index] ?? 0),
-            0,
-          ),
-      );
-      const error = sample.label - prediction;
-      bias += learningRate * error;
-      for (let index = 0; index < weights.length; index += 1) {
-        weights[index] = (weights[index] ?? 0) + learningRate * error * sample.features[index]!;
-      }
-    }
-  }
-
-  return {
-    bias,
-    featureNames: [...DEFAULT_MODEL.featureNames],
-    weights,
-  };
+  return trainRawCarryoverReranker({
+    baseModel: DEFAULT_MODEL,
+    samples,
+  });
 }
 
 export function buildRawBehavioralPrototypeIndex(
@@ -1058,77 +1788,223 @@ export function buildRawBehavioralPrototypeIndex(
     ...prototype,
     hardNegativeIds: uniqueStrings(hardNegativesById.get(prototype.id) ?? []),
   }));
+  const interferenceLedger = buildInterferenceLedger(
+    hydratedPrototypes,
+    hardNegativePairs,
+  );
 
   return {
     exemplars,
     hardNegativePairs,
-    model: trainReranker(hydratedPrototypes, hardNegativePairs),
+    interferenceLedger,
+    model: trainReranker(interferenceLedger, hydratedPrototypes, hardNegativePairs),
     prototypes: hydratedPrototypes,
+    recallHints: input.recallHints,
+  };
+}
+
+export function resolveRawBehavioralCarryover(
+  input: SelectRawBehavioralExemplarsInput,
+): RawCarryoverResolution {
+  const queryIntent = createRawQueryIntent(input.query, input.surfaceFamily);
+  const candidatePool = buildCandidatePool({
+    index: input.index,
+    queryIntent,
+    surfaceFamily: input.surfaceFamily,
+  });
+  if (candidatePool.length === 0) {
+    return {
+      candidates: [],
+      debug: {
+        abstainReason: "no_candidates",
+        candidatePrototypeIds: [],
+        mode: "abstained",
+        selectedExemplarIds: [],
+        selectedPrototypeIds: [],
+      },
+      selections: [],
+    };
+  }
+
+  const prototypesById = new Map(
+    input.index.prototypes.map((prototype) => [prototype.id, prototype] as const),
+  );
+  const ranked = candidatePool.map((candidate) => {
+    const features = computeRankingFeatures({
+      candidate,
+      interferenceLedger: input.index.interferenceLedger,
+      hardNegativeIds: candidate.prototype.hardNegativeIds,
+      prototypesById,
+      queryIntent,
+    });
+    const featureVector = featuresToVector(features);
+    const scored = scoreRawCarryoverReranker({
+      features: featureVector,
+      model: input.index.model,
+    });
+
+    return {
+      ...candidate,
+      probability: scored.probability,
+      score: scored.score,
+    };
+  }).sort((left, right) => right.score - left.score);
+
+  const [first, second] = ranked;
+  if (!first || first.probability < DEFAULT_ABSTAIN_THRESHOLD) {
+    return {
+      candidates: [],
+      debug: {
+        abstainReason: "hypothesis_missing",
+        candidatePrototypeIds: ranked.map((entry) => entry.prototype.id),
+        mode: "abstained",
+        selectedExemplarIds: [],
+        selectedPrototypeIds: [],
+        topProbability: first?.probability,
+        topScore: first?.score,
+      },
+      selections: [],
+    };
+  }
+  const preferConflictCarryingSelection =
+    input.surfaceFamily === "host_action" ||
+    queryIntent.constraintTypes.includes("arg_order") ||
+    queryIntent.constraintTypes.includes("exact_action") ||
+    queryIntent.constraintTypes.includes("formula");
+  const conflictConstrainedRanked =
+    second &&
+    first.probability - second.probability < DEFAULT_ABSTAIN_MARGIN &&
+    second.probability >= DEFAULT_ABSTAIN_THRESHOLD - 0.05 &&
+    !canCoexistAsRawCarryoverPair(first, second)
+      ? preferConflictCarryingSelection
+        ? [first]
+        : null
+      : ranked;
+  if (
+    conflictConstrainedRanked === null &&
+    second &&
+    first.probability - second.probability < DEFAULT_ABSTAIN_MARGIN &&
+    second.probability >= DEFAULT_ABSTAIN_THRESHOLD - 0.05 &&
+    !canCoexistAsRawCarryoverPair(first, second)
+  ) {
+    return {
+      candidates: [],
+      debug: {
+        abstainReason: "support_conflict",
+        candidatePrototypeIds: ranked.map((entry) => entry.prototype.id),
+        conflictPrototypeIds: [first.prototype.id, second.prototype.id],
+        mode: "abstained",
+        selectedExemplarIds: [],
+        selectedPrototypeIds: [],
+        supportPrototypeIds: [],
+        topProbability: first.probability,
+        topScore: first.score,
+      },
+      selections: [],
+    };
+  }
+
+  const selectableRanked = conflictConstrainedRanked ?? ranked;
+  const selections = selectableRanked
+    .filter((entry) => entry.probability >= DEFAULT_ABSTAIN_THRESHOLD)
+    .slice(0, input.maxExemplars ?? 4)
+    .map((entry) => ({
+      exemplar: entry.exemplar,
+      probability: entry.probability,
+      prototypeId: entry.prototype.id,
+      score: entry.score,
+    }));
+
+  const supportConflict = buildSupportConflictView({
+    interferenceLedger: input.index.interferenceLedger,
+    rankedPrototypeIds: ranked.map((entry) => entry.prototype.id),
+    selectedPrototypeIds: selections.map((selection) => selection.prototypeId),
+  });
+  const hypothesis = buildRawTaskHypothesis({
+    conflictPrototypeIds: supportConflict.conflictPrototypeIds,
+    query: input.query,
+    queryIntent,
+    selections,
+    surfaceFamily: input.surfaceFamily,
+  });
+  if (hypothesis?.executionMode === "abstain") {
+    return {
+      candidates: ranked.map((entry) => ({
+        exemplar: entry.exemplar,
+        probability: entry.probability,
+        prototypeId: entry.prototype.id,
+        score: entry.score,
+      })),
+      debug: {
+        abstainReason: "executor_unsafe",
+        candidatePrototypeIds: ranked.map((entry) => entry.prototype.id),
+        conflictPrototypeIds: supportConflict.conflictPrototypeIds,
+        hypothesis: {
+          confidence: hypothesis.confidence,
+          executionMode: hypothesis.executionMode,
+          mappingType: hypothesis.mappingType,
+          supportingPrototypeIds: hypothesis.supportingPrototypeIds,
+        },
+        mode: "abstained",
+        selectedExemplarIds: [],
+        selectedPrototypeIds: [],
+        supportPrototypeIds: supportConflict.supportPrototypeIds,
+        topProbability: first.probability,
+        topScore: first.score,
+      },
+      hypothesis,
+      selections: [],
+      supportConflict,
+    };
+  }
+  const execution = executeProbeConditionedRawCarryover({
+    hypothesis,
+    query: input.query,
+  });
+  const packet = buildRawCarryoverPacket({
+    execution,
+    hypothesis,
+    selections,
+  });
+
+  const candidates = ranked.map((entry) => ({
+    exemplar: entry.exemplar,
+    probability: entry.probability,
+    prototypeId: entry.prototype.id,
+    score: entry.score,
+  }));
+
+  return {
+    candidates,
+    debug: {
+      candidatePrototypeIds: ranked.map((entry) => entry.prototype.id),
+      conflictPrototypeIds: supportConflict.conflictPrototypeIds,
+      hypothesis: hypothesis
+        ? {
+            confidence: hypothesis.confidence,
+            executionMode: hypothesis.executionMode,
+            mappingType: hypothesis.mappingType,
+            supportingPrototypeIds: hypothesis.supportingPrototypeIds,
+          }
+        : undefined,
+      mode: "exemplar_only",
+      selectedExemplarIds: selections.map((selection) => selection.exemplar.id),
+      selectedPrototypeIds: selections.map((selection) => selection.prototypeId),
+      supportPrototypeIds: supportConflict.supportPrototypeIds,
+      topProbability: first.probability,
+      topScore: first.score,
+    },
+    hypothesis,
+    packet,
+    selections,
+    supportConflict,
   };
 }
 
 export function selectRawBehavioralExemplars(
   input: SelectRawBehavioralExemplarsInput,
 ): RawBehavioralCarryoverSelection[] {
-  const prototypes = input.index.prototypes.filter(
-    (prototype) => prototype.surfaceFamily === input.surfaceFamily,
-  );
-  if (prototypes.length === 0) {
-    return [];
-  }
-
-  const prototypesById = new Map(
-    prototypes.map((prototype) => [prototype.id, prototype] as const),
-  );
-  const ranked = prototypes.map((prototype) => {
-    const features = computeRankingFeatures({
-      hardNegativeIds: prototype.hardNegativeIds,
-      prototype,
-      prototypesById,
-      query: input.query,
-      surfaceFamily: input.surfaceFamily,
-    });
-    const featureVector = featuresToVector(features);
-    const score =
-      input.index.model.bias +
-      featureVector.reduce(
-        (total, feature, index) =>
-          total + feature * (input.index.model.weights[index] ?? 0),
-        0,
-      );
-    const probability = sigmoid(score);
-
-    return {
-      exemplar: prototype.transferMode === "prototype_bounded"
-        ? {
-            ...prototype.representative,
-            confidence: prototype.confidence,
-            sourceIds: uniqueStrings(
-              prototype.exemplars.flatMap((exemplar) => exemplar.sourceIds),
-            ),
-            transferMode: "prototype_bounded" as const,
-          }
-        : prototype.representative,
-      probability,
-      score,
-    };
-  }).sort((left, right) => right.score - left.score);
-
-  const [first, second] = ranked;
-  if (!first || first.probability < DEFAULT_ABSTAIN_THRESHOLD) {
-    return [];
-  }
-  if (
-    second &&
-    first.probability - second.probability < DEFAULT_ABSTAIN_MARGIN &&
-    second.probability >= DEFAULT_ABSTAIN_THRESHOLD - 0.05
-  ) {
-    return [];
-  }
-
-  return ranked
-    .filter((entry) => entry.probability >= DEFAULT_ABSTAIN_THRESHOLD)
-    .slice(0, input.maxExemplars ?? 4);
+  return resolveRawBehavioralCarryover(input).selections;
 }
 
 function renderExactSurface(exemplar: RawBehavioralExemplar): string | undefined {
@@ -1139,44 +2015,64 @@ function renderExactSurface(exemplar: RawBehavioralExemplar): string | undefined
   return exemplar.exactSurface.value;
 }
 
-export function renderRawBehavioralCarryoverContext(
-  selections: readonly RawBehavioralCarryoverSelection[],
-): string | undefined {
-  if (selections.length === 0) {
+function buildRawCarryoverPacket(input: {
+  execution: ReturnType<typeof executeProbeConditionedRawCarryover>;
+  hypothesis?: RawTaskHypothesis;
+  selections: readonly RawBehavioralCarryoverSelection[];
+}): RawCarryoverPacket | undefined {
+  if (input.selections.length === 0) {
     return undefined;
   }
 
-  const hasHostActionExemplar = selections.some(
-    ({ exemplar }) => exemplar.surfaceFamily === "host_action",
-  );
-
-  return [
-    "Behavioral carryover exemplars:",
-    "Apply these exemplars implicitly. Do not mention memory, learned rules, or earlier notes unless directly asked.",
-    ...(hasHostActionExemplar
-      ? [
-          "When a current request matches a direct action exemplar, emit the action itself on the first line with no prose preface, Markdown fence, or explanation.",
-        ]
-      : []),
-    ...selections.flatMap(({ exemplar }, index) => {
+  const promptPayload = [
+    "Relevant prior examples:",
+    ...input.selections.flatMap(({ exemplar }, index) => {
       const lines = [
-        `Exemplar ${index + 1}:`,
-        `- situation: ${clipText(exemplar.episodeShape.cue)}`,
-        `- successful move: ${clipText(exemplar.episodeShape.relevantPriorMove)}`,
-        `- observed outcome: ${clipText(exemplar.episodeShape.observedOutcome)}`,
+        `Example ${index + 1}:`,
+        `Situation: ${clipText(exemplar.episodeShape.cue)}`,
+        `Successful move: ${clipText(exemplar.episodeShape.relevantPriorMove)}`,
+        `Observed outcome: ${clipText(exemplar.episodeShape.observedOutcome)}`,
       ];
       if (exemplar.episodeShape.safeCorrectedMove) {
         lines.push(
-          `- safe corrected move: ${clipText(exemplar.episodeShape.safeCorrectedMove)}`,
+          `Safe corrected move: ${clipText(exemplar.episodeShape.safeCorrectedMove)}`,
         );
       }
       const exactSurface = renderExactSurface(exemplar);
       if (exactSurface) {
-        lines.push(`- exact surface: ${clipText(exactSurface)}`);
+        lines.push(`Exact surface: ${clipText(exactSurface)}`);
       }
       return lines;
     }),
+    input.execution.hypothesisSketch,
   ].join("\n");
+
+  const retrievalText = input.selections
+    .map(({ exemplar }) => exemplar.retrievalText)
+    .join("\n");
+
+  return {
+    ...(input.execution.computedResponse
+      ? { computedResponse: input.execution.computedResponse }
+      : {}),
+    ...(input.execution.hypothesisSketch
+      ? { hypothesisSketch: input.execution.hypothesisSketch }
+      : {}),
+    promptPayload,
+    retrievalText,
+  };
+}
+
+export function renderRawBehavioralCarryoverContext(
+  selections: readonly RawBehavioralCarryoverSelection[],
+): string | undefined {
+  return buildRawCarryoverPacket({
+    execution: {
+      lines: [],
+      mode: "none",
+    },
+    selections,
+  })?.promptPayload;
 }
 
 export function summarizeRawPrototypeIndex(
@@ -1184,11 +2080,13 @@ export function summarizeRawPrototypeIndex(
 ): {
   exemplarCount: number;
   hardNegativeCount: number;
+  interferenceCount: number;
   prototypeCount: number;
 } {
   return {
     exemplarCount: index.exemplars.length,
     hardNegativeCount: index.hardNegativePairs.length,
+    interferenceCount: index.interferenceLedger.length,
     prototypeCount: index.prototypes.length,
   };
 }

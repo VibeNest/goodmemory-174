@@ -40,8 +40,8 @@ import {
 } from "../evolution/behavioralPolicy";
 import {
   buildRawBehavioralPrototypeIndex,
-  renderRawBehavioralCarryoverContext,
-  selectRawBehavioralExemplars,
+  resolveRawBehavioralCarryover,
+  type RawCarryoverResolution,
   type RawBehavioralSurfaceFamily,
 } from "../evolution/rawBehavioralExemplars";
 import { createHostAdapter } from "../host/public";
@@ -206,7 +206,7 @@ function applyBehavioralSteeringToFragment(input: {
   builtContext: BuildContextResult;
   feedback: RecallResult["feedback"];
   query: string;
-  rawCarryoverContext?: string;
+  rawCarryover?: RawCarryoverResolution;
   retrievalProfile: NonNullable<RuntimeKitBeforeModelCallInput["retrievalProfile"]>;
 }): RuntimeKitMemoryContext {
   const selections = selectBehavioralPolicies({
@@ -233,14 +233,28 @@ function applyBehavioralSteeringToFragment(input: {
   if (
     structuredControlLines.length === 0 &&
     steeringLines.length === 0 &&
-    !input.rawCarryoverContext
+    !input.rawCarryover?.packet?.promptPayload
   ) {
     return toFragmentContext({ builtContext: input.builtContext });
   }
 
+  if (
+    input.rawCarryover?.debug.mode === "exemplar_only" &&
+    structuredControlLines.length === 0 &&
+    steeringLines.length === 0 &&
+    input.rawCarryover.packet?.promptPayload
+  ) {
+    return {
+      mode: "fragment",
+      content: input.rawCarryover.packet.promptPayload,
+      estimatedTokens: estimateTokens(input.rawCarryover.packet.promptPayload),
+      omittedSections: [],
+    };
+  }
+
   const content = [
     input.builtContext.content,
-    input.rawCarryoverContext,
+    input.rawCarryover?.packet?.promptPayload,
     structuredControlLines.length > 0
       ? [
           "Structured response control:",
@@ -393,25 +407,26 @@ export function createGoodMemoryRuntimeKit(
         },
         scope: exported.scope,
       },
+      recallHints: {
+        candidateTraces: recall.metadata.candidateTraces,
+        hits: recall.metadata.hits,
+      },
       runtimeMessages,
       surfaceHint: rawSurfaceFamily,
     });
-    const rawSelections = selectRawBehavioralExemplars({
+    const rawCarryover = resolveRawBehavioralCarryover({
       index: rawIndex,
       maxExemplars: rawSurfaceFamily === "host_action" ? 4 : 3,
       query,
       surfaceFamily: rawSurfaceFamily,
     });
-    const rawCarryoverContext = renderRawBehavioralCarryoverContext(
-      rawSelections,
-    );
 
     return {
       context: applyBehavioralSteeringToFragment({
         builtContext,
         feedback: recall.feedback,
         query,
-        rawCarryoverContext,
+        rawCarryover,
         retrievalProfile: callInput.retrievalProfile ?? "general_chat",
       }),
       recall,

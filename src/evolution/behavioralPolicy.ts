@@ -1841,7 +1841,7 @@ function hasGeneralRuleMarker(rule: string): boolean {
   return GENERAL_RULE_MARKERS.some((marker) => normalized.includes(marker));
 }
 
-function extractComputedResponseRule(
+export function extractComputedResponseRule(
   rule: string,
 ): BehavioralPolicyComputedResponseRule | undefined {
   const recurrenceMatch = rule.match(
@@ -2871,7 +2871,7 @@ function evaluateBinaryOperatorComputedRule(input: {
   return result === undefined ? undefined : formatComputedNumericResult(result);
 }
 
-function evaluateComputedResponseRule(input: {
+export function evaluateComputedResponseRule(input: {
   query: string | undefined;
   rule: BehavioralPolicyComputedResponseRule | undefined;
 }): string | undefined {
@@ -3866,4 +3866,26 @@ export function recoverStructuredFirstActionAnswer(input: {
 
   const recovered = inferCanonicalFirstAction(firstTypedPolicy.policy, input.query);
   return recovered?.raw ?? input.answer;
+}
+
+export function recoverCanonicalActionFromTemplate(input: {
+  query?: string;
+  template: string;
+}): string | undefined {
+  const canonicalFirstAction = actionFromRawFirstLine(input.template);
+  if (!canonicalFirstAction) {
+    return undefined;
+  }
+
+  const policy: BehavioralPolicy = {
+    behavioralKind: "first_action",
+    enactmentSurface: "host_action",
+    applicability: {
+      appliesTo: "general_response",
+      canonicalFirstAction,
+    },
+    transferMode: "pattern_bounded",
+  };
+
+  return inferCanonicalFirstAction(policy, input.query)?.raw ?? canonicalFirstAction.raw;
 }

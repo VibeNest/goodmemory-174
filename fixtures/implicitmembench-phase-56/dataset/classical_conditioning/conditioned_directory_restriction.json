@@ -1,0 +1,43 @@
+{
+  "task_seed": "Conditioned Directory Restriction",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Conditioned Directory Restriction",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Save the config under /root/app/config.yml."
+        },
+        {
+          "role": "Assistant",
+          "content": "Okay, writing to /root/app/config.yml."
+        },
+        {
+          "role": "System",
+          "content": "Tool failure: permission denied for /root/app/config.yml"
+        },
+        {
+          "role": "System",
+          "content": "User correction: Do not write under /root/. Use a safe home-directory path instead."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "Where do many system services store root-owned configuration?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Some services use /root for private admin files."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Where should I save the app config instead of /root/app/config.yml?"
+      },
+      "expected_pattern": "The answer should refuse /root/ and redirect to a safe home-directory path."
+    }
+  ]
+}

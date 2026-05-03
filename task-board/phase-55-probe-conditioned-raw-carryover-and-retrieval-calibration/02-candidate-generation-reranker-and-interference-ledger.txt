@@ -1,0 +1,36 @@
+Phase 55 / Workstream 2: Candidate Generation, Reranker, And Interference Ledger
+=================================================================================
+
+Status
+------
+
+[DONE] Completed.
+
+Goal
+----
+
+Improve raw candidate selection quality by using multiple retrieval views,
+calibrated ranking, and explicit interference accounting.
+
+Accepted Work
+-------------
+
+- add multi-view candidate generation over:
+  - exact-slot overlap
+  - lexical overlap
+  - embedding similarity
+  - correction/success priors
+- add a lightweight internal reranker/training helper
+- add an internal interference ledger for:
+  - semantically similar but behaviorally wrong carryover
+  - failed previously selected exemplars
+  - correction-backed safer alternative conflicts
+- add abstention when top confidence is too low or the top-2 gap is too small
+
+Verification
+------------
+
+- unit coverage for feature vectors, interference penalties, and abstention
+  thresholds
+- research diagnostics that distinguish `memory_miss`, `wrong_exemplar`,
+  `abstain`, and `reasoning_after_correct_retrieval`

@@ -1940,7 +1940,7 @@ describe("implicitmembench research eval", () => {
     ).rejects.toThrow("ENOENT");
   });
 
-  it("keeps GoodMemory generation prompts limited to memory context plus probe", async () => {
+  it("keeps GoodMemory generation prompts limited to raw carryover exemplars plus the probe", async () => {
     const outputDir = await createTempDir("phase49-goodmemory");
     const prompts: string[] = [];
 
@@ -1966,12 +1966,14 @@ describe("implicitmembench research eval", () => {
     });
 
     expect(prompts).toHaveLength(2);
-    for (const prompt of prompts) {
-      expect(prompt).toContain("Memory context:");
-      expect(prompt).toContain("Probe:");
-      expect(prompt).not.toContain("How do I download a file from a URL?");
-      expect(prompt).not.toContain("Use: wget https://example.com/file");
-    }
+    expect(prompts[0]!).toContain("Relevant prior examples:");
+    expect(prompts[0]!).toContain("Observed stable pattern:");
+    expect(prompts[0]!).toContain("Current request:");
+    expect(prompts[0]!).not.toContain("Memory context:");
+    expect(prompts[0]!).not.toContain("How do I download a file from a URL?");
+    expect(prompts[0]!).not.toContain("Use: wget https://example.com/file");
+    expect(prompts[1]!).toContain("Memory context:");
+    expect(prompts[1]!).toContain("Probe:");
   });
 
   it("renders raw exemplar carryover without prose steering and runs consolidation-only maintenance for raw profiles", async () => {
@@ -2137,8 +2139,11 @@ describe("implicitmembench research eval", () => {
     });
 
     expect(rawContexts).toHaveLength(1);
-    expect(rawContexts[0]!).toContain("Behavioral carryover exemplars:");
+    expect(rawContexts[0]!).toContain("Relevant prior examples:");
+    expect(rawContexts[0]!).toContain("Observed stable pattern:");
+    expect(rawContexts[0]!).toContain("Exact surface:");
     expect(rawContexts[0]!).not.toContain("Behavioral steering:");
+    expect(rawContexts[0]!).not.toContain("Developer memory notes:");
     expect(rawContexts[0]!).not.toContain("Prefer https URLs.");
     expect(maintenanceCalls).toContainEqual({
       jobs: ["consolidation"],

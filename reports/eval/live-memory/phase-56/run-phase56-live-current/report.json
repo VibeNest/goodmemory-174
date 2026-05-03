@@ -1,0 +1,916 @@
+{
+  "benchmarkRoot": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56",
+  "generatedAt": "2026-05-03T06:25:47.849Z",
+  "generatedBy": "scripts/run-phase-56-live-memory.ts",
+  "kind": "goodmemory",
+  "manifestPath": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/adapter-manifest.json",
+  "mode": "live",
+  "outputDir": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-56",
+  "profiles": {
+    "goodmemory-raw-experience": {
+      "caseCountsByDataset": {
+        "classical_conditioning": 5,
+        "priming": 0,
+        "procedural_memory": 7
+      },
+      "caseCountsByScorer": {
+        "priming_pair_judge": 0,
+        "structured_first_action": 5,
+        "text_behavior_judge": 7
+      },
+      "cases": [
+        {
+          "answer": "To provide a detailed analysis of the network traffic, I’ll need the actual traffic data or telemetry, such as:\n\n- PCAP capture files\n- NetFlow/sFlow/IPFIX records\n- Firewall or proxy logs\n- IDS/IPS alerts\n- Packet summaries from tools like `tcpdump` or Wireshark\n- Connection tables, DNS logs, DHCP logs, or web access logs\n\nIf you share that, I can analyze it for:\n\n1. Traffic composition\n   - Top protocols\n   - Top source/destination IPs\n   - Ports and services in use\n   - Internal vs external communication patterns\n\n2. Volume and behavior\n   - Bandwidth usage over time\n   - Peak traffic intervals\n   - Long-lived sessions\n   - Repeated retries, resets, retransmissions\n\n3. Security indicators\n   - Port scanning\n   - Lateral movement\n   - Beaconing / command-and-control patterns\n   - Suspicious DNS activity\n   - Data exfiltration indicators\n   - Unusual outbound connections\n   - Encrypted traffic anomalies\n\n4. Application-level observations\n   - HTTP/HTTPS request patterns\n   - DNS query behavior\n   - TLS versions, SNI, certificate anomalies\n   - SMB/RDP/SSH usage\n   - Email-related traffic if present\n\n5. Performance issues\n   - High latency\n   - Packet loss\n   - TCP retransmissions\n   - Windowing issues\n   - MTU/fragmentation problems\n   - Client/server imbalance\n\n6. Deliverables I can produce\n   - Executive summary\n   - Technical findings\n   - IOC list\n   - Timeline of events\n   - Risk assessment\n   - Recommended remediation steps\n\nIf you want, paste any of the following and I can start immediately:\n- Wireshark “Conversations” output\n- `tcpdump` summaries\n- Top talkers/top ports\n- A sample of raw logs\n- A PCAP-derived text export\n\nIf you do not yet have data, I can also give you a step-by-step framework for conducting a full network traffic analysis.",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_aversion.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase52_semantic_api_aversion_failed",
+          "passed": false,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/conditioned_api_aversion.json",
+          "taskFile": "conditioned_api_aversion.json",
+          "taskName": "Conditioned API Aversion",
+          "memoryContext": "Developer memory notes:",
+          "rawCarryover": {
+            "abstainReason": "support_conflict",
+            "candidatePrototypeIds": [
+              "prototype-1",
+              "prototype-2",
+              "prototype-3"
+            ],
+            "conflictPrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "diagnosis": "support_conflict",
+            "goldSupportingCandidatePresent": false,
+            "mode": "abstained",
+            "selectedExemplarIds": [],
+            "selectedPrototypeIds": [],
+            "supportPrototypeIds": [],
+            "topProbability": 0.8953365193871451,
+            "topScore": 2.146449390147808
+          }
+        },
+        {
+          "answer": "Usually not in `/root` unless the app is only ever run manually as root.\n\nBetter options:\n\n- System-wide config: `/etc/app/config.yml`\n- Per-user config: `~/.config/app/config.yml`\n- For containers/app data: `/app/config/config.yml` or another mounted volume path\n\nRule of thumb:\n- Use `/etc/...` for machine-level configuration\n- Use `~/.config/...` for a specific user\n- Avoid `/root/...` unless root is the intended owner/operator\n\nIf this is a service, the best default is:\n\n`/etc/app/config.yml`",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase52_semantic_directory_restriction_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/conditioned_directory_restriction.json",
+          "taskFile": "conditioned_directory_restriction.json",
+          "taskName": "Conditioned Directory Restriction",
+          "memoryContext": "Developer memory notes:",
+          "rawCarryover": {
+            "abstainReason": "support_conflict",
+            "candidatePrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "conflictPrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": false,
+            "mode": "abstained",
+            "selectedExemplarIds": [],
+            "selectedPrototypeIds": [],
+            "supportPrototypeIds": [],
+            "topProbability": 0.9367730900770206,
+            "topScore": 2.6957110860542404
+          }
+        },
+        {
+          "answer": "Think of it like a waiter in a restaurant.\n\nYou sit at the table and choose what you want. The waiter takes your request to the kitchen, then brings back the food. You do not need to know how the kitchen works, what tools are used, or who cooked it. You just ask in a clear way and get a result back.\n\nIn software, this works similarly:\n- one program asks for something\n- a middle layer carries that request\n- another program does the work\n- the result comes back\n\nThis is useful because programs can work together without needing to understand each other’s internal details.\n\nExample:\n- a weather app asks another service for today’s forecast\n- it gets back temperature and conditions\n- the app shows that to you\n\nSo, in simple terms, it is a way for one piece of software to ask another piece of software for data or actions in a structured, reliable way.",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_jargon_avoidance.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase53_semantic_jargon_avoidance_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/conditioned_jargon_avoidance.json",
+          "taskFile": "conditioned_jargon_avoidance.json",
+          "taskName": "Conditioned Jargon Avoidance",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: Explain what an API is.\nSuccessful move: explain it with a simple analogy and avoid the term API.\nObserved outcome: A later correction clarified the safer successful move for the same kind of request.\nSafe corrected move: explain it with a simple analogy and avoid the term API.\nProbe-conditioned execution:\n- Rebind only the probe-specific slot values; do not invent a different action family.",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-1"
+            ],
+            "conflictPrototypeIds": [],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": true,
+            "hypothesis": {
+              "confidence": 0.8403087433163174,
+              "executionMode": "transient_executor",
+              "mappingType": "slot_rebinding",
+              "supportingPrototypeIds": [
+                "prototype-1"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-0"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-1"
+            ],
+            "supportPrototypeIds": [
+              "prototype-1"
+            ],
+            "topProbability": 0.8403087433163174,
+            "topScore": 1.6605270705318511
+          }
+        },
+        {
+          "answer": "I use https://download.example.com/client-installer",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase52_semantic_protocol_preference_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/conditioned_protocol_preference.json",
+          "taskFile": "conditioned_protocol_preference.json",
+          "taskName": "Conditioned Protocol Preference",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: Share the docs URL.\nSuccessful move: Use https links only.\nObserved outcome: A later correction clarified the safer successful move for the same kind of request.\nSafe corrected move: Use https links only.\nExample 2:\nSituation: Share the dashboard URL.\nSuccessful move: https://dashboard.example.com/\nObserved outcome: The earlier response established a successful way to handle the same kind of request.\nExact surface: https://dashboard.example.com/\nProbe-specific varying slots:\n- style=first_person_me",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "conflictPrototypeIds": [
+              "prototype-2",
+              "prototype-1"
+            ],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": true,
+            "hypothesis": {
+              "confidence": 0.6273959661764912,
+              "executionMode": "model_only",
+              "mappingType": "slot_rebinding",
+              "supportingPrototypeIds": [
+                "prototype-1",
+                "prototype-2"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-0",
+              "transient-3"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "supportPrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "topProbability": 0.7695325391370317,
+            "topScore": 1.2056735536139978
+          }
+        },
+        {
+          "answer": "I can’t proceed with HeavyComputationAPI unless I first verify that the system load is Normal or Idle.\n\nI don’t have a way to check the current load here, so I should defer rather than pretend it’s safe to proceed. If you can provide the current system load status, I can continue based on that.",
+          "blocking": true,
+          "caseId": "classical_conditioning/context_dependent_api_behavior.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase52_semantic_context_dependent_api_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/context_dependent_api_behavior.json",
+          "taskFile": "context_dependent_api_behavior.json",
+          "taskName": "Context Dependent API Behavior",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: Should I use HeavyComputationAPI on this box?\nSuccessful move: Check system load first and only proceed when load is Normal or Idle.\nObserved outcome: The earlier response established a successful way to handle the same kind of request.\nObserved stable pattern:\n- style=first_person_i\nProbe-conditioned execution:\n- Check the precondition implied by the prior examples before proceeding.\n- If the precondition is not satisfied, fall back to a warning or defer instead of pretending success.",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-1"
+            ],
+            "conflictPrototypeIds": [],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": false,
+            "hypothesis": {
+              "confidence": 0.8970664783653841,
+              "executionMode": "transient_executor",
+              "mappingType": "guarded_decision",
+              "supportingPrototypeIds": [
+                "prototype-1"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-0"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-1"
+            ],
+            "supportPrototypeIds": [
+              "prototype-1"
+            ],
+            "topProbability": 0.8970664783653841,
+            "topScore": 2.1650466123700296
+          }
+        },
+        {
+          "answer": "FETCH users | FILTER age > 30",
+          "blocking": true,
+          "caseId": "procedural_memory/logiql_query_language.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "firstAction": {
+            "args": [
+              "users",
+              "|",
+              "FILTER",
+              "age",
+              ">",
+              "30"
+            ],
+            "kind": "command",
+            "name": "FETCH",
+            "raw": "FETCH users | FILTER age > 30"
+          },
+          "firstActionRaw": "FETCH users | FILTER age > 30",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/logiql_query_language.json",
+          "taskFile": "logiql_query_language.json",
+          "taskName": "LogiQL Query Language",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: How do I query users older than 30 in LogiDB?\nSuccessful move: In this environment, use LogiQL syntax: FETCH users | FILTER age > 30.\nObserved outcome: The earlier response established a successful way to handle the same kind of request.\nExact surface: FETCH users | FILTER age > 30\nObserved stable pattern:\n- command=FETCH\n- surface_kind=action\n- style=first_person_i\n- surface=FETCH users | FILTER age > 30\nProbe-conditioned execution:\n- Emit exactly: FETCH users | FILTER age > 30",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "conflictPrototypeIds": [
+              "prototype-2"
+            ],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": true,
+            "hypothesis": {
+              "confidence": 0.8899821771052561,
+              "executionMode": "transient_executor",
+              "mappingType": "slot_rebinding",
+              "supportingPrototypeIds": [
+                "prototype-1"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-0"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-1"
+            ],
+            "supportPrototypeIds": [
+              "prototype-1"
+            ],
+            "topProbability": 0.949982177105256,
+            "topScore": 2.9440638236697567
+          }
+        },
+        {
+          "answer": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "blocking": true,
+          "caseId": "procedural_memory/reversed_parameter_protocol.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "firstAction": {
+            "args": [
+              "'/var/backup/reports/report.txt'",
+              "'/data/reports/report.txt'"
+            ],
+            "kind": "tool_call",
+            "name": "copy_file",
+            "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+          },
+          "firstActionRaw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/reversed_parameter_protocol.json",
+          "taskFile": "reversed_parameter_protocol.json",
+          "taskName": "Reversed Parameter Protocol",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: Can you explain how to use the copy_file utility?\nSuccessful move: copy_file uses destination first and source second.\nObserved outcome: The earlier response established a successful way to handle the same kind of request.\nObserved stable pattern:\n- command=copy_file\nProbe-specific varying slots:\n- filename=report.txt\n- extension=.txt\n- path_root=/data\nProbe-conditioned execution:\n- Emit exactly: copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "conflictPrototypeIds": [],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": false,
+            "hypothesis": {
+              "confidence": 0.9665227353030724,
+              "executionMode": "transient_executor",
+              "mappingType": "slot_rebinding",
+              "supportingPrototypeIds": [
+                "prototype-1"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-0"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-1"
+            ],
+            "supportPrototypeIds": [
+              "prototype-1"
+            ],
+            "topProbability": 0.9665227353030724,
+            "topScore": 3.3628382790366973
+          }
+        },
+        {
+          "answer": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')",
+          "blocking": true,
+          "caseId": "procedural_memory/session_key_prefix_rule.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "firstAction": {
+            "args": [
+              "'TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456'"
+            ],
+            "kind": "tool_call",
+            "name": "_database",
+            "raw": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')"
+          },
+          "firstActionRaw": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/session_key_prefix_rule.json",
+          "taskFile": "session_key_prefix_rule.json",
+          "taskName": "Session Key Prefix Rule",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: Can you give me an example?\nSuccessful move: Sure For example, to grant a role you would write: _database('TOKEN-TOKEN123 GRANT ROLE analyst TO user42 -TOKEN123').\nObserved outcome: The earlier response established a successful way to handle the same kind of request.\nExact surface: _database('TOKEN-TOKEN123 GRANT ROLE analyst TO user42 -TOKEN123')\nObserved stable pattern:\n- command=_database\n- surface_kind=action\n- style=first_person_me\n- surface=_database('TOKEN-TOKEN123 GRANT ROLE analyst TO user42 -TOKEN123')\nProbe-specific varying slots:\n- operators=-\n- style=first_person_i\nProbe-conditioned execution:\n- Emit exactly: _database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-2",
+              "prototype-1",
+              "prototype-10",
+              "prototype-8",
+              "prototype-5",
+              "prototype-3",
+              "prototype-9",
+              "prototype-11"
+            ],
+            "conflictPrototypeIds": [],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": false,
+            "hypothesis": {
+              "confidence": 0.9589987956677432,
+              "executionMode": "transient_executor",
+              "mappingType": "slot_rebinding",
+              "supportingPrototypeIds": [
+                "prototype-2"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-2"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-2"
+            ],
+            "supportPrototypeIds": [
+              "prototype-2"
+            ],
+            "topProbability": 0.9589987956677432,
+            "topScore": 3.152288378831349
+          }
+        },
+        {
+          "answer": "nav |Projects|",
+          "blocking": true,
+          "caseId": "procedural_memory/the_alien_filesystem.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "firstAction": {
+            "args": [
+              "|Projects|"
+            ],
+            "kind": "command",
+            "name": "nav",
+            "raw": "nav |Projects|"
+          },
+          "firstActionRaw": "nav |Projects|",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/the_alien_filesystem.json",
+          "taskFile": "the_alien_filesystem.json",
+          "taskName": "The Alien Filesystem",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: How can I navigate to a folder in Hyper-OS?\nSuccessful move: In Quasar-OS, use nav with pipe-wrapped paths: run 'nav |folder|' to enter a folder.\nObserved outcome: The earlier response established a successful way to handle the same kind of request.\nExact surface: nav |folder|\nObserved stable pattern:\n- command=nav\n- surface_kind=action\n- style=first_person_i\n- surface=nav |folder|\nProbe-specific varying slots:\n- operators=-\n- style=first_person_i\nProbe-conditioned execution:\n- Emit exactly: nav |Projects|",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-1",
+              "prototype-2",
+              "prototype-5",
+              "prototype-13",
+              "prototype-6",
+              "prototype-3",
+              "prototype-11",
+              "prototype-12",
+              "prototype-10",
+              "prototype-4",
+              "prototype-9",
+              "prototype-7"
+            ],
+            "conflictPrototypeIds": [
+              "prototype-7"
+            ],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": false,
+            "hypothesis": {
+              "confidence": 0.8524079341016071,
+              "executionMode": "transient_executor",
+              "mappingType": "slot_rebinding",
+              "supportingPrototypeIds": [
+                "prototype-1"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-0"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-1"
+            ],
+            "supportPrototypeIds": [
+              "prototype-1"
+            ],
+            "topProbability": 0.912407934101607,
+            "topScore": 2.343396764326958
+          }
+        },
+        {
+          "answer": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+          "blocking": true,
+          "caseId": "procedural_memory/the_eccentric_api_call.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "firstAction": {
+            "args": [
+              "query_payload={'value': 'invoice-042'}",
+              "buffer=['preface','suffix']",
+              "auth='token'"
+            ],
+            "kind": "tool_call",
+            "name": "get_data",
+            "raw": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')"
+          },
+          "firstActionRaw": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/the_eccentric_api_call.json",
+          "taskFile": "the_eccentric_api_call.json",
+          "taskName": "The Eccentric API Call",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: How do I use the search API?\nSuccessful move: API name: get_data. Required argument order: query_payload, buffer, auth. query_payload must be {'value': <term>}; buffer must be exactly ['preface','suffix']; auth is a string...\nObserved outcome: The earlier response established a successful way to handle the same kind of request.\nExact surface: get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')\nObserved stable pattern:\n- command=get_data\n- arg_order=query_payload>buffer>auth\n- surface_kind=action\n- style=first_person_i\nProbe-specific varying slots:\n- operators=-\n- style=first_person_i\nProbe-conditioned execution:\n- Emit exactly: get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-1",
+              "prototype-2",
+              "prototype-11",
+              "prototype-13",
+              "prototype-10",
+              "prototype-9",
+              "prototype-5",
+              "prototype-7",
+              "prototype-3"
+            ],
+            "conflictPrototypeIds": [],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": true,
+            "hypothesis": {
+              "confidence": 0.99,
+              "executionMode": "transient_executor",
+              "mappingType": "slot_rebinding",
+              "supportingPrototypeIds": [
+                "prototype-1"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-0"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-1"
+            ],
+            "supportPrototypeIds": [
+              "prototype-1"
+            ],
+            "topProbability": 0.9997840802973775,
+            "topScore": 8.44038802349699
+          }
+        },
+        {
+          "answer": "I can’t determine P(5) from only that single example; the rule is underspecified.",
+          "blocking": true,
+          "caseId": "procedural_memory/the_modified_recurrence_sequence.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase52_semantic_modified_recurrence_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/the_modified_recurrence_sequence.json",
+          "taskFile": "the_modified_recurrence_sequence.json",
+          "taskName": "Modified Recurrence Sequence",
+          "memoryContext": "Relevant prior examples:\nExample 1:\nSituation: For this example sheet only, what is P(2)?\nSuccessful move: On this modified recurrence example sheet, P(2) = 10.\nObserved outcome: The earlier response established a successful way to handle the same kind of request.\nExact surface: P(2)\nObserved stable pattern:\n- surface_kind=action\n- surface=P(2)\nProbe-specific varying slots:\n- style=first_person_me\nProbe-conditioned execution:\n- Use the observed formula pattern and substitute the current probe values before answering.",
+          "rawCarryover": {
+            "candidatePrototypeIds": [
+              "prototype-1"
+            ],
+            "conflictPrototypeIds": [],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": true,
+            "hypothesis": {
+              "confidence": 0.9172133376976134,
+              "executionMode": "transient_executor",
+              "mappingType": "symbolic_formula",
+              "supportingPrototypeIds": [
+                "prototype-1"
+              ]
+            },
+            "mode": "exemplar_only",
+            "selectedExemplarIds": [
+              "transient-0"
+            ],
+            "selectedPrototypeIds": [
+              "prototype-1"
+            ],
+            "supportPrototypeIds": [
+              "prototype-1"
+            ],
+            "topProbability": 0.9172133376976134,
+            "topScore": 2.4050731275215442
+          }
+        },
+        {
+          "answer": "A single example is not enough to derive a general rule, so ⊗ is undefined here. I can’t determine 4 ⊗ 5 without a definition or examples.",
+          "blocking": true,
+          "caseId": "procedural_memory/the_omega_operation.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": false,
+          "judgeReason": "phase52_semantic_omega_passed",
+          "passed": true,
+          "profile": "goodmemory-raw-experience",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/the_omega_operation.json",
+          "taskFile": "the_omega_operation.json",
+          "taskName": "Omega Operation",
+          "memoryContext": "Developer memory notes:",
+          "rawCarryover": {
+            "abstainReason": "support_conflict",
+            "candidatePrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "conflictPrototypeIds": [
+              "prototype-1",
+              "prototype-2"
+            ],
+            "diagnosis": "selected_and_passed",
+            "goldSupportingCandidatePresent": false,
+            "mode": "abstained",
+            "selectedExemplarIds": [],
+            "selectedPrototypeIds": [],
+            "supportPrototypeIds": [],
+            "topProbability": 0.8865598175457411,
+            "topScore": 2.0560729281595034
+          }
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "passedBlockingCases": 11,
+      "primingAverageScore": null,
+      "totalBlockingCases": 12,
+      "totalCases": 12
+    },
+    "goodmemory-distilled-feedback": {
+      "caseCountsByDataset": {
+        "classical_conditioning": 5,
+        "priming": 0,
+        "procedural_memory": 7
+      },
+      "caseCountsByScorer": {
+        "priming_pair_judge": 0,
+        "structured_first_action": 5,
+        "text_behavior_judge": 7
+      },
+      "cases": [
+        {
+          "answer": "I can help with a quick-check analysis approach, but I can’t perform a true detailed traffic inspection without the actual capture/logs.\n\nQuickCheck for network traffic:\n\n1. Scope\n- Capture source: pcap, NetFlow, firewall logs, proxy logs\n- Time window: when issue started, duration, recurring pattern\n- Key hosts: source IPs, destination IPs, ports, protocols\n\n2. High-signal indicators\n- Unusual spikes in bandwidth or connection counts\n- Repeated failed connections, resets, retransmissions\n- Unexpected outbound destinations or geographies\n- Rare protocols or ports\n- Beacon-like periodic traffic\n- Large data transfers outside normal hours\n- DNS anomalies: high NXDOMAIN rate, long/random subdomains\n\n3. Basic breakdown\n- Top talkers: highest source/destination pairs\n- Top ports/protocols: TCP/UDP/ICMP, common vs uncommon ports\n- Flow distribution: internal-to-internal, internal-to-external, inbound\n- Error patterns: SYN retries, TCP resets, fragmentation\n\n4. Security-focused checks\n- Port scanning: one source to many destinations/ports\n- Lateral movement: SMB, RDP, WinRM, SSH between internal hosts\n- C2 behavior: low-volume periodic outbound connections\n- Exfiltration: steady encrypted uploads, cloud storage endpoints\n- DNS tunneling signs: frequent small queries with encoded labels\n\n5. Performance-focused checks\n- Latency spikes\n- Packet loss or retransmissions\n- MTU/fragmentation issues\n- Congestion on specific links or services\n- TLS handshake failures or app timeout clusters\n\n6. What to send for a better analysis\n- A small pcap or sanitized flow records\n- Example suspicious IPs/domains\n- Time range\n- Known-normal baseline if available\n- Whether you want security, troubleshooting, or capacity focus\n\nIf you paste a traffic summary, flow table, or a few log lines, I can do a focused quick-check analysis on it.",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_aversion.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase52_semantic_api_aversion_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/conditioned_api_aversion.json",
+          "taskFile": "conditioned_api_aversion.json",
+          "taskName": "Conditioned API Aversion",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - After repeated DeepAnalyzer timeouts on detailed analysis requests, avoid DeepAnalyzer and prefer QuickCheck or a warning.\n\nStructured response control:\nApply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nrequire_warning: Prefer QuickCheck or warn instead of implying the avoided behavior.\nwarning_alternatives: QuickCheck\n"
+        },
+        {
+          "answer": "Save it in a user-writable home directory instead, for example:\n\n`~/app/config.yml`\n\nIf you want the conventional per-user config location, use:\n\n`~/.config/app/config.yml`",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase52_semantic_directory_restriction_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/conditioned_directory_restriction.json",
+          "taskFile": "conditioned_directory_restriction.json",
+          "taskName": "Conditioned Directory Restriction",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Do not write under /root/; refuse or redirect to a safe home-directory path.\n\nStructured response control:\nApply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nblock_surface forbidden: /root/\nrequire_warning: Refuse the unsafe path and redirect to a safe user-writable home-directory path instead.\n"
+        },
+        {
+          "answer": "Think of it like a restaurant.\n\n- You sit at the table and look at the menu.\n- You tell the waiter what you want.\n- The waiter takes your request to the kitchen.\n- The kitchen prepares the food.\n- The waiter brings the result back to you.\n\nIn software, one program often needs to ask another program for something, like data, a login check, or a payment. Instead of going deep into the other program’s internal workings, it sends a request in a defined, safe way and gets a response back.\n\nSo the idea is:\n\n- your app = the customer\n- the request format = the menu\n- the go-between = the waiter\n- the other service = the kitchen\n- the result = your food\n\nWhy this is useful:\n\n- It keeps things organized.\n- One program doesn’t need to know how the other is built inside.\n- Different apps can work together more easily.\n- It’s safer because only specific requests are allowed.\n\nExample:\nA weather app on your phone doesn’t usually measure the weather itself. It asks a weather service for today’s forecast, and the service sends the answer back.\n\nSo, in simple terms: it’s a structured way for one piece of software to ask another piece of software to do something or provide information.",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_jargon_avoidance.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase53_semantic_jargon_avoidance_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/conditioned_jargon_avoidance.json",
+          "taskFile": "conditioned_jargon_avoidance.json",
+          "taskName": "Conditioned Jargon Avoidance",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Explain this concept with a simple analogy and avoid the term API.\n\nStructured response control:\nApply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nblock_surface forbidden: API\n"
+        },
+        {
+          "answer": "If the current probe explicitly requests http, warn first and then offer the https URL instead of silently substituting protocols. Use https instead. Safe replacement: https.",
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase52_semantic_protocol_preference_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/conditioned_protocol_preference.json",
+          "taskFile": "conditioned_protocol_preference.json",
+          "taskName": "Conditioned Protocol Preference",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Prefer https URLs or warn instead of producing http URLs.\n\nStructured response control:\nApply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nrewrite_output_slot replacements: http:// -> https://\nblock_surface forbidden: http://\nrequire_warning: If the current probe explicitly requests http, warn first and then offer the https URL instead of silently substituting protocols.\nwarning_alternatives: https\n"
+        },
+        {
+          "answer": "I can’t proceed with HeavyComputationAPI until system load is checked and confirmed to be Normal or Idle.\n\nIf you can provide the current system load status, I can continue accordingly:\n- Normal or Idle: proceed\n- High or unknown: defer or warn instead",
+          "blocking": true,
+          "caseId": "classical_conditioning/context_dependent_api_behavior.json#001",
+          "datasetFamily": "classical_conditioning",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase52_semantic_context_dependent_api_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/classical_conditioning/context_dependent_api_behavior.json",
+          "taskFile": "context_dependent_api_behavior.json",
+          "taskName": "Context Dependent API Behavior",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Before using HeavyComputationAPI, check system load first and only proceed when load is Normal or Idle.\n\nStructured response control:\nApply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.\nrequire_precondition_check: system load\nallowed_when: load Normal or Idle\nfallback_behavior: Check system load first and only proceed when load Normal or Idle; otherwise warn or defer instead of assuming it already passed.\n"
+        },
+        {
+          "answer": "FETCH users | FILTER age > 30",
+          "blocking": true,
+          "caseId": "procedural_memory/logiql_query_language.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "firstAction": {
+            "args": [
+              "users",
+              "|",
+              "FILTER",
+              "age",
+              ">",
+              "30"
+            ],
+            "kind": "command",
+            "name": "FETCH",
+            "raw": "FETCH users | FILTER age > 30"
+          },
+          "firstActionRaw": "FETCH users | FILTER age > 30",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/logiql_query_language.json",
+          "taskFile": "logiql_query_language.json",
+          "taskName": "LogiQL Query Language",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.\n\n\n\nFollow this first-action rule: For LogiDB compliance requests that ask for users older than 30, output the exact LogiQL command FETCH users | FILTER age > 30.\nThe first line must be exactly: FETCH users | FILTER age > 30\nDo not replace the canonical action with generic shell prose, alternative utilities, or explanation-first text."
+        },
+        {
+          "answer": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "blocking": true,
+          "caseId": "procedural_memory/reversed_parameter_protocol.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "firstAction": {
+            "args": [
+              "'/var/backup/reports/report.txt'",
+              "'/data/reports/report.txt'"
+            ],
+            "kind": "tool_call",
+            "name": "copy_file",
+            "raw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')"
+          },
+          "firstActionRaw": "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/reversed_parameter_protocol.json",
+          "taskFile": "reversed_parameter_protocol.json",
+          "taskName": "Reversed Parameter Protocol",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - copy_file takes destination first and source second.\n\n\n\nFollow this first-action rule: copy_file takes destination first and source second.\nThe first line must be exactly: copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')\nPreserve argument order exactly: destination before source.\nDo not replace the canonical action with generic shell prose, alternative utilities, or explanation-first text."
+        },
+        {
+          "answer": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')",
+          "blocking": true,
+          "caseId": "procedural_memory/session_key_prefix_rule.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "firstAction": {
+            "args": [
+              "'TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456'"
+            ],
+            "kind": "tool_call",
+            "name": "_database",
+            "raw": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')"
+          },
+          "firstActionRaw": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/session_key_prefix_rule.json",
+          "taskFile": "session_key_prefix_rule.json",
+          "taskName": "Session Key Prefix Rule",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Use the exact command _database('TOKEN-<token> GRANT ROLE analyst TO user42 -<token>'). For example, to grant a role you would write: _database('TOKEN-TOKEN123 GRANT ROLE analyst TO user42 -TOKEN123').\n\n\n\nFollow this first-action rule: Use the exact command _database('TOKEN-<token> GRANT ROLE analyst TO user42 -<token>'). For example, to grant a role you would write: _database('TOKEN-TOKEN123 GRANT ROLE analyst TO user42 -TOKEN123').\nThe first line must be exactly: _database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')\nDo not replace the canonical action with generic shell prose, alternative utilities, or explanation-first text."
+        },
+        {
+          "answer": "nav |Projects|",
+          "blocking": true,
+          "caseId": "procedural_memory/the_alien_filesystem.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "firstAction": {
+            "args": [
+              "|Projects|"
+            ],
+            "kind": "command",
+            "name": "nav",
+            "raw": "nav |Projects|"
+          },
+          "firstActionRaw": "nav |Projects|",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/the_alien_filesystem.json",
+          "taskFile": "the_alien_filesystem.json",
+          "taskName": "The Alien Filesystem",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Use the exact command nav |folder|. In Quasar-OS, use nav with pipe-wrapped paths: run 'nav |folder|' to enter a folder. Use the exact command nav |folder|. To go back one level, use 'nav |..|'; to jump home, use 'nav |~|'.\n\n\n\nFollow this first-action rule: Use the exact command nav |folder|. In Quasar-OS, use nav with pipe-wrapped paths: run 'nav |folder|' to enter a folder. Use the exact command nav |folder|. To go back one level, use 'nav |..|'; to jump home, use 'nav |~|'.\nThe first line must be exactly: nav |Projects|\nDo not replace the canonical action with generic shell prose, alternative utilities, or explanation-first text."
+        },
+        {
+          "answer": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+          "blocking": true,
+          "caseId": "procedural_memory/the_eccentric_api_call.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "firstAction": {
+            "args": [
+              "query_payload={'value': 'invoice-042'}",
+              "buffer=['preface','suffix']",
+              "auth='token'"
+            ],
+            "kind": "tool_call",
+            "name": "get_data",
+            "raw": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')"
+          },
+          "firstActionRaw": "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+          "judgeReason": "expected_first_action_matched",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "structured_first_action",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/the_eccentric_api_call.json",
+          "taskFile": "the_eccentric_api_call.json",
+          "taskName": "The Eccentric API Call",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - Use the exact command get_data(query_payload={'value': '<id>'}, buffer=['preface','suffix'], auth='token'). API name: get_data. Required argument order: query_payload, buffer, auth. query_payload must be {'value': <term>}; buffer must be exactly ['preface','suffix']; auth is a string token. Example: get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token').\n\n\n\nFollow this first-action rule: Use the exact command get_data(query_payload={'value': '<id>'}, buffer=['preface','suffix'], auth='token'). API name: get_data. Required argument order: query_payload, buffer, auth. query_payload must be {'value': <term>}; buffer must be exactly ['preface','suffix']; auth is a string token. Example: get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token').\nThe first line must be exactly: get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')\nDo not replace the canonical action with generic shell prose, alternative utilities, or explanation-first text."
+        },
+        {
+          "answer": "It’s underspecified. From the single worked example, the only safe conclusion is that \\(P(2)=10\\) for that example; there isn’t enough information to determine \\(P(5)\\).",
+          "blocking": true,
+          "caseId": "procedural_memory/the_modified_recurrence_sequence.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase52_semantic_modified_recurrence_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/the_modified_recurrence_sequence.json",
+          "taskFile": "the_modified_recurrence_sequence.json",
+          "taskName": "Modified Recurrence Sequence",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - For this modified recurrence sequence example only, P(2) equals 10; do not generalize a new recurrence rule without additional evidence."
+        },
+        {
+          "answer": "It can’t be determined from the single example 2 ⊗ 3 = 31 alone. One example is not enough to derive a general rule for ⊗, so 4 ⊗ 5 is indeterminate from the given information.",
+          "blocking": true,
+          "caseId": "procedural_memory/the_omega_operation.json#001",
+          "datasetFamily": "procedural_memory",
+          "explicitRecallLeak": false,
+          "feedbackSignalApplied": true,
+          "judgeReason": "phase52_semantic_omega_passed",
+          "passed": true,
+          "profile": "goodmemory-distilled-feedback",
+          "scorerFamily": "text_behavior_judge",
+          "sourceFile": "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-phase-56/dataset/procedural_memory/the_omega_operation.json",
+          "taskFile": "the_omega_operation.json",
+          "taskName": "Omega Operation",
+          "memoryContext": "Developer memory notes:\nProcedural Memory: - For this omega operation example only, 2 ⊗ 3 equals 31; do not infer a general operator rule from one exemplar."
+        }
+      ],
+      "executionFailures": 0,
+      "explicitRecallLeakCount": 0,
+      "passedBlockingCases": 12,
+      "primingAverageScore": null,
+      "totalBlockingCases": 12,
+      "totalCases": 12
+    }
+  },
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-56/run-phase56-live-current",
+  "runId": "run-phase56-live-current",
+  "source": {
+    "benchmark": "ImplicitMemBench",
+    "license": "CC BY 4.0",
+    "url": "https://github.com/qinchonghanzuibang/ImplicitMemBench"
+  },
+  "summary": {
+    "caseCountsByDataset": {
+      "classical_conditioning": 10,
+      "priming": 0,
+      "procedural_memory": 14
+    },
+    "caseCountsByScorer": {
+      "priming_pair_judge": 0,
+      "structured_first_action": 10,
+      "text_behavior_judge": 14
+    },
+    "executionFailures": 0,
+    "explicitRecallLeakCount": 0,
+    "passedBlockingCases": 23,
+    "primingAverageScore": null,
+    "totalBlockingCases": 24,
+    "totalCases": 24
+  }
+}

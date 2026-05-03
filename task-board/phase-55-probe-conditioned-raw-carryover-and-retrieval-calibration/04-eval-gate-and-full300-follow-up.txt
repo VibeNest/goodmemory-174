@@ -1,0 +1,37 @@
+Phase 55 / Workstream 4: Eval, Gate, And Full-300 Follow-Up
+===========================================================
+
+Status
+------
+
+[DONE] Completed.
+
+Goal
+----
+
+Prove the calibrated raw carryover path on a targeted suite, then require a
+Postgres-backed full-300 follow-up rerun through the existing Phase 49
+research harness.
+
+Accepted Work
+-------------
+
+- add `eval:phase-55`
+- add `eval:phase-55-live-memory`
+- add `gate:phase-55`
+- freeze the pre-Phase-55 targeted raw baseline at `5 / 12`
+- require:
+  - deterministic and live `executionFailures = 0`
+  - live raw improvement beyond the frozen baseline
+  - no explicit recall leak regression
+  - full targeted distilled coverage
+- require a post-gate 5-shard Postgres-backed full-300 rerun and record it in
+  the research summary
+
+Verification
+------------
+
+- runner tests cover CLI defaults and canonical output paths
+- gate tests cover baseline comparison, task-file coverage, and leak
+  constraints
+- accepted gate run is `run-20260503233000`

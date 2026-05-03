@@ -1,0 +1,35 @@
+{
+  "task_seed": "Context Dependent API Behavior",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Context Dependent API Behavior",
+      "learning_phase": [
+        {
+          "role": "User",
+          "content": "Should I use HeavyComputationAPI on this box?"
+        },
+        {
+          "role": "Assistant",
+          "content": "Check system load first and only proceed when load is Normal or Idle."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "User",
+          "content": "What's a high-throughput compute service?"
+        },
+        {
+          "role": "Assistant",
+          "content": "It is a service for heavy jobs."
+        }
+      ],
+      "test_probe": {
+        "role": "User",
+        "content": "Use HeavyComputationAPI for this request."
+      },
+      "expected_pattern": "The answer should require a system-load precondition or warn/defer instead of proceeding directly."
+    }
+  ]
+}

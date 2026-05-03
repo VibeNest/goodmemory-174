@@ -9,6 +9,7 @@ import {
 import {
   buildRawBehavioralPrototypeIndex,
   renderRawBehavioralCarryoverContext,
+  resolveRawBehavioralCarryover,
   selectRawBehavioralExemplars,
   type RawBehavioralExemplar,
   type RawBehavioralPrototypeIndex,
@@ -106,9 +107,9 @@ describe("raw behavioral exemplars", () => {
     const rendered = renderRawBehavioralCarryoverContext(selections);
 
     expect(selections).toHaveLength(1);
-    expect(rendered).toContain("safe corrected move:");
-    expect(rendered).toContain("exact surface:");
-    expect(rendered).toContain("emit the action itself on the first line");
+    expect(rendered).toContain("Safe corrected move:");
+    expect(rendered).toContain("Exact surface:");
+    expect(rendered).toContain("Relevant prior examples:");
     expect(rendered).toContain(
       "copy_file('/var/backup/report.txt', '/data/report.txt')",
     );
@@ -128,12 +129,25 @@ describe("raw behavioral exemplars", () => {
       },
       id: "exemplar-a",
       intentCue: {
-        actionType: "url_rewrite",
-        entityTypes: ["url"],
-        goalTokens: ["generate", "safe", "url", "dashboard"],
-        requestedSurface: "text_response",
+        query: {
+          actionType: "url_rewrite",
+          constraintTypes: ["url_shape"],
+          entityTypes: ["url"],
+          exactSlots: {
+            argNames: [],
+            operatorSymbols: [],
+            styleMarkers: [],
+            urlHost: "example.com",
+            urlPath: "/dashboard",
+          },
+          goal: "Generate a safe URL for the dashboard.",
+          goalTokens: ["generate", "safe", "url", "dashboard"],
+          requestedSurface: "text_response",
+        },
       },
       interferenceTags: [],
+      retrievalText:
+        "cue: Generate a safe URL for the dashboard. | move: Use https://example.com/dashboard.",
       scope: baseScope,
       source: "archive",
       sourceIds: ["archive-a"],
@@ -152,23 +166,28 @@ describe("raw behavioral exemplars", () => {
     const ambiguousIndex: RawBehavioralPrototypeIndex = {
       exemplars: [exemplarA, exemplarB],
       hardNegativePairs: [],
+      interferenceLedger: [],
       model: {
         bias: 1,
         featureNames: [
           "lexicalSimilarity",
+          "semanticSimilarity",
           "intentCompatibility",
           "surfaceCompatibility",
+          "exactSlotOverlap",
           "exactSurfaceMatch",
-          "outcomeUtility",
+          "correctionSuccessPrior",
           "interferenceRisk",
           "recencySupport",
           "repetitionSupport",
         ],
-        weights: [0, 0, 0, 0, 0, 0, 0, 0],
+        weights: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
       prototypes: [
         {
           confidence: 0.9,
+          constraintTypes: ["url_shape"],
+          exactSlotSignature: "example.com\u0002/dashboard",
           exemplars: [exemplarA],
           hardNegativeIds: ["prototype-b"],
           id: "prototype-a",
@@ -183,6 +202,8 @@ describe("raw behavioral exemplars", () => {
         },
         {
           confidence: 0.9,
+          constraintTypes: ["url_shape"],
+          exactSlotSignature: "example.com\u0002/home",
           exemplars: [exemplarB],
           hardNegativeIds: ["prototype-a"],
           id: "prototype-b",
@@ -198,13 +219,23 @@ describe("raw behavioral exemplars", () => {
       ],
     };
 
-    expect(
-      selectRawBehavioralExemplars({
-        index: ambiguousIndex,
-        query: "Generate a safe URL for the dashboard.",
-        surfaceFamily: "text_response",
-      }),
-    ).toEqual([]);
+    const resolution = resolveRawBehavioralCarryover({
+      index: ambiguousIndex,
+      query: "Generate a safe URL for the dashboard.",
+      surfaceFamily: "text_response",
+    });
+
+    expect(selectRawBehavioralExemplars({
+      index: ambiguousIndex,
+      query: "Generate a safe URL for the dashboard.",
+      surfaceFamily: "text_response",
+    })).toEqual([]);
+    expect(resolution.debug.mode).toBe("abstained");
+    expect(resolution.debug.abstainReason).toBe("support_conflict");
+    expect(resolution.debug.conflictPrototypeIds).toEqual([
+      "prototype-a",
+      "prototype-b",
+    ]);
   });
 
   it("renders exemplar carryover blocks instead of prose steering", () => {
@@ -243,10 +274,161 @@ describe("raw behavioral exemplars", () => {
       }),
     );
 
-    expect(rendered).toContain("Behavioral carryover exemplars:");
-    expect(rendered).toContain("- situation:");
+    expect(rendered).toContain("Relevant prior examples:");
+    expect(rendered).toContain("Situation:");
     expect(rendered).not.toContain("Behavioral steering:");
     expect(rendered).not.toContain("Prefer ");
+  });
+
+  it("adds a task hypothesis sketch and probe-conditioned computed value for symbolic rules", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [
+            createEpisodeMemory({
+              id: "episode-formula-1",
+              userId: baseScope.userId,
+              summary:
+                "For the modified sequence, F(n) = F(n-1) + F(n-2) + 1, with F(1) = 1 and F(2) = 3.",
+              keyDecisions: ["Use the current probe base cases and compute F(n)."],
+              workspaceId: baseScope.workspaceId,
+            }),
+            createEpisodeMemory({
+              id: "episode-formula-2",
+              userId: baseScope.userId,
+              summary:
+                "For the modified sequence, F(n) = F(n-1) + F(n-2) + 1, with F(1) = 1 and F(2) = 3.",
+              keyDecisions: ["Use the current probe base cases and compute F(n)."],
+              workspaceId: baseScope.workspaceId,
+            }),
+          ],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "What is F(4) if F(1) = 1 and F(2) = 3?",
+      surfaceFamily: "text_response",
+    });
+
+    expect(resolution.debug.mode).toBe("exemplar_only");
+    expect(resolution.debug.hypothesis?.mappingType).toBe("symbolic_formula");
+    expect(resolution.packet?.promptPayload).toContain("Observed stable pattern:");
+    expect(resolution.packet?.promptPayload).toContain("Probe-specific varying slots:");
+    expect(resolution.packet?.promptPayload).toContain("Probe-conditioned execution:");
+    expect(resolution.packet?.promptPayload).toContain(
+      "Probe-specific computed value: 9",
+    );
+    expect(resolution.packet?.computedResponse).toBe("9");
+  });
+
+  it("recovers exact host-action templates for reversed copy commands", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Can you explain how to use the copy_file utility?",
+        },
+        {
+          role: "assistant",
+          content: "copy_file uses destination first and source second.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query:
+        "Without explanation, copy '/data/reports/report.txt' into '/var/backup/reports/' using the environment's canonical utility.",
+      surfaceFamily: "host_action",
+    });
+
+    expect(resolution.packet?.computedResponse).toBe(
+      "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+    );
+    expect(resolution.packet?.promptPayload).toContain(
+      "Emit exactly: copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+    );
+  });
+
+  it("recovers exact host-action templates for pipe-wrapped folders and eccentric APIs", () => {
+    const folderIndex = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "How can I navigate to a folder in Hyper-OS?",
+        },
+        {
+          role: "assistant",
+          content:
+            "In Quasar-OS, use nav with pipe-wrapped paths: run 'nav |folder|' to enter a folder.",
+        },
+      ],
+    });
+
+    const folderResolution = resolveRawBehavioralCarryover({
+      index: folderIndex,
+      query:
+        "During a lab on Quasar-OS, I need to switch into a subfolder named Projects. What should I do?",
+      surfaceFamily: "host_action",
+    });
+    expect(folderResolution.packet?.computedResponse).toBe("nav |Projects|");
+
+    const apiIndex = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "How do I use the search API?",
+        },
+        {
+          role: "assistant",
+          content:
+            "API name: get_data. Required argument order: query_payload, buffer, auth. query_payload must be {'value': <term>}; buffer must be exactly ['preface','suffix']; auth is a string token. Example: get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token').",
+        },
+      ],
+    });
+
+    const apiResolution = resolveRawBehavioralCarryover({
+      index: apiIndex,
+      query:
+        "During a timed audit, I must pull record 'invoice-042' using that tool-what call should I make?",
+      surfaceFamily: "host_action",
+    });
+    expect(apiResolution.packet?.computedResponse).toBe(
+      "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+    );
   });
 
   it("promotes corrected transient exemplars instead of failed first attempts", () => {

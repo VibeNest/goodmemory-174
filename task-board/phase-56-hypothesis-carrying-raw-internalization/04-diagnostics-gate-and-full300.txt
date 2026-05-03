@@ -1,0 +1,55 @@
+Phase 56 / Workstream 4: Diagnostics, Gate, And Full-300 Follow-Up
+==================================================================
+
+Status
+------
+
+[DONE] Targeted gate evidence is accepted, and the required Postgres-backed
+full-300 follow-up rerun is complete.
+
+Goal
+----
+
+Close Phase 56 only after:
+
+- deterministic targeted evidence
+- live-memory targeted evidence
+- accepted gate artifact
+- required Postgres-backed 5-shard full-300 rerun
+
+Accepted Work
+-------------
+
+- add `eval:phase-56`
+- add `eval:phase-56-live-memory`
+- add `gate:phase-56`
+- record typed raw diagnostics in the research report
+
+Current Evidence
+----------------
+
+- live raw:
+  `11 / 12`
+- live distilled:
+  `12 / 12`
+- live execution failures:
+  `0`
+- live explicit recall leaks:
+  `0`
+- accepted gate:
+  `reports/quality-gates/phase-56/run-20260504003000/phase-56-quality-gate.json`
+- full-300 follow-up:
+  - raw `45 / 200`
+  - distilled `152 / 200`
+  - raw execution failures `15`
+  - distilled execution failures `4`
+  - raw/distilled explicit recall leaks `1 / 0`
+
+Closure Notes
+-------------
+
+- `phase-56-quality-gate.json` is accepted
+- the required 5-shard Postgres-backed full-300 follow-up is recorded in
+  `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+- current-status, archive docs, and release assertions now point at the
+  accepted Phase 56 truth

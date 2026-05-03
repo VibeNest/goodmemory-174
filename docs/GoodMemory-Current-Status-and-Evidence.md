@@ -76,41 +76,41 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 54 is now closed as the Exemplar-First Raw Internalization slice.
+- Phase 56 is now closed as the Hypothesis-Carrying Raw Internalization slice.
 - Accepted behavior:
-  - raw behavior carryover now has an internal exemplar-first lane that is
-    derived from experiences, archives, host traces, and accepted correction
-    lineage without widening the public API or adding a new public memory kind
-  - raw selection no longer relies on prose-only behavioral steering as the
-    primary carrier; it now uses interference-aware exemplar selection,
-    abstention, and prototype-bounded clustering before rendering carryover
-  - runtime-kit and the research harness can inject minimal behavioral
-    exemplars for `text_response` and `host_action` surfaces while keeping
-    explicit memory-note phrasing suppressed
-  - maintenance consolidation now summarizes raw exemplar/prototype density as
-    internal derived evidence rather than promoting exemplar traces into a new
-    durable record family
-  - targeted deterministic and live Phase 54 evidence both close with
+  - the raw path now goes beyond exemplar selection and can form a transient
+    `RawTaskHypothesis` from support/conflict retrieval views before deciding
+    whether to abstain, execute a symbolic probe-time adaptation, or recover an
+    exact host-action surface
+  - raw diagnostics now distinguish `memory_miss`, `support_conflict`,
+    `hypothesis_missing`, `executor_unsafe`, and
+    `reasoning_after_correct_hypothesis`
+  - runtime-kit and the Phase 49 research harness now share the same
+    hypothesis-carrying raw resolver, so targeted and full-300 runs exercise
+    the same internal raw lane
+  - targeted deterministic and live Phase 56 evidence both close with
     `executionFailures = 0`, `goodmemory-distilled-feedback` passing all 12
     targeted task files, `goodmemory-raw-experience` improving from the frozen
-    targeted baseline of `3 / 12` to `5 / 12` live passes, and targeted
+    targeted baseline of `6 / 12` to `11 / 12` live passes, and targeted
     explicit recall leaks staying `0`
+  - the required Postgres-backed 5-shard full-300 follow-up is complete and
+    recorded in the research summary, with raw `45 / 200` and distilled
+    `152 / 200`
 - Canonical evidence:
   - archive summary:
-    `docs/archive/quality-gates/GoodMemory-Phase-54-Quality-Gate.md`
+    `docs/archive/quality-gates/GoodMemory-Phase-56-Quality-Gate.md`
   - deterministic targeted eval:
-    `reports/eval/fallback/phase-54/run-phase54-fallback-current/report.json`
+    `reports/eval/fallback/phase-56/run-phase56-fallback-current/report.json`
   - live-memory behavioral evidence:
-    `reports/eval/live-memory/phase-54/run-phase54-live-current/report.json`
+    `reports/eval/live-memory/phase-56/run-phase56-live-current/report.json`
   - quality gate:
-    `reports/quality-gates/phase-54/run-20260503193000/phase-54-quality-gate.json`
-- Still outside the Phase 54 accepted claim:
+    `reports/quality-gates/phase-56/run-20260504003000/phase-56-quality-gate.json`
+- Still outside the Phase 56 accepted claim:
   - the post-gate full-300 research rerun remains research-only evidence and
-    does not define the acceptance bar for this slice
+    does not make full ImplicitMemBench a release hard gate or public product
+    claim
   - public API or public config widening
   - a new durable public memory kind or public record collection
-  - full-300 ImplicitMemBench rerun as a release hard gate or public product
-    claim
   - benchmark-specific runtime hacks or per-task-file prompt patches as the
     accepted product mechanism
 
@@ -183,16 +183,17 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json`
   - ad hoc full-300 research summary:
     `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
-  - latest post-Phase-54 rerun status, as summarized in the research doc:
-    GoodMemory-only Postgres-backed 5-shard rerun landed at raw `42 / 200`,
-    distilled `151 / 200`, conditioning distilled `85 / 100`, procedural
-    distilled `66 / 100`, structured first-action distilled `21 / 35`, raw /
-    distilled execution failures at `19 / 3`, explicit recall leaks at
-    `3 / 0`, and confirmed that the largest remaining gaps are still
-    raw-only internalization stability plus operator reliability under the
-    full provider-backed 300-case run
+  - latest post-Phase-56 rerun status, as summarized in the research doc:
+    GoodMemory-only Postgres-backed 5-shard rerun landed at raw `45 / 200`,
+    distilled `152 / 200`, conditioning raw/distilled `22 / 100`,
+    `87 / 100`, procedural raw/distilled `23 / 100`, `65 / 100`,
+    structured first-action raw/distilled `8 / 35`, `21 / 35`, raw /
+    distilled execution failures at `15 / 4`, and explicit recall leaks at
+    `1 / 0`, showing that Phase 56 finally improved full-300 raw carryover
+    beyond the post-Phase-54 baseline while also setting a new distilled
+    high-water mark
   - latest closed execution slice:
-    `task-board/58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt`
+    `task-board/61-phase-56-hypothesis-carrying-raw-internalization.txt`
 - Still outside the Phase 49 accepted claim:
   - a checked-in full 300-item live run against an external benchmark checkout
   - release hard-gating on ImplicitMemBench quality numbers

@@ -1,0 +1,133 @@
+Phase 55: Probe-Conditioned Raw Carryover And Retrieval Calibration
+===================================================================
+
+Status
+------
+
+[DONE] Phase 55 is closed with accepted targeted deterministic/live evidence.
+
+Driver
+------
+
+- Phase 54 proved that exemplar-first raw carryover was directionally correct,
+  but the raw lane was still mixing generic memory packets with exemplar
+  payloads.
+- The remaining raw failures were not all "memory absent" failures. They also
+  included:
+  - semantically similar but wrong carryover
+  - low-confidence exact-surface conflicts
+  - inability to tell whether the miss was retrieval, abstention, or later
+    reasoning failure
+- Phase 55 therefore targeted a general raw-path refinement:
+  - isolate raw prompt payloads from generic prose memory packets
+  - understand the current probe in a more structured way before retrieval
+  - rank candidates with interference-aware calibration and explicit abstention
+  - record diagnostics so later raw work can target the right failure mode
+
+
+Phase Goal
+----------
+
+Push the raw path closer to genuine probe-conditioned carryover by:
+
+- making raw exemplar packets the primary prompt carrier when retrieval is
+  confident
+- deriving internal raw query intent and exact-slot features before selection
+- using multi-view candidate generation, interference-aware reranking, and
+  abstention instead of simple heuristic ordering
+- keeping consolidation local and prototype-bounded while refreshing
+  interference ledgers and training hints
+
+
+Dependencies
+------------
+
+- Phase 49 full ImplicitMemBench research harness
+- Phase 54 exemplar-first raw internalization
+- `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+
+
+Accepted Scope
+--------------
+
+- add an internal `RawCarryoverPacket` with separate retrieval-side and
+  prompt-side representations
+- add `RawQueryIntent`, exact-slot extraction, multi-view candidate generation,
+  and an interference ledger for raw carryover
+- add an internal lightweight reranker/training helper and explicit abstention
+  reasons
+- render raw prompt payloads as minimal exemplars without default
+  `Developer memory notes:` injection on confident raw hits
+- add targeted raw diagnostics to the Phase 49 research harness and maintenance
+  summaries
+- keep the slice internal-first and additive on current durable truth, with no
+  new public memory kind and no public API widening
+
+
+Out Of Scope
+------------
+
+- base-model finetuning
+- making full ImplicitMemBench a release hard gate
+- replacing the accepted distilled lane with the raw lane
+- benchmark-file-specific prompt hacks
+- widening public retrieval profiles or public runtime config
+
+
+Acceptance Criteria
+-------------------
+
+1. [DONE] Targeted deterministic raw evidence passes with `executionFailures = 0`
+   and explicit recall leakage at `0`.
+2. [DONE] Targeted live raw evidence passes with `executionFailures = 0`,
+   improves beyond the frozen raw baseline (`5 / 12` -> `6 / 12`), and keeps
+   explicit recall leakage at `0`.
+3. [DONE] `goodmemory-distilled-feedback` remains non-regressed on the same
+   targeted suite and passes all 12 targeted task files.
+4. [DONE] Runtime Kit and the Phase 49 research harness both consume the same
+   probe-conditioned raw carryover path and expose raw diagnostics.
+5. [DONE] Phase closure is backed by accepted deterministic/live evidence and a
+   required post-gate full-300 rerun written back into the research summary.
+
+
+Tasks
+-----
+
+[DONE] P55-T001 Isolate the raw prompt lane from generic prose packets and add
+  dual raw carryover representations.
+[DONE] P55-T002 Add probe-conditioned query intent, exact-slot extraction, and
+  multi-view candidate generation.
+[DONE] P55-T003 Add interference-aware reranking, abstention, and offline
+  calibration helpers.
+[DONE] P55-T004 Wire the calibrated raw resolver through runtime-kit and the
+  Phase 49 research harness with diagnostics.
+[DONE] P55-T005 Add targeted deterministic/live raw eval plus the Phase 55
+  quality gate.
+[DONE] P55-T006 Close the phase only after targeted evidence, current-status,
+  archive docs, task-board, release assertions, and the post-gate full-300
+  rerun agree.
+
+
+Canonical Evidence
+------------------
+
+- Deterministic targeted eval:
+  `reports/eval/fallback/phase-55/run-phase55-fallback-current/report.json`
+- Live-memory targeted eval:
+  `reports/eval/live-memory/phase-55/run-phase55-live-current/report.json`
+- Quality gate:
+  `reports/quality-gates/phase-55/run-20260503233000/phase-55-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-55-Quality-Gate.md`
+- Full-300 research summary:
+  `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-55-probe-conditioned-raw-carryover-and-retrieval-calibration/00-README.txt`
+- `task-board/phase-55-probe-conditioned-raw-carryover-and-retrieval-calibration/01-raw-lane-isolation-and-query-intent.txt`
+- `task-board/phase-55-probe-conditioned-raw-carryover-and-retrieval-calibration/02-candidate-generation-reranker-and-interference-ledger.txt`
+- `task-board/phase-55-probe-conditioned-raw-carryover-and-retrieval-calibration/03-runtime-carryover-rendering-and-consolidation.txt`
+- `task-board/phase-55-probe-conditioned-raw-carryover-and-retrieval-calibration/04-eval-gate-and-full300-follow-up.txt`

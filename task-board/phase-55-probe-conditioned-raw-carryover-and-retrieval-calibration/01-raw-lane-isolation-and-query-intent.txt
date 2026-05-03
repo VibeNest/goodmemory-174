@@ -1,0 +1,35 @@
+Phase 55 / Workstream 1: Raw Lane Isolation And Query Intent
+=============================================================
+
+Status
+------
+
+[DONE] Completed.
+
+Goal
+----
+
+Make the raw path choose between exemplar payloads and generic fallback more
+explicitly, while deriving a richer structured view of the current probe.
+
+Accepted Work
+-------------
+
+- add internal `RawCarryoverPacket` with:
+  - retrieval-side enriched text
+  - prompt-side minimal exemplar payload
+- add `RawQueryIntent` with:
+  - goal
+  - action type
+  - entity types
+  - surface family
+  - exact slots
+  - constraint types
+- stop high-confidence raw hits from defaulting to generic `Developer memory
+  notes:` injection
+
+Verification
+------------
+
+- unit coverage for exact-slot extraction and raw prompt payload isolation
+- runtime-kit coverage proving confident raw hits can omit generic prose memory

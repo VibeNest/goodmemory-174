@@ -1,0 +1,35 @@
+Phase 56 / Workstream 1: Support-Conflict Retrieval
+===================================================
+
+Status
+------
+
+[DONE] Implemented.
+
+Goal
+----
+
+Upgrade raw retrieval from a single ranked list into a support/conflict view
+that can explain why a candidate should or should not carry over into the
+current probe.
+
+Accepted Work
+-------------
+
+- derive support candidates and conflict candidates from the same raw candidate
+  pool
+- add typed abstention reasons:
+  - `memory_miss`
+  - `support_conflict`
+  - `hypothesis_missing`
+  - `executor_unsafe`
+- improve host-action intent parsing so command-like surfaces, folder/path
+  operations, and exact action contracts are recognized before generic prose
+  heuristics
+
+Verification
+------------
+
+- unit coverage for ambiguous top-2 abstention and exact-surface separation
+- targeted live raw evidence proving support/conflict retrieval no longer
+  collapses exact host-action tasks into generic prose

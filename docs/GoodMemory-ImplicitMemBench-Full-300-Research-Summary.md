@@ -2,7 +2,7 @@
 
 Initial run date: `2026-04-28`
 
-Latest rerun update: `2026-05-03`
+Latest rerun update: `2026-05-04`
 
 Status: internal research evidence only. This document does not reopen or
 change the accepted Phase 49 claim, and it does not make full ImplicitMemBench
@@ -30,6 +30,12 @@ GoodMemory's Phase 49 research harness:
 - a post-Phase-54 GoodMemory rerun used to check whether exemplar-first raw
   carryover and the accepted raw-internalization slice improved the same full
   benchmark under the established sharded Postgres-backed setup
+- a post-Phase-55 GoodMemory rerun used to check whether probe-conditioned raw
+  carryover and retrieval calibration generalized beyond the targeted raw gate
+  and moved the same benchmark under the same sharded Postgres-backed setup
+- a post-Phase-56 GoodMemory rerun used to check whether hypothesis-carrying
+  raw internalization finally moved the full-300 raw benchmark, not just the
+  targeted gate
 
 The goal was not to measure prompt-following alone. The comparison keeps the
 upstream baseline and the GoodMemory-mediated path separate:
@@ -106,6 +112,26 @@ reports under:
 - `reports/eval/research/phase-49/goodmemory/run-phase49-postphase54-shard-03-20260503`
 - `reports/eval/research/phase-49/goodmemory/run-phase49-postphase54-shard-04-20260503`
 - `reports/eval/research/phase-49/goodmemory/run-phase49-postphase54-shard-05-20260503`
+
+The post-Phase-55 rerun used 5 balanced local shard roots under
+`/tmp/ImplicitMemBench-phase55-shards-20260503/` and wrote GoodMemory shard
+reports under:
+
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase55-r1-shard-01-20260503`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase55-r1-shard-02-20260503`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase55-r1-shard-03-20260503`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase55-r1-shard-04-20260503`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase55-r1-shard-05-20260503`
+
+The post-Phase-56 rerun used the established 5 balanced local shard roots under
+`/tmp/ImplicitMemBench-phase54-shards-20260503/` and wrote GoodMemory shard
+reports under:
+
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase56-shard-01-20260504`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase56-shard-02-20260504`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase56-shard-03-20260504`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase56-shard-04-20260504`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase56-shard-05-20260504`
 
 These runs are intentionally not promoted to release-gate status. They remain
 research evidence only.
@@ -388,6 +414,107 @@ Phase 49 research harness rather than a benchmark-specific side path.
   - raw: `3`
   - distilled: `0`
 
+### Post-Phase-55 GoodMemory Rerun (`2026-05-03`, probe-conditioned raw carryover + retrieval calibration)
+
+This rerun again refreshed GoodMemory only. It kept the same external benchmark
+checkout shape and the same provider-backed research execution contract:
+
+- 5 balanced mixed-family shards
+- explicit Postgres-backed GoodMemory storage
+- per-process concurrency `1`
+- provider-backed embeddings and assisted extraction
+
+The point of this rerun was not to celebrate the Phase 55 targeted gate. It was
+to check whether the new raw carryover isolation and retrieval calibration would
+survive the broader full-300 workload.
+
+#### Blocking Cases
+
+| Profile | Passed | Total | Pass Rate |
+| --- | ---: | ---: | ---: |
+| `goodmemory-raw-experience` | 35 | 200 | 17.5% |
+| `goodmemory-distilled-feedback` | 148 | 200 | 74.0% |
+
+#### By Dataset Family
+
+| Dataset | Raw | Distilled |
+| --- | ---: | ---: |
+| `classical_conditioning` | 17 / 100 | 82 / 100 |
+| `procedural_memory` | 18 / 100 | 66 / 100 |
+
+#### By Scorer Family
+
+| Scorer | Raw | Distilled |
+| --- | ---: | ---: |
+| `text_behavior_judge` | 34 / 165 | 126 / 165 |
+| `structured_first_action` | 1 / 35 | 22 / 35 |
+
+#### Priming
+
+| Profile | Average Score |
+| --- | ---: |
+| `goodmemory-raw-experience` | 1.8065 |
+
+#### Execution Quality
+
+- `executionFailures`
+  - raw: `8`
+  - distilled: `1`
+- `explicitRecallLeakCount`
+  - raw: `4`
+  - distilled: `2`
+
+### Post-Phase-56 GoodMemory Rerun (`2026-05-04`, hypothesis-carrying raw internalization + Postgres 5-shard follow-up)
+
+This rerun executed the required post-gate follow-up for Phase 56. It kept the
+same external benchmark-root contract and the same provider-backed research
+execution setup:
+
+- 5 balanced mixed-family shards
+- explicit Postgres-backed GoodMemory storage
+- per-process concurrency `1`
+- provider-backed embeddings and assisted extraction
+
+The point was to check whether the new support/conflict retrieval, transient
+task hypotheses, and probe-time raw execution generalized beyond the targeted
+gate and into the full 300-case workload.
+
+#### Blocking Cases
+
+| Profile | Passed | Total | Pass Rate |
+| --- | ---: | ---: | ---: |
+| `goodmemory-raw-experience` | 45 | 200 | 22.5% |
+| `goodmemory-distilled-feedback` | 152 | 200 | 76.0% |
+
+#### By Dataset Family
+
+| Dataset | Raw | Distilled |
+| --- | ---: | ---: |
+| `classical_conditioning` | 22 / 100 | 87 / 100 |
+| `procedural_memory` | 23 / 100 | 65 / 100 |
+
+#### By Scorer Family
+
+| Scorer | Raw | Distilled |
+| --- | ---: | ---: |
+| `text_behavior_judge` | 37 / 165 | 131 / 165 |
+| `structured_first_action` | 8 / 35 | 21 / 35 |
+
+#### Priming
+
+| Profile | Average Score |
+| --- | ---: |
+| `goodmemory-raw-experience` | 0.8352 |
+
+#### Execution Quality
+
+- `executionFailures`
+  - raw: `15`
+  - distilled: `4`
+- `explicitRecallLeakCount`
+  - raw: `1`
+  - distilled: `0`
+
 ### Delta Versus The Initial GoodMemory Run
 
 | Metric | Initial | Post-Phase-51 | Delta |
@@ -454,9 +581,43 @@ Phase 49 research harness rather than a benchmark-specific side path.
 | raw explicit recall leaks | `2` | `3` | `+1` |
 | distilled explicit recall leaks | `0` | `0` | `0` |
 
+### Delta Versus The Post-Phase-54 GoodMemory Rerun
+
+| Metric | Post-Phase-54 | Post-Phase-55 | Delta |
+| --- | ---: | ---: | ---: |
+| overall raw blocking pass rate | `21.0%` | `17.5%` | `-3.5 pts` |
+| overall distilled blocking pass rate | `75.5%` | `74.0%` | `-1.5 pts` |
+| conditioning raw | `14 / 100` | `17 / 100` | `+3` |
+| procedural raw | `28 / 100` | `18 / 100` | `-10` |
+| conditioning distilled | `85 / 100` | `82 / 100` | `-3` |
+| procedural distilled | `66 / 100` | `66 / 100` | `0` |
+| structured first-action raw | `5 / 35` | `1 / 35` | `-4` |
+| structured first-action distilled | `21 / 35` | `22 / 35` | `+1` |
+| raw execution failures | `19` | `8` | `-11` |
+| distilled execution failures | `3` | `1` | `-2` |
+| raw explicit recall leaks | `3` | `4` | `+1` |
+| distilled explicit recall leaks | `0` | `2` | `+2` |
+
+### Delta Versus The Post-Phase-55 GoodMemory Rerun
+
+| Metric | Post-Phase-55 | Post-Phase-56 | Delta |
+| --- | ---: | ---: | ---: |
+| overall raw blocking pass rate | `17.5%` | `22.5%` | `+5.0 pts` |
+| overall distilled blocking pass rate | `74.0%` | `76.0%` | `+2.0 pts` |
+| conditioning raw | `17 / 100` | `22 / 100` | `+5` |
+| procedural raw | `18 / 100` | `23 / 100` | `+5` |
+| conditioning distilled | `82 / 100` | `87 / 100` | `+5` |
+| procedural distilled | `66 / 100` | `65 / 100` | `-1` |
+| structured first-action raw | `1 / 35` | `8 / 35` | `+7` |
+| structured first-action distilled | `22 / 35` | `21 / 35` | `-1` |
+| raw execution failures | `8` | `15` | `+7` |
+| distilled execution failures | `1` | `4` | `+3` |
+| raw explicit recall leaks | `4` | `1` | `-3` |
+| distilled explicit recall leaks | `2` | `0` | `-2` |
+
 ## What The Results Say
 
-### 1. Raw experience replay is still weak
+### 1. Raw experience replay is still weak, but Phase 56 finally moved the full-300 raw line again
 
 The central result did not change: `goodmemory-raw-experience` remains far
 below the upstream baseline. Phase 53 recovered part of the post-Phase-52 drop,
@@ -469,12 +630,17 @@ but raw replay is still not a reliable product mechanism by itself.
 - post-Phase-53 raw: `18.0%`
 - post-Phase-53 continued hardening raw: `16.0%`
 - post-Phase-54 raw: `21.0%`
+- post-Phase-55 raw: `17.5%`
+- post-Phase-56 raw: `22.5%`
 
 This means the current GoodMemory stack does not yet turn most learning and
 interference examples into reliable downstream behavior when the final probe is
-probe-only.
+probe-only. But unlike Phase 55, Phase 56 did improve the full-300 raw result:
+it finally beat both the post-Phase-55 rerun and the earlier post-Phase-54
+raw high-water mark. The gain is still modest, but it is no longer only a
+targeted-slice effect.
 
-### 2. Distillation remains useful, and the continued hardening rerun moved the full-300 frontier sharply upward
+### 2. Distillation remains the strongest path, and Phase 56 set a new full-300 high-water mark
 
 `goodmemory-distilled-feedback` still carries the real value in the system.
 The strongest family remains `classical_conditioning`, and this new rerun is
@@ -488,6 +654,8 @@ blocking cases on the full 300-item suite:
 - post-Phase-53 distilled: `62 / 100`
 - post-Phase-53 continued hardening distilled: `87 / 100`
 - post-Phase-54 distilled: `85 / 100`
+- post-Phase-55 distilled: `82 / 100`
+- post-Phase-56 distilled: `87 / 100`
 
 The same rerun also lifted `procedural_memory`, though that family is still
 well below baseline:
@@ -499,13 +667,18 @@ well below baseline:
 - post-Phase-53 distilled: `28 / 100`
 - post-Phase-53 continued hardening distilled: `34 / 100`
 - post-Phase-54 distilled: `66 / 100`
+- post-Phase-55 distilled: `66 / 100`
+- post-Phase-56 distilled: `65 / 100`
 
 So the value is still concentrated in explicit rule distillation for local
 behavioral constraints, but the effect is now much broader. The post-Phase-54
 rerun moved GoodMemory from the earlier `121 / 200` distilled high-water mark
 to `151 / 200`, driven mostly by a large procedural jump rather than another
-conditioning-only step. It is still research evidence, not a release hard
-gate, but it is materially stronger evidence than any earlier full-300 run.
+conditioning-only step. The post-Phase-55 rerun stayed strong at `148 / 200`
+and improved operator reliability, but it did not surpass the post-Phase-54
+high-water mark. Phase 56 finally pushed the distilled line to `152 / 200`,
+setting a new best full-300 GoodMemory result. It is still research evidence,
+not a release hard gate.
 
 ### 3. Strict first-action enactment is the weakest surface
 
@@ -520,14 +693,19 @@ The `structured_first_action` subgroup remains poor across all profiles:
 - post-Phase-53 distilled: `7 / 35`
 - post-Phase-53 continued hardening distilled: `6 / 35`
 - post-Phase-54 distilled: `21 / 35`
+- post-Phase-55 distilled: `22 / 35`
+- post-Phase-56 raw: `8 / 35`
+- post-Phase-56 distilled: `21 / 35`
 
 The continued hardening rerun fixed a real scoring bug by switching procedural
 structured cases to instance-level expected actions, and the post-Phase-54
-rerun finally pushed this surface to `21 / 35`. That is still below where a
+rerun finally pushed this surface to `21 / 35`. Phase 55 nudged that to
+`22 / 35`. Phase 56 kept the distilled line roughly flat, but it materially
+improved raw strict-action carryover to `8 / 35`. That is still below where a
 strong host-action memory layer should be, but it is no longer the near-zero
 surface it was in earlier reruns.
 
-### 4. Execution quality is now cleaner again, including the distilled leak surface
+### 4. Execution quality is mixed: raw operator noise rose again, but the leak surface is cleaner
 
 The continued hardening rerun kept the distilled path at `executionFailures = 0`
 and recovered the zero-leak distilled profile:
@@ -537,15 +715,20 @@ and recovered the zero-leak distilled profile:
 - post-Phase-53 raw/distilled leaks: `1 / 1`
 - post-Phase-53 continued hardening raw/distilled leaks: `2 / 0`
 - post-Phase-54 raw/distilled leaks: `3 / 0`
+- post-Phase-55 raw/distilled leaks: `4 / 2`
+- post-Phase-56 raw/distilled leaks: `1 / 0`
 - post-Phase-53 raw/distilled execution failures: `5 / 0`
 - post-Phase-53 continued hardening raw/distilled execution failures: `4 / 0`
 - post-Phase-54 raw/distilled execution failures: `19 / 3`
+- post-Phase-55 raw/distilled execution failures: `8 / 1`
+- post-Phase-56 raw/distilled execution failures: `15 / 4`
 
-The useful product-quality movement is still real, but this rerun is noisier
-operationally than the best post-Phase-53 shard run. Distilled leaks stayed at
-`0`, but execution failures rose again under the heavier full-300 pass. That
-means the behavioral gain is real, while the research harness still needs
-better operator reliability.
+The useful product-quality movement is still real, but the operator story is
+not monotonic. Phase 55 cleaned up the harness substantially. Phase 56 gave
+back some of that execution stability, but it also removed the distilled leak
+regression and sharply reduced raw explicit-recall leakage. So the full-300
+win is real, but it did not come with cleaner runtime behavior across every
+dimension.
 
 ### 5. The biggest remaining misses are still structural
 
@@ -727,24 +910,29 @@ applicability-bounded procedural rule.
 
 ## Current Bottom Line
 
-The post-Phase-54 rerun is the strongest full-300 GoodMemory result so far,
-but it still does not mean the problem is solved:
+The post-Phase-56 rerun is now the strongest full-300 GoodMemory result so far:
 
-- GoodMemory is now materially stronger on distilled behavioral adaptation
-  overall.
-- GoodMemory is no longer only a conditioning story; procedural transfer moved
-  sharply upward to `66 / 100`.
-- GoodMemory is still only borderline useful on raw internalization at
-  `42 / 200`.
-- GoodMemory still pays too much execution-noise tax on the raw provider-backed
-  path.
-- GoodMemory's exact first-action surface is much better at `21 / 35`, but it
-  is not yet strong enough to treat exact action recovery as a solved layer.
+- GoodMemory is materially stronger on distilled behavioral adaptation
+  overall, and the latest rerun set a new distilled high-water mark at
+  `152 / 200`.
+- GoodMemory is still not just a conditioning story; procedural transfer now
+  holds at `65 / 100`, while structured first-action remains a meaningful but
+  still incomplete surface at `21 / 35` distilled and `8 / 35` raw.
+- GoodMemory is still weak on raw internalization in absolute terms, but the
+  latest full-300 raw result improved to `45 / 200`, finally beating the
+  earlier post-Phase-54 line.
+- Phase 56 did generalize beyond its targeted gate enough to move the full
+  benchmark; the gain is real, but it is not large enough to call raw
+  internalization solved.
+- operator reliability is still a bottleneck: the latest run improved leak
+  hygiene but reintroduced more execution failures than the Phase 55 rerun.
 
 That means the next general-capability slice should focus on:
 
-1. making raw exemplar carryover more stable and less timeout-prone
-2. keeping procedural symbolic transfer high without regressing exactness
+1. making raw support/conflict resolution and transient execution more stable
+   under the full benchmark, not just targeted slices
+2. keeping procedural symbolic and exact-action transfer high without
+   regressing exactness
 3. improving full-run operator reliability so the benchmark signal is less
    distorted by provider-side execution failures
 

@@ -1,0 +1,131 @@
+{
+  "task_seed": "The Eccentric API Call",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "The Eccentric API Call",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do I use the search API?"
+        },
+        {
+          "role": "assistant",
+          "content": "API name: get_data. Required argument order: query_payload, buffer, auth. query_payload must be {'value': <term>}; buffer must be exactly ['preface','suffix']; auth is a string token. Example: get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')."
+        },
+        {
+          "role": "user",
+          "content": "What should I include in the query payload?"
+        },
+        {
+          "role": "assistant",
+          "content": "Put the search term as 'value' (e.g., 'invoice-042'); keep key names unchanged and include the required buffer and auth exactly as shown."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "Can you explain how to update a configuration?"
+        },
+        {
+          "role": "assistant",
+          "content": "On Linux, edit with a safe inline backup, e.g., sed -i.bak 's/^info=.*/info=config details/' /etc/app.conf && systemctl reload app."
+        },
+        {
+          "role": "user",
+          "content": "What does the config_payload include?"
+        },
+        {
+          "role": "assistant",
+          "content": "Ensure the config file has a line like info=config details to declare the setting explicitly."
+        },
+        {
+          "role": "user",
+          "content": "How do I retrieve user settings?"
+        },
+        {
+          "role": "assistant",
+          "content": "Read ~/.config/app/settings.json and parse with jq '.user_id' or grep the key, e.g., jq -r '.user_id' ~/.config/app/settings.json."
+        },
+        {
+          "role": "user",
+          "content": "What parameters are needed for settings_payload?"
+        },
+        {
+          "role": "assistant",
+          "content": "The settings JSON must include 'user_id' to identify the account; other fields are optional."
+        },
+        {
+          "role": "user",
+          "content": "Can I change the status of a task?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, for example via HTTP: curl -s -X PATCH http://localhost:8080/tasks/task456 -H 'Content-Type: application/json' -d '{\"new_status\":\"completed\"}'."
+        },
+        {
+          "role": "user",
+          "content": "What should be in task_payload?"
+        },
+        {
+          "role": "assistant",
+          "content": "Include identifiers like 'task_id' along with the intended 'new_status' so the service can update the right record."
+        },
+        {
+          "role": "user",
+          "content": "How to get a report of transactions?"
+        },
+        {
+          "role": "assistant",
+          "content": "From Postgres you can export with: psql -c \"\\copy (SELECT * FROM transactions) TO 'report.csv' CSV HEADER\"."
+        },
+        {
+          "role": "user",
+          "content": "What goes into report_payload?"
+        },
+        {
+          "role": "assistant",
+          "content": "At minimum specify the report type (e.g., transactions) or target view so the export selects the correct dataset."
+        },
+        {
+          "role": "user",
+          "content": "How can I fetch user activity logs?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use journalctl filters, e.g., journalctl --user -u app.service | grep user789 to narrow to a specific user."
+        },
+        {
+          "role": "user",
+          "content": "What does logs_payload consist of?"
+        },
+        {
+          "role": "assistant",
+          "content": "A simple filter like user_id is enough to scope which user's log lines should be matched."
+        },
+        {
+          "role": "user",
+          "content": "Can I modify an existing entry?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes; for SQLite: sqlite3 db.sqlite \"UPDATE entries SET value='updated info' WHERE id='entry123';\" then verify with a SELECT."
+        },
+        {
+          "role": "user",
+          "content": "What should be included in entry_payload?"
+        },
+        {
+          "role": "assistant",
+          "content": "Provide the 'entry_id' and the 'new_value' you want written so the update statement is unambiguous."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a timed audit, I must pull record 'invoice-042' using that tool—what call should I make?"
+      },
+      "expected_pattern": "The expected response should use get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')."
+    }
+  ]
+}

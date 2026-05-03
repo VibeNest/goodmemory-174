@@ -1,0 +1,35 @@
+Phase 56 / Workstream 2: Raw Task Hypothesis
+============================================
+
+Status
+------
+
+[DONE] Implemented.
+
+Goal
+----
+
+Form a probe-time transient hypothesis from selected support exemplars instead
+of asking the model to infer applicability from retrieval alone.
+
+Accepted Work
+-------------
+
+- add internal `RawTaskHypothesis`
+- classify raw hypotheses into:
+  - `slot_rebinding`
+  - `symbolic_formula`
+  - `guarded_decision`
+  - `exact_surface_copy`
+  - `style_contract`
+- derive canonical host-action templates from exemplar-supported exact
+  surfaces or action-order rules
+
+Verification
+------------
+
+- unit coverage for symbolic formula carryover
+- unit coverage for exact host-action template recovery:
+  - reversed parameter copy
+  - pipe-wrapped folder navigation
+  - eccentric named-argument API calls

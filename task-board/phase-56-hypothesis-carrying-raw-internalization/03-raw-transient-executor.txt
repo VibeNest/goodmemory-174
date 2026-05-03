@@ -1,0 +1,31 @@
+Phase 56 / Workstream 3: Raw Transient Executor
+===============================================
+
+Status
+------
+
+[DONE] Implemented.
+
+Goal
+----
+
+Execute high-confidence raw hypotheses at probe time without persisting them as
+new durable public memory.
+
+Accepted Work
+-------------
+
+- add transient raw execution for:
+  - symbolic recurrence/operator cases
+  - exact host-action slot rebinding
+  - bounded exact-action emission
+  - guarded-decision hints
+- add exact-action emission lines such as `Emit exactly: ...` for high-confidence
+  host-action raw carryover
+
+Verification
+------------
+
+- unit coverage for computed symbolic response payloads
+- unit coverage for computed exact host-action payloads
+- live raw evidence showing previously missed exact-action tasks now pass

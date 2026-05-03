@@ -127,6 +127,7 @@ async function buildRawConsolidationMetadata(
   return {
     rawExemplarCount: summary.exemplarCount,
     rawHardNegativeCount: summary.hardNegativeCount,
+    rawInterferenceCount: summary.interferenceCount,
     rawPrototypeCount: summary.prototypeCount,
   };
 }

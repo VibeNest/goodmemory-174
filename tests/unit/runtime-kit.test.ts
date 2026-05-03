@@ -521,8 +521,9 @@ describe("runtime-kit", () => {
       query: "Generate the dashboard URL.",
     });
 
-    expect(result.context.content).toContain("Behavioral carryover exemplars:");
-    expect(result.context.content).toContain("successful move:");
+    expect(result.context.content).toContain("Relevant prior examples:");
+    expect(result.context.content).toContain("Successful move:");
+    expect(result.context.content).toContain("Observed stable pattern:");
     expect(result.context.content).not.toContain("Behavioral steering:");
   });
 

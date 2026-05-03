@@ -20,8 +20,8 @@ import type { BehavioralFirstAction } from "../evolution/behavioralTelemetry";
 import { behavioralFirstActionsEqual } from "../evolution/behavioralTelemetry";
 import {
   buildRawBehavioralPrototypeIndex,
-  renderRawBehavioralCarryoverContext,
-  selectRawBehavioralExemplars,
+  resolveRawBehavioralCarryover,
+  type RawCarryoverResolution,
   type RawBehavioralSurfaceFamily,
 } from "../evolution/rawBehavioralExemplars";
 import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
@@ -312,6 +312,38 @@ export interface ImplicitMemBenchCaseResult {
   primingControlAnswer?: string;
   primingExperimentalAnswer?: string;
   primingInfluenceScore?: number;
+  rawCarryover?: {
+    abstainReason?: string;
+    candidatePrototypeIds: string[];
+    conflictPrototypeIds?: string[];
+    diagnosis?:
+      | "abstain"
+      | "executor_unsafe"
+      | "hypothesis_missing"
+      | "memory_miss"
+      | "reasoning_after_correct_hypothesis"
+      | "selected_and_passed"
+      | "support_conflict"
+      | "wrong_exemplar";
+    hypothesis?: {
+      confidence: number;
+      executionMode: "abstain" | "model_only" | "transient_executor";
+      mappingType:
+        | "exact_surface_copy"
+        | "guarded_decision"
+        | "slot_rebinding"
+        | "style_contract"
+        | "symbolic_formula";
+      supportingPrototypeIds: string[];
+    };
+    goldSupportingCandidatePresent?: boolean;
+    mode: "abstained" | "exemplar_only" | "fallback_context" | "none";
+    selectedExemplarIds: string[];
+    selectedPrototypeIds: string[];
+    supportPrototypeIds?: string[];
+    topProbability?: number;
+    topScore?: number;
+  };
   profile: ImplicitMemBenchResearchProfile;
   scorerFamily: ImplicitMemBenchScorerFamily;
   sourceFile: string;
@@ -1774,9 +1806,19 @@ function buildPrimingBranchPrompt(input: {
 function buildGoodMemoryPrompt(input: {
   caseDefinition: ImplicitMemBenchResearchCase;
   memoryContext: string;
+  profile: ImplicitMemBenchResearchProfile;
 }): string {
   if (input.caseDefinition.scorerFamily === "priming_pair_judge") {
     throw new Error("Use priming branch prompt builders for priming GoodMemory prompts.");
+  }
+
+  if (input.profile === "goodmemory-raw-experience") {
+    return [
+      input.memoryContext,
+      `Current request:\n${input.caseDefinition.instance.test_probe.content}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
   }
 
   return [
@@ -1791,7 +1833,17 @@ function buildGoodMemoryPrompt(input: {
 function buildGoodMemoryPrimingPrompt(input: {
   branch: PrimingBranchInstance;
   memoryContext: string;
+  profile: ImplicitMemBenchResearchProfile;
 }): string {
+  if (input.profile === "goodmemory-raw-experience") {
+    return [
+      input.memoryContext,
+      `Current request:\n${input.branch.test_probe.prompt}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
   return [
     "Apply any remembered behavioral guidance implicitly. Do not mention memory or prior notes unless the probe asks for them directly.",
     input.memoryContext ? `Memory context:\n${input.memoryContext}` : undefined,
@@ -1813,6 +1865,7 @@ async function buildMemoryContext(
 ): Promise<{
   content: string;
   hostActionSelections: BehavioralPolicySelection[];
+  rawCarryover: RawCarryoverResolution;
   textResponsePlan: ReturnType<typeof resolveTextResponseEnactmentPlan>;
 }> {
   const recall = await memory.recall({
@@ -1831,13 +1884,6 @@ async function buildMemoryContext(
       : "text_response";
 
   if (options?.profile === "goodmemory-raw-experience") {
-    const rawPacket = renderMemoryPacket(
-      {
-        ...recall.packet,
-        feedbackSummary: undefined,
-      },
-      "developer_prompt_fragment",
-    );
     const rawIndex = buildRawBehavioralPrototypeIndex({
       memoryExport: {
         durable: {
@@ -1847,25 +1893,35 @@ async function buildMemoryContext(
         },
         scope: exported.scope,
       },
+      recallHints: {
+        candidateTraces: recall.metadata.candidateTraces,
+        hits: recall.metadata.hits,
+      },
       surfaceHint: surfaceFamily,
       transientMessages: options.transientMessages,
     });
-    const rawSelections = selectRawBehavioralExemplars({
+    const rawCarryover = resolveRawBehavioralCarryover({
       index: rawIndex,
       maxExemplars: surfaceFamily === "host_action" ? 4 : 3,
       query,
       surfaceFamily,
     });
-    const carryover = renderRawBehavioralCarryoverContext(rawSelections);
+    const fallbackPacket = renderMemoryPacket(
+      {
+        ...recall.packet,
+        feedbackSummary: undefined,
+      },
+      "developer_prompt_fragment",
+    );
 
     return {
-      content: [rawPacket.content, carryover]
-        .filter(
-          (value): value is string =>
-            typeof value === "string" && value.trim().length > 0,
-        )
-        .join("\n\n"),
+      content:
+        rawCarryover.packet?.promptPayload &&
+        rawCarryover.debug.mode === "exemplar_only"
+          ? rawCarryover.packet.promptPayload
+          : fallbackPacket.content,
       hostActionSelections: [],
+      rawCarryover,
       textResponsePlan: resolveTextResponseEnactmentPlan([]),
     };
   }
@@ -1942,6 +1998,16 @@ async function buildMemoryContext(
       .filter(Boolean)
       .join("\n\n"),
     hostActionSelections,
+    rawCarryover: {
+      candidates: [],
+      debug: {
+        candidatePrototypeIds: [],
+        mode: "none",
+        selectedExemplarIds: [],
+        selectedPrototypeIds: [],
+      },
+      selections: [],
+    },
     textResponsePlan,
   };
 }
@@ -2146,6 +2212,138 @@ function runStructuredScoring(input: {
     sourceFile: input.caseDefinition.sourceFile,
     taskFile: input.caseDefinition.taskFile,
     taskName: input.caseDefinition.taskName,
+  };
+}
+
+function supportsTextBehaviorCase(input: {
+  caseDefinition: TextImplicitMemBenchCase;
+  candidate: RawCarryoverResolution["candidates"][number];
+}): boolean {
+  const surface = [
+    input.candidate.exemplar.episodeShape.relevantPriorMove,
+    input.candidate.exemplar.episodeShape.safeCorrectedMove,
+    input.candidate.exemplar.exactSurface?.value,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase();
+
+  switch (input.caseDefinition.taskFile) {
+    case "conditioned_protocol_preference.json":
+      return surface.includes("https://");
+    case "conditioned_directory_restriction.json":
+      return surface.includes("/home/") || surface.includes("/srv/");
+    case "context_dependent_api_behavior.json":
+      return /only if|only when|check/i.test(surface) && surface.includes("api");
+    case "conditioned_jargon_avoidance.json":
+      return /analogy|simple|plain/i.test(surface);
+    case "the_modified_recurrence_sequence.json":
+      return /rule|base|current probe|current value|recurrence/i.test(surface);
+    case "the_omega_operation.json":
+      return /operator|current operand|current probe|formula|omega/i.test(surface);
+    default:
+      return Boolean(
+        input.caseDefinition.expectedPattern &&
+          surface.includes(input.caseDefinition.expectedPattern.toLowerCase()),
+      );
+  }
+}
+
+function supportsStructuredCase(input: {
+  candidate: RawCarryoverResolution["candidates"][number];
+  caseDefinition: StructuredImplicitMemBenchCase;
+}): boolean {
+  const rawSurface =
+    input.candidate.exemplar.exactSurface?.value ??
+    input.candidate.exemplar.episodeShape.relevantPriorMove;
+  const firstAction = parseFirstActionFromAnswer(rawSurface);
+
+  return Boolean(
+    firstAction &&
+      behavioralFirstActionsEqual(
+        firstAction,
+        input.caseDefinition.fixture.expectedFirstAction,
+      ),
+  );
+}
+
+function candidateSupportsCase(input: {
+  candidate: RawCarryoverResolution["candidates"][number];
+  caseDefinition: Exclude<ImplicitMemBenchResearchCase, PrimingImplicitMemBenchCase>;
+}): boolean {
+  return input.caseDefinition.scorerFamily === "structured_first_action"
+    ? supportsStructuredCase({
+        candidate: input.candidate,
+        caseDefinition: input.caseDefinition,
+      })
+    : supportsTextBehaviorCase({
+        candidate: input.candidate,
+        caseDefinition: input.caseDefinition,
+      });
+}
+
+function buildRawCarryoverDiagnostics(input: {
+  caseDefinition: Exclude<ImplicitMemBenchResearchCase, PrimingImplicitMemBenchCase>;
+  passed: boolean | undefined;
+  resolution: RawCarryoverResolution;
+}): NonNullable<ImplicitMemBenchCaseResult["rawCarryover"]> {
+  const goldSupportingCandidatePresent = input.resolution.candidates.some((candidate) =>
+    candidateSupportsCase({
+      candidate,
+      caseDefinition: input.caseDefinition,
+    }),
+  );
+  const selectedSupportsCase = input.resolution.selections.some((candidate) =>
+    candidateSupportsCase({
+      candidate,
+      caseDefinition: input.caseDefinition,
+    }),
+  );
+
+  let diagnosis: NonNullable<
+    ImplicitMemBenchCaseResult["rawCarryover"]
+  >["diagnosis"];
+  if (input.passed) {
+    diagnosis = "selected_and_passed";
+  } else if (input.resolution.debug.mode !== "exemplar_only") {
+    switch (input.resolution.debug.abstainReason) {
+      case "support_conflict":
+      case "ambiguous_top2":
+        diagnosis = "support_conflict";
+        break;
+      case "executor_unsafe":
+        diagnosis = "executor_unsafe";
+        break;
+      case "hypothesis_missing":
+      case "below_threshold":
+        diagnosis = "hypothesis_missing";
+        break;
+      case "no_candidates":
+      default:
+        diagnosis = "memory_miss";
+        break;
+    }
+  } else if (goldSupportingCandidatePresent && selectedSupportsCase) {
+    diagnosis = "reasoning_after_correct_hypothesis";
+  } else if (goldSupportingCandidatePresent) {
+    diagnosis = "wrong_exemplar";
+  } else {
+    diagnosis = "memory_miss";
+  }
+
+  return {
+    abstainReason: input.resolution.debug.abstainReason,
+    candidatePrototypeIds: [...input.resolution.debug.candidatePrototypeIds],
+    conflictPrototypeIds: [...(input.resolution.debug.conflictPrototypeIds ?? [])],
+    diagnosis,
+    goldSupportingCandidatePresent,
+    hypothesis: input.resolution.debug.hypothesis,
+    mode: input.resolution.debug.mode,
+    selectedExemplarIds: [...input.resolution.debug.selectedExemplarIds],
+    selectedPrototypeIds: [...input.resolution.debug.selectedPrototypeIds],
+    supportPrototypeIds: [...(input.resolution.debug.supportPrototypeIds ?? [])],
+    topProbability: input.resolution.debug.topProbability,
+    topScore: input.resolution.debug.topScore,
   };
 }
 
@@ -3076,6 +3274,7 @@ async function evaluateGoodMemoryCase(input: {
               prompt: buildGoodMemoryPrimingPrompt({
                 branch: input.caseDefinition.instance.experimental_instance,
                 memoryContext: experimentalContext.content,
+                profile: input.profile,
               }),
             }));
           const controlAnswer =
@@ -3087,6 +3286,7 @@ async function evaluateGoodMemoryCase(input: {
               prompt: buildGoodMemoryPrimingPrompt({
                 branch: input.caseDefinition.instance.control_instance,
                 memoryContext: controlContext.content,
+                profile: input.profile,
               }),
             }));
           const result = await runPrimingScoring({
@@ -3101,6 +3301,7 @@ async function evaluateGoodMemoryCase(input: {
           return {
             ...result,
             memoryContext: `experimental:\n${experimentalContext.content}\n\ncontrol:\n${controlContext.content}`,
+            rawCarryover: undefined,
           };
         }
 
@@ -3129,6 +3330,7 @@ async function evaluateGoodMemoryCase(input: {
           prompt: buildGoodMemoryPrompt({
             caseDefinition: input.caseDefinition,
             memoryContext: memoryContext.content,
+            profile: input.profile,
           }),
         });
         const enforcedAnswer =
@@ -3158,6 +3360,14 @@ async function evaluateGoodMemoryCase(input: {
                 mode: input.mode,
                 profile: input.profile,
               });
+        const rawCarryover =
+          input.profile === "goodmemory-raw-experience"
+            ? buildRawCarryoverDiagnostics({
+                caseDefinition: input.caseDefinition,
+                passed: result.passed,
+                resolution: memoryContext.rawCarryover,
+              })
+            : undefined;
 
         return {
           ...result,
@@ -3166,6 +3376,7 @@ async function evaluateGoodMemoryCase(input: {
               ? enforcedAnswer
               : result.answer,
           memoryContext: memoryContext.content,
+          rawCarryover,
         };
       } catch (error) {
         return createDefaultTextGenerationFailure({
