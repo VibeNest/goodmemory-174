@@ -1,11 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { createEpisodeMemory } from "../../src/domain/records";
-import {
-  buildBehavioralOutcomePolicyApplied,
-} from "../../src/evolution/behavioralTelemetry";
-import {
-  createExperienceRecord,
-} from "../../src/evolution/contracts";
+import { applyTextResponseEnactmentPlan } from "../../src/evolution/behavioralPolicy";
+import { buildBehavioralOutcomePolicyApplied } from "../../src/evolution/behavioralTelemetry";
+import { createExperienceRecord } from "../../src/evolution/contracts";
 import {
   buildRawBehavioralPrototypeIndex,
   renderRawBehavioralCarryoverContext,
@@ -317,7 +314,9 @@ describe("raw behavioral exemplars", () => {
     });
 
     expect(resolution.debug.mode).toBe("exemplar_only");
-    expect(resolution.debug.hypothesis?.mappingType).toBe("symbolic_formula");
+    expect(resolution.debug.hypothesis?.mappingType).toBe(
+      "symbolic_rule_execution",
+    );
     expect(resolution.packet?.promptPayload).toContain("Observed stable pattern:");
     expect(resolution.packet?.promptPayload).toContain("Probe-specific varying slots:");
     expect(resolution.packet?.promptPayload).toContain("Probe-conditioned execution:");
@@ -475,5 +474,53 @@ describe("raw behavioral exemplars", () => {
     expect(exemplar?.episodeShape.observedOutcome).toContain(
       "permission denied",
     );
+  });
+
+  it("turns raw text-response carryover into a hard-control plan", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Save the report under /root/app/report.txt.",
+        },
+        {
+          role: "assistant",
+          content: "Okay, I will save it under /root/app/report.txt.",
+        },
+        {
+          role: "system",
+          content: "Tool failure: permission denied for /root/app/report.txt",
+        },
+        {
+          role: "system",
+          content:
+            "Expected behavior: Do not write under /root/. Use /home/alice/safe/report.txt instead.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Save the new report under /root/app/new.txt.",
+      surfaceFamily: "text_response",
+    });
+
+    expect(resolution.packet?.textResponsePlan?.operations.length).toBeGreaterThan(0);
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "Saved under /root/app/new.txt.",
+        plan: resolution.packet?.textResponsePlan,
+        query: "Save the new report under /root/app/new.txt.",
+      }),
+    ).toContain("safe user-writable home-directory path");
   });
 });

@@ -1,5 +1,9 @@
 import type { EpisodeMemory } from "../domain/records";
 import type {
+  TextResponseEnactmentOperation,
+  TextResponseEnactmentPlan,
+} from "./behavioralPolicy";
+import type {
   ExperienceRecord,
   SessionArchive,
 } from "./contracts";
@@ -7,7 +11,12 @@ import type {
   RecallCandidateTrace,
   RecallHit,
 } from "../recall/engine";
-import { splitTopLevelCallArguments } from "./behavioralPolicy";
+import {
+  buildStructuredTextResponseControlLines,
+  deriveRuleBehavioralPolicy,
+  resolveTextResponseEnactmentPlanFromPolicies,
+  splitTopLevelCallArguments,
+} from "./behavioralPolicy";
 import {
   formatBehavioralFirstAction,
   parseToolOutcomeMetadata,
@@ -79,6 +88,7 @@ export interface RawCarryoverPacket {
   hypothesisSketch?: string;
   promptPayload: string;
   retrievalText: string;
+  textResponsePlan?: TextResponseEnactmentPlan;
 }
 
 export interface RawSupportConflictView {
@@ -862,7 +872,7 @@ function parseSystemFailure(content: string): string | undefined {
 function parseSystemCorrection(content: string): string | undefined {
   const normalized = normalizeText(content);
   const taggedMatch = normalized.match(
-    /^(?:user\s+)?correction\s*:\s*(.+)$/iu,
+    /^(?:(?:user\s+)?correction|expected\s+behavior|successful\s+alternative|replacement)\s*:\s*(.+)$/iu,
   );
   if (taggedMatch?.[1]) {
     return taggedMatch[1].trim();
@@ -917,6 +927,9 @@ function deriveMessagePairExemplars(input: {
         ? normalizeText(fifth.content)
         : undefined;
     const correctedMove = followupAssistantMove ?? correctionInstruction;
+    if (failureOutcome && !correctedMove) {
+      continue;
+    }
     const finalMove = correctedMove || successfulMove;
     const surfaceFamily = input.surfaceHint ?? inferSurfaceFamily(finalMove);
     const exactSurface = extractTextExactSurface(finalMove);
@@ -1419,6 +1432,11 @@ interface CandidatePoolEntry {
   routes: Array<"correction_success" | "exact_slot" | "lexical" | "semantic">;
 }
 
+interface ScoredCandidatePoolEntry extends CandidatePoolEntry {
+  probability: number;
+  score: number;
+}
+
 function buildSupportConflictView(input: {
   interferenceLedger: readonly RawBehavioralInterferenceEntry[];
   rankedPrototypeIds: readonly string[];
@@ -1471,6 +1489,42 @@ function canCoexistAsRawCarryoverPair(
     buildExactSlotSignature(left.prototype.intentCue.query.exactSlots) ===
     buildExactSlotSignature(right.prototype.intentCue.query.exactSlots)
   );
+}
+
+function conflictInhibitionStrength(entry: ScoredCandidatePoolEntry): number {
+  const correctionBacked = entry.routes.includes("correction_success") ? 2 : 0;
+  const explicitReplacement = entry.exemplar.episodeShape.safeCorrectedMove ? 2 : 0;
+  const supportRatio =
+    entry.prototype.successSupport / Math.max(1, entry.prototype.repetitionSupport);
+  const hardConstraint =
+    entry.prototype.constraintTypes.includes("path_root") ||
+    entry.prototype.constraintTypes.includes("safe_alternative") ||
+    entry.prototype.constraintTypes.includes("url_shape") ||
+    entry.prototype.constraintTypes.includes("precondition")
+      ? 0.45
+      : 0;
+
+  return (
+    correctionBacked +
+    explicitReplacement +
+    supportRatio +
+    hardConstraint +
+    entry.probability * 0.25
+  );
+}
+
+function selectConflictToInhibitionWinner(
+  left: ScoredCandidatePoolEntry,
+  right: ScoredCandidatePoolEntry,
+): ScoredCandidatePoolEntry | undefined {
+  const leftStrength = conflictInhibitionStrength(left);
+  const rightStrength = conflictInhibitionStrength(right);
+  const margin = Math.abs(leftStrength - rightStrength);
+  if (margin < 0.65) {
+    return undefined;
+  }
+
+  return leftStrength > rightStrength ? left : right;
 }
 
 function buildCandidatePool(input: {
@@ -1829,7 +1883,7 @@ export function resolveRawBehavioralCarryover(
   const prototypesById = new Map(
     input.index.prototypes.map((prototype) => [prototype.id, prototype] as const),
   );
-  const ranked = candidatePool.map((candidate) => {
+  const ranked: ScoredCandidatePoolEntry[] = candidatePool.map((candidate) => {
     const features = computeRankingFeatures({
       candidate,
       interferenceLedger: input.index.interferenceLedger,
@@ -1871,13 +1925,19 @@ export function resolveRawBehavioralCarryover(
     queryIntent.constraintTypes.includes("arg_order") ||
     queryIntent.constraintTypes.includes("exact_action") ||
     queryIntent.constraintTypes.includes("formula");
+  const inhibitionWinner =
+    second && !canCoexistAsRawCarryoverPair(first, second)
+      ? selectConflictToInhibitionWinner(first, second)
+      : undefined;
   const conflictConstrainedRanked =
     second &&
     first.probability - second.probability < DEFAULT_ABSTAIN_MARGIN &&
     second.probability >= DEFAULT_ABSTAIN_THRESHOLD - 0.05 &&
     !canCoexistAsRawCarryoverPair(first, second)
       ? preferConflictCarryingSelection
-        ? [first]
+        ? [inhibitionWinner ?? first]
+        : inhibitionWinner
+          ? [inhibitionWinner]
         : null
       : ranked;
   if (
@@ -1964,6 +2024,7 @@ export function resolveRawBehavioralCarryover(
   const packet = buildRawCarryoverPacket({
     execution,
     hypothesis,
+    queryIntent,
     selections,
   });
 
@@ -2015,14 +2076,204 @@ function renderExactSurface(exemplar: RawBehavioralExemplar): string | undefined
   return exemplar.exactSurface.value;
 }
 
+function inferRawRuleKind(rule: string): "do" | "dont" | "prefer" {
+  const normalized = rule.toLowerCase();
+  if (
+    /\b(?:avoid|forbid|forbidden|do not|don't|must not|never|instead of|warn instead|failed)\b/u.test(
+      normalized,
+    )
+  ) {
+    return "dont";
+  }
+  if (/\bor warn\b|\bwarning\b|\btimed out\b|\btimeout\b/u.test(normalized)) {
+    return "dont";
+  }
+  if (/\b(?:prefer|use|redirect|safe|replacement|instead)\b/u.test(normalized)) {
+    return "prefer";
+  }
+
+  return "prefer";
+}
+
+function uniqueRawOperations(
+  operations: readonly TextResponseEnactmentOperation[],
+): TextResponseEnactmentOperation[] {
+  const seen = new Set<string>();
+  const unique: TextResponseEnactmentOperation[] = [];
+  for (const operation of operations) {
+    const identity = JSON.stringify(operation);
+    if (seen.has(identity)) {
+      continue;
+    }
+    seen.add(identity);
+    unique.push(operation);
+  }
+
+  return unique;
+}
+
+function buildRawHardControlOperations(
+  selections: readonly RawBehavioralCarryoverSelection[],
+): TextResponseEnactmentOperation[] {
+  const operations: TextResponseEnactmentOperation[] = [];
+
+  for (const selection of selections) {
+    const exemplar = selection.exemplar;
+    const text = normalizeText(
+      [
+        exemplar.episodeShape.cue,
+        exemplar.episodeShape.observedOutcome,
+        exemplar.episodeShape.relevantPriorMove,
+        exemplar.episodeShape.safeCorrectedMove,
+        exemplar.exactSurface?.value,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" "),
+    );
+    const lower = text.toLowerCase();
+
+    if (/\bquickcheck\b/u.test(lower)) {
+      operations.push({
+        kind: "require_warning",
+        preferredAlternatives: ["QuickCheck"],
+        warningMessage:
+          "Warn first and use QuickCheck instead of the heavier analyzer.",
+      });
+      if (/\bdeepanalyzer\b/u.test(text)) {
+        operations.push({
+          forbiddenFragments: ["DeepAnalyzer"],
+          kind: "block_surface",
+        });
+      }
+    }
+
+    if (/\bhttps\b/u.test(lower) || exemplar.exactSurface?.value.startsWith("https://")) {
+      const urlTemplate = exemplar.exactSurface?.value.startsWith("https://")
+        ? {
+            example: exemplar.exactSurface.value,
+            host: new URL(exemplar.exactSurface.value).host,
+            pathPlacement: "path_after_host" as const,
+            scheme: "https" as const,
+          }
+        : undefined;
+      operations.push({
+        kind: "rewrite_output_slot",
+        replacementPairs: [{ from: "http://", to: "https://" }],
+        ...(urlTemplate ? { urlTemplate } : {}),
+      });
+      operations.push({
+        forbiddenFragments: ["http://"],
+        kind: "block_surface",
+        replacementPairs: [{ from: "http://", to: "https://" }],
+      });
+      operations.push({
+        kind: "require_warning",
+        warningMessage:
+          "If the current probe requests a plain http URL, warn first and offer the https URL instead.",
+      });
+    }
+
+    if (lower.includes("/root") || lower.includes("home-directory")) {
+      const pathTemplate = {
+        anchor: "/home/",
+        example: "/home/<file>",
+        variableSegment: "filename" as const,
+      };
+      operations.push({
+        kind: "rewrite_output_slot",
+        pathTemplate,
+      });
+      operations.push({
+        forbiddenFragments: ["/root/", "/root"],
+        kind: "block_surface",
+      });
+      operations.push({
+        kind: "require_warning",
+        pathTemplate,
+        warningMessage:
+          "Refuse the unsafe /root path and redirect to a safe user-writable home-directory path instead.",
+      });
+    }
+
+    if (lower.includes("system load") && /\b(?:normal|idle)\b/u.test(lower)) {
+      operations.push({
+        allowedWhen: ["load is Normal", "Idle"],
+        fallbackBehavior: {
+          warningMessage:
+            "Warn or defer instead of assuming the required system-load precondition already passed.",
+        },
+        kind: "require_precondition_check",
+        precondition: "system load",
+        subject: "HeavyComputationAPI",
+      });
+    }
+  }
+
+  return uniqueRawOperations(operations);
+}
+
+function buildRawTextResponsePlan(input: {
+  hypothesis?: RawTaskHypothesis;
+  queryIntent?: RawQueryIntent;
+  selections: readonly RawBehavioralCarryoverSelection[];
+}): TextResponseEnactmentPlan | undefined {
+  if (input.queryIntent?.requestedSurface !== "text_response") {
+    return undefined;
+  }
+
+  const rules = uniqueStrings(
+    input.selections.flatMap((selection) => {
+      const exemplar = selection.exemplar;
+      return [
+        exemplar.episodeShape.safeCorrectedMove,
+        exemplar.episodeShape.relevantPriorMove,
+        exemplar.exactSurface?.kind === "format" ? exemplar.exactSurface.value : undefined,
+        input.hypothesis?.stableFields
+          .filter((field) =>
+            /^(?:path_root|required_prefix|required_suffix|surface|url_host)=/u.test(field),
+          )
+          .join(". "),
+      ].filter((value): value is string => Boolean(value && value.trim()));
+    }),
+  );
+  const policies = rules.map((rule) =>
+    deriveRuleBehavioralPolicy({
+      appliesTo: input.queryIntent?.goal,
+      exemplarCount: input.selections.length,
+      kind: inferRawRuleKind(rule),
+      rule,
+    }),
+  );
+  const policyPlan = resolveTextResponseEnactmentPlanFromPolicies(policies);
+  const operations = uniqueRawOperations([
+    ...(policyPlan?.operations ?? []),
+    ...buildRawHardControlOperations(input.selections),
+  ]);
+
+  return operations.length > 0
+    ? {
+        concise: true,
+        operations,
+      }
+    : undefined;
+}
+
 function buildRawCarryoverPacket(input: {
   execution: ReturnType<typeof executeProbeConditionedRawCarryover>;
   hypothesis?: RawTaskHypothesis;
+  queryIntent?: RawQueryIntent;
   selections: readonly RawBehavioralCarryoverSelection[];
 }): RawCarryoverPacket | undefined {
   if (input.selections.length === 0) {
     return undefined;
   }
+
+  const textResponsePlan = buildRawTextResponsePlan({
+    hypothesis: input.hypothesis,
+    queryIntent: input.queryIntent,
+    selections: input.selections,
+  });
+  const controlLines = buildStructuredTextResponseControlLines(textResponsePlan);
 
   const promptPayload = [
     "Relevant prior examples:",
@@ -2045,6 +2296,9 @@ function buildRawCarryoverPacket(input: {
       return lines;
     }),
     input.execution.hypothesisSketch,
+    controlLines.length > 0
+      ? ["Raw response control:", ...controlLines].join("\n")
+      : undefined,
   ].join("\n");
 
   const retrievalText = input.selections
@@ -2060,6 +2314,7 @@ function buildRawCarryoverPacket(input: {
       : {}),
     promptPayload,
     retrievalText,
+    ...(textResponsePlan ? { textResponsePlan } : {}),
   };
 }
 

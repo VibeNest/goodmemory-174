@@ -76,39 +76,37 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Latest Closed Slice
 
-- Phase 56 is now closed as the Hypothesis-Carrying Raw Internalization slice.
+- Phase 57 is now closed as the Raw Internalization Generalization and
+  Enactment slice.
 - Accepted behavior:
-  - the raw path now goes beyond exemplar selection and can form a transient
-    `RawTaskHypothesis` from support/conflict retrieval views before deciding
-    whether to abstain, execute a symbolic probe-time adaptation, or recover an
-    exact host-action surface
-  - raw diagnostics now distinguish `memory_miss`, `support_conflict`,
-    `hypothesis_missing`, `executor_unsafe`, and
-    `reasoning_after_correct_hypothesis`
-  - runtime-kit and the Phase 49 research harness now share the same
-    hypothesis-carrying raw resolver, so targeted and full-300 runs exercise
-    the same internal raw lane
-  - targeted deterministic and live Phase 56 evidence both close with
-    `executionFailures = 0`, `goodmemory-distilled-feedback` passing all 12
-    targeted task files, `goodmemory-raw-experience` improving from the frozen
-    targeted baseline of `6 / 12` to `11 / 12` live passes, and targeted
-    explicit recall leaks staying `0`
-  - the required Postgres-backed 5-shard full-300 follow-up is complete and
-    recorded in the research summary, with raw `45 / 200` and distilled
-    `152 / 200`
+  - raw traces now compile success/failure/condition/format/action evidence
+    into internal hard-control signals rather than relying only on prompt
+    exemplars
+  - raw conflict handling skips uncorrected failed attempts and prefers
+    correction-backed inhibition/replacement when the conflict is failed
+    behavior versus safer behavior
+  - internal `RawTaskHypothesis` mappings now distinguish
+    `hard_constraint_contract`, `exact_format_contract`,
+    `conditional_precondition`, and `symbolic_rule_execution`
+  - raw text responses use the shared structured enactment plan for forbidden
+    terms, safe path/protocol replacement, warnings, preconditions, and leak
+    suppression
+  - targeted Phase 57 deterministic evidence closes with
+    `goodmemory-raw-experience` at `10 / 12`,
+    `goodmemory-distilled-feedback` at `12 / 12`, `executionFailures = 0`, and
+    explicit recall leaks at `0`
 - Canonical evidence:
   - archive summary:
-    `docs/archive/quality-gates/GoodMemory-Phase-56-Quality-Gate.md`
+    `docs/archive/quality-gates/GoodMemory-Phase-57-Quality-Gate.md`
   - deterministic targeted eval:
-    `reports/eval/fallback/phase-56/run-phase56-fallback-current/report.json`
-  - live-memory behavioral evidence:
-    `reports/eval/live-memory/phase-56/run-phase56-live-current/report.json`
+    `reports/eval/fallback/phase-57/run-phase57-fallback-current/report.json`
+  - raw diagnosis report:
+    `reports/eval/fallback/phase-57/run-phase57-fallback-current/raw-diagnostics.json`
   - quality gate:
-    `reports/quality-gates/phase-56/run-20260504003000/phase-56-quality-gate.json`
-- Still outside the Phase 56 accepted claim:
-  - the post-gate full-300 research rerun remains research-only evidence and
-    does not make full ImplicitMemBench a release hard gate or public product
-    claim
+    `reports/quality-gates/phase-57/run-20260504013000/phase-57-quality-gate.json`
+- Still outside the Phase 57 accepted claim:
+  - full-300 post-Phase-57 research rerun results; the five-shard
+    Postgres-backed follow-up remains pending and research-only
   - public API or public config widening
   - a new durable public memory kind or public record collection
   - benchmark-specific runtime hacks or per-task-file prompt patches as the

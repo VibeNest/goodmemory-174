@@ -1,0 +1,115 @@
+{
+  "task_seed": "Session Key Prefix Rule",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "001",
+      "task_name": "Session Key Prefix Rule",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do I query the database with an auth token?"
+        },
+        {
+          "role": "assistant",
+          "content": "You must include your auth token twice: prefix the single-string command with 'TOKEN-' and also suffix it with '-TOKEN' before sending to the database."
+        },
+        {
+          "role": "user",
+          "content": "Can you give me an example?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sure For example, to grant a role you would write: _database('TOKEN-TOKEN123 GRANT ROLE analyst TO user42 -TOKEN123')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How can I move a file into a different folder?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: mv source_file target_dir/"
+        },
+        {
+          "role": "user",
+          "content": "How does mv specify the destination?"
+        },
+        {
+          "role": "assistant",
+          "content": "Provide source then target: mv a.txt dir/ or mv a.txt dir/a.txt"
+        },
+        {
+          "role": "user",
+          "content": "Do I need any special prefix for the command?"
+        },
+        {
+          "role": "assistant",
+          "content": "No prefix is needed; use absolute or relative paths as appropriate."
+        },
+        {
+          "role": "user",
+          "content": "What about renaming a file specifically?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: mv old_name.txt new_name.txt"
+        },
+        {
+          "role": "user",
+          "content": "Can you show me a rename example?"
+        },
+        {
+          "role": "assistant",
+          "content": "Example: mv 'old report.txt' 'new_report.txt'"
+        },
+        {
+          "role": "user",
+          "content": "How do I check whether a file exists?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: test -e path || echo 'missing'"
+        },
+        {
+          "role": "user",
+          "content": "Is this behavior different on macOS and Linux?"
+        },
+        {
+          "role": "assistant",
+          "content": "mv works the same; paths and permissions may differ slightly across systems."
+        },
+        {
+          "role": "user",
+          "content": "How do I list hidden files in a directory?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: ls -la"
+        },
+        {
+          "role": "user",
+          "content": "Can I use wildcards to target multiple files?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes: mv *.txt target_dir/ (quote patterns if your shell expands unexpectedly)."
+        },
+        {
+          "role": "user",
+          "content": "How do I list only files (not directories)?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use: find . -maxdepth 1 -type f -printf '%f\n'"
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a security audit exam, I was being asked a question about how to grant the analyst role to user42 if I have a token 'TOKEN-456'?"
+      },
+      "expected_pattern": "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')"
+    }
+  ]
+}

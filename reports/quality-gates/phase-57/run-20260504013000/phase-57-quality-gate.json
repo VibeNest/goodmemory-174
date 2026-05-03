@@ -1,0 +1,447 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 57 targeted raw-internalization mechanisms passed the deterministic gate."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 4117,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/eval.phase57.test.ts tests/unit/evolution.raw-behavioral-exemplars.test.ts tests/unit/implicitmembench-diagnostics.test.ts tests/unit/implicitmembench-research.test.ts tests/unit/run-phase-57.script.test.ts tests/unit/runtime-kit.test.ts",
+      "durationMs": 231,
+      "exitCode": 0,
+      "label": "phase-57-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "tests/unit/implicitmembench-diagnostics.test.ts:",
+        "(pass) ImplicitMemBench raw internalization diagnostics > aggregates stable diagnosis buckets and raw-vs-distilled delta [0.55ms]",
+        "",
+        "tests/unit/runtime-kit.test.ts:",
+        "(pass) runtime-kit > renders fragment context through existing recall and buildContext APIs [0.70ms]",
+        "(pass) runtime-kit > adds hidden behavioral steering without exposing remembered-note phrasing [0.50ms]",
+        "(pass) runtime-kit > does not add hidden behavioral steering from durable raw feedback without a typed policy payload [0.07ms]",
+        "(pass) runtime-kit > adds exemplar-first carryover for runtime-backed raw episodes without prose steering [0.52ms]",
+        "(pass) runtime-kit > uses progressive recall service when progressive context is available [0.06ms]",
+        "(pass) runtime-kit > falls back to fragment context when progressive transport is not configured [0.15ms]",
+        "(pass) runtime-kit > does not durable-write afterModelCall in off or observe modes [0.72ms]",
+        "(pass) runtime-kit > uses stable content digests for bounded afterModelCall job ids [0.12ms]",
+        "(pass) runtime-kit > only calls public remember under selective writeback with annotation and policy approval [0.15ms]",
+        "(pass) runtime-kit > preAction reuses host action assessment and execution-plan contracts [0.23ms]",
+        "(pass) runtime-kit > keeps default preAction behavior deterministic across Codex and Claude host kinds [0.95ms]",
+        "",
+        " 60 pass",
+        " 0 fail",
+        " 208 expect() calls",
+        "Ran 60 tests across 6 files. [223.00ms]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-57 -- --run-id run-phase57-fallback-current",
+      "durationMs": 600,
+      "exitCode": 0,
+      "label": "eval:phase-57",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-57-eval.ts --run-id \"run-phase57-fallback-current\""
+      ],
+      "stdoutTail": [
+        "  },",
+        "  \"summary\": {",
+        "    \"caseCountsByDataset\": {",
+        "      \"classical_conditioning\": 10,",
+        "      \"priming\": 0,",
+        "      \"procedural_memory\": 14",
+        "    },",
+        "    \"caseCountsByScorer\": {",
+        "      \"priming_pair_judge\": 0,",
+        "      \"structured_first_action\": 10,",
+        "      \"text_behavior_judge\": 14",
+        "    },",
+        "    \"executionFailures\": 0,",
+        "    \"explicitRecallLeakCount\": 0,",
+        "    \"passedBlockingCases\": 22,",
+        "    \"primingAverageScore\": null,",
+        "    \"totalBlockingCases\": 24,",
+        "    \"totalCases\": 24",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "deterministicReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-57/run-phase57-fallback-current/report.json",
+      "regenerateCommand": "bun run eval:phase-57 -- --run-id run-phase57-fallback-current",
+      "status": "accepted"
+    },
+    "rawDiagnosticsArtifact": {
+      "artifactKind": "ignored_generated",
+      "ignoredArtifactPath": "reports/eval/fallback/phase-57/run-phase57-fallback-current/raw-diagnostics.json",
+      "regenerateCommand": "bun run eval:phase-57-diagnostics -- --run-id run-phase57-fallback-current --report reports/eval/fallback/phase-57/run-phase57-fallback-current/report.json --output reports/eval/fallback/phase-57/run-phase57-fallback-current/raw-diagnostics.json",
+      "status": "accepted"
+    },
+    "rawInternalizationDiagnostics": {
+      "byCase": [
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_api_aversion.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_api_aversion.json",
+          "taskName": "Conditioned API Aversion"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_directory_restriction.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_directory_restriction.json",
+          "taskName": "Conditioned Directory Restriction"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_jargon_avoidance.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_jargon_avoidance.json",
+          "taskName": "Conditioned Jargon Avoidance"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/conditioned_protocol_preference.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "conditioned_protocol_preference.json",
+          "taskName": "Conditioned Protocol Preference"
+        },
+        {
+          "blocking": true,
+          "caseId": "classical_conditioning/context_dependent_api_behavior.json#001",
+          "datasetFamily": "classical_conditioning",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "context_dependent_api_behavior.json",
+          "taskName": "Context Dependent API Behavior"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/logiql_query_language.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "logiql_query_language.json",
+          "taskName": "LogiQL Query Language"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/reversed_parameter_protocol.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "reversed_parameter_protocol.json",
+          "taskName": "Reversed Parameter Protocol"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/session_key_prefix_rule.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "session_key_prefix_rule.json",
+          "taskName": "Session Key Prefix Rule"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_alien_filesystem.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "the_alien_filesystem.json",
+          "taskName": "The Alien Filesystem"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_eccentric_api_call.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_and_passed",
+          "distilledPassed": true,
+          "rawPassed": true,
+          "rawVsDistilledDelta": 0,
+          "scorerFamily": "structured_first_action",
+          "taskFile": "the_eccentric_api_call.json",
+          "taskName": "The Eccentric API Call"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_modified_recurrence_sequence.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "selected_but_not_enacted",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "the_modified_recurrence_sequence.json",
+          "taskName": "Modified Recurrence Sequence"
+        },
+        {
+          "blocking": true,
+          "caseId": "procedural_memory/the_omega_operation.json#001",
+          "datasetFamily": "procedural_memory",
+          "diagnosis": "support_conflict",
+          "distilledPassed": true,
+          "rawPassed": false,
+          "rawVsDistilledDelta": -1,
+          "scorerFamily": "text_behavior_judge",
+          "taskFile": "the_omega_operation.json",
+          "taskName": "Omega Operation"
+        }
+      ],
+      "byDiagnosis": {
+        "executor_unsafe": 0,
+        "hypothesis_missing": 0,
+        "memory_miss": 0,
+        "operator_failure": 0,
+        "selected_and_passed": 10,
+        "selected_but_not_enacted": 1,
+        "support_conflict": 1,
+        "wrong_exemplar": 0
+      },
+      "byExecutionFailure": {
+        "certificate_error": 0,
+        "invalid_json_response": 0,
+        "semantic_search_failure": 0,
+        "timeout": 0,
+        "other": 0
+      },
+      "byFamily": {
+        "classical_conditioning": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 5,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "procedural_memory": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 5,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 1,
+          "wrong_exemplar": 0
+        }
+      },
+      "byScorer": {
+        "text_behavior_judge": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 5,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 1,
+          "wrong_exemplar": 0
+        },
+        "structured_first_action": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 5,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        }
+      },
+      "byTask": {
+        "conditioned_api_aversion.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_directory_restriction.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_jargon_avoidance.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "conditioned_protocol_preference.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "context_dependent_api_behavior.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "logiql_query_language.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "reversed_parameter_protocol.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "session_key_prefix_rule.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_alien_filesystem.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_eccentric_api_call.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 1,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_modified_recurrence_sequence.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 1,
+          "support_conflict": 0,
+          "wrong_exemplar": 0
+        },
+        "the_omega_operation.json": {
+          "executor_unsafe": 0,
+          "hypothesis_missing": 0,
+          "memory_miss": 0,
+          "operator_failure": 0,
+          "selected_and_passed": 0,
+          "selected_but_not_enacted": 0,
+          "support_conflict": 1,
+          "wrong_exemplar": 0
+        }
+      },
+      "distilledPassedBlockingCases": 12,
+      "rawBlockingExecutionFailures": 0,
+      "rawNonBlockingExecutionFailures": 0,
+      "rawPassedBlockingCases": 10,
+      "rawVsDistilledDelta": {
+        "distilledOnlyPasses": 2,
+        "rawOnlyPasses": 0,
+        "sameOutcome": 10
+      },
+      "reports": [
+        "run-phase57-fallback-current:/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-57/run-phase57-fallback-current"
+      ],
+      "totalBlockingCases": 12,
+      "totalCases": 12
+    }
+  },
+  "generatedAt": "2026-05-03T08:04:54.662Z",
+  "generatedBy": "scripts/run-phase-57-gate.ts",
+  "phase": "phase-57",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-57/run-20260504013000",
+  "runId": "run-20260504013000"
+}

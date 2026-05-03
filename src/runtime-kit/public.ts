@@ -219,9 +219,12 @@ function applyBehavioralSteeringToFragment(input: {
     surface: "text_response",
   });
   const textResponsePlan = resolveTextResponseEnactmentPlan(selections);
-  const structuredControlLines = buildStructuredTextResponseControlLines(
-    textResponsePlan,
-  );
+  const structuredControlLines = [
+    ...buildStructuredTextResponseControlLines(textResponsePlan),
+    ...buildStructuredTextResponseControlLines(
+      input.rawCarryover?.packet?.textResponsePlan,
+    ),
+  ];
   const steeringLines = buildBehavioralSteeringLines(
     selections.filter(
       ({ policy }) =>
@@ -377,49 +380,58 @@ export function createGoodMemoryRuntimeKit(
       output: "system_prompt_fragment",
       maxTokens: callInput.maxMemoryTokens ?? defaultMaxMemoryTokens,
     });
-    const runtimeState =
-      callInput.includeRuntime === false
-        ? null
-        : await input.memory.runtime.getState({ scope: callInput.scope }).catch(
-            () => null,
-          );
-    const exported = await input.memory.exportMemory({
-      includeRuntime: callInput.includeRuntime,
-      scope: callInput.scope,
-    });
-    const rawSurfaceFamily: RawBehavioralSurfaceFamily =
-      (callInput.retrievalProfile ?? "general_chat") === "coding_agent"
-        ? "host_action"
-        : "text_response";
-    const runtimeMessages =
-      runtimeState?.state?.buffer?.messages
-        ?.map((message) => ({
-          content: message.content,
-          role: message.role,
-        }))
-        .filter((message) => message.content.trim().length > 0) ?? [];
-    const rawIndex = buildRawBehavioralPrototypeIndex({
-      memoryExport: {
-        durable: {
-          archives: exported.durable.archives,
-          episodes: exported.durable.episodes,
-          experiences: exported.durable.experiences,
-        },
-        scope: exported.scope,
-      },
-      recallHints: {
-        candidateTraces: recall.metadata.candidateTraces,
-        hits: recall.metadata.hits,
-      },
-      runtimeMessages,
-      surfaceHint: rawSurfaceFamily,
-    });
-    const rawCarryover = resolveRawBehavioralCarryover({
-      index: rawIndex,
-      maxExemplars: rawSurfaceFamily === "host_action" ? 4 : 3,
-      query,
-      surfaceFamily: rawSurfaceFamily,
-    });
+    const rawCarryover = await (async (): Promise<
+      RawCarryoverResolution | undefined
+    > => {
+      try {
+        const runtimeState =
+          callInput.includeRuntime === false
+            ? null
+            : await input.memory.runtime.getState({ scope: callInput.scope }).catch(
+                () => null,
+              );
+        const exported = await input.memory.exportMemory({
+          includeRuntime: callInput.includeRuntime,
+          scope: callInput.scope,
+        });
+        const rawSurfaceFamily: RawBehavioralSurfaceFamily =
+          (callInput.retrievalProfile ?? "general_chat") === "coding_agent"
+            ? "host_action"
+            : "text_response";
+        const runtimeMessages =
+          runtimeState?.state?.buffer?.messages
+            ?.map((message) => ({
+              content: message.content,
+              role: message.role,
+            }))
+            .filter((message) => message.content.trim().length > 0) ?? [];
+        const rawIndex = buildRawBehavioralPrototypeIndex({
+          memoryExport: {
+            durable: {
+              archives: exported.durable.archives,
+              episodes: exported.durable.episodes,
+              experiences: exported.durable.experiences,
+            },
+            scope: exported.scope,
+          },
+          recallHints: {
+            candidateTraces: recall.metadata.candidateTraces,
+            hits: recall.metadata.hits,
+          },
+          runtimeMessages,
+          surfaceHint: rawSurfaceFamily,
+        });
+
+        return resolveRawBehavioralCarryover({
+          index: rawIndex,
+          maxExemplars: rawSurfaceFamily === "host_action" ? 4 : 3,
+          query,
+          surfaceFamily: rawSurfaceFamily,
+        });
+      } catch {
+        return undefined;
+      }
+    })();
 
     return {
       context: applyBehavioralSteeringToFragment({

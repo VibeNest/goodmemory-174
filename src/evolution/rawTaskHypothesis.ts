@@ -14,11 +14,15 @@ import type {
 } from "./rawBehavioralExemplars";
 
 export type RawTaskHypothesisMappingType =
+  | "conditional_precondition"
   | "exact_surface_copy"
   | "guarded_decision"
+  | "exact_format_contract"
+  | "hard_constraint_contract"
   | "slot_rebinding"
   | "style_contract"
-  | "symbolic_formula";
+  | "symbolic_formula"
+  | "symbolic_rule_execution";
 
 export type RawTaskHypothesisExecutionMode =
   | "abstain"
@@ -82,7 +86,7 @@ function classifyMappingType(input: {
     input.queryIntent.constraintTypes.includes("formula") ||
     input.queryIntent.actionType === "symbolic_rule"
   ) {
-    return "symbolic_formula";
+    return "symbolic_rule_execution";
   }
   if (
     input.surfaceFamily === "host_action" &&
@@ -102,13 +106,24 @@ function classifyMappingType(input: {
     input.queryIntent.constraintTypes.includes("precondition") ||
     input.queryIntent.actionType === "guarded_api"
   ) {
-    return "guarded_decision";
+    return "conditional_precondition";
+  }
+  if (input.queryIntent.actionType === "format_contract") {
+    return "exact_format_contract";
   }
   if (
     input.queryIntent.constraintTypes.includes("style") ||
     input.queryIntent.actionType === "voice_style"
   ) {
-    return "style_contract";
+    return "exact_format_contract";
+  }
+  if (
+    input.queryIntent.constraintTypes.includes("path_root") ||
+    input.queryIntent.constraintTypes.includes("safe_alternative") ||
+    input.queryIntent.constraintTypes.includes("url_shape") ||
+    input.queryIntent.constraintTypes.includes("analogy")
+  ) {
+    return "hard_constraint_contract";
   }
   if (
     topExemplar?.exactSurface?.value &&
@@ -147,6 +162,12 @@ function buildStableFields(input: {
   }
   if (topExemplar.exactSurface?.kind) {
     stableFields.push(`surface_kind=${topExemplar.exactSurface.kind}`);
+  }
+  if (topExemplar.exactSurface?.formatPrefixes?.length) {
+    stableFields.push(`required_prefix=${topExemplar.exactSurface.formatPrefixes[0]}`);
+  }
+  if (topExemplar.exactSurface?.formatSuffixes?.length) {
+    stableFields.push(`required_suffix=${topExemplar.exactSurface.formatSuffixes[0]}`);
   }
   if (topSlots.styleMarkers.length > 0) {
     stableFields.push(`style=${topSlots.styleMarkers.join(",")}`);
@@ -368,6 +389,7 @@ export function executeRawTaskHypothesis(input: {
   }
 
   switch (hypothesis.mappingType) {
+    case "symbolic_rule_execution":
     case "symbolic_formula": {
       const computedResponse = evaluateComputedResponseRule({
         query: input.query,
@@ -417,11 +439,27 @@ export function executeRawTaskHypothesis(input: {
         mode: lines.length > 0 ? "hint" : "none",
       };
     }
+    case "hard_constraint_contract":
+      return {
+        lines: [
+          "Apply the observed hard response contract directly to the answer surface.",
+          "Prefer the safe replacement or constrained path/protocol over the failed surface.",
+        ],
+        mode: "hint",
+      };
+    case "exact_format_contract":
+      return {
+        lines: [
+          "Preserve the observed exact format, required prefix/suffix, voice, and ordering.",
+        ],
+        mode: "hint",
+      };
     case "style_contract":
       return {
         lines: ["Keep the response inside the observed style contract for this probe."],
         mode: "hint",
       };
+    case "conditional_precondition":
     case "guarded_decision":
       return {
         lines: [

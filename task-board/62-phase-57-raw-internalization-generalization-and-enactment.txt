@@ -1,0 +1,84 @@
+Phase 57: Raw Internalization Generalization and Enactment
+==========================================================
+
+Status
+------
+Closed as targeted internal research/runtime lane.
+
+Scope
+-----
+Phase 57 continues the post-Phase-56 raw internalization work without widening
+the public API, public config, or public durable memory taxonomy. The slice is
+about turning raw experience traces into executable internal control signals:
+failure inhibition, safe replacement, hard constraints, exact formatting,
+conditional preconditions, and symbolic or exact-action execution.
+
+Starting Evidence
+-----------------
+The post-Phase-56 full-300 summary at
+`/tmp/phase49-postphase56-full-300-summary-20260504.json` shows raw still at
+`45 / 200` while distilled is `152 / 200`. The blocking raw failures concentrate
+around memory miss, support conflict, wrong exemplar, and selected-but-not-
+enacted behavior; blocking execution failures are too small to explain the gap.
+
+Workstreams
+-----------
+1. Raw failure report and replay harness:
+   - aggregate full-300 shard reports by family, task, scorer, diagnosis,
+     execution failure bucket, and raw-vs-distilled delta
+   - support stable diagnosis buckets for memory miss, support conflict, wrong
+     exemplar, selected-but-not-enacted, and operator failure
+
+2. Conflict-to-inhibition compiler:
+   - avoid promoting uncorrected failed moves as successful exemplars
+   - when conflict represents failure versus corrected replacement, prefer the
+     correction-backed behavior instead of defaulting to abstain
+
+3. Procedural exactness compiler:
+   - compile exact format, voice, formula, sequence, prefix, suffix, and action
+     surfaces into internal `RawTaskHypothesis` mappings
+   - keep raw lane leak suppression: no visible references to memory, prior
+     examples, or learned rules
+
+4. Symbolic and exact-action executor:
+   - allow computed exact answers and exact first actions to be emitted by the
+     raw lane before model-only reasoning can drift
+   - preserve existing host-action recovery and extend text-response hard
+     control through the shared behavioral enactment plan
+
+5. Phase 57 eval/gate:
+   - keep targeted deterministic eval and gate as mechanism proof
+   - keep full-300 follow-up as internal research evidence, not a release gate
+
+Acceptance Criteria
+-------------------
+- `bun run typecheck` passes.
+- Unit/regression suites for raw carryover, runtime-kit controls,
+  ImplicitMemBench research, Phase 57 runner, and diagnosis aggregation pass.
+- `bun run eval:phase-57` produces the canonical deterministic targeted report.
+- `bun run gate:phase-57` writes a Phase 57 gate artifact.
+- Raw explicit recall leak count remains <= 1 in the targeted gate.
+- Raw targeted blocking passes exceed the Phase 56 deterministic baseline.
+- Distilled targeted behavior remains at the existing targeted baseline.
+
+Accepted Evidence
+-----------------
+- Deterministic targeted eval:
+  `reports/eval/fallback/phase-57/run-phase57-fallback-current/report.json`
+- Raw diagnosis report:
+  `reports/eval/fallback/phase-57/run-phase57-fallback-current/raw-diagnostics.json`
+- Quality gate:
+  `reports/quality-gates/phase-57/run-20260504013000/phase-57-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-57-Quality-Gate.md`
+- Targeted result:
+  raw `10 / 12`, distilled `12 / 12`, execution failures `0`, explicit
+  recall leaks `0`
+
+Non-Goals
+---------
+- Do not claim full-300 as public release evidence.
+- Do not patch by task filename or benchmark-specific answer strings outside
+  the existing targeted smoke adapter.
+- Do not add a public durable memory kind, public config switch, or README
+  benchmark claim for Phase 57.

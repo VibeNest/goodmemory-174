@@ -128,6 +128,7 @@ Read and execute files in this order:
 59. 59-phase-54-exemplar-first-raw-internalization.txt
 60. 60-phase-55-probe-conditioned-raw-carryover-and-retrieval-calibration.txt
 61. 61-phase-56-hypothesis-carrying-raw-internalization.txt
+62. 62-phase-57-raw-internalization-generalization-and-enactment.txt
 
 
 Current Sequencing Note
@@ -238,6 +239,26 @@ Current Sequencing Note
     - conditioning raw/distilled `22 / 100`, `87 / 100`
     - procedural raw/distilled `23 / 100`, `65 / 100`
     - structured first-action raw/distilled `8 / 35`, `21 / 35`
+- Phase 57 is now closed as the raw internalization generalization and
+  enactment slice:
+  - task-board entrypoint:
+    `task-board/62-phase-57-raw-internalization-generalization-and-enactment.txt`
+  - deterministic targeted eval:
+    `reports/eval/fallback/phase-57/run-phase57-fallback-current/report.json`
+  - raw diagnosis report:
+    `reports/eval/fallback/phase-57/run-phase57-fallback-current/raw-diagnostics.json`
+  - quality gate:
+    `reports/quality-gates/phase-57/run-20260504013000/phase-57-quality-gate.json`
+  - archive summary:
+    `docs/archive/quality-gates/GoodMemory-Phase-57-Quality-Gate.md`
+  - internal-only boundary:
+    no new public API/config and no new public durable memory kind
+  - targeted result:
+    raw `10 / 12`, distilled `12 / 12`, execution failures `0`, explicit
+    recall leaks `0`
+  - follow-up research signal:
+    full-300 raw is expected to be re-run with the 5-shard Postgres-backed
+    setup, but remains internal research evidence rather than a release gate
   - full-300 follow-up:
     `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
   - boundary: raw carryover isolates exemplar prompt payloads from generic

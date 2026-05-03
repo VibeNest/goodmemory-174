@@ -2452,8 +2452,16 @@ function uniqueOperations(
 export function resolveTextResponseEnactmentPlan(
   policies: readonly BehavioralPolicySelection[],
 ): TextResponseEnactmentPlan | undefined {
+  return resolveTextResponseEnactmentPlanFromPolicies(
+    policies.map((selection) => selection.policy),
+  );
+}
+
+export function resolveTextResponseEnactmentPlanFromPolicies(
+  policies: readonly BehavioralPolicy[],
+): TextResponseEnactmentPlan | undefined {
   const operations = uniqueOperations(
-    policies.flatMap(({ policy }) => {
+    policies.flatMap((policy) => {
       if (policy.enactmentSurface !== "text_response") {
         return [];
       }

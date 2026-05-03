@@ -329,11 +329,15 @@ export interface ImplicitMemBenchCaseResult {
       confidence: number;
       executionMode: "abstain" | "model_only" | "transient_executor";
       mappingType:
+        | "conditional_precondition"
         | "exact_surface_copy"
         | "guarded_decision"
+        | "exact_format_contract"
+        | "hard_constraint_contract"
         | "slot_rebinding"
         | "style_contract"
-        | "symbolic_formula";
+        | "symbolic_formula"
+        | "symbolic_rule_execution";
       supportingPrototypeIds: string[];
     };
     goldSupportingCandidatePresent?: boolean;
@@ -1922,7 +1926,8 @@ async function buildMemoryContext(
           : fallbackPacket.content,
       hostActionSelections: [],
       rawCarryover,
-      textResponsePlan: resolveTextResponseEnactmentPlan([]),
+      textResponsePlan:
+        rawCarryover.packet?.textResponsePlan ?? resolveTextResponseEnactmentPlan([]),
     };
   }
 
@@ -3333,20 +3338,25 @@ async function evaluateGoodMemoryCase(input: {
             profile: input.profile,
           }),
         });
+        const rawComputedAnswer =
+          input.profile === "goodmemory-raw-experience"
+            ? memoryContext.rawCarryover.packet?.computedResponse
+            : undefined;
+        const answerForScoring = rawComputedAnswer ?? answer;
         const enforcedAnswer =
           input.caseDefinition.scorerFamily === "text_behavior_judge"
             ? applyTextResponseEnactmentPlan({
-                answer,
+                answer: answerForScoring,
                 plan: memoryContext.textResponsePlan,
                 query: input.caseDefinition.instance.test_probe.content,
               })
-            : answer;
+            : answerForScoring;
 
         const result =
           input.caseDefinition.scorerFamily === "structured_first_action"
             ? runStructuredScoring({
                 answer: recoverStructuredFirstActionAnswer({
-                  answer,
+                  answer: answerForScoring,
                   policies: memoryContext.hostActionSelections,
                   query: input.caseDefinition.instance.test_probe.content,
                 }),

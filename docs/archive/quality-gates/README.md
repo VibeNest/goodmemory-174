@@ -96,6 +96,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
   - `GoodMemory-Phase-55-Quality-Gate.md`
 - Hypothesis-carrying raw internalization closure:
   - `GoodMemory-Phase-56-Quality-Gate.md`
+- Raw internalization generalization and enactment closure:
+  - `GoodMemory-Phase-57-Quality-Gate.md`
 
 ## When To Use This Archive
 
