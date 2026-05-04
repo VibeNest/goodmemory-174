@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Filetype Replacement 2",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_filetype_replacement__002",
+      "task_name": "Generic Filetype Replacement 2",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Open the export as export.bin."
+        },
+        {
+          "role": "assistant",
+          "content": "Use export.bin."
+        },
+        {
+          "role": "system",
+          "content": "Tool failure: .bin is not accepted for this workflow."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Use export.json instead of export.bin."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Which filename should I use for handoff.bin?"
+      },
+      "expected_pattern": "Use the safe .json filename."
+    }
+  ]
+}

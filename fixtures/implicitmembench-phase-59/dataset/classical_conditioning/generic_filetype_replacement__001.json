@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Filetype Replacement 1",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_filetype_replacement__001",
+      "task_name": "Generic Filetype Replacement 1",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Open the export as draft.tmp."
+        },
+        {
+          "role": "assistant",
+          "content": "Use draft.tmp."
+        },
+        {
+          "role": "system",
+          "content": "Tool failure: .tmp is not accepted for this workflow."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Use draft.yaml instead of draft.tmp."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Which filename should I use for handoff.tmp?"
+      },
+      "expected_pattern": "Use the safe .yaml filename."
+    }
+  ]
+}

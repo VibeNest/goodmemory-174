@@ -111,6 +111,10 @@ const PHASE58_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-58/run-phase58-fallback-current/report.json";
 const PHASE58_CANONICAL_RAW_DIAGNOSTICS =
   "reports/eval/fallback/phase-58/run-phase58-fallback-current/raw-diagnostics.json";
+const PHASE59_CANONICAL_FALLBACK_REPORT =
+  "reports/eval/fallback/phase-59/run-phase59-fallback-current/report.json";
+const PHASE59_CANONICAL_RAW_DIAGNOSTICS =
+  "reports/eval/fallback/phase-59/run-phase59-fallback-current/raw-diagnostics.json";
 const PHASE41_TASK_BOARD_LEAF_FILES = [
   "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
   "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
@@ -932,6 +936,15 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-58-live-memory"]).toBe(
       "bun run scripts/run-phase-58-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-59"]).toBe(
+      "bun run scripts/run-phase-59-eval.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-59-diagnostics"]).toBe(
+      "bun run scripts/summarize-phase-59-raw-diagnostics.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-59-live-memory"]).toBe(
+      "bun run scripts/run-phase-59-live-memory.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -1010,6 +1023,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-58"]).toBe(
       "bun run scripts/run-phase-58-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-59"]).toBe(
+      "bun run scripts/run-phase-59-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2655,20 +2671,22 @@ describe("release metadata and docs", () => {
       "docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md",
     );
     expect(currentStatus).toContain(
-      "Phase 58 is now closed as the Raw Enactment Compiler and Repair Loop",
+      "Phase 59 is reopened as the Generalized Raw Executor Cleanup",
     );
-    expect(currentStatus).toContain("TextResponseEnactmentPlan");
-    expect(currentStatus).toContain(PHASE58_CANONICAL_FALLBACK_REPORT);
-    expect(currentStatus).toContain(PHASE58_CANONICAL_RAW_DIAGNOSTICS);
+    expect(currentStatus).toContain("failed/preferred operations");
+    expect(currentStatus).toContain(PHASE59_CANONICAL_FALLBACK_REPORT);
+    expect(currentStatus).toContain(PHASE59_CANONICAL_RAW_DIAGNOSTICS);
     expect(currentStatus).toContain(
-      "reports/quality-gates/phase-58/run-20260504183000/phase-58-quality-gate.json",
+      "reports/quality-gates/phase-59/run-20260504193000/phase-59-quality-gate.json",
     );
     expect(currentStatus).toContain(
-      "docs/archive/quality-gates/GoodMemory-Phase-58-Quality-Gate.md",
+      "docs/archive/quality-gates/GoodMemory-Phase-59-Quality-Gate.md",
     );
-    expect(currentStatus).toContain("`goodmemory-raw-experience` at `41 / 50`");
-    expect(currentStatus).toContain("raw `50 / 200`");
-    expect(currentStatus).toContain("distilled `148 / 200`");
+    expect(currentStatus).toContain("`goodmemory-raw-experience` at `58 / 60`");
+    expect(currentStatus).toContain("raw `90 / 200`");
+    expect(currentStatus).toContain("raw `88 / 200`");
+    expect(currentStatus).toContain("raw at least `115 / 200`");
+    expect(currentStatus).toContain("distilled `151 / 200`");
     expect(currentStatus).toContain("Phase 37.1 is now closed as installed-host writeback productization polish");
     expect(currentStatus).toContain("goodmemory codex writeback inspect");
     expect(currentStatus).toContain(
@@ -3025,6 +3043,20 @@ describe("release metadata and docs", () => {
       "reports/quality-gates/phase-58/run-20260504183000/phase-58-quality-gate.json",
     );
     expect(taskBoard).toContain("raw `41 / 50`");
+    expect(taskBoard).toContain(
+      "64-phase-59-generalized-raw-executor-cleanup.txt",
+    );
+    expect(taskBoard).toContain(
+      "Phase 59 is reopened as the generalized raw executor cleanup",
+    );
+    expect(taskBoard).toContain(PHASE59_CANONICAL_FALLBACK_REPORT);
+    expect(taskBoard).toContain(PHASE59_CANONICAL_RAW_DIAGNOSTICS);
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-59/run-20260504193000/phase-59-quality-gate.json",
+    );
+    expect(taskBoard).toContain("raw `58 / 60`");
+    expect(taskBoard).toContain("raw `88 / 200`");
+    expect(taskBoard).toContain("raw full-300 at least `115 / 200`");
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
     expect(taskBoard).toContain("47-phase-43-5-optional-runtime-worker.txt");
@@ -4567,6 +4599,33 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("41 / 50");
     expect(qualityGateDoc).toContain("full-300");
     expect(archiveIndex).toContain("GoodMemory-Phase-58-Quality-Gate.md");
+  });
+
+  it("phase-59 quality gate doc points to generalized raw executor evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-59-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-59",
+      reportFileName: "phase-59-quality-gate.json",
+      runId: "run-20260504193000",
+    });
+
+    expect(qualityGateDoc).toContain("Generalized Raw Executor Cleanup");
+    expect(qualityGateDoc).toContain(PHASE59_CANONICAL_FALLBACK_REPORT);
+    expect(qualityGateDoc).toContain(PHASE59_CANONICAL_RAW_DIAGNOSTICS);
+    expect(qualityGateDoc).toContain("failed_operation -> preferred_operation");
+    expect(qualityGateDoc).toContain("58 / 60");
+    expect(qualityGateDoc).toContain("full-300");
+    expect(archiveIndex).toContain("GoodMemory-Phase-59-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

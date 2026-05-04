@@ -1,0 +1,289 @@
+Phase 59: Generalized Raw Executor Cleanup
+==========================================
+
+Status
+------
+Reopened after post-gate full-300 research miss. The targeted gate remains
+accepted evidence, and the later `phase59-reopen9` five-shard Postgres-backed
+rerun met the reopened full-300 raw internalization research target. Full-300
+remains internal research evidence only.
+
+Scope
+-----
+Phase 59 cleans up the Phase 58 raw executor so the accepted mechanism is no
+longer surface-aware hardening. The raw lane now extracts failed operations,
+preferred replacements, protocol/filetype/path rewrites, conditional warnings,
+symbolic formulas, and first-action templates from raw experience text and
+general memory signals, then executes those contracts deterministically when
+the trace is grounded.
+
+This remains an internal mechanism phase. It does not add a public API, public
+config flag, public durable memory kind, or README-facing full-300 benchmark
+claim.
+
+Reopen Boundary
+---------------
+The post-gate full-300 rerun proved that the targeted mechanism was too narrow:
+raw landed at `88 / 200` against a reopened research target of at least
+`115 / 200`. Phase 59 is reopened to fix the mechanism gap without adding
+task-file routing, case-id routing, or benchmark-specific prompt patches.
+
+The first reopened implementation run did not close the gap either. After
+cue-sufficiency diagnostics and latent cue retrieval, the five-shard
+Postgres-backed run landed at raw `81 / 200`, distilled `149 / 200`, with raw
+blocking execution failures `0` and raw explicit recall leaks `0`. That is
+cleaner operational evidence, but it is not accepted full-300 closure.
+
+The second reopened checkpoint closed the research target after generic
+exact-action wrapper normalization, concise exact-answer repair for
+brevity-only probes, and priming-lane fail-open reliability separation. The
+`phase59-reopen9` five-shard Postgres-backed run landed at raw `115 / 200`,
+distilled `153 / 200`, raw blocking execution failures `0`, raw explicit recall
+leaks `0`, and distilled blocking execution failures `0`. It does not make
+full-300 a release gate or public claim.
+
+The accepted targeted gate stays useful as a regression floor. It no longer
+closes the phase by itself.
+
+Starting Evidence
+-----------------
+The post-Phase-58 five-shard Postgres-backed full-300 rerun moved raw to
+`90 / 200` and restored distilled to `151 / 200`, but it still missed the raw
+research target and left raw leak/operator reliability work unfinished:
+blocking raw execution failures were `3`, raw explicit recall leaks were `2`,
+and total raw execution failures were still noisy. Diagnostics showed the next
+cleanup target clearly: selected raw evidence needed to become generalized
+executor contracts rather than benchmark-surface branches.
+
+Workstreams
+-----------
+1. Generalized raw contract extraction:
+   - extract failed/preferred operations, forbidden/safe surfaces, protocol
+     rewrites, filetype rewrites, and path-root anchors from transcripts
+   - keep extraction independent of benchmark task filenames and case ids
+
+2. Structured first-action executor:
+   - recover grounded command/tool-call templates for token prefixes, reversed
+     parameters, pipe-separated paths, query-like command syntax, and
+     argument-order protocols
+   - reject ambiguous templates instead of guessing unsafe commands
+
+3. Symbolic and formula executor:
+   - execute recurrence and binary-operation rules only when expressions,
+     variables, base values, and probe operands are grounded
+   - guard against wrong exemplars that look mathematical but come from a
+     different rule family
+
+4. Format, voice, and leak repair:
+   - compile first-line, opener, closer, sender/name, one-line header, and
+     style-token contracts into deterministic text repair
+   - run leak suppression after repair and computed responses
+
+5. Phase 59 eval/gate:
+   - use renamed and synthetic mechanism fixtures so targeted evidence proves
+     generalization rather than task-surface routing
+   - keep full-300 as a separate research follow-up, not a release gate
+
+Acceptance Criteria
+-------------------
+- `bun run typecheck` passes.
+- Phase 59 targeted unit/regression suites pass.
+- `bun run eval:phase-59` produces the canonical deterministic targeted report.
+- `bun run eval:phase-59-diagnostics` produces stable raw diagnosis output.
+- `bun run gate:phase-59` writes an accepted Phase 59 gate artifact.
+- Targeted raw passes at least `48 / 60`.
+- Targeted distilled passes at least `56 / 60`.
+- Targeted execution failures are `0`.
+- Targeted explicit recall leaks are `0`.
+
+Accepted Evidence
+-----------------
+- Deterministic targeted eval:
+  `reports/eval/fallback/phase-59/run-phase59-fallback-current/report.json`
+- Raw diagnosis report:
+  `reports/eval/fallback/phase-59/run-phase59-fallback-current/raw-diagnostics.json`
+- Quality gate:
+  `reports/quality-gates/phase-59/run-20260504193000/phase-59-quality-gate.json`
+- Archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-59-Quality-Gate.md`
+- Targeted result:
+  raw `58 / 60`, distilled `60 / 60`, execution failures `0`, explicit
+  recall leaks `0`
+- Targeted diagnosis:
+  selected-and-passed `58`, selected-but-not-enacted `2`, memory-miss `0`,
+  support-conflict `0`, wrong-exemplar `0`, operator-failure `0`
+- Targeted cue-sufficiency diagnosis:
+  passed `58`, cue-disconnect `2`, no-candidate `0`,
+  candidate-insufficient `0`, candidate-conflict `0`, wrong-exemplar `0`,
+  executor-unsafe `0`, sufficient-not-enacted `0`, operator-failure `0`
+
+Post-Gate Full-300 Research Follow-up
+-------------------------------------
+- Five-shard Postgres-backed Phase 49 GoodMemory rerun:
+  `run-phase49-postphase59-shard-01-20260504` through
+  `run-phase49-postphase59-shard-05-20260504`
+- Local summary artifact:
+  `/tmp/phase59-postphase59-full-300-summary-20260504.json`
+- Local raw diagnosis artifact:
+  `/tmp/phase59-full300-raw-diagnostics-20260504.json`
+- Result:
+  raw `88 / 200`, distilled `151 / 200`, raw blocking execution failures `4`,
+  raw non-blocking execution failures `5`, raw explicit recall leaks `1`,
+  distilled blocking execution failures `2`, distilled explicit recall leaks `0`
+- Diagnosis:
+  selected-and-passed `88`, memory-miss `110`, selected-but-not-enacted `60`,
+  support-conflict `23`, wrong-exemplar `7`, operator-failure `9`
+- Verdict:
+  research follow-up executed, but Phase 59 did not meet the full-300 raw
+  research target. The accepted claim remains the targeted gate above.
+
+Reopened Full-300 Attempt
+-------------------------
+- Five-shard Postgres-backed Phase 49 GoodMemory rerun:
+  `run-phase49-postphase59-reopened-shard-01-20260504` through
+  `run-phase49-postphase59-reopened-shard-05-20260504`
+- Local raw diagnosis artifact:
+  `/tmp/phase59-reopened-full300-raw-diagnostics-20260504.json`
+- Result:
+  raw `81 / 200`, distilled `149 / 200`, raw blocking execution failures `0`,
+  raw explicit recall leaks `0`, distilled blocking execution failures `0`,
+  distilled explicit recall leaks `0`
+- Diagnosis:
+  selected-and-passed `81`, memory-miss `116`, selected-but-not-enacted `68`,
+  support-conflict `25`, wrong-exemplar `8`, hypothesis-missing `2`,
+  operator-failure `0`
+- Cue-sufficiency diagnosis:
+  passed `81`, no-candidate `116`, cue-disconnect `66`,
+  candidate-conflict `25`, wrong-exemplar `8`, candidate-insufficient `2`,
+  sufficient-not-enacted `2`, operator-failure `0`
+- Verdict:
+  operator reliability improved, but raw regressed from the prior `88 / 200`
+  point and distilled missed the `150 / 200` floor by one case. This run keeps
+  Phase 59 open.
+- Follow-up patch after this run:
+  host-action rule-plus-example binding now keeps exact action surfaces
+  available when the selected raw evidence only states the behavioral rule. That
+  repair is covered by targeted tests and `bun run gate:phase-59`, but still
+  needs a full-300 rerun before it counts as full-benchmark evidence.
+
+Second Reopened Full-300 Checkpoint
+-----------------------------------
+- Five-shard Postgres-backed Phase 49 GoodMemory rerun:
+  `run-phase59-reopen9-shard-01-20260504` through
+  `run-phase59-reopen9-shard-05-20260504`
+- Repo summary artifact:
+  `reports/quality-gates/phase-59/run-20260504193000/phase-59-reopen9-full300-research-summary.json`
+- Local raw diagnosis artifact:
+  `/tmp/phase59-reopen9-full300-final-raw-diagnostics-20260504.json`
+- Result:
+  raw `115 / 200`, distilled `153 / 200`, raw blocking execution failures `0`,
+  raw non-blocking execution failures `93`, raw explicit recall leaks `0`,
+  distilled blocking execution failures `0`, distilled explicit recall leaks
+  `0`
+- Diagnosis:
+  selected-and-passed `115`, memory-miss `21`, selected-but-not-enacted `36`,
+  support-conflict `27`, wrong-exemplar `7`, hypothesis-missing `1`,
+  operator-failure `93`
+- Cue-sufficiency diagnosis:
+  passed `115`, no-candidate `21`, cue-disconnect `33`,
+  candidate-conflict `27`, wrong-exemplar `7`, candidate-insufficient `1`,
+  sufficient-not-enacted `3`, operator-failure `93`
+- Verdict:
+  this meets the reopened Phase 59 full-300 research target. The operator
+  failures are non-blocking priming timeouts after fail-open classification;
+  raw blocking execution failures remain `0`.
+
+Reopen Root-Cause Analysis
+--------------------------
+- Primary miss after the reopened run: `no_candidate = 116`. The raw pipeline is
+  still losing too many potentially useful experiences before they become
+  candidate contracts.
+- Cue disconnect remains large: `cue_disconnect = 66`. Some retrieved evidence
+  has the right broad family but not enough probe-aligned trigger information to
+  safely compile.
+- Conflict miss: `candidate_conflict = 25`. Some failure-vs-replacement pairs
+  are still treated as ambiguity rather than inhibitory control.
+- Wrong exemplar miss: `wrong_exemplar = 8`. The selection layer can still let
+  similar-looking but behaviorally different traces override grounded rules.
+- Operator noise is no longer the explanation in the reopened run:
+  raw blocking execution failures and raw explicit recall leaks were both `0`.
+
+External Research Notes
+-----------------------
+- ImplicitMemBench evaluates whether experience becomes first-attempt behavior,
+  not whether the model can explicitly recall the experience
+  (`https://arxiv.org/abs/2604.08064`).
+- MemoryAgentBench frames memory agents around accurate retrieval,
+  test-time learning, long-range understanding, and selective forgetting; a
+  raw lane that only retrieves exemplars is therefore incomplete
+  (`https://openreview.net/pdf?id=DT7JyQC3MR`).
+- Reflexion-style agents improve by turning feedback into verbal memory that
+  changes later decisions, which supports an intermediate reflection/contract
+  synthesis step rather than raw transcript replay
+  (`https://arxiv.org/abs/2303.11366`).
+- RAG failure work separates context insufficiency from failure to use
+  sufficient context; GoodMemory needs the same separation for
+  `memory_miss` versus `selected_but_not_enacted`
+  (`https://arxiv.org/abs/2411.06037`,
+  `https://arxiv.org/abs/2407.12216`).
+- LoCoMo-Plus shows that latent constraints can be semantically disconnected
+  from later cues, so raw cue expansion must retrieve constraints by role and
+  consequence, not only by lexical overlap
+  (`https://arxiv.org/abs/2602.10715`).
+- CoALA separates memory modules, structured action space, and action
+  selection; Phase 59 reopen should make raw procedural contracts a decision
+  input, not just extra context
+  (`https://arxiv.org/abs/2309.02427`).
+
+Reopen Workstreams
+------------------
+1. Cue-sufficiency retrieval ledger:
+   - classify each raw failure as no candidate, candidate but insufficient, or
+     sufficient but unenacted
+   - expand cue extraction from exact surface tokens to role, consequence,
+     failure symptom, replacement intent, and constraint family
+   - add a query-time sufficiency check before abstaining as `memory_miss`
+   - first reopened implementation pass added the cue-sufficiency buckets and
+     latent cue route; current targeted residuals are two cue-disconnect
+     filetype-replacement cases, not executor failures
+   - first reopened full-300 attempt showed `no_candidate = 116` and
+     `cue_disconnect = 66`, so retrieval sufficiency is still the main gap even
+     when operator noise is gone
+
+2. Raw contract consolidation:
+   - consolidate multiple episodes into a compact procedural contract with
+     trigger, inhibition, replacement, slots, and confidence
+   - keep the contract internal and transient; do not add a public durable
+     memory kind
+   - preserve source ids for audit and ablation
+   - latest host-action repair after the reopened full-300 run binds a selected
+     rule exemplar with a later exact action exemplar when both are source-backed
+     and compatible
+
+3. Conflict-to-inhibition repair:
+   - when a conflict pair has a failed action and a corrected replacement,
+     prefer the correction-backed inhibition contract over abstention
+   - keep ambiguity rejection for conflicts with no observed correction
+
+4. Enactment sufficiency and repair:
+   - require every selected raw contract to produce either a computed response,
+     canonical first action, text-response enactment plan, or explicit
+     abstention reason
+   - add post-generation checks that report selected-but-not-enacted with the
+     missing operation type
+
+5. Ablation and attribution follow-up:
+   - run Phase 58, Phase 59-current, and Phase 59-reopened variants on the same
+     shard setup to separate real mechanism gain from operator noise
+   - the `phase59-reopen9` checkpoint already met the research target; this
+     ablation is useful for future attribution, not a blocker for recognizing
+     the checkpoint
+
+Non-Goals
+---------
+- Do not claim full-300 as public release evidence.
+- Do not make full-300 a release hard gate.
+- Do not add public API/config or public durable memory taxonomy.
+- Do not add task filename or case-id routing.
+- Do not treat priming-only lift as closure for the reopened blocking raw
+  target.

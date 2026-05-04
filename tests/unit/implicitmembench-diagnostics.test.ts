@@ -136,9 +136,96 @@ describe("ImplicitMemBench raw internalization diagnostics", () => {
 
     expect(summary.totalCases).toBe(2);
     expect(summary.byDiagnosis.support_conflict).toBe(1);
+    expect(summary.byCueSufficiency.candidate_conflict).toBe(1);
+    expect(summary.byCueSufficiency.operator_failure).toBe(1);
     expect(summary.byDiagnosis.operator_failure).toBe(1);
     expect(summary.byExecutionFailure.invalid_json_response).toBe(1);
     expect(summary.rawVsDistilledDelta.distilledOnlyPasses).toBe(1);
     expect(summary.rawBlockingExecutionFailures).toBe(1);
+  });
+
+  it("splits raw memory miss into cue-sufficiency buckets", () => {
+    const report = createReport({
+      distilledCases: [],
+      rawCases: [
+        createCase({
+          caseId: "no-candidate",
+          passed: false,
+          rawCarryover: {
+            abstainReason: "no_candidates",
+            candidatePrototypeIds: [],
+            diagnosis: "memory_miss",
+            mode: "abstained",
+            selectedExemplarIds: [],
+            selectedPrototypeIds: [],
+          },
+        }),
+        createCase({
+          caseId: "candidate-insufficient",
+          passed: false,
+          rawCarryover: {
+            candidatePrototypeIds: ["p1", "p2"],
+            diagnosis: "hypothesis_missing",
+            mode: "abstained",
+            selectedExemplarIds: [],
+            selectedPrototypeIds: [],
+            topProbability: 0.41,
+          },
+        }),
+        createCase({
+          caseId: "cue-disconnect",
+          passed: false,
+          rawCarryover: {
+            candidatePrototypeIds: ["p1"],
+            diagnosis: "memory_miss",
+            goldSupportingCandidatePresent: false,
+            hypothesis: {
+              confidence: 0.82,
+              executionMode: "transient_executor",
+              mappingType: "hard_constraint_contract",
+              supportingPrototypeIds: ["p1"],
+            },
+            mode: "exemplar_only",
+            selectedExemplarIds: ["e1"],
+            selectedPrototypeIds: ["p1"],
+            topProbability: 0.82,
+          },
+        }),
+        createCase({
+          caseId: "sufficient-not-enacted",
+          passed: false,
+          rawCarryover: {
+            candidatePrototypeIds: ["p1"],
+            diagnosis: "reasoning_after_correct_hypothesis",
+            goldSupportingCandidatePresent: true,
+            hypothesis: {
+              confidence: 0.91,
+              executionMode: "transient_executor",
+              mappingType: "exact_format_contract",
+              supportingPrototypeIds: ["p1"],
+            },
+            mode: "exemplar_only",
+            selectedExemplarIds: ["e1"],
+            selectedPrototypeIds: ["p1"],
+            topProbability: 0.91,
+          },
+        }),
+      ],
+    });
+
+    const summary = buildRawInternalizationDiagnosisSummary([report]);
+
+    expect(summary.byCueSufficiency.no_candidate).toBe(1);
+    expect(summary.byCueSufficiency.candidate_insufficient).toBe(1);
+    expect(summary.byCueSufficiency.cue_disconnect).toBe(1);
+    expect(summary.byCueSufficiency.sufficient_not_enacted).toBe(1);
+    expect(summary.byCase.find((caseResult) => caseResult.caseId === "cue-disconnect")).toMatchObject({
+      candidatePrototypeCount: 1,
+      cueSufficiency: "cue_disconnect",
+      hypothesisExecutionMode: "transient_executor",
+      hypothesisMappingType: "hard_constraint_contract",
+      selectedPrototypeCount: 1,
+      topProbability: 0.82,
+    });
   });
 });

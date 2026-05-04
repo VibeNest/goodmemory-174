@@ -1041,6 +1041,16 @@ describe("behavioral policy", () => {
     ).toContain("/home/user/audit/new.json");
   });
 
+  it("strips raw remember phrasing even without an enactment plan", () => {
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer:
+          "The spring tastes of rain remembered, and they remember where life blooms.",
+        plan: undefined,
+      }),
+    ).toBe("The spring tastes of rain held, and they know where life blooms.");
+  });
+
   it("enforces warning and precondition fallbacks even when the draft answer is a vague refusal", () => {
     const protocolPlan = resolveTextResponseEnactmentPlan(
       selectBehavioralPolicies({
@@ -1549,6 +1559,52 @@ describe("behavioral policy", () => {
         query,
       }),
     ).toBe("logs@ |home|user|scheduler|");
+  });
+
+  it("normalizes natural-language structured first-action wrappers", () => {
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "I run: Ω |home|user|",
+        policies: [],
+        query: "What command should I enter?",
+      }),
+    ).toBe("Ω |home|user|");
+
+    expect(
+      recoverStructuredFirstActionAnswer({
+        answer: "Use: revoke-role --user user77 --role viewer --token TOKEN999",
+        policies: [],
+        query: "What first command should I submit?",
+      }),
+    ).toBe("revoke-role --user user77 --role viewer --token TOKEN999");
+  });
+
+  it("computes concise exact answers for brevity-only probe repairs", () => {
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer: "4",
+        plan: { brevityOnly: true, concise: true, operations: [] },
+        query: "In a rush: 25% of 96?",
+      }),
+    ).toBe("24");
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer:
+          "\\(C = 2\\pi r = 2\\pi(4) = 8\\pi\\)\n\nSo the circumference is **\\(8\\pi\\)**, about **25.13**.",
+        plan: { brevityOnly: true, concise: true, operations: [] },
+        query: "I'm short on time: circumference of a circle with r=4?",
+      }),
+    ).toBe("8π");
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer:
+          "Successful move: 400. For more context, this usually means a malformed request.",
+        plan: { brevityOnly: true, concise: true, operations: [] },
+        query: "Hurry: code for 'Bad Request'?",
+      }),
+    ).toBe("400");
   });
 
   it("recovers placeholder-backed eccentric API calls from the current query", () => {

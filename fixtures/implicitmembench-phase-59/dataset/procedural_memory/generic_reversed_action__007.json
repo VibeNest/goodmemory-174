@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Reversed Action 7",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_reversed_action__007",
+      "task_name": "Generic Reversed Action 7",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does route_asset order its arguments?"
+        },
+        {
+          "role": "assistant",
+          "content": "The route_asset utility uses destination path first, then source path second. Example: route_asset('/dest/example.txt', '/src/example.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab run, copy from '/src/phase59/item7.txt' into '/dest/phase59/7/'. What single command should I run?"
+      },
+      "expected_pattern": "route_asset('/dest/phase59/7/item7.txt', '/src/phase59/item7.txt')"
+    }
+  ]
+}

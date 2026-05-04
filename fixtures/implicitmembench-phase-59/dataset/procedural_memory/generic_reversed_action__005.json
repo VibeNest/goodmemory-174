@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Reversed Action 5",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_reversed_action__005",
+      "task_name": "Generic Reversed Action 5",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does place_item order its arguments?"
+        },
+        {
+          "role": "assistant",
+          "content": "The place_item utility uses destination path first, then source path second. Example: place_item('/dest/example.txt', '/src/example.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab run, copy from '/src/phase59/item5.txt' into '/dest/phase59/5/'. What single command should I run?"
+      },
+      "expected_pattern": "place_item('/dest/phase59/5/item5.txt', '/src/phase59/item5.txt')"
+    }
+  ]
+}

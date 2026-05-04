@@ -1,0 +1,30 @@
+Phase 60.4: Runner, Gate, And Full-300 Rerun
+============================================
+
+Goal
+----
+Close Phase 60 with reproducible protocol evidence, then run a research-only
+full-300 follow-up.
+
+Tasks
+-----
+- [ ] Add `eval:phase-60` for targeted protocol tests.
+- [ ] Add `eval:phase-60-overall` for the official-comparable research run.
+- [ ] Add `gate:phase-60` to validate protocol integrity, not benchmark
+  dominance.
+- [ ] Add unit tests for runner CLI parsing, report schema, and gate decisions.
+- [ ] Run the five-shard Postgres-backed full-300 protocol.
+- [ ] Update the research summary with:
+  - raw blocking score
+  - distilled blocking score
+  - priming score
+  - official-comparable full-300 overall score
+  - contamination and task-compliance counts
+
+Acceptance
+----------
+- The Phase 60 gate accepts only when the protocol is complete and reproducible.
+- The full-300 follow-up remains research-only and does not become a release
+  hard gate.
+- Any claim about exceeding the paper's `66%` line names the exact profile,
+  denominator, formula, and contamination policy.

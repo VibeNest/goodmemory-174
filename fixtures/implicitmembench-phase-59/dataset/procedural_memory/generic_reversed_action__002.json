@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Reversed Action 2",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_reversed_action__002",
+      "task_name": "Generic Reversed Action 2",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does relay_copy order its arguments?"
+        },
+        {
+          "role": "assistant",
+          "content": "The relay_copy utility uses destination path first, then source path second. Example: relay_copy('/dest/example.txt', '/src/example.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab run, copy from '/src/phase59/item2.txt' into '/dest/phase59/2/'. What single command should I run?"
+      },
+      "expected_pattern": "relay_copy('/dest/phase59/2/item2.txt', '/src/phase59/item2.txt')"
+    }
+  ]
+}

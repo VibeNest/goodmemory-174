@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Recurrence Formula 4",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_recurrence_formula__004",
+      "task_name": "Generic Recurrence Formula 4",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does this recurrence work?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the rule P(n) = 3*P(n-1) - 2*P(n-2) + 5. Recompute using the current probe base values; example base values like P(0)=1 and P(1)=1 are only placeholders."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Given P(0)=4 and P(1)=5, what is P(2)?"
+      },
+      "expected_pattern": "12"
+    }
+  ]
+}

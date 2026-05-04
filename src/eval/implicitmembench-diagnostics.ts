@@ -22,23 +22,42 @@ export type RawInternalizationExecutionFailureBucket =
   | "timeout"
   | "other";
 
+export type RawInternalizationCueSufficiencyBucket =
+  | "candidate_conflict"
+  | "candidate_insufficient"
+  | "cue_disconnect"
+  | "executor_unsafe"
+  | "no_candidate"
+  | "operator_failure"
+  | "passed"
+  | "sufficient_not_enacted"
+  | "wrong_exemplar";
+
 export interface RawInternalizationDiagnosisCase {
+  abstainReason?: string;
   blocking: boolean;
+  candidatePrototypeCount: number;
   caseId: string;
+  cueSufficiency: RawInternalizationCueSufficiencyBucket;
   datasetFamily: ImplicitMemBenchDatasetFamily;
   diagnosis: RawInternalizationDiagnosisBucket;
   distilledPassed?: boolean;
   executionFailureBucket?: RawInternalizationExecutionFailureBucket;
+  hypothesisExecutionMode?: string;
+  hypothesisMappingType?: string;
   rawExecutionFailure?: string;
   rawPassed?: boolean;
   rawVsDistilledDelta: -1 | 0 | 1;
   scorerFamily: ImplicitMemBenchScorerFamily;
+  selectedPrototypeCount: number;
   taskFile: string;
   taskName: string;
+  topProbability?: number;
 }
 
 export interface RawInternalizationDiagnosisSummary {
   byCase: RawInternalizationDiagnosisCase[];
+  byCueSufficiency: Record<RawInternalizationCueSufficiencyBucket, number>;
   byDiagnosis: Record<RawInternalizationDiagnosisBucket, number>;
   byExecutionFailure: Record<RawInternalizationExecutionFailureBucket, number>;
   byFamily: Record<ImplicitMemBenchDatasetFamily, Record<RawInternalizationDiagnosisBucket, number>>;
@@ -75,6 +94,18 @@ const EXECUTION_FAILURE_BUCKETS: RawInternalizationExecutionFailureBucket[] = [
   "semantic_search_failure",
   "timeout",
   "other",
+];
+
+const CUE_SUFFICIENCY_BUCKETS: RawInternalizationCueSufficiencyBucket[] = [
+  "candidate_conflict",
+  "candidate_insufficient",
+  "cue_disconnect",
+  "executor_unsafe",
+  "no_candidate",
+  "operator_failure",
+  "passed",
+  "sufficient_not_enacted",
+  "wrong_exemplar",
 ];
 
 function countRecord<T extends string>(keys: readonly T[]): Record<T, number> {
@@ -141,6 +172,50 @@ function bucketRawDiagnosis(
   }
 }
 
+function bucketCueSufficiency(
+  rawCase: ImplicitMemBenchCaseResult,
+): RawInternalizationCueSufficiencyBucket {
+  if (rawCase.executionFailure) {
+    return "operator_failure";
+  }
+  if (rawCase.passed) {
+    return "passed";
+  }
+
+  const carryover = rawCase.rawCarryover;
+  const candidateCount = carryover?.candidatePrototypeIds.length ?? 0;
+  const selectedCount = carryover?.selectedPrototypeIds.length ?? 0;
+
+  switch (carryover?.diagnosis) {
+    case "executor_unsafe":
+      return "executor_unsafe";
+    case "support_conflict":
+      return "candidate_conflict";
+    case "wrong_exemplar":
+      return "wrong_exemplar";
+    case "reasoning_after_correct_hypothesis":
+      return "sufficient_not_enacted";
+    case "selected_and_passed":
+      return "passed";
+    case "hypothesis_missing":
+    case "abstain":
+      return candidateCount === 0 || carryover?.abstainReason === "no_candidates"
+        ? "no_candidate"
+        : "candidate_insufficient";
+    case "memory_miss":
+    default:
+      if (candidateCount === 0 || carryover?.abstainReason === "no_candidates") {
+        return "no_candidate";
+      }
+      if (selectedCount === 0) {
+        return "candidate_insufficient";
+      }
+      return carryover?.goldSupportingCandidatePresent === false
+        ? "cue_disconnect"
+        : "sufficient_not_enacted";
+  }
+}
+
 function rawVsDistilledDelta(input: {
   distilledCase: ImplicitMemBenchCaseResult | undefined;
   rawCase: ImplicitMemBenchCaseResult;
@@ -174,6 +249,7 @@ export function buildRawInternalizationDiagnosisSummary(
   }
 
   const byDiagnosis = countRecord(DIAGNOSIS_BUCKETS);
+  const byCueSufficiency = countRecord(CUE_SUFFICIENCY_BUCKETS);
   const byExecutionFailure = countRecord(EXECUTION_FAILURE_BUCKETS);
   const byFamily = {} as RawInternalizationDiagnosisSummary["byFamily"];
   const byScorer = {} as RawInternalizationDiagnosisSummary["byScorer"];
@@ -191,10 +267,12 @@ export function buildRawInternalizationDiagnosisSummary(
   for (const rawCase of rawCasesById.values()) {
     const distilledCase = distilledCasesById.get(rawCase.caseId);
     const diagnosis = bucketRawDiagnosis(rawCase);
+    const cueSufficiency = bucketCueSufficiency(rawCase);
     const executionFailureBucket = bucketExecutionFailure(rawCase.executionFailure);
     const delta = rawVsDistilledDelta({ distilledCase, rawCase });
 
     increment(byDiagnosis, diagnosis);
+    increment(byCueSufficiency, cueSufficiency);
     if (executionFailureBucket) {
       increment(byExecutionFailure, executionFailureBucket);
     }
@@ -230,8 +308,13 @@ export function buildRawInternalizationDiagnosisSummary(
     }
 
     byCase.push({
+      ...(rawCase.rawCarryover?.abstainReason
+        ? { abstainReason: rawCase.rawCarryover.abstainReason }
+        : {}),
       blocking: rawCase.blocking,
+      candidatePrototypeCount: rawCase.rawCarryover?.candidatePrototypeIds.length ?? 0,
       caseId: rawCase.caseId,
+      cueSufficiency,
       datasetFamily: rawCase.datasetFamily,
       diagnosis,
       ...(distilledCase?.passed !== undefined
@@ -241,11 +324,26 @@ export function buildRawInternalizationDiagnosisSummary(
       ...(rawCase.executionFailure
         ? { rawExecutionFailure: rawCase.executionFailure }
         : {}),
+      ...(rawCase.rawCarryover?.hypothesis?.executionMode
+        ? {
+            hypothesisExecutionMode:
+              rawCase.rawCarryover.hypothesis.executionMode,
+          }
+        : {}),
+      ...(rawCase.rawCarryover?.hypothesis?.mappingType
+        ? {
+            hypothesisMappingType: rawCase.rawCarryover.hypothesis.mappingType,
+          }
+        : {}),
       ...(rawCase.passed !== undefined ? { rawPassed: rawCase.passed } : {}),
       rawVsDistilledDelta: delta,
       scorerFamily: rawCase.scorerFamily,
+      selectedPrototypeCount: rawCase.rawCarryover?.selectedPrototypeIds.length ?? 0,
       taskFile: rawCase.taskFile,
       taskName: rawCase.taskName,
+      ...(rawCase.rawCarryover?.topProbability !== undefined
+        ? { topProbability: rawCase.rawCarryover.topProbability }
+        : {}),
     });
   }
 
@@ -257,6 +355,7 @@ export function buildRawInternalizationDiagnosisSummary(
 
   return {
     byCase,
+    byCueSufficiency,
     byDiagnosis,
     byExecutionFailure,
     byFamily,

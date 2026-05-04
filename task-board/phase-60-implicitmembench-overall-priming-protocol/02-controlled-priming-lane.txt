@@ -1,0 +1,33 @@
+Phase 60.2: Controlled Priming Lane
+===================================
+
+Goal
+----
+Make priming a first-class GoodMemory evaluation lane without rewarding
+pollution.
+
+Tasks
+-----
+- [ ] Add a GoodMemory priming profile that covers all `priming_pair_judge`
+  cases.
+- [ ] Keep experimental and control scopes separate:
+  - control sees no priming source
+  - experimental sees the priming source
+  - both scopes are cleaned even when one branch fails
+- [ ] Preserve the final-generation contract:
+  final answer receives only the allowed context and the `test_probe`.
+- [ ] Add a priming result object with:
+  - raw judge score
+  - normalized credit
+  - contamination flags
+  - task-compliance flags
+  - explicit leak flags
+- [ ] Add tests for positive controlled priming, neutral priming, and polluted
+  priming.
+
+Acceptance
+----------
+- Priming coverage is exactly 100 cases in a full-300 run.
+- Priming scores are visible per profile and per case.
+- Positive priming credit is impossible when the answer violates the probe
+  constraints or visibly copies forbidden priming text.

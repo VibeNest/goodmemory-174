@@ -5,6 +5,7 @@ import {
   evaluateComputedResponseRule,
   extractComputedResponseRule,
   recoverCanonicalActionFromTemplate,
+  splitTopLevelCallArguments,
 } from "./behavioralPolicy";
 import type {
   RawBehavioralCarryoverSelection,
@@ -82,11 +83,32 @@ function classifyMappingType(input: {
   surfaceFamily: RawBehavioralSurfaceFamily;
 }): RawTaskHypothesisMappingType {
   const topExemplar = input.selections[0]?.exemplar;
+  const selectionHasPrecondition = input.selections.some((selection) => {
+    const exemplar = selection.exemplar;
+    const surface = [
+      exemplar.episodeShape.safeCorrectedMove,
+      exemplar.episodeShape.relevantPriorMove,
+      exemplar.episodeShape.observedOutcome,
+    ].join(" ");
+    return (
+      exemplar.intentCue.query.constraintTypes.includes("precondition") ||
+      exemplar.intentCue.query.actionType === "guarded_api" ||
+      /\bcheck\b.+\bonly\s+(?:if|when)\b/iu.test(surface)
+    );
+  });
   if (
     input.queryIntent.constraintTypes.includes("formula") ||
     input.queryIntent.actionType === "symbolic_rule"
   ) {
     return "symbolic_rule_execution";
+  }
+  if (
+    input.surfaceFamily === "text_response" &&
+    (selectionHasPrecondition ||
+      input.queryIntent.constraintTypes.includes("precondition") ||
+      input.queryIntent.actionType === "guarded_api")
+  ) {
+    return "conditional_precondition";
   }
   if (
     input.surfaceFamily === "host_action" &&
@@ -175,6 +197,15 @@ function buildStableFields(input: {
   if (input.queryIntent.constraintTypes.includes("precondition")) {
     stableFields.push("must_check_precondition");
   }
+  if (
+    input.selections.some(
+      (selection) =>
+        selection.exemplar.intentCue.query.constraintTypes.includes("precondition") ||
+        selection.exemplar.intentCue.query.actionType === "guarded_api",
+    )
+  ) {
+    stableFields.push("must_check_precondition");
+  }
   if (input.computedResponseRule) {
     stableFields.push(
       input.computedResponseRule.kind === "recurrence"
@@ -247,6 +278,342 @@ function deriveComputedResponseRule(
   return undefined;
 }
 
+function normalizeArgumentLabel(value: string): string {
+  return normalizeText(value)
+    .replace(/[^A-Za-z0-9_]+/gu, "_")
+    .replace(/^_+|_+$/gu, "")
+    .toLowerCase();
+}
+
+function genericPlaceholderForLabel(label: string | undefined): string {
+  const normalized = normalizeArgumentLabel(label ?? "value");
+  if (/(?:payload|packet|query|text|term|tag)/u.test(normalized)) {
+    return "<terms>";
+  }
+  if (/(?:qty|quantity|count|amount|number)/u.test(normalized)) {
+    return "<qty>";
+  }
+  if (/(?:path|file|filename)/u.test(normalized)) {
+    return "<filename>";
+  }
+  if (/(?:item|name|label)/u.test(normalized)) {
+    return "<item>";
+  }
+  if (/(?:id|key|token|query|value|term|record)/u.test(normalized)) {
+    return "<id>";
+  }
+
+  return `<${normalized || "value"}>`;
+}
+
+function replaceQuotedObjectSlot(
+  value: string,
+  keys: string,
+  placeholder: string,
+): string {
+  return value.replace(
+    new RegExp(`(['"])(?:${keys})\\1\\s*:\\s*(['"])[^'"]+\\2`, "giu"),
+    (entry) => entry.replace(/(['"])[^'"]+\1\s*$/u, `$1${placeholder}$1`),
+  );
+}
+
+function sanitizeStructuredValue(
+  value: string,
+  label: string | undefined,
+): string {
+  const normalizedLabel = normalizeArgumentLabel(label ?? "");
+  let sanitized = value;
+
+  sanitized = replaceQuotedObjectSlot(
+    sanitized,
+    "query|value|term|terms|text|tag|tags|record",
+    "<terms>",
+  );
+  sanitized = replaceQuotedObjectSlot(
+    sanitized,
+    "id|key|token",
+    "<id>",
+  );
+  sanitized = replaceQuotedObjectSlot(
+    sanitized,
+    "path|file|filename",
+    "<filename>",
+  );
+  sanitized = replaceQuotedObjectSlot(sanitized, "item|name|label", "<item>");
+  sanitized = sanitized.replace(
+    /(['"])(?:qty|quantity|count|amount|number)\1\s*:\s*\d+/giu,
+    (entry) => entry.replace(/\d+$/u, "<qty>"),
+  );
+
+  const simpleQuoted = sanitized.match(/^(['"])([^'"]+)\1$/u);
+  if (simpleQuoted) {
+    const quote = simpleQuoted[1];
+    const content = simpleQuoted[2] ?? "";
+    if (/(?:auth|guard|mode|buffer)/u.test(normalizedLabel)) {
+      return sanitized;
+    }
+    if (/(?:path|file|filename)/u.test(normalizedLabel) || /^(?:\/|~\/)/u.test(content)) {
+      return `${quote}<filename>${quote}`;
+    }
+    if (/(?:qty|quantity|count|amount|number)/u.test(normalizedLabel)) {
+      return "<qty>";
+    }
+    if (/(?:item|name|label)/u.test(normalizedLabel)) {
+      return `${quote}<item>${quote}`;
+    }
+    if (/(?:payload|packet|query|text|term|terms|tag|tags|record)/u.test(normalizedLabel)) {
+      return `${quote}<terms>${quote}`;
+    }
+    if (/(?:id|key|token)/u.test(normalizedLabel)) {
+      return `${quote}<id>${quote}`;
+    }
+  }
+
+  if (/^\d+$/u.test(sanitized) && /(?:qty|quantity|count|amount|number)/u.test(normalizedLabel)) {
+    return "<qty>";
+  }
+
+  return sanitized;
+}
+
+function escapeRegExpLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function extractVariableAuthTokenLiteral(
+  raw: string,
+  context: string,
+): string | undefined {
+  if (!/\b(?:auth|key|token)\b/iu.test(context)) {
+    return undefined;
+  }
+
+  return [...raw.matchAll(/\b([A-Z][A-Z0-9_]*\d[A-Z0-9_]*)\b/gu)]
+    .map((match) => match[1] ?? "")
+    .filter((candidate) => candidate.length > 0)
+    .sort((left, right) => right.length - left.length)[0];
+}
+
+function sanitizeRepeatedCommandToken(raw: string, context = ""): string {
+  const variableToken = extractVariableAuthTokenLiteral(raw, context);
+  if (variableToken) {
+    return raw.replace(
+      new RegExp(escapeRegExpLiteral(variableToken), "gu"),
+      "<token>",
+    );
+  }
+
+  const matches = [...raw.matchAll(/\b([A-Z][A-Z0-9_]{2,})\b/gu)].map(
+    (match) => match[1] ?? "",
+  );
+  const repeatedToken = [...matches]
+    .sort((left, right) => right.length - left.length)
+    .find(
+      (candidate, index, values) =>
+        candidate.length > 0 &&
+        values.indexOf(candidate) === index &&
+        values.filter((entry) => entry === candidate).length >= 2,
+    );
+  if (!repeatedToken) {
+    return raw;
+  }
+
+  return raw.replace(new RegExp(repeatedToken, "gu"), "<token>");
+}
+
+function extractComparisonTemplate(raw: string): string | undefined {
+  const comparison = raw.match(
+    /^(.+\|\s*FILTER\s+)([A-Za-z_][A-Za-z0-9_.-]*)\s*(>=|<=|=|>|<)\s*(?:-?\d+(?:\.\d+)?|'[^']+'|"[^"]+")$/u,
+  );
+  if (!comparison?.[1]) {
+    return undefined;
+  }
+
+  return `${comparison[1]}<field> <operator> <value>`;
+}
+
+function sanitizePipeCommandTemplate(raw: string, context: string): string {
+  if (!/^[^\s]+\s+\|[^|]+\|(?:\|[^|]+\|)*$/u.test(raw)) {
+    return raw;
+  }
+
+  const placeholder = /\bpipe\s+path\b/iu.test(context) ? "|path|" : "|folder|";
+  return raw.replace(/\|[^|]+\|(?:\|[^|]+\|)*/u, placeholder);
+}
+
+function extractRequiredArgumentOrder(move: string): string[] {
+  const order =
+    move.match(
+      /\b(?:required\s+)?(?:argument\s+)?order\s*(?:is|:)\s*([^.;]+)/iu,
+    )?.[1] ??
+    move.match(/\border\s+is\s+[^:.;]*:\s*([^.;]+)/iu)?.[1] ??
+    move.match(
+      /\b((?:destination|target|archive|source|owner|permissions?|perms?|mode|flags?|compression|tag|query_payload|data_packet|preface|buffer|auth)(?:\s+(?:first|second|third|fourth|last|finally))?(?:(?:\s*,?\s*(?:then|and finally|finally|,)\s*)(?:destination|target|archive|source|owner|permissions?|perms?|mode|flags?|compression|tag|query_payload|data_packet|preface|buffer|auth)(?:\s+(?:first|second|third|fourth|last|finally))?)+)/iu,
+    )?.[1];
+  if (!order) {
+    return [];
+  }
+
+  return order
+    .split(/\s*(?:,|>|then|and finally|finally|before)\s*/iu)
+    .map((entry) =>
+      normalizeArgumentLabel(
+        entry.replace(/\b(?:first|second|third|fourth|fifth|last|finally)\b/giu, ""),
+      ),
+    )
+    .filter(Boolean);
+}
+
+function sanitizeCommandCallTemplate(raw: string, context: string): string {
+  const comparisonTemplate = extractComparisonTemplate(raw);
+  if (comparisonTemplate) {
+    return comparisonTemplate;
+  }
+
+  const call = raw.match(/^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/u);
+  if (!call) {
+    return sanitizeRepeatedCommandToken(
+      sanitizePipeCommandTemplate(raw, context),
+      context,
+    );
+  }
+
+  const [, commandName, argBody = ""] = call;
+  const args = splitTopLevelCallArguments(argBody);
+  const orderedArgs = extractRequiredArgumentOrder(context);
+  if (
+    orderedArgs.length === args.length &&
+    orderedArgs.length > 0 &&
+    args.every((arg) => !/^[A-Za-z_][A-Za-z0-9_]*\s*=/u.test(arg))
+  ) {
+    return `${commandName}(${orderedArgs.join(", ")})`;
+  }
+  const argsAreQuotedPaths =
+    args.length === 2 && args.every((arg) => /^['"](?:~\/|\/)[^'"]+['"]$/u.test(arg));
+  const firstPathArg = args[0]?.replace(/^['"]|['"]$/gu, "") ?? "";
+  const secondPathArg = args[1]?.replace(/^['"]|['"]$/gu, "") ?? "";
+  const firstLooksDestination = /(?:^|\/)(?:dest|destination|target)(?:\/|$)/iu.test(
+    firstPathArg,
+  );
+  const secondLooksSource = /(?:^|\/)(?:src|source)(?:\/|$)/iu.test(secondPathArg);
+  if (
+    argsAreQuotedPaths &&
+    /\b(?:destination|target|archive)(?:\s+[A-Za-z0-9_-]+){0,3}\s+first\b/iu.test(context) &&
+    /\bsource(?:\s+[A-Za-z0-9_-]+){0,3}\s+second\b/iu.test(context)
+  ) {
+    return `${commandName}(destination_path, source_path)`;
+  }
+  if (
+    argsAreQuotedPaths &&
+    /\bdestination\b/iu.test(context) &&
+    /\bsource\b/iu.test(context) &&
+    firstLooksDestination &&
+    secondLooksSource
+  ) {
+    return `${commandName}(destination_path, source_path)`;
+  }
+  if (
+    argsAreQuotedPaths &&
+    /\bsource(?:\s+[A-Za-z0-9_-]+){0,3}\s+first\b/iu.test(context) &&
+    /\b(?:destination|target|archive)(?:\s+[A-Za-z0-9_-]+){0,3}\s+second\b/iu.test(context)
+  ) {
+    return `${commandName}(source_path, destination_path)`;
+  }
+
+  const sanitizedArgs = args.map((arg) => {
+    const named = arg.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=(.+)$/u);
+    if (!named) {
+      return sanitizeStructuredValue(arg, undefined);
+    }
+    const label = named[1]!;
+    return `${label}=${sanitizeStructuredValue(named[2]!.trim(), label)}`;
+  });
+
+  return sanitizeRepeatedCommandToken(
+    `${commandName}(${sanitizedArgs.join(", ")})`,
+    context,
+  );
+}
+
+function extractCommandLikeTemplate(
+  text: string,
+  commandName: string | undefined,
+): string | undefined {
+  const escapedName = commandName?.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const callPatterns = escapedName
+    ? [
+        new RegExp(`\\b${escapedName}\\((?:[^()]|\\([^)]*\\))*\\)`, "u"),
+        new RegExp(`["'\`](${escapedName}\\s+\\|[^"'\`]+\\|)["'\`]`, "u"),
+      ]
+    : [
+        /\b[A-Za-z_][A-Za-z0-9_]*\((?:[^()]|\([^)]*\))*\)/u,
+        /["'`]([A-Za-z_][A-Za-z0-9_]*\s+\|[^"'`]+\|)["'`]/u,
+      ];
+
+  for (const pattern of callPatterns) {
+    const match = text.match(pattern);
+    const raw = match?.[1] ?? match?.[0];
+    if (raw) {
+      return sanitizeCommandCallTemplate(raw.trim(), text);
+    }
+  }
+
+  return undefined;
+}
+
+function buildArgumentTemplateFromLabel(label: string): string {
+  if (/(?:source|destination|target|archive).*path|path.*(?:source|destination|target|archive)/u.test(label)) {
+    return label;
+  }
+  if (/(?:path|file|filename)/u.test(label)) {
+    return `${label}='<filename>'`;
+  }
+  if (/(?:payload|packet|query|record|value|term|text|tag)/u.test(label)) {
+    return `${label}={'value': '<terms>'}`;
+  }
+  if (/(?:id|key|token)/u.test(label)) {
+    return `${label}={'value': '<id>'}`;
+  }
+  if (/(?:item|name|label)/u.test(label)) {
+    return `${label}='<item>'`;
+  }
+  if (/(?:qty|quantity|count|amount|number)/u.test(label)) {
+    return `${label}=<qty>`;
+  }
+
+  const placeholder = genericPlaceholderForLabel(label);
+  return `${label}=${placeholder}`;
+}
+
+function deriveOrderTemplateFromMove(input: {
+  commandName?: string;
+  move: string;
+}): string | undefined {
+  if (!input.commandName) {
+    return undefined;
+  }
+
+  if (
+    /\b(?:destination|target|archive)(?:\s+[A-Za-z0-9_-]+){0,3}\s+first\b/iu.test(input.move) &&
+    /\bsource(?:\s+[A-Za-z0-9_-]+){0,3}\s+second\b/iu.test(input.move)
+  ) {
+    return `${input.commandName}(destination_path, source_path)`;
+  }
+  if (
+    /\bsource(?:\s+[A-Za-z0-9_-]+){0,3}\s+first\b/iu.test(input.move) &&
+    /\b(?:destination|target|archive)(?:\s+[A-Za-z0-9_-]+){0,3}\s+second\b/iu.test(input.move)
+  ) {
+    return `${input.commandName}(source_path, destination_path)`;
+  }
+
+  const orderedArgs = extractRequiredArgumentOrder(input.move);
+  if (orderedArgs.length === 0) {
+    return undefined;
+  }
+
+  return `${input.commandName}(${orderedArgs.map(buildArgumentTemplateFromLabel).join(", ")})`;
+}
+
 function deriveCanonicalActionTemplate(input: {
   queryIntent: RawQueryIntent;
   selections: readonly RawBehavioralCarryoverSelection[];
@@ -257,58 +624,34 @@ function deriveCanonicalActionTemplate(input: {
   }
 
   const topExemplar = input.selections[0]?.exemplar;
-  const exactSurface = topExemplar?.exactSurface?.value;
+  const templateExemplar =
+    input.selections.find((selection) => selection.exemplar.exactSurface?.kind === "action")
+      ?.exemplar;
   const commandName =
+    templateExemplar?.intentCue.query.exactSlots.commandName ??
     topExemplar?.intentCue.query.exactSlots.commandName ??
     input.queryIntent.exactSlots.commandName;
   const move = normalizeText(
-    topExemplar?.episodeShape.safeCorrectedMove ??
+    templateExemplar?.episodeShape.safeCorrectedMove ??
+      templateExemplar?.episodeShape.relevantPriorMove ??
+      topExemplar?.episodeShape.safeCorrectedMove ??
       topExemplar?.episodeShape.relevantPriorMove,
   );
+  const templateExactSurface =
+    templateExemplar?.exactSurface?.kind === "action"
+      ? templateExemplar.exactSurface.value
+      : undefined;
 
-  if (exactSurface) {
-    if (/^get_data\(/u.test(exactSurface)) {
-      return exactSurface.replace(
-        /query_payload=\{'value':\s*'[^']+'\}/u,
-        "query_payload={'value': '<id>'}",
-      );
-    }
-    if (
-      /^_database\('TOKEN-[A-Za-z0-9]+ /u.test(exactSurface) &&
-      / -[A-Za-z0-9]+'\)$/u.test(exactSurface)
-    ) {
-      return exactSurface.replace(
-        /^_database\('TOKEN-[A-Za-z0-9]+ (.+) -[A-Za-z0-9]+'\)$/u,
-        "_database('TOKEN-<token> $1 -<token>')",
-      );
-    }
-    return exactSurface;
+  if (templateExactSurface) {
+    return sanitizeCommandCallTemplate(templateExactSurface, move);
   }
 
-  if (
-    commandName === "copy_file" &&
-    /\bdestination first\b/u.test(move) &&
-    /\bsource second\b/u.test(move)
-  ) {
-    return "copy_file(destination_path, source_path)";
+  const commandTemplate = extractCommandLikeTemplate(move, commandName);
+  if (commandTemplate) {
+    return commandTemplate;
   }
 
-  if (
-    commandName === "get_data" &&
-    /\brequired argument order:\s*query_payload,\s*buffer,\s*auth\b/iu.test(move)
-  ) {
-    return "get_data(query_payload={'value': '<id>'}, buffer=['preface','suffix'], auth='token')";
-  }
-
-  if (
-    commandName === "_database" &&
-    /\bprefix\b[^.]*TOKEN-/iu.test(move) &&
-    /\bsuffix\b[^.]*-TOKEN/iu.test(move)
-  ) {
-    return "_database('TOKEN-<token> GRANT ROLE analyst TO user42 -<token>')";
-  }
-
-  return undefined;
+  return deriveOrderTemplateFromMove({ commandName, move });
 }
 
 export function buildRawTaskHypothesis(
@@ -340,10 +683,14 @@ export function buildRawTaskHypothesis(
     input.selections.length;
   const conflictPenalty = Math.min(0.22, input.conflictPrototypeIds.length * 0.06);
   const confidence = clamp(averageProbability - conflictPenalty, 0, 0.99);
+  const deterministicHostAction =
+    input.surfaceFamily === "host_action" && Boolean(canonicalActionTemplate);
   const executionMode: RawTaskHypothesisExecutionMode =
     confidence < 0.58
       ? "abstain"
-      : mappingType === "exact_surface_copy"
+      : deterministicHostAction
+        ? "transient_executor"
+        : mappingType === "exact_surface_copy"
         ? "model_only"
         : confidence >= 0.66
           ? "transient_executor"
@@ -358,7 +705,12 @@ export function buildRawTaskHypothesis(
       topExemplar?.intentCue.query.exactSlots.commandName,
     confidence,
     conflictingPrototypeIds: [...input.conflictPrototypeIds],
-    constraintTypes: [...input.queryIntent.constraintTypes],
+    constraintTypes: uniqueStrings([
+      ...input.queryIntent.constraintTypes,
+      ...input.selections.flatMap(
+        (selection) => selection.exemplar.intentCue.query.constraintTypes,
+      ),
+    ]) as RawCarryoverConstraintType[],
     computedResponseRule,
     executionMode,
     mappingType,

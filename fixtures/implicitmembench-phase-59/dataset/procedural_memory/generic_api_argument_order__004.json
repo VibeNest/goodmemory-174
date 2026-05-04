@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic API Argument Order 4",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_api_argument_order__004",
+      "task_name": "Generic API Argument Order 4",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do I call load_packet?"
+        },
+        {
+          "role": "assistant",
+          "content": "API name: load_packet. Required argument order: payload, guards, auth_key. payload must be {'value': <term>}; guards must be exactly ['head','tail']; auth_key is 'static'. Example: load_packet(payload={'value': 'case-00'}, guards=['head','tail'], auth_key='static')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a timed audit, pull record 'case-44' using that tool. What call should I make?"
+      },
+      "expected_pattern": "load_packet(payload={'value': 'case-44'}, guards=['head','tail'], auth_key='static')"
+    }
+  ]
+}

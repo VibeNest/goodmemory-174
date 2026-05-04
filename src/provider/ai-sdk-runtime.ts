@@ -18,6 +18,7 @@ export interface AISDKModelConfig {
 
 interface EmbeddingAdapterDependencies {
   embedMany?: typeof embedMany;
+  requestTimeoutMs?: number;
   resolveEmbeddingModel?: typeof resolveAISDKEmbeddingModel;
   retryOptions?: AISDKRetryOptions;
 }
@@ -758,11 +759,23 @@ export function createAISDKEmbeddingAdapter(input: {
       }
 
       const embeddings = await withAISDKRetries(async () => {
-        const result = await (input.dependencies?.embedMany ?? embedMany)({
-          model: (
-            input.dependencies?.resolveEmbeddingModel ?? resolveAISDKEmbeddingModel
-          )(input.model),
-          values: texts,
+        const controller = new AbortController();
+        const timeoutMs =
+          input.dependencies?.requestTimeoutMs ??
+          DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS;
+        const timeoutMessage = `AI SDK embedding timeout after ${timeoutMs}ms.`;
+        const result = await withOpenAICompatibleTimeout({
+          timeoutMs,
+          message: timeoutMessage,
+          onTimeout: () => controller.abort(new Error(timeoutMessage)),
+          operation: () =>
+            (input.dependencies?.embedMany ?? embedMany)({
+              abortSignal: controller.signal,
+              model: (
+                input.dependencies?.resolveEmbeddingModel ?? resolveAISDKEmbeddingModel
+              )(input.model),
+              values: texts,
+            }),
         });
 
         return result.embeddings;

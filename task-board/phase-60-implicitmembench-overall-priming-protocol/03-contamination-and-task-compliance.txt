@@ -1,0 +1,28 @@
+Phase 60.3: Contamination And Task Compliance
+=============================================
+
+Goal
+----
+Separate useful implicit influence from harmful carryover.
+
+Tasks
+-----
+- [ ] Detect explicit memory-note leakage in priming answers.
+- [ ] Detect copied priming-source nouns and source phrases when the probe
+  forbids reuse.
+- [ ] Detect task-format violations such as invalid JSON, extra commentary, or
+  wrong item counts.
+- [ ] Make contaminated or non-compliant priming cases score as zero overall
+  credit even if the priming judge sees thematic influence.
+- [ ] Add aggregate fields:
+  - `primingContaminationCount`
+  - `primingTaskViolationCount`
+  - `primingExplicitLeakCount`
+  - `primingEligibleCount`
+
+Acceptance
+----------
+- A high priming influence score by itself is not enough to improve the overall
+  score.
+- The summary can explain whether priming is helping implicitly or merely
+  leaking/copying prior context.

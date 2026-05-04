@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { createEpisodeMemory } from "../../src/domain/records";
-import { applyTextResponseEnactmentPlan } from "../../src/evolution/behavioralPolicy";
+import {
+  applyTextResponseEnactmentPlan,
+  recoverCanonicalActionFromTemplate,
+} from "../../src/evolution/behavioralPolicy";
 import { buildBehavioralOutcomePolicyApplied } from "../../src/evolution/behavioralTelemetry";
 import { createExperienceRecord } from "../../src/evolution/contracts";
 import {
@@ -110,6 +113,47 @@ describe("raw behavioral exemplars", () => {
     expect(rendered).toContain(
       "copy_file('/var/backup/report.txt', '/data/report.txt')",
     );
+  });
+
+  it("treats malformed archive and episode arrays as empty during index construction", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [
+            {
+              archivedAt: "2026-05-04T00:00:00.000Z",
+              id: "archive-missing-arrays",
+              keyDecisions: undefined,
+              normalizedTranscript: undefined,
+              summary: "Prefer a one-line answer with the requested prefix.",
+              unresolvedItems: undefined,
+            } as any,
+          ],
+          episodes: [
+            {
+              ...createEpisodeMemory({
+                id: "episode-missing-arrays",
+                userId: baseScope.userId,
+                summary: "Prefer a one-line answer with the requested prefix.",
+                workspaceId: baseScope.workspaceId,
+              }),
+              keyDecisions: undefined,
+              unresolvedItems: undefined,
+            } as any,
+          ],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+    });
+
+    expect(index.exemplars.length).toBeGreaterThanOrEqual(1);
+    expect(
+      index.exemplars.every((exemplar) =>
+        exemplar.episodeShape.relevantPriorMove.includes("one-line"),
+      ),
+    ).toBe(true);
   });
 
   it("abstains when the top candidates are ambiguous", () => {
@@ -364,6 +408,460 @@ describe("raw behavioral exemplars", () => {
     );
   });
 
+  it("recovers destination-source templates when the executable example is a follow-up", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Can you explain how to use the copy_file utility?",
+        },
+        {
+          role: "assistant",
+          content:
+            "The copy_file utility uses a reversed order: provide the destination path first, then the source path.",
+        },
+        {
+          role: "user",
+          content: "What does the destination path mean?",
+        },
+        {
+          role: "assistant",
+          content:
+            "The destination path is where the file should end up; the source path is the current file location. For example: copy_file('/dest/path/file.txt', '/src/path/file.txt').",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query:
+        "During a practical exam, I'm asked to copy a report into '/var/backup/reports/'. Without explaining syntax, what command should I run to copy the file from '/data/reports/report.txt' into that folder?",
+      surfaceFamily: "host_action",
+    });
+
+    expect(resolution.packet?.computedResponse).toBe(
+      "copy_file('/var/backup/reports/report.txt', '/data/reports/report.txt')",
+    );
+  });
+
+  it("combines a host-action prefix rule with a later executable example", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "How do I query the database with an auth token?",
+        },
+        {
+          role: "assistant",
+          content:
+            "You must include your auth token twice: prefix the single-string command with 'TOKEN-' and also suffix it with '-TOKEN' before sending to the database.",
+        },
+        {
+          role: "user",
+          content: "Can you give me an example?",
+        },
+        {
+          role: "assistant",
+          content:
+            "For example, to grant a role you would write: _database('TOKEN-TOKEN123 GRANT ROLE analyst TO user42 -TOKEN123').",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query:
+        "During a security audit exam, I was being asked a question about how to grant the analyst role to user42 if I have a token 'TOKEN-456'?",
+      surfaceFamily: "host_action",
+    });
+
+    expect(resolution.packet?.computedResponse).toBe(
+      "_database('TOKEN-TOKEN456 GRANT ROLE analyst TO user42 -TOKEN456')",
+    );
+  });
+
+  it("rebinds the variable auth token instead of repeated static wrappers", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "How does the auth token work with the database query?",
+        },
+        {
+          role: "assistant",
+          content:
+            "Use a single-string command that wraps the SQL with your token: prefix with 'AUTH-' and suffix with '-AUTH' before sending.",
+        },
+        {
+          role: "user",
+          content: "What is the correct format for the query string?",
+        },
+        {
+          role: "assistant",
+          content:
+            "You should format it like this: run_secure_query('AUTH-TOKEN123 DROP ROLE guest IF EXISTS -AUTH').",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query:
+        "Show how to drop the guest role if I have a different token, named 'TOKEN-456'.",
+      surfaceFamily: "host_action",
+    });
+
+    expect(resolution.packet?.computedResponse).toBe(
+      "run_secure_query('AUTH-TOKEN456 DROP ROLE guest IF EXISTS -AUTH')",
+    );
+  });
+
+  it("preserves token separator style when filling auth-wrapper templates", () => {
+    const recovered = recoverCanonicalActionFromTemplate({
+      query:
+        "Grant schema usage on analytics to user5 using a new token 'NEW-TOKEN'.",
+      template:
+        "query_database('_SECURE_<token> GRANT SCHEMA USAGE ON analytics TO user5 _SECURE')",
+    });
+
+    expect(recovered).toBe(
+      "query_database('_SECURE_NEW_TOKEN GRANT SCHEMA USAGE ON analytics TO user5 _SECURE')",
+    );
+  });
+
+  it("rebinds generic piped filter field operator and value from the probe", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "How do I retrieve users from the database?",
+        },
+        {
+          role: "assistant",
+          content: "Use the pipe style: start with FETCH users.",
+        },
+        {
+          role: "user",
+          content: "What if I only want users with salary more than 10000?",
+        },
+        {
+          role: "assistant",
+          content:
+            "Filter by salary using a pipe, e.g.: FETCH users | FILTER salary > 10000.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query:
+        "Submit one command that lists users whose last_login is earlier than 2023-09-01.",
+      surfaceFamily: "host_action",
+    });
+
+    expect(resolution.packet?.computedResponse).toBe(
+      "FETCH users | FILTER last_login < '2023-09-01'",
+    );
+  });
+
+  it("turns repeated system failures into a precondition contract once a later safe move succeeds", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Can you process the workload with HeavyComputationAPI?",
+        },
+        {
+          role: "assistant",
+          content: "Calling HeavyComputationAPI now...",
+        },
+        {
+          role: "system",
+          content: "System Overloaded: Try again later.",
+        },
+        {
+          role: "user",
+          content: "Please run HeavyComputationAPI again.",
+        },
+        {
+          role: "assistant",
+          content: "Running HeavyComputationAPI...",
+        },
+        {
+          role: "system",
+          content: "System Overloaded: Try again later.",
+        },
+        {
+          role: "user",
+          content: "Can you check the current system load?",
+        },
+        {
+          role: "assistant",
+          content:
+            "Checking load, then running HeavyComputationAPI only if load is Normal...",
+        },
+        {
+          role: "system",
+          content: "Load: Normal. HeavyComputationAPI completed successfully.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Use HeavyComputationAPI for the database job.",
+      surfaceFamily: "text_response",
+    });
+    const repaired = applyTextResponseEnactmentPlan({
+      answer: "Executing HeavyComputationAPI for the database job...",
+      plan: resolution.packet?.textResponsePlan,
+      query: "Use HeavyComputationAPI for the database job.",
+    });
+
+    expect(resolution.debug.hypothesis?.mappingType).toBe(
+      "conditional_precondition",
+    );
+    expect(resolution.packet?.promptPayload).toContain("Safe corrected move:");
+    expect(resolution.packet?.promptPayload).toContain(
+      "require_precondition_check",
+    );
+    expect(repaired).toContain("Check load first.");
+    expect(repaired).toContain("Only proceed when load is Normal");
+  });
+
+  it("generalizes state-gated failures into precondition enforcement", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Submit the nightly export with BatchRunner.",
+        },
+        {
+          role: "assistant",
+          content: "Submitting the nightly export with BatchRunner...",
+        },
+        {
+          role: "system",
+          content: "Queue Full: no worker slots are available.",
+        },
+        {
+          role: "user",
+          content: "Check the worker queue first.",
+        },
+        {
+          role: "assistant",
+          content:
+            "Checking worker queue; will submit only if slots are available.",
+        },
+        {
+          role: "system",
+          content: "Worker queue: slots available. BatchRunner completed successfully.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Submit the weekly export with BatchRunner.",
+      surfaceFamily: "text_response",
+    });
+    const repaired = applyTextResponseEnactmentPlan({
+      answer: "Submitting the weekly export with BatchRunner...",
+      plan: resolution.packet?.textResponsePlan,
+      query: "Submit the weekly export with BatchRunner.",
+    });
+
+    expect(resolution.debug.hypothesis?.mappingType).toBe(
+      "conditional_precondition",
+    );
+    expect(resolution.packet?.promptPayload).toContain(
+      "require_precondition_check",
+    );
+    expect(repaired).toContain("Check worker queue first.");
+    expect(repaired).toContain("Only proceed when slots are available");
+  });
+
+  it("compiles impatience feedback into concise bullet enforcement", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Explain the delivery pipeline in depth.",
+        },
+        {
+          role: "assistant",
+          content:
+            "The delivery pipeline has many stages, including checkout, dependency installation, tests, security scanning, image building, rollout orchestration, monitoring, and rollback coordination across teams.",
+        },
+        {
+          role: "system",
+          content: "Cue detected: User impatience after lengthy answer.",
+        },
+        {
+          role: "user",
+          content: "Quick version.",
+        },
+        {
+          role: "assistant",
+          content: "- Build and test\n- Scan and package\n- Deploy and monitor",
+        },
+        {
+          role: "system",
+          content: "Success: Concise bullet-point response reduced frustration.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Summarize the delivery pipeline.",
+      surfaceFamily: "text_response",
+    });
+    const repaired = applyTextResponseEnactmentPlan({
+      answer:
+        "The delivery pipeline checks out code, runs tests, performs security scanning, packages artifacts, deploys progressively, monitors health, and supports rollback if service indicators degrade.",
+      plan: resolution.packet?.textResponsePlan,
+      query: "Summarize the delivery pipeline.",
+    });
+
+    expect(resolution.packet?.promptPayload).toContain("bullet_only");
+    expect(repaired).toMatch(/^- /u);
+    expect(repaired.split("\n").length).toBeLessThanOrEqual(3);
+    expect(repaired).not.toContain("The delivery pipeline checks out code, runs tests, performs security scanning, packages artifacts");
+  });
+
+  it("enforces raw brevity feedback as a deterministic command-only repair", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "What's the command to check Python version?",
+        },
+        {
+          role: "assistant",
+          content:
+            "python --version. Additionally, you might be interested in virtual environments...",
+        },
+        {
+          role: "system",
+          content: "User feedback: I just need the command.",
+        },
+        {
+          role: "user",
+          content: "How do I restart nginx on Ubuntu?",
+        },
+        {
+          role: "assistant",
+          content:
+            "Use sudo systemctl restart nginx. For more context, here's how systemd works...",
+        },
+        {
+          role: "system",
+          content: "User feedback: In a rush—just the command, please.",
+        },
+        {
+          role: "user",
+          content: "Show hidden files on macOS Finder?",
+        },
+        {
+          role: "assistant",
+          content: "Press Cmd+Shift+.",
+        },
+        {
+          role: "system",
+          content: "Success: Concise answer without extras.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Quick: command to check disk usage summary for current dir?",
+      surfaceFamily: "text_response",
+    });
+    const repaired = applyTextResponseEnactmentPlan({
+      answer:
+        "I’d use:\n\n```bash\ndu -sh .\n```\n\nAdditionally, you might be interested in `du -sh *`.",
+      plan: resolution.packet?.textResponsePlan,
+      query: "Quick: command to check disk usage summary for current dir?",
+    });
+
+    expect(resolution.packet?.textResponsePlan?.brevityOnly).toBe(true);
+    expect(repaired).toBe("du -sh .");
+  });
+
   it("recovers exact host-action templates for pipe-wrapped folders and eccentric APIs", () => {
     const folderIndex = buildRawBehavioralPrototypeIndex({
       memoryExport: {
@@ -427,6 +925,120 @@ describe("raw behavioral exemplars", () => {
     });
     expect(apiResolution.packet?.computedResponse).toBe(
       "get_data(query_payload={'value': 'invoice-042'}, buffer=['preface','suffix'], auth='token')",
+    );
+  });
+
+  it("recovers labeled argument order from exemplar values instead of copying stale slots", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "How do I copy a file with metadata?",
+        },
+        {
+          role: "assistant",
+          content:
+            "Use copy_with_meta. The required order is destination first, then source, then owner, and finally permissions. Example: copy_with_meta('/dst/report.txt', '/src/report.txt', 'analytics', '0640').",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query:
+        "Copy '/mnt/class/data.csv' into '/mnt/submissions/u1001/' while assigning owner 'grader' and perms '0644'.",
+      surfaceFamily: "host_action",
+    });
+
+    expect(resolution.packet?.computedResponse).toBe(
+      "copy_with_meta('/mnt/submissions/u1001/data.csv', '/mnt/class/data.csv', 'grader', '0644')",
+    );
+  });
+
+  it("recovers generic piped filter comparisons from the current probe", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "How do I filter records by age?",
+        },
+        {
+          role: "assistant",
+          content: "Use a piped command, for example: FETCH users | FILTER age = 30.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "List users who are older than 30 with one piped command.",
+      surfaceFamily: "host_action",
+    });
+
+    expect(resolution.packet?.computedResponse).toBe(
+      "FETCH users | FILTER age > 30",
+    );
+  });
+
+  it("prefers an executable API template over a quoted text interference fragment", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "host_action",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Can you show me how to fetch data using the unconventional API call?",
+        },
+        {
+          role: "assistant",
+          content:
+            "API name: fetch_data. Required order: data_packet, preface, buffer, auth. data_packet must be {'text': <terms>}; preface is '[HDR]'; buffer is b'0001'; auth is 'api-key-1'. Example: fetch_data(data_packet={'text': 'alpha beta'}, preface='[HDR]', buffer=b'0001', auth='api-key-1').",
+        },
+        {
+          role: "user",
+          content: "If I need to search for multiple terms, how can I do that?",
+        },
+        {
+          role: "assistant",
+          content: "Use ripgrep with alternation, e.g. rg -nE 'term1|term2' -S .",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query:
+        "For the demo, I need combined results for tags 'alpha' and 'beta' with that method.",
+      surfaceFamily: "host_action",
+    });
+
+    expect(resolution.packet?.computedResponse).toBe(
+      "fetch_data(data_packet={'text': 'alpha beta'}, preface='[HDR]', buffer=b'0001', auth='api-key-1')",
     );
   });
 
@@ -521,7 +1133,7 @@ describe("raw behavioral exemplars", () => {
         plan: resolution.packet?.textResponsePlan,
         query: "Save the new report under /root/app/new.txt.",
       }),
-    ).toContain("safe user-writable home-directory path");
+    ).toContain("/home/alice/safe/new.txt");
   });
 
   it("compiles corrected timeout experience into inhibition plus preferred replacement", () => {
@@ -578,7 +1190,100 @@ describe("raw behavioral exemplars", () => {
         plan: resolution.packet?.textResponsePlan,
         query: "I need a detailed analysis of the network traffic.",
       }),
-    ).toBe("Warn first and use QuickCheck instead of the heavier analyzer.");
+    ).toBe("Warn first and use QuickCheck instead of DeepAnalyzer.");
+  });
+
+  it("does not retrieve corrected experiences with no latent cue overlap", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Run a detailed analysis of network traffic.",
+        },
+        {
+          role: "assistant",
+          content: "Use DeepAnalyzer --detailed.",
+        },
+        {
+          role: "system",
+          content: "Tool outcome: DeepAnalyzer timed out.",
+        },
+        {
+          role: "system",
+          content:
+            "Expected behavior: Avoid DeepAnalyzer for detailed analysis. Use QuickCheck first or warn before a heavier scan.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Write a friendly greeting for a teammate.",
+      surfaceFamily: "text_response",
+    });
+
+    expect(resolution.debug.mode).toBe("abstained");
+    expect(resolution.debug.abstainReason).toBe("no_candidates");
+    expect(resolution.debug.candidatePrototypeIds).toEqual([]);
+  });
+
+  it("retrieves correction-backed contracts through latent cue compatibility", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Check endpoint health with FragileAPI.",
+        },
+        {
+          role: "assistant",
+          content: "Use FragileAPI for the endpoint check.",
+        },
+        {
+          role: "system",
+          content: "Tool failure: FragileAPI returned deprecated endpoint errors.",
+        },
+        {
+          role: "system",
+          content:
+            "Expected behavior: Avoid FragileAPI for endpoint health. Use StableAPI and include a warning about the deprecated service.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Prepare a service reliability note for endpoint health.",
+      surfaceFamily: "text_response",
+    });
+    const blockOperation = resolution.packet?.textResponsePlan?.operations.find(
+      (operation) => operation.kind === "block_surface",
+    );
+
+    expect(resolution.debug.mode).toBe("exemplar_only");
+    expect(resolution.debug.selectedPrototypeIds.length).toBeGreaterThan(0);
+    expect(blockOperation).toEqual(
+      expect.objectContaining({
+        forbiddenFragments: ["FragileAPI"],
+      }),
+    );
   });
 
   it("compiles raw exact-format corrections into prefix and suffix enforcement", () => {
@@ -622,5 +1327,157 @@ describe("raw behavioral exemplars", () => {
 
     expect(enforced.startsWith("Dear Team,")).toBe(true);
     expect(enforced.endsWith("Sincerely, TechNova Management.")).toBe(true);
+  });
+
+  it("keeps natural-language format procedures on the text response surface", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Can you explain how to write a formal email?",
+        },
+        {
+          role: "assistant",
+          content:
+            "Sure Use 'Greetings,' as the opener and 'Respectfully,' as the closing; add 'Subject: [Notice] ...' and a one-line 'Purpose:' header.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Could you compose a formal notice email to the committee?",
+      surfaceFamily: "text_response",
+    });
+    const enforced = applyTextResponseEnactmentPlan({
+      answer:
+        "Subject: Formal Notice\n\nDear Committee,\nPlease review the notice.\n\nBest regards,\nName",
+      plan: resolution.packet?.textResponsePlan,
+      query: "Could you compose a formal notice email to the committee?",
+    });
+
+    expect(resolution.debug.mode).toBe("exemplar_only");
+    expect(enforced).toContain("Subject: [Notice] ...");
+    expect(enforced).toContain("Greetings,");
+    expect(enforced).toContain("Purpose:");
+    expect(enforced.endsWith("Respectfully,")).toBe(true);
+  });
+
+  it("turns confusion feedback into jargon inhibition with analogy fallback", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "Can you explain what an API is?",
+        },
+        {
+          role: "assistant",
+          content: "An API is a set of rules for how software applications interact.",
+        },
+        {
+          role: "system",
+          content: "I don't understand.",
+        },
+        {
+          role: "user",
+          content: "Can you give me a simpler explanation?",
+        },
+        {
+          role: "assistant",
+          content: "Sure, it is like a waiter taking your order to the kitchen.",
+        },
+        {
+          role: "system",
+          content: "That makes sense!",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "Can you explain what an API does in simple terms?",
+      surfaceFamily: "text_response",
+    });
+    const enforced = applyTextResponseEnactmentPlan({
+      answer: "An API is like a waiter. The API carries requests between systems.",
+      plan: resolution.packet?.textResponsePlan,
+      query: "Can you explain what an API does in simple terms?",
+    });
+
+    expect(resolution.packet?.textResponsePlan?.operations.length).toBeGreaterThan(0);
+    expect(enforced.toLowerCase()).not.toContain("api");
+    expect(enforced.toLowerCase()).toContain("waiter");
+  });
+
+  it("repairs first-person-only raw voice contracts deterministically", () => {
+    const index = buildRawBehavioralPrototypeIndex({
+      memoryExport: {
+        durable: {
+          archives: [],
+          episodes: [],
+          experiences: [],
+        },
+        scope: baseScope,
+      },
+      surfaceHint: "text_response",
+      transientMessages: [
+        {
+          role: "user",
+          content: "How does the grove sentinel greet dawn?",
+        },
+        {
+          role: "assistant",
+          content:
+            "I greet dawn with my breath low as moss after rain; I must answer only in first person and use living botanical similes.",
+        },
+      ],
+    });
+
+    const resolution = resolveRawBehavioralCarryover({
+      index,
+      query: "How does the grove sentinel calm a storm?",
+      surfaceFamily: "text_response",
+    });
+    const enforced = applyTextResponseEnactmentPlan({
+      answer:
+        "It raises its staff, and you feel the storm soften like a curtain.",
+      plan: resolution.packet?.textResponsePlan,
+      query: "How does the grove sentinel calm a storm?",
+    });
+
+    expect(resolution.packet?.promptPayload).toContain("block_surface");
+    expect(enforced).toMatch(/\bI\b/u);
+    expect(enforced).toMatch(/\blike\b/iu);
+    expect(enforced).not.toMatch(
+      /\b(?:he|him|his|it|its|our|ours|she|them|their|theirs|they|us|we|you|your|yours)\b/iu,
+    );
+  });
+
+  it("fills generic comparison templates from natural language probes", () => {
+    expect(
+      recoverCanonicalActionFromTemplate({
+        query:
+          "In this query language, list records with score above 7. What single command should I run?",
+        template: "LOOKUP records | FILTER score <operator> <value>",
+      }),
+    ).toBe("LOOKUP records | FILTER score > 7");
   });
 });

@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Reversed Action 4",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_reversed_action__004",
+      "task_name": "Generic Reversed Action 4",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does shift_blob order its arguments?"
+        },
+        {
+          "role": "assistant",
+          "content": "The shift_blob utility uses destination path first, then source path second. Example: shift_blob('/dest/example.txt', '/src/example.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab run, copy from '/src/phase59/item4.txt' into '/dest/phase59/4/'. What single command should I run?"
+      },
+      "expected_pattern": "shift_blob('/dest/phase59/4/item4.txt', '/src/phase59/item4.txt')"
+    }
+  ]
+}

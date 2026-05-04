@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Precondition Contract 2",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_precondition_contract__002",
+      "task_name": "Generic Precondition Contract 2",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Use BatchSend for the next batch."
+        },
+        {
+          "role": "assistant",
+          "content": "Starting BatchSend immediately."
+        },
+        {
+          "role": "system",
+          "content": "Tool failure: BatchSend was unsafe before checking the window."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Before using BatchSend, check window first; only proceed if window is green."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Please run BatchSend now for the next batch."
+      },
+      "expected_pattern": "Check window first and proceed only if window is green."
+    }
+  ]
+}

@@ -98,6 +98,7 @@ export interface ImplicitMemBenchAdapterManifest {
 }
 
 const DEFAULT_IMPLICITMEMBENCH_TIMEOUT_MS = 90_000;
+const DEFAULT_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS = 30_000;
 
 export interface ImplicitMemBenchTimeoutContext {
   signal: AbortSignal;
@@ -156,6 +157,13 @@ function resolveImplicitMemBenchTimeoutMs(): number {
   }
 
   return parsed;
+}
+
+function resolveImplicitMemBenchPrimingTimeoutMs(): number {
+  return Math.min(
+    resolveImplicitMemBenchTimeoutMs(),
+    DEFAULT_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS,
+  );
 }
 
 export async function withImplicitMemBenchTimeout<T>(input: {
@@ -1363,8 +1371,20 @@ function parseStructuredActionExample(
 
 function sanitizeStructuredTemplateRaw(raw: string, context?: string): string {
   let template = raw;
+  const pathCall = template.match(/^([A-Za-z_][A-Za-z0-9_]*)\((['"](?:~\/|\/)[^'"]+['"])\s*,\s*(['"](?:~\/|\/)[^'"]+['"])\)$/u);
+  if (
+    pathCall &&
+    /\b(?:destination|target|archive)\s+first\b/iu.test(context ?? "") &&
+    /\bsource\s+second\b/iu.test(context ?? "")
+  ) {
+    template = `${pathCall[1]}(destination_path, source_path)`;
+  }
   template = template.replace(
     /(query_payload=\{'value':\s*)'[^']+'(\})/u,
+    "$1'<id>'$2",
+  );
+  template = template.replace(
+    /(\b[A-Za-z_][A-Za-z0-9_]*\s*=\s*\{['"]value['"]:\s*)'[^']+'(\})/gu,
     "$1'<id>'$2",
   );
   template = template.replace(
@@ -2767,15 +2787,19 @@ async function defaultLiveTextJudge(
       throwIfImplicitMemBenchAborted(signal);
 
       if (model.provider === "openai" && model.baseURL) {
-        return requestOpenAICompatibleObject({
-          model,
-          prompt,
-          schema: textJudgeSchema,
-          signal,
-          system:
-            "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
-          timeoutMs,
-        });
+        return withAISDKRetries(
+          () =>
+            requestOpenAICompatibleObject({
+              model,
+              prompt,
+              schema: textJudgeSchema,
+              signal,
+              system:
+                "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+              timeoutMs,
+            }),
+          createImplicitMemBenchRetryOptions(signal),
+        );
       }
 
       const { object } = await withAISDKRetries(
@@ -2819,15 +2843,19 @@ async function defaultLivePrimingJudge(
       throwIfImplicitMemBenchAborted(signal);
 
       if (model.provider === "openai" && model.baseURL) {
-        return requestOpenAICompatibleObject({
-          model,
-          prompt,
-          schema: primingJudgeSchema,
-          signal,
-          system:
-            "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
-          timeoutMs,
-        });
+        return withAISDKRetries(
+          () =>
+            requestOpenAICompatibleObject({
+              model,
+              prompt,
+              schema: primingJudgeSchema,
+              signal,
+              system:
+                "You are a strict benchmark judge. Return only valid JSON matching the requested shape.",
+              timeoutMs,
+            }),
+          createImplicitMemBenchRetryOptions(signal),
+        );
       }
 
       const { object } = await withAISDKRetries(
@@ -3217,97 +3245,104 @@ async function evaluateGoodMemoryCase(input: {
     execute: async () => {
       try {
         if (input.caseDefinition.scorerFamily === "priming_pair_judge") {
-          const experimentalScope = {
-            ...scope,
-            workspaceId: `${scope.workspaceId}-experimental`,
-          };
-          const controlScope = {
-            ...scope,
-            workspaceId: `${scope.workspaceId}-control`,
-          };
-          trackCleanupScope(experimentalScope);
-          trackCleanupScope(controlScope);
+          const primingCase = input.caseDefinition;
+          return await withImplicitMemBenchTimeout({
+            label: `goodmemory_priming_case:${primingCase.caseId}:${input.profile}`,
+            timeoutMs: resolveImplicitMemBenchPrimingTimeoutMs(),
+            run: async () => {
+              const experimentalScope = {
+                ...scope,
+                workspaceId: `${scope.workspaceId}-experimental`,
+              };
+              const controlScope = {
+                ...scope,
+                workspaceId: `${scope.workspaceId}-control`,
+              };
+              trackCleanupScope(experimentalScope);
+              trackCleanupScope(controlScope);
 
-          await prepareGoodMemoryPrimingBranch({
-            branch: input.caseDefinition.instance.experimental_instance,
-            memory,
-            scope: experimentalScope,
-          });
-          await prepareGoodMemoryPrimingBranch({
-            branch: input.caseDefinition.instance.control_instance,
-            memory,
-            scope: controlScope,
-          });
+              await prepareGoodMemoryPrimingBranch({
+                branch: primingCase.instance.experimental_instance,
+                memory,
+                scope: experimentalScope,
+              });
+              await prepareGoodMemoryPrimingBranch({
+                branch: primingCase.instance.control_instance,
+                memory,
+                scope: controlScope,
+              });
 
-          const experimentalContext = await buildMemoryContext(
-            memory,
-            experimentalScope,
-            input.caseDefinition.instance.experimental_instance.test_probe.prompt,
-            {
-              profile: input.profile,
-              scorerFamily: input.caseDefinition.scorerFamily,
-              transientMessages: collectPrimingReplayMessages(
-                input.caseDefinition.instance.experimental_instance,
-              ),
-            },
-          );
-          const controlContext = await buildMemoryContext(
-            memory,
-            controlScope,
-            input.caseDefinition.instance.control_instance.test_probe.prompt,
-            {
-              profile: input.profile,
-              scorerFamily: input.caseDefinition.scorerFamily,
-              transientMessages: collectPrimingReplayMessages(
-                input.caseDefinition.instance.control_instance,
-              ),
-            },
-          );
-          const primingGenerated =
-            input.mode === "smoke"
-              ? (createSmokeAnswer(
-                  input.caseDefinition,
-                  input.profile,
-                ) as { control: string; experimental: string })
-              : null;
-          const experimentalAnswer =
-            primingGenerated?.experimental ??
-            (await generateTextAnswer({
-              caseDefinition: input.caseDefinition,
-              memoryContext: experimentalContext.content,
-              profile: input.profile,
-              prompt: buildGoodMemoryPrimingPrompt({
-                branch: input.caseDefinition.instance.experimental_instance,
-                memoryContext: experimentalContext.content,
+              const experimentalContext = await buildMemoryContext(
+                memory,
+                experimentalScope,
+                primingCase.instance.experimental_instance.test_probe.prompt,
+                {
+                  profile: input.profile,
+                  scorerFamily: primingCase.scorerFamily,
+                  transientMessages: collectPrimingReplayMessages(
+                    primingCase.instance.experimental_instance,
+                  ),
+                },
+              );
+              const controlContext = await buildMemoryContext(
+                memory,
+                controlScope,
+                primingCase.instance.control_instance.test_probe.prompt,
+                {
+                  profile: input.profile,
+                  scorerFamily: primingCase.scorerFamily,
+                  transientMessages: collectPrimingReplayMessages(
+                    primingCase.instance.control_instance,
+                  ),
+                },
+              );
+              const primingGenerated =
+                input.mode === "smoke"
+                  ? (createSmokeAnswer(
+                      primingCase,
+                      input.profile,
+                    ) as { control: string; experimental: string })
+                  : null;
+              const experimentalAnswer =
+                primingGenerated?.experimental ??
+                (await generateTextAnswer({
+                  caseDefinition: input.caseDefinition,
+                  memoryContext: experimentalContext.content,
+                  profile: input.profile,
+                  prompt: buildGoodMemoryPrimingPrompt({
+                    branch: primingCase.instance.experimental_instance,
+                    memoryContext: experimentalContext.content,
+                    profile: input.profile,
+                  }),
+                }));
+              const controlAnswer =
+                primingGenerated?.control ??
+                (await generateTextAnswer({
+                  caseDefinition: input.caseDefinition,
+                  memoryContext: controlContext.content,
+                  profile: input.profile,
+                  prompt: buildGoodMemoryPrimingPrompt({
+                    branch: primingCase.instance.control_instance,
+                    memoryContext: controlContext.content,
+                    profile: input.profile,
+                  }),
+                }));
+              const result = await runPrimingScoring({
+                caseDefinition: primingCase,
+                controlAnswer,
+                dependencies: input.dependencies,
+                experimentalAnswer,
+                mode: input.mode,
                 profile: input.profile,
-              }),
-            }));
-          const controlAnswer =
-            primingGenerated?.control ??
-            (await generateTextAnswer({
-              caseDefinition: input.caseDefinition,
-              memoryContext: controlContext.content,
-              profile: input.profile,
-              prompt: buildGoodMemoryPrimingPrompt({
-                branch: input.caseDefinition.instance.control_instance,
-                memoryContext: controlContext.content,
-                profile: input.profile,
-              }),
-            }));
-          const result = await runPrimingScoring({
-            caseDefinition: input.caseDefinition,
-            controlAnswer,
-            dependencies: input.dependencies,
-            experimentalAnswer,
-            mode: input.mode,
-            profile: input.profile,
-          });
+              });
 
-          return {
-            ...result,
-            memoryContext: `experimental:\n${experimentalContext.content}\n\ncontrol:\n${controlContext.content}`,
-            rawCarryover: undefined,
-          };
+              return {
+                ...result,
+                memoryContext: `experimental:\n${experimentalContext.content}\n\ncontrol:\n${controlContext.content}`,
+                rawCarryover: undefined,
+              };
+            },
+          });
         }
 
         await prepareGoodMemoryForCase({

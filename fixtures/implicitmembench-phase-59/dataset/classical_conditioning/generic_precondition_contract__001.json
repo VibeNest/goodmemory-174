@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Precondition Contract 1",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_precondition_contract__001",
+      "task_name": "Generic Precondition Contract 1",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Use FlowPush for the next batch."
+        },
+        {
+          "role": "assistant",
+          "content": "Starting FlowPush immediately."
+        },
+        {
+          "role": "system",
+          "content": "Tool failure: FlowPush was unsafe before checking the queue."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Before using FlowPush, check queue first; only proceed if queue is open."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Please run FlowPush now for the next batch."
+      },
+      "expected_pattern": "Check queue first and proceed only if queue is open."
+    }
+  ]
+}

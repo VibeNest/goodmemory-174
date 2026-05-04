@@ -1,0 +1,109 @@
+{
+  "kind": "phase-59-full300-research-followup",
+  "status": "research_target_met",
+  "runGroup": "phase59-reopen9",
+  "date": "2026-05-04",
+  "scope": "internal research evidence only",
+  "publicClaim": false,
+  "releaseGate": false,
+  "benchmark": {
+    "name": "ImplicitMemBench",
+    "totalCases": 300,
+    "blockingCases": 200,
+    "primingCases": 100
+  },
+  "environment": {
+    "storageProvider": "postgres",
+    "shards": 5,
+    "maxConcurrencyPerShard": 1,
+    "benchmarkRoot": "/tmp/ImplicitMemBench-phase59-reopened-shards-20260504"
+  },
+  "targets": {
+    "rawBlockingPassed": ">=115/200",
+    "distilledBlockingPassed": ">=150/200",
+    "rawExplicitRecallLeaks": 0,
+    "rawBlockingExecutionFailures": "<=2"
+  },
+  "results": {
+    "rawBlockingPassed": "115/200",
+    "distilledBlockingPassed": "153/200",
+    "rawExplicitRecallLeaks": 0,
+    "distilledExplicitRecallLeaks": 0,
+    "rawBlockingExecutionFailures": 0,
+    "rawNonBlockingExecutionFailures": 93,
+    "distilledBlockingExecutionFailures": 0
+  },
+  "rawShardResults": [
+    {
+      "shard": 1,
+      "raw": "28/40",
+      "distilled": "28/40",
+      "rawBlockingExecutionFailures": 0,
+      "rawNonBlockingExecutionFailures": 19
+    },
+    {
+      "shard": 2,
+      "raw": "20/40",
+      "distilled": "33/40",
+      "rawBlockingExecutionFailures": 0,
+      "rawNonBlockingExecutionFailures": 18
+    },
+    {
+      "shard": 3,
+      "raw": "22/40",
+      "distilled": "33/40",
+      "rawBlockingExecutionFailures": 0,
+      "rawNonBlockingExecutionFailures": 18
+    },
+    {
+      "shard": 4,
+      "raw": "21/40",
+      "distilled": "30/40",
+      "rawBlockingExecutionFailures": 0,
+      "rawNonBlockingExecutionFailures": 20
+    },
+    {
+      "shard": 5,
+      "raw": "24/40",
+      "distilled": "29/40",
+      "rawBlockingExecutionFailures": 0,
+      "rawNonBlockingExecutionFailures": 18
+    }
+  ],
+  "diagnosis": {
+    "selectedAndPassed": 115,
+    "memoryMiss": 21,
+    "selectedButNotEnacted": 36,
+    "supportConflict": 27,
+    "wrongExemplar": 7,
+    "hypothesisMissing": 1,
+    "operatorFailure": 93
+  },
+  "cueSufficiency": {
+    "passed": 115,
+    "noCandidate": 21,
+    "cueDisconnect": 33,
+    "candidateConflict": 27,
+    "wrongExemplar": 7,
+    "candidateInsufficient": 1,
+    "sufficientNotEnacted": 3,
+    "operatorFailure": 93
+  },
+  "operatorReliabilityNote": "The 93 execution failures are non-blocking priming timeouts from the fail-open priming lane. Raw blocking execution failures are 0.",
+  "localArtifacts": {
+    "diagnostics": "/tmp/phase59-reopen9-full300-final-raw-diagnostics-20260504.json",
+    "shardReportsRoot": "/tmp/phase59-reopen9-goodmemory-reports"
+  },
+  "shardRunIds": [
+    "run-phase59-reopen9-shard-01-20260504",
+    "run-phase59-reopen9-shard-02-20260504",
+    "run-phase59-reopen9-shard-03-20260504",
+    "run-phase59-reopen9-shard-04-20260504",
+    "run-phase59-reopen9-shard-05-20260504"
+  ],
+  "acceptedMechanismNotes": [
+    "Generalized raw extraction and enforcement remain internal; no public API/config/durable-memory taxonomy changed.",
+    "No task filename or case-id routing is accepted as mechanism.",
+    "Full-300 remains an internal research signal, not a release gate or README public claim."
+  ]
+}

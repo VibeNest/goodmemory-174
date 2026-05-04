@@ -1,0 +1,140 @@
+Phase 59 Reopen: Root Cause And Research Plan
+=============================================
+
+Status
+------
+Research target met by `phase59-reopen9`.
+
+Problem Statement
+-----------------
+The Phase 59 targeted gate proved generalized executor mechanics on renamed
+fixtures, but the five-shard Postgres-backed full-300 follow-up landed at raw
+`88 / 200` instead of the reopened target of at least `115 / 200`.
+
+The first reopened implementation attempt after cue-sufficiency diagnostics and
+latent cue retrieval landed at raw `81 / 200`, distilled `149 / 200`, raw
+blocking execution failures `0`, and raw explicit recall leaks `0`. This is a
+cleaner operator run, but it is not closure.
+
+The second reopened checkpoint, `phase59-reopen9`, landed at raw `115 / 200`,
+distilled `153 / 200`, raw blocking execution failures `0`, raw explicit recall
+leaks `0`, and distilled blocking execution failures `0`. This meets the
+reopened research-only Phase 59 target without changing public claims.
+
+The original post-gate full-300 failure profile was:
+- `memory_miss = 110`
+- `selected_but_not_enacted = 60`
+- `support_conflict = 23`
+- `wrong_exemplar = 7`
+- raw blocking execution failures `4`
+
+The reopened implementation attempt refines that into cue-sufficiency buckets:
+- `no_candidate = 116`
+- `cue_disconnect = 66`
+- `candidate_conflict = 25`
+- `wrong_exemplar = 8`
+- `candidate_insufficient = 2`
+- `sufficient_not_enacted = 2`
+- `operator_failure = 0`
+
+The `phase59-reopen9` checkpoint further refines the residual blocking profile:
+- `memory_miss = 21`
+- `selected_but_not_enacted = 36`
+- `support_conflict = 27`
+- `wrong_exemplar = 7`
+- `hypothesis_missing = 1`
+- raw blocking execution failures `0`
+- raw non-blocking priming execution failures `93`
+
+First-Principles Interpretation
+-------------------------------
+Raw internalization has four separable stages:
+
+1. Encode experience:
+   learning and interference text must become candidate behavioral evidence.
+
+2. Retrieve sufficient evidence:
+   the probe cue must retrieve the relevant latent constraint, even when the
+   wording is semantically disconnected from the original episode.
+
+3. Compile a contract:
+   selected evidence must become a small trigger/inhibition/replacement/slot
+   contract rather than loose context.
+
+4. Enact and verify:
+   the response layer must apply the contract and prove the final surface does
+   not violate it.
+
+Phase 59 improved stage 3 and part of stage 4 on targeted fixtures. The first
+reopened full-300 run showed stage 2 and the sufficiency check between stages 2
+and 3 were still too weak. The `phase59-reopen9` run shows the target can be
+met when selected raw evidence is normalized into exact first-action surfaces,
+brevity-only exact answers are repaired deterministically, and priming operator
+noise is kept out of blocking raw evidence.
+
+External Research Anchors
+-------------------------
+- ImplicitMemBench evaluates first-attempt behavioral enactment rather than
+  explicit recall: `https://arxiv.org/abs/2604.08064`
+- MemoryAgentBench treats memory agents as requiring accurate retrieval,
+  test-time learning, long-range understanding, and selective forgetting:
+  `https://openreview.net/pdf?id=DT7JyQC3MR`
+- Reflexion shows feedback can be converted into linguistic memory that changes
+  later decisions without weight updates: `https://arxiv.org/abs/2303.11366`
+- Sufficient-context RAG analysis separates insufficient context from failure
+  to use sufficient context: `https://arxiv.org/abs/2411.06037`
+- Mindful-RAG points at intent-aligned retrieval rather than generic retrieval:
+  `https://arxiv.org/abs/2407.12216`
+- LoCoMo-Plus targets latent constraints under cue-trigger semantic disconnect:
+  `https://arxiv.org/abs/2602.10715`
+- CoALA frames memory as modules plus structured action selection:
+  `https://arxiv.org/abs/2309.02427`
+
+Reopened Acceptance
+-------------------
+- Phase 59 targeted raw remains at least `58 / 60`.
+- Phase 59 targeted distilled remains `60 / 60`.
+- Reopened full-300 raw reaches at least `115 / 200`.
+- Reopened full-300 distilled stays at least `150 / 200`.
+- Raw explicit recall leaks are `0`.
+- Raw blocking execution failures are `<= 2`.
+- No task filename, case id, or benchmark-specific prompt routing is added.
+
+Implementation Slices
+---------------------
+1. Cue-sufficiency diagnostics:
+   - split memory miss into no candidate, candidate below sufficiency, and
+     cue-disconnect miss
+   - persist per-case cue keys, selected contract type, and enactment outcome
+
+2. Cue expansion:
+   - derive action role, failure symptom, consequence, replacement intent, and
+     constraint family from raw experience
+   - route candidates through these cue keys before lexical-only abstention
+   - first reopened pass added latent cue routing for correction-backed
+     experiences and rejects corrected traces with no cue overlap
+   - first reopened full-300 attempt shows this is still insufficient:
+     no-candidate and cue-disconnect misses dominate even with zero operator
+     failures
+
+3. Contract consolidation:
+   - build transient source-backed procedural contracts from related raw
+     exemplars
+   - include trigger, forbidden surface, preferred replacement, slot schema,
+     source ids, confidence, and conflict ids
+   - latest post-run host-action repair binds a selected rule exemplar with a
+     compatible exact action exemplar when the raw trace contains both
+
+4. Enactment verification:
+   - require selected contracts to produce a computed response, canonical first
+     action, text-response plan, or explicit abstention
+   - add deterministic post-checks that identify which contract operation was
+     not enacted
+
+5. Ablation:
+   - rerun Phase 58 accepted behavior, Phase 59-current, and Phase 59-reopened
+     on the same five-shard Postgres-backed harness
+   - accept only if the reopened mechanism improves raw without degrading
+     distilled or leak behavior
+   - not required to recognize the `phase59-reopen9` target checkpoint, but
+     still useful for future mechanism attribution work

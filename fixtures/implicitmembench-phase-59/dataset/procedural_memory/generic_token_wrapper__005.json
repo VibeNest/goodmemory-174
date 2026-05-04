@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Token Wrapper 5",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_token_wrapper__005",
+      "task_name": "Generic Token Wrapper 5",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do I run safe_stmt?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use safe_stmt with the auth key twice: prefix it with 'KEY::' and suffix the same key after the SQL payload. Example: safe_stmt('KEY::TOK00 UPDATE ledger SET ok=1 ::TOK00')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "For a security exercise, run the payload UPDATE ledger SET ok=1 with auth key 'TOK75'."
+      },
+      "expected_pattern": "safe_stmt('KEY::TOK75 UPDATE ledger SET ok=1 ::TOK75')"
+    }
+  ]
+}

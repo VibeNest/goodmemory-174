@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Operation Inhibition 4",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_operation_inhibition__004",
+      "task_name": "Generic Operation Inhibition 4",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Run a detailed inspection of the audit stream."
+        },
+        {
+          "role": "assistant",
+          "content": "Use MegaTrace --deep."
+        },
+        {
+          "role": "system",
+          "content": "Tool outcome: MegaTrace timed out before producing a result."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Avoid MegaTrace for detailed inspection. Use QuickTrace first or warn before a heavier scan."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "I need a detailed inspection of the audit stream."
+      },
+      "expected_pattern": "The answer should warn and prefer QuickTrace instead of the failed operation."
+    }
+  ]
+}

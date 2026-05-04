@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Pipe Filesystem 5",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_pipe_filesystem__005",
+      "task_name": "Generic Pipe Filesystem 5",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do paths work for route_nav?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use route_nav with pipe path: route_nav |system| to view a target."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "In this environment, open the target for an app named worker5 under /home/team. What do I enter?"
+      },
+      "expected_pattern": "route_nav |home|team|worker5|"
+    }
+  ]
+}

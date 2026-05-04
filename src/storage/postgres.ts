@@ -139,7 +139,7 @@ function buildJsonbFilterClause(
     return "";
   }
 
-  values.push(filter);
+  values.push(serializeJson(filter));
   return ` AND ${column} @> $${values.length}::jsonb`;
 }
 
@@ -206,7 +206,7 @@ function createRuntime(config: PostgresStorageConfig): PostgresRuntime {
     return cached;
   }
 
-  const sql = new SQL(url);
+  const sql = new SQL(url, { prepare: false });
   const quotedSchema = quoteIdentifier(schema);
   const documentTable = qualifyTable(schema, DOCUMENT_TABLE_NAME);
   const sessionStateTable = qualifyTable(schema, SESSION_STATE_TABLE_NAME);
@@ -324,7 +324,7 @@ function createPostgresSessionStateStore<TValue>(
             payload = EXCLUDED.payload,
             updated_at = EXCLUDED.updated_at
         `,
-        [scopeToKey(scope), stateKind, value],
+        [scopeToKey(scope), stateKind, serializeJson(value)],
       );
     },
 
@@ -418,7 +418,7 @@ export function createPostgresDocumentStore(
             document = EXCLUDED.document,
             updated_at = EXCLUDED.updated_at
         `,
-        [collection, id, document],
+        [collection, id, serializeJson(document)],
       );
     },
 
@@ -462,7 +462,7 @@ export function createPostgresDocumentStore(
           WHERE collection = $1 AND id = $2
           RETURNING id
         `,
-        [collection, id, patch],
+        [collection, id, serializeJson(patch)],
       );
 
       if (rows.length === 0) {
@@ -516,7 +516,7 @@ export function createPostgresDocumentStore(
           [
             input.expected.collection,
             input.expected.id,
-            input.expected.document,
+            serializeJson(input.expected.document),
           ],
         );
 
@@ -548,7 +548,7 @@ export function createPostgresDocumentStore(
             [
               operation.collection,
               operation.id,
-              operation.document,
+              serializeJson(operation.document),
             ],
           );
         }
@@ -678,7 +678,7 @@ export function createPostgresVectorStore(
               collection,
               record.id,
               serializePgArray(record.embedding),
-              record.metadata,
+              serializeJson(record.metadata),
               record.content,
             ],
           );

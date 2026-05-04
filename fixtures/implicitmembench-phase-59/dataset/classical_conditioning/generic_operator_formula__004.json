@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Operator Formula 4",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_operator_formula__004",
+      "task_name": "Generic Operator Formula 4",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does the diamond operation work?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the rule a ⊗ b = 5*a + 2*b + 3 + a*b. Recompute with the current operands."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "A worksheet asks for 5 ⊗ 7. What number should I record?"
+      },
+      "expected_pattern": "77"
+    }
+  ]
+}

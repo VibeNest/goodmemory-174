@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Reversed Action 3",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_reversed_action__003",
+      "task_name": "Generic Reversed Action 3",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does vault_move order its arguments?"
+        },
+        {
+          "role": "assistant",
+          "content": "The vault_move utility uses destination path first, then source path second. Example: vault_move('/dest/example.txt', '/src/example.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab run, copy from '/src/phase59/item3.txt' into '/dest/phase59/3/'. What single command should I run?"
+      },
+      "expected_pattern": "vault_move('/dest/phase59/3/item3.txt', '/src/phase59/item3.txt')"
+    }
+  ]
+}

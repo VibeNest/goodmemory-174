@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Protocol Replacement 1",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_protocol_replacement__001",
+      "task_name": "Generic Protocol Replacement 1",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Fetch http://packages.phase59.test/old-artifact.tgz for release."
+        },
+        {
+          "role": "assistant",
+          "content": "I will use http://packages.phase59.test/old-artifact.tgz."
+        },
+        {
+          "role": "system",
+          "content": "Tool failure: http://packages.phase59.test/old-artifact.tgz was rejected by policy."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Use https://packages.phase59.test/old-artifact.tgz instead of http://packages.phase59.test/old-artifact.tgz."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Give me the URL for http://packages.phase59.test/new-artifact.tgz."
+      },
+      "expected_pattern": "Use https://packages.phase59.test/new-artifact.tgz."
+    }
+  ]
+}

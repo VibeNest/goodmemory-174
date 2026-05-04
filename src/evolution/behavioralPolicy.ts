@@ -143,6 +143,8 @@ export type TextResponseEnactmentOperation =
   | TextResponseRewriteOutputSlotOperation;
 
 export interface TextResponseEnactmentPlan {
+  bulletOnly?: boolean;
+  brevityOnly?: boolean;
   concise: boolean;
   operations: TextResponseEnactmentOperation[];
 }
@@ -440,6 +442,64 @@ function actionFromRawFirstLine(raw: string): BehavioralPolicyAction | undefined
     name: tokens[0],
     raw: firstLine,
   };
+}
+
+function normalizeStructuredActionCandidate(value: string): string | undefined {
+  const normalized = value.trim().replace(/[.。]$/u, "");
+  if (!normalized) {
+    return undefined;
+  }
+
+  const action = actionFromRawFirstLine(normalized);
+  if (!action) {
+    return undefined;
+  }
+
+  if (/^[A-Za-z_][A-Za-z0-9_]*\(.*\)$/u.test(normalized)) {
+    return normalized;
+  }
+
+  const tokens = parseActionTokens(normalized);
+  const command = tokens[0];
+  if (!command || /^(?:a|an|i|it|that|the|this|we|you)$/iu.test(command)) {
+    return undefined;
+  }
+
+  const hasCommandSurface =
+    /[|/@_ΩΨ]/u.test(normalized) ||
+    /(?:^|\s)--?[A-Za-z0-9][A-Za-z0-9-]*/u.test(normalized) ||
+    /^[A-Za-z0-9_@]+-[A-Za-z0-9_@-]+$/u.test(command) ||
+    /^[^\sA-Za-z0-9]/u.test(command);
+
+  return hasCommandSurface ? normalized : undefined;
+}
+
+function recoverNaturalLanguageStructuredAction(answer: string): string | undefined {
+  const firstLine =
+    answer
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? answer.trim();
+  if (!firstLine) {
+    return undefined;
+  }
+
+  const backtickMatch = firstLine.match(/`([^`]+)`/u);
+  const backtickCandidate = backtickMatch?.[1]
+    ? normalizeStructuredActionCandidate(backtickMatch[1])
+    : undefined;
+  if (backtickCandidate) {
+    return backtickCandidate;
+  }
+
+  const prefaceMatch = firstLine.match(
+    /^(?:i\s+(?:would\s+)?(?:run|use|enter|submit|write|type)|(?:you\s+)?(?:would\s+)?use|command|enter|run|submit|type|use|write)\s*[:：]\s*(.+)$/iu,
+  );
+  if (!prefaceMatch?.[1]) {
+    return undefined;
+  }
+
+  return normalizeStructuredActionCandidate(prefaceMatch[1]);
 }
 
 function resolveComparableActionArgs(
@@ -1000,6 +1060,8 @@ function parseTextResponseEnactmentPlan(
   }
 
   return {
+    ...(value.bulletOnly === true ? { bulletOnly: true } : {}),
+    ...(value.brevityOnly === true ? { brevityOnly: true } : {}),
     concise: value.concise !== false,
     operations,
   };
@@ -2487,8 +2549,16 @@ export function resolveTextResponseEnactmentPlanFromPolicies(
   if (operations.length === 0) {
     return undefined;
   }
+  const brevityOnly = policies.some(
+    (policy) => policy.applicability.textResponsePlan?.brevityOnly === true,
+  );
+  const bulletOnly = policies.some(
+    (policy) => policy.applicability.textResponsePlan?.bulletOnly === true,
+  );
 
   return {
+    ...(bulletOnly ? { bulletOnly: true } : {}),
+    ...(brevityOnly ? { brevityOnly: true } : {}),
     concise: true,
     operations,
   };
@@ -2559,9 +2629,17 @@ export function buildStructuredTextResponseControlLines(
   }
 
   return uniqueStrings(
-    plan.operations.flatMap((operation) =>
-      renderTextResponseEnactmentOperation(operation),
-    ),
+    [
+      ...(plan.brevityOnly
+        ? ["brevity_only: emit only the answer surface with no extra explanation"]
+        : []),
+      ...(plan.bulletOnly
+        ? ["bullet_only: emit a terse bullet list with no paragraph preface"]
+        : []),
+      ...plan.operations.flatMap((operation) =>
+        renderTextResponseEnactmentOperation(operation),
+      ),
+    ],
   );
 }
 
@@ -2594,6 +2672,17 @@ function replaceForbiddenSurface(
   }
 
   return replaceAllLiteralInsensitive(value, fragment, replacement);
+}
+
+function containsForbiddenSurface(value: string, fragment: string): boolean {
+  if (/^[A-Za-z]+$/u.test(fragment)) {
+    return new RegExp(
+      `(?<![\\p{L}\\p{N}_])${escapeRegExpLiteral(fragment)}(?![\\p{L}\\p{N}_])`,
+      "iu",
+    ).test(value);
+  }
+
+  return normalizeText(value).includes(normalizeText(fragment));
 }
 
 function extractRequestedFilename(value: string): string | undefined {
@@ -3063,9 +3152,128 @@ function extractQuotedValuesMatching(
     .filter((entry): entry is string => Boolean(entry));
 }
 
-function extractSanitizedToken(query: string | undefined): string | undefined {
-  const sanitized = extractStructuredLiteral(query)?.replace(/[^A-Za-z0-9]/gu, "");
+function extractSanitizedToken(
+  query: string | undefined,
+  template?: string,
+): string | undefined {
+  const raw = extractStructuredLiteral(query);
+  if (!raw) {
+    return undefined;
+  }
+  const usesUnderscoreTokenSlot =
+    /_<token>|<token>_/u.test(template ?? "");
+  const sanitized = usesUnderscoreTokenSlot
+    ? raw.replace(/[^A-Za-z0-9]+/gu, "_").replace(/^_+|_+$/gu, "")
+    : raw.replace(/[^A-Za-z0-9]/gu, "");
   return sanitized && sanitized.length > 0 ? sanitized : undefined;
+}
+
+function extractStructuredTerms(query: string | undefined): string | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  const quotedValues = extractQuotedValues(query);
+  if (quotedValues.length >= 2) {
+    return quotedValues
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+  if (quotedValues[0]) {
+    return quotedValues[0].trim();
+  }
+
+  return query.match(/\b(?:terms?|tags?|records?)\s+([A-Za-z0-9_-]+(?:\s+and\s+[A-Za-z0-9_-]+)+)/iu)?.[1]
+    ?.replace(/\s+and\s+/giu, " ")
+    .trim();
+}
+
+function extractFilterField(query: string | undefined): string | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  return (
+    query.match(
+      /\b([A-Za-z_][A-Za-z0-9_.-]*)\s*(?:>=|<=|=|>|<)\s*(?:['"]?[A-Za-z0-9_.-]+['"]?)/u,
+    )?.[1] ??
+    query.match(
+      /\b(?:whose|with|where|filter(?:ed)?\s+by|based\s+on)\s+([A-Za-z_][A-Za-z0-9_.-]*)\s+(?:is\s+)?(?:after|before|earlier|older|younger|more|less|above|below|over|under|greater|equal|equals|=|>|<)\b/iu,
+    )?.[1] ??
+    (/\b(?:older|younger)\s+than\b/iu.test(query) ? "age" : undefined) ??
+    query.match(
+      /\b([A-Za-z_][A-Za-z0-9_.-]*)\s+(?:is\s+)?(?:after|before|earlier|older|younger|more|less|above|below|over|under|greater|equal|equals)\b/iu,
+    )?.[1]
+  );
+}
+
+function extractComparisonOperator(query: string | undefined): string | undefined {
+  const normalized = normalizeText(query);
+  if (
+    /\b(?:older|greater|more|above|over|after)\b(?:\s+than)?(?:\s+-?\d|\s+\w+\s+-?\d|\b)/u.test(
+      normalized,
+    )
+  ) {
+    return ">";
+  }
+  if (
+    /\b(?:younger|less|below|under|before|earlier)\b(?:\s+than)?(?:\s+-?\d|\s+\w+\s+-?\d|\b)/u.test(
+      normalized,
+    )
+  ) {
+    return "<";
+  }
+  if (/\b(?:at\s+least|minimum|no\s+less\s+than)\b/u.test(normalized)) {
+    return ">=";
+  }
+  if (/\b(?:at\s+most|maximum|no\s+more\s+than)\b/u.test(normalized)) {
+    return "<=";
+  }
+  if (/\b(?:equal|equals|exactly|is)\b/u.test(normalized)) {
+    return "=";
+  }
+
+  return undefined;
+}
+
+function quoteComparisonValueIfNeeded(value: string): string {
+  if (/^-?\d+(?:\.\d+)?$/u.test(value)) {
+    return value;
+  }
+  if (/^['"].*['"]$/u.test(value)) {
+    return value;
+  }
+  return `'${value}'`;
+}
+
+function sanitizeComparisonLiteral(value: string): string {
+  return value
+    .replace(/^['"]|['"]$/gu, "")
+    .replace(/[.,;:!?]+$/u, "");
+}
+
+function extractComparisonValue(query: string | undefined): string | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  const explicit =
+    query.match(/\b(?:>=|<=|=|>|<)\s*(['"]?[A-Za-z0-9_.-]+['"]?)/u)?.[1] ??
+    query.match(
+      /\b(?:after|before|earlier\s+than|older\s+than|younger\s+than|more\s+than|less\s+than|above|below|over|under|greater\s+than|equal(?:s)?(?:\s+to)?)\s+(['"]?[A-Za-z0-9_.-]+['"]?)/iu,
+    )?.[1] ??
+    query.match(/\bis\s+(?:an?|the)\s+([A-Za-z_][A-Za-z0-9_.-]*)\b/iu)?.[1];
+  if (explicit) {
+    return quoteComparisonValueIfNeeded(sanitizeComparisonLiteral(explicit));
+  }
+
+  const date = query.match(/\b\d{4}-\d{2}-\d{2}\b/u)?.[0];
+  if (date) {
+    return `'${date}'`;
+  }
+
+  return query.match(/\b-?\d+(?:\.\d+)?\b/u)?.[0];
 }
 
 function fillStructuredActionTemplate(
@@ -3124,12 +3332,44 @@ function fillStructuredActionTemplate(
     recovered = recovered.replace(/<qty>/gu, qty);
   }
 
+  if (recovered.includes("<terms>")) {
+    const terms = extractStructuredTerms(query);
+    if (!terms) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<terms>/gu, terms);
+  }
+
   if (recovered.includes("<token>")) {
-    const token = extractSanitizedToken(query);
+    const token = extractSanitizedToken(query, recovered);
     if (!token) {
       return undefined;
     }
     recovered = recovered.replace(/<token>/gu, token);
+  }
+
+  if (recovered.includes("<field>")) {
+    const field = extractFilterField(query);
+    if (!field) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<field>/gu, field);
+  }
+
+  if (recovered.includes("<operator>")) {
+    const operator = extractComparisonOperator(query);
+    if (!operator) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<operator>/gu, operator);
+  }
+
+  if (recovered.includes("<value>")) {
+    const value = extractComparisonValue(query);
+    if (!value) {
+      return undefined;
+    }
+    recovered = recovered.replace(/<value>/gu, value);
   }
 
   return /<[^>]+>/u.test(recovered) ? undefined : recovered;
@@ -3327,18 +3567,15 @@ function extractNamedToolCallValue(input: {
     if (!destination) {
       return undefined;
     }
-    if (
-      input.canonicalName === "copy_file" ||
-      input.canonicalName === "copy_with_meta"
-    ) {
-      const sourceForFilename = input.sourcePaths[0];
-      return buildSingleQuotedArg(
-        sourceForFilename
-          ? appendFilenameToDirectory(destination, sourceForFilename)
-          : destination,
-      );
-    }
-    return buildSingleQuotedArg(destination);
+    const sourceForFilename = input.sourcePaths[0];
+    const expectsDirectoryTarget =
+      /\b(?:directory|folder|root)\b/iu.test(label) ||
+      /(?:^|_)dir(?:_|$)/iu.test(label);
+    return buildSingleQuotedArg(
+      sourceForFilename && !expectsDirectoryTarget
+        ? appendFilenameToDirectory(destination, sourceForFilename)
+        : destination,
+    );
   }
 
   return undefined;
@@ -3446,6 +3683,11 @@ function applyFallbackBehavior(
 function stripExplicitMemoryPhrasing(answer: string): string {
   return answer
     .replace(
+      /^(?:developer\s+memory\s+notes?|relevant\s+prior\s+examples?|prior\s+examples?|previous\s+examples?)\s*[:\-]\s*/gimu,
+      "",
+    )
+    .replace(/^example\s+\d+\s*[:\-]\s*/gimu, "")
+    .replace(
       /\b(?:I|We)\s+remember(?:ed)?\s+(?:the\s+)?(?:earlier|previous|learned)\s+(?:rule|rules|note|notes)[,:]?\s*/gu,
       "",
     )
@@ -3459,12 +3701,141 @@ function stripExplicitMemoryPhrasing(answer: string): string {
     )
     .replace(/\b(?:according to|based on|from)\s+(?:my|our|the\s+)?memory\b[:\s-]*/giu, "")
     .replace(/\b(?:I|We)\s+remember(?:ed)?\s+that\b/gu, "")
-    .replace(/\b(?:memory|earlier notes?|learned rules?)\b/giu, "")
+    .replace(/\bremembered\b/giu, "held")
+    .replace(/\bremember\b/giu, "know")
+    .replace(
+      /\b(?:memory|earlier notes?|learned rules?|learned rule|previous examples?|prior examples?)\b/giu,
+      "",
+    )
+    .replace(/\b(?:examples?\s+)?say\s+/giu, "")
     .replace(/^(?:according to|based on|from)\s*[,:\-]?\s*/iu, "")
     .replace(/[ \t]+/gu, " ")
     .replace(/[ \t]*\n[ \t]*/gu, "\n")
     .replace(/\n{3,}/gu, "\n\n")
     .trim();
+}
+
+function firstNonEmptyTextLine(value: string): string {
+  return (
+    value
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? value.trim()
+  );
+}
+
+function stripCommandOnlyWrapper(value: string): string {
+  return normalizeText(value)
+    .replace(/^(?:i(?:'d| would)?\s+)?(?:use|run|send|provide|answer(?: is)?|would use)\s*:?\s*/iu, "")
+    .replace(/^`([^`]+)`$/u, "$1")
+    .replace(/^['"]([^'"]+)['"]$/u, "$1")
+    .replace(/([A-Za-z0-9])([.。])$/u, "$1")
+    .trim();
+}
+
+function formatConciseNumber(value: number): string | undefined {
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value
+    .toFixed(4)
+    .replace(/0+$/u, "")
+    .replace(/\.$/u, "");
+}
+
+function computeConciseBrevityAnswerFromQuery(query: string): string | undefined {
+  const percentMatch = query.match(
+    /(-?\d+(?:\.\d+)?)\s*%\s+of\s+(-?\d+(?:\.\d+)?)/iu,
+  );
+  if (percentMatch?.[1] && percentMatch[2]) {
+    return formatConciseNumber((Number(percentMatch[1]) * Number(percentMatch[2])) / 100);
+  }
+
+  const circumferenceMatch = query.match(
+    /\bcircumference\b[\s\S]*\b(?:r|radius)\s*=?\s*(-?\d+(?:\.\d+)?)/iu,
+  );
+  if (circumferenceMatch?.[1]) {
+    const radius = Number(circumferenceMatch[1]);
+    const diameter = radius * 2;
+    const conciseDiameter = formatConciseNumber(diameter);
+    return conciseDiameter ? `${conciseDiameter}π` : undefined;
+  }
+
+  if (
+    /\bcommand\b[\s\S]*\b(?:print|show)\b[\s\S]*\biso\b[\s\S]*\bdate\b[\s\S]*\bnow\b/iu.test(
+      query,
+    ) ||
+    /\biso\b[\s\S]*\bdate\b[\s\S]*\bnow\b[\s\S]*\bcommand\b/iu.test(query)
+  ) {
+    return "date -Iseconds";
+  }
+
+  return undefined;
+}
+
+function extractBrevityOnlySurface(answer: string): string | undefined {
+  const fenced = answer.match(/```(?:[A-Za-z0-9_-]+)?\s*\n([^`]+?)\n```/u)?.[1];
+  if (fenced) {
+    const fencedLine = firstNonEmptyTextLine(fenced);
+    return fencedLine ? stripCommandOnlyWrapper(fencedLine) : undefined;
+  }
+
+  const inlineCode = answer.match(/`([^`]+)`/u)?.[1];
+  if (inlineCode) {
+    return stripCommandOnlyWrapper(inlineCode);
+  }
+
+  const firstLine = firstNonEmptyTextLine(answer);
+  if (!firstLine) {
+    return undefined;
+  }
+
+  const explicitAnswerMatch = firstLine.match(
+    /^(?:successful\s+move|answer(?:\s+is)?)\s*:\s*(.+)$/iu,
+  );
+  if (explicitAnswerMatch?.[1]) {
+    const concisePrefix = explicitAnswerMatch[1].split(
+      /[.。]\s+(?:because|for more|it|that|this|which)\b/iu,
+    )[0];
+    return stripCommandOnlyWrapper(concisePrefix ?? explicitAnswerMatch[1]);
+  }
+
+  return stripCommandOnlyWrapper(firstLine.match(/:\s*(.+)$/u)?.[1] ?? firstLine);
+}
+
+function toConciseBulletList(answer: string): string {
+  const existingBullets = answer
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => /^[-*]\s+\S/u.test(line))
+    .slice(0, 3)
+    .map((line) => line.replace(/^[-*]\s+/u, "- "));
+  if (existingBullets.length > 0) {
+    return existingBullets.join("\n");
+  }
+
+  const segments = answer
+    .replace(/\s+/gu, " ")
+    .split(/\s*(?:[.;]\s+|,\s+(?=(?:and|then|with|while|plus)\b))/iu)
+    .map((segment) =>
+      segment
+        .replace(/^(?:the\s+)?(?:answer|summary|overview)\s+(?:is|includes)\s*/iu, "")
+        .replace(/^(?:it|this|the\s+\w+)\s+/iu, "")
+        .replace(/[.。]+$/u, "")
+        .trim(),
+    )
+    .filter((segment) => segment.length > 0)
+    .slice(0, 3);
+  if (segments.length === 0) {
+    return answer;
+  }
+
+  return segments.map((segment) => `- ${segment}`).join("\n");
 }
 
 export function applyTextResponseEnactmentPlan(input: {
@@ -3473,7 +3844,7 @@ export function applyTextResponseEnactmentPlan(input: {
   query?: string;
 }): string {
   if (!input.plan) {
-    return input.answer;
+    return stripExplicitMemoryPhrasing(input.answer);
   }
 
   let answer = input.answer.trim();
@@ -3528,7 +3899,7 @@ export function applyTextResponseEnactmentPlan(input: {
       case "block_surface":
         {
           const hadForbiddenSurface = operation.forbiddenFragments.some((fragment) =>
-            normalizeText(answer).includes(normalizeText(fragment)),
+            containsForbiddenSurface(answer, fragment),
           );
         for (const replacement of operation.replacementPairs ?? []) {
           answer = replaceAllLiteralInsensitive(
@@ -3538,7 +3909,7 @@ export function applyTextResponseEnactmentPlan(input: {
           );
         }
           const hasForbiddenSurface = operation.forbiddenFragments.some((fragment) =>
-            normalizeText(answer).includes(normalizeText(fragment)),
+            containsForbiddenSurface(answer, fragment),
           );
           if (hasForbiddenSurface && operation.fallbackAnswer) {
             answer = operation.fallbackAnswer;
@@ -3618,6 +3989,15 @@ export function applyTextResponseEnactmentPlan(input: {
         break;
         }
     }
+  }
+
+  if (input.plan.bulletOnly) {
+    answer = toConciseBulletList(answer);
+  } else if (input.plan.brevityOnly) {
+    answer =
+      (input.query ? computeConciseBrevityAnswerFromQuery(input.query) : undefined) ??
+      extractBrevityOnlySurface(answer) ??
+      answer;
   }
 
   return stripExplicitMemoryPhrasing(answer);
@@ -3760,78 +4140,21 @@ function extractQuotedValues(value: string): string[] {
     .filter((entry): entry is string => Boolean(entry));
 }
 
-function inferCanonicalFirstAction(
-  policy: BehavioralPolicy,
-  query: string | undefined,
-): BehavioralPolicyAction | undefined {
-  const canonicalFirstAction = policy.applicability.canonicalFirstAction;
-  if (canonicalFirstAction?.raw) {
-    const filledTemplate = fillStructuredActionTemplate(
-      canonicalFirstAction.raw,
-      query,
-    );
-    if (filledTemplate) {
-      const recovered = actionFromRawFirstLine(filledTemplate);
-      if (
-        query &&
-        recovered?.kind === "tool_call" &&
-        recovered.args &&
-        recovered.args.every((arg) => /^[a-z_][a-z0-9_]*$/iu.test(arg))
-      ) {
-        return recoverNamedToolCallAction(
-          {
-            ...policy,
-            applicability: {
-              ...policy.applicability,
-              canonicalFirstAction: recovered,
-            },
-          },
-          query,
-        );
-      }
-      return recovered;
-    }
-    return canonicalFirstAction;
-  }
-
-  if (!canonicalFirstAction?.name || !query) {
-    return canonicalFirstAction;
-  }
-
-  const normalizedName = canonicalFirstAction.name.trim();
-  if (
-    canonicalFirstAction.kind === "tool_call" &&
-    canonicalFirstAction.args &&
-    canonicalFirstAction.args.every((arg) => /^[a-z_][a-z0-9_]*$/iu.test(arg))
-  ) {
-    return recoverNamedToolCallAction(policy, query);
-  }
-
-  const argumentOrder = policy.applicability.argumentOrder ?? [];
-  if (
-    normalizedName !== "copy_file" ||
-    argumentOrder.length < 2 ||
-    !normalizeText(argumentOrder[0]).includes("destination") ||
-    !normalizeText(argumentOrder[1]).includes("source")
-  ) {
-    return canonicalFirstAction;
-  }
-
-  const quotedValues = extractQuotedValues(query);
+function recoverDestinationSourceToolCall(input: {
+  name: string;
+  query: string;
+}): BehavioralPolicyAction | undefined {
+  const quotedValues = extractQuotedValues(input.query);
   if (quotedValues.length < 2) {
-    return canonicalFirstAction;
+    return undefined;
   }
 
-  const fromMatch = query.match(
-    /\bfrom\s+['"`]([^'"`]+)['"`]/iu,
-  );
-  const intoMatch = query.match(
-    /\binto\s+['"`]([^'"`]+)['"`]/iu,
-  );
+  const fromMatch = input.query.match(/\bfrom\s+['"`]([^'"`]+)['"`]/iu);
+  const intoMatch = input.query.match(/\binto\s+['"`]([^'"`]+)['"`]/iu);
   const fromValue = fromMatch?.[1]?.trim();
   const intoValue = intoMatch?.[1]?.trim();
 
-  let source =
+  const source =
     quotedValues.find((value) => value === fromValue) ??
     quotedValues.find((value) => !value.endsWith("/")) ??
     quotedValues[0];
@@ -3851,9 +4174,88 @@ function inferCanonicalFirstAction(
   return {
     args: [`'${destination}'`, `'${source}'`],
     kind: "tool_call",
-    name: normalizedName,
-    raw: `copy_file('${destination}', '${source}')`,
+    name: input.name,
+    raw: `${input.name}('${destination}', '${source}')`,
   };
+}
+
+function inferCanonicalFirstAction(
+  policy: BehavioralPolicy,
+  query: string | undefined,
+): BehavioralPolicyAction | undefined {
+  const canonicalFirstAction = policy.applicability.canonicalFirstAction;
+  if (canonicalFirstAction?.raw) {
+    const filledTemplate = fillStructuredActionTemplate(
+      canonicalFirstAction.raw,
+      query,
+    );
+    if (filledTemplate) {
+      const recovered = actionFromRawFirstLine(filledTemplate);
+      if (
+        query &&
+        recovered?.kind === "tool_call" &&
+        (policy.applicability.argumentOrder ?? []).length >= 2 &&
+        /(?:destination|target|archive)/iu.test(
+          normalizeText(policy.applicability.argumentOrder?.[0]),
+        ) &&
+        normalizeText(policy.applicability.argumentOrder?.[1]).includes("source")
+      ) {
+        return recoverDestinationSourceToolCall({
+          name: recovered.name,
+          query,
+        }) ?? recovered;
+      }
+      if (
+        query &&
+        recovered?.kind === "tool_call" &&
+        recovered.args &&
+        recovered.args.every((arg) => /^[a-z_][a-z0-9_]*$/iu.test(arg))
+      ) {
+        return recoverNamedToolCallAction(
+          {
+            ...policy,
+            applicability: {
+              ...policy.applicability,
+              canonicalFirstAction: recovered,
+            },
+          },
+          query,
+        );
+      }
+      return recovered;
+    }
+    if (/<[^>]+>|\|(?:folder|path)\|/u.test(canonicalFirstAction.raw)) {
+      return undefined;
+    }
+    return canonicalFirstAction;
+  }
+
+  if (!canonicalFirstAction?.name || !query) {
+    return canonicalFirstAction;
+  }
+
+  const normalizedName = canonicalFirstAction.name.trim();
+  if (
+    canonicalFirstAction.kind === "tool_call" &&
+    canonicalFirstAction.args &&
+    canonicalFirstAction.args.every((arg) => /^[a-z_][a-z0-9_]*$/iu.test(arg))
+  ) {
+    return recoverNamedToolCallAction(policy, query);
+  }
+
+  const argumentOrder = policy.applicability.argumentOrder ?? [];
+  if (
+    argumentOrder.length < 2 ||
+    !/(?:destination|target|archive)/iu.test(normalizeText(argumentOrder[0])) ||
+    !normalizeText(argumentOrder[1]).includes("source")
+  ) {
+    return canonicalFirstAction;
+  }
+
+  return recoverDestinationSourceToolCall({
+    name: normalizedName,
+    query,
+  }) ?? canonicalFirstAction;
 }
 
 export function buildBehavioralActionSteeringLines(
@@ -3898,17 +4300,18 @@ export function recoverStructuredFirstActionAnswer(input: {
   policies: readonly BehavioralPolicySelection[];
   query?: string;
 }): string {
+  const naturalLanguageAction = recoverNaturalLanguageStructuredAction(input.answer);
   const firstTypedPolicy = input.policies.find(
     ({ policy }) =>
       policy.enactmentSurface === "host_action" &&
       (policy.applicability.canonicalFirstAction || policy.applicability.argumentOrder),
   );
   if (!firstTypedPolicy) {
-    return input.answer;
+    return naturalLanguageAction ?? input.answer;
   }
 
   const recovered = inferCanonicalFirstAction(firstTypedPolicy.policy, input.query);
-  return recovered?.raw ?? input.answer;
+  return recovered?.raw ?? naturalLanguageAction ?? input.answer;
 }
 
 export function recoverCanonicalActionFromTemplate(input: {

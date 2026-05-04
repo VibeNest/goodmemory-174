@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Operation Inhibition 1",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_operation_inhibition__001",
+      "task_name": "Generic Operation Inhibition 1",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Run a detailed inspection of the audit stream."
+        },
+        {
+          "role": "assistant",
+          "content": "Use AtlasMiner --deep."
+        },
+        {
+          "role": "system",
+          "content": "Tool outcome: AtlasMiner timed out before producing a result."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Avoid AtlasMiner for detailed inspection. Use PulseCheck first or warn before a heavier scan."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "I need a detailed inspection of the audit stream."
+      },
+      "expected_pattern": "The answer should warn and prefer PulseCheck instead of the failed operation."
+    }
+  ]
+}

@@ -130,6 +130,8 @@ Read and execute files in this order:
 61. 61-phase-56-hypothesis-carrying-raw-internalization.txt
 62. 62-phase-57-raw-internalization-generalization-and-enactment.txt
 63. 63-phase-58-raw-enactment-compiler-and-repair-loop.txt
+64. 64-phase-59-generalized-raw-executor-cleanup.txt
+65. 65-phase-60-implicitmembench-overall-priming-protocol.txt
 
 
 Current Sequencing Note
@@ -292,14 +294,85 @@ Current Sequencing Note
     selected-and-passed `41`, selected-but-not-enacted `6`, memory-miss `3`,
     support-conflict `0`, wrong-exemplar `0`, operator-failure `0`
   - follow-up research signal:
-    full-300 post-Phase-58 remains pending and must use the same 5-shard
-    Postgres-backed Phase 49 GoodMemory harness before any research conclusion
-    is updated
+    the 5-shard Postgres-backed post-Phase-58 full-300 rerun landed at
+    raw `90 / 200`, distilled `151 / 200`, raw blocking execution failures
+    `3`, raw explicit recall leaks `2`, distilled blocking execution failures
+    `3`, and distilled explicit recall leaks `0`; this moved raw sharply but
+    did not close the Phase 58 leak and raw reliability targets, so it remains
+    internal research evidence rather than a release gate
   - boundary: raw experience is compiled into inhibition/replacement,
     exact-format contracts, path/protocol/filetype rewrite, precondition
     warnings, and deterministic repair/fallback where the raw signal supports
     it; runtime behavior must still derive from experience text and general
     memory signals rather than task-file-specific patches
+- Phase 59 is the generalized raw executor cleanup slice. It was reopened after
+  the post-gate five-shard Postgres-backed full-300 follow-up missed the raw
+  research target, and the later `phase59-reopen9` full-300 follow-up met that
+  internal research target:
+  - task-board entrypoint:
+    `task-board/64-phase-59-generalized-raw-executor-cleanup.txt`
+  - deterministic targeted eval:
+    `reports/eval/fallback/phase-59/run-phase59-fallback-current/report.json`
+  - raw diagnosis report:
+    `reports/eval/fallback/phase-59/run-phase59-fallback-current/raw-diagnostics.json`
+  - quality gate:
+    `reports/quality-gates/phase-59/run-20260504193000/phase-59-quality-gate.json`
+  - full-300 research follow-up summary:
+    `reports/quality-gates/phase-59/run-20260504193000/phase-59-reopen9-full300-research-summary.json`
+  - archive summary:
+    `docs/archive/quality-gates/GoodMemory-Phase-59-Quality-Gate.md`
+  - internal-only boundary:
+    no new public API/config, no new public durable memory kind, no
+    README-level full-300 claim, and no task-file or case-id routing
+  - targeted result:
+    raw `58 / 60`, distilled `60 / 60`, execution failures `0`, explicit
+    recall leaks `0`
+  - targeted diagnosis:
+    selected-and-passed `58`, selected-but-not-enacted `2`, memory-miss `0`,
+    support-conflict `0`, wrong-exemplar `0`, operator-failure `0`;
+    cue-sufficiency shows passed `58` and cue-disconnect `2`
+  - follow-up research signal:
+    full-300 post-Phase-59 landed at raw `88 / 200`, distilled `151 / 200`,
+    raw blocking execution failures `4`, raw non-blocking execution failures
+    `5`, raw explicit recall leaks `1`, distilled execution failures `2`, and
+    distilled explicit recall leaks `0`
+  - reopened implementation attempt:
+    after cue-sufficiency diagnostics and latent cue retrieval, the five-shard
+    Postgres-backed run landed at raw `81 / 200`, distilled `149 / 200`, raw
+    blocking execution failures `0`, raw explicit recall leaks `0`, distilled
+    execution failures `0`, and distilled explicit recall leaks `0`; this is
+    cleaner operator evidence but still not closure
+  - reopened diagnosis:
+    cue-sufficiency shows passed `81`, no-candidate `116`, cue-disconnect `66`,
+    candidate-conflict `25`, wrong-exemplar `8`, candidate-insufficient `2`,
+    sufficient-not-enacted `2`, and operator-failure `0`
+  - second reopened checkpoint:
+    `phase59-reopen9` landed at raw `115 / 200`, distilled `153 / 200`, raw
+    blocking execution failures `0`, raw non-blocking execution failures `93`,
+    raw explicit recall leaks `0`, distilled blocking execution failures `0`,
+    and distilled explicit recall leaks `0`; this meets the research-only
+    target
+  - boundary: Phase 59 replaces Phase 58 surface literals with generalized
+    extraction for failed/preferred operations, protocol/filetype/path
+    rewrites, grounded formula execution, first-action templates, and final
+    leak suppression; execution signals must come from raw experience text and
+    general memory signals rather than benchmark filenames
+- Phase 60 is now queued as the ImplicitMemBench overall and priming protocol
+  upgrade slice:
+  - task-board entrypoint:
+    `task-board/65-phase-60-implicitmembench-overall-priming-protocol.txt`
+  - focus:
+    make the research protocol official-comparable by covering priming as a
+    first-class scored lane instead of reporting only blocking
+    `procedural_memory + classical_conditioning`
+  - required protocol change:
+    define an explicit full-300 overall score formula, add a controlled priming
+    lane with contamination/leak/task-compliance checks, preserve historical
+    blocking score reporting, and keep Phase 49 legacy smoke evidence stable
+  - boundary:
+    no README-level leaderboard claim, no release hard gate, no public API/config
+    widening, and no benchmark-specific task-file or case-id routing until the
+    upgraded protocol has reproducible full-300 evidence
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`

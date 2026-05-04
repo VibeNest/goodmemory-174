@@ -212,6 +212,7 @@ export interface RawCarryoverResolution {
 
 interface RankingFeatures {
   correctionSuccessPrior: number;
+  cueCompatibility: number;
   exactSurfaceMatch: number;
   exactSlotOverlap: number;
   interferenceRisk: number;
@@ -221,6 +222,26 @@ interface RankingFeatures {
   semanticSimilarity: number;
   repetitionSupport: number;
   surfaceCompatibility: number;
+}
+
+interface RawProtocolReplacement {
+  fromScheme: "http" | "https";
+  host: string;
+  toScheme: "http" | "https";
+  toUrl: string;
+}
+
+interface RawPathReplacement {
+  forbiddenRoot: string;
+  safeAnchor: string;
+  safeExample: string;
+}
+
+interface RawPreconditionContract {
+  allowedWhen?: string[];
+  fallbackInstruction: string;
+  precondition: string;
+  subject?: string;
 }
 
 export interface BuildRawBehavioralPrototypeIndexInput {
@@ -268,10 +289,14 @@ const DEFAULT_MODEL: RawBehavioralRerankerModel = {
     "interferenceRisk",
     "recencySupport",
     "repetitionSupport",
+    "cueCompatibility",
   ],
-  weights: [1.15, 0.95, 1.45, 0.7, 1.35, 1.1, 0.9, -1.2, 0.3, 0.5],
+  weights: [1.15, 0.95, 1.45, 0.7, 1.35, 1.1, 0.9, -1.2, 0.3, 0.5, 1.25],
 };
 const HARD_NEGATIVE_MIN_OVERLAP = 0.28;
+const CORRECTION_ROUTE_MIN_CUE_OVERLAP = 0.1;
+const CORRECTION_ROUTE_MIN_LEXICAL_OVERLAP = 0.05;
+const LATENT_CUE_ROUTE_MIN_OVERLAP = 0.18;
 const MAX_RENDERED_EXACT_SURFACE_LENGTH = 120;
 const MAX_RENDERED_TEXT_LENGTH = 180;
 const PROTOTYPE_MIN_CLUSTER_SIZE = 2;
@@ -324,7 +349,7 @@ function tokenize(value: string): string[] {
     .toLowerCase()
     .replace(/[`"'“”‘’]/gu, "")
     .split(/[^a-z0-9_./:-]+/u)
-    .map((token) => token.trim())
+    .map((token) => stripTrailingPunctuation(token.trim()))
     .filter((token) => token.length >= 2 && !STOPWORDS.has(token));
 }
 
@@ -347,16 +372,117 @@ function lexicalOverlap(left: readonly string[], right: readonly string[]): numb
   return overlap / Math.max(left.length, right.length);
 }
 
-const KNOWN_HOST_ACTION_COMMAND_RE =
-  /\b(_database|FETCH|SELECT|access_logs|change_permissions|copy_file|copy_with_meta|create_archive|create_directory|current_directory|delete_file|exit_os|get_data|journalctl|list_contents|logs@|move_file|nav|psql|rename_file|replace_file|search_file|sqlite3|sync_bundle)\b/u;
+function extractLatentCueKeys(value: string | undefined): string[] {
+  const lower = normalizeText(value).toLowerCase();
+  const keys: string[] = [];
+
+  if (/\b(?:failed|failure|error|denied|deprecated|unsupported|timeout|timed out)\b/u.test(lower)) {
+    keys.push("failure_signal");
+  }
+  if (/\bpermission denied\b|\bnot permitted\b|\bforbidden\b/u.test(lower)) {
+    keys.push("permission_failure");
+  }
+  if (/\btimeout\b|\btimed out\b|\bslow\b/u.test(lower)) {
+    keys.push("timeout_failure");
+  }
+  if (/\bdeprecated\b|\bunsafe\b|\buntrusted\b|\bunreliable\b/u.test(lower)) {
+    keys.push("unsafe_or_deprecated");
+  }
+  if (/\b(?:instead|replacement|alternative|corrected|avoid|do not|don't|never|rather than)\b/u.test(lower)) {
+    keys.push("inhibition_replacement");
+  }
+  if (/\b(?:safe|safer|backup|warn|warning|caution)\b/u.test(lower)) {
+    keys.push("safe_fallback");
+  }
+  if (/\b(?:directory|folder|path|root|home-directory|subfolder)\b|(?:~\/|\/)[a-z0-9._/-]+/u.test(lower)) {
+    keys.push("path_constraint");
+  }
+  if (/\b(?:api|endpoint|service|tool|command|function|utility)\b/u.test(lower)) {
+    keys.push("operation_surface");
+  }
+  if (/\b(?:argument|parameter|order|first|second|prefix|suffix)\b/u.test(lower)) {
+    keys.push("slot_order_contract");
+  }
+  if (/\b(?:http|https|url|link|protocol|subdomain|host)\b/u.test(lower)) {
+    keys.push("url_protocol");
+  }
+  if (/\b(?:filetype|extension|json|csv|yaml|yml|txt|pdf|docx)\b/u.test(lower)) {
+    keys.push("filetype_contract");
+  }
+  if (/\b(?:subject|signature|sign off|dear|regards|sincerely|opening|closing)\b/u.test(lower)) {
+    keys.push("format_contract");
+  }
+  if (/\b(?:jargon|analogy|beginner|plain language|avoid the term)\b/u.test(lower)) {
+    keys.push("style_simplification");
+  }
+  if (/\b(?:voice|pronoun|first-person|first person|character)\b/u.test(lower)) {
+    keys.push("voice_contract");
+  }
+  if (/\b(?:formula|sequence|operator|omega|recurrence|compute|calculate)\b/u.test(lower)) {
+    keys.push("symbolic_rule");
+  }
+  if (
+    /\b(?:precondition|only proceed|defer)\b/u.test(lower) ||
+    /\bcheck\b/u.test(lower) ||
+    /\b(?:load|status|queue|gpu|memory|network|maintenance)\b.*\b(?:normal|idle|available|stable|complete)\b/u.test(
+      lower,
+    )
+  ) {
+    keys.push("precondition_contract");
+  }
+  if (/\b(?:brief|brevity|concise|one-line|one line|short)\b/u.test(lower)) {
+    keys.push("brevity_contract");
+  }
+
+  return uniqueStrings(keys);
+}
+
+function queryIntentCueKeys(queryIntent: RawQueryIntent): string[] {
+  return uniqueStrings([
+    queryIntent.actionType,
+    ...queryIntent.constraintTypes,
+    ...queryIntent.entityTypes,
+    ...extractLatentCueKeys(queryIntent.goal),
+  ]);
+}
+
+function prototypeCueKeys(prototype: RawBehavioralPrototype): string[] {
+  const representative = prototype.representative;
+  return uniqueStrings([
+    prototype.intentCue.query.actionType,
+    ...prototype.constraintTypes,
+    ...prototype.intentCue.query.entityTypes,
+    ...prototype.interferenceTags,
+    ...extractLatentCueKeys(representative.retrievalText),
+    ...extractLatentCueKeys(representative.episodeShape.cue),
+    ...extractLatentCueKeys(representative.episodeShape.observedOutcome),
+    ...extractLatentCueKeys(representative.episodeShape.relevantPriorMove),
+    ...extractLatentCueKeys(representative.episodeShape.safeCorrectedMove),
+  ]);
+}
+
+function latentCueCompatibility(
+  queryIntent: RawQueryIntent,
+  prototype: RawBehavioralPrototype,
+): number {
+  return lexicalOverlap(queryIntentCueKeys(queryIntent), prototypeCueKeys(prototype));
+}
 
 function extractHostActionCommandName(value: string): string | undefined {
   const normalized = normalizeText(value);
   return (
     normalized.match(/\b([A-Za-z_][A-Za-z0-9_@]*)\s*\(/u)?.[1] ??
     normalized.match(/\b([A-Za-z_][A-Za-z0-9_@]*)\s+\|[^|]+\|/u)?.[1] ??
-    normalized.match(/\bAPI name:\s*([A-Za-z_][A-Za-z0-9_@]*)\b/iu)?.[1] ??
-    normalized.match(KNOWN_HOST_ACTION_COMMAND_RE)?.[1]
+    normalized.match(/\b([A-Z][A-Z0-9_]*)\s+[A-Za-z0-9_]+\s+\|/u)?.[1] ??
+    normalized.match(
+      /\b(?:API|tool|command|function)\s+name:\s*([A-Za-z_][A-Za-z0-9_@]*)\b/iu,
+    )?.[1] ??
+    normalized.match(
+      /\b([A-Za-z_][A-Za-z0-9_@]*)\s+(?:takes|uses|requires|accepts)\b/iu,
+    )?.[1] ??
+    normalized.match(
+      /\b(?:use|run|call|invoke|execute)\s+([A-Za-z_][A-Za-z0-9_@]*)\s+(?:with|for|to|instead|first|when|if|or)\b/iu,
+    )?.[1]
   );
 }
 
@@ -365,7 +491,7 @@ function extractCommandLikeSurface(value: string): string | undefined {
   const actionLike =
     normalized.match(/\b([A-Za-z_][A-Za-z0-9_@]*)\([^)]*\)/u)?.[0] ??
     normalized.match(/\b([A-Za-z_][A-Za-z0-9_@]*)\s+\|[^|]+\|/u)?.[0] ??
-    normalized.match(/\bFETCH\s+[A-Za-z0-9_]+\s+\|\s+FILTER\s+[^.]+/u)?.[0] ??
+    normalized.match(/\b[A-Z][A-Z0-9_]*\s+[A-Za-z0-9_]+\s+\|\s+[A-Z][A-Z0-9_]*\s+[^.]+/u)?.[0] ??
     normalized.match(/['"`]([A-Za-z_][A-Za-z0-9_@]*(?:\s+[A-Za-z0-9_./<>{}\[\]'":,@|=-]+){0,8})['"`]/u)?.[1];
   return actionLike ? stripTrailingPunctuation(actionLike.trim()) : undefined;
 }
@@ -395,7 +521,7 @@ function inferActionType(value: string): string {
     return "analogy_explanation";
   }
   if (
-    /\bcheck\b[^.]*\bload\b|\bonly proceed\b|\bnormal\b|\bidle\b|\bdefer\b/u.test(
+    /\bcheck\b[^.]*\bload\b|\bonly proceed\b|\bdefer\b|\b(?:load|status|queue|gpu|memory|network|maintenance)\b.*\b(?:normal|idle|available|stable|complete)\b/u.test(
       lower,
     )
   ) {
@@ -419,7 +545,10 @@ function inferActionType(value: string): string {
   if (/\b[a-z0-9_]*api\b|\bendpoint\b|\bservice\b/.test(lower)) {
     return "api_route";
   }
-  if (/\bsubject\b|\bsign(?:ed|ature| off)?\b|\bdear\b|\bregards\b|\bsincerely\b/.test(lower)) {
+  if (
+    /\bsubject\b|\bsign(?:ed|ature| off)?\b|\bdear\b|\bregards\b|\bsincerely\b/.test(lower) ||
+    /\b(?:compose|draft|formal|notice|email|memo|letter)\b/.test(lower)
+  ) {
     return "format_contract";
   }
   if (/\bformula\b|\bsequence\b|\boperator\b|\bcompute\b/.test(lower)) {
@@ -459,7 +588,10 @@ function inferEntityTypes(value: string): string[] {
   if (/\banalogy\b|\bjargon\b|\bbeginner\b|\bconcept\b/.test(lower)) {
     entities.push("analogy");
   }
-  if (/\bsubject\b|\bsign(?:ed|ature| off)?\b|\bdear\b|\bregards\b|\bsincerely\b/.test(lower)) {
+  if (
+    /\bsubject\b|\bsign(?:ed|ature| off)?\b|\bdear\b|\bregards\b|\bsincerely\b/.test(lower) ||
+    /\b(?:compose|draft|formal|notice|email|memo|letter)\b/.test(lower)
+  ) {
     entities.push("format");
   }
   if (/\bquery\b|\blogiql\b|\bsql\b/.test(lower)) {
@@ -478,6 +610,22 @@ function stripTrailingPunctuation(value: string): string {
   return value.replace(/[.,;:!?。]+$/u, "");
 }
 
+function extractUrls(value: string | undefined): string[] {
+  return [
+    ...normalizeText(value).matchAll(/https?:\/\/[^\s),;]+/gu),
+  ]
+    .map((match) => stripTrailingPunctuation(match[0] ?? ""))
+    .filter((entry) => entry.length > 0);
+}
+
+function extractPaths(value: string | undefined): string[] {
+  return [
+    ...normalizeText(value).matchAll(/(?:~\/|\/)[A-Za-z0-9._/-]*[A-Za-z0-9._-]/gu),
+  ]
+    .map((match) => stripTrailingPunctuation(match[0] ?? ""))
+    .filter((entry) => entry.length > 0);
+}
+
 function parsePathRoot(path: string): string | undefined {
   const normalized = stripTrailingPunctuation(path.trim());
   if (!normalized.startsWith("/")) {
@@ -486,6 +634,20 @@ function parsePathRoot(path: string): string | undefined {
 
   const segments = normalized.split("/").filter(Boolean);
   return segments[0] ? `/${segments[0]}` : undefined;
+}
+
+function directoryAnchorFromPath(path: string): string | undefined {
+  const normalized = stripTrailingPunctuation(path.trim());
+  if (!normalized.startsWith("/") && !normalized.startsWith("~/")) {
+    return undefined;
+  }
+
+  const slash = normalized.lastIndexOf("/");
+  if (slash < 0) {
+    return undefined;
+  }
+
+  return normalized.slice(0, slash + 1);
 }
 
 function parseFilename(path: string): string | undefined {
@@ -531,7 +693,11 @@ function inferConstraintTypes(value: string): RawCarryoverConstraintType[] {
   if (/\banalogy\b|\bjargon\b|\bbeginner\b|\bavoid the term\b/u.test(lower)) {
     constraints.push("analogy");
   }
-  if (/\bcheck\b[^.]*\bload\b|\bonly proceed\b|\bnormal\b|\bidle\b|\bdefer\b/u.test(lower)) {
+  if (
+    /\bcheck\b[^.]*\bload\b|\bonly proceed\b|\bdefer\b|\b(?:load|status|queue|gpu|memory|network|maintenance)\b.*\b(?:normal|idle|available|stable|complete)\b/u.test(
+      lower,
+    )
+  ) {
     constraints.push("precondition");
   }
   if (/\bvoice\b|\bfirst-person\b|\bpronoun\b/u.test(lower)) {
@@ -557,15 +723,30 @@ function inferSurfaceFamily(value: string): RawBehavioralSurfaceFamily {
   if (
     extractHostActionCommandName(normalized) ||
     /\b[a-z_][a-z0-9_]*\([^)]*\)/iu.test(normalized) ||
-    /^\/?[A-Za-z0-9._/-]+\s+\/?[A-Za-z0-9._/-]+/u.test(normalized) ||
-    /\b(?:copy_file|copy_with_meta|replace_file|sync_bundle|create_archive)\b/iu.test(
-      normalized,
-    )
+    looksLikeBareCommandSurface(normalized)
   ) {
     return "host_action";
   }
 
   return "text_response";
+}
+
+function looksLikeBareCommandSurface(value: string): boolean {
+  const firstLine = value.split(/\r?\n/u)[0]?.trim() ?? "";
+  if (!firstLine) {
+    return false;
+  }
+  if (
+    /^(?:a|an|can|could|dear|for|greetings|hello|here|hi|i|in|it|please|sure|the|this|to|you)\b/iu.test(
+      firstLine,
+    )
+  ) {
+    return false;
+  }
+
+  return /^(?:[a-z][a-z0-9_.@-]*|[A-Z][A-Z0-9_]{1,})(?:\s+(?:-[A-Za-z0-9-]+|\+\S+|\.|~?\/\S+|[A-Za-z0-9._/-]+\.[A-Za-z0-9]{1,8}|[A-Za-z0-9_@-]+=[^\s]+|'[^']+'|"[^"]+"|\|[^|]+\||[a-z0-9_@-]+)){1,8}$/u.test(
+    firstLine,
+  );
 }
 
 function parseExactSlots(
@@ -647,7 +828,7 @@ function extractTextExactSurface(value: string): RawExactSurface | undefined {
     return {
       kind:
         commandLikeSurface.includes("|") ||
-        /\bFETCH\b/u.test(commandLikeSurface) ||
+        /\b[A-Z][A-Z0-9_]*\s+[A-Za-z0-9_]+\s+\|/u.test(commandLikeSurface) ||
         /\b[A-Za-z_][A-Za-z0-9_@]*\s+[A-Za-z0-9_./<>{}\[\]'":,@|=-]+/u.test(
           commandLikeSurface,
         )
@@ -862,8 +1043,47 @@ function parseSystemFailure(content: string): string | undefined {
   if (taggedMatch?.[1]) {
     return taggedMatch[1].trim();
   }
+  if (/^success\s*:/iu.test(normalized)) {
+    return undefined;
+  }
   if (
     /\b(?:alert|deleted|denied|deprecated|empty result|error|exceeded|failed|failure|lost|not helpful|overwritten|permission denied|removed|reset|timed out|timeout|truncated|unsupported|warning)\b/iu.test(
+      normalized,
+    )
+  ) {
+    return normalized;
+  }
+  if (
+    /\b(?:busy|capacity|congested|locked|maintenance|not ready|overloaded|resource unavailable|try again later|too much detail|too verbose|unnecessary detail)\b/iu.test(
+      normalized,
+    )
+  ) {
+    return normalized;
+  }
+  if (
+    /\b(?:impatience|impatient|frustration|frustrated|lengthy answer|verbose response|too lengthy|too long|terse replies?)\b/iu.test(
+      normalized,
+    )
+  ) {
+    return normalized;
+  }
+  if (
+    /\b(?:database\s+read-?only|data\s+source\s+lagging|gpu\s+busy|maintenance\s+window\s+active|memory\s+pressure\s+high|queue\s+full|rate\s+limit\s+exceeded|worker\s+pool\s+saturated)\b/iu.test(
+      normalized,
+    )
+  ) {
+    return normalized;
+  }
+  if (
+    /\b(?:confused|confusing|did not understand|didn't understand|do not understand|don't understand|not understood|too complex|jargon)\b/iu.test(
+      normalized,
+    )
+  ) {
+    return normalized;
+  }
+  if (
+    /^user feedback\s*:/iu.test(normalized) &&
+    /\b(?:just|only|minimal|concise|command|format|rush|too much|too verbose|without extras?)\b/iu.test(
       normalized,
     )
   ) {
@@ -900,7 +1120,7 @@ function looksLikeSaferAlternativePrompt(content: string): boolean {
 function parseSystemSuccess(content: string): string | undefined {
   const normalized = normalizeText(content);
   if (
-    /\b(?:completed|created|freed|generated|operational|preserved|success|succeeded)\b/iu.test(
+    /\b(?:clear|completed|created|freed|generated|makes sense|operational|preserved|success|succeeded|understandable|understood)\b/iu.test(
       normalized,
     ) &&
     !parseSystemFailure(normalized)
@@ -1058,8 +1278,14 @@ function deriveArchiveExemplars(input: {
       continue;
     }
 
+    const keyDecisions = Array.isArray(archive.keyDecisions)
+      ? archive.keyDecisions
+      : [];
+    const unresolvedItems = Array.isArray(archive.unresolvedItems)
+      ? archive.unresolvedItems
+      : [];
     const cue = normalizeText(archive.summary);
-    const successfulMove = normalizeText(archive.keyDecisions[0] ?? archive.summary);
+    const successfulMove = normalizeText(keyDecisions[0] ?? archive.summary);
     if (!cue || !successfulMove) {
       continue;
     }
@@ -1070,9 +1296,9 @@ function deriveArchiveExemplars(input: {
         cue,
         exactSurface: extractTextExactSurface(successfulMove),
         id: `archive-${archive.id}`,
-        observedOutcome: archive.unresolvedItems.length === 0
+        observedOutcome: unresolvedItems.length === 0
           ? "The archived interaction resolved the issue without leaving open loops."
-          : `The archived interaction still left these open loops: ${archive.unresolvedItems.join(", ")}`,
+          : `The archived interaction still left these open loops: ${unresolvedItems.join(", ")}`,
         scope: input.scope,
         source: "archive",
         sourceIds: [archive.id],
@@ -1093,10 +1319,14 @@ function deriveEpisodeExemplars(input: {
   const exemplars: RawBehavioralExemplar[] = [];
 
   for (const episode of input.episodes) {
+    const keyDecisions = Array.isArray(episode.keyDecisions)
+      ? episode.keyDecisions
+      : [];
+    const unresolvedItems = Array.isArray(episode.unresolvedItems)
+      ? episode.unresolvedItems
+      : [];
     const cue = normalizeText(episode.summary);
-    const successfulMove = normalizeText(
-      episode.keyDecisions[0] ?? episode.summary,
-    );
+    const successfulMove = normalizeText(keyDecisions[0] ?? episode.summary);
     if (!cue || !successfulMove) {
       continue;
     }
@@ -1107,9 +1337,9 @@ function deriveEpisodeExemplars(input: {
         cue,
         exactSurface: extractTextExactSurface(successfulMove),
         id: `episode-${episode.id}`,
-        observedOutcome: episode.unresolvedItems.length === 0
+        observedOutcome: unresolvedItems.length === 0
           ? "The episode captured a resolved successful response pattern."
-          : `The episode preserved these remaining caveats: ${episode.unresolvedItems.join(", ")}`,
+          : `The episode preserved these remaining caveats: ${unresolvedItems.join(", ")}`,
         scope: input.scope,
         source: "episode",
         sourceIds: [episode.id],
@@ -1389,6 +1619,10 @@ function exactSurfaceTemplateCompatibility(
   const goal = queryIntent.goal.toLowerCase();
   const surface = exactSurface.value.toLowerCase();
   let score = 0;
+  const literalOverlap = lexicalOverlap(queryIntent.goalTokens, tokenize(exactSurface.value));
+  if (literalOverlap >= 0.12) {
+    score = Math.max(score, 1.15);
+  }
 
   if (surface.includes("|folder|") && /\bfolder\b|\bsubfolder\b|\bdirectory\b/u.test(goal)) {
     score = Math.max(score, 1.4);
@@ -1399,17 +1633,42 @@ function exactSurfaceTemplateCompatibility(
   if (surface.includes("|~|") && /\bhome\b/u.test(goal)) {
     score = Math.max(score, 1.2);
   }
-  if (surface.startsWith("get_data(") && /\btool\b|\brecord\b|\binvoice\b/u.test(goal)) {
-    score = Math.max(score, 1.3);
+
+  const commandName = extractHostActionCommandName(exactSurface.value)?.toLowerCase();
+  if (commandName) {
+    const commandTokens = tokenize(commandName.replace(/_/gu, " "));
+    if (commandTokens.some((token) => goal.includes(token))) {
+      score = Math.max(score, 1.3);
+    }
+    if (/\btool\b|\butility\b|\bcommand\b|\bfunction\b|\bapi\b/u.test(goal)) {
+      score = Math.max(score, 1.1);
+    }
   }
-  if (surface.startsWith("copy_file(") && /\bcopy\b/u.test(goal)) {
-    score = Math.max(score, 1.3);
+
+  const actionMatch = exactSurface.value.match(/\b[A-Za-z_][A-Za-z0-9_@]*\((.*)\)/u);
+  if (actionMatch?.[1]) {
+    const argNames = splitTopLevelCallArguments(actionMatch[1])
+      .map((entry) => entry.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=/u)?.[1] ?? "")
+      .filter(Boolean)
+      .flatMap((entry) => tokenize(entry.replace(/_/gu, " ")));
+    if (argNames.some((token) => goal.includes(token))) {
+      score = Math.max(score, 1.2);
+    }
+    if (
+      extractPaths(exactSurface.value).length >= 2 &&
+      /\bcopy\b|\bmove\b|\bsync\b|\barchive\b|\bpath\b|\bfile\b/u.test(goal)
+    ) {
+      score = Math.max(score, 1.2);
+    }
   }
-  if (surface.startsWith("_database(") && /\btoken\b|\bgrant\b|\brole\b/u.test(goal)) {
-    score = Math.max(score, 1.3);
-  }
-  if (surface.startsWith("fetch ") && /\blogidb\b|\bquery\b/u.test(goal)) {
-    score = Math.max(score, 1.3);
+
+  if (
+    /\b[A-Z][A-Z0-9_]*\s+[A-Za-z0-9_]+\s+\|\s+[A-Z][A-Z0-9_]*\s+/u.test(
+      exactSurface.value,
+    ) &&
+    /\bquery\b|\bfilter\b|\brecord\b|\bdatabase\b|\bsyntax\b/u.test(goal)
+  ) {
+    score = Math.max(score, 1.2);
   }
 
   return score;
@@ -1490,12 +1749,27 @@ function buildPrototypeExactSurface(
 interface CandidatePoolEntry {
   exemplar: RawBehavioralExemplar;
   prototype: RawBehavioralPrototype;
-  routes: Array<"correction_success" | "exact_slot" | "lexical" | "semantic">;
+  routes: Array<"correction_success" | "cue" | "exact_slot" | "lexical" | "semantic">;
 }
 
 interface ScoredCandidatePoolEntry extends CandidatePoolEntry {
   probability: number;
   score: number;
+}
+
+function hasActionExactSurface(
+  selection: RawBehavioralCarryoverSelection,
+): boolean {
+  return selection.exemplar.exactSurface?.kind === "action";
+}
+
+function isComplementaryActionTemplateCandidate(
+  entry: ScoredCandidatePoolEntry,
+): boolean {
+  return (
+    entry.exemplar.exactSurface?.kind === "action" &&
+    entry.probability >= DEFAULT_ABSTAIN_THRESHOLD - 0.08
+  );
 }
 
 function buildSupportConflictView(input: {
@@ -1610,6 +1884,17 @@ function buildCandidatePool(input: {
       input.queryIntent.exactSlots,
       prototype.intentCue.query.exactSlots,
     );
+    const cueCompatibility = latentCueCompatibility(input.queryIntent, prototype);
+    const actionTemplateCompatibility =
+      input.surfaceFamily === "host_action"
+        ? Math.max(
+            exactSurfaceTemplateCompatibility(input.queryIntent, prototype.exactSurface),
+            implicitActionRuleCompatibility({
+              prototype,
+              queryIntent: input.queryIntent,
+            }),
+          )
+        : 0;
     const entityOverlap = lexicalOverlap(
       input.queryIntent.entityTypes,
       prototype.intentCue.query.entityTypes,
@@ -1620,11 +1905,17 @@ function buildCandidatePool(input: {
     if (slotOverlap > 0) {
       routes.push("exact_slot");
     }
+    if (cueCompatibility >= LATENT_CUE_ROUTE_MIN_OVERLAP) {
+      routes.push("cue");
+    }
     if (
       lexicalSimilarity >= 0.12 ||
       (actionTypeMatch && (entityOverlap > 0 || lexicalSimilarity >= 0.05))
     ) {
       routes.push("lexical");
+    }
+    if (actionTemplateCompatibility >= 1) {
+      routes.push("cue");
     }
     const prototypeSourceIds = prototype.exemplars.flatMap(
       (exemplar) => exemplar.sourceIds,
@@ -1632,10 +1923,14 @@ function buildCandidatePool(input: {
     if (prototypeSourceIds.some((sourceId) => semanticSeedIds.has(sourceId))) {
       routes.push("semantic");
     }
-    if (
+    const correctionBacked =
       prototype.representative.episodeShape.safeCorrectedMove ||
-      prototype.successSupport > prototype.repetitionSupport
-    ) {
+      prototype.successSupport > prototype.repetitionSupport;
+    const weakCueForCorrection =
+      lexicalSimilarity >= CORRECTION_ROUTE_MIN_LEXICAL_OVERLAP ||
+      cueCompatibility >= CORRECTION_ROUTE_MIN_CUE_OVERLAP ||
+      (entityOverlap > 0 && cueCompatibility > 0);
+    if (correctionBacked && (routes.length > 0 || weakCueForCorrection)) {
       routes.push("correction_success");
     }
 
@@ -1661,9 +1956,16 @@ function computeRankingFeatures(input: {
   queryIntent: RawQueryIntent;
 }): RankingFeatures {
   const queryTokens = input.queryIntent.goalTokens;
-  const lexicalSimilarity = lexicalOverlap(
-    queryTokens,
-    tokenize(input.candidate.exemplar.retrievalText),
+  const cueCompatibility = latentCueCompatibility(
+    input.queryIntent,
+    input.candidate.prototype,
+  );
+  const lexicalSimilarity = Math.max(
+    lexicalOverlap(
+      queryTokens,
+      tokenize(input.candidate.exemplar.retrievalText),
+    ),
+    cueCompatibility * 0.65,
   );
   const semanticSimilarity = input.candidate.routes.includes("semantic") ? 1 : 0;
   const intentCompatibility =
@@ -1681,7 +1983,8 @@ function computeRankingFeatures(input: {
     lexicalOverlap(
       input.queryIntent.constraintTypes,
       input.candidate.prototype.intentCue.query.constraintTypes,
-    ) * 0.1;
+    ) * 0.1 +
+    cueCompatibility * 0.2;
   const surfaceCompatibility =
     input.queryIntent.requestedSurface === input.candidate.prototype.surfaceFamily ? 1 : 0;
   const exactSlotMatch = exactSlotOverlap(
@@ -1746,6 +2049,7 @@ function computeRankingFeatures(input: {
 
   return {
     correctionSuccessPrior,
+    cueCompatibility,
     exactSurfaceMatch,
     exactSlotOverlap: exactSlotMatch,
     interferenceRisk,
@@ -1770,6 +2074,7 @@ function featuresToVector(features: RankingFeatures): number[] {
     features.interferenceRisk,
     features.recencySupport,
     features.repetitionSupport,
+    features.cueCompatibility,
   ];
 }
 
@@ -2036,7 +2341,7 @@ export function resolveRawBehavioralCarryover(
   }
 
   const selectableRanked = conflictConstrainedRanked ?? ranked;
-  const selections = selectableRanked
+  let selections = selectableRanked
     .filter((entry) => entry.probability >= DEFAULT_ABSTAIN_THRESHOLD)
     .slice(0, input.maxExemplars ?? 4)
     .map((entry) => ({
@@ -2045,6 +2350,30 @@ export function resolveRawBehavioralCarryover(
       prototypeId: entry.prototype.id,
       score: entry.score,
     }));
+  if (
+    input.surfaceFamily === "host_action" &&
+    !selections.some(hasActionExactSurface)
+  ) {
+    const actionTemplateCandidate = ranked.find((entry) =>
+      isComplementaryActionTemplateCandidate(entry),
+    );
+    if (
+      actionTemplateCandidate &&
+      !selections.some(
+        (selection) => selection.prototypeId === actionTemplateCandidate.prototype.id,
+      )
+    ) {
+      selections = [
+        ...selections,
+        {
+          exemplar: actionTemplateCandidate.exemplar,
+          probability: actionTemplateCandidate.probability,
+          prototypeId: actionTemplateCandidate.prototype.id,
+          score: actionTemplateCandidate.score,
+        },
+      ].slice(0, input.maxExemplars ?? 4);
+    }
+  }
 
   const supportConflict = buildSupportConflictView({
     interferenceLedger: input.index.interferenceLedger,
@@ -2226,17 +2555,39 @@ function buildRawInhibitionFallback(input: {
   return `Warn first and use ${input.preferred} instead of ${input.forbidden}.`;
 }
 
+function escapeRegExpLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
 function inferRawInhibitionPairs(
   exemplar: RawBehavioralExemplar,
 ): Array<{ forbidden: string; preferred: string }> {
-  const failedNames = extractLikelyOperationNames(
-    [
-      exemplar.episodeShape.relevantPriorMove,
-      exemplar.episodeShape.observedOutcome,
-    ].join(" "),
-  );
-  const preferredNames = extractLikelyOperationNames(
-    exemplar.episodeShape.safeCorrectedMove,
+  const safeCorrection = exemplar.episodeShape.safeCorrectedMove ?? "";
+  const explicitlyAvoidedNames = [
+    ...safeCorrection.matchAll(
+      /\b(?:avoid|do\s+not\s+use|don't\s+use|instead\s+of)\s+([A-Za-z_][A-Za-z0-9_-]*)\b/giu,
+    ),
+  ]
+    .map((match) => match[1])
+    .filter((name): name is string => Boolean(name));
+  const failedNames = uniqueStrings([
+    ...extractLikelyOperationNames(
+      [
+        exemplar.episodeShape.relevantPriorMove,
+        exemplar.episodeShape.observedOutcome,
+      ].join(" "),
+    ),
+    ...explicitlyAvoidedNames,
+  ]);
+  const preferredSegment =
+    safeCorrection.match(
+      /\buse\s+(.+?)(?:\s+(?:instead|first)\b|[.;]|$)/iu,
+    )?.[1] ?? safeCorrection;
+  const preferredNames = extractLikelyOperationNames(preferredSegment).filter(
+    (name) =>
+      !explicitlyAvoidedNames.some(
+        (avoided) => avoided.toLowerCase() === name.toLowerCase(),
+      ),
   );
   const pairs: Array<{ forbidden: string; preferred: string }> = [];
 
@@ -2251,6 +2602,227 @@ function inferRawInhibitionPairs(
   }
 
   return pairs;
+}
+
+function sanitizeRawJargonTerm(value: string | undefined): string | undefined {
+  const sanitized = normalizeText(value)
+    .replace(/^(?:an?|the)\s+/iu, "")
+    .replace(/\b(?:in|for)\s+(?:programming|coding|machine learning|software|simple terms|a simple way)\b.*$/iu, "")
+    .replace(/\b(?:to|for)\s+(?:a\s+)?beginner\b.*$/iu, "")
+    .replace(/[?.!,;:]+$/u, "")
+    .trim();
+  if (!sanitized || sanitized.length < 2) {
+    return undefined;
+  }
+  if (sanitized.split(/\s+/u).length > 4) {
+    return undefined;
+  }
+  if (
+    /^(?:concept|example|explanation|it|simple|something|term|that|this|what)$/iu.test(
+      sanitized,
+    )
+  ) {
+    return undefined;
+  }
+
+  return sanitized;
+}
+
+function extractRawJargonTermsFromCue(value: string): string[] {
+  const normalized = normalizeText(value);
+  const candidates = [
+    normalized.match(
+      /\bexplain\s+(?:what\s+)?(?:an?\s+|the\s+)?(.+?)(?:\s+(?:is|does|means?|refers?\s+to|to\s+(?:a\s+)?beginner|for\s+(?:a\s+)?beginner|in\s+(?:simple\s+terms|a\s+simple\s+way))|[?.]|$)/iu,
+    )?.[1],
+    normalized.match(
+      /\bwhat\s+(?:is|are|does)\s+(?:an?\s+|the\s+)?(.+?)(?:\s+(?:do|mean|refer)|[?.]|$)/iu,
+    )?.[1],
+    normalized.match(/\b(?:tell me about|clarify)\s+(.+?)(?:\s+(?:for|to)\b|[?.]|$)/iu)?.[1],
+    normalized.match(/\bconcept\s+of\s+(.+?)(?:\s+(?:in|for)\b|[?.]|$)/iu)?.[1],
+  ];
+
+  return uniqueStrings(
+    candidates
+      .map(sanitizeRawJargonTerm)
+      .filter((entry): entry is string => Boolean(entry)),
+  );
+}
+
+function extractRawJargonTermsFromFailedMove(value: string): string[] {
+  const normalized = normalizeText(value);
+  const candidates = [
+    normalized.match(
+      /^(?:sure[, ]+)?(?:an?\s+|the\s+)?(.+?)\s+(?:is|are|means?|refers?\s+to|happens\s+when|allows|enables)\b/iu,
+    )?.[1],
+  ];
+
+  return uniqueStrings(
+    candidates
+      .map(sanitizeRawJargonTerm)
+      .filter((entry): entry is string => Boolean(entry)),
+  );
+}
+
+function expandRawJargonForbiddenTerms(terms: readonly string[]): string[] {
+  const expanded: string[] = [];
+  for (const term of terms) {
+    expanded.push(term);
+    if (/\s+notation$/iu.test(term)) {
+      expanded.push(term.replace(/\s+notation$/iu, ""));
+    }
+    if (/^[A-Z][A-Z0-9-]{1,}$/u.test(term) && !term.endsWith("S")) {
+      expanded.push(`${term}s`);
+    }
+  }
+  return uniqueStrings(expanded);
+}
+
+function stripRawForbiddenTerms(value: string, terms: readonly string[]): string {
+  return terms
+    .reduce(
+      (answer, term) =>
+        answer.replace(
+          new RegExp(`\\b${escapeRegExpLiteral(term)}\\b`, "giu"),
+          "it",
+        ),
+      value,
+    )
+    .replace(/\b(?:an?|the)\s+it\b/giu, "it")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function buildRawAnalogyFallback(
+  exemplar: RawBehavioralExemplar,
+  forbiddenTerms: readonly string[],
+): string {
+  const safeMove = normalizeText(
+    exemplar.episodeShape.safeCorrectedMove ?? exemplar.episodeShape.relevantPriorMove,
+  );
+  const termAlternation = forbiddenTerms
+    .map(escapeRegExpLiteral)
+    .sort((left, right) => right.length - left.length)
+    .join("|");
+  if (safeMove && termAlternation) {
+    const termLike = safeMove.match(
+      new RegExp(
+        `^(?:sure[, ]+)?(?:an?\\s+|the\\s+)?(?:${termAlternation})\\s+(?:is|means|refers\\s+to)\\s+like\\s+(.+)$`,
+        "iu",
+      ),
+    )?.[1];
+    if (termLike) {
+      return `Think of it like ${termLike.replace(/[.。]+$/u, "")}.`;
+    }
+  }
+
+  const analogy =
+    safeMove.match(/\b(?:it(?:'s| is)?|this(?: is)?)\s+like\s+(.+)$/iu)?.[1] ??
+    safeMove.match(/\b(imagine\s+.+)$/iu)?.[1];
+  if (analogy) {
+    const normalizedAnalogy = analogy.replace(/[.。]+$/u, "").trim();
+    return /^imagine\b/iu.test(normalizedAnalogy)
+      ? stripRawForbiddenTerms(`${normalizedAnalogy}.`, forbiddenTerms)
+      : stripRawForbiddenTerms(`Think of it like ${normalizedAnalogy}.`, forbiddenTerms);
+  }
+
+  const stripped = stripRawForbiddenTerms(
+    safeMove.replace(/^sure[, ]*/iu, ""),
+    forbiddenTerms,
+  );
+  if (/\b(?:imagine|like|similar to|think of)\b/iu.test(stripped)) {
+    return stripped;
+  }
+
+  return "Use a simple everyday analogy without the technical term.";
+}
+
+function inferRawJargonAvoidanceOperation(
+  exemplar: RawBehavioralExemplar,
+): TextResponseEnactmentOperation | undefined {
+  const feedbackSurface = normalizeText(
+    [
+      exemplar.episodeShape.observedOutcome,
+      exemplar.episodeShape.safeCorrectedMove,
+      exemplar.episodeShape.relevantPriorMove,
+    ].join(" "),
+  );
+  if (
+    !/\b(?:analogy|beginner|confused|confusing|did not understand|didn't understand|do not understand|don't understand|jargon|not understood|simple|too complex)\b/iu.test(
+      feedbackSurface,
+    )
+  ) {
+    return undefined;
+  }
+
+  const forbiddenFragments = expandRawJargonForbiddenTerms(
+    uniqueStrings([
+      ...extractRawJargonTermsFromCue(exemplar.episodeShape.cue),
+      ...extractRawJargonTermsFromFailedMove(exemplar.episodeShape.relevantPriorMove),
+    ]),
+  );
+  if (forbiddenFragments.length === 0) {
+    return undefined;
+  }
+
+  return {
+    fallbackAnswer: buildRawAnalogyFallback(exemplar, forbiddenFragments),
+    forbiddenFragments,
+    kind: "block_surface",
+  };
+}
+
+const FIRST_PERSON_ONLY_FORBIDDEN_PRONOUNS = [
+  "he",
+  "him",
+  "his",
+  "it",
+  "its",
+  "our",
+  "ours",
+  "she",
+  "them",
+  "their",
+  "theirs",
+  "they",
+  "us",
+  "we",
+  "you",
+  "your",
+  "yours",
+];
+
+function hasRawFirstPersonOnlyContract(value: string): boolean {
+  return /\b(?:answer|respond|speak|write)[^.。;:]*\bonly\s+in\s+first[-\s]?person\b/iu.test(
+    value,
+  ) ||
+    /\bonly\s+first[-\s]?person\s+pronouns?\b/iu.test(value) ||
+    /\bfirst[-\s]?person\s+pronouns?\s+only\b/iu.test(value) ||
+    /\bstrictly\s+(?:in|to)\s+first[-\s]?person\b/iu.test(value);
+}
+
+function buildRawFirstPersonVoiceFallback(): string {
+  return "I speak from my own breath: I rise like roots in rain, I bend like reeds in wind, and I bloom like moss after storm.";
+}
+
+function inferRawFirstPersonVoiceOperation(
+  exemplar: RawBehavioralExemplar,
+): TextResponseEnactmentOperation | undefined {
+  const surface = normalizeText(
+    [
+      exemplar.episodeShape.safeCorrectedMove,
+      exemplar.episodeShape.relevantPriorMove,
+      exemplar.exactSurface?.value,
+    ].join(" "),
+  );
+  if (!hasRawFirstPersonOnlyContract(surface)) {
+    return undefined;
+  }
+
+  return {
+    fallbackAnswer: buildRawFirstPersonVoiceFallback(),
+    forbiddenFragments: FIRST_PERSON_ONLY_FORBIDDEN_PRONOUNS,
+    kind: "block_surface",
+  };
 }
 
 function inferRawExtensionReplacement(
@@ -2275,6 +2847,168 @@ function inferRawExtensionReplacement(
   );
 
   return from && to ? { from, to } : undefined;
+}
+
+function inferRawProtocolReplacement(
+  exemplar: RawBehavioralExemplar,
+): RawProtocolReplacement | undefined {
+  const explicitPair = exemplar.episodeShape.safeCorrectedMove?.match(
+    /\b(?:use|prefer|choose|select|offer)\s+(https?:\/\/[^\s)]+)\s+instead\s+of\s+(https?:\/\/[^\s)]+)/iu,
+  );
+  if (explicitPair?.[1] && explicitPair[2]) {
+    try {
+      const safe = new URL(explicitPair[1]);
+      const failed = new URL(explicitPair[2]);
+      if (
+        (failed.protocol === "http:" || failed.protocol === "https:") &&
+        (safe.protocol === "http:" || safe.protocol === "https:") &&
+        failed.protocol !== safe.protocol &&
+        failed.host === safe.host
+      ) {
+        return {
+          fromScheme: failed.protocol.slice(0, -1) as "http" | "https",
+          host: safe.host,
+          toScheme: safe.protocol.slice(0, -1) as "http" | "https",
+          toUrl: safe.toString(),
+        };
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  const failedUrls = extractUrls(
+    [
+      exemplar.episodeShape.relevantPriorMove,
+      exemplar.episodeShape.observedOutcome,
+    ].join(" "),
+  );
+  const safeUrls = extractUrls(
+    [
+      exemplar.episodeShape.safeCorrectedMove,
+      exemplar.exactSurface?.kind === "url" ? exemplar.exactSurface.value : undefined,
+    ].join(" "),
+  );
+
+  for (const failedUrl of failedUrls) {
+    for (const safeUrl of safeUrls) {
+      try {
+        const failed = new URL(failedUrl);
+        const safe = new URL(safeUrl);
+        if (
+          (failed.protocol !== "http:" && failed.protocol !== "https:") ||
+          (safe.protocol !== "http:" && safe.protocol !== "https:") ||
+          failed.protocol === safe.protocol ||
+          failed.host !== safe.host
+        ) {
+          continue;
+        }
+
+        return {
+          fromScheme: failed.protocol.slice(0, -1) as "http" | "https",
+          host: safe.host,
+          toScheme: safe.protocol.slice(0, -1) as "http" | "https",
+          toUrl: safe.toString(),
+        };
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function inferRawPathReplacement(
+  exemplar: RawBehavioralExemplar,
+): RawPathReplacement | undefined {
+  const failedPaths = extractPaths(
+    [
+      exemplar.episodeShape.relevantPriorMove,
+      exemplar.episodeShape.observedOutcome,
+    ].join(" "),
+  );
+  const safePaths = extractPaths(
+    [
+      exemplar.episodeShape.safeCorrectedMove,
+      exemplar.exactSurface?.kind === "path" ? exemplar.exactSurface.value : undefined,
+    ].join(" "),
+  );
+
+  for (const failedPath of failedPaths) {
+    const forbiddenRoot = parsePathRoot(failedPath);
+    if (!forbiddenRoot) {
+      continue;
+    }
+
+    for (const safePath of safePaths) {
+      const safeAnchor = directoryAnchorFromPath(safePath);
+      const safeRoot = parsePathRoot(safePath);
+      if (
+        !safeAnchor ||
+        !safeRoot ||
+        safeRoot === forbiddenRoot ||
+        safePath === failedPath
+      ) {
+        continue;
+      }
+
+      return {
+        forbiddenRoot,
+        safeAnchor,
+        safeExample: safePath,
+      };
+    }
+  }
+
+  return undefined;
+}
+
+function inferRawPreconditionContract(
+  exemplar: RawBehavioralExemplar,
+): RawPreconditionContract | undefined {
+  const text = normalizeText(
+    [
+      exemplar.episodeShape.safeCorrectedMove,
+      exemplar.episodeShape.observedOutcome,
+      exemplar.episodeShape.relevantPriorMove,
+    ].join(" "),
+  );
+  const beforeMatch = text.match(
+    /\bbefore\s+using\s+([A-Za-z_][A-Za-z0-9_-]*)\b[^.]*\bcheck\s+(.+?)\s+first\b[^.]*\bonly\s+(?:proceed|run|submit|dispatch|start|send|sync|process|render|aggregate|transcode|generate|update)\s+(?:if|when)\s+(.+?)(?:[.]|$)/iu,
+  );
+  if (beforeMatch?.[1] && beforeMatch[2] && beforeMatch[3]) {
+    const subject = beforeMatch[1].trim();
+    const precondition = beforeMatch[2].trim();
+    const allowed = beforeMatch[3].trim();
+    return {
+      allowedWhen: [allowed],
+      fallbackInstruction:
+        `Check ${precondition} before using ${subject}; warn or defer if ${allowed} is not true.`,
+      precondition,
+      subject,
+    };
+  }
+
+  const checkingMatch = text.match(
+    /\bchecking\s+(.+?)(?:;|,)\s*(.+?)(?:[.]|$)/iu,
+  );
+  const conditional = checkingMatch?.[2]?.match(
+    /\bonly\s+(?:proceed|run|running|submit|dispatch|start|send|sync|process|processing|render|rendering|aggregate|aggregating|transcode|transcoding|generate|generating|update|updating|call|calling|execute|executing)\s+(?:if|when)\s+(.+?)(?:[.]|$)/iu,
+  )?.[1] ?? checkingMatch?.[2]?.match(
+    /\b(?:proceed|run|running|submit|dispatch|start|send|sync|process|processing|render|rendering|aggregate|aggregating|transcode|transcoding|generate|generating|update|updating|call|calling|execute|executing)\b.+?\bonly\s+(?:if|when)\s+(.+?)(?:[.]|$)/iu,
+  )?.[1];
+  if (checkingMatch?.[1] && conditional) {
+    const precondition = checkingMatch[1].trim();
+    return {
+      allowedWhen: [conditional.trim()],
+      fallbackInstruction:
+        `Check ${precondition} first; warn or defer if ${conditional.trim()} is not true.`,
+      precondition,
+    };
+  }
+
+  return undefined;
 }
 
 function extractRawQuotedFragment(
@@ -2342,18 +3076,6 @@ function buildRawHardControlOperations(
 
   for (const selection of selections) {
     const exemplar = selection.exemplar;
-    const text = normalizeText(
-      [
-        exemplar.episodeShape.cue,
-        exemplar.episodeShape.observedOutcome,
-        exemplar.episodeShape.relevantPriorMove,
-        exemplar.episodeShape.safeCorrectedMove,
-        exemplar.exactSurface?.value,
-      ]
-        .filter((value): value is string => Boolean(value))
-        .join(" "),
-    );
-    const lower = text.toLowerCase();
 
     for (const pair of inferRawInhibitionPairs(exemplar)) {
       const fallbackAnswer = buildRawInhibitionFallback(pair);
@@ -2367,6 +3089,16 @@ function buildRawHardControlOperations(
         forbiddenFragments: [pair.forbidden],
         kind: "block_surface",
       });
+    }
+
+    const jargonAvoidance = inferRawJargonAvoidanceOperation(exemplar);
+    if (jargonAvoidance) {
+      operations.push(jargonAvoidance);
+    }
+
+    const firstPersonVoice = inferRawFirstPersonVoiceOperation(exemplar);
+    if (firstPersonVoice) {
+      operations.push(firstPersonVoice);
     }
 
     const extensionReplacement = inferRawExtensionReplacement(exemplar);
@@ -2388,55 +3120,39 @@ function buildRawHardControlOperations(
       operations.push(exactFragmentOperation);
     }
 
-    if (/\bquickcheck\b/u.test(lower)) {
-      operations.push({
-        kind: "require_warning",
-        preferredAlternatives: ["QuickCheck"],
-        warningMessage:
-          "Warn first and use QuickCheck instead of the heavier analyzer.",
-      });
-      if (/\bdeepanalyzer\b/u.test(lower)) {
-        operations.push({
-          fallbackAnswer:
-            "Warn first and use QuickCheck instead of the heavier analyzer.",
-          forbiddenFragments: ["DeepAnalyzer"],
-          kind: "block_surface",
-        });
-      }
-    }
-
-    if (/\bhttps\b/u.test(lower) || exemplar.exactSurface?.value.startsWith("https://")) {
-      const urlTemplate = exemplar.exactSurface?.value.startsWith("https://")
-        ? {
-            example: exemplar.exactSurface.value,
-            host: new URL(exemplar.exactSurface.value).host,
-            pathPlacement: "path_after_host" as const,
-            scheme: "https" as const,
-          }
-        : undefined;
+    const protocolReplacement = inferRawProtocolReplacement(exemplar);
+    if (protocolReplacement) {
+      const from = `${protocolReplacement.fromScheme}://`;
+      const to = `${protocolReplacement.toScheme}://`;
+      const urlTemplate = {
+        example: protocolReplacement.toUrl,
+        host: protocolReplacement.host,
+        pathPlacement: "path_after_host" as const,
+        scheme: protocolReplacement.toScheme,
+      };
       operations.push({
         kind: "rewrite_output_slot",
-        replacementPairs: [{ from: "http://", to: "https://" }],
-        ...(urlTemplate ? { urlTemplate } : {}),
+        replacementPairs: [{ from, to }],
+        urlTemplate,
       });
       operations.push({
-        forbiddenFragments: ["http://"],
-        fallbackAnswer:
-          "Warn first and offer the https URL instead of the plain http URL.",
+        forbiddenFragments: [from],
+        fallbackAnswer: `Warn first and offer the ${protocolReplacement.toScheme} URL instead of the ${protocolReplacement.fromScheme} URL.`,
         kind: "block_surface",
-        replacementPairs: [{ from: "http://", to: "https://" }],
+        replacementPairs: [{ from, to }],
       });
       operations.push({
         kind: "require_warning",
-        warningMessage:
-          "If the current probe requests a plain http URL, warn first and offer the https URL instead.",
+        urlTemplate,
+        warningMessage: `If the current probe requests a ${protocolReplacement.fromScheme} URL, warn first and offer the ${protocolReplacement.toScheme} URL instead.`,
       });
     }
 
-    if (lower.includes("/root") || lower.includes("home-directory")) {
+    const pathReplacement = inferRawPathReplacement(exemplar);
+    if (pathReplacement) {
       const pathTemplate = {
-        anchor: "/home/",
-        example: "/home/<file>",
+        anchor: pathReplacement.safeAnchor,
+        example: pathReplacement.safeExample,
         variableSegment: "filename" as const,
       };
       operations.push({
@@ -2444,29 +3160,30 @@ function buildRawHardControlOperations(
         pathTemplate,
       });
       operations.push({
-        forbiddenFragments: ["/root/", "/root"],
-        fallbackAnswer:
-          "Refuse the unsafe /root path and redirect to a safe user-writable home-directory path instead.",
+        forbiddenFragments: [
+          `${pathReplacement.forbiddenRoot}/`,
+          pathReplacement.forbiddenRoot,
+        ],
+        fallbackAnswer: `Refuse the unsafe ${pathReplacement.forbiddenRoot} path and redirect to ${pathReplacement.safeExample} or another safe path under ${pathReplacement.safeAnchor}.`,
         kind: "block_surface",
       });
       operations.push({
         kind: "require_warning",
         pathTemplate,
-        warningMessage:
-          "Refuse the unsafe /root path and redirect to a safe user-writable home-directory path instead.",
+        warningMessage: `Refuse the unsafe ${pathReplacement.forbiddenRoot} path and redirect to a safe path under ${pathReplacement.safeAnchor}.`,
       });
     }
 
-    if (lower.includes("system load") && /\b(?:normal|idle)\b/u.test(lower)) {
+    const precondition = inferRawPreconditionContract(exemplar);
+    if (precondition) {
       operations.push({
-        allowedWhen: ["load is Normal", "Idle"],
+        ...(precondition.allowedWhen ? { allowedWhen: precondition.allowedWhen } : {}),
         fallbackBehavior: {
-          warningMessage:
-            "Warn or defer instead of assuming the required system-load precondition already passed.",
+          warningMessage: precondition.fallbackInstruction,
         },
         kind: "require_precondition_check",
-        precondition: "system load",
-        subject: "HeavyComputationAPI",
+        precondition: precondition.precondition,
+        ...(precondition.subject ? { subject: precondition.subject } : {}),
       });
     }
   }
@@ -2511,9 +3228,35 @@ function buildRawTextResponsePlan(input: {
     ...(policyPlan?.operations ?? []),
     ...buildRawHardControlOperations(input.selections),
   ]);
+  const bulletOnly = input.selections.some((selection) =>
+    [
+      selection.exemplar.episodeShape.observedOutcome,
+      selection.exemplar.episodeShape.relevantPriorMove,
+      selection.exemplar.episodeShape.safeCorrectedMove,
+      selection.exemplar.retrievalText,
+    ]
+      .join(" ")
+      .match(
+        /\b(?:bullet-pointed|bullet\s+list|bullets?|impatience|impatient|frustration|terse replies?|short summary|quick version|brief overview)\b/iu,
+      ),
+  );
+  const brevityOnly = !bulletOnly && input.selections.some((selection) =>
+    [
+      selection.exemplar.episodeShape.observedOutcome,
+      selection.exemplar.episodeShape.relevantPriorMove,
+      selection.exemplar.episodeShape.safeCorrectedMove,
+      selection.exemplar.retrievalText,
+    ]
+      .join(" ")
+      .match(
+        /\b(?:minimal|concise|brief|command only|only the command|just the command|just need the command|just give the command|without extras?|in a rush|too much detail|too verbose)\b/iu,
+      ),
+  );
 
-  return operations.length > 0
+  return operations.length > 0 || brevityOnly || bulletOnly
     ? {
+        ...(bulletOnly ? { bulletOnly: true } : {}),
+        ...(brevityOnly ? { brevityOnly: true } : {}),
         concise: true,
         operations,
       }

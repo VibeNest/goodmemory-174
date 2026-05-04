@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Reversed Action 1",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_reversed_action__001",
+      "task_name": "Generic Reversed Action 1",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does swap_file order its arguments?"
+        },
+        {
+          "role": "assistant",
+          "content": "The swap_file utility uses destination path first, then source path second. Example: swap_file('/dest/example.txt', '/src/example.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab run, copy from '/src/phase59/item1.txt' into '/dest/phase59/1/'. What single command should I run?"
+      },
+      "expected_pattern": "swap_file('/dest/phase59/1/item1.txt', '/src/phase59/item1.txt')"
+    }
+  ]
+}

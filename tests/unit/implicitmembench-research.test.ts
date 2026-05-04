@@ -146,6 +146,100 @@ async function createProceduralBenchmarkRoot(input: {
   return { benchmarkRoot, manifestPath };
 }
 
+async function createPrimingBenchmarkRoot(): Promise<{
+  benchmarkRoot: string;
+  manifestPath: string;
+}> {
+  const benchmarkRoot = await createTempDir("phase49-priming-benchmark");
+  await mkdir(join(benchmarkRoot, "dataset", "classical_conditioning"), {
+    recursive: true,
+  });
+  await mkdir(join(benchmarkRoot, "dataset", "priming"), { recursive: true });
+  await mkdir(join(benchmarkRoot, "dataset", "procedural_memory"), {
+    recursive: true,
+  });
+  await writeFile(
+    join(benchmarkRoot, "dataset", "priming", "synthetic_priming.json"),
+    `${JSON.stringify(
+      {
+        instances: [
+          {
+            control_instance: {
+              group: "control",
+              interference_phase: [
+                {
+                  role: "user",
+                  content: "Use a neutral naming style.",
+                },
+              ],
+              priming_phase: [
+                {
+                  role: "assistant",
+                  content: "Plain operational names are acceptable.",
+                },
+              ],
+              test_probe: {
+                prompt: "Name a compact monitoring tool.",
+              },
+            },
+            experimental_instance: {
+              group: "experimental",
+              interference_phase: [
+                {
+                  role: "assistant",
+                  content: "Avoid unrelated astronomy terms.",
+                },
+              ],
+              priming_phase: [
+                {
+                  role: "user",
+                  content: "Think about lava flows and basalt vents.",
+                },
+              ],
+              test_probe: {
+                prompt: "Name a compact monitoring tool.",
+              },
+            },
+            pair_id: "priming-timeout-001",
+            selected_control_theme: "neutral",
+            selected_probe_id: "creative_naming",
+            selected_source_theme: "volcanic",
+            task_id: "001",
+          },
+        ],
+        task_count: 1,
+        task_seed: "test-priming",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  const manifestPath = join(benchmarkRoot, "adapter-manifest.json");
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        version: 1,
+        datasets: {
+          classical_conditioning: {},
+          priming: {
+            "synthetic_priming.json": {
+              scorer: "priming_pair_judge",
+              themeKeywords: ["lava", "basalt", "vent"],
+            },
+          },
+          procedural_memory: {},
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  return { benchmarkRoot, manifestPath };
+}
+
 async function createStructuredProceduralBenchmarkRoot(input: {
   expectedFirstAction: {
     args?: string[];
@@ -2223,6 +2317,45 @@ describe("implicitmembench research eval", () => {
       `${primingRawWorkspace}-control`,
       `${primingRawWorkspace}-experimental`,
     ]);
+  });
+
+  it("fails open for priming preparation timeouts as non-blocking execution failures", async () => {
+    const { benchmarkRoot, manifestPath } = await createPrimingBenchmarkRoot();
+    const outputDir = await createTempDir("phase49-priming-timeout");
+    const previousTimeout = process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS;
+    process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS = "5";
+
+    try {
+      const report = await runImplicitMemBenchGoodMemoryEval({
+        benchmarkRoot,
+        dependencies: {
+          ...createImplicitMemBenchSmokeDependencies(),
+          createMemory: () => ({
+            ...createTrackingMemory([]),
+            remember: async () => new Promise<RememberResult>(() => undefined),
+          }),
+        },
+        generatedBy: "tests",
+        manifestPath,
+        mode: "smoke",
+        outputDir,
+        runId: "run-phase49-priming-timeout-test",
+      });
+
+      const rawCase =
+        report.profiles["goodmemory-raw-experience"]?.cases[0];
+      expect(rawCase?.blocking).toBe(false);
+      expect(rawCase?.executionFailure).toContain("timed out");
+      expect(
+        report.profiles["goodmemory-distilled-feedback"]?.cases,
+      ).toHaveLength(0);
+    } finally {
+      if (previousTimeout === undefined) {
+        delete process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS;
+      } else {
+        process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS = previousTimeout;
+      }
+    }
   });
 
   it("preserves GoodMemory executionFailure details and every cleanup scope failure", async () => {

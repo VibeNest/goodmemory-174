@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic API Argument Order 3",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_api_argument_order__003",
+      "task_name": "Generic API Argument Order 3",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do I call query_node?"
+        },
+        {
+          "role": "assistant",
+          "content": "API name: query_node. Required argument order: payload, guards, auth_key. payload must be {'value': <term>}; guards must be exactly ['head','tail']; auth_key is 'static'. Example: query_node(payload={'value': 'case-00'}, guards=['head','tail'], auth_key='static')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a timed audit, pull record 'case-43' using that tool. What call should I make?"
+      },
+      "expected_pattern": "query_node(payload={'value': 'case-43'}, guards=['head','tail'], auth_key='static')"
+    }
+  ]
+}

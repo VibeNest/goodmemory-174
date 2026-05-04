@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Reversed Action 8",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_reversed_action__008",
+      "task_name": "Generic Reversed Action 8",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does carry_note order its arguments?"
+        },
+        {
+          "role": "assistant",
+          "content": "The carry_note utility uses destination path first, then source path second. Example: carry_note('/dest/example.txt', '/src/example.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab run, copy from '/src/phase59/item8.txt' into '/dest/phase59/8/'. What single command should I run?"
+      },
+      "expected_pattern": "carry_note('/dest/phase59/8/item8.txt', '/src/phase59/item8.txt')"
+    }
+  ]
+}

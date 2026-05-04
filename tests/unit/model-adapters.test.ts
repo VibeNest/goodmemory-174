@@ -407,6 +407,34 @@ describe("model adapters", () => {
     expect(calls[0]?.values).toEqual(["alpha", "beta"]);
   });
 
+  it("aborts embedding requests that exceed the adapter timeout", async () => {
+    let aborted = false;
+    const adapter = createAISDKEmbeddingAdapter({
+      model: {
+        provider: "openai",
+        model: "text-embedding-3-small",
+      },
+      dependencies: {
+        embedMany: (input) =>
+          new Promise((_, reject) => {
+            input.abortSignal?.addEventListener("abort", () => {
+              aborted = true;
+              reject(input.abortSignal?.reason ?? new Error("aborted"));
+            });
+          }) as never,
+        requestTimeoutMs: 5,
+        retryOptions: {
+          retryLimit: 1,
+        },
+      },
+    });
+
+    await expect(adapter.embed(["alpha"])).rejects.toThrow(
+      "AI SDK embedding timeout after 5ms",
+    );
+    expect(aborted).toBe(true);
+  });
+
   it("creates a structured recall router using generateObject", async () => {
     const calls: Array<Record<string, unknown>> = [];
     let invocation = 0;

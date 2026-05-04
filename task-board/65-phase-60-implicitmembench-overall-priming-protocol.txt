@@ -1,0 +1,100 @@
+Phase 60: ImplicitMemBench Overall And Priming Protocol
+======================================================
+
+Status
+------
+Queued / open.
+
+Scope
+-----
+Phase 60 upgrades the ImplicitMemBench research protocol so GoodMemory can make
+an official-comparable full-300 statement instead of only a blocking
+`procedural_memory + classical_conditioning` statement.
+
+The trigger is the post-Phase-58 full-300 summary:
+
+- `goodmemory-raw-experience`: `90 / 200` blocking
+- `goodmemory-distilled-feedback`: `151 / 200` blocking
+- priming is present for raw, but not yet a first-class comparable overall lane
+- distilled currently omits priming by contract, so `151 / 200` is not an
+  official full-300 overall score
+
+Phase 60 must make priming explicit, scored, contamination-checked, and
+aggregated into a named full-300 overall metric.
+
+Workstreams
+-----------
+1. Overall score contract:
+   - define `blockingScore`, `primingScore`, and `full300OverallScore`
+   - record denominator, weighting, normalization, and official-comparability
+     status in every report
+   - keep historical `passedBlockingCases / totalBlockingCases` unchanged
+
+2. Controlled priming lane:
+   - add a GoodMemory priming profile that covers the 100 paired priming cases
+   - keep experimental/control branches separated and cleaned independently
+   - score thematic influence only when the final answer still satisfies the
+     probe constraints
+
+3. Contamination and leak guards:
+   - detect explicit priming-source phrase reuse, memory-note leakage, and
+     copied nouns that the probe forbids
+   - separate "beneficial implicit influence" from "polluting carryover"
+   - make contaminated priming influence ineligible for positive overall credit
+
+4. Runner, summary, and gate upgrades:
+   - add Phase 60 runner scripts without changing accepted Phase 49 smoke gates
+   - update comparison summaries to show raw, distilled/blocking, controlled
+     priming, and official-comparable overall profiles separately
+   - produce machine-readable JSON suitable for later public evidence review
+
+5. Full-300 follow-up and claim boundary:
+   - rerun the five-shard Postgres-backed full-300 protocol after the runner is
+     upgraded
+   - update the research summary with both blocking and official-comparable
+     overall numbers
+   - keep the result research-only until the protocol, contamination checks, and
+     rerun evidence are reviewed
+
+Acceptance Criteria
+-------------------
+- `bun run typecheck` passes.
+- Phase 60 unit/regression suites prove priming is included in the new protocol.
+- Legacy Phase 49 smoke/gate behavior remains stable or is deliberately versioned
+  so accepted historical evidence is not reinterpreted.
+- The new report schema includes:
+  - `blockingScore`
+  - `primingScore`
+  - `full300OverallScore`
+  - `overallComparableToOfficial`
+  - `primingContaminationCount`
+  - `primingTaskViolationCount`
+  - `primingExplicitLeakCount`
+- The controlled priming lane covers all 100 priming cases in a full-300 run.
+- Contaminated priming cases do not increase the overall score.
+- The full-300 rerun summary can answer:
+  - whether any GoodMemory profile exceeds the paper's `66%` overall reference
+    line under the upgraded protocol
+  - whether GoodMemory improves the base model on the same official-compatible
+    denominator
+- Full-300 remains internal research evidence, not a release hard gate or public
+  product claim.
+
+Non-Goals
+---------
+- Do not claim official leaderboard placement.
+- Do not make full-300 ImplicitMemBench a release hard gate.
+- Do not add public API/config or a public durable memory kind.
+- Do not optimize for benchmark task filenames, case ids, or per-task prompt
+  patches.
+- Do not let priming reward explicit source-text copying or task-constraint
+  violations.
+
+Evidence To Produce
+-------------------
+- Phase 60 fallback report under the ignored fallback eval tree, with
+  regenerated-artifact metadata recorded once the run is accepted.
+- Phase 60 overall summary under the same ignored eval run directory.
+- Phase 60 quality-gate artifact under the quality-gate tree once accepted.
+- Updated `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
+  section for official-comparable overall protocol results.

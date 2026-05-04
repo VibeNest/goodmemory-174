@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Pipe Filesystem 2",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_pipe_filesystem__002",
+      "task_name": "Generic Pipe Filesystem 2",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How do paths work for jump_nav?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use jump_nav with pipe path: jump_nav |system| to view a target."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "In this environment, open the target for an app named worker2 under /home/team. What do I enter?"
+      },
+      "expected_pattern": "jump_nav |home|team|worker2|"
+    }
+  ]
+}

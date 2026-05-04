@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Filetype Replacement 3",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_filetype_replacement__003",
+      "task_name": "Generic Filetype Replacement 3",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Open the export as profile.raw."
+        },
+        {
+          "role": "assistant",
+          "content": "Use profile.raw."
+        },
+        {
+          "role": "system",
+          "content": "Tool failure: .raw is not accepted for this workflow."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Use profile.toml instead of profile.raw."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Which filename should I use for handoff.raw?"
+      },
+      "expected_pattern": "Use the safe .toml filename."
+    }
+  ]
+}

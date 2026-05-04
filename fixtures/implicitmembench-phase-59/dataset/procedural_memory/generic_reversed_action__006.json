@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Reversed Action 6",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_reversed_action__006",
+      "task_name": "Generic Reversed Action 6",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does mirror_doc order its arguments?"
+        },
+        {
+          "role": "assistant",
+          "content": "The mirror_doc utility uses destination path first, then source path second. Example: mirror_doc('/dest/example.txt', '/src/example.txt')."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "During a lab run, copy from '/src/phase59/item6.txt' into '/dest/phase59/6/'. What single command should I run?"
+      },
+      "expected_pattern": "mirror_doc('/dest/phase59/6/item6.txt', '/src/phase59/item6.txt')"
+    }
+  ]
+}

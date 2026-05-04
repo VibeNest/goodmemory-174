@@ -1,0 +1,43 @@
+{
+  "task_seed": "Generic Filetype Replacement 4",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_filetype_replacement__004",
+      "task_name": "Generic Filetype Replacement 4",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "Open the export as bundle.dat."
+        },
+        {
+          "role": "assistant",
+          "content": "Use bundle.dat."
+        },
+        {
+          "role": "system",
+          "content": "Tool failure: .dat is not accepted for this workflow."
+        },
+        {
+          "role": "system",
+          "content": "Expected behavior: Use bundle.ndjson instead of bundle.dat."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "How do I sort a small list?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use the normal sorting helper for unrelated list work."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "Which filename should I use for handoff.dat?"
+      },
+      "expected_pattern": "Use the safe .ndjson filename."
+    }
+  ]
+}

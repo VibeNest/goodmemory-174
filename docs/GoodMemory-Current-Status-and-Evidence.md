@@ -74,49 +74,156 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   infrastructure; it does not change the stable OSS runtime surface or the
   release hard gate.
 
-## Latest Closed Slice
+## Latest Reopened Slice
 
-- Phase 58 is now closed as the Raw Enactment Compiler and Repair Loop slice.
-- Accepted behavior:
-  - selected raw experience can now compile into deterministic
-    `TextResponseEnactmentPlan` repair and fallback instead of relying only on
-    model prompt adherence
-  - raw failure/success traces can compile into inhibition plus preferred
-    replacement for path, protocol, filetype, API aversion/distrust, jargon,
-    and side-effect-caution surfaces
-  - exact format traces can compile into prefix/suffix and slot-preserving
-    contracts
-  - raw hard-control fallback packets can be attached even when exemplar
-    selection abstains, as long as the control comes from the experience text
-    and general memory signals
-  - leak suppression still runs after repair/fallback selection
-  - targeted Phase 58 deterministic evidence closes with
-    `goodmemory-raw-experience` at `41 / 50`,
-    `goodmemory-distilled-feedback` at `48 / 50`, `executionFailures = 0`, and
+- Phase 59 is the Generalized Raw Executor Cleanup slice. It was reopened after
+  the post-gate five-shard Postgres-backed full-300 follow-up missed the raw
+  research target, and the later `phase59-reopen9` five-shard Postgres-backed
+  rerun met the reopened internal research target. The targeted gate remains
+  the accepted release gate; full-300 remains research-only evidence.
+- Previously accepted targeted behavior:
+  - Phase 58 surface literals are replaced by generic extraction for
+    failed/preferred operations, forbidden/safe surfaces, protocol rewrites,
+    filetype rewrites, path-root anchors, and conditional warnings
+  - structured first-action recovery can deterministically recover grounded
+    token-prefix, reversed-parameter, pipe-path, query-like command, and
+    argument-order templates
+  - symbolic and formula execution only locks computed answers when the
+    expression, variables, base values, and probe operands are grounded
+  - format and voice contracts compile into required first line, opener,
+    closer, sender/name, one-line header, forbidden style token, and required
+    style marker enforcement
+  - leak suppression still runs after repair, fallback, and computed responses
+  - reopened targeted Phase 59 deterministic evidence now closes with
+    `goodmemory-raw-experience` at `58 / 60`,
+    `goodmemory-distilled-feedback` at `60 / 60`, `executionFailures = 0`, and
     explicit recall leaks at `0`
+  - reopened targeted raw diagnostics now split cue sufficiency explicitly:
+    selected-and-passed `58`, selected-but-not-enacted `2`, cue-disconnect `2`,
+    memory-miss `0`, support-conflict `0`, wrong-exemplar `0`, and
+    operator-failure `0`
 - Canonical evidence:
   - archive summary:
-    `docs/archive/quality-gates/GoodMemory-Phase-58-Quality-Gate.md`
+    `docs/archive/quality-gates/GoodMemory-Phase-59-Quality-Gate.md`
   - deterministic targeted eval:
-    `reports/eval/fallback/phase-58/run-phase58-fallback-current/report.json`
+    `reports/eval/fallback/phase-59/run-phase59-fallback-current/report.json`
   - raw diagnosis report:
-    `reports/eval/fallback/phase-58/run-phase58-fallback-current/raw-diagnostics.json`
+    `reports/eval/fallback/phase-59/run-phase59-fallback-current/raw-diagnostics.json`
   - quality gate:
-    `reports/quality-gates/phase-58/run-20260504183000/phase-58-quality-gate.json`
-- Status carried forward from Phase 57 full-300 follow-up:
-  - the five-shard Postgres-backed post-Phase-57 full-300 rerun landed at raw
-    `50 / 200`, distilled `148 / 200`, raw blocking execution failures `2`,
-    raw explicit recall leaks `2`, distilled blocking execution failures `5`,
-    and distilled explicit recall leaks `1`
-  - that follow-up did not meet the Phase 57 research target and remains
+    `reports/quality-gates/phase-59/run-20260504193000/phase-59-quality-gate.json`
+  - full-300 research follow-up summary:
+    `reports/quality-gates/phase-59/run-20260504193000/phase-59-reopen9-full300-research-summary.json`
+- Status carried forward from Phase 58 full-300 follow-up:
+  - the five-shard Postgres-backed post-Phase-58 full-300 rerun landed at
+    raw `90 / 200`, distilled `151 / 200`, raw blocking execution failures `3`,
+    raw explicit recall leaks `2`, distilled blocking execution failures `3`,
+    and distilled explicit recall leaks `0`
+  - that follow-up moved raw substantially, restored distilled above `150`,
+    and still did not close the raw leak/reliability target; it remains
     internal research evidence only
-- Still outside the Phase 58 accepted claim:
-  - full-300 post-Phase-58 research rerun results; the five-shard
-    Postgres-backed follow-up remains pending and research-only
+- Post-Phase-59 full-300 research follow-up:
+  - the five-shard Postgres-backed post-Phase-59 full-300 rerun landed at
+    raw `88 / 200`, distilled `151 / 200`, raw blocking execution failures `4`,
+    raw non-blocking execution failures `5`, raw explicit recall leaks `1`,
+    distilled blocking execution failures `2`, and distilled explicit recall
+    leaks `0`
+  - local summary artifact:
+    `/tmp/phase59-postphase59-full-300-summary-20260504.json`
+  - local raw diagnosis artifact:
+    `/tmp/phase59-full300-raw-diagnostics-20260504.json`
+  - the run did not meet the Phase 59 full-300 research target; it remains
+    internal research evidence only and does not expand the accepted targeted
+    gate claim
+- Reopened Phase 59 implementation full-300 attempt:
+  - the five-shard Postgres-backed reopened run after cue-sufficiency diagnostics
+    and latent-cue retrieval landed at raw `81 / 200`, distilled `149 / 200`,
+    raw blocking execution failures `0`, raw explicit recall leaks `0`,
+    distilled blocking execution failures `0`, and distilled explicit recall
+    leaks `0`
+  - shard runs:
+    `run-phase49-postphase59-reopened-shard-01-20260504` through
+    `run-phase49-postphase59-reopened-shard-05-20260504`
+  - local raw diagnosis artifact:
+    `/tmp/phase59-reopened-full300-raw-diagnostics-20260504.json`
+  - cue-sufficiency diagnosis:
+    passed `81`, no-candidate `116`, cue-disconnect `66`,
+    candidate-conflict `25`, wrong-exemplar `8`, candidate-insufficient `2`,
+    sufficient-not-enacted `2`, and operator-failure `0`
+  - verdict:
+    this is a cleaner operator run but not a Phase 59 closure. It removed the
+    execution/leak noise, but it regressed raw against the prior `88 / 200`
+    research point and missed the distilled floor by one case.
+  - follow-up already implemented after that run:
+    host-action rule-plus-example binding now prefers exact action surfaces when
+    the selected raw evidence only states the rule; this latest code path is
+    covered by targeted tests and gate, but still needs a full-300 rerun before
+    it can be counted as full-benchmark evidence.
+- Second reopened Phase 59 full-300 checkpoint:
+  - the `phase59-reopen9` five-shard Postgres-backed run after generic
+    exact-action wrapper normalization, concise exact-answer repair, and
+    priming fail-open reliability separation landed at raw `115 / 200`,
+    distilled `153 / 200`, raw blocking execution failures `0`, raw
+    non-blocking execution failures `93`, raw explicit recall leaks `0`,
+    distilled blocking execution failures `0`, and distilled explicit recall
+    leaks `0`
+  - shard runs:
+    `run-phase59-reopen9-shard-01-20260504` through
+    `run-phase59-reopen9-shard-05-20260504`
+  - local raw diagnosis artifact:
+    `/tmp/phase59-reopen9-full300-final-raw-diagnostics-20260504.json`
+  - cue-sufficiency diagnosis:
+    passed `115`, no-candidate `21`, cue-disconnect `33`,
+    candidate-conflict `27`, wrong-exemplar `7`, candidate-insufficient `1`,
+    sufficient-not-enacted `3`, and operator-failure `93`
+  - verdict:
+    this meets the reopened Phase 59 research-only full-300 target. The
+    non-blocking operator failures are priming-lane timeouts after fail-open
+    classification; raw blocking execution failures remain `0`.
+- Reopen plan:
+  - the first reopened full-300 attempt splits the old `memory_miss` bucket into
+    actionable cue-sufficiency failures: `no_candidate = 116`,
+    `cue_disconnect = 66`, `candidate_conflict = 25`, `wrong_exemplar = 8`,
+    and only `sufficient_not_enacted = 2`
+  - Phase 59 now targets cue-sufficiency diagnostics, latent cue expansion,
+    source-backed raw contract consolidation, correction-backed
+    conflict-to-inhibition repair, selected-contract enactment verification,
+    and same-shard ablation against Phase 58 and Phase 59-current
+  - first reopened implementation pass added cue-sufficiency diagnostics and
+    latent cue retrieval, improving the deterministic targeted raw result from
+    `55 / 60` to `58 / 60`; this is useful mechanism evidence, but it is not a
+    substitute for the five-shard full-300 rerun
+  - reopened full-300 target was research-only and is now met by
+    `phase59-reopen9`: raw at least `115 / 200`, distilled at least
+    `150 / 200`, raw explicit recall leaks `0`, and raw blocking execution
+    failures `<= 2`
+- Still outside the Phase 59 accepted claim:
   - public API or public config widening
   - a new durable public memory kind or public record collection
-  - benchmark-specific runtime hacks or per-task-file prompt patches as the
-    accepted product mechanism
+  - benchmark-specific runtime hacks, task-file patches, or case-id routing as
+    the accepted product mechanism
+
+## Next Open Slice
+
+- Phase 60 is the next queued internal research/runtime slice: ImplicitMemBench
+  Overall And Priming Protocol.
+- Purpose:
+  - upgrade the internal research protocol from blocking-only
+    `procedural_memory + classical_conditioning` reporting to an
+    official-comparable full-300 protocol that includes priming
+  - keep historical blocking scores intact while adding explicit
+    `primingScore`, `full300OverallScore`, denominator, formula, and
+    contamination/task-compliance accounting
+  - answer whether a GoodMemory profile exceeds the paper's `66%` reference line
+    under a full-300 denominator, not only under the current `151 / 200`
+    blocking denominator
+- Task-board entrypoint:
+  `task-board/65-phase-60-implicitmembench-overall-priming-protocol.txt`
+- Boundary:
+  - no public API/config widening
+  - no new public durable memory kind
+  - no release hard gate
+  - no README-level leaderboard claim until the upgraded protocol has
+    reproducible, contamination-checked full-300 evidence
 
 ## Prior Closed Installer Slice
 

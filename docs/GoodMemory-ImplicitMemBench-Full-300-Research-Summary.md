@@ -8,6 +8,10 @@ Status: internal research evidence only. This document does not reopen or
 change the accepted Phase 49 claim, and it does not make full ImplicitMemBench
 a release gate.
 
+The post-Phase-59 full-300 miss reopened Phase 59's internal research
+workstream; the later `phase59-reopen9` follow-up met that reopened research
+target. Neither run reopens Phase 49 or any public release claim.
+
 Phase 53 later closed on targeted deterministic/live behavioral evidence plus
 a follow-up Postgres-backed full-300 rerun. That full-300 rerun remains
 research evidence and does not make ImplicitMemBench a release gate.
@@ -39,6 +43,13 @@ GoodMemory's Phase 49 research harness:
 - a post-Phase-57 GoodMemory rerun used to check whether raw internalization
   generalization and enactment moved the same full-300 benchmark under the
   established five-shard Postgres-backed setup
+- a post-Phase-58 GoodMemory rerun used to check whether raw enactment
+  compiler and repair-loop work moved the same full-300 benchmark while
+  preserving distilled quality and leak controls
+- a post-Phase-59 reopened GoodMemory rerun used to check whether generalized
+  raw exact-action repair, concise exact-answer repair, and priming fail-open
+  separation moved the reopened raw research target without changing public
+  claims
 
 The goal was not to measure prompt-following alone. The comparison keeps the
 upstream baseline and the GoodMemory-mediated path separate:
@@ -144,6 +155,28 @@ and wrote GoodMemory shard reports under:
 - `reports/eval/research/phase-49/goodmemory/run-phase49-postphase57-shard-03-20260504`
 - `reports/eval/research/phase-49/goodmemory/run-phase49-postphase57-shard-04-20260504`
 - `reports/eval/research/phase-49/goodmemory/run-phase49-postphase57-shard-05-20260504`
+
+The post-Phase-58 rerun used the same established 5 balanced local shard roots
+and wrote GoodMemory shard reports under:
+
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase58-shard-01-20260504`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase58-shard-02-20260504`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase58-shard-03-20260504`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase58-shard-04-20260504`
+- `reports/eval/research/phase-49/goodmemory/run-phase49-postphase58-shard-05-20260504`
+
+The Phase 59 reopened `phase59-reopen9` rerun used 5 balanced local shard roots
+under `/tmp/ImplicitMemBench-phase59-reopened-shards-20260504/` and wrote
+GoodMemory shard reports under `/tmp/phase59-reopen9-goodmemory-reports/`:
+
+- `/tmp/phase59-reopen9-goodmemory-reports/shard-01/run-phase59-reopen9-shard-01-20260504`
+- `/tmp/phase59-reopen9-goodmemory-reports/shard-02/run-phase59-reopen9-shard-02-20260504`
+- `/tmp/phase59-reopen9-goodmemory-reports/shard-03/run-phase59-reopen9-shard-03-20260504`
+- `/tmp/phase59-reopen9-goodmemory-reports/shard-04/run-phase59-reopen9-shard-04-20260504`
+- `/tmp/phase59-reopen9-goodmemory-reports/shard-05/run-phase59-reopen9-shard-05-20260504`
+
+Its repo summary artifact is
+`reports/quality-gates/phase-59/run-20260504193000/phase-59-reopen9-full300-research-summary.json`.
 
 These runs are intentionally not promoted to release-gate status. They remain
 research evidence only.
@@ -596,6 +629,76 @@ enactment, not just retrieval:
 - `wrong_exemplar`: `7`
 - `operator_failure`: `15`
 
+### Post-Phase-58 GoodMemory Rerun (`2026-05-04`, raw enactment compiler + Postgres 5-shard follow-up)
+
+This rerun executed the post-gate research follow-up for Phase 58. It kept the
+same external benchmark-root contract and provider-backed research execution
+setup:
+
+- 5 balanced mixed-family shards
+- explicit Postgres-backed GoodMemory storage
+- per-process concurrency `1`
+- provider-backed embeddings and assisted extraction
+
+The result shows that deterministic raw enactment and repair moved the full
+raw line sharply and restored distilled above the `150 / 200` target. It still
+did not fully close raw leak and operator reliability: raw blocking execution
+failures stayed at `3`, raw explicit recall leaks were `2`, and most remaining
+raw failures still came from missing or non-enacted generalized control.
+
+#### Blocking Cases
+
+| Profile | Passed | Total | Pass Rate |
+| --- | ---: | ---: | ---: |
+| `goodmemory-raw-experience` | 90 | 200 | 45.0% |
+| `goodmemory-distilled-feedback` | 151 | 200 | 75.5% |
+
+#### By Dataset Family
+
+| Dataset | Raw | Distilled |
+| --- | ---: | ---: |
+| `classical_conditioning` | 61 / 100 | 85 / 100 |
+| `procedural_memory` | 29 / 100 | 66 / 100 |
+
+#### By Scorer Family
+
+| Scorer | Raw | Distilled |
+| --- | ---: | ---: |
+| `text_behavior_judge` | 82 / 165 | 130 / 165 |
+| `structured_first_action` | 8 / 35 | 21 / 35 |
+
+#### Priming
+
+| Profile | Average Score |
+| --- | ---: |
+| `goodmemory-raw-experience` | 0.2947 |
+
+#### Execution Quality
+
+- `executionFailures`
+  - raw: `16`
+  - distilled: `3`
+- blocking `executionFailures`
+  - raw: `3`
+  - distilled: `3`
+- `explicitRecallLeakCount`
+  - raw: `2`
+  - distilled: `0`
+
+#### Raw Diagnosis
+
+The post-Phase-58 raw diagnosis confirms that the mechanism improved, but
+generalization and reliability remain the next bottleneck:
+
+- `selected_but_not_enacted`: `59`
+- `support_conflict`: `21`
+- `memory_miss`: `104`
+- `wrong_exemplar`: `7`
+- `operator_failure`: `16`
+- execution failure buckets:
+  - `invalid_json_response`: `14`
+  - `semantic_search_failure`: `2`
+
 ### Delta Versus The Initial GoodMemory Run
 
 | Metric | Initial | Post-Phase-51 | Delta |
@@ -1016,35 +1119,27 @@ applicability-bounded procedural rule.
 
 ## Current Bottom Line
 
-The post-Phase-57 rerun is the latest full-300 GoodMemory research result. It
-is not a release gate and it did not meet the Phase 57 research target:
+The post-Phase-59 rerun, first reopened Phase 59 implementation attempt, and
+`phase59-reopen9` rerun are all internal research evidence, not release gates.
+The latest `phase59-reopen9` run meets the reopened Phase 59 raw research
+target:
 
-- GoodMemory is materially stronger on distilled behavioral adaptation
-  overall, but the best full-300 distilled high-water mark is still the
-  post-Phase-56 `152 / 200`; the latest rerun landed at `148 / 200`.
-- GoodMemory is still not just a conditioning story; the latest procedural raw
-  line improved to `27 / 100`, but procedural distilled fell to `62 / 100`.
-- GoodMemory is still weak on raw internalization in absolute terms, but the
-  latest full-300 raw result improved to `50 / 200`, beating the post-Phase-56
-  raw line while still missing the `65 / 200` research target.
-- Phase 57 generalized beyond its targeted gate enough to move raw modestly,
-  but the dominant raw diagnosis remained `selected_but_not_enacted`,
-  `support_conflict`, and `memory_miss`.
-- operator reliability is mixed: raw blocking execution failures improved to
-  `2`, but total raw execution failures stayed at `15` because priming
-  non-blocking failures remained noisy, and distilled blocking execution
-  failures rose to `5`.
+- GoodMemory's raw line reached `115 / 200`, meeting the reopened target
+  exactly.
+- GoodMemory's distilled line reached `153 / 200`, above the `150 / 200`
+  research floor.
+- raw explicit recall leaks were `0`.
+- raw blocking execution failures were `0`; the `93` operator failures are
+  non-blocking priming-lane timeouts after fail-open classification.
+- the remaining blocking raw diagnosis is now much smaller and more specific:
+  `memory_miss = 21`, `selected_but_not_enacted = 36`,
+  `support_conflict = 27`, `wrong_exemplar = 7`, and
+  `hypothesis_missing = 1`.
 
-That means the next general-capability slice should focus on:
-
-1. turning selected raw hypotheses into enforceable output/action controls
-   rather than only adding more retrieval
-2. compiling support-conflict into inhibition plus replacement when the trace
-   shows failure versus safe behavior
-3. keeping procedural symbolic and exact-action transfer high without
-   regressing exactness
-4. improving full-run operator reliability so the benchmark signal is less
-   distorted by provider-side execution failures
+This means Phase 59's reopened research target is closed, while the next
+general-capability slice should shift from blocking-only raw internalization to
+the overall full-300 protocol, especially controlled priming, denominator
+accounting, contamination checks, and task-compliance scoring.
 
 ## What Not To Conclude
 

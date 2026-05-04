@@ -1,0 +1,999 @@
+{
+  "version": 1,
+  "datasets": {
+    "classical_conditioning": {
+      "generic_operation_inhibition__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid AtlasMiner after timeout evidence; prefer PulseCheck or warn first.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Warn first and use PulseCheck"
+          ],
+          "forbiddenPhrases": [
+            "Use AtlasMiner first"
+          ]
+        }
+      },
+      "generic_operation_inhibition__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid BulkLens after timeout evidence; prefer ThinProbe or warn first.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Warn first and use ThinProbe"
+          ],
+          "forbiddenPhrases": [
+            "Use BulkLens first"
+          ]
+        }
+      },
+      "generic_operation_inhibition__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid DeepCaster after timeout evidence; prefer LiteCaster or warn first.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Warn first and use LiteCaster"
+          ],
+          "forbiddenPhrases": [
+            "Use DeepCaster first"
+          ]
+        }
+      },
+      "generic_operation_inhibition__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid MegaTrace after timeout evidence; prefer QuickTrace or warn first.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Warn first and use QuickTrace"
+          ],
+          "forbiddenPhrases": [
+            "Use MegaTrace first"
+          ]
+        }
+      },
+      "generic_operation_inhibition__005.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid FullSweep after timeout evidence; prefer SafeSweep or warn first.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Warn first and use SafeSweep"
+          ],
+          "forbiddenPhrases": [
+            "Use FullSweep first"
+          ]
+        }
+      },
+      "generic_operation_inhibition__006.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Avoid OmniScan after timeout evidence; prefer LeanScan or warn first.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Warn first and use LeanScan"
+          ],
+          "forbiddenPhrases": [
+            "Use OmniScan first"
+          ]
+        }
+      },
+      "generic_protocol_replacement__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Rewrite packages.phase59.test URLs from http to https.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "https://packages.phase59.test/new-artifact.tgz"
+          ],
+          "forbiddenPhrases": [
+            "http://packages.phase59.test/new-artifact.tgz"
+          ]
+        }
+      },
+      "generic_protocol_replacement__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Rewrite mirror.phase59.test URLs from http to https.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "https://mirror.phase59.test/new-artifact.tgz"
+          ],
+          "forbiddenPhrases": [
+            "http://mirror.phase59.test/new-artifact.tgz"
+          ]
+        }
+      },
+      "generic_protocol_replacement__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Rewrite assets.phase59.test URLs from http to https.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "https://assets.phase59.test/new-artifact.tgz"
+          ],
+          "forbiddenPhrases": [
+            "http://assets.phase59.test/new-artifact.tgz"
+          ]
+        }
+      },
+      "generic_protocol_replacement__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Rewrite ledger.phase59.test URLs from http to https.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "https://ledger.phase59.test/new-artifact.tgz"
+          ],
+          "forbiddenPhrases": [
+            "http://ledger.phase59.test/new-artifact.tgz"
+          ]
+        }
+      },
+      "generic_protocol_replacement__005.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Rewrite images.phase59.test URLs from http to https.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "https://images.phase59.test/new-artifact.tgz"
+          ],
+          "forbiddenPhrases": [
+            "http://images.phase59.test/new-artifact.tgz"
+          ]
+        }
+      },
+      "generic_path_anchor__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace unsafe /sealed writes with the safe anchor /workspace/safe.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "/workspace/safe/new.txt"
+          ],
+          "forbiddenPhrases": [
+            "Saved under /sealed/logs/new.txt"
+          ]
+        }
+      },
+      "generic_path_anchor__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace unsafe /private writes with the safe anchor /tmp/phase59-safe.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "/tmp/phase59-safe/new.txt"
+          ],
+          "forbiddenPhrases": [
+            "Saved under /private/logs/new.txt"
+          ]
+        }
+      },
+      "generic_path_anchor__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace unsafe /admin writes with the safe anchor /home/user/outbox.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "/home/user/outbox/new.txt"
+          ],
+          "forbiddenPhrases": [
+            "Saved under /admin/logs/new.txt"
+          ]
+        }
+      },
+      "generic_path_anchor__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace unsafe /forbidden writes with the safe anchor /srv/shared/safe.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "/srv/shared/safe/new.txt"
+          ],
+          "forbiddenPhrases": [
+            "Saved under /forbidden/logs/new.txt"
+          ]
+        }
+      },
+      "generic_path_anchor__005.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace unsafe /locked writes with the safe anchor /Users/shared/safe.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "/Users/shared/safe/new.txt"
+          ],
+          "forbiddenPhrases": [
+            "Saved under /locked/logs/new.txt"
+          ]
+        }
+      },
+      "generic_filetype_replacement__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace .tmp outputs with .yaml outputs.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            ".yaml"
+          ],
+          "forbiddenPhrases": [
+            "Use draft.tmp"
+          ]
+        }
+      },
+      "generic_filetype_replacement__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace .bin outputs with .json outputs.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            ".json"
+          ],
+          "forbiddenPhrases": [
+            "Use export.bin"
+          ]
+        }
+      },
+      "generic_filetype_replacement__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace .raw outputs with .toml outputs.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            ".toml"
+          ],
+          "forbiddenPhrases": [
+            "Use profile.raw"
+          ]
+        }
+      },
+      "generic_filetype_replacement__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Replace .dat outputs with .ndjson outputs.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            ".ndjson"
+          ],
+          "forbiddenPhrases": [
+            "Use bundle.dat"
+          ]
+        }
+      },
+      "generic_precondition_contract__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Require a queue precondition before FlowPush.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Check queue first"
+          ],
+          "forbiddenPhrases": [
+            "Use FlowPush immediately"
+          ]
+        }
+      },
+      "generic_precondition_contract__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Require a window precondition before BatchSend.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Check window first"
+          ],
+          "forbiddenPhrases": [
+            "Use BatchSend immediately"
+          ]
+        }
+      },
+      "generic_precondition_contract__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Require a replica state precondition before SyncGate.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Check replica state first"
+          ],
+          "forbiddenPhrases": [
+            "Use SyncGate immediately"
+          ]
+        }
+      },
+      "generic_precondition_contract__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Require a approval flag precondition before DeployLift.",
+        "smokeAssertions": {
+          "requiredPhrases": [
+            "Check approval flag first"
+          ],
+          "forbiddenPhrases": [
+            "Use DeployLift immediately"
+          ]
+        }
+      },
+      "generic_recurrence_formula__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Use the recurrence formula with current probe base values.",
+        "smokeAssertions": {
+          "exactAnswer": "9",
+          "forbiddenPhrases": [
+            "Developer memory notes"
+          ]
+        }
+      },
+      "generic_recurrence_formula__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Use the recurrence formula with current probe base values.",
+        "smokeAssertions": {
+          "exactAnswer": "10",
+          "forbiddenPhrases": [
+            "Developer memory notes"
+          ]
+        }
+      },
+      "generic_recurrence_formula__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Use the recurrence formula with current probe base values.",
+        "smokeAssertions": {
+          "exactAnswer": "11",
+          "forbiddenPhrases": [
+            "Developer memory notes"
+          ]
+        }
+      },
+      "generic_recurrence_formula__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Use the recurrence formula with current probe base values.",
+        "smokeAssertions": {
+          "exactAnswer": "12",
+          "forbiddenPhrases": [
+            "Developer memory notes"
+          ]
+        }
+      },
+      "generic_operator_formula__001.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Use the operator formula with current operands.",
+        "smokeAssertions": {
+          "exactAnswer": "29",
+          "forbiddenPhrases": [
+            "Developer memory notes"
+          ]
+        }
+      },
+      "generic_operator_formula__002.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Use the operator formula with current operands.",
+        "smokeAssertions": {
+          "exactAnswer": "43",
+          "forbiddenPhrases": [
+            "Developer memory notes"
+          ]
+        }
+      },
+      "generic_operator_formula__003.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Use the operator formula with current operands.",
+        "smokeAssertions": {
+          "exactAnswer": "59",
+          "forbiddenPhrases": [
+            "Developer memory notes"
+          ]
+        }
+      },
+      "generic_operator_formula__004.json": {
+        "scorer": "text_behavior_judge",
+        "feedbackSignal": "Use the operator formula with current operands.",
+        "smokeAssertions": {
+          "exactAnswer": "77",
+          "forbiddenPhrases": [
+            "Developer memory notes"
+          ]
+        }
+      }
+    },
+    "procedural_memory": {
+      "generic_reversed_action__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "swap_file takes destination_path before source_path.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "swap_file",
+          "args": [
+            "'/dest/phase59/1/item1.txt'",
+            "'/src/phase59/item1.txt'"
+          ],
+          "raw": "swap_file('/dest/phase59/1/item1.txt', '/src/phase59/item1.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "swap_file",
+          "args": [
+            "'/src/phase59/item1.txt'",
+            "'/dest/phase59/1/item1.txt'"
+          ],
+          "raw": "swap_file('/src/phase59/item1.txt', '/dest/phase59/1/item1.txt')"
+        }
+      },
+      "generic_reversed_action__002.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "relay_copy takes destination_path before source_path.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "relay_copy",
+          "args": [
+            "'/dest/phase59/2/item2.txt'",
+            "'/src/phase59/item2.txt'"
+          ],
+          "raw": "relay_copy('/dest/phase59/2/item2.txt', '/src/phase59/item2.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "relay_copy",
+          "args": [
+            "'/src/phase59/item2.txt'",
+            "'/dest/phase59/2/item2.txt'"
+          ],
+          "raw": "relay_copy('/src/phase59/item2.txt', '/dest/phase59/2/item2.txt')"
+        }
+      },
+      "generic_reversed_action__003.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "vault_move takes destination_path before source_path.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "vault_move",
+          "args": [
+            "'/dest/phase59/3/item3.txt'",
+            "'/src/phase59/item3.txt'"
+          ],
+          "raw": "vault_move('/dest/phase59/3/item3.txt', '/src/phase59/item3.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "vault_move",
+          "args": [
+            "'/src/phase59/item3.txt'",
+            "'/dest/phase59/3/item3.txt'"
+          ],
+          "raw": "vault_move('/src/phase59/item3.txt', '/dest/phase59/3/item3.txt')"
+        }
+      },
+      "generic_reversed_action__004.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "shift_blob takes destination_path before source_path.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "shift_blob",
+          "args": [
+            "'/dest/phase59/4/item4.txt'",
+            "'/src/phase59/item4.txt'"
+          ],
+          "raw": "shift_blob('/dest/phase59/4/item4.txt', '/src/phase59/item4.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "shift_blob",
+          "args": [
+            "'/src/phase59/item4.txt'",
+            "'/dest/phase59/4/item4.txt'"
+          ],
+          "raw": "shift_blob('/src/phase59/item4.txt', '/dest/phase59/4/item4.txt')"
+        }
+      },
+      "generic_reversed_action__005.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "place_item takes destination_path before source_path.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "place_item",
+          "args": [
+            "'/dest/phase59/5/item5.txt'",
+            "'/src/phase59/item5.txt'"
+          ],
+          "raw": "place_item('/dest/phase59/5/item5.txt', '/src/phase59/item5.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "place_item",
+          "args": [
+            "'/src/phase59/item5.txt'",
+            "'/dest/phase59/5/item5.txt'"
+          ],
+          "raw": "place_item('/src/phase59/item5.txt', '/dest/phase59/5/item5.txt')"
+        }
+      },
+      "generic_reversed_action__006.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "mirror_doc takes destination_path before source_path.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "mirror_doc",
+          "args": [
+            "'/dest/phase59/6/item6.txt'",
+            "'/src/phase59/item6.txt'"
+          ],
+          "raw": "mirror_doc('/dest/phase59/6/item6.txt', '/src/phase59/item6.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "mirror_doc",
+          "args": [
+            "'/src/phase59/item6.txt'",
+            "'/dest/phase59/6/item6.txt'"
+          ],
+          "raw": "mirror_doc('/src/phase59/item6.txt', '/dest/phase59/6/item6.txt')"
+        }
+      },
+      "generic_reversed_action__007.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "route_asset takes destination_path before source_path.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "route_asset",
+          "args": [
+            "'/dest/phase59/7/item7.txt'",
+            "'/src/phase59/item7.txt'"
+          ],
+          "raw": "route_asset('/dest/phase59/7/item7.txt', '/src/phase59/item7.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "route_asset",
+          "args": [
+            "'/src/phase59/item7.txt'",
+            "'/dest/phase59/7/item7.txt'"
+          ],
+          "raw": "route_asset('/src/phase59/item7.txt', '/dest/phase59/7/item7.txt')"
+        }
+      },
+      "generic_reversed_action__008.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "carry_note takes destination_path before source_path.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "carry_note",
+          "args": [
+            "'/dest/phase59/8/item8.txt'",
+            "'/src/phase59/item8.txt'"
+          ],
+          "raw": "carry_note('/dest/phase59/8/item8.txt', '/src/phase59/item8.txt')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "carry_note",
+          "args": [
+            "'/src/phase59/item8.txt'",
+            "'/dest/phase59/8/item8.txt'"
+          ],
+          "raw": "carry_note('/src/phase59/item8.txt', '/dest/phase59/8/item8.txt')"
+        }
+      },
+      "generic_pipe_filesystem__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "trace_nav uses pipe path syntax for slash paths.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "trace_nav",
+          "args": [
+            "|home|team|worker1|"
+          ],
+          "raw": "trace_nav |home|team|worker1|"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "cd",
+          "args": [
+            "/home/team/worker1"
+          ],
+          "raw": "cd /home/team/worker1"
+        }
+      },
+      "generic_pipe_filesystem__002.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "jump_nav uses pipe path syntax for slash paths.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "jump_nav",
+          "args": [
+            "|home|team|worker2|"
+          ],
+          "raw": "jump_nav |home|team|worker2|"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "cd",
+          "args": [
+            "/home/team/worker2"
+          ],
+          "raw": "cd /home/team/worker2"
+        }
+      },
+      "generic_pipe_filesystem__003.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "logs_nav uses pipe path syntax for slash paths.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "logs_nav",
+          "args": [
+            "|home|team|worker3|"
+          ],
+          "raw": "logs_nav |home|team|worker3|"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "cd",
+          "args": [
+            "/home/team/worker3"
+          ],
+          "raw": "cd /home/team/worker3"
+        }
+      },
+      "generic_pipe_filesystem__004.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "open_nav uses pipe path syntax for slash paths.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "open_nav",
+          "args": [
+            "|home|team|worker4|"
+          ],
+          "raw": "open_nav |home|team|worker4|"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "cd",
+          "args": [
+            "/home/team/worker4"
+          ],
+          "raw": "cd /home/team/worker4"
+        }
+      },
+      "generic_pipe_filesystem__005.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "route_nav uses pipe path syntax for slash paths.",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "route_nav",
+          "args": [
+            "|home|team|worker5|"
+          ],
+          "raw": "route_nav |home|team|worker5|"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "cd",
+          "args": [
+            "/home/team/worker5"
+          ],
+          "raw": "cd /home/team/worker5"
+        }
+      },
+      "generic_api_argument_order__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "Use fetch_blob(payload={'value': '<id>'}, guards=['head','tail'], auth_key='static').",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "fetch_blob",
+          "args": [
+            "payload={'value': 'case-41'}",
+            "guards=['head','tail']",
+            "auth_key='static'"
+          ],
+          "raw": "fetch_blob(payload={'value': 'case-41'}, guards=['head','tail'], auth_key='static')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "fetch_blob",
+          "args": [
+            "'case-41'"
+          ],
+          "raw": "fetch_blob('case-41')"
+        }
+      },
+      "generic_api_argument_order__002.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "Use pull_record(payload={'value': '<id>'}, guards=['head','tail'], auth_key='static').",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "pull_record",
+          "args": [
+            "payload={'value': 'case-42'}",
+            "guards=['head','tail']",
+            "auth_key='static'"
+          ],
+          "raw": "pull_record(payload={'value': 'case-42'}, guards=['head','tail'], auth_key='static')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "pull_record",
+          "args": [
+            "'case-42'"
+          ],
+          "raw": "pull_record('case-42')"
+        }
+      },
+      "generic_api_argument_order__003.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "Use query_node(payload={'value': '<id>'}, guards=['head','tail'], auth_key='static').",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "query_node",
+          "args": [
+            "payload={'value': 'case-43'}",
+            "guards=['head','tail']",
+            "auth_key='static'"
+          ],
+          "raw": "query_node(payload={'value': 'case-43'}, guards=['head','tail'], auth_key='static')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "query_node",
+          "args": [
+            "'case-43'"
+          ],
+          "raw": "query_node('case-43')"
+        }
+      },
+      "generic_api_argument_order__004.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "Use load_packet(payload={'value': '<id>'}, guards=['head','tail'], auth_key='static').",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "load_packet",
+          "args": [
+            "payload={'value': 'case-44'}",
+            "guards=['head','tail']",
+            "auth_key='static'"
+          ],
+          "raw": "load_packet(payload={'value': 'case-44'}, guards=['head','tail'], auth_key='static')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "load_packet",
+          "args": [
+            "'case-44'"
+          ],
+          "raw": "load_packet('case-44')"
+        }
+      },
+      "generic_api_argument_order__005.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "Use read_ticket(payload={'value': '<id>'}, guards=['head','tail'], auth_key='static').",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "read_ticket",
+          "args": [
+            "payload={'value': 'case-45'}",
+            "guards=['head','tail']",
+            "auth_key='static'"
+          ],
+          "raw": "read_ticket(payload={'value': 'case-45'}, guards=['head','tail'], auth_key='static')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "read_ticket",
+          "args": [
+            "'case-45'"
+          ],
+          "raw": "read_ticket('case-45')"
+        }
+      },
+      "generic_token_wrapper__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "vault_query must wrap SQL with the same auth key prefix and suffix.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "vault_query",
+          "args": [
+            "'KEY::TOK71 UPDATE ledger SET ok=1 ::TOK71'"
+          ],
+          "raw": "vault_query('KEY::TOK71 UPDATE ledger SET ok=1 ::TOK71')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "vault_query",
+          "args": [
+            "'UPDATE ledger SET ok=1'"
+          ],
+          "raw": "vault_query('UPDATE ledger SET ok=1')"
+        }
+      },
+      "generic_token_wrapper__002.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "guard_sql must wrap SQL with the same auth key prefix and suffix.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "guard_sql",
+          "args": [
+            "'KEY::TOK72 UPDATE ledger SET ok=1 ::TOK72'"
+          ],
+          "raw": "guard_sql('KEY::TOK72 UPDATE ledger SET ok=1 ::TOK72')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "guard_sql",
+          "args": [
+            "'UPDATE ledger SET ok=1'"
+          ],
+          "raw": "guard_sql('UPDATE ledger SET ok=1')"
+        }
+      },
+      "generic_token_wrapper__003.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "seal_exec must wrap SQL with the same auth key prefix and suffix.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "seal_exec",
+          "args": [
+            "'KEY::TOK73 UPDATE ledger SET ok=1 ::TOK73'"
+          ],
+          "raw": "seal_exec('KEY::TOK73 UPDATE ledger SET ok=1 ::TOK73')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "seal_exec",
+          "args": [
+            "'UPDATE ledger SET ok=1'"
+          ],
+          "raw": "seal_exec('UPDATE ledger SET ok=1')"
+        }
+      },
+      "generic_token_wrapper__004.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "keyed_run must wrap SQL with the same auth key prefix and suffix.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "keyed_run",
+          "args": [
+            "'KEY::TOK74 UPDATE ledger SET ok=1 ::TOK74'"
+          ],
+          "raw": "keyed_run('KEY::TOK74 UPDATE ledger SET ok=1 ::TOK74')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "keyed_run",
+          "args": [
+            "'UPDATE ledger SET ok=1'"
+          ],
+          "raw": "keyed_run('UPDATE ledger SET ok=1')"
+        }
+      },
+      "generic_token_wrapper__005.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "safe_stmt must wrap SQL with the same auth key prefix and suffix.",
+        "expectedFirstAction": {
+          "kind": "tool_call",
+          "name": "safe_stmt",
+          "args": [
+            "'KEY::TOK75 UPDATE ledger SET ok=1 ::TOK75'"
+          ],
+          "raw": "safe_stmt('KEY::TOK75 UPDATE ledger SET ok=1 ::TOK75')"
+        },
+        "forbiddenFirstAction": {
+          "kind": "tool_call",
+          "name": "safe_stmt",
+          "args": [
+            "'UPDATE ledger SET ok=1'"
+          ],
+          "raw": "safe_stmt('UPDATE ledger SET ok=1')"
+        }
+      },
+      "generic_pipe_query_language__001.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "LOOKUP records | FILTER score > 7",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "LOOKUP",
+          "args": [
+            "records",
+            "|",
+            "FILTER",
+            "score",
+            ">",
+            "7"
+          ],
+          "raw": "LOOKUP records | FILTER score > 7"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": [
+            "*",
+            "FROM",
+            "records"
+          ],
+          "raw": "SELECT * FROM records"
+        }
+      },
+      "generic_pipe_query_language__002.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "COLLECT records | FILTER score > 8",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "COLLECT",
+          "args": [
+            "records",
+            "|",
+            "FILTER",
+            "score",
+            ">",
+            "8"
+          ],
+          "raw": "COLLECT records | FILTER score > 8"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": [
+            "*",
+            "FROM",
+            "records"
+          ],
+          "raw": "SELECT * FROM records"
+        }
+      },
+      "generic_pipe_query_language__003.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "SCAN records | FILTER score > 9",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "SCAN",
+          "args": [
+            "records",
+            "|",
+            "FILTER",
+            "score",
+            ">",
+            "9"
+          ],
+          "raw": "SCAN records | FILTER score > 9"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": [
+            "*",
+            "FROM",
+            "records"
+          ],
+          "raw": "SELECT * FROM records"
+        }
+      },
+      "generic_pipe_query_language__004.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "FETCH records | FILTER score > 10",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "FETCH",
+          "args": [
+            "records",
+            "|",
+            "FILTER",
+            "score",
+            ">",
+            "10"
+          ],
+          "raw": "FETCH records | FILTER score > 10"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": [
+            "*",
+            "FROM",
+            "records"
+          ],
+          "raw": "SELECT * FROM records"
+        }
+      },
+      "generic_pipe_query_language__005.json": {
+        "scorer": "structured_first_action",
+        "feedbackSignal": "TRACE records | FILTER score > 11",
+        "expectedFirstAction": {
+          "kind": "command",
+          "name": "TRACE",
+          "args": [
+            "records",
+            "|",
+            "FILTER",
+            "score",
+            ">",
+            "11"
+          ],
+          "raw": "TRACE records | FILTER score > 11"
+        },
+        "forbiddenFirstAction": {
+          "kind": "command",
+          "name": "SELECT",
+          "args": [
+            "*",
+            "FROM",
+            "records"
+          ],
+          "raw": "SELECT * FROM records"
+        }
+      }
+    },
+    "priming": {}
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "task_seed": "Generic Pipe Query Language 2",
+  "task_count": 1,
+  "instances": [
+    {
+      "task_id": "generic_pipe_query_language__002",
+      "task_name": "Generic Pipe Query Language 2",
+      "learning_phase": [
+        {
+          "role": "user",
+          "content": "How does this query language filter records?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use exact pipe syntax: COLLECT records | FILTER score > 8."
+        }
+      ],
+      "interference_phase": [
+        {
+          "role": "user",
+          "content": "What is a normal shell command?"
+        },
+        {
+          "role": "assistant",
+          "content": "Use ordinary shell syntax for unrelated tasks."
+        }
+      ],
+      "test_probe": {
+        "role": "user",
+        "content": "In this query language, list records with score above 8. What single command should I run?"
+      },
+      "expected_pattern": "COLLECT records | FILTER score > 8"
+    }
+  ]
+}
