@@ -132,6 +132,8 @@ Read and execute files in this order:
 63. 63-phase-58-raw-enactment-compiler-and-repair-loop.txt
 64. 64-phase-59-generalized-raw-executor-cleanup.txt
 65. 65-phase-60-implicitmembench-overall-priming-protocol.txt
+66. 66-phase-61-priming-abstraction-and-contamination-safe-output.txt
+67. 67-phase-62-longmemeval-sequential-hardening.txt
 
 
 Current Sequencing Note
@@ -357,22 +359,82 @@ Current Sequencing Note
     rewrites, grounded formula execution, first-action templates, and final
     leak suppression; execution signals must come from raw experience text and
     general memory signals rather than benchmark filenames
-- Phase 60 is now queued as the ImplicitMemBench overall and priming protocol
-  upgrade slice:
+- Phase 60 is now closed as the ImplicitMemBench overall and priming protocol
+  slice:
   - task-board entrypoint:
     `task-board/65-phase-60-implicitmembench-overall-priming-protocol.txt`
+  - archive summary:
+    `docs/archive/quality-gates/GoodMemory-Phase-60-Quality-Gate.md`
+  - quality gate:
+    `reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json`
   - focus:
     make the research protocol official-comparable by covering priming as a
     first-class scored lane instead of reporting only blocking
     `procedural_memory + classical_conditioning`
-  - required protocol change:
+  - accepted protocol change:
     define an explicit full-300 overall score formula, add a controlled priming
     lane with contamination/leak/task-compliance checks, preserve historical
     blocking score reporting, and keep Phase 49 legacy smoke evidence stable
+  - deterministic protocol evidence:
+    `reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json`
+    is regenerable ignored evidence; the accepted gate validated the schema,
+    controlled priming presence, contamination zero-credit behavior, and legacy
+    Phase 49 semantics
   - boundary:
     no README-level leaderboard claim, no release hard gate, no public API/config
-    widening, and no benchmark-specific task-file or case-id routing until the
-    upgraded protocol has reproducible full-300 evidence
+    widening, no new public durable memory kind, and no benchmark-specific
+    task-file or case-id routing
+  - remaining research follow-up:
+    a five-shard Postgres-backed full-300 rerun under the Phase 60 protocol is
+    still required before answering the official-denominator `66%` question
+- Phase 61 implementation is accepted as the priming abstraction and
+  contamination-safe output slice:
+  - task-board entrypoint:
+    `task-board/66-phase-61-priming-abstraction-and-contamination-safe-output.txt`
+  - breakdown:
+    `task-board/phase-61-priming-abstraction-and-contamination-safe-output/00-README.txt`
+  - focus:
+    make priming carry abstract thematic pressure without copying source nouns,
+    leaking memory, breaking strict JSON, or adding commentary
+  - accepted boundary:
+    internal research/eval hardening only; no public API/config widening, no
+    public durable memory kind, and no release hard gate
+  - operator command:
+    `bun run eval:phase-61-full300`
+    (defaults to 10 shards, shard-level concurrency 6, and per-shard case
+    concurrency 1, then merges shard reports into one final summary)
+  - post-Phase-61 full-300 rerun:
+    `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T080002Z/overall-summary.json`
+  - latest result:
+    best official-comparable GoodMemory full-300 score is
+    `145.71 / 300 = 48.57%`; priming has `56 / 100` credited cases, `0`
+    task violations, `0` source-noun contamination flags, and `0` explicit
+    recall leaks; GoodMemory raw has `0` execution failures, while distilled
+    has `2` text-generation timeouts from the older `90000ms` general timeout
+  - boundary:
+    priming improved materially, but the full-300 headline remains below the
+    paper's `66%` reference line and remains internal research evidence
+- Phase 62 is active as the LongMemEval sequential hardening slice:
+  - task-board entrypoint:
+    `task-board/67-phase-62-longmemeval-sequential-hardening.txt`
+  - breakdown:
+    `task-board/phase-62-longmemeval-sequential-hardening/00-README.txt`
+  - focus:
+    start the LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo external
+    hardening sequence without making a public benchmark claim early
+  - accepted smoke tooling:
+    `eval:phase-62` and `gate:phase-62`
+  - provider-free recall diagnostic:
+    `eval:phase-62-recall-diagnostic` over the fixed 18-case manifest wrote
+    `run-phase62-longmemeval-recall-diagnostic-rules18-20260505T042749Z` with
+    `executionFailures: 0`, evidence-session recall `0.1667`, missed recall
+    `15/18`, and wrong recall `7/18`
+  - current blocker:
+    canonical live answer-generation slices remain blocked by provider
+    `model_cooldown` / `usage_limit_reached`, so the next implementation work
+    should use the recall-only evidence to repair generic event/episode,
+    assistant-answer, multi-session, temporal, and update-latest memory
+    mechanisms
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`

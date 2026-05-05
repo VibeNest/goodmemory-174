@@ -7,20 +7,19 @@ Create a stable report contract for official-comparable full-300 scoring.
 
 Tasks
 -----
-- [ ] Add a typed score object for:
+- [x] Add a typed score object for:
   - `blockingScore`
   - `primingScore`
   - `full300OverallScore`
   - `overallComparableToOfficial`
-  - `scoreFormula`
-  - `scoreDenominator`
-- [ ] Keep the existing blocking metric unchanged:
+  - denominator and official-comparability details
+- [x] Keep the existing blocking metric unchanged:
   `passedBlockingCases / totalBlockingCases`.
-- [ ] Define how each priming pair contributes to the full-300 denominator.
-- [ ] Store both raw priming judge scores and normalized overall-credit values.
-- [ ] Add tests that fail when a report has blocking numbers but no official
+- [x] Define how each priming pair contributes to the full-300 denominator.
+- [x] Store both raw priming judge scores and normalized overall-credit values.
+- [x] Add tests that fail when a report has blocking numbers but no official
   comparable overall section.
-- [ ] Add tests that prove historical Phase 49 reports are read as legacy
+- [x] Add tests that prove historical Phase 49 reports are read as legacy
   blocking-only evidence rather than silently treated as full-overall evidence.
 
 Acceptance

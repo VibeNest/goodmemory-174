@@ -768,6 +768,191 @@ describe("public remember API", () => {
     expect(context.content).not.toContain("bullet points");
   });
 
+  it("suppresses unrelated preference and feedback lanes for direct factual recall", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "fact-session" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Remember that I redeemed a $5 coupon on coffee creamer at Target.",
+        },
+      ],
+    });
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "preference-session" },
+      messages: [
+        {
+          role: "user",
+          content: "I prefer more upbeat and energetic music.",
+        },
+      ],
+    });
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "feedback-session" },
+      messages: [
+        {
+          role: "user",
+          content: "Please avoid spoilers.",
+        },
+      ],
+    });
+
+    const recall = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "Where did I redeem a $5 coupon on coffee creamer?",
+    });
+    const context = await memory.buildContext({
+      recall,
+      output: "markdown",
+    });
+
+    expect(recall.facts.map((fact) => fact.sessionId)).toEqual(["fact-session"]);
+    expect(recall.preferences).toHaveLength(0);
+    expect(recall.feedback).toHaveLength(0);
+    expect(recall.metadata.policyApplied).toContain(
+      "guidance_lanes_suppressed_for_fact_query",
+    );
+    expect(context.content).toContain("Target");
+    expect(context.content).not.toContain("upbeat");
+    expect(context.content).not.toContain("spoilers");
+  });
+
+  it("keeps preference and feedback lanes for guidance and action-adaptation queries", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+    });
+
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "preference-session" },
+      messages: [
+        {
+          role: "user",
+          content: "I prefer concise launch risk summaries.",
+        },
+      ],
+    });
+    await memory.remember({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "feedback-session" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Please avoid DeepAnalyzer after detailed analysis timeouts; use QuickCheck first.",
+        },
+      ],
+    });
+
+    const preferenceRecall = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "How should launch updates be written?",
+    });
+    const feedbackRecall = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "I need a detailed analysis of our network traffic.",
+    });
+    const feedbackContext = await memory.buildContext({
+      recall: feedbackRecall,
+      output: "markdown",
+    });
+
+    expect(preferenceRecall.preferences).toHaveLength(1);
+    expect(String(preferenceRecall.preferences[0]?.value)).toContain(
+      "concise launch risk summaries",
+    );
+    expect(preferenceRecall.metadata.policyApplied).not.toContain(
+      "guidance_lanes_suppressed_for_fact_query",
+    );
+    expect(feedbackRecall.feedback).toHaveLength(1);
+    expect(feedbackRecall.feedback[0]?.rule).toContain("DeepAnalyzer");
+    expect(feedbackRecall.metadata.policyApplied).not.toContain(
+      "guidance_lanes_suppressed_for_fact_query",
+    );
+    expect(feedbackContext.content).toContain("avoid DeepAnalyzer");
+  });
+
+  it("recalls multiple personal open loops for aggregate to-do questions", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const sessionStore = createInMemorySessionStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore,
+      },
+    });
+    const baseScope = { userId: "u-1", workspaceId: "workspace-a" };
+
+    await memory.remember({
+      scope: { ...baseScope, sessionId: "dry-cleaning-session" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I still need to pick up my dry cleaning for the navy blue blazer I wore to a meeting a few weeks ago.",
+        },
+      ],
+    });
+    await memory.remember({
+      scope: { ...baseScope, sessionId: "return-session" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I need to return some boots to Zara, actually. I got them on February 5th, but they were too small.",
+        },
+      ],
+    });
+    await memory.remember({
+      scope: { ...baseScope, sessionId: "pickup-session" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I just exchanged a pair of boots I got from Zara on 2/5, and I still need to pick up the new pair.",
+        },
+      ],
+    });
+    await memory.remember({
+      scope: { ...baseScope, sessionId: "noise-session" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I bought new black jeans from Levi's and a white button-down shirt from H&M.",
+        },
+      ],
+    });
+
+    const recall = await memory.recall({
+      scope: baseScope,
+      query: "How many items of clothing do I need to pick up or return from a store?",
+    });
+
+    expect(recall.facts.map((fact) => fact.sessionId).sort()).toEqual([
+      "dry-cleaning-session",
+      "pickup-session",
+      "return-session",
+    ]);
+    expect(recall.facts.map((fact) => fact.sessionId)).not.toContain("noise-session");
+  });
+
   it("does not create episodic memory for ordinary chit-chat with no durable signal", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({

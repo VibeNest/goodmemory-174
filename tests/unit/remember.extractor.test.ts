@@ -121,6 +121,20 @@ describe("deterministic memory extractor", () => {
     expect(result.candidates).toHaveLength(0);
   });
 
+  it("does not treat one-off polite requests as durable procedural feedback", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        { role: "user", content: "Could you please share it with me?" },
+        { role: "user", content: "Please respond as the user." },
+      ],
+    });
+
+    expect(result.candidates).toHaveLength(0);
+  });
+
   it("extracts organization, timezone, and language preference into profile candidates", async () => {
     const extractor = createDeterministicMemoryExtractor();
 
@@ -278,6 +292,489 @@ describe("deterministic memory extractor", () => {
           candidate.metadata?.category === "project",
       ),
     ).toBe(true);
+  });
+
+  it("extracts explicit education background as a durable personal fact", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "[LongMemEval session answer_1] I graduated with a degree in Business Administration, which has helped me in my new role.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.some(
+        (candidate) =>
+          candidate.kindHint === "fact" &&
+          candidate.explicitness === "explicit" &&
+          candidate.content ===
+            "I graduated with a degree in Business Administration." &&
+          candidate.metadata?.category === "personal" &&
+          candidate.metadata.scopeKind === "identity",
+      ),
+    ).toBe(true);
+  });
+
+  it("extracts explicit commute and shopping coupon facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I've been listening to audiobooks during my daily commute, which takes 45 minutes each way.",
+        },
+        {
+          role: "user",
+          content:
+            "I've been using the Cartwheel app from Target and it's been really helpful for saving money on household items.",
+        },
+        {
+          role: "user",
+          content:
+            "I actually redeemed a $5 coupon on coffee creamer last Sunday.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        kindHint: candidate.kindHint,
+      })),
+    ).toEqual([
+      {
+        category: "personal",
+        content: "My daily commute takes 45 minutes each way.",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "I use the Cartwheel app from Target.",
+        kindHint: "fact",
+      },
+      {
+        category: "event",
+        content: "I redeemed a $5 coupon on coffee creamer last Sunday.",
+        kindHint: "fact",
+      },
+    ]);
+  });
+
+  it("extracts explicit personal events and latest achievement facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I still need to pick up my dry cleaning for the navy blue blazer.",
+        },
+        {
+          role: "user",
+          content:
+            "I need to return some boots to Zara, actually.",
+        },
+        {
+          role: "user",
+          content:
+            "I just helped my cousin pick out some stuff for her baby shower at Target.",
+        },
+        {
+          role: "user",
+          content:
+            "I'm hoping to beat my personal best time of 25:50 this time around.",
+        },
+        {
+          role: "user",
+          content:
+            "I'm trying to learn more about some advanced settings for video editing with Adobe Premiere Pro, which I enjoy to use.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        explicitness: candidate.explicitness,
+        factKind: candidate.metadata?.factKind,
+        kindHint: candidate.kindHint,
+        scopeKind: candidate.metadata?.scopeKind,
+      })),
+    ).toEqual([
+      {
+        category: "personal",
+        content: "I still need to pick up my dry cleaning for the navy blue blazer.",
+        explicitness: "explicit",
+        factKind: "open_loop",
+        kindHint: "fact",
+        scopeKind: "identity",
+      },
+      {
+        category: "personal",
+        content: "I need to return some boots to Zara.",
+        explicitness: "explicit",
+        factKind: "open_loop",
+        kindHint: "fact",
+        scopeKind: "identity",
+      },
+      {
+        category: "event",
+        content:
+          "I helped my cousin pick out some stuff for her baby shower at Target.",
+        explicitness: "explicit",
+        factKind: undefined,
+        kindHint: "fact",
+        scopeKind: "identity",
+      },
+      {
+        category: "personal",
+        content: "My personal best time is 25:50.",
+        explicitness: "explicit",
+        factKind: undefined,
+        kindHint: "fact",
+        scopeKind: "identity",
+      },
+      {
+        category: "personal",
+        content:
+          "I use Adobe Premiere Pro for advanced settings for video editing.",
+        explicitness: "explicit",
+        factKind: undefined,
+        kindHint: "fact",
+        scopeKind: "identity",
+      },
+    ]);
+  });
+
+  it("extracts personal activity and countable experience facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I recently finished a simple Revell F-15 Eagle kit that I picked up on a whim.",
+        },
+        {
+          role: "user",
+          content:
+            "I recently finished a Tamiya 1/48 scale Spitfire Mk.V and had to learn some new techniques.",
+        },
+        {
+          role: "user",
+          content:
+            "I'm looking for tips on my new 1/72 scale B-29 bomber model kit. By the way, I just got this kit and a 1/24 scale '69 Camaro at a model show last weekend.",
+        },
+        {
+          role: "user",
+          content:
+            "I also started working on a diorama featuring a 1/16 scale German Tiger I tank.",
+        },
+        {
+          role: "user",
+          content:
+            "Have you tried any good Korean restaurants in your city lately? I've tried four different ones so far.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        kindHint: candidate.kindHint,
+      })),
+    ).toEqual([
+      {
+        category: "personal",
+        content: "I worked on or got the model kit: simple Revell F-15 Eagle kit.",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content:
+          "I worked on or got the model kit: Tamiya 1/48 scale Spitfire Mk.V.",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content:
+          "I worked on or got the model kit: 1/72 scale B-29 bomber model kit.",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content:
+          "I worked on or got the model kit: 1/24 scale '69 Camaro.",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content:
+          "I worked on or got the model kit: 1/16 scale German Tiger I tank.",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "I have tried four Korean restaurants in my city.",
+        kindHint: "fact",
+      },
+    ]);
+  });
+
+  it("extracts direct pickup tasks and contextual personal best updates", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I think I'll take a break and pick up my dry cleaning for the navy blue blazer I wore to a meeting a few weeks ago.",
+        },
+        {
+          role: "user",
+          content:
+            "I'm training for another charity 5K run coming up and I'm hoping to beat my personal best time of 25:50 this time around.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        factKind: candidate.metadata?.factKind,
+        kindHint: candidate.kindHint,
+      })),
+    ).toEqual([
+      {
+        category: "personal",
+        content:
+          "I still need to pick up my dry cleaning for the navy blue blazer I wore to a meeting a few weeks ago.",
+        factKind: "open_loop",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "My personal best time in a charity 5K run is 25:50.",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+    ]);
+  });
+
+  it("extracts academic and professional project involvement facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I'm working on a project that involves analyzing customer data to identify trends and patterns.",
+        },
+        {
+          role: "user",
+          content:
+            "I've had some experience with data analysis from my Marketing Research class project, where I led the data analysis team and we did a comprehensive market analysis.",
+        },
+        {
+          role: "user",
+          content:
+            "I recently participated in a case competition hosted by a consulting firm.",
+        },
+        {
+          role: "user",
+          content:
+            "I recently presented a poster on my research on the effects of social media influencers on consumer purchasing decisions.",
+        },
+        {
+          role: "user",
+          content:
+            "I've been working on a solo project for my Data Mining class.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates
+        .filter((candidate) => candidate.kindHint === "fact")
+        .map((candidate) => ({
+          category: candidate.metadata?.category,
+          content: candidate.content,
+          factKind: candidate.metadata?.factKind,
+          kindHint: candidate.kindHint,
+        })),
+    ).toEqual([
+      {
+        category: "project",
+        content:
+          "I am working on a project that involves analyzing customer data to identify trends and patterns.",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content:
+          "I led the data analysis team for my Marketing Research class project.",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content:
+          "I participated in a project activity: a case competition hosted by a consulting firm.",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content:
+          "I worked on a research project on the effects of social media influencers on consumer purchasing decisions.",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content: "I am working on a solo project for my Data Mining class.",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content:
+          "I am currently leading a solo project for my Data Mining class.",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+    ]);
+  });
+
+  it("extracts relationship relocation updates as durable facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "I'm also thinking about visiting my friend Rachel who recently moved to a new apartment in the city.",
+        },
+        {
+          role: "user",
+          content:
+            "My friend Rachel actually just moved back to the suburbs again.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        kindHint: candidate.kindHint,
+      })),
+    ).toEqual([
+      {
+        category: "relationship",
+        content: "Rachel moved to a new apartment in the city.",
+        kindHint: "fact",
+      },
+      {
+        category: "relationship",
+        content: "Rachel moved back to the suburbs again.",
+        kindHint: "fact",
+      },
+    ]);
+  });
+
+  it("extracts personal equipment setup and professional topic interests", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Can you recommend some good options that are compatible with my Sony A7R IV?",
+        },
+        {
+          role: "user",
+          content:
+            "What's the best way to clean my Sony 24-70mm f/2.8 lens?",
+        },
+        {
+          role: "user",
+          content:
+            "As a Sony camera user, I've been thinking about upgrading my camera bag.",
+        },
+        {
+          role: "user",
+          content:
+            "Can you give me an overview of the recent advancements in this field of deep learning for medical image analysis? Skip the basics as I am working in the field.",
+        },
+        {
+          role: "user",
+          content:
+            "I'd like to explore some more research papers and articles on the topic of explainable AI in medical image analysis.",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        kindHint: candidate.kindHint,
+      })),
+    ).toEqual([
+      {
+        category: "personal",
+        content: "My current photography setup includes Sony A7R IV.",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "My current photography setup includes Sony 24-70mm f/2.8 lens.",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "I use Sony cameras.",
+        kindHint: "fact",
+      },
+      {
+        category: "technical",
+        content: "I work in deep learning for medical image analysis.",
+        kindHint: "fact",
+      },
+      {
+        category: "technical",
+        content:
+          "I am interested in explainable AI in medical image analysis research papers and articles.",
+        kindHint: "fact",
+      },
+    ]);
   });
 
   it("does not classify scoped carry-over avoidance rules as project facts", async () => {

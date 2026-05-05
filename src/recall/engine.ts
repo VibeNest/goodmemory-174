@@ -67,14 +67,14 @@ import {
 import { ProviderBackedRecallError } from "./errors";
 import {
   searchSemanticScores,
-  sortPreferences,
   type SemanticSearchScores,
 } from "./scoring";
 import {
   selectArchives,
   selectEpisodes,
-  selectFeedbackForProfile,
   selectFacts,
+  selectFeedbackForQuery,
+  selectPreferencesForQuery,
   selectReferences,
 } from "./selection";
 
@@ -358,6 +358,55 @@ function createAssistantSuppressionTraceReason(
       : "policy filtered";
 }
 
+function isGuidanceSeekingQuery(query: string, locale: string): boolean {
+  if (locale.toLowerCase().startsWith("zh")) {
+    return /(偏好|喜欢|风格|格式|语气|规则|要求|指令|怎么回复|如何回复|如何回答|怎么回答)/u.test(
+      query,
+    );
+  }
+
+  return /\b(prefer|preference|style|tone|format|guidance|rule|rules|instruction|instructions|respond|reply|how should|should i|should you|should be|avoid|do not|don't|remember to)\b/i.test(
+    query,
+  );
+}
+
+function isDirectFactualLookupQuery(query: string, locale: string): boolean {
+  const normalized = query.trim().replace(/\s+/gu, " ");
+  if (!normalized) {
+    return false;
+  }
+
+  if (locale.toLowerCase().startsWith("zh")) {
+    return /^(谁|什么|哪里|哪儿|何时|什么时候|多久|多少|哪个|哪一个|是否|是不是|我是否|我是不是)/u.test(
+      normalized,
+    );
+  }
+
+  return /^(?:who|where|when|which|what|did|do|does|was|were|is|are|am|can you remind me|remind me)\b/i.test(
+    normalized,
+  ) || /^how\s+(?:much|many|long|old|far|often)\b/i.test(normalized);
+}
+
+function shouldSuppressGuidanceLanesForFactQuery(input: {
+  language: LanguageService;
+  locale: string;
+  query: string;
+  routingDecision: RoutingDecision;
+}): boolean {
+  if (
+    input.routingDecision.retrievalProfile === "coding_agent" ||
+    input.routingDecision.continuation ||
+    input.routingDecision.actionDriving ||
+    input.routingDecision.referenceSeeking ||
+    input.language.isAnswerCompositionQuery(input.query, input.locale) ||
+    isGuidanceSeekingQuery(input.query, input.locale)
+  ) {
+    return false;
+  }
+
+  return isDirectFactualLookupQuery(input.query, input.locale);
+}
+
 export function createRecallEngine(config: RecallEngineConfig) {
   const language = config.language ?? createLanguageService();
   const now = config.now ?? Date.now;
@@ -558,23 +607,36 @@ export function createRecallEngine(config: RecallEngineConfig) {
         policy: config.policy,
         policyApplied,
       });
-      const preferences = await applyRecallPolicyToRecords(
-        sortPreferences(
-          preferencesRaw.filter(
-            (preference) => (preference.lifecycle ?? "active") === "active",
-          ),
-        ),
-        "preference",
-        {
-          scope: input.scope,
-          query: input.query,
-          retrievalProfile,
-          locale: resolvedLanguage.locale,
-          localeSource: resolvedLanguage.localeSource,
-          policy: config.policy,
-          policyApplied,
-        },
-      );
+      const suppressGuidanceLanes = shouldSuppressGuidanceLanesForFactQuery({
+        language,
+        locale: resolvedLanguage.locale,
+        query: input.query,
+        routingDecision,
+      });
+      const includeGuidanceLanes = !suppressGuidanceLanes;
+      const preferences = includeGuidanceLanes
+        ? await applyRecallPolicyToRecords(
+            selectPreferencesForQuery(
+              preferencesRaw,
+              input.query,
+              language,
+              resolvedLanguage.locale,
+            ),
+            "preference",
+            {
+              scope: input.scope,
+              query: input.query,
+              retrievalProfile,
+              locale: resolvedLanguage.locale,
+              localeSource: resolvedLanguage.localeSource,
+              policy: config.policy,
+              policyApplied,
+            },
+          )
+        : [];
+      if (suppressGuidanceLanes) {
+        policyApplied.add("guidance_lanes_suppressed_for_fact_query");
+      }
       const selectedFacts = selectFacts(
         factsRaw,
         input.query,
@@ -600,20 +662,28 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied,
         },
       );
-      const visibleFeedback = await applyRecallPolicyToRecords(
-        feedbackRaw,
-        "feedback",
-        {
-          scope: input.scope,
-          query: input.query,
-          retrievalProfile,
-          locale: resolvedLanguage.locale,
-          localeSource: resolvedLanguage.localeSource,
-          policy: config.policy,
-          policyApplied,
-        },
+      const visibleFeedback = includeGuidanceLanes
+        ? await applyRecallPolicyToRecords(
+            feedbackRaw,
+            "feedback",
+            {
+              scope: input.scope,
+              query: input.query,
+              retrievalProfile,
+              locale: resolvedLanguage.locale,
+              localeSource: resolvedLanguage.localeSource,
+              policy: config.policy,
+              policyApplied,
+            },
+          )
+        : [];
+      const feedback = selectFeedbackForQuery(
+        visibleFeedback,
+        input.query,
+        language,
+        resolvedLanguage.locale,
+        retrievalProfile,
       );
-      const feedback = selectFeedbackForProfile(visibleFeedback, retrievalProfile);
       const selectedArchives = selectArchives(
         archivesRaw,
         input.query,

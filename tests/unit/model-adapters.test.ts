@@ -265,6 +265,31 @@ describe("model adapters", () => {
     expect(delays).toEqual([2_000, 5_000, 10_000]);
   });
 
+  it("retries transient gateway invalid-json responses from provider proxies", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+
+    const result = await withAISDKRetries(
+      async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw new Error("Invalid JSON response");
+        }
+
+        return "recovered";
+      },
+      {
+        sleep: async (ms) => {
+          delays.push(ms);
+        },
+      },
+    );
+
+    expect(result).toBe("recovered");
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([2_000, 5_000]);
+  });
+
   it("keeps validation retries on a short backoff schedule", async () => {
     let attempts = 0;
     const delays: number[] = [];

@@ -3,7 +3,12 @@ Phase 60: ImplicitMemBench Overall And Priming Protocol
 
 Status
 ------
-Queued / open.
+Accepted / closed for deterministic protocol.
+
+The accepted Phase 60 quality gate is
+`reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json`.
+The remaining full-300 Postgres-backed rerun is research follow-up evidence, not
+part of the deterministic protocol gate.
 
 Scope
 -----
@@ -13,56 +18,62 @@ an official-comparable full-300 statement instead of only a blocking
 
 The trigger is the post-Phase-58 full-300 summary:
 
-- `goodmemory-raw-experience`: `90 / 200` blocking
-- `goodmemory-distilled-feedback`: `151 / 200` blocking
+- `goodmemory-raw-experience`: `90 / 200` blocking at the original trigger
+- `goodmemory-distilled-feedback`: `151 / 200` blocking at the original trigger
 - priming is present for raw, but not yet a first-class comparable overall lane
 - distilled currently omits priming by contract, so `151 / 200` is not an
   official full-300 overall score
 
-Phase 60 must make priming explicit, scored, contamination-checked, and
-aggregated into a named full-300 overall metric.
+Phase 60 makes priming explicit, scored, contamination-checked, and aggregated
+into named full-300 overall metrics without reinterpreting historical Phase 49
+blocking evidence.
 
 Workstreams
 -----------
 1. Overall score contract:
-   - define `blockingScore`, `primingScore`, and `full300OverallScore`
-   - record denominator, weighting, normalization, and official-comparability
+   - accepted: define `blockingScore`, `primingScore`, and
+     `full300OverallScore`
+   - accepted: record denominator, weighting, normalization, and official-comparability
      status in every report
-   - keep historical `passedBlockingCases / totalBlockingCases` unchanged
+   - accepted: keep historical `passedBlockingCases / totalBlockingCases` unchanged
 
 2. Controlled priming lane:
-   - add a GoodMemory priming profile that covers the 100 paired priming cases
-   - keep experimental/control branches separated and cleaned independently
-   - score thematic influence only when the final answer still satisfies the
+   - accepted: add `goodmemory-controlled-priming` and
+     `goodmemory-distilled-feedback+controlled-priming` summary profiles
+   - accepted: preserve experimental/control branch separation from the Phase 49
+     runner
+   - accepted: score thematic influence only when the final answer still satisfies the
      probe constraints
 
 3. Contamination and leak guards:
-   - detect explicit priming-source phrase reuse, memory-note leakage, and
+   - accepted: detect explicit priming-source phrase reuse, memory-note leakage, and
      copied nouns that the probe forbids
-   - separate "beneficial implicit influence" from "polluting carryover"
-   - make contaminated priming influence ineligible for positive overall credit
+   - accepted: separate "beneficial implicit influence" from "polluting carryover"
+   - accepted: make contaminated priming influence ineligible for positive
+     overall credit
 
 4. Runner, summary, and gate upgrades:
-   - add Phase 60 runner scripts without changing accepted Phase 49 smoke gates
-   - update comparison summaries to show raw, distilled/blocking, controlled
+   - accepted: add Phase 60 runner scripts without changing accepted Phase 49
+     smoke gates
+   - accepted: update comparison summaries to show raw, distilled/blocking, controlled
      priming, and official-comparable overall profiles separately
-   - produce machine-readable JSON suitable for later public evidence review
+   - accepted: produce machine-readable JSON suitable for later public evidence review
 
 5. Full-300 follow-up and claim boundary:
-   - rerun the five-shard Postgres-backed full-300 protocol after the runner is
-     upgraded
-   - update the research summary with both blocking and official-comparable
-     overall numbers
-   - keep the result research-only until the protocol, contamination checks, and
-     rerun evidence are reviewed
+   - pending follow-up: rerun the five-shard Postgres-backed full-300 protocol
+     after the runner is upgraded
+   - pending follow-up: update the research summary with both blocking and
+     official-comparable overall numbers
+   - accepted boundary: keep the result research-only until the protocol,
+     contamination checks, and rerun evidence are reviewed
 
 Acceptance Criteria
 -------------------
-- `bun run typecheck` passes.
-- Phase 60 unit/regression suites prove priming is included in the new protocol.
-- Legacy Phase 49 smoke/gate behavior remains stable or is deliberately versioned
+- [x] `bun run typecheck` passes.
+- [x] Phase 60 unit/regression suites prove priming is included in the new protocol.
+- [x] Legacy Phase 49 smoke/gate behavior remains stable or is deliberately versioned
   so accepted historical evidence is not reinterpreted.
-- The new report schema includes:
+- [x] The new report schema includes:
   - `blockingScore`
   - `primingScore`
   - `full300OverallScore`
@@ -70,14 +81,14 @@ Acceptance Criteria
   - `primingContaminationCount`
   - `primingTaskViolationCount`
   - `primingExplicitLeakCount`
-- The controlled priming lane covers all 100 priming cases in a full-300 run.
-- Contaminated priming cases do not increase the overall score.
-- The full-300 rerun summary can answer:
+- [ ] The controlled priming lane covers all 100 priming cases in a full-300 run.
+- [x] Contaminated priming cases do not increase the overall score.
+- [ ] The full-300 rerun summary can answer:
   - whether any GoodMemory profile exceeds the paper's `66%` overall reference
     line under the upgraded protocol
   - whether GoodMemory improves the base model on the same official-compatible
     denominator
-- Full-300 remains internal research evidence, not a release hard gate or public
+- [x] Full-300 remains internal research evidence, not a release hard gate or public
   product claim.
 
 Non-Goals
@@ -94,7 +105,12 @@ Evidence To Produce
 -------------------
 - Phase 60 fallback report under the ignored fallback eval tree, with
   regenerated-artifact metadata recorded once the run is accepted.
+  - `reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json`
 - Phase 60 overall summary under the same ignored eval run directory.
 - Phase 60 quality-gate artifact under the quality-gate tree once accepted.
-- Updated `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md`
-  section for official-comparable overall protocol results.
+  - `reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json`
+- Updated archive summary:
+  - `docs/archive/quality-gates/GoodMemory-Phase-60-Quality-Gate.md`
+- Pending full-300 follow-up update to
+  `docs/GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md` once a
+  five-shard Postgres-backed Phase 60 full run exists.

@@ -1,0 +1,197 @@
+Phase 62 LongMemEval Type-Balanced Sampling
+===========================================
+
+Status
+------
+
+[WIP] This is an internal execution manifest for LongMemEval broader slices.
+It is not a public benchmark report.
+
+
+Why This Exists
+---------------
+
+The cleaned `longmemeval_s_cleaned.json` file is sorted by question type. A
+simple `--limit 25` run only covers `single-session-user`, so it cannot satisfy
+the Phase 62 miss-case taxonomy requirement.
+
+The Phase 62 runner now supports repeated `--case-id` flags, repeated
+`--question-type` flags, and `--offset`. Use explicit case ids for stable
+type-balanced reruns after provider cooldown clears.
+
+
+Cleaned Data Distribution
+-------------------------
+
+- `single-session-user`: 70
+- `multi-session`: 133
+- `single-session-preference`: 30
+- `temporal-reasoning`: 133
+- `knowledge-update`: 78
+- `single-session-assistant`: 56
+
+No abstention cases were found in `longmemeval_s_cleaned.json`; abstention
+coverage remains in the smoke fixture until a full LongMemEval split with
+abstention labels is added.
+
+
+Type-Balanced Seed Cases
+------------------------
+
+`single-session-user`
+
+- `e47becba`: What degree did I graduate with?
+- `118b2229`: How long is my daily commute to work?
+- `51a45a95`: Where did I redeem a $5 coupon on coffee creamer?
+
+`multi-session`
+
+- `0a995998`: How many items of clothing do I need to pick up or return from a store?
+- `6d550036`: How many projects have I led or am currently leading?
+- `gpt4_59c863d7`: How many model kits have I worked on or bought?
+
+`single-session-preference`
+
+- `8a2466db`: Can you recommend some resources where I can learn more about video editing?
+- `06878be2`: Can you suggest some accessories that would complement my current photography setup?
+- `75832dbd`: Can you recommend some recent publications or conferences that I might find interesting?
+
+`temporal-reasoning`
+
+- `gpt4_59149c77`: How many days passed between my visit to MoMA and the Metropolitan Museum of Art exhibit?
+- `gpt4_f49edff3`: Which three events happened in the order from first to last?
+- `71017276`: How many weeks ago did I meet up with my aunt and receive the crystal chandelier?
+
+`knowledge-update`
+
+- `6a1eabeb`: What was my personal best time in the charity 5K run?
+- `6aeb4375`: How many Korean restaurants have I tried in my city?
+- `830ce83f`: Where did Rachel move to after her recent relocation?
+
+`single-session-assistant`
+
+- `7161e7e2`: What was the rotation for Admon on a Sunday?
+- `c4f10528`: What was the Bandung restaurant in Cihampelas Walk?
+- `89527b6b`: What color was the Plesiosaur's scaly body?
+
+
+Manifest Preflight
+------------------
+
+- The 18 fixed case ids were checked against
+  `/tmp/LongMemEval/data/longmemeval_s_cleaned.json`.
+- All 18 cases exist and all expected question types match.
+- The manifest covers exactly 3 cases for each available cleaned-data question
+  type:
+  - `single-session-user`
+  - `multi-session`
+  - `single-session-preference`
+  - `temporal-reasoning`
+  - `knowledge-update`
+  - `single-session-assistant`
+- Aggregate context pressure across the 18 cases:
+  - 847 haystack sessions
+  - 8,949 messages
+  - about 8.75M raw content characters
+  - 32 answer-session references
+- Per-case context pressure ranges:
+  - 40-53 haystack sessions
+  - 413-614 messages
+  - about 468K-502K raw content characters
+- This confirms the manifest is large enough to test retrieval and context
+  selection pressure; it is not a tiny smoke fixture.
+
+
+Canonical Small Slice Command
+-----------------------------
+
+Run this after the provider cooldown clears:
+
+```text
+bun run eval:phase-62 -- --benchmark-root /tmp/LongMemEval --mode full --profile baseline-no-memory --profile baseline-full-context --profile goodmemory-rules-only --profile goodmemory-hybrid --max-concurrency 1 --run-id run-phase62-longmemeval-type-balanced-18-<timestamp> --case-id e47becba --case-id 118b2229 --case-id 51a45a95 --case-id 0a995998 --case-id 6d550036 --case-id gpt4_59c863d7 --case-id 8a2466db --case-id 06878be2 --case-id 75832dbd --case-id gpt4_59149c77 --case-id gpt4_f49edff3 --case-id 71017276 --case-id 6a1eabeb --case-id 6aeb4375 --case-id 830ce83f --case-id 7161e7e2 --case-id c4f10528 --case-id 89527b6b
+```
+
+
+Current Provider Status
+-----------------------
+
+- `run-phase62-longmemeval-full-limit10-20260505T120000Z` was blocked by
+  provider 429/cooldown before the failure-preservation repair.
+- `run-phase62-longmemeval-full-limit1-provider-limit-probe-20260505T120200Z`
+  preserved the 429/cooldown as `summary.executionFailures: 1`.
+- `run-phase62-longmemeval-full-multisession-limit1-provider-probe-20260505T121000Z`
+  confirmed the provider was still cooling down and preserved the same failure
+  shape.
+- `run-phase62-longmemeval-full-limit1-provider-reprobe-20260505T041543Z`
+  confirmed the provider was still returning `model_cooldown` after the
+  repository regression and gate were green; the report was preserved with
+  `summary.executionFailures: 1`.
+- `run-phase62-longmemeval-provider-readiness-20260505T042207Z` confirmed the
+  provider was still returning `model_cooldown` after the manifest regression
+  and full-suite verification; the report was preserved with
+  `summary.executionFailures: 1`.
+- `run-phase62-longmemeval-provider-readiness-20260505T052300Z` confirmed the
+  provider was still returning `model_cooldown` after the open-loop aggregation
+  repair and current local verification; the report was preserved with
+  `summary.executionFailures: 1`.
+- `run-phase62-longmemeval-full-limit1-altmodel-gpt54mini-20260505T041658Z`
+  tried `GOODMEMORY_EVAL_MODEL=gpt-5.4-mini` as a diagnostic only; it also
+  failed at answer generation with provider `usage_limit_reached`. The
+  canonical `gpt-5.4` run remains the intended comparable run.
+- Provider access later recovered enough for the fixed live manifest:
+  `run-phase62-longmemeval-live18-context-repair-20260505T135000Z` completed
+  all four profiles but still exposed GoodMemory miss cases and one hybrid
+  `memory_context` provider JSON failure.
+- After generic repairs and targeted reprobes,
+  `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`
+  completed the fixed 18-case manifest for `goodmemory-rules-only` and
+  `goodmemory-hybrid` with `executionFailures: 0`.
+
+
+Acceptance For Moving Past This Manifest
+----------------------------------------
+
+- The fixed GoodMemory-only small slice has now run with zero provider
+  execution failures:
+  `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`.
+- Both `goodmemory-rules-only` and `goodmemory-hybrid` reached 18/18 answer
+  accuracy with zero wrong-recall cases.
+- Misses are grouped by question type in `01-miss-case-analysis.txt`.
+- Repairs were generic GoodMemory behavior or generic answer-generation
+  guidance, not benchmark-file-specific label leakage.
+- Remaining caveat: evidence-session recall is 0.9167 because latest-update
+  collapse renders only current values for three `knowledge-update` cases where
+  LongMemEval lists stale and current sessions as answer sessions.
+
+
+Provider-Free Recall Diagnostic
+-------------------------------
+
+- `run-phase62-longmemeval-recall-diagnostic-rules18-20260505T042749Z` ran the
+  fixed 18-case manifest through the durable
+  `eval:phase-62-recall-diagnostic` runner with `goodmemory-rules-only`
+  memory-context retrieval and no answer generation.
+- `run-phase62-longmemeval-recall-only-rules18-rerun-20260505T042900Z`
+  reran the same checked-in diagnostic command path and reproduced the same
+  aggregate recall result.
+- It is not a benchmark score, but it is useful miss-intake evidence while the
+  answer model is blocked.
+- Result: `executionFailures: 0`, aggregate evidence-session recall `0.1667`,
+  missed recall `15/18`, wrong recall `7/18`. `single-session-user` was clean,
+  but all five other cleaned-data question families missed answer sessions.
+- This points the next mechanism repair toward event/episode recall,
+  assistant-derived prior answer retention, multi-session aggregation, temporal
+  event ordering, and update-latest retrieval.
+- After the personal open-loop aggregation repair,
+  `run-phase62-longmemeval-recall-only-rules18-openloop-r2-20260505T051600Z`
+  improved aggregate evidence-session recall to `0.3704`, reduced missed recall
+  to `12/18`, reduced wrong recall to `5/18`, and made the clothing pickup /
+  return multi-session case recall all three evidence sessions with zero wrong
+  sessions. This is still a provider-free retrieval diagnostic, not an answer
+  accuracy score.
+
+Re-run command:
+
+```text
+bun run eval:phase-62-recall-diagnostic -- --benchmark-root /tmp/LongMemEval --profile goodmemory-rules-only --max-concurrency 1 --run-id run-phase62-longmemeval-recall-diagnostic-rules18-<timestamp>
+```

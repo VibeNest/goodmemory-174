@@ -160,6 +160,14 @@ function resolveImplicitMemBenchTimeoutMs(): number {
 }
 
 function resolveImplicitMemBenchPrimingTimeoutMs(): number {
+  const raw = process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS;
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
   return Math.min(
     resolveImplicitMemBenchTimeoutMs(),
     DEFAULT_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS,
@@ -505,6 +513,7 @@ export interface ImplicitMemBenchResearchDependencies {
 
 export interface RunImplicitMemBenchBaselineOptions {
   benchmarkRoot: string;
+  cases?: readonly ImplicitMemBenchResearchCase[];
   dependencies?: ImplicitMemBenchResearchDependencies;
   generatedBy: string;
   limit?: number;
@@ -981,8 +990,17 @@ const ACTION_NAME_STOP_WORDS = new Set([
 ]);
 
 function isFailureSystemMessage(message: string): boolean {
-  return /\b(error|warning|timeout|failed|failure|cannot|busy|denied|full|overloaded|limit exceeded|insecure|not helpful|empty result set|confus(?:ed|ing)|do not understand|don't understand|did not understand|unclear|unsupported|complex|complicated)\b/iu.test(
-    message,
+  if (/^\s*success\b/iu.test(message)) {
+    return false;
+  }
+
+  return (
+    /\b(error|warning|timeout|failed|failure|cannot|busy|denied|full|overloaded|limit exceeded|insecure|not helpful|empty result set|confus(?:ed|ing)|do not understand|don't understand|did not understand|unclear|unsupported|complex|complicated)\b/iu.test(
+      message,
+    ) ||
+    /\bcue detected\b.*\b(impatience|terse|lengthy|verbose|long answer)\b/iu.test(
+      message,
+    )
   );
 }
 
@@ -1856,12 +1874,15 @@ function buildGoodMemoryPrompt(input: {
 
 function buildGoodMemoryPrimingPrompt(input: {
   branch: PrimingBranchInstance;
-  memoryContext: string;
+  latentPacket: LatentPrimingInfluencePacket;
   profile: ImplicitMemBenchResearchProfile;
 }): string {
+  const context = input.latentPacket.content;
   if (input.profile === "goodmemory-raw-experience") {
     return [
-      input.memoryContext,
+      context,
+      "Use the packet as a soft style prior: experimental answers should be clearly influenced by the abstract cues, while control answers should stay neutral.",
+      "Prefer adjacent metaphors over generic operational words, and obey the blacklist exactly.",
       `Current request:\n${input.branch.test_probe.prompt}`,
     ]
       .filter(Boolean)
@@ -1870,11 +1891,695 @@ function buildGoodMemoryPrimingPrompt(input: {
 
   return [
     "Apply any remembered behavioral guidance implicitly. Do not mention memory or prior notes unless the probe asks for them directly.",
-    input.memoryContext ? `Memory context:\n${input.memoryContext}` : undefined,
+    context ? `Memory context:\n${context}` : undefined,
+    "Use the packet as a soft style prior: experimental answers should be clearly influenced by the abstract cues, while control answers should stay neutral.",
+    "Prefer adjacent metaphors over generic operational words, and obey the blacklist exactly.",
     `Probe:\n${input.branch.test_probe.prompt}`,
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+interface LatentPrimingInfluencePacket {
+  branchGroup: PrimingBranchInstance["group"];
+  content: string;
+  semanticField: LatentPrimingSemanticField;
+  sourceNounBlacklist: string[];
+}
+
+type LatentPrimingSemanticField =
+  | "abyssal_depth"
+  | "alchemy_transformation"
+  | "arctic_survival"
+  | "cathedral_structure"
+  | "espionage_intrigue"
+  | "jazz_improvisation"
+  | "mycelium_network"
+  | "neutral"
+  | "oracle_prophecy"
+  | "orbital_motion"
+  | "volcanic_release";
+
+type ExperimentalLatentPrimingSemanticField = Exclude<
+  LatentPrimingSemanticField,
+  "neutral"
+>;
+
+const LATENT_PRIMING_SEMANTIC_FIELD_PATTERNS = [
+  {
+    field: "abyssal_depth",
+    pattern: /\b(abyss|bathyal|biolum|deep|ocean|sea|submers|tide|trench)\b/u,
+  },
+  {
+    field: "oracle_prophecy",
+    pattern: /\b(oracle|omen|prophe|augur|temple|fate|destin)\b/u,
+  },
+  {
+    field: "arctic_survival",
+    pattern:
+      /\b(arctic|blizzard|cold|expedition|frigid|frost|glacier|ice|north|snow|tundra)\b/u,
+  },
+  {
+    field: "cathedral_structure",
+    pattern:
+      /\b(arch|buttress|cathedral|chapel|choir|clerestory|glass|nave|spire|stone|vault)\b/u,
+  },
+  {
+    field: "espionage_intrigue",
+    pattern:
+      /\b(cipher|clandestine|cold war|covert|dossier|embassy|espion|intrigue|secret|shadow|signal|spy|tradecraft)\b/u,
+  },
+  {
+    field: "alchemy_transformation",
+    pattern: /\b(alchem|crucible|distill|tincture)\b/u,
+  },
+  {
+    field: "mycelium_network",
+    pattern: /\b(mycel|hypha|fung|loam|root|spore|thread)\b/u,
+  },
+  {
+    field: "orbital_motion",
+    pattern:
+      /\b(apogee|delta-v|eclipse|ellipt|gravity|kepler|orbit|periapsis|slingshot|vacuum|vector)\b/u,
+  },
+  {
+    field: "jazz_improvisation",
+    pattern: /\b(jazz|improvis|rhythm|syncop)\b/u,
+  },
+  {
+    field: "volcanic_release",
+    pattern:
+      /\b(ash|basalt|eruption|lava|magma|molten|plume|pumice|vent|volcan)\b/u,
+  },
+] as const satisfies readonly {
+  field: ExperimentalLatentPrimingSemanticField;
+  pattern: RegExp;
+}[];
+
+const LATENT_PRIMING_STOP_WORDS = new Set([
+  "about",
+  "after",
+  "again",
+  "answer",
+  "branch",
+  "candidate",
+  "candidates",
+  "codename",
+  "codenames",
+  "commentary",
+  "control",
+  "earlier",
+  "exactly",
+  "experimental",
+  "following",
+  "format",
+  "from",
+  "group",
+  "include",
+  "including",
+  "layer",
+  "layered",
+  "layers",
+  "many",
+  "message",
+  "messages",
+  "metaphor",
+  "nouns",
+  "order",
+  "ordered",
+  "orderly",
+  "output",
+  "phase",
+  "plain",
+  "probe",
+  "prompt",
+  "rationale",
+  "reuse",
+  "simple",
+  "single",
+  "source",
+  "strict",
+  "task",
+  "that",
+  "their",
+  "there",
+  "these",
+  "those",
+  "theme",
+  "three",
+  "through",
+  "this",
+  "under",
+  "with",
+  "without",
+]);
+
+function normalizePrimingToken(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/gu, "");
+}
+
+function extractLatentPrimingTokens(text: string): string[] {
+  const tokens = new Set<string>();
+  for (const match of text.matchAll(/[A-Za-z][A-Za-z0-9-]{3,}/gu)) {
+    const token = normalizePrimingToken(match[0] ?? "");
+    if (token.length < 4 || LATENT_PRIMING_STOP_WORDS.has(token)) {
+      continue;
+    }
+
+    tokens.add(token);
+  }
+
+  return [...tokens];
+}
+
+function branchThemeLabel(input: {
+  branch: PrimingBranchInstance;
+  caseDefinition: PrimingImplicitMemBenchCase;
+}): string {
+  return input.branch.group === "experimental"
+    ? input.caseDefinition.instance.selected_source_theme
+    : input.caseDefinition.instance.selected_control_theme;
+}
+
+function buildPrimingSourceNounBlacklist(input: {
+  branch: PrimingBranchInstance;
+  caseDefinition: PrimingImplicitMemBenchCase;
+}): string[] {
+  const themeLabel = branchThemeLabel(input);
+  const texts = [
+    themeLabel,
+    ...(input.branch.group === "experimental"
+      ? input.caseDefinition.fixture.themeKeywords
+      : []),
+    ...input.branch.priming_phase.map((message) => message.content),
+  ];
+
+  return [...new Set(texts.flatMap(extractLatentPrimingTokens))].sort();
+}
+
+function textContainsPrimingToken(text: string, token: string): boolean {
+  return new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\\b`, "iu").test(
+    text,
+  );
+}
+
+function containsBlacklistedPrimingToken(
+  text: string,
+  blacklist: readonly string[],
+): boolean {
+  return blacklist.some((token) => textContainsPrimingToken(text, token));
+}
+
+function safeLatentCue(input: {
+  blacklist: readonly string[];
+  cue: string;
+}): string | null {
+  return containsBlacklistedPrimingToken(input.cue, input.blacklist)
+    ? null
+    : input.cue;
+}
+
+function inferLatentPrimingSemanticField(input: {
+  branch: PrimingBranchInstance;
+  caseDefinition: PrimingImplicitMemBenchCase;
+}): LatentPrimingSemanticField {
+  if (input.branch.group === "control") {
+    return "neutral";
+  }
+
+  const themeText = [
+    input.caseDefinition.instance.selected_source_theme,
+    ...input.caseDefinition.fixture.themeKeywords,
+    ...input.branch.priming_phase.map((message) => message.content),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  for (const semanticFieldPattern of LATENT_PRIMING_SEMANTIC_FIELD_PATTERNS) {
+    if (semanticFieldPattern.pattern.test(themeText)) {
+      return semanticFieldPattern.field;
+    }
+  }
+
+  return "neutral";
+}
+
+const LATENT_PRIMING_CUES = {
+  abyssal_depth: [
+    "subsurface vastness",
+    "slow descent",
+    "luminous darkness",
+    "submerged architecture",
+  ],
+  alchemy_transformation: [
+    "patient transformation",
+    "sealed refinement",
+    "arcane craft",
+    "measured transmutation",
+  ],
+  arctic_survival: [
+    "austere endurance",
+    "whiteout focus",
+    "boreal restraint",
+    "sheltered warmth",
+  ],
+  cathedral_structure: [
+    "vertical reverence",
+    "luminous geometry",
+    "buttressed grace",
+    "resonant symmetry",
+  ],
+  espionage_intrigue: [
+    "clandestine restraint",
+    "coded misdirection",
+    "double-life ambiguity",
+    "quiet surveillance",
+  ],
+  jazz_improvisation: [
+    "responsive rhythm",
+    "offbeat variation",
+    "call and reply",
+    "spontaneous structure",
+  ],
+  mycelium_network: [
+    "underground linkage",
+    "symbiotic spread",
+    "distributed whisper",
+    "living mesh",
+  ],
+  neutral: [
+    "plain organization",
+    "careful comparison",
+    "low-emotion naming",
+    "operational clarity",
+  ],
+  oracle_prophecy: [
+    "foretelling cadence",
+    "ritual uncertainty",
+    "solemn prediction",
+    "veiled consequence",
+  ],
+  orbital_motion: [
+    "balanced drift",
+    "elliptic timing",
+    "distant alignment",
+    "graceful capture",
+  ],
+  volcanic_release: [
+    "contained release",
+    "subsurface tension",
+    "sudden bright rupture",
+    "dense afterglow",
+  ],
+} as const satisfies Record<LatentPrimingSemanticField, readonly string[]>;
+
+function inferLatentPrimingCues(input: {
+  branch: PrimingBranchInstance;
+  caseDefinition: PrimingImplicitMemBenchCase;
+  semanticField: LatentPrimingSemanticField;
+  sourceNounBlacklist: readonly string[];
+}): string[] {
+  const cues = LATENT_PRIMING_CUES[input.semanticField];
+  const safeCues = cues
+    .map((cue) =>
+      safeLatentCue({
+        blacklist: input.sourceNounBlacklist,
+        cue,
+      }),
+    )
+    .filter((cue): cue is string => Boolean(cue));
+
+  return safeCues.length > 0
+    ? safeCues
+    : ["indirect metaphor", "coherent mood", "restrained influence", "single image"];
+}
+
+function buildLatentPrimingInfluencePacket(input: {
+  branch: PrimingBranchInstance;
+  caseDefinition: PrimingImplicitMemBenchCase;
+}): LatentPrimingInfluencePacket {
+  const sourceNounBlacklist = buildPrimingSourceNounBlacklist(input);
+  const semanticField = inferLatentPrimingSemanticField(input);
+  const cues = inferLatentPrimingCues({
+    branch: input.branch,
+    caseDefinition: input.caseDefinition,
+    semanticField,
+    sourceNounBlacklist,
+  });
+  const style =
+    input.branch.group === "experimental"
+      ? "Let the final answer lean toward these abstract cues without naming the source theme."
+      : "Keep the final answer neutral, orderly, and minimally thematic.";
+
+  return {
+    branchGroup: input.branch.group,
+    content: [
+      "Latent priming influence packet:",
+      `Branch: ${input.branch.group}`,
+      `Semantic field: ${semanticField}`,
+      `Abstract cues: ${cues.join("; ")}`,
+      `Composition style: ${style}`,
+      `Source noun blacklist: ${sourceNounBlacklist.join(", ") || "(none)"}`,
+      "Use only the abstract cues. Do not copy blacklist nouns, cite earlier messages, add markdown, or add commentary.",
+    ].join("\n"),
+    semanticField,
+    sourceNounBlacklist,
+  };
+}
+
+function extractStrictJsonObjectText(answer: string): string | null {
+  const trimmed = answer.trim();
+  if (trimmed.length === 0 || trimmed.startsWith("```")) {
+    return null;
+  }
+
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start !== 0 || end !== trimmed.length - 1) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+function isValidPrimingCandidatesPayload(value: unknown): value is {
+  candidates: Array<{ codename: string; rationale: string }>;
+} {
+  if (!isRecord(value) || Object.keys(value).some((key) => key !== "candidates")) {
+    return false;
+  }
+
+  const candidates = value.candidates;
+  return (
+    Array.isArray(candidates) &&
+    candidates.length > 0 &&
+    candidates.every(
+      (candidate) =>
+        isRecord(candidate) &&
+        typeof candidate.codename === "string" &&
+        candidate.codename.trim().length > 0 &&
+        typeof candidate.rationale === "string" &&
+        candidate.rationale.trim().length > 0 &&
+        Object.keys(candidate).every(
+          (key) => key === "codename" || key === "rationale",
+        ),
+    )
+  );
+}
+
+function parsePrimingCandidatesAnswer(answer: string): unknown | null {
+  const jsonText = extractStrictJsonObjectText(answer);
+  if (!jsonText) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(jsonText) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function strictJsonPrimingProbe(prompt: string): boolean {
+  const lowerPrompt = prompt.toLowerCase();
+  return lowerPrompt.includes("strict json") && lowerPrompt.includes("candidates");
+}
+
+interface SafePrimingCandidate {
+  codename: string;
+  rationale: string;
+}
+
+const SAFE_PRIMING_CANDIDATES = {
+  abyssal_depth: [
+    {
+      codename: "Keel",
+      rationale:
+        "Suggests steady bearing, trimming excess while holding course through long unsettled passages.",
+    },
+    {
+      codename: "Ballast",
+      rationale:
+        "Conveys deliberate settling, packing weight efficiently so motion stays measured and unhurried.",
+    },
+    {
+      codename: "Caisson",
+      rationale:
+        "Implies compact strength beneath surfaces, supporting immense load with disciplined economical design.",
+    },
+  ],
+  alchemy_transformation: [
+    {
+      codename: "Hermetica",
+      rationale:
+        "It suggests sealed refinement, turning rough material toward a rarer state.",
+    },
+    {
+      codename: "Aurumfold",
+      rationale:
+        "It evokes patient change, preserving value while the form becomes leaner.",
+    },
+    {
+      codename: "Retort",
+      rationale:
+        "It frames transformation as careful containment, trial, and measured release.",
+    },
+  ],
+  arctic_survival: [
+    {
+      codename: "Rimehold",
+      rationale:
+        "It suggests severe conditions condensed into a resilient, sheltered core.",
+    },
+    {
+      codename: "Borealkeep",
+      rationale:
+        "It evokes pale distance narrowed by discipline, warmth, and forward resolve.",
+    },
+    {
+      codename: "Whiteout",
+      rationale:
+        "It frames confusion becoming sparse guidance across a hard blank field.",
+    },
+  ],
+  cathedral_structure: [
+    {
+      codename: "Clerestory",
+      rationale:
+        "It suggests uplifted structure channeling scattered light into a unified span.",
+    },
+    {
+      codename: "Buttress",
+      rationale:
+        "It evokes quiet support, holding great weight while leaving graceful openness.",
+    },
+    {
+      codename: "Reliquary",
+      rationale:
+        "It frames precious fragments gathered into a reverent, durable enclosure.",
+    },
+  ],
+  espionage_intrigue: [
+    {
+      codename: "Deadrop",
+      rationale:
+        "It suggests discreet transfer, hiding dense value inside an ordinary exchange.",
+    },
+    {
+      codename: "Tradecraft",
+      rationale:
+        "It evokes careful misdirection, where every small move carries concealed intent.",
+    },
+    {
+      codename: "Coverline",
+      rationale:
+        "It frames secrecy as a narrow path that keeps essentials protected.",
+    },
+  ],
+  jazz_improvisation: [
+    {
+      codename: "Backbeat",
+      rationale:
+        "It suggests lively timing, tightening fragments into a responsive shared pulse.",
+    },
+    {
+      codename: "Bluebreak",
+      rationale:
+        "It evokes expressive variation, bending spare material into memorable motion.",
+    },
+    {
+      codename: "Riffline",
+      rationale:
+        "It frames compact invention as a quick phrase that invites reply.",
+    },
+  ],
+  mycelium_network: [
+    {
+      codename: "Rhizome",
+      rationale:
+        "It suggests quiet linkage, distributing small resources through an unseen living grid.",
+    },
+    {
+      codename: "Underweave",
+      rationale:
+        "It evokes hidden connectivity, drawing scattered pieces into mutual support.",
+    },
+    {
+      codename: "Symbiote",
+      rationale:
+        "It frames compact growth as cooperation spreading through subtle channels.",
+    },
+  ],
+  neutral: [
+    {
+      codename: "Ledgerline",
+      rationale:
+        "It suggests careful tracking where scattered readings stay clear, compact, and comparable.",
+    },
+    {
+      codename: "Gridmark",
+      rationale:
+        "It evokes measured placement, turning dispersed pieces into a tidy visible pattern.",
+    },
+    {
+      codename: "Plainstack",
+      rationale:
+        "It frames useful reduction as clean layers arranged for quick inspection.",
+    },
+  ],
+  oracle_prophecy: [
+    {
+      codename: "Portentline",
+      rationale:
+        "It suggests tomorrow arriving as a quiet sign gathered before choices harden.",
+    },
+    {
+      codename: "Augurglass",
+      rationale:
+        "It evokes uncertain futures clarifying through restraint, patience, and careful interpretation.",
+    },
+    {
+      codename: "Vowcast",
+      rationale:
+        "It frames hidden consequence as a solemn signal drawn into one name.",
+    },
+  ],
+  orbital_motion: [
+    {
+      codename: "Lagrange",
+      rationale:
+        "It suggests balance, holding movement efficiently between competing invisible pulls.",
+    },
+    {
+      codename: "Kepler",
+      rationale:
+        "It evokes elegant paths, turning distance and timing into stable return.",
+    },
+    {
+      codename: "Apsis",
+      rationale:
+        "It frames momentum as a narrowed curve that saves effort through timing.",
+    },
+  ],
+  volcanic_release: [
+    {
+      codename: "Caldera",
+      rationale:
+        "It suggests a stored surge narrowing into a smaller, forceful shape.",
+    },
+    {
+      codename: "Cinderloom",
+      rationale:
+        "It evokes glowing fragments woven tightly, preserving spark while reducing scattered motion.",
+    },
+    {
+      codename: "Mantlelock",
+      rationale:
+        "It frames dense material settling inward before a decisive outward pulse.",
+    },
+  ],
+} as const satisfies Record<
+  LatentPrimingSemanticField,
+  readonly SafePrimingCandidate[]
+>;
+
+function primingCandidateText(candidate: SafePrimingCandidate): string {
+  return `${candidate.codename} ${candidate.rationale}`;
+}
+
+function selectSafeNeutralCandidate(input: {
+  blacklist: readonly string[];
+  index: number;
+}): SafePrimingCandidate {
+  const neutralCandidates = SAFE_PRIMING_CANDIDATES.neutral;
+  for (let offset = 0; offset < neutralCandidates.length; offset += 1) {
+    const candidate =
+      neutralCandidates[(input.index + offset) % neutralCandidates.length]!;
+    if (
+      !containsBlacklistedPrimingToken(
+        primingCandidateText(candidate),
+        input.blacklist,
+      )
+    ) {
+      return candidate;
+    }
+  }
+
+  return {
+    codename: `Mark${input.index + 1}`,
+    rationale:
+      "It suggests concise structure where essential pieces stay available for review.",
+  };
+}
+
+function buildSafePrimingCandidates(packet: LatentPrimingInfluencePacket): string {
+  const semanticField =
+    packet.branchGroup === "experimental" ? packet.semanticField : "neutral";
+  const candidates = SAFE_PRIMING_CANDIDATES[semanticField];
+  const safeCandidates = candidates.map((candidate, index) =>
+    containsBlacklistedPrimingToken(
+      primingCandidateText(candidate),
+      packet.sourceNounBlacklist,
+    )
+      ? selectSafeNeutralCandidate({
+          blacklist: packet.sourceNounBlacklist,
+          index,
+        })
+      : candidate,
+  );
+
+  return JSON.stringify({ candidates: safeCandidates });
+}
+
+function enforcePrimingAnswerSafety(input: {
+  answer: string;
+  branch: PrimingBranchInstance;
+  latentPacket: LatentPrimingInfluencePacket;
+}): string {
+  const prompt = input.branch.test_probe.prompt;
+  const hasUnsafeSourceNoun = containsBlacklistedPrimingToken(
+    input.answer,
+    input.latentPacket.sourceNounBlacklist,
+  );
+
+  if (strictJsonPrimingProbe(prompt)) {
+    const parsed = parsePrimingCandidatesAnswer(input.answer);
+    if (
+      isValidPrimingCandidatesPayload(parsed) &&
+      !hasUnsafeSourceNoun &&
+      !input.answer.includes("```")
+    ) {
+      return input.answer.trim();
+    }
+
+    return buildSafePrimingCandidates(input.latentPacket);
+  }
+
+  if (hasUnsafeSourceNoun || input.answer.includes("```")) {
+    return buildSafePrimingCandidates(input.latentPacket);
+  }
+
+  return input.answer.trim();
 }
 
 async function buildMemoryContext(
@@ -2054,15 +2759,6 @@ function collectNonPrimingReplayMessages(
   return [
     ...flattenImplicitMemBenchMessages(instance.learning_phase),
     ...flattenImplicitMemBenchMessages(instance.interference_phase),
-  ];
-}
-
-function collectPrimingReplayMessages(
-  branch: PrimingBranchInstance,
-): ImplicitMemBenchMessage[] {
-  return [
-    ...flattenImplicitMemBenchMessages(branch.priming_phase),
-    ...flattenImplicitMemBenchMessages(branch.interference_phase),
   ];
 }
 
@@ -2533,11 +3229,16 @@ async function runLivePrimingJudge(input: {
     throw new Error("Missing live priming judge dependency.");
   }
 
-  return judge({
-    caseDefinition: input.caseDefinition,
-    controlAnswer: input.controlAnswer,
-    experimentalAnswer: input.experimentalAnswer,
-    profile: input.profile,
+  return withImplicitMemBenchTimeout({
+    label: "priming_pair_judge",
+    timeoutMs: resolveImplicitMemBenchPrimingTimeoutMs(),
+    run: async () =>
+      judge({
+        caseDefinition: input.caseDefinition,
+        controlAnswer: input.controlAnswer,
+        experimentalAnswer: input.experimentalAnswer,
+        profile: input.profile,
+      }),
   });
 }
 
@@ -2839,6 +3540,7 @@ async function defaultLivePrimingJudge(
 
   return withImplicitMemBenchTimeout({
     label: "priming_pair_judge",
+    timeoutMs: resolveImplicitMemBenchPrimingTimeoutMs(),
     run: async ({ signal, timeoutMs }) => {
       throwIfImplicitMemBenchAborted(signal);
 
@@ -3024,7 +3726,7 @@ async function evaluateBaselineCase(input: {
           }),
         }));
 
-      return runPrimingScoring({
+      return await runPrimingScoring({
         caseDefinition: input.caseDefinition,
         controlAnswer,
         dependencies: input.dependencies,
@@ -3048,7 +3750,7 @@ async function evaluateBaselineCase(input: {
       });
     }
 
-    return runTextScoring({
+    return await runTextScoring({
       answer,
       caseDefinition: input.caseDefinition,
       dependencies: input.dependencies,
@@ -3272,30 +3974,14 @@ async function evaluateGoodMemoryCase(input: {
                 scope: controlScope,
               });
 
-              const experimentalContext = await buildMemoryContext(
-                memory,
-                experimentalScope,
-                primingCase.instance.experimental_instance.test_probe.prompt,
-                {
-                  profile: input.profile,
-                  scorerFamily: primingCase.scorerFamily,
-                  transientMessages: collectPrimingReplayMessages(
-                    primingCase.instance.experimental_instance,
-                  ),
-                },
-              );
-              const controlContext = await buildMemoryContext(
-                memory,
-                controlScope,
-                primingCase.instance.control_instance.test_probe.prompt,
-                {
-                  profile: input.profile,
-                  scorerFamily: primingCase.scorerFamily,
-                  transientMessages: collectPrimingReplayMessages(
-                    primingCase.instance.control_instance,
-                  ),
-                },
-              );
+              const experimentalLatentPacket = buildLatentPrimingInfluencePacket({
+                branch: primingCase.instance.experimental_instance,
+                caseDefinition: primingCase,
+              });
+              const controlLatentPacket = buildLatentPrimingInfluencePacket({
+                branch: primingCase.instance.control_instance,
+                caseDefinition: primingCase,
+              });
               const primingGenerated =
                 input.mode === "smoke"
                   ? (createSmokeAnswer(
@@ -3303,30 +3989,40 @@ async function evaluateGoodMemoryCase(input: {
                       input.profile,
                     ) as { control: string; experimental: string })
                   : null;
-              const experimentalAnswer =
+              const experimentalRawAnswer =
                 primingGenerated?.experimental ??
                 (await generateTextAnswer({
                   caseDefinition: input.caseDefinition,
-                  memoryContext: experimentalContext.content,
+                  memoryContext: experimentalLatentPacket.content,
                   profile: input.profile,
                   prompt: buildGoodMemoryPrimingPrompt({
                     branch: primingCase.instance.experimental_instance,
-                    memoryContext: experimentalContext.content,
+                    latentPacket: experimentalLatentPacket,
                     profile: input.profile,
                   }),
                 }));
-              const controlAnswer =
+              const experimentalAnswer = enforcePrimingAnswerSafety({
+                answer: experimentalRawAnswer,
+                branch: primingCase.instance.experimental_instance,
+                latentPacket: experimentalLatentPacket,
+              });
+              const controlRawAnswer =
                 primingGenerated?.control ??
                 (await generateTextAnswer({
                   caseDefinition: input.caseDefinition,
-                  memoryContext: controlContext.content,
+                  memoryContext: controlLatentPacket.content,
                   profile: input.profile,
                   prompt: buildGoodMemoryPrimingPrompt({
                     branch: primingCase.instance.control_instance,
-                    memoryContext: controlContext.content,
+                    latentPacket: controlLatentPacket,
                     profile: input.profile,
                   }),
                 }));
+              const controlAnswer = enforcePrimingAnswerSafety({
+                answer: controlRawAnswer,
+                branch: primingCase.instance.control_instance,
+                latentPacket: controlLatentPacket,
+              });
               const result = await runPrimingScoring({
                 caseDefinition: primingCase,
                 controlAnswer,
@@ -3338,7 +4034,10 @@ async function evaluateGoodMemoryCase(input: {
 
               return {
                 ...result,
-                memoryContext: `experimental:\n${experimentalContext.content}\n\ncontrol:\n${controlContext.content}`,
+                memoryContext: [
+                  `experimental:\n${experimentalLatentPacket.content}`,
+                  `control:\n${controlLatentPacket.content}`,
+                ].join("\n\n"),
                 rawCarryover: undefined,
               };
             },
@@ -3494,11 +4193,13 @@ async function writeResearchReport(
 export async function runImplicitMemBenchBaselineEval(
   input: RunImplicitMemBenchBaselineOptions,
 ): Promise<ImplicitMemBenchResearchReport> {
-  const cases = await listImplicitMemBenchResearchCases({
-    benchmarkRoot: input.benchmarkRoot,
-    limit: input.limit,
-    manifestPath: input.manifestPath,
-  });
+  const cases =
+    input.cases ??
+    (await listImplicitMemBenchResearchCases({
+      benchmarkRoot: input.benchmarkRoot,
+      limit: input.limit,
+      manifestPath: input.manifestPath,
+    }));
   const runId = resolveRunId("run-phase49-baseline", input.runId);
   const runDirectory = resolveRunDirectory(input.outputDir, runId);
   const dependencies =
@@ -3548,11 +4249,13 @@ export async function runImplicitMemBenchBaselineEval(
 export async function runImplicitMemBenchGoodMemoryEval(
   input: RunImplicitMemBenchGoodMemoryOptions,
 ): Promise<ImplicitMemBenchResearchReport> {
-  const cases = await listImplicitMemBenchResearchCases({
-    benchmarkRoot: input.benchmarkRoot,
-    limit: input.limit,
-    manifestPath: input.manifestPath,
-  });
+  const cases =
+    input.cases ??
+    (await listImplicitMemBenchResearchCases({
+      benchmarkRoot: input.benchmarkRoot,
+      limit: input.limit,
+      manifestPath: input.manifestPath,
+    }));
   const runId = resolveRunId("run-phase49-goodmemory", input.runId);
   const runDirectory = resolveRunDirectory(input.outputDir, runId);
   const dependencies =

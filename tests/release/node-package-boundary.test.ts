@@ -14,6 +14,7 @@ import {
   buildPackageTarballName,
   loadPackageMetadataSync,
 } from "../../scripts/package-metadata";
+import { withPackagePackLock } from "../support/package-pack-lock";
 
 const ROOT_PACKAGE_PATH = join(import.meta.dir, "../../");
 const CURRENT_TARBALL_NAME = buildPackageTarballName(
@@ -167,10 +168,12 @@ async function waitForInstalledHttpBridgeReady(input: {
 }
 
 async function packReleaseTarball(outputDir: string): Promise<string> {
-  const pack = await runCommand({
-    cmd: ["bun", "pm", "pack", "--destination", outputDir, "--quiet"],
-    cwd: ROOT_PACKAGE_PATH,
-  });
+  const pack = await withPackagePackLock(ROOT_PACKAGE_PATH, () =>
+    runCommand({
+      cmd: ["bun", "pm", "pack", "--destination", outputDir, "--quiet"],
+      cwd: ROOT_PACKAGE_PATH,
+    }),
+  );
 
   expect(pack.exitCode).toBe(0);
   return pack.stdout.trim().length > 0

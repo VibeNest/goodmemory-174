@@ -74,7 +74,88 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   infrastructure; it does not change the stable OSS runtime surface or the
   release hard gate.
 
-## Latest Reopened Slice
+## Prior Closed Research Slice
+
+- Phase 60 is now closed as the ImplicitMemBench Overall And Priming Protocol
+  slice. It adds a separate Phase 60 summary layer for `blockingScore`,
+  `primingScore`, `full300OverallScore`, `overallComparableToOfficial`, and
+  priming contamination/task-compliance/leak accounting while preserving the
+  legacy Phase 49 blocking report semantics.
+- Canonical evidence:
+  - archive summary:
+    `docs/archive/quality-gates/GoodMemory-Phase-60-Quality-Gate.md`
+  - deterministic protocol summary:
+    `reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json`
+  - quality gate:
+    `reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json`
+- Accepted boundary:
+  - no public API/config widening
+  - no new public durable memory kind
+  - no release hard gate
+  - no README-level leaderboard claim
+
+## Active Research Slice
+
+- Phase 62 is active as the LongMemEval Sequential Hardening slice, following
+  the external proof order LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo.
+  It is internal research hardening, not a public LongMemEval claim.
+- Current Phase 62 evidence:
+  - smoke adapter and gate pass through `eval:phase-62` and `gate:phase-62`
+  - the initial 3-case cleaned-data slice is clean after generic
+    fact-recall/noise-suppression repairs
+  - the canonical 18-case type-balanced answer-generation slice is currently
+    blocked by provider `model_cooldown` / `usage_limit_reached`, with failures
+    preserved as structured report rows
+  - provider-free `eval:phase-62-recall-diagnostic` evidence on the fixed
+    18-case `goodmemory-rules-only` manifest has `executionFailures: 0`,
+    aggregate evidence-session recall `0.1667`, missed recall `15/18`, and
+    wrong recall `7/18`
+- Current Phase 62 mechanism gaps are event/episode recall,
+  assistant-derived prior answer retention, multi-session aggregation, temporal
+  event ordering, and update-latest retrieval. Repairs must stay generic and
+  not target LongMemEval case ids or prompt wording.
+
+## Prior Accepted Research Slice
+
+- Phase 61 implementation is accepted as Priming Abstraction And
+  Contamination-Safe Output; the post-Phase-61 full-300 rerun completed as
+  `run-phase61-full300-20260505T030809Z`. It responds to the Phase 60 full-300
+  finding that controlled priming can be covered on the official denominator
+  while still receiving no positive credit when outputs copy source nouns or
+  violate strict task formats.
+- Phase 61 remains internal research/eval hardening:
+  - `bestGoodMemoryOverallRate` now refers only to official-comparable
+    full-denominator profiles
+  - blocking-only evidence is reported separately
+  - priming audits report structured violation tags and examples
+  - GoodMemory priming prompts use an internal latent influence packet plus a
+    source-noun blacklist instead of raw priming text
+  - strict JSON priming outputs are repaired before judging when they contain
+    markdown, extra keys, bad candidate shape, or forbidden source nouns
+  - no benchmark task-file or case-id routing
+- Latest full-300 research result:
+  - artifact:
+    `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T080002Z/overall-summary.json`
+  - best official-comparable GoodMemory full-300 score:
+    `145.71 / 300 = 48.57%`
+  - GoodMemory priming:
+    `56 / 100` credited cases, average influence `24.71`, task violations `0`,
+    source-noun contamination flags `0`, explicit recall leaks `0`
+  - execution failures:
+    baseline `0`, GoodMemory raw `0`, GoodMemory distilled `2`
+  - boundary:
+    priming improved materially, but the full-300 headline remains below the
+    paper's `66%` reference line and remains internal research evidence
+- Post-analysis code follow-up:
+  - latent priming semantic-field inference and contamination-safe JSON repair
+    now cover the remaining priming theme families more directly
+  - the Phase 61 wrapper now raises the general ImplicitMemBench timeout to at
+    least `180000ms` for future full-300 runs, matching the priming timeout
+  - Phase 61 full-300 runs default to per-shard case concurrency `1` and use
+    `GOODMEMORY_PHASE61_FULL300_MAX_CONCURRENCY` for explicit override instead
+    of inheriting generic high-concurrency eval settings
+
+## Prior Reopened Slice
 
 - Phase 59 is the Generalized Raw Executor Cleanup slice. It was reopened after
   the post-gate five-shard Postgres-backed full-300 follow-up missed the raw
@@ -202,28 +283,18 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - benchmark-specific runtime hacks, task-file patches, or case-id routing as
     the accepted product mechanism
 
-## Next Open Slice
+## Next Research Follow-Up
 
-- Phase 60 is the next queued internal research/runtime slice: ImplicitMemBench
-  Overall And Priming Protocol.
-- Purpose:
-  - upgrade the internal research protocol from blocking-only
-    `procedural_memory + classical_conditioning` reporting to an
-    official-comparable full-300 protocol that includes priming
-  - keep historical blocking scores intact while adding explicit
-    `primingScore`, `full300OverallScore`, denominator, formula, and
-    contamination/task-compliance accounting
-  - answer whether a GoodMemory profile exceeds the paper's `66%` reference line
-    under a full-300 denominator, not only under the current `151 / 200`
-    blocking denominator
-- Task-board entrypoint:
-  `task-board/65-phase-60-implicitmembench-overall-priming-protocol.txt`
-- Boundary:
-  - no public API/config widening
-  - no new public durable memory kind
-  - no release hard gate
-  - no README-level leaderboard claim until the upgraded protocol has
-    reproducible, contamination-checked full-300 evidence
+- Phase 60's deterministic protocol gate is accepted, but the official-shape
+  full-300 rerun is still pending.
+- The next research run should use the Phase 60 protocol summary over the
+  five-shard Postgres-backed ImplicitMemBench setup and report:
+  - raw blocking score
+  - distilled blocking score
+  - controlled priming score
+  - `full300OverallScore`
+  - `overallComparableToOfficial`
+  - priming contamination, task violation, and explicit leak counts
 
 ## Prior Closed Installer Slice
 

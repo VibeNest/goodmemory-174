@@ -7,18 +7,18 @@ Separate useful implicit influence from harmful carryover.
 
 Tasks
 -----
-- [ ] Detect explicit memory-note leakage in priming answers.
-- [ ] Detect copied priming-source nouns and source phrases when the probe
+- [x] Detect explicit memory-note leakage in priming answers.
+- [x] Detect copied priming-source nouns and source phrases when the probe
   forbids reuse.
-- [ ] Detect task-format violations such as invalid JSON, extra commentary, or
+- [x] Detect task-format violations such as invalid JSON, extra commentary, or
   wrong item counts.
-- [ ] Make contaminated or non-compliant priming cases score as zero overall
+- [x] Make contaminated or non-compliant priming cases score as zero overall
   credit even if the priming judge sees thematic influence.
-- [ ] Add aggregate fields:
+- [x] Add aggregate fields:
   - `primingContaminationCount`
   - `primingTaskViolationCount`
   - `primingExplicitLeakCount`
-  - `primingEligibleCount`
+  - `primingScore.creditedCaseCount`
 
 Acceptance
 ----------

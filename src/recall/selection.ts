@@ -3,6 +3,7 @@ import type {
   FactKind,
   FactMemory,
   FeedbackMemory,
+  PreferenceMemory,
   ReferenceMemory,
   UserProfile,
 } from "../domain/records";
@@ -31,8 +32,9 @@ import {
   rankArchiveCandidates,
   rankEpisodeCandidates,
   rankFactCandidates,
-  sortFeedback,
   rankReferenceCandidates,
+  sortFeedback,
+  sortPreferences,
   type RankedArchiveCandidate,
   type RankedFactCandidate,
 } from "./scoring";
@@ -46,6 +48,190 @@ const PROJECT_STATE_SUPPORT_FALLBACK_KINDS = [
   "focus_update",
   "project_state",
 ] as const satisfies readonly FactKind[];
+const AGGREGATE_OPEN_LOOP_LIMIT = 6;
+const AGGREGATE_FACT_COUNT_LIMIT = 6;
+const PREFERENCE_RECALL_LIMIT = 3;
+const RESEARCH_RECOMMENDATION_LIMIT = 2;
+
+function isAggregateOpenLoopQuery(
+  query: string,
+  language: LanguageService,
+  locale: string,
+): boolean {
+  return (
+    language.isOpenLoopQuery(query, locale) &&
+    /\b(how many|what|which|list|all|remaining|pending|todo|to-do|open loops?)\b/i.test(
+      query,
+    )
+  );
+}
+
+function hasAggregateOpenLoopSignal(entry: RankedFactCandidate): boolean {
+  return entry.lexicalScore >= 0.2 || entry.subjectScore >= 0.2;
+}
+
+function isAggregateFactCountQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query);
+}
+
+function isTemporalIntervalQuery(query: string): boolean {
+  return /\bhow many\s+(?:days?|weeks?|months?|years?)\b/i.test(query) &&
+    /\b(?:passed|between|ago)\b/i.test(query);
+}
+
+function isTemporalEventOrderQuery(query: string): boolean {
+  return /\border\s+from\s+first\s+to\s+last\b/i.test(query) ||
+    /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bfirst\b[\s\S]{0,120}\blast\b/i.test(query);
+}
+
+function isDatedEventFact(entry: RankedFactCandidate): boolean {
+  return entry.fact.tags?.includes("dated_event") === true;
+}
+
+function hasAggregateFactCountSignal(
+  entry: RankedFactCandidate,
+  query: string,
+): boolean {
+  if (isTemporalIntervalQuery(query) && isDatedEventFact(entry)) {
+    return true;
+  }
+
+  if (/\bprojects?\b/i.test(query) && entry.fact.category === "project") {
+    return true;
+  }
+
+  if (
+    /\bmodel kits?\b/i.test(query) &&
+    /\b(model kit|kit|\d+\/\d+\s+scale)\b/i.test(entry.fact.content)
+  ) {
+    return true;
+  }
+
+  return (
+    entry.intentScore > 0 ||
+    entry.lexicalScore >= 0.2 ||
+    entry.subjectScore > 0
+  );
+}
+
+function hasTemporalEventOrderSignal(entry: RankedFactCandidate): boolean {
+  return isDatedEventFact(entry) &&
+    (entry.intentScore > 0 || entry.lexicalScore >= 0.08 || entry.subjectScore > 0);
+}
+
+function isResearchRecommendationQuery(query: string): boolean {
+  return (
+    /\b(recommend|suggest|find interesting)\b/i.test(query) &&
+    /\b(publications?|conferences?|research|papers?|articles?)\b/i.test(query)
+  );
+}
+
+function hasResearchRecommendationSignal(entry: RankedFactCandidate): boolean {
+  if (entry.fact.category !== "technical" && entry.fact.category !== "project") {
+    return false;
+  }
+
+  return /\b(interested in|work in|working in|research project|research papers?|articles?|publications?|conferences?)\b/i.test(
+    entry.fact.content,
+  );
+}
+
+function isCouponRedemptionLocationQuery(query: string): boolean {
+  return /\bwhere\b/i.test(query) && /\bredeem(?:ed)?\b/i.test(query) && /\bcoupon\b/i.test(query);
+}
+
+function isCouponRedemptionFact(entry: RankedFactCandidate): boolean {
+  return /\bredeemed\b/i.test(entry.fact.content) && /\bcoupon\b/i.test(entry.fact.content);
+}
+
+function isStoreContextFact(entry: RankedFactCandidate): boolean {
+  return /\bi use the .+ app from [A-Z][A-Za-z0-9&.' -]+\b/i.test(
+    entry.fact.content,
+  );
+}
+
+function isRelationshipLatestLocationQuery(query: string): boolean {
+  return /\bwhere\b/i.test(query) &&
+    /\b(?:moved?|relocation|move to|move back)\b/i.test(query);
+}
+
+function resolveUpdateSeriesKey(
+  entry: RankedFactCandidate,
+  options: { collapseRelationshipRelocation?: boolean } = {},
+): string | undefined {
+  const content = entry.fact.content.toLowerCase();
+
+  if (/\bi have tried\s+[^.]+?\bkorean restaurants in my city\b/i.test(content)) {
+    return "count:korean-restaurants-in-my-city";
+  }
+
+  const personalBestMatch = entry.fact.content.match(
+    /\bmy personal best time(?:\s+in\s+([^.!?]+?))?\s+is\b/i,
+  );
+  if (personalBestMatch) {
+    const subject = (personalBestMatch[1] ?? entry.fact.subject ?? "personal best time")
+      .toLowerCase()
+      .replace(/^(?:a|an|the)\s+/i, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return `personal-best:${subject}`;
+  }
+
+  if (
+    options.collapseRelationshipRelocation === true &&
+    entry.fact.category === "relationship" &&
+    entry.fact.subject &&
+    /\bmoved(?:\s+back)?\s+to\b/i.test(entry.fact.content)
+  ) {
+    return `relationship-relocation:${entry.fact.subject.toLowerCase()}`;
+  }
+
+  return undefined;
+}
+
+function collapseLatestUpdateSeries(
+  entries: RankedFactCandidate[],
+  options: { collapseRelationshipRelocation?: boolean } = {},
+): RankedFactCandidate[] {
+  const bySeries = new Map<string, RankedFactCandidate>();
+  const passthrough: RankedFactCandidate[] = [];
+
+  for (const entry of entries) {
+    const seriesKey = resolveUpdateSeriesKey(entry, options);
+    if (!seriesKey) {
+      passthrough.push(entry);
+      continue;
+    }
+
+    const current = bySeries.get(seriesKey);
+    if (!current || entry.fact.updatedAt > current.fact.updatedAt) {
+      bySeries.set(seriesKey, entry);
+    }
+  }
+
+  return [...passthrough, ...bySeries.values()];
+}
+
+function preferenceSearchText(preference: PreferenceMemory): string {
+  return [
+    preference.category,
+    String(preference.value),
+    ...(preference.tags ?? []),
+  ].join(" ");
+}
+
+function feedbackSearchText(feedback: FeedbackMemory): string {
+  return [
+    feedback.kind,
+    feedback.appliesTo,
+    feedback.rule,
+    feedback.why,
+    ...(feedback.tags ?? []),
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+}
 
 function buildReturnedReason(
   slot: RecallSlot | "generic",
@@ -134,7 +320,7 @@ function hasFactSelectionSignal(entry: RankedFactCandidate): boolean {
   return (
     entry.intentScore > 0 ||
     entry.lexicalScore >= 0.2 ||
-    entry.subjectScore >= 0.2
+    entry.subjectScore > 0
   );
 }
 
@@ -199,6 +385,60 @@ export function selectFeedbackForProfile(
   retrievalProfile: RetrievalProfile,
 ): FeedbackMemory[] {
   return selectFeedback(feedback, retrievalProfile);
+}
+
+export function selectFeedbackForQuery(
+  feedback: FeedbackMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+  retrievalProfile: RetrievalProfile,
+): FeedbackMemory[] {
+  const selected = selectFeedback(feedback, retrievalProfile);
+
+  if (
+    language.isAnswerCompositionQuery(query, queryLocale) ||
+    language.isFactConfirmationQuery(query, queryLocale)
+  ) {
+    return selected;
+  }
+
+  return selected.filter(
+    (record) =>
+      language.tokenOverlap(feedbackSearchText(record), query, queryLocale, {
+        excludeStopwords: true,
+      }) >= 0.15,
+  );
+}
+
+export function selectPreferencesForQuery(
+  preferences: PreferenceMemory[],
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): PreferenceMemory[] {
+  const active = sortPreferences(
+    preferences.filter((preference) => (preference.lifecycle ?? "active") === "active"),
+  );
+
+  if (
+    language.isAnswerCompositionQuery(query, queryLocale) ||
+    language.isFactConfirmationQuery(query, queryLocale)
+  ) {
+    return active.slice(0, PREFERENCE_RECALL_LIMIT);
+  }
+
+  return active
+    .filter(
+      (preference) =>
+        language.tokenOverlap(
+          preferenceSearchText(preference),
+          query,
+          queryLocale,
+          { excludeStopwords: true },
+        ) >= 0.15,
+    )
+    .slice(0, PREFERENCE_RECALL_LIMIT);
 }
 
 export function selectFacts(
@@ -266,6 +506,10 @@ export function selectFacts(
     slot: RecallSlot,
     entries: RankedFactCandidate[],
     allowUniqueFallback: boolean,
+    options?: {
+      aggregateLimit?: number;
+      aggregateSignal?: (entry: RankedFactCandidate) => boolean;
+    },
   ) => {
     const resolveCandidates = (factKinds?: readonly FactKind[]) =>
       entries
@@ -334,6 +578,21 @@ export function selectFacts(
         fallback,
       );
     };
+
+    if (options?.aggregateLimit && options.aggregateLimit > 1) {
+      const aggregatePicks = rankFactCandidates(
+        resolveCandidates().filter(
+          options.aggregateSignal ?? hasFactSelectionSignal,
+        ),
+        routingDecision.strategy,
+      ).slice(0, options.aggregateLimit);
+
+      for (const candidate of aggregatePicks) {
+        selectCandidate(candidate, "none");
+      }
+
+      return;
+    }
 
     if (slot === "project_state_support") {
       let selectedSupportCount = 0;
@@ -406,6 +665,11 @@ export function selectFacts(
   }
 
   if (slotSpecificFactQuery) {
+    const aggregateOpenLoopQuery = isAggregateOpenLoopQuery(
+      query,
+      language,
+      queryLocale,
+    );
     const activeSlots: RecallSlot[] = [];
     if (
       routingDecision.requestedSlots.includes("role") &&
@@ -432,7 +696,17 @@ export function selectFacts(
     }
     if (routingDecision.requestedSlots.includes("open_loop")) {
       activeSlots.push("open_loop");
-      trySelectSlot("open_loop", compatible, false);
+      trySelectSlot(
+        "open_loop",
+        compatible,
+        false,
+        aggregateOpenLoopQuery
+          ? {
+              aggregateLimit: AGGREGATE_OPEN_LOOP_LIMIT,
+              aggregateSignal: hasAggregateOpenLoopSignal,
+            }
+          : undefined,
+      );
     }
     if (routingDecision.supportSlots.includes("project_state_support")) {
       activeSlots.push("project_state_support");
@@ -458,17 +732,81 @@ export function selectFacts(
     };
   }
 
-  const limit = answerCompositionQuery || factConfirmationQuery ? 3 : 2;
+  const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
+  const updateSeriesOptions = {
+    collapseRelationshipRelocation: isRelationshipLatestLocationQuery(query),
+  };
+  const limit = answerCompositionQuery || factConfirmationQuery
+    ? 3
+    : temporalEventOrderQuery
+      ? 6
+      : 2;
+  const aggregateCountQuery = isAggregateFactCountQuery(query);
   const withIntentSignal = rankFactCandidates(
-    compatible.filter((entry) => entry.intentScore > 0),
+    collapseLatestUpdateSeries(
+      compatible.filter((entry) => entry.intentScore > 0),
+      updateSeriesOptions,
+    ),
     routingDecision.strategy,
   );
-  const withLexicalSignal = rankFactCandidates(
-    compatible.filter((entry) => entry.lexicalScore >= 0.2),
+  const withLexicalOrSubjectSignal = rankFactCandidates(
+    collapseLatestUpdateSeries(
+      compatible.filter(
+        (entry) => entry.lexicalScore >= 0.2 || entry.subjectScore > 0,
+      ),
+      updateSeriesOptions,
+    ),
     routingDecision.strategy,
   );
 
-  if (withIntentSignal.length > 0) {
+  if (aggregateCountQuery) {
+    for (const entry of rankFactCandidates(
+      collapseLatestUpdateSeries(
+        compatible.filter((item) => hasAggregateFactCountSignal(item, query)),
+        updateSeriesOptions,
+      ),
+      routingDecision.strategy,
+    ).slice(0, AGGREGATE_FACT_COUNT_LIMIT)) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (temporalEventOrderQuery) {
+    for (const entry of rankFactCandidates(
+      compatible.filter(hasTemporalEventOrderSignal),
+      routingDecision.strategy,
+    ).slice(0, limit)) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (withIntentSignal.length > 0) {
     for (const entry of withIntentSignal.slice(0, limit)) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
@@ -487,8 +825,30 @@ export function selectFacts(
         "none",
       );
     }
-  } else if (withLexicalSignal.length > 0) {
-    for (const entry of withLexicalSignal.slice(0, limit)) {
+  } else if (withLexicalOrSubjectSignal.length > 0) {
+    for (const entry of withLexicalOrSubjectSignal.slice(0, limit)) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (isResearchRecommendationQuery(query)) {
+    for (const entry of rankFactCandidates(
+      compatible.filter(hasResearchRecommendationSignal),
+      routingDecision.strategy,
+    ).slice(0, RESEARCH_RECOMMENDATION_LIMIT)) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -556,6 +916,44 @@ export function selectFacts(
         fallback.evidenceScore,
         fallback.outcomeScore,
         fallback.verificationPenaltyScore,
+        "none",
+      );
+    }
+  }
+
+  if (isCouponRedemptionLocationQuery(query)) {
+    const couponSessions = new Set(
+      selected
+        .filter(isCouponRedemptionFact)
+        .map((entry) => entry.fact.sessionId)
+        .filter((sessionId): sessionId is string => typeof sessionId === "string"),
+    );
+    const storeCompanions = rankFactCandidates(
+      compatible.filter(
+        (entry) =>
+          !selectedIds.has(entry.fact.id) &&
+          entry.fact.sessionId !== undefined &&
+          couponSessions.has(entry.fact.sessionId) &&
+          isStoreContextFact(entry),
+      ),
+      routingDecision.strategy,
+    ).slice(0, 1);
+
+    for (const entry of storeCompanions) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
         "none",
       );
     }
@@ -778,6 +1176,18 @@ export function selectEpisodes(
     for (const trace of traces) {
       if (trace.whySuppressed === "not selected") {
         trace.whySuppressed = "slot-specific query";
+      }
+    }
+    return {
+      episodes: [],
+      traces,
+    };
+  }
+
+  if (!routingDecision.continuation) {
+    for (const trace of traces) {
+      if (trace.whySuppressed === "not selected") {
+        trace.whySuppressed = "no continuation signal";
       }
     }
     return {

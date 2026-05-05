@@ -133,6 +133,7 @@ function resolveAISDKRetryDelayMs(
     message.includes("timeout") ||
     message.includes("timed out") ||
     message.includes("temporarily unavailable") ||
+    message.includes("invalid json response") ||
     message.includes("connection reset") ||
     message.includes("econnreset") ||
     message.includes("socket hang up") ||

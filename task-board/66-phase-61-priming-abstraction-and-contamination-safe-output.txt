@@ -1,0 +1,94 @@
+Phase 61: Priming Abstraction And Contamination-Safe Output
+===========================================================
+
+Status
+------
+Implementation accepted; post-Phase-61 full-300 rerun pending.
+
+Scope
+-----
+Phase 61 improves the Phase 60 full-300 research protocol after the first
+Postgres-backed Phase 60 run showed `0 / 100` credited priming under the
+controlled lane.
+
+This phase keeps ImplicitMemBench as internal research evidence. It does not
+add public API/config, does not add a public durable memory kind, and does not
+make the benchmark a release gate.
+
+Workstreams
+-----------
+1. Comparable summary semantics:
+   - [x] Make `bestGoodMemoryOverallRate` consider only official-comparable
+     full-denominator profiles.
+   - [x] Add a separate blocking-only best-rate field so `75%` blocking evidence
+     is visible without being confused with full-300 evidence.
+
+2. Structured priming diagnostics:
+   - [x] Add priming violation tags for invalid JSON, markdown, extra keys,
+     empty candidates, bad candidate shape, copied source nouns, forbidden
+     commentary, and explicit recall leakage.
+   - [x] Add aggregate violation counts and examples to the Phase 60 summary.
+
+3. Latent priming lane:
+   - [x] Build an internal eval-only latent priming packet from each branch's
+     priming phase.
+   - [x] Preserve experimental/control scope isolation and keep the control
+     branch free of the experimental source theme.
+   - [x] Use abstract cues plus a source-noun blacklist instead of passing raw
+     priming text into the final prompt.
+
+4. Contamination-safe output:
+   - [x] Enforce strict JSON candidate output for priming probes that require it.
+   - [x] Repair malformed, markdown-wrapped, extra-key, or source-copying
+     priming answers before sending them to the priming judge.
+
+5. Operator rerun path:
+   - [x] Add one-command 10-shard live full-300 wrapper:
+     `bun run eval:phase-61-full300`.
+   - [x] Default to `10` shards, shard-level concurrency `6`, and per-shard
+     case concurrency `1`; merge shard reports into one final
+     official-comparable summary.
+   - [x] Default priming timeout is `180000ms` when the env var is absent, and
+     `.env` can override it through
+     `GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS`.
+   - [x] Force Postgres-backed storage through `GOODMEMORY_STORAGE_URL` or
+     `GOODMEMORY_TEST_POSTGRES_URL`.
+
+Acceptance Criteria
+-------------------
+- [x] Unit tests prove blocking-only profiles cannot raise the comparable
+  full-300 best rate.
+- [x] Unit tests prove structured priming violation tags are reported.
+- [x] Unit tests prove copied source nouns still zero positive credit.
+- [x] Unit tests prove compliant abstract priming can receive positive credit.
+- [x] Runner tests prove strict JSON priming output is repaired and source nouns
+  are removed before judging.
+- [x] Runner tests prove the one-command full-300 wrapper uses live mode,
+  Postgres-backed storage, the full benchmark root, widened priming timeout,
+  and shard-specific run ids.
+- [x] Full-300 research rerun after Phase 61 records:
+  - run id `run-phase61-full300-20260505T030809Z`
+  - `executionFailures = 0`
+  - `explicitRecallLeakCount = 0`
+  - `primingScore.creditedCaseCount = 12 / 100`
+  - `primingTaskViolationCount = 0`, below the Phase 60 observed `82 / 100`
+  - official-comparable best GoodMemory full-300 score
+    `159.59 / 300 = 53.20%`, above the Phase 60 `50%` comparable baseline but
+    below the paper's `66%` reference line
+- [x] Semantic-field priming follow-up full-300 rerun records:
+  - run id `run-phase61-full300-20260505T080002Z`
+  - GoodMemory raw `executionFailures = 0`
+  - GoodMemory distilled `executionFailures = 2`, both text-generation
+    timeouts at the previous `90000ms` general timeout
+  - `explicitRecallLeakCount = 0`
+  - `primingScore.creditedCaseCount = 56 / 100`
+  - `primingTaskViolationCount = 0`
+  - `primingContaminationCount = 0`
+  - official-comparable best GoodMemory full-300 score
+    `145.71 / 300 = 48.57%`, below the paper's `66%` reference line
+
+Non-Goals
+---------
+- Do not tune by ImplicitMemBench filename, task id, or case id.
+- Do not loosen contamination zero-credit rules to make the score look better.
+- Do not claim a public leaderboard result from internal research evidence.

@@ -2,7 +2,7 @@
 
 Initial run date: `2026-04-28`
 
-Latest rerun update: `2026-05-04`
+Latest rerun update: `2026-05-05`
 
 Status: internal research evidence only. This document does not reopen or
 change the accepted Phase 49 claim, and it does not make full ImplicitMemBench
@@ -1231,6 +1231,126 @@ GoodMemory's main product goal is not to let arbitrary prior text pollute later
 answers. Priming should remain a research slice paired with contamination
 checks, leak checks, and task-compliance checks.
 
+## Phase 60 Protocol Update (`2026-05-05`)
+
+Phase 60 closed the protocol gap that previously made the `153 / 200`
+distilled blocking number unsafe to describe as an official full-300 overall
+score. The accepted Phase 60 deterministic gate adds a separate protocol summary
+with:
+
+- `blockingScore`
+- `primingScore`
+- `full300OverallScore`
+- `overallComparableToOfficial`
+- `primingContaminationCount`
+- `primingTaskViolationCount`
+- `primingExplicitLeakCount`
+
+Accepted evidence:
+
+- protocol summary:
+  `reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json`
+- quality gate:
+  `reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json`
+- archive summary:
+  `docs/archive/quality-gates/GoodMemory-Phase-60-Quality-Gate.md`
+
+The deterministic Phase 60 smoke run proves the protocol and contamination
+zero-credit behavior. It is not a substitute for a five-shard Postgres-backed
+full-300 rerun. Therefore, the current claim boundary remains:
+
+- GoodMemory has strong internal research evidence on the blocking slice.
+- GoodMemory does not yet have an accepted Phase 60 full-300 overall result
+  answering whether it exceeds the paper's `66%` line on the official
+  denominator.
+- The next full-300 rerun must publish both the blocking and priming
+  contributions under the Phase 60 protocol before any leaderboard-style wording.
+
+## Phase 61 Priming Repair Update (`2026-05-05`)
+
+The first full-300 Phase 60 run showed that the official-comparable denominator
+is necessary but not sufficient: GoodMemory's controlled priming lane can cover
+all 100 priming cases and still receive `0 / 100` positive credit when the final
+answers copy source nouns, violate strict JSON, or add disallowed commentary.
+
+Phase 61 addresses that mechanism without relaxing the contamination rules:
+
+- `bestGoodMemoryOverallRate` is now restricted to official-comparable
+  full-denominator profiles.
+- Blocking-only rates are reported separately so the `75%` blocking signal is
+  not confused with a full-300 score.
+- Priming audits now expose structured violation tags, counts, and examples.
+- GoodMemory priming generation now uses an internal latent influence packet
+  with abstract cues and a source-noun blacklist instead of raw priming text.
+- Strict JSON priming answers are repaired before judging when they contain
+  markdown, malformed JSON, extra keys, bad candidate shape, or forbidden
+  source nouns.
+
+The research target for the next full-300 rerun is not to reward source-text
+copying. It is to show positive credited priming through compliant abstract
+transfer, with `executionFailures = 0`, `explicitRecallLeakCount = 0`, and a
+lower priming task-violation count than the Phase 60 observed `82 / 100`.
+
+The post-Phase-61 full-300 rerun completed under
+`run-phase61-full300-20260505T030809Z`:
+
+- official-comparable denominator:
+  - `300 / 300` cases
+- baseline full-300 score:
+  - `121 / 300 = 40.33%`
+- best official-comparable GoodMemory full-300 score:
+  - `159.59 / 300 = 53.20%`
+- best GoodMemory blocking-only profile:
+  - `158 / 200 = 79.00%`
+- GoodMemory raw-experience full-300 score:
+  - `115.59 / 300 = 38.53%`
+- GoodMemory priming contribution:
+  - `12 / 100` credited cases
+  - average credited influence `1.59`
+  - task violations `0`
+  - source-noun contamination flags `5`
+  - explicit recall leaks `0`
+
+This is a real Phase 61 lift over Phase 60's `0 / 100` controlled priming
+credit and task-format failure mode. It is still not a leaderboard-style win:
+no GoodMemory profile exceeds the paper's `66%` reference line on the
+official-comparable 300-case denominator.
+
+The semantic-field follow-up rerun completed under
+`run-phase61-full300-20260505T080002Z` with shard concurrency `6` and
+per-shard case concurrency `1`:
+
+- official-comparable denominator:
+  - `300 / 300` cases
+- baseline full-300 score:
+  - `128 / 300 = 42.67%`
+- best official-comparable GoodMemory full-300 score:
+  - `145.71 / 300 = 48.57%`
+- best GoodMemory blocking-only profile:
+  - `121 / 200 = 60.50%`
+- GoodMemory raw priming contribution:
+  - `56 / 100` credited cases
+  - average credited influence `24.71`
+  - task violations `0`
+  - source-noun contamination flags `0`
+  - explicit recall leaks `0`
+- execution failures:
+  - baseline `0`
+  - GoodMemory raw `0`
+  - GoodMemory distilled `2` text-generation timeouts at the previous `90000ms`
+    general timeout
+
+The follow-up confirms the semantic-field priming repair materially increased
+compliant priming credit. It does not improve the full-300 headline: the best
+official-comparable GoodMemory score remains below the paper's `66%` reference
+line, and the lower distilled blocking result means the latest full-300 score
+is lower than the first post-Phase-61 run. The Phase 61 wrapper now raises the
+general ImplicitMemBench timeout to at least `180000ms` for future full-300
+runs, matching the priming timeout and avoiding the observed `90000ms`
+text-generation timeout class. It also defaults per-shard case concurrency to
+`1` through the Phase 61 wrapper so generic high-concurrency eval environment
+settings do not overload live full-300 runs.
+
 ## Recommended Next Work
 
 If the goal is to improve GoodMemory itself rather than chase one benchmark, the
@@ -1257,8 +1377,13 @@ Important execution notes from this run:
 - parallel shard runs on default local SQLite caused database locks
 - forcing Postgres-backed GoodMemory storage resolved the shard contention
 - the stable configuration was:
-  - 5 balanced shards
+  - 5 balanced shards for the Phase 49 through Phase 60 research reruns
   - per-process concurrency `1`
+  - Postgres storage
+- the Phase 61 operator wrapper is:
+  - `bun run eval:phase-61-full300`
+  - 10 benchmark shards
+  - shard-level concurrency `6`
   - Postgres storage
 
 That execution strategy is part of the research setup, not a product claim.

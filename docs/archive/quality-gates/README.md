@@ -103,6 +103,8 @@ Raw evidence continues to live in `reports/quality-gates/` and `reports/eval/`.
 - Generalized raw executor cleanup targeted gate plus internal full-300 research
   target follow-up:
   - `GoodMemory-Phase-59-Quality-Gate.md`
+- ImplicitMemBench overall and priming protocol closure:
+  - `GoodMemory-Phase-60-Quality-Gate.md`
 
 ## When To Use This Archive
 

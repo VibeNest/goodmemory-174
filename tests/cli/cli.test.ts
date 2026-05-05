@@ -29,6 +29,7 @@ import { createInMemoryVectorStore } from "../../src/storage/memory";
 import { createMemoryRepositories } from "../../src/storage/repositories";
 import { createTempWorkspace } from "../../src/testing/utils";
 import { resolveStorageConfig, runCLI } from "../../src/cli";
+import { withPackagePackLock } from "../support/package-pack-lock";
 
 const TEXT_DECODER = new TextDecoder();
 
@@ -117,12 +118,14 @@ async function packCurrentPackage(input: {
   await rm(input.outputDir, { force: true, recursive: true });
   await mkdir(input.outputDir, { recursive: true });
 
-  const pack = Bun.spawnSync({
-    cmd: ["bun", "pm", "pack", "--destination", input.outputDir, "--quiet"],
-    cwd: input.packageRoot,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  const pack = await withPackagePackLock(input.packageRoot, () =>
+    Bun.spawnSync({
+      cmd: ["bun", "pm", "pack", "--destination", input.outputDir, "--quiet"],
+      cwd: input.packageRoot,
+      stdout: "pipe",
+      stderr: "pipe",
+    }),
+  );
   if (pack.exitCode !== 0) {
     throw new Error(
       [

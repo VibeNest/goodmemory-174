@@ -1,0 +1,70 @@
+[
+  {
+    "question_id": "q-preference-1",
+    "question_type": "single-session-preference",
+    "question": "What note style does Mira prefer?",
+    "answer": "Mira prefers concise architecture notes.",
+    "question_date": "2026-01-03",
+    "haystack_session_ids": ["s-1", "s-2"],
+    "haystack_dates": ["2026-01-01", "2026-01-02"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "We talked about unrelated release chores."
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "Please remember that Mira prefers concise architecture notes.",
+          "has_answer": true
+        }
+      ]
+    ],
+    "answer_session_ids": ["s-2"]
+  },
+  {
+    "question_id": "q-update-1",
+    "question_type": "knowledge-update",
+    "question": "Which database did Mira finally choose for the pilot?",
+    "answer": "Mira finally chose Postgres for the pilot.",
+    "question_date": "2026-01-06",
+    "haystack_session_ids": ["s-3", "s-4"],
+    "haystack_dates": ["2026-01-04", "2026-01-05"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "Mira initially considered SQLite for the pilot."
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "Update: Mira finally chose Postgres for the pilot.",
+          "has_answer": true
+        }
+      ]
+    ],
+    "answer_session_ids": ["s-4"]
+  },
+  {
+    "question_id": "q-region_abs",
+    "question_type": "single-session-user",
+    "question": "Which deployment region did Mira choose?",
+    "answer": "No answer.",
+    "question_date": "2026-01-07",
+    "haystack_session_ids": ["s-5"],
+    "haystack_dates": ["2026-01-06"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "No one mentioned a deployment region."
+        }
+      ]
+    ],
+    "answer_session_ids": []
+  }
+]

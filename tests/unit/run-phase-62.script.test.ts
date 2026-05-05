@@ -1,0 +1,433 @@
+import { describe, expect, it } from "bun:test";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import type { GoodMemory, GoodMemoryConfig } from "../../src/api/contracts";
+import type {
+  LongMemEvalRecallDiagnosticReport,
+  LongMemEvalReport,
+} from "../../src/eval/longmemeval";
+import {
+  buildLongMemEvalPrompt,
+  createLongMemEvalMemoryFactory,
+  PHASE62_CANONICAL_RUN_ID,
+  runPhase62LongMemEval,
+} from "../../scripts/run-phase-62-eval";
+import {
+  buildPhase62RecallDiagnosticOptions,
+  PHASE62_RECALL_DIAGNOSTIC_RUN_ID,
+  PHASE62_TYPE_BALANCED_CASE_IDS,
+  runPhase62LongMemEvalRecallDiagnostic,
+} from "../../scripts/run-phase-62-recall-diagnostic";
+import {
+  checkPhase62Readiness,
+  parsePhase62CliOptions,
+  resolvePhase62BenchmarkRoot,
+  resolvePhase62OutputDir,
+} from "../../scripts/run-phase-62-shared";
+
+const TYPE_BALANCED_MANIFEST_PATH = join(
+  import.meta.dir,
+  "../../task-board/phase-62-longmemeval-sequential-hardening/02-type-balanced-sampling.txt",
+);
+const TYPE_BALANCED_CASE_IDS = [
+  "e47becba",
+  "118b2229",
+  "51a45a95",
+  "0a995998",
+  "6d550036",
+  "gpt4_59c863d7",
+  "8a2466db",
+  "06878be2",
+  "75832dbd",
+  "gpt4_59149c77",
+  "gpt4_f49edff3",
+  "71017276",
+  "6a1eabeb",
+  "6aeb4375",
+  "830ce83f",
+  "7161e7e2",
+  "c4f10528",
+  "89527b6b",
+] as const;
+
+function buildReport(input: {
+  benchmarkRoot: string;
+  generatedBy: string;
+  mode: "smoke" | "full";
+  outputDir: string;
+  runId?: string;
+}): LongMemEvalReport {
+  const runId = input.runId ?? PHASE62_CANONICAL_RUN_ID;
+  return {
+    benchmarkRoot: input.benchmarkRoot,
+    generatedAt: "2026-05-05T00:00:00.000Z",
+    generatedBy: input.generatedBy,
+    mode: input.mode,
+    outputDir: input.outputDir,
+    phase: "phase-62",
+    profiles: {},
+    runDirectory: `${input.outputDir}/${runId}`,
+    runId,
+    source: {
+      benchmark: "LongMemEval",
+      license: "MIT code; dataset external",
+      url: "https://github.com/xiaowu0162/LongMemEval",
+    },
+    summary: {
+      abstentionCases: 0,
+      caseCountsByQuestionType: {},
+      executionFailures: 0,
+      profilesCompared: [],
+      totalCases: 0,
+    },
+  };
+}
+
+function buildRecallDiagnosticReport(input: {
+  benchmarkRoot: string;
+  generatedBy: string;
+  mode: "smoke" | "full";
+  outputDir: string;
+  profile: "goodmemory-hybrid" | "goodmemory-rules-only";
+  runId?: string;
+}): LongMemEvalRecallDiagnosticReport {
+  const runId = input.runId ?? PHASE62_RECALL_DIAGNOSTIC_RUN_ID;
+  return {
+    benchmarkRoot: input.benchmarkRoot,
+    cases: [],
+    caveat: "Recall-only diagnostic.",
+    generatedAt: "2026-05-05T00:00:00.000Z",
+    generatedBy: input.generatedBy,
+    mode: "recall-only-diagnostic",
+    outputDir: input.outputDir,
+    phase: "phase-62",
+    profile: input.profile,
+    runDirectory: `${input.outputDir}/${runId}`,
+    runId,
+    source: {
+      benchmark: "LongMemEval",
+      license: "MIT code; dataset external",
+      url: "https://github.com/xiaowu0162/LongMemEval",
+    },
+    summary: {
+      byQuestionType: {},
+      evidenceCaseCount: 0,
+      evidenceSessionRecall: null,
+      executionFailures: 0,
+      missedRecallCases: 0,
+      totalCases: 0,
+      wrongRecallCases: 0,
+    },
+  };
+}
+
+describe("run-phase-62 LongMemEval script", () => {
+  it("resolves default smoke fixture and output roots", () => {
+    expect(resolvePhase62BenchmarkRoot("/tmp/goodmemory", true)).toBe(
+      "/tmp/goodmemory/fixtures/external-benchmarks/longmemeval",
+    );
+    expect(resolvePhase62OutputDir("/tmp/goodmemory")).toBe(
+      "/tmp/goodmemory/reports/eval/research/phase-62/longmemeval",
+    );
+  });
+
+  it("parses phase-62 cli flags", () => {
+    expect(
+      parsePhase62CliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-62-eval.ts",
+        "--benchmark-root",
+        "/tmp/longmemeval",
+        "--mode",
+        "full",
+        "--case-id",
+        "q-multi-1",
+        "--case-id",
+        "q-temporal-1",
+        "--profile",
+        "goodmemory-hybrid",
+        "--limit",
+        "10",
+        "--max-concurrency",
+        "2",
+        "--offset",
+        "70",
+        "--output-dir",
+        "/tmp/out",
+        "--question-type",
+        "multi-session",
+        "--question-type",
+        "temporal-reasoning",
+        "--run-id",
+        "run-longmemeval",
+      ]),
+    ).toEqual({
+      benchmarkRoot: "/tmp/longmemeval",
+      caseIds: ["q-multi-1", "q-temporal-1"],
+      limit: 10,
+      maxConcurrency: 2,
+      mode: "full",
+      offset: 70,
+      outputDir: "/tmp/out",
+      profiles: ["goodmemory-hybrid"],
+      questionTypes: ["multi-session", "temporal-reasoning"],
+      runId: "run-longmemeval",
+    });
+  });
+
+  it("keeps the type-balanced manifest aligned with the four-profile run contract", async () => {
+    const manifest = await readFile(TYPE_BALANCED_MANIFEST_PATH, "utf8");
+    const command = manifest.match(/bun run eval:phase-62[^\n]+/u)?.[0];
+    const profileFlags =
+      command === undefined
+        ? []
+        : Array.from(command.matchAll(/--profile\s+\S+/gu), ([match]) => match);
+    const caseIdFlags =
+      command === undefined
+        ? []
+        : Array.from(command.matchAll(/--case-id\s+\S+/gu), ([match]) => match);
+
+    expect(command).toBeDefined();
+    expect(profileFlags).toEqual([
+      "--profile baseline-no-memory",
+      "--profile baseline-full-context",
+      "--profile goodmemory-rules-only",
+      "--profile goodmemory-hybrid",
+    ]);
+    expect(caseIdFlags).toEqual(
+      TYPE_BALANCED_CASE_IDS.map((caseId) => `--case-id ${caseId}`),
+    );
+  });
+
+  it("builds recall diagnostics over the fixed type-balanced manifest by default", () => {
+    const options = buildPhase62RecallDiagnosticOptions(
+      "/tmp/goodmemory",
+      {
+        benchmarkRoot: "/tmp/LongMemEval",
+        mode: "smoke",
+      },
+    );
+
+    expect(options).toEqual({
+      benchmarkRoot: "/tmp/LongMemEval",
+      caseIds: PHASE62_TYPE_BALANCED_CASE_IDS,
+      generatedBy: "scripts/run-phase-62-recall-diagnostic.ts",
+      limit: undefined,
+      maxConcurrency: 1,
+      mode: "full",
+      offset: undefined,
+      outputDir: "/tmp/goodmemory/reports/eval/research/phase-62/longmemeval",
+      profile: "goodmemory-rules-only",
+      questionTypes: undefined,
+      runId: PHASE62_RECALL_DIAGNOSTIC_RUN_ID,
+    });
+  });
+
+  it("includes question date in the LongMemEval answer prompt", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext: "On 2023/03/04, I received a crystal chandelier.",
+        prompt: "How many weeks ago did I receive the crystal chandelier?",
+        questionDate: "2023/04/01 (Sat) 08:09",
+        transcript: "",
+      }),
+    ).toContain("Question date:\n2023/04/01 (Sat) 08:09");
+  });
+
+  it("instructs count answers to count only matching evidence", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "I led the data analysis team.\nI am working on a research project.",
+        prompt: "How many projects have I led or am currently leading?",
+        transcript: "",
+      }),
+    ).toContain(
+      "For count questions, count distinct matching evidence items only.",
+    );
+  });
+
+  it("instructs recommendation answers to retain the requested object category", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "My current photography setup includes Sony A7R IV and Sony 24-70mm f/2.8 lens.",
+        prompt:
+          "Can you suggest some accessories that would complement my current photography setup?",
+        transcript: "",
+      }),
+    ).toContain(
+      "include that category in the answer, such as resources, accessories, publications, conferences, or gear.",
+    );
+  });
+
+  it("runs through the LongMemEval suite with canonical defaults", async () => {
+    let received:
+      | {
+          benchmarkRoot: string;
+          generatedBy: string;
+          mode: "smoke" | "full";
+          outputDir: string;
+          runId?: string;
+        }
+      | undefined;
+
+    const report = await runPhase62LongMemEval(
+      {},
+      {
+        runSuite: async (input) => {
+          received = input;
+          return buildReport(input);
+        },
+      },
+    );
+
+    expect(received?.benchmarkRoot).toContain(
+      "/fixtures/external-benchmarks/longmemeval",
+    );
+    expect(received?.generatedBy).toBe("scripts/run-phase-62-eval.ts");
+    expect(received?.mode).toBe("smoke");
+    expect(report.runId).toBe(PHASE62_CANONICAL_RUN_ID);
+  });
+
+  it("passes full mode through injected dependencies without resolving live env", async () => {
+    let receivedMode: "smoke" | "full" | undefined;
+
+    const report = await runPhase62LongMemEval(
+      {
+        mode: "full",
+        profiles: ["baseline-no-memory"],
+        runId: "run-full",
+      },
+      {
+        runSuite: async (input) => {
+          receivedMode = input.mode;
+          return buildReport(input);
+        },
+      },
+    );
+
+    expect(receivedMode).toBe("full");
+    expect(report.runId).toBe("run-full");
+  });
+
+  it("runs recall-only diagnostic through injected dependencies without live answer env", async () => {
+    let received:
+      | {
+          generatedBy: string;
+          mode: "smoke" | "full";
+          profile: "goodmemory-hybrid" | "goodmemory-rules-only";
+          runId?: string;
+        }
+      | undefined;
+
+    const report = await runPhase62LongMemEvalRecallDiagnostic(
+      {
+        mode: "full",
+      },
+      {
+        runDiagnostic: async (input) => {
+          received = input;
+          return buildRecallDiagnosticReport(input);
+        },
+      },
+    );
+
+    expect(received?.generatedBy).toBe(
+      "scripts/run-phase-62-recall-diagnostic.ts",
+    );
+    expect(received?.mode).toBe("full");
+    expect(received?.profile).toBe("goodmemory-rules-only");
+    expect(report.runId).toBe(PHASE62_RECALL_DIAGNOSTIC_RUN_ID);
+  });
+
+  it("rejects recall-only diagnostic profiles that do not build GoodMemory context", async () => {
+    await expect(
+      runPhase62LongMemEvalRecallDiagnostic(
+        {
+          profiles: ["baseline-full-context"],
+        },
+        {
+          runDiagnostic: async (input) => buildRecallDiagnosticReport(input),
+        },
+      ),
+    ).rejects.toThrow("goodmemory-rules-only or goodmemory-hybrid");
+  });
+
+  it("reports missing full-mode data and provider requirements before live execution", () => {
+    const report = checkPhase62Readiness(
+      {
+        benchmarkRoot: "/tmp/missing-longmemeval",
+        mode: "full",
+        profiles: ["goodmemory-hybrid"],
+      },
+      {
+        env: {},
+        fileExists: () => false,
+      },
+    );
+
+    expect(report.ready).toBe(false);
+    expect(report.mode).toBe("full");
+    expect(report.checks.map((check) => check.key)).toContain(
+      "longmemeval-data-file",
+    );
+    expect(report.missing).toContain("GOODMEMORY_EVAL_PROVIDER");
+    expect(report.missing).toContain("GOODMEMORY_JUDGE_PROVIDER");
+    expect(report.missing).toContain("GOODMEMORY_TEST_POSTGRES_URL");
+    expect(report.missing).toContain("GOODMEMORY_EMBEDDING_PROVIDER");
+    expect(report.missing).toContain("GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY");
+  });
+
+  it("accepts a ready full-mode rules-only run without hybrid provider checks", () => {
+    const report = checkPhase62Readiness(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        mode: "full",
+        profiles: ["goodmemory-rules-only"],
+      },
+      {
+        env: {
+          GOODMEMORY_EVAL_API_KEY: "eval-key",
+          GOODMEMORY_EVAL_MODEL: "gpt-5.4",
+          GOODMEMORY_EVAL_PROVIDER: "openai",
+          GOODMEMORY_JUDGE_API_KEY: "judge-key",
+          GOODMEMORY_JUDGE_MODEL: "gpt-5.4",
+          GOODMEMORY_JUDGE_PROVIDER: "openai",
+        },
+        fileExists: (path) => path.endsWith("longmemeval_s_cleaned.json"),
+      },
+    );
+
+    expect(report.ready).toBe(true);
+    expect(report.missing).toEqual([]);
+    expect(report.profiles).toEqual(["goodmemory-rules-only"]);
+  });
+
+  it("keeps rules-only full mode isolated from provider-backed env adapters", async () => {
+    let receivedConfig: GoodMemoryConfig | undefined;
+    const factory = createLongMemEvalMemoryFactory((config) => {
+      receivedConfig = config;
+      return {} as GoodMemory;
+    });
+
+    factory("goodmemory-rules-only");
+
+    expect(receivedConfig?.storage?.provider).toBe("memory");
+    expect(receivedConfig?.adapters?.embeddingAdapter).toBeDefined();
+    expect(receivedConfig?.adapters?.assistedExtractor).toBeDefined();
+    await expect(
+      receivedConfig?.adapters?.embeddingAdapter?.embed(["hello"]),
+    ).resolves.toEqual([[0]]);
+    await expect(
+      receivedConfig?.adapters?.assistedExtractor?.extract({
+        messages: [{ content: "hello", role: "user" }],
+        scope: { userId: "u-1" },
+      }),
+    ).resolves.toEqual({
+      candidates: [],
+      ignoredMessageCount: 1,
+    });
+  });
+});

@@ -1061,7 +1061,7 @@ function parseSystemFailure(content: string): string | undefined {
     return normalized;
   }
   if (
-    /\b(?:impatience|impatient|frustration|frustrated|lengthy answer|verbose response|too lengthy|too long|terse replies?)\b/iu.test(
+    /\b(?:impatience|impatient|frustration|frustrated|lengthy answer|long answer|verbose response|too lengthy|too long|terse replies?|repl(?:y|ies)\b.{0,40}\bterse)\b/iu.test(
       normalized,
     )
   ) {

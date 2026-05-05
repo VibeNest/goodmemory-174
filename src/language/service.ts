@@ -126,7 +126,8 @@ function createQueryPatterns(locale: string) {
     reference: /\b(runbook|guide|doc|docs|reference|source of truth)\b/i,
     role: /\brole\b/i,
     focus: /\bfocus\b/i,
-    openLoop: /\b(open loop|handoff|signoff|verification)\b/i,
+    openLoop:
+      /\b(open loop|handoff|signoff|verification|todo|to-do|need to|have to|pick up)\b|\bhow many\b.*\breturn\b/i,
     blocker: /\b(blocker|blocked|blocking|approval)\b/i,
     projectState: /\b(project|workflow|migration|rollout|approval|blocker|blocked|open loop|handoff|signoff|verification|prod|production)\b/i,
     confirm: /\bconfirm\b/i,
@@ -134,7 +135,8 @@ function createQueryPatterns(locale: string) {
       /\b(role|focus|open loop|blocker|handoff|approval|package|signoff|verification)\b/i,
       actionDriving:
         /\b(proceed|send|ship|deploy|decide|rollout|execute|migration plan|next step|do next)\b/i,
-    continuation: /\b(continue|resume|last time|from last time|carry on|pick up)\b/i,
+    continuation:
+      /\b(continue|resume|last time|from last time|carry on)\b|\bpick up\s+(?:where we left off|from last time|this thread|the thread|this task|the task)\b/i,
     positive: /\b(stable|resolved|closed|fixed)\b/i,
     negative: /\b(blocked|failing|open|unstable)\b/i,
     validated: /\b(worked well|keep using|effective|successful)\b/i,
@@ -150,7 +152,8 @@ function createQueryPatterns(locale: string) {
         /\bmy current role is\b|\bi(?:'m| am)\s+(?:an?|the)\s+.+\b(?:at|leading|working on|focused on|owning)\b/i,
       focusFact:
         /\bmy current focus is\b|\bi(?:'m| am)\s+(?:leading|working on|focused on|owning)\b/i,
-      openLoopFact: /\bopen loop\b/i,
+      openLoopFact:
+        /\bopen loop\b|\bi\s+(?:(?:still|also|just)\s+)?(?:need|have)\s+to\b|\bi(?:'ve| have)\s+been\s+meaning\s+to\b/i,
       blockerFact: /\bblocker\b|\bblocked\b|\bblocking\b|\bapproval\b/i,
       projectStateFact:
         /\b(next milestone|next step|next action|upcoming milestone|pending|waiting|remaining|still needs?|needs? review|needs? confirmation|needs? follow(?:-| )?up)\b/i,

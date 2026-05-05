@@ -18,6 +18,7 @@ import {
   buildPackageTarballName,
   loadPackageMetadataSync,
 } from "../../scripts/package-metadata";
+import { withPackagePackLock } from "../support/package-pack-lock";
 
 const QUALITY_GATE_ARCHIVE_ROOT = "docs/archive/quality-gates";
 const ROOT_PACKAGE_PATH = join(import.meta.dir, "../../");
@@ -115,6 +116,8 @@ const PHASE59_CANONICAL_FALLBACK_REPORT =
   "reports/eval/fallback/phase-59/run-phase59-fallback-current/report.json";
 const PHASE59_CANONICAL_RAW_DIAGNOSTICS =
   "reports/eval/fallback/phase-59/run-phase59-fallback-current/raw-diagnostics.json";
+const PHASE60_CANONICAL_OVERALL_SUMMARY =
+  "reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json";
 const PHASE41_TASK_BOARD_LEAF_FILES = [
   "task-board/phase-41-installed-host-pre-action-unification/01-contract-and-failing-tests.txt",
   "task-board/phase-41-installed-host-pre-action-unification/02-installed-pretool-hook-contract.txt",
@@ -238,10 +241,12 @@ async function packReleaseTarball(outputDir: string): Promise<{
   tarballName: string;
   tarballPath: string;
 }> {
-  const pack = await runCommand({
-    cmd: ["bun", "pm", "pack", "--destination", outputDir, "--quiet"],
-    cwd: ROOT_PACKAGE_PATH,
-  });
+  const pack = await withPackagePackLock(ROOT_PACKAGE_PATH, () =>
+    runCommand({
+      cmd: ["bun", "pm", "pack", "--destination", outputDir, "--quiet"],
+      cwd: ROOT_PACKAGE_PATH,
+    }),
+  );
 
   expect(pack.exitCode).toBe(0);
   const tarballOutput = pack.stdout
@@ -945,6 +950,21 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-59-live-memory"]).toBe(
       "bun run scripts/run-phase-59-live-memory.ts",
     );
+    expect(pkg.scripts?.["eval:phase-60"]).toBe(
+      "bun run scripts/run-phase-60-eval.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-60-overall"]).toBe(
+      "bun run scripts/run-phase-60-overall.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-61-full300"]).toBe(
+      "bun run scripts/run-phase-61-full300.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-62"]).toBe(
+      "bun run scripts/run-phase-62-eval.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-62-recall-diagnostic"]).toBe(
+      "bun run scripts/run-phase-62-recall-diagnostic.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -1027,6 +1047,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["gate:phase-59"]).toBe(
       "bun run scripts/run-phase-59-gate.ts",
     );
+    expect(pkg.scripts?.["gate:phase-60"]).toBe(
+      "bun run scripts/run-phase-60-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-62"]).toBe(
+      "bun run scripts/run-phase-62-gate.ts",
+    );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
     );
@@ -1076,10 +1102,12 @@ describe("release metadata and docs", () => {
     const outputDir = await mkdtemp(join(tmpdir(), "goodmemory-phase29-pack-"));
 
     try {
-      const dryRun = await runCommand({
-        cmd: ["bun", "pm", "pack", "--dry-run"],
-        cwd: ROOT_PACKAGE_PATH,
-      });
+      const dryRun = await withPackagePackLock(ROOT_PACKAGE_PATH, () =>
+        runCommand({
+          cmd: ["bun", "pm", "pack", "--dry-run"],
+          cwd: ROOT_PACKAGE_PATH,
+        }),
+      );
       expect(dryRun.exitCode).toBe(0);
 
       const { tarballPath } = await packReleaseTarball(outputDir);
@@ -2671,7 +2699,7 @@ describe("release metadata and docs", () => {
       "docs/archive/quality-gates/GoodMemory-Phase-52-Quality-Gate.md",
     );
     expect(currentStatus).toContain(
-      "Phase 59 is reopened as the Generalized Raw Executor Cleanup",
+      "Phase 59 is the Generalized Raw Executor Cleanup slice",
     );
     expect(currentStatus).toContain("failed/preferred operations");
     expect(currentStatus).toContain(PHASE59_CANONICAL_FALLBACK_REPORT);
@@ -3047,7 +3075,7 @@ describe("release metadata and docs", () => {
       "64-phase-59-generalized-raw-executor-cleanup.txt",
     );
     expect(taskBoard).toContain(
-      "Phase 59 is reopened as the generalized raw executor cleanup",
+      "Phase 59 is the generalized raw executor cleanup slice",
     );
     expect(taskBoard).toContain(PHASE59_CANONICAL_FALLBACK_REPORT);
     expect(taskBoard).toContain(PHASE59_CANONICAL_RAW_DIAGNOSTICS);
@@ -3056,7 +3084,17 @@ describe("release metadata and docs", () => {
     );
     expect(taskBoard).toContain("raw `58 / 60`");
     expect(taskBoard).toContain("raw `88 / 200`");
-    expect(taskBoard).toContain("raw full-300 at least `115 / 200`");
+    expect(taskBoard).toContain("raw `115 / 200`, distilled `153 / 200`");
+    expect(taskBoard).toContain(
+      "65-phase-60-implicitmembench-overall-priming-protocol.txt",
+    );
+    expect(taskBoard).toContain(
+      "Phase 60 is now closed as the ImplicitMemBench overall and priming protocol",
+    );
+    expect(taskBoard).toContain(PHASE60_CANONICAL_OVERALL_SUMMARY);
+    expect(taskBoard).toContain(
+      "reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json",
+    );
     expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
     expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
     expect(taskBoard).toContain("47-phase-43-5-optional-runtime-worker.txt");
@@ -4626,6 +4664,32 @@ describe("release metadata and docs", () => {
     expect(qualityGateDoc).toContain("58 / 60");
     expect(qualityGateDoc).toContain("full-300");
     expect(archiveIndex).toContain("GoodMemory-Phase-59-Quality-Gate.md");
+  });
+
+  it("phase-60 quality gate doc points to overall and priming protocol evidence", async () => {
+    const docPath = `${QUALITY_GATE_ARCHIVE_ROOT}/GoodMemory-Phase-60-Quality-Gate.md`;
+    const qualityGateDoc = await readFile(
+      join(import.meta.dir, "../../", docPath),
+      "utf8",
+    );
+    const archiveIndex = await readFile(
+      join(import.meta.dir, "../../", QUALITY_GATE_ARCHIVE_ROOT, "README.md"),
+      "utf8",
+    );
+
+    await expectCanonicalAcceptedQualityGate({
+      docPath,
+      phaseDirectory: "phase-60",
+      reportFileName: "phase-60-quality-gate.json",
+      runId: "run-20260505120000",
+    });
+
+    expect(qualityGateDoc).toContain("ImplicitMemBench Overall And Priming Protocol");
+    expect(qualityGateDoc).toContain(PHASE60_CANONICAL_OVERALL_SUMMARY);
+    expect(qualityGateDoc).toContain("full300OverallScore");
+    expect(qualityGateDoc).toContain("contaminated priming cannot raise the score");
+    expect(qualityGateDoc).toContain("five-shard Postgres-backed full-300 rerun");
+    expect(archiveIndex).toContain("GoodMemory-Phase-60-Quality-Gate.md");
   });
 
   it("models fallback eval evidence as regenerable ignored output, not tracked audit artifacts", async () => {

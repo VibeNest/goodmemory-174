@@ -1733,6 +1733,349 @@ describe("public recall API", () => {
     expect(result.packet.factSummary).toBeUndefined();
   });
 
+  it("filters preferences by query relevance for topical recommendation requests", async () => {
+    const { documentStore, sessionStore, repositories } = seedMemory();
+
+    await repositories.preferences.upsert(
+      createPreferenceMemory({
+        id: "pref-video-editing",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "learning_resources",
+        value: "Adobe Premiere Pro resources when learning video editing",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.preferences.upsert(
+      createPreferenceMemory({
+        id: "pref-music",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        category: "music_recommendations",
+        value: "upbeat music recommendations",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "Can you recommend resources where I can learn more about video editing?",
+    });
+
+    expect(result.preferences.map((preference) => preference.id)).toEqual([
+      "pref-video-editing",
+    ]);
+  });
+
+  it("filters feedback and episodic carry-over for topical recommendation requests", async () => {
+    const { documentStore, sessionStore, repositories } = seedMemory();
+
+    await repositories.feedback.upsert(
+      createFeedbackMemory({
+        id: "fb-video-editing",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "dont",
+        rule: "Avoid beginner-only resources when recommending video editing tutorials.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.feedback.upsert(
+      createFeedbackMemory({
+        id: "fb-table",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        kind: "dont",
+        rule: "Do not add a big table with budget activities.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-video-editing",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-video-editing",
+        summary: "A prior session discussed video editing workflow options.",
+        keyDecisions: [],
+        unresolvedItems: [],
+        topics: ["video editing"],
+        importance: 0.8,
+        confidence: 0.9,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "Can you recommend resources where I can learn more about video editing?",
+    });
+
+    expect(result.feedback.map((feedback) => feedback.id)).toEqual([
+      "fb-video-editing",
+    ]);
+    expect(result.episodes).toHaveLength(0);
+  });
+
+  it("returns multiple matching facts for aggregate personal count queries", async () => {
+    const { documentStore, sessionStore, repositories } = seedMemory();
+
+    for (const [index, content] of [
+      "I worked on or got the model kit: Revell F-15 Eagle kit.",
+      "I worked on or got the model kit: Tamiya 1/48 scale Spitfire Mk.V.",
+      "I worked on or got the model kit: 1/72 scale B-29 bomber model kit.",
+      "I worked on or got the model kit: 1/24 scale '69 Camaro.",
+    ].entries()) {
+      await repositories.facts.add(
+        createFactMemory({
+          id: `fact-model-kit-${index + 1}`,
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          sessionId: `s-model-kit-${index + 1}`,
+          category: "personal",
+          content,
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        }),
+      );
+    }
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "How many model kits have I worked on or bought?",
+    });
+
+    expect(result.facts.map((fact) => fact.sessionId).sort()).toEqual([
+      "s-model-kit-1",
+      "s-model-kit-2",
+      "s-model-kit-3",
+      "s-model-kit-4",
+    ]);
+  });
+
+  it("prefers the latest relationship relocation for direct move-location queries", async () => {
+    const { documentStore, sessionStore, repositories } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-rachel-city",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-rachel-city",
+        category: "relationship",
+        content: "Rachel moved to a new apartment in the city.",
+        subject: "Rachel",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-rachel-suburbs",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-rachel-suburbs",
+        category: "relationship",
+        content: "Rachel moved back to the suburbs again.",
+        subject: "Rachel",
+        source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+      }),
+    );
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "Where did Rachel move to after her recent relocation?",
+    });
+
+    expect(result.facts.map((fact) => fact.sessionId)).toEqual([
+      "s-rachel-suburbs",
+    ]);
+  });
+
+  it("selects technical research interests for broad publication recommendations", async () => {
+    const { documentStore, sessionStore, repositories } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-medical-ai-interest",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-medical-ai-interest",
+        category: "technical",
+        content:
+          "I am interested in explainable AI in medical image analysis research papers and articles.",
+        scopeKind: "project",
+        subject: "explainable AI in medical image analysis",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-video-editing-tool",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-video-editing-tool",
+        category: "personal",
+        content: "I use Adobe Premiere Pro for video editing.",
+        scopeKind: "identity",
+        subject: "video editing",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query:
+        "Can you recommend some recent publications or conferences that I might find interesting?",
+    });
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-medical-ai-interest",
+    ]);
+  });
+
+  it("keeps latest direct count and achievement updates without dropping aggregate lists", async () => {
+    const { documentStore, sessionStore, repositories } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-korean-three",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-korean-three",
+        category: "personal",
+        content: "I have tried three Korean restaurants in my city.",
+        scopeKind: "identity",
+        subject: "korean restaurants in my city",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-korean-four",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-korean-four",
+        category: "personal",
+        content: "I have tried four Korean restaurants in my city.",
+        scopeKind: "identity",
+        subject: "korean restaurants in my city",
+        source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+      }),
+    );
+    for (const [index, content] of [
+      "I worked on or got the model kit: simple Revell F-15 Eagle kit.",
+      "I worked on or got the model kit: Tamiya 1/48 scale Spitfire Mk.V.",
+      "I worked on or got the model kit: 1/72 scale B-29 bomber model kit.",
+    ].entries()) {
+      await repositories.facts.add(
+        createFactMemory({
+          id: `fact-update-model-kit-${index + 1}`,
+          userId: "u-1",
+          workspaceId: "workspace-a",
+          sessionId: `s-update-model-kit-${index + 1}`,
+          category: "personal",
+          content,
+          scopeKind: "identity",
+          subject: content.replace(/^I worked on or got the model kit: /, ""),
+          source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        }),
+      );
+    }
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const koreanResult = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "How many Korean restaurants have I tried in my city?",
+    });
+    const modelKitResult = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "How many model kits have I worked on or bought?",
+    });
+
+    expect(koreanResult.facts.map((fact) => fact.id)).toEqual([
+      "fact-korean-four",
+    ]);
+    expect(modelKitResult.facts.map((fact) => fact.id).sort()).toEqual([
+      "fact-update-model-kit-1",
+      "fact-update-model-kit-2",
+      "fact-update-model-kit-3",
+    ]);
+  });
+
+  it("adds same-session store context for coupon redemption location queries", async () => {
+    const { documentStore, sessionStore, repositories } = seedMemory();
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-target-app",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-target-coupon",
+        category: "personal",
+        content: "I use the Cartwheel app from Target.",
+        scopeKind: "identity",
+        subject: "target",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-coffee-creamer-coupon",
+        userId: "u-1",
+        workspaceId: "workspace-a",
+        sessionId: "s-target-coupon",
+        category: "event",
+        content: "I redeemed a $5 coupon on coffee creamer last Sunday.",
+        scopeKind: "identity",
+        subject: "coffee creamer coupon",
+        source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+      }),
+    );
+
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: { documentStore, sessionStore },
+    });
+
+    const result = await memory.recall({
+      scope: { userId: "u-1", workspaceId: "workspace-a" },
+      query: "Where did I redeem a $5 coupon on coffee creamer?",
+    });
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-coffee-creamer-coupon",
+      "fact-target-app",
+    ]);
+  });
+
   it("does not pull unrelated project facts into reference-only runbook queries", async () => {
     const { documentStore, sessionStore, repositories, runtime } = seedMemory();
 

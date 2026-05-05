@@ -75,6 +75,21 @@ describe("language service", () => {
     expect(service.isOpenLoopQuery("What is the open loop right now?", "en-US")).toBe(
       true,
     );
+    expect(
+      service.isOpenLoopQuery(
+        "How many items do I need to pick up or return from a store?",
+        "en-US",
+      ),
+    ).toBe(true);
+    expect(
+      service.isContinuationQuery(
+        "How many items do I need to pick up or return from a store?",
+        "en-US",
+      ),
+    ).toBe(false);
+    expect(
+      service.isContinuationQuery("Let's pick up where we left off.", "en-US"),
+    ).toBe(true);
     expect(service.isBlockerQuery("What is the current blocker?", "en-US")).toBe(
       true,
     );
@@ -103,6 +118,9 @@ describe("language service", () => {
       service.isFocusFact("I am leading the migration rollout.", "en-US"),
     ).toBe(true);
     expect(service.isOpenLoopFact("The open loop is pending signoff.", "en-US")).toBe(
+      true,
+    );
+    expect(service.isOpenLoopFact("I need to return some boots to Zara.", "en-US")).toBe(
       true,
     );
     expect(

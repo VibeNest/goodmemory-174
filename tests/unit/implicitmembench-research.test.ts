@@ -240,6 +240,103 @@ async function createPrimingBenchmarkRoot(): Promise<{
   return { benchmarkRoot, manifestPath };
 }
 
+async function createStrictJsonPrimingBenchmarkRoot(): Promise<{
+  benchmarkRoot: string;
+  manifestPath: string;
+}> {
+  const benchmarkRoot = await createTempDir("phase61-strict-priming-benchmark");
+  await mkdir(join(benchmarkRoot, "dataset", "classical_conditioning"), {
+    recursive: true,
+  });
+  await mkdir(join(benchmarkRoot, "dataset", "priming"), { recursive: true });
+  await mkdir(join(benchmarkRoot, "dataset", "procedural_memory"), {
+    recursive: true,
+  });
+  await writeFile(
+    join(benchmarkRoot, "dataset", "priming", "strict_priming.json"),
+    `${JSON.stringify(
+      {
+        instances: [
+          {
+            control_instance: {
+              group: "control",
+              interference_phase: [
+                {
+                  role: "user",
+                  content: "Use neutral operational language.",
+                },
+              ],
+              priming_phase: [
+                {
+                  role: "assistant",
+                  content: "Catalog systems use numbered shelves and plain labels.",
+                },
+              ],
+              test_probe: {
+                prompt:
+                  "Task: Propose THREE codenames for a compact monitoring tool. Output format (strict JSON): {\"candidates\":[{\"codename\":\"...\",\"rationale\":\"...\"}]}. Do NOT reuse nouns from earlier messages. No markdown, no commentary.",
+              },
+            },
+            experimental_instance: {
+              group: "experimental",
+              interference_phase: [
+                {
+                  role: "user",
+                  content: "Use neutral operational language.",
+                },
+              ],
+              priming_phase: [
+                {
+                  role: "assistant",
+                  content:
+                    "Lava moves under basalt shelves while hidden vents gather heat.",
+                },
+              ],
+              test_probe: {
+                prompt:
+                  "Task: Propose THREE codenames for a compact monitoring tool. Output format (strict JSON): {\"candidates\":[{\"codename\":\"...\",\"rationale\":\"...\"}]}. Do NOT reuse nouns from earlier messages. No markdown, no commentary.",
+              },
+            },
+            pair_id: "strict-priming-001",
+            selected_control_theme: "catalog shelving",
+            selected_probe_id: "creative_naming",
+            selected_source_theme: "volcanic pressure",
+            task_id: "001",
+          },
+        ],
+        task_count: 1,
+        task_seed: "test-strict-priming",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  const manifestPath = join(benchmarkRoot, "adapter-manifest.json");
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(
+      {
+        version: 1,
+        datasets: {
+          classical_conditioning: {},
+          priming: {
+            "strict_priming.json": {
+              scorer: "priming_pair_judge",
+              themeKeywords: ["lava", "basalt", "vent"],
+            },
+          },
+          procedural_memory: {},
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  return { benchmarkRoot, manifestPath };
+}
+
 async function createStructuredProceduralBenchmarkRoot(input: {
   expectedFirstAction: {
     args?: string[];
@@ -2319,6 +2416,80 @@ describe("implicitmembench research eval", () => {
     ]);
   });
 
+  it("uses latent priming packets and repairs strict JSON without source nouns", async () => {
+    const { benchmarkRoot, manifestPath } =
+      await createStrictJsonPrimingBenchmarkRoot();
+    const outputDir = await createTempDir("phase61-strict-priming-repair");
+    const prompts: Array<{
+      memoryContext?: string;
+      prompt: string;
+    }> = [];
+    const judged: Array<{
+      controlAnswer: string;
+      experimentalAnswer: string;
+    }> = [];
+
+    const report = await runImplicitMemBenchGoodMemoryEval({
+      benchmarkRoot,
+      dependencies: {
+        ...createImplicitMemBenchSmokeDependencies(),
+        createMemory: () => createTrackingMemory([]),
+        generateTextAnswer: async (input) => {
+          prompts.push({
+            memoryContext: input.memoryContext,
+            prompt: input.prompt,
+          });
+          return "```json\n{\"candidates\":[{\"codename\":\"Basalt\",\"rationale\":\"Uses lava and vent nouns.\"}],\"extra\":true}\n```";
+        },
+        judgePrimingPair: async (input) => {
+          judged.push({
+            controlAnswer: input.controlAnswer,
+            experimentalAnswer: input.experimentalAnswer,
+          });
+          const parsed = JSON.parse(input.experimentalAnswer) as {
+            candidates: unknown[];
+          };
+          return {
+            priming_influence_score: parsed.candidates.length === 3
+              ? 70
+              : 0,
+            reasoning: "test",
+          };
+        },
+      },
+      generatedBy: "tests",
+      manifestPath,
+      mode: "live",
+      outputDir,
+      runId: "run-phase61-strict-priming-repair-test",
+    });
+
+    expect(prompts).toHaveLength(2);
+    expect(prompts[0]?.prompt).toContain("Latent priming influence packet:");
+    expect(prompts[0]?.prompt).toContain("Source noun blacklist:");
+    expect(prompts[0]?.prompt).toContain("Semantic field: volcanic_release");
+    expect(prompts[0]?.prompt).toContain("contained release");
+    expect(prompts[1]?.prompt).toContain("Semantic field: neutral");
+    expect(prompts[1]?.prompt.toLowerCase()).not.toContain("basalt");
+    expect(prompts[1]?.memoryContext?.toLowerCase()).not.toContain("volcanic");
+    expect(judged).toHaveLength(1);
+    const experimental = judged[0]!.experimentalAnswer;
+    const control = judged[0]!.controlAnswer;
+    expect(experimental.trim().startsWith("{")).toBe(true);
+    expect(experimental).not.toContain("```");
+    expect(experimental.toLowerCase()).not.toContain("basalt");
+    expect(experimental.toLowerCase()).not.toContain("lava");
+    expect(experimental.toLowerCase()).not.toContain("vent");
+    expect(experimental).toContain("Caldera");
+    expect(experimental).toContain("Mantlelock");
+    expect(control).toContain("Ledgerline");
+    expect(control).not.toContain("Caldera");
+    expect(JSON.parse(experimental).candidates).toHaveLength(3);
+    expect(
+      report.profiles["goodmemory-raw-experience"]?.primingAverageScore,
+    ).toBe(70);
+  });
+
   it("fails open for priming preparation timeouts as non-blocking execution failures", async () => {
     const { benchmarkRoot, manifestPath } = await createPrimingBenchmarkRoot();
     const outputDir = await createTempDir("phase49-priming-timeout");
@@ -2354,6 +2525,95 @@ describe("implicitmembench research eval", () => {
         delete process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS;
       } else {
         process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS = previousTimeout;
+      }
+    }
+  });
+
+  it("uses the priming-specific timeout when live priming needs a wider protocol window", async () => {
+    const { benchmarkRoot, manifestPath } = await createPrimingBenchmarkRoot();
+    const outputDir = await createTempDir("phase49-priming-specific-timeout");
+    const previousTimeout = process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS;
+    const previousPrimingTimeout =
+      process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS;
+    process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS = "20";
+    process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS = "5";
+
+    try {
+      const report = await runImplicitMemBenchGoodMemoryEval({
+        benchmarkRoot,
+        dependencies: {
+          ...createImplicitMemBenchSmokeDependencies(),
+          createMemory: () => ({
+            ...createTrackingMemory([]),
+            remember: async () => new Promise<RememberResult>(() => undefined),
+          }),
+        },
+        generatedBy: "tests",
+        manifestPath,
+        mode: "smoke",
+        outputDir,
+        runId: "run-phase49-priming-specific-timeout-test",
+      });
+
+      const rawCase =
+        report.profiles["goodmemory-raw-experience"]?.cases[0];
+      expect(rawCase?.executionFailure).toContain("timed out after 5ms");
+    } finally {
+      if (previousTimeout === undefined) {
+        delete process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS;
+      } else {
+        process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS = previousTimeout;
+      }
+
+      if (previousPrimingTimeout === undefined) {
+        delete process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS;
+      } else {
+        process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS =
+          previousPrimingTimeout;
+      }
+    }
+  });
+
+  it("uses the priming-specific timeout for live priming judge failures", async () => {
+    const { benchmarkRoot, manifestPath } = await createPrimingBenchmarkRoot();
+    const outputDir = await createTempDir("phase49-priming-judge-timeout");
+    const previousTimeout = process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS;
+    const previousPrimingTimeout =
+      process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS;
+    process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS = "20";
+    process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS = "5";
+
+    try {
+      const report = await runImplicitMemBenchBaselineEval({
+        benchmarkRoot,
+        dependencies: {
+          ...createImplicitMemBenchSmokeDependencies(),
+          generateTextAnswer: async () => "Neutral candidate answer.",
+          judgePrimingPair: async () =>
+            new Promise<never>(() => undefined),
+        },
+        generatedBy: "tests",
+        manifestPath,
+        mode: "live",
+        outputDir,
+        runId: "run-phase49-priming-judge-timeout-test",
+      });
+
+      const baselineCase =
+        report.profiles["baseline-upstream-chat"]?.cases[0];
+      expect(baselineCase?.executionFailure).toContain("timed out after 5ms");
+    } finally {
+      if (previousTimeout === undefined) {
+        delete process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS;
+      } else {
+        process.env.GOODMEMORY_IMPLICITMEMBENCH_TIMEOUT_MS = previousTimeout;
+      }
+
+      if (previousPrimingTimeout === undefined) {
+        delete process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS;
+      } else {
+        process.env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS =
+          previousPrimingTimeout;
       }
     }
   });

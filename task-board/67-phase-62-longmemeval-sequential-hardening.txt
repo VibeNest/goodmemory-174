@@ -1,0 +1,143 @@
+Phase 62: LongMemEval Sequential Hardening
+==========================================
+
+Status
+------
+
+[WIP] Phase 62 starts the one-benchmark-at-a-time external hardening loop with
+LongMemEval.
+
+This phase is intentionally not the final public proof report. It establishes
+the LongMemEval adapter, smoke gate, and failure-intake shape first, then uses
+full LongMemEval runs to drive GoodMemory quality repairs before moving to BEAM.
+
+
+Driver
+------
+
+The selected external benchmark order is:
+
+1. LongMemEval
+2. BEAM
+3. MemoryAgentBench
+4. LoCoMo
+
+LongMemEval goes first because it directly tests long-term chat memory across
+information extraction, multi-session reasoning, knowledge updates, temporal
+reasoning, and abstention.
+
+
+Accepted Scope
+--------------
+
+- LongMemEval smoke adapter with synthetic shape-compatible fixtures.
+- External `--benchmark-root` support for full LongMemEval data without
+  vendoring upstream benchmark files.
+- Baseline profiles:
+  - `baseline-no-memory`
+  - `baseline-full-context`
+  - `goodmemory-rules-only`
+  - `goodmemory-hybrid`
+- Report fields for answer correctness, evidence-session recall, missed recall,
+  wrong recall, abstention correctness, and question-type breakdown.
+- LongMemEval miss-case taxonomy and targeted GoodMemory repairs after the
+  first full run.
+
+
+Out Of Scope
+------------
+
+- final public benchmark report
+- BEAM, MemoryAgentBench, or LoCoMo adapters
+- README-level claim that GoodMemory is already strong on LongMemEval
+- vendoring full LongMemEval data
+- benchmark-specific runtime hacks
+- public API or public config widening
+
+
+Tasks
+-----
+
+[DONE] P62-T001 Add synthetic LongMemEval smoke fixtures and attribution.
+[DONE] P62-T002 Add LongMemEval adapter/report contract and Phase 62 smoke
+  runner.
+[DONE] P62-T003 Add Phase 62 gate for smoke harness integrity.
+[WIP] P62-T004 Run full LongMemEval through external `--benchmark-root` with
+  no-memory, full-context, rules-only, and hybrid profiles. The core runner and
+  CLI now wire full mode through a live answer generator and GoodMemory context
+  builder, and fail closed with a readiness report when the external data file
+  or required provider env is missing. Real cleaned-data micro-slices have run
+  for full-context, rules-only, and hybrid profiles with `--max-concurrency 1`.
+  The latest 3-case rerun
+  `run-phase62-longmemeval-full-limit3-after-guidance-r2-20260505T034400Z`
+  is clean across full-context, rules-only, and hybrid; the full 500-case run
+  remains pending. A later 10-case attempt was blocked by provider 429/cooldown,
+  and the runner now preserves such failures as structured report rows instead
+  of dropping the whole run. Latest provider-readiness probe
+  `run-phase62-longmemeval-provider-readiness-20260505T052300Z`
+  returned provider `model_cooldown`; provider access later recovered enough
+  for the fixed type-balanced manifest. The four-profile run
+  `run-phase62-longmemeval-live18-context-repair-20260505T135000Z` completed
+  and exposed the final small-manifest miss cases. After generic repairs, the
+  GoodMemory-only manifest run
+  `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`
+  completed with `executionFailures: 0`; both GoodMemory profiles reached
+  18/18 answer accuracy with no wrong-recall cases. The full 500-case run
+  remains pending.
+[WIP] P62-T005 Write LongMemEval miss-case analysis grouped by question type,
+  missed recall, wrong recall, stale/update failure, abstention failure, and
+  token/context pressure. Initial 3-case analysis is recorded in
+  `task-board/phase-62-longmemeval-sequential-hardening/01-miss-case-analysis.txt`.
+  Full-run sampling now supports `--question-type` and `--offset` because the
+  first 25 cleaned cases are all `single-session-user`. A provider-free
+  `goodmemory-rules-only` recall diagnostic on the fixed 18-case manifest
+  (`run-phase62-longmemeval-recall-diagnostic-rules18-20260505T042749Z`) ran
+  with `executionFailures: 0`; it shows clean explicit single-session-user
+  recall but misses multi-session, preference, temporal, update, and
+  assistant-derived answer families. After the personal open-loop aggregation
+  repair, `run-phase62-longmemeval-recall-only-rules18-openloop-r2-20260505T051600Z`
+  improved aggregate evidence-session recall from 0.1667 to 0.3704 and reduced
+  wrong recall from 7/18 to 5/18 without answer generation. The current
+  GoodMemory-only live run
+  `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`
+  has 18/18 answer accuracy for both GoodMemory profiles; its remaining
+  evidence-session recall caveat is limited to three `knowledge-update` latest
+  collapse cases where only the current value is rendered.
+[WIP] P62-T006 Implement generic GoodMemory repairs from the miss cases and
+  rerun LongMemEval before opening the BEAM phase. First repairs landed for
+  cleaned answer normalization, full-run readiness, rules-only provider
+  isolation, evidence-session tracking, run isolation, explicit personal-fact
+  extraction, polite-request noise filtering, full-run concurrency, and
+  fact-query guidance-lane suppression, personal open-loop aggregation,
+  physical-pickup versus continuation routing, assistant-derived verified
+  evidence, dated-event derivation, project-leadership context preservation,
+  relationship-relocation latest-value collapse, and recommendation-category
+  answer guidance. Wrong recall is closed for the fixed GoodMemory-only 18-case
+  manifest, and the current focused verification passes `bun run typecheck`,
+  `bun test tests/unit/run-phase-62.script.test.ts tests/integration/recall.api.test.ts tests/unit/remember.extractor.test.ts tests/unit/longmemeval.test.ts`,
+  and `git diff --check`. The Phase 62 gate now also checks that the
+  type-balanced 18-case manifest keeps all four required profiles and fixed
+  case ids. An unrelated concurrent package-pack release-test race is locked;
+  broader/full LongMemEval coverage remains open.
+
+
+Commands
+--------
+
+```text
+bun run eval:phase-62
+bun run gate:phase-62
+bun run eval:phase-62 -- --mode full --benchmark-root <LongMemEval data root> --max-concurrency 1
+bun run eval:phase-62 -- --mode full --benchmark-root <LongMemEval data root> --question-type multi-session --limit 3 --max-concurrency 1
+bun run eval:phase-62-recall-diagnostic -- --mode full --benchmark-root <LongMemEval data root> --profile goodmemory-rules-only --max-concurrency 1
+```
+
+The full command is intentionally fail-closed until it finds the external
+LongMemEval data file and all env required by the selected profiles. The adapter
+must not score full benchmark data from oracle labels.
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-62-longmemeval-sequential-hardening/00-README.txt`

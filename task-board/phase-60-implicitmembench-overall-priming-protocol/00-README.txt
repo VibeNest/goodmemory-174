@@ -24,19 +24,20 @@ The current protocol is intentionally incomplete for official overall claims:
 
 Implementation Checklist
 ------------------------
-- [ ] Define the Phase 60 overall score schema and formula.
-- [ ] Add a controlled GoodMemory priming lane covering all 100 priming cases.
-- [ ] Add contamination, leak, noun-copy, and task-violation accounting.
-- [ ] Add runner/reporting support for official-comparable full-300 summaries.
-- [ ] Add targeted tests proving contaminated priming cannot raise the score.
-- [ ] Preserve historical Phase 49 gate semantics or explicitly version the new
+- [x] Define the Phase 60 overall score schema and formula.
+- [x] Add a controlled GoodMemory priming lane in the protocol summary.
+- [x] Add contamination, leak, noun-copy, and task-violation accounting.
+- [x] Add runner/reporting support for official-comparable full-300 summaries.
+- [x] Add targeted tests proving contaminated priming cannot raise the score.
+- [x] Preserve historical Phase 49 gate semantics or explicitly version the new
   protocol so old evidence is not reinterpreted.
 - [ ] Rerun full-300 with five Postgres-backed shards.
-- [ ] Update the research summary with blocking, priming, and overall numbers.
+- [ ] Update the research summary with blocking, priming, and overall numbers
+  from the Phase 60 five-shard full-300 rerun.
 
 Canonical Commands
 ------------------
-Planned commands:
+Accepted deterministic commands:
 
 - `bun run typecheck`
 - `bun test tests/unit/implicitmembench-research.test.ts tests/unit/run-phase-60.script.test.ts tests/unit/run-phase-60.gate.test.ts`

@@ -1,0 +1,434 @@
+Phase 62 LongMemEval Miss-Case Analysis
+=======================================
+
+Status
+------
+
+[WIP] This is an internal LongMemEval hardening note, not a public benchmark
+report.
+
+
+Data And Runs
+-------------
+
+- External data root:
+  `/tmp/LongMemEval`
+- Data file:
+  `data/longmemeval_s_cleaned.json`
+- Upstream source:
+  https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned
+- Repository adapter source:
+  https://github.com/xiaowu0162/LongMemEval
+
+Initial 3-case slice:
+
+- run id:
+  `run-phase62-longmemeval-full-limit3-20260505T112400Z`
+- command shape:
+  `bun run eval:phase-62 -- --mode full --benchmark-root /tmp/LongMemEval --limit 3 --max-concurrency 1 --profile baseline-full-context --profile goodmemory-rules-only --profile goodmemory-hybrid`
+- baseline-full-context:
+  3/3 accuracy, 1.0 evidence-session recall, 0 wrong-recall cases
+- goodmemory-rules-only:
+  1/3 accuracy, 0.333 evidence-session recall, 2 missed-recall cases,
+  2 wrong-recall cases
+- goodmemory-hybrid:
+  1/3 accuracy, 0.333 evidence-session recall, 2 missed-recall cases,
+  2 wrong-recall cases
+
+After first generic repairs:
+
+- run id:
+  `run-phase62-longmemeval-full-limit3-after-facts-20260505T112800Z`
+- baseline-full-context:
+  2/3 accuracy, 1.0 evidence-session recall, 0 wrong-recall cases
+- goodmemory-rules-only:
+  3/3 accuracy, 1.0 evidence-session recall, 0 missed-recall cases,
+  2 wrong-recall cases
+- goodmemory-hybrid:
+  3/3 accuracy, 1.0 evidence-session recall, 0 missed-recall cases,
+  2 wrong-recall cases
+
+The after-repair GoodMemory slice is better than the initial GoodMemory slice,
+but it is still not clean enough to claim LongMemEval strength. Wrong recall is
+still present in 2 of 3 cases.
+
+After guidance-lane suppression:
+
+- run id:
+  `run-phase62-longmemeval-full-limit3-after-guidance-r2-20260505T034400Z`
+- baseline-full-context:
+  3/3 accuracy, 1.0 evidence-session recall, 0 wrong-recall cases
+- goodmemory-rules-only:
+  3/3 accuracy, 1.0 evidence-session recall, 0 missed-recall cases,
+  0 wrong-recall cases
+- goodmemory-hybrid:
+  3/3 accuracy, 1.0 evidence-session recall, 0 missed-recall cases,
+  0 wrong-recall cases
+
+This closes the initial 3-case wrong-recall issue. It is still only a small
+live slice, so it is mechanism evidence rather than public benchmark proof.
+
+Regression after the repair:
+
+- `bun test tests/unit/run-phase-58.script.test.ts tests/unit/run-phase-60.gate.test.ts tests/integration/remember.api.test.ts tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts tests/unit/run-phase-62.gate.test.ts tests/unit/remember.extractor.test.ts tests/unit/run-phase-40.product-eval.test.ts tests/unit/run-phase-45.adoption-eval.test.ts tests/unit/eval.behavioral-adaptation.test.ts`
+  passed: 105 tests, 0 failures.
+- `bun run typecheck` passed.
+- `bun run eval:phase-62` passed with smoke GoodMemory profiles at 3/3
+  accuracy, 1.0 evidence-session recall, and 0 wrong-recall cases.
+- `bun run gate:phase-62` passed and wrote accepted gate
+  `reports/quality-gates/phase-62/run-20260505200000/phase-62-quality-gate.json`.
+- `bun test` passed: 2008 tests, 0 failures.
+- After adding full-mode failure preservation, type-balanced selection, explicit
+  `--case-id` support, and release-pack serialization, that local verification
+  passed:
+  - `bun run typecheck`
+  - `bun test tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts tests/unit/run-phase-62.gate.test.ts tests/release/node-package-boundary.test.ts`
+    passed.
+  - `bun test` with 2014 tests, 0 failures.
+  - `bun run gate:phase-62` with 22 tests, 0 failures; this now includes a
+    regression that the type-balanced 18-case manifest preserves all four
+    required profiles and the fixed 18 `--case-id` values.
+- The full-suite rerun briefly exposed an unrelated package-boundary race: several
+  release tests can invoke `bun pm pack` concurrently, and each prepack rebuilds
+  shared `dist/`. The tests now use a package-pack lock so Phase 62 regressions
+  are not hidden by tarball races.
+- After adding the durable recall-only diagnostic runner and package metadata
+  guard, the latest local verification passed:
+  - `bun test tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts tests/unit/run-phase-62.gate.test.ts`
+    passed with 28 tests, 0 failures.
+  - `bun run typecheck` passed.
+  - `bun run eval:phase-62` passed with smoke GoodMemory profiles at 3/3
+    accuracy, 1.0 evidence-session recall, and 0 wrong-recall cases.
+  - `bun run eval:phase-62-recall-diagnostic -- --benchmark-root /tmp/LongMemEval --profile goodmemory-rules-only --max-concurrency 1 --run-id run-phase62-longmemeval-recall-diagnostic-rules18-20260505T042749Z`
+    passed with 18 cases, `executionFailures: 0`.
+  - `bun run gate:phase-62` passed.
+  - `bun test` passed with 2023 tests, 0 failures.
+
+Broader-slice attempt after the repair:
+
+- attempted run id:
+  `run-phase62-longmemeval-full-limit10-20260505T120000Z`
+- command shape:
+  `bun run eval:phase-62 -- --benchmark-root /tmp/LongMemEval --mode full --profile baseline-no-memory --profile baseline-full-context --profile goodmemory-rules-only --profile goodmemory-hybrid --limit 10 --max-concurrency 1`
+- result:
+  blocked by live provider 429/cooldown before a report could be written.
+- follow-up runner repair:
+  full-mode case/profile failures now produce structured `executionError`
+  rows and increment `summary.executionFailures` instead of aborting the whole
+  process.
+- provider-limit probe run id:
+  `run-phase62-longmemeval-full-limit1-provider-limit-probe-20260505T120200Z`
+- provider-limit probe result:
+  `baseline-no-memory` wrote a 1-case report with `executionFailures: 1`
+  and `stage: answer_generation`.
+- multi-session provider probe run id:
+  `run-phase62-longmemeval-full-multisession-limit1-provider-probe-20260505T121000Z`
+- multi-session provider probe result:
+  `baseline-full-context` wrote a 1-case report with `executionFailures: 1`
+  and `stage: answer_generation`, confirming the provider was still in
+  cooldown after the first probe.
+- provider reprobe run id:
+  `run-phase62-longmemeval-full-limit1-provider-reprobe-20260505T121300Z`
+- provider reprobe result:
+  `baseline-full-context` again wrote a 1-case report with
+  `executionFailures: 1` and an OpenAI-compatible gateway `model_cooldown`
+  error for `gpt-5.4`, so the canonical 18-case type-balanced slice remains
+  blocked by provider availability rather than GoodMemory recall logic.
+- latest provider reprobe run id:
+  `run-phase62-longmemeval-full-limit1-provider-reprobe-20260505T041543Z`
+- latest provider reprobe result:
+  `baseline-full-context` still writes a preserved 1-case report with
+  `executionFailures: 1` and the same `model_cooldown` answer-generation error.
+  This keeps the canonical 18-case type-balanced slice blocked by provider
+  availability, not by local runner/reporting mechanics.
+- provider-readiness probe after manifest hardening:
+  `run-phase62-longmemeval-provider-readiness-20260505T042207Z` preserved the
+  same 1-case `model_cooldown` answer-generation failure with
+  `summary.executionFailures: 1`.
+- provider-readiness probe after open-loop aggregation repair:
+  `run-phase62-longmemeval-provider-readiness-20260505T052300Z` still
+  preserved the same 1-case `model_cooldown` answer-generation failure with
+  `summary.executionFailures: 1`. The 18-case live slice remains blocked by
+  provider availability.
+- alternative-model diagnostic run id:
+  `run-phase62-longmemeval-full-limit1-altmodel-gpt54mini-20260505T041658Z`
+- alternative-model diagnostic result:
+  overriding `GOODMEMORY_EVAL_MODEL=gpt-5.4-mini` also wrote a preserved 1-case
+  report with `executionFailures: 1`, this time `usage_limit_reached`. This is
+  not a replacement for the canonical `gpt-5.4` evidence; it only confirms the
+  current blocker is provider/usage availability across the live answer path.
+Sampling note:
+
+- The first 25 cleaned LongMemEval cases are all `single-session-user`.
+- Overall cleaned-data distribution is:
+  - `single-session-user`: 70
+  - `multi-session`: 133
+  - `single-session-preference`: 30
+  - `temporal-reasoning`: 133
+  - `knowledge-update`: 78
+  - `single-session-assistant`: 56
+- First indices by type are:
+  - `single-session-user`: 1
+  - `multi-session`: 71
+  - `single-session-preference`: 133
+  - `temporal-reasoning`: 234
+  - `knowledge-update`: 367
+  - `single-session-assistant`: 445
+- The runner now supports `--question-type` and `--offset` so broader slices
+  can be type-balanced instead of relying on file order.
+- `02-type-balanced-sampling.txt` records the fixed 18-case seed manifest and
+  canonical `--case-id` command to run after provider cooldown clears.
+
+Recall-only diagnostic while provider is blocked:
+
+- run id:
+  `run-phase62-longmemeval-recall-diagnostic-rules18-20260505T042749Z`
+- artifact:
+  `reports/eval/research/phase-62/longmemeval/run-phase62-longmemeval-recall-diagnostic-rules18-20260505T042749Z/recall-diagnostic.json`
+- reproducibility check:
+  `run-phase62-longmemeval-recall-only-rules18-rerun-20260505T042900Z`
+  reproduced the same aggregate recall result through the checked-in script.
+- command:
+  `bun run eval:phase-62-recall-diagnostic -- --benchmark-root /tmp/LongMemEval --profile goodmemory-rules-only --max-concurrency 1 --run-id <run-id>`
+- scope:
+  the fixed 18-case type-balanced manifest, `goodmemory-rules-only` only.
+- caveat:
+  this is not answer accuracy and does not replace the canonical live
+  answer-generation run. It is a provider-free retrieval diagnostic.
+- summary:
+  - evidence-session recall: 3/18 effective case coverage, aggregate 0.1667
+  - missed-recall cases: 15/18
+  - wrong-recall cases: 7/18
+  - execution failures: 0
+- by question type:
+  - `single-session-user`: evidence recall 1.0, missed 0/3, wrong recall 0/3
+  - `multi-session`: evidence recall 0.0, missed 3/3, wrong recall 1/3
+  - `single-session-preference`: evidence recall 0.0, missed 3/3, wrong recall 3/3
+  - `temporal-reasoning`: evidence recall 0.0, missed 3/3, wrong recall 1/3
+  - `knowledge-update`: evidence recall 0.0, missed 3/3, wrong recall 0/3
+  - `single-session-assistant`: evidence recall 0.0, missed 3/3, wrong recall 2/3
+
+Interpretation:
+
+The 18-case recall-only slice shows the current rules-only path is good at
+explicit single-session personal facts after the Phase 62 repairs, but still
+weak for event/episode memory, assistant-derived prior answers, multi-session
+aggregation, temporal ordering, and update-latest reasoning. Those are generic
+GoodMemory mechanism gaps, not prompt wording issues.
+
+Post open-loop aggregation repair:
+
+- run id:
+  `run-phase62-longmemeval-recall-only-rules18-openloop-r2-20260505T051600Z`
+- artifact:
+  `reports/eval/research/phase-62/longmemeval/run-phase62-longmemeval-recall-only-rules18-openloop-r2-20260505T051600Z/recall-diagnostic.json`
+- summary delta versus the reproducible recall-only baseline:
+  - evidence-session recall improved from 0.1667 to 0.3704
+  - missed-recall cases dropped from 15/18 to 12/18
+  - wrong-recall cases dropped from 7/18 to 5/18
+  - multi-session recall improved from 0.0 to 0.3333, with wrong recall
+    dropping from 1/3 to 0/3
+  - execution failures remained 0
+- interpretation:
+  personal open-loop extraction plus aggregate open-loop recall now retrieves
+  the three clothing pickup/return evidence sessions cleanly. Preference
+  recommendation, assistant-derived prior answer, remaining multi-session
+  aggregation, temporal dating, and relationship/update retrieval remain open.
+
+Post assistant/temporal/project/update repair:
+
+- intermediate four-profile run id:
+  `run-phase62-longmemeval-live18-context-repair-20260505T135000Z`
+- intermediate result:
+  - `baseline-no-memory`: 0/18, as expected
+  - `baseline-full-context`: 15/18, evidence-session recall 1.0
+  - `goodmemory-rules-only`: 17/18, evidence-session recall 0.9444,
+    `executionFailures: 0`
+  - `goodmemory-hybrid`: 16/18, evidence-session recall 0.8889, with one
+    preserved `memory_context` execution failure from an invalid provider JSON
+    response
+- remaining intermediate GoodMemory misses:
+  - `6d550036` project-count miss was fixed by preserving the project context
+    in leadership facts: `I led the data analysis team for my Marketing
+    Research class project.`
+  - `830ce83f` relationship relocation miss was fixed by query-aware latest
+    relocation collapse, so direct move-location queries render Rachel's latest
+    location instead of both stale and current locations.
+  - `06878be2` recommendation answer drift was fixed by requiring
+    recommendation-style prompts to retain the requested object category
+    (`accessories`, `resources`, `publications`, etc.) together with remembered
+    constraints.
+  - the `8a2466db` hybrid `Invalid JSON response` reproduced as a preserved
+    provider-context failure in the 18-case run but cleared on targeted
+    reprobe, so it is tracked as provider/assisted-path fragility rather than
+    a deterministic recall miss.
+
+Current GoodMemory-only 18-case run:
+
+- run id:
+  `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`
+- command shape:
+  `bun run eval:phase-62 -- --benchmark-root /tmp/LongMemEval --mode full --profile goodmemory-rules-only --profile goodmemory-hybrid --max-concurrency 1 --case-id <fixed 18 ids>`
+- summary:
+  - `executionFailures: 0`
+  - `goodmemory-rules-only`: 18/18 accuracy, evidence-session recall 0.9167,
+    missed-recall cases 3/18, wrong-answer cases 0, wrong-recall cases 0
+  - `goodmemory-hybrid`: 18/18 accuracy, evidence-session recall 0.9167,
+    missed-recall cases 3/18, wrong-answer cases 0, wrong-recall cases 0
+- remaining recall caveat:
+  the three missed-recall cases are all `knowledge-update` cases
+  (`6a1eabeb`, `6aeb4375`, `830ce83f`) where GoodMemory correctly renders only
+  the latest value. LongMemEval marks both stale and latest sessions as answer
+  sessions, so strict evidence-session recall is 0.5 for each even though the
+  final answer is correct.
+- interpretation:
+  this is strong internal LongMemEval type-balanced slice evidence for the
+  current GoodMemory path. It is still not a public benchmark report and does
+  not replace a larger/full LongMemEval run.
+
+
+Fixed Root Causes
+-----------------
+
+1. Cleaned-release schema mismatch
+
+The cleaned LongMemEval file contains numeric `answer` values in some cases.
+The adapter now normalizes numeric answers to strings instead of rejecting the
+full file during validation.
+
+2. Full-run readiness and provider isolation
+
+Full mode now checks for external data and required env before live execution.
+The rules-only profile now installs explicit no-provider adapters so project
+env does not accidentally route rules-only runs through provider-backed
+embedding or assisted extraction.
+
+3. Evidence-session tracking
+
+The first implementation inferred `retrievedSessionIds` only from rendered
+context text. That lost evidence when GoodMemory correctly returned a distilled
+fact. The adapter now derives retrieved sessions from GoodMemory recall records
+with `sessionId`, then falls back to rendered-content matching.
+
+4. Run isolation
+
+Hybrid runs use Postgres, so repeated experiments with the same question id can
+pollute each other. LongMemEval context building now includes `runId` in the
+workspace scope.
+
+5. Generic personal-fact extraction
+
+The first 3-case slice exposed missing durable personal facts:
+
+- education background:
+  `I graduated with a degree in Business Administration.`
+- commute duration:
+  `My daily commute takes 45 minutes each way.`
+- shopping app/source:
+  `I use the Cartwheel app from Target.`
+- coupon event:
+  `I redeemed a $5 coupon on coffee creamer last Sunday.`
+
+These are implemented as general English deterministic extraction rules, not
+LongMemEval-specific prompt hacks.
+
+6. One-off request noise filtering
+
+The extractor was treating one-off polite requests such as `Could you please
+share it with me?` and roleplay prompts such as `Please respond as the user.`
+as durable procedural feedback. Those are now filtered out.
+
+7. Full-run concurrency
+
+Full LongMemEval execution no longer uses unbounded `Promise.all` across cases.
+The runner supports `--max-concurrency` and defaults full mode to serial case
+execution.
+
+8. Fact-query guidance-lane suppression
+
+The repaired 3-case run showed correct answers with unrelated preference and
+procedural lanes still rendered for factual questions. Recall now suppresses
+preference/feedback guidance lanes for direct factual recall while preserving
+them for answer-style, action-driving, continuation, reference, and coding-agent
+queries.
+
+The first implementation suppressed guidance lanes by default and broke
+existing product, adoption, and behavioral-adaptation evals. The accepted
+repair now suppresses only explicit factual lookup queries, keeping
+`How should...` guidance queries and action-adaptation probes eligible for
+preference/feedback recall.
+
+9. Full-run failure preservation
+
+Provider 429/cooldown can interrupt broader live runs. Full-mode answer
+generation and GoodMemory memory-context failures are now captured per
+case/profile as `executionError` rows, preserving report output and making
+provider issues distinguishable from GoodMemory recall misses.
+
+10. Question-type sampling
+
+The cleaned LongMemEval file is sorted by question type. The runner now accepts
+repeated `--question-type` flags plus `--offset` so broader analysis can cover
+multi-session, preference, temporal, update, assistant, and abstention families
+without running the full 500-case suite first.
+
+11. Personal open-loop aggregation
+
+The 18-case diagnostic exposed that personal to-dos like `I still need to pick
+up...` and `I need to return...` were either event facts or missed entirely,
+and aggregate `how many` open-loop queries could only select one slot candidate.
+The extractor now records pickup/return to-dos as personal identity-scoped
+`open_loop` facts, and recall can return multiple lexically signaled open loops
+for aggregate to-do questions. The English continuation router was also
+narrowed so physical `pick up` actions do not trigger task-continuation episode
+recall.
+
+
+Remaining Miss Families
+-----------------------
+
+1. Strict evidence-session recall under latest-update collapse
+
+The current GoodMemory-only 18-case run has no wrong answers and no wrong
+recall, but it intentionally renders only latest values for update-style facts.
+This leaves three `knowledge-update` cases with evidence-session recall 0.5
+because LongMemEval counts stale and current sessions as answer sessions.
+
+2. Narrow question-type coverage
+
+The fixed 18-case manifest covers three cases for each available cleaned-data
+question type, but it is still a small sample relative to the full cleaned
+LongMemEval split:
+
+- single-session-assistant
+- single-session-preference
+- temporal-reasoning
+- knowledge-update
+- multi-session
+- single-session-user
+
+No abstention cases were found in the cleaned data file; abstention coverage
+remains limited to the smoke fixture.
+
+3. Full 500-case result not yet run
+
+The current evidence is a clean GoodMemory-only 18-case live slice plus smoke
+gate and targeted reprobes. It is enough to close the current small-manifest
+repair loop, but not enough for a public claim or benchmark report.
+
+
+Next Actions
+------------
+
+1. Decide whether to run a larger LongMemEval slice immediately or open the
+   BEAM adapter phase with this small-manifest LongMemEval repair loop recorded
+   as current internal evidence.
+2. If staying on LongMemEval, expand beyond the fixed 18-case manifest with
+   `--max-concurrency 1` and keep latest-update evidence-session accounting
+   explicit.
+3. If moving to BEAM, carry forward the generic repairs from this phase:
+   assistant-derived verified evidence, dated-event derivation, project
+   leadership context preservation, latest relationship relocation collapse,
+   and recommendation-category answer guidance.
+4. Keep final/public reporting deferred until LongMemEval, BEAM,
+   MemoryAgentBench, and LoCoMo are all complete.

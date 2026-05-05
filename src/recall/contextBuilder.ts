@@ -15,6 +15,8 @@ import type { SessionArchive } from "../evolution/contracts";
 import { FEEDBACK_RECALL_LIMIT } from "./budgets";
 import type { RetrievalProfile, RoutingDecision } from "./router";
 
+const FACT_SUMMARY_LIMIT = 6;
+
 export interface MemoryPacket {
   profileSummary?: string;
   activeContextSummary?: string;
@@ -167,7 +169,9 @@ function summarizeFacts(
   locale?: string,
   routingDecision?: RoutingDecision,
 ): string | undefined {
-  const activeFacts = facts.filter((fact) => fact.lifecycle === "active").slice(0, 3);
+  const activeFacts = facts
+    .filter((fact) => fact.lifecycle === "active")
+    .slice(0, FACT_SUMMARY_LIMIT);
   if (activeFacts.length === 0) {
     return undefined;
   }

@@ -1,0 +1,150 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 60 overall and priming protocol passed the deterministic gate."
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "durationMs": 4108,
+      "exitCode": 0,
+      "label": "typecheck",
+      "status": "passed",
+      "stderrTail": [
+        "$ bunx tsc --noEmit"
+      ],
+      "stdoutTail": []
+    },
+    {
+      "command": "bun test tests/unit/eval.phase60.test.ts tests/unit/run-phase-60.script.test.ts tests/unit/run-phase-60.gate.test.ts tests/unit/implicitmembench-research.test.ts tests/unit/run-phase-49.gate.test.ts",
+      "durationMs": 244,
+      "exitCode": 0,
+      "label": "phase-60-targeted-regressions",
+      "status": "passed",
+      "stderrTail": [
+        "(pass) run-phase-60 scripts > runs phase-60 eval through comparison and writes an overall summary [0.32ms]",
+        "(pass) run-phase-60 scripts > builds an overall summary from existing report paths [0.27ms]",
+        "",
+        "tests/unit/run-phase-49.gate.test.ts:",
+        "(pass) run-phase-49 gate > resolves phase-49 gate output and canonical report paths",
+        "(pass) run-phase-49 gate > parses phase-49 gate cli flags [0.09ms]",
+        "(pass) run-phase-49 gate > accepts a gate report when smoke reports cover all scorer families [0.53ms]",
+        "(pass) run-phase-49 gate > blocks when the distilled profile still contains priming cases [0.50ms]",
+        "(pass) run-phase-49 gate > exits non-zero from the injectable script entrypoint when the gate is blocked [0.11ms]",
+        "(pass) run-phase-49 gate > maps injected CLI gate decisions to process exit codes [0.06ms]",
+        "",
+        "tests/unit/run-phase-60.gate.test.ts:",
+        "(pass) run-phase-60 gate > resolves output and parses flags",
+        "(pass) run-phase-60 gate > accepts protocol summaries that include controlled priming and claim boundaries [0.52ms]",
+        "(pass) run-phase-60 gate > rejects protocol summaries where contaminated priming raised the score [0.10ms]",
+        "",
+        " 53 pass",
+        " 0 fail",
+        " 176 expect() calls",
+        "Ran 53 tests across 5 files. [238.00ms]"
+      ],
+      "stdoutTail": [
+        "bun test v1.3.11 (af24e281)"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-60 -- --run-id run-phase60-fallback-current",
+      "durationMs": 178,
+      "exitCode": 0,
+      "label": "eval:phase-60",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-60-eval.ts --run-id \"run-phase60-fallback-current\""
+      ],
+      "stdoutTail": [
+        "    \"legacyPhase49SemanticsPreserved\": true,",
+        "    \"requiredFields\": [",
+        "      \"blockingScore\",",
+        "      \"primingScore\",",
+        "      \"full300OverallScore\",",
+        "      \"overallComparableToOfficial\",",
+        "      \"primingContaminationCount\",",
+        "      \"primingTaskViolationCount\",",
+        "      \"primingExplicitLeakCount\",",
+        "      \"primingViolationCounts\",",
+        "      \"primingViolationExamples\"",
+        "    ]",
+        "  },",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-60/run-phase60-fallback-current\",",
+        "  \"runId\": \"run-phase60-fallback-current\",",
+        "  \"sourceReports\": {",
+        "    \"baselineReportPath\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-60/baseline/run-phase60-fallback-current/report.json\",",
+        "    \"goodmemoryReportPath\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-60/goodmemory/run-phase60-fallback-current/report.json\"",
+        "  }",
+        "}"
+      ]
+    },
+    {
+      "command": "bun run eval:phase-60-overall -- --run-id run-phase60-fallback-current",
+      "durationMs": 67,
+      "exitCode": 0,
+      "label": "eval:phase-60-overall",
+      "status": "passed",
+      "stderrTail": [
+        "$ bun run scripts/run-phase-60-overall.ts --run-id \"run-phase60-fallback-current\""
+      ],
+      "stdoutTail": [
+        "    \"legacyPhase49SemanticsPreserved\": true,",
+        "    \"requiredFields\": [",
+        "      \"blockingScore\",",
+        "      \"primingScore\",",
+        "      \"full300OverallScore\",",
+        "      \"overallComparableToOfficial\",",
+        "      \"primingContaminationCount\",",
+        "      \"primingTaskViolationCount\",",
+        "      \"primingExplicitLeakCount\",",
+        "      \"primingViolationCounts\",",
+        "      \"primingViolationExamples\"",
+        "    ]",
+        "  },",
+        "  \"runDirectory\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-60/run-phase60-fallback-current\",",
+        "  \"runId\": \"run-phase60-fallback-current\",",
+        "  \"sourceReports\": {",
+        "    \"baselineReportPath\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-60/baseline/run-phase60-fallback-current/report.json\",",
+        "    \"goodmemoryReportPath\": \"/Users/hjqcan/Documents/GoodMomery/reports/eval/fallback/phase-60/goodmemory/run-phase60-fallback-current/report.json\"",
+        "  }",
+        "}"
+      ]
+    }
+  ],
+  "evidence": {
+    "overallSummary": {
+      "artifactKind": "ignored_generated",
+      "ignoredArtifactPath": "reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json",
+      "regenerateCommand": "bun run eval:phase-60 && bun run eval:phase-60-overall -- --run-id run-phase60-fallback-current",
+      "status": "accepted"
+    },
+    "protocol": {
+      "controlledPrimingCases": 1,
+      "full300OverallProfiles": [
+        "baseline-upstream-chat",
+        "goodmemory-raw-experience",
+        "goodmemory-controlled-priming",
+        "goodmemory-distilled-feedback",
+        "goodmemory-distilled-feedback+controlled-priming"
+      ],
+      "legacyPhase49SemanticsPreserved": true,
+      "requiredFields": [
+        "blockingScore",
+        "primingScore",
+        "full300OverallScore",
+        "overallComparableToOfficial",
+        "primingContaminationCount",
+        "primingTaskViolationCount",
+        "primingExplicitLeakCount",
+        "primingViolationCounts",
+        "primingViolationExamples"
+      ]
+    }
+  },
+  "generatedAt": "2026-05-05T01:39:31.068Z",
+  "generatedBy": "scripts/run-phase-60-gate.ts",
+  "phase": "phase-60",
+  "runDirectory": "/Users/hjqcan/Documents/GoodMomery/reports/quality-gates/phase-60/run-20260505120000",
+  "runId": "run-20260505120000"
+}
