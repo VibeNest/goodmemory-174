@@ -23,6 +23,9 @@ Tasks
   `bun run eval:phase-61-full300`.
 - [x] Run a post-Phase-61 full-300 Postgres-backed rerun and update the research
   summary with the new comparable priming numbers.
+- [x] Record the post-Phase-61 / Phase 62A recovery rerun as the latest
+  canonical full-300 result for this protocol line, without folding the
+  blocking recovery work into the original Phase 61 mechanism claim.
 
 Evidence
 --------
@@ -74,14 +77,42 @@ Evidence
     non-source-noun stop words so they do not create false contamination.
   - [x] Rerun Phase 61 full-300 after this follow-up to measure priming lift:
     `run-phase61-full300-20260505T080002Z`.
-  - latest measured priming:
+  - then-current measured priming:
     `56 / 100` credited cases, average influence `24.71`, task violations `0`,
     source-noun contamination `0`, explicit recall leaks `0`.
-  - latest full-300 boundary:
+  - then-current full-300 boundary:
     best official-comparable GoodMemory score is `145.71 / 300 = 48.57%`;
     this is below the paper's `66%` reference line, and the run still has `2`
     distilled text-generation timeouts from the older `90000ms` general
     timeout.
+- Post-Phase-61 / Phase 62A recovery full-300 rerun:
+  - run id:
+    `run-phase61-full300-20260505T170001Z`
+  - summary:
+    `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json`
+  - official-comparable denominator:
+    `300 / 300`
+  - baseline full-300 score:
+    `128 / 300 = 42.67%`
+  - target GoodMemory profile:
+    `goodmemory-distilled-feedback+controlled-priming`
+  - best official-comparable GoodMemory full-300 score:
+    `213.26 / 300 = 71.09%`
+  - reference line:
+    exceeds the paper's `66%` line by `5.09` percentage points
+  - GoodMemory distilled blocking:
+    `155 / 200 = 77.50%`
+  - GoodMemory priming:
+    `94 / 100` credited cases, average influence `58.26`, task violations `0`,
+    source-noun contamination `0`, explicit recall leaks `0`
+  - distilled context diagnostics:
+    empty context `0 / 200`, fallback policy `200 / 200`, compiled policy
+    `0 / 200`, context pass rate `77.50%`
+  - boundary:
+    this is the latest canonical internal research result for the Phase 61
+    protocol line after the Phase 62A recovery follow-up. It should be cited as
+    research evidence that GoodMemory strengthens implicit memory and behavior
+    internalization, not as a release gate or public leaderboard claim.
 
 Boundary
 --------

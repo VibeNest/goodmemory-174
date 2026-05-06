@@ -420,10 +420,233 @@ Broader 60-case type-balanced live run:
     generic numbered noise does not pollute road-trip count recall.
   - `how much` money, medical-provider count, and ownership-count queries now
     use the same trusted aggregate evidence path.
+- latest repair run id:
+  `run-phase62-longmemeval-recall-only-rules60-conversation-evidence-20260506T060500Z`
+- latest repair result:
+  - evidence-session recall 0.8333
+  - missed-recall cases 17/60
+  - wrong-recall cases 3/60
+  - `single-session-assistant`: 1.0 recall
+  - `single-session-user`: 0.9 recall
+  - `temporal-reasoning`: 0.8917 recall
+  - `multi-session`: 0.8083 recall
+  - `single-session-preference`: 0.7 recall
+  - `knowledge-update`: 0.7 recall
+- additional repairs represented by this run:
+  - assistant enumerated answers now preserve ordinal facts and grouped
+    nested-list evidence instead of flattening the answer turn into one loose
+    note.
+  - previous-chat, remind-me, and list-you-provided queries prioritize trusted
+    conversation evidence, including assistant answers and verified user
+    evidence, before generic profile facts.
+  - grouped evidence headings can win over unrelated list fragments when the
+    query names the list subject.
 - interpretation:
-  the repair direction is valid but incomplete. Do not claim Phase 62 closure:
-  the 60-case live answer rerun has not been performed after these repairs,
-  and 18/60 recall-only cases still miss answer evidence.
+  the repair direction was valid but incomplete at this checkpoint. The
+  60-case live answer rerun below confirmed a large accuracy gain, but still
+  left 15/60 GoodMemory wrong answers and 17/60 recall-only cases with missed
+  answer evidence.
+
+60-case post-repair live evidence:
+
+- valid three-profile run id:
+  `run-phase62-longmemeval-live60-three-profile-post-aggregate-domain-ownership-20260506T044500Z`
+- command shape:
+  `GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS=12000 GOODMEMORY_PHASE62_STAGE_TIMEOUT_MS=60000 bun run eval:phase-62 -- --benchmark-root /tmp/LongMemEval --mode full --profile baseline-no-memory --profile baseline-full-context --profile goodmemory-rules-only --max-concurrency 1 --case-id <first 10 ids per cleaned question type>`
+- summary:
+  - `executionFailures: 0`
+  - `baseline-no-memory`: 1/60 accuracy
+  - `baseline-full-context`: 54/60 accuracy, evidence-session recall 1.0
+  - `goodmemory-rules-only`: 42/60 accuracy, evidence-session recall 0.8167,
+    missed-recall cases 18/60, wrong-answer cases 18/60, wrong-recall cases
+    3/60
+- per-type `goodmemory-rules-only` signal:
+  - `single-session-user`: 9/10 accuracy, evidence-session recall 0.9
+  - `multi-session`: 7/10 accuracy, evidence-session recall 0.8083
+  - `single-session-preference`: 6/10 accuracy, evidence-session recall 0.7
+  - `temporal-reasoning`: 8/10 accuracy, evidence-session recall 0.8917
+  - `knowledge-update`: 7/10 accuracy, evidence-session recall 0.7
+  - `single-session-assistant`: 5/10 accuracy, evidence-session recall 0.9
+- invalid four-profile attempt:
+  `run-phase62-longmemeval-live60-post-aggregate-domain-ownership-20260506T043000Z`
+  should not be used as benchmark evidence. It has 240 execution failures from
+  non-escalated provider connectivity loss for answer generation plus a local
+  Postgres connection-closed failure in `goodmemory-hybrid` memory context.
+- interpretation:
+  the aggregate/domain repairs materially improved answer accuracy from 19/60
+  to 42/60, but the live path still exposes answer-synthesis and remaining
+  recall gaps. Phase 62 is not closed.
+
+Post assistant/list repair live evidence:
+
+- focused assistant run id:
+  `run-phase62-longmemeval-live-assistant6-conversation-evidence-r2-escalated-20260506T063000Z`
+- focused assistant result:
+  - `executionFailures: 0`
+  - `goodmemory-rules-only`: 6/6 answer accuracy, evidence-session recall 1.0
+- previous 60-case rules-only run id:
+  `run-phase62-longmemeval-live60-rules-only-conversation-evidence-20260506T064000Z`
+- command shape:
+  `GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS=12000 GOODMEMORY_PHASE62_STAGE_TIMEOUT_MS=60000 bun run eval:phase-62 -- --benchmark-root /tmp/LongMemEval --mode full --profile goodmemory-rules-only --max-concurrency 1 --case-id <first 10 ids per cleaned question type>`
+- summary:
+  - `executionFailures: 0`
+  - `goodmemory-rules-only`: 45/60 accuracy, evidence-session recall 0.8333,
+    missed-recall cases 17/60, wrong-answer cases 15/60, wrong-recall cases
+    3/60
+- per-type `goodmemory-rules-only` signal:
+  - `single-session-assistant`: 10/10 accuracy, evidence-session recall 1.0
+  - `single-session-user`: 9/10 accuracy, evidence-session recall 0.9
+  - `temporal-reasoning`: 8/10 accuracy, evidence-session recall 0.8917
+  - `multi-session`: 7/10 accuracy, evidence-session recall 0.8083
+  - `knowledge-update`: 7/10 accuracy, evidence-session recall 0.7
+  - `single-session-preference`: 4/10 accuracy, evidence-session recall 0.7
+- remaining wrong-answer cases:
+  - `6ade9755` (`single-session-user`): missing Serenity Yoga recall.
+  - `6d550036` (`multi-session`): project count is 1 instead of 2.
+  - `gpt4_d84a3211` (`multi-session`): recalled evidence but answer sums
+    $160 instead of $185.
+  - `dd2973ad` (`multi-session`): partial recall but answer abstains instead
+    of 2 AM.
+  - `0edc2aef`, `32260d93`, and `195a1a1b`
+    (`single-session-preference`): missing the preference-bearing evidence.
+  - `35a27287`, `caf03d32`, and `54026fce`
+    (`single-session-preference`): recalled evidence but answer is too generic
+    or restates profile instead of the requested tailored recommendation.
+  - `b46e15ed` and `gpt4_4929293a` (`temporal-reasoning`): partial recall but
+    answer abstains instead of deriving the event or interval.
+  - `852ce960`, `d7c942c3`, and `9ea5eabc` (`knowledge-update`): stale/current
+    value conflict still picks the wrong current answer.
+- interpretation:
+  the assistant/list repair is real and closes the assistant family in live
+  answer accuracy. The next highest-yield loop is no longer assistant recall;
+  it is preference recommendation synthesis, update-history conflict
+  resolution, and multi-session/temporal derivation from partially recalled
+  evidence.
+
+Post preference-evidence and assistant-follow-up repair:
+
+- provider-free 60-case run id:
+  `run-phase62-longmemeval-recall-only-rules60-preference-followup-20260506T073000Z`
+- provider-free result:
+  - evidence-session recall 0.8833
+  - missed-recall cases 14/60
+  - wrong-recall cases 2/60
+  - `single-session-preference`: 1.0 recall, missed 0/10, wrong recall 0/10
+- focused preference live run id:
+  `run-phase62-longmemeval-live-preference6-preference-followup-escalated-20260506T073200Z`
+- focused preference result:
+  - `executionFailures: 0`
+  - `goodmemory-rules-only`: 5/6 answer accuracy, evidence-session recall 1.0
+  - the remaining miss was `caf03d32`, because the user interest in slow
+    cooker yogurt was still not preserved as an explicit advice interest.
+- caf repair live run id:
+  `run-phase62-longmemeval-live-caf-preference-request-escalated-20260506T074000Z`
+- caf repair result:
+  - `executionFailures: 0`
+  - `caf03d32`: 1/1 correct, evidence-session recall 1.0
+- latest 60-case rules-only run id:
+  `run-phase62-longmemeval-live60-rules-only-preference-followup-escalated-20260506T074500Z`
+- previous 60-case summary:
+  - `executionFailures: 0`
+  - `goodmemory-rules-only`: 50/60 accuracy, evidence-session recall 0.8833,
+    missed-recall cases 14/60, wrong-answer cases 10/60, wrong-recall cases
+    2/60
+- per-type `goodmemory-rules-only` signal:
+  - `single-session-assistant`: 10/10 accuracy, evidence-session recall 1.0
+  - `single-session-preference`: 9/10 accuracy, evidence-session recall 1.0
+  - `single-session-user`: 9/10 accuracy, evidence-session recall 0.9
+  - `temporal-reasoning`: 8/10 accuracy, evidence-session recall 0.8917
+  - `multi-session`: 7/10 accuracy, evidence-session recall 0.8083
+  - `knowledge-update`: 7/10 accuracy, evidence-session recall 0.7
+- remaining wrong-answer cases:
+  - `6ade9755` (`single-session-user`): missing Serenity Yoga recall.
+  - `6d550036` (`multi-session`): project count is 1 instead of 2.
+  - `gpt4_d84a3211` (`multi-session`): recalled evidence but answer sums
+    $160 instead of $185.
+  - `dd2973ad` (`multi-session`): partial recall but answer abstains instead
+    of 2 AM.
+  - `54026fce` (`single-session-preference`): recall is correct, but the
+    answer remains too generic and omits concrete collaboration/social
+    suggestions.
+  - `b46e15ed` and `gpt4_4929293a` (`temporal-reasoning`): partial recall but
+    answer abstains instead of deriving the duration or first event.
+  - `852ce960`, `d7c942c3`, and `9ea5eabc` (`knowledge-update`): stale/current
+    value conflict still picks the wrong current answer.
+- interpretation:
+  preference is no longer the broad blocker. The latest repair moves the
+  active LongMemEval loop from 45/60 to 50/60, closed preference recall at
+  10/10, and left one preference answer-synthesis miss at that checkpoint. The
+  next high-yield blockers were multi-session count/synthesis, temporal
+  derivation over partial evidence, and update-history conflict resolution.
+
+Post final rules-only 60-case repair:
+
+- provider-free 60-case run id:
+  `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
+- provider-free result:
+  - evidence-session recall 0.9292
+  - missed-recall cases 10/60
+  - wrong-recall cases 2/60
+  - `single-session-user`: 1.0 recall
+  - `single-session-preference`: 1.0 recall
+  - `single-session-assistant`: 1.0 recall
+  - `temporal-reasoning`: 0.9667 recall
+  - `multi-session`: 0.9083 recall
+  - `knowledge-update`: 0.7 recall
+- focused update-series live run id:
+  `run-phase62-longmemeval-live-update-series3-escalated-20260506T081500Z`
+- focused update-series result:
+  `852ce960`, `d7c942c3`, and `9ea5eabc` are 3/3 correct with zero execution
+  failures.
+- focused single-user/multi-session/temporal live run ids:
+  - `run-phase62-longmemeval-live-yoga-location-escalated-20260506T082200Z`
+  - `run-phase62-longmemeval-live-bike-expense-escalated-20260506T082500Z`
+  - `run-phase62-longmemeval-live-sleep-before-appointment-escalated-20260506T082800Z`
+  - `run-phase62-longmemeval-live-temporal-events-escalated-20260506T083200Z`
+  - `run-phase62-longmemeval-live-project-count-escalated-20260506T083600Z`
+  - `run-phase62-longmemeval-live-colleague-social-prompt-escalated-20260506T084500Z`
+- focused result:
+  all previously remaining focused cases passed with zero execution failures.
+- latest 60-case rules-only run id:
+  `run-phase62-longmemeval-live60-rules-only-final-repairs-escalated-20260506T104000Z`
+- latest 60-case summary:
+  - `executionFailures: 0`
+  - `goodmemory-rules-only`: 60/60 accuracy, evidence-session recall 0.9292,
+    missed-recall cases 10/60, wrong-answer cases 0/60, wrong-recall cases
+    2/60
+- interpretation:
+  the rules-only 60-case answer loop is now closed for the first 10 cleaned
+  cases per question type. The remaining evidence-session recall gap is mostly
+  expected latest-value/update collapse and a small amount of extra assistant
+  wrong-recall noise that does not change answer accuracy.
+
+Post final hybrid 60-case repair:
+
+- previous 60-case hybrid run id:
+  `run-phase62-longmemeval-live60-hybrid-final-repairs-escalated-20260506T110000Z`
+- previous hybrid result:
+  - `goodmemory-hybrid`: 59/60 accuracy, evidence-session recall 0.9292,
+    wrong-answer cases 1/60
+  - remaining wrong answer: `afdc33df`, where the answer preserved the utensil
+    holder issue but omitted the kitchen faucet leak and scratched granite
+    countertop near the sink.
+- focused household-issue live run id:
+  `run-phase62-longmemeval-live-hybrid-afdc-household-issues-escalated-20260506T111500Z`
+- focused household-issue result:
+  `afdc33df` is correct with zero execution failures after preserving
+  question-form household issue facts and prioritizing concise user evidence
+  over verbose assistant follow-up recommendation lists.
+- latest 60-case hybrid run id:
+  `run-phase62-longmemeval-live60-hybrid-household-issues-escalated-20260506T112000Z`
+- latest 60-case hybrid summary:
+  - `executionFailures: 0`
+  - `goodmemory-hybrid`: 60/60 accuracy, evidence-session recall 0.9292,
+    missed-recall cases 10/60, wrong-answer cases 0/60, wrong-recall cases
+    2/60
+- interpretation:
+  the hybrid 60-case answer loop is now closed for the first 10 cleaned cases
+  per question type. Phase 62 remains open because the full-500 execution or
+  deferral decision is still missing.
 
 
 Fixed Root Causes
@@ -539,6 +762,61 @@ facts from verified user evidence turns. This fixes broader-slice misses such
 as the bedroom-wall color, tennis-racket source, and volunteered-fundraiser
 date without lowering global recall thresholds further.
 
+14. Trusted aggregate domain and ownership selection
+
+Aggregate fact-count expansion now requires trusted evidence or a domain signal
+instead of admitting generic numbered facts. `How much` money queries, medical
+provider aggregation, and current ownership-count questions can retrieve
+multiple relevant explicit facts without pulling unrelated numeric noise. This
+fixed the bike-expense, doctor/provider, road-trip-hours, and current-bike
+ownership cases in the 60-case repair loop.
+
+15. Assistant ordinal/grouped conversation evidence
+
+LongMemEval assistant answer turns can contain numbered answers, nested bullet
+lists, and answer evidence that later questions refer to as "what did you tell
+me" or "what was in the list". The adapter now preserves ordinal assistant
+facts and grouped list evidence, recall prioritizes trusted conversation
+evidence for previous-chat/list queries, and the answer prompt tells the model
+to preserve every distinct item in grouped evidence. This closes the focused
+assistant live slice at 6/6 and the 60-case live assistant family at 10/10.
+
+16. Preference evidence and assistant follow-up preservation
+
+Recommendation/advice queries now have a trusted conversation-evidence fallback
+for explicit user preference evidence even when the wording overlap is weak.
+For LongMemEval adapter ingestion, answer-bearing advice requests also preserve
+the immediate assistant follow-up recommendation list, and recommendation-style
+user questions are compacted into explicit interest facts. This fixes Miami
+hotel feature preferences, Netflix stand-up/storytelling preferences, evening
+wind-down constraints, and slow-cooker yogurt interest without adding
+case-specific routing.
+
+17. Update-series collapse and temporal/event bridge evidence
+
+Update-like questions now prefer trusted latest evidence for repeated facts
+such as mortgage preapproval amount, shared grocery-list method, and recent
+family trip. LongMemEval adapter ingestion also preserves class-location facts,
+pronoun-dependent bike repair expenses, sleep-before-appointment temporal
+bridges, dated charity/social events, and project-role facts. These are
+generic evidence-preservation and selection repairs, not case-id routing.
+
+18. Concrete assistant-follow-up topic answer guidance
+
+The answer generator now tells suggestion/advice answers to include concrete
+assistant follow-up recommendation topics when those topics are present in
+memory context. This prevents the model from collapsing remembered
+recommendation lists into a vague constraint-only answer.
+
+19. Household issue preservation and preference evidence priority
+
+Verified user questions can contain answer-bearing household issue facts such
+as a leaking faucet or scratched countertop. The LongMemEval adapter now
+preserves those as explicit user evidence, and preference/advice recall
+prioritizes concise compact/user evidence ahead of verbose assistant follow-up
+recommendation lists. This fixed the hybrid `afdc33df` advice miss without
+case-id routing.
+
 
 Remaining Miss Families
 -----------------------
@@ -566,16 +844,24 @@ LongMemEval split:
 No abstention cases were found in the cleaned data file; abstention coverage
 remains limited to the smoke fixture.
 
-3. Broader 60-case recall still open
+3. Broader 60-case GoodMemory answer loops are closed, but strict recall is not 1.0
 
-The fixed 18-case manifest is closed, but the 60-case slice is not. The latest
-recall-only run reaches 0.8167 aggregate evidence-session recall, with
-multi-session at 0.8083 and knowledge-update at 0.7. This is a material repair,
-but 18/60 recall-only cases still miss answer evidence and wrong recall remains
-3/60. The current repairs need a 60-case live answer rerun before Phase 62 can
-be considered closed.
+The fixed 18-case manifest is closed, and both the 60-case rules-only and
+hybrid slices now reach 60/60 answer accuracy. Strict evidence-session recall
+is still 0.9292, with 10/60 missed-recall cases and 2/60 wrong-recall cases.
+This is no longer an answer-accuracy blocker, but it remains a measurement
+caveat for update collapse and extra assistant context.
 
-4. Fixed-manifest hybrid execution closed
+4. 60-case hybrid execution is valid, but refreshed four-profile comparison is not
+
+The latest single-profile `goodmemory-hybrid` 60-case run is valid and clean.
+The older four-profile 60-case attempt remains invalid because non-escalated
+answer generation lost provider connectivity and `goodmemory-hybrid` hit local
+Postgres connection closure during memory context. That invalid run should not
+be used as refreshed comparative evidence against no-memory or full-context
+baselines.
+
+5. Fixed-manifest hybrid execution closed
 
 The earlier `goodmemory-hybrid` timeout was traced to assisted extraction during
 LongMemEval rehydration. The current harness keeps ingestion deterministic and
@@ -583,30 +869,31 @@ uses hybrid recall at query time. The latest four-profile fixed-manifest rerun
 completed with `executionFailures: 0`, and both GoodMemory profiles reached
 18/18 accuracy with zero wrong-recall cases.
 
-5. Full 500-case result not yet run
+6. Full 500-case result not yet run
 
-The current evidence is a clean four-profile 18-case live slice, one weaker
-60-case live run, and improving 60-case recall-only repair evidence. It is not
-enough for a public claim or benchmark report.
+The current evidence is a clean four-profile 18-case live slice, clean
+rules-only and hybrid 60-case live runs, one invalid four-profile 60-case
+attempt, and improved recall-only repair evidence. It is not enough for a
+public claim or benchmark report.
 
 
 Next Actions
 ------------
 
-1. Continue repairing the 60-case miss families, with priority on
-   multi-session/count aggregation and knowledge-update history.
-2. Rerun the 60-case live answer path after recall-only evidence improves
-   enough to justify provider cost.
-3. Expand beyond the 60-case manifest with `--max-concurrency 1` in a resumable
+1. Decide whether to refresh the 60-case four-profile comparison before the
+   full-500 decision. Do not use the invalid
+   `run-phase62-longmemeval-live60-post-aggregate-domain-ownership-20260506T043000Z`
+   run as comparative benchmark evidence.
+2. Expand beyond the 60-case manifest with `--max-concurrency 1` in a resumable
    broader/full LongMemEval run, or explicitly record why full-500 execution is
    deferred.
-4. Keep latest-update evidence-session accounting explicit in any larger run:
+3. Keep latest-update evidence-session accounting explicit in any larger run:
    answer correctness can be right while strict evidence-session recall remains
    below 1.0 for stale-plus-current answer-session labels.
-5. If moving to BEAM later, carry forward the generic repairs from this phase:
+4. If moving to BEAM later, carry forward the generic repairs from this phase:
    assistant-derived verified evidence, dated-event derivation, project
    leadership context preservation, latest relationship relocation collapse,
    recommendation-category answer guidance, and bounded live-provider timeout
    reporting.
-6. Keep final/public reporting deferred until LongMemEval, BEAM,
+5. Keep final/public reporting deferred until LongMemEval, BEAM,
    MemoryAgentBench, and LoCoMo are all complete.

@@ -898,6 +898,8 @@ For the detailed current-state and evidence map, use
 
 ## Documentation
 
+- Documentation map and archive policy:
+  [docs/README.md](./docs/README.md)
 - Current status and evidence:
   [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)
 - Canonical design:
@@ -918,4 +920,5 @@ For the detailed current-state and evidence map, use
   [docs/GoodMemory-v1-Quality-Gate.md](./docs/GoodMemory-v1-Quality-Gate.md)
 
 Use [task-board/00-README.txt](./task-board/00-README.txt) for execution order,
-open follow-up work, and phase-specific acceptance boundaries.
+open follow-up work, and phase-specific acceptance boundaries. Archived design
+inputs are not current truth and are routed through `docs/README.md`.

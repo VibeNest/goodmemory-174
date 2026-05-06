@@ -10,7 +10,7 @@
 **Primary Inputs**
 
 - `docs/GoodMemory-OSS-Architecture-v1.md`
-- `docs/claude-GoodMemory-Architecture-v0.1.md`
+- `docs/archive/design-inputs/claude-GoodMemory-Architecture-v0.1.md`
 - `docs/GoodMemory-First-Principles-and-Reference-Architecture.md`
 - `docs/GoodMemory-Unified-Self-Evolving-Roadmap.md`
 - `task-board/00-README.txt`
@@ -548,7 +548,7 @@ import { createEvolutionRuntime } from "goodmemory/evolution";
 
 ## 11. v2 与 `claude v0.1` 全景骨架的关系
 
-`docs/claude-GoodMemory-Architecture-v0.1.md` 的价值，不在于直接照抄。
+`docs/archive/design-inputs/claude-GoodMemory-Architecture-v0.1.md` 的价值，不在于直接照抄。
 
 它真正值得保留的是这几类系统视角：
 

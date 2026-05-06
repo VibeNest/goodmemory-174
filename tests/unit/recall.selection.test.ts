@@ -387,6 +387,329 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-bike-advice")?.returned).toBe(false);
   });
 
+  it("prioritizes verified assistant evidence for previous-chat ordinal questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-profile-noise",
+        userId: "user-1",
+        category: "personal",
+        content:
+          "male model and i am asked to make a promotional instagram post for the above campaign",
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-item-7",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Item 7: Transcriptionist",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I think we discussed work from home jobs for seniors earlier. Can you remind me what was the 7th job in the list you provided?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain("fact-item-7");
+    expect(result.traces.find((trace) => trace.memoryId === "fact-profile-noise")?.returned).toBe(false);
+  });
+
+  it("keeps verified user evidence eligible for previous-chat questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-user-answer",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I want to have access to all seasons for old shows. For example, Doc Martin only had the last season available.",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I wanted to check back on our previous conversation about Netflix. What show did I use as an example, the one that only had the last season available?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual(["fact-user-answer"]);
+  });
+
+  it("falls back to generic fact selection when previous-chat wording has no tagged evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-degree",
+        userId: "user-1",
+        category: "personal",
+        content: "I graduated with a degree in Business Administration.",
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Earlier, what degree did I graduate with?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual(["fact-degree"]);
+  });
+
+  it("prioritizes matching grouped assistant heading evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-lemont",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Lemont Refinery includes: Atmospheric distillation; Delayed coking; Hydrocracking; Hydrotreating.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-lake-charles",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Lake Charles Refinery includes: Atmospheric distillation; Fluid catalytic cracking (FCC); Alkylation; Hydrotreating.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you remind me what kind of processes are used at the Lake Charles Refinery?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts[0]?.id).toBe("fact-lake-charles");
+  });
+
+  it("returns trusted preference evidence for weak-overlap recommendation questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-noise",
+        userId: "user-1",
+        category: "personal",
+        content: "I am packing for a trip tomorrow.",
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-evening-preference",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I prefer winding down by 9:30 pm to prepare for a good night's sleep.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you suggest some activities that I can do in the evening?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-evening-preference",
+    ]);
+  });
+
+  it("does not use weak-overlap inferred evidence as recommendation fallback", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-inferred-preference",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I prefer winding down by 9:30 pm to prepare for a good night's sleep.",
+        source: {
+          extractedAt: TIMESTAMP,
+          method: "inferred",
+        },
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you suggest some activities that I can do in the evening?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts).toEqual([]);
+  });
+
+  it("prefers the latest mortgage preapproval evidence over stale amounts", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-preapproval-old",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I got pre-approved for $350,000 from Wells Fargo for my mortgage.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: "2023-08-11T00:00:00.000Z",
+      }),
+      createFactMemory({
+        id: "fact-preapproval-latest",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "Wells Fargo changed the pre-approval to $400,000.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: "2023-11-30T00:00:00.000Z",
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What was the amount I was pre-approved for when I got my mortgage from Wells Fargo?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-preapproval-latest",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-preapproval-old")?.returned).toBe(false);
+  });
+
+  it("prefers the latest shared grocery-list method evidence over stale paper-list evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-mom-paper-list",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "My mom still uses her old paper grocery list while I use a grocery list app.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: "2023-05-02T00:00:00.000Z",
+      }),
+      createFactMemory({
+        id: "fact-mom-shared-app",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "Mom is on the shared grocery list app now.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: "2023-09-14T00:00:00.000Z",
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Is my mom using the same grocery list method as me?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-mom-shared-app",
+    ]);
+  });
+
+  it("prefers the latest recent-family-trip evidence for most-recent trip questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-trip-hawaii",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "My most recent family trip was to Hawaii.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: "2023-03-21T00:00:00.000Z",
+      }),
+      createFactMemory({
+        id: "fact-trip-paris",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "Our family trip moved to Paris in the latest update.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: "2023-10-06T00:00:00.000Z",
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Where did I go on my most recent family trip?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual(["fact-trip-paris"]);
+  });
+
   it("keeps appliesTo-distinct feedback variants separate and prioritizes coding-agent guidance", () => {
     const feedback = [
       createFeedbackMemory({

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src/api/createGoodMemory";
 import type { GoodMemory } from "../../src/api/contracts";
+import { createLongMemEvalMemoryFactory } from "../../scripts/run-phase-62-eval";
 import {
   createLongMemEvalGoodMemoryContextBuilder,
   deriveLongMemEvalAssistantEvidenceFacts,
@@ -212,6 +213,64 @@ const LONGMEMEVAL_TEMPORAL_REASONING_CASES = [
       "Which three events happened in the order from first to last: the day I helped my friend prepare the nursery, the day I helped my cousin pick out stuff for her baby shower, and the day I ordered a customized phone case for my friend's birthday?",
     question_date: "2023/01/11",
     question_id: "q-temporal-event-order",
+    question_type: "temporal-reasoning",
+  },
+  {
+    answer: "2",
+    answer_session_ids: ["s-charity-bike", "s-charity-books"],
+    haystack_dates: ["2023/02/14", "2023/02/15"],
+    haystack_session_ids: ["s-charity-bike", "s-charity-books"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm feeling a bit tired today, just got back from the \"24-Hour Bike Ride\" charity event, where I cycled for 4 hours non-stop to raise money for a local children's hospital.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I volunteered at the \"Books for Kids\" charity book drive event at my local library today, helping to sort and pack over 500 books.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "How many months have passed since I participated in two charity events in a row, on consecutive days?",
+    question_date: "2023/04/15",
+    question_id: "q-temporal-consecutive-charity-events",
+    question_type: "temporal-reasoning",
+  },
+  {
+    answer: "Michael's engagement party",
+    answer_session_ids: ["s-engagement-party", "s-cousin-wedding"],
+    haystack_dates: ["2023/05/06", "2023/06/15"],
+    haystack_session_ids: ["s-engagement-party", "s-cousin-wedding"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "By the way, I just came back from Michael's engagement party at a trendy rooftop bar today, and it got me thinking about my own wedding plans.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I just walked down the aisle as a bridesmaid at my cousin's wedding today, and it got me thinking about my own big day.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "Which event happened first, my cousin's wedding or Michael's engagement party?",
+    question_date: "2023/06/16",
+    question_id: "q-temporal-social-event-order",
     question_type: "temporal-reasoning",
   },
 ];
@@ -820,6 +879,8 @@ describe("LongMemEval adapter", () => {
     ).toEqual([
       ["s-met", "s-moma"],
       ["s-nursery", "s-phone", "s-shower"],
+      ["s-charity-bike", "s-charity-books"],
+      ["s-cousin-wedding", "s-engagement-party"],
     ]);
   });
 
@@ -975,18 +1036,441 @@ describe("LongMemEval adapter", () => {
     expect(context.content).toContain("lighter shade of gray");
   });
 
+  it("derives class-location evidence from make-it-to phrasing in verified user turns", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "Serenity Yoga",
+        answer_session_ids: ["s-yoga-studio"],
+        haystack_dates: ["2023/05/30"],
+        haystack_session_ids: ["s-yoga-studio"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've actually been using Down Dog for my home practice and I really like it. It's been super helpful for me, especially on days when I can't make it to Serenity Yoga.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "Where do I take yoga classes?",
+        question_date: "2023/05/31",
+        question_id: "q-yoga-class-location",
+        question_type: "single-session-user",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createGoodMemory({ storage: { provider: "memory" } }),
+      runId: "run-longmemeval-yoga-class-location",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-yoga-studio");
+    expect(context.content).toContain("I take yoga classes at Serenity Yoga");
+  });
+
+  it("preserves pronoun-dependent bike repair expenses from verified user turns", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "$65",
+        answer_session_ids: ["s-bike-repair"],
+        haystack_dates: ["2023/05/05"],
+        haystack_session_ids: ["s-bike-repair"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "Actually, I remember taking my bike in for a tune-up on April 20th because the gears were getting stuck. The mechanic told me I needed to replace the chain, which I did, and it cost me $25. While I was there, I also got a new set of bike lights installed, which were $40.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How much total money have I spent on bike-related expenses since the start of the year?",
+        question_date: "2023/05/06",
+        question_id: "q-bike-repair-expenses",
+        question_type: "multi-session",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createGoodMemory({ storage: { provider: "memory" } }),
+      runId: "run-longmemeval-bike-repair-expenses",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-bike-repair");
+    expect(context.content).toContain("I spent $25 replacing my bike chain");
+  });
+
+  it("preserves led and solo class projects for project-count questions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "2",
+        answer_session_ids: ["s-led-project", "s-solo-project"],
+        haystack_dates: ["2023/05/21", "2023/05/29"],
+        haystack_session_ids: ["s-led-project", "s-solo-project"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've had some experience with data analysis from my Marketing Research class project, where I led the data analysis team and we did a comprehensive market analysis for a new product launch.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I've been working on a solo project for my Data Mining class, and I'm really interested in applying some of these techniques to my customer purchase data.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How many projects have I led or am currently leading?",
+        question_date: "2023/05/30",
+        question_id: "q-project-leadership-count",
+        question_type: "multi-session",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createGoodMemory({ storage: { provider: "memory" } }),
+      runId: "run-longmemeval-project-leadership-count",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds.sort()).toEqual([
+      "s-led-project",
+      "s-solo-project",
+    ]);
+    expect(context.content).toContain("I led the data analysis team");
+    expect(context.content).toContain("I am currently leading a solo project");
+  });
+
+  it("derives sleep-time evidence for temporal bridge questions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "2 AM",
+        answer_session_ids: ["s-appointment", "s-sleep"],
+        haystack_dates: ["2023/05/24", "2023/05/29"],
+        haystack_session_ids: ["s-appointment", "s-sleep"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I had a doctor's appointment at 10 AM last Thursday, and that's when I got the results.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I'm feeling a bit sluggish today and I think it's because I didn't get to bed until 2 AM last Wednesday, which made Thursday morning a struggle.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "What time did I go to bed on the day before I had a doctor's appointment?",
+        question_date: "2023/05/30",
+        question_id: "q-sleep-before-appointment",
+        question_type: "multi-session",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createGoodMemory({ storage: { provider: "memory" } }),
+      runId: "run-longmemeval-sleep-before-appointment",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-appointment");
+    expect(context.retrievedSessionIds).toContain("s-sleep");
+    expect(context.content).toContain("didn't get to bed until 2 AM last Wednesday");
+  });
+
   it("derives compact assistant list evidence from LongMemEval answer turns", () => {
-    expect(
-      deriveLongMemEvalAssistantEvidenceFacts(
-        [
-          "Here are some fun dessert spots:",
-          "1. The Sugar Factory - A sweet shop located at Icon Park that offers specialty drinks and giant milkshakes.",
-          "2. Wondermade - A gourmet marshmallow shop located in Sanford.",
-        ].join("\n"),
-      ),
-    ).toContain(
-      "The Sugar Factory - A sweet shop located at Icon Park that offers specialty drinks and giant milkshakes.",
+    const facts = deriveLongMemEvalAssistantEvidenceFacts(
+      [
+        "Here are some fun dessert spots:",
+        "1. The Sugar Factory - A sweet shop located at Icon Park that offers specialty drinks and giant milkshakes.",
+        "2. Wondermade - A gourmet marshmallow shop located in Sanford.",
+      ].join("\n"),
     );
+
+    expect(facts).toContainEqual(
+      expect.stringContaining("The Sugar Factory"),
+    );
+    expect(facts).toContainEqual(expect.stringContaining("Item 1:"));
+    expect(facts).toContainEqual(
+      expect.stringContaining("Assistant enumerated list:"),
+    );
+  });
+
+  it("preserves assistant ordinal list evidence for numbered recall", () => {
+    const facts = deriveLongMemEvalAssistantEvidenceFacts(
+      [
+        "1. Virtual customer service representative",
+        "2. Telehealth professional",
+        "3. Remote bookkeeper",
+        "4. Virtual tutor or teacher",
+        "5. Freelance writer or editor",
+        "6. Online survey taker",
+        "7. Transcriptionist",
+        "8. Social media manager",
+        "9. Virtual travel agent",
+        "10. E-commerce seller",
+        "11. Remote IT support specialist",
+        "12. Home-based customer service representative",
+      ].join("\n"),
+    );
+
+    expect(facts).toContainEqual(expect.stringContaining("Item 7: Transcriptionist"));
+    expect(facts).toContainEqual(
+      expect.stringContaining("7. Transcriptionist"),
+    );
+  });
+
+  it("groups nested assistant bullet evidence under list headings", () => {
+    const facts = deriveLongMemEvalAssistantEvidenceFacts(
+      [
+        "1. Lake Charles Refinery:",
+        "* Atmospheric distillation",
+        "* Fluid catalytic cracking (FCC)",
+        "* Alkylation",
+        "* Hydrotreating",
+        "1. Lemont Refinery:",
+        "* Atmospheric distillation",
+        "* Delayed coking",
+      ].join("\n"),
+    );
+
+    expect(facts).toContain(
+      "Lake Charles Refinery includes: Atmospheric distillation; Fluid catalytic cracking (FCC); Alkylation; Hydrotreating.",
+    );
+  });
+
+  it("derives bold-numbered assistant recommendation evidence", () => {
+    const facts = deriveLongMemEvalAssistantEvidenceFacts(
+      [
+        "**1. Relaxation Techniques (20-30 minutes)**",
+        "**2. Electronic Device Detox (30 minutes)**",
+        "**3. Prepare Your Sleep Environment (15 minutes)**",
+      ].join("\n"),
+    );
+
+    expect(facts).toContainEqual(
+      expect.stringContaining("Relaxation Techniques"),
+    );
+    expect(facts).toContainEqual(
+      expect.stringContaining("Electronic Device Detox"),
+    );
+  });
+
+  it("preserves assistant follow-up recommendations after verified user advice requests", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer:
+          "The user would prefer relaxing evening activities before 9:30 pm and no phone or TV.",
+        answer_session_ids: ["s-evening"],
+        haystack_dates: ["2023/05/29"],
+        haystack_session_ids: ["s-evening"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "What else can I do for the later part of the day? I prefer winding down by 9:30 pm to prepare for a good night's sleep.",
+              has_answer: true,
+              role: "user",
+            },
+            {
+              content: [
+                "**1. Relaxation Techniques (20-30 minutes)**",
+                "**2. Electronic Device Detox (30 minutes)**",
+                "**3. Prepare Your Sleep Environment (15 minutes)**",
+              ].join("\n"),
+              role: "assistant",
+            },
+          ],
+        ],
+        question: "Can you suggest some activities that I can do in the evening?",
+        question_date: "2023/05/30",
+        question_id: "q-evening-advice-followup",
+        question_type: "single-session-preference",
+      },
+    ]);
+
+    const createMemory = createLongMemEvalMemoryFactory(createGoodMemory);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createMemory("goodmemory-rules-only"),
+      runId: "run-longmemeval-advice-followup",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-evening");
+    expect(context.content).toContain("Electronic Device Detox");
+  });
+
+  it("preserves compact assistant follow-up topics for colleague-socializing requests", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer:
+          "The user wants remote-work social suggestions such as virtual coffee breaks and interest-based groups.",
+        answer_session_ids: ["s-colleague-social"],
+        haystack_dates: ["2023/05/25"],
+        haystack_session_ids: ["s-colleague-social"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I'm looking for some suggestions on how to socialize with my colleagues. I enjoy the flexibility of working from home but miss social interactions and watercooler conversations with colleagues. Do you have any ideas?",
+              has_answer: true,
+              role: "user",
+            },
+            {
+              content: [
+                "Here are a few suggestions to socialize with your colleagues while working from home:",
+                "1. **Virtual Coffee Breaks**: Schedule regular informal video calls for casual chats.",
+                "2. **Online Team Activities**: Organize virtual games or team-building exercises.",
+                "3. **Collaborative Projects**: Work on cross-departmental projects or join working groups.",
+                "4. **Interest-Based Groups**: Start or join groups based on shared interests.",
+              ].join("\n"),
+              role: "assistant",
+            },
+          ],
+        ],
+        question:
+          "I've been thinking about ways to stay connected with my colleagues. Any suggestions?",
+        question_date: "2023/05/26",
+        question_id: "q-colleague-socializing-suggestions",
+        question_type: "single-session-preference",
+      },
+    ]);
+
+    const createMemory = createLongMemEvalMemoryFactory(createGoodMemory);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createMemory("goodmemory-rules-only"),
+      runId: "run-longmemeval-colleague-socializing-suggestions",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-colleague-social");
+    expect(context.content).toContain("Virtual Coffee Breaks");
+    expect(context.content).toContain("Interest-Based Groups");
+  });
+
+  it("preserves recommendation request interests from verified user questions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer:
+          "The user wants slow cooker advice tailored to beef stew success and yogurt interest.",
+        answer_session_ids: ["s-slow-cooker"],
+        haystack_dates: ["2023/05/30"],
+        haystack_session_ids: ["s-slow-cooker"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I recently figured out how to use the slow cooker and made a delicious beef stew. I've been wanting to try more recipes with it. Do you have any recommendations?",
+              has_answer: true,
+              role: "user",
+            },
+            {
+              content: "1. Chili Con Carne\n2. Pulled Pork\n3. Beef Stew",
+              role: "assistant",
+            },
+            {
+              content:
+                "Do you have any recipes for making yogurt in a slow cooker?",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question:
+          "I've been struggling with my slow cooker recipes. Any advice on getting better results?",
+        question_date: "2023/05/31",
+        question_id: "q-slow-cooker-advice-interest",
+        question_type: "single-session-preference",
+      },
+    ]);
+
+    const createMemory = createLongMemEvalMemoryFactory(createGoodMemory);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createMemory("goodmemory-rules-only"),
+      runId: "run-longmemeval-recommendation-request-interest",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-slow-cooker");
+    expect(context.content).toContain("making yogurt in a slow cooker");
+  });
+
+  it("preserves household maintenance issue facts from verified user questions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer:
+          "The user wants kitchen cleaning tips tailored to utensil storage, granite scratches near the sink, and a leaking faucet.",
+        answer_session_ids: ["s-kitchen-issues"],
+        haystack_dates: ["2023/05/22"],
+        haystack_session_ids: ["s-kitchen-issues"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I also need some help with organizing my kitchen utensils. I recently bought a new utensil holder to keep countertops clutter-free.",
+              has_answer: true,
+              role: "user",
+            },
+            {
+              content:
+                "I noticed some scratches on my granite countertop near the sink. Do you have any tips on how to repair or remove those scratches?",
+              has_answer: true,
+              role: "user",
+            },
+            {
+              content:
+                "I'm also having some issues with my kitchen faucet, it's been leaking slightly. Can you give me some tips on how to fix it?",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "My kitchen's becoming a bit of a mess again. Any tips?",
+        question_date: "2023/05/23",
+        question_id: "q-kitchen-cleaning-issues",
+        question_type: "single-session-preference",
+      },
+    ]);
+
+    const createMemory = createLongMemEvalMemoryFactory(createGoodMemory);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createMemory("goodmemory-rules-only"),
+      runId: "run-longmemeval-household-maintenance-issues",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-kitchen-issues");
+    expect(context.content).toContain(
+      "My kitchen granite countertop near the sink has scratches.",
+    );
+    expect(context.content).toContain("My kitchen faucet has been leaking slightly.");
   });
 
   it("preserves blank-leading markdown table headers in assistant evidence notes", async () => {

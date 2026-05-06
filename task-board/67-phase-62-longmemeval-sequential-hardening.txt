@@ -98,8 +98,43 @@ Tasks
   `run-phase62-longmemeval-live60-type-balanced-20260506T010000Z` then exposed
   the fixed manifest as too narrow: both GoodMemory profiles reached only
   19/60 answer accuracy with evidence-session recall 0.275, while
-  `baseline-full-context` reached 55/60. Full 500-case execution remains
-  pending.
+  `baseline-full-context` reached 55/60. After aggregate/domain/ownership
+  recall repairs, the valid three-profile rerun
+  `run-phase62-longmemeval-live60-three-profile-post-aggregate-domain-ownership-20260506T044500Z`
+  completed with `executionFailures: 0`: `goodmemory-rules-only` improved to
+  42/60 answer accuracy with evidence-session recall 0.8167, while
+  `baseline-full-context` reached 54/60 and `baseline-no-memory` reached 1/60.
+  The attempted four-profile post-repair rerun
+  `run-phase62-longmemeval-live60-post-aggregate-domain-ownership-20260506T043000Z`
+  is invalid as benchmark evidence because non-escalated answer generation
+  lost provider connectivity and `goodmemory-hybrid` hit a local Postgres
+  connection-closed failure. The subsequent provider-free diagnostic
+  `run-phase62-longmemeval-recall-only-rules60-conversation-evidence-20260506T060500Z`
+  raises rules-only evidence-session recall to 0.8333 and closes
+  single-session-assistant recall to 1.0. The focused escalated assistant
+  live rerun
+  `run-phase62-longmemeval-live-assistant6-conversation-evidence-r2-escalated-20260506T063000Z`
+  is 6/6 correct, and the then-current rules-only 60-case live rerun
+  `run-phase62-longmemeval-live60-rules-only-conversation-evidence-20260506T064000Z`
+  reaches 45/60 answer accuracy with evidence-session recall 0.8333 and zero
+  execution failures. After preference evidence and assistant-follow-up repair,
+  the previous rules-only 60-case live rerun
+  `run-phase62-longmemeval-live60-rules-only-preference-followup-escalated-20260506T074500Z`
+  reaches 50/60 answer accuracy with evidence-session recall 0.8833 and zero
+  execution failures. After update-series, single-user, multi-session,
+  temporal/event, project-count, and assistant-follow-up answer repairs, the
+  provider-free diagnostic
+  `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
+  reaches evidence-session recall 0.9292 with zero execution failures, and the
+  latest rules-only 60-case live rerun
+  `run-phase62-longmemeval-live60-rules-only-final-repairs-escalated-20260506T104000Z`
+  reaches 60/60 answer accuracy with evidence-session recall 0.9292 and zero
+  execution failures. After household issue extraction and preference evidence
+  prioritization, the hybrid live rerun
+  `run-phase62-longmemeval-live60-hybrid-household-issues-escalated-20260506T112000Z`
+  also reaches 60/60 answer accuracy with evidence-session recall 0.9292 and
+  zero execution failures. Full 500-case execution remains pending or needs an
+  explicit deferral rationale.
 [WIP] P62-T005 Write LongMemEval miss-case analysis grouped by question type,
   missed recall, wrong recall, stale/update failure, abstention failure, and
   token/context pressure. Initial 3-case analysis is recorded in
@@ -125,13 +160,35 @@ Tasks
   rerun
   `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
   keeps both GoodMemory profiles clean at 18/18 with zero execution failures.
-  The broader 60-case type-balanced slice is now the active miss-intake source:
-  `run-phase62-longmemeval-recall-only-rules60-aggregate-domain-ownership-20260506T041500Z`
-  raises provider-free rules-only evidence-session recall to 0.8167 with zero
-  execution failures. Multi-session is now 0.8083, knowledge-update is 0.7,
-  and wrong recall remains 3/60. Phase 62 remains open until the broader miss
-  loop is closed by live rerun evidence or full execution is explicitly
-  deferred.
+  The broader 60-case type-balanced slice is now the active miss-intake source.
+  The latest provider-free diagnostic
+  `run-phase62-longmemeval-recall-only-rules60-conversation-evidence-20260506T060500Z`
+  raises provider-free rules-only evidence-session recall to 0.8333 with zero
+  execution failures. Single-session-assistant recall is now 1.0,
+  multi-session is 0.8083, knowledge-update is 0.7, and wrong recall remains
+  3/60. The earlier corresponding valid live rerun
+  `run-phase62-longmemeval-live60-three-profile-post-aggregate-domain-ownership-20260506T044500Z`
+  improved `goodmemory-rules-only` from 19/60 to 42/60 but still leaves 18/60
+  wrong answers. After assistant ordinal/list evidence, conversation-evidence
+  priority, and grouped-list answer guidance, the focused assistant live rerun
+  `run-phase62-longmemeval-live-assistant6-conversation-evidence-r2-escalated-20260506T063000Z`
+  reached 6/6, and the then-current rules-only 60-case live rerun
+  `run-phase62-longmemeval-live60-rules-only-conversation-evidence-20260506T064000Z`
+  reached 45/60 with 15 wrong answers. The subsequent preference follow-up
+  repair diagnostic
+  `run-phase62-longmemeval-recall-only-rules60-preference-followup-20260506T073000Z`
+  raises evidence-session recall to 0.8833 and closes single-session-preference
+  recall to 1.0, and the previous rules-only 60-case live rerun
+  `run-phase62-longmemeval-live60-rules-only-preference-followup-escalated-20260506T074500Z`
+  reaches 50/60 with 10 wrong answers. The final rules-only repair diagnostic
+  `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
+  reaches evidence-session recall 0.9292 with zero execution failures, and the
+  latest rules-only live rerun
+  `run-phase62-longmemeval-live60-rules-only-final-repairs-escalated-20260506T104000Z`
+  reaches 60/60 with zero wrong answers. The hybrid live rerun
+  `run-phase62-longmemeval-live60-hybrid-household-issues-escalated-20260506T112000Z`
+  also reaches 60/60 with zero wrong answers. Phase 62 remains open until full
+  execution is either run or explicitly deferred.
 [WIP] P62-T006 Implement generic GoodMemory repairs from the miss cases and
   rerun LongMemEval before opening the BEAM phase. First repairs landed for
   cleaned answer normalization, full-run readiness, rules-only provider
@@ -161,10 +218,23 @@ Tasks
   closes the small-manifest GoodMemory miss loop. The broader 60-case repair
   pass has added verified-annotation explicitness, weak-lexical explicit fact
   recall, compact dated user evidence, trusted aggregate money/provider/count
-  selection, and current ownership-count selection; recall-only evidence
-  improved from 0.379 to 0.8167 after those repairs, but the 60-case live
-  answer rerun is still pending. An unrelated concurrent package-pack
-  release-test race is locked; broader/full LongMemEval coverage remains open.
+  selection, current ownership-count selection, assistant ordinal/grouped-list
+  evidence extraction, previous-chat conversation-evidence priority, and
+  grouped-list answer guidance, trusted preference-evidence fallback,
+  assistant follow-up recommendation preservation, recommendation-request
+  interest extraction, update-series collapse, class-location extraction,
+  pronoun-dependent bike expenses, sleep-before-appointment temporal bridging,
+  dated charity/social event derivation, project role preservation, and
+  assistant-follow-up topic answer guidance, household maintenance issue
+  preservation, and preference evidence prioritization; recall-only evidence
+  improved from 0.379 to 0.9292 after those repairs. The latest rules-only and
+  hybrid 60-case live reruns both reach 60/60 for GoodMemory, but the full-500
+  decision keeps the broader LongMemEval loop open. Current focused
+  verification passes
+  `bun test tests/unit/recall.selection.test.ts tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts`,
+  `bun run typecheck`, `bun run gate:phase-62`, and `git diff --check`. An
+  unrelated concurrent package-pack release-test race is locked; broader/full
+  LongMemEval coverage remains open.
 
 
 Commands

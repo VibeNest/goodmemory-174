@@ -103,17 +103,27 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - smoke adapter and gate pass through `eval:phase-62` and `gate:phase-62`
   - the initial 3-case cleaned-data slice is clean after generic
     fact-recall/noise-suppression repairs
-  - the canonical 18-case type-balanced answer-generation slice is currently
-    blocked by provider `model_cooldown` / `usage_limit_reached`, with failures
-    preserved as structured report rows
-  - provider-free `eval:phase-62-recall-diagnostic` evidence on the fixed
-    18-case `goodmemory-rules-only` manifest has `executionFailures: 0`,
-    aggregate evidence-session recall `0.1667`, missed recall `15/18`, and
-    wrong recall `7/18`
-- Current Phase 62 mechanism gaps are event/episode recall,
-  assistant-derived prior answer retention, multi-session aggregation, temporal
-  event ordering, and update-latest retrieval. Repairs must stay generic and
-  not target LongMemEval case ids or prompt wording.
+  - the fixed 18-case type-balanced slice is clean for both GoodMemory
+    profiles in
+    `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
+    with 18/18 answer accuracy, zero execution failures, and zero wrong recall
+  - the broader first-10-per-type 60-case rules-only live run
+    `run-phase62-longmemeval-live60-rules-only-final-repairs-escalated-20260506T104000Z`
+    reaches 60/60 answer accuracy, evidence-session recall `0.9292`, zero
+    execution failures, and zero wrong answers
+  - the corresponding 60-case hybrid live run
+    `run-phase62-longmemeval-live60-hybrid-household-issues-escalated-20260506T112000Z`
+    reaches 60/60 answer accuracy, evidence-session recall `0.9292`, zero
+    execution failures, and zero wrong answers
+  - the corresponding provider-free recall diagnostic
+    `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
+    records evidence-session recall `0.9292`, missed recall `10/60`, wrong
+    recall `2/60`, and zero execution failures
+- Current Phase 62 blocker is a broader/full LongMemEval execution or explicit
+  full-500 deferral decision. Repairs must stay generic and not target
+  LongMemEval case ids or dataset labels; this remains internal research
+  evidence, not a README-level public
+  benchmark claim.
 
 ## Prior Accepted Research Slice
 
@@ -788,8 +798,9 @@ Fallback eval outputs under `reports/eval/fallback/**` are deterministic, regene
 
 ## How To Navigate
 
+- Use `docs/README.md` first when choosing which documentation file to open.
 - Use `README.md`, `docs/GoodMemory-PRD.md`, and the architecture docs when you need the product story or public integration shape.
-- Use `task-board/00-README.txt` when you need execution order, closed/open slices, or explicit reopen rules for future work.
+- Use `task-board/00-README.txt` when you need the current execution order, active slice, or recent accepted boundary. It is intentionally a slim router, not a full phase history.
 - Use `docs/archive/quality-gates/README.md` when you need historical closure detail for a specific capability slice.
 - Use `reports/quality-gates/` and `reports/eval/` when you need raw evidence rather than a summarized judgment.
 

@@ -170,8 +170,13 @@ export function buildLongMemEvalPrompt(input: {
     input.questionDate ? `Question date:\n${input.questionDate}` : undefined,
     `Question:\n${input.prompt}`,
     "For recommendation-style questions, answer with the user's remembered preference or constraints that should guide recommendations; do not list generic recommendations.",
+    "For advice or suggestion questions, turn remembered facts into an actionable preference/constraint for this request; do not merely restate the user's background.",
+    "When memory context contains assistant follow-up recommendation topics or concrete suggestion names, include those concrete topics in the short answer instead of only summarizing the user constraint.",
+    "When multiple remembered interests or constraints are visible for the same advice question, preserve each distinct one in the short answer.",
+    "When an advice question has multiple concrete remembered issue areas, name each issue area briefly instead of expanding only one and dropping the others.",
     "For recommendation-style questions about a requested object category, include that category in the answer, such as resources, accessories, publications, conferences, or gear.",
     "For count questions, count distinct matching evidence items only. Include both past and current matches when the question asks for both; ignore related facts that do not satisfy the wording.",
+    "For list or set questions, include every distinct item in the relevant grouped evidence, especially lines that use includes, list, or numbered-item wording.",
     "Return only the short answer. If the answer is not present in the visible history or memory context, return exactly: No answer.",
   ]
     .filter(Boolean)

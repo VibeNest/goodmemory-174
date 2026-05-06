@@ -782,6 +782,7 @@ Operator guidance：
 
 ## 文档
 
+- 文档地图与归档规则：[docs/README.md](./docs/README.md)
 - 当前状态与 evidence：[docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)
 - canonical design：[docs/GoodMemory-First-Principles-and-Reference-Architecture.md](./docs/GoodMemory-First-Principles-and-Reference-Architecture.md)
 - v1 implementation architecture：[docs/GoodMemory-OSS-Architecture-v1.md](./docs/GoodMemory-OSS-Architecture-v1.md)
@@ -792,4 +793,4 @@ Operator guidance：
 - 历史 quality-gate archive：[docs/archive/quality-gates/README.md](./docs/archive/quality-gates/README.md)
 - 历史 v1 snapshot：[docs/GoodMemory-v1-Quality-Gate.md](./docs/GoodMemory-v1-Quality-Gate.md)
 
-执行顺序、后续开放工作和 phase-specific acceptance boundaries 见 [task-board/00-README.txt](./task-board/00-README.txt)。
+执行顺序、后续开放工作和 phase-specific acceptance boundaries 见 [task-board/00-README.txt](./task-board/00-README.txt)。历史设计输入不再视为 current truth，统一通过 `docs/README.md` 路由。

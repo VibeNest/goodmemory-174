@@ -2,12 +2,16 @@
 
 ## Project Structure & Module Organization
 
-Treat this file as a routing layer, not the final authority. The design corpus is cataloged through `docs/` and the execution index in `task-board/00-README.txt`. When you need product intent, architecture, verification status, or gap tracking, follow the deeper sources below.
+Treat this file as a routing layer, not the final authority. Start with
+`docs/README.md` for documentation routing and `task-board/00-README.txt` for
+execution order. Do not bulk-read `docs/`, `task-board/`, `reports/`, or
+`docs/archive/` unless a task explicitly needs historical provenance.
 
 ```text
 README.md
 docs/
-├── GoodMemory-Current-Status-and-Evidence.md                     # stable entrypoint for current public surface and canonical evidence
+├── README.md                                                 # documentation router and archive policy
+├── GoodMemory-Current-Status-and-Evidence.md                 # current public surface and canonical evidence
 ├── GoodMemory-First-Principles-and-Reference-Architecture.md  # canonical design, core beliefs, operating principles
 ├── GoodMemory-Implicit-Behavioral-Adaptation-Eval.md          # Phase 24 internal eval design and scoring reference
 ├── GoodMemory-OSS-Architecture-v1.md                          # top-level map of domains, packages, and boundaries
@@ -17,8 +21,10 @@ docs/
 ├── GoodMemory-v1-Release-Checklist.md                         # release readiness checklist
 ├── GoodMemory-Unified-Self-Evolving-Roadmap.md                # canonical roadmap after the v1 core
 ├── archive/quality-gates/README.md                            # archived phase closure summaries and gate index
+├── archive/design-inputs/                                     # superseded drafts, not current truth
+├── archive/reference-corpus/                                  # copied research/source material, targeted lookup only
 ├── GoodMemory-记忆数据分层设计.md                               # layering and storage reference
-└── documents/                                                 # research/reference corpus
+└── ...
 
 task-board/
 ├── 00-README.txt                                              # canonical execution order, status markers, working rules
@@ -72,7 +78,15 @@ reports/eval/
 scripts/ and examples/ hold developer utilities, CLI/eval runners, and reference integrations.
 ```
 
-Use `docs/GoodMemory-Current-Status-and-Evidence.md` for the current stable repo view, `docs/GoodMemory-First-Principles-and-Reference-Architecture.md` for product principles, `docs/GoodMemory-OSS-Architecture-v1.md` for module boundaries, `task-board/00-README.txt` for execution order, and `docs/archive/quality-gates/README.md` plus `reports/quality-gates/` and `reports/eval/` for verification evidence. Scored quality and gap tracking live in the phase board and generated eval artifacts, not in `AGENTS.md`.
+Use `docs/README.md` first when choosing which document to open. Use
+`docs/GoodMemory-Current-Status-and-Evidence.md` for the current stable repo
+view, `docs/GoodMemory-First-Principles-and-Reference-Architecture.md` for
+product principles, `docs/GoodMemory-OSS-Architecture-v1.md` for module
+boundaries, `task-board/00-README.txt` for execution order, and
+`docs/archive/quality-gates/README.md` plus `reports/quality-gates/` and
+`reports/eval/` for verification evidence. Scored quality and gap tracking live
+in the phase board and generated eval artifacts, not in `AGENTS.md`. Superseded
+drafts under `docs/archive/design-inputs/` are not current truth.
 
 ## Build, Test, and Development Commands
 

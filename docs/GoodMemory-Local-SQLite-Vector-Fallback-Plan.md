@@ -2,7 +2,7 @@
 
 ## 背景
 
-`docs/claude-GoodMemory-Architecture-v0.1.md` 和 `docs/GoodMemory-记忆数据分层设计.md` 都把本地 `SQLite + sqlite-vss` 路线视为重要能力，但当前实现里 `sqlite` 只接了 `documentStore` 和 `sessionStore`。当没有显式提供 `adapters.vectorStore` 时，`createGoodMemory()` 对非 `postgres` 路径会回退到 `createInMemoryVectorStore()`，这会让 `sqlite` 部署的语义检索既不 durable，也和用户选择的存储后端不一致。
+`docs/archive/design-inputs/claude-GoodMemory-Architecture-v0.1.md` 和 `docs/GoodMemory-记忆数据分层设计.md` 都把本地 `SQLite + sqlite-vss` 路线视为重要能力，但当前实现里 `sqlite` 只接了 `documentStore` 和 `sessionStore`。当没有显式提供 `adapters.vectorStore` 时，`createGoodMemory()` 对非 `postgres` 路径会回退到 `createInMemoryVectorStore()`，这会让 `sqlite` 部署的语义检索既不 durable，也和用户选择的存储后端不一致。
 
 ## 设计意图
 

@@ -250,6 +250,19 @@ describe("run-phase-62 LongMemEval script", () => {
     );
   });
 
+  it("instructs list answers to preserve grouped evidence items", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "Lake Charles Refinery includes: Atmospheric distillation; Fluid catalytic cracking (FCC); Alkylation; Hydrotreating.",
+        prompt: "What processes are used at the Lake Charles Refinery?",
+        transcript: "",
+      }),
+    ).toContain(
+      "For list or set questions, include every distinct item in the relevant grouped evidence",
+    );
+  });
+
   it("instructs recommendation answers to retain the requested object category", () => {
     expect(
       buildLongMemEvalPrompt({
@@ -261,6 +274,61 @@ describe("run-phase-62 LongMemEval script", () => {
       }),
     ).toContain(
       "include that category in the answer, such as resources, accessories, publications, conferences, or gear.",
+    );
+  });
+
+  it("instructs advice answers to convert remembered facts into constraints", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "I recently figured out how to use the slow cooker and made a delicious beef stew.",
+        prompt:
+          "I've been struggling with my slow cooker recipes. Any advice on getting better results?",
+        transcript: "",
+      }),
+    ).toContain(
+      "turn remembered facts into an actionable preference/constraint",
+    );
+  });
+
+  it("instructs advice answers to preserve multiple remembered interests", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "I made a delicious beef stew.\nI was interested in recipes for making yogurt in a slow cooker.",
+        prompt:
+          "I've been struggling with my slow cooker recipes. Any advice on getting better results?",
+        transcript: "",
+      }),
+    ).toContain(
+      "preserve each distinct one in the short answer",
+    );
+  });
+
+  it("instructs suggestion answers to include concrete assistant follow-up topics", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          'Assistant follow-up recommendation topics for "I want to socialize more with colleagues but want to keep working from home": Virtual Coffee Breaks; Online Team Activities; Interest-Based Groups.',
+        prompt:
+          "I still want to socialize with colleagues but keep working from home. Any suggestions?",
+        transcript: "",
+      }),
+    ).toContain(
+      "include those concrete topics in the short answer instead of only summarizing the user constraint",
+    );
+  });
+
+  it("instructs advice answers to preserve multiple concrete issue areas", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "I bought a new utensil holder to keep counters organized.\nThe kitchen sink area gets messy because the faucet leaks and the granite needs careful cleaning.",
+        prompt: "My kitchen's becoming a bit of a mess again. Any tips?",
+        transcript: "",
+      }),
+    ).toContain(
+      "name each issue area briefly instead of expanding only one and dropping the others",
     );
   });
 

@@ -4,8 +4,8 @@ Status: Proposed Canonical Roadmap
 Date: 2026-04-07  
 Scope: GoodMemory OSS Core + Optional Evolution Layer  
 Supersedes:
-- `docs/GoodMemory-MemPalace-对标分析与自进化增强计划.md`
-- `docs/GoodMemory-Self-Evolving-Memory-Enhancement-Plan.md`
+- `docs/archive/design-inputs/GoodMemory-MemPalace-对标分析与自进化增强计划.md`
+- `docs/archive/design-inputs/GoodMemory-Self-Evolving-Memory-Enhancement-Plan.md`
 
 ## 1. 这份文档解决什么问题
 
@@ -13,7 +13,7 @@ Supersedes:
 
 自本文件起：
 
-- 上述两份原文档保留为研究输入和设计来源，不再作为并行执行路线。
+- 上述两份原文档已经移入 `docs/archive/design-inputs/`，只保留为研究输入和设计来源，不再作为并行执行路线。
 - 本文是唯一的“执行顺序 + 边界裁决 + 模块归属 + 成功标准”文档。
 - 现有 `task-board`、`ADR-002`、`ADR-004` 是本文必须对齐的实现约束，不另起炉灶。
 - `docs/GoodMemory-记忆数据分层设计.md` 可以作为兼容的分层与存储参考，但不得覆盖本文对执行顺序和模块归属的裁决。
@@ -22,7 +22,7 @@ Supersedes:
 
 ### 2.1 MemPalace 对标文档贡献
 
-`GoodMemory-MemPalace-对标分析与自进化增强计划.md` 的核心价值是提出了这些正确方向：
+`docs/archive/design-inputs/GoodMemory-MemPalace-对标分析与自进化增强计划.md` 的核心价值是提出了这些正确方向：
 
 - evidence-first，而不是写入时过早压缩
 - layered recall，而不是只靠单层检索
@@ -37,7 +37,7 @@ Supersedes:
 
 ### 2.2 Self-Evolving 文档贡献
 
-`GoodMemory-Self-Evolving-Memory-Enhancement-Plan.md` 的核心价值是补齐了外循环闭环：
+`docs/archive/design-inputs/GoodMemory-Self-Evolving-Memory-Enhancement-Plan.md` 的核心价值是补齐了外循环闭环：
 
 - observation plane
 - session archive + cross-session recall

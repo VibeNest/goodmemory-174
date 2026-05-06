@@ -3,7 +3,8 @@ Phase 61: Priming Abstraction And Contamination-Safe Output
 
 Status
 ------
-Implementation accepted; post-Phase-61 full-300 rerun pending.
+Implementation accepted; post-Phase-61 / Phase 62A recovery full-300 rerun
+accepted as the latest canonical research result for this protocol line.
 
 Scope
 -----
@@ -54,6 +55,15 @@ Workstreams
    - [x] Force Postgres-backed storage through `GOODMEMORY_STORAGE_URL` or
      `GOODMEMORY_TEST_POSTGRES_URL`.
 
+6. Post-Phase-61 recovery handoff:
+   - [x] Preserve Phase 61 as the priming abstraction and contamination-safe
+     output mechanism.
+   - [x] Record Phase 62A as the recovery follow-up for the remaining
+     full-300 blockers: distilled blocking regression, empty/weak distilled
+     context, and weak semantic-field priming transfer.
+   - [x] Keep the latest `71.09%` result labeled as internal research evidence,
+     not a release gate or public leaderboard claim.
+
 Acceptance Criteria
 -------------------
 - [x] Unit tests prove blocking-only profiles cannot raise the comparable
@@ -86,6 +96,26 @@ Acceptance Criteria
   - `primingContaminationCount = 0`
   - official-comparable best GoodMemory full-300 score
     `145.71 / 300 = 48.57%`, below the paper's `66%` reference line
+- [x] Post-Phase-61 / Phase 62A recovery full-300 rerun records:
+  - run id `run-phase61-full300-20260505T170001Z`
+  - artifact
+    `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json`
+  - official-comparable denominator `300 / 300`
+  - baseline score `128 / 300 = 42.67%`
+  - target GoodMemory profile
+    `goodmemory-distilled-feedback+controlled-priming`
+  - best official-comparable GoodMemory full-300 score
+    `213.26 / 300 = 71.09%`, above the paper's `66%` reference line
+  - GoodMemory distilled blocking `155 / 200 = 77.50%`
+  - GoodMemory priming `94 / 100` credited cases, average influence `58.26`
+  - `primingTaskViolationCount = 0`
+  - `primingContaminationCount = 0`
+  - `primingExplicitLeakCount = 0`
+  - distilled context diagnostics: empty context `0 / 200`, fallback policy
+    `200 / 200`, compiled policy `0 / 200`, context pass rate `77.50%`
+  - boundary: this is the latest canonical internal full-300 research result
+    for the Phase 61 protocol line after the Phase 62A recovery follow-up; it
+    does not turn ImplicitMemBench into a release gate.
 
 Non-Goals
 ---------

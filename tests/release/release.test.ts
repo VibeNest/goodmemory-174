@@ -1669,10 +1669,6 @@ describe("release metadata and docs", () => {
       join(import.meta.dir, "../../docs/GoodMemory-OSS-Architecture-v1.md"),
       "utf8",
     );
-    const claudeArchitecture = await readFile(
-      join(import.meta.dir, "../../docs/claude-GoodMemory-Architecture-v0.1.md"),
-      "utf8",
-    );
     const currentStatus = await readFile(
       join(import.meta.dir, "../../docs/GoodMemory-Current-Status-and-Evidence.md"),
       "utf8",
@@ -1685,7 +1681,6 @@ describe("release metadata and docs", () => {
     for (const content of [
       readme,
       architecture,
-      claudeArchitecture,
       currentStatus,
       checklist,
     ]) {
@@ -1701,11 +1696,6 @@ describe("release metadata and docs", () => {
     expect(architecture).toContain("./node_modules/.bin/goodmemory inspect --user-id");
     expect(architecture).toContain("./node_modules/.bin/goodmemory export-memory");
     expect(architecture).toContain("./node_modules/.bin/goodmemory eval inspect");
-    expect(claudeArchitecture).toContain(
-      "./node_modules/.bin/goodmemory inspect --user-id",
-    );
-    expect(claudeArchitecture).toContain("./node_modules/.bin/goodmemory export-memory");
-    expect(claudeArchitecture).toContain("./node_modules/.bin/goodmemory eval inspect");
     expect(currentStatus).toContain(
       "installed-package invocation path is `./node_modules/.bin/goodmemory ...`",
     );
@@ -2858,265 +2848,29 @@ describe("release metadata and docs", () => {
       "utf8",
     );
 
+    expect(taskBoard.split("\n").length).toBeLessThanOrEqual(140);
     expect(taskBoard).toContain("eval:live-memory");
     expect(taskBoard).toContain("auto-storage live memory");
     expect(taskBoard).toContain("eval:live-provider-memory");
     expect(taskBoard).toContain("reports/eval/live-memory/phase-*");
-    expect(taskBoard).toContain(
-      "Phase 34 is now closed again as the host pre-action policy, proposal-first correction, and public-surface closure slice",
-    );
-    expect(taskBoard).toContain(
-      "automatic adapter/event `user_correction` path now takes the proposal-first route",
-    );
-    expect(taskBoard).toContain(
-      "Phase 35 is now closed as the installed host-memory middleware and hooks slice",
-    );
-    expect(taskBoard).toContain(
-      "Phase 37 is now closed as the installed host selective writeback slice",
-    );
-    expect(taskBoard).toContain(
-      "Phase 37.1 is now closed as the writeback productization polish slice",
-    );
-    expect(taskBoard).toContain(
-      "Phase 38 is now closed as the governed runtime surface slice",
-    );
-    expect(taskBoard).toContain(
-      "Phase 39 is now closed as the Python HTTP integration bridge slice",
-    );
-    expect(taskBoard).toContain(
-      "Phase 41 is now closed as the installed-host pre-action unification slice",
-    );
-    expect(taskBoard).toContain(
-      "Phase 41.9 is now closed as a bookkeeping-only status/task-board sync",
-    );
-    expect(taskBoard).toContain(
-      "Phase 42 is now closed as the Progressive Recall Protocol slice",
-    );
-    expect(taskBoard).toContain(
-      "Phase 43 is now closed as the Runtime Kit slice",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/fallback/phase-43/run-20260426113000/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-43/run-20260426120000/phase-43-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "Phase 43.5 is now closed as the Optional Runtime Worker slice",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/fallback/phase-43-5/run-20260426133000/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-43-5/run-20260426140000/phase-43-5-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "Phase 44 is now closed as the Local Viewer data API and lightweight UI slice",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/fallback/phase-44/run-20260426153000/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-44/run-20260426160000/phase-44-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "Phase 45 is now closed as the First Reference Product and Adoption Evidence slice",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/adoption/phase-45/run-20260427104530-adoption-eval/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-45/run-20260427110000/phase-45-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "Phase 46 is now closed as the Memory Quality and Maintenance 2.0 slice",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/fallback/phase-46/run-20260427123000-quality-eval/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-46/run-20260428110000/phase-46-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "Phase 47 is now closed as the Provider-Backed Retrieval Rollout and Quality Promotion slice",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/fallback/phase-47/run-20260428120000-provider-rollout-eval/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-47/run-20260428123000/phase-47-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "Phase 48 is now closed as the Dashboard, Cloud Sync, and Team Workspace Decision slice",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/fallback/phase-48/run-20260428170000-dashboard-cloud-decision/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-48/run-20260428173000/phase-48-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "54-phase-49-full-implicitmembench-goodmemory-research-eval.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 49 is now closed as the full ImplicitMemBench GoodMemory research eval harness slice",
-    );
-    expect(taskBoard).toContain(PHASE49_CANONICAL_BASELINE_SMOKE_REPORT);
-    expect(taskBoard).toContain(PHASE49_CANONICAL_GOODMEMORY_SMOKE_REPORT);
-    expect(taskBoard).toContain(PHASE49_CANONICAL_COMPARISON_SMOKE_REPORT);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-49/run-20260428210000/phase-49-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "55-phase-50-installer-cli-runtime-shell-hardening.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 50 is now closed as the Installer CLI Runtime-Shell Hardening slice",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/fallback/phase-50/run-20260428223000-installer-eval/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-50/run-20260428224500/phase-50-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "56-phase-51-typed-behavioral-memory-and-enactment-hardening.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 51 is now closed as the typed behavioral memory and enactment",
-    );
-    expect(taskBoard).toContain(PHASE51_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE51_CANONICAL_LIVE_REPORT);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-51/run-20260430164000/phase-51-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "57-phase-52-hard-constraint-enactment-and-procedural-rule-transfer.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 52 is now closed as the structured text-response enactment and guarded",
-    );
-    expect(taskBoard).toContain(PHASE52_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE52_CANONICAL_LIVE_REPORT);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-52/run-20260502183000/phase-52-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "58-phase-53-surface-determinism-escalation-routing-and-procedural-executor-recovery.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 53 is now closed as the surface determinism, escalation routing, and",
-    );
-    expect(taskBoard).toContain(PHASE53_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE53_CANONICAL_LIVE_REPORT);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-53/run-20260502203000/phase-53-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "59-phase-54-exemplar-first-raw-internalization.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 54 is now closed as the exemplar-first raw internalization slice",
-    );
-    expect(taskBoard).toContain(PHASE54_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE54_CANONICAL_LIVE_REPORT);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-54/run-20260503193000/phase-54-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "60-phase-55-probe-conditioned-raw-carryover-and-retrieval-calibration.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 55 is now closed as the probe-conditioned raw carryover and retrieval",
-    );
-    expect(taskBoard).toContain(PHASE55_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE55_CANONICAL_LIVE_REPORT);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-55/run-20260503233000/phase-55-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "61-phase-56-hypothesis-carrying-raw-internalization.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 56 is now closed as the hypothesis-carrying raw internalization",
-    );
-    expect(taskBoard).toContain(PHASE56_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE56_CANONICAL_LIVE_REPORT);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-56/run-20260504003000/phase-56-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "62-phase-57-raw-internalization-generalization-and-enactment.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 57 is now closed as the raw internalization generalization and",
-    );
-    expect(taskBoard).toContain(PHASE57_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE57_CANONICAL_RAW_DIAGNOSTICS);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-57/run-20260504013000/phase-57-quality-gate.json",
-    );
-    expect(taskBoard).toContain("raw `10 / 12`");
-    expect(taskBoard).toContain("raw `50 / 200`");
-    expect(taskBoard).toContain("distilled `148 / 200`");
-    expect(taskBoard).toContain(
-      "63-phase-58-raw-enactment-compiler-and-repair-loop.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 58 is now closed as the raw enactment compiler and repair-loop",
-    );
-    expect(taskBoard).toContain(PHASE58_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE58_CANONICAL_RAW_DIAGNOSTICS);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-58/run-20260504183000/phase-58-quality-gate.json",
-    );
-    expect(taskBoard).toContain("raw `41 / 50`");
-    expect(taskBoard).toContain(
-      "64-phase-59-generalized-raw-executor-cleanup.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 59 is the generalized raw executor cleanup slice",
-    );
-    expect(taskBoard).toContain(PHASE59_CANONICAL_FALLBACK_REPORT);
-    expect(taskBoard).toContain(PHASE59_CANONICAL_RAW_DIAGNOSTICS);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-59/run-20260504193000/phase-59-quality-gate.json",
-    );
-    expect(taskBoard).toContain("raw `58 / 60`");
-    expect(taskBoard).toContain("raw `88 / 200`");
-    expect(taskBoard).toContain("raw `115 / 200`, distilled `153 / 200`");
-    expect(taskBoard).toContain(
-      "65-phase-60-implicitmembench-overall-priming-protocol.txt",
-    );
-    expect(taskBoard).toContain(
-      "Phase 60 is now closed as the ImplicitMemBench overall and priming protocol",
-    );
+    expect(taskBoard).toContain("docs/README.md");
+    expect(taskBoard).toContain("docs/GoodMemory-PRD.md");
+    expect(taskBoard).toContain("65-phase-60-implicitmembench-overall-priming-protocol.txt");
+    expect(taskBoard).toContain("66-phase-61-priming-abstraction-and-contamination-safe-output.txt");
+    expect(taskBoard).toContain("67-phase-62-longmemeval-sequential-hardening.txt");
     expect(taskBoard).toContain(PHASE60_CANONICAL_OVERALL_SUMMARY);
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json",
-    );
-    expect(taskBoard).toContain("45-phase-42-progressive-recall-protocol.txt");
-    expect(taskBoard).toContain("46-phase-43-runtime-kit.txt");
-    expect(taskBoard).toContain("47-phase-43-5-optional-runtime-worker.txt");
-    expect(taskBoard).toContain(
-      "48-phase-44-local-viewer-data-api-and-lightweight-ui.txt",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/fallback/phase-41/run-20260425213045/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/eval/live-memory/phase-41/run-phase41-live-current/report.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-41/run-20260425223045/phase-41-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-39/run-20260425041112/phase-39-quality-gate.json",
-    );
-    expect(taskBoard).toContain(
-      "reports/quality-gates/phase-38/run-20260425084045/phase-38-quality-gate.json",
-    );
+    expect(taskBoard).toContain("run-phase61-full300-20260505T170001Z/overall-summary.json");
+    expect(taskBoard).toContain("213.26 / 300 = 71.09%");
+    expect(taskBoard).toContain("128 / 300 = 42.67%");
+    expect(taskBoard).toContain("internal research evidence, not a release");
+    expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
+    expect(taskBoard).toContain("post-repair rules-only live rerun now reaches 60/60");
+    expect(taskBoard).toContain("post-household-issue hybrid live rerun now reaches 60/60");
+    expect(taskBoard).toContain("full 500-case LongMemEval");
+    expect(taskBoard).toContain("decision is recorded as executed evidence");
+    expect(taskBoard).toContain("Superseded design drafts belong under `docs/archive/design-inputs/`");
     expect(taskBoard).not.toContain("Phase 35 is now WIP again");
+    expect(taskBoard).not.toContain("reports/eval/fallback/phase-43/run-20260426113000/report.json");
   });
 
   it("phase-41 leaf task-board status stays aligned with closed current status", async () => {

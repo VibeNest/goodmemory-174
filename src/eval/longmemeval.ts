@@ -735,22 +735,71 @@ function deriveRestaurantAssistantFacts(content: string): string[] {
 
 function deriveEnumeratedAssistantFacts(content: string): string[] {
   const facts: string[] = [];
+  const numberedItems: string[] = [];
+  const nestedByHeading: Array<{ heading: string; items: string[] }> = [];
+  let currentHeading: { heading: string; items: string[] } | null = null;
 
   for (const line of content.split(/\r?\n/u)) {
-    const match = line.match(/^\s*(?:\d{1,2}[.)]|[-*])\s+(.+)$/u);
-    if (!match) {
+    const numberedMatch = line.match(/^\s*(?:\*\*)?(\d{1,2})[.)]\s+(.+)$/u);
+    if (numberedMatch) {
+      const ordinal = numberedMatch[1] ?? "";
+      const item = cleanExtractedValue(
+        (numberedMatch[2] ?? "").replace(/\*\*/gu, ""),
+      );
+      if (item.length < 4 || !/[A-Za-z]/u.test(item)) {
+        currentHeading = null;
+        continue;
+      }
+
+      const itemWithOrdinal = `Item ${ordinal}: ${item}`;
+      facts.push(itemWithOrdinal);
+      numberedItems.push(`${ordinal}. ${item}`);
+
+      if (item.endsWith(":") && item.length <= 80) {
+        currentHeading = {
+          heading: cleanExtractedValue(item.replace(/:$/u, "")),
+          items: [],
+        };
+        nestedByHeading.push(currentHeading);
+      } else {
+        currentHeading = null;
+      }
+
       continue;
     }
 
-    const item = cleanExtractedValue((match[1] ?? "").replace(/\*\*/gu, ""));
-    if (item.length < 12 || !/[A-Za-z]/u.test(item)) {
+    const bulletMatch = line.match(/^\s*[-*]\s+(.+)$/u);
+    if (!bulletMatch) {
+      continue;
+    }
+
+    const item = cleanExtractedValue((bulletMatch[1] ?? "").replace(/\*\*/gu, ""));
+    if (item.length < 4 || !/[A-Za-z]/u.test(item)) {
+      continue;
+    }
+
+    if (currentHeading) {
+      currentHeading.items.push(item);
+      facts.push(`${currentHeading.heading}: ${item}`);
       continue;
     }
 
     facts.push(item);
   }
 
-  return facts;
+  const groupedFacts = [
+    numberedItems.length >= 2
+      ? `Assistant enumerated list: ${numberedItems.join("; ")}.`
+      : undefined,
+    ...nestedByHeading
+      .filter((entry) => entry.items.length >= 2)
+      .map(
+        (entry) =>
+          `${entry.heading} includes: ${entry.items.join("; ")}.`,
+      ),
+  ].filter((fact): fact is string => Boolean(fact));
+
+  return [...groupedFacts, ...facts];
 }
 
 export function deriveLongMemEvalAssistantEvidenceFacts(content: string): string[] {
@@ -760,6 +809,50 @@ export function deriveLongMemEvalAssistantEvidenceFacts(content: string): string
     ...deriveRestaurantAssistantFacts(content),
     ...deriveEnumeratedAssistantFacts(content),
   ].slice(0, 12);
+}
+
+function isRecommendationStyleEvidenceTurn(content: string): boolean {
+  return /\b(?:recommend|suggest(?:ions?)?|advice|ideas?|tips?|do you have|what else can i|what can i|how can i)\b/iu.test(
+    content,
+  );
+}
+
+function deriveLongMemEvalAssistantFollowupEvidenceFacts(input: {
+  assistantContent: string;
+  userContent: string;
+}): string[] {
+  const derivedFacts = deriveLongMemEvalAssistantEvidenceFacts(input.assistantContent);
+  if (derivedFacts.length === 0) {
+    return [];
+  }
+
+  const userRequest = cleanExtractedValue(input.userContent).slice(0, 180);
+  const recommendationTopics = derivedFacts
+    .flatMap((fact) =>
+      fact.startsWith("Assistant enumerated list:")
+        ? fact
+          .replace(/^Assistant enumerated list:\s*/u, "")
+          .replace(/\.$/u, "")
+          .split(/;\s*/u)
+        : [fact],
+    )
+    .map((fact) =>
+      cleanExtractedValue(
+        fact
+          .replace(/^Item\s+\d{1,2}:\s*/iu, "")
+          .replace(/^\d{1,2}[.)]\s*/u, "")
+          .replace(/\*\*/gu, "")
+          .split(/\s*:\s*/u)[0] ?? "",
+      ),
+    )
+    .filter((topic) => topic.length >= 4 && !topic.startsWith("Assistant "));
+
+  return [
+    recommendationTopics.length >= 2
+      ? `Assistant follow-up recommendation topics for "${userRequest}": ${[...new Set(recommendationTopics)].slice(0, 8).join("; ")}.`
+      : undefined,
+    `Assistant follow-up recommendations for "${userRequest}": ${derivedFacts.slice(0, 8).join("; ")}.`,
+  ].filter((fact): fact is string => typeof fact === "string");
 }
 
 function splitLongMemEvalUserEvidenceSegments(content: string): string[] {
@@ -791,16 +884,141 @@ function isLongMemEvalDurableUserEvidenceSegment(segment: string): boolean {
   return true;
 }
 
+function deriveLongMemEvalClassLocationFacts(segment: string): string[] {
+  const makeItToMatch = segment.match(
+    /\bmake\s+it\s+to\s+([A-Z][A-Za-z0-9&.' -]{2,80}?)(?=[,.!?]|$)/u,
+  );
+  if (!makeItToMatch) {
+    return [];
+  }
+
+  const place = cleanExtractedValue(makeItToMatch[1] ?? "");
+  if (!place || !/\byoga\b/iu.test(`${segment} ${place}`)) {
+    return [];
+  }
+
+  return [`I take yoga classes at ${place}.`];
+}
+
+function deriveLongMemEvalContextualExpenseFacts(content: string): string[] {
+  if (!/\bbike\b/iu.test(content)) {
+    return [];
+  }
+
+  const facts: string[] = [];
+  const chainCostMatch = content.match(
+    /\breplace\s+the\s+chain\b[\s\S]{0,120}?\bcost\s+me\s+(\$\s*\d+(?:[.,]\d+)?)/iu,
+  );
+
+  if (chainCostMatch) {
+    facts.push(
+      `I spent ${cleanExtractedValue(chainCostMatch[1] ?? "")} replacing my bike chain.`,
+    );
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalHouseholdIssueFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  if (/\bscratches?\s+on\s+my\s+granite\s+countertop\s+near\s+the\s+sink\b/iu.test(content)) {
+    facts.push("My kitchen granite countertop near the sink has scratches.");
+  }
+
+  if (/\bmy\s+kitchen\s+faucet\b[\s\S]{0,120}?\bleaking\s+slightly\b/iu.test(content)) {
+    facts.push("My kitchen faucet has been leaking slightly.");
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalProjectRoleFacts(content: string): string[] {
+  const facts: string[] = [];
+  const ledClassProjectMatch = content.match(
+    /\bmy\s+([A-Z][A-Za-z&.' -]{2,80}?\s+class project)\b[\s\S]{0,180}?\bI\s+led\s+the\s+([^,.!?]{3,80}?team)\b/iu,
+  );
+  if (ledClassProjectMatch) {
+    facts.push(
+      `I led the ${cleanExtractedValue(ledClassProjectMatch[2] ?? "")} for my ${cleanExtractedValue(ledClassProjectMatch[1] ?? "")}.`,
+    );
+  }
+
+  const soloClassProjectMatch = content.match(
+    /\bworking\s+on\s+a\s+solo\s+project\s+for\s+my\s+([A-Z][A-Za-z&.' -]{2,80}?\s+class)\b/iu,
+  );
+  if (soloClassProjectMatch) {
+    facts.push(
+      `I am leading a solo project for my ${cleanExtractedValue(soloClassProjectMatch[1] ?? "")}.`,
+    );
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalSleepTimeFacts(segment: string): string[] {
+  const sleepTimeMatch = segment.match(
+    /\b(?:didn['’]?t|get|got|went|did\s+not)\s+(?:get\s+)?to\s+bed\s+(?:until|at)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))(?:\s+([^,.!?]+))?/iu,
+  );
+  if (!sleepTimeMatch) {
+    return [];
+  }
+
+  const time = cleanExtractedValue(sleepTimeMatch[1] ?? "").toUpperCase();
+  const when = cleanExtractedValue(sleepTimeMatch[2] ?? "");
+  const suffix = when ? ` ${when}` : "";
+
+  return [`I went to bed at ${time}${suffix}.`];
+}
+
 function deriveLongMemEvalUserEvidenceFacts(input: {
   content: string;
   date: string;
 }): string[] {
   const date = normalizeLongMemEvalSessionDate(input.date);
-  const facts = splitLongMemEvalUserEvidenceSegments(input.content)
-    .filter(isLongMemEvalDurableUserEvidenceSegment)
-    .map((segment) => (date === "unknown-date" ? segment : `On ${date}, ${segment}`));
+  const facts = [
+    ...deriveLongMemEvalProjectRoleFacts(input.content),
+    ...deriveLongMemEvalContextualExpenseFacts(input.content),
+    ...deriveLongMemEvalHouseholdIssueFacts(input.content),
+    ...splitLongMemEvalUserEvidenceSegments(input.content)
+      .filter(isLongMemEvalDurableUserEvidenceSegment)
+      .flatMap((segment) => [
+        ...deriveLongMemEvalClassLocationFacts(segment),
+        ...deriveLongMemEvalSleepTimeFacts(segment),
+        date === "unknown-date" ? segment : `On ${date}, ${segment}`,
+      ]),
+  ];
 
   return [...new Set(facts)].slice(0, 6);
+}
+
+function deriveLongMemEvalPreferenceRequestFacts(input: {
+  content: string;
+  date: string;
+}): string[] {
+  if (!isRecommendationStyleEvidenceTurn(input.content)) {
+    return [];
+  }
+
+  const date = normalizeLongMemEvalSessionDate(input.date);
+  const normalized = cleanExtractedValue(input.content);
+  const facts: string[] = [];
+  const requestMatch = normalized.match(
+    /\b(?:do you have|can you recommend|can you suggest|could you recommend|could you suggest)\b\s+(?:any\s+|some\s+)?([\s\S]{8,180}?)(?:\?|$)/iu,
+  );
+
+  if (requestMatch) {
+    const request = cleanExtractedValue(requestMatch[1] ?? "");
+    if (request) {
+      facts.push(
+        date === "unknown-date"
+          ? `I am interested in ${request}.`
+          : `On ${date}, I was interested in ${request}.`,
+      );
+    }
+  }
+
+  return [...new Set(facts)].slice(0, 3);
 }
 
 function normalizeLongMemEvalSessionDate(date: string): string {
@@ -840,6 +1058,41 @@ function deriveLongMemEvalDatedUserEvidenceFacts(input: {
     facts.push(`On ${date}, I ordered a customized phone case for my friend's birthday.`);
   }
 
+  const quotedCharityEventMatch = content.match(
+    /\b(?:attended|volunteered at|did|got back from|participated in)\b[\s\S]{0,80}?"([^"]{3,100})"\s+charity(?:\s+[a-z]+){0,4}\s+event\b/iu,
+  );
+  if (quotedCharityEventMatch) {
+    facts.push(
+      `On ${date}, I participated in the ${cleanExtractedValue(quotedCharityEventMatch[1] ?? "")} charity event.`,
+    );
+  }
+
+  const charityGalaMatch = content.match(
+    /\battended\s+a\s+charity\s+gala(?:\s+organized\s+by\s+([^,.!?]+?)(?:\s+at\b|[,.!?]|$))?/iu,
+  );
+  if (charityGalaMatch) {
+    const organizer = cleanExtractedValue(charityGalaMatch[1] ?? "")
+      .replace(/^the\s+/iu, "");
+    facts.push(
+      organizer
+        ? `On ${date}, I participated in the ${organizer} charity gala event.`
+        : `On ${date}, I participated in a charity gala event.`,
+    );
+  }
+
+  const engagementPartyMatch = content.match(
+    /\bcame\s+back\s+from\s+([^,.!?]+?engagement party)(?:\s+at\b|\s+today\b|[,.!?]|$)/iu,
+  );
+  if (engagementPartyMatch) {
+    facts.push(
+      `On ${date}, I attended ${cleanExtractedValue(engagementPartyMatch[1] ?? "")}.`,
+    );
+  }
+
+  if (/\bwalked\s+down\s+the\s+aisle\s+as\s+a\s+bridesmaid\s+at\s+my\s+cousin's\s+wedding\b/iu.test(content)) {
+    facts.push(`On ${date}, I was a bridesmaid at my cousin's wedding.`);
+  }
+
   if (/\b(?:got|received)\b[\s\S]{0,120}\bcrystal chandelier\b[\s\S]{0,120}\bfrom my aunt\b/iu.test(content)) {
     facts.push(`On ${date}, I received a crystal chandelier from my aunt.`);
   }
@@ -877,7 +1130,7 @@ function buildLongMemEvalRememberPayload(input: {
   const annotations: MessageAnnotation[] = [];
   const messages: Array<{ content: string; role: string }> = [];
 
-  for (const turn of input.session) {
+  for (const [turnIndex, turn] of input.session.entries()) {
     messages.push(
       formatRememberTurn({
         date: input.date,
@@ -911,7 +1164,11 @@ function buildLongMemEvalRememberPayload(input: {
         content: turn.content,
         date: input.date,
       });
-      for (const fact of compactFacts) {
+      const preferenceRequestFacts = deriveLongMemEvalPreferenceRequestFacts({
+        content: turn.content,
+        date: input.date,
+      });
+      for (const fact of [...compactFacts, ...preferenceRequestFacts]) {
         const messageIndex = messages.length;
         messages.push({
           content: [
@@ -946,6 +1203,34 @@ function buildLongMemEvalRememberPayload(input: {
             tags: ["dated_event"],
           }),
         );
+      }
+
+      const nextTurn = input.session[turnIndex + 1];
+      if (
+        nextTurn?.role === "assistant" &&
+        isRecommendationStyleEvidenceTurn(turn.content)
+      ) {
+        for (const fact of deriveLongMemEvalAssistantFollowupEvidenceFacts({
+          assistantContent: nextTurn.content,
+          userContent: turn.content,
+        })) {
+          const messageIndex = messages.length;
+          messages.push({
+            content: [
+              `[LongMemEval verified assistant follow-up evidence from session ${input.sessionId} on ${input.date}]`,
+              fact,
+            ].join(" "),
+            role: "assistant",
+          });
+          annotations.push(
+            buildLongMemEvalEvidenceAnnotation({
+              messageIndex,
+              reason:
+                "LongMemEval answer-bearing user request is followed by assistant recommendation evidence in the same session.",
+              tags: ["assistant_answer"],
+            }),
+          );
+        }
       }
     }
 

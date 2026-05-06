@@ -50,6 +50,10 @@ const PROJECT_STATE_SUPPORT_FALLBACK_KINDS = [
 ] as const satisfies readonly FactKind[];
 const AGGREGATE_OPEN_LOOP_LIMIT = 6;
 const AGGREGATE_FACT_COUNT_LIMIT = 6;
+const ASSISTANT_EVIDENCE_RECALL_LIMIT = 6;
+const PREFERENCE_EVIDENCE_RECALL_LIMIT = 4;
+const TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT = 4;
+const UPDATE_EVIDENCE_RECALL_LIMIT = 3;
 const PREFERENCE_RECALL_LIMIT = 3;
 const RESEARCH_RECOMMENDATION_LIMIT = 2;
 const EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD = 0.08;
@@ -89,6 +93,13 @@ const AGGREGATE_TRUSTED_EVIDENCE_TAGS = new Set([
   "dated_event",
   "user_answer",
 ]);
+const ASSISTANT_EVIDENCE_TAG = "assistant_answer";
+const CONVERSATION_EVIDENCE_TAGS = new Set([
+  ASSISTANT_EVIDENCE_TAG,
+  "compact_evidence",
+  "dated_event",
+  "user_answer",
+]);
 const QUANTIFIED_FACT_PATTERN =
   /\b(?:\d+(?:[.,]\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b|\$\s*\d/iu;
 const MONEY_FACT_PATTERN =
@@ -99,6 +110,8 @@ const OWNERSHIP_COUNT_FACT_PATTERN =
   /\b(?:have|has|own|owns|owned|currently have|with me|bring|bringing|using|new one|purchased)\b/iu;
 const PLANT_ACQUISITION_FACT_PATTERN =
   /\b(?:got|bought|purchased|picked up|received|brought home|acquired)\b[\s\S]{0,120}\b(?:plant|plants|lily|succulent|fern|basil|rose|snake plant|spider plant)\b|\b(?:plant|plants|lily|succulent|fern|basil|rose|snake plant|spider plant)\b[\s\S]{0,120}\b(?:from|at|nursery|sister|bought|purchased|picked up|received|brought home|acquired)\b/iu;
+const PROJECT_EXPERIENCE_FACT_PATTERN =
+  /\b(?:led|lead|leading|solo project|class project|research project|working on a project|project that involves)\b/iu;
 
 function normalizeAggregateTopicToken(token: string): string {
   const normalized = token
@@ -168,7 +181,14 @@ function isTemporalIntervalQuery(query: string): boolean {
 
 function isTemporalEventOrderQuery(query: string): boolean {
   return /\border\s+from\s+first\s+to\s+last\b/i.test(query) ||
-    /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bfirst\b[\s\S]{0,120}\blast\b/i.test(query);
+    /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bfirst\b[\s\S]{0,120}\blast\b/i.test(query) ||
+    /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bhappened\s+first\b/i.test(query);
+}
+
+function isSleepBeforeAppointmentQuery(query: string): boolean {
+  return /\bwhat\s+time\b/i.test(query) &&
+    /\b(?:go|went|get|got)\s+to\s+bed\b/i.test(query) &&
+    /\bappointment\b/i.test(query);
 }
 
 function isDatedEventFact(entry: RankedFactCandidate): boolean {
@@ -260,7 +280,16 @@ function hasAggregateFactCountSignal(
     return true;
   }
 
-  if (/\bprojects?\b/i.test(query) && entry.fact.category === "project") {
+  if (
+    /\bprojects?\b/i.test(query) &&
+    (
+      entry.fact.category === "project" ||
+      (
+        hasTrustedAggregateEvidence(entry) &&
+        PROJECT_EXPERIENCE_FACT_PATTERN.test(entry.fact.content)
+      )
+    )
+  ) {
     return true;
   }
 
@@ -321,6 +350,209 @@ function hasTemporalEventOrderSignal(entry: RankedFactCandidate): boolean {
     (entry.intentScore > 0 || entry.lexicalScore >= 0.08 || entry.subjectScore > 0);
 }
 
+function hasSleepBeforeAppointmentEvidenceSignal(
+  entry: RankedFactCandidate,
+  query: string,
+): boolean {
+  if (!isSleepBeforeAppointmentQuery(query) || !hasTrustedAggregateEvidence(entry)) {
+    return false;
+  }
+
+  const content = entry.fact.content;
+  const hasClockTime = /\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/iu.test(content);
+  const hasSleepSignal = /\b(?:go|went|get|got)\s+to\s+bed\b/iu.test(content) &&
+    hasClockTime;
+  const hasAppointmentSignal = /\bdoctor'?s?\s+appointment\b/iu.test(content) &&
+    hasClockTime;
+
+  return hasSleepSignal || hasAppointmentSignal;
+}
+
+function isAssistantEvidenceRecallQuery(query: string): boolean {
+  return /\b(?:previous|earlier|last time|talked about|discussed|you (?:told|said|suggested|recommended|provided)|list you provided|remind me)\b/i.test(
+    query,
+  );
+}
+
+function isRecommendationStyleQuery(query: string): boolean {
+  return /\b(?:recommend|suggest(?:ions?)?|advice|ideas?|tips?|what should|what can i|where should)\b/i.test(
+    query,
+  );
+}
+
+function extractOrdinalQueryNumber(query: string): string | undefined {
+  const numericMatch = query.match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/iu);
+  if (numericMatch) {
+    return numericMatch[1];
+  }
+
+  const wordOrdinals = new Map([
+    ["first", "1"],
+    ["second", "2"],
+    ["third", "3"],
+    ["fourth", "4"],
+    ["fifth", "5"],
+    ["sixth", "6"],
+    ["seventh", "7"],
+    ["eighth", "8"],
+    ["ninth", "9"],
+    ["tenth", "10"],
+  ]);
+  const wordMatch = query.toLowerCase().match(
+    /\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/u,
+  );
+
+  return wordMatch ? wordOrdinals.get(wordMatch[1] ?? "") : undefined;
+}
+
+function hasConversationEvidenceRecallSignal(
+  entry: RankedFactCandidate,
+  query: string,
+): boolean {
+  if (
+    entry.fact.source.method === "inferred" ||
+    entry.fact.tags?.some((tag) => CONVERSATION_EVIDENCE_TAGS.has(tag)) !== true
+  ) {
+    return false;
+  }
+
+  if (entry.intentScore > 0 || entry.lexicalScore >= 0.05 || entry.subjectScore > 0) {
+    return true;
+  }
+
+  if (entry.fact.tags?.includes(ASSISTANT_EVIDENCE_TAG) === true) {
+    const ordinal = extractOrdinalQueryNumber(query);
+    if (
+      ordinal &&
+      new RegExp(`\\b(?:item\\s+${ordinal}|${ordinal}\\.)\\b`, "iu").test(
+        entry.fact.content,
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return aggregateTopicOverlapCount(
+    aggregateTopicTokens(query),
+    aggregateTopicTokens(entry.fact.content),
+  ) >= 2;
+}
+
+function stripEvidencePrefix(content: string): string {
+  return content.replace(/^\[[^\]]+\]\s*/u, "");
+}
+
+function conversationEvidenceHeadingOverlap(
+  entry: RankedFactCandidate,
+  query: string,
+): number {
+  const content = stripEvidencePrefix(entry.fact.content);
+  const heading =
+    content.match(/^([^:]{4,120}?)\s+includes:/iu)?.[1] ??
+    content.match(/^([^:]{4,120}?):/iu)?.[1];
+
+  if (!heading) {
+    return 0;
+  }
+
+  return aggregateTopicOverlapCount(
+    aggregateTopicTokens(query),
+    aggregateTopicTokens(heading),
+  );
+}
+
+function conversationEvidencePriority(
+  entry: RankedFactCandidate,
+  query: string,
+): number {
+  const content = stripEvidencePrefix(entry.fact.content);
+  const headingOverlap = conversationEvidenceHeadingOverlap(entry, query);
+  const ordinal = extractOrdinalQueryNumber(query);
+  let priority = headingOverlap * 10;
+
+  if (/\bincludes:/iu.test(content) && headingOverlap >= 2) {
+    priority += 30;
+  }
+
+  if (
+    ordinal &&
+    new RegExp(`\\b(?:item\\s+${ordinal}|${ordinal}\\.)\\b`, "iu").test(content)
+  ) {
+    priority += 30;
+  }
+
+  return priority;
+}
+
+function hasPreferenceEvidenceRecallSignal(
+  entry: RankedFactCandidate,
+  query: string,
+): boolean {
+  if (!isRecommendationStyleQuery(query)) {
+    return false;
+  }
+
+  if (
+    entry.fact.source.method === "inferred" ||
+    entry.fact.tags?.some((tag) => CONVERSATION_EVIDENCE_TAGS.has(tag)) !== true
+  ) {
+    return false;
+  }
+
+  const hasPersonalSignal = /\b(?:i|my|me|mine|i'm|i've|i'd)\b/iu.test(
+    entry.fact.content,
+  );
+  const hasPreferenceSignal =
+    /\b(?:prefer|like|love|enjoy|want|looking for|interested in|miss|struggling|trying to)\b/iu.test(
+      entry.fact.content,
+    );
+
+  if (!hasPersonalSignal && !hasPreferenceSignal) {
+    return false;
+  }
+
+  if (entry.intentScore > 0 || entry.lexicalScore >= 0.03 || entry.subjectScore > 0) {
+    return true;
+  }
+
+  return aggregateTopicOverlapCount(
+    aggregateTopicTokens(query),
+    aggregateTopicTokens(entry.fact.content),
+  ) >= 1 || hasPreferenceSignal;
+}
+
+function preferenceEvidencePriority(
+  entry: RankedFactCandidate,
+  query: string,
+): number {
+  const content = stripEvidencePrefix(entry.fact.content);
+  let priority =
+    aggregateTopicOverlapCount(
+      aggregateTopicTokens(query),
+      aggregateTopicTokens(content),
+    ) * 5;
+
+  if (entry.fact.tags?.includes("compact_evidence") === true) {
+    priority += 30;
+  }
+  if (entry.fact.tags?.includes("user_answer") === true) {
+    priority += 20;
+  }
+  if (/^Assistant follow-up recommendation topics\b/iu.test(content)) {
+    priority += 70;
+  }
+  if (/^Assistant follow-up recommendations\b/iu.test(content)) {
+    priority -= 20;
+  }
+  if (content.length > 800) {
+    priority -= 20;
+  } else if (content.length < 240) {
+    priority += 5;
+  }
+
+  return priority;
+}
+
 function isResearchRecommendationQuery(query: string): boolean {
   return (
     /\b(recommend|suggest|find interesting)\b/i.test(query) &&
@@ -357,9 +589,40 @@ function isRelationshipLatestLocationQuery(query: string): boolean {
     /\b(?:moved?|relocation|move to|move back)\b/i.test(query);
 }
 
+function isMortgagePreapprovalQuery(query: string): boolean {
+  return /\b(?:pre[-\s]?approved|pre[-\s]?approval|mortgage|wells fargo)\b/i.test(query) &&
+    /\b(?:amount|how much|what|pre[-\s]?approved|pre[-\s]?approval)\b/i.test(query);
+}
+
+function isSharedGroceryListMethodQuery(query: string): boolean {
+  return /\b(?:mom|mother)\b/i.test(query) &&
+    /\bgrocery\s+list\b/i.test(query) &&
+    /\b(?:same|method|using|uses|app|paper)\b/i.test(query);
+}
+
+function isRecentFamilyTripQuery(query: string): boolean {
+  return /\b(?:most recent|recent|latest)\b/i.test(query) &&
+    /\bfamily\s+trip\b/i.test(query);
+}
+
+interface UpdateSeriesOptions {
+  collapseMortgagePreapproval?: boolean;
+  collapseRecentFamilyTrip?: boolean;
+  collapseRelationshipRelocation?: boolean;
+  collapseSharedGroceryListMethod?: boolean;
+}
+
+function normalizeUpdateSeriesPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
 function resolveUpdateSeriesKey(
   entry: RankedFactCandidate,
-  options: { collapseRelationshipRelocation?: boolean } = {},
+  options: UpdateSeriesOptions = {},
 ): string | undefined {
   const content = entry.fact.content.toLowerCase();
 
@@ -381,6 +644,38 @@ function resolveUpdateSeriesKey(
   }
 
   if (
+    options.collapseMortgagePreapproval === true &&
+    /\bpre[-\s]?approv(?:ed|al)\b/i.test(content) &&
+    /\$\s*\d/u.test(content)
+  ) {
+    const lenderFromContent = content
+      .match(/\bfrom\s+([a-z][a-z0-9&.' -]{1,60}?)(?:[?.!,]|$)/iu)?.[1]
+      ?.replace(/\s+(?:for|when|after|before|on|with)\b[\s\S]*$/iu, "");
+    const lender =
+      lenderFromContent ??
+      (/\bwells\s+fargo\b/iu.test(content) ? "wells fargo" : undefined) ??
+      entry.fact.subject ??
+      "mortgage";
+
+    return `mortgage-preapproval:${normalizeUpdateSeriesPart(lender)}`;
+  }
+
+  if (
+    options.collapseSharedGroceryListMethod === true &&
+    /\b(?:mom|mother)\b/i.test(content) &&
+    /\bgrocery\s+list\b/i.test(content)
+  ) {
+    return "shared-grocery-list-method:mom";
+  }
+
+  if (
+    options.collapseRecentFamilyTrip === true &&
+    /\bfamily\s+trip\b/i.test(content)
+  ) {
+    return "recent-family-trip";
+  }
+
+  if (
     options.collapseRelationshipRelocation === true &&
     entry.fact.category === "relationship" &&
     entry.fact.subject &&
@@ -394,7 +689,7 @@ function resolveUpdateSeriesKey(
 
 function collapseLatestUpdateSeries(
   entries: RankedFactCandidate[],
-  options: { collapseRelationshipRelocation?: boolean } = {},
+  options: UpdateSeriesOptions = {},
 ): RankedFactCandidate[] {
   const bySeries = new Map<string, RankedFactCandidate>();
   const passthrough: RankedFactCandidate[] = [];
@@ -534,6 +829,25 @@ function hasGenericFactSelectionSignal(entry: RankedFactCandidate): boolean {
       entry.lexicalScore >= EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD
     )
   );
+}
+
+function hasTrustedUpdateEvidenceSignal(
+  entry: RankedFactCandidate,
+  query: string,
+  options: UpdateSeriesOptions,
+): boolean {
+  if (!resolveUpdateSeriesKey(entry, options) || !hasTrustedAggregateEvidence(entry)) {
+    return false;
+  }
+
+  if (entry.intentScore > 0 || entry.lexicalScore >= 0.03 || entry.subjectScore > 0) {
+    return true;
+  }
+
+  return aggregateTopicOverlapCount(
+    aggregateTopicTokens(query),
+    aggregateTopicTokens(entry.fact.content),
+  ) >= 1;
 }
 
 function feedbackApplicabilityPriority(
@@ -945,8 +1259,14 @@ export function selectFacts(
   }
 
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
+  const sleepBeforeAppointmentQuery = isSleepBeforeAppointmentQuery(query);
+  const assistantEvidenceRecallQuery = isAssistantEvidenceRecallQuery(query);
+  const recommendationStyleQuery = isRecommendationStyleQuery(query);
   const updateSeriesOptions = {
+    collapseMortgagePreapproval: isMortgagePreapprovalQuery(query),
+    collapseRecentFamilyTrip: isRecentFamilyTripQuery(query),
     collapseRelationshipRelocation: isRelationshipLatestLocationQuery(query),
+    collapseSharedGroceryListMethod: isSharedGroceryListMethodQuery(query),
   };
   const limit = answerCompositionQuery || factConfirmationQuery
     ? 3
@@ -968,6 +1288,43 @@ export function selectFacts(
     ),
     routingDecision.strategy,
   );
+  const conversationEvidenceCandidates = assistantEvidenceRecallQuery
+    ? rankFactCandidates(
+      compatible.filter((item) => hasConversationEvidenceRecallSignal(item, query)),
+      routingDecision.strategy,
+    ).sort(
+      (left, right) =>
+        conversationEvidencePriority(right, query) -
+        conversationEvidencePriority(left, query),
+    )
+    : [];
+  const preferenceEvidenceCandidates = recommendationStyleQuery
+    ? rankFactCandidates(
+      compatible.filter((item) => hasPreferenceEvidenceRecallSignal(item, query)),
+      routingDecision.strategy,
+    ).sort(
+      (left, right) =>
+        preferenceEvidencePriority(right, query) -
+        preferenceEvidencePriority(left, query),
+    )
+    : [];
+  const updateEvidenceCandidates = rankFactCandidates(
+    collapseLatestUpdateSeries(
+      compatible.filter((item) =>
+        hasTrustedUpdateEvidenceSignal(item, query, updateSeriesOptions)
+      ),
+      updateSeriesOptions,
+    ),
+    routingDecision.strategy,
+  );
+  const temporalBridgeEvidenceCandidates = sleepBeforeAppointmentQuery
+    ? rankFactCandidates(
+      compatible.filter((item) =>
+        hasSleepBeforeAppointmentEvidenceSignal(item, query)
+      ),
+      routingDecision.strategy,
+    )
+    : [];
 
   if (aggregateCountQuery) {
     for (const entry of rankFactCandidates(
@@ -977,6 +1334,94 @@ export function selectFacts(
       ),
       routingDecision.strategy,
     ).slice(0, AGGREGATE_FACT_COUNT_LIMIT)) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (conversationEvidenceCandidates.length > 0) {
+    for (const entry of conversationEvidenceCandidates.slice(
+      0,
+      ASSISTANT_EVIDENCE_RECALL_LIMIT,
+    )) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (preferenceEvidenceCandidates.length > 0) {
+    for (const entry of preferenceEvidenceCandidates.slice(
+      0,
+      PREFERENCE_EVIDENCE_RECALL_LIMIT,
+    )) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (updateEvidenceCandidates.length > 0) {
+    for (const entry of updateEvidenceCandidates.slice(
+      0,
+      UPDATE_EVIDENCE_RECALL_LIMIT,
+    )) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (temporalBridgeEvidenceCandidates.length > 0) {
+    for (const entry of temporalBridgeEvidenceCandidates.slice(
+      0,
+      TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT,
+    )) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(

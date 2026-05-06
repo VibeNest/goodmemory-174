@@ -168,10 +168,57 @@ Current Provider Status
   answer accuracy with evidence-session recall 0.275; `baseline-full-context`
   reached 55/60.
 - The latest provider-free 60-case recall diagnostic after generic repairs is
-  `run-phase62-longmemeval-recall-only-rules60-aggregate-domain-ownership-20260506T041500Z`.
-  It reaches aggregate evidence-session recall 0.8167 with zero execution
-  failures. Multi-session is 0.8083, knowledge-update is 0.7, wrong recall is
-  3/60, and the 60-case live answer rerun is still pending.
+  `run-phase62-longmemeval-recall-only-rules60-conversation-evidence-20260506T060500Z`.
+  It reaches aggregate evidence-session recall 0.8333 with zero execution
+  failures. Single-session-assistant is now 1.0, multi-session is 0.8083,
+  knowledge-update is 0.7, wrong recall is 3/60, and missed recall is 17/60.
+- The focused post-repair assistant live rerun
+  `run-phase62-longmemeval-live-assistant6-conversation-evidence-r2-escalated-20260506T063000Z`
+  completed with `executionFailures: 0` and 6/6 answer accuracy for
+  `goodmemory-rules-only`.
+- The valid post-repair three-profile 60-case live rerun
+  `run-phase62-longmemeval-live60-three-profile-post-aggregate-domain-ownership-20260506T044500Z`
+  completed with `executionFailures: 0`: `goodmemory-rules-only` reached
+  42/60 answer accuracy with evidence-session recall 0.8167,
+  `baseline-full-context` reached 54/60, and `baseline-no-memory` reached
+  1/60.
+- The previous rules-only 60-case live rerun
+  `run-phase62-longmemeval-live60-rules-only-conversation-evidence-20260506T064000Z`
+  completed with `executionFailures: 0`: `goodmemory-rules-only` reached
+  45/60 answer accuracy with evidence-session recall 0.8333 and 15/60 wrong
+  answers. Single-session-assistant is now 10/10 live; remaining misses are
+  concentrated in preference recommendation, update-history collapse,
+  multi-session count/synthesis, temporal event selection, and a small number
+  of still-missing recall cases.
+- The preference follow-up provider-free 60-case diagnostic
+  `run-phase62-longmemeval-recall-only-rules60-preference-followup-20260506T073000Z`
+  reached evidence-session recall 0.8833 with `executionFailures: 0`, missed
+  recall 14/60, wrong recall 2/60, and single-session-preference recall 1.0.
+- The previous rules-only 60-case live rerun
+  `run-phase62-longmemeval-live60-rules-only-preference-followup-escalated-20260506T074500Z`
+  completed with `executionFailures: 0`: `goodmemory-rules-only` reached
+  50/60 answer accuracy with evidence-session recall 0.8833 and 10/60 wrong
+  answers. Single-session-preference was 9/10 live at that checkpoint.
+- The final-repair provider-free 60-case diagnostic
+  `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
+  completed with `executionFailures: 0`: `goodmemory-rules-only` reached
+  evidence-session recall 0.9292, missed recall 10/60, wrong recall 2/60,
+  and clean 10/10 recall for single-session-user and single-session-preference.
+- The final-repair rules-only 60-case live rerun
+  `run-phase62-longmemeval-live60-rules-only-final-repairs-escalated-20260506T104000Z`
+  completed with `executionFailures: 0`: `goodmemory-rules-only` reached
+  60/60 answer accuracy with evidence-session recall 0.9292 and zero wrong
+  answers across the first 10 cases per cleaned question type.
+- The attempted post-repair four-profile 60-case live rerun
+  `run-phase62-longmemeval-live60-post-aggregate-domain-ownership-20260506T043000Z`
+  is invalid as benchmark evidence. Non-escalated answer generation lost
+  provider connectivity, and `goodmemory-hybrid` hit a local Postgres
+  connection-closed failure during memory context.
+- The post-household-issue hybrid 60-case live rerun
+  `run-phase62-longmemeval-live60-hybrid-household-issues-escalated-20260506T112000Z`
+  completed with `executionFailures: 0`: `goodmemory-hybrid` reached 60/60
+  answer accuracy with evidence-session recall 0.9292, missed recall 10/60,
+  wrong recall 2/60, and zero wrong answers.
 
 
 Acceptance For Moving Past This Manifest
@@ -192,10 +239,10 @@ Acceptance For Moving Past This Manifest
 - Remaining caveat: evidence-session recall is 0.9167 because latest-update
   collapse renders only current values for three `knowledge-update` cases where
   LongMemEval lists stale and current sessions as answer sessions.
-- Remaining blocker before BEAM: close the broader 60-case miss loop with a
-  live rerun and then run a broader/full LongMemEval slice, or explicitly
-  record why full-500 execution is deferred. The fixed 18-case manifest itself
-  is closed for GoodMemory, but Phase 62 is not.
+- Remaining blocker before BEAM: run a broader/full LongMemEval slice or
+  explicitly record why full-500 execution is deferred. The fixed 18-case
+  manifest plus the rules-only and hybrid 60-case manifests are closed for
+  GoodMemory, but Phase 62 is not.
 
 
 Provider-Free Recall Diagnostic
@@ -224,12 +271,13 @@ Provider-Free Recall Diagnostic
   sessions. This is still a provider-free retrieval diagnostic, not an answer
   accuracy score.
 - After the 60-case live miss intake, the current provider-free diagnostic
-  `run-phase62-longmemeval-recall-only-rules60-aggregate-domain-ownership-20260506T041500Z`
+  `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
   covers the first 10 cases per cleaned question type. It records
-  `executionFailures: 0`, evidence-session recall `0.8167`, missed recall
-  `18/60`, and wrong recall `3/60`. The strongest families are
-  `single-session-user` and `single-session-assistant` at `0.9`; multi-session
-  is now `0.8083`, temporal is `0.8917`, and knowledge-update is `0.7`.
+  `executionFailures: 0`, evidence-session recall `0.9292`, missed recall
+  `10/60`, and wrong recall `2/60`. The strongest families are
+  `single-session-user`, `single-session-preference`, and
+  `single-session-assistant` at `1.0`; temporal is `0.9667`, multi-session is
+  `0.9083`, and knowledge-update is `0.7`.
 
 Re-run command:
 
