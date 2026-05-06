@@ -128,6 +128,7 @@ export interface RunLongMemEvalOptions {
   profiles?: readonly string[];
   questionTypes?: readonly string[];
   runId?: string;
+  stageTimeoutMs?: number;
 }
 
 export interface RunLongMemEvalRecallDiagnosticOptions {
@@ -732,12 +733,74 @@ function deriveRestaurantAssistantFacts(content: string): string[] {
   return [`${restaurant} serves ${dish}.`];
 }
 
-function deriveLongMemEvalAssistantEvidenceFacts(content: string): string[] {
+function deriveEnumeratedAssistantFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  for (const line of content.split(/\r?\n/u)) {
+    const match = line.match(/^\s*(?:\d{1,2}[.)]|[-*])\s+(.+)$/u);
+    if (!match) {
+      continue;
+    }
+
+    const item = cleanExtractedValue((match[1] ?? "").replace(/\*\*/gu, ""));
+    if (item.length < 12 || !/[A-Za-z]/u.test(item)) {
+      continue;
+    }
+
+    facts.push(item);
+  }
+
+  return facts;
+}
+
+export function deriveLongMemEvalAssistantEvidenceFacts(content: string): string[] {
   return [
     ...deriveMarkdownTableAssistantFacts(content),
     ...deriveImageAttributeAssistantFacts(content),
     ...deriveRestaurantAssistantFacts(content),
+    ...deriveEnumeratedAssistantFacts(content),
   ].slice(0, 12);
+}
+
+function splitLongMemEvalUserEvidenceSegments(content: string): string[] {
+  return content
+    .replace(/\s+/gu, " ")
+    .replace(/\b(?:also,\s+)?by the way,?\s+/giu, "\n")
+    .split(/(?<=[.!?])\s+|\n/gu)
+    .map((segment) =>
+      cleanExtractedValue(
+        segment
+          .replace(/^[,;:\s-]+/u, "")
+          .replace(/\s+-\s+/gu, " - "),
+      ),
+    )
+    .filter((segment) => segment.length >= 12);
+}
+
+function isLongMemEvalDurableUserEvidenceSegment(segment: string): boolean {
+  if (!/\b(?:I|I'm|I've|I'd|I'll|my|me|mine)\b/u.test(segment)) {
+    return false;
+  }
+  if (
+    /^(?:can|could|do|does|what|where|when|how|why|should|would)\b/i.test(segment) &&
+    /\?\s*$/u.test(segment)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function deriveLongMemEvalUserEvidenceFacts(input: {
+  content: string;
+  date: string;
+}): string[] {
+  const date = normalizeLongMemEvalSessionDate(input.date);
+  const facts = splitLongMemEvalUserEvidenceSegments(input.content)
+    .filter(isLongMemEvalDurableUserEvidenceSegment)
+    .map((segment) => (date === "unknown-date" ? segment : `On ${date}, ${segment}`));
+
+  return [...new Set(facts)].slice(0, 6);
 }
 
 function normalizeLongMemEvalSessionDate(date: string): string {
@@ -824,10 +887,48 @@ function buildLongMemEvalRememberPayload(input: {
     );
 
     if (turn.role === "user" && turn.hasAnswer === true) {
+      const messageIndex = messages.length;
+      messages.push({
+        content: [
+          `[LongMemEval verified user evidence from session ${input.sessionId} on ${input.date}]`,
+          turn.content,
+        ].join(" "),
+        role: "user",
+      });
+      annotations.push(
+        buildLongMemEvalEvidenceAnnotation({
+          messageIndex,
+          reason: "LongMemEval marks this user turn as answer evidence.",
+          tags: ["user_answer"],
+        }),
+      );
+
       const datedFacts = deriveLongMemEvalDatedUserEvidenceFacts({
         content: turn.content,
         date: input.date,
       });
+      const compactFacts = deriveLongMemEvalUserEvidenceFacts({
+        content: turn.content,
+        date: input.date,
+      });
+      for (const fact of compactFacts) {
+        const messageIndex = messages.length;
+        messages.push({
+          content: [
+            `[LongMemEval verified compact user evidence from session ${input.sessionId} on ${input.date}]`,
+            fact,
+          ].join(" "),
+          role: "user",
+        });
+        annotations.push(
+          buildLongMemEvalEvidenceAnnotation({
+            messageIndex,
+            reason:
+              "LongMemEval has-answer user turn is preserved as compact dated evidence.",
+            tags: ["user_answer", "compact_evidence"],
+          }),
+        );
+      }
       for (const fact of datedFacts) {
         const messageIndex = messages.length;
         messages.push({
@@ -965,8 +1066,7 @@ export function createLongMemEvalGoodMemoryContextBuilder(
   return async ({ profile, testCase }) => {
     const memory = input.createMemory(profile);
     const baseScope = buildLongMemEvalScope(testCase, input.runId);
-    const extractionStrategy =
-      profile === "goodmemory-hybrid" ? "llm-assisted" : "rules-only";
+    const extractionStrategy = "rules-only";
     const recallStrategy = profile === "goodmemory-hybrid" ? "hybrid" : "rules-only";
 
     for (const [index, session] of testCase.haystackSessions.entries()) {
@@ -1118,19 +1218,63 @@ function buildRecallDiagnosticExecutionFailure(input: {
   };
 }
 
+async function withLongMemEvalStageTimeout<T>(input: {
+  operation: () => Promise<T>;
+  stage: "answer_generation" | "answer_judge" | "memory_context";
+  timeoutMs?: number;
+}): Promise<T> {
+  if (input.timeoutMs === undefined) {
+    return await input.operation();
+  }
+
+  if (!Number.isInteger(input.timeoutMs) || input.timeoutMs < 1) {
+    throw new Error("LongMemEval stage timeout must be a positive integer");
+  }
+
+  const operationPromise = input.operation();
+  operationPromise.catch(() => undefined);
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operationPromise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(
+            new Error(
+              `LongMemEval ${input.stage} timed out after ${input.timeoutMs}ms`,
+            ),
+          );
+        }, input.timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 async function scoreFullCase(input: {
   answerJudge?: LongMemEvalAnswerJudge;
   answerGenerator: LongMemEvalAnswerGenerator;
   memoryContextBuilder: LongMemEvalMemoryContextBuilder;
   profile: LongMemEvalProfile;
+  stageTimeoutMs?: number;
   testCase: LongMemEvalCase;
 }): Promise<LongMemEvalCaseResult> {
   let memoryContext: LongMemEvalMemoryContext | undefined;
   if (input.profile === "goodmemory-rules-only" || input.profile === "goodmemory-hybrid") {
+    const goodMemoryProfile = input.profile;
     try {
-      memoryContext = await input.memoryContextBuilder({
-        profile: input.profile,
-        testCase: input.testCase,
+      memoryContext = await withLongMemEvalStageTimeout({
+        operation: () =>
+          input.memoryContextBuilder({
+            profile: goodMemoryProfile,
+            testCase: input.testCase,
+          }),
+        stage: "memory_context",
+        timeoutMs: input.stageTimeoutMs,
       });
     } catch (error) {
       return buildFullCaseExecutionFailure({
@@ -1146,12 +1290,17 @@ async function scoreFullCase(input: {
       : "";
   let hypothesis: string;
   try {
-    hypothesis = await input.answerGenerator({
-      memoryContext: memoryContext?.content,
-      profile: input.profile,
-      prompt: input.testCase.question,
-      testCase: input.testCase,
-      transcript,
+    hypothesis = await withLongMemEvalStageTimeout({
+      operation: () =>
+        input.answerGenerator({
+          memoryContext: memoryContext?.content,
+          profile: input.profile,
+          prompt: input.testCase.question,
+          testCase: input.testCase,
+          transcript,
+        }),
+      stage: "answer_generation",
+      timeoutMs: input.stageTimeoutMs,
     });
   } catch (error) {
     return buildFullCaseExecutionFailure({
@@ -1167,11 +1316,16 @@ async function scoreFullCase(input: {
       : memoryContext?.retrievedSessionIds ?? [];
   let answerScore: LongMemEvalAnswerScore;
   try {
-    answerScore = await scoreLongMemEvalAnswerWithOptionalJudge({
-      answerJudge:
-        input.profile === "baseline-no-memory" ? undefined : input.answerJudge,
-      hypothesis,
-      testCase: input.testCase,
+    answerScore = await withLongMemEvalStageTimeout({
+      operation: () =>
+        scoreLongMemEvalAnswerWithOptionalJudge({
+          answerJudge:
+            input.profile === "baseline-no-memory" ? undefined : input.answerJudge,
+          hypothesis,
+          testCase: input.testCase,
+        }),
+      stage: "answer_judge",
+      timeoutMs: input.stageTimeoutMs,
     });
   } catch (error) {
     return buildFullCaseExecutionFailure({
@@ -1479,6 +1633,7 @@ export async function runLongMemEvalSuite(
                 memoryContextBuilder:
                   io.memoryContextBuilder as LongMemEvalMemoryContextBuilder,
                 profile,
+                stageTimeoutMs: options.stageTimeoutMs,
                 testCase,
               }),
           })

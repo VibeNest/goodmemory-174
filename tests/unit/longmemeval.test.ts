@@ -3,6 +3,7 @@ import { createGoodMemory } from "../../src/api/createGoodMemory";
 import type { GoodMemory } from "../../src/api/contracts";
 import {
   createLongMemEvalGoodMemoryContextBuilder,
+  deriveLongMemEvalAssistantEvidenceFacts,
   normalizeLongMemEvalProfileList,
   runLongMemEvalRecallDiagnostic,
   runLongMemEvalSuite,
@@ -641,6 +642,41 @@ describe("LongMemEval adapter", () => {
     expect(report.profiles["goodmemory-hybrid"]?.summary.missedRecallCases).toBe(1);
   });
 
+  it("records full-mode memory-context timeouts without hanging the report", async () => {
+    const report = await runLongMemEvalSuite(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-hybrid"],
+        runId: "run-longmemeval-context-timeout",
+        stageTimeoutMs: 5,
+      },
+      {
+        answerGenerator: async () => "Mira prefers concise architecture notes.",
+        memoryContextBuilder: async () => {
+          await Bun.sleep(30);
+          return {
+            content: "late context",
+            retrievedSessionIds: ["s-2"],
+          };
+        },
+        mkdir: async () => {},
+        readFile: async () => JSON.stringify([SMOKE_CASES[0]]),
+        writeFile: async () => {},
+      },
+    );
+
+    const [caseResult] = report.profiles["goodmemory-hybrid"]?.cases ?? [];
+
+    expect(report.summary.executionFailures).toBe(1);
+    expect(caseResult?.executionError).toEqual({
+      message: "LongMemEval memory_context timed out after 5ms",
+      stage: "memory_context",
+    });
+  });
+
   it("runs a provider-free recall-only diagnostic from memory context", async () => {
     const writes = new Map<string, string>();
     const report = await runLongMemEvalRecallDiagnostic(
@@ -828,6 +864,131 @@ describe("LongMemEval adapter", () => {
     ]);
   });
 
+  it("preserves generic LongMemEval has-answer user turns as verified evidence", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "The Glass Menagerie",
+        answer_session_ids: ["s-theater"],
+        haystack_dates: ["2023/05/26"],
+        haystack_session_ids: ["s-theater"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "The play I attended was actually a production of The Glass Menagerie, and I thought the lead actress was excellent.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "What play did I attend at the local community theater?",
+        question_date: "2023/05/27",
+        question_id: "q-generic-user-evidence",
+        question_type: "single-session-user",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createGoodMemory({ storage: { provider: "memory" } }),
+      runId: "run-longmemeval-generic-user-evidence",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-theater");
+    expect(context.content).toContain("The Glass Menagerie");
+  });
+
+  it("recalls verified LongMemEval user evidence when a profile distractor is stronger", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "The Glass Menagerie",
+        answer_session_ids: ["s-theater"],
+        haystack_dates: ["2023/05/24", "2023/05/26"],
+        haystack_session_ids: ["s-profile", "s-theater"],
+        haystack_sessions: [
+          [
+            {
+              content: "My name is Juan Perez.",
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "The play I attended was actually a production of The Glass Menagerie, have you heard of it?",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "What play did I attend at the local community theater?",
+        question_date: "2023/05/27",
+        question_id: "q-generic-user-evidence-with-profile-distractor",
+        question_type: "single-session-user",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createGoodMemory({ storage: { provider: "memory" } }),
+      runId: "run-longmemeval-generic-user-evidence-distractor",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-theater");
+    expect(context.content).toContain("The Glass Menagerie");
+  });
+
+  it("recalls compact details from long verified LongMemEval user turns", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "a lighter shade of gray",
+        answer_session_ids: ["s-bedroom"],
+        haystack_dates: ["2023/05/27"],
+        haystack_session_ids: ["s-bedroom"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've heard great things about Snake Plants, but I'm also curious about the ZZ Plant. Can you tell me more about its watering schedule and how often it needs to be fertilized? By the way, I've been doing some redecorating and recently repainted my bedroom walls a lighter shade of gray - it's made the room feel so much brighter!",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "What color did I repaint my bedroom walls?",
+        question_date: "2023/05/28",
+        question_id: "q-long-user-evidence-detail",
+        question_type: "single-session-user",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createGoodMemory({ storage: { provider: "memory" } }),
+      runId: "run-longmemeval-long-user-evidence-detail",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-bedroom");
+    expect(context.content).toContain("lighter shade of gray");
+  });
+
+  it("derives compact assistant list evidence from LongMemEval answer turns", () => {
+    expect(
+      deriveLongMemEvalAssistantEvidenceFacts(
+        [
+          "Here are some fun dessert spots:",
+          "1. The Sugar Factory - A sweet shop located at Icon Park that offers specialty drinks and giant milkshakes.",
+          "2. Wondermade - A gourmet marshmallow shop located in Sanford.",
+        ].join("\n"),
+      ),
+    ).toContain(
+      "The Sugar Factory - A sweet shop located at Icon Park that offers specialty drinks and giant milkshakes.",
+    );
+  });
+
   it("preserves blank-leading markdown table headers in assistant evidence notes", async () => {
     const [testCase] = validateLongMemEvalCases(
       LONGMEMEVAL_ASSISTANT_EVIDENCE_CASES,
@@ -919,6 +1080,55 @@ describe("LongMemEval adapter", () => {
     expect(new Set(rememberedScopes)).toEqual(
       new Set(["phase-62-longmemeval:run-longmemeval-test"]),
     );
+  });
+
+  it("keeps LongMemEval hybrid ingestion deterministic while using hybrid recall", async () => {
+    const [testCase] = validateLongMemEvalCases([SMOKE_CASES[0]]);
+    const extractionStrategies: string[] = [];
+    const recallStrategies: string[] = [];
+    const createdProfiles: string[] = [];
+    const builder = createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: (profile) => {
+        createdProfiles.push(profile);
+        return {
+          buildContext: async () => ({
+            content: "## Facts\n- Mira prefers concise architecture notes.",
+            estimatedTokens: 12,
+            omittedSections: [],
+            output: "markdown",
+          }),
+          recall: async (input: Parameters<GoodMemory["recall"]>[0]) => {
+            recallStrategies.push(input.strategy ?? "");
+            return {
+              facts: [
+                {
+                  content: "Mira prefers concise architecture notes.",
+                  sessionId: "s-2",
+                },
+              ],
+            };
+          },
+          remember: async (input: Parameters<GoodMemory["remember"]>[0]) => {
+            extractionStrategies.push(input.extractionStrategy ?? "");
+            return {
+              accepted: 0,
+              events: [],
+              rejected: 0,
+            };
+          },
+        } as unknown as GoodMemory;
+      },
+      runId: "run-longmemeval-hybrid-deterministic-ingest",
+    });
+
+    await builder({
+      profile: "goodmemory-hybrid",
+      testCase: testCase!,
+    });
+
+    expect(createdProfiles).toEqual(["goodmemory-hybrid"]);
+    expect(new Set(extractionStrategies)).toEqual(new Set(["rules-only"]));
+    expect(recallStrategies).toEqual(["hybrid"]);
   });
 
   it("limits full-mode case concurrency", async () => {

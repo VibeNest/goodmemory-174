@@ -52,6 +52,93 @@ const AGGREGATE_OPEN_LOOP_LIMIT = 6;
 const AGGREGATE_FACT_COUNT_LIMIT = 6;
 const PREFERENCE_RECALL_LIMIT = 3;
 const RESEARCH_RECOMMENDATION_LIMIT = 2;
+const EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD = 0.08;
+const AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD = 0.05;
+const AGGREGATE_GENERIC_LEXICAL_FACT_THRESHOLD = 0.2;
+const AGGREGATE_TOPIC_STOPWORDS = new Set([
+  "after",
+  "before",
+  "combined",
+  "current",
+  "currently",
+  "days",
+  "different",
+  "does",
+  "have",
+  "hours",
+  "many",
+  "money",
+  "months",
+  "much",
+  "since",
+  "spend",
+  "spent",
+  "start",
+  "this",
+  "time",
+  "total",
+  "weeks",
+  "what",
+  "when",
+  "where",
+  "year",
+  "years",
+]);
+const AGGREGATE_TRUSTED_EVIDENCE_TAGS = new Set([
+  "compact_evidence",
+  "dated_event",
+  "user_answer",
+]);
+const QUANTIFIED_FACT_PATTERN =
+  /\b(?:\d+(?:[.,]\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b|\$\s*\d/iu;
+const MONEY_FACT_PATTERN =
+  /\$\s*\d|\b(?:cost|costs|costing|paid|price|prices|spent|spend|dollars?)\b/iu;
+const MEDICAL_PROVIDER_FACT_PATTERN =
+  /\b(?:dr\.?\s+[a-z][a-z'-]+|doctor|doctors|physician|dermatologist|ent specialist|specialist)\b/iu;
+const OWNERSHIP_COUNT_FACT_PATTERN =
+  /\b(?:have|has|own|owns|owned|currently have|with me|bring|bringing|using|new one|purchased)\b/iu;
+const PLANT_ACQUISITION_FACT_PATTERN =
+  /\b(?:got|bought|purchased|picked up|received|brought home|acquired)\b[\s\S]{0,120}\b(?:plant|plants|lily|succulent|fern|basil|rose|snake plant|spider plant)\b|\b(?:plant|plants|lily|succulent|fern|basil|rose|snake plant|spider plant)\b[\s\S]{0,120}\b(?:from|at|nursery|sister|bought|purchased|picked up|received|brought home|acquired)\b/iu;
+
+function normalizeAggregateTopicToken(token: string): string {
+  const normalized = token
+    .toLowerCase()
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gu, "");
+
+  if (normalized.length > 4 && normalized.endsWith("s")) {
+    return normalized.slice(0, -1);
+  }
+
+  return normalized;
+}
+
+function aggregateTopicTokens(text: string): Set<string> {
+  const tokens = text
+    .toLowerCase()
+    .match(/[a-z0-9]+(?:-[a-z0-9]+)?/gu) ?? [];
+
+  return new Set(
+    tokens
+      .flatMap((token) => token.split("-"))
+      .map(normalizeAggregateTopicToken)
+      .filter((token) => token.length >= 4 && !AGGREGATE_TOPIC_STOPWORDS.has(token)),
+  );
+}
+
+function aggregateTopicOverlapCount(
+  queryTopics: ReadonlySet<string>,
+  factTopics: ReadonlySet<string>,
+): number {
+  let overlap = 0;
+
+  for (const token of queryTopics) {
+    if (factTopics.has(token)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap;
+}
 
 function isAggregateOpenLoopQuery(
   query: string,
@@ -71,7 +158,7 @@ function hasAggregateOpenLoopSignal(entry: RankedFactCandidate): boolean {
 }
 
 function isAggregateFactCountQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query);
+  return /\bhow many\b/i.test(query) || /\bhow much\b/i.test(query);
 }
 
 function isTemporalIntervalQuery(query: string): boolean {
@@ -86,6 +173,83 @@ function isTemporalEventOrderQuery(query: string): boolean {
 
 function isDatedEventFact(entry: RankedFactCandidate): boolean {
   return entry.fact.tags?.includes("dated_event") === true;
+}
+
+function hasTrustedAggregateEvidence(entry: RankedFactCandidate): boolean {
+  if (entry.fact.source.method === "inferred") {
+    return false;
+  }
+
+  if (entry.fact.source.method === "confirmed") {
+    return true;
+  }
+
+  return entry.fact.tags?.some((tag) => AGGREGATE_TRUSTED_EVIDENCE_TAGS.has(tag)) === true;
+}
+
+function isAggregateMoneyQuery(query: string): boolean {
+  return /\bhow much\b/i.test(query) ||
+    /\b(?:total money|spent|spend|cost|costs|paid|price|dollars?)\b/i.test(query);
+}
+
+function isMedicalProviderAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\b(?:doctor|doctors|physician|physicians|specialist|specialists)\b/i.test(query);
+}
+
+function isPlantAcquisitionAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\b(?:plants?|lily|succulent|fern|basil|rose|snake plant|spider plant)\b/i.test(query) &&
+    /\b(?:acquire|acquired|got|bought|purchased|picked up|received|last month)\b/i.test(query);
+}
+
+function isOwnershipCountAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\b(?:own|owns|owned|have|has|currently|bring|bringing)\b/i.test(query);
+}
+
+function hasAggregateDomainSignal(input: {
+  entry: RankedFactCandidate;
+  factTopics: ReadonlySet<string>;
+  query: string;
+  queryTopics: ReadonlySet<string>;
+  topicOverlap: number;
+}): boolean {
+  if (input.topicOverlap >= 2) {
+    return true;
+  }
+
+  if (
+    isAggregateMoneyQuery(input.query) &&
+    input.topicOverlap >= 1 &&
+    MONEY_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isMedicalProviderAggregateQuery(input.query) &&
+    MEDICAL_PROVIDER_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isOwnershipCountAggregateQuery(input.query) &&
+    input.topicOverlap >= 1 &&
+    OWNERSHIP_COUNT_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isPlantAcquisitionAggregateQuery(input.query) &&
+    PLANT_ACQUISITION_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function hasAggregateFactCountSignal(
@@ -107,10 +271,48 @@ function hasAggregateFactCountSignal(
     return true;
   }
 
+  const queryTopics = aggregateTopicTokens(query);
+  const factTopics = aggregateTopicTokens(entry.fact.content);
+  const topicOverlap = aggregateTopicOverlapCount(queryTopics, factTopics);
+  const hasDomainSignal = hasAggregateDomainSignal({
+    entry,
+    factTopics,
+    query,
+    queryTopics,
+    topicOverlap,
+  });
+  const trustedAggregateEvidence = hasTrustedAggregateEvidence(entry);
+  const hasWeakAggregateEvidenceSignal =
+    entry.lexicalScore >= AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD ||
+    (
+      isMedicalProviderAggregateQuery(query) &&
+      MEDICAL_PROVIDER_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isPlantAcquisitionAggregateQuery(query) &&
+      PLANT_ACQUISITION_FACT_PATTERN.test(entry.fact.content)
+    );
+
+  if (
+    trustedAggregateEvidence &&
+    hasWeakAggregateEvidenceSignal &&
+    hasDomainSignal &&
+    (
+      QUANTIFIED_FACT_PATTERN.test(entry.fact.content) ||
+      MEDICAL_PROVIDER_FACT_PATTERN.test(entry.fact.content) ||
+      PLANT_ACQUISITION_FACT_PATTERN.test(entry.fact.content)
+    )
+  ) {
+    return true;
+  }
+
   return (
-    entry.intentScore > 0 ||
-    entry.lexicalScore >= 0.2 ||
-    entry.subjectScore > 0
+    hasDomainSignal &&
+    (
+      entry.intentScore > 0 ||
+      entry.lexicalScore >= AGGREGATE_GENERIC_LEXICAL_FACT_THRESHOLD ||
+      entry.subjectScore > 0
+    )
   );
 }
 
@@ -321,6 +523,16 @@ function hasFactSelectionSignal(entry: RankedFactCandidate): boolean {
     entry.intentScore > 0 ||
     entry.lexicalScore >= 0.2 ||
     entry.subjectScore > 0
+  );
+}
+
+function hasGenericFactSelectionSignal(entry: RankedFactCandidate): boolean {
+  return (
+    hasFactSelectionSignal(entry) ||
+    (
+      entry.fact.source.method !== "inferred" &&
+      entry.lexicalScore >= EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD
+    )
   );
 }
 
@@ -751,9 +963,7 @@ export function selectFacts(
   );
   const withLexicalOrSubjectSignal = rankFactCandidates(
     collapseLatestUpdateSeries(
-      compatible.filter(
-        (entry) => entry.lexicalScore >= 0.2 || entry.subjectScore > 0,
-      ),
+      compatible.filter(hasGenericFactSelectionSignal),
       updateSeriesOptions,
     ),
     routingDecision.strategy,

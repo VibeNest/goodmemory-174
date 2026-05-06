@@ -118,11 +118,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 ## Prior Accepted Research Slice
 
 - Phase 61 implementation is accepted as Priming Abstraction And
-  Contamination-Safe Output; the post-Phase-61 full-300 rerun completed as
-  `run-phase61-full300-20260505T030809Z`. It responds to the Phase 60 full-300
-  finding that controlled priming can be covered on the official denominator
-  while still receiving no positive credit when outputs copy source nouns or
-  violate strict task formats.
+  Contamination-Safe Output; the Phase 62A recovery follow-up completed as
+  `run-phase61-full300-20260505T170001Z`. It responds to the Phase 60/61
+  full-300 findings that controlled priming must both cover the official
+  denominator and carry compliant abstract influence without copying source
+  nouns or violating strict task formats.
 - Phase 61 remains internal research/eval hardening:
   - `bestGoodMemoryOverallRate` now refers only to official-comparable
     full-denominator profiles
@@ -135,20 +135,31 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - no benchmark task-file or case-id routing
 - Latest full-300 research result:
   - artifact:
-    `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T080002Z/overall-summary.json`
+    `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json`
   - best official-comparable GoodMemory full-300 score:
-    `145.71 / 300 = 48.57%`
+    `213.26 / 300 = 71.09%`
+  - best GoodMemory blocking-only profile:
+    `155 / 200 = 77.50%`
   - GoodMemory priming:
-    `56 / 100` credited cases, average influence `24.71`, task violations `0`,
+    `94 / 100` credited cases, average influence `58.26`, task violations `0`,
     source-noun contamination flags `0`, explicit recall leaks `0`
+  - distilled context diagnostics:
+    empty context `0 / 200`, fallback policy coverage `200 / 200`,
+    context pass rate `77.50%`
   - execution failures:
-    baseline `0`, GoodMemory raw `0`, GoodMemory distilled `2`
+    baseline `0`, GoodMemory raw `0`, GoodMemory distilled `0`
   - boundary:
-    priming improved materially, but the full-300 headline remains below the
-    paper's `66%` reference line and remains internal research evidence
+    the official-comparable internal research profile now exceeds the paper's
+    `66%` reference line, but this remains internal research evidence only:
+    no release hard gate, no public API/config widening, and no README-level
+    leaderboard claim
 - Post-analysis code follow-up:
-  - latent priming semantic-field inference and contamination-safe JSON repair
-    now cover the remaining priming theme families more directly
+  - immediate feedback policy fallback keeps distilled contexts non-empty even
+    when no compiled validated pattern exists
+  - latent priming semantic-field inference prioritizes source theme labels
+    over incidental words in priming text
+  - contamination-safe strict JSON ranking selects stronger safe abstract
+    candidates when generated candidates are weak or unsafe
   - the Phase 61 wrapper now raises the general ImplicitMemBench timeout to at
     least `180000ms` for future full-300 runs, matching the priming timeout
   - Phase 61 full-300 runs default to per-shard case concurrency `1` and use

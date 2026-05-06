@@ -176,10 +176,16 @@ export function createRememberEngine(config: RememberEngineConfig) {
         if (!annotation?.metadataPatch && !annotation?.kindHint && !annotationTrace) {
           return candidate;
         }
+        const explicitness =
+          annotation.remember === "always" &&
+          (annotation.confirmed === true || annotation.verified === true)
+            ? "explicit"
+            : candidate.explicitness;
 
         return {
           ...candidate,
           annotation: annotationTrace ?? candidate.annotation,
+          explicitness,
           kindHint: annotation.kindHint ?? candidate.kindHint,
           metadata: {
             ...candidate.metadata,

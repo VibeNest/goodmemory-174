@@ -81,6 +81,16 @@ function buildCaseResult(input: {
     blocking: true,
     caseId: input.caseDefinition.caseId,
     datasetFamily: input.caseDefinition.datasetFamily,
+    ...(input.profile === "goodmemory-distilled-feedback"
+      ? {
+          distilledContextDiagnostics: {
+            compiledPolicyCount: 0,
+            contextEmpty: false,
+            fallbackPolicyCount: 1,
+            immediateFeedbackSignalApplied: true,
+          },
+        }
+      : {}),
     explicitRecallLeak: false,
     feedbackSignalApplied: input.profile !== "baseline-upstream-chat",
     judgeReason: "test",
@@ -328,6 +338,23 @@ describe("run-phase-61 full300 script", () => {
     expect(result.goodmemoryReportPath).toBe(
       "/tmp/out/goodmemory/run-phase61-full300-test/report.json",
     );
+    expect(
+      result.summary.profiles["goodmemory-distilled-feedback"]
+        ?.distilledContextEmptyCount,
+    ).toBe(0);
+    expect(
+      result.summary.profiles["goodmemory-distilled-feedback"]
+        ?.distilledFallbackPolicyCount,
+    ).toBe(4);
+    expect(
+      result.summary.profiles["goodmemory-distilled-feedback"]
+        ?.distilledContextPassRate,
+    ).toBe(1);
+    expect(
+      result.summary.profiles[
+        "goodmemory-distilled-feedback+controlled-priming"
+      ]?.distilledFallbackPolicyCount,
+    ).toBe(4);
     expect(env.GOODMEMORY_STORAGE_PROVIDER).toBe("postgres");
   });
 

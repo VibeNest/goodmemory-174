@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 
 import {
+  DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   requestOpenAICompatibleText,
   resolveAISDKModel,
   stripThinkingBlocks,
@@ -63,9 +64,13 @@ export function createEvalAnswerGenerator(input: {
         }
 
         const { text } = await (input.dependencies?.generateText ?? generateText)({
+          maxRetries: 0,
           model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
           system: input.system,
           prompt,
+          timeout:
+            input.dependencies?.requestTimeoutMs ??
+            DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
         });
         const content = stripThinkingBlocks(text);
         if (!content) {

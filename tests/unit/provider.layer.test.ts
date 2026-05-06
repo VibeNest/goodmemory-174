@@ -61,6 +61,7 @@ describe("provider layer contract", () => {
         provider: "openai",
         model: "gpt-5",
       },
+      requestTimeoutMs: 1234,
       system: "provider-system",
       createTextGenerator: (input) => {
         textCalls.push(input as unknown as Record<string, unknown>);
@@ -75,6 +76,7 @@ describe("provider layer contract", () => {
         provider: "anthropic",
         model: "claude-sonnet",
       },
+      requestTimeoutMs: 1234,
       createJudgeModel: (input) => {
         judgeCalls.push(input as unknown as Record<string, unknown>);
         const judge: JudgeModel = {
@@ -110,6 +112,8 @@ describe("provider layer contract", () => {
       provider: "anthropic",
       model: "claude-sonnet",
     });
+    expect(textCalls[0]?.dependencies).toEqual({ requestTimeoutMs: 1234 });
+    expect(judgeCalls[0]?.dependencies).toEqual({ requestTimeoutMs: 1234 });
   });
 
   it("routes provider-backed memory extraction through the same provider layer", async () => {
@@ -120,6 +124,7 @@ describe("provider layer contract", () => {
         provider: "openai",
         model: "gpt-5",
       },
+      requestTimeoutMs: 1234,
       createMemoryExtractor: (input) => {
         extractorCalls.push(input as unknown as Record<string, unknown>);
         const memoryExtractor: MemoryExtractor = {
@@ -145,6 +150,7 @@ describe("provider layer contract", () => {
       provider: "openai",
       model: "gpt-5",
     });
+    expect(extractorCalls[0]?.dependencies).toEqual({ requestTimeoutMs: 1234 });
   });
 
   it("routes provider-backed embedding creation through the same provider layer", async () => {
@@ -155,6 +161,7 @@ describe("provider layer contract", () => {
         provider: "openai",
         model: "text-embedding-3-small",
       },
+      requestTimeoutMs: 1234,
       createEmbeddingAdapter: (input) => {
         embeddingCalls.push(input as unknown as Record<string, unknown>);
         const embeddingAdapter: EmbeddingAdapter = {
@@ -174,6 +181,7 @@ describe("provider layer contract", () => {
       provider: "openai",
       model: "text-embedding-3-small",
     });
+    expect(embeddingCalls[0]?.dependencies).toEqual({ requestTimeoutMs: 1234 });
   });
 
   it("routes provider-backed recall router creation through the same provider layer", async () => {
@@ -184,6 +192,7 @@ describe("provider layer contract", () => {
         provider: "openai",
         model: "gpt-4o-mini",
       },
+      requestTimeoutMs: 1234,
       createRecallRouter: (input) => {
         routerCalls.push(input as unknown as Record<string, unknown>);
         const recallRouter: RecallRouterAssistant = {
@@ -238,5 +247,6 @@ describe("provider layer contract", () => {
       provider: "openai",
       model: "gpt-4o-mini",
     });
+    expect(routerCalls[0]?.dependencies).toEqual({ requestTimeoutMs: 1234 });
   });
 });

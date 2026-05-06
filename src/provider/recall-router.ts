@@ -18,6 +18,7 @@ import type {
   FetchLike,
 } from "./ai-sdk-runtime";
 import {
+  DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   requestOpenAICompatibleObject,
   resolveAISDKModel,
   withAISDKRetries,
@@ -494,10 +495,14 @@ export function createLLMRecallRouter(input: {
         }
 
         const { object } = await (input.dependencies?.generateObject ?? generateObject)({
+          maxRetries: 0,
           model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
           schema: recallAssistantPlanSchema,
           system,
           prompt,
+          timeout:
+            input.dependencies?.requestTimeoutMs ??
+            DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
         });
 
         return finalizeRecallAssistantPlan(object);
@@ -526,10 +531,14 @@ export function createLLMRecallRouter(input: {
         }
 
         const { object } = await (input.dependencies?.generateObject ?? generateObject)({
+          maxRetries: 0,
           model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
           schema: recallAssistantRerankSchema,
           system,
           prompt,
+          timeout:
+            input.dependencies?.requestTimeoutMs ??
+            DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
         });
 
         return finalizeRecallAssistantRerank(object);

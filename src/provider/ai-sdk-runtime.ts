@@ -26,7 +26,9 @@ interface EmbeddingAdapterDependencies {
 type FetchInput = Parameters<FetchFunction>[0];
 type FetchInit = Parameters<FetchFunction>[1];
 export type FetchLike = (input: FetchInput, init?: FetchInit) => Promise<Response>;
-const DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS = 45_000;
+export const DEFAULT_AISDK_REQUEST_TIMEOUT_MS = 45_000;
+const DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS =
+  DEFAULT_AISDK_REQUEST_TIMEOUT_MS;
 const DEFAULT_AISDK_RETRY_LIMIT = 4;
 const FAST_AISDK_RETRY_DELAYS_MS = [250, 500, 1_000] as const;
 const SLOW_AISDK_RETRY_DELAYS_MS = [2_000, 5_000, 10_000] as const;
@@ -772,6 +774,7 @@ export function createAISDKEmbeddingAdapter(input: {
           operation: () =>
             (input.dependencies?.embedMany ?? embedMany)({
               abortSignal: controller.signal,
+              maxRetries: 0,
               model: (
                 input.dependencies?.resolveEmbeddingModel ?? resolveAISDKEmbeddingModel
               )(input.model),

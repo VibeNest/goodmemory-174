@@ -286,6 +286,145 @@ Current GoodMemory-only 18-case run:
   current GoodMemory path. It is still not a public benchmark report and does
   not replace a larger/full LongMemEval run.
 
+Post-runtime-hardening three-profile rerun:
+
+- run id:
+  `run-phase62-longmemeval-live18-three-profile-stage-timeout-20260506T000500Z`
+- command shape:
+  `GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS=8000 GOODMEMORY_PHASE62_STAGE_TIMEOUT_MS=30000 bun run eval:phase-62 -- --benchmark-root /tmp/LongMemEval --mode full --profile baseline-no-memory --profile baseline-full-context --profile goodmemory-rules-only --max-concurrency 1 --case-id <fixed 18 ids>`
+- summary:
+  - `baseline-no-memory`: 0/18 accuracy, expected no-memory failure, one
+    answer-generation certificate execution failure.
+  - `baseline-full-context`: 13/18 accuracy; four answer-generation stage
+    timeouts and one stale/update answer miss (`830ce83f`: `Chicago` instead
+    of `the suburbs`).
+  - `goodmemory-rules-only`: 18/18 accuracy, evidence-session recall 0.9167,
+    missed-recall cases 3/18, wrong-answer cases 0, wrong-recall cases 0,
+    execution failures 0.
+- interpretation:
+  the current rules-only GoodMemory path remains clean on the fixed
+  type-balanced manifest after timeout/retry hardening. The remaining
+  comparable-profile gap is execution reliability and provider-backed context,
+  not a rules-only recall miss.
+
+Hybrid provider-backed probe:
+
+- run id:
+  `run-phase62-longmemeval-live1-hybrid-stage-timeout-escalated-20260505T235500Z`
+- result:
+  the single-case `goodmemory-hybrid` run records a structured
+  `memory_context` timeout after 30000ms.
+- interpretation:
+  assisted extraction during benchmark rehydration can dominate LongMemEval
+  runtime because each case carries dozens of large haystack sessions. This
+  is tracked separately from the GoodMemory recall miss loop; the fixed
+  manifest should measure retrieval and answer behavior, not bulk live
+  extractor latency at eval load time.
+
+Current four-profile fixed-manifest rerun:
+
+- run id:
+  `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
+- command shape:
+  `GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS=12000 GOODMEMORY_PHASE62_STAGE_TIMEOUT_MS=60000 bun run eval:phase-62 -- --benchmark-root /tmp/LongMemEval --mode full --profile baseline-no-memory --profile baseline-full-context --profile goodmemory-rules-only --profile goodmemory-hybrid --max-concurrency 1 --case-id <fixed 18 ids>`
+- harness change:
+  `goodmemory-hybrid` now uses deterministic `rules-only` ingestion for the
+  LongMemEval rehydration pass and keeps hybrid recall at query time. This
+  avoids benchmark-load-time assisted extraction over 847 haystack sessions
+  while preserving the intended hybrid retrieval comparison.
+- summary:
+  - `executionFailures: 0`
+  - `baseline-no-memory`: 0/18 accuracy, expected no-memory failure
+  - `baseline-full-context`: 16/18 accuracy, evidence-session recall 1.0,
+    wrong-answer cases 2/18
+  - `goodmemory-rules-only`: 18/18 accuracy, evidence-session recall 0.9167,
+    missed-recall cases 3/18, wrong-answer cases 0, wrong-recall cases 0
+  - `goodmemory-hybrid`: 18/18 accuracy, evidence-session recall 0.9167,
+    missed-recall cases 3/18, wrong-answer cases 0, wrong-recall cases 0
+- remaining baseline misses:
+  `baseline-full-context` still answers `0a995998` as one clothing item instead
+  of three, and `830ce83f` as Chicago instead of the suburbs.
+- remaining GoodMemory recall caveat:
+  the three missed-recall cases remain the `knowledge-update` latest-value
+  collapse cases. GoodMemory answers correctly by rendering the current value,
+  while LongMemEval's strict evidence-session recall also counts stale source
+  sessions.
+- interpretation:
+  the fixed 18-case miss loop is closed for both GoodMemory profiles. Phase 62
+  remains WIP because broader/full LongMemEval evidence has not been executed
+  or explicitly deferred.
+
+Broader 60-case type-balanced live run:
+
+- run id:
+  `run-phase62-longmemeval-live60-type-balanced-20260506T010000Z`
+- command shape:
+  `GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS=12000 GOODMEMORY_PHASE62_STAGE_TIMEOUT_MS=60000 bun run eval:phase-62 -- --benchmark-root /tmp/LongMemEval --mode full --profile baseline-no-memory --profile baseline-full-context --profile goodmemory-rules-only --profile goodmemory-hybrid --max-concurrency 1 --case-id <first 10 ids per cleaned question type>`
+- summary:
+  - `executionFailures: 0`
+  - `baseline-no-memory`: 1/60 accuracy
+  - `baseline-full-context`: 55/60 accuracy, evidence-session recall 1.0
+  - `goodmemory-rules-only`: 19/60 accuracy, evidence-session recall 0.275,
+    missed-recall cases 45/60, wrong-recall cases 2/60
+  - `goodmemory-hybrid`: 19/60 accuracy, evidence-session recall 0.275,
+    missed-recall cases 45/60, wrong-recall cases 2/60
+- interpretation:
+  the fixed 18-case manifest was too narrow. The active Phase 62 gap is now
+  broader recall coverage across long user turns, multi-session aggregation,
+  temporal/date evidence, assistant recommendations, and update history.
+
+60-case recall-only repair evidence:
+
+- first repair run id:
+  `run-phase62-longmemeval-recall-only-rules60-user-evidence-20260506T013500Z`
+- first repair result:
+  evidence-session recall 0.3792, missed-recall cases 41/60,
+  wrong-recall cases 2/60.
+- second repair run id:
+  `run-phase62-longmemeval-recall-only-rules60-verified-explicit-weak-lexical-20260506T023000Z`
+- second repair result:
+  evidence-session recall 0.5875, missed-recall cases 28/60,
+  wrong-recall cases 3/60.
+- third repair run id:
+  `run-phase62-longmemeval-recall-only-rules60-compact-user-evidence-20260506T024500Z`
+- third repair result:
+  - evidence-session recall 0.6958
+  - missed-recall cases 23/60
+  - wrong-recall cases 3/60
+  - `single-session-user`: 0.9 recall
+  - `single-session-assistant`: 0.9 recall
+  - `temporal-reasoning`: 0.75 recall
+  - `single-session-preference`: 0.7 recall
+  - `knowledge-update`: 0.55 recall
+  - `multi-session`: 0.375 recall
+- current repair run id:
+  `run-phase62-longmemeval-recall-only-rules60-aggregate-domain-ownership-20260506T041500Z`
+- current repair result:
+  - evidence-session recall 0.8167
+  - missed-recall cases 18/60
+  - wrong-recall cases 3/60
+  - `single-session-user`: 0.9 recall
+  - `single-session-assistant`: 0.9 recall
+  - `temporal-reasoning`: 0.8917 recall
+  - `multi-session`: 0.8083 recall
+  - `single-session-preference`: 0.7 recall
+  - `knowledge-update`: 0.7 recall
+- repairs represented by these runs:
+  - verified or confirmed `remember: always` annotations now strengthen
+    existing inferred candidates to explicit evidence.
+  - explicit facts can pass generic recall with weak but real lexical overlap,
+    instead of requiring the old 0.2 threshold.
+  - LongMemEval verified user turns now preserve compact dated sentence-level
+    evidence so long mixed turns do not dilute the answer-bearing clause.
+  - aggregate count selection now requires trusted evidence/domain signals so
+    generic numbered noise does not pollute road-trip count recall.
+  - `how much` money, medical-provider count, and ownership-count queries now
+    use the same trusted aggregate evidence path.
+- interpretation:
+  the repair direction is valid but incomplete. Do not claim Phase 62 closure:
+  the 60-case live answer rerun has not been performed after these repairs,
+  and 18/60 recall-only cases still miss answer evidence.
+
 
 Fixed Root Causes
 -----------------
@@ -383,6 +522,23 @@ for aggregate to-do questions. The English continuation router was also
 narrowed so physical `pick up` actions do not trigger task-continuation episode
 recall.
 
+12. Verified evidence explicitness and weak lexical recall
+
+Verified or confirmed `remember: always` annotations now make existing
+annotated candidates explicit instead of leaving them inferred. Generic recall
+also allows explicit facts with weak but meaningful lexical overlap to pass the
+selection gate. This fixed real misses such as `58bf7951`, where the stored
+fact `The play I attended... The Glass Menagerie` overlapped the query below
+the old 0.2 threshold and was suppressed.
+
+13. Compact dated user evidence
+
+LongMemEval has-answer user turns can contain the answer-bearing statement
+inside a long mixed request. The adapter now preserves sentence-level dated
+facts from verified user evidence turns. This fixes broader-slice misses such
+as the bedroom-wall color, tennis-racket source, and volunteered-fundraiser
+date without lowering global recall thresholds further.
+
 
 Remaining Miss Families
 -----------------------
@@ -410,25 +566,47 @@ LongMemEval split:
 No abstention cases were found in the cleaned data file; abstention coverage
 remains limited to the smoke fixture.
 
-3. Full 500-case result not yet run
+3. Broader 60-case recall still open
 
-The current evidence is a clean GoodMemory-only 18-case live slice plus smoke
-gate and targeted reprobes. It is enough to close the current small-manifest
-repair loop, but not enough for a public claim or benchmark report.
+The fixed 18-case manifest is closed, but the 60-case slice is not. The latest
+recall-only run reaches 0.8167 aggregate evidence-session recall, with
+multi-session at 0.8083 and knowledge-update at 0.7. This is a material repair,
+but 18/60 recall-only cases still miss answer evidence and wrong recall remains
+3/60. The current repairs need a 60-case live answer rerun before Phase 62 can
+be considered closed.
+
+4. Fixed-manifest hybrid execution closed
+
+The earlier `goodmemory-hybrid` timeout was traced to assisted extraction during
+LongMemEval rehydration. The current harness keeps ingestion deterministic and
+uses hybrid recall at query time. The latest four-profile fixed-manifest rerun
+completed with `executionFailures: 0`, and both GoodMemory profiles reached
+18/18 accuracy with zero wrong-recall cases.
+
+5. Full 500-case result not yet run
+
+The current evidence is a clean four-profile 18-case live slice, one weaker
+60-case live run, and improving 60-case recall-only repair evidence. It is not
+enough for a public claim or benchmark report.
 
 
 Next Actions
 ------------
 
-1. Decide whether to run a larger LongMemEval slice immediately or open the
-   BEAM adapter phase with this small-manifest LongMemEval repair loop recorded
-   as current internal evidence.
-2. If staying on LongMemEval, expand beyond the fixed 18-case manifest with
-   `--max-concurrency 1` and keep latest-update evidence-session accounting
-   explicit.
-3. If moving to BEAM, carry forward the generic repairs from this phase:
+1. Continue repairing the 60-case miss families, with priority on
+   multi-session/count aggregation and knowledge-update history.
+2. Rerun the 60-case live answer path after recall-only evidence improves
+   enough to justify provider cost.
+3. Expand beyond the 60-case manifest with `--max-concurrency 1` in a resumable
+   broader/full LongMemEval run, or explicitly record why full-500 execution is
+   deferred.
+4. Keep latest-update evidence-session accounting explicit in any larger run:
+   answer correctness can be right while strict evidence-session recall remains
+   below 1.0 for stale-plus-current answer-session labels.
+5. If moving to BEAM later, carry forward the generic repairs from this phase:
    assistant-derived verified evidence, dated-event derivation, project
    leadership context preservation, latest relationship relocation collapse,
-   and recommendation-category answer guidance.
-4. Keep final/public reporting deferred until LongMemEval, BEAM,
+   recommendation-category answer guidance, and bounded live-provider timeout
+   reporting.
+6. Keep final/public reporting deferred until LongMemEval, BEAM,
    MemoryAgentBench, and LoCoMo are all complete.

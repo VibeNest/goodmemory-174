@@ -17,6 +17,7 @@ import {
 } from "../src/provider/layer";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import {
+  DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   requestOpenAICompatibleObject,
   resolveAISDKModel,
   withAISDKRetries,
@@ -38,6 +39,10 @@ import { generateObject } from "ai";
 import { z } from "zod";
 
 export const PHASE62_CANONICAL_RUN_ID = "run-phase62-longmemeval-smoke-current";
+export const PHASE62_LIVE_REQUEST_TIMEOUT_ENV =
+  "GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS";
+export const PHASE62_STAGE_TIMEOUT_ENV =
+  "GOODMEMORY_PHASE62_STAGE_TIMEOUT_MS";
 
 const GENERATED_BY = "scripts/run-phase-62-eval.ts";
 
@@ -120,6 +125,39 @@ const longMemEvalAnswerJudgeSchema = z.object({
   reasoning: z.string().min(1),
 });
 
+export function resolvePhase62LiveRequestTimeoutMs(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const value = env[PHASE62_LIVE_REQUEST_TIMEOUT_ENV];
+  if (!value) {
+    return DEFAULT_AISDK_REQUEST_TIMEOUT_MS;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${PHASE62_LIVE_REQUEST_TIMEOUT_ENV} must be a positive integer`);
+  }
+
+  return parsed;
+}
+
+export function resolvePhase62StageTimeoutMs(
+  requestTimeoutMs: number,
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const value = env[PHASE62_STAGE_TIMEOUT_ENV];
+  if (!value) {
+    return Math.max(requestTimeoutMs * 6, 30_000);
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${PHASE62_STAGE_TIMEOUT_ENV} must be a positive integer`);
+  }
+
+  return parsed;
+}
+
 export function buildLongMemEvalPrompt(input: {
   memoryContext?: string;
   prompt: string;
@@ -140,7 +178,9 @@ export function buildLongMemEvalPrompt(input: {
     .join("\n\n");
 }
 
-function createLongMemEvalAnswerGenerator(): LongMemEvalAnswerGenerator {
+function createLongMemEvalAnswerGenerator(
+  requestTimeoutMs = resolvePhase62LiveRequestTimeoutMs(),
+): LongMemEvalAnswerGenerator {
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
   const system =
     "You answer LongMemEval questions using only the supplied conversation history or GoodMemory context. Do not invent missing details.";
@@ -148,6 +188,7 @@ function createLongMemEvalAnswerGenerator(): LongMemEvalAnswerGenerator {
   return async (input) => {
     const generator = createProviderTextGenerator({
       model,
+      requestTimeoutMs,
       system,
       promptBuilder: (payload) =>
         buildLongMemEvalPrompt({
@@ -187,6 +228,7 @@ function buildLongMemEvalJudgePrompt(input: LongMemEvalAnswerJudgeInput): string
 async function runLongMemEvalLiveAnswerJudge(
   model: AISDKModelConfig,
   input: LongMemEvalAnswerJudgeInput,
+  requestTimeoutMs = resolvePhase62LiveRequestTimeoutMs(),
 ): Promise<Awaited<ReturnType<LongMemEvalAnswerJudge>>> {
   const prompt = buildLongMemEvalJudgePrompt(input);
   const system =
@@ -199,29 +241,35 @@ async function runLongMemEvalLiveAnswerJudge(
         prompt,
         schema: longMemEvalAnswerJudgeSchema,
         system,
+        timeoutMs: requestTimeoutMs,
       }),
     );
   }
 
   const { object } = await withAISDKRetries(async () =>
     generateObject({
+      maxRetries: 0,
       model: resolveAISDKModel(model),
       prompt,
       schema: longMemEvalAnswerJudgeSchema,
       system,
+      timeout: requestTimeoutMs,
     }),
   );
   return object;
 }
 
-export function createLongMemEvalAnswerJudge(): LongMemEvalAnswerJudge {
+export function createLongMemEvalAnswerJudge(
+  requestTimeoutMs = resolvePhase62LiveRequestTimeoutMs(),
+): LongMemEvalAnswerJudge {
   const model = resolveLiveModelConfig("GOODMEMORY_JUDGE");
 
-  return (input) => runLongMemEvalLiveAnswerJudge(model, input);
+  return (input) => runLongMemEvalLiveAnswerJudge(model, input, requestTimeoutMs);
 }
 
 export function createLongMemEvalMemoryFactory(
   createMemory: typeof createGoodMemory,
+  options: { requestTimeoutMs?: number } = {},
 ): (profile: "goodmemory-hybrid" | "goodmemory-rules-only") => GoodMemory {
   return (profile) => {
     if (profile === "goodmemory-rules-only") {
@@ -252,9 +300,11 @@ export function createLongMemEvalMemoryFactory(
       adapters: {
         assistedExtractor: createProviderMemoryExtractor({
           model: extractorModel,
+          requestTimeoutMs: options.requestTimeoutMs,
         }),
         embeddingAdapter: createProviderEmbeddingAdapter({
           model: embeddingModel,
+          requestTimeoutMs: options.requestTimeoutMs,
         }),
       },
       remember: LONGMEMEVAL_REMEMBER_CONFIG,
@@ -299,6 +349,8 @@ export async function runPhase62LongMemEval(
   });
 
   if (runOptions.mode === "full" && !dependencies.runSuite) {
+    const requestTimeoutMs = resolvePhase62LiveRequestTimeoutMs();
+    const stageTimeoutMs = resolvePhase62StageTimeoutMs(requestTimeoutMs);
     assertPhase62Readiness(
       checkPhase62Readiness({
         benchmarkRoot: runOptions.benchmarkRoot,
@@ -307,12 +359,13 @@ export async function runPhase62LongMemEval(
       }),
     );
 
-    return runSuite(runOptions, {
-      answerGenerator: createLongMemEvalAnswerGenerator(),
-      answerJudge: createLongMemEvalAnswerJudge(),
+    return runSuite({ ...runOptions, stageTimeoutMs }, {
+      answerGenerator: createLongMemEvalAnswerGenerator(requestTimeoutMs),
+      answerJudge: createLongMemEvalAnswerJudge(requestTimeoutMs),
       memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
         createMemory: createLongMemEvalMemoryFactory(
           dependencies.createMemory ?? createGoodMemory,
+          { requestTimeoutMs },
         ),
         runId: runOptions.runId,
       }),

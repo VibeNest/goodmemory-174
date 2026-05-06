@@ -9,6 +9,7 @@ import {
 import {
   createAISDKEmbeddingAdapter,
   createOpenAICompatibleFetch,
+  DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   parseAISDKModelConfigFromEnv,
   resolveAISDKEmbeddingModel,
   resolveAISDKModel,
@@ -172,6 +173,35 @@ describe("model adapters", () => {
     expect(result.content).toBe("generated-answer");
     expect(calls[0]?.system).toBe("system prompt");
     expect(String(calls[0]?.prompt)).toContain("migration open loop");
+    expect(calls[0]?.maxRetries).toBe(0);
+    expect(calls[0]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
+  });
+
+  it("honors custom AI SDK text request timeouts", async () => {
+    const calls: Array<Record<string, unknown>> = [];
+    const generator = createAISDKTextGenerator({
+      model: {
+        provider: "openai",
+        model: "gpt-5",
+      },
+      dependencies: {
+        generateText: async (input) => {
+          calls.push(input as unknown as Record<string, unknown>);
+          return { text: "generated-answer" } as never;
+        },
+        requestTimeoutMs: 1234,
+        resolveModel: (config) => ({ resolvedFrom: config.model }) as never,
+      },
+    });
+
+    await generator({
+      persona: {} as never,
+      prompt: "continue",
+      scenario: {} as never,
+      transcript: "user: hi",
+    });
+
+    expect(calls[0]?.timeout).toBe(1234);
   });
 
   it("retries transient gateway validation failures for text generation", async () => {
@@ -353,7 +383,9 @@ describe("model adapters", () => {
 
     expect(JSON.parse(result.content).winner).toBe("goodmemory");
     expect(calls[0]?.system).toBe("judge system");
+    expect(calls[0]?.maxRetries).toBe(0);
     expect(calls[0]?.schema).toBeTruthy();
+    expect(calls[0]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
   });
 
   it("creates a structured memory extractor using generateObject", async () => {
@@ -404,8 +436,10 @@ describe("model adapters", () => {
 
     expect(result.candidates[0]?.kindHint).toBe("fact");
     expect(result.candidates[0]?.content).toContain("legal signoff");
+    expect(calls[0]?.maxRetries).toBe(0);
     expect(calls[0]?.schema).toBeTruthy();
     expect(String(calls[0]?.prompt)).toContain("runtime rollout");
+    expect(calls[0]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
   });
 
   it("creates an embedding adapter using injected dependencies", async () => {
@@ -429,6 +463,7 @@ describe("model adapters", () => {
     const result = await adapter.embed(["alpha", "beta"]);
 
     expect(result).toEqual([[1, 0, 0], [0, 1, 0]]);
+    expect(calls[0]?.maxRetries).toBe(0);
     expect(calls[0]?.values).toEqual(["alpha", "beta"]);
   });
 
@@ -574,8 +609,12 @@ describe("model adapters", () => {
     expect(plan.requestedSlotAdditions).toEqual(["reference"]);
     expect(rerank.orderedCandidateIds).toEqual(["ref-1", "fact-1"]);
     expect(rerank.decisions?.[0]?.reason).toBe("source_of_truth");
+    expect(calls[0]?.maxRetries).toBe(0);
     expect(calls[0]?.schema).toBeTruthy();
+    expect(calls[1]?.maxRetries).toBe(0);
     expect(calls[1]?.schema).toBeTruthy();
+    expect(calls[0]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
+    expect(calls[1]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
   });
 
   it("normalizes openai-compatible recall router alias payloads before schema validation", async () => {

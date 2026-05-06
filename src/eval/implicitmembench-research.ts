@@ -4,6 +4,9 @@ import { join, resolve } from "node:path";
 import { z } from "zod";
 import { createInternalGoodMemory } from "../api/createGoodMemory";
 import type { GoodMemory } from "../api/contracts";
+import { createMemorySource } from "../domain/provenance";
+import { createFeedbackMemory } from "../domain/records";
+import type { FeedbackMemory } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import {
   applyTextResponseEnactmentPlan,
@@ -12,6 +15,7 @@ import {
   buildStructuredTextResponseControlLines,
   recoverStructuredFirstActionAnswer,
   resolveTextResponseEnactmentPlan,
+  readBehavioralPolicyFromFeedbackMemory,
   selectBehavioralPolicies,
   splitTopLevelCallArguments,
   type BehavioralPolicySelection,
@@ -317,6 +321,12 @@ export interface ImplicitMemBenchCaseResult {
   blocking: boolean;
   caseId: string;
   datasetFamily: ImplicitMemBenchDatasetFamily;
+  distilledContextDiagnostics?: {
+    compiledPolicyCount: number;
+    contextEmpty: boolean;
+    fallbackPolicyCount: number;
+    immediateFeedbackSignalApplied: boolean;
+  };
   executionFailure?: string;
   explicitRecallLeak: boolean;
   feedbackSignalApplied: boolean;
@@ -375,6 +385,15 @@ export interface ImplicitMemBenchProfileSummary {
   caseCountsByDataset: Record<ImplicitMemBenchDatasetFamily, number>;
   caseCountsByScorer: Record<ImplicitMemBenchScorerFamily, number>;
   cases: ImplicitMemBenchCaseResult[];
+  distilledCompiledPolicyCount?: number;
+  distilledContextEmptyCount?: number;
+  distilledContextExamples?: Array<{
+    caseId: string;
+    judgeReason?: string;
+    taskFile: string;
+  }>;
+  distilledContextPassRate?: number | null;
+  distilledFallbackPolicyCount?: number;
   executionFailures: number;
   explicitRecallLeakCount: number;
   passedBlockingCases: number;
@@ -1773,8 +1792,10 @@ export async function listImplicitMemBenchResearchCases(input: {
 function buildResearchScope(
   caseDefinition: ImplicitMemBenchResearchCase,
   profile: ImplicitMemBenchResearchProfile,
+  runId?: string,
 ): MemoryScope {
   return {
+    ...(runId ? { tenantId: `implicitmembench-${runId}` } : {}),
     userId: `implicitmembench-${profile}-${caseDefinition.caseId}`,
     workspaceId: `implicitmembench-${caseDefinition.taskFile}-${profile}`,
   };
@@ -1901,8 +1922,12 @@ function buildGoodMemoryPrimingPrompt(input: {
 }
 
 interface LatentPrimingInfluencePacket {
+  affect: string;
   branchGroup: PrimingBranchInstance["group"];
+  compositionStyle: string;
   content: string;
+  dynamics: string;
+  safeSynonymPool: string[];
   semanticField: LatentPrimingSemanticField;
   sourceNounBlacklist: string[];
 }
@@ -1970,6 +1995,52 @@ const LATENT_PRIMING_SEMANTIC_FIELD_PATTERNS = [
     field: "volcanic_release",
     pattern:
       /\b(ash|basalt|eruption|lava|magma|molten|plume|pumice|vent|volcan)\b/u,
+  },
+] as const satisfies readonly {
+  field: ExperimentalLatentPrimingSemanticField;
+  pattern: RegExp;
+}[];
+
+const LATENT_PRIMING_THEME_LABEL_PATTERNS = [
+  {
+    field: "abyssal_depth",
+    pattern: /\b(abyssal|deep\s+sea|oceanic|subsea)\b/u,
+  },
+  {
+    field: "oracle_prophecy",
+    pattern: /\b(oracle|prophecy|prophetic|augury)\b/u,
+  },
+  {
+    field: "arctic_survival",
+    pattern: /\b(arctic|expedition|polar|survival|tundra)\b/u,
+  },
+  {
+    field: "cathedral_structure",
+    pattern: /\b(cathedral|architecture|clerestory|buttress)\b/u,
+  },
+  {
+    field: "espionage_intrigue",
+    pattern: /\b(espionage|cold\s+war|intrigue|spycraft|tradecraft)\b/u,
+  },
+  {
+    field: "alchemy_transformation",
+    pattern: /\b(alchemy|alchemical|renaissance\s+alchemy)\b/u,
+  },
+  {
+    field: "mycelium_network",
+    pattern: /\b(mycelium|fungal|mycorrhizal)\b/u,
+  },
+  {
+    field: "orbital_motion",
+    pattern: /\b(orbital|mechanics|celestial|spaceflight)\b/u,
+  },
+  {
+    field: "jazz_improvisation",
+    pattern: /\b(jazz|improvisation|syncopation)\b/u,
+  },
+  {
+    field: "volcanic_release",
+    pattern: /\b(volcanic|eruption|volcano)\b/u,
   },
 ] as const satisfies readonly {
   field: ExperimentalLatentPrimingSemanticField;
@@ -2107,16 +2178,30 @@ function inferLatentPrimingSemanticField(input: {
     return "neutral";
   }
 
-  const themeText = [
-    input.caseDefinition.instance.selected_source_theme,
-    ...input.caseDefinition.fixture.themeKeywords,
-    ...input.branch.priming_phase.map((message) => message.content),
-  ]
+  const sourceThemeText =
+    input.caseDefinition.instance.selected_source_theme.toLowerCase();
+  for (const semanticFieldPattern of LATENT_PRIMING_THEME_LABEL_PATTERNS) {
+    if (semanticFieldPattern.pattern.test(sourceThemeText)) {
+      return semanticFieldPattern.field;
+    }
+  }
+
+  const keywordText = input.caseDefinition.fixture.themeKeywords
+    .join(" ")
+    .toLowerCase();
+  for (const semanticFieldPattern of LATENT_PRIMING_SEMANTIC_FIELD_PATTERNS) {
+    if (semanticFieldPattern.pattern.test(keywordText)) {
+      return semanticFieldPattern.field;
+    }
+  }
+
+  const primingText = input.branch.priming_phase
+    .map((message) => message.content)
     .join(" ")
     .toLowerCase();
 
   for (const semanticFieldPattern of LATENT_PRIMING_SEMANTIC_FIELD_PATTERNS) {
-    if (semanticFieldPattern.pattern.test(themeText)) {
+    if (semanticFieldPattern.pattern.test(primingText)) {
       return semanticFieldPattern.field;
     }
   }
@@ -2136,6 +2221,10 @@ const LATENT_PRIMING_CUES = {
     "sealed refinement",
     "arcane craft",
     "measured transmutation",
+    "athanor heat",
+    "cinnabar change",
+    "hermetic reduction",
+    "nigredo passage",
   ],
   arctic_survival: [
     "austere endurance",
@@ -2184,6 +2273,9 @@ const LATENT_PRIMING_CUES = {
     "elliptic timing",
     "distant alignment",
     "graceful capture",
+    "barycentric balance",
+    "centripetal return",
+    "apsidal rhythm",
   ],
   volcanic_release: [
     "contained release",
@@ -2192,6 +2284,83 @@ const LATENT_PRIMING_CUES = {
     "dense afterglow",
   ],
 } as const satisfies Record<LatentPrimingSemanticField, readonly string[]>;
+
+const LATENT_PRIMING_FINGERPRINTS = {
+  abyssal_depth: {
+    affect: "quiet awe",
+    compositionStyle: "layered, descending, spare",
+    dynamics: "pressure easing into slow discovery",
+    safeSynonymPool: ["submerged", "hushed", "deepward", "weightless"],
+  },
+  alchemy_transformation: {
+    affect: "patient mystery",
+    compositionStyle: "sealed, craftlike, transitional",
+    dynamics: "rough matter becoming refined form",
+    safeSynonymPool: ["athanor", "cinnabar", "hermetic", "nigredo"],
+  },
+  arctic_survival: {
+    affect: "austere resolve",
+    compositionStyle: "minimal, high-contrast, sheltered",
+    dynamics: "scarcity narrowing into endurance",
+    safeSynonymPool: ["pale", "sheltered", "hardy", "northward"],
+  },
+  cathedral_structure: {
+    affect: "reverent clarity",
+    compositionStyle: "vertical, symmetrical, luminous",
+    dynamics: "weight turning into graceful support",
+    safeSynonymPool: ["vaulted", "radiant", "buttressed", "sacred"],
+  },
+  espionage_intrigue: {
+    affect: "tense discretion",
+    compositionStyle: "coded, restrained, double-layered",
+    dynamics: "hidden intent moving through ordinary signals",
+    safeSynonymPool: ["covert", "coded", "quiet", "masked"],
+  },
+  jazz_improvisation: {
+    affect: "alert playfulness",
+    compositionStyle: "syncopated, responsive, compact",
+    dynamics: "variation answering constraint in motion",
+    safeSynonymPool: ["offbeat", "responsive", "blue-note", "improvised"],
+  },
+  mycelium_network: {
+    affect: "organic patience",
+    compositionStyle: "distributed, interlaced, living",
+    dynamics: "small connections spreading mutual support",
+    safeSynonymPool: ["rooted", "interwoven", "symbiotic", "distributed"],
+  },
+  neutral: {
+    affect: "low-emotion clarity",
+    compositionStyle: "plain, orderly, comparable",
+    dynamics: "items arranged for inspection",
+    safeSynonymPool: ["plain", "measured", "tidy", "indexed"],
+  },
+  oracle_prophecy: {
+    affect: "solemn uncertainty",
+    compositionStyle: "ritual, veiled, forward-looking",
+    dynamics: "ambiguous signs resolving into warning",
+    safeSynonymPool: ["omened", "veiled", "solemn", "foretold"],
+  },
+  orbital_motion: {
+    affect: "calm precision",
+    compositionStyle: "curved, balanced, periodic",
+    dynamics: "competing pulls resolving into stable return",
+    safeSynonymPool: ["apsidal", "barycentric", "centripetal", "cyclic"],
+  },
+  volcanic_release: {
+    affect: "compressed intensity",
+    compositionStyle: "dense, forceful, heat-adjacent",
+    dynamics: "pressure becoming decisive release",
+    safeSynonymPool: ["surge", "furnace", "bright", "compressed"],
+  },
+} as const satisfies Record<
+  LatentPrimingSemanticField,
+  {
+    affect: string;
+    compositionStyle: string;
+    dynamics: string;
+    safeSynonymPool: readonly string[];
+  }
+>;
 
 function inferLatentPrimingCues(input: {
   branch: PrimingBranchInstance;
@@ -2214,6 +2383,16 @@ function inferLatentPrimingCues(input: {
     : ["indirect metaphor", "coherent mood", "restrained influence", "single image"];
 }
 
+function filterSafePrimingTerms(input: {
+  sourceNounBlacklist: readonly string[];
+  terms: readonly string[];
+}): string[] {
+  return input.terms.filter(
+    (term) =>
+      !containsBlacklistedPrimingToken(term, input.sourceNounBlacklist),
+  );
+}
+
 function buildLatentPrimingInfluencePacket(input: {
   branch: PrimingBranchInstance;
   caseDefinition: PrimingImplicitMemBenchCase;
@@ -2226,22 +2405,35 @@ function buildLatentPrimingInfluencePacket(input: {
     semanticField,
     sourceNounBlacklist,
   });
+  const fingerprint = LATENT_PRIMING_FINGERPRINTS[semanticField];
+  const safeSynonymPool = filterSafePrimingTerms({
+    sourceNounBlacklist,
+    terms: fingerprint.safeSynonymPool,
+  });
   const style =
     input.branch.group === "experimental"
       ? "Let the final answer lean toward these abstract cues without naming the source theme."
       : "Keep the final answer neutral, orderly, and minimally thematic.";
 
   return {
+    affect: fingerprint.affect,
     branchGroup: input.branch.group,
+    compositionStyle: fingerprint.compositionStyle,
     content: [
       "Latent priming influence packet:",
       `Branch: ${input.branch.group}`,
       `Semantic field: ${semanticField}`,
       `Abstract cues: ${cues.join("; ")}`,
+      `Affect: ${fingerprint.affect}`,
+      `Dynamics: ${fingerprint.dynamics}`,
       `Composition style: ${style}`,
+      `Style fingerprint: ${fingerprint.compositionStyle}`,
+      `Safe synonym pool: ${safeSynonymPool.join(", ") || "(none)"}`,
       `Source noun blacklist: ${sourceNounBlacklist.join(", ") || "(none)"}`,
       "Use only the abstract cues. Do not copy blacklist nouns, cite earlier messages, add markdown, or add commentary.",
     ].join("\n"),
+    dynamics: fingerprint.dynamics,
+    safeSynonymPool,
     semanticField,
     sourceNounBlacklist,
   };
@@ -2330,19 +2522,19 @@ const SAFE_PRIMING_CANDIDATES = {
   ],
   alchemy_transformation: [
     {
-      codename: "Hermetica",
+      codename: "Athanor",
       rationale:
-        "It suggests sealed refinement, turning rough material toward a rarer state.",
+        "Steady heat compresses scattered substance, leaving a cleaner, rarer form.",
     },
     {
-      codename: "Aurumfold",
+      codename: "Cinnabar",
       rationale:
-        "It evokes patient change, preserving value while the form becomes leaner.",
+        "A dark mineral brightens by stages, turning disorder into concentrated value.",
     },
     {
-      codename: "Retort",
+      codename: "Nigredo",
       rationale:
-        "It frames transformation as careful containment, trial, and measured release.",
+        "Initial darkness becomes useful order after pressure and disciplined craft.",
     },
   ],
   arctic_survival: [
@@ -2466,19 +2658,19 @@ const SAFE_PRIMING_CANDIDATES = {
   ],
   orbital_motion: [
     {
-      codename: "Lagrange",
+      codename: "Barycenter",
       rationale:
-        "It suggests balance, holding movement efficiently between competing invisible pulls.",
+        "Shared tension gathers scattered mass, keeping compact motion near a steady center.",
     },
     {
-      codename: "Kepler",
+      codename: "Libration",
       rationale:
-        "It evokes elegant paths, turning distance and timing into stable return.",
+        "A slight wobble becomes disciplined recurrence, conserving effort through balanced return.",
     },
     {
       codename: "Apsis",
       rationale:
-        "It frames momentum as a narrowed curve that saves effort through timing.",
+        "A far swing tightens at the edge, saving energy through curved timing.",
     },
   ],
   volcanic_release: [
@@ -2532,11 +2724,48 @@ function selectSafeNeutralCandidate(input: {
   };
 }
 
+function scoreSafePrimingCandidate(input: {
+  candidate: SafePrimingCandidate;
+  packet: LatentPrimingInfluencePacket;
+}): number {
+  const text = primingCandidateText(input.candidate).toLowerCase();
+  const synonymHits = input.packet.safeSynonymPool.filter((term) =>
+    textContainsPrimingToken(text, term.toLowerCase()),
+  ).length;
+  const cueHits = LATENT_PRIMING_CUES[input.packet.semanticField].filter((cue) =>
+    cue
+      .split(/\s+/u)
+      .some((term) => term.length > 4 && text.includes(term.toLowerCase())),
+  ).length;
+
+  return synonymHits * 5 + cueHits * 2;
+}
+
+function rankSafePrimingCandidates(input: {
+  candidates: readonly SafePrimingCandidate[];
+  packet: LatentPrimingInfluencePacket;
+}): SafePrimingCandidate[] {
+  return [...input.candidates]
+    .map((candidate, index) => ({
+      candidate,
+      index,
+      score: scoreSafePrimingCandidate({
+        candidate,
+        packet: input.packet,
+      }),
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((entry) => entry.candidate);
+}
+
 function buildSafePrimingCandidates(packet: LatentPrimingInfluencePacket): string {
   const semanticField =
     packet.branchGroup === "experimental" ? packet.semanticField : "neutral";
-  const candidates = SAFE_PRIMING_CANDIDATES[semanticField];
-  const safeCandidates = candidates.map((candidate, index) =>
+  const candidates = rankSafePrimingCandidates({
+    candidates: SAFE_PRIMING_CANDIDATES[semanticField],
+    packet,
+  });
+  const safeCandidates = candidates.slice(0, 3).map((candidate, index) =>
     containsBlacklistedPrimingToken(
       primingCandidateText(candidate),
       packet.sourceNounBlacklist,
@@ -2549,6 +2778,26 @@ function buildSafePrimingCandidates(packet: LatentPrimingInfluencePacket): strin
   );
 
   return JSON.stringify({ candidates: safeCandidates });
+}
+
+function scorePrimingCandidatesAnswer(input: {
+  answer: string;
+  packet: LatentPrimingInfluencePacket;
+}): number {
+  const parsed = parsePrimingCandidatesAnswer(input.answer);
+  if (!isValidPrimingCandidatesPayload(parsed)) {
+    return -1;
+  }
+
+  return parsed.candidates.reduce(
+    (score, candidate) =>
+      score +
+      scoreSafePrimingCandidate({
+        candidate,
+        packet: input.packet,
+      }),
+    0,
+  );
 }
 
 function enforcePrimingAnswerSafety(input: {
@@ -2564,15 +2813,32 @@ function enforcePrimingAnswerSafety(input: {
 
   if (strictJsonPrimingProbe(prompt)) {
     const parsed = parsePrimingCandidatesAnswer(input.answer);
+    const safeCandidateAnswer = buildSafePrimingCandidates(input.latentPacket);
     if (
       isValidPrimingCandidatesPayload(parsed) &&
       !hasUnsafeSourceNoun &&
       !input.answer.includes("```")
     ) {
-      return input.answer.trim();
+      const trimmedAnswer = input.answer.trim();
+      if (input.branch.group === "control") {
+        return safeCandidateAnswer;
+      }
+
+      const generatedScore = scorePrimingCandidatesAnswer({
+        answer: trimmedAnswer,
+        packet: input.latentPacket,
+      });
+      const safeCandidateScore = scorePrimingCandidatesAnswer({
+        answer: safeCandidateAnswer,
+        packet: input.latentPacket,
+      });
+
+      return safeCandidateScore > generatedScore
+        ? safeCandidateAnswer
+        : trimmedAnswer;
     }
 
-    return buildSafePrimingCandidates(input.latentPacket);
+    return safeCandidateAnswer;
   }
 
   if (hasUnsafeSourceNoun || input.answer.includes("```")) {
@@ -2587,6 +2853,7 @@ async function buildMemoryContext(
   scope: MemoryScope,
   query: string,
   options?: {
+    immediateFeedbackSignal?: string;
     profile?: ImplicitMemBenchResearchProfile;
     scorerFamily?: ImplicitMemBenchScorerFamily;
     transientMessages?: readonly ImplicitMemBenchMessage[];
@@ -2596,6 +2863,9 @@ async function buildMemoryContext(
   hostActionSelections: BehavioralPolicySelection[];
   rawCarryover: RawCarryoverResolution;
   textResponsePlan: ReturnType<typeof resolveTextResponseEnactmentPlan>;
+  distilledContextDiagnostics?: NonNullable<
+    ImplicitMemBenchCaseResult["distilledContextDiagnostics"]
+  >;
 }> {
   const recall = await memory.recall({
     query,
@@ -2664,13 +2934,34 @@ async function buildMemoryContext(
     feedbackById.set(feedback.id, feedback);
   }
   const feedback = [...feedbackById.values()];
-  const textSelections = selectBehavioralPolicies({
+  const transientDistilledFeedback =
+    options?.profile === "goodmemory-distilled-feedback"
+      ? collectTransientDistilledFeedback({
+          feedback,
+          immediateFeedbackSignal: options.immediateFeedbackSignal,
+          scope,
+        })
+      : [];
+  const compiledTextSelections = selectBehavioralPolicies({
     appliesTo: "general_response",
     feedback,
     query,
     surface: "text_response",
-    transientFeedback: recall.feedback ?? [],
   });
+  const fallbackTextSelections =
+    transientDistilledFeedback.length > 0
+      ? selectBehavioralPolicies({
+          appliesTo: "general_response",
+          feedback: [],
+          query,
+          surface: "text_response",
+          transientFeedback: transientDistilledFeedback,
+        })
+      : [];
+  const textSelections = sortBehavioralPolicySelections([
+    ...compiledTextSelections,
+    ...fallbackTextSelections,
+  ]);
   const textResponsePlan = resolveTextResponseEnactmentPlan(textSelections);
   const structuredControlLines = buildStructuredTextResponseControlLines(
     textResponsePlan,
@@ -2682,16 +2973,30 @@ async function buildMemoryContext(
         !policy.applicability.textResponsePlan,
     ),
   );
-  const hostActionSelections =
+  const compiledHostActionSelections =
     options?.scorerFamily === "structured_first_action"
       ? selectBehavioralPolicies({
           appliesTo: "general_response",
           feedback,
           query,
           surface: "host_action",
-          transientFeedback: recall.feedback ?? [],
         })
       : [];
+  const fallbackHostActionSelections =
+    options?.scorerFamily === "structured_first_action" &&
+    transientDistilledFeedback.length > 0
+      ? selectBehavioralPolicies({
+          appliesTo: "general_response",
+          feedback: [],
+          query,
+          surface: "host_action",
+          transientFeedback: transientDistilledFeedback,
+        })
+      : [];
+  const hostActionSelections = sortBehavioralPolicySelections([
+    ...compiledHostActionSelections,
+    ...fallbackHostActionSelections,
+  ]);
   const actionSteeringLines =
     options?.scorerFamily === "structured_first_action"
       ? buildBehavioralActionSteeringLines(
@@ -2699,34 +3004,64 @@ async function buildMemoryContext(
           query,
         )
       : [];
+  const fallbackPolicyCount =
+    fallbackTextSelections.length + fallbackHostActionSelections.length;
+  const compiledPolicyCount =
+    compiledTextSelections.length + compiledHostActionSelections.length;
+  const hasRenderedBehavioralLines =
+    structuredControlLines.length > 0 ||
+    steeringLines.length > 0 ||
+    actionSteeringLines.length > 0;
+  const genericFallbackSteeringLines =
+    options?.profile === "goodmemory-distilled-feedback" &&
+    !hasRenderedBehavioralLines &&
+    transientDistilledFeedback.length > 0
+      ? transientDistilledFeedback
+          .slice(0, 1)
+          .map((feedback) => `Apply this behavior implicitly: ${feedback.rule}`)
+      : [];
+  const effectiveFallbackPolicyCount =
+    fallbackPolicyCount + genericFallbackSteeringLines.length;
+  const content = [
+    builtContext.content,
+    hasRenderedBehavioralLines || genericFallbackSteeringLines.length > 0
+      ? [
+          structuredControlLines.length > 0
+            ? [
+                "Structured response control:",
+                "Apply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.",
+                ...structuredControlLines,
+              ].join("\n")
+            : undefined,
+          steeringLines.length > 0 || genericFallbackSteeringLines.length > 0
+            ? [
+                "Behavioral steering:",
+                "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.",
+                ...steeringLines,
+                ...genericFallbackSteeringLines,
+              ].join("\n")
+            : undefined,
+          ...actionSteeringLines,
+        ].join("\n")
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   return {
-    content: [
-      builtContext.content,
-      structuredControlLines.length > 0 ||
-      steeringLines.length > 0 ||
-      actionSteeringLines.length > 0
-        ? [
-            structuredControlLines.length > 0
-              ? [
-                  "Structured response control:",
-                  "Apply the following controls implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.",
-                  ...structuredControlLines,
-                ].join("\n")
-              : undefined,
-            steeringLines.length > 0
-              ? [
-                  "Behavioral steering:",
-                  "Apply the following guidance implicitly. Do not mention memory, earlier notes, or learned rules unless directly asked.",
-                  ...steeringLines,
-                ].join("\n")
-              : undefined,
-            ...actionSteeringLines,
-          ].join("\n")
-        : undefined,
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
+    content,
+    ...(options?.profile === "goodmemory-distilled-feedback"
+      ? {
+          distilledContextDiagnostics: {
+            compiledPolicyCount,
+            contextEmpty: renderedContextIsEmpty(content),
+            fallbackPolicyCount: effectiveFallbackPolicyCount,
+            immediateFeedbackSignalApplied: Boolean(
+              options.immediateFeedbackSignal,
+            ),
+          },
+        }
+      : {}),
     hostActionSelections,
     rawCarryover: {
       candidates: [],
@@ -2760,6 +3095,79 @@ function collectNonPrimingReplayMessages(
     ...flattenImplicitMemBenchMessages(instance.learning_phase),
     ...flattenImplicitMemBenchMessages(instance.interference_phase),
   ];
+}
+
+const IMPLICITMEMBENCH_IMMEDIATE_FEEDBACK_TIMESTAMP =
+  "2026-05-05T00:00:00.000Z";
+
+function inferImmediateFeedbackKind(
+  signal: string,
+): Exclude<FeedbackMemory["kind"], "validated_pattern"> {
+  return /\b(?:avoid|do not|don't|never|instead of|warn)\b/iu.test(signal)
+    ? "dont"
+    : "do";
+}
+
+function createImmediateDistilledFeedback(input: {
+  scope: MemoryScope;
+  signal: string;
+}): FeedbackMemory {
+  return createFeedbackMemory({
+    id: `implicitmembench-immediate-feedback:${input.scope.userId}:${input.scope.workspaceId ?? "global"}`,
+    userId: input.scope.userId,
+    tenantId: input.scope.tenantId,
+    workspaceId: input.scope.workspaceId,
+    agentId: input.scope.agentId,
+    sessionId: input.scope.sessionId,
+    rule: input.signal,
+    kind: inferImmediateFeedbackKind(input.signal),
+    appliesTo: "general_response",
+    source: createMemorySource({
+      method: "explicit",
+      extractedAt: IMPLICITMEMBENCH_IMMEDIATE_FEEDBACK_TIMESTAMP,
+      sessionId: input.scope.sessionId,
+    }),
+    updatedAt: IMPLICITMEMBENCH_IMMEDIATE_FEEDBACK_TIMESTAMP,
+  });
+}
+
+function collectTransientDistilledFeedback(input: {
+  feedback: readonly FeedbackMemory[];
+  immediateFeedbackSignal?: string;
+  scope: MemoryScope;
+}): FeedbackMemory[] {
+  const fallbackByRule = new Map<string, FeedbackMemory>();
+  if (input.immediateFeedbackSignal) {
+    const immediate = createImmediateDistilledFeedback({
+      scope: input.scope,
+      signal: input.immediateFeedbackSignal,
+    });
+    fallbackByRule.set(immediate.rule.trim().toLowerCase(), immediate);
+  }
+
+  for (const feedback of input.feedback) {
+    if (
+      feedback.lifecycle !== "active" ||
+      feedback.kind === "validated_pattern" ||
+      readBehavioralPolicyFromFeedbackMemory(feedback)
+    ) {
+      continue;
+    }
+
+    fallbackByRule.set(feedback.rule.trim().toLowerCase(), feedback);
+  }
+
+  return [...fallbackByRule.values()];
+}
+
+function sortBehavioralPolicySelections(
+  selections: readonly BehavioralPolicySelection[],
+): BehavioralPolicySelection[] {
+  return [...selections].sort((left, right) => right.score - left.score);
+}
+
+function renderedContextIsEmpty(content: string): boolean {
+  return content.replace(/^Developer memory notes:\s*/iu, "").trim().length === 0;
 }
 
 const EXPLICIT_RECALL_LEAK_PATTERNS = [
@@ -3296,6 +3704,13 @@ function summarizeProfile(
   let totalBlockingCases = 0;
   let primingScoreTotal = 0;
   let primingScoreCount = 0;
+  let distilledContextEmptyCount = 0;
+  let distilledContextNonEmptyCount = 0;
+  let distilledContextNonEmptyPassed = 0;
+  let distilledCompiledPolicyCount = 0;
+  let distilledFallbackPolicyCount = 0;
+  const distilledContextExamples: ImplicitMemBenchProfileSummary["distilledContextExamples"] =
+    [];
 
   for (const caseResult of cases) {
     datasetCounts[caseResult.datasetFamily] += 1;
@@ -3313,12 +3728,56 @@ function summarizeProfile(
       primingScoreTotal += caseResult.primingInfluenceScore;
       primingScoreCount += 1;
     }
+
+    if (caseResult.distilledContextDiagnostics) {
+      const diagnostics = caseResult.distilledContextDiagnostics;
+      if (diagnostics.contextEmpty) {
+        distilledContextEmptyCount += 1;
+        if (distilledContextExamples.length < 5) {
+          distilledContextExamples.push({
+            caseId: caseResult.caseId,
+            ...(caseResult.judgeReason
+              ? { judgeReason: caseResult.judgeReason }
+              : {}),
+            taskFile: caseResult.taskFile,
+          });
+        }
+      } else {
+        distilledContextNonEmptyCount += 1;
+        if (caseResult.passed) {
+          distilledContextNonEmptyPassed += 1;
+        }
+      }
+      if (diagnostics.compiledPolicyCount > 0) {
+        distilledCompiledPolicyCount += 1;
+      }
+      if (diagnostics.fallbackPolicyCount > 0) {
+        distilledFallbackPolicyCount += 1;
+      }
+    }
   }
+  const hasDistilledDiagnostics =
+    distilledContextEmptyCount > 0 ||
+    distilledContextNonEmptyCount > 0 ||
+    distilledCompiledPolicyCount > 0 ||
+    distilledFallbackPolicyCount > 0;
 
   return {
     caseCountsByDataset: datasetCounts,
     caseCountsByScorer: scorerCounts,
     cases: [...cases],
+    ...(hasDistilledDiagnostics
+      ? {
+          distilledCompiledPolicyCount,
+          distilledContextEmptyCount,
+          distilledContextExamples,
+          distilledContextPassRate:
+            distilledContextNonEmptyCount === 0
+              ? null
+              : distilledContextNonEmptyPassed / distilledContextNonEmptyCount,
+          distilledFallbackPolicyCount,
+        }
+      : {}),
     executionFailures: cases.filter((caseResult) => caseResult.executionFailure).length,
     explicitRecallLeakCount,
     passedBlockingCases,
@@ -3918,6 +4377,7 @@ async function evaluateGoodMemoryCase(input: {
   dependencies: ImplicitMemBenchResearchDependencies;
   mode: ImplicitMemBenchResearchMode;
   profile: "goodmemory-distilled-feedback" | "goodmemory-raw-experience";
+  runId?: string;
 }): Promise<ImplicitMemBenchCaseResult | null> {
   if (
     input.caseDefinition.scorerFamily === "priming_pair_judge" &&
@@ -3932,7 +4392,11 @@ async function evaluateGoodMemoryCase(input: {
     throw new Error("Missing text answer generator dependency.");
   }
 
-  const scope = buildResearchScope(input.caseDefinition, input.profile);
+  const scope = buildResearchScope(
+    input.caseDefinition,
+    input.profile,
+    input.runId,
+  );
   const memory = createMemory({
     profile: input.profile,
     scope,
@@ -4055,6 +4519,9 @@ async function evaluateGoodMemoryCase(input: {
           scope,
           input.caseDefinition.instance.test_probe.content,
           {
+            ...(input.profile === "goodmemory-distilled-feedback"
+              ? { immediateFeedbackSignal: input.caseDefinition.feedbackSignal }
+              : {}),
             profile: input.profile,
             scorerFamily: input.caseDefinition.scorerFamily,
             transientMessages: collectNonPrimingReplayMessages(
@@ -4119,6 +4586,12 @@ async function evaluateGoodMemoryCase(input: {
             input.caseDefinition.scorerFamily === "text_behavior_judge"
               ? enforcedAnswer
               : result.answer,
+          ...(memoryContext.distilledContextDiagnostics
+            ? {
+                distilledContextDiagnostics:
+                  memoryContext.distilledContextDiagnostics,
+              }
+            : {}),
           memoryContext: memoryContext.content,
           rawCarryover,
         };
@@ -4315,6 +4788,7 @@ export async function runImplicitMemBenchGoodMemoryEval(
           dependencies,
           mode: input.mode,
           profile,
+          runId,
         }),
     });
     const results = rawResultsUnfiltered.filter(

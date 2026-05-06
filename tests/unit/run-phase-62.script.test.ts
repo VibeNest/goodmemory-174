@@ -10,6 +10,8 @@ import {
   buildLongMemEvalPrompt,
   createLongMemEvalMemoryFactory,
   PHASE62_CANONICAL_RUN_ID,
+  resolvePhase62LiveRequestTimeoutMs,
+  resolvePhase62StageTimeoutMs,
   runPhase62LongMemEval,
 } from "../../scripts/run-phase-62-eval";
 import {
@@ -260,6 +262,25 @@ describe("run-phase-62 LongMemEval script", () => {
     ).toContain(
       "include that category in the answer, such as resources, accessories, publications, conferences, or gear.",
     );
+  });
+
+  it("resolves Phase 62 live request timeout from env", () => {
+    expect(
+      resolvePhase62LiveRequestTimeoutMs({
+        GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS: "1234",
+      }),
+    ).toBe(1234);
+    expect(() =>
+      resolvePhase62LiveRequestTimeoutMs({
+        GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS: "0",
+      }),
+    ).toThrow("GOODMEMORY_PHASE62_LIVE_REQUEST_TIMEOUT_MS");
+    expect(resolvePhase62StageTimeoutMs(8000, {})).toBe(48000);
+    expect(
+      resolvePhase62StageTimeoutMs(8000, {
+        GOODMEMORY_PHASE62_STAGE_TIMEOUT_MS: "12345",
+      }),
+    ).toBe(12345);
   });
 
   it("runs through the LongMemEval suite with canonical defaults", async () => {

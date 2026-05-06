@@ -1351,6 +1351,63 @@ text-generation timeout class. It also defaults per-shard case concurrency to
 `1` through the Phase 61 wrapper so generic high-concurrency eval environment
 settings do not overload live full-300 runs.
 
+## Phase 62A Recovery Update (`2026-05-05`)
+
+Phase 62A addressed the remaining post-Phase-61 failure mode: priming improved,
+but the full-300 headline was still pulled down by a distilled blocking
+regression and weak priming transfer in several semantic fields.
+
+Mechanism changes:
+
+- distilled feedback now has an eval-only immediate feedback policy fallback,
+  so a `memory.feedback()` signal still produces executable behavioral context
+  when no compiled validated pattern is available
+- merged Phase 61 full-300 summaries preserve distilled context diagnostics:
+  empty context count, compiled/fallback policy counts, pass rate, and examples
+- latent priming semantic-field inference now prioritizes source theme labels
+  and manifest keywords before scanning priming prose, preventing incidental
+  terms such as `cold` or `stone` from routing a case to the wrong field
+- strict JSON priming generation compares model candidates with a
+  contamination-safe deterministic candidate set and selects the stronger safe
+  abstract candidate set when generated candidates are weak or unsafe
+
+The post-fix full-300 rerun completed under
+`run-phase61-full300-20260505T170001Z`:
+
+- artifact:
+  `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json`
+- official-comparable denominator:
+  - `300 / 300` cases
+- baseline full-300 score:
+  - `128 / 300 = 42.67%`
+- target GoodMemory profile:
+  - `goodmemory-distilled-feedback+controlled-priming`
+- best official-comparable GoodMemory full-300 score:
+  - `213.26 / 300 = 71.09%`
+- reference line:
+  - exceeds the paper's `66%` line by `5.09` percentage points
+- GoodMemory distilled blocking:
+  - `155 / 200 = 77.50%`
+- GoodMemory priming contribution:
+  - `94 / 100` credited cases
+  - average credited influence `58.26`
+  - task violations `0`
+  - source-noun contamination flags `0`
+  - explicit recall leaks `0`
+- distilled context diagnostics:
+  - empty context `0 / 200`
+  - fallback policy coverage `200 / 200`
+  - context pass rate `77.50%`
+- execution failures:
+  - baseline `0`
+  - GoodMemory raw `0`
+  - GoodMemory distilled `0`
+
+This is the first official-comparable internal GoodMemory full-300 profile in
+this workstream to exceed the paper's `66%` reference line. The claim boundary
+does not change: the result is internal research evidence, not a release hard
+gate, not a public API/config change, and not a README-level leaderboard claim.
+
 ## Recommended Next Work
 
 If the goal is to improve GoodMemory itself rather than chase one benchmark, the

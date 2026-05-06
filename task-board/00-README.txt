@@ -403,17 +403,20 @@ Current Sequencing Note
     `bun run eval:phase-61-full300`
     (defaults to 10 shards, shard-level concurrency 6, and per-shard case
     concurrency 1, then merges shard reports into one final summary)
-  - post-Phase-61 full-300 rerun:
-    `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T080002Z/overall-summary.json`
+  - post-Phase-61 / Phase 62A recovery full-300 rerun:
+    `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json`
   - latest result:
     best official-comparable GoodMemory full-300 score is
-    `145.71 / 300 = 48.57%`; priming has `56 / 100` credited cases, `0`
-    task violations, `0` source-noun contamination flags, and `0` explicit
-    recall leaks; GoodMemory raw has `0` execution failures, while distilled
-    has `2` text-generation timeouts from the older `90000ms` general timeout
+    `213.26 / 300 = 71.09%`; the target profile
+    `goodmemory-distilled-feedback+controlled-priming` exceeds the paper's
+    `66%` reference line; priming has `94 / 100` credited cases, average
+    influence `58.26`, `0` task violations, `0` source-noun contamination
+    flags, and `0` explicit recall leaks; distilled blocking is
+    `155 / 200 = 77.50%` with empty-context count `0 / 200`
   - boundary:
-    priming improved materially, but the full-300 headline remains below the
-    paper's `66%` reference line and remains internal research evidence
+    this is internal research evidence only; no README-level leaderboard claim,
+    no release hard gate, no public API/config widening, and no new public
+    durable memory kind
 - Phase 62 is active as the LongMemEval sequential hardening slice:
   - task-board entrypoint:
     `task-board/67-phase-62-longmemeval-sequential-hardening.txt`
@@ -429,12 +432,29 @@ Current Sequencing Note
     `run-phase62-longmemeval-recall-diagnostic-rules18-20260505T042749Z` with
     `executionFailures: 0`, evidence-session recall `0.1667`, missed recall
     `15/18`, and wrong recall `7/18`
+  - current live evidence:
+    `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
+    completed the fixed 18-case type-balanced manifest with all four profiles.
+    Both GoodMemory profiles reached 18/18 answer accuracy with zero execution
+    failures and zero wrong recall; `baseline-full-context` reached 16/18 and
+    `baseline-no-memory` reached 0/18
+  - broader-slice evidence:
+    `run-phase62-longmemeval-live60-type-balanced-20260506T010000Z` exposed
+    that the fixed 18-case manifest was too narrow: both GoodMemory profiles
+    reached only 19/60 answer accuracy with evidence-session recall 0.275,
+    while `baseline-full-context` reached 55/60
+  - current recall-only repair evidence:
+    `run-phase62-longmemeval-recall-only-rules60-aggregate-domain-ownership-20260506T041500Z`
+    improves provider-free rules-only evidence-session recall on the same
+    60-case type-balanced slice from 0.275 live-run recall and 0.379 first
+    recall-only repair evidence to 0.8167, with `executionFailures: 0`;
+    multi-session is now 0.8083, knowledge-update is 0.7, and wrong recall
+    remains at 3/60
   - current blocker:
-    canonical live answer-generation slices remain blocked by provider
-    `model_cooldown` / `usage_limit_reached`, so the next implementation work
-    should use the recall-only evidence to repair generic event/episode,
-    assistant-answer, multi-session, temporal, and update-latest memory
-    mechanisms
+    Phase 62 is still WIP because the broader 60-case miss loop has not been
+    closed by a live rerun and full 500-case LongMemEval remains unrun or
+    explicitly deferred with rationale; do not open BEAM until this broader /
+    full LongMemEval decision is recorded
 - Phase 19 closure is backed by accepted reviewer and maintenance quality gates:
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Reviewer-Quality-Gate.md`
   - `docs/archive/quality-gates/GoodMemory-Phase-19-Maintenance-Quality-Gate.md`

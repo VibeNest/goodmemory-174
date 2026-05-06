@@ -82,8 +82,24 @@ Tasks
   GoodMemory-only manifest run
   `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`
   completed with `executionFailures: 0`; both GoodMemory profiles reached
-  18/18 answer accuracy with no wrong-recall cases. The full 500-case run
-  remains pending.
+  18/18 answer accuracy with no wrong-recall cases. A later post-runtime-
+  hardening three-profile run
+  `run-phase62-longmemeval-live18-three-profile-stage-timeout-20260506T000500Z`
+  reconfirmed `goodmemory-rules-only` at 18/18 with zero execution failures
+  and zero wrong recall, while `baseline-full-context` was only 13/18 under
+  the same live timeout bounds. The earlier provider-backed hybrid probe
+  `run-phase62-longmemeval-live1-hybrid-stage-timeout-escalated-20260505T235500Z`
+  exposed that assisted extraction during LongMemEval rehydration can dominate
+  the harness. The current four-profile fixed-manifest rerun
+  `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
+  uses deterministic ingestion with hybrid recall for `goodmemory-hybrid` and
+  completed with `executionFailures: 0`; both GoodMemory profiles reached
+  18/18 answer accuracy with zero wrong-recall cases. The broader 60-case run
+  `run-phase62-longmemeval-live60-type-balanced-20260506T010000Z` then exposed
+  the fixed manifest as too narrow: both GoodMemory profiles reached only
+  19/60 answer accuracy with evidence-session recall 0.275, while
+  `baseline-full-context` reached 55/60. Full 500-case execution remains
+  pending.
 [WIP] P62-T005 Write LongMemEval miss-case analysis grouped by question type,
   missed recall, wrong recall, stale/update failure, abstention failure, and
   token/context pressure. Initial 3-case analysis is recorded in
@@ -102,7 +118,20 @@ Tasks
   `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`
   has 18/18 answer accuracy for both GoodMemory profiles; its remaining
   evidence-session recall caveat is limited to three `knowledge-update` latest
-  collapse cases where only the current value is rendered.
+  collapse cases where only the current value is rendered. The current
+  comparable three-profile rerun
+  `run-phase62-longmemeval-live18-three-profile-stage-timeout-20260506T000500Z`
+  keeps `goodmemory-rules-only` clean at 18/18. The current four-profile
+  rerun
+  `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
+  keeps both GoodMemory profiles clean at 18/18 with zero execution failures.
+  The broader 60-case type-balanced slice is now the active miss-intake source:
+  `run-phase62-longmemeval-recall-only-rules60-aggregate-domain-ownership-20260506T041500Z`
+  raises provider-free rules-only evidence-session recall to 0.8167 with zero
+  execution failures. Multi-session is now 0.8083, knowledge-update is 0.7,
+  and wrong recall remains 3/60. Phase 62 remains open until the broader miss
+  loop is closed by live rerun evidence or full execution is explicitly
+  deferred.
 [WIP] P62-T006 Implement generic GoodMemory repairs from the miss cases and
   rerun LongMemEval before opening the BEAM phase. First repairs landed for
   cleaned answer normalization, full-run readiness, rules-only provider
@@ -112,13 +141,30 @@ Tasks
   physical-pickup versus continuation routing, assistant-derived verified
   evidence, dated-event derivation, project-leadership context preservation,
   relationship-relocation latest-value collapse, and recommendation-category
-  answer guidance. Wrong recall is closed for the fixed GoodMemory-only 18-case
-  manifest, and the current focused verification passes `bun run typecheck`,
-  `bun test tests/unit/run-phase-62.script.test.ts tests/integration/recall.api.test.ts tests/unit/remember.extractor.test.ts tests/unit/longmemeval.test.ts`,
-  and `git diff --check`. The Phase 62 gate now also checks that the
+  answer guidance. Runtime hardening also now applies bounded AI SDK request
+  timeouts, disables nested AI SDK retries under GoodMemory's retry wrapper,
+  propagates provider-layer request timeouts, and records LongMemEval
+  `memory_context`, `answer_generation`, and `answer_judge` stage timeouts as
+  structured report rows. LongMemEval hybrid now keeps ingestion deterministic
+  while using hybrid recall, so the fixed 18-case rerun exercises retrieval
+  instead of hundreds of live extractor calls during benchmark rehydration.
+  Wrong recall is closed for both GoodMemory profiles on the fixed
+  18-case manifest, and the current focused verification passes
+  `bun test tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts tests/unit/model-adapters.test.ts tests/unit/provider.layer.test.ts`,
+  `bun run typecheck`, `bun run gate:phase-62`, and `git diff --check`. A
+  current full `bun test` over the mixed worktree is not green: 2045/2052 tests
+  pass, with 7 failures in Phase 32/35 and governed procedural feedback recall
+  paths outside the Phase 62 LongMemEval lane. The Phase 62 gate now also checks that the
   type-balanced 18-case manifest keeps all four required profiles and fixed
-  case ids. An unrelated concurrent package-pack release-test race is locked;
-  broader/full LongMemEval coverage remains open.
+  case ids. The latest four-profile fixed-manifest live run
+  `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
+  closes the small-manifest GoodMemory miss loop. The broader 60-case repair
+  pass has added verified-annotation explicitness, weak-lexical explicit fact
+  recall, compact dated user evidence, trusted aggregate money/provider/count
+  selection, and current ownership-count selection; recall-only evidence
+  improved from 0.379 to 0.8167 after those repairs, but the 60-case live
+  answer rerun is still pending. An unrelated concurrent package-pack
+  release-test race is locked; broader/full LongMemEval coverage remains open.
 
 
 Commands

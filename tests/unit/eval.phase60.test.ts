@@ -167,6 +167,11 @@ function buildReport(input: {
               text_behavior_judge: 1,
             },
             cases: [blockingCase],
+            distilledCompiledPolicyCount: 0,
+            distilledContextEmptyCount: 0,
+            distilledContextExamples: [],
+            distilledContextPassRate: 1,
+            distilledFallbackPolicyCount: 1,
             executionFailures: 0,
             explicitRecallLeakCount: 0,
             passedBlockingCases: 1,
@@ -393,9 +398,13 @@ describe("phase60 overall protocol", () => {
       passedEquivalent: 1.8,
       total: 2,
     });
+    expect(composite.distilledContextEmptyCount).toBe(0);
+    expect(composite.distilledFallbackPolicyCount).toBe(1);
+    expect(composite.distilledContextPassRate).toBe(1);
     expect(composite.overallComparableToOfficial).toBe(false);
     expect(summary.comparison.goodmemoryImprovesBaselineOverall).toBe(null);
     expect(summary.comparison.bestGoodMemoryBlockingOnlyRate).toBe(1);
     expect(summary.protocol.requiredFields).toContain("full300OverallScore");
+    expect(summary.protocol.requiredFields).toContain("distilledContextEmptyCount");
   });
 });

@@ -271,6 +271,13 @@ function summarizeCases(
   let primingScoreCount = 0;
   let primingScoreTotal = 0;
   let totalBlockingCases = 0;
+  let distilledContextEmptyCount = 0;
+  let distilledContextNonEmptyCount = 0;
+  let distilledContextNonEmptyPassed = 0;
+  let distilledCompiledPolicyCount = 0;
+  let distilledFallbackPolicyCount = 0;
+  const distilledContextExamples: ImplicitMemBenchProfileSummary["distilledContextExamples"] =
+    [];
 
   for (const caseResult of cases) {
     caseCountsByDataset[caseResult.datasetFamily] += 1;
@@ -291,12 +298,55 @@ function summarizeCases(
       primingScoreCount += 1;
       primingScoreTotal += caseResult.primingInfluenceScore;
     }
+    if (caseResult.distilledContextDiagnostics) {
+      const diagnostics = caseResult.distilledContextDiagnostics;
+      if (diagnostics.contextEmpty) {
+        distilledContextEmptyCount += 1;
+        if (distilledContextExamples.length < 5) {
+          distilledContextExamples.push({
+            caseId: caseResult.caseId,
+            ...(caseResult.judgeReason
+              ? { judgeReason: caseResult.judgeReason }
+              : {}),
+            taskFile: caseResult.taskFile,
+          });
+        }
+      } else {
+        distilledContextNonEmptyCount += 1;
+        if (caseResult.passed) {
+          distilledContextNonEmptyPassed += 1;
+        }
+      }
+      if (diagnostics.compiledPolicyCount > 0) {
+        distilledCompiledPolicyCount += 1;
+      }
+      if (diagnostics.fallbackPolicyCount > 0) {
+        distilledFallbackPolicyCount += 1;
+      }
+    }
   }
+  const hasDistilledDiagnostics =
+    distilledContextEmptyCount > 0 ||
+    distilledContextNonEmptyCount > 0 ||
+    distilledCompiledPolicyCount > 0 ||
+    distilledFallbackPolicyCount > 0;
 
   return {
     caseCountsByDataset,
     caseCountsByScorer,
     cases: [...cases],
+    ...(hasDistilledDiagnostics
+      ? {
+          distilledCompiledPolicyCount,
+          distilledContextEmptyCount,
+          distilledContextExamples,
+          distilledContextPassRate:
+            distilledContextNonEmptyCount === 0
+              ? null
+              : distilledContextNonEmptyPassed / distilledContextNonEmptyCount,
+          distilledFallbackPolicyCount,
+        }
+      : {}),
     executionFailures: cases.filter((caseResult) => caseResult.executionFailure)
       .length,
     explicitRecallLeakCount,

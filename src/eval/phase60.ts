@@ -69,6 +69,15 @@ export interface Phase60PrimingViolationExample {
 export interface Phase60ProfileOverallSummary {
   blockingScore: Phase60Score;
   blockingSourceProfile: ImplicitMemBenchResearchProfile | null;
+  distilledCompiledPolicyCount?: number;
+  distilledContextEmptyCount?: number;
+  distilledContextExamples?: Array<{
+    caseId: string;
+    judgeReason?: string;
+    taskFile: string;
+  }>;
+  distilledContextPassRate?: number | null;
+  distilledFallbackPolicyCount?: number;
   exceedsReferenceLine: boolean | null;
   full300OverallScore: Phase60EquivalentScore;
   officialComparability: {
@@ -154,6 +163,11 @@ const REQUIRED_PHASE60_FIELDS = [
   "primingExplicitLeakCount",
   "primingViolationCounts",
   "primingViolationExamples",
+  "distilledContextEmptyCount",
+  "distilledCompiledPolicyCount",
+  "distilledFallbackPolicyCount",
+  "distilledContextPassRate",
+  "distilledContextExamples",
 ] as const;
 
 const PRIMING_STOP_WORDS = new Set([
@@ -528,6 +542,20 @@ function buildProfileOverallSummary(input: {
       total: blockingTotal,
     },
     blockingSourceProfile: input.blockingSourceProfile,
+    ...(input.blockingSummary?.distilledContextEmptyCount !== undefined
+      ? {
+          distilledCompiledPolicyCount:
+            input.blockingSummary.distilledCompiledPolicyCount ?? 0,
+          distilledContextEmptyCount:
+            input.blockingSummary.distilledContextEmptyCount,
+          distilledContextExamples:
+            input.blockingSummary.distilledContextExamples ?? [],
+          distilledContextPassRate:
+            input.blockingSummary.distilledContextPassRate ?? null,
+          distilledFallbackPolicyCount:
+            input.blockingSummary.distilledFallbackPolicyCount ?? 0,
+        }
+      : {}),
     exceedsReferenceLine: fullRate === null ? null : fullRate >= input.referenceLine,
     full300OverallScore: {
       passedEquivalent: fullPassedEquivalent,

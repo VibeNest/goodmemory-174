@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 
 import {
+  DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   requestOpenAICompatibleObject,
   resolveAISDKModel,
   withAISDKRetries,
@@ -53,10 +54,14 @@ export function createEvalJudgeModel(input: {
         }
 
         const { object } = await (input.dependencies?.generateObject ?? generateObject)({
+          maxRetries: 0,
           model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
           schema: judgeResultSchema,
           system,
           prompt,
+          timeout:
+            input.dependencies?.requestTimeoutMs ??
+            DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
         });
 
         const content = JSON.stringify(object);

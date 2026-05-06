@@ -24,6 +24,7 @@ import type {
 
 interface ProviderTextGeneratorFactory {
   (input: {
+    dependencies?: ProviderRequestDependencies;
     model: AISDKModelConfig;
     system?: string;
     promptBuilder?: (input: EvalAnswerGeneratorInput) => string;
@@ -32,6 +33,7 @@ interface ProviderTextGeneratorFactory {
 
 interface ProviderJudgeModelFactory {
   (input: {
+    dependencies?: ProviderRequestDependencies;
     model: AISDKModelConfig;
     system?: string;
   }): JudgeModel;
@@ -39,6 +41,7 @@ interface ProviderJudgeModelFactory {
 
 interface ProviderMemoryExtractorFactory {
   (input: {
+    dependencies?: ProviderRequestDependencies;
     model: AISDKModelConfig;
     system?: string;
   }): MemoryExtractor;
@@ -46,16 +49,22 @@ interface ProviderMemoryExtractorFactory {
 
 interface ProviderEmbeddingAdapterFactory {
   (input: {
+    dependencies?: ProviderRequestDependencies;
     model: AISDKModelConfig;
   }): EmbeddingAdapter;
 }
 
 interface ProviderRecallRouterFactory {
   (input: {
+    dependencies?: ProviderRequestDependencies;
     model: AISDKModelConfig;
     planSystem?: string;
     rerankSystem?: string;
   }): RecallRouterAssistant;
+}
+
+interface ProviderRequestDependencies {
+  requestTimeoutMs?: number;
 }
 
 export interface ModelProviderDescriptorInput {
@@ -118,8 +127,10 @@ export function createProviderTextGenerator(input: {
   system?: string;
   promptBuilder?: (input: EvalAnswerGeneratorInput) => string;
   createTextGenerator?: ProviderTextGeneratorFactory;
+  requestTimeoutMs?: number;
 }): EvalAnswerGenerator {
   return (input.createTextGenerator ?? createEvalAnswerGenerator)({
+    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
     model: input.model,
     system: input.system,
     promptBuilder: input.promptBuilder,
@@ -130,8 +141,10 @@ export function createProviderJudgeModel(input: {
   model: AISDKModelConfig;
   system?: string;
   createJudgeModel?: ProviderJudgeModelFactory;
+  requestTimeoutMs?: number;
 }): JudgeModel {
   return (input.createJudgeModel ?? createEvalJudgeModel)({
+    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
     model: input.model,
     system: input.system,
   });
@@ -141,8 +154,10 @@ export function createProviderMemoryExtractor(input: {
   model: AISDKModelConfig;
   system?: string;
   createMemoryExtractor?: ProviderMemoryExtractorFactory;
+  requestTimeoutMs?: number;
 }): MemoryExtractor {
   return (input.createMemoryExtractor ?? createLLMMemoryExtractor)({
+    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
     model: input.model,
     system: input.system,
   });
@@ -151,8 +166,10 @@ export function createProviderMemoryExtractor(input: {
 export function createProviderEmbeddingAdapter(input: {
   model: AISDKModelConfig;
   createEmbeddingAdapter?: ProviderEmbeddingAdapterFactory;
+  requestTimeoutMs?: number;
 }): EmbeddingAdapter {
   return (input.createEmbeddingAdapter ?? createAISDKEmbeddingAdapter)({
+    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
     model: input.model,
   });
 }
@@ -161,11 +178,19 @@ export function createProviderRecallRouter(input: {
   model: AISDKModelConfig;
   createRecallRouter?: ProviderRecallRouterFactory;
   planSystem?: string;
+  requestTimeoutMs?: number;
   rerankSystem?: string;
 }): RecallRouterAssistant {
   return (input.createRecallRouter ?? createLLMRecallRouter)({
+    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
     model: input.model,
     planSystem: input.planSystem,
     rerankSystem: input.rerankSystem,
   });
+}
+
+function buildProviderRequestDependencies(
+  requestTimeoutMs: number | undefined,
+): ProviderRequestDependencies | undefined {
+  return requestTimeoutMs === undefined ? undefined : { requestTimeoutMs };
 }

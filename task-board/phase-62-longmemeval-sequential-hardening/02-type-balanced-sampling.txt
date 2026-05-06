@@ -146,22 +146,56 @@ Current Provider Status
   `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`
   completed the fixed 18-case manifest for `goodmemory-rules-only` and
   `goodmemory-hybrid` with `executionFailures: 0`.
+- After runtime timeout/retry hardening,
+  `run-phase62-longmemeval-live18-three-profile-stage-timeout-20260506T000500Z`
+  completed `baseline-no-memory`, `baseline-full-context`, and
+  `goodmemory-rules-only` on the fixed 18-case manifest. `goodmemory-rules-only`
+  remained clean at 18/18 with zero execution failures and zero wrong recall.
+- The earlier `goodmemory-hybrid` provider-backed probe
+  `run-phase62-longmemeval-live1-hybrid-stage-timeout-escalated-20260505T235500Z`
+  recorded a structured `memory_context` timeout on a single case when
+  LongMemEval rehydration used assisted extraction.
+- The current four-profile fixed-manifest rerun
+  `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
+  completed with `executionFailures: 0`. It keeps LongMemEval ingestion
+  deterministic for both GoodMemory profiles and uses hybrid recall for
+  `goodmemory-hybrid`. Both GoodMemory profiles reached 18/18 answer accuracy,
+  evidence-session recall 0.9167, and zero wrong-recall cases.
+- The broader 60-case type-balanced live run
+  `run-phase62-longmemeval-live60-type-balanced-20260506T010000Z` used the
+  first 10 cleaned cases per question type. It completed with
+  `executionFailures: 0`, but both GoodMemory profiles reached only 19/60
+  answer accuracy with evidence-session recall 0.275; `baseline-full-context`
+  reached 55/60.
+- The latest provider-free 60-case recall diagnostic after generic repairs is
+  `run-phase62-longmemeval-recall-only-rules60-aggregate-domain-ownership-20260506T041500Z`.
+  It reaches aggregate evidence-session recall 0.8167 with zero execution
+  failures. Multi-session is 0.8083, knowledge-update is 0.7, wrong recall is
+  3/60, and the 60-case live answer rerun is still pending.
 
 
 Acceptance For Moving Past This Manifest
 ----------------------------------------
 
-- The fixed GoodMemory-only small slice has now run with zero provider
+- The fixed rules-only GoodMemory small slice has now run with zero provider
   execution failures:
-  `run-phase62-longmemeval-live18-goodmemory-repairs-20260505T183500Z`.
-- Both `goodmemory-rules-only` and `goodmemory-hybrid` reached 18/18 answer
-  accuracy with zero wrong-recall cases.
+  `run-phase62-longmemeval-live18-three-profile-stage-timeout-20260506T000500Z`.
+- `goodmemory-rules-only` reached 18/18 answer accuracy with zero wrong-recall
+  cases after timeout/retry hardening.
+- Current four-profile evidence
+  `run-phase62-longmemeval-live18-four-profile-deterministic-hybrid-20260506T003000Z`
+  shows both GoodMemory profiles at 18/18 with zero execution failures and
+  zero wrong-recall cases under bounded stage runner settings.
 - Misses are grouped by question type in `01-miss-case-analysis.txt`.
 - Repairs were generic GoodMemory behavior or generic answer-generation
   guidance, not benchmark-file-specific label leakage.
 - Remaining caveat: evidence-session recall is 0.9167 because latest-update
   collapse renders only current values for three `knowledge-update` cases where
   LongMemEval lists stale and current sessions as answer sessions.
+- Remaining blocker before BEAM: close the broader 60-case miss loop with a
+  live rerun and then run a broader/full LongMemEval slice, or explicitly
+  record why full-500 execution is deferred. The fixed 18-case manifest itself
+  is closed for GoodMemory, but Phase 62 is not.
 
 
 Provider-Free Recall Diagnostic
@@ -189,6 +223,13 @@ Provider-Free Recall Diagnostic
   return multi-session case recall all three evidence sessions with zero wrong
   sessions. This is still a provider-free retrieval diagnostic, not an answer
   accuracy score.
+- After the 60-case live miss intake, the current provider-free diagnostic
+  `run-phase62-longmemeval-recall-only-rules60-aggregate-domain-ownership-20260506T041500Z`
+  covers the first 10 cases per cleaned question type. It records
+  `executionFailures: 0`, evidence-session recall `0.8167`, missed recall
+  `18/60`, and wrong recall `3/60`. The strongest families are
+  `single-session-user` and `single-session-assistant` at `0.9`; multi-session
+  is now `0.8083`, temporal is `0.8917`, and knowledge-update is `0.7`.
 
 Re-run command:
 

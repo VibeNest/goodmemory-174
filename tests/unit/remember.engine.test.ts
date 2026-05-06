@@ -370,6 +370,56 @@ describe("remember engine", () => {
     expect(facts[0]?.tags).toEqual(["life_coach"]);
   });
 
+  it("treats verified remember-always annotations as explicit evidence for existing candidates", async () => {
+    const scope = { userId: "u-annotation-verified", sessionId: "s-1" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "inferred-verified-1",
+                kindHint: "fact",
+                explicitness: "inferred",
+                content: "The play I attended was The Glass Menagerie.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "event",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "The play I attended was The Glass Menagerie.",
+        },
+      ],
+      annotations: [
+        {
+          confirmed: true,
+          messageIndex: 0,
+          remember: "always",
+          reason: "host verified this turn as durable evidence",
+          verified: true,
+        },
+      ],
+    });
+    const facts = await repositories.facts.listByScope(scope);
+
+    expect(result.accepted).toBe(1);
+    expect(result.events[0]?.sourceMethod).toBe("explicit");
+    expect(facts[0]?.source.method).toBe("explicit");
+  });
+
   it("does not let remember-always annotations bypass write policy", async () => {
     const scope = { userId: "u-annotation-policy", sessionId: "s-1" };
     const { engine } = createEngine({

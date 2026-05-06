@@ -14,6 +14,7 @@ import type {
   ReviseMemoryResult,
   RunMaintenanceResult,
 } from "../../src/api/contracts";
+import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 import type { MemoryScope } from "../../src/domain/scope";
 import {
   createImplicitMemBenchSmokeDependencies,
@@ -240,11 +241,24 @@ async function createPrimingBenchmarkRoot(): Promise<{
   return { benchmarkRoot, manifestPath };
 }
 
-async function createStrictJsonPrimingBenchmarkRoot(): Promise<{
+async function createStrictJsonPrimingBenchmarkRoot(input?: {
+  primingContent?: string;
+  selectedSourceTheme?: string;
+  sourceTheme?: string;
+  taskFile?: string;
+  themeKeywords?: string[];
+}): Promise<{
   benchmarkRoot: string;
   manifestPath: string;
 }> {
   const benchmarkRoot = await createTempDir("phase61-strict-priming-benchmark");
+  const taskFile = input?.taskFile ?? "strict_priming.json";
+  const selectedSourceTheme = input?.selectedSourceTheme ?? "volcanic pressure";
+  const sourceTheme = input?.sourceTheme ?? selectedSourceTheme;
+  const themeKeywords = input?.themeKeywords ?? ["lava", "basalt", "vent"];
+  const primingContent =
+    input?.primingContent ??
+    "Lava moves under basalt shelves while hidden vents gather heat.";
   await mkdir(join(benchmarkRoot, "dataset", "classical_conditioning"), {
     recursive: true,
   });
@@ -253,7 +267,7 @@ async function createStrictJsonPrimingBenchmarkRoot(): Promise<{
     recursive: true,
   });
   await writeFile(
-    join(benchmarkRoot, "dataset", "priming", "strict_priming.json"),
+    join(benchmarkRoot, "dataset", "priming", taskFile),
     `${JSON.stringify(
       {
         instances: [
@@ -288,8 +302,7 @@ async function createStrictJsonPrimingBenchmarkRoot(): Promise<{
               priming_phase: [
                 {
                   role: "assistant",
-                  content:
-                    "Lava moves under basalt shelves while hidden vents gather heat.",
+                  content: primingContent,
                 },
               ],
               test_probe: {
@@ -300,10 +313,11 @@ async function createStrictJsonPrimingBenchmarkRoot(): Promise<{
             pair_id: "strict-priming-001",
             selected_control_theme: "catalog shelving",
             selected_probe_id: "creative_naming",
-            selected_source_theme: "volcanic pressure",
+            selected_source_theme: selectedSourceTheme,
             task_id: "001",
           },
         ],
+        source_theme: sourceTheme,
         task_count: 1,
         task_seed: "test-strict-priming",
       },
@@ -321,9 +335,9 @@ async function createStrictJsonPrimingBenchmarkRoot(): Promise<{
         datasets: {
           classical_conditioning: {},
           priming: {
-            "strict_priming.json": {
+            [taskFile]: {
               scorer: "priming_pair_judge",
-              themeKeywords: ["lava", "basalt", "vent"],
+              themeKeywords,
             },
           },
           procedural_memory: {},
@@ -2343,6 +2357,96 @@ describe("implicitmembench research eval", () => {
     });
   });
 
+  it("keeps distilled feedback actionable when no compiled validated pattern is available", async () => {
+    const { benchmarkRoot, manifestPath } = await createConditioningBenchmarkRoot({
+      feedbackSignal:
+        "Before using HeavyComputationAPI, check load first and only proceed when load is Normal.",
+      instances: [
+        {
+          task_id: "001",
+          task_name: "Context-Dependent API Behavior",
+          learning_phase: [
+            {
+              role: "user",
+              content: "Run HeavyComputationAPI for the main task.",
+            },
+            {
+              role: "assistant",
+              content: "Running HeavyComputationAPI now.",
+            },
+            {
+              role: "system",
+              content: "System Overloaded: Try again later.",
+            },
+          ],
+          interference_phase: [
+            {
+              role: "user",
+              content: "What is two plus two?",
+            },
+            {
+              role: "assistant",
+              content: "4.",
+            },
+          ],
+          test_probe: {
+            role: "user",
+            content: "Run HeavyComputationAPI for the database job.",
+          },
+        },
+      ],
+      taskFile: "context_dependent_api_behavior.json",
+    });
+    const outputDir = await createTempDir("phase62a-distilled-fallback");
+    const distilledContexts: string[] = [];
+
+    const report = await runImplicitMemBenchGoodMemoryEval({
+      benchmarkRoot,
+      dependencies: {
+        ...createImplicitMemBenchSmokeDependencies(),
+        createMemory: () =>
+          createInternalGoodMemory(
+            { storage: { provider: "memory" } },
+            { behavioralOutcomeRecorder: true },
+          ),
+        generateTextAnswer: async (input) => {
+          if (input.profile === "goodmemory-distilled-feedback") {
+            distilledContexts.push(input.memoryContext ?? "");
+          }
+          return "Check load first and only proceed when load is Normal; otherwise warn or defer.";
+        },
+        judgeTextBehavior: async (input) => ({
+          failure_tags: [],
+          passed:
+            input.answer.includes("Check load first") &&
+            input.answer.includes("Normal"),
+          reasoning: "test",
+        }),
+      },
+      generatedBy: "tests",
+      manifestPath,
+      mode: "live",
+      outputDir,
+      runId: "run-phase62a-distilled-fallback-test",
+    });
+
+    expect(distilledContexts).toHaveLength(1);
+    expect(distilledContexts[0]!).toContain("Structured response control:");
+    expect(distilledContexts[0]!).toContain("require_precondition_check: load");
+    expect(distilledContexts[0]!).not.toBe("Developer memory notes:");
+    const distilled =
+      report.profiles["goodmemory-distilled-feedback"];
+    expect(distilled?.distilledContextEmptyCount).toBe(0);
+    expect(distilled?.distilledFallbackPolicyCount).toBe(1);
+    expect(distilled?.distilledContextPassRate).toBe(1);
+    expect(distilled?.cases[0]?.distilledContextDiagnostics).toMatchObject({
+      compiledPolicyCount: 0,
+      contextEmpty: false,
+      fallbackPolicyCount: 1,
+      immediateFeedbackSignalApplied: true,
+    });
+  });
+
   it("writes baseline, raw, and distilled reports with priming omitted from distilled", async () => {
     const baselineDir = await createTempDir("phase49-baseline");
     const goodmemoryDir = await createTempDir("phase49-goodmemory");
@@ -2414,6 +2518,9 @@ describe("implicitmembench research eval", () => {
       `${primingRawWorkspace}-control`,
       `${primingRawWorkspace}-experimental`,
     ]);
+    expect(new Set(deletedScopes.map((scope) => scope.tenantId))).toEqual(
+      new Set(["implicitmembench-run-phase49-priming-cleanup-test"]),
+    );
   });
 
   it("uses latent priming packets and repairs strict JSON without source nouns", async () => {
@@ -2469,6 +2576,11 @@ describe("implicitmembench research eval", () => {
     expect(prompts[0]?.prompt).toContain("Source noun blacklist:");
     expect(prompts[0]?.prompt).toContain("Semantic field: volcanic_release");
     expect(prompts[0]?.prompt).toContain("contained release");
+    expect(prompts[0]?.prompt).toContain("Affect: compressed intensity");
+    expect(prompts[0]?.prompt).toContain(
+      "Dynamics: pressure becoming decisive release",
+    );
+    expect(prompts[0]?.prompt).toContain("Safe synonym pool:");
     expect(prompts[1]?.prompt).toContain("Semantic field: neutral");
     expect(prompts[1]?.prompt.toLowerCase()).not.toContain("basalt");
     expect(prompts[1]?.memoryContext?.toLowerCase()).not.toContain("volcanic");
@@ -2488,6 +2600,146 @@ describe("implicitmembench research eval", () => {
     expect(
       report.profiles["goodmemory-raw-experience"]?.primingAverageScore,
     ).toBe(70);
+  });
+
+  it("prioritizes source theme labels over incidental priming words", async () => {
+    const cases = [
+      {
+        expectedField: "orbital_motion",
+        forbiddenField: "arctic_survival",
+        primingContent:
+          "Cold stars hang around an unseen pull while a small craft times a precise arc.",
+        selectedSourceTheme: "Orbital Mechanics",
+        taskFile: "orbital_mechanics.json",
+      },
+      {
+        expectedField: "alchemy_transformation",
+        forbiddenField: "cathedral_structure",
+        primingContent:
+          "A stone table holds a sealed vessel where patient hands refine dull metal.",
+        selectedSourceTheme: "Renaissance Alchemy",
+        taskFile: "renaissance_alchemy.json",
+      },
+      {
+        expectedField: "espionage_intrigue",
+        forbiddenField: "arctic_survival",
+        primingContent:
+          "A cold signal passes through a quiet room while a false name protects the exchange.",
+        selectedSourceTheme: "Espionage Cold War Intrigue",
+        taskFile: "espionage_cold_war_intrigue.json",
+      },
+      {
+        expectedField: "mycelium_network",
+        forbiddenField: "cathedral_structure",
+        primingContent:
+          "Fine threads spread under old arches of soil, sharing food through hidden contact.",
+        selectedSourceTheme: "Mycelium Network",
+        taskFile: "mycelium_network.json",
+      },
+    ] as const;
+
+    for (const caseInput of cases) {
+      const { benchmarkRoot, manifestPath } =
+        await createStrictJsonPrimingBenchmarkRoot({
+          primingContent: caseInput.primingContent,
+          selectedSourceTheme: caseInput.selectedSourceTheme,
+          sourceTheme: caseInput.selectedSourceTheme,
+          taskFile: caseInput.taskFile,
+          themeKeywords: ["theme"],
+        });
+      const outputDir = await createTempDir("phase62a-priming-theme-priority");
+      const prompts: string[] = [];
+
+      await runImplicitMemBenchGoodMemoryEval({
+        benchmarkRoot,
+        dependencies: {
+          ...createImplicitMemBenchSmokeDependencies(),
+          createMemory: () => createTrackingMemory([]),
+          generateTextAnswer: async (input) => {
+            prompts.push(input.prompt);
+            return "{\"candidates\":[{\"codename\":\"Ledgerline\",\"rationale\":\"A tidy mark keeps scattered readings available for quick review.\"}]}";
+          },
+          judgePrimingPair: async () => ({
+            priming_influence_score: 0,
+            reasoning: "test",
+          }),
+        },
+        generatedBy: "tests",
+        manifestPath,
+        mode: "live",
+        outputDir,
+        runId: `run-${caseInput.taskFile}`,
+      });
+
+      expect(prompts[0]).toContain(`Semantic field: ${caseInput.expectedField}`);
+      expect(prompts[0]).not.toContain(
+        `Semantic field: ${caseInput.forbiddenField}`,
+      );
+    }
+  });
+
+  it("repairs strict JSON priming with non-neutral safe candidates for orbital and alchemy themes", async () => {
+    const cases = [
+      {
+        forbiddenTerms: ["orbit", "gravity", "apogee", "periapsis", "vector"],
+        primingContent:
+          "Cold stars hang around an unseen pull while a small craft times a precise arc.",
+        selectedSourceTheme: "Orbital Mechanics",
+        taskFile: "orbital_mechanics.json",
+        expectedCandidates: ["Barycenter", "Libration", "Apsis"],
+      },
+      {
+        forbiddenTerms: ["alchemy", "crucible", "elixir", "mercury", "sigil"],
+        primingContent:
+          "A stone table holds a sealed vessel where patient hands refine dull metal.",
+        selectedSourceTheme: "Renaissance Alchemy",
+        taskFile: "renaissance_alchemy.json",
+        expectedCandidates: ["Athanor", "Cinnabar", "Nigredo"],
+      },
+    ] as const;
+
+    for (const caseInput of cases) {
+      const { benchmarkRoot, manifestPath } =
+        await createStrictJsonPrimingBenchmarkRoot({
+          primingContent: caseInput.primingContent,
+          selectedSourceTheme: caseInput.selectedSourceTheme,
+          sourceTheme: caseInput.selectedSourceTheme,
+          taskFile: caseInput.taskFile,
+          themeKeywords: ["theme"],
+        });
+      const outputDir = await createTempDir("phase62a-priming-safe-candidates");
+      let experimentalAnswer = "";
+
+      await runImplicitMemBenchGoodMemoryEval({
+        benchmarkRoot,
+        dependencies: {
+          ...createImplicitMemBenchSmokeDependencies(),
+          createMemory: () => createTrackingMemory([]),
+          generateTextAnswer: async () =>
+            "```json\n{\"candidates\":[{\"codename\":\"Bad\",\"rationale\":\"copies forbidden source nouns\"}],\"extra\":true}\n```",
+          judgePrimingPair: async (input) => {
+            experimentalAnswer = input.experimentalAnswer;
+            return {
+              priming_influence_score: 0,
+              reasoning: "test",
+            };
+          },
+        },
+        generatedBy: "tests",
+        manifestPath,
+        mode: "live",
+        outputDir,
+        runId: `run-safe-${caseInput.taskFile}`,
+      });
+
+      for (const expectedCandidate of caseInput.expectedCandidates) {
+        expect(experimentalAnswer).toContain(expectedCandidate);
+      }
+      expect(experimentalAnswer).not.toContain("Ledgerline");
+      for (const forbiddenTerm of caseInput.forbiddenTerms) {
+        expect(experimentalAnswer.toLowerCase()).not.toContain(forbiddenTerm);
+      }
+    }
   });
 
   it("fails open for priming preparation timeouts as non-blocking execution failures", async () => {
