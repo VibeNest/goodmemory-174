@@ -122,8 +122,26 @@ function serializeJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function parseJson<TValue>(value: string): TValue {
-  return JSON.parse(value) as TValue;
+function bindJson(value: unknown): string {
+  return serializeJson(value);
+}
+
+function parseJson<TValue>(value: unknown): TValue {
+  if (typeof value !== "string") {
+    return value as TValue;
+  }
+
+  const parsed = JSON.parse(value) as unknown;
+
+  if (typeof parsed !== "string") {
+    return parsed as TValue;
+  }
+
+  try {
+    return JSON.parse(parsed) as TValue;
+  } catch {
+    return parsed as TValue;
+  }
 }
 
 function hasFilter(filter?: StorageFilter): filter is StorageFilter {
@@ -139,8 +157,8 @@ function buildJsonbFilterClause(
     return "";
   }
 
-  values.push(serializeJson(filter));
-  return ` AND ${column} @> $${values.length}::jsonb`;
+  values.push(bindJson(filter));
+  return ` AND ${column} @> $${values.length}::text::jsonb`;
 }
 
 function serializePgArray(values: number[]): string {
@@ -316,7 +334,7 @@ function createPostgresSessionStateStore<TValue>(
           ) VALUES (
             $1,
             $2,
-            $3::jsonb,
+            $3::text::jsonb,
             NOW()
           )
           ON CONFLICT (scope_key, state_kind)
@@ -324,7 +342,7 @@ function createPostgresSessionStateStore<TValue>(
             payload = EXCLUDED.payload,
             updated_at = EXCLUDED.updated_at
         `,
-        [scopeToKey(scope), stateKind, serializeJson(value)],
+        [scopeToKey(scope), stateKind, bindJson(value)],
       );
     },
 
@@ -409,7 +427,7 @@ export function createPostgresDocumentStore(
           ) VALUES (
             $1,
             $2,
-            $3::jsonb,
+            $3::text::jsonb,
             NOW(),
             NOW()
           )
@@ -418,7 +436,7 @@ export function createPostgresDocumentStore(
             document = EXCLUDED.document,
             updated_at = EXCLUDED.updated_at
         `,
-        [collection, id, serializeJson(document)],
+        [collection, id, bindJson(document)],
       );
     },
 
@@ -457,12 +475,12 @@ export function createPostgresDocumentStore(
         `
           UPDATE ${runtime.documentTable}
           SET
-            document = document || $3::jsonb,
+            document = document || $3::text::jsonb,
             updated_at = NOW()
           WHERE collection = $1 AND id = $2
           RETURNING id
         `,
-        [collection, id, serializeJson(patch)],
+        [collection, id, bindJson(patch)],
       );
 
       if (rows.length === 0) {
@@ -510,13 +528,13 @@ export function createPostgresDocumentStore(
             FROM ${runtime.documentTable}
             WHERE collection = $1
               AND id = $2
-              AND document = $3::jsonb
+              AND document = $3::text::jsonb
             FOR UPDATE
           `,
           [
             input.expected.collection,
             input.expected.id,
-            serializeJson(input.expected.document),
+            bindJson(input.expected.document),
           ],
         );
 
@@ -536,7 +554,7 @@ export function createPostgresDocumentStore(
               ) VALUES (
                 $1,
                 $2,
-                $3::jsonb,
+                $3::text::jsonb,
                 NOW(),
                 NOW()
               )
@@ -548,7 +566,7 @@ export function createPostgresDocumentStore(
             [
               operation.collection,
               operation.id,
-              serializeJson(operation.document),
+              bindJson(operation.document),
             ],
           );
         }
@@ -663,7 +681,7 @@ export function createPostgresVectorStore(
                 $1,
                 $2,
                 $3::double precision[],
-                $4::jsonb,
+                $4::text::jsonb,
                 $5,
                 NOW()
               )
@@ -678,7 +696,7 @@ export function createPostgresVectorStore(
               collection,
               record.id,
               serializePgArray(record.embedding),
-              serializeJson(record.metadata),
+              bindJson(record.metadata),
               record.content,
             ],
           );

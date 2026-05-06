@@ -117,7 +117,27 @@ export interface LanguageService {
     query: string,
     context: ResolvedLanguageContext | string,
   ): boolean;
+  isAggregateCountQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isAssistantEvidenceRecallQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
   isContinuationQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isDirectFactualLookupQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isGuidanceSeekingQuery(
+    query: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isRecommendationStyleQuery(
     query: string,
     context: ResolvedLanguageContext | string,
   ): boolean;
@@ -138,6 +158,14 @@ export interface LanguageService {
     context: ResolvedLanguageContext | string,
   ): boolean;
   isProjectStateFact(
+    content: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isPersonalEvidenceSignal(
+    content: string,
+    context: ResolvedLanguageContext | string,
+  ): boolean;
+  isPreferenceEvidenceSignal(
     content: string,
     context: ResolvedLanguageContext | string,
   ): boolean;

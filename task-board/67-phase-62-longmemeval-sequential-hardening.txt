@@ -134,7 +134,28 @@ Tasks
   `run-phase62-longmemeval-live60-hybrid-household-issues-escalated-20260506T112000Z`
   also reaches 60/60 answer accuracy with evidence-session recall 0.9292 and
   zero execution failures. Full 500-case execution remains pending or needs an
-  explicit deferral rationale.
+  explicit deferral rationale. The first full-500 attempt
+  `run-phase62-longmemeval-full500-live-four-profile-20260506T034826Z` was
+  split into ten 50-case shards but is invalid as benchmark evidence: running
+  all ten shards concurrently drove the live provider into `model_cooldown`,
+  leaving 128-142 execution failures per shard. Phase 62 now has a resumable
+  full-500 runner, `eval:phase-62-full500`, which defaults to ten 50-case
+  shards, shard concurrency 1, case concurrency 1, and refuses to continue
+  when any shard records execution failures. The failed-shard recovery path is
+  now `eval:phase-62-full500-retry-failures`: it reads a merged/shard report,
+  batches only profile/case rows with `executionError`, and writes a merged
+  report that preserves successful retry rows while leaving unresolved failures
+  retryable. Current live recovery progressed from
+  `run-phase62-longmemeval-full500-live-four-profile-current-merged-20260506T082323Z`
+  with 1215 execution failures to
+  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`
+  with 603 execution failures. `baseline-no-memory` and `baseline-full-context`
+  are now clean for execution failures; `goodmemory-rules-only` has 153
+  remaining failed profile/case rows and `goodmemory-hybrid` has 450. The latest
+  stop was API/provider capacity, not a GoodMemory assertion failure:
+  one 429 usage-limit error, one auth-unavailable 503, and one gateway timeout
+  in the rules-only retry batch
+  `run-phase62-longmemeval-full500-failure-retry-live-20260506T133000Z-goodmemory-rules-only-batch-020`.
 [WIP] P62-T005 Write LongMemEval miss-case analysis grouped by question type,
   missed recall, wrong recall, stale/update failure, abstention failure, and
   token/context pressure. Initial 3-case analysis is recorded in
@@ -226,12 +247,12 @@ Tasks
   pronoun-dependent bike expenses, sleep-before-appointment temporal bridging,
   dated charity/social event derivation, project role preservation, and
   assistant-follow-up topic answer guidance, household maintenance issue
-  preservation, and preference evidence prioritization; recall-only evidence
-  improved from 0.379 to 0.9292 after those repairs. The latest rules-only and
-  hybrid 60-case live reruns both reach 60/60 for GoodMemory, but the full-500
-  decision keeps the broader LongMemEval loop open. Current focused
-  verification passes
-  `bun test tests/unit/recall.selection.test.ts tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts`,
+  preservation, preference evidence prioritization, and multilingual recall
+  selection intent boundaries; recall-only evidence improved from 0.379 to
+  0.9292 after those repairs. The latest rules-only and hybrid 60-case live
+  reruns both reach 60/60 for GoodMemory, but the full-500 decision keeps the
+  broader LongMemEval loop open. Current focused verification passes
+  `bun test tests/unit/recall.selection.test.ts tests/unit/language/service.test.ts tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts`,
   `bun run typecheck`, `bun run gate:phase-62`, and `git diff --check`. An
   unrelated concurrent package-pack release-test race is locked; broader/full
   LongMemEval coverage remains open.
@@ -244,6 +265,9 @@ Commands
 bun run eval:phase-62
 bun run gate:phase-62
 bun run eval:phase-62 -- --mode full --benchmark-root <LongMemEval data root> --max-concurrency 1
+bun run eval:phase-62-full500 -- --benchmark-root <LongMemEval data root> --run-id <full-500-run-id>
+bun run eval:phase-62-full500-summary -- --run-id <full-500-run-id>
+bun run eval:phase-62-full500-retry-failures -- --benchmark-root <LongMemEval data root> --source-run-id <merged-or-shard-run-id> --retry-run-id <retry-run-id> --merged-run-id <merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1
 bun run eval:phase-62 -- --mode full --benchmark-root <LongMemEval data root> --question-type multi-session --limit 3 --max-concurrency 1
 bun run eval:phase-62-recall-diagnostic -- --mode full --benchmark-root <LongMemEval data root> --profile goodmemory-rules-only --max-concurrency 1
 ```

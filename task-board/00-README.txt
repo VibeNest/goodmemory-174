@@ -59,10 +59,10 @@ that phase or a current document points to a specific archived gate/report.
 Recent Accepted Boundary
 ------------------------
 - Phase 60 is closed as the ImplicitMemBench overall and priming protocol.
-  Canonical fallback report:
-  `reports/eval/fallback/phase-60/run-phase60-fallback-current/report.json`
   Canonical overall summary:
   `reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json`
+  Canonical fallback report (ignored generated):
+  `reports/eval/fallback/phase-60/run-phase60-fallback-current/report.json`
   Canonical gate:
   `reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json`
 - Phase 61 is accepted as priming abstraction and contamination-safe output.
@@ -94,7 +94,11 @@ Active Phase
     evidence-session recall 0.9292 and `executionFailures: 0`.
 - Current blocker: Phase 62 remains WIP until the full 500-case LongMemEval
   decision is recorded as executed evidence or an explicit deferral with
-  rationale. Do not open BEAM until this is closed.
+  rationale. The latest failed-case retry merge,
+  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`,
+  reduced execution failures to 603, but `goodmemory-rules-only` still has 153
+  failed rows and `goodmemory-hybrid` has 450. Do not open BEAM until this is
+  closed.
 
 Documentation Hygiene
 ---------------------

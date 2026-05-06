@@ -56,6 +56,7 @@ describe("language service", () => {
     const service = createLanguageService();
 
     expect(service.isAnswerCompositionQuery("我应该怎么回复这个用户？", "zh-CN")).toBe(true);
+    expect(service.isAnswerCompositionQuery("请总结当前发布状态。", "zh-CN")).toBe(true);
     expect(service.isContinuationQuery("继续上次的工作流修复。", "zh-CN")).toBe(true);
     expect(service.isActionDrivingQuery("请使用这些记忆决定下一步。", "zh-CN")).toBe(true);
     expect(service.isActionDrivingQuery("我应该用哪个工作流文档？", "zh-CN")).toBe(false);
@@ -65,6 +66,18 @@ describe("language service", () => {
     expect(service.isBlockerFact("当前阻塞是供应商审批。", "zh-CN")).toBe(true);
     expect(service.detectFactPolarity("工作流仍然被阻塞。", "zh-CN")).toBe("negative");
     expect(service.detectFactPolarity("工作流已经稳定。", "zh-CN")).toBe("positive");
+  });
+
+  it("supports Chinese recall selection query families", () => {
+    const service = createLanguageService();
+
+    expect(service.isGuidanceSeekingQuery("以后回复有什么格式要求？", "zh-CN")).toBe(true);
+    expect(service.isDirectFactualLookupQuery("我上次买了什么？", "zh-CN")).toBe(true);
+    expect(service.isAggregateCountQuery("这些维修总共花了多少钱？", "zh-CN")).toBe(true);
+    expect(service.isRecommendationStyleQuery("厨房又乱了，有什么建议？", "zh-CN")).toBe(true);
+    expect(service.isAssistantEvidenceRecallQuery("你之前给我的清单里第七项是什么？", "zh-CN")).toBe(true);
+    expect(service.isPersonalEvidenceSignal("我家的水龙头有点漏水。", "zh-CN")).toBe(true);
+    expect(service.isPreferenceEvidenceSignal("我想要更安静的晚上活动。", "zh-CN")).toBe(true);
   });
 
   it("supports English slot-scoped query and fact intents", () => {
@@ -94,6 +107,9 @@ describe("language service", () => {
       true,
     );
     expect(service.isActionDrivingQuery("Use this memory to decide the next step.", "en-US")).toBe(
+      true,
+    );
+    expect(service.isAnswerCompositionQuery("Please summarize the current rollout status.", "en-US")).toBe(
       true,
     );
     expect(service.isActionDrivingQuery("Which workflow doc should I use?", "en-US")).toBe(

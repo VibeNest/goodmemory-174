@@ -150,6 +150,24 @@ Workstreams
   - Phase 62 remains open for broader/full LongMemEval coverage. Do not open
     BEAM from this board until the full-500 decision is recorded as either
     executed evidence or an explicit deferral with rationale.
+  - The first full-500 attempt
+    `run-phase62-longmemeval-full500-live-four-profile-20260506T034826Z`
+    is invalid as benchmark evidence. It did cover the cleaned 500 cases as ten
+    50-case shards, but the shards were started concurrently and the live model
+    provider returned `model_cooldown` at high volume. Use
+    `bun run eval:phase-62-full500 -- --benchmark-root /tmp/LongMemEval --run-id <run-id>`
+    for the next attempt; it runs the same ten shards with shard concurrency 1
+    and stops on the first shard that records execution failures.
+  - The failed full-500 shard recovery path is now resumable by failed
+    profile/case row:
+    `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id>`.
+    The latest merged live retry state is
+    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`:
+    603 execution failures remain after cleaning all `baseline-full-context`
+    execution failures and reducing `goodmemory-rules-only` to 153 failed
+    profile/case rows. `goodmemory-hybrid` still has 450 failed rows. The latest
+    stop was provider/API capacity in rules-only batch 020, not a closed
+    benchmark result.
 
 4. Transition to BEAM
    - open the BEAM phase only after LongMemEval has a clear before/after delta

@@ -27,8 +27,10 @@ import {
   withImplicitMemBenchTimeout,
 } from "../../src/eval/implicitmembench-research";
 
-const FIXTURE_ROOT =
-  "/Users/hjqcan/Documents/GoodMomery/fixtures/implicitmembench-research";
+const FIXTURE_ROOT = join(
+  import.meta.dir,
+  "../../fixtures/implicitmembench-research",
+);
 const MANIFEST_PATH = `${FIXTURE_ROOT}/adapter-manifest.json`;
 
 async function createTempDir(prefix: string): Promise<string> {
@@ -2142,7 +2144,7 @@ describe("implicitmembench research eval", () => {
         outputDir,
         runId: "run-phase49-missing-root",
       }),
-    ).rejects.toThrow("ENOENT");
+    ).rejects.toThrow("No ImplicitMemBench dataset files found");
   });
 
   it("keeps GoodMemory generation prompts limited to raw carryover exemplars plus the probe", async () => {

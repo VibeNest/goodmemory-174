@@ -6,7 +6,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Stable OSS Surface
 
-- Current published package target for the stable v0.2 line is `0.2.2`; Phase
+- Current published package target for the stable v0.2 line is `0.2.3`; Phase
   40 remains the initial `0.2.0` release-proof gate for the line.
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
 - Public domain write customization is now accepted through `GoodMemoryConfig.remember`, `RememberProfile`, `rememberRules`, `RememberInput.annotations`, and traceable extractor composition.
@@ -119,11 +119,18 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
     records evidence-session recall `0.9292`, missed recall `10/60`, wrong
     recall `2/60`, and zero execution failures
-- Current Phase 62 blocker is a broader/full LongMemEval execution or explicit
-  full-500 deferral decision. Repairs must stay generic and not target
-  LongMemEval case ids or dataset labels; this remains internal research
-  evidence, not a README-level public
-  benchmark claim.
+  - the latest full-500 failed-case retry merge
+    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`
+    is still invalid as final benchmark evidence because 603 execution failures
+    remain, but it proves the recovery path can resume from failed profile/case
+    rows instead of rerunning clean rows. `baseline-full-context` is clean for
+    execution failures at 452/500 accuracy; `goodmemory-rules-only` still has
+    153 failed rows and `goodmemory-hybrid` still has 450.
+- Current Phase 62 blocker is completing the resumable full-500 LongMemEval
+  execution or recording an explicit full-500 deferral decision. Repairs must
+  stay generic and not target LongMemEval case ids or dataset labels; this
+  remains internal research evidence, not a README-level public benchmark
+  claim.
 
 ## Prior Accepted Research Slice
 

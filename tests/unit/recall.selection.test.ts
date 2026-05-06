@@ -7,6 +7,7 @@ import {
 import { createLanguageService } from "../../src/language";
 import type { RoutingDecision } from "../../src/recall/router";
 import {
+  selectFeedbackForQuery,
   selectFeedbackForProfile,
   selectFacts,
   selectReferences,
@@ -286,6 +287,55 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-unrelated-price")?.returned).toBe(false);
   });
 
+  it("returns Chinese money facts for aggregate spending queries", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-chain-zh",
+        userId: "user-1",
+        category: "event",
+        content: "我给自行车换了链条，花了25元。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-light-zh",
+        userId: "user-1",
+        category: "event",
+        content: "我又装了一组自行车灯，花了40元。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-hotel-zh",
+        userId: "user-1",
+        category: "event",
+        content: "酒店房间每晚花了140元。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "今年自行车相关维修总共花了多少钱？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id))).toEqual(
+      new Set(["fact-chain-zh", "fact-light-zh"]),
+    );
+    expect(result.traces.find((trace) => trace.memoryId === "fact-hotel-zh")?.returned).toBe(false);
+  });
+
   it("returns medical provider facts for aggregate doctor count queries", () => {
     const language = createLanguageService();
     const facts = [
@@ -542,6 +592,15 @@ describe("recall selection", () => {
         tags: ["user_answer", "compact_evidence"],
         updatedAt: TIMESTAMP,
       }),
+      createFactMemory({
+        id: "fact-kitchen-leak",
+        userId: "user-1",
+        category: "personal",
+        content: "I am struggling with a leaking kitchen faucet.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
     ];
 
     const result = selectFacts(
@@ -558,6 +617,55 @@ describe("recall selection", () => {
     expect(result.facts.map((fact) => fact.id)).toEqual([
       "fact-evening-preference",
     ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-kitchen-leak")?.returned).toBe(false);
+  });
+
+  it("returns trusted Chinese preference evidence for advice questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-kitchen-noise",
+        userId: "user-1",
+        category: "personal",
+        content: "我今天在厨房做了晚饭。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-kitchen-faucet",
+        userId: "user-1",
+        category: "personal",
+        content: "我家的厨房水龙头最近有点漏水。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-evening",
+        userId: "user-1",
+        category: "personal",
+        content: "我想要更安静的晚上活动。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "厨房又有点乱了，有什么建议？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-kitchen-faucet",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-evening")?.returned).toBe(false);
   });
 
   it("does not use weak-overlap inferred evidence as recommendation fallback", () => {
@@ -738,5 +846,56 @@ describe("recall selection", () => {
       "feedback-coding",
       "feedback-general",
     ]);
+  });
+
+  it("returns active feedback for summary composition queries with weak lexical overlap", () => {
+    const language = createLanguageService();
+    const feedback = [
+      createFeedbackMemory({
+        id: "feedback-summary",
+        userId: "user-1",
+        rule: "Use bullet points in summaries.",
+        kind: "validated_pattern",
+        appliesTo: "general_response",
+        source: SOURCE,
+        updatedAt: "2026-01-10T00:00:00.000Z",
+      }),
+    ];
+
+    const selected = selectFeedbackForQuery(
+      feedback,
+      "Please summarize the current rollout status.",
+      language,
+      "en-US",
+      "general_chat",
+    );
+
+    expect(selected.map((record) => record.id)).toEqual(["feedback-summary"]);
+  });
+
+  it("matches feedback by rule text when metadata terms dilute full-search overlap", () => {
+    const language = createLanguageService();
+    const feedback = [
+      createFeedbackMemory({
+        id: "feedback-outcome",
+        userId: "user-1",
+        rule:
+          "When detailed analysis previously caused DeepAnalyzer timeouts, avoid DeepAnalyzer on the first action and use QuickCheck before proceeding.",
+        kind: "validated_pattern",
+        appliesTo: "general_response",
+        source: SOURCE,
+        updatedAt: "2026-01-10T00:00:00.000Z",
+      }),
+    ];
+
+    const selected = selectFeedbackForQuery(
+      feedback,
+      "I need a detailed analysis of our network traffic.",
+      language,
+      "en-US",
+      "general_chat",
+    );
+
+    expect(selected.map((record) => record.id)).toEqual(["feedback-outcome"]);
   });
 });

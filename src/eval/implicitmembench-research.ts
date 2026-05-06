@@ -1676,7 +1676,20 @@ export async function listImplicitMemBenchResearchCases(input: {
     "procedural_memory",
   ] as const) {
     const directory = join(benchmarkRoot, "dataset", datasetFamily);
-    const entries = (await readdir(directory, { withFileTypes: true }))
+    const entries = (await readdir(directory, { withFileTypes: true }).catch(
+      (error: unknown) => {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ) {
+          return [];
+        }
+
+        throw error;
+      },
+    ))
       .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
       .sort((left, right) => left.name.localeCompare(right.name));
 
@@ -1784,6 +1797,12 @@ export async function listImplicitMemBenchResearchCases(input: {
         });
       }
     }
+  }
+
+  if (cases.length === 0) {
+    throw new Error(
+      `No ImplicitMemBench dataset files found under ${join(benchmarkRoot, "dataset")}`,
+    );
   }
 
   return input.limit ? cases.slice(0, input.limit) : cases;

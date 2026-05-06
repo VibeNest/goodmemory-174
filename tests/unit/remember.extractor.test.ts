@@ -894,6 +894,276 @@ describe("deterministic memory extractor", () => {
     expect(result.candidates[8]?.metadata?.feedbackKind).toBe("prefer");
   });
 
+  it("extracts Chinese Phase 62 personal experience facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-phase62-personal" },
+      messages: [
+        {
+          role: "user",
+          content: "我毕业于工商管理专业，这对我的新工作有帮助。",
+        },
+        {
+          role: "user",
+          content: "我的日常通勤需要45分钟。",
+        },
+        {
+          role: "user",
+          content: "我还需要取干洗的蓝色西装外套。",
+        },
+        {
+          role: "user",
+          content: "我需要退回Zara的靴子。",
+        },
+        {
+          role: "user",
+          content: "我刚帮表妹挑了婴儿派对用品。",
+        },
+        {
+          role: "user",
+          content: "我这次5K跑的个人最好成绩是25:50。",
+        },
+        {
+          role: "user",
+          content: "我正在学习视频剪辑的高级设置，使用Adobe Premiere Pro。",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        factKind: candidate.metadata?.factKind,
+        kindHint: candidate.kindHint,
+      })),
+    ).toEqual([
+      {
+        category: "personal",
+        content: "我毕业于工商管理专业。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我的日常通勤需要45分钟。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我仍需取干洗的蓝色西装外套。",
+        factKind: "open_loop",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我需要退回Zara的靴子。",
+        factKind: "open_loop",
+        kindHint: "fact",
+      },
+      {
+        category: "event",
+        content: "我帮表妹挑了婴儿派对用品。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我在5K跑的个人最好成绩是25:50。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我用Adobe Premiere Pro学习视频剪辑的高级设置。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+    ]);
+  });
+
+  it("extracts Chinese Phase 62 hobby, project, and relationship facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-phase62-hobby" },
+      messages: [
+        {
+          role: "user",
+          content: "我最近完成了Revell F-15 Eagle模型。",
+        },
+        {
+          role: "user",
+          content: "我刚入手了1/72比例B-29轰炸机模型。",
+        },
+        {
+          role: "user",
+          content: "我在本地试过四家韩餐。",
+        },
+        {
+          role: "user",
+          content: "我的当前摄影配置包括Sony A7R IV和24-70mm f/2.8镜头。",
+        },
+        {
+          role: "user",
+          content: "我正在做一个solo project，内容是社区花园应用。",
+        },
+        {
+          role: "user",
+          content: "我主导了数据清洗和演示。",
+        },
+        {
+          role: "user",
+          content: "我的朋友小王最近搬到了杭州。",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        factKind: candidate.metadata?.factKind,
+        kindHint: candidate.kindHint,
+      })),
+    ).toEqual([
+      {
+        category: "personal",
+        content: "我做过或买过模型套件：Revell F-15 Eagle模型。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我做过或买过模型套件：1/72比例B-29轰炸机模型。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我在本地试过四家韩餐。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我的当前摄影配置包括Sony A7R IV和24-70mm f/2.8镜头。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content: "我正在做solo project，内容是社区花园应用。",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content: "我主导了数据清洗和演示。",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "relationship",
+        content: "小王搬到了杭州。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+    ]);
+  });
+
+  it("extracts Chinese Phase 62 retail, research, and equipment facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-phase62-retail" },
+      messages: [
+        {
+          role: "user",
+          content: "我一直用Target的Cartwheel app。",
+        },
+        {
+          role: "user",
+          content: "我上周兑换了5元咖啡奶精优惠券。",
+        },
+        {
+          role: "user",
+          content: "我会休息一下再取包裹。",
+        },
+        {
+          role: "user",
+          content: "作为索尼相机用户，我想找配件。",
+        },
+        {
+          role: "user",
+          content: "我最近参加了一个案例竞赛活动。",
+        },
+        {
+          role: "user",
+          content: "我展示了关于用户体验的研究海报。",
+        },
+        {
+          role: "user",
+          content: "我想继续阅读关于人机交互的研究论文。",
+        },
+      ],
+    });
+
+    expect(
+      result.candidates.map((candidate) => ({
+        category: candidate.metadata?.category,
+        content: candidate.content,
+        factKind: candidate.metadata?.factKind,
+        kindHint: candidate.kindHint,
+      })),
+    ).toEqual([
+      {
+        category: "personal",
+        content: "我使用Target的Cartwheel应用。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "event",
+        content: "我兑换了5元咖啡奶精优惠券。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我仍需取包裹。",
+        factKind: "open_loop",
+        kindHint: "fact",
+      },
+      {
+        category: "personal",
+        content: "我使用索尼相机。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content: "我参加了案例竞赛活动。",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "project",
+        content: "我做过关于用户体验的研究项目。",
+        factKind: "generic_project",
+        kindHint: "fact",
+      },
+      {
+        category: "technical",
+        content: "我对人机交互研究论文和文章感兴趣。",
+        factKind: undefined,
+        kindHint: "fact",
+      },
+    ]);
+  });
+
   it("treats common Chinese workplace location phrasing as location, not organization", async () => {
     const extractor = createDeterministicMemoryExtractor();
 

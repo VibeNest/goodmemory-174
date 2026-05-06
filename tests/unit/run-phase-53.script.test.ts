@@ -199,8 +199,7 @@ describe("run-phase-53 scripts", () => {
     expect(report.mode).toBe("live");
     expect(receivedInput).toEqual({
       mode: "live",
-      outputDir:
-        "/Users/hjqcan/Documents/GoodMomery/reports/eval/live-memory/phase-53",
+      outputDir: resolvePhase53LiveMemoryOutputDir(process.cwd()),
       runId: PHASE53_CANONICAL_LIVE_RUN_ID,
     });
   });

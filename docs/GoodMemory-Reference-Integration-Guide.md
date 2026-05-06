@@ -1,25 +1,25 @@
 # GoodMemory Reference Integration Guide
 
-This is the canonical packaged `0.2.2` reference path for chatbox/copilot-style integration.
+This is the canonical packaged `0.2.3` reference path for chatbox/copilot-style integration.
 
 ## Install
 
 Published install:
 
 ```bash
-npm install goodmemory@0.2.2
+npm install goodmemory@0.2.3
 ```
 
 Bun install:
 
 ```bash
-bun add goodmemory@0.2.2
+bun add goodmemory@0.2.3
 ```
 
 Tarball verification of the same release artifact before publish:
 
 ```bash
-npm install ./goodmemory-0.2.2.tgz
+npm install ./goodmemory-0.2.3.tgz
 ```
 
 ## Quick Path

@@ -38,6 +38,45 @@ const DURABLE_INFERENCE_PATTERNS = [
   /(目前|现在|仍然|已经)/u,
   /(阻塞|卡住|失败|报错|迁移|上线|发布|审批|项目|流程|工作流|运行时|接口|构建)/u,
 ];
+const EDUCATION_DEGREE_PATTERN =
+  /我(?:毕业于|获得|拿到|有|拥有)\s*([^，。！？；]+?(?:专业|学位))(?=，|。|！|？|；|$)/u;
+const DAILY_COMMUTE_DURATION_PATTERN =
+  /我的?(?:日常)?通勤(?:需要|要|花|花费|耗时)\s*([^，。！？；]+)(?=，|。|！|？|；|$)/u;
+const STORE_APP_PATTERN =
+  /我(?:一直|最近|正在)?(?:在)?用\s*([^，。！？；]+?)\s*(?:app|App|应用|小程序)(?:从|来自|是)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const STORE_APP_POSSESSIVE_PATTERN =
+  /我(?:一直|最近|正在)?(?:在)?用\s*([^，。！？；]+?)的\s*([^，。！？；]+?)\s*(?:app|App|应用|小程序)(?=，|。|！|？|；|$)/u;
+const COUPON_REDEMPTION_PATTERN =
+  /我(?:实际上|今天|昨天|上周|最近)?(?:兑换了|兑换|用了|使用了)\s*([^，。！？；]*?(?:优惠券|券)[^，。！？；]*?)(?=，|。|！|？|；|$)/u;
+const PENDING_PICKUP_OR_RETURN_PATTERN =
+  /我(?:仍然|还)?(?:需要|要|得)\s*(取|拿|领取|退回|退|归还)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const DIRECT_PICKUP_TASK_PATTERN =
+  /我(?:会|要去|准备去)\s*(?:休息一下再)?(?:取|拿|领取)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const RECENT_PERSONAL_EVENT_PATTERN =
+  /我(?:刚刚|刚|今天|最近)\s*(帮|订了|买了|点了|预订了)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const PERSONAL_BEST_TIME_PATTERN =
+  /(?:我(?:这次|在)?\s*)?([^，。！？；]*?(?:5K|5k|马拉松|比赛|跑步)[^，。！？；]*?)?的?个人最好成绩(?:是|为|达到)?\s*([0-9]{1,2}:[0-9]{2}|[0-9]+分(?:钟)?(?:[0-9]+秒)?)(?=，|。|！|？|；|$)/u;
+const TOOL_LEARNING_INTEREST_PATTERN =
+  /我(?:正在|想|想要|试着)?学习\s*([^，。！？；]+?)(?:，|,)?(?:用|使用)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const MODEL_KIT_PATTERN =
+  /(?:我(?:最近|刚|也)?(?:完成了|做好了|做完了|入手了|买了|正在做|开始做)\s*)([^，。！？；]*?(?:模型|套件|[0-9]+\/[0-9]+比例)[^，。！？；]*?)(?=，|。|！|？|；|$)/u;
+const KOREAN_RESTAURANT_COUNT_PATTERN =
+  /我(?:在本地|在城里|在这个城市)?(?:已经)?(?:试过|吃过|去过)\s*([^，。！？；]+?)家?韩餐/u;
+const CURRENT_PROJECT_INVOLVEMENT_PATTERN =
+  /我(?:正在|最近|一直|已经)?(?:做|负责|推进|参与)\s*([^。！？；]*(?:项目|project)[^。！？；]*?)(?=。|！|？|；|$)/u;
+const PROJECT_LEADERSHIP_PATTERN =
+  /我(?:主导了|主导|带领了|带领|领导了|领导|负责了|负责)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const CASE_COMPETITION_ACTIVITY_PATTERN =
+  /我(?:最近|刚)?参加了\s*([^，。！？；]*案例竞赛[^，。！？；]*?)(?=，|。|！|？|；|$)/u;
+const RESEARCH_PROJECT_PATTERN =
+  /我(?:最近|刚)?(?:展示|汇报|发表|介绍)了\s*(?:关于|有关)?\s*([^，。！？；]+?)(?:的)?(?:研究海报|研究|课题|海报|poster)(?=，|。|！|？|；|$)/iu;
+const RELATION_RELOCATION_PATTERN =
+  /我的(?:朋友|表亲|堂亲|阿姨|叔叔|姐妹|兄弟|伴侣|同事)\s*([^，。！？；]+?)\s*(?:最近|刚刚|刚)?搬(?:回|到|去)?了?\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const PHOTOGRAPHY_EQUIPMENT_PATTERN =
+  /我的?(?:当前)?(?:摄影|相机)(?:设备|器材|配置)?(?:包括|有|是)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const SONY_CAMERA_USER_PATTERN = /作为\s*(?:Sony|索尼)\s*相机用户/u;
+const RESEARCH_ARTICLE_INTEREST_PATTERN =
+  /我(?:想|想要|希望)(?:继续)?(?:探索|了解|阅读)\s*(?:关于|有关)?\s*([^，。！？；]+?)\s*的?(?:研究论文|论文|文章)(?=，|。|！|？|；|$)/u;
 const ORGANIZATION_SUFFIX_PATTERN =
   /(公司|集团|大学|学院|学校|医院|实验室|研究院|研究所|工作室|事务所|委员会|基金会|机构|平台|团队|部门|银行|媒体|出版社|中心)$/u;
 const LOCATION_SUFFIX_PATTERN =
@@ -89,6 +128,27 @@ function createProfileCandidate(
     sourceRole: "user",
     metadata: {
       profileField,
+    },
+  };
+}
+
+function createFactCandidate(
+  index: number,
+  nextId: () => string,
+  content: string,
+  categoryOverride?: "project" | "technical" | "personal" | "relationship" | "event",
+  metadata?: MemoryCandidateMetadata,
+): MemoryCandidate {
+  return {
+    id: nextId(),
+    kindHint: "fact",
+    explicitness: "explicit",
+    content,
+    sourceMessageIndex: index,
+    sourceRole: "user",
+    metadata: {
+      ...buildFactMetadata(content, categoryOverride),
+      ...metadata,
     },
   };
 }
@@ -251,6 +311,52 @@ function buildFactMetadata(
     scopeKind: deriveFactScopeKind(category, factKind),
     subject: extractFactSubject(content) ?? "unknown",
   };
+}
+
+function cleanActivityTarget(value: string): string {
+  return cleanValue(value)
+    .replace(/^(一些|一个|一份|这个|那个|新的?)/u, "")
+    .trim();
+}
+
+function cleanModelKitTarget(value: string): string {
+  return cleanValue(value)
+    .replace(/^(一个|一套|新的?)/u, "")
+    .trim();
+}
+
+function cleanProjectTarget(value: string): string {
+  return cleanValue(value)
+    .replace(/^(一个|一项|这个|该)/u, "")
+    .trim();
+}
+
+function createOpenLoopFactCandidate(
+  index: number,
+  nextId: () => string,
+  content: string,
+  subject: string,
+): MemoryCandidate {
+  return createFactCandidate(index, nextId, content, "personal", {
+    category: "personal",
+    factKind: "open_loop",
+    scopeKind: "identity",
+    subject: extractStableSubject(subject) ?? "unknown",
+  });
+}
+
+function createGenericProjectFactCandidate(
+  index: number,
+  nextId: () => string,
+  content: string,
+  subject: string,
+): MemoryCandidate {
+  return createFactCandidate(index, nextId, content, "project", {
+    category: "project",
+    factKind: "generic_project",
+    scopeKind: "project",
+    subject: extractStableSubject(subject) ?? "project",
+  });
 }
 
 function deriveReferenceKind(content: string, pointer: string): ReferenceKind {
@@ -437,6 +543,279 @@ function maybeExtractCandidatesFromClause(
   if (locationMatch?.[1]) {
     candidates.push(
       createProfileCandidate(index, nextId, "location", cleanValue(locationMatch[1])),
+    );
+  }
+
+  const educationDegreeMatch = trimmed.match(EDUCATION_DEGREE_PATTERN);
+  if (educationDegreeMatch?.[1]) {
+    const degree = cleanValue(educationDegreeMatch[1]);
+    candidates.push(
+      createFactCandidate(index, nextId, `我毕业于${degree}。`, "personal"),
+    );
+  }
+
+  const commuteDurationMatch = trimmed.match(DAILY_COMMUTE_DURATION_PATTERN);
+  if (commuteDurationMatch?.[1]) {
+    const duration = cleanValue(commuteDurationMatch[1]);
+    candidates.push(
+      createFactCandidate(index, nextId, `我的日常通勤需要${duration}。`, "personal"),
+    );
+  }
+
+  const storeAppMatch =
+    trimmed.match(STORE_APP_PATTERN) ??
+    trimmed.match(STORE_APP_POSSESSIVE_PATTERN);
+  if (storeAppMatch?.[1] && storeAppMatch?.[2]) {
+    const first = cleanValue(storeAppMatch[1]);
+    const second = cleanValue(storeAppMatch[2]);
+    const appName = trimmed.match(STORE_APP_POSSESSIVE_PATTERN) ? second : first;
+    const storeName = trimmed.match(STORE_APP_POSSESSIVE_PATTERN) ? first : second;
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我使用${storeName}的${appName}应用。`,
+        "personal",
+      ),
+    );
+  }
+
+  const couponRedemptionMatch = trimmed.match(COUPON_REDEMPTION_PATTERN);
+  if (couponRedemptionMatch?.[1]) {
+    const coupon = cleanValue(couponRedemptionMatch[1]);
+    candidates.push(
+      createFactCandidate(index, nextId, `我兑换了${coupon}。`, "event"),
+    );
+  }
+
+  const pendingPickupOrReturnMatch = trimmed.match(PENDING_PICKUP_OR_RETURN_PATTERN);
+  if (pendingPickupOrReturnMatch?.[1] && pendingPickupOrReturnMatch?.[2]) {
+    const action = pendingPickupOrReturnMatch[1];
+    const target = cleanActivityTarget(pendingPickupOrReturnMatch[2]);
+    if (/^(退回|退|归还)$/u.test(action)) {
+      candidates.push(
+        createOpenLoopFactCandidate(
+          index,
+          nextId,
+          `我需要退回${target}。`,
+          target,
+        ),
+      );
+    } else {
+      candidates.push(
+        createOpenLoopFactCandidate(
+          index,
+          nextId,
+          `我仍需取${target}。`,
+          target,
+        ),
+      );
+    }
+  }
+
+  const directPickupTaskMatch = trimmed.match(DIRECT_PICKUP_TASK_PATTERN);
+  if (directPickupTaskMatch?.[1]) {
+    const target = cleanActivityTarget(directPickupTaskMatch[1]);
+    candidates.push(
+      createOpenLoopFactCandidate(
+        index,
+        nextId,
+        `我仍需取${target}。`,
+        target,
+      ),
+    );
+  }
+
+  const recentPersonalEventMatch = trimmed.match(RECENT_PERSONAL_EVENT_PATTERN);
+  if (recentPersonalEventMatch?.[1] && recentPersonalEventMatch?.[2]) {
+    const action = recentPersonalEventMatch[1];
+    const target = cleanActivityTarget(recentPersonalEventMatch[2]);
+    candidates.push(
+      createFactCandidate(index, nextId, `我${action}${target}。`, "event"),
+    );
+  }
+
+  const personalBestTimeMatch = trimmed.match(PERSONAL_BEST_TIME_PATTERN);
+  if (personalBestTimeMatch?.[2]) {
+    const event = personalBestTimeMatch[1]
+      ? cleanValue(personalBestTimeMatch[1])
+      : "";
+    const time = cleanValue(personalBestTimeMatch[2]);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我${event ? `在${event}` : ""}的个人最好成绩是${time}。`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: event || "个人最好成绩",
+        },
+      ),
+    );
+  }
+
+  const toolLearningInterestMatch = trimmed.match(TOOL_LEARNING_INTEREST_PATTERN);
+  if (toolLearningInterestMatch?.[1] && toolLearningInterestMatch?.[2]) {
+    const topic = cleanActivityTarget(toolLearningInterestMatch[1]);
+    const tool = cleanValue(toolLearningInterestMatch[2]);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我用${tool}学习${topic}。`,
+        "personal",
+      ),
+    );
+  }
+
+  const modelKitMatch = trimmed.match(MODEL_KIT_PATTERN);
+  if (modelKitMatch?.[1]) {
+    const target = cleanModelKitTarget(modelKitMatch[1]);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我做过或买过模型套件：${target}。`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: extractStableSubject(target) ?? "模型套件",
+        },
+      ),
+    );
+  }
+
+  const koreanRestaurantCountMatch = trimmed.match(KOREAN_RESTAURANT_COUNT_PATTERN);
+  if (koreanRestaurantCountMatch?.[1]) {
+    const count = cleanValue(koreanRestaurantCountMatch[1]);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我在本地试过${count}家韩餐。`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: "本地韩餐",
+        },
+      ),
+    );
+  }
+
+  const photographyEquipmentMatch = trimmed.match(PHOTOGRAPHY_EQUIPMENT_PATTERN);
+  if (photographyEquipmentMatch?.[1]) {
+    const equipment = cleanValue(photographyEquipmentMatch[1]);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我的当前摄影配置包括${equipment}。`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: "摄影配置",
+        },
+      ),
+    );
+  } else if (SONY_CAMERA_USER_PATTERN.test(trimmed)) {
+    candidates.push(
+      createFactCandidate(index, nextId, "我使用索尼相机。", "personal", {
+        category: "personal",
+        scopeKind: "identity",
+        subject: "摄影配置",
+      }),
+    );
+  }
+
+  const researchArticleInterestMatch = trimmed.match(RESEARCH_ARTICLE_INTEREST_PATTERN);
+  if (researchArticleInterestMatch?.[1]) {
+    const topic = cleanValue(researchArticleInterestMatch[1]);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我对${topic}研究论文和文章感兴趣。`,
+        "technical",
+        {
+          category: "technical",
+          scopeKind: "project",
+          subject: extractStableSubject(topic) ?? topic,
+        },
+      ),
+    );
+  }
+
+  const currentProjectInvolvementMatch = trimmed.match(
+    CURRENT_PROJECT_INVOLVEMENT_PATTERN,
+  );
+  if (currentProjectInvolvementMatch?.[1]) {
+    const project = cleanProjectTarget(currentProjectInvolvementMatch[1]);
+    candidates.push(
+      createGenericProjectFactCandidate(
+        index,
+        nextId,
+        `我正在做${project}。`,
+        project,
+      ),
+    );
+  }
+
+  const projectLeadershipMatch = trimmed.match(PROJECT_LEADERSHIP_PATTERN);
+  if (projectLeadershipMatch?.[1]) {
+    const leadership = cleanProjectTarget(projectLeadershipMatch[1]);
+    candidates.push(
+      createGenericProjectFactCandidate(
+        index,
+        nextId,
+        `我主导了${leadership}。`,
+        leadership,
+      ),
+    );
+  }
+
+  const caseCompetitionActivityMatch = trimmed.match(
+    CASE_COMPETITION_ACTIVITY_PATTERN,
+  );
+  if (caseCompetitionActivityMatch?.[1]) {
+    const activity = cleanProjectTarget(caseCompetitionActivityMatch[1]);
+    candidates.push(
+      createGenericProjectFactCandidate(
+        index,
+        nextId,
+        `我参加了${activity}。`,
+        activity,
+      ),
+    );
+  }
+
+  const researchProjectMatch = trimmed.match(RESEARCH_PROJECT_PATTERN);
+  if (researchProjectMatch?.[1]) {
+    const topic = cleanProjectTarget(researchProjectMatch[1]);
+    candidates.push(
+      createGenericProjectFactCandidate(
+        index,
+        nextId,
+        `我做过关于${topic}的研究项目。`,
+        topic,
+      ),
+    );
+  }
+
+  const relationRelocationMatch = trimmed.match(RELATION_RELOCATION_PATTERN);
+  if (relationRelocationMatch?.[1] && relationRelocationMatch?.[2]) {
+    const name = cleanValue(relationRelocationMatch[1]);
+    const location = cleanValue(relationRelocationMatch[2]);
+    candidates.push(
+      createFactCandidate(index, nextId, `${name}搬到了${location}。`, "relationship", {
+        category: "relationship",
+        scopeKind: "identity",
+        subject: name,
+      }),
     );
   }
 

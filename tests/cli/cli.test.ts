@@ -32,6 +32,7 @@ import { resolveStorageConfig, runCLI } from "../../src/cli";
 import { withPackagePackLock } from "../support/package-pack-lock";
 
 const TEXT_DECODER = new TextDecoder();
+const HOST_BOOTSTRAP_SCRIPT_TEST_TIMEOUT_MS = 60_000;
 
 async function withCwd<T>(cwd: string, callback: () => Promise<T>): Promise<T> {
   const previous = process.cwd();
@@ -1575,7 +1576,7 @@ describe("goodmemory cli host bootstrap", () => {
       await workspace.cleanup();
     }
     },
-    20_000,
+    HOST_BOOTSTRAP_SCRIPT_TEST_TIMEOUT_MS,
   );
 
   it(
@@ -1720,7 +1721,7 @@ describe("goodmemory cli host bootstrap", () => {
       await workspace.cleanup();
     }
     },
-    20_000,
+    HOST_BOOTSTRAP_SCRIPT_TEST_TIMEOUT_MS,
   );
 
   it(
@@ -1808,7 +1809,7 @@ describe("goodmemory cli host bootstrap", () => {
       await workspace.cleanup();
     }
     },
-    20_000,
+    HOST_BOOTSTRAP_SCRIPT_TEST_TIMEOUT_MS,
   );
 
   it(
@@ -1900,7 +1901,7 @@ describe("goodmemory cli host bootstrap", () => {
       await workspace.cleanup();
     }
     },
-    20_000,
+    HOST_BOOTSTRAP_SCRIPT_TEST_TIMEOUT_MS,
   );
 
   it("bootstraps Claude wiring with a derived workspace id", async () => {

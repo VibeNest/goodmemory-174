@@ -119,6 +119,12 @@
       "regenerateCommand": "bun run eval:phase-60 && bun run eval:phase-60-overall -- --run-id run-phase60-fallback-current",
       "status": "accepted"
     },
+    "overallReport": {
+      "artifactKind": "ignored_generated",
+      "ignoredReportPath": "reports/eval/fallback/phase-60/run-phase60-fallback-current/report.json",
+      "regenerateCommand": "bun run eval:phase-60 && bun run eval:phase-60-overall -- --run-id run-phase60-fallback-current",
+      "status": "accepted"
+    },
     "protocol": {
       "controlledPrimingCases": 100,
       "full300OverallProfiles": [

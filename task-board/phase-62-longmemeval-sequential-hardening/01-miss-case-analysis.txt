@@ -817,6 +817,16 @@ prioritizes concise compact/user evidence ahead of verbose assistant follow-up
 recommendation lists. This fixed the hybrid `afdc33df` advice miss without
 case-id routing.
 
+20. Multilingual recall selection boundary
+
+The Phase 62 selection repairs originally left several broad recall intents as
+English-only helpers inside `selection.ts` and `engine.ts`. Guidance-vs-fact
+suppression, aggregate count, previous-chat evidence, recommendation/advice
+queries, and personal/preference evidence signals now flow through the
+`LanguageService` contract. Chinese regression coverage proves aggregate money
+queries and advice queries select the right Chinese facts without pulling
+nearby lexical noise.
+
 
 Remaining Miss Families
 -----------------------
@@ -876,6 +886,37 @@ rules-only and hybrid 60-case live runs, one invalid four-profile 60-case
 attempt, and improved recall-only repair evidence. It is not enough for a
 public claim or benchmark report.
 
+The first full-500 attempt,
+`run-phase62-longmemeval-full500-live-four-profile-20260506T034826Z`, is also
+invalid as benchmark evidence. It did split the cleaned 500 cases into ten
+50-case shards, but all ten shards were started concurrently and the live
+provider entered `model_cooldown`. The shard reports were preserved for failure
+diagnosis only; each shard has 128-142 execution failures. A follow-up
+1-case readiness probe
+`run-phase62-longmemeval-provider-readiness-after-cooldown-wait5m-20260506T041300Z`
+confirmed `gpt-5.5` was still cooling down after a short wait. The replacement
+path is the sequential `eval:phase-62-full500` runner, which stops on any shard
+execution failure instead of generating a full invalid evidence set.
+
+A later failed-case retry recovery used
+`eval:phase-62-full500-retry-failures` rather than rerunning full shards. It
+starts from the merged failed full-500 inventory, runs only rows with
+`executionError` for a single profile/case batch, and writes a new merged report
+with successful retry rows replacing the previous failures. This recovered real
+evidence from the failed shard set:
+
+- `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T130000Z`
+  cleared `baseline-full-context` execution failures to 0/500; that baseline is
+  now 452/500 accuracy with evidence-session recall 1.0.
+- `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`
+  reduced total execution failures from 1215 to 603. Remaining failures are
+  `goodmemory-rules-only`: 153 and `goodmemory-hybrid`: 450.
+- The latest retry stop was provider/API capacity inside
+  `run-phase62-longmemeval-full500-failure-retry-live-20260506T133000Z-goodmemory-rules-only-batch-020`:
+  one 429 usage-limit error, one `auth_unavailable` 503 for `gpt-5.4`, and one
+  gateway timeout. Treat this as an infrastructure interruption; it is not a
+  clean full-500 LongMemEval result and does not close Phase 62.
+
 
 Next Actions
 ------------
@@ -885,8 +926,13 @@ Next Actions
    `run-phase62-longmemeval-live60-post-aggregate-domain-ownership-20260506T043000Z`
    run as comparative benchmark evidence.
 2. Expand beyond the 60-case manifest with `--max-concurrency 1` in a resumable
-   broader/full LongMemEval run, or explicitly record why full-500 execution is
-   deferred.
+   broader/full LongMemEval run. Prefer
+   `bun run eval:phase-62-full500 -- --benchmark-root /tmp/LongMemEval --run-id <run-id>`
+   so the ten 50-case shards run sequentially and fail fast on provider
+   execution failures. If a merged/shard report already exists with
+   `executionError` rows, resume with
+   `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <latest-merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1`
+   instead of rerunning clean profile/case rows.
 3. Keep latest-update evidence-session accounting explicit in any larger run:
    answer correctness can be right while strict evidence-session recall remains
    below 1.0 for stale-plus-current answer-session labels.

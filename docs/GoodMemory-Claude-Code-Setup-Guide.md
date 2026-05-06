@@ -1,25 +1,25 @@
 # GoodMemory Claude Code Setup Guide
 
-This is the canonical installed-package `0.2.2` Claude Code bootstrap path.
+This is the canonical installed-package `0.2.3` Claude Code bootstrap path.
 
 ## Install
 
 Published install:
 
 ```bash
-npm install goodmemory@0.2.2
+npm install goodmemory@0.2.3
 ```
 
 Bun install:
 
 ```bash
-bun add goodmemory@0.2.2
+bun add goodmemory@0.2.3
 ```
 
 Tarball verification of the same release artifact before publish:
 
 ```bash
-npm install ./goodmemory-0.2.2.tgz
+npm install ./goodmemory-0.2.3.tgz
 ```
 
 ## Bootstrap

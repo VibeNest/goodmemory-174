@@ -12,7 +12,7 @@ async function cleanupUserData(url: string, userId: string): Promise<void> {
     await sql.unsafe(
       `
         DELETE FROM "public"."gm_documents"
-        WHERE document @> $1::jsonb
+        WHERE document @> $1::text::jsonb
       `,
       [JSON.stringify({ userId })],
     );
@@ -27,9 +27,21 @@ async function cleanupUserData(url: string, userId: string): Promise<void> {
       `
         DELETE FROM "public"."gm_vectors"
         WHERE metadata->>'userId' = $1
+          AND to_regclass('public.gm_vectors') IS NOT NULL
       `,
       [userId],
-    );
+    ).catch((error: unknown) => {
+      if (
+        error &&
+        typeof error === "object" &&
+        "errno" in error &&
+        error.errno === "42P01"
+      ) {
+        return [];
+      }
+
+      throw error;
+    });
   } finally {
     await sql.close();
   }

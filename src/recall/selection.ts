@@ -87,6 +87,20 @@ const AGGREGATE_TOPIC_STOPWORDS = new Set([
   "where",
   "year",
   "years",
+  "一共",
+  "今年",
+  "价格",
+  "元",
+  "合计",
+  "多少",
+  "多少钱",
+  "总共",
+  "相关",
+  "花",
+  "花了",
+  "花费",
+  "费用",
+  "钱",
 ]);
 const AGGREGATE_TRUSTED_EVIDENCE_TAGS = new Set([
   "compact_evidence",
@@ -101,9 +115,9 @@ const CONVERSATION_EVIDENCE_TAGS = new Set([
   "user_answer",
 ]);
 const QUANTIFIED_FACT_PATTERN =
-  /\b(?:\d+(?:[.,]\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b|\$\s*\d/iu;
+  /\b(?:\d+(?:[.,]\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b|\$\s*\d|\d+(?:[.,]\d+)?\s*(?:元|块|人民币)/iu;
 const MONEY_FACT_PATTERN =
-  /\$\s*\d|\b(?:cost|costs|costing|paid|price|prices|spent|spend|dollars?)\b/iu;
+  /\$\s*\d|\d+(?:[.,]\d+)?\s*(?:元|块|人民币)|\b(?:cost|costs|costing|paid|price|prices|spent|spend|dollars?)\b|(?:花了|花费|费用|价格)/iu;
 const MEDICAL_PROVIDER_FACT_PATTERN =
   /\b(?:dr\.?\s+[a-z][a-z'-]+|doctor|doctors|physician|dermatologist|ent specialist|specialist)\b/iu;
 const OWNERSHIP_COUNT_FACT_PATTERN =
@@ -116,25 +130,33 @@ const PROJECT_EXPERIENCE_FACT_PATTERN =
 function normalizeAggregateTopicToken(token: string): string {
   const normalized = token
     .toLowerCase()
-    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gu, "");
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
 
-  if (normalized.length > 4 && normalized.endsWith("s")) {
+  if (/^[a-z0-9]+$/u.test(normalized) && normalized.length > 4 && normalized.endsWith("s")) {
     return normalized.slice(0, -1);
   }
 
   return normalized;
 }
 
-function aggregateTopicTokens(text: string): Set<string> {
-  const tokens = text
-    .toLowerCase()
-    .match(/[a-z0-9]+(?:-[a-z0-9]+)?/gu) ?? [];
+function aggregateTopicTokens(
+  text: string,
+  language?: LanguageService,
+  locale?: string,
+): Set<string> {
+  const tokens = language && locale
+    ? language.tokenize(text, locale, { excludeStopwords: true })
+    : (text.toLowerCase().match(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)?/gu) ?? []);
 
   return new Set(
     tokens
       .flatMap((token) => token.split("-"))
       .map(normalizeAggregateTopicToken)
-      .filter((token) => token.length >= 4 && !AGGREGATE_TOPIC_STOPWORDS.has(token)),
+      .filter(
+        (token) =>
+          (/[\p{Script=Han}]/u.test(token) ? token.length >= 2 : token.length >= 4) &&
+          !AGGREGATE_TOPIC_STOPWORDS.has(token),
+      ),
   );
 }
 
@@ -170,8 +192,12 @@ function hasAggregateOpenLoopSignal(entry: RankedFactCandidate): boolean {
   return entry.lexicalScore >= 0.2 || entry.subjectScore >= 0.2;
 }
 
-function isAggregateFactCountQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) || /\bhow much\b/i.test(query);
+function isAggregateFactCountQuery(
+  query: string,
+  language: LanguageService,
+  locale: string,
+): boolean {
+  return language.isAggregateCountQuery(query, locale);
 }
 
 function isTemporalIntervalQuery(query: string): boolean {
@@ -209,7 +235,8 @@ function hasTrustedAggregateEvidence(entry: RankedFactCandidate): boolean {
 
 function isAggregateMoneyQuery(query: string): boolean {
   return /\bhow much\b/i.test(query) ||
-    /\b(?:total money|spent|spend|cost|costs|paid|price|dollars?)\b/i.test(query);
+    /\b(?:total money|spent|spend|cost|costs|paid|price|dollars?)\b/i.test(query) ||
+    /(多少钱|总共.*(?:花|费用|花费)|一共.*(?:花|费用|花费)|合计.*(?:花|费用|花费)|花了多少钱|花费多少|费用|价格)/u.test(query);
 }
 
 function isMedicalProviderAggregateQuery(query: string): boolean {
@@ -231,7 +258,9 @@ function isOwnershipCountAggregateQuery(query: string): boolean {
 function hasAggregateDomainSignal(input: {
   entry: RankedFactCandidate;
   factTopics: ReadonlySet<string>;
+  language: LanguageService;
   query: string;
+  queryLocale: string;
   queryTopics: ReadonlySet<string>;
   topicOverlap: number;
 }): boolean {
@@ -275,6 +304,8 @@ function hasAggregateDomainSignal(input: {
 function hasAggregateFactCountSignal(
   entry: RankedFactCandidate,
   query: string,
+  language: LanguageService,
+  queryLocale: string,
 ): boolean {
   if (isTemporalIntervalQuery(query) && isDatedEventFact(entry)) {
     return true;
@@ -300,13 +331,15 @@ function hasAggregateFactCountSignal(
     return true;
   }
 
-  const queryTopics = aggregateTopicTokens(query);
-  const factTopics = aggregateTopicTokens(entry.fact.content);
+  const queryTopics = aggregateTopicTokens(query, language, queryLocale);
+  const factTopics = aggregateTopicTokens(entry.fact.content, language, entry.locale);
   const topicOverlap = aggregateTopicOverlapCount(queryTopics, factTopics);
   const hasDomainSignal = hasAggregateDomainSignal({
     entry,
     factTopics,
+    language,
     query,
+    queryLocale,
     queryTopics,
     topicOverlap,
   });
@@ -368,18 +401,6 @@ function hasSleepBeforeAppointmentEvidenceSignal(
   return hasSleepSignal || hasAppointmentSignal;
 }
 
-function isAssistantEvidenceRecallQuery(query: string): boolean {
-  return /\b(?:previous|earlier|last time|talked about|discussed|you (?:told|said|suggested|recommended|provided)|list you provided|remind me)\b/i.test(
-    query,
-  );
-}
-
-function isRecommendationStyleQuery(query: string): boolean {
-  return /\b(?:recommend|suggest(?:ions?)?|advice|ideas?|tips?|what should|what can i|where should)\b/i.test(
-    query,
-  );
-}
-
 function extractOrdinalQueryNumber(query: string): string | undefined {
   const numericMatch = query.match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/iu);
   if (numericMatch) {
@@ -408,6 +429,8 @@ function extractOrdinalQueryNumber(query: string): string | undefined {
 function hasConversationEvidenceRecallSignal(
   entry: RankedFactCandidate,
   query: string,
+  language: LanguageService,
+  queryLocale: string,
 ): boolean {
   if (
     entry.fact.source.method === "inferred" ||
@@ -433,8 +456,8 @@ function hasConversationEvidenceRecallSignal(
   }
 
   return aggregateTopicOverlapCount(
-    aggregateTopicTokens(query),
-    aggregateTopicTokens(entry.fact.content),
+    aggregateTopicTokens(query, language, queryLocale),
+    aggregateTopicTokens(entry.fact.content, language, entry.locale),
   ) >= 2;
 }
 
@@ -445,6 +468,8 @@ function stripEvidencePrefix(content: string): string {
 function conversationEvidenceHeadingOverlap(
   entry: RankedFactCandidate,
   query: string,
+  language: LanguageService,
+  queryLocale: string,
 ): number {
   const content = stripEvidencePrefix(entry.fact.content);
   const heading =
@@ -456,17 +481,24 @@ function conversationEvidenceHeadingOverlap(
   }
 
   return aggregateTopicOverlapCount(
-    aggregateTopicTokens(query),
-    aggregateTopicTokens(heading),
+    aggregateTopicTokens(query, language, queryLocale),
+    aggregateTopicTokens(heading, language, entry.locale),
   );
 }
 
 function conversationEvidencePriority(
   entry: RankedFactCandidate,
   query: string,
+  language: LanguageService,
+  queryLocale: string,
 ): number {
   const content = stripEvidencePrefix(entry.fact.content);
-  const headingOverlap = conversationEvidenceHeadingOverlap(entry, query);
+  const headingOverlap = conversationEvidenceHeadingOverlap(
+    entry,
+    query,
+    language,
+    queryLocale,
+  );
   const ordinal = extractOrdinalQueryNumber(query);
   let priority = headingOverlap * 10;
 
@@ -484,11 +516,27 @@ function conversationEvidencePriority(
   return priority;
 }
 
+function hasPreferenceAdviceBridgeSignal(input: {
+  factContent: string;
+  query: string;
+}): boolean {
+  const { factContent, query } = input;
+
+  return (
+    /\b(?:activities?|evening|night|bedtime|after work)\b/iu.test(query) &&
+    /\b(?:wind(?:ing)? down|unwind|night'?s?|sleep|bedtime|relax|evening|activities?)\b/iu.test(
+      factContent,
+    )
+  );
+}
+
 function hasPreferenceEvidenceRecallSignal(
   entry: RankedFactCandidate,
   query: string,
+  language: LanguageService,
+  queryLocale: string,
 ): boolean {
-  if (!isRecommendationStyleQuery(query)) {
+  if (!language.isRecommendationStyleQuery(query, queryLocale)) {
     return false;
   }
 
@@ -499,15 +547,16 @@ function hasPreferenceEvidenceRecallSignal(
     return false;
   }
 
-  const hasPersonalSignal = /\b(?:i|my|me|mine|i'm|i've|i'd)\b/iu.test(
+  const hasPersonalSignal = language.isPersonalEvidenceSignal(
     entry.fact.content,
+    entry.locale,
   );
-  const hasPreferenceSignal =
-    /\b(?:prefer|like|love|enjoy|want|looking for|interested in|miss|struggling|trying to)\b/iu.test(
-      entry.fact.content,
-    );
+  const hasPreferenceSignal = language.isPreferenceEvidenceSignal(
+    entry.fact.content,
+    entry.locale,
+  );
 
-  if (!hasPersonalSignal && !hasPreferenceSignal) {
+  if (!hasPersonalSignal || !hasPreferenceSignal) {
     return false;
   }
 
@@ -515,21 +564,27 @@ function hasPreferenceEvidenceRecallSignal(
     return true;
   }
 
-  return aggregateTopicOverlapCount(
-    aggregateTopicTokens(query),
-    aggregateTopicTokens(entry.fact.content),
-  ) >= 1 || hasPreferenceSignal;
+  const queryTopics = aggregateTopicTokens(query, language, queryLocale);
+  const factTopics = aggregateTopicTokens(entry.fact.content, language, entry.locale);
+
+  return aggregateTopicOverlapCount(queryTopics, factTopics) >= 1 ||
+    hasPreferenceAdviceBridgeSignal({
+      factContent: entry.fact.content,
+      query,
+    });
 }
 
 function preferenceEvidencePriority(
   entry: RankedFactCandidate,
   query: string,
+  language: LanguageService,
+  queryLocale: string,
 ): number {
   const content = stripEvidencePrefix(entry.fact.content);
   let priority =
     aggregateTopicOverlapCount(
-      aggregateTopicTokens(query),
-      aggregateTopicTokens(content),
+      aggregateTopicTokens(query, language, queryLocale),
+      aggregateTopicTokens(content, language, entry.locale),
     ) * 5;
 
   if (entry.fact.tags?.includes("compact_evidence") === true) {
@@ -835,6 +890,8 @@ function hasTrustedUpdateEvidenceSignal(
   entry: RankedFactCandidate,
   query: string,
   options: UpdateSeriesOptions,
+  language: LanguageService,
+  queryLocale: string,
 ): boolean {
   if (!resolveUpdateSeriesKey(entry, options) || !hasTrustedAggregateEvidence(entry)) {
     return false;
@@ -845,8 +902,8 @@ function hasTrustedUpdateEvidenceSignal(
   }
 
   return aggregateTopicOverlapCount(
-    aggregateTopicTokens(query),
-    aggregateTopicTokens(entry.fact.content),
+    aggregateTopicTokens(query, language, queryLocale),
+    aggregateTopicTokens(entry.fact.content, language, entry.locale),
   ) >= 1;
 }
 
@@ -924,16 +981,27 @@ export function selectFeedbackForQuery(
 
   if (
     language.isAnswerCompositionQuery(query, queryLocale) ||
-    language.isFactConfirmationQuery(query, queryLocale)
+    language.isFactConfirmationQuery(query, queryLocale) ||
+    language.isContinuationQuery(query, queryLocale) ||
+    language.isGuidanceSeekingQuery(query, queryLocale)
   ) {
     return selected;
   }
 
   return selected.filter(
-    (record) =>
-      language.tokenOverlap(feedbackSearchText(record), query, queryLocale, {
+    (record) => {
+      const fullOverlap = language.tokenOverlap(
+        feedbackSearchText(record),
+        query,
+        queryLocale,
+        { excludeStopwords: true },
+      );
+      const ruleOverlap = language.tokenOverlap(record.rule, query, queryLocale, {
         excludeStopwords: true,
-      }) >= 0.15,
+      });
+
+      return Math.max(fullOverlap, ruleOverlap) >= 0.15;
+    },
   );
 }
 
@@ -1260,8 +1328,14 @@ export function selectFacts(
 
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
   const sleepBeforeAppointmentQuery = isSleepBeforeAppointmentQuery(query);
-  const assistantEvidenceRecallQuery = isAssistantEvidenceRecallQuery(query);
-  const recommendationStyleQuery = isRecommendationStyleQuery(query);
+  const assistantEvidenceRecallQuery = language.isAssistantEvidenceRecallQuery(
+    query,
+    queryLocale,
+  );
+  const recommendationStyleQuery = language.isRecommendationStyleQuery(
+    query,
+    queryLocale,
+  );
   const updateSeriesOptions = {
     collapseMortgagePreapproval: isMortgagePreapprovalQuery(query),
     collapseRecentFamilyTrip: isRecentFamilyTripQuery(query),
@@ -1273,7 +1347,11 @@ export function selectFacts(
     : temporalEventOrderQuery
       ? 6
       : 2;
-  const aggregateCountQuery = isAggregateFactCountQuery(query);
+  const aggregateCountQuery = isAggregateFactCountQuery(
+    query,
+    language,
+    queryLocale,
+  );
   const withIntentSignal = rankFactCandidates(
     collapseLatestUpdateSeries(
       compatible.filter((entry) => entry.intentScore > 0),
@@ -1290,28 +1368,38 @@ export function selectFacts(
   );
   const conversationEvidenceCandidates = assistantEvidenceRecallQuery
     ? rankFactCandidates(
-      compatible.filter((item) => hasConversationEvidenceRecallSignal(item, query)),
+      compatible.filter((item) =>
+        hasConversationEvidenceRecallSignal(item, query, language, queryLocale)
+      ),
       routingDecision.strategy,
     ).sort(
       (left, right) =>
-        conversationEvidencePriority(right, query) -
-        conversationEvidencePriority(left, query),
+        conversationEvidencePriority(right, query, language, queryLocale) -
+        conversationEvidencePriority(left, query, language, queryLocale),
     )
     : [];
   const preferenceEvidenceCandidates = recommendationStyleQuery
     ? rankFactCandidates(
-      compatible.filter((item) => hasPreferenceEvidenceRecallSignal(item, query)),
+      compatible.filter((item) =>
+        hasPreferenceEvidenceRecallSignal(item, query, language, queryLocale)
+      ),
       routingDecision.strategy,
     ).sort(
       (left, right) =>
-        preferenceEvidencePriority(right, query) -
-        preferenceEvidencePriority(left, query),
+        preferenceEvidencePriority(right, query, language, queryLocale) -
+        preferenceEvidencePriority(left, query, language, queryLocale),
     )
     : [];
   const updateEvidenceCandidates = rankFactCandidates(
     collapseLatestUpdateSeries(
       compatible.filter((item) =>
-        hasTrustedUpdateEvidenceSignal(item, query, updateSeriesOptions)
+        hasTrustedUpdateEvidenceSignal(
+          item,
+          query,
+          updateSeriesOptions,
+          language,
+          queryLocale,
+        )
       ),
       updateSeriesOptions,
     ),
@@ -1329,7 +1417,9 @@ export function selectFacts(
   if (aggregateCountQuery) {
     for (const entry of rankFactCandidates(
       collapseLatestUpdateSeries(
-        compatible.filter((item) => hasAggregateFactCountSignal(item, query)),
+        compatible.filter((item) =>
+          hasAggregateFactCountSignal(item, query, language, queryLocale)
+        ),
         updateSeriesOptions,
       ),
       routingDecision.strategy,
