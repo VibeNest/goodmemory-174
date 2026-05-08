@@ -287,6 +287,57 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-unrelated-price")?.returned).toBe(false);
   });
 
+  it("returns more than two market earning facts for total money queries", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-jam",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Total money I earned from selling products at markets: I just sold 15 jars of homemade jam at the market, earning $225.",
+        source: SOURCE,
+        tags: ["compact_evidence", "user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-potted-herbs",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Total money I earned from selling products at markets: I earned $150 selling 20 potted herb plants at the Summer Solstice Market.",
+        source: SOURCE,
+        tags: ["compact_evidence", "user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-herb-bunches",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Total money I earned from selling products at markets: I sold 12 bunches of fresh organic herbs at the farmers market, earning a total of $120.",
+        source: SOURCE,
+        tags: ["compact_evidence", "user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the total amount of money I earned from selling my products at the markets?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id))).toEqual(
+      new Set(["fact-jam", "fact-potted-herbs", "fact-herb-bunches"]),
+    );
+  });
+
   it("returns Chinese money facts for aggregate spending queries", () => {
     const language = createLanguageService();
     const facts = [
@@ -816,6 +867,56 @@ describe("recall selection", () => {
     );
 
     expect(result.facts.map((fact) => fact.id)).toEqual(["fact-trip-paris"]);
+  });
+
+  it("returns dated event facts for earliest-to-latest order questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-trip-muir-woods",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "On 2023/03/10, I went on a day hike to Muir Woods.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence", "dated_event"],
+        updatedAt: "2023-03-10T00:00:00.000Z",
+      }),
+      createFactMemory({
+        id: "fact-trip-big-sur",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "On 2023/04/20, I went on a road trip to Big Sur and Monterey.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence", "dated_event"],
+        updatedAt: "2023-04-20T00:00:00.000Z",
+      }),
+      createFactMemory({
+        id: "fact-trip-yosemite",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "On 2023/05/15, I started my solo camping trip to Yosemite.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence", "dated_event"],
+        updatedAt: "2023-05-15T00:00:00.000Z",
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the order of the three trips I took in the past three months, from earliest to latest?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id).sort()).toEqual([
+      "fact-trip-big-sur",
+      "fact-trip-yosemite",
+      "fact-trip-muir-woods",
+    ].sort());
   });
 
   it("keeps appliesTo-distinct feedback variants separate and prioritizes coding-agent guidance", () => {

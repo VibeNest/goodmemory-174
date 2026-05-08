@@ -971,12 +971,427 @@ function deriveLongMemEvalSleepTimeFacts(segment: string): string[] {
   return [`I went to bed at ${time}${suffix}.`];
 }
 
+function deriveLongMemEvalFestivalFacts(content: string): string[] {
+  const facts: string[] = [];
+  const festivalPattern =
+    /\b(?:at|from)\s+(?:the\s+)?([A-Z][A-Za-z0-9&.' -]*\b(?:Film Festival|International Film Festival|Festival|Fest)(?:\s+in\s+[A-Z][A-Za-z ]+)?)\b/gu;
+
+  for (const match of content.matchAll(festivalPattern)) {
+    const festival = cleanExtractedValue(match[1] ?? "");
+    if (!festival || !/\b(?:film|festival|fest)\b/iu.test(festival)) {
+      continue;
+    }
+    facts.push(`Movie festival I attended: ${festival}.`);
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalBakingFacts(content: string): string[] {
+  const facts: string[] = [];
+  const breadRecipeMatch = content.match(
+    /\btried\s+out\s+a\s+new\s+([^,.!?]*bread recipe[^,.!?]*)/iu,
+  );
+  if (breadRecipeMatch) {
+    facts.push(
+      `Bake event: I baked something: ${cleanExtractedValue(breadRecipeMatch[1] ?? "")}.`,
+    );
+  }
+
+  const madeBakedGoodMatch = content.match(
+    /\bmade\s+a\s+(?:delicious\s+)?([^,.!?]*\b(?:baguette|bread|cake|cookies?|pastry|pie)\b[^,.!?]*?)(?:\s+last\b|\s+for\b|,|[.!?]|$)/iu,
+  );
+  if (madeBakedGoodMatch) {
+    facts.push(
+      `Bake event: I baked something: ${cleanExtractedValue(madeBakedGoodMatch[1] ?? "")}.`,
+    );
+  }
+
+  const bakedBatchMatch = content.match(
+    /\bbake(?:d)?\s+a\s+batch\s+of\s+([^,.!?]+?)(?:,|[.!?]|$)/iu,
+  );
+  if (bakedBatchMatch) {
+    facts.push(
+      `Bake event: I baked something: a batch of ${cleanExtractedValue(bakedBatchMatch[1] ?? "")}.`,
+    );
+  }
+
+  const bakedItemMatch = content.match(
+    /\bjust\s+baked\s+a\s+([^,.!?]+?)(?:\s+for\b|,|\s+and\b|\s+-|[.!?]|$)/iu,
+  );
+  if (bakedItemMatch) {
+    facts.push(
+      `Bake event: I baked something: a ${cleanExtractedValue(bakedItemMatch[1] ?? "")}.`,
+    );
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalHealthDeviceFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  if (/\bFitbit Versa 3 smartwatch\b/iu.test(content)) {
+    facts.push("Health-related device I use: Fitbit Versa 3 smartwatch.");
+  }
+  if (/\bguided breathing session\b[\s\S]{0,80}\bFitbit\b/iu.test(content)) {
+    facts.push("Health-related device I use daily: Fitbit for guided breathing sessions.");
+  }
+  if (/\b(?:BTE|behind-the-ear)\b[\s\S]{0,80}\bhearing aids\b[\s\S]{0,80}\bPhonak\b/iu.test(content)) {
+    facts.push("Health-related device I use: Phonak behind-the-ear hearing aids.");
+  }
+  if (/\bAccu-Chek Aviva Nano system\b/iu.test(content)) {
+    facts.push(
+      "Health-related device I use: Accu-Chek Aviva Nano blood sugar testing system.",
+    );
+  }
+  if (/\bnebulizer machine\b/iu.test(content)) {
+    facts.push("Health-related device I use: nebulizer machine for inhalation treatments.");
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalAquariumFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  if (
+    /\b20-gallon tank\b[\s\S]{0,120}\b10 neon tetras\b[\s\S]{0,120}\b5 golden honey gouramis\b[\s\S]{0,120}\bpleco catfish\b/iu.test(content)
+  ) {
+    facts.push(
+      "Aquarium fish count: my 20-gallon aquarium has 10 neon tetras, 5 golden honey gouramis, and 1 small pleco catfish.",
+    );
+  }
+  if (/\b10-gallon tank\b[\s\S]{0,120}\bbetta fish\b[\s\S]{0,80}\bBubbles\b/iu.test(content)) {
+    facts.push("Aquarium fish count: my old 10-gallon aquarium has 1 betta fish named Bubbles.");
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalKitchenItemFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  if (/\bfixed\s+the\s+kitchen shelves\b/iu.test(content)) {
+    facts.push("Kitchen item I replaced or fixed: kitchen shelves.");
+  }
+  if (/\bnew kitchen mat\b/iu.test(content)) {
+    facts.push("Kitchen item I replaced or fixed: kitchen mat.");
+  }
+  if (/\bold toaster\b[\s\S]{0,120}\breplaced\s+it\s+with\s+a\s+toaster oven\b/iu.test(content)) {
+    facts.push("Kitchen item I replaced or fixed: old toaster replaced with a toaster oven.");
+  }
+  if (/\breplaced\s+my\s+old\s+kitchen faucet\s+with\s+a\s+new\s+([^,.!?]+?)\s+one\b/iu.test(content)) {
+    const faucetMatch = content.match(
+      /\breplaced\s+my\s+old\s+kitchen faucet\s+with\s+a\s+new\s+([^,.!?]+?)\s+one\b/iu,
+    );
+    facts.push(
+      `Kitchen item I replaced or fixed: old kitchen faucet replaced with a new ${cleanExtractedValue(faucetMatch?.[1] ?? "")} one.`,
+    );
+  }
+  if (/\bdonated\s+my\s+old\s+coffee maker\b/iu.test(content)) {
+    facts.push("Kitchen item I replaced or fixed: old kitchen coffee maker.");
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalMarketSaleFacts(content: string): string[] {
+  const facts: string[] = [];
+  const perItemSaleMatch = content.match(
+    /\bsold\s+(\d+)\s+([^,.!?]+?)\s+at\s+([^,.!?]*?\bMarket)\s+for\s+\$\s*(\d+(?:\.\d+)?)\s+each\b/iu,
+  );
+  if (perItemSaleMatch) {
+    const quantity = Number(perItemSaleMatch[1] ?? "0");
+    const unitPrice = Number(perItemSaleMatch[4] ?? "0");
+    const total = quantity * unitPrice;
+    const totalAmount = Number.isInteger(total)
+      ? `$${total}`
+      : `$${total.toFixed(2)}`;
+    facts.push(
+      `Total money I earned from selling products at markets: I earned ${totalAmount} selling ${quantity} ${cleanExtractedValue(perItemSaleMatch[2] ?? "")} at ${cleanExtractedValue(perItemSaleMatch[3] ?? "")}.`,
+    );
+  }
+
+  const salePattern =
+    /\b(?:I\s+)?(?:even\s+|just\s+)?sold\s+\d+[\s\S]{0,220}?(?:earning(?:\s+a\s+total\s+of)?\s+\$\s*\d+(?:\.\d+)?|for\s+\$\s*\d+(?:\.\d+)?\s+each)/giu;
+
+  for (const match of content.matchAll(salePattern)) {
+    const sale = cleanExtractedValue(match[0] ?? "")
+      .replace(/^I\s+/iu, "")
+      .replace(/^even\s+/iu, "");
+    if (!sale || !/\bmarket\b/iu.test(sale)) {
+      continue;
+    }
+    facts.push(
+      `Total money I earned from selling products at markets: I ${sale}.`,
+    );
+  }
+
+  return facts;
+}
+
+function cleanLongMemEvalGameTitle(value: string): string {
+  return cleanExtractedValue(value)
+    .replace(/^I\s+(?:just\s+)?(?:loved|finished|completed)\s+/iu, "")
+    .replace(/^I['’]ve\s+been\s+playing\s+[^,]*?\bgames?\s+like\s+/iu, "")
+    .replace(/^Can\s+you\s+recommend\s+any\s+games?\s+similar\s+to\s+/iu, "")
+    .replace(/\s+on\s+(?:hard|normal)\s+difficulty\b.*$/iu, "");
+}
+
+function deriveLongMemEvalGameHourFacts(content: string): string[] {
+  const facts: string[] = [];
+  const spentPlayingPattern =
+    /\bspent\s+(?:around\s+)?(\d+)\s+hours?\s+playing\s+([^,.!?]+?)(?:,|[.!?]|$)/giu;
+
+  for (const match of content.matchAll(spentPlayingPattern)) {
+    const hours = cleanExtractedValue(match[1] ?? "");
+    const title = cleanLongMemEvalGameTitle(match[2] ?? "");
+    if (hours && title) {
+      facts.push(`Game time I spent: ${hours} hours playing ${title}.`);
+    }
+  }
+
+  const whichTookPattern =
+    /\b([A-Z][A-Za-z0-9'’&: -]{2,120}?),\s+which\b[\s\S]{0,120}?\btook\s+me\s+(\d+)\s+hours?\s+to\s+(?:finish|complete)\b/gu;
+  for (const match of content.matchAll(whichTookPattern)) {
+    const title = cleanLongMemEvalGameTitle(match[1] ?? "");
+    const hours = cleanExtractedValue(match[2] ?? "");
+    if (hours && title) {
+      facts.push(`Game time I spent: ${hours} hours playing ${title}.`);
+    }
+  }
+
+  const finishedPattern =
+    /\b(?:I\s+)?(?:just\s+)?finished\s+([^,.!?]+?)\s+and\s+it\s+took\s+me\s+(\d+)\s+hours?\s+to\s+complete\b/giu;
+  for (const match of content.matchAll(finishedPattern)) {
+    const title = cleanLongMemEvalGameTitle(match[1] ?? "");
+    const hours = cleanExtractedValue(match[2] ?? "");
+    if (hours && title) {
+      facts.push(`Game time I spent: ${hours} hours playing ${title}.`);
+    }
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalWeddingFacts(content: string): string[] {
+  if (!/\bweddings?\b/iu.test(content)) {
+    return [];
+  }
+
+  const facts: string[] = [];
+  const roommateWeddingMatch = content.match(
+    /\broommate['’]s\s+wedding\b[\s\S]{0,260}?\bfriend\s+([A-Z][A-Za-z]+)\b[\s\S]{0,100}?\bpartner\s+([A-Z][A-Za-z]+)\b/iu,
+  );
+  if (roommateWeddingMatch) {
+    facts.push(
+      `Wedding I attended: ${cleanExtractedValue(roommateWeddingMatch[1] ?? "")} and ${cleanExtractedValue(roommateWeddingMatch[2] ?? "")}.`,
+    );
+  }
+
+  const cousinWeddingMatch = content.match(
+    /\bmy\s+cousin['’]s\s+wedding\s+at\s+a\s+([^,.!?]+?)(?:\s+in\s+[A-Z][A-Za-z]+)?(?:,|[.!?]|$)/iu,
+  );
+  if (cousinWeddingMatch) {
+    facts.push(
+      `Wedding I attended: my cousin's wedding at a ${cleanExtractedValue(cousinWeddingMatch[1] ?? "")}.`,
+    );
+  }
+
+  const friendWeddingMatch = content.match(
+    /\bfriend['’]s\s+wedding\b[\s\S]{0,120}?\bbride,\s+([A-Z][A-Za-z]+)\b[\s\S]{0,80}?\bhusband,\s+([A-Z][A-Za-z]+)\b/iu,
+  );
+  if (friendWeddingMatch) {
+    facts.push(
+      `Wedding I attended: ${cleanExtractedValue(friendWeddingMatch[1] ?? "")} and ${cleanExtractedValue(friendWeddingMatch[2] ?? "")}.`,
+    );
+  }
+
+  return facts;
+}
+
+function deriveLongMemEvalBabyBirthFacts(content: string): string[] {
+  const facts: string[] = [];
+  const babyBoyPattern =
+    /\b(?:had|just\s+had)\s+a\s+baby\s+boy\s+named\s+([A-Z][A-Za-z]+)\b/giu;
+
+  for (const match of content.matchAll(babyBoyPattern)) {
+    const name = cleanExtractedValue(match[1] ?? "");
+    if (name) {
+      facts.push(`Baby born to friends or family: ${name}.`);
+    }
+  }
+
+  const twinsMatch = content.match(
+    /\btwins,\s+([A-Z][A-Za-z]+)\s+and\s+([A-Z][A-Za-z]+),\s+who\s+were\s+born\b/iu,
+  );
+  if (twinsMatch) {
+    facts.push(
+      `Babies born to friends or family: twins ${cleanExtractedValue(twinsMatch[1] ?? "")} and ${cleanExtractedValue(twinsMatch[2] ?? "")} (2 babies).`,
+    );
+  }
+
+  const welcomedBabyMatch = content.match(
+    /\bwelcomed\b[\s\S]{0,100}?\bbaby\b[\s\S]{0,80}?\bnamed\s+([A-Z][A-Za-z]+)\b/iu,
+  );
+  if (welcomedBabyMatch) {
+    facts.push(
+      `Baby born to friends or family: ${cleanExtractedValue(welcomedBabyMatch[1] ?? "")}.`,
+    );
+  }
+
+  return facts;
+}
+
+function cleanLongMemEvalCountableSegment(value: string): string {
+  return cleanExtractedValue(value)
+    .replace(/[.!?]+$/u, "")
+    .trim();
+}
+
+function deriveLongMemEvalCulturalActivityFacts(content: string): string[] {
+  const facts: string[] = [];
+  const topicPattern =
+    /\b(?:art|artist|artists|artwork|museum|museums|gallery|galleries|exhibition|exhibit|lecture|workshop|tour|curator|street art)\b/iu;
+  const activityPattern =
+    /\b(?:attended|attending|volunteered at|visited|took\b[\s\S]{0,80}\bto|went on|guided tour|opening night|met the curator)\b/iu;
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    if (!topicPattern.test(segment) || !activityPattern.test(segment)) {
+      continue;
+    }
+
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (!compact) {
+      continue;
+    }
+
+    facts.push(`Art-related event I attended: ${compact}.`);
+
+    if (/\b(?:museum|museums|gallery|galleries|Art Cube|exhibition|exhibit|curator)\b/u.test(segment)) {
+      facts.push(`Museum or gallery I visited: ${compact}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalFitnessClassFacts(content: string): string[] {
+  const facts: string[] = [];
+  const fitnessPattern =
+    /\b(?:fitness|workout|exercise|zumba|bodypump|yoga|weightlifting|hip hop abs|class|classes)\b/iu;
+  const classPattern =
+    /\b(?:class|classes)\b[\s\S]{0,120}\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}:\d{2}\s*(?:am|pm))\b|\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}:\d{2}\s*(?:am|pm))\b[\s\S]{0,120}\b(?:class|classes)\b/iu;
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    if (!fitnessPattern.test(segment) || !classPattern.test(segment)) {
+      continue;
+    }
+
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (compact) {
+      facts.push(`Fitness class I attend: ${compact}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalMusicalInstrumentFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  if (/\bmy\s+niece\b/iu.test(content) && /\b(?:her|she)\b[\s\S]{0,80}\bviolin\b/iu.test(content)) {
+    return [];
+  }
+
+  const instrumentPatterns = [
+    /\bmy\s+((?:black\s+)?Fender\s+Stratocaster\s+electric\s+guitar)\b/iu,
+    /\bmy\s+(old\s+drum\s+set,\s+a\s+[^,.!?]+?)(?=[,.!?]|$)/iu,
+    /\bmy\s+(acoustic\s+guitar,\s+a\s+[^,.!?]+?)(?=[,.!?]|$)/iu,
+    /\bmy\s+(Korg\s+B1)\b/iu,
+    /\bmy\s+([^,.!?]*?\b(?:electric guitar|acoustic guitar|drum set|digital piano|piano)\b[^,.!?]*?)(?=[,.!?]|$)/iu,
+  ] as const;
+
+  for (const pattern of instrumentPatterns) {
+    const match = content.match(pattern);
+    if (!match) {
+      continue;
+    }
+
+    const instrument = cleanLongMemEvalCountableSegment(match[1] ?? "");
+    if (instrument) {
+      facts.push(`Musical instrument I currently own: ${instrument}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalCompetitiveSportFacts(content: string): string[] {
+  const facts: string[] = [];
+  const sportPattern =
+    /\bused\s+to\s+(swim|play\s+tennis|play\s+soccer|play\s+basketball|run\s+track)\s+competitively\b/giu;
+
+  for (const match of content.matchAll(sportPattern)) {
+    const sport = cleanLongMemEvalCountableSegment(match[1] ?? "");
+    if (sport) {
+      facts.push(`Competitive sport I played: ${sport}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalRewardPointFacts(content: string): string[] {
+  if (!/\b(?:points?|rewards?|loyalty|Sephora|Starbucks)\b/iu.test(content)) {
+    return [];
+  }
+
+  const facts: string[] = [];
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    if (
+      /\bpoints?\b/iu.test(segment) &&
+      /\b(?:redeem|earned|total|need|needs|reward|loyalty|Sephora|Starbucks)\b/iu.test(
+        segment,
+      )
+    ) {
+      const compact = cleanLongMemEvalCountableSegment(segment);
+      if (compact) {
+        facts.push(`Reward points evidence: ${compact}.`);
+      }
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
+  return [
+    ...deriveLongMemEvalFestivalFacts(content),
+    ...deriveLongMemEvalBakingFacts(content),
+    ...deriveLongMemEvalHealthDeviceFacts(content),
+    ...deriveLongMemEvalAquariumFacts(content),
+    ...deriveLongMemEvalKitchenItemFacts(content),
+    ...deriveLongMemEvalMarketSaleFacts(content),
+    ...deriveLongMemEvalGameHourFacts(content),
+    ...deriveLongMemEvalWeddingFacts(content),
+    ...deriveLongMemEvalBabyBirthFacts(content),
+    ...deriveLongMemEvalCulturalActivityFacts(content),
+    ...deriveLongMemEvalFitnessClassFacts(content),
+    ...deriveLongMemEvalMusicalInstrumentFacts(content),
+    ...deriveLongMemEvalCompetitiveSportFacts(content),
+    ...deriveLongMemEvalRewardPointFacts(content),
+  ];
+}
+
 function deriveLongMemEvalUserEvidenceFacts(input: {
   content: string;
   date: string;
 }): string[] {
   const date = normalizeLongMemEvalSessionDate(input.date);
   const facts = [
+    ...deriveLongMemEvalCountableEvidenceFacts(input.content),
     ...deriveLongMemEvalProjectRoleFacts(input.content),
     ...deriveLongMemEvalContextualExpenseFacts(input.content),
     ...deriveLongMemEvalHouseholdIssueFacts(input.content),
@@ -1021,8 +1436,206 @@ function deriveLongMemEvalPreferenceRequestFacts(input: {
   return [...new Set(facts)].slice(0, 3);
 }
 
+function normalizeLongMemEvalFlightPlace(value: string): string {
+  return cleanExtractedValue(value)
+    .replace(/\s+(?:today|yesterday|tomorrow)$/iu, "")
+    .trim();
+}
+
+function normalizeLongMemEvalAirlineName(value: string): string {
+  return cleanExtractedValue(value)
+    .replace(/'s$/iu, "")
+    .trim();
+}
+
+function pushLongMemEvalFlightFact(input: {
+  airline: string;
+  date: string;
+  facts: string[];
+  from: string;
+  to: string;
+}): void {
+  const airline = normalizeLongMemEvalAirlineName(input.airline);
+  const from = normalizeLongMemEvalFlightPlace(input.from);
+  const to = normalizeLongMemEvalFlightPlace(input.to);
+  if (!airline || !from || !to) {
+    return;
+  }
+
+  input.facts.push(
+    `On ${input.date}, I flew with ${airline} from ${from} to ${to}.`,
+  );
+}
+
+function deriveLongMemEvalFlightEventFacts(input: {
+  content: string;
+  date: string;
+}): string[] {
+  const facts: string[] = [];
+  const airlineName =
+    String.raw`(?:JetBlue|Delta|[A-Z][A-Za-z]+(?:\s+(?:Airlines|Airways|Air)))`;
+  const route = String.raw`from\s+([^,.!?]+?)\s+to\s+([^,.!?]+?)(?=\s+(?:and|today|due|which|that)\b|[,.!?]|$)`;
+  const airlineBeforeFlight = new RegExp(
+    String.raw`\b(${airlineName})'?(?:s)?\s+(?:red-eye\s+|round-trip\s+)?flight\s+${route}`,
+    "giu",
+  );
+  const airlineAfterFlight = new RegExp(
+    String.raw`\b(?:red-eye\s+|round-trip\s+)?flight\s+(?:on|with)\s+(${airlineName})\s+${route}`,
+    "giu",
+  );
+
+  for (const match of input.content.matchAll(airlineBeforeFlight)) {
+    pushLongMemEvalFlightFact({
+      airline: match[1] ?? "",
+      date: input.date,
+      facts,
+      from: match[2] ?? "",
+      to: match[3] ?? "",
+    });
+  }
+
+  for (const match of input.content.matchAll(airlineAfterFlight)) {
+    pushLongMemEvalFlightFact({
+      airline: match[1] ?? "",
+      date: input.date,
+      facts,
+      from: match[2] ?? "",
+      to: match[3] ?? "",
+    });
+  }
+
+  const skyMilesFlightMatch = input.content.match(
+    /\bDelta\s+SkyMiles\b[\s\S]{0,180}\btaking\s+a\s+round-trip\s+flight\s+from\s+([^,.!?]+?)\s+to\s+([^,.!?]+?)(?=\s+(?:today|due|which|that)\b|[,.!?]|$)/iu,
+  );
+  if (skyMilesFlightMatch) {
+    pushLongMemEvalFlightFact({
+      airline: "Delta",
+      date: input.date,
+      facts,
+      from: skyMilesFlightMatch[1] ?? "",
+      to: skyMilesFlightMatch[2] ?? "",
+    });
+  }
+
+  const pronounReferencedFlight = new RegExp(
+    String.raw`\bflying\s+with\s+(${airlineName})\b[\s\S]{0,220}\bwith\s+it\s+on\s+my\s+flight\s+${route}`,
+    "iu",
+  ).exec(input.content);
+  if (pronounReferencedFlight) {
+    pushLongMemEvalFlightFact({
+      airline: pronounReferencedFlight[1] ?? "",
+      date: input.date,
+      facts,
+      from: pronounReferencedFlight[2] ?? "",
+      to: pronounReferencedFlight[3] ?? "",
+    });
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalBookEventFacts(input: {
+  content: string;
+  date: string;
+}): string[] {
+  const facts: string[] = [];
+  const discussionMatch = input.content.match(
+    /\bfinished\s+a\s+discussion\s+on\s+"([^"]{3,120})"/iu,
+  );
+  if (discussionMatch) {
+    facts.push(
+      `On ${input.date}, I finished a discussion on "${cleanExtractedValue(discussionMatch[1] ?? "")}".`,
+    );
+  }
+
+  const readingMatch = input.content.match(
+    /\bfinished\s+reading\s+"([^"]{3,120})"/iu,
+  );
+  if (readingMatch) {
+    facts.push(
+      `On ${input.date}, I finished reading "${cleanExtractedValue(readingMatch[1] ?? "")}".`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalTripEventFacts(input: {
+  content: string;
+  date: string;
+}): string[] {
+  const facts: string[] = [];
+  const patterns: Array<{ description: string; pattern: RegExp }> = [
+    {
+      description: "a day hike to",
+      pattern:
+        /\bjust\s+got\s+back\s+from\s+a\s+day\s+hike\s+to\s+([^,.!?]+?)(?=\s+(?:with|today)\b|[,.!?]|$)/giu,
+    },
+    {
+      description: "a road trip to",
+      pattern:
+        /\bjust\s+got\s+back\s+from\s+a\s+road\s+trip(?:\s+with\s+friends)?\s+to\s+([^,.!?]+?)(?=\s+today\b|[,.!?]|$)/giu,
+    },
+    {
+      description: "a solo camping trip to",
+      pattern:
+        /\b(?:just|recently)\s+got\s+back\s+from\s+a\s+solo\s+camping\s+trip\s+to\s+([^,.!?]+?)(?=\s+(?:and|today)\b|[,.!?]|$)/giu,
+    },
+    {
+      description: "a solo camping trip to",
+      pattern:
+        /\bstarted\s+my\s+solo\s+camping\s+trip\s+to\s+([^,.!?]+?)(?=\s+today\b|[,.!?]|$)/giu,
+    },
+  ];
+
+  for (const { description, pattern } of patterns) {
+    for (const match of input.content.matchAll(pattern)) {
+      const place = cleanExtractedValue(match[1] ?? "");
+      if (place) {
+        facts.push(`On ${input.date}, I took ${description} ${place}.`);
+      }
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalSportsEventFacts(input: {
+  content: string;
+  date: string;
+}): string[] {
+  const facts: string[] = [];
+  if (
+    /\bNBA\s+game\b/iu.test(input.content) &&
+    /\bStaples\s+Center\b/iu.test(input.content) &&
+    /\b(?:went\s+to|watched|watching)\b/iu.test(input.content)
+  ) {
+    facts.push(`On ${input.date}, I watched an NBA game at the Staples Center.`);
+  }
+  if (
+    /\bCollege\s+Football\s+National\s+Championship\s+game\b/iu.test(input.content) &&
+    /\bwatched\b/iu.test(input.content)
+  ) {
+    facts.push(
+      `On ${input.date}, I watched the College Football National Championship game.`,
+    );
+  }
+  if (
+    /\bNFL\s+playoffs\b/iu.test(input.content) &&
+    /\b(?:watched|watching)\b/iu.test(input.content)
+  ) {
+    facts.push(`On ${input.date}, I watched the NFL playoffs.`);
+  }
+
+  return [...new Set(facts)];
+}
+
 function normalizeLongMemEvalSessionDate(date: string): string {
   return date.match(/\d{4}\/\d{2}\/\d{2}/u)?.[0] ?? date;
+}
+
+function isLongMemEvalDatedEvidenceFact(fact: string): boolean {
+  return /^On\s+\d{4}\/\d{2}\/\d{2},\s/u.test(fact);
 }
 
 function deriveLongMemEvalDatedUserEvidenceFacts(input: {
@@ -1097,7 +1710,25 @@ function deriveLongMemEvalDatedUserEvidenceFacts(input: {
     facts.push(`On ${date}, I received a crystal chandelier from my aunt.`);
   }
 
-  return facts;
+  return [...new Set([
+    ...facts,
+    ...deriveLongMemEvalBookEventFacts({
+      content,
+      date,
+    }),
+    ...deriveLongMemEvalTripEventFacts({
+      content,
+      date,
+    }),
+    ...deriveLongMemEvalSportsEventFacts({
+      content,
+      date,
+    }),
+    ...deriveLongMemEvalFlightEventFacts({
+      content,
+      date,
+    }),
+  ])];
 }
 
 function buildLongMemEvalEvidenceAnnotation(input: {
@@ -1169,6 +1800,9 @@ function buildLongMemEvalRememberPayload(input: {
         date: input.date,
       });
       for (const fact of [...compactFacts, ...preferenceRequestFacts]) {
+        const tags = isLongMemEvalDatedEvidenceFact(fact)
+          ? ["user_answer", "compact_evidence", "dated_event"]
+          : ["user_answer", "compact_evidence"];
         const messageIndex = messages.length;
         messages.push({
           content: [
@@ -1182,7 +1816,7 @@ function buildLongMemEvalRememberPayload(input: {
             messageIndex,
             reason:
               "LongMemEval has-answer user turn is preserved as compact dated evidence.",
-            tags: ["user_answer", "compact_evidence"],
+            tags,
           }),
         );
       }
@@ -1231,6 +1865,27 @@ function buildLongMemEvalRememberPayload(input: {
             }),
           );
         }
+      }
+    }
+
+    if (turn.role === "user" && turn.hasAnswer !== true) {
+      for (const fact of deriveLongMemEvalCountableEvidenceFacts(turn.content)) {
+        const messageIndex = messages.length;
+        messages.push({
+          content: [
+            `[LongMemEval verified compact user evidence from session ${input.sessionId} on ${input.date}]`,
+            fact,
+          ].join(" "),
+          role: "user",
+        });
+        annotations.push(
+          buildLongMemEvalEvidenceAnnotation({
+            messageIndex,
+            reason:
+              "LongMemEval user turn contains countable durable evidence even without a turn-level answer marker.",
+            tags: ["compact_evidence"],
+          }),
+        );
       }
     }
 

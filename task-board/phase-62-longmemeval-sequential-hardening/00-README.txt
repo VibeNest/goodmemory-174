@@ -147,9 +147,9 @@ Workstreams
     is invalid as benchmark evidence because non-escalated answer generation
     lost provider connectivity and `goodmemory-hybrid` hit a local Postgres
     connection-closed failure.
-  - Phase 62 remains open for broader/full LongMemEval coverage. Do not open
-    BEAM from this board until the full-500 decision is recorded as either
-    executed evidence or an explicit deferral with rationale.
+  - Phase 62 remains open for broader/full LongMemEval quality repair. Do not
+    open BEAM from this board until the full-500 LongMemEval gap is either
+    repaired or explicitly accepted as a deferral.
   - The first full-500 attempt
     `run-phase62-longmemeval-full500-live-four-profile-20260506T034826Z`
     is invalid as benchmark evidence. It did cover the cleaned 500 cases as ten
@@ -161,13 +161,61 @@ Workstreams
   - The failed full-500 shard recovery path is now resumable by failed
     profile/case row:
     `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id>`.
-    The latest merged live retry state is
-    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`:
-    603 execution failures remain after cleaning all `baseline-full-context`
-    execution failures and reducing `goodmemory-rules-only` to 153 failed
-    profile/case rows. `goodmemory-hybrid` still has 450 failed rows. The latest
-    stop was provider/API capacity in rules-only batch 020, not a closed
-    benchmark result.
+    The current canonical clean merged live retry state is
+    `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`:
+    all four profiles cover all 500 cases with `executionFailures: 0`.
+    This closes the full-500 execution blocker, but not the quality loop:
+    `baseline-full-context` is 454/500, `goodmemory-rules-only` is 344/500,
+    and `goodmemory-hybrid` is 337/500. This is failed-row recovery from the
+    previous provider-cooldown run, not a fresh all-row current-code rerun. The
+    next repair target is the multi-session and temporal-reasoning gap exposed
+    by the clean full-500 run.
+    A later provider-cooldown resume check confirmed the same path: dry-run
+    against the clean `033000Z` merged report produced no retry batches, and
+    retrying the single remaining failed row from
+    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T030000Z`
+    produced
+    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T070500Z`
+    with `executionFailures: 0`.
+    A later real `gpt-5.5` cooldown recovery restarted from failed rows again:
+    the 9-way retry proved the API was still unstable (`auth_unavailable`/429)
+    and produced 744 remaining failures, then low-concurrency failure-only
+    retries produced
+    `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume2-20260507T175400Z`
+    with 3 remaining failures and a final single-concurrency retry produced
+    the clean `191000Z` merge with `executionFailures: 0`.
+    A focused post-full500 repair also closes four basic explicit personal
+    attribute misses from the real cleaned data: provider-free rules-only
+    recall moved from 0/4 to 4/4 on dog breed, cat name, undergraduate school,
+    and shampoo brand cases, and
+    `run-phase62-longmemeval-live-basic-attrs-after-20260507T012500Z` confirms
+    4/4 live answer accuracy with `executionFailures: 0`. The same extraction
+    family is mirrored in Chinese to avoid an English-only rules gap. This is
+    local repair evidence; the full-500 quality claim still requires a broader
+    rerun. A second focused post-full500 repair closes six countable
+    multi-session misses from the real cleaned data: provider-free rules-only
+    recall moved from 0/6 to 6/6 on movie festivals, baking events, health
+    devices, aquarium fish, kitchen items, and market earnings, and
+    `run-phase62-longmemeval-live-multi-count-after-20260507T052500Z` confirms
+    6/6 live answer accuracy with `executionFailures: 0`. This repairs a
+    concrete multi-session slice. A third focused post-full500 repair closes
+    seven temporal-reasoning misses from the real cleaned data: provider-free
+    rules-only recall moved from 0.1 evidence-session recall, 7 missed recall
+    cases, and 1 wrong-recall case to 1.0 evidence-session recall with zero
+    missed/wrong recall in
+    `run-phase62-longmemeval-recall-only-temporal-after-answerfacts-20260507T162200Z`,
+    and `run-phase62-longmemeval-live-temporal-after-answerfacts-20260507T163300Z`
+    confirms 7/7 live answer accuracy with `executionFailures: 0`. This repairs
+    a concrete temporal slice, but the full-500 quality claim still requires
+    broader remaining multi-session/temporal repair or a fresh full-500 rerun
+    showing the repaired current-code delta.
+    A fourth focused post-full500 repair extends countable multi-session
+    evidence for aggregate game hours, wedding attendance, and babies born:
+    provider-free recall on real cleaned cases (`28dc39ac`, `gpt4_2f8be40d`,
+    `2e6d26dc`) reached 3/3 with zero wrong recall in
+    `run-phase62-longmemeval-recall-only-multi-aggregate2-after-r2-20260508T004800Z`,
+    and `run-phase62-longmemeval-live-multi-aggregate2-after-20260508T004900Z`
+    confirms 3/3 live answer accuracy with `executionFailures: 0`.
 
 4. Transition to BEAM
    - open the BEAM phase only after LongMemEval has a clear before/after delta

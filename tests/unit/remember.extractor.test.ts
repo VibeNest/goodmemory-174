@@ -179,6 +179,57 @@ describe("deterministic memory extractor", () => {
     ]);
   });
 
+  it("extracts explicit personal attribute facts from natural user wording", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-1" },
+      messages: [
+        {
+          role: "user",
+          content:
+            "By the way, my cat's name is Luna, and she's been such a sweetie throughout all the changes.",
+        },
+        {
+          role: "user",
+          content:
+            "Do you have any recommendations for a collar brand or type that would suit a Golden Retriever like Max?",
+        },
+        {
+          role: "user",
+          content:
+            "I completed my undergrad in CS from UCLA, which has a great reputation in the industry.",
+        },
+        {
+          role: "user",
+          content:
+            "I've been using a lavender scented shampoo that I picked up on a whim at Trader Joe's.",
+        },
+      ],
+    });
+
+    expect(result.candidates.map((candidate) => candidate.content)).toEqual(
+      expect.arrayContaining([
+        "My cat's name is Luna.",
+        "My dog Max is a Golden Retriever.",
+        "I completed my undergraduate Computer Science degree at UCLA.",
+        "I use Trader Joe's lavender scented shampoo.",
+      ]),
+    );
+    expect(
+      result.candidates
+        .filter((candidate) =>
+          [
+            "My cat's name is Luna.",
+            "My dog Max is a Golden Retriever.",
+            "I completed my undergraduate Computer Science degree at UCLA.",
+            "I use Trader Joe's lavender scented shampoo.",
+          ].includes(candidate.content),
+        )
+        .every((candidate) => candidate.metadata?.category === "personal"),
+    ).toBe(true);
+  });
+
   it("extracts role drift and current project from moved-into wording", async () => {
     const extractor = createDeterministicMemoryExtractor();
 
@@ -982,6 +1033,41 @@ describe("deterministic memory extractor", () => {
         kindHint: "fact",
       },
     ]);
+  });
+
+  it("extracts Chinese explicit personal attribute facts", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      scope: { userId: "u-1", sessionId: "s-zh-attributes" },
+      messages: [
+        {
+          role: "user",
+          content: "顺便说一下，我的猫的名字是露娜。",
+        },
+        {
+          role: "user",
+          content: "我家狗Max是金毛，想给它买个新项圈。",
+        },
+        {
+          role: "user",
+          content: "我本科在UCLA读计算机，之后一直在科技行业工作。",
+        },
+        {
+          role: "user",
+          content: "我一直用Trader Joe's的薰衣草洗发水。",
+        },
+      ],
+    });
+
+    expect(result.candidates.map((candidate) => candidate.content)).toEqual(
+      expect.arrayContaining([
+        "我的猫叫露娜。",
+        "我的狗Max是金毛。",
+        "我的计算机本科学校是UCLA。",
+        "我使用Trader Joe's的薰衣草洗发水。",
+      ]),
+    );
   });
 
   it("extracts Chinese Phase 62 hobby, project, and relationship facts", async () => {

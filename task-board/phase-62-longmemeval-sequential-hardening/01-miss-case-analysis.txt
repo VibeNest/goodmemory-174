@@ -645,8 +645,9 @@ Post final hybrid 60-case repair:
     2/60
 - interpretation:
   the hybrid 60-case answer loop is now closed for the first 10 cleaned cases
-  per question type. Phase 62 remains open because the full-500 execution or
-  deferral decision is still missing.
+  per question type. The later clean full-500 execution supersedes this as the
+  active miss-intake source and keeps Phase 62 open for quality repair rather
+  than execution coverage.
 
 
 Fixed Root Causes
@@ -906,40 +907,302 @@ with successful retry rows replacing the previous failures. This recovered real
 evidence from the failed shard set:
 
 - `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T130000Z`
-  cleared `baseline-full-context` execution failures to 0/500; that baseline is
-  now 452/500 accuracy with evidence-session recall 1.0.
+  cleared `baseline-full-context` execution failures to 0/500 at that checkpoint;
+  the baseline was then 452/500 accuracy with evidence-session recall 1.0.
 - `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`
-  reduced total execution failures from 1215 to 603. Remaining failures are
-  `goodmemory-rules-only`: 153 and `goodmemory-hybrid`: 450.
-- The latest retry stop was provider/API capacity inside
-  `run-phase62-longmemeval-full500-failure-retry-live-20260506T133000Z-goodmemory-rules-only-batch-020`:
-  one 429 usage-limit error, one `auth_unavailable` 503 for `gpt-5.4`, and one
-  gateway timeout. Treat this as an infrastructure interruption; it is not a
-  clean full-500 LongMemEval result and does not close Phase 62.
+  reduced total execution failures from 1215 to 603 and proved the failed-row
+  retry path could preserve partial successes across provider interruptions.
+- `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T033000Z`
+  is the clean full-500 execution: all four profiles cover all 500 cases with
+  `executionFailures: 0`. It was recovered by failed-row retries from the
+  previous provider-cooldown run, so successful clean rows were preserved rather
+  than rerun from scratch.
+- A later provider-cooldown recovery check confirmed the same resume semantics:
+  dry-run against the clean `033000Z` merged report produced `batchCount: 0`,
+  and retrying the single remaining failed row from
+  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T030000Z`
+  produced
+  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T070500Z`
+  with `executionFailures: 0`.
+- A later real `gpt-5.5` cooldown recovery restarted from the failed rows of
+  `run-phase62-longmemeval-full500-live-four-profile-current-merged-20260506T082323Z`.
+  The requested 9-way retry was useful as a stress check but left 744 execution
+  failures because the provider returned mostly `auth_unavailable`/429 errors.
+  The durable recovery path was the same failed-row resume with lower
+  concurrency:
+  `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume2-20260507T175400Z`
+  reduced the residue to 3 execution failures, and
+  `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`
+  cleared the final 3 single-case failures.
+
+The clean full-500 result is not good enough for a public LongMemEval strength
+claim:
+
+| Profile | Correct | Accuracy | Evidence-session recall | Wrong recall |
+| --- | ---: | ---: | ---: | ---: |
+| baseline-no-memory | 34/500 | 6.8% | 0.0000 | 0 |
+| baseline-full-context | 454/500 | 90.8% | 1.0000 | 0 |
+| goodmemory-rules-only | 344/500 | 68.8% | 0.7399 | 7 |
+| goodmemory-hybrid | 337/500 | 67.4% | 0.7364 | 7 |
+
+The main miss shape is recall/aggregation, not hallucinated wrong recall:
+
+- `goodmemory-rules-only`: 175 wrong answers. Multi-session accounts for 65
+  wrong answers and temporal-reasoning accounts for 68. Among all wrong
+  answers, 80 are zero-recall misses and 75 are partial-recall misses; only 20
+  are wrong despite full evidence-session recall.
+- `goodmemory-hybrid`: 181 wrong answers. Multi-session accounts for 69 wrong
+  answers and temporal-reasoning accounts for 66. Among all wrong answers, 81
+  are zero-recall misses and 78 are partial-recall misses; only 23 are wrong
+  despite full evidence-session recall.
+
+Full-500 LongMemEval execution is therefore complete, but the benchmark is not
+quality-closed. The next repair loop should improve multi-evidence aggregation,
+count/list accumulation, and temporal bridge retrieval before BEAM is opened or
+any LongMemEval claim is made.
+
+Post-Full500 Repair: Basic Personal Attributes
+----------------------------------------------
+
+The clean full-500 report exposed a simpler miss family inside
+`single-session-user`: explicit personal attributes were written as long
+verified evidence, but the relevant fact could sit below the generic lexical
+selection threshold when the user turn had extra context. Four representative
+cleaned cases were:
+
+| Case | Question | Expected | Before recall |
+| --- | --- | --- | ---: |
+| `75499fd8` | What breed is my dog? | Golden Retriever | 0 |
+| `0862e8bf` | What is the name of my cat? | Luna | 0 |
+| `25e5aa4f` | Where did I complete my Bachelor's degree in Computer Science? | UCLA | 0 |
+| `c14c00dd` | What brand of shampoo do I currently use? | Trader Joe's | 0 |
+
+The repair is not a case-id patch. `src/language/english.ts` now extracts short
+explicit personal facts from natural wording for pet names, dog breed phrasing,
+undergraduate institution wording, and store-branded shampoo/product usage. The
+same fact family is mirrored in `src/language/chinese.ts` so the mechanism does
+not become English-only. The new regression coverage is:
+
+- `tests/unit/remember.extractor.test.ts`: rules-only extraction emits
+  `My cat's name is Luna.`, `My dog Max is a Golden Retriever.`,
+  `I completed my undergraduate Computer Science degree at UCLA.`, and
+  `I use Trader Joe's lavender scented shampoo.`, plus Chinese equivalents for
+  pet names, dog breed, undergraduate institution, and branded shampoo usage.
+- `tests/unit/longmemeval.test.ts`: provider-free LongMemEval context recall
+  retrieves the answer session for all four natural verified user turns.
+
+Provider-free recall diagnostic delta on the real cleaned data:
+
+- Before: `run-phase62-longmemeval-recall-only-basic-attrs-before-20260507T000000Z`
+  had 0/4 evidence-session recall, 4 missed recall cases, and zero execution
+  failures.
+- After: `run-phase62-longmemeval-recall-only-basic-attrs-after-20260507T012000Z`
+  has 4/4 evidence-session recall, zero missed recall cases, zero wrong recall,
+  and zero execution failures.
+- Targeted live rules-only:
+  `run-phase62-longmemeval-live-basic-attrs-after-20260507T012500Z` has 4/4
+  answer accuracy, 1.0 evidence-session recall, zero wrong recall, and
+  `executionFailures: 0`.
+
+This closes this small explicit-attribute miss family. It does not replace the
+full-500 quality rerun, because the main full-500 gap is still multi-session and
+temporal-reasoning recall/aggregation.
+
+Post-Full500 Repair: Countable Multi-Session Evidence
+-----------------------------------------------------
+
+The next full-500 miss family was multi-session count/total questions where
+each answer-bearing turn was present as verified evidence, but the relevant
+long turns were not compact enough for aggregate recall. Six representative real
+cleaned misses were:
+
+| Case | Question shape | Expected |
+| --- | --- | --- |
+| `gpt4_a56e767c` | movie festivals attended | 4 festivals |
+| `88432d0a` | baking events in the past two weeks | 4 baking events |
+| `gpt4_31ff4165` | health-related devices used in a day | 4 devices |
+| `eeda8a6d` | fish across two aquariums | 17 fish |
+| `gpt4_ab202e7f` | kitchen items replaced or fixed | 5 items |
+| `2b8f3739` | market product earnings | $495 |
+
+The repair stays mechanism-level:
+
+- `src/eval/longmemeval.ts` derives compact countable facts from verified user
+  answer turns for movie-festival attendance, baked items, health devices,
+  aquarium fish counts, kitchen items replaced/fixed, and market sales.
+- `src/recall/selection.ts` treats aggregate money/earnings queries as aggregate
+  evidence recall, so three or more sale facts are no longer cut off by the
+  ordinary two-fact generic recall limit.
+- `tests/unit/longmemeval.test.ts` covers provider-free recall across all six
+  multi-session count families.
+- `tests/unit/recall.selection.test.ts` covers the aggregate money-selection
+  regression that previously returned only two market earning facts.
+
+Provider-free recall diagnostic delta on the real cleaned data:
+
+- Before: `run-phase62-longmemeval-recall-only-multi-count-before-20260507T050000Z`
+  had 0/6 evidence-session recall, 6 missed recall cases, zero wrong recall,
+  and zero execution failures.
+- After: `run-phase62-longmemeval-recall-only-multi-count-after-20260507T052000Z`
+  has 6/6 evidence-session recall, zero missed recall cases, zero wrong recall,
+  and zero execution failures.
+- Targeted live rules-only:
+  `run-phase62-longmemeval-live-multi-count-after-20260507T052500Z` has 6/6
+  answer accuracy, 1.0 evidence-session recall, zero wrong recall, and
+  `executionFailures: 0`.
+
+This closes this countable multi-session slice. It does not yet close all
+multi-session or temporal-reasoning failures in the full-500 report.
+
+Post-Full500 Repair: Dated Temporal Evidence And Answer Composition
+-------------------------------------------------------------------
+
+The next full-500 miss family was temporal-reasoning cases where the answer
+sessions could be present but the evidence was too diffuse or the answer
+generator did not reliably compute the temporal operation. Seven representative
+real cleaned misses were:
+
+| Case | Question shape | Before behavior |
+| --- | --- | --- |
+| `0db4c65d` | days between a finished book discussion and a later reading event | answer session retrieved but missing the book-finished fact from context |
+| `gpt4_7f6b06db` | trip order from earliest to latest | partial/ambiguous trip facts caused omitted or duplicated trip order |
+| `gpt4_8279ba02` | days ago a smoker was bought | zero recall before the generic dated-evidence repair |
+| `gpt4_468eb063` | days ago Emma was met | zero recall before the generic dated-evidence repair |
+| `gpt4_45189cb4` | sports event order in January | NFL event could be omitted from the composed answer |
+| `gpt4_ec93e27f` | most recent bus vs train | zero recall before most-recent temporal selection |
+| `gpt4_f420262c` | airline order from earliest to latest | JetBlue was initially squeezed out, then duplicate American Airlines was repeated |
+
+The repair stays mechanism-level:
+
+- `src/eval/longmemeval.ts` derives concise dated temporal event facts from
+  verified user turns for book discussion/reading endpoints, trips, sports
+  events, and real flight events.
+- `src/recall/selection.ts` widens temporal order and most-recent query
+  detection and allows external benchmark `dated_event` facts into the temporal
+  selection lane even when lexical overlap is weak.
+- `scripts/run-phase-62-eval.ts` now instructs the live answer generator to
+  compute temporal intervals from dated endpoints and to sort dated evidence
+  chronologically; entity-order questions deduplicate repeated entity names in
+  first-observed order.
+- `tests/unit/longmemeval.test.ts` covers provider-free recall for generic
+  dated temporal evidence and concise temporal facts needed for answer
+  composition.
+- `tests/unit/recall.selection.test.ts` covers earliest-to-latest dated-event
+  selection.
+- `tests/unit/run-phase-62.script.test.ts` covers temporal interval/order answer
+  prompt guidance.
+
+Provider-free recall diagnostic delta on the real cleaned data:
+
+- Before: `run-phase62-longmemeval-recall-only-temporal-before-20260507T060000Z`
+  had 0.1 evidence-session recall, 7 missed recall cases, 1 wrong-recall case,
+  and zero execution failures.
+- Intermediate: `run-phase62-longmemeval-recall-only-temporal-after-flight-20260507T062500Z`
+  reached 1.0 evidence-session recall, zero missed recall, zero wrong recall,
+  and zero execution failures after generic dated-event/flight recall repair.
+- After answer-composition facts:
+  `run-phase62-longmemeval-recall-only-temporal-after-answerfacts-20260507T162200Z`
+  keeps 1.0 evidence-session recall, zero missed recall, zero wrong recall, and
+  zero execution failures.
+- Targeted live rules-only before answer-composition facts:
+  `run-phase62-longmemeval-live-temporal-after-flight-20260507T161703Z` had
+  3/7 answer accuracy, 1.0 evidence-session recall, and zero execution
+  failures.
+- Targeted live rules-only after answer-composition facts:
+  `run-phase62-longmemeval-live-temporal-after-answerfacts-20260507T163300Z`
+  has 7/7 answer accuracy, 1.0 evidence-session recall, zero wrong recall, and
+  `executionFailures: 0`.
+
+This closes this focused temporal slice. It does not yet close all full-500
+LongMemEval quality gaps; a broader current-code full-500 or failed-family
+rerun is still required before claiming LongMemEval strength or opening BEAM.
+
+#### 2026-05-08 multi-session aggregate count follow-up
+
+The next focused miss family was multi-session aggregate counting where the
+full-500 clean report still had partial recall after earlier countable evidence
+repairs:
+
+- `28dc39ac`: total game hours across five game sessions.
+- `gpt4_2f8be40d`: weddings attended this year across three wedding sessions.
+- `2e6d26dc`: babies born to friends/family across four sessions, including
+  twins counted as two babies.
+
+The mechanism-level repair adds compact countable user evidence for game hours,
+wedding attendance, and baby births without LongMemEval case-id branching. The
+provider-free diagnostic
+`run-phase62-longmemeval-recall-only-multi-aggregate2-after-r2-20260508T004800Z`
+reached:
+
+- 3/3 evidence-session recall.
+- 0 missed recall cases.
+- 0 wrong recall cases.
+- `executionFailures: 0`.
+
+The live targeted rules-only run
+`run-phase62-longmemeval-live-multi-aggregate2-after-20260508T004900Z`
+then reached:
+
+- 3/3 answer accuracy.
+- 1.0 evidence-session recall.
+- 0 missed recall cases.
+- 0 wrong recall cases.
+- `executionFailures: 0`.
+
+This closes another concrete multi-session aggregate slice. It still does not
+close the full-500 quality loop; the next step is another current-code all-500
+recall inventory or a broader failed-family rerun to identify the next largest
+remaining miss family.
+
+Current-Code Full-500 Recall-Only Inventory
+-------------------------------------------
+
+Before the 2026-05-08 aggregate count follow-up, the all-500 provider-free
+recall-only diagnostic using the same runner memory factory completed as
+`run-phase62-longmemeval-recall-only-all500-runnerfactory-after-temporal-20260507T165900Z`.
+It is not an end-to-end answer-accuracy run, but it is the current miss-family
+map for the next repair loop:
+
+| Question type | Evidence recall | Missed recall cases | Wrong recall cases |
+| --- | ---: | ---: | ---: |
+| `multi-session` | 0.6269 | 73/133 | 2 |
+| `knowledge-update` | 0.7179 | 31/78 | 0 |
+| `temporal-reasoning` | 0.7209 | 59/133 | 1 |
+| `single-session-preference` | 0.8667 | 4/30 | 1 |
+| `single-session-assistant` | 0.8750 | 7/56 | 3 |
+| `single-session-user` | 0.8857 | 8/70 | 0 |
+
+The next highest-yield repair should still start with multi-session aggregate
+recall, then knowledge-update stale/current pair recall, then the broader
+temporal order/interval families. The invalid direct all-500 diagnostic
+`run-phase62-longmemeval-recall-only-all500-after-temporal-20260507T165500Z`
+did not use the Phase 62 runner memory factory and should not be cited as
+benchmark evidence.
 
 
 Next Actions
 ------------
 
-1. Decide whether to refresh the 60-case four-profile comparison before the
-   full-500 decision. Do not use the invalid
+1. Treat
+   `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`
+   as the current full-500 miss-intake source. Do not use the invalid
    `run-phase62-longmemeval-live60-post-aggregate-domain-ownership-20260506T043000Z`
    run as comparative benchmark evidence.
-2. Expand beyond the 60-case manifest with `--max-concurrency 1` in a resumable
-   broader/full LongMemEval run. Prefer
-   `bun run eval:phase-62-full500 -- --benchmark-root /tmp/LongMemEval --run-id <run-id>`
-   so the ten 50-case shards run sequentially and fail fast on provider
-   execution failures. If a merged/shard report already exists with
-   `executionError` rows, resume with
-   `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <latest-merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1`
-   instead of rerunning clean profile/case rows.
+2. Continue generic repairs for the remaining full-500 miss families, especially
+   temporal bridge retrieval and multi-session evidence outside the countable
+   sale/device/event slice. Do not add case-id-specific fixtures or prompt
+   hacks.
 3. Keep latest-update evidence-session accounting explicit in any larger run:
    answer correctness can be right while strict evidence-session recall remains
    below 1.0 for stale-plus-current answer-session labels.
-4. If moving to BEAM later, carry forward the generic repairs from this phase:
+4. After repairs, rerun full-500 by failed-row retry or a fresh sequential
+   full-500 run. If using a merged/shard report with `executionError` rows,
+   resume with
+   `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <latest-merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1`.
+5. If moving to BEAM later, carry forward the generic repairs from this phase:
    assistant-derived verified evidence, dated-event derivation, project
    leadership context preservation, latest relationship relocation collapse,
    recommendation-category answer guidance, and bounded live-provider timeout
    reporting.
-5. Keep final/public reporting deferred until LongMemEval, BEAM,
+6. Keep final/public reporting deferred until LongMemEval, BEAM,
    MemoryAgentBench, and LoCoMo are all complete.

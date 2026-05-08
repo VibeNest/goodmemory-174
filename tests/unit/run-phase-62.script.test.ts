@@ -161,10 +161,12 @@ describe("run-phase-62 LongMemEval script", () => {
         "multi-session",
         "--question-type",
         "temporal-reasoning",
+        "--all-cases",
         "--run-id",
         "run-longmemeval",
       ]),
     ).toEqual({
+      allCases: true,
       benchmarkRoot: "/tmp/longmemeval",
       caseIds: ["q-multi-1", "q-temporal-1"],
       limit: 10,
@@ -226,6 +228,35 @@ describe("run-phase-62 LongMemEval script", () => {
     });
   });
 
+  it("builds recall diagnostics over every full-data case when requested", () => {
+    const options = buildPhase62RecallDiagnosticOptions(
+      "/tmp/goodmemory",
+      {
+        allCases: true,
+        benchmarkRoot: "/tmp/LongMemEval",
+        limit: 500,
+        mode: "full",
+      },
+    );
+
+    expect(options.caseIds).toBeUndefined();
+    expect(options.limit).toBe(500);
+  });
+
+  it("rejects recall diagnostics that combine all-cases with explicit case ids", () => {
+    expect(() =>
+      buildPhase62RecallDiagnosticOptions(
+        "/tmp/goodmemory",
+        {
+          allCases: true,
+          benchmarkRoot: "/tmp/LongMemEval",
+          caseIds: ["q-1"],
+          mode: "full",
+        },
+      ),
+    ).toThrow("--all-cases cannot be combined with --case-id");
+  });
+
   it("includes question date in the LongMemEval answer prompt", () => {
     expect(
       buildLongMemEvalPrompt({
@@ -260,6 +291,34 @@ describe("run-phase-62 LongMemEval script", () => {
       }),
     ).toContain(
       "For list or set questions, include every distinct item in the relevant grouped evidence",
+    );
+  });
+
+  it("instructs temporal interval answers to compute from dated evidence", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "On 2022/12/28, I finished a discussion on The Seven Husbands of Evelyn Hugo.\nOn 2023/01/15, I attended a book reading event.",
+        prompt: "How many days had passed between the two events?",
+        questionDate: "2023/01/15 (Sun) 08:32",
+        transcript: "",
+      }),
+    ).toContain(
+      "For temporal interval questions, compute elapsed days from the dated evidence",
+    );
+  });
+
+  it("instructs temporal order answers to sort and deduplicate entities", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "On 2023/02/14, I flew with American Airlines.\nOn 2022/11/17, I flew with JetBlue.",
+        prompt:
+          "What is the order of airlines I flew with from earliest to latest before today?",
+        transcript: "",
+      }),
+    ).toContain(
+      "For temporal order questions, sort matching dated evidence chronologically",
     );
   });
 

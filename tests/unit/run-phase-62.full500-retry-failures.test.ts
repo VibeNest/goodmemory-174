@@ -127,6 +127,42 @@ describe("run-phase-62 full-500 failure retries", () => {
     ]);
   });
 
+  it("does not retry failures that are resolved by a later source report", () => {
+    const firstReport = buildReport({
+      profiles: {
+        "goodmemory-hybrid": [
+          buildCase({ executionError: true, questionId: "q-1" }),
+          buildCase({ executionError: true, questionId: "q-2" }),
+        ],
+      },
+      runId: "run-source-failed",
+    });
+    const laterReport = buildReport({
+      profiles: {
+        "goodmemory-hybrid": [
+          buildCase({ questionId: "q-1" }),
+          buildCase({ executionError: true, questionId: "q-2" }),
+        ],
+      },
+      runId: "run-source-partial-retry",
+    });
+
+    expect(
+      buildPhase62FailureRetryBatches({
+        chunkSize: 10,
+        profiles: ["goodmemory-hybrid"],
+        reports: [firstReport, laterReport],
+        retryRunId: "run-retry",
+      }),
+    ).toEqual([
+      {
+        caseIds: ["q-2"],
+        profile: "goodmemory-hybrid",
+        runId: "run-retry-goodmemory-hybrid-batch-001",
+      },
+    ]);
+  });
+
   it("runs retry batches and merges them over source reports", async () => {
     const outputDir = "/tmp/phase62-full500-retry-test";
     const sourceRunId = "run-source";

@@ -206,9 +206,19 @@ function isTemporalIntervalQuery(query: string): boolean {
 }
 
 function isTemporalEventOrderQuery(query: string): boolean {
-  return /\border\s+from\s+first\s+to\s+last\b/i.test(query) ||
+  return /\bwhat\s+is\s+the\s+order\b/i.test(query) ||
+    /\border\s+of\b/i.test(query) ||
+    /\border\b[\s\S]{0,120}\b(?:earliest|latest|first|last)\b/i.test(query) ||
+    /\b(?:earliest|first)\s+to\s+(?:latest|last)\b/i.test(query) ||
+    /\bstarting\s+from\s+(?:the\s+)?earliest\b/i.test(query) ||
+    /\border\s+from\s+first\s+to\s+last\b/i.test(query) ||
     /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bfirst\b[\s\S]{0,120}\blast\b/i.test(query) ||
     /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bhappened\s+first\b/i.test(query);
+}
+
+function isTemporalMostRecentQuery(query: string): boolean {
+  return /\b(?:which|what)\b/i.test(query) &&
+    /\b(?:most\s+recent(?:ly)?|latest|last)\b/i.test(query);
 }
 
 function isSleepBeforeAppointmentQuery(query: string): boolean {
@@ -234,8 +244,14 @@ function hasTrustedAggregateEvidence(entry: RankedFactCandidate): boolean {
 }
 
 function isAggregateMoneyQuery(query: string): boolean {
+  const lower = query.toLowerCase();
+  const asksForEarnedMoney =
+    /\b(?:total|amount|money|earnings?|revenue|dollars?)\b/i.test(lower) &&
+    /\b(?:earn|earned|earning|sold|selling|markets?|products?)\b/i.test(lower);
+
   return /\bhow much\b/i.test(query) ||
-    /\b(?:total money|spent|spend|cost|costs|paid|price|dollars?)\b/i.test(query) ||
+    asksForEarnedMoney ||
+    /\b(?:total(?:\s+amount\s+of)?\s+money|amount\s+of\s+money|spent|spend|cost|costs|paid|price|dollars?)\b/i.test(query) ||
     /(多少钱|总共.*(?:花|费用|花费)|一共.*(?:花|费用|花费)|合计.*(?:花|费用|花费)|花了多少钱|花费多少|费用|价格)/u.test(query);
 }
 
@@ -380,7 +396,12 @@ function hasAggregateFactCountSignal(
 
 function hasTemporalEventOrderSignal(entry: RankedFactCandidate): boolean {
   return isDatedEventFact(entry) &&
-    (entry.intentScore > 0 || entry.lexicalScore >= 0.08 || entry.subjectScore > 0);
+    (
+      entry.fact.category === "external_benchmark" ||
+      entry.intentScore > 0 ||
+      entry.lexicalScore >= 0.03 ||
+      entry.subjectScore > 0
+    );
 }
 
 function hasSleepBeforeAppointmentEvidenceSignal(
@@ -1327,6 +1348,7 @@ export function selectFacts(
   }
 
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
+  const temporalMostRecentQuery = isTemporalMostRecentQuery(query);
   const sleepBeforeAppointmentQuery = isSleepBeforeAppointmentQuery(query);
   const assistantEvidenceRecallQuery = language.isAssistantEvidenceRecallQuery(
     query,
@@ -1346,12 +1368,15 @@ export function selectFacts(
     ? 3
     : temporalEventOrderQuery
       ? 6
-      : 2;
+      : temporalMostRecentQuery
+        ? TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT
+        : 2;
   const aggregateCountQuery = isAggregateFactCountQuery(
     query,
     language,
     queryLocale,
   );
+  const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const withIntentSignal = rankFactCandidates(
     collapseLatestUpdateSeries(
       compatible.filter((entry) => entry.intentScore > 0),
@@ -1414,7 +1439,7 @@ export function selectFacts(
     )
     : [];
 
-  if (aggregateCountQuery) {
+  if (aggregateCountQuery || aggregateMoneyQuery) {
     for (const entry of rankFactCandidates(
       collapseLatestUpdateSeries(
         compatible.filter((item) =>
@@ -1529,7 +1554,7 @@ export function selectFacts(
         "none",
       );
     }
-  } else if (temporalEventOrderQuery) {
+  } else if (temporalEventOrderQuery || temporalMostRecentQuery) {
     for (const entry of rankFactCandidates(
       compatible.filter(hasTemporalEventOrderSignal),
       routingDecision.strategy,

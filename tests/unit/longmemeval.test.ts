@@ -147,6 +147,571 @@ const LONGMEMEVAL_ASSISTANT_EVIDENCE_CASES = [
   },
 ];
 
+const LONGMEMEVAL_BASIC_ATTRIBUTE_CASES = [
+  {
+    answer: "Golden Retriever",
+    answer_session_ids: ["s-dog-breed"],
+    haystack_dates: ["2023/05/25"],
+    haystack_session_ids: ["s-dog-breed"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm thinking of getting Max a new collar with a nice name tag. Do you have any recommendations for a good collar brand or type that would suit a Golden Retriever like Max?",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "What breed is my dog?",
+    question_date: "2023/05/26",
+    question_id: "q-dog-breed",
+    question_type: "single-session-user",
+  },
+  {
+    answer: "Luna",
+    answer_session_ids: ["s-cat-name"],
+    haystack_dates: ["2023/05/24"],
+    haystack_session_ids: ["s-cat-name"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "By the way, my cat's name is Luna, and she's been such a sweetie throughout all the changes we've been making to her environment. I'm just glad I can provide her with a happy and healthy home.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "What is the name of my cat?",
+    question_date: "2023/05/25",
+    question_id: "q-cat-name",
+    question_type: "single-session-user",
+  },
+  {
+    answer: "University of California, Los Angeles (UCLA)",
+    answer_session_ids: ["s-undergrad-school"],
+    haystack_dates: ["2023/05/29"],
+    haystack_session_ids: ["s-undergrad-school"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm still leaning towards Stanford, but I'm concerned about the cost. I've been working in the tech industry for a while and I'm pretty confident I can get a good job after graduating. Do you think it's worth taking out loans to finance my education? Also, by the way, I completed my undergrad in CS from UCLA, which has a great reputation in the industry.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "Where did I complete my Bachelor's degree in Computer Science?",
+    question_date: "2023/05/30",
+    question_id: "q-undergrad-school",
+    question_type: "single-session-user",
+  },
+  {
+    answer: "Trader Joe's",
+    answer_session_ids: ["s-shampoo-brand"],
+    haystack_dates: ["2023/05/22"],
+    haystack_session_ids: ["s-shampoo-brand"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I've been using a lavender scented shampoo that I picked up on a whim at Trader Joe's, and it's been doing wonders for my hair. Do you have any tips on how to keep my hair healthy and shiny?",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "What brand of shampoo do I currently use?",
+    question_date: "2023/05/23",
+    question_id: "q-shampoo-brand",
+    question_type: "single-session-user",
+  },
+];
+
+const LONGMEMEVAL_MULTI_COUNT_CASES = [
+  {
+    answer: "I attended four movie festivals.",
+    answer_session_ids: [
+      "s-movie-austin-seattle",
+      "s-movie-portland",
+      "s-movie-afi",
+    ],
+    haystack_dates: ["2023/05/21", "2023/05/25", "2023/05/26"],
+    haystack_session_ids: [
+      "s-movie-austin-seattle",
+      "s-movie-portland",
+      "s-movie-afi",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            'I recently participated in the 48-hour film challenge at the Austin Film Festival, where my team and I had to write, shoot, and edit a short film within 48 hours - it was a wild ride!',
+          has_answer: true,
+          role: "user",
+        },
+        {
+          content:
+            'I got to discuss the unique narrative structure of "The Weight of Water" with the director himself at a Q&A session after the screening at the Seattle International Film Festival, which was really enlightening.',
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been pretty active in the film festival scene lately - I even volunteered at the Portland Film Festival, where I helped with event coordination and got to meet some industry professionals.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            'I just got back from AFI Fest in LA, where I attended a screening of "Joker" and got to see Todd Phillips and Joaquin Phoenix during the Q&A session - it was really thought-provoking.',
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many movie festivals that I attended?",
+    question_date: "2023/05/27",
+    question_id: "q-movie-festival-count",
+    question_type: "multi-session",
+  },
+  {
+    answer: "4",
+    answer_session_ids: [
+      "s-baked-sourdough",
+      "s-baked-baguette",
+      "s-baked-cookies",
+      "s-baked-cake",
+    ],
+    haystack_dates: ["2023/05/21", "2023/05/24", "2023/05/28", "2023/05/30"],
+    haystack_session_ids: [
+      "s-baked-sourdough",
+      "s-baked-baguette",
+      "s-baked-cookies",
+      "s-baked-cake",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I tried out a new bread recipe using sourdough starter on Tuesday, but it didn't quite turn out as expected.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I made a delicious whole wheat baguette last Saturday, and I'm considering using the same flour for this recipe.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I just used my oven's convection setting for the first time last Thursday to bake a batch of cookies, and it turned out amazing!",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I just baked a chocolate cake for my sister's birthday party last weekend and it turned out amazing - the espresso powder really enhanced the flavor!",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many times did I bake something in the past two weeks?",
+    question_date: "2023/05/31",
+    question_id: "q-baking-count",
+    question_type: "multi-session",
+  },
+  {
+    answer: "4",
+    answer_session_ids: [
+      "s-device-fitbit",
+      "s-device-hearing-aids",
+      "s-device-fitbit-breathing",
+      "s-device-glucose",
+      "s-device-nebulizer",
+    ],
+    haystack_dates: [
+      "2023/05/21",
+      "2023/05/22",
+      "2023/05/27",
+      "2023/05/27",
+      "2023/05/30",
+    ],
+    haystack_session_ids: [
+      "s-device-fitbit",
+      "s-device-hearing-aids",
+      "s-device-fitbit-breathing",
+      "s-device-glucose",
+      "s-device-nebulizer",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I've been wearing my Fitbit Versa 3 smartwatch non-stop since I got it three weeks ago, and I've noticed my average steps per day have dropped lately.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I have behind-the-ear (BTE) hearing aids from Phonak, and I'm currently using size 13 batteries.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I've been trying to do at least one guided breathing session per day with my Fitbit, which has really been helping me relax.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been testing my blood sugar levels three times a day with my Accu-Chek Aviva Nano system, and I was wondering if you could help me find some healthy breakfast recipes.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I've been doing inhalation treatments twice a day with my nebulizer machine, but I'm not sure if that's enough.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many health-related devices do I use in a day?",
+    question_date: "2023/05/31",
+    question_id: "q-health-device-count",
+    question_type: "multi-session",
+  },
+  {
+    answer: "17",
+    answer_session_ids: ["s-aquarium-community", "s-aquarium-betta"],
+    haystack_dates: ["2023/05/22", "2023/05/27"],
+    haystack_session_ids: ["s-aquarium-community", "s-aquarium-betta"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm thinking of adding some live plants to my new 20-gallon tank, which currently has 10 neon tetras, 5 golden honey gouramis, and a small pleco catfish.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I also upgraded my old 10-gallon tank, which has my betta fish, Bubbles.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many fish are there in total in both of my aquariums?",
+    question_date: "2023/05/28",
+    question_id: "q-aquarium-fish-count",
+    question_type: "multi-session",
+  },
+  {
+    answer:
+      "I replaced or fixed five items: the kitchen faucet, the kitchen mat, the toaster, the coffee maker, and the kitchen shelves.",
+    answer_session_ids: [
+      "s-kitchen-shelves",
+      "s-kitchen-mat",
+      "s-kitchen-toaster",
+      "s-kitchen-faucet",
+      "s-kitchen-coffee-maker",
+    ],
+    haystack_dates: [
+      "2023/05/20",
+      "2023/05/21",
+      "2023/05/26",
+      "2023/05/28",
+      "2023/05/30",
+    ],
+    haystack_session_ids: [
+      "s-kitchen-shelves",
+      "s-kitchen-mat",
+      "s-kitchen-toaster",
+      "s-kitchen-faucet",
+      "s-kitchen-coffee-maker",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "By the way, I finally fixed the kitchen shelves last weekend, and it's amazing how much more spacious the kitchen feels now.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, my kitchen has been feeling so much more functional lately, especially with my new kitchen mat in front of the sink - it's from IKEA and has a nice grip and is easy to clean.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I just got rid of the old toaster and replaced it with a toaster oven that can do so much more, and I'm excited to explore its capabilities.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I just replaced my old kitchen faucet with a new Moen one last Sunday, the touchless sensor is so convenient!",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I donated my old coffee maker to Goodwill and I'm really enjoying the upgrade.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many kitchen items did I replace or fix?",
+    question_date: "2023/05/31",
+    question_id: "q-kitchen-repair-count",
+    question_type: "multi-session",
+  },
+  {
+    answer: "$495",
+    answer_session_ids: ["s-market-jam", "s-market-herbs-potted", "s-market-herbs-bunches"],
+    haystack_dates: ["2023/06/01", "2023/06/01", "2023/06/01"],
+    haystack_session_ids: ["s-market-jam", "s-market-herbs-potted", "s-market-herbs-bunches"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "By the way, I've had a pretty successful few weeks, I just sold 15 jars of my homemade jam at the Homemade and Handmade Market on May 29th, earning $225.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I just sold 20 potted herb plants at the Summer Solstice Market for $7.5 each, and it was a great opportunity to connect with people interested in gardening and sustainable living.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I've had a pretty successful season so far - I even sold 12 bunches of fresh organic herbs from my backyard garden at the farmers' market on May 15th, earning a total of $120.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "What is the total amount of money I earned from selling my products at the markets?",
+    question_date: "2023/06/02",
+    question_id: "q-market-earnings-total",
+    question_type: "multi-session",
+  },
+  {
+    answer: "140 hours",
+    answer_session_ids: [
+      "s-game-odyssey",
+      "s-game-hyper-light",
+      "s-game-last-of-us-hard",
+      "s-game-celeste",
+      "s-game-last-of-us-normal",
+    ],
+    haystack_dates: [
+      "2023/05/20",
+      "2023/05/23",
+      "2023/05/25",
+      "2023/05/27",
+      "2023/05/29",
+    ],
+    haystack_session_ids: [
+      "s-game-odyssey",
+      "s-game-hyper-light",
+      "s-game-last-of-us-hard",
+      "s-game-celeste",
+      "s-game-last-of-us-normal",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I spent around 70 hours playing Assassin's Creed Odyssey, and I found the combat engaging.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I loved Hyper Light Drifter, which took me 5 hours to finish, by the way.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been playing action-adventure games like The Last of Us Part II, which I completed on hard difficulty and it took me 30 hours to finish.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "Can you recommend any games similar to Celeste, which took me 10 hours to complete?",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I just finished The Last of Us Part II on normal difficulty and it took me 25 hours to complete.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many hours have I spent playing games in total?",
+    question_date: "2023/05/31",
+    question_id: "q-game-hours-total",
+    question_type: "multi-session",
+  },
+  {
+    answer: "3 weddings",
+    answer_session_ids: [
+      "s-wedding-emily-sarah",
+      "s-wedding-cousin",
+      "s-wedding-jen-tom",
+    ],
+    haystack_dates: ["2023/10/15", "2023/10/15", "2023/10/15"],
+    haystack_session_ids: [
+      "s-wedding-emily-sarah",
+      "s-wedding-cousin",
+      "s-wedding-jen-tom",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I just got back from my college roommate's wedding in the city. My friend Emily finally got to tie the knot with her partner Sarah.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been to a few weddings recently and one of them was my cousin's wedding at a vineyard in August.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I just got back from a friend's wedding last weekend, and the bride, Jen, looked stunning with her husband, Tom.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many weddings have I attended in this year?",
+    question_date: "2023/10/16",
+    question_id: "q-wedding-attendance-count",
+    question_type: "multi-session",
+  },
+  {
+    answer: "5",
+    answer_session_ids: [
+      "s-baby-jasper",
+      "s-baby-twins",
+      "s-baby-max",
+      "s-baby-charlotte",
+    ],
+    haystack_dates: ["2023/05/13", "2023/05/13", "2023/05/13", "2023/05/13"],
+    haystack_session_ids: [
+      "s-baby-jasper",
+      "s-baby-twins",
+      "s-baby-max",
+      "s-baby-charlotte",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I just heard that my friend from college, David, had a baby boy named Jasper a few weeks ago.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm planning a baby gift for my aunt's twins, Ava and Lily, who were born in April.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "My cousin Rachel just had a baby boy named Max in March.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "Our friends Mike and Emma welcomed their first baby, a girl named Charlotte, a few weeks after Rachel's baby shower.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "How many babies were born to friends and family members in the last few months?",
+    question_date: "2023/05/14",
+    question_id: "q-baby-birth-count",
+    question_type: "multi-session",
+  },
+];
+
 const LONGMEMEVAL_TEMPORAL_REASONING_CASES = [
   {
     answer: "7 days",
@@ -271,6 +836,166 @@ const LONGMEMEVAL_TEMPORAL_REASONING_CASES = [
       "Which event happened first, my cousin's wedding or Michael's engagement party?",
     question_date: "2023/06/16",
     question_id: "q-temporal-social-event-order",
+    question_type: "temporal-reasoning",
+  },
+];
+
+const LONGMEMEVAL_GENERIC_TEMPORAL_CASES = [
+  {
+    answer:
+      "I went on a day hike to Muir Woods, then a road trip to Big Sur and Monterey, and finally a solo camping trip to Yosemite.",
+    answer_session_ids: ["s-trip-muir", "s-trip-big-sur", "s-trip-yosemite"],
+    haystack_dates: ["2023/03/10", "2023/04/20", "2023/05/15"],
+    haystack_session_ids: ["s-trip-muir", "s-trip-big-sur", "s-trip-yosemite"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "By the way, I just got back from a day hike to Muir Woods National Monument with my family today, and it was amazing.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, I just got back from a road trip with friends to Big Sur and Monterey today, and it was amazing.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I started my solo camping trip to Yosemite National Park today, but for this Eastern Sierra trip I'm looking for something more secluded.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "What is the order of the three trips I took in the past three months, from earliest to latest?",
+    question_date: "2023/06/01",
+    question_id: "q-temporal-generic-trip-order",
+    question_type: "temporal-reasoning",
+  },
+  {
+    answer: "10 days ago",
+    answer_session_ids: ["s-smoker"],
+    haystack_dates: ["2023/03/15"],
+    haystack_session_ids: ["s-smoker"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I just got a smoker today and I'm excited to experiment with different types of wood and meats.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many days ago did I buy a smoker?",
+    question_date: "2023/03/25",
+    question_id: "q-temporal-smoker-days-ago",
+    question_type: "temporal-reasoning",
+  },
+  {
+    answer: "train",
+    answer_session_ids: ["s-bus", "s-train"],
+    haystack_dates: ["2023/04/20", "2023/05/01"],
+    haystack_session_ids: ["s-bus", "s-train"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I took the bus downtown today to get to the farmers market.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I took the train to the museum today because parking downtown is always difficult.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "Which mode of transport did I use most recently, a bus or a train?",
+    question_date: "2023/05/02",
+    question_id: "q-temporal-most-recent-transport",
+    question_type: "temporal-reasoning",
+  },
+  {
+    answer: "JetBlue, Delta, United Airlines, and American Airlines",
+    answer_session_ids: [
+      "s-flight-jetblue",
+      "s-flight-delta",
+      "s-flight-united",
+      "s-flight-american-1",
+      "s-flight-american-2",
+    ],
+    haystack_dates: [
+      "2022/11/17",
+      "2023/01/15",
+      "2023/01/28",
+      "2023/02/10",
+      "2023/02/14",
+    ],
+    haystack_session_ids: [
+      "s-flight-jetblue",
+      "s-flight-delta",
+      "s-flight-united",
+      "s-flight-american-1",
+      "s-flight-american-2",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm planning a trip to Miami and I want to redeem my Delta SkyMiles for a free trip. By the way, I just got back from a red-eye flight on JetBlue from San Francisco to Boston and managed to sleep for almost the entire flight.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm planning a trip to Miami later this year and I'm considering redeeming my Delta SkyMiles. I just earned 10,000 miles on my Delta SkyMiles card after taking a round-trip flight from Boston to Atlanta today, by the way.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm planning a trip to Miami and I'm considering flying with American Airlines or Delta. By the way, I had a 1-hour delay on my United Airlines flight from Boston to Chicago today due to air traffic control issues.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm planning a trip to Miami and I'm considering flying with American Airlines. By the way, I had a terrible experience with it on my flight from New York to Los Angeles today.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm looking to book a new flight from Boston to Miami. By the way, I'm still recovering from my American Airlines flight from LAX to JFK, which was delayed by 2 hours due to bad weather conditions.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "What is the order of airlines I flew with from earliest to latest before today?",
+    question_date: "2023/02/15",
+    question_id: "q-temporal-airline-order",
     question_type: "temporal-reasoning",
   },
 ];
@@ -884,6 +1609,173 @@ describe("LongMemEval adapter", () => {
     ]);
   });
 
+  it("recalls generic dated temporal evidence from verified user turns", async () => {
+    const report = await runLongMemEvalRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-longmemeval-generic-temporal-evidence",
+      },
+      {
+        memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
+          createMemory: () =>
+            createGoodMemory({
+              storage: {
+                provider: "memory",
+              },
+            }),
+          runId: "run-longmemeval-generic-temporal-evidence",
+        }),
+        mkdir: async () => {},
+        readFile: async () => JSON.stringify(LONGMEMEVAL_GENERIC_TEMPORAL_CASES),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.evidenceSessionRecall).toBe(1);
+    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.wrongRecallCases).toBe(0);
+    expect(
+      report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
+    ).toEqual([
+      ["s-trip-big-sur", "s-trip-muir", "s-trip-yosemite"],
+      ["s-smoker"],
+      ["s-bus", "s-train"],
+      [
+        "s-flight-american-1",
+        "s-flight-american-2",
+        "s-flight-delta",
+        "s-flight-jetblue",
+        "s-flight-united",
+      ],
+    ]);
+  });
+
+  it("preserves concise dated temporal facts for answer composition", async () => {
+    const [bookCase, sportsCase] = validateLongMemEvalCases([
+      {
+        answer: "18 days",
+        answer_session_ids: ["s-book-finished", "s-book-event"],
+        haystack_dates: ["2022/12/28", "2023/01/15"],
+        haystack_session_ids: ["s-book-finished", "s-book-event"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                'I just finished a discussion on "The Seven Husbands of EvelynAGO" by Taylor Jenkins Reid in an online book club.',
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                'I just attended a book reading event at the local library today, where the author of "The Silent Patient" was discussing her latest thriller novel.',
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question:
+          "How many days had passed since I finished reading 'The Seven Husbands of Evelyn Hugo' when I attended the book reading event?",
+        question_date: "2023/01/15",
+        question_id: "q-temporal-book-interval",
+        question_type: "temporal-reasoning",
+      },
+      {
+        answer:
+          "NBA game at the Staples Center, College Football National Championship game, NFL playoffs",
+        answer_session_ids: [
+          "s-sports-nba",
+          "s-sports-college-football",
+          "s-sports-nfl",
+        ],
+        haystack_dates: ["2023/01/05", "2023/01/15", "2023/01/22"],
+        haystack_session_ids: [
+          "s-sports-nba",
+          "s-sports-college-football",
+          "s-sports-nfl",
+        ],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I'm thinking of having the scavenger hunt take place around the Staples Center in LA, since I just went to a NBA game there with my coworkers today.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I'm still riding high from the College Football National Championship game I watched with my family at home yesterday.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I'm still on a high from watching the Kansas City Chiefs defeat the Buffalo Bills in the Divisional Round of the NFL playoffs last weekend.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "What is the order of the sports events I watched in January?",
+        question_date: "2023/01/23",
+        question_id: "q-temporal-sports-events",
+        question_type: "temporal-reasoning",
+      },
+    ]);
+    const tripCase = validateLongMemEvalCases([
+      LONGMEMEVAL_GENERIC_TEMPORAL_CASES[0],
+    ])[0];
+    const builder = createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        createGoodMemory({
+          storage: {
+            provider: "memory",
+          },
+        }),
+      runId: "run-longmemeval-temporal-answer-composition",
+    });
+
+    const [bookContext, sportsContext, tripContext] = await Promise.all([
+      builder({
+        profile: "goodmemory-rules-only",
+        testCase: bookCase!,
+      }),
+      builder({
+        profile: "goodmemory-rules-only",
+        testCase: sportsCase!,
+      }),
+      builder({
+        profile: "goodmemory-rules-only",
+        testCase: tripCase!,
+      }),
+    ]);
+
+    expect(bookContext.content).toContain(
+      'On 2022/12/28, I finished a discussion on "The Seven Husbands of EvelynAGO".',
+    );
+    expect(sportsContext.content).toContain(
+      "On 2023/01/05, I watched an NBA game at the Staples Center.",
+    );
+    expect(sportsContext.content).toContain(
+      "On 2023/01/22, I watched the NFL playoffs.",
+    );
+    expect(tripContext.content).toContain(
+      "On 2023/04/20, I took a road trip to Big Sur and Monterey.",
+    );
+    expect(tripContext.content).toContain(
+      "On 2023/05/15, I took a solo camping trip to Yosemite National Park.",
+    );
+  });
+
   it("treats LongMemEval has-answer assistant turns as verified adapter evidence", async () => {
     const report = await runLongMemEvalRecallDiagnostic(
       {
@@ -1034,6 +1926,329 @@ describe("LongMemEval adapter", () => {
 
     expect(context.retrievedSessionIds).toContain("s-bedroom");
     expect(context.content).toContain("lighter shade of gray");
+  });
+
+  it("recalls explicit personal attributes from natural verified user turns", async () => {
+    const report = await runLongMemEvalRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-longmemeval-basic-personal-attributes",
+      },
+      {
+        memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
+          createMemory: () =>
+            createGoodMemory({
+              storage: {
+                provider: "memory",
+              },
+            }),
+          runId: "run-longmemeval-basic-personal-attributes",
+        }),
+        mkdir: async () => {},
+        readFile: async () => JSON.stringify(LONGMEMEVAL_BASIC_ATTRIBUTE_CASES),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.evidenceSessionRecall).toBe(1);
+    expect(report.summary.missedRecallCases).toBe(0);
+    expect(
+      report.cases.map((testCase) => testCase.retrievedSessionIds),
+    ).toEqual([
+      ["s-dog-breed"],
+      ["s-cat-name"],
+      ["s-undergrad-school"],
+      ["s-shampoo-brand"],
+    ]);
+  });
+
+  it("recalls countable multi-session evidence from verified user turns", async () => {
+    const report = await runLongMemEvalRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-longmemeval-multi-count-evidence",
+      },
+      {
+        memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
+          createMemory: () =>
+            createGoodMemory({
+              storage: {
+                provider: "memory",
+              },
+            }),
+          runId: "run-longmemeval-multi-count-evidence",
+        }),
+        mkdir: async () => {},
+        readFile: async () => JSON.stringify(LONGMEMEVAL_MULTI_COUNT_CASES),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.evidenceSessionRecall).toBe(1);
+    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.wrongRecallCases).toBe(0);
+    expect(
+      report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
+    ).toEqual([
+      ["s-movie-afi", "s-movie-austin-seattle", "s-movie-portland"],
+      ["s-baked-baguette", "s-baked-cake", "s-baked-cookies", "s-baked-sourdough"],
+      [
+        "s-device-fitbit",
+        "s-device-fitbit-breathing",
+        "s-device-glucose",
+        "s-device-hearing-aids",
+        "s-device-nebulizer",
+      ],
+      ["s-aquarium-betta", "s-aquarium-community"],
+      [
+        "s-kitchen-coffee-maker",
+        "s-kitchen-faucet",
+        "s-kitchen-mat",
+        "s-kitchen-shelves",
+        "s-kitchen-toaster",
+      ],
+      ["s-market-herbs-bunches", "s-market-herbs-potted", "s-market-jam"],
+      [
+        "s-game-celeste",
+        "s-game-hyper-light",
+        "s-game-last-of-us-hard",
+        "s-game-last-of-us-normal",
+        "s-game-odyssey",
+      ],
+      ["s-wedding-cousin", "s-wedding-emily-sarah", "s-wedding-jen-tom"],
+      ["s-baby-charlotte", "s-baby-jasper", "s-baby-max", "s-baby-twins"],
+    ]);
+  });
+
+  it("recalls generic countable activity and ownership evidence from verified user turns", async () => {
+    const cases = [
+      {
+        answer: "4",
+        answer_session_ids: [
+          "s-art-afternoon",
+          "s-street-art-lecture",
+          "s-women-in-art",
+          "s-history-museum-tour",
+        ],
+        haystack_dates: [
+          "2023/03/08",
+          "2023/03/08",
+          "2023/03/08",
+          "2023/03/08",
+        ],
+        haystack_session_ids: [
+          "s-art-afternoon",
+          "s-street-art-lecture",
+          "s-women-in-art",
+          "s-history-museum-tour",
+        ],
+        haystack_sessions: [
+          [
+            {
+              content:
+                'I recently volunteered at the Children\'s Museum for their "Art Afternoon" event on February 17th, and it was amazing to see the kids create their own artwork inspired by famous paintings.',
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I recently attended a lecture at the Art Gallery on 'The Evolution of Street Art' on March 3rd, and it got me thinking about the role of street art in urban communities.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                'I was particularly drawn to the works of local artist, Rachel Lee, at the "Women in Art" exhibition which I attended on February 10th.',
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I recently went on a guided tour at the History Museum on February 24th, and it really sparked my interest in ancient history and art.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How many different art-related events did I attend in the past month?",
+        question_date: "2023/03/09",
+        question_id: "q-art-event-count",
+        question_type: "multi-session",
+      },
+      {
+        answer: "5",
+        answer_session_ids: [
+          "s-zumba",
+          "s-yoga",
+          "s-bodypump",
+          "s-hip-hop-abs",
+        ],
+        haystack_dates: [
+          "2023/05/20",
+          "2023/05/29",
+          "2023/05/30",
+          "2023/05/30",
+        ],
+        haystack_session_ids: [
+          "s-zumba",
+          "s-yoga",
+          "s-bodypump",
+          "s-hip-hop-abs",
+        ],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I usually take Zumba classes on Tuesdays and Thursdays at 7:00 PM, so something upbeat would be great.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I'm not free on Sundays since I have my yoga class at 6:00 PM, so anything that can be done on other days would be great.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I need something to motivate me during my weightlifting classes, like BodyPump on Mondays at 6:30 PM.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "Do you have any hip hop playlists that could get me pumped up for my Saturday morning Hip Hop Abs class with Mike at 10:00 AM?",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How many fitness classes do I attend in a typical week?",
+        question_date: "2023/05/31",
+        question_id: "q-fitness-class-count",
+        question_type: "multi-session",
+      },
+      {
+        answer: "4",
+        answer_session_ids: [
+          "s-electric-guitar",
+          "s-drum-set",
+          "s-acoustic-guitar",
+          "s-piano",
+        ],
+        haystack_dates: [
+          "2023/05/20",
+          "2023/05/22",
+          "2023/05/22",
+          "2023/05/29",
+        ],
+        haystack_session_ids: [
+          "s-electric-guitar",
+          "s-drum-set",
+          "s-acoustic-guitar",
+          "s-piano",
+        ],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've been playing my black Fender Stratocaster electric guitar a lot lately and I'm thinking of trying out different amp settings.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I'm thinking of selling my old drum set, a 5-piece Pearl Export, which I haven't played in years.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I've had my acoustic guitar, a Yamaha FG800, for about 8 years, and it's been a great companion for songwriting and camping trips.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I'm looking to find a piano technician to service my Korg B1, which I've had for about 3 years.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How many musical instruments do I currently own?",
+        question_date: "2023/05/31",
+        question_id: "q-musical-instrument-count",
+        question_type: "multi-session",
+      },
+    ];
+
+    const report = await runLongMemEvalRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-longmemeval-generic-count-evidence",
+      },
+      {
+        memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
+          createMemory: () =>
+            createGoodMemory({
+              storage: {
+                provider: "memory",
+              },
+            }),
+          runId: "run-longmemeval-generic-count-evidence",
+        }),
+        mkdir: async () => {},
+        readFile: async () => JSON.stringify(cases),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.evidenceSessionRecall).toBe(1);
+    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.wrongRecallCases).toBe(0);
+    expect(
+      report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
+    ).toEqual([
+      [
+        "s-art-afternoon",
+        "s-history-museum-tour",
+        "s-street-art-lecture",
+        "s-women-in-art",
+      ],
+      ["s-bodypump", "s-hip-hop-abs", "s-yoga", "s-zumba"],
+      ["s-acoustic-guitar", "s-drum-set", "s-electric-guitar", "s-piano"],
+    ]);
   });
 
   it("derives class-location evidence from make-it-to phrasing in verified user turns", async () => {

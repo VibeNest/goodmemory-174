@@ -11,6 +11,7 @@ import {
 } from "../src/eval/longmemeval";
 
 export interface Phase62CliOptions {
+  allCases?: boolean;
   benchmarkRoot?: string;
   caseIds?: readonly string[];
   limit?: number;
@@ -242,10 +243,18 @@ function parseRepeatedFlag(
   return values.length === 0 ? undefined : values;
 }
 
+function parseFlagPresence(
+  argv: readonly string[],
+  flagName: string,
+): boolean | undefined {
+  return argv.includes(flagName) ? true : undefined;
+}
+
 export function parsePhase62CliOptions(
   argv: readonly string[],
 ): Phase62CliOptions {
   return {
+    allCases: parseFlagPresence(argv, "--all-cases"),
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_LONGMEMEVAL_ROOT,

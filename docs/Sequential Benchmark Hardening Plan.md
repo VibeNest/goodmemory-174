@@ -4,6 +4,13 @@
 
 按顺序推进四个外部基准：LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo。每个基准都独立成一个工程阶段：先接入和跑通，再做失败分析，再补强 GoodMemory，最后用同一基准回测确认提升。最终报告放到全部四轮打磨完成之后，不提前做公开结论。
 
+Current execution status: Phase 62 LongMemEval is still active. Full-500
+execution is clean after failed-row recovery, and focused post-full500 repairs
+have closed explicit personal attributes, countable multi-session evidence, and
+a seven-case temporal-reasoning slice with targeted live reruns. BEAM remains
+blocked until the remaining LongMemEval full-500 quality gap is repaired or
+explicitly deferred.
+
 核心原则：
 
 - 不把 benchmark adapter 当成产品能力。
@@ -38,7 +45,9 @@
 
 - 复用 Phase 49 的 external benchmark-root 模式，不 vendoring 完整上游数据。
 - 每个阶段新增独立 runner：
-  - `eval:phase-62`, `eval:phase-62-recall-diagnostic`, `gate:phase-62`
+  - `eval:phase-62`, `eval:phase-62-full500`,
+    `eval:phase-62-full500-retry-failures`,
+    `eval:phase-62-recall-diagnostic`, `gate:phase-62`
   - `eval:phase-63`, `gate:phase-63`
   - `eval:phase-64`, `gate:phase-64`
   - `eval:phase-65`, `gate:phase-65`

@@ -40,6 +40,14 @@ const CURRENT_PROJECT_PATTERN =
   /(?:remember that\s+)?i(?:'m| am)\s+(?:leading|working on|focused on|owning)\s+(.+?)(?=\.|$)/i;
 const EDUCATION_DEGREE_PATTERN =
   /\bi\s+(?:graduated|earned|have|hold)\s+(?:with\s+)?(?:a\s+)?degree\s+in\s+([^,.!?]+)(?=[,.!?]|$)/i;
+const PET_NAME_PATTERN =
+  /\bmy\s+(cat|dog|puppy|kitten|pet)(?:['’]s)?\s+name\s+is\s+([A-Z][A-Za-z'’-]{1,40})(?=\s*(?:[,.;!?]|\band\b|$))/i;
+const PET_BREED_LIKE_PATTERN =
+  /\b(?:suit|for)\s+(?:an?\s+)?([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})\s+like\s+([A-Z][A-Za-z'’-]{1,40})\b/i;
+const UNDERGRAD_INSTITUTION_PATTERN =
+  /\bi\s+completed\s+my\s+(?:undergrad|undergraduate(?:\s+degree)?|bachelor['’]?s(?:\s+degree)?)\s+in\s+([^,.!?]+?)\s+from\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)(?=\s*(?:[,.;!?]|\bwhich\b|$))/i;
+const STORE_PRODUCT_USE_PATTERN =
+  /\bi(?:'ve| have)?\s+(?:been\s+)?using\s+(?:an?\s+)?([^,.!?]{3,80}?\bshampoo)\b[\s\S]{0,120}?\bat\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)(?=\s*(?:[,.;!?]|$))/i;
 const DAILY_COMMUTE_DURATION_PATTERN =
   /\bmy daily commute\b[^.!?]*\btakes\s+([^,.!?]+)(?=[,.!?]|$)/i;
 const STORE_APP_PATTERN =
@@ -499,6 +507,25 @@ function cleanPersonalBestEvent(value: string): string {
   return /^(?:a|an)\s+/i.test(event) ? event : `a ${event}`;
 }
 
+function normalizeEducationSubject(value: string): string {
+  const cleaned = cleanExtractedValue(value)
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (/^(?:cs|c\.s\.|computer\s+science)$/i.test(cleaned)) {
+    return "Computer Science";
+  }
+
+  return cleaned;
+}
+
+function cleanStoreProductDescription(value: string): string {
+  return cleanExtractedValue(value)
+    .replace(/^(?:a|an|the)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function looksLikePhotographyEquipment(value: string): boolean {
   return /\b(?:sony|canon|nikon|fujifilm|fuji|panasonic|olympus|leica|camera|lens|a7r|a7|z6|r5|x-t\d+|24-70mm|f\/\d)/i.test(
     value,
@@ -750,6 +777,85 @@ function maybeExtractCandidatesFromClause(
         nextId,
         `I graduated with a degree in ${educationDegree}.`,
         "personal",
+      ),
+    );
+  }
+
+  const petNameMatch = trimmed.match(PET_NAME_PATTERN);
+  if (petNameMatch) {
+    const pet = cleanExtractedValue(petNameMatch[1]!).toLowerCase();
+    const name = cleanExtractedValue(petNameMatch[2]!);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `My ${pet}'s name is ${name}.`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: `${pet} name`,
+        },
+      ),
+    );
+  }
+
+  const petBreedLikeMatch = trimmed.match(PET_BREED_LIKE_PATTERN);
+  if (
+    petBreedLikeMatch &&
+    /\b(?:dog|puppy|collar|leash|walker|pet)\b/i.test(trimmed)
+  ) {
+    const breed = cleanExtractedValue(petBreedLikeMatch[1]!);
+    const name = cleanExtractedValue(petBreedLikeMatch[2]!);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `My dog ${name} is a ${breed}.`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: "dog breed",
+        },
+      ),
+    );
+  }
+
+  const undergradInstitutionMatch = trimmed.match(UNDERGRAD_INSTITUTION_PATTERN);
+  if (undergradInstitutionMatch) {
+    const subject = normalizeEducationSubject(undergradInstitutionMatch[1]!);
+    const institution = cleanExtractedValue(undergradInstitutionMatch[2]!);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `I completed my undergraduate ${subject} degree at ${institution}.`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: `undergraduate ${subject.toLowerCase()} degree`,
+        },
+      ),
+    );
+  }
+
+  const storeProductUseMatch = trimmed.match(STORE_PRODUCT_USE_PATTERN);
+  if (storeProductUseMatch) {
+    const product = cleanStoreProductDescription(storeProductUseMatch[1]!);
+    const store = cleanExtractedValue(storeProductUseMatch[2]!);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `I use ${store} ${product}.`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: product,
+        },
       ),
     );
   }

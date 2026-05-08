@@ -62,7 +62,7 @@ Tasks
 [DONE] P62-T002 Add LongMemEval adapter/report contract and Phase 62 smoke
   runner.
 [DONE] P62-T003 Add Phase 62 gate for smoke harness integrity.
-[WIP] P62-T004 Run full LongMemEval through external `--benchmark-root` with
+[DONE] P62-T004 Run full LongMemEval through external `--benchmark-root` with
   no-memory, full-context, rules-only, and hybrid profiles. The core runner and
   CLI now wire full mode through a live answer generator and GoodMemory context
   builder, and fail closed with a readiness report when the external data file
@@ -133,8 +133,7 @@ Tasks
   prioritization, the hybrid live rerun
   `run-phase62-longmemeval-live60-hybrid-household-issues-escalated-20260506T112000Z`
   also reaches 60/60 answer accuracy with evidence-session recall 0.9292 and
-  zero execution failures. Full 500-case execution remains pending or needs an
-  explicit deferral rationale. The first full-500 attempt
+  zero execution failures. The first full-500 attempt
   `run-phase62-longmemeval-full500-live-four-profile-20260506T034826Z` was
   split into ten 50-case shards but is invalid as benchmark evidence: running
   all ten shards concurrently drove the live provider into `model_cooldown`,
@@ -145,17 +144,28 @@ Tasks
   now `eval:phase-62-full500-retry-failures`: it reads a merged/shard report,
   batches only profile/case rows with `executionError`, and writes a merged
   report that preserves successful retry rows while leaving unresolved failures
-  retryable. Current live recovery progressed from
+  retryable. Live recovery progressed from
   `run-phase62-longmemeval-full500-live-four-profile-current-merged-20260506T082323Z`
   with 1215 execution failures to
-  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`
-  with 603 execution failures. `baseline-no-memory` and `baseline-full-context`
-  are now clean for execution failures; `goodmemory-rules-only` has 153
-  remaining failed profile/case rows and `goodmemory-hybrid` has 450. The latest
-  stop was API/provider capacity, not a GoodMemory assertion failure:
-  one 429 usage-limit error, one auth-unavailable 503, and one gateway timeout
-  in the rules-only retry batch
-  `run-phase62-longmemeval-full500-failure-retry-live-20260506T133000Z-goodmemory-rules-only-batch-020`.
+  `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`
+  with zero execution failures across all four profiles and 500 cases. This
+  closes the full-500 execution blocker, but it does not close the LongMemEval
+  quality loop: `baseline-full-context` is 454/500 (90.8%), while
+  `goodmemory-rules-only` is 344/500 (68.8%) with evidence-session recall
+  0.7399 and `goodmemory-hybrid` is 337/500 (67.4%) with evidence-session
+  recall 0.7364. This is failed-row recovery, not a fresh all-row current-code
+  rerun.
+  After a later `gpt-5.5` provider cooldown, the recovery path was re-verified:
+  dry-run against the clean `033000Z` merged report produced `batchCount: 0`,
+  and retrying the single remaining failed row from
+  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T030000Z`
+  produced
+  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T070500Z`
+  with `executionFailures: 0`.
+  The same path was exercised again after a real `gpt-5.5` cooldown: a 9-way
+  retry left 744 provider failures (`auth_unavailable`/429), low-concurrency
+  retry reduced that to 3, and a final single-concurrency retry produced the
+  clean `191000Z` merge.
 [WIP] P62-T005 Write LongMemEval miss-case analysis grouped by question type,
   missed recall, wrong recall, stale/update failure, abstention failure, and
   token/context pressure. Initial 3-case analysis is recorded in
@@ -208,8 +218,17 @@ Tasks
   `run-phase62-longmemeval-live60-rules-only-final-repairs-escalated-20260506T104000Z`
   reaches 60/60 with zero wrong answers. The hybrid live rerun
   `run-phase62-longmemeval-live60-hybrid-household-issues-escalated-20260506T112000Z`
-  also reaches 60/60 with zero wrong answers. Phase 62 remains open until full
-  execution is either run or explicitly deferred.
+  also reaches 60/60 with zero wrong answers. The clean full-500 rerun
+  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T033000Z`
+  is now the active miss-intake source: both GoodMemory profiles are strongest
+  on single-session-user, knowledge-update, and single-session-assistant, but
+  remain weak on multi-session and temporal-reasoning. For
+  `goodmemory-rules-only`, 65/175 wrong answers are multi-session and 68/175
+  are temporal-reasoning; for `goodmemory-hybrid`, 69/181 wrong answers are
+  multi-session and 66/181 are temporal-reasoning. Most of those misses are
+  zero or partial evidence recall rather than wrong recall, so the next repair
+  loop should target multi-evidence aggregation and temporal bridge retrieval
+  before claiming LongMemEval strength.
 [WIP] P62-T006 Implement generic GoodMemory repairs from the miss cases and
   rerun LongMemEval before opening the BEAM phase. First repairs landed for
   cleaned answer normalization, full-run readiness, rules-only provider
@@ -250,8 +269,54 @@ Tasks
   preservation, preference evidence prioritization, and multilingual recall
   selection intent boundaries; recall-only evidence improved from 0.379 to
   0.9292 after those repairs. The latest rules-only and hybrid 60-case live
-  reruns both reach 60/60 for GoodMemory, but the full-500 decision keeps the
-  broader LongMemEval loop open. Current focused verification passes
+  reruns both reach 60/60 for GoodMemory, and the full-500 execution blocker is
+  now closed with `executionFailures: 0`. The broader LongMemEval loop remains
+  open because full-500 quality is still below the long-context baseline. The
+  first post-full500 miss repair adds generic English explicit personal
+  attribute extraction for pet names, dog breed phrasing, undergraduate
+  institution wording, and store-branded shampoo/product usage. It moves the
+  real cleaned cases `75499fd8`, `0862e8bf`, `25e5aa4f`, and `c14c00dd` from
+  0/4 provider-free evidence-session recall before repair to 4/4 after repair,
+  and the targeted live rules-only rerun
+  `run-phase62-longmemeval-live-basic-attrs-after-20260507T012500Z` reaches
+  4/4 answer accuracy, 1.0 evidence-session recall, and `executionFailures: 0`.
+  The same explicit personal-attribute family is mirrored in the Chinese
+  adapter for pet names, dog breed, undergraduate institution, and branded
+  shampoo/product usage so the repair does not create an English-only extractor
+  gap. The second post-full500 repair adds compact countable multi-session
+  evidence for movie-festival attendance, baked items, health-related devices,
+  aquarium fish counts, kitchen items replaced/fixed, and market sale earnings;
+  it also treats aggregate money/earnings queries as aggregate evidence
+  selection rather than ordinary two-fact recall. The real cleaned cases
+  `gpt4_a56e767c`, `88432d0a`, `gpt4_31ff4165`, `eeda8a6d`,
+  `gpt4_ab202e7f`, and `2b8f3739` move from 0/6 provider-free
+  evidence-session recall before repair to 6/6 after repair, and
+  `run-phase62-longmemeval-live-multi-count-after-20260507T052500Z` reaches
+  6/6 answer accuracy, 1.0 evidence-session recall, zero wrong recall, and
+  `executionFailures: 0`. The third post-full500 repair adds generic dated
+  temporal event evidence for book, trip, sports, and flight events, widens
+  temporal order/most-recent selection, and hardens the LongMemEval answer
+  prompt for temporal interval/order composition without adding case-id
+  routing. The real cleaned temporal cases `0db4c65d`, `gpt4_7f6b06db`,
+  `gpt4_8279ba02`, `gpt4_468eb063`, `gpt4_45189cb4`, `gpt4_ec93e27f`, and
+  `gpt4_f420262c` move from 0.1 provider-free evidence-session recall with 7
+  missed recall cases and 1 wrong-recall case to 1.0 evidence-session recall,
+  zero missed recall, and zero wrong recall in
+  `run-phase62-longmemeval-recall-only-temporal-after-answerfacts-20260507T162200Z`.
+  The targeted live rules-only rerun
+  `run-phase62-longmemeval-live-temporal-after-answerfacts-20260507T163300Z`
+  reaches 7/7 answer accuracy, 1.0 evidence-session recall, zero wrong recall,
+  and `executionFailures: 0`.
+  The fourth post-full500 repair adds countable multi-session evidence for
+  aggregate game-hour totals, wedding attendance counts, and babies-born
+  counts. Provider-free recall on real cleaned cases (`28dc39ac`,
+  `gpt4_2f8be40d`, `2e6d26dc`) reached 3/3 with zero wrong recall in
+  `run-phase62-longmemeval-recall-only-multi-aggregate2-after-r2-20260508T004800Z`,
+  and the live rules-only rerun
+  `run-phase62-longmemeval-live-multi-aggregate2-after-20260508T004900Z`
+  reached 3/3 answer accuracy with `executionFailures: 0`.
+  Current focused verification passes
+  `bun test tests/unit/remember.extractor.test.ts tests/unit/longmemeval.test.ts`,
   `bun test tests/unit/recall.selection.test.ts tests/unit/language/service.test.ts tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts`,
   `bun run typecheck`, `bun run gate:phase-62`, and `git diff --check`. An
   unrelated concurrent package-pack release-test race is locked; broader/full

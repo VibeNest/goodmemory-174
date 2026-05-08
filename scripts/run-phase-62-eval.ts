@@ -177,6 +177,8 @@ export function buildLongMemEvalPrompt(input: {
     "For recommendation-style questions about a requested object category, include that category in the answer, such as resources, accessories, publications, conferences, or gear.",
     "For count questions, count distinct matching evidence items only. Include both past and current matches when the question asks for both; ignore related facts that do not satisfy the wording.",
     "For list or set questions, include every distinct item in the relevant grouped evidence, especially lines that use includes, list, or numbered-item wording.",
+    "For temporal interval questions, compute elapsed days from the dated evidence and the question date when available; do not answer No answer when both dated endpoints are visible.",
+    "For temporal order questions, sort matching dated evidence chronologically. Include every relevant event for event-order questions; when the question asks for an ordered entity category such as airlines or transport modes, return distinct entities in first-observed order and do not repeat the same entity unless the question explicitly asks for repeated events.",
     "Return only the short answer. If the answer is not present in the visible history or memory context, return exactly: No answer.",
   ]
     .filter(Boolean)

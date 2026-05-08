@@ -119,18 +119,80 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
     records evidence-session recall `0.9292`, missed recall `10/60`, wrong
     recall `2/60`, and zero execution failures
-  - the latest full-500 failed-case retry merge
-    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260506T133000Z`
-    is still invalid as final benchmark evidence because 603 execution failures
-    remain, but it proves the recovery path can resume from failed profile/case
-    rows instead of rerunning clean rows. `baseline-full-context` is clean for
-    execution failures at 452/500 accuracy; `goodmemory-rules-only` still has
-    153 failed rows and `goodmemory-hybrid` still has 450.
-- Current Phase 62 blocker is completing the resumable full-500 LongMemEval
-  execution or recording an explicit full-500 deferral decision. Repairs must
-  stay generic and not target LongMemEval case ids or dataset labels; this
-  remains internal research evidence, not a README-level public benchmark
-  claim.
+  - the current canonical clean full-500 failed-case retry merge
+    `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`
+    covers all 500 cleaned cases across all four profiles with
+    `executionFailures: 0`. This closes the execution blocker but not the
+    quality loop: `baseline-full-context` reaches 454/500 accuracy, while
+    `goodmemory-rules-only` reaches 344/500 and `goodmemory-hybrid` reaches
+    337/500. The recovery path can now resume from failed profile/case rows
+    instead of rerunning clean rows; this is still failed-row recovery, not a
+    fresh all-row current-code full-500 rerun.
+  - the failure-resume path was re-verified after the later `gpt-5.5`
+    provider cooldown: dry-run against the clean `033000Z` merged report found
+    `batchCount: 0`, while retrying the single remaining failed row from
+    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T030000Z`
+    produced
+    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T070500Z`
+    with `executionFailures: 0`. A subsequent real `gpt-5.5` cooldown recovery
+    restarted from the failed rows of
+    `run-phase62-longmemeval-full500-live-four-profile-current-merged-20260506T082323Z`;
+    high concurrency proved unstable (`auth_unavailable`/429), but low
+    concurrency failure-only retries reduced execution failures from 1215 to
+    744 to 3 to 0 and produced the current canonical `191000Z` clean merge.
+  - the first post-full500 quality repair targets generic explicit personal
+    attribute extraction rather than a benchmark prompt hack. It moves four real
+    cleaned misses (`75499fd8`, `0862e8bf`, `25e5aa4f`, `c14c00dd`) from 0/4
+    provider-free evidence-session recall to 4/4, and the targeted live
+    rules-only rerun
+    `run-phase62-longmemeval-live-basic-attrs-after-20260507T012500Z` reaches
+    4/4 answer accuracy, 1.0 evidence-session recall, and
+    `executionFailures: 0`. The same explicit personal-attribute extraction
+    family is mirrored in the Chinese adapter to avoid making the repair
+    English-only.
+  - the second post-full500 quality repair targets countable multi-session
+    evidence and aggregate money selection, not LongMemEval case ids. Six real
+    cleaned multi-session misses (`gpt4_a56e767c`, `88432d0a`,
+    `gpt4_31ff4165`, `eeda8a6d`, `gpt4_ab202e7f`, `2b8f3739`) moved from 0/6
+    provider-free evidence-session recall to 6/6, and the targeted live
+    rules-only rerun
+    `run-phase62-longmemeval-live-multi-count-after-20260507T052500Z` reaches
+    6/6 answer accuracy, 1.0 evidence-session recall, zero wrong recall, and
+    `executionFailures: 0`.
+  - the third post-full500 quality repair targets temporal dated evidence and
+    temporal answer composition. Seven real cleaned temporal misses
+    (`0db4c65d`, `gpt4_7f6b06db`, `gpt4_8279ba02`, `gpt4_468eb063`,
+    `gpt4_45189cb4`, `gpt4_ec93e27f`, `gpt4_f420262c`) moved from 0.1
+    provider-free evidence-session recall with 7 missed recall cases and 1
+    wrong-recall case to 1.0 evidence-session recall, zero missed recall, and
+    zero wrong recall in
+    `run-phase62-longmemeval-recall-only-temporal-after-answerfacts-20260507T162200Z`.
+    The targeted live rules-only rerun
+    `run-phase62-longmemeval-live-temporal-after-answerfacts-20260507T163300Z`
+    reaches 7/7 answer accuracy, 1.0 evidence-session recall, zero wrong
+    recall, and `executionFailures: 0`.
+  - the fourth post-full500 quality repair extends countable multi-session
+    evidence to aggregate game hours, wedding attendance, and babies born in
+    friends/family contexts. Three real cleaned misses (`28dc39ac`,
+    `gpt4_2f8be40d`, `2e6d26dc`) moved from partial recall in the latest clean
+    full-500 report to 3/3 provider-free recall with zero wrong recall in
+    `run-phase62-longmemeval-recall-only-multi-aggregate2-after-r2-20260508T004800Z`.
+    The targeted live rules-only rerun
+    `run-phase62-longmemeval-live-multi-aggregate2-after-20260508T004900Z`
+    reaches 3/3 answer accuracy, 1.0 evidence-session recall, zero wrong
+    recall, and `executionFailures: 0`.
+  - the current-code all-500 provider-free recall-only inventory
+    `run-phase62-longmemeval-recall-only-all500-runnerfactory-after-temporal-20260507T165900Z`
+    completes with `executionFailures: 0` and evidence-session recall 0.7445.
+    The next highest-yield gaps are still multi-session (0.6269 recall,
+    73/133 missed), knowledge-update (0.7179 recall, 31/78 missed), and
+    broader temporal-reasoning (0.7209 recall, 59/133 missed). This is a
+    recall-only diagnostic, not answer-accuracy evidence.
+- Current Phase 62 blocker is full-500 LongMemEval quality repair, especially
+  remaining multi-session and temporal-reasoning families outside the focused
+  repaired slices. Repairs must stay generic and not target LongMemEval case ids
+  or dataset labels; this remains internal research evidence, not a
+  README-level public benchmark claim.
 
 ## Prior Accepted Research Slice
 

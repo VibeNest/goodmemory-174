@@ -40,6 +40,18 @@ const DURABLE_INFERENCE_PATTERNS = [
 ];
 const EDUCATION_DEGREE_PATTERN =
   /我(?:毕业于|获得|拿到|有|拥有)\s*([^，。！？；]+?(?:专业|学位))(?=，|。|！|？|；|$)/u;
+const PET_NAME_PATTERN =
+  /(?:我的?|我家)\s*(猫|狗|小猫|小狗|宠物)(?:的)?名字(?:是|叫)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const PET_NAME_SHORT_PATTERN =
+  /(?:我的?|我家)\s*(猫|狗|小猫|小狗|宠物)\s*叫\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const DOG_BREED_PATTERN =
+  /(?:我的?|我家)\s*狗\s*([A-Za-z0-9_\p{Script=Han}'’-]{1,30})?\s*(?:是|品种是|属于)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/u;
+const UNDERGRAD_INSTITUTION_WITH_SUBJECT_PATTERN =
+  /我(?:的)?(?:本科|大学本科)\s*(?:在|毕业于)\s*([^，。！？；]+?)(?:读|学)\s*([^，。！？；]*?(?:计算机|CS|Computer Science))(?=，|。|！|？|；|$)/iu;
+const UNDERGRAD_INSTITUTION_PATTERN =
+  /我(?:的)?(?:本科|大学本科)\s*(?:在|毕业于)\s*([^，。！？；]+?)(?=，|。|！|？|；|$)/iu;
+const STORE_PRODUCT_USE_PATTERN =
+  /我(?:一直|最近|正在|已经)?用\s*([^，。！？；]+?)的\s*([^，。！？；]*?洗发水)(?=，|。|！|？|；|$)/u;
 const DAILY_COMMUTE_DURATION_PATTERN =
   /我的?(?:日常)?通勤(?:需要|要|花|花费|耗时)\s*([^，。！？；]+)(?=，|。|！|？|；|$)/u;
 const STORE_APP_PATTERN =
@@ -111,6 +123,25 @@ const COMMON_LOCATION_NAMES = new Set([
 
 function cleanValue(value: string): string {
   return value.trim().replace(/[，。！？；,.!?;]+$/u, "").trim();
+}
+
+function normalizeChineseUndergradSubject(value: string | undefined): string {
+  if (!value) {
+    return "本科";
+  }
+
+  const cleaned = cleanValue(value);
+  if (/(?:计算机|CS|Computer Science)/iu.test(cleaned)) {
+    return "计算机本科";
+  }
+
+  return `${cleaned}本科`;
+}
+
+function looksLikeDogBreed(value: string): boolean {
+  return /(金毛|拉布拉多|贵宾|柴犬|哈士奇|牧羊犬|斗牛犬|犬|Retriever|Poodle|Beagle|Bulldog)/iu.test(
+    value,
+  );
 }
 
 function createProfileCandidate(
@@ -551,6 +582,74 @@ function maybeExtractCandidatesFromClause(
     const degree = cleanValue(educationDegreeMatch[1]);
     candidates.push(
       createFactCandidate(index, nextId, `我毕业于${degree}。`, "personal"),
+    );
+  }
+
+  const petNameMatch =
+    trimmed.match(PET_NAME_PATTERN) ??
+    trimmed.match(PET_NAME_SHORT_PATTERN);
+  if (petNameMatch?.[1] && petNameMatch?.[2]) {
+    const pet = cleanValue(petNameMatch[1]);
+    const name = cleanValue(petNameMatch[2]);
+    candidates.push(
+      createFactCandidate(index, nextId, `我的${pet}叫${name}。`, "personal", {
+        category: "personal",
+        scopeKind: "identity",
+        subject: `${pet}名字`,
+      }),
+    );
+  }
+
+  const dogBreedMatch = trimmed.match(DOG_BREED_PATTERN);
+  if (dogBreedMatch?.[2] && looksLikeDogBreed(dogBreedMatch[2])) {
+    const name = dogBreedMatch[1] ? cleanValue(dogBreedMatch[1]) : "";
+    const breed = cleanValue(dogBreedMatch[2]);
+    candidates.push(
+      createFactCandidate(index, nextId, `我的狗${name}是${breed}。`, "personal", {
+        category: "personal",
+        scopeKind: "identity",
+        subject: "狗品种",
+      }),
+    );
+  }
+
+  const undergradInstitutionMatch =
+    trimmed.match(UNDERGRAD_INSTITUTION_WITH_SUBJECT_PATTERN) ??
+    trimmed.match(UNDERGRAD_INSTITUTION_PATTERN);
+  if (undergradInstitutionMatch?.[1]) {
+    const institution = cleanValue(undergradInstitutionMatch[1]);
+    const subject = normalizeChineseUndergradSubject(undergradInstitutionMatch[2]);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我的${subject}学校是${institution}。`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject,
+        },
+      ),
+    );
+  }
+
+  const storeProductUseMatch = trimmed.match(STORE_PRODUCT_USE_PATTERN);
+  if (storeProductUseMatch?.[1] && storeProductUseMatch?.[2]) {
+    const store = cleanValue(storeProductUseMatch[1]);
+    const product = cleanValue(storeProductUseMatch[2]);
+    candidates.push(
+      createFactCandidate(
+        index,
+        nextId,
+        `我使用${store}的${product}。`,
+        "personal",
+        {
+          category: "personal",
+          scopeKind: "identity",
+          subject: product,
+        },
+      ),
     );
   }
 

@@ -121,10 +121,16 @@ export function buildPhase62RecallDiagnosticOptions(
   options: Phase62CliOptions,
 ): RunLongMemEvalRecallDiagnosticOptions {
   const profile = resolveRecallDiagnosticProfile(options.profiles);
+  if (options.allCases && options.caseIds && options.caseIds.length > 0) {
+    throw new Error("--all-cases cannot be combined with --case-id");
+  }
+
   return {
     benchmarkRoot:
       options.benchmarkRoot ?? resolvePhase62BenchmarkRoot(root, false),
-    caseIds: options.caseIds ?? PHASE62_TYPE_BALANCED_CASE_IDS,
+    caseIds: options.allCases
+      ? undefined
+      : (options.caseIds ?? PHASE62_TYPE_BALANCED_CASE_IDS),
     generatedBy: GENERATED_BY,
     limit: options.limit,
     maxConcurrency: options.maxConcurrency ?? 1,
