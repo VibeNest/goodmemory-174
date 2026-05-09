@@ -236,6 +236,92 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-noise")?.returned).toBe(false);
   });
 
+  it("keeps aggregate count queries out of open-loop slot suppression", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-sephora-current",
+        userId: "user-1",
+        category: "personal",
+        content:
+          "Reward points evidence: I earned 50 points at Sephora, bringing my total to 200 points.",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-sephora-target",
+        userId: "user-1",
+        category: "personal",
+        content:
+          "Reward points evidence: I need a total of 300 points to redeem a free skincare product at Sephora.",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many points do I need to earn to redeem a free skincare product at Sephora?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({
+        requestedSlots: ["open_loop"],
+      }),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id).sort()).toEqual([
+      "fact-sephora-current",
+      "fact-sephora-target",
+    ]);
+  });
+
+  it("diversifies aggregate count facts across evidence sessions before taking duplicates", () => {
+    const language = createLanguageService();
+    const facts = [
+      ...Array.from({ length: 6 }, (_, index) =>
+        createFactMemory({
+          id: `fact-piano-${index}`,
+          userId: "user-1",
+          category: "personal",
+          content: `Musical instrument I currently own: piano detail ${index}.`,
+          sessionId: "s-piano",
+          source: SOURCE,
+          tags: ["compact_evidence"],
+          updatedAt: TIMESTAMP,
+        }),
+      ),
+      createFactMemory({
+        id: "fact-guitar",
+        userId: "user-1",
+        category: "personal",
+        content: "Musical instrument I currently own: black Fender Stratocaster electric guitar.",
+        sessionId: "s-guitar",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many musical instruments do I currently own?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain("fact-guitar");
+    expect(new Set(result.facts.map((fact) => fact.sessionId))).toContain("s-guitar");
+  });
+
   it("returns weak-overlap money facts for aggregate spending queries", () => {
     const language = createLanguageService();
     const facts = [
@@ -620,6 +706,43 @@ describe("recall selection", () => {
     );
 
     expect(result.facts[0]?.id).toBe("fact-lake-charles");
+  });
+
+  it("prioritizes assistant final enumerated items for previous-chat last-item questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-mid-list",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "Item 6: Aladdin Theater",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-final-item",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "Assistant final enumerated item: 10. Revolution Hall.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What was the last venue you recommended for Portland indie music shows?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts[0]?.id).toBe("fact-final-item");
   });
 
   it("returns trusted preference evidence for weak-overlap recommendation questions", () => {

@@ -320,6 +320,83 @@ describe("model adapters", () => {
     expect(delays).toEqual([2_000, 5_000]);
   });
 
+  it("retries transient provider socket closures", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+
+    const result = await withAISDKRetries(
+      async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw new Error(
+            "The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          );
+        }
+
+        return "recovered";
+      },
+      {
+        sleep: async (ms) => {
+          delays.push(ms);
+        },
+      },
+    );
+
+    expect(result).toBe("recovered");
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([2_000, 5_000]);
+  });
+
+  it("retries transient provider model cooldown errors", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+
+    const result = await withAISDKRetries(
+      async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw new Error("Provider returned model_cooldown for gpt-5.5");
+        }
+
+        return "recovered";
+      },
+      {
+        sleep: async (ms) => {
+          delays.push(ms);
+        },
+      },
+    );
+
+    expect(result).toBe("recovered");
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([2_000, 5_000]);
+  });
+
+  it("retries transient provider usage-limit errors", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+
+    const result = await withAISDKRetries(
+      async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw new Error("The usage limit has been reached");
+        }
+
+        return "recovered";
+      },
+      {
+        sleep: async (ms) => {
+          delays.push(ms);
+        },
+      },
+    );
+
+    expect(result).toBe("recovered");
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([2_000, 5_000]);
+  });
+
   it("keeps validation retries on a short backoff schedule", async () => {
     let attempts = 0;
     const delays: number[] = [];

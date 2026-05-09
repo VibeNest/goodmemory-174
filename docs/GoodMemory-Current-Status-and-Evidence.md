@@ -119,27 +119,23 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
     records evidence-session recall `0.9292`, missed recall `10/60`, wrong
     recall `2/60`, and zero execution failures
-  - the current canonical clean full-500 failed-case retry merge
-    `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`
+  - the current-code clean full-500 failed-row recovery merge
+    `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-hybrid-r1-merged-20260509T022500Z`
     covers all 500 cleaned cases across all four profiles with
-    `executionFailures: 0`. This closes the execution blocker but not the
-    quality loop: `baseline-full-context` reaches 454/500 accuracy, while
-    `goodmemory-rules-only` reaches 344/500 and `goodmemory-hybrid` reaches
-    337/500. The recovery path can now resume from failed profile/case rows
-    instead of rerunning clean rows; this is still failed-row recovery, not a
-    fresh all-row current-code full-500 rerun.
-  - the failure-resume path was re-verified after the later `gpt-5.5`
-    provider cooldown: dry-run against the clean `033000Z` merged report found
-    `batchCount: 0`, while retrying the single remaining failed row from
-    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T030000Z`
-    produced
-    `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T070500Z`
-    with `executionFailures: 0`. A subsequent real `gpt-5.5` cooldown recovery
-    restarted from the failed rows of
-    `run-phase62-longmemeval-full500-live-four-profile-current-merged-20260506T082323Z`;
-    high concurrency proved unstable (`auth_unavailable`/429), but low
-    concurrency failure-only retries reduced execution failures from 1215 to
-    744 to 3 to 0 and produced the current canonical `191000Z` clean merge.
+    `executionFailures: 0`. This closes the current-code execution blocker but
+    not the quality loop: `baseline-full-context` reaches 461/500 accuracy,
+    while `goodmemory-rules-only` reaches 363/500 with evidence-session recall
+    0.7754 and `goodmemory-hybrid` reaches 361/500 with evidence-session recall
+    0.7734.
+  - the failure-resume path is now the preferred recovery path over rerunning
+    clean shard rows. After provider cooldown/socket/usage-limit failures,
+    runtime AI SDK retry treats those provider errors as transient and
+    `eval:phase-62-full500-retry-failures` can throttle serial retries with
+    `--batch-delay-ms` and temporarily bypass provider-stuck rows with
+    `--exclude-case-id` / `--skip-case-id`. The 2026-05-09 recovery cleared the
+    final 9 `baseline-full-context` rows, then 500 `goodmemory-rules-only` rows,
+    then 500 `goodmemory-hybrid` rows from failed profile/case rows without
+    rerunning clean rows.
   - the first post-full500 quality repair targets generic explicit personal
     attribute extraction rather than a benchmark prompt hack. It moves four real
     cleaned misses (`75499fd8`, `0862e8bf`, `25e5aa4f`, `c14c00dd`) from 0/4

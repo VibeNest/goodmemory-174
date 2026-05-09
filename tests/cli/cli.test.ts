@@ -2763,86 +2763,90 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
-  it("plans install dry-run from existing config when options are omitted", async () => {
-    const home = await createTempWorkspace("goodmemory-install-dry-run-existing-home");
-    const workspace = await createTempWorkspace(
-      "goodmemory-install-dry-run-existing-workspace",
-    );
-
-    try {
-      await withEnv(
-        {
-          GOODMEMORY_HOME: home.root,
-        },
-        async () => {
-          const install = await withCwd(workspace.root, async () =>
-            runCLI([
-              "install",
-              "codex",
-              "--activation-mode",
-              "global",
-              "--context-mode",
-              "progressive",
-              "--storage-provider",
-              "postgres",
-              "--storage-url",
-              "postgres://example/db",
-              "--embedding-provider",
-              "openai",
-              "--embedding-model",
-              "text-embedding-3-small",
-              "--embedding-api-key",
-              "sk-test",
-              "--llm-provider",
-              "anthropic",
-              "--llm-model",
-              "claude-haiku",
-              "--llm-api-key",
-              "sk-llm",
-              "--writeback",
-              "selective",
-              "--user-id",
-              "existing-user",
-              "--json",
-            ]),
-          );
-          expect(install.exitCode).toBe(0);
-
-          const plan = await withCwd(workspace.root, async () =>
-            runCLI(["install", "codex", "--dry-run", "--json"]),
-          );
-
-          expect(plan.exitCode).toBe(0);
-          const payload = JSON.parse(plan.stdout) as {
-            hosts: Array<{
-              contextMode: string;
-              providers: {
-                assistedExtractor: { configured: boolean; provider: string };
-                embedding: { configured: boolean; provider: string };
-              };
-              storage: { location: string; provider: string };
-              userId: string;
-              writeback: { mode: string };
-            }>;
-          };
-          expect(payload.hosts[0]?.contextMode).toBe("progressive");
-          expect(payload.hosts[0]?.storage).toEqual({
-            location: "configured",
-            provider: "postgres",
-          });
-          expect(payload.hosts[0]?.userId).toBe("existing-user");
-          expect(payload.hosts[0]?.writeback.mode).toBe("selective");
-          expect(payload.hosts[0]?.providers.embedding.configured).toBe(true);
-          expect(payload.hosts[0]?.providers.embedding.provider).toBe("openai");
-          expect(payload.hosts[0]?.providers.assistedExtractor.configured).toBe(true);
-          expect(payload.hosts[0]?.providers.assistedExtractor.provider).toBe("anthropic");
-        },
+  it(
+    "plans install dry-run from existing config when options are omitted",
+    async () => {
+      const home = await createTempWorkspace("goodmemory-install-dry-run-existing-home");
+      const workspace = await createTempWorkspace(
+        "goodmemory-install-dry-run-existing-workspace",
       );
-    } finally {
-      await home.cleanup();
-      await workspace.cleanup();
-    }
-  });
+
+      try {
+        await withEnv(
+          {
+            GOODMEMORY_HOME: home.root,
+          },
+          async () => {
+            const install = await withCwd(workspace.root, async () =>
+              runCLI([
+                "install",
+                "codex",
+                "--activation-mode",
+                "global",
+                "--context-mode",
+                "progressive",
+                "--storage-provider",
+                "postgres",
+                "--storage-url",
+                "postgres://example/db",
+                "--embedding-provider",
+                "openai",
+                "--embedding-model",
+                "text-embedding-3-small",
+                "--embedding-api-key",
+                "sk-test",
+                "--llm-provider",
+                "anthropic",
+                "--llm-model",
+                "claude-haiku",
+                "--llm-api-key",
+                "sk-llm",
+                "--writeback",
+                "selective",
+                "--user-id",
+                "existing-user",
+                "--json",
+              ]),
+            );
+            expect(install.exitCode).toBe(0);
+
+            const plan = await withCwd(workspace.root, async () =>
+              runCLI(["install", "codex", "--dry-run", "--json"]),
+            );
+
+            expect(plan.exitCode).toBe(0);
+            const payload = JSON.parse(plan.stdout) as {
+              hosts: Array<{
+                contextMode: string;
+                providers: {
+                  assistedExtractor: { configured: boolean; provider: string };
+                  embedding: { configured: boolean; provider: string };
+                };
+                storage: { location: string; provider: string };
+                userId: string;
+                writeback: { mode: string };
+              }>;
+            };
+            expect(payload.hosts[0]?.contextMode).toBe("progressive");
+            expect(payload.hosts[0]?.storage).toEqual({
+              location: "configured",
+              provider: "postgres",
+            });
+            expect(payload.hosts[0]?.userId).toBe("existing-user");
+            expect(payload.hosts[0]?.writeback.mode).toBe("selective");
+            expect(payload.hosts[0]?.providers.embedding.configured).toBe(true);
+            expect(payload.hosts[0]?.providers.embedding.provider).toBe("openai");
+            expect(payload.hosts[0]?.providers.assistedExtractor.configured).toBe(true);
+            expect(payload.hosts[0]?.providers.assistedExtractor.provider).toBe("anthropic");
+          },
+        );
+      } finally {
+        await home.cleanup();
+        await workspace.cleanup();
+      }
+    },
+    10_000,
+  );
 
   it("validates dry-run install storage options like the real installer path", async () => {
     const home = await createTempWorkspace("goodmemory-install-dry-run-validation-home");

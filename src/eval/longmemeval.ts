@@ -19,6 +19,8 @@ export const LONGMEMEVAL_FULL_DATA_FILES = [
   "data/longmemeval_s_cleaned.json",
   "data/longmemeval_s.json",
 ] as const;
+const LONGMEMEVAL_ASSISTANT_EVIDENCE_FACT_LIMIT = 80;
+const LONGMEMEVAL_ASSISTANT_ANCHORED_FACT_LIMIT = 40;
 
 export type LongMemEvalProfile = (typeof LONGMEMEVAL_PROFILES)[number];
 export type LongMemEvalMode = "smoke" | "full";
@@ -768,7 +770,7 @@ function deriveEnumeratedAssistantFacts(content: string): string[] {
       continue;
     }
 
-    const bulletMatch = line.match(/^\s*[-*]\s+(.+)$/u);
+    const bulletMatch = line.match(/^\s*[-*]\s*(.+)$/u);
     if (!bulletMatch) {
       continue;
     }
@@ -791,6 +793,9 @@ function deriveEnumeratedAssistantFacts(content: string): string[] {
     numberedItems.length >= 2
       ? `Assistant enumerated list: ${numberedItems.join("; ")}.`
       : undefined,
+    numberedItems.length >= 2
+      ? `Assistant final enumerated item: ${numberedItems[numberedItems.length - 1]}.`
+      : undefined,
     ...nestedByHeading
       .filter((entry) => entry.items.length >= 2)
       .map(
@@ -802,13 +807,68 @@ function deriveEnumeratedAssistantFacts(content: string): string[] {
   return [...groupedFacts, ...facts];
 }
 
+function deriveAssistantTitleFacts(content: string): string[] {
+  const firstContentLine = content
+    .split(/\r?\n/u)
+    .map((line) => cleanExtractedValue(line.replace(/\*\*/gu, "")))
+    .find((line) =>
+      line.length >= 4 &&
+      line.length <= 120 &&
+      /[A-Za-z]/u.test(line) &&
+      !/^(?:sure|certainly|yes|no|here\b|as an ai language model\b)/iu.test(line)
+    );
+  if (!firstContentLine) {
+    return [];
+  }
+
+  return [`Assistant response title: ${firstContentLine}.`];
+}
+
 export function deriveLongMemEvalAssistantEvidenceFacts(content: string): string[] {
   return [
+    ...deriveAssistantTitleFacts(content),
     ...deriveMarkdownTableAssistantFacts(content),
     ...deriveImageAttributeAssistantFacts(content),
     ...deriveRestaurantAssistantFacts(content),
     ...deriveEnumeratedAssistantFacts(content),
-  ].slice(0, 12);
+  ].slice(0, LONGMEMEVAL_ASSISTANT_EVIDENCE_FACT_LIMIT);
+}
+
+function buildLongMemEvalAssistantTopicAnchor(input: {
+  assistantContent: string;
+  priorUserContents: readonly string[];
+}): string | null {
+  const requestContext = cleanExtractedValue(
+    input.priorUserContents.join(" ").slice(-360),
+  );
+  const title = deriveAssistantTitleFacts(input.assistantContent)[0]
+    ?.replace(/^Assistant response title:\s*/u, "")
+    .replace(/\.$/u, "");
+
+  if (requestContext && title) {
+    return `Assistant answer to prior user request "${requestContext}" titled "${title}"`;
+  }
+  if (requestContext) {
+    return `Assistant answer to prior user request "${requestContext}"`;
+  }
+  if (title) {
+    return `Assistant answer titled "${title}"`;
+  }
+  return null;
+}
+
+function deriveLongMemEvalAnchoredAssistantEvidenceFacts(input: {
+  assistantContent: string;
+  priorUserContents: readonly string[];
+}): string[] {
+  const anchor = buildLongMemEvalAssistantTopicAnchor(input);
+  if (!anchor) {
+    return [];
+  }
+
+  return deriveLongMemEvalAssistantEvidenceFacts(input.assistantContent)
+    .slice(0, LONGMEMEVAL_ASSISTANT_ANCHORED_FACT_LIMIT)
+    .map((fact) => `${anchor} includes: ${fact}`);
 }
 
 function isRecommendationStyleEvidenceTurn(content: string): boolean {
@@ -1868,32 +1928,20 @@ function buildLongMemEvalRememberPayload(input: {
       }
     }
 
-    if (turn.role === "user" && turn.hasAnswer !== true) {
-      for (const fact of deriveLongMemEvalCountableEvidenceFacts(turn.content)) {
-        const messageIndex = messages.length;
-        messages.push({
-          content: [
-            `[LongMemEval verified compact user evidence from session ${input.sessionId} on ${input.date}]`,
-            fact,
-          ].join(" "),
-          role: "user",
-        });
-        annotations.push(
-          buildLongMemEvalEvidenceAnnotation({
-            messageIndex,
-            reason:
-              "LongMemEval user turn contains countable durable evidence even without a turn-level answer marker.",
-            tags: ["compact_evidence"],
-          }),
-        );
-      }
-    }
-
     if (turn.role === "assistant" && turn.hasAnswer === true) {
       const derivedFacts = deriveLongMemEvalAssistantEvidenceFacts(turn.content);
+      const priorUserContents = input.session
+        .slice(0, turnIndex)
+        .filter((priorTurn) => priorTurn.role === "user")
+        .map((priorTurn) => priorTurn.content)
+        .slice(-4);
+      const anchoredFacts = deriveLongMemEvalAnchoredAssistantEvidenceFacts({
+        assistantContent: turn.content,
+        priorUserContents,
+      });
       const evidenceFacts =
-        derivedFacts.length > 0
-          ? derivedFacts
+        derivedFacts.length > 0 || anchoredFacts.length > 0
+          ? [...new Set([...derivedFacts, ...anchoredFacts])]
           : [`Assistant answer evidence: ${turn.content}`];
 
       for (const fact of evidenceFacts) {

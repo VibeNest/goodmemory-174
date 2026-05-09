@@ -84,49 +84,19 @@ Active Phase
 - External benchmark order: LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo.
 - Current accepted tooling: `eval:phase-62`, `gate:phase-62`, and
   `eval:phase-62-recall-diagnostic`.
-- Current live status:
-  - fixed 18-case type-balanced manifest: both GoodMemory profiles reached
-    18/18 answer accuracy with zero execution failures and zero wrong recall.
-  - 60-case type-balanced slice initially exposed broader weakness:
-    GoodMemory profiles reached 19/60 while `baseline-full-context` reached
-    55/60.
-  - post-repair rules-only live rerun now reaches 60/60 with evidence-session
-    recall 0.9292 and `executionFailures: 0`.
-  - post-household-issue hybrid live rerun now reaches 60/60 with
-    evidence-session recall 0.9292 and `executionFailures: 0`.
-- Current blocker: Phase 62 remains WIP after the clean full 500-case LongMemEval
-  execution
-  `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`.
-  Execution is closed (`executionFailures: 0`), but quality is not:
-  `baseline-full-context` is 454/500, `goodmemory-rules-only` is 344/500, and
-  `goodmemory-hybrid` is 337/500. This was recovered from failed profile/case
-  rows, not rerun from scratch for every clean row. The first post-full500
-  quality repair now
-  fixes four basic explicit personal-attribute misses (`dog breed`, `cat name`,
-  `undergraduate school`, `shampoo brand`) in a targeted live rules-only rerun,
-  and the second repair fixes six countable multi-session misses (`movie
-  festivals`, `baking`, `health devices`, `aquarium fish`, `kitchen items`,
-  `market earnings`) in provider-free recall plus a targeted live rules-only
-  rerun. The third repair fixes seven temporal-reasoning misses in
-  provider-free recall plus a targeted live rules-only rerun
-  `run-phase62-longmemeval-live-temporal-after-answerfacts-20260507T163300Z`
-  with 7/7 answer accuracy and `executionFailures: 0`. The fourth repair fixes
-  three additional multi-session aggregate misses (`game hours`, `wedding
-  attendance`, `babies born`) in provider-free recall plus
-  `run-phase62-longmemeval-live-multi-aggregate2-after-20260508T004900Z`
-  with 3/3 answer accuracy and `executionFailures: 0`. A later
-  provider-cooldown resume check retried only the one failed row
-  from `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T030000Z`
-  and produced
-  `run-phase62-longmemeval-full500-current-merged-after-retry-live-20260507T070500Z`
-  with `executionFailures: 0`; dry-run against the clean `033000Z` merged
-  report correctly produced no retry batches. A later real `gpt-5.5` cooldown
-  recovery used the same failed-row path: 9-way retry left 744 provider
-  failures, low-concurrency retry reduced that to 3, and final
-  single-concurrency retry produced the clean `191000Z` merge. The full-500
-  result still needs
-  broader quality repair. Do not open BEAM until the remaining multi-session
-  and temporal-reasoning gap is repaired or explicitly deferred.
+- Current live status: fixed 18-case and repaired 60-case slices are clean:
+  post-repair rules-only live rerun now reaches 60/60, and
+  post-household-issue hybrid live rerun now reaches 60/60.
+- Current blocker: Phase 62 remains WIP. The current-code full 500-case LongMemEval recovery
+  `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-hybrid-r1-merged-20260509T022500Z`
+  has `executionFailures: 0` across all four profiles and 500 cases, but
+  quality remains below the full-context baseline: baseline-full-context
+  461/500, goodmemory-rules-only 363/500, goodmemory-hybrid 361/500. Do not
+  open BEAM until the remaining gap is repaired or explicitly deferred.
+- Current recovery tooling status: Runtime AI SDK retry treats socket-closed,
+  `model_cooldown`, and usage-limit errors as transient. Failed-row recovery is
+  now the preferred path over shard reruns and supports `--batch-delay-ms`,
+  `--exclude-case-id`, and `--skip-case-id`.
 
 Documentation Hygiene
 ---------------------

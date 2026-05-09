@@ -4,12 +4,18 @@
 
 按顺序推进四个外部基准：LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo。每个基准都独立成一个工程阶段：先接入和跑通，再做失败分析，再补强 GoodMemory，最后用同一基准回测确认提升。最终报告放到全部四轮打磨完成之后，不提前做公开结论。
 
-Current execution status: Phase 62 LongMemEval is still active. Full-500
-execution is clean after failed-row recovery, and focused post-full500 repairs
-have closed explicit personal attributes, countable multi-session evidence, and
-a seven-case temporal-reasoning slice with targeted live reruns. BEAM remains
-blocked until the remaining LongMemEval full-500 quality gap is repaired or
-explicitly deferred.
+Current execution status: Phase 62 LongMemEval is still active. The current-code
+full-500 execution blocker is clean after failed-row recovery:
+`run-phase62-longmemeval-full500-current-after-generic-count-gpt55-hybrid-r1-merged-20260509T022500Z`
+has all four profiles across 500 cases with `executionFailures: 0`. The
+full-500 quality gap remains open: `baseline-full-context` is 461/500 (92.2%),
+`goodmemory-rules-only` is 363/500 (72.6%, evidence-session recall 0.7754), and
+`goodmemory-hybrid` is 361/500 (72.2%, evidence-session recall 0.7734).
+Runtime AI SDK retry now treats socket-closed, `model_cooldown`, and
+usage-limit provider errors as transient; the failed-row runner also supports
+serial `--batch-delay-ms` throttling plus `--exclude-case-id` / `--skip-case-id`
+for temporary provider-stuck bypasses. BEAM remains blocked until the remaining
+LongMemEval full-500 quality gap is repaired or explicitly deferred.
 
 核心原则：
 

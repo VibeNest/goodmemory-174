@@ -216,6 +216,40 @@ Workstreams
     `run-phase62-longmemeval-recall-only-multi-aggregate2-after-r2-20260508T004800Z`,
     and `run-phase62-longmemeval-live-multi-aggregate2-after-20260508T004900Z`
     confirms 3/3 live answer accuracy with `executionFailures: 0`.
+    A current-code fresh full-500 attempt after this repair,
+    `run-phase62-longmemeval-full500-current-after-generic-count-20260508T011800Z`,
+    is not closure evidence because provider cooldown, usage-limit, and socket
+    failures left 1262 execution failures. The recovery runner now supports
+    `--batch-delay-ms` for serial failed-row retries. A temporary `gpt-5.5`
+    override plus single-case throttling reduced the useful merged state to
+    1195 remaining provider failures in
+    `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-r2-slow10-merged-20260508T023000Z`.
+    Runtime AI SDK retry now treats socket-closed, `model_cooldown`, and
+    usage-limit errors as transient. With that protection, failed-row recovery
+    reduced the current-code merged state to 1009 remaining failures in
+    `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-resumed-baseline-r4-runtime-retry-merged-20260508T072000Z`:
+    `baseline-full-context` has 9 unresolved provider rows, and both GoodMemory
+    profiles still have 500 unresolved provider rows. A subsequent single-case
+    `gpt-5.5` probe still hit `model_cooldown`, so rerunning shards 02-10 is
+    not justified. Further retries should continue from the latest useful
+    merged source with low-rate
+    `eval:phase-62-full500-retry-failures` after provider stability returns.
+    Use `--exclude-case-id` / `--skip-case-id` only as a temporary bypass for
+    provider-stuck rows; skipped rows remain unresolved and must be retried
+    before closure.
+    Provider access later stabilized and the failed-row recovery path completed
+    the current-code full-500 run. `baseline-full-context` cleared its final 9
+    provider rows in
+    `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-resumed-baseline-r6-merged-20260509T011500Z`;
+    `goodmemory-rules-only` cleared all 500 rows in
+    `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-rules-only-r1-merged-20260509T012500Z`;
+    and `goodmemory-hybrid` cleared all 500 rows in
+    `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-hybrid-r1-merged-20260509T022500Z`.
+    The final current-code merged report has `executionFailures: 0` across all
+    four profiles and 500 cases. Quality remains below the full-context
+    baseline: `baseline-full-context` is 461/500, `goodmemory-rules-only` is
+    363/500, and `goodmemory-hybrid` is 361/500. This closes the current-code
+    full-500 execution blocker, but Phase 62 remains open for quality repair.
 
 4. Transition to BEAM
    - open the BEAM phase only after LongMemEval has a clear before/after delta

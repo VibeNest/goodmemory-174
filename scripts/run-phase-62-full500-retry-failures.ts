@@ -26,6 +26,7 @@ import type {
 } from "../src/eval/longmemeval";
 
 const DEFAULT_BATCH_CONCURRENCY = 1;
+const DEFAULT_BATCH_DELAY_MS = 0;
 const DEFAULT_CASE_CONCURRENCY = 1;
 const DEFAULT_CHUNK_SIZE = 10;
 const DEFAULT_EXPECTED_TOTAL_CASES = 500;
@@ -38,12 +39,14 @@ export interface Phase62FailureRetryBatch {
 
 export interface Phase62Full500RetryFailureOptions {
   batchConcurrency?: number;
+  batchDelayMs?: number;
   benchmarkRoot?: string;
   caseConcurrency?: number;
   chunkSize?: number;
   continueOnExecutionFailure?: boolean;
   dryRun?: boolean;
   expectedTotalCases?: number;
+  excludeCaseIds?: readonly string[];
   maxBatches?: number;
   mergedRunId?: string;
   outputDir?: string;
@@ -63,6 +66,7 @@ export interface Phase62Full500RetryFailureDependencies {
     options?: Parameters<typeof runPhase62Full500Summary>[0],
     dependencies?: Phase62Full500SummaryDependencies,
   ) => Promise<LongMemEvalReport>;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export interface Phase62Full500RetryFailureResult {
@@ -95,6 +99,21 @@ function parsePositiveInteger(
   return parsed;
 }
 
+function parseNonNegativeInteger(
+  value: string | undefined,
+  flagName: string,
+): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${flagName} must be a non-negative integer`);
+  }
+  return parsed;
+}
+
 function parseRepeatedFlag(
   argv: readonly string[],
   flagName: string,
@@ -112,6 +131,14 @@ function parseRepeatedFlag(
   return values.length === 0 ? undefined : values;
 }
 
+function parseCaseExclusionFlags(argv: readonly string[]): string[] | undefined {
+  const values = [
+    ...(parseRepeatedFlag(argv, "--exclude-case-id") ?? []),
+    ...(parseRepeatedFlag(argv, "--skip-case-id") ?? []),
+  ];
+  return values.length === 0 ? undefined : values;
+}
+
 function parsePhase62Full500RetryFailureOptions(
   argv: readonly string[],
 ): Phase62Full500RetryFailureOptions {
@@ -119,6 +146,10 @@ function parsePhase62Full500RetryFailureOptions(
     batchConcurrency: parsePositiveInteger(
       resolveCliFlagValue(argv, "--batch-concurrency"),
       "--batch-concurrency",
+    ),
+    batchDelayMs: parseNonNegativeInteger(
+      resolveCliFlagValue(argv, "--batch-delay-ms"),
+      "--batch-delay-ms",
     ),
     benchmarkRoot: resolveCliFlagValue(argv, "--benchmark-root"),
     caseConcurrency: parsePositiveInteger(
@@ -138,6 +169,7 @@ function parsePhase62Full500RetryFailureOptions(
       resolveCliFlagValue(argv, "--expected-total-cases"),
       "--expected-total-cases",
     ),
+    excludeCaseIds: parseCaseExclusionFlags(argv),
     maxBatches: parsePositiveInteger(
       resolveCliFlagValue(argv, "--max-batches"),
       "--max-batches",
@@ -237,6 +269,7 @@ function collectLatestCasesByProfile(input: {
 
 export function buildPhase62FailureRetryBatches(input: {
   chunkSize: number;
+  excludeCaseIds?: readonly string[];
   maxBatches?: number;
   profiles?: readonly string[];
   reports: readonly LongMemEvalReport[];
@@ -247,11 +280,14 @@ export function buildPhase62FailureRetryBatches(input: {
     profiles,
     reports: input.reports,
   });
+  const excludeCaseIds = new Set(input.excludeCaseIds ?? []);
   const batches: Phase62FailureRetryBatch[] = [];
 
   for (const profile of profiles) {
     const failedCaseIds = [...(latestCasesByProfile.get(profile)?.values() ?? [])]
-      .filter((caseResult) => caseResult.executionError)
+      .filter((caseResult) =>
+        caseResult.executionError && !excludeCaseIds.has(caseResult.questionId)
+      )
       .map((caseResult) => caseResult.questionId);
 
     for (
@@ -321,6 +357,10 @@ export async function runPhase62Full500FailureRetries(
     dependencies.readFile ?? ((path: string) => readFile(path, "utf8"));
   const runBatch = dependencies.runBatch ?? runPhase62LongMemEval;
   const summarize = dependencies.summarize ?? runPhase62Full500Summary;
+  const sleep =
+    dependencies.sleep ?? ((ms: number) => new Promise<void>((resolve) => {
+      setTimeout(resolve, ms);
+    }));
   const reports = await readSourceReports({
     outputDir,
     readFile: readFileImpl,
@@ -328,6 +368,7 @@ export async function runPhase62Full500FailureRetries(
   });
   const batches = buildPhase62FailureRetryBatches({
     chunkSize: options.chunkSize ?? DEFAULT_CHUNK_SIZE,
+    excludeCaseIds: options.excludeCaseIds,
     maxBatches: options.maxBatches,
     profiles: options.profiles,
     reports,
@@ -343,6 +384,7 @@ export async function runPhase62Full500FailureRetries(
   }
 
   const batchConcurrency = options.batchConcurrency ?? DEFAULT_BATCH_CONCURRENCY;
+  const batchDelayMs = options.batchDelayMs ?? DEFAULT_BATCH_DELAY_MS;
   const runSingleBatch = async (
     batch: Phase62FailureRetryBatch,
   ): Promise<LongMemEvalReport> => {
@@ -370,7 +412,8 @@ export async function runPhase62Full500FailureRetries(
     | undefined;
 
   if (!options.continueOnExecutionFailure && batchConcurrency === 1) {
-    for (const batch of batches) {
+    for (let index = 0; index < batches.length; index += 1) {
+      const batch = batches[index]!;
       const report = await runSingleBatch(batch);
       batchReports.push(report);
       executedBatches.push(batch);
@@ -383,6 +426,12 @@ export async function runPhase62Full500FailureRetries(
           `Phase 62 full-500 retry stopped after ${report.runId}; executionFailures=${report.summary.executionFailures}`,
         );
         break;
+      }
+      if (batchDelayMs > 0 && index < batches.length - 1) {
+        console.error(
+          `Phase 62 full-500 retry waiting ${batchDelayMs}ms before next batch`,
+        );
+        await sleep(batchDelayMs);
       }
     }
   } else {

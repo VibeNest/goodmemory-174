@@ -132,13 +132,16 @@ function resolveAISDKRetryDelayMs(
   const message = extractErrorMessage(error).toLowerCase();
   const slowRetry =
     message.includes("rate limit") ||
+    message.includes("usage limit") ||
     message.includes("timeout") ||
     message.includes("timed out") ||
     message.includes("temporarily unavailable") ||
     message.includes("invalid json response") ||
     message.includes("connection reset") ||
     message.includes("econnreset") ||
+    message.includes("socket connection was closed unexpectedly") ||
     message.includes("socket hang up") ||
+    message.includes("model_cooldown") ||
     message.includes("502") ||
     message.includes("503") ||
     message.includes("504");

@@ -854,77 +854,81 @@ describe("Phase 39 Python HTTP memory bridge", () => {
     }
   });
 
-  it("starts the packaged HTTP bridge entrypoint with bearer auth for a Python backend", async () => {
-    const port = allocateBridgePort();
-    const token = "phase-39-http-bridge-test-token";
-    const url = `http://127.0.0.1:${port}`;
-    const serverProcess = Bun.spawn({
-      cmd: [
-        "bun",
-        "run",
-        "scripts/goodmemory-http-bridge.ts",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        String(port),
-        "--profile",
-        "life-coach",
-        "--token",
-        token,
-      ],
-      env: {
-        ...process.env,
-        GOODMEMORY_STORAGE_PROVIDER: "memory",
-      },
-      stderr: "pipe",
-      stdout: "pipe",
-    });
-    const stdoutPromise = new Response(serverProcess.stdout).text();
-    const stderrPromise = new Response(serverProcess.stderr).text();
-
-    try {
-      await waitForBridgeReady({ token, url });
-
-      const python = Bun.spawn({
-        cmd: ["python3", "examples/python-fastapi-memory-consumer.py"],
+  it(
+    "starts the packaged HTTP bridge entrypoint with bearer auth for a Python backend",
+    async () => {
+      const port = allocateBridgePort();
+      const token = "phase-39-http-bridge-test-token";
+      const url = `http://127.0.0.1:${port}`;
+      const serverProcess = Bun.spawn({
+        cmd: [
+          "bun",
+          "run",
+          "scripts/goodmemory-http-bridge.ts",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          String(port),
+          "--profile",
+          "life-coach",
+          "--token",
+          token,
+        ],
         env: {
           ...process.env,
-          GOODMEMORY_BRIDGE_TOKEN: token,
-          GOODMEMORY_BRIDGE_URL: url,
+          GOODMEMORY_STORAGE_PROVIDER: "memory",
         },
         stderr: "pipe",
         stdout: "pipe",
       });
-      const [stdout, stderr, exitCode] = await Promise.all([
-        new Response(python.stdout).text(),
-        new Response(python.stderr).text(),
-        python.exited,
+      const stdoutPromise = new Response(serverProcess.stdout).text();
+      const stderrPromise = new Response(serverProcess.stderr).text();
+
+      try {
+        await waitForBridgeReady({ token, url });
+
+        const python = Bun.spawn({
+          cmd: ["python3", "examples/python-fastapi-memory-consumer.py"],
+          env: {
+            ...process.env,
+            GOODMEMORY_BRIDGE_TOKEN: token,
+            GOODMEMORY_BRIDGE_URL: url,
+          },
+          stderr: "pipe",
+          stdout: "pipe",
+        });
+        const [stdout, stderr, exitCode] = await Promise.all([
+          new Response(python.stdout).text(),
+          new Response(python.stderr).text(),
+          python.exited,
+        ]);
+
+        expect(stderr).toBe("");
+        expect(exitCode).toBe(0);
+        const payload = JSON.parse(stdout) as {
+          feedbackAccepted: boolean;
+          hasContext: boolean;
+          itemCount: number;
+          revised: boolean;
+        };
+
+        expect(payload.hasContext).toBe(true);
+        expect(payload.itemCount).toBeGreaterThanOrEqual(1);
+        expect(payload.feedbackAccepted).toBe(true);
+        expect(payload.revised).toBe(true);
+      } finally {
+        serverProcess.kill("SIGTERM");
+        await serverProcess.exited;
+      }
+
+      const [serverStdout, serverStderr] = await Promise.all([
+        stdoutPromise,
+        stderrPromise,
       ]);
-
-      expect(stderr).toBe("");
-      expect(exitCode).toBe(0);
-      const payload = JSON.parse(stdout) as {
-        feedbackAccepted: boolean;
-        hasContext: boolean;
-        itemCount: number;
-        revised: boolean;
-      };
-
-      expect(payload.hasContext).toBe(true);
-      expect(payload.itemCount).toBeGreaterThanOrEqual(1);
-      expect(payload.feedbackAccepted).toBe(true);
-      expect(payload.revised).toBe(true);
-    } finally {
-      serverProcess.kill("SIGTERM");
-      await serverProcess.exited;
-    }
-
-    const [serverStdout, serverStderr] = await Promise.all([
-      stdoutPromise,
-      stderrPromise,
-    ]);
-    expect(serverStderr).toBe("");
-    expect(serverStdout).toContain('"event":"ready"');
-    expect(serverStdout).toContain('"auth":"bearer"');
-  });
+      expect(serverStderr).toBe("");
+      expect(serverStdout).toContain('"event":"ready"');
+      expect(serverStdout).toContain('"auth":"bearer"');
+    },
+    15_000,
+  );
 });

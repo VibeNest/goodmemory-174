@@ -163,6 +163,105 @@ describe("run-phase-62 full-500 failure retries", () => {
     ]);
   });
 
+  it("excludes requested failed case ids from retry batches", () => {
+    const report = buildReport({
+      profiles: {
+        "baseline-full-context": [
+          buildCase({ executionError: true, questionId: "q-blocked" }),
+          buildCase({ executionError: true, questionId: "q-open" }),
+        ],
+        "goodmemory-rules-only": [
+          buildCase({ executionError: true, questionId: "q-blocked" }),
+          buildCase({ executionError: true, questionId: "q-rules" }),
+        ],
+      },
+      runId: "run-source",
+    });
+
+    expect(
+      buildPhase62FailureRetryBatches({
+        chunkSize: 10,
+        excludeCaseIds: ["q-blocked"],
+        profiles: ["baseline-full-context", "goodmemory-rules-only"],
+        reports: [report],
+        retryRunId: "run-retry",
+      }),
+    ).toEqual([
+      {
+        caseIds: ["q-open"],
+        profile: "baseline-full-context",
+        runId: "run-retry-baseline-full-context-batch-001",
+      },
+      {
+        caseIds: ["q-rules"],
+        profile: "goodmemory-rules-only",
+        runId: "run-retry-goodmemory-rules-only-batch-002",
+      },
+    ]);
+  });
+
+  it("passes excluded failed case ids through the runner", async () => {
+    const outputDir = "/tmp/phase62-full500-retry-test";
+    const sourceRunId = "run-source";
+    const sourceReport = buildReport({
+      profiles: {
+        "goodmemory-rules-only": [
+          buildCase({ executionError: true, questionId: "q-blocked" }),
+          buildCase({ executionError: true, questionId: "q-open" }),
+        ],
+      },
+      runId: sourceRunId,
+    });
+    const runBatchCalls: Array<{
+      caseIds?: readonly string[];
+      runId?: string;
+    }> = [];
+
+    await runPhase62Full500FailureRetries(
+      {
+        benchmarkRoot: "/tmp/LongMemEval",
+        chunkSize: 1,
+        excludeCaseIds: ["q-blocked"],
+        expectedTotalCases: 2,
+        outputDir,
+        retryRunId: "run-retry",
+        sourceRunIds: [sourceRunId],
+      },
+      {
+        readFile: async () => JSON.stringify(sourceReport),
+        runBatch: async (options) => {
+          runBatchCalls.push({
+            caseIds: options.caseIds,
+            runId: options.runId,
+          });
+          return buildReport({
+            profiles: {
+              "goodmemory-rules-only": [buildCase({ questionId: "q-open" })],
+            },
+            runId: String(options.runId),
+          });
+        },
+        summarize: async (options) =>
+          buildReport({
+            profiles: {
+              "goodmemory-rules-only": [
+                buildCase({ executionError: true, questionId: "q-blocked" }),
+                buildCase({ questionId: "q-open" }),
+              ],
+            },
+            runId: String(options?.runId),
+          }),
+      },
+    );
+
+    expect(runBatchCalls).toEqual([
+      {
+        caseIds: ["q-open"],
+        runId: "run-retry-goodmemory-rules-only-batch-001",
+      },
+    ]);
+  });
+
   it("runs retry batches and merges them over source reports", async () => {
     const outputDir = "/tmp/phase62-full500-retry-test";
     const sourceRunId = "run-source";
@@ -297,5 +396,128 @@ describe("run-phase-62 full-500 failure retries", () => {
       allowDuplicateCaseCoverage: true,
       shardRunIds: [sourceRunId, "run-retry-goodmemory-rules-only-batch-001"],
     });
+  });
+
+  it("waits between serial successful retry batches when configured", async () => {
+    const outputDir = "/tmp/phase62-full500-retry-test";
+    const sourceRunId = "run-source";
+    const sourceReport = buildReport({
+      profiles: {
+        "goodmemory-rules-only": [
+          buildCase({ executionError: true, questionId: "q-1" }),
+          buildCase({ executionError: true, questionId: "q-2" }),
+        ],
+      },
+      runId: sourceRunId,
+    });
+    const sleeps: number[] = [];
+    const runBatchCalls: string[] = [];
+
+    const result = await runPhase62Full500FailureRetries(
+      {
+        batchDelayMs: 2_500,
+        benchmarkRoot: "/tmp/LongMemEval",
+        chunkSize: 1,
+        expectedTotalCases: 2,
+        outputDir,
+        retryRunId: "run-retry",
+        sourceRunIds: [sourceRunId],
+      },
+      {
+        readFile: async () => JSON.stringify(sourceReport),
+        runBatch: async (options) => {
+          runBatchCalls.push(String(options.runId));
+          return buildReport({
+            profiles: {
+              "goodmemory-rules-only": [
+                buildCase({ questionId: String(options.caseIds?.[0]) }),
+              ],
+            },
+            runId: String(options.runId),
+          });
+        },
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        },
+        summarize: async (options) =>
+          buildReport({
+            profiles: {
+              "goodmemory-rules-only": [
+                buildCase({ questionId: "q-1" }),
+                buildCase({ questionId: "q-2" }),
+              ],
+            },
+            runId: String(options?.runId),
+          }),
+      },
+    );
+
+    expect(runBatchCalls).toEqual([
+      "run-retry-goodmemory-rules-only-batch-001",
+      "run-retry-goodmemory-rules-only-batch-002",
+    ]);
+    expect(sleeps).toEqual([2_500]);
+    expect(result.executedBatches).toHaveLength(2);
+  });
+
+  it("does not wait after a serial retry batch that still fails", async () => {
+    const outputDir = "/tmp/phase62-full500-retry-test";
+    const sourceRunId = "run-source";
+    const sourceReport = buildReport({
+      profiles: {
+        "goodmemory-rules-only": [
+          buildCase({ executionError: true, questionId: "q-1" }),
+          buildCase({ executionError: true, questionId: "q-2" }),
+        ],
+      },
+      runId: sourceRunId,
+    });
+    const sleeps: number[] = [];
+
+    const result = await runPhase62Full500FailureRetries(
+      {
+        batchDelayMs: 2_500,
+        benchmarkRoot: "/tmp/LongMemEval",
+        chunkSize: 1,
+        outputDir,
+        retryRunId: "run-retry",
+        sourceRunIds: [sourceRunId],
+      },
+      {
+        readFile: async () => JSON.stringify(sourceReport),
+        runBatch: async (options) =>
+          buildReport({
+            profiles: {
+              "goodmemory-rules-only": [
+                buildCase({
+                  executionError: true,
+                  questionId: String(options.caseIds?.[0]),
+                }),
+              ],
+            },
+            runId: String(options.runId),
+          }),
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        },
+        summarize: async (options) =>
+          buildReport({
+            profiles: {
+              "goodmemory-rules-only": [
+                buildCase({ executionError: true, questionId: "q-1" }),
+                buildCase({ executionError: true, questionId: "q-2" }),
+              ],
+            },
+            runId: String(options?.runId),
+          }),
+      },
+    );
+
+    expect(result.executedBatches).toHaveLength(1);
+    expect(result.stoppedOnExecutionFailure).toEqual({
+      executionFailures: 1,
+      runId: "run-retry-goodmemory-rules-only-batch-001",
+    });
+    expect(sleeps).toEqual([]);
   });
 });

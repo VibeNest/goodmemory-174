@@ -2454,6 +2454,20 @@ describe("LongMemEval adapter", () => {
     );
   });
 
+  it("preserves deeper assistant ordinal list evidence for numbered recall", () => {
+    const facts = deriveLongMemEvalAssistantEvidenceFacts(
+      Array.from(
+        { length: 30 },
+        (_, index) => `${index + 1}. Prompt parameter ${index + 1}`,
+      ).join("\n"),
+    );
+
+    expect(facts).toContain("Item 27: Prompt parameter 27");
+    expect(facts).toContainEqual(
+      expect.stringContaining("27. Prompt parameter 27"),
+    );
+  });
+
   it("groups nested assistant bullet evidence under list headings", () => {
     const facts = deriveLongMemEvalAssistantEvidenceFacts(
       [
@@ -2488,6 +2502,107 @@ describe("LongMemEval adapter", () => {
     expect(facts).toContainEqual(
       expect.stringContaining("Electronic Device Detox"),
     );
+  });
+
+  it("anchors assistant answer evidence to prior user request topics", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "Revolution Hall",
+        answer_session_ids: ["s-portland-venues"],
+        haystack_dates: ["2023/05/25"],
+        haystack_session_ids: ["s-portland-venues"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "Do you happen to know any specific venues in Portland that are popular among indie artists?",
+              role: "user",
+            },
+            {
+              content: [
+                "Sure! Here are some popular venues in Portland that are known to host indie music shows:",
+                "1. Mississippi Studios",
+                "2. Doug Fir Lounge",
+                "3. Wonder Ballroom",
+                "4. Crystal Ballroom",
+                "5. Holocene",
+                "6. Aladdin Theater",
+                "7. The Old Church",
+                "8. The Liquor Store",
+                "9. Alberta Street Pub",
+                "10. Revolution Hall",
+              ].join("\n"),
+              has_answer: true,
+              role: "assistant",
+            },
+          ],
+        ],
+        question:
+          "What was the last venue you recommended for Portland indie music shows?",
+        question_date: "2023/05/26",
+        question_id: "q-assistant-topic-anchor",
+        question_type: "single-session-assistant",
+      },
+    ]);
+    const createMemory = createLongMemEvalMemoryFactory(createGoodMemory);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createMemory("goodmemory-rules-only"),
+      runId: "run-longmemeval-assistant-topic-anchor",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-portland-venues");
+    expect(context.content).toContain("Revolution Hall");
+  });
+
+  it("anchors titled assistant answer evidence for previous-chat count recall", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "4",
+        answer_session_ids: ["s-djinn-temple"],
+        haystack_dates: ["2023/05/29"],
+        haystack_session_ids: ["s-djinn-temple"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "Create a D&D one shot for level 8 PCs with detailed enemy stat blocks.",
+              role: "user",
+            },
+            {
+              content: [
+                '"The Lost Temple of the Djinn"',
+                "",
+                "Here are the enemies the party will face:",
+                "* Mummies (4):",
+                "* Construct Guardians (2):",
+              ].join("\n"),
+              has_answer: true,
+              role: "assistant",
+            },
+          ],
+        ],
+        question:
+          "How many mummies will the party face in the Lost Temple of the Djinn?",
+        question_date: "2023/05/30",
+        question_id: "q-assistant-titled-count",
+        question_type: "single-session-assistant",
+      },
+    ]);
+    const createMemory = createLongMemEvalMemoryFactory(createGoodMemory);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => createMemory("goodmemory-rules-only"),
+      runId: "run-longmemeval-assistant-titled-count",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-djinn-temple");
+    expect(context.content).toContain("Mummies (4)");
+    expect(context.content).toContain("Lost Temple of the Djinn");
   });
 
   it("preserves assistant follow-up recommendations after verified user advice requests", async () => {
