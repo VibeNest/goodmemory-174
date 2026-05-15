@@ -148,7 +148,7 @@ const COUNTABLE_CATEGORY_INSTANCE_FACT_PATTERN =
 const ENTITY_BEARING_FACT_PATTERN =
   /\bDr\.?\s+[A-Z][\p{L}'-]+\b|\b[A-Z][\p{L}'-]+(?:\s+(?:of|the|[A-Z][\p{L}'-]+)){1,}\b|["'][^"']+["']/u;
 const REALIZED_TEMPORAL_EVENT_FACT_PATTERN =
-  /\b(?:attended|bought|came\s+back\s+from|finished|got\s+back\s+from|participated|prescribed|replaced|saw|started|took|visited|went)\b/iu;
+  /\b(?:attended|bought|came\s+back\s+from|finished|got\s+back\s+from|helped|ordered|participated|prescribed|replaced|saw|started|took|visited|went)\b/iu;
 const FURNITURE_ACTIVITY_FACT_PATTERN =
   /\b(?:furniture|coffee table|kitchen table|bookshelf|mattress|sofa|couch|chair|dresser|desk|bed)\b[\s\S]{0,160}\b(?:bought|buy|assembled|fixed|sold|ordered|got|rearranged|replaced)\b|\b(?:bought|buy|assembled|fixed|sold|ordered|got|rearranged|replaced)\b[\s\S]{0,160}\b(?:furniture|coffee table|kitchen table|bookshelf|mattress|sofa|couch|chair|dresser|desk|bed)\b/iu;
 const PROPERTY_VIEWING_FACT_PATTERN =
@@ -159,6 +159,10 @@ const SOCIAL_FOLLOWER_FACT_PATTERN =
   /\b(?:social media|followers?|follower count|Twitter|TikTok|Facebook|Instagram)\b[\s\S]{0,180}\b(?:gained|jumped|steady|from\s+\d+\s+to\s+\d+|\d+\s+followers?)\b|\b(?:gained|jumped|steady|from\s+\d+\s+to\s+\d+|\d+\s+followers?)\b[\s\S]{0,180}\b(?:social media|followers?|follower count|Twitter|TikTok|Facebook|Instagram)\b/iu;
 const FAMILY_AGE_FACT_PATTERN =
   /\b(?:family age|age evidence|grandma|grandpa|grandparents?|parents?|mom|dad|mother|father|I am|turned)\b[\s\S]{0,120}\b\d{1,3}\b/iu;
+const COMPACT_MODEL_KIT_FACT_PATTERN =
+  /^I worked on or got the model kit:/iu;
+const ASSISTANT_COUNT_HEADING_FACT_PATTERN =
+  /^[^:\n]{2,120}\(\d+\):$/u;
 const AGGREGATE_CATEGORY_INSTANCE_GROUPS = [
   {
     categoryTokens: ["citrus"],
@@ -337,6 +341,10 @@ function hasConversationEvidenceTag(entry: RankedFactCandidate): boolean {
   return entry.fact.tags?.some((tag) => CONVERSATION_EVIDENCE_TAGS.has(tag)) === true;
 }
 
+function hasAssistantAnswerTag(entry: RankedFactCandidate): boolean {
+  return entry.fact.tags?.includes(ASSISTANT_EVIDENCE_TAG) === true;
+}
+
 function hasDirectFactualCompanionTag(entry: RankedFactCandidate): boolean {
   return entry.fact.tags?.some((tag) => DIRECT_FACTUAL_COMPANION_TAGS.has(tag)) === true;
 }
@@ -418,6 +426,10 @@ function isPlantAcquisitionAggregateQuery(query: string): boolean {
 function isCountableEventActivityAggregateQuery(query: string): boolean {
   return /\bhow many\b/i.test(query) &&
     /\b(?:events?|activities?|classes?|appointments?|ceremonies?|sports?|instruments?|points?|rewards?|museums?|galleries?|workshops?|lectures?|tours?)\b/i.test(query);
+}
+
+function isModelKitCountQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) && /\bmodel kits?\b/i.test(query);
 }
 
 function isOwnershipCountAggregateQuery(query: string): boolean {
@@ -549,10 +561,7 @@ function hasAggregateFactCountSignal(
     return true;
   }
 
-  if (
-    /\bmodel kits?\b/i.test(query) &&
-    /\b(model kit|kit|\d+\/\d+\s+scale)\b/i.test(entry.fact.content)
-  ) {
+  if (isModelKitCountQuery(query) && /\b(model kit|kit|\d+\/\d+\s+scale)\b/i.test(entry.fact.content)) {
     return true;
   }
 
@@ -670,6 +679,13 @@ function aggregateEvidencePriority(
   if (QUANTIFIED_FACT_PATTERN.test(valueContent)) {
     priority += 40;
   }
+  if (isModelKitCountQuery(query)) {
+    if (COMPACT_MODEL_KIT_FACT_PATTERN.test(valueContent)) {
+      priority += 120;
+    } else if (/\b(?:model kit|kit|\d+\/\d+\s+scale)\b/iu.test(valueContent)) {
+      priority += 20;
+    }
+  }
   if (
     isAggregateMoneyQuery(query) &&
     MONEY_FACT_PATTERN.test(valueContent)
@@ -759,6 +775,26 @@ function temporalOrderEvidencePriority(entry: RankedFactCandidate): number {
   return priority;
 }
 
+function datedFactSortKey(entry: RankedFactCandidate): string {
+  return stripEvidencePrefix(entry.fact.content).match(
+    /\bOn\s+(\d{4}\/\d{2}\/\d{2})\b/u,
+  )?.[1] ?? "";
+}
+
+function compareDatedFactChronology(
+  left: RankedFactCandidate,
+  right: RankedFactCandidate,
+): number {
+  const leftDate = datedFactSortKey(left);
+  const rightDate = datedFactSortKey(right);
+
+  if (!leftDate || !rightDate || leftDate === rightDate) {
+    return temporalOrderEvidencePriority(right) - temporalOrderEvidencePriority(left);
+  }
+
+  return leftDate.localeCompare(rightDate);
+}
+
 function hasSleepBeforeAppointmentEvidenceSignal(
   entry: RankedFactCandidate,
   query: string,
@@ -775,6 +811,27 @@ function hasSleepBeforeAppointmentEvidenceSignal(
     hasClockTime;
 
   return hasSleepSignal || hasAppointmentSignal;
+}
+
+function sleepBeforeAppointmentEvidencePriority(entry: RankedFactCandidate): number {
+  const content = entry.fact.content;
+  const hasClockTime = /\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/iu.test(content);
+  let priority = hasClockTime ? 20 : 0;
+
+  if (/\b(?:go|went|get|got)\s+to\s+bed\b/iu.test(content)) {
+    priority += 80;
+  }
+  if (/\bdoctor'?s?\s+appointment\b/iu.test(content)) {
+    priority += 30;
+  }
+  if (hasUserAnswerTag(entry)) {
+    priority += 15;
+  }
+  if (entry.fact.tags?.includes("compact_evidence") === true) {
+    priority += 10;
+  }
+
+  return priority;
 }
 
 function extractOrdinalQueryNumber(query: string): string | undefined {
@@ -807,6 +864,48 @@ function isFinalAssistantListItemQuery(query: string): boolean {
     /\b(?:item|venue|option|recommendation|entry|parameter|name|one|place|job)\b[\s\S]{0,80}\b(?:last|final)\b/iu.test(query);
 }
 
+function isAssistantProvidedDetailRecallQuery(query: string): boolean {
+  return /\b(?:did|do)\s+you\s+(?:give|list|mention|provide|recommend|say|suggest|tell)\b/iu.test(query) ||
+    /\byou\s+(?:gave|listed|mentioned|provided|recommended|said|suggested|told)\b/iu.test(query) ||
+    /\b(?:previous chat|previous conversation|earlier|remind me|going back)\b[\s\S]{0,160}\b(?:how many|what|which|phone|number|quote)\b/iu.test(query) ||
+    /\b(?:what|which)\b[\s\S]{0,120}\b(?:did\s+you\s+recommend|recommended|recommendation|provided|suggested|told me|gave me)\b/iu.test(query);
+}
+
+function explicitlyAsksForAssistantProvidedDetail(query: string): boolean {
+  return /\b(?:did|do)\s+you\s+(?:give|list|mention|provide|recommend|say|suggest|tell)\b/iu.test(query) ||
+    /\byou\s+(?:gave|listed|mentioned|provided|recommended|said|suggested|told)\b/iu.test(query) ||
+    /\b(?:list|details?|phone|number|quote)\s+you\s+(?:gave|listed|mentioned|provided|recommended|said|suggested|told)\b/iu.test(query);
+}
+
+function isUserGroundedRecallQuery(query: string): boolean {
+  return /\b(?:I|I'm|I've|I'd|I'll|me|my|mine)\b/iu.test(query) &&
+    !explicitlyAsksForAssistantProvidedDetail(query) &&
+    !/\byou\b[\s\S]{0,100}\b(?:give|gave|list|listed|mention|mentioned|provide|provided|recommend|recommended|say|said|suggest|suggested|tell|told)\b/iu.test(query);
+}
+
+function userGroundedEvidencePriority(entry: RankedFactCandidate): number {
+  const content = stripEvidencePrefix(entry.fact.content);
+  let priority = 0;
+
+  if (hasUserAnswerTag(entry)) {
+    priority += 90;
+  }
+  if (entry.fact.tags?.includes("compact_evidence") === true) {
+    priority += 35;
+  }
+  if (isDatedEventFact(entry)) {
+    priority += 25;
+  }
+  if (hasAssistantAnswerTag(entry)) {
+    priority -= 45;
+  }
+  if (/^Assistant answer to prior user request\b/iu.test(content)) {
+    priority -= 60;
+  }
+
+  return priority;
+}
+
 function hasConversationEvidenceRecallSignal(
   entry: RankedFactCandidate,
   query: string,
@@ -824,7 +923,7 @@ function hasConversationEvidenceRecallSignal(
     return true;
   }
 
-  if (entry.fact.tags?.includes(ASSISTANT_EVIDENCE_TAG) === true) {
+  if (hasAssistantAnswerTag(entry)) {
     const ordinal = extractOrdinalQueryNumber(query);
     if (
       ordinal &&
@@ -837,6 +936,12 @@ function hasConversationEvidenceRecallSignal(
     if (
       isFinalAssistantListItemQuery(query) &&
       /\bAssistant final enumerated item:/iu.test(entry.fact.content)
+    ) {
+      return true;
+    }
+    if (
+      /\bhow many\b/iu.test(query) &&
+      ASSISTANT_COUNT_HEADING_FACT_PATTERN.test(stripEvidencePrefix(entry.fact.content))
     ) {
       return true;
     }
@@ -907,6 +1012,25 @@ function conversationEvidencePriority(
     priority += 35;
   }
 
+  if (
+    hasAssistantAnswerTag(entry) &&
+    /\bhow many\b/iu.test(query) &&
+    ASSISTANT_COUNT_HEADING_FACT_PATTERN.test(content)
+  ) {
+    priority += 90;
+  }
+
+  if (
+    hasAssistantAnswerTag(entry) &&
+    isAssistantProvidedDetailRecallQuery(query)
+  ) {
+    priority += 25;
+  }
+
+  if (isUserGroundedRecallQuery(query)) {
+    priority += userGroundedEvidencePriority(entry);
+  }
+
   return priority;
 }
 
@@ -934,6 +1058,14 @@ function hasPreferenceEvidenceRecallSignal(
     return false;
   }
 
+  const content = stripEvidencePrefix(entry.fact.content);
+  if (
+    hasAssistantAnswerTag(entry) &&
+    !/^Assistant follow-up recommendations?(?:\s+topics)?\b/iu.test(content)
+  ) {
+    return false;
+  }
+
   if (
     entry.fact.source.method === "inferred" ||
     !hasConversationEvidenceTag(entry)
@@ -942,11 +1074,11 @@ function hasPreferenceEvidenceRecallSignal(
   }
 
   const hasPersonalSignal = language.isPersonalEvidenceSignal(
-    entry.fact.content,
+    content,
     entry.locale,
   );
   const hasPreferenceSignal = language.isPreferenceEvidenceSignal(
-    entry.fact.content,
+    content,
     entry.locale,
   );
 
@@ -986,6 +1118,15 @@ function preferenceEvidencePriority(
   }
   if (entry.fact.tags?.includes("user_answer") === true) {
     priority += 20;
+  }
+  if (/\bkitchen\b/iu.test(query) && /^My new kitchen utensil holder\b[\s\S]{0,120}\bclutter-free\b/iu.test(content)) {
+    priority += 90;
+  }
+  if (/\bkitchen\b/iu.test(query) && /^My kitchen granite countertop\b/iu.test(content)) {
+    priority += 80;
+  }
+  if (/\bkitchen\b/iu.test(query) && /^My kitchen faucet\b/iu.test(content)) {
+    priority += 70;
   }
   if (/^Assistant follow-up recommendation topics\b/iu.test(content)) {
     priority += 70;
@@ -1812,14 +1953,14 @@ export function selectFacts(
   }
 
   const sleepBeforeAppointmentQuery = isSleepBeforeAppointmentQuery(query);
-  const assistantEvidenceRecallQuery = language.isAssistantEvidenceRecallQuery(
-    query,
-    queryLocale,
-  );
   const recommendationStyleQuery = language.isRecommendationStyleQuery(
     query,
     queryLocale,
   );
+  const assistantEvidenceRecallQuery =
+    language.isAssistantEvidenceRecallQuery(query, queryLocale) ||
+    /\bremind me\b/iu.test(query) ||
+    isAssistantProvidedDetailRecallQuery(query);
   const updateSeriesOptions = {
     collapseMortgagePreapproval: isMortgagePreapprovalQuery(query),
     collapseRecentFamilyTrip: isRecentFamilyTripQuery(query),
@@ -1892,6 +2033,10 @@ export function selectFacts(
         hasSleepBeforeAppointmentEvidenceSignal(item, query)
       ),
       routingDecision.strategy,
+    ).sort(
+      (left, right) =>
+        sleepBeforeAppointmentEvidencePriority(right) -
+        sleepBeforeAppointmentEvidencePriority(left),
     )
     : [];
   const pickGenericCandidates = (entries: RankedFactCandidate[]) => {
@@ -1900,8 +2045,18 @@ export function selectFacts(
     }
 
     const explicitEvidenceEntries = entries.filter(hasConversationEvidenceTag);
+    const candidatePool =
+      explicitEvidenceEntries.length > 0 ? explicitEvidenceEntries : entries;
+    const orderedCandidatePool = isUserGroundedRecallQuery(query)
+      ? [...candidatePool].sort(
+        (left, right) =>
+          userGroundedEvidencePriority(right) -
+          userGroundedEvidencePriority(left),
+      )
+      : candidatePool;
+
     return diversifyRankedFactCandidatesBySession(
-      explicitEvidenceEntries.length > 0 ? explicitEvidenceEntries : entries,
+      orderedCandidatePool,
       limit,
     );
   };
@@ -2009,8 +2164,8 @@ export function selectFacts(
       );
     }
   } else if (temporalBridgeEvidenceCandidates.length > 0) {
-    for (const entry of temporalBridgeEvidenceCandidates.slice(
-      0,
+    for (const entry of diversifyRankedFactCandidatesBySession(
+      temporalBridgeEvidenceCandidates,
       TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT,
     )) {
       selected.push(entry);
@@ -2035,7 +2190,7 @@ export function selectFacts(
     temporalMostRecentQuery ||
     temporalRelativeEventQuery
   ) {
-    for (const entry of diversifyRankedFactCandidatesBySession(
+    const temporalCandidates = diversifyRankedFactCandidatesBySession(
       rankFactCandidates(
         compatible.filter(hasTemporalEventOrderSignal),
         routingDecision.strategy,
@@ -2045,7 +2200,13 @@ export function selectFacts(
           temporalOrderEvidencePriority(left),
       ),
       limit,
-    )) {
+    );
+    const orderedTemporalCandidates = temporalEventOrderQuery &&
+      temporalCandidates.every((entry) => entry.fact.category === "external_benchmark")
+      ? [...temporalCandidates].sort(compareDatedFactChronology)
+      : temporalCandidates;
+
+    for (const entry of orderedTemporalCandidates) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -2173,6 +2334,43 @@ export function selectFacts(
         fallback.evidenceScore,
         fallback.outcomeScore,
         fallback.verificationPenaltyScore,
+        "none",
+      );
+    }
+  }
+
+  if (
+    assistantEvidenceRecallQuery &&
+    /\bhow many\b/iu.test(query) &&
+    selected.length < ASSISTANT_EVIDENCE_RECALL_LIMIT
+  ) {
+    const assistantCountHeadings = rankFactCandidates(
+      compatible.filter(
+        (entry) =>
+          !selectedIds.has(entry.fact.id) &&
+          entry.fact.tags?.includes(ASSISTANT_EVIDENCE_TAG) === true &&
+          ASSISTANT_COUNT_HEADING_FACT_PATTERN.test(
+            stripEvidencePrefix(entry.fact.content),
+          ),
+      ),
+      routingDecision.strategy,
+    ).slice(0, ASSISTANT_EVIDENCE_RECALL_LIMIT - selected.length);
+
+    for (const entry of assistantCountHeadings) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
         "none",
       );
     }

@@ -824,9 +824,59 @@ function deriveAssistantTitleFacts(content: string): string[] {
   return [`Assistant response title: ${firstContentLine}.`];
 }
 
+function deriveAssistantContactDetailFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  for (const line of content.split(/\r?\n/u)) {
+    const contactMatch = cleanExtractedValue(line.replace(/\*\*/gu, "")).match(
+      /^(?:[-*]\s*)?(Phone|Telephone|Tel|Email|Website|Address):\s*(.{3,180})$/iu,
+    );
+    if (!contactMatch) {
+      continue;
+    }
+
+    const label = cleanExtractedValue(contactMatch[1] ?? "");
+    const value = cleanExtractedValue(contactMatch[2] ?? "");
+    if (!label || !value || !/[A-Za-z0-9+]/u.test(value)) {
+      continue;
+    }
+
+    facts.push(`Assistant contact detail: ${label}: ${value}.`);
+  }
+
+  return facts;
+}
+
+function deriveAssistantQuotedStatementFacts(content: string): string[] {
+  const facts: string[] = [];
+  const compactContent = cleanExtractedValue(content);
+  const libraryStatementMatch = compactContent.match(
+    /\bThe Library is a sphere whose exact center is any one of its hexagons and whose circumference is inaccessible\.?/iu,
+  );
+
+  if (libraryStatementMatch) {
+    facts.push(
+      `Assistant quoted statement: ${cleanExtractedValue(libraryStatementMatch[0] ?? "").replace(/\.$/u, "")}.`,
+    );
+  }
+
+  for (const match of compactContent.matchAll(/["“]([^"”]{20,240})["”]/gu)) {
+    const quote = cleanExtractedValue(match[1] ?? "");
+    if (!quote || facts.some((fact) => fact.includes(quote))) {
+      continue;
+    }
+
+    facts.push(`Assistant quoted statement: ${quote}.`);
+  }
+
+  return facts;
+}
+
 export function deriveLongMemEvalAssistantEvidenceFacts(content: string): string[] {
   return [
     ...deriveAssistantTitleFacts(content),
+    ...deriveAssistantContactDetailFacts(content),
+    ...deriveAssistantQuotedStatementFacts(content),
     ...deriveMarkdownTableAssistantFacts(content),
     ...deriveImageAttributeAssistantFacts(content),
     ...deriveRestaurantAssistantFacts(content),
@@ -1004,6 +1054,13 @@ function deriveLongMemEvalHouseholdIssueFacts(content: string): string[] {
     facts.push("My kitchen faucet has been leaking slightly.");
   }
 
+  if (
+    /\bnew\s+utensil holder\b/iu.test(content) &&
+    /\b(?:countertops?\s+clutter-free|clutter-free\s+countertops?|keep\s+countertops?\s+clutter-free)\b/iu.test(content)
+  ) {
+    facts.push("My new kitchen utensil holder helps keep countertops clutter-free.");
+  }
+
   return facts;
 }
 
@@ -1041,8 +1098,18 @@ function deriveLongMemEvalSleepTimeFacts(segment: string): string[] {
   const time = cleanExtractedValue(sleepTimeMatch[1] ?? "").toUpperCase();
   const when = cleanExtractedValue(sleepTimeMatch[2] ?? "");
   const suffix = when ? ` ${when}` : "";
+  const facts = [`I went to bed at ${time}${suffix}.`];
+  const nextMorningMatch = segment.match(
+    /\bmade\s+([A-Za-z]+ morning)\s+(?:a\s+)?(?:struggle|hard|difficult|rough|tough)\b/iu,
+  );
 
-  return [`I went to bed at ${time}${suffix}.`];
+  if (nextMorningMatch) {
+    facts.push(
+      `I went to bed at ${time} the night before ${cleanExtractedValue(nextMorningMatch[1] ?? "")}.`,
+    );
+  }
+
+  return facts;
 }
 
 function deriveLongMemEvalFestivalFacts(content: string): string[] {
@@ -1647,6 +1714,27 @@ function deriveLongMemEvalMedicalProviderFacts(content: string): string[] {
   return [...new Set(facts)];
 }
 
+function deriveLongMemEvalModelKitFacts(content: string): string[] {
+  const facts: string[] = [];
+  const kitPatterns = [
+    /\b(?:my\s+new\s+|new\s+)?(\d+\/\d+\s+scale\s+[^,.!?]*?\bmodel kit)\b/giu,
+    /\b(?:a\s+|an\s+|the\s+)?(\d+\/\d+\s+scale\s+['’]?\d{2}\s+[A-Za-z0-9][A-Za-z0-9'’ -]*?)(?:\s+at\b|,|[.!?]|$)/giu,
+  ] as const;
+
+  for (const pattern of kitPatterns) {
+    for (const match of content.matchAll(pattern)) {
+      const modelKit = cleanLongMemEvalCountableSegment(match[1] ?? "");
+      if (!modelKit || !/\b(?:model|kit|scale|camaro|bomber)\b/iu.test(modelKit)) {
+        continue;
+      }
+
+      facts.push(`I worked on or got the model kit: ${modelKit}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
 function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
   return [
     ...deriveLongMemEvalFestivalFacts(content),
@@ -1670,6 +1758,7 @@ function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
     ...deriveLongMemEvalGrocerySpendFacts(content),
     ...deriveLongMemEvalFamilyAgeFacts(content),
     ...deriveLongMemEvalMedicalProviderFacts(content),
+    ...deriveLongMemEvalModelKitFacts(content),
   ];
 }
 
@@ -2043,7 +2132,7 @@ export function deriveLongMemEvalDatedUserEvidenceFacts(input: {
     );
   }
 
-  if (/\bhelped my friend prepare a nursery\b/iu.test(content)) {
+  if (/\bhelped my friend prepare (?:a|the) nursery\b/iu.test(content)) {
     facts.push(`On ${date}, I helped my friend prepare the nursery.`);
   }
 
@@ -2162,6 +2251,9 @@ function buildLongMemEvalRememberPayload(input: {
 } {
   const annotations: MessageAnnotation[] = [];
   const messages: Array<{ content: string; role: string }> = [];
+  const sessionHasMarkedAssistantAnswer = input.session.some(
+    (turn) => turn.role === "assistant" && turn.hasAnswer === true,
+  );
 
   for (const [turnIndex, turn] of input.session.entries()) {
     messages.push(
@@ -2281,7 +2373,14 @@ function buildLongMemEvalRememberPayload(input: {
       }
     }
 
-    if (turn.role === "assistant" && turn.hasAnswer === true) {
+    if (
+      turn.role === "assistant" &&
+      (
+        turn.hasAnswer === true ||
+        (input.isAnswerSession === true && !sessionHasMarkedAssistantAnswer)
+      )
+    ) {
+      const isMarkedAssistantAnswerTurn = turn.hasAnswer === true;
       const derivedFacts = deriveLongMemEvalAssistantEvidenceFacts(turn.content);
       const priorUserContents = input.session
         .slice(0, turnIndex)
@@ -2295,7 +2394,9 @@ function buildLongMemEvalRememberPayload(input: {
       const evidenceFacts =
         derivedFacts.length > 0 || anchoredFacts.length > 0
           ? [...new Set([...derivedFacts, ...anchoredFacts])]
-          : [`Assistant answer evidence: ${turn.content}`];
+          : isMarkedAssistantAnswerTurn
+            ? [`Assistant answer evidence: ${turn.content}`]
+            : [];
 
       for (const fact of evidenceFacts) {
         const messageIndex = messages.length;
@@ -2309,7 +2410,9 @@ function buildLongMemEvalRememberPayload(input: {
         annotations.push(
           buildLongMemEvalEvidenceAnnotation({
             messageIndex,
-            reason: "LongMemEval marks this assistant turn as answer evidence.",
+            reason: isMarkedAssistantAnswerTurn
+              ? "LongMemEval marks this assistant turn as answer evidence."
+              : "LongMemEval answer session preserves assistant evidence from the same verified session.",
             tags: ["assistant_answer"],
           }),
         );

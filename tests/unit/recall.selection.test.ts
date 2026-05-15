@@ -236,6 +236,74 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-noise")?.returned).toBe(false);
   });
 
+  it("prioritizes every compact model-kit fact before same-session advice for model-kit counts", () => {
+    const language = createLanguageService();
+    const facts = [
+      "simple Revell F-15 Eagle kit",
+      "Tamiya 1/48 scale Spitfire Mk.V",
+      "1/16 scale German Tiger I tank",
+      "1/72 scale B-29 bomber model kit",
+      "1/24 scale '69 Camaro",
+    ].map((modelKit, index) =>
+      createFactMemory({
+        id: `fact-model-kit-${index + 1}`,
+        userId: "user-1",
+        category: "external_benchmark",
+        content: `I worked on or got the model kit: ${modelKit}.`,
+        sessionId: index >= 3 ? "s-b29-camaro" : `s-model-${index}`,
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    );
+    facts.push(
+      createFactMemory({
+        id: "fact-model-advice",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Assistant answer to prior user request about model kits includes: Item 5: Experiment and have fun.",
+        sessionId: "s-b29-camaro",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-generic-model-context",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "On 2023/05/20, I just got this kit and a 1/24 scale '69 Camaro at a model show last weekend.",
+        sessionId: "s-b29-camaro",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    );
+
+    const result = selectFacts(
+      facts,
+      "How many model kits have I worked on or bought?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 5))).toEqual(
+      new Set([
+        "fact-model-kit-1",
+        "fact-model-kit-2",
+        "fact-model-kit-3",
+        "fact-model-kit-4",
+        "fact-model-kit-5",
+      ]),
+    );
+    expect(result.facts.map((fact) => fact.id)).not.toContain("fact-model-advice");
+  });
+
   it("keeps aggregate count queries out of open-loop slot suppression", () => {
     const language = createLanguageService();
     const facts = [
@@ -1506,6 +1574,82 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-profile-noise")?.returned).toBe(false);
   });
 
+  it("keeps assistant answer evidence eligible for did-you-recommend questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-user-request",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "On 2023/05/28, I was interested in a traditional game that requires skilled dancers.",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-hoop-dance",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Item 1: Hoop Dance - a traditional game that requires skilled dancers and coordinated movement.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Which traditional game did you recommend for skilled dancers?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain("fact-hoop-dance");
+  });
+
+  it("keeps assistant count headings eligible for previous-chat count questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-title",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "Assistant response title: The Lost Temple of the Djinn.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-mummies",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "Mummies (4):",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you remind me how many mummies the party will face in the Lost Temple of the Djinn?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain("fact-mummies");
+  });
+
   it("keeps verified user evidence eligible for previous-chat questions", () => {
     const language = createLanguageService();
     const facts = [
@@ -1533,6 +1677,45 @@ describe("recall selection", () => {
     );
 
     expect(result.facts.map((fact) => fact.id)).toEqual(["fact-user-answer"]);
+  });
+
+  it("prioritizes verified user evidence over assistant summaries for user-grounded previous-chat questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-assistant-summary",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Assistant answer to prior user request about Netflix includes: The interviewee suggests that Netflix should keep all seasons of old shows available for viewing.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-user-answer",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I want to have access to all seasons for old shows. For example, Doc Martin only had the last season available.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I wanted to check back on our previous conversation about Netflix. What show did I use as an example, the one that only had the last season available?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts[0]?.id).toBe("fact-user-answer");
   });
 
   it("falls back to generic fact selection when previous-chat wording has no tagged evidence", () => {
@@ -1685,6 +1868,114 @@ describe("recall selection", () => {
       "fact-evening-preference",
     ]);
     expect(result.traces.find((trace) => trace.memoryId === "fact-kitchen-leak")?.returned).toBe(false);
+  });
+
+  it("prioritizes compact kitchen setup evidence over same-session repair topics", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-faucet-topics",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Assistant follow-up recommendation topics for faucet repair: Visual Inspection; Leak Location; Aerator.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-countertop-topics",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Assistant follow-up recommendation topics for countertop scratches: Depth; Length; Baking Soda and Water.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-utensil-holder",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "My new kitchen utensil holder helps keep countertops clutter-free.",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-granite",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "My kitchen granite countertop near the sink has scratches.",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-faucet",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "My kitchen faucet has been leaking slightly.",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "My kitchen's becoming a bit of a mess again. Any tips for keeping it clean?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain("fact-utensil-holder");
+  });
+
+  it("does not treat generic assistant answer evidence as preference evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-assistant-course-advice",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Assistant answer to prior user request about data science courses includes: Machine Learning with Python; Deep Learning with Python.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-high-school",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I still remember happy high school experiences such as being part of the debate team and taking advanced placement courses in economics.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain("fact-high-school");
+    expect(result.facts.map((fact) => fact.id)).not.toContain(
+      "fact-assistant-course-advice",
+    );
   });
 
   it("returns trusted Chinese preference evidence for advice questions", () => {
@@ -1885,6 +2176,47 @@ describe("recall selection", () => {
     expect(result.facts.map((fact) => fact.id)).toEqual(["fact-trip-paris"]);
   });
 
+  it("orders sleep-before-appointment bridge evidence with the sleep time first", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-appointment",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "On 2023/05/24, I had a doctor's appointment at 10 AM last Thursday, and that's when I got the results.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-sleep",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "I went to bed at 2 AM last Wednesday.",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What time did I go to bed on the day before I had a doctor's appointment?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-sleep",
+      "fact-appointment",
+    ]);
+  });
+
   it("returns dated event facts for earliest-to-latest order questions", () => {
     const language = createLanguageService();
     const facts = [
@@ -1933,6 +2265,66 @@ describe("recall selection", () => {
       "fact-trip-yosemite",
       "fact-trip-muir-woods",
     ].sort());
+  });
+
+  it("prioritizes compact dated nursery facts for temporal event-order questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-nursery-generic",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "On 2023/02/05, I'm expecting a new baby in my social circle soon and I'm thinking of getting a gift.",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-nursery-dated",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "On 2023/02/05, I helped my friend prepare the nursery.",
+        source: SOURCE,
+        tags: ["answer_session", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-shower-dated",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "On 2023/02/10, I helped my cousin pick out stuff for her baby shower.",
+        source: SOURCE,
+        tags: ["answer_session", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-phone-dated",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "On 2023/02/20, I ordered a customized phone case for my friend's birthday.",
+        source: SOURCE,
+        tags: ["user_answer", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Which three events happened in the order from first to last: the day I helped my friend prepare the nursery, the day I helped my cousin pick out stuff for her baby shower, and the day I ordered a customized phone case for my friend's birthday?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-nursery-dated",
+      "fact-shower-dated",
+      "fact-phone-dated",
+    ]);
   });
 
   it("keeps appliesTo-distinct feedback variants separate and prioritizes coding-agent guidance", () => {

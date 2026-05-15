@@ -2295,6 +2295,132 @@ describe("LongMemEval adapter", () => {
     ]);
   });
 
+  it("treats unmarked assistant turns in LongMemEval answer sessions as verified adapter evidence", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "Hoop Dance",
+        answer_session_ids: ["s-hoop-dance"],
+        haystack_dates: ["2023/05/28"],
+        haystack_session_ids: ["s-hoop-dance"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "Can you suggest a traditional game that requires skilled dancers?",
+              role: "user",
+            },
+            {
+              content: [
+                "A fitting choice is Hoop Dance.",
+                "1. Hoop Dance - a traditional game that requires skilled dancers and coordinated movement.",
+              ].join("\n"),
+              role: "assistant",
+            },
+            {
+              content:
+                "Thanks, that is exactly the kind of skilled dance game I wanted.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question:
+          "Which traditional game did you recommend for skilled dancers?",
+        question_date: "2023/05/29",
+        question_id: "q-assistant-answer-session-unmarked",
+        question_type: "single-session-assistant",
+      },
+    ]);
+
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        createGoodMemory({
+          remember: {
+            profiles: [
+              {
+                assistantOutputs: { mode: "verified_only" },
+                id: "longmemeval-test",
+              },
+            ],
+          },
+          storage: {
+            provider: "memory",
+          },
+        }),
+      runId: "run-longmemeval-answer-session-assistant-evidence",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-hoop-dance");
+    expect(context.content).toContain("Hoop Dance");
+  });
+
+  it("does not preserve unmarked assistant turns when an answer session has marked assistant evidence", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "Miss Bee Providore",
+        answer_session_ids: ["s-bandung-restaurants"],
+        haystack_dates: ["2023/05/30"],
+        haystack_session_ids: ["s-bandung-restaurants"],
+        haystack_sessions: [
+          [
+            {
+              content: "What are some unique shopping experiences in Bandung?",
+              role: "user",
+            },
+            {
+              content:
+                "1. Cihampelas Walk: a shopping center famous for its denim street.",
+              role: "assistant",
+            },
+            {
+              content:
+                "Which restaurant in Cihampelas Walk serves a great Nasi Goreng?",
+              role: "user",
+            },
+            {
+              content:
+                "Miss Bee Providore serves a great Nasi Goreng in Cihampelas Walk.",
+              has_answer: true,
+              role: "assistant",
+            },
+          ],
+        ],
+        question:
+          "What is the restaurant in Cihampelas Walk that serves a great Nasi Goreng?",
+        question_date: "2023/05/31",
+        question_id: "q-marked-assistant-no-unmarked-noise",
+        question_type: "single-session-assistant",
+      },
+    ]);
+
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        createGoodMemory({
+          remember: {
+            profiles: [
+              {
+                assistantOutputs: { mode: "verified_only" },
+                id: "longmemeval-test",
+              },
+            ],
+          },
+          storage: {
+            provider: "memory",
+          },
+        }),
+      runId: "run-longmemeval-marked-assistant-no-unmarked-noise",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("Miss Bee Providore");
+    expect(context.content).not.toContain("denim street");
+  });
+
   it("preserves generic LongMemEval has-answer user turns as verified evidence", async () => {
     const [testCase] = validateLongMemEvalCases([
       {
@@ -2533,6 +2659,29 @@ describe("LongMemEval adapter", () => {
     expect(facts).toContain("Medical provider evidence: dermatologist Dr. Lee.");
   });
 
+  it("derives compact model-kit facts from scale and kit mentions", () => {
+    const facts = deriveLongMemEvalUserEvidenceFacts({
+      content:
+        "I'm looking for tips on photo-etching for my new 1/72 scale B-29 bomber model kit. By the way, I just got this kit and a 1/24 scale '69 Camaro at a model show last weekend.",
+      date: "2023/05/20",
+    });
+
+    expect(facts).toContain("I worked on or got the model kit: 1/72 scale B-29 bomber model kit.");
+    expect(facts).toContain("I worked on or got the model kit: 1/24 scale '69 Camaro.");
+  });
+
+  it("derives utensil-holder organization facts from kitchen preference turns", () => {
+    const facts = deriveLongMemEvalUserEvidenceFacts({
+      content:
+        "I also need some help with organizing my kitchen utensils, can you give me some tips on how to maximize the space in my utensil holder? I recently bought a new utensil holder to keep countertops clutter-free.",
+      date: "2023/05/22",
+    });
+
+    expect(facts).toContain(
+      "My new kitchen utensil holder helps keep countertops clutter-free.",
+    );
+  });
+
   it("derives dated guided-tour evidence for Modern Art Museum wording", () => {
     const facts = deriveLongMemEvalDatedUserEvidenceFacts({
       content:
@@ -2543,6 +2692,16 @@ describe("LongMemEval adapter", () => {
     expect(facts).toContain(
       "On 2023/02/20, I visited the Modern Art Museum for a guided tour.",
     );
+  });
+
+  it("derives dated nursery evidence for the-nursery wording", () => {
+    const facts = deriveLongMemEvalDatedUserEvidenceFacts({
+      content:
+        "I just helped my friend prepare the nursery today, and we spent an entire Sunday afternoon shopping for baby supplies and decorations.",
+      date: "2023/02/05",
+    });
+
+    expect(facts).toContain("On 2023/02/05, I helped my friend prepare the nursery.");
   });
 
   it("recalls explicit personal attributes from natural verified user turns", async () => {
@@ -3089,6 +3248,9 @@ describe("LongMemEval adapter", () => {
     expect(context.retrievedSessionIds).toContain("s-appointment");
     expect(context.retrievedSessionIds).toContain("s-sleep");
     expect(context.content).toContain("didn't get to bed until 2 AM last Wednesday");
+    expect(context.content).toContain(
+      "I went to bed at 2 AM the night before Thursday morning.",
+    );
   });
 
   it("derives compact assistant list evidence from LongMemEval answer turns", () => {
@@ -3180,6 +3342,23 @@ describe("LongMemEval adapter", () => {
     );
     expect(facts).toContainEqual(
       expect.stringContaining("Electronic Device Detox"),
+    );
+  });
+
+  it("derives assistant phone and quoted-statement evidence", () => {
+    const facts = deriveLongMemEvalAssistantEvidenceFacts(
+      [
+        "Speyer Cathedral",
+        "Phone: +49 (0) 62 32 / 14 23 - 0",
+        "The Library is a sphere whose exact center is any one of its hexagons and whose circumference is inaccessible.",
+      ].join("\n"),
+    );
+
+    expect(facts).toContain(
+      "Assistant contact detail: Phone: +49 (0) 62 32 / 14 23 - 0.",
+    );
+    expect(facts).toContain(
+      "Assistant quoted statement: The Library is a sphere whose exact center is any one of its hexagons and whose circumference is inaccessible.",
     );
   });
 
