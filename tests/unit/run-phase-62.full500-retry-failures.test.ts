@@ -310,6 +310,7 @@ describe("run-phase-62 full-500 failure retries", () => {
         expectedTotalCases: 1,
         mergedRunId: "run-merged",
         outputDir,
+        profiles: ["goodmemory-rules-only"],
         retryRunId: "run-retry",
         sourceRunIds: [sourceRunId],
       },
@@ -354,6 +355,7 @@ describe("run-phase-62 full-500 failure retries", () => {
       allowDuplicateCaseCoverage: true,
       expectedTotalCases: 1,
       outputDir,
+      profiles: ["goodmemory-rules-only"],
       runId: "run-merged",
       shardRunIds: [sourceRunId, "run-retry-goodmemory-rules-only-batch-001"],
     });

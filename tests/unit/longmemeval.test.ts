@@ -5,6 +5,8 @@ import { createLongMemEvalMemoryFactory } from "../../scripts/run-phase-62-eval"
 import {
   createLongMemEvalGoodMemoryContextBuilder,
   deriveLongMemEvalAssistantEvidenceFacts,
+  deriveLongMemEvalDatedUserEvidenceFacts,
+  deriveLongMemEvalUserEvidenceFacts,
   normalizeLongMemEvalProfileList,
   runLongMemEvalRecallDiagnostic,
   runLongMemEvalSuite,
@@ -2495,6 +2497,52 @@ describe("LongMemEval adapter", () => {
       expect(context.retrievedSessionIds).toEqual(testCase.answerSessionIds);
       expect(context.content).toContain(expectedSnippets[index]);
     }
+  });
+
+  it("preserves abbreviated named entities in compact verified user evidence", () => {
+    const facts = deriveLongMemEvalUserEvidenceFacts({
+      content:
+        "I recently had a UTI and was prescribed antibiotics by my primary care physician, Dr. Smith, so I'm not sure if that's still affecting me.",
+      date: "2023/05/21",
+    });
+
+    expect(facts).toContain(
+      "On 2023/05/21, I recently had a UTI and was prescribed antibiotics by my primary care physician, Dr. Smith, so I'm not sure if that's still affecting me.",
+    );
+  });
+
+  it("drops prefixed question-only turns from compact verified user evidence", () => {
+    const facts = deriveLongMemEvalUserEvidenceFacts({
+      content:
+        "And also, do you think I should talk to Dr. Smith about my sinusitis diagnosis and treatment plan?",
+      date: "2023/05/21",
+    });
+
+    expect(facts).toEqual([]);
+  });
+
+  it("derives compact medical-provider facts from named provider mentions", () => {
+    const facts = deriveLongMemEvalUserEvidenceFacts({
+      content:
+        "I recently had a UTI and was prescribed antibiotics by my primary care physician, Dr. Smith. I just got diagnosed with chronic sinusitis by an ENT specialist, Dr. Patel. I got back from a follow-up appointment with my dermatologist, Dr. Lee.",
+      date: "2023/05/21",
+    });
+
+    expect(facts).toContain("Medical provider evidence: primary care physician Dr. Smith.");
+    expect(facts).toContain("Medical provider evidence: ENT specialist Dr. Patel.");
+    expect(facts).toContain("Medical provider evidence: dermatologist Dr. Lee.");
+  });
+
+  it("derives dated guided-tour evidence for Modern Art Museum wording", () => {
+    const facts = deriveLongMemEvalDatedUserEvidenceFacts({
+      content:
+        "I'm planning to visit the Modern Art Museum again soon. By the way, I attended their guided tour of \"The Evolution of Abstract Expressionism\" today.",
+      date: "2023/02/20",
+    });
+
+    expect(facts).toContain(
+      "On 2023/02/20, I visited the Modern Art Museum for a guided tour.",
+    );
   });
 
   it("recalls explicit personal attributes from natural verified user turns", async () => {

@@ -379,12 +379,358 @@ describe("recall selection", () => {
       TIMESTAMP,
     );
 
-    expect(result.facts.map((fact) => fact.id).slice(0, 3)).toEqual([
-      "fact-coast-hours",
-      "fact-dc-hours",
-      "fact-mountains-hours",
-    ]);
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 3))).toEqual(
+      new Set(["fact-coast-hours", "fact-dc-hours", "fact-mountains-hours"]),
+    );
     expect(result.facts.findIndex((fact) => fact.id === "fact-coast-topic")).toBeGreaterThan(2);
+  });
+
+  it("prefers entity-bearing aggregate evidence within a session before generic topic evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-doctor-topic",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/20, I think I have a good understanding of what questions to ask my doctor before the procedure.",
+        sessionId: "s-colonoscopy",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-ent-provider",
+        userId: "user-1",
+        category: "event",
+        content:
+          "I was diagnosed with chronic sinusitis by an ENT specialist, Dr. Patel.",
+        sessionId: "s-colonoscopy",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-dermatologist-provider",
+        userId: "user-1",
+        category: "event",
+        content:
+          "I had a follow-up appointment with my dermatologist, Dr. Lee.",
+        sessionId: "s-dermatology",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different doctors did I visit?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-ent-provider", "fact-dermatologist-provider"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-doctor-topic")).toBeGreaterThan(1);
+  });
+
+  it("prefers named medical-provider evidence within a session before generic provider evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-generic-ent",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, I've recently been diagnosed with it by an ENT specialist, but I haven't really had a chance to research it yet.",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-dr-smith",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, I recently had a UTI and was prescribed antibiotics by my primary care physician, Dr. Smith.",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-dr-lee",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/20, I just got back from a follow-up appointment with my dermatologist, Dr. Lee.",
+        sessionId: "s-dermatology",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different doctors did I visit?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-dr-smith", "fact-dr-lee"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-generic-ent")).toBeGreaterThan(1);
+  });
+
+  it("prefers realized provider evidence before question-only provider mentions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-dr-smith-question",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, And also, do you think I should talk to Dr. Smith about my sinusitis diagnosis and treatment plan?",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-dr-smith-prescribed",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, I recently had a UTI and was prescribed antibiotics by my primary care physician, Dr. Smith.",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-dr-lee-followup",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/20, I just got back from a follow-up appointment with my dermatologist, Dr. Lee.",
+        sessionId: "s-dermatology",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different doctors did I visit?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-dr-smith-prescribed", "fact-dr-lee-followup"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-dr-smith-question")).toBeGreaterThan(1);
+  });
+
+  it("prefers marked user-answer evidence before same-session aggregate distractors", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-answer-session-distractor",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, I've recently been diagnosed with it by an ENT specialist, but I haven't really had a chance to research it yet.",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["answer_session", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-user-answer-dr-smith",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, I recently had a UTI and was prescribed antibiotics by my primary care physician, Dr. Smith.",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-user-answer-dr-lee",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/20, I just got back from a follow-up appointment with my dermatologist, Dr. Lee.",
+        sessionId: "s-dermatology",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different doctors did I visit?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-user-answer-dr-smith", "fact-user-answer-dr-lee"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-answer-session-distractor")).toBeGreaterThan(1);
+  });
+
+  it("keeps distinct named providers ahead of generic same-session doctor evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-dr-smith",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, I recently had a UTI and was prescribed antibiotics by my primary care physician, Dr. Smith, so I'm not sure if that's still affecting me.",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-generic-ent",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, I've recently been diagnosed with it by an ENT specialist, but I haven't really had a chance to research it yet.",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-dr-patel",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/22, I just got diagnosed with chronic sinusitis by an ENT specialist, Dr. Patel, and she prescribed a nasal spray.",
+        sessionId: "s-ent",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-dr-lee",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/20, I just got back from a follow-up appointment with my dermatologist, Dr. Lee, to get a biopsy on a suspicious mole on my back, and thankfully it was benign.",
+        sessionId: "s-dermatology",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different doctors did I visit?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 3))).toEqual(
+      new Set(["fact-dr-smith", "fact-dr-patel", "fact-dr-lee"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-generic-ent")).toBeGreaterThan(2);
+  });
+
+  it("prioritizes compact medical-provider facts for aggregate doctor counts", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-provider-smith",
+        userId: "user-1",
+        category: "event",
+        content: "Medical provider evidence: primary care physician Dr. Smith.",
+        sessionId: "s-primary-care",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-provider-patel",
+        userId: "user-1",
+        category: "event",
+        content: "Medical provider evidence: ENT specialist Dr. Patel.",
+        sessionId: "s-ent",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-provider-lee",
+        userId: "user-1",
+        category: "event",
+        content: "Medical provider evidence: dermatologist Dr. Lee.",
+        sessionId: "s-dermatology",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-provider-noise",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/22, I recently had a urinary tract infection and was prescribed antibiotics.",
+        sessionId: "s-ent",
+        source: SOURCE,
+        tags: ["user_answer", "compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different doctors did I visit?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 3))).toEqual(
+      new Set(["fact-provider-smith", "fact-provider-patel", "fact-provider-lee"]),
+    );
   });
 
   it("keeps category-instance evidence for aggregate count queries when facts name examples instead of the category", () => {
@@ -794,6 +1140,281 @@ describe("recall selection", () => {
       new Set(["fact-patel-lee", "fact-smith"]),
     );
     expect(result.traces.find((trace) => trace.memoryId === "fact-no-provider")?.returned).toBe(false);
+  });
+
+  it("prefers entity-bearing temporal-order evidence within a session before generic topic evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-museum-topic",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/01/15, I was interested in other exhibitions or museums that might be of interest to us.",
+        sessionId: "s-science",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-science-museum",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/01/15, I visited the Science Museum with my family.",
+        sessionId: "s-science",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-metropolitan-museum",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/02/20, I visited the Metropolitan Museum of Art.",
+        sessionId: "s-metropolitan",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the order of the museums I visited from earliest to latest?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-science-museum", "fact-metropolitan-museum"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-museum-topic")).toBeGreaterThan(1);
+  });
+
+  it("prefers realized temporal-order events before future named-entity mentions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-childrens-museum-plan",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/03/04, I'll definitely check the Children's Museum's website to see what exhibits they have.",
+        sessionId: "s-natural-history",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-natural-history-visit",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/03/04, I took my niece to the Natural History Museum to see the Dinosaur Fossils exhibition today.",
+        sessionId: "s-natural-history",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-science-museum-visit",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/01/15, I visited the Science Museum with my colleague.",
+        sessionId: "s-science",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the order of the museums I visited from earliest to latest?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-natural-history-visit", "fact-science-museum-visit"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-childrens-museum-plan")).toBeGreaterThan(1);
+  });
+
+  it("prefers realized temporal-order events before adjacent named-entity facts", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-dinner-party",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/01/22, I've always been fascinated by The Dinner Party, and I appreciate how it's become an iconic symbol of feminist art.",
+        sessionId: "s-moca",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-moca-lecture",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/01/22, Speaking of feminist art, I just came back from a lecture series at the Museum of Contemporary Art.",
+        sessionId: "s-moca",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-science-museum-visit",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/01/15, I visited the Science Museum with my colleague.",
+        sessionId: "s-science",
+        source: SOURCE,
+        tags: ["dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the order of the museums I visited from earliest to latest?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-moca-lecture", "fact-science-museum-visit"]),
+    );
+    expect(result.facts.map((fact) => fact.id)).not.toContain("fact-dinner-party");
+  });
+
+  it("prefers marked user-answer temporal evidence before same-session distractors", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-answer-session-moca-distractor",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/03/04, I'm interested in learning more about the Museum of Contemporary Art, where I attended a lectures series recently.",
+        sessionId: "s-natural-history",
+        source: SOURCE,
+        tags: ["answer_session", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-user-answer-natural-history",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/03/04, I took my niece to the Natural History Museum to see the Dinosaur Fossils exhibition today.",
+        sessionId: "s-natural-history",
+        source: SOURCE,
+        tags: ["user_answer", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-user-answer-science-museum",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/01/15, I visited the Science Museum with my colleague.",
+        sessionId: "s-science",
+        source: SOURCE,
+        tags: ["user_answer", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the order of the museums I visited from earliest to latest?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-user-answer-natural-history", "fact-user-answer-science-museum"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-answer-session-moca-distractor")).toBeGreaterThan(1);
+  });
+
+  it("prefers temporal-order facts that retain the queried entity name", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-modern-art-pronoun",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/02/20, I attended their guided tour of The Evolution of Abstract Expressionism today.",
+        sessionId: "s-modern-art",
+        source: SOURCE,
+        tags: ["user_answer", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-modern-art-museum",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/02/20, I recently attended a guided tour of the Modern Art Museum's The Evolution of Abstract Expressionism.",
+        sessionId: "s-modern-art",
+        source: SOURCE,
+        tags: ["user_answer", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-science-museum",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/01/15, I visited the Science Museum with my colleague.",
+        sessionId: "s-science",
+        source: SOURCE,
+        tags: ["user_answer", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the order of the museums I visited from earliest to latest?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id).slice(0, 2))).toEqual(
+      new Set(["fact-modern-art-museum", "fact-science-museum"]),
+    );
+    expect(result.facts.findIndex((fact) => fact.id === "fact-modern-art-pronoun")).toBeGreaterThan(1);
   });
 
   it("returns ownership facts for aggregate current-count queries", () => {

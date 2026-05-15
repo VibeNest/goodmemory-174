@@ -351,8 +351,37 @@ Workstreams
     confirms a real answer-quality lift: rules-only improves from 345/500 to
     368/500 with evidence-session recall 0.8961, missed recall 83, wrong recall
     6, and `executionFailures: 0`. It is still not a Phase 62 quality close
-    signal because hybrid needs the same current-code verification and
-    full-context remains 451/500 in the latest unified four-profile run.
+    signal. The matching current-code hybrid rerun plus failed-row recovery
+    `run-phase62-longmemeval-full500-current-after-direct-factual-companions-hybrid-retry-r1-merged-20260515T023000Z`
+    reaches 385/500 with evidence-session recall 0.8945, missed recall 84,
+    wrong recall 6, and `executionFailures: 0`; the recovery path now handles
+    single-profile merged reports and preserves `_abs` abstention accounting.
+    Full-context remains 451/500 in the latest unified four-profile run, so the
+    next repair target is enough-evidence assembly inside already-retrieved
+    sessions rather than raw session recall.
+    A sixth repair now targets that layer directly. Aggregate selection
+    prioritizes facts whose body actually carries quantities, money values,
+    temporal endpoints, or category-instance evidence before session
+    diversification after stripping evidence prefixes and leading
+    `On YYYY/MM/DD,` wrappers from the value-bearing check. The targeted
+    provider-free diagnostic
+    `run-phase62-recall-diagnostic-rules-only-aggregate-value-priority-targeted-r2-20260515T021500Z`
+    keeps `aae3761f` and `c4a1ceb8` at evidence-session recall 1.0 with wrong
+    recall 0. The targeted live runs
+    `run-phase62-longmemeval-live-aggregate-value-priority-targeted-20260515T024000Z`
+    and
+    `run-phase62-longmemeval-live-aggregate-value-priority-hybrid-targeted-20260515T030000Z`
+    answer both cases 2/2 correctly for rules-only and hybrid. The fresh
+    rules-only full-500 rerun
+    `run-phase62-longmemeval-full500-current-after-aggregate-value-priority-rules-only-20260515T024500Z`
+    reaches 377/500 with evidence-session recall 0.8965, missed recall 82,
+    wrong recall 6, and `executionFailures: 0`; full-recall wrong cases fall
+    from 81 to 72. The matching hybrid full-500 current-code rerun
+    `run-phase62-longmemeval-full500-current-after-aggregate-value-priority-hybrid-20260515T030500Z`
+    lands at 386/500 with evidence-session recall 0.8945, missed recall 84,
+    wrong recall 6, and `executionFailures: 0`, only one answer above the
+    direct-factual hybrid run. That keeps the next repair target on
+    answer-evidence assembly rather than raw session recall.
 
 4. Transition to BEAM
    - open the BEAM phase only after LongMemEval has a clear before/after delta

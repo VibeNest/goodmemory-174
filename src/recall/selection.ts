@@ -131,6 +131,10 @@ const ACCOMMODATION_COST_FACT_PATTERN =
   /\b(?:accommodations?|lodging|hotel|hostel|resort|motel|airbnb|room|stay|stayed|booked)\b[\s\S]{0,160}\b(?:cost|costs|costing|paid|price|prices|spent|spend|per\s+night|\$\s*\d)\b|\b(?:cost|costs|costing|paid|price|prices|spent|spend|per\s+night|\$\s*\d)\b[\s\S]{0,160}\b(?:accommodations?|lodging|hotel|hostel|resort|motel|airbnb|room)\b/iu;
 const MEDICAL_PROVIDER_FACT_PATTERN =
   /\b(?:dr\.?\s+[a-z][a-z'-]+|doctor|doctors|physician|dermatologist|ent specialist|specialist)\b/iu;
+const NAMED_MEDICAL_PROVIDER_FACT_PATTERN =
+  /\bdr\.?\s+[a-z][a-z'-]+\b/iu;
+const COMPACT_MEDICAL_PROVIDER_FACT_PATTERN =
+  /^Medical provider evidence:/iu;
 const OWNERSHIP_COUNT_FACT_PATTERN =
   /\b(?:have|has|own|owns|owned|currently have|with me|bring|bringing|using|new one|purchased)\b/iu;
 const PLANT_ACQUISITION_FACT_PATTERN =
@@ -141,6 +145,10 @@ const COUNTABLE_EVENT_ACTIVITY_FACT_PATTERN =
   /\b(?:event|events|activity|activities|attended|attending|visited|visit|volunteered|participated|museum|museums|gallery|galleries|class|classes|appointment|appointments|ceremony|ceremonies|sport|sports|instrument|instruments|points?|rewards?)\b/iu;
 const COUNTABLE_CATEGORY_INSTANCE_FACT_PATTERN =
   /\b(?:added|ate|attended|attending|bought|contains?|cook(?:ed|ing)?|drink|drank|have|had|includes?|learn(?:ed)?|made|make|ordered|own|served|tried|use|used|using|with)\b/iu;
+const ENTITY_BEARING_FACT_PATTERN =
+  /\bDr\.?\s+[A-Z][\p{L}'-]+\b|\b[A-Z][\p{L}'-]+(?:\s+(?:of|the|[A-Z][\p{L}'-]+)){1,}\b|["'][^"']+["']/u;
+const REALIZED_TEMPORAL_EVENT_FACT_PATTERN =
+  /\b(?:attended|bought|came\s+back\s+from|finished|got\s+back\s+from|participated|prescribed|replaced|saw|started|took|visited|went)\b/iu;
 const FURNITURE_ACTIVITY_FACT_PATTERN =
   /\b(?:furniture|coffee table|kitchen table|bookshelf|mattress|sofa|couch|chair|dresser|desk|bed)\b[\s\S]{0,160}\b(?:bought|buy|assembled|fixed|sold|ordered|got|rearranged|replaced)\b|\b(?:bought|buy|assembled|fixed|sold|ordered|got|rearranged|replaced)\b[\s\S]{0,160}\b(?:furniture|coffee table|kitchen table|bookshelf|mattress|sofa|couch|chair|dresser|desk|bed)\b/iu;
 const PROPERTY_VIEWING_FACT_PATTERN =
@@ -331,6 +339,10 @@ function hasConversationEvidenceTag(entry: RankedFactCandidate): boolean {
 
 function hasDirectFactualCompanionTag(entry: RankedFactCandidate): boolean {
   return entry.fact.tags?.some((tag) => DIRECT_FACTUAL_COMPANION_TAGS.has(tag)) === true;
+}
+
+function hasUserAnswerTag(entry: RankedFactCandidate): boolean {
+  return entry.fact.tags?.includes("user_answer") === true;
 }
 
 function isDatedEventFact(entry: RankedFactCandidate): boolean {
@@ -652,6 +664,9 @@ function aggregateEvidencePriority(
   if (hasTrustedAggregateEvidence(entry)) {
     priority += 20;
   }
+  if (hasUserAnswerTag(entry)) {
+    priority += 35;
+  }
   if (QUANTIFIED_FACT_PATTERN.test(valueContent)) {
     priority += 40;
   }
@@ -668,6 +683,18 @@ function aggregateEvidencePriority(
     priority += 30;
   }
   if (
+    isMedicalProviderAggregateQuery(query) &&
+    NAMED_MEDICAL_PROVIDER_FACT_PATTERN.test(valueContent)
+  ) {
+    priority += 40;
+  }
+  if (
+    isMedicalProviderAggregateQuery(query) &&
+    COMPACT_MEDICAL_PROVIDER_FACT_PATTERN.test(valueContent)
+  ) {
+    priority += 80;
+  }
+  if (
     isTemporalIntervalQuery(query) &&
     isDatedEventFact(entry)
   ) {
@@ -682,6 +709,16 @@ function aggregateEvidencePriority(
   ) {
     priority += 30;
   }
+  if (hasEntityBearingEvidenceSignal(entry)) {
+    priority += 30;
+  }
+  if (
+    REALIZED_TEMPORAL_EVENT_FACT_PATTERN.test(
+      valueBearingFactContent(entry.fact.content),
+    )
+  ) {
+    priority += 40;
+  }
 
   return priority;
 }
@@ -692,8 +729,34 @@ function hasTemporalEventOrderSignal(entry: RankedFactCandidate): boolean {
       entry.fact.category === "external_benchmark" ||
       entry.intentScore > 0 ||
       entry.lexicalScore >= 0.03 ||
-      entry.subjectScore > 0
+      entry.subjectScore > 0 ||
+      (
+        hasTrustedAggregateEvidence(entry) &&
+        REALIZED_TEMPORAL_EVENT_FACT_PATTERN.test(
+          valueBearingFactContent(entry.fact.content),
+        )
+      )
     );
+}
+
+function temporalOrderEvidencePriority(entry: RankedFactCandidate): number {
+  let priority = 0;
+  const valueContent = valueBearingFactContent(entry.fact.content);
+
+  if (hasTrustedAggregateEvidence(entry)) {
+    priority += 20;
+  }
+  if (hasUserAnswerTag(entry)) {
+    priority += 35;
+  }
+  if (hasEntityBearingEvidenceSignal(entry)) {
+    priority += 30;
+  }
+  if (REALIZED_TEMPORAL_EVENT_FACT_PATTERN.test(valueContent)) {
+    priority += 40;
+  }
+
+  return priority;
 }
 
 function hasSleepBeforeAppointmentEvidenceSignal(
@@ -1258,6 +1321,12 @@ function valueBearingFactContent(content: string): string {
   return stripEvidencePrefix(content)
     .replace(/^On\s+\d{4}\/\d{1,2}\/\d{1,2},\s*/iu, "")
     .trim();
+}
+
+function hasEntityBearingEvidenceSignal(entry: RankedFactCandidate): boolean {
+  return ENTITY_BEARING_FACT_PATTERN.test(
+    valueBearingFactContent(entry.fact.content),
+  );
 }
 
 function hasDirectFactualCompanionSignal(entry: RankedFactCandidate): boolean {
@@ -1970,6 +2039,10 @@ export function selectFacts(
       rankFactCandidates(
         compatible.filter(hasTemporalEventOrderSignal),
         routingDecision.strategy,
+      ).sort(
+        (left, right) =>
+          temporalOrderEvidencePriority(right) -
+          temporalOrderEvidencePriority(left),
       ),
       limit,
     )) {

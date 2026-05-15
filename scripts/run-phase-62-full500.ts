@@ -230,6 +230,7 @@ export async function runPhase62Full500LongMemEval(
   return summarize({
     expectedTotalCases: shardSize * shards,
     outputDir,
+    profiles,
     runId,
     shardRunIds: reports.map((report) => report.runId),
   });

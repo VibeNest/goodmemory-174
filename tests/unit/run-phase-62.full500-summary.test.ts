@@ -201,6 +201,55 @@ describe("run-phase-62 full-500 summary", () => {
     ).rejects.toThrow("duplicate case q-duplicate");
   });
 
+  it("can merge unique shard coverage for one selected profile", async () => {
+    const outputDir = "/tmp/phase62-full500-summary-test";
+    const shardRunIds = ["run-rules-shard-01", "run-rules-shard-02"];
+    const shardCases = [
+      buildCase({
+        questionId: "q-rules-1",
+        questionType: "multi-session",
+      }),
+      buildCase({
+        questionId: "q-rules-2",
+        questionType: "temporal-reasoning",
+      }),
+    ];
+    const reports = new Map(
+      shardRunIds.map((runId, index) => {
+        const shardReport = buildShardReport({
+          cases: [shardCases[index]!],
+          runId,
+        });
+        shardReport.profiles = {
+          "goodmemory-rules-only": {
+            cases: [shardCases[index]!],
+            summary: undefined as never,
+          },
+        };
+        shardReport.summary.profilesCompared = ["goodmemory-rules-only"];
+        return [join(outputDir, runId, "report.json"), JSON.stringify(shardReport)];
+      }),
+    );
+
+    const report = await runPhase62Full500Summary(
+      {
+        expectedTotalCases: 2,
+        outputDir,
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-rules-only-merged",
+        shardRunIds,
+      },
+      {
+        readFile: async (path) => reports.get(path) ?? "{}",
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.profilesCompared).toEqual(["goodmemory-rules-only"]);
+    expect(report.summary.totalCases).toBe(2);
+    expect(report.profiles["goodmemory-rules-only"]?.summary.totalCases).toBe(2);
+  });
+
   it("can merge retry reports over failed profile cases", async () => {
     const outputDir = "/tmp/phase62-full500-summary-test";
     const sourceRunId = "run-source";
@@ -276,5 +325,105 @@ describe("run-phase-62 full-500 summary", () => {
     expect(
       report.profiles["goodmemory-rules-only"]?.cases[0]?.executionError,
     ).toBeUndefined();
+  });
+
+  it("can merge duplicate-coverage retries for one selected profile", async () => {
+    const outputDir = "/tmp/phase62-full500-summary-test";
+    const sourceRunId = "run-source-hybrid";
+    const retryRunId = "run-retry-hybrid";
+    const failedCase = buildCase({
+      correct: false,
+      executionError: true,
+      questionId: "q-hybrid",
+      questionType: "single-session-assistant",
+    });
+    const successfulCase = buildCase({
+      correct: true,
+      questionId: "q-hybrid",
+      questionType: "single-session-assistant",
+    });
+    const sourceReport = buildShardReport({
+      cases: [failedCase],
+      runId: sourceRunId,
+    });
+    const retryReport = buildShardReport({
+      cases: [successfulCase],
+      runId: retryRunId,
+    });
+    sourceReport.profiles = {
+      "goodmemory-hybrid": {
+        cases: [failedCase],
+        summary: undefined as never,
+      },
+    };
+    sourceReport.summary.profilesCompared = ["goodmemory-hybrid"];
+    retryReport.profiles = {
+      "goodmemory-hybrid": {
+        cases: [successfulCase],
+        summary: undefined as never,
+      },
+    };
+    retryReport.summary.profilesCompared = ["goodmemory-hybrid"];
+    const reports = new Map([
+      [join(outputDir, sourceRunId, "report.json"), JSON.stringify(sourceReport)],
+      [join(outputDir, retryRunId, "report.json"), JSON.stringify(retryReport)],
+    ]);
+
+    const report = await runPhase62Full500Summary(
+      {
+        allowDuplicateCaseCoverage: true,
+        expectedTotalCases: 1,
+        outputDir,
+        profiles: ["goodmemory-hybrid"],
+        runId: "run-hybrid-merged",
+        shardRunIds: [sourceRunId, retryRunId],
+      },
+      {
+        readFile: async (path) => reports.get(path) ?? "{}",
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.profilesCompared).toEqual(["goodmemory-hybrid"]);
+    expect(report.profiles["goodmemory-hybrid"]?.summary).toMatchObject({
+      correctCases: 1,
+      totalCases: 1,
+      wrongAnswerCases: 0,
+    });
+  });
+
+  it("preserves abstention suffix counts in merged reports", async () => {
+    const outputDir = "/tmp/phase62-full500-summary-test";
+    const shardRunId = "run-abstention-shard";
+    const abstentionCase = buildCase({
+      questionId: "q-abstention_abs",
+      questionType: "single-session-user",
+    });
+    const reports = new Map([
+      [
+        join(outputDir, shardRunId, "report.json"),
+        JSON.stringify(
+          buildShardReport({
+            cases: [abstentionCase],
+            runId: shardRunId,
+          }),
+        ),
+      ],
+    ]);
+
+    const report = await runPhase62Full500Summary(
+      {
+        expectedTotalCases: 1,
+        outputDir,
+        shardRunIds: [shardRunId],
+      },
+      {
+        readFile: async (path) => reports.get(path) ?? "{}",
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.abstentionCases).toBe(1);
+    expect(report.profiles["goodmemory-rules-only"]?.summary.abstentionCorrectCases).toBe(1);
   });
 });

@@ -15,8 +15,12 @@ with live evidence-session recall 0.8599 in the latest unified four-profile
 comparison. The later current-code rules-only rerun
 `run-phase62-longmemeval-full500-current-after-direct-factual-companions-rules-only-20260515T011000Z`
 raises rules-only to 368/500 with evidence-session recall 0.8961, missed recall
-83, wrong recall 6, and `executionFailures: 0`; hybrid still needs a fresh
-current-code rerun before the Phase 62 quality loop can be closed.
+83, wrong recall 6, and `executionFailures: 0`. The matching hybrid current-code
+rerun plus failed-row recovery
+`run-phase62-longmemeval-full500-current-after-direct-factual-companions-hybrid-retry-r1-merged-20260515T023000Z`
+reaches 385/500 with evidence-session recall 0.8945, missed recall 84, wrong
+recall 6, and `executionFailures: 0`. The recovery path now also supports
+single-profile merged reports instead of requiring absent baseline profiles.
 Runtime AI SDK retry now treats socket-closed, `model_cooldown`, and
 usage-limit provider errors as transient; the failed-row runner also supports
 serial `--batch-delay-ms` throttling plus `--exclude-case-id` / `--skip-case-id`
@@ -105,8 +109,27 @@ wrong recall falls to 6, and `executionFailures` stays at 0. The latest unified
 four-profile comparison is still
 `run-phase62-longmemeval-full500-current-after-temporal-answer-session-retry-r2-resumed-merged-20260515T001000Z`,
 where full-context is 451/500 and hybrid is 358/500, so Phase 62 remains open
-until hybrid receives the same current-code verification and the remaining
-answer-quality gap is repaired or explicitly deferred.
+because the latest same-surface GoodMemory reruns are stronger but still trail
+full-context by 66-83 answers. A sixth repair is now targeting enough-evidence
+assembly inside already-retrieved sessions rather than raw session recall. The
+targeted recall run
+`run-phase62-recall-diagnostic-rules-only-aggregate-value-priority-targeted-r2-20260515T021500Z`
+keeps `aae3761f` and `c4a1ceb8` at evidence-session recall 1.0 with wrong recall
+0; the targeted live runs
+`run-phase62-longmemeval-live-aggregate-value-priority-targeted-20260515T024000Z`
+and
+`run-phase62-longmemeval-live-aggregate-value-priority-hybrid-targeted-20260515T030000Z`
+answer both cases 2/2 correctly for rules-only and hybrid. The fresh rules-only
+full-500 rerun
+`run-phase62-longmemeval-full500-current-after-aggregate-value-priority-rules-only-20260515T024500Z`
+raises rules-only to 377/500 with evidence-session recall 0.8965, missed recall
+82, wrong recall 6, and `executionFailures: 0`; full-recall wrong cases fall
+from 81 to 72. The matching hybrid current-code full-500 rerun
+`run-phase62-longmemeval-full500-current-after-aggregate-value-priority-hybrid-20260515T030500Z`
+lands at 386/500 with evidence-session recall 0.8945, missed recall 84, wrong
+recall 6, and `executionFailures: 0`, only one answer above the direct-factual
+hybrid run. That keeps the next repair target on answer-evidence assembly rather
+than raw session recall.
 
 核心原则：
 

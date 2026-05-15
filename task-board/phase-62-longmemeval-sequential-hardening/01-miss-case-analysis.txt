@@ -292,10 +292,56 @@ Direct factual companion repair after the clean full-500 run:
   confirms the repair carries through to answer quality: rules-only improves
   from 345/500 to 368/500 with evidence-session recall 0.8961, missed recall 83,
   wrong recall 6, and `executionFailures: 0`. Phase 62 still stays open because
-  the latest unified four-profile comparison remains
+  the matching current-code hybrid rerun only reaches 385/500 after failed-row
+  recovery in
+  `run-phase62-longmemeval-full500-current-after-direct-factual-companions-hybrid-retry-r1-merged-20260515T023000Z`,
+  while the latest unified four-profile comparison remains
   `baseline-full-context` 451/500, `goodmemory-rules-only` 345/500, and
-  `goodmemory-hybrid` 358/500`; hybrid has not yet been rerun on the current
-  direct-factual repair surface.
+  `goodmemory-hybrid` 358/500`.
+
+Aggregate value-priority repair after direct factual companions:
+
+- target family:
+  multi-session aggregate/comparison questions where all answer sessions are
+  retrieved but the selected context spends a same-session slot on a broad topic
+  sentence instead of the value-bearing evidence needed to compute the answer.
+  Real examples include `aae3761f`, which needed all three road-trip durations,
+  and `c4a1ceb8`, which needed the concrete `lime` / `orange` / `lemon`
+  instances rather than generic cocktail topic lines.
+- mechanism:
+  aggregate evidence selection now prefers trusted facts whose body contains
+  actual quantities, money values, temporal endpoints, or category-instance
+  evidence before session diversification. The priority logic strips evidence
+  prefixes and leading `On YYYY/MM/DD,` shells before deciding whether a fact is
+  genuinely value-bearing, so compact dated topic sentences do not get a false
+  numeric boost from their date wrapper.
+- targeted evidence:
+  `run-phase62-recall-diagnostic-rules-only-aggregate-value-priority-targeted-r2-20260515T021500Z`
+  keeps both target cases at evidence-session recall 1.0 with wrong recall 0.
+  The targeted live run
+  `run-phase62-longmemeval-live-aggregate-value-priority-targeted-20260515T024000Z`
+  answers `aae3761f` as `15 hours` and `c4a1ceb8` as
+  `3 — orange, lemon, and lime.` with 2/2 accuracy and
+  `executionFailures: 0`. The matching hybrid targeted live run
+  `run-phase62-longmemeval-live-aggregate-value-priority-hybrid-targeted-20260515T030000Z`
+  also answers both cases correctly with evidence-session recall 1.0 and
+  `executionFailures: 0`.
+- interpretation:
+  this repair addresses the next layer after session recall: enough-evidence
+  assembly inside retrieved sessions. The fresh rules-only full-500 rerun
+  `run-phase62-longmemeval-full500-current-after-aggregate-value-priority-rules-only-20260515T024500Z`
+  confirms a real quality delta: rules-only rises from 368/500 to 377/500 with
+  evidence-session recall 0.8965, missed recall 82, wrong recall 6, and
+  `executionFailures: 0`. Relative to the direct-factual companion run, it
+  produces 18 gains and 9 losses; full-recall wrong cases fall from 81 to 72,
+  and multi-session full-recall wrong cases fall from 27 to 19. The matching
+  hybrid full-500 current-code rerun
+  `run-phase62-longmemeval-full500-current-after-aggregate-value-priority-hybrid-20260515T030500Z`
+  lands at 386/500 with evidence-session recall 0.8945, missed recall 84, wrong
+  recall 6, and `executionFailures: 0`, only one answer above the
+  direct-factual hybrid run. The next open layer is therefore not more session
+  recall, but preserving and assembling answer-bearing entities inside already
+  retrieved sessions.
 
 Initial 3-case slice:
 

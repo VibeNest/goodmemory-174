@@ -113,6 +113,35 @@ describe("run-phase-62 full-500 runner", () => {
     expect(report.runId).toBe("run-full500");
   });
 
+  it("forwards selected profiles into the merged summary", async () => {
+    let summarizedProfiles: readonly string[] | undefined;
+
+    await runPhase62Full500LongMemEval(
+      {
+        benchmarkRoot: "/tmp/LongMemEval",
+        outputDir: "/tmp/phase62-full500-test",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-full500-rules-only",
+        shardSize: 50,
+        shards: 2,
+      },
+      {
+        runShard: async (options) =>
+          buildReport({
+            runId: String(options.runId),
+          }),
+        summarize: async (options) => {
+          summarizedProfiles = options?.profiles;
+          return buildReport({
+            runId: String(options?.runId),
+          });
+        },
+      },
+    );
+
+    expect(summarizedProfiles).toEqual(["goodmemory-rules-only"]);
+  });
+
   it("stops the closure run when a shard has execution failures", async () => {
     const shardRunIds: string[] = [];
 

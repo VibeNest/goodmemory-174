@@ -7,6 +7,7 @@ import {
 } from "./run-phase-62-shared";
 import {
   LONGMEMEVAL_PROFILES,
+  normalizeLongMemEvalProfileList,
   type LongMemEvalCaseResult,
   type LongMemEvalProfile,
   type LongMemEvalProfileReport,
@@ -25,6 +26,7 @@ export interface Phase62Full500SummaryOptions {
   allowDuplicateCaseCoverage?: boolean;
   expectedTotalCases?: number;
   outputDir?: string;
+  profiles?: readonly string[];
   runId?: string;
   shardRunIds?: readonly string[];
   shards?: number;
@@ -85,6 +87,7 @@ function parsePhase62Full500SummaryOptions(
       "--expected-total-cases",
     ),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    profiles: parseRepeatedFlag(argv, "--profile"),
     runId: resolveCliFlagValue(argv, "--run-id"),
     shardRunIds: parseRepeatedFlag(argv, "--shard-run-id"),
     shards: parsePositiveInteger(resolveCliFlagValue(argv, "--shards"), "--shards"),
@@ -104,6 +107,7 @@ function buildDefaultShardRunIds(input: {
 function validateShardReport(input: {
   allowPartialProfileCoverage: boolean;
   path: string;
+  profiles: readonly LongMemEvalProfile[];
   value: unknown;
 }): LongMemEvalReport {
   const { path, value } = input;
@@ -125,7 +129,7 @@ function validateShardReport(input: {
   }
 
   let presentProfiles = 0;
-  for (const profile of LONGMEMEVAL_PROFILES) {
+  for (const profile of input.profiles) {
     const profileReport = report.profiles[profile];
     if (!profileReport) {
       if (!input.allowPartialProfileCoverage) {
@@ -174,6 +178,11 @@ function calculateWrongRecall(input: LongMemEvalCaseResult): boolean {
   );
 }
 
+function isAbstentionCaseResult(caseResult: LongMemEvalCaseResult): boolean {
+  return caseResult.questionId.endsWith("_abs") ||
+    caseResult.answerSessionIds.length === 0;
+}
+
 function summarizeProfile(
   cases: readonly LongMemEvalCaseResult[],
 ): LongMemEvalProfileSummary {
@@ -189,8 +198,7 @@ function summarizeProfile(
   return {
     accuracy: cases.length === 0 ? 1 : correctCases / cases.length,
     abstentionCorrectCases: cases.filter(
-      (caseResult) =>
-        caseResult.answerSessionIds.length === 0 && caseResult.correct,
+      (caseResult) => isAbstentionCaseResult(caseResult) && caseResult.correct,
     ).length,
     correctCases,
     evidenceCaseCount: evidenceCases.length,
@@ -221,9 +229,10 @@ function mergeProfileReports(
   reports: readonly LongMemEvalReport[],
   referenceCases: readonly LongMemEvalCaseResult[],
   allowDuplicateCaseCoverage: boolean,
-): Record<LongMemEvalProfile, LongMemEvalProfileReport> {
-  const profileReports = {} as Record<LongMemEvalProfile, LongMemEvalProfileReport>;
-  for (const profile of LONGMEMEVAL_PROFILES) {
+  profiles: readonly LongMemEvalProfile[],
+): Partial<Record<LongMemEvalProfile, LongMemEvalProfileReport>> {
+  const profileReports: Partial<Record<LongMemEvalProfile, LongMemEvalProfileReport>> = {};
+  for (const profile of profiles) {
     const cases = allowDuplicateCaseCoverage
       ? mergeProfileCasesByQuestionId({
           profile,
@@ -297,10 +306,15 @@ function uniqueCasesByQuestionId(
 function assertExpectedCoverage(input: {
   allowDuplicateCaseCoverage: boolean;
   expectedTotalCases: number;
+  profiles: readonly LongMemEvalProfile[];
   reports: readonly LongMemEvalReport[];
 }): LongMemEvalCaseResult[] {
+  const referenceProfile = input.profiles[0];
+  if (!referenceProfile) {
+    throw new Error("Phase 62 full-500 summary requires at least one profile");
+  }
   const referenceCases = input.reports.flatMap(
-    (report) => report.profiles["baseline-no-memory"]?.cases ?? [],
+    (report) => report.profiles[referenceProfile]?.cases ?? [],
   );
   if (input.allowDuplicateCaseCoverage) {
     const uniqueBaselineCases = uniqueCasesByQuestionId(referenceCases);
@@ -341,9 +355,10 @@ function assertExpectedCoverage(input: {
 function validateShardCaseAlignment(input: {
   allowPartialProfileCoverage: boolean;
   path: string;
+  profiles: readonly LongMemEvalProfile[];
   report: LongMemEvalReport;
 }): void {
-  const referenceProfile = LONGMEMEVAL_PROFILES.find(
+  const referenceProfile = input.profiles.find(
     (profile) => input.report.profiles[profile],
   );
   if (!referenceProfile) {
@@ -353,7 +368,7 @@ function validateShardCaseAlignment(input: {
   const reference = buildQuestionIds(
     input.report.profiles[referenceProfile]?.cases ?? [],
   );
-  for (const profile of LONGMEMEVAL_PROFILES) {
+  for (const profile of input.profiles) {
     const profileReport = input.report.profiles[profile];
     if (!profileReport && input.allowPartialProfileCoverage) {
       continue;
@@ -374,6 +389,7 @@ export async function runPhase62Full500Summary(
   const root = resolvePhase62RepoRoot();
   const outputDir = options.outputDir ?? resolvePhase62OutputDir(root);
   const runId = options.runId ?? PHASE62_FULL500_CANONICAL_RUN_ID;
+  const profiles = normalizeLongMemEvalProfileList(options.profiles);
   const shardRunIds =
     options.shardRunIds ??
     buildDefaultShardRunIds({
@@ -393,11 +409,13 @@ export async function runPhase62Full500Summary(
     const report = validateShardReport({
       allowPartialProfileCoverage: options.allowDuplicateCaseCoverage === true,
       path,
+      profiles,
       value: JSON.parse(await readFileImpl(path)),
     });
     validateShardCaseAlignment({
       allowPartialProfileCoverage: options.allowDuplicateCaseCoverage === true,
       path,
+      profiles,
       report,
     });
     reports.push(report);
@@ -406,12 +424,14 @@ export async function runPhase62Full500Summary(
   const referenceCases = assertExpectedCoverage({
     allowDuplicateCaseCoverage: options.allowDuplicateCaseCoverage === true,
     expectedTotalCases,
+    profiles,
     reports,
   });
   const profileReports = mergeProfileReports(
     reports,
     referenceCases,
     options.allowDuplicateCaseCoverage === true,
+    profiles,
   );
   const runDirectory = join(outputDir, runId);
   const aggregateReport: LongMemEvalReport = {
@@ -431,7 +451,7 @@ export async function runPhase62Full500Summary(
     },
     summary: {
       abstentionCases: referenceCases.filter(
-        (caseResult) => caseResult.answerSessionIds.length === 0,
+        isAbstentionCaseResult,
       ).length,
       caseCountsByQuestionType: countByQuestionType(referenceCases),
       executionFailures: Object.values(profileReports).reduce(
@@ -441,7 +461,7 @@ export async function runPhase62Full500Summary(
             .length,
         0,
       ),
-      profilesCompared: [...LONGMEMEVAL_PROFILES],
+      profilesCompared: [...profiles],
       totalCases: referenceCases.length,
     },
   };

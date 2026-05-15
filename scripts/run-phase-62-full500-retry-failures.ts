@@ -528,6 +528,7 @@ export async function runPhase62Full500FailureRetries(
     expectedTotalCases:
       options.expectedTotalCases ?? DEFAULT_EXPECTED_TOTAL_CASES,
     outputDir,
+    profiles: options.profiles,
     runId: options.mergedRunId ?? `${retryRunId}-merged`,
     shardRunIds: [
       ...sourceRunIds,

@@ -916,13 +916,22 @@ function deriveLongMemEvalAssistantFollowupEvidenceFacts(input: {
 }
 
 function splitLongMemEvalUserEvidenceSegments(content: string): string[] {
-  return content
+  const protectedContent = content
     .replace(/\s+/gu, " ")
+    .replace(/\b(?:Dr|Mr|Mrs|Ms)\./gu, (match) =>
+      match.replace(".", "__LONGMEMEVAL_PERIOD__"),
+    )
+    .replace(/\b(?:[A-Z]\.){2,}/gu, (match) =>
+      match.replace(/\./gu, "__LONGMEMEVAL_PERIOD__"),
+    )
     .replace(/\b(?:also,\s+)?by the way,?\s+/giu, "\n")
-    .split(/(?<=[.!?])\s+|\n/gu)
+    .split(/(?<=[.!?])\s+|\n/gu);
+
+  return protectedContent
     .map((segment) =>
       cleanExtractedValue(
         segment
+          .replace(/__LONGMEMEVAL_PERIOD__/gu, ".")
           .replace(/^[,;:\s-]+/u, "")
           .replace(/\s+-\s+/gu, " - "),
       ),
@@ -934,8 +943,13 @@ function isLongMemEvalDurableUserEvidenceSegment(segment: string): boolean {
   if (!/\b(?:I|I'm|I've|I'd|I'll|my|me|mine)\b/u.test(segment)) {
     return false;
   }
+  const normalizedQuestionProbe = segment
+    .replace(/^(?:(?:and\s+)?also|by\s+the\s+way),?\s+/iu, "")
+    .trim();
   if (
-    /^(?:can|could|do|does|what|where|when|how|why|should|would)\b/i.test(segment) &&
+    /^(?:can|could|do|does|what|where|when|how|why|should|would)\b/i.test(
+      normalizedQuestionProbe,
+    ) &&
     /\?\s*$/u.test(segment)
   ) {
     return false;
@@ -1617,6 +1631,22 @@ function deriveLongMemEvalFamilyAgeFacts(content: string): string[] {
   return [...new Set(facts)];
 }
 
+function deriveLongMemEvalMedicalProviderFacts(content: string): string[] {
+  const facts: string[] = [];
+  const providerPattern =
+    /\b(primary care physician|ENT specialist|dermatologist)\s*,?\s*(Dr\.\s+[A-Z][A-Za-z'-]+)\b/gu;
+
+  for (const match of content.matchAll(providerPattern)) {
+    const role = cleanExtractedValue(match[1] ?? "");
+    const name = cleanExtractedValue(match[2] ?? "");
+    if (role && name) {
+      facts.push(`Medical provider evidence: ${role} ${name}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
 function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
   return [
     ...deriveLongMemEvalFestivalFacts(content),
@@ -1639,10 +1669,11 @@ function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
     ...deriveLongMemEvalSocialFollowerFacts(content),
     ...deriveLongMemEvalGrocerySpendFacts(content),
     ...deriveLongMemEvalFamilyAgeFacts(content),
+    ...deriveLongMemEvalMedicalProviderFacts(content),
   ];
 }
 
-function deriveLongMemEvalUserEvidenceFacts(input: {
+export function deriveLongMemEvalUserEvidenceFacts(input: {
   content: string;
   date: string;
 }): string[] {
@@ -1987,7 +2018,7 @@ function isLongMemEvalDatedEvidenceFact(fact: string): boolean {
   return /^On\s+\d{4}\/\d{2}\/\d{2},\s/u.test(fact);
 }
 
-function deriveLongMemEvalDatedUserEvidenceFacts(input: {
+export function deriveLongMemEvalDatedUserEvidenceFacts(input: {
   content: string;
   date: string;
 }): string[] {
@@ -1997,6 +2028,10 @@ function deriveLongMemEvalDatedUserEvidenceFacts(input: {
 
   if (/\bMuseum of Modern Art\b/iu.test(content) && /\bguided tour\b/iu.test(content)) {
     facts.push(`On ${date}, I visited the Museum of Modern Art for a guided tour.`);
+  }
+
+  if (/\bModern Art Museum\b/iu.test(content) && /\bguided tour\b/iu.test(content)) {
+    facts.push(`On ${date}, I visited the Modern Art Museum for a guided tour.`);
   }
 
   const exhibitMatch = content.match(

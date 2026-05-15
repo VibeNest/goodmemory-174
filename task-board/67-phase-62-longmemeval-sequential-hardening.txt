@@ -325,8 +325,43 @@ Tasks
   345/500 to 368/500 with evidence-session recall 0.8961, missed recall 83,
   wrong recall 6, and `executionFailures: 0`. This is a new strongest
   recall-side delta and a real answer-quality improvement, but it is still not a
-  Phase 62 quality close signal because hybrid needs a fresh current-code rerun
-  and full-context remains 451/500 in the latest unified four-profile run.
+  Phase 62 quality close signal. The matching current-code hybrid rerun first
+  landed as
+  `run-phase62-longmemeval-full500-current-after-direct-factual-companions-hybrid-20260515T014500Z`
+  at 383/500 with three execution failures, then failed-row recovery plus
+  resumed single-profile merge produced
+  `run-phase62-longmemeval-full500-current-after-direct-factual-companions-hybrid-retry-r1-merged-20260515T023000Z`
+  at 385/500 with evidence-session recall 0.8945, missed recall 84, wrong
+  recall 6, and `executionFailures: 0`. The recovery tools now handle
+  single-profile merged reports and preserve `_abs` abstention accounting.
+  Full-context still remains 451/500 in the latest unified four-profile run, so
+  the next repair target is enough-evidence assembly inside already-retrieved
+  sessions rather than raw session recall.
+  A sixth post-clean repair now targets that layer directly. Aggregate selection
+  prioritizes facts whose body actually carries quantities, money values,
+  temporal endpoints, or category-instance evidence before session
+  diversification after stripping evidence prefixes and leading
+  `On YYYY/MM/DD,` wrappers from the value-bearing check. The targeted
+  provider-free diagnostic
+  `run-phase62-recall-diagnostic-rules-only-aggregate-value-priority-targeted-r2-20260515T021500Z`
+  keeps `aae3761f` and `c4a1ceb8` at evidence-session recall 1.0 with wrong
+  recall 0. The targeted live runs
+  `run-phase62-longmemeval-live-aggregate-value-priority-targeted-20260515T024000Z`
+  and
+  `run-phase62-longmemeval-live-aggregate-value-priority-hybrid-targeted-20260515T030000Z`
+  answer both cases 2/2 correctly for rules-only and hybrid. The fresh
+  rules-only full-500 rerun
+  `run-phase62-longmemeval-full500-current-after-aggregate-value-priority-rules-only-20260515T024500Z`
+  reaches 377/500 with evidence-session recall 0.8965, missed recall 82, wrong
+  recall 6, and `executionFailures: 0`; versus the direct-factual companion run
+  it produces 18 gains, 9 losses, and reduces full-recall wrong cases from 81 to
+  72, including multi-session full-recall wrong cases from 27 to 19. The
+  matching hybrid full-500 current-code rerun
+  `run-phase62-longmemeval-full500-current-after-aggregate-value-priority-hybrid-20260515T030500Z`
+  lands at 386/500 with evidence-session recall 0.8945, missed recall 84, wrong
+  recall 6, and `executionFailures: 0`, only one answer above the direct-factual
+  hybrid run. That keeps the next repair target on answer-evidence assembly
+  rather than raw session recall.
 [WIP] P62-T005 Write LongMemEval miss-case analysis grouped by question type,
   missed recall, wrong recall, stale/update failure, abstention failure, and
   token/context pressure. Initial 3-case analysis is recorded in
