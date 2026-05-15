@@ -322,6 +322,223 @@ describe("recall selection", () => {
     expect(new Set(result.facts.map((fact) => fact.sessionId))).toContain("s-guitar");
   });
 
+  it("prefers value-bearing aggregate evidence within a session before generic topic evidence", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-coast-topic",
+        userId: "user-1",
+        category: "event",
+        content:
+          "On 2023/05/21, I'm planning another road trip and comparing the total driving hours across my combined destinations.",
+        sessionId: "s-coast",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-coast-hours",
+        userId: "user-1",
+        category: "event",
+        content: "On my road trip to the coastal town, I drove for four hours.",
+        sessionId: "s-coast",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-dc-hours",
+        userId: "user-1",
+        category: "event",
+        content: "On my road trip to Washington D.C., I drove for six hours.",
+        sessionId: "s-dc",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-mountains-hours",
+        userId: "user-1",
+        category: "event",
+        content: "On my road trip to the mountains in Tennessee, I drove for five hours.",
+        sessionId: "s-mountains",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many hours in total did I spend driving to my three road trip destinations combined?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id).slice(0, 3)).toEqual([
+      "fact-coast-hours",
+      "fact-dc-hours",
+      "fact-mountains-hours",
+    ]);
+    expect(result.facts.findIndex((fact) => fact.id === "fact-coast-topic")).toBeGreaterThan(2);
+  });
+
+  it("keeps category-instance evidence for aggregate count queries when facts name examples instead of the category", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-orange-bitters",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Cocktail recipe evidence: I used orange bitters and lemon juice in a Whiskey Sour.",
+        sessionId: "s-whiskey-sour",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-lime-daiquiri",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Summer drink evidence: I made a classic Daiquiri with fresh lime juice.",
+        sessionId: "s-daiquiri",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-orange-lemon-sangria",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Sangria recipe evidence: I used Rioja wine with slices of orange and lemon.",
+        sessionId: "s-sangria",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-mint-mocktail",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Mocktail recipe evidence: I used mint leaves and cucumber in a nonalcoholic cooler.",
+        sessionId: "s-mint",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different types of citrus fruits have I used in my cocktail recipes?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id))).toEqual(
+      new Set([
+        "fact-orange-bitters",
+        "fact-lime-daiquiri",
+        "fact-orange-lemon-sangria",
+      ]),
+    );
+    expect(result.traces.find((trace) => trace.memoryId === "fact-mint-mocktail")?.returned).toBe(false);
+  });
+
+  it("keeps learned-cuisine examples for aggregate count queries", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-ethiopian",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Meal prep evidence: I tried out a new Ethiopian restaurant and then learned to cook misir wot.",
+        sessionId: "s-ethiopian",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-indian",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Dinner party evidence: I learned how to make chicken tikka masala in a class on Indian cuisine.",
+        sessionId: "s-indian",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-korean",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Cooking class evidence: I tried out Korean bibimbap and made kimchi fried rice.",
+        sessionId: "s-korean",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-vegan",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Meal class evidence: I attended a class on vegan cuisine that got me inspired.",
+        sessionId: "s-vegan",
+        source: SOURCE,
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-fermentation",
+        userId: "user-1",
+        category: "event",
+        content:
+          "Workshop evidence: I learned fermentation techniques for sauerkraut and kombucha.",
+        sessionId: "s-fermentation",
+        source: SOURCE,
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different cuisines have I learned to cook or tried out in the past few months?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id))).toEqual(
+      new Set([
+        "fact-ethiopian",
+        "fact-indian",
+        "fact-korean",
+        "fact-vegan",
+      ]),
+    );
+    expect(result.traces.find((trace) => trace.memoryId === "fact-fermentation")?.returned).toBe(false);
+  });
+
   it("returns weak-overlap money facts for aggregate spending queries", () => {
     const language = createLanguageService();
     const facts = [
@@ -371,6 +588,61 @@ describe("recall selection", () => {
       new Set(["fact-chain", "fact-lights"]),
     );
     expect(result.traces.find((trace) => trace.memoryId === "fact-unrelated-price")?.returned).toBe(false);
+  });
+
+  it("keeps accommodation cost evidence when the query asks for per-night lodging comparisons", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-maui-resort",
+        userId: "user-1",
+        category: "event",
+        content:
+          "[LongMemEval verified compact user evidence from session answer_eaa8e3ef_1 on 2023/05/24 (Wed) 18:08] On 2023/05/24, I've already booked a luxurious resort in Maui that costs over $300 per night, so I'm looking for some free or affordable activities to balance out the cost.",
+        sessionId: "s-maui",
+        source: SOURCE,
+        tags: ["compact_evidence", "user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-tokyo-hostel",
+        userId: "user-1",
+        category: "event",
+        content:
+          "[LongMemEval verified compact user evidence from session answer_eaa8e3ef_2 on 2023/05/26 (Fri) 05:02] On 2023/05/26, I stayed in a hostel in Tokyo that cost around $30 per night when I went solo last January, so it's possible for me to find good deals.",
+        sessionId: "s-tokyo",
+        source: SOURCE,
+        tags: ["compact_evidence", "user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-maui-hike",
+        userId: "user-1",
+        category: "event",
+        content:
+          "[LongMemEval verified compact user evidence from session answer_eaa8e3ef_1 on 2023/05/24 (Wed) 18:08] On 2023/05/24, I'm planning a trip to Maui and looking for outdoor hiking trails.",
+        sessionId: "s-hike",
+        source: SOURCE,
+        tags: ["compact_evidence", "user_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How much more did I spend on accommodations per night in Hawaii compared to Tokyo?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id))).toEqual(
+      new Set(["fact-maui-resort", "fact-tokyo-hostel"]),
+    );
+    expect(result.traces.find((trace) => trace.memoryId === "fact-maui-hike")?.returned).toBe(false);
   });
 
   it("returns more than two market earning facts for total money queries", () => {

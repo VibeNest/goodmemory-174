@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
   buildPhase62FailureRetryBatches,
+  discoverExistingRetryBatchRunIds,
   runPhase62Full500FailureRetries,
 } from "../../scripts/run-phase-62-full500-retry-failures";
 import type {
@@ -85,6 +86,25 @@ function buildReport(input: {
 }
 
 describe("run-phase-62 full-500 failure retries", () => {
+  it("discovers existing retry batch run ids in batch order", () => {
+    expect(
+      discoverExistingRetryBatchRunIds({
+        entries: [
+          "run-retry-goodmemory-rules-only-batch-010",
+          "run-retry-merged",
+          "run-retry-goodmemory-rules-only-batch-002",
+          "other-run-goodmemory-rules-only-batch-001",
+          "run-retry-goodmemory-hybrid-batch-003",
+        ],
+        retryRunId: "run-retry",
+      }),
+    ).toEqual([
+      "run-retry-goodmemory-rules-only-batch-002",
+      "run-retry-goodmemory-hybrid-batch-003",
+      "run-retry-goodmemory-rules-only-batch-010",
+    ]);
+  });
+
   it("builds retry batches only for unresolved failed profile cases", () => {
     const report = buildReport({
       profiles: {
@@ -339,6 +359,101 @@ describe("run-phase-62 full-500 failure retries", () => {
     });
     expect(result.executedBatches).toHaveLength(1);
     expect(result.mergedReport?.runId).toBe("run-merged");
+  });
+
+  it("resumes from existing completed retry batches before scheduling remaining failures", async () => {
+    const outputDir = "/tmp/phase62-full500-retry-test";
+    const sourceRunId = "run-source";
+    const existingBatchRunId = "run-retry-goodmemory-rules-only-batch-001";
+    const sourceReport = buildReport({
+      profiles: {
+        "goodmemory-rules-only": [
+          buildCase({ executionError: true, questionId: "q-1" }),
+          buildCase({ executionError: true, questionId: "q-2" }),
+        ],
+      },
+      runId: sourceRunId,
+    });
+    const existingBatchReport = buildReport({
+      profiles: {
+        "goodmemory-rules-only": [buildCase({ questionId: "q-1" })],
+      },
+      runId: existingBatchRunId,
+    });
+    const runBatchCalls: Array<{
+      caseIds?: readonly string[];
+      runId?: string;
+    }> = [];
+    let summaryOptions: Record<string, unknown> | undefined;
+
+    const result = await runPhase62Full500FailureRetries(
+      {
+        benchmarkRoot: "/tmp/LongMemEval",
+        chunkSize: 1,
+        expectedTotalCases: 2,
+        mergedRunId: "run-merged",
+        outputDir,
+        resumeExistingBatches: true,
+        retryRunId: "run-retry",
+        sourceRunIds: [sourceRunId],
+      },
+      {
+        readDir: async () => [
+          "run-retry-merged",
+          existingBatchRunId,
+          "other-run-goodmemory-rules-only-batch-001",
+        ],
+        readFile: async (path) => {
+          if (path === join(outputDir, sourceRunId, "report.json")) {
+            return JSON.stringify(sourceReport);
+          }
+          if (path === join(outputDir, existingBatchRunId, "report.json")) {
+            return JSON.stringify(existingBatchReport);
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        runBatch: async (options) => {
+          runBatchCalls.push({
+            caseIds: options.caseIds,
+            runId: options.runId,
+          });
+          return buildReport({
+            profiles: {
+              "goodmemory-rules-only": [buildCase({ questionId: "q-2" })],
+            },
+            runId: String(options.runId),
+          });
+        },
+        summarize: async (options) => {
+          summaryOptions = options as Record<string, unknown>;
+          return buildReport({
+            profiles: {
+              "goodmemory-rules-only": [
+                buildCase({ questionId: "q-1" }),
+                buildCase({ questionId: "q-2" }),
+              ],
+            },
+            runId: String(options?.runId),
+          });
+        },
+      },
+    );
+
+    expect(result.resumedBatchRunIds).toEqual([existingBatchRunId]);
+    expect(runBatchCalls).toEqual([
+      {
+        caseIds: ["q-2"],
+        runId: "run-retry-goodmemory-rules-only-batch-002",
+      },
+    ]);
+    expect(summaryOptions).toMatchObject({
+      allowDuplicateCaseCoverage: true,
+      shardRunIds: [
+        sourceRunId,
+        existingBatchRunId,
+        "run-retry-goodmemory-rules-only-batch-002",
+      ],
+    });
   });
 
   it("stops and merges completed retry batches when one still has execution failures", async () => {

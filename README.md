@@ -130,6 +130,15 @@ Use the package dependency when you are building an application:
 npm install goodmemory@0.2.3
 ```
 
+If you want to type `goodmemory` directly, install the global CLI.
+A project-local `npm install goodmemory@0.2.3` does not put `goodmemory` on your shell `PATH`.
+Use `npx goodmemory`, `npm exec -- goodmemory`, or `./node_modules/.bin/goodmemory`
+from that project instead.
+
+```bash
+npx goodmemory -V
+```
+
 Bun consumers can install it directly:
 
 ```bash
@@ -646,9 +655,11 @@ Current Claude/Codex examples stay in `file-assisted` mode by default.
 
 ## CLI Reference
 
-The public installed-package CLI contract is the package bin `goodmemory`.
-In a local dependency install, invoke it as `./node_modules/.bin/goodmemory`.
-The repo-local `bun run goodmemory` script is for development only.
+The `goodmemory` command on your shell `PATH` is the global CLI installed with
+`npm install -g goodmemory@0.2.3`. In a local dependency install, invoke the
+package bin as `npx goodmemory`, `npm exec -- goodmemory`, or
+`./node_modules/.bin/goodmemory`. The repo-local `bun run goodmemory` script is
+for development only.
 
 Memory-first commands:
 
@@ -665,34 +676,34 @@ Memory-first commands:
 Installed-host commands:
 
 ```bash
-./node_modules/.bin/goodmemory -V
-./node_modules/.bin/goodmemory --version
-./node_modules/.bin/goodmemory setup --host codex
-./node_modules/.bin/goodmemory status codex --workspace-root .
-./node_modules/.bin/goodmemory install codex --activation-mode global --writeback observe --user-id <user-id>
-./node_modules/.bin/goodmemory enable codex --workspace-root . --writeback selective
-./node_modules/.bin/goodmemory mcp serve --host codex
-./node_modules/.bin/goodmemory-mcp --host codex
-./node_modules/.bin/goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
-./node_modules/.bin/goodmemory claude bootstrap --user-id <user-id> --workspace-id <workspace-id>
+goodmemory -V
+goodmemory --version
+goodmemory setup --host codex
+goodmemory status codex --workspace-root .
+goodmemory install codex --activation-mode global --writeback observe --user-id <user-id>
+goodmemory enable codex --workspace-root . --writeback selective
+goodmemory mcp serve --host codex
+goodmemory-mcp --host codex
+goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
+goodmemory claude bootstrap --user-id <user-id> --workspace-id <workspace-id>
 ```
 
 Hook and writeback examples:
 
 ```bash
 printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' \
-  | ./node_modules/.bin/goodmemory codex hook session-start
+  | goodmemory codex hook session-start
 
 printf '%s' '{"cwd":".","session_id":"s-1","tool_name":"Bash","tool_input":{"command":"./tools/DeepAnalyzer --detailed"}}' \
-  | ./node_modules/.bin/goodmemory codex hook pre-tool-use
+  | goodmemory codex hook pre-tool-use
 
-./node_modules/.bin/goodmemory codex action -- ./tools/DeepAnalyzer --detailed
+goodmemory codex action -- ./tools/DeepAnalyzer --detailed
 
 printf '%s' '{"cwd":".","session_id":"s-1","messages":[{"role":"user","content":"Next step is to finish the release smoke."}]}' \
-  | ./node_modules/.bin/goodmemory codex writeback --json
+  | goodmemory codex writeback --json
 
 printf '%s' '{"cwd":".","session_id":"s-1","event_id":"stop-1","summary":"Keep coding summaries short."}' \
-  | ./node_modules/.bin/goodmemory codex hook session-stop
+  | goodmemory codex hook session-stop
 ```
 
 Eval artifact inspection:

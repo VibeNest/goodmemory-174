@@ -1200,7 +1200,15 @@ describe("release metadata and docs", () => {
     expect(readme).toContain(CURRENT_PACKAGE_VERSION);
     expect(readme).toContain("Node-compatible");
     expect(readme).toContain("Bun-backed");
+    expect(readme).toContain(`npm install -g goodmemory@${CURRENT_PACKAGE_VERSION}`);
     expect(readme).toContain(`npm install goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(readme).toContain(
+      "If you want to type `goodmemory` directly, install the global CLI.",
+    );
+    expect(readme).toContain(
+      `A project-local \`npm install goodmemory@${CURRENT_PACKAGE_VERSION}\` does not put \`goodmemory\` on your shell \`PATH\`.`,
+    );
+    expect(readme).toContain("npx goodmemory -V");
     expect(readme).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
     expect(readme).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
     expect(readme).toContain("examples/basic-chat.ts");
@@ -1215,10 +1223,10 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("GoodMemory-Codex-Handoff-Setup-Guide.md");
     expect(readme).toContain("GoodMemory-Claude-Code-Setup-Guide.md");
     expect(readme).toContain("./node_modules/.bin/goodmemory inspect");
-    expect(readme).toContain("./node_modules/.bin/goodmemory setup");
-    expect(readme).toContain("./node_modules/.bin/goodmemory status");
-    expect(readme).toContain("./node_modules/.bin/goodmemory codex bootstrap");
-    expect(readme).toContain("./node_modules/.bin/goodmemory claude bootstrap");
+    expect(readme).toContain("goodmemory setup --host codex");
+    expect(readme).toContain("goodmemory status codex --workspace-root .");
+    expect(readme).toContain("goodmemory codex bootstrap");
+    expect(readme).toContain("goodmemory claude bootstrap");
     expect(readme).toContain("createGoodMemoryAISDK");
     expect(readme).toContain("goodmemory/ai-sdk");
     expect(readme).toContain("ModelMessage");
@@ -1398,6 +1406,11 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain(CURRENT_PACKAGE_VERSION);
     expect(zhReadme).toContain(`npm install -g goodmemory@${CURRENT_PACKAGE_VERSION}`);
     expect(zhReadme).toContain(`npm install goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(zhReadme).toContain("如果你想直接输入 `goodmemory`，必须安装全局 CLI。");
+    expect(zhReadme).toContain(
+      `项目内 \`npm install goodmemory@${CURRENT_PACKAGE_VERSION}\` 不会把 \`goodmemory\` 放进 shell 的 \`PATH\`。`,
+    );
+    expect(zhReadme).toContain("npx goodmemory -V");
     expect(zhReadme).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
     expect(zhReadme).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
     expect(zhReadme).toContain("goodmemory setup");
@@ -1697,10 +1710,10 @@ describe("release metadata and docs", () => {
     expect(architecture).toContain("./node_modules/.bin/goodmemory export-memory");
     expect(architecture).toContain("./node_modules/.bin/goodmemory eval inspect");
     expect(currentStatus).toContain(
-      "installed-package invocation path is `./node_modules/.bin/goodmemory ...`",
+      "global CLI invocation path is `goodmemory ...` after `npm install -g goodmemory`",
     );
     expect(checklist).toContain(
-      "the installed CLI works through `./node_modules/.bin/goodmemory ...`",
+      "the global CLI works through `goodmemory ...` after `npm install -g goodmemory`",
     );
   });
 
@@ -1763,7 +1776,11 @@ describe("release metadata and docs", () => {
     );
     expect(codexGuide).toContain('from "goodmemory"');
     expect(codexGuide).toContain('from "goodmemory/host"');
-    expect(codexGuide).toContain(`npm install goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(codexGuide).toContain(`npm install -g goodmemory@${CURRENT_PACKAGE_VERSION}`);
+    expect(codexGuide).toContain("goodmemory setup --host codex");
+    expect(codexGuide).toContain(
+      "Local package installs do not put `goodmemory` on your shell `PATH`.",
+    );
     expect(codexGuide).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
     expect(codexGuide).toContain("Bun-backed");
     expect(codexGuide).toContain("codex-action.mjs");
@@ -1780,7 +1797,11 @@ describe("release metadata and docs", () => {
     expect(claudeGuide).toContain('from "goodmemory"');
     expect(claudeGuide).toContain('from "goodmemory/host"');
     expect(claudeGuide).toContain(
-      `npm install goodmemory@${CURRENT_PACKAGE_VERSION}`,
+      `npm install -g goodmemory@${CURRENT_PACKAGE_VERSION}`,
+    );
+    expect(claudeGuide).toContain("goodmemory setup --host claude");
+    expect(claudeGuide).toContain(
+      "Local package installs do not put `goodmemory` on your shell `PATH`.",
     );
     expect(claudeGuide).toContain(`bun add goodmemory@${CURRENT_PACKAGE_VERSION}`);
     expect(claudeGuide).toContain("Bun-backed");

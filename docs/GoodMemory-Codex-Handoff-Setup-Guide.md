@@ -1,34 +1,56 @@
 # GoodMemory Codex Handoff Setup Guide
 
-This is the canonical installed-package `0.2.3` Codex bootstrap path.
+This is the canonical global CLI `0.2.3` Codex installed-host setup path.
 
 ## Install
 
-Published install:
+Install the CLI globally when you want to run `goodmemory` directly:
 
 ```bash
-npm install goodmemory@0.2.3
+npm install -g goodmemory@0.2.3
+goodmemory -V
 ```
 
-Bun install:
-
-```bash
-bun add goodmemory@0.2.3
-```
+Local package installs do not put `goodmemory` on your shell `PATH`. Use local
+installs only when you are building an application or an advanced package-local
+host adapter; then invoke the bin as `npx goodmemory`,
+`npm exec -- goodmemory`, or `./node_modules/.bin/goodmemory`.
 
 Tarball verification of the same release artifact before publish:
 
 ```bash
-npm install ./goodmemory-0.2.3.tgz
+npm install -g ./goodmemory-0.2.3.tgz
+goodmemory -V
 ```
 
-## Bootstrap
+## Managed Codex Setup
 
-Run the installed-package bootstrap from the workspace that should expose GoodMemory to Codex:
+Run setup from the workspace that should expose GoodMemory to Codex:
 
 ```bash
-./node_modules/.bin/goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
+goodmemory setup --host codex
+goodmemory status codex --workspace-root .
 ```
+
+This installs managed host wiring, enables workspace-scoped recall injection,
+and keeps writeback opt-in. Use `observe` before durable `selective` writes:
+
+```bash
+goodmemory enable codex --workspace-root . --writeback observe
+goodmemory codex writeback inspect --json
+```
+
+## Package-Local Bootstrap
+
+Use this only when you need repo-local scaffold files from a package dependency
+instead of the managed global installed-host path.
+
+```bash
+npm install goodmemory@0.2.3
+npx goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
+```
+
+Bun services can install the same package with `bun add goodmemory@0.2.3`.
 
 This creates repo-local scaffolding only:
 
@@ -79,7 +101,7 @@ import { createHostAdapter } from "goodmemory/host";
 ## Stable Contract
 
 - `goodmemory` and `goodmemory/host` now resolve through compiled package artifacts on both Node and Bun.
-- The installed bootstrap CLI remains Bun-backed today.
+- Non-version CLI commands remain Bun-backed today.
 - Codex remains the only live gate-blocking host path for Phase 34.
 - The generated bootstrap path keeps the recommended `file-assisted` read flow.
 - The action-gate wrapper is the canonical live enforcement path for risky first-step rewrite and veto outcomes.

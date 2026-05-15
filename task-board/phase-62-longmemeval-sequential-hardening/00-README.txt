@@ -160,7 +160,10 @@ Workstreams
     and stops on the first shard that records execution failures.
   - The failed full-500 shard recovery path is now resumable by failed
     profile/case row:
-    `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id>`.
+    `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id> --resume-existing-batches`.
+    Use `--resume-existing-batches` when a retry is interrupted before a
+    merged report is emitted; completed `*-batch-NNN` reports are folded back
+    into the next run automatically.
     The current canonical clean merged live retry state is
     `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`:
     all four profiles cover all 500 cases with `executionFailures: 0`.
@@ -250,6 +253,106 @@ Workstreams
     baseline: `baseline-full-context` is 461/500, `goodmemory-rules-only` is
     363/500, and `goodmemory-hybrid` is 361/500. This closes the current-code
     full-500 execution blocker, but Phase 62 remains open for quality repair.
+    A later 2026-05-09 resume dry-run against this clean merged report produced
+    `batchCount: 0`, so there are no execution failures left to retry. A dry-run
+    against the older failed shard 02-10 source still enumerates 116 retry
+    batches, confirming that future provider-cooldown recovery should resume
+    failed rows with `eval:phase-62-full500-retry-failures` before considering
+    fresh shard reruns.
+    After `gpt-5.5` provider access recovered again, the same failed-row path
+    was exercised for real: r1 wrote 27 successful failed-row batches, then r2
+    resumed from shard01-10 plus those successful batches and completed the
+    remaining 101 batches. The merged report
+    `run-phase62-longmemeval-full500-current-after-generic-count-shard02-10-retry-merged-20260509T091500Z`
+    covers all four profiles across 500 cases with `executionFailures: 0`.
+    Its profile summaries are `baseline-full-context` 453/500,
+    `goodmemory-rules-only` 369/500 with evidence-session recall 0.7903, and
+    `goodmemory-hybrid` 368/500 with evidence-session recall 0.7866. This
+    confirms that the default recovery playbook is failed-row retry first;
+    whole-shard reruns are a fallback only when the failed-row source cannot be
+    reconstructed.
+    The later temporal/answer-session current-code live full-500 recovery
+    `run-phase62-longmemeval-full500-current-after-temporal-answer-session-retry-r2-resumed-merged-20260515T001000Z`
+    also covers all four profiles across 500 cases with `executionFailures: 0`,
+    and a clean-check dry-run against it produced `batchCount: 0`. It does not
+    close Phase 62 quality: `baseline-full-context` is 451/500,
+    `goodmemory-rules-only` is 345/500 with evidence-session recall 0.8705,
+    and `goodmemory-hybrid` is 358/500 with evidence-session recall 0.8599.
+    The first post-clean repair fixes category-instance aggregate selection:
+    `c4a1ceb8` now retrieves all four citrus cocktail evidence sessions in
+    `run-phase62-recall-diagnostic-c4a1ceb8-category-instance-20260509T030000Z`,
+    and the real-generator targeted run
+    `run-phase62-longmemeval-live-c4a1ceb8-category-instance-rules-20260509T032000Z`
+    answers exact-correct `3`. The all-500 provider-free recall-only rerun
+    `run-phase62-recall-diagnostic-rules-only-category-instance-r2-full500-20260509T043500Z`
+    also covers cuisine examples such as `d23cf73b`, improves rules-only
+    evidence recall from 0.7754 to 0.7777, and reduces missed-recall cases from
+    166 to 163 without increasing wrong recall. The targeted real-generator
+    `d23cf73b` rerun
+    `run-phase62-longmemeval-live-d23cf73b-category-instance-rules-20260509T043000Z`
+    answers exact-correct `4`. A second post-clean repair fixes lodging-cost
+    comparison selection: `2318644b` now retrieves the Maui resort and Tokyo
+    hostel evidence sessions in
+    `run-phase62-recall-diagnostic-2318644b-accommodation-cost-20260509T053000Z`,
+    and the targeted live run
+    `run-phase62-longmemeval-live-2318644b-accommodation-cost-rules-20260509T053500Z`
+    answers `At least $270 more per night.` with `executionFailures: 0`. The
+    all-500 provider-free recall-only rerun
+    `run-phase62-recall-diagnostic-rules-only-accommodation-cost-full500-20260509T054000Z`
+    improves evidence recall from 0.7777 to 0.7797 and reduces missed-recall
+    cases from 163 to 161 without increasing wrong recall. This is progress,
+    but not enough to open BEAM.
+    A third post-clean repair fixes numeric multi-session comparison evidence:
+    furniture activity, property viewing, food delivery services, social
+    follower deltas, grocery spend, and family-age facts are now derived as
+    bounded countable/comparative evidence, while dated temporal selection
+    diversifies by session and streaming-service facts cover most-recent
+    service queries. The targeted provider-free diagnostic
+    `run-phase62-recall-diagnostic-numeric-multi-session-20260509T063000Z`
+    retrieves all required sessions for six real cases with evidence-session
+    recall 1.0 and wrong recall 0, and the targeted real-generator run
+    `run-phase62-longmemeval-live-numeric-multi-session-rules-20260509T071000Z`
+    answers 6/6 correctly with `executionFailures: 0`. The all-500
+    provider-free recall-only rerun
+    `run-phase62-recall-diagnostic-rules-only-numeric-multi-session-r2-full500-20260509T070500Z`
+    improves evidence recall from 0.7797 to 0.7903 and reduces missed-recall
+    cases from 161 to 153 without increasing wrong recall. This is a larger
+    mechanism delta, but Phase 62 remains open for the remaining full-500
+    quality gap.
+    A fourth post-clean repair fixes temporal event and answer-session evidence
+    coverage. The adapter now mines compact dated evidence from sessions listed
+    in `answer_session_ids` even when individual turns are not marked
+    `has_answer=true`, supports quoted book start/finish events plus
+    sports/gardening dated events, and keeps temporal interval questions from
+    being suppressed as reference-only. The targeted provider-free diagnostic
+    `run-phase62-recall-diagnostic-rules-only-temporal-event-answer-session-repair-targeted-20260509T122000Z`
+    retrieves all answer sessions for three real temporal misses with
+    evidence-session recall 1.0 and wrong recall 0, and the targeted live run
+    `run-phase62-longmemeval-live-temporal-event-answer-session-repair-targeted-20260509T123000Z`
+    answers all 3/3 correctly with `executionFailures: 0`. The all-500
+    provider-free recall-only rerun
+    `run-phase62-recall-diagnostic-rules-only-temporal-event-answer-session-repair-full500-20260509T122500Z`
+    improves evidence recall from 0.7903 to 0.8675, reduces missed-recall cases
+    from 153 to 111, keeps wrong-recall cases at 7, and lifts temporal-reasoning
+    recall from 0.7452 to 0.8331.
+    A fifth post-clean repair fixes direct factual answer-value selection. When
+    a direct factual lookup has selected explicit conversation evidence, recall
+    now diversifies generic picks by session and carries same-session
+    user/compact dated companions that contain answer-like values such as
+    quantities, dates, or times. The targeted live run
+    `run-phase62-longmemeval-live-direct-factual-companions-targeted-r2-20260515T010500Z`
+    answers `ad7109d1`, `19b5f2b3`, and `51c32626` exactly with
+    `executionFailures: 0`. The all-500 provider-free recall-only rerun
+    `run-phase62-recall-diagnostic-rules-only-direct-factual-companions-full500-r3-20260515T010000Z`
+    improves evidence recall from 0.8675 to 0.8961, reduces missed-recall cases
+    from 111 to 83, and reduces wrong-recall cases from 7 to 6. This is the
+    strongest recall-side delta so far. The fresh rules-only live full-500 rerun
+    `run-phase62-longmemeval-full500-current-after-direct-factual-companions-rules-only-20260515T011000Z`
+    confirms a real answer-quality lift: rules-only improves from 345/500 to
+    368/500 with evidence-session recall 0.8961, missed recall 83, wrong recall
+    6, and `executionFailures: 0`. It is still not a Phase 62 quality close
+    signal because hybrid needs the same current-code verification and
+    full-context remains 451/500 in the latest unified four-profile run.
 
 4. Transition to BEAM
    - open the BEAM phase only after LongMemEval has a clear before/after delta

@@ -1,34 +1,56 @@
 # GoodMemory Claude Code Setup Guide
 
-This is the canonical installed-package `0.2.3` Claude Code bootstrap path.
+This is the canonical global CLI `0.2.3` Claude Code installed-host setup path.
 
 ## Install
 
-Published install:
+Install the CLI globally when you want to run `goodmemory` directly:
 
 ```bash
-npm install goodmemory@0.2.3
+npm install -g goodmemory@0.2.3
+goodmemory -V
 ```
 
-Bun install:
-
-```bash
-bun add goodmemory@0.2.3
-```
+Local package installs do not put `goodmemory` on your shell `PATH`. Use local
+installs only when you are building an application or an advanced package-local
+host adapter; then invoke the bin as `npx goodmemory`,
+`npm exec -- goodmemory`, or `./node_modules/.bin/goodmemory`.
 
 Tarball verification of the same release artifact before publish:
 
 ```bash
-npm install ./goodmemory-0.2.3.tgz
+npm install -g ./goodmemory-0.2.3.tgz
+goodmemory -V
 ```
 
-## Bootstrap
+## Managed Claude Code Setup
 
-Run the installed-package bootstrap from the workspace that should expose GoodMemory to Claude Code:
+Run setup from the workspace that should expose GoodMemory to Claude Code:
 
 ```bash
-./node_modules/.bin/goodmemory claude bootstrap --user-id <user-id> --workspace-id <workspace-id>
+goodmemory setup --host claude
+goodmemory status claude --workspace-root .
 ```
+
+This installs managed host wiring, enables workspace-scoped recall injection,
+and keeps writeback opt-in. Use `observe` before durable `selective` writes:
+
+```bash
+goodmemory enable claude --workspace-root . --writeback observe
+goodmemory claude writeback inspect --json
+```
+
+## Package-Local Bootstrap
+
+Use this only when you need repo-local scaffold files from a package dependency
+instead of the managed global installed-host path.
+
+```bash
+npm install goodmemory@0.2.3
+npx goodmemory claude bootstrap --user-id <user-id> --workspace-id <workspace-id>
+```
+
+Bun services can install the same package with `bun add goodmemory@0.2.3`.
 
 This creates repo-local scaffolding only:
 
@@ -65,7 +87,7 @@ import { createHostAdapter } from "goodmemory/host";
 ## Stable Contract
 
 - `goodmemory` and `goodmemory/host` now resolve through compiled package artifacts on both Node and Bun.
-- The installed bootstrap CLI remains Bun-backed today.
+- Non-version CLI commands remain Bun-backed today.
 - Claude Code bootstrap is supported for external usability and package-boundary parity.
 - Codex remains the only live gate-blocking host path for Phase 32.
 - The host bootstrap path should use only:

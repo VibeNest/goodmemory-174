@@ -110,7 +110,9 @@
   - `goodmemory`
   - `goodmemory/ai-sdk`
   - `goodmemory/host`
-- the installed CLI works through `./node_modules/.bin/goodmemory ...`
+- the global CLI works through `goodmemory ...` after `npm install -g goodmemory`
+- a project-local package install documents `npx goodmemory` or
+  `./node_modules/.bin/goodmemory`, not a shell-global bare command
 - README links canonical docs, current status, eval strategy, archive index, and release checklist
 
 ## Manual Review

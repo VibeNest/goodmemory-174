@@ -51,6 +51,8 @@ const PROJECT_STATE_SUPPORT_FALLBACK_KINDS = [
 const AGGREGATE_OPEN_LOOP_LIMIT = 6;
 const AGGREGATE_FACT_COUNT_LIMIT = 6;
 const ASSISTANT_EVIDENCE_RECALL_LIMIT = 6;
+const DIRECT_FACTUAL_RECALL_LIMIT = 6;
+const DIRECT_FACTUAL_COMPANION_LIMIT = 3;
 const PREFERENCE_EVIDENCE_RECALL_LIMIT = 4;
 const TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT = 4;
 const UPDATE_EVIDENCE_RECALL_LIMIT = 3;
@@ -114,10 +116,19 @@ const CONVERSATION_EVIDENCE_TAGS = new Set([
   "dated_event",
   "user_answer",
 ]);
+const DIRECT_FACTUAL_COMPANION_TAGS = new Set([
+  "compact_evidence",
+  "dated_event",
+  "user_answer",
+]);
 const QUANTIFIED_FACT_PATTERN =
   /\b(?:\d+(?:[.,]\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b|\$\s*\d|\d+(?:[.,]\d+)?\s*(?:元|块|人民币)/iu;
+const DATE_OR_TIME_FACT_PATTERN =
+  /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}(?:st|nd|rd|th)\b|\b\d{1,2}:\d{2}\b/iu;
 const MONEY_FACT_PATTERN =
   /\$\s*\d|\d+(?:[.,]\d+)?\s*(?:元|块|人民币)|\b(?:cost|costs|costing|paid|price|prices|spent|spend|dollars?)\b|(?:花了|花费|费用|价格)/iu;
+const ACCOMMODATION_COST_FACT_PATTERN =
+  /\b(?:accommodations?|lodging|hotel|hostel|resort|motel|airbnb|room|stay|stayed|booked)\b[\s\S]{0,160}\b(?:cost|costs|costing|paid|price|prices|spent|spend|per\s+night|\$\s*\d)\b|\b(?:cost|costs|costing|paid|price|prices|spent|spend|per\s+night|\$\s*\d)\b[\s\S]{0,160}\b(?:accommodations?|lodging|hotel|hostel|resort|motel|airbnb|room)\b/iu;
 const MEDICAL_PROVIDER_FACT_PATTERN =
   /\b(?:dr\.?\s+[a-z][a-z'-]+|doctor|doctors|physician|dermatologist|ent specialist|specialist)\b/iu;
 const OWNERSHIP_COUNT_FACT_PATTERN =
@@ -128,13 +139,72 @@ const PROJECT_EXPERIENCE_FACT_PATTERN =
   /\b(?:led|lead|leading|solo project|class project|research project|working on a project|project that involves)\b/iu;
 const COUNTABLE_EVENT_ACTIVITY_FACT_PATTERN =
   /\b(?:event|events|activity|activities|attended|attending|visited|visit|volunteered|participated|museum|museums|gallery|galleries|class|classes|appointment|appointments|ceremony|ceremonies|sport|sports|instrument|instruments|points?|rewards?)\b/iu;
+const COUNTABLE_CATEGORY_INSTANCE_FACT_PATTERN =
+  /\b(?:added|ate|attended|attending|bought|contains?|cook(?:ed|ing)?|drink|drank|have|had|includes?|learn(?:ed)?|made|make|ordered|own|served|tried|use|used|using|with)\b/iu;
+const FURNITURE_ACTIVITY_FACT_PATTERN =
+  /\b(?:furniture|coffee table|kitchen table|bookshelf|mattress|sofa|couch|chair|dresser|desk|bed)\b[\s\S]{0,160}\b(?:bought|buy|assembled|fixed|sold|ordered|got|rearranged|replaced)\b|\b(?:bought|buy|assembled|fixed|sold|ordered|got|rearranged|replaced)\b[\s\S]{0,160}\b(?:furniture|coffee table|kitchen table|bookshelf|mattress|sofa|couch|chair|dresser|desk|bed)\b/iu;
+const PROPERTY_VIEWING_FACT_PATTERN =
+  /\b(?:property|properties|house|home|condo|townhouse|bungalow)\b[\s\S]{0,180}\b(?:viewed|saw|seen|offer|rejected|budget|renovation|deal-breaker|Brookside)\b|\b(?:viewed|saw|seen|offer|rejected|budget|renovation|deal-breaker)\b[\s\S]{0,180}\b(?:property|properties|house|home|condo|townhouse|bungalow)\b/iu;
+const FOOD_DELIVERY_SERVICE_FACT_PATTERN =
+  /\b(?:food delivery|delivery service|Domino'?s Pizza|Uber Eats|Fresh Fusion)\b/iu;
+const SOCIAL_FOLLOWER_FACT_PATTERN =
+  /\b(?:social media|followers?|follower count|Twitter|TikTok|Facebook|Instagram)\b[\s\S]{0,180}\b(?:gained|jumped|steady|from\s+\d+\s+to\s+\d+|\d+\s+followers?)\b|\b(?:gained|jumped|steady|from\s+\d+\s+to\s+\d+|\d+\s+followers?)\b[\s\S]{0,180}\b(?:social media|followers?|follower count|Twitter|TikTok|Facebook|Instagram)\b/iu;
+const FAMILY_AGE_FACT_PATTERN =
+  /\b(?:family age|age evidence|grandma|grandpa|grandparents?|parents?|mom|dad|mother|father|I am|turned)\b[\s\S]{0,120}\b\d{1,3}\b/iu;
+const AGGREGATE_CATEGORY_INSTANCE_GROUPS = [
+  {
+    categoryTokens: ["citrus"],
+    instanceTokens: [
+      "clementine",
+      "grapefruit",
+      "kumquat",
+      "lemon",
+      "lime",
+      "mandarin",
+      "orange",
+      "pomelo",
+      "tangerine",
+      "yuzu",
+    ],
+  },
+  {
+    categoryTokens: ["cuisine"],
+    instanceTokens: [
+      "american",
+      "chinese",
+      "ethiopian",
+      "french",
+      "greek",
+      "indian",
+      "italian",
+      "japanese",
+      "korean",
+      "mediterranean",
+      "mexican",
+      "spanish",
+      "thai",
+      "vegan",
+      "vietnamese",
+    ],
+  },
+] as const satisfies ReadonlyArray<{
+  categoryTokens: readonly string[];
+  instanceTokens: readonly string[];
+}>;
 
 function normalizeAggregateTopicToken(token: string): string {
   const normalized = token
     .toLowerCase()
     .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
 
-  if (/^[a-z0-9]+$/u.test(normalized) && normalized.length > 4 && normalized.endsWith("s")) {
+  if (
+    /^[a-z0-9]+$/u.test(normalized) &&
+    normalized.length > 4 &&
+    normalized.endsWith("s") &&
+    !normalized.endsWith("ss") &&
+    !normalized.endsWith("us") &&
+    !normalized.endsWith("is")
+  ) {
     return normalized.slice(0, -1);
   }
 
@@ -175,6 +245,22 @@ function aggregateTopicOverlapCount(
   }
 
   return overlap;
+}
+
+function hasAggregateCategoryInstanceSignal(input: {
+  factContent: string;
+  factTopics: ReadonlySet<string>;
+  queryTopics: ReadonlySet<string>;
+}): boolean {
+  if (!COUNTABLE_CATEGORY_INSTANCE_FACT_PATTERN.test(input.factContent)) {
+    return false;
+  }
+
+  return AGGREGATE_CATEGORY_INSTANCE_GROUPS.some(
+    (group) =>
+      group.categoryTokens.some((token) => input.queryTopics.has(token)) &&
+      group.instanceTokens.some((token) => input.factTopics.has(token)),
+  );
 }
 
 function isAggregateOpenLoopQuery(
@@ -223,10 +309,28 @@ function isTemporalMostRecentQuery(query: string): boolean {
     /\b(?:most\s+recent(?:ly)?|latest|last)\b/i.test(query);
 }
 
+function isTemporalRelativeEventQuery(query: string): boolean {
+  return /\b(?:what|which|who)\b/i.test(query) &&
+    (
+      /\b(?:\d+\s+|a\s+)?(?:days?|weeks?|months?|years?)\s+ago\b/i.test(query) ||
+      /\blast\s+(?:saturday|sunday|monday|tuesday|wednesday|thursday|friday|week|weekend|month)\b/i.test(query) ||
+      /\bvalentine'?s\s+day\b/i.test(query)
+    ) &&
+    /\b(?:activity|activities|airline|concert|event|flight|gardening|music|participat|sport|sports|went|with)\b/i.test(query);
+}
+
 function isSleepBeforeAppointmentQuery(query: string): boolean {
   return /\bwhat\s+time\b/i.test(query) &&
     /\b(?:go|went|get|got)\s+to\s+bed\b/i.test(query) &&
     /\bappointment\b/i.test(query);
+}
+
+function hasConversationEvidenceTag(entry: RankedFactCandidate): boolean {
+  return entry.fact.tags?.some((tag) => CONVERSATION_EVIDENCE_TAGS.has(tag)) === true;
+}
+
+function hasDirectFactualCompanionTag(entry: RankedFactCandidate): boolean {
+  return entry.fact.tags?.some((tag) => DIRECT_FACTUAL_COMPANION_TAGS.has(tag)) === true;
 }
 
 function isDatedEventFact(entry: RankedFactCandidate): boolean {
@@ -257,6 +361,37 @@ function isAggregateMoneyQuery(query: string): boolean {
     /(多少钱|总共.*(?:花|费用|花费)|一共.*(?:花|费用|花费)|合计.*(?:花|费用|花费)|花了多少钱|花费多少|费用|价格)/u.test(query);
 }
 
+function isAggregateNumericQuery(query: string): boolean {
+  return /\b(?:average|mean|total|combined|sum)\b/i.test(query) &&
+    /\b(?:age|ages|old|hours?|followers?|points?|score|scores|money|amount)\b/i.test(query);
+}
+
+function isComparativeMetricQuery(query: string): boolean {
+  return /\b(?:which|what)\b/i.test(query) &&
+    /\b(?:most|least|highest|lowest|largest|smallest|more|less|biggest)\b/i.test(query) &&
+    /\b(?:followers?|follower count|money|spent|spend|cost|costs|price|amount|store|platform)\b/i.test(query);
+}
+
+function isAccommodationCostQuery(query: string): boolean {
+  return /\b(?:accommodations?|lodging|hotel|hostel|resort|motel|airbnb|room|stay|staying)\b/i.test(query) &&
+    /\b(?:per\s+night|nightly|how much|cost|costs|spent|spend|paid|price|prices)\b/i.test(query);
+}
+
+function isFurnitureActivityAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\b(?:furniture|pieces?|items?|buy|bought|assemble|assembled|sell|sold|fix|fixed)\b/i.test(query);
+}
+
+function isPropertyViewingAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\b(?:properties|property|view|viewed|saw|seen|offer|townhouse|condo|house|home)\b/i.test(query);
+}
+
+function isFoodDeliveryServiceAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\b(?:food delivery|delivery services?|Domino'?s|Uber Eats|Fresh Fusion)\b/i.test(query);
+}
+
 function isMedicalProviderAggregateQuery(query: string): boolean {
   return /\bhow many\b/i.test(query) &&
     /\b(?:doctor|doctors|physician|physicians|specialist|specialists)\b/i.test(query);
@@ -279,6 +414,7 @@ function isOwnershipCountAggregateQuery(query: string): boolean {
 }
 
 function hasAggregateDomainSignal(input: {
+  categoryInstanceSignal: boolean;
   entry: RankedFactCandidate;
   factTopics: ReadonlySet<string>;
   language: LanguageService;
@@ -291,10 +427,56 @@ function hasAggregateDomainSignal(input: {
     return true;
   }
 
+  if (input.categoryInstanceSignal) {
+    return true;
+  }
+
   if (
     isAggregateMoneyQuery(input.query) &&
     input.topicOverlap >= 1 &&
     MONEY_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isAccommodationCostQuery(input.query) &&
+    ACCOMMODATION_COST_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isFurnitureActivityAggregateQuery(input.query) &&
+    FURNITURE_ACTIVITY_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isPropertyViewingAggregateQuery(input.query) &&
+    PROPERTY_VIEWING_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isFoodDeliveryServiceAggregateQuery(input.query) &&
+    FOOD_DELIVERY_SERVICE_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isComparativeMetricQuery(input.query) &&
+    SOCIAL_FOLLOWER_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isAggregateNumericQuery(input.query) &&
+    FAMILY_AGE_FACT_PATTERN.test(input.entry.fact.content)
   ) {
     return true;
   }
@@ -365,6 +547,11 @@ function hasAggregateFactCountSignal(
   const queryTopics = aggregateTopicTokens(query, language, queryLocale);
   const factTopics = aggregateTopicTokens(entry.fact.content, language, entry.locale);
   const topicOverlap = aggregateTopicOverlapCount(queryTopics, factTopics);
+  const categoryInstanceSignal = hasAggregateCategoryInstanceSignal({
+    factContent: entry.fact.content,
+    factTopics,
+    queryTopics,
+  });
   const hasDomainSignal = hasAggregateDomainSignal({
     entry,
     factTopics,
@@ -373,14 +560,40 @@ function hasAggregateFactCountSignal(
     queryLocale,
     queryTopics,
     topicOverlap,
+    categoryInstanceSignal,
   });
   const trustedAggregateEvidence = hasTrustedAggregateEvidence(entry);
   const countableEventActivityAggregate = isCountableEventActivityAggregateQuery(query);
   const hasWeakAggregateEvidenceSignal =
     entry.lexicalScore >= AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD ||
+    categoryInstanceSignal ||
     (
       isMedicalProviderAggregateQuery(query) &&
       MEDICAL_PROVIDER_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isAccommodationCostQuery(query) &&
+      ACCOMMODATION_COST_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isFurnitureActivityAggregateQuery(query) &&
+      FURNITURE_ACTIVITY_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isPropertyViewingAggregateQuery(query) &&
+      PROPERTY_VIEWING_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isFoodDeliveryServiceAggregateQuery(query) &&
+      FOOD_DELIVERY_SERVICE_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isComparativeMetricQuery(query) &&
+      SOCIAL_FOLLOWER_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isAggregateNumericQuery(query) &&
+      FAMILY_AGE_FACT_PATTERN.test(entry.fact.content)
     ) ||
     (
       isPlantAcquisitionAggregateQuery(query) &&
@@ -399,6 +612,12 @@ function hasAggregateFactCountSignal(
       QUANTIFIED_FACT_PATTERN.test(entry.fact.content) ||
       MEDICAL_PROVIDER_FACT_PATTERN.test(entry.fact.content) ||
       PLANT_ACQUISITION_FACT_PATTERN.test(entry.fact.content) ||
+      FURNITURE_ACTIVITY_FACT_PATTERN.test(entry.fact.content) ||
+      PROPERTY_VIEWING_FACT_PATTERN.test(entry.fact.content) ||
+      FOOD_DELIVERY_SERVICE_FACT_PATTERN.test(entry.fact.content) ||
+      SOCIAL_FOLLOWER_FACT_PATTERN.test(entry.fact.content) ||
+      FAMILY_AGE_FACT_PATTERN.test(entry.fact.content) ||
+      categoryInstanceSignal ||
       (
         countableEventActivityAggregate &&
         COUNTABLE_EVENT_ACTIVITY_FACT_PATTERN.test(entry.fact.content)
@@ -416,6 +635,55 @@ function hasAggregateFactCountSignal(
       entry.subjectScore > 0
     )
   );
+}
+
+function aggregateEvidencePriority(
+  entry: RankedFactCandidate,
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): number {
+  const queryTopics = aggregateTopicTokens(query, language, queryLocale);
+  const factTopics = aggregateTopicTokens(entry.fact.content, language, entry.locale);
+  const valueContent = valueBearingFactContent(entry.fact.content);
+  let priority =
+    aggregateTopicOverlapCount(queryTopics, factTopics) * 5;
+
+  if (hasTrustedAggregateEvidence(entry)) {
+    priority += 20;
+  }
+  if (QUANTIFIED_FACT_PATTERN.test(valueContent)) {
+    priority += 40;
+  }
+  if (
+    isAggregateMoneyQuery(query) &&
+    MONEY_FACT_PATTERN.test(valueContent)
+  ) {
+    priority += 30;
+  }
+  if (
+    isAccommodationCostQuery(query) &&
+    ACCOMMODATION_COST_FACT_PATTERN.test(valueContent)
+  ) {
+    priority += 30;
+  }
+  if (
+    isTemporalIntervalQuery(query) &&
+    isDatedEventFact(entry)
+  ) {
+    priority += 30;
+  }
+  if (
+    hasAggregateCategoryInstanceSignal({
+      factContent: entry.fact.content,
+      factTopics,
+      queryTopics,
+    })
+  ) {
+    priority += 30;
+  }
+
+  return priority;
 }
 
 function hasTemporalEventOrderSignal(entry: RankedFactCandidate): boolean {
@@ -484,7 +752,7 @@ function hasConversationEvidenceRecallSignal(
 ): boolean {
   if (
     entry.fact.source.method === "inferred" ||
-    entry.fact.tags?.some((tag) => CONVERSATION_EVIDENCE_TAGS.has(tag)) !== true
+    !hasConversationEvidenceTag(entry)
   ) {
     return false;
   }
@@ -605,7 +873,7 @@ function hasPreferenceEvidenceRecallSignal(
 
   if (
     entry.fact.source.method === "inferred" ||
-    entry.fact.tags?.some((tag) => CONVERSATION_EVIDENCE_TAGS.has(tag)) !== true
+    !hasConversationEvidenceTag(entry)
   ) {
     return false;
   }
@@ -986,6 +1254,25 @@ function hasGenericFactSelectionSignal(entry: RankedFactCandidate): boolean {
   );
 }
 
+function valueBearingFactContent(content: string): string {
+  return stripEvidencePrefix(content)
+    .replace(/^On\s+\d{4}\/\d{1,2}\/\d{1,2},\s*/iu, "")
+    .trim();
+}
+
+function hasDirectFactualCompanionSignal(entry: RankedFactCandidate): boolean {
+  const valueContent = valueBearingFactContent(entry.fact.content);
+
+  return (
+    entry.fact.source.method !== "inferred" &&
+    hasDirectFactualCompanionTag(entry) &&
+    (
+      QUANTIFIED_FACT_PATTERN.test(valueContent) ||
+      DATE_OR_TIME_FACT_PATTERN.test(valueContent)
+    )
+  );
+}
+
 function hasTrustedUpdateEvidenceSignal(
   entry: RankedFactCandidate,
   query: string,
@@ -1192,11 +1479,26 @@ export function selectFacts(
     queryLocale,
   );
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
+  const aggregateNumericQuery = isAggregateNumericQuery(query);
+  const comparativeMetricQuery = isComparativeMetricQuery(query);
+  const temporalIntervalQuery = isTemporalIntervalQuery(query);
+  const aggregateEvidenceQuery =
+    aggregateCountQuery ||
+    aggregateMoneyQuery ||
+    aggregateNumericQuery ||
+    comparativeMetricQuery ||
+    temporalIntervalQuery;
+  const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
+  const temporalMostRecentQuery = isTemporalMostRecentQuery(query);
+  const temporalRelativeEventQuery = isTemporalRelativeEventQuery(query);
+  const directFactualLookupQuery = language.isDirectFactualLookupQuery(
+    query,
+    queryLocale,
+  );
   const selected: RankedFactCandidate[] = [];
   const selectedIds = new Set<string>();
   const slotSpecificFactQuery =
-    !aggregateCountQuery &&
-    !aggregateMoneyQuery &&
+    !aggregateEvidenceQuery &&
     (
       routingDecision.requestedSlots.includes("role") ||
       routingDecision.requestedSlots.includes("focus") ||
@@ -1347,6 +1649,10 @@ export function selectFacts(
   };
 
   if (
+    !aggregateEvidenceQuery &&
+    !temporalEventOrderQuery &&
+    !temporalMostRecentQuery &&
+    !temporalRelativeEventQuery &&
     routingDecision.requestedSlots.includes("reference") &&
     !routingDecision.supportSlots.includes("project_state_support") &&
     !routingDecision.requestedSlots.includes("blocker") &&
@@ -1436,8 +1742,6 @@ export function selectFacts(
     };
   }
 
-  const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
-  const temporalMostRecentQuery = isTemporalMostRecentQuery(query);
   const sleepBeforeAppointmentQuery = isSleepBeforeAppointmentQuery(query);
   const assistantEvidenceRecallQuery = language.isAssistantEvidenceRecallQuery(
     query,
@@ -1455,7 +1759,7 @@ export function selectFacts(
   };
   const limit = answerCompositionQuery || factConfirmationQuery
     ? 3
-    : temporalEventOrderQuery
+    : temporalEventOrderQuery || temporalRelativeEventQuery
       ? 6
       : temporalMostRecentQuery
         ? TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT
@@ -1521,8 +1825,19 @@ export function selectFacts(
       routingDecision.strategy,
     )
     : [];
+  const pickGenericCandidates = (entries: RankedFactCandidate[]) => {
+    if (!directFactualLookupQuery) {
+      return entries.slice(0, limit);
+    }
 
-  if (aggregateCountQuery || aggregateMoneyQuery) {
+    const explicitEvidenceEntries = entries.filter(hasConversationEvidenceTag);
+    return diversifyRankedFactCandidatesBySession(
+      explicitEvidenceEntries.length > 0 ? explicitEvidenceEntries : entries,
+      limit,
+    );
+  };
+
+  if (aggregateEvidenceQuery) {
     const aggregateCandidates = rankFactCandidates(
       collapseLatestUpdateSeries(
         compatible.filter((item) =>
@@ -1531,6 +1846,10 @@ export function selectFacts(
         updateSeriesOptions,
       ),
       routingDecision.strategy,
+    ).sort(
+      (left, right) =>
+        aggregateEvidencePriority(right, query, language, queryLocale) -
+        aggregateEvidencePriority(left, query, language, queryLocale),
     );
 
     for (const entry of diversifyRankedFactCandidatesBySession(
@@ -1642,11 +1961,18 @@ export function selectFacts(
         "none",
       );
     }
-  } else if (temporalEventOrderQuery || temporalMostRecentQuery) {
-    for (const entry of rankFactCandidates(
-      compatible.filter(hasTemporalEventOrderSignal),
-      routingDecision.strategy,
-    ).slice(0, limit)) {
+  } else if (
+    temporalEventOrderQuery ||
+    temporalMostRecentQuery ||
+    temporalRelativeEventQuery
+  ) {
+    for (const entry of diversifyRankedFactCandidatesBySession(
+      rankFactCandidates(
+        compatible.filter(hasTemporalEventOrderSignal),
+        routingDecision.strategy,
+      ),
+      limit,
+    )) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -1665,7 +1991,7 @@ export function selectFacts(
       );
     }
   } else if (withIntentSignal.length > 0) {
-    for (const entry of withIntentSignal.slice(0, limit)) {
+    for (const entry of pickGenericCandidates(withIntentSignal)) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -1684,7 +2010,7 @@ export function selectFacts(
       );
     }
   } else if (withLexicalOrSubjectSignal.length > 0) {
-    for (const entry of withLexicalOrSubjectSignal.slice(0, limit)) {
+    for (const entry of pickGenericCandidates(withLexicalOrSubjectSignal)) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -1774,6 +2100,47 @@ export function selectFacts(
         fallback.evidenceScore,
         fallback.outcomeScore,
         fallback.verificationPenaltyScore,
+        "none",
+      );
+    }
+  }
+
+  if (directFactualLookupQuery && selected.length < DIRECT_FACTUAL_RECALL_LIMIT) {
+    const selectedSessionIds = new Set(
+      selected
+        .map((entry) => entry.fact.sessionId)
+        .filter((sessionId): sessionId is string => typeof sessionId === "string"),
+    );
+    const companionLimit = Math.min(
+      DIRECT_FACTUAL_COMPANION_LIMIT,
+      DIRECT_FACTUAL_RECALL_LIMIT - selected.length,
+    );
+    const companions = rankFactCandidates(
+      compatible.filter(
+        (entry) =>
+          !selectedIds.has(entry.fact.id) &&
+          entry.fact.sessionId !== undefined &&
+          selectedSessionIds.has(entry.fact.sessionId) &&
+          hasDirectFactualCompanionSignal(entry),
+      ),
+      routingDecision.strategy,
+    ).slice(0, companionLimit);
+
+    for (const entry of companions) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
         "none",
       );
     }

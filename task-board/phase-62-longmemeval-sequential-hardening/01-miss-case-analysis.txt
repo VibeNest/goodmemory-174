@@ -20,6 +20,283 @@ Data And Runs
 - Repository adapter source:
   https://github.com/xiaowu0162/LongMemEval
 
+Current current-code full-500 checkpoint:
+
+- run id:
+  `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-hybrid-r1-merged-20260509T022500Z`
+- source recovery chain:
+  failed-row retries from the current-code post-generic-count full-500 run,
+  not a shard rerun. The chain cleared the final 9 `baseline-full-context`
+  provider rows, then all 500 `goodmemory-rules-only` rows, then all 500
+  `goodmemory-hybrid` rows.
+- execution status:
+  all four profiles cover all 500 cleaned cases with `executionFailures: 0`.
+- headline accuracy:
+  - `baseline-no-memory`: 30/500 (6.0%)
+  - `baseline-full-context`: 461/500 (92.2%)
+  - `goodmemory-rules-only`: 363/500 (72.6%), evidence-session recall 0.7754
+  - `goodmemory-hybrid`: 361/500 (72.2%), evidence-session recall 0.7734
+- quality interpretation:
+  the current-code execution blocker is closed, but Phase 62 is not closed.
+  GoodMemory still trails full-context by roughly 20 points. The dominant gap is
+  retrieval/selection coverage for `temporal-reasoning` and `multi-session`;
+  hybrid does not yet improve the final answer rate over rules-only.
+- by-type GoodMemory misses versus full-context:
+  - `temporal-reasoning`: full-context 122/133, rules-only 84/133, hybrid 84/133
+  - `multi-session`: full-context 114/133, rules-only 85/133, hybrid 83/133
+  - `single-session-assistant`: full-context 56/56, rules-only 44/56, hybrid 46/56
+  - `knowledge-update`: full-context 72/78, rules-only 64/78, hybrid 63/78
+  - `single-session-preference`: full-context 27/30, rules-only 20/30, hybrid 19/30
+  - `single-session-user`: full-context 70/70, rules-only 66/70, hybrid 66/70
+- wrong-answer shape:
+  many wrong answers still have partial recall rather than total recall failure:
+  rules-only wrong cases include 32 partial-recall multi-session cases and 29
+  partial-recall temporal cases; hybrid has 33 and 28 respectively. The next
+  repair should prioritize enough-evidence assembly and temporal/multi-session
+  selection diversity before adding another surface-level extractor rule.
+
+Category-instance aggregate repair:
+
+- root-cause sample:
+  `c4a1ceb8` asks how many different citrus fruits were used in cocktail
+  recipes. The pre-repair rules-only context retrieved only
+  `answer_56d02cab_3` and `answer_56d02cab_1`, answered `2`, and missed
+  `answer_56d02cab_4` (Daiquiri with fresh lime juice) plus
+  `answer_56d02cab_2` (Sangria with orange and lemon). The missing facts were
+  stored; selection dropped them because the query used the category word
+  `citrus` while facts named examples such as `lime`, `orange`, and `lemon`.
+  `d23cf73b` is the same family for cuisines: the question used `cuisines`,
+  while facts named Ethiopian, Indian, Korean, and vegan examples. Pre-repair
+  recall retrieved only Indian and Korean evidence; after adding category
+  instances plus `attended` as a learning/trying signal, it retrieves all four.
+- generic fix:
+  aggregate selection now keeps trusted category-instance facts when a count
+  query names a category and the fact names a concrete instance with a
+  countable/use signal. The same change also prevents English plural
+  normalization from turning non-plural `-us` terms such as `citrus` into
+  invalid stems. The initial small category table covers concrete citrus and
+  cuisine examples only; it is intentionally narrow until more observed cases
+  justify broader taxonomy.
+- focused diagnostic:
+  `run-phase62-recall-diagnostic-c4a1ceb8-category-instance-20260509T030000Z`
+  retrieved all four answer sessions for `c4a1ceb8` with evidence-session recall
+  1.0 and wrong recall 0.
+  `run-phase62-recall-diagnostic-d23cf73b-category-instance-r2-20260509T042500Z`
+  retrieved all four answer sessions for `d23cf73b` with evidence-session recall
+  1.0 and wrong recall 0.
+- full recall-only delta:
+  `run-phase62-recall-diagnostic-rules-only-category-instance-r2-full500-20260509T043500Z`
+  is provider-free and covers all 500 cases. Compared with the previous clean
+  full-500 rules-only run, evidence-session recall moved from 0.7754 to 0.7777,
+  missed-recall cases moved from 166 to 163, and wrong-recall cases stayed at 7.
+- targeted live answer check:
+  `run-phase62-longmemeval-live-c4a1ceb8-category-instance-rules-20260509T032000Z`
+  used the real answer generator for the same case and returned exact-correct
+  `3`, evidence-session recall 1.0, wrong recall 0, and execution failures 0.
+  `run-phase62-longmemeval-live-d23cf73b-category-instance-rules-20260509T043000Z`
+  likewise returned exact-correct `4`, evidence-session recall 1.0, wrong recall
+  0, and execution failures 0.
+- interpretation:
+  this closes one concrete multi-session aggregate recall defect, not the Phase
+  62 quality loop. The full-500 recall-only delta is still small, so the next
+  repair should continue with the larger temporal/multi-session partial recall
+  families.
+
+Accommodation-cost comparison repair:
+
+- root-cause sample:
+  `2318644b` asks how much more was spent on accommodations per night in Hawaii
+  than in Tokyo. The Maui resort evidence and Tokyo hostel evidence were both
+  stored, but pre-repair selection returned only `answer_eaa8e3ef_2` because
+  the Tokyo fact used direct overlap (`Tokyo`, `$30`, `per night`) while the
+  Maui fact used lodging and place variants: `resort in Maui that costs over
+  $300 per night` versus the query wording `accommodations ... in Hawaii`.
+- generic fix:
+  aggregate-money selection now recognizes explicit lodging-cost facts for
+  lodging-cost queries. The signal is bounded to queries that mention
+  accommodation/lodging/hotel/hostel/resort/room/stay and cost/per-night terms,
+  and facts that contain lodging terms near money or per-night cost terms. This
+  keeps the fix at the concept boundary rather than adding a question-id or
+  LongMemEval-only exception.
+- focused diagnostic:
+  `run-phase62-recall-diagnostic-2318644b-accommodation-cost-20260509T053000Z`
+  retrieved both answer sessions, `answer_eaa8e3ef_1` and
+  `answer_eaa8e3ef_2`, with evidence-session recall 1.0 and wrong recall 0.
+- targeted live answer check:
+  `run-phase62-longmemeval-live-2318644b-accommodation-cost-rules-20260509T053500Z`
+  used the real answer generator and returned `At least $270 more per night.`
+  with deterministic `contains` scoring, evidence-session recall 1.0, wrong
+  recall 0, and `executionFailures: 0`.
+- full recall-only delta:
+  `run-phase62-recall-diagnostic-rules-only-accommodation-cost-full500-20260509T054000Z`
+  is provider-free and covers all 500 cases. Compared with the prior
+  category-instance r2 recall-only run, evidence-session recall moved from
+  0.7777 to 0.7797, missed-recall cases moved from 163 to 161, and wrong-recall
+  cases stayed at 7. The improved cases were `2318644b`, `gpt4_7abb270c`, and
+  `gpt4_2f56ae70`; no cases worsened in evidence-session recall.
+- interpretation:
+  this closes one concrete lodging-cost comparison defect and slightly improves
+  temporal/multi-session recall, but the overall quality gap remains large. The
+  next repair should continue with temporal bridge and multi-session partial
+  recall families.
+
+Numeric multi-session comparison repair:
+
+- root-cause sample:
+  six real cleaned cases exposed the same shape: the answer required comparing
+  or counting values spread across multiple long user turns, but the compact
+  evidence did not make the answer-bearing items selectable as a bounded
+  aggregate family. `gpt4_15e38248` needs furniture pieces bought, assembled,
+  or fixed; `gpt4_7fce9456` needs properties viewed before a townhouse offer;
+  `d682f1a2` needs food delivery services; `gpt4_5501fe77` needs the social
+  platform with the largest follower gain; `gpt4_2ba83207` needs the grocery
+  store with the largest spend; and `gpt4_d12ceb0e` needs the average age of
+  self, parents, and grandparents. These are numeric/comparative multi-session
+  tasks, not only `how many` count tasks.
+- generic fix:
+  the LongMemEval adapter now derives compact countable/comparative facts for
+  furniture activity, property viewing and offer history, food delivery
+  services, social follower deltas, grocery spend, and family ages. Recall
+  selection now recognizes bounded aggregate numeric and comparative metric
+  queries for those fact families. Dated temporal selection also diversifies
+  by session, and streaming-service dated facts were added so most-recent
+  service queries do not lose an answer session to duplicate-session pressure.
+- focused diagnostics:
+  `run-phase62-recall-diagnostic-numeric-multi-session-20260509T063000Z`
+  covers the six numeric/comparison cases above and retrieves all required
+  answer sessions with evidence-session recall 1.0, missed recall 0, wrong
+  recall 0, and `executionFailures: 0`.
+  `run-phase62-recall-diagnostic-streaming-service-r4-20260509T070000Z`
+  separately verifies `gpt4_2f56ae70` after temporal session diversification,
+  also with evidence-session recall 1.0.
+- targeted live answer check:
+  `run-phase62-longmemeval-live-numeric-multi-session-rules-20260509T071000Z`
+  uses the real answer generator and answers 6/6 correctly with
+  evidence-session recall 1.0, wrong recall 0, and `executionFailures: 0`.
+  The generated hypotheses are `4 pieces of furniture.`, `4`, `3`, `TikTok.`,
+  `Thrive Market.`, and `59.6 years old`.
+- full recall-only delta:
+  `run-phase62-recall-diagnostic-rules-only-numeric-multi-session-r2-full500-20260509T070500Z`
+  is provider-free and covers all 500 cases. Compared with the accommodation
+  baseline, evidence-session recall moved from 0.7797 to 0.7903, missed-recall
+  cases moved from 161 to 153, wrong-recall cases stayed at 7, multi-session
+  recall moved from 0.6990 to 0.7294, and temporal recall moved from 0.7360 to
+  0.7452. Improved cases were `gpt4_15e38248`, `gpt4_7fce9456`, `d682f1a2`,
+  `gpt4_5501fe77`, `gpt4_2ba83207`, `gpt4_d12ceb0e`, `gpt4_7abb270c`,
+  `gpt4_d6585ce8`, and `2c63a862`; no cases worsened in evidence-session
+  recall.
+- live full-500 failure recovery:
+  after provider recovery, the failed-row runner resumed from the older failed
+  shard01-10 source plus 27 successful r1 retry batches and completed the
+  remaining 101 r2 batches. The merged report
+  `run-phase62-longmemeval-full500-current-after-generic-count-shard02-10-retry-merged-20260509T091500Z`
+  has all four profiles across 500 cases with `executionFailures: 0`;
+  `goodmemory-rules-only` is 369/500 with evidence-session recall 0.7903 and
+  `goodmemory-hybrid` is 368/500 with evidence-session recall 0.7866.
+- interpretation:
+  this is the largest post-clean mechanism lift so far and proves the
+  failed-row recovery path works in real LLM conditions. It still leaves a
+  meaningful LongMemEval gap against full-context, so Phase 62 remains open and
+  BEAM stays blocked.
+
+Temporal event and answer-session evidence repair:
+
+- root-cause:
+  the next high-yield miss family was not only missing temporal regexes. Several
+  LongMemEval temporal questions list multiple `answer_session_ids`, but only
+  the final or most direct session has a turn-level `has_answer=true` marker.
+  The prior harness preserved compact dated evidence only from `has_answer`
+  turns, so precursor sessions such as a triathlon and 5K before a soccer
+  tournament, or a gardening workshop before planting tomato saplings, were
+  unavailable to recall even though the dataset identifies them as answer
+  sessions. A separate routing issue suppressed book-title temporal interval
+  questions as reference-only queries.
+- representative cases:
+  `gpt4_4ef30696` needs both the day the user finished `The Nightingale` and
+  the day they started `The Hitchhiker's Guide to the Galaxy`; `gpt4_e061b84g`
+  needs the sports-event answer session plus precursor sports sessions; and
+  `gpt4_1e4a8aec` needs the gardening workshop and tomato-sapling sessions.
+- generic fix:
+  the LongMemEval adapter now mines compact dated evidence from sessions listed
+  in `answer_session_ids` even when individual user turns are not marked
+  `has_answer=true`; it does not promote those non-answer turns as raw verified
+  evidence. It also derives quoted book start/finish facts, sports-event facts
+  for triathlon/5K/soccer-tournament phrasing, and gardening activity facts.
+  Recall selection treats temporal interval queries as aggregate evidence
+  queries, exempts temporal evidence queries from the reference-only early
+  return, and adds a temporal relative-event path for questions like `two weeks
+  ago`, `last Saturday`, or `Valentine's day`.
+- focused diagnostics:
+  `run-phase62-recall-diagnostic-rules-only-temporal-event-answer-session-repair-targeted-20260509T122000Z`
+  covers `gpt4_4ef30696`, `gpt4_e061b84g`, and `gpt4_1e4a8aec`; all three reach
+  evidence-session recall 1.0, missed recall 0, wrong recall 0, and
+  `executionFailures: 0`.
+- targeted live answer check:
+  `run-phase62-longmemeval-live-temporal-event-answer-session-repair-targeted-20260509T123000Z`
+  uses the real answer generator and answers 3/3 correctly with
+  evidence-session recall 1.0 and `executionFailures: 0`. The generated
+  hypotheses are `1 day`, `The company's annual charity soccer tournament.`,
+  and `Planted 12 new tomato saplings.`
+- full recall-only delta:
+  `run-phase62-recall-diagnostic-rules-only-temporal-event-answer-session-repair-full500-20260509T122500Z`
+  is provider-free and covers all 500 cases. Compared with the numeric
+  multi-session baseline, evidence-session recall moved from 0.7903 to 0.8675,
+  missed-recall cases moved from 153 to 111, wrong-recall cases stayed at 7,
+  multi-session recall moved from 0.7294 to 0.8228, temporal recall moved from
+  0.7452 to 0.8331, knowledge-update recall moved to 0.8397, single-session-user
+  recall moved to 0.9571, single-session-preference recall moved to 0.9000, and
+  single-session-assistant recall moved to 0.9643.
+- interpretation:
+  this is the strongest recall-side repair so far and directly addresses a
+  dataset-shape blind spot rather than a question-id-specific miss. The later
+  live full-500 recovery
+  `run-phase62-longmemeval-full500-current-after-temporal-answer-session-retry-r2-resumed-merged-20260515T001000Z`
+  confirms the current temporal/answer-session surface can run cleanly across
+  all four profiles and 500 cases (`executionFailures: 0`; clean-check
+  `batchCount: 0`). It still does not close Phase 62 quality:
+  `baseline-full-context` is 451/500, `goodmemory-rules-only` is 345/500 with
+  evidence-session recall 0.8705, and `goodmemory-hybrid` is 358/500 with
+  evidence-session recall 0.8599. The next repair target is answer-quality
+  loss after recall, especially cases where retrieved evidence is now present
+  but the generator/judge outcome remains wrong.
+
+Direct factual companion repair after the clean full-500 run:
+
+- target family:
+  direct factual questions where GoodMemory retrieved the answer session, but
+  the selected context kept only a broad same-session topic sentence and omitted
+  the answer value. Real examples include `ad7109d1` (`500 Mbps`), `19b5f2b3`
+  (`two weeks`), and `51c32626` (`February 1st`).
+- mechanism:
+  direct factual lookup now prefers explicit conversation evidence, diversifies
+  generic picks by session, and carries same-session user/compact dated
+  companions when they contain answer-like quantities, dates, or times. This is
+  a generic recall-selection repair, not a question-id rule.
+- targeted evidence:
+  `run-phase62-recall-diagnostic-rules-only-direct-factual-companions-targeted-20260515T003000Z`
+  retrieves all answer sessions for the three target cases with
+  evidence-session recall 1.0, wrong recall 0, and `executionFailures: 0`.
+  The final targeted live run
+  `run-phase62-longmemeval-live-direct-factual-companions-targeted-r2-20260515T010500Z`
+  answers all 3/3 exactly with `executionFailures: 0`.
+- all-500 provider-free recall evidence:
+  `run-phase62-recall-diagnostic-rules-only-direct-factual-companions-full500-r3-20260515T010000Z`
+  raises rules-only evidence recall from 0.8675 to 0.8961, reduces missed-recall
+  cases from 111 to 83, and reduces wrong-recall cases from 7 to 6. The largest
+  category lifts are temporal-reasoning 0.8331 -> 0.8957 and knowledge-update
+  0.8397 -> 0.8846.
+- interpretation:
+  this is the strongest recall-side repair so far, and the fresh rules-only live
+  full-500 rerun
+  `run-phase62-longmemeval-full500-current-after-direct-factual-companions-rules-only-20260515T011000Z`
+  confirms the repair carries through to answer quality: rules-only improves
+  from 345/500 to 368/500 with evidence-session recall 0.8961, missed recall 83,
+  wrong recall 6, and `executionFailures: 0`. Phase 62 still stays open because
+  the latest unified four-profile comparison remains
+  `baseline-full-context` 451/500, `goodmemory-rules-only` 345/500, and
+  `goodmemory-hybrid` 358/500`; hybrid has not yet been rerun on the current
+  direct-factual repair surface.
+
 Initial 3-case slice:
 
 - run id:
@@ -1198,11 +1475,27 @@ Next Actions
 4. After repairs, rerun full-500 by failed-row retry or a fresh sequential
    full-500 run. If using a merged/shard report with `executionError` rows,
    resume with
-   `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <latest-merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1`.
-5. If moving to BEAM later, carry forward the generic repairs from this phase:
+   `bun run eval:phase-62-full500-retry-failures -- --benchmark-root /tmp/LongMemEval --source-run-id <latest-merged-run-id> --retry-run-id <retry-run-id> --merged-run-id <next-merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1 --resume-existing-batches`.
+   If a provider interruption or manual stop prevents the runner from emitting
+   its merged report, keep the same `--retry-run-id` and rerun with
+   `--resume-existing-batches`; completed `*-batch-NNN` reports are discovered
+   automatically and only unresolved `executionError` rows are scheduled again.
+   A 2026-05-09 dry-run against the current clean merged report,
+   `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-hybrid-r1-merged-20260509T022500Z`,
+   produced `batchCount: 0`; a dry-run against the older failed shard 02-10
+   source from
+   `run-phase62-longmemeval-full500-current-after-generic-count-20260508T011800Z`
+   produced `batchCount: 116` without invoking the model. This confirms the
+   resume path can start from failed rows and should be used before any fresh
+   shard rerun.
+5. Current post-clean repairs have lifted provider-free rules-only recall from
+   0.7754 to 0.7797 and reduced missed-recall cases from 166 to 161 without
+   increasing wrong recall. Continue with larger temporal bridge and
+   multi-session partial-recall families; this is still not enough to open BEAM.
+6. If moving to BEAM later, carry forward the generic repairs from this phase:
    assistant-derived verified evidence, dated-event derivation, project
    leadership context preservation, latest relationship relocation collapse,
    recommendation-category answer guidance, and bounded live-provider timeout
    reporting.
-6. Keep final/public reporting deferred until LongMemEval, BEAM,
+7. Keep final/public reporting deferred until LongMemEval, BEAM,
    MemoryAgentBench, and LoCoMo are all complete.

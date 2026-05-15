@@ -245,6 +245,7 @@
     "@ai-sdk/openai-compatible": "^2.0.40",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ai": "^6.0.143",
+    "goodmemory": "^0.2.3",
     "sqlite-vss": "0.1.2",
     "zod": "^4.3.6"
   }

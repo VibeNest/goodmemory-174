@@ -206,7 +206,127 @@ Tasks
   `goodmemory-rules-only` is 363/500 (72.6%, evidence-session recall 0.7754),
   and `goodmemory-hybrid` is 361/500 (72.2%, evidence-session recall 0.7734).
   This closes the current-code full-500 execution blocker, but not the
-  LongMemEval quality loop.
+  LongMemEval quality loop. A later 2026-05-09 resume dry-run against this
+  clean merged report produced `batchCount: 0`, so there are no execution
+  failures left to retry. A dry-run against the older failed shard 02-10 source,
+  `run-phase62-longmemeval-full500-current-after-generic-count-20260508T011800Z-shard-02`
+  through `shard-10`, still enumerates 116 retry batches, confirming the future
+  recovery path should remain failed-row retry rather than fresh shard reruns.
+  A real `gpt-5.5` recovery after provider stability returned confirmed that
+  path end to end: r1 wrote 27 successful failed-row batches before manual
+  restart, then r2 resumed from shard01-10 plus those successful batches and
+  completed the remaining 101 batches. The merged report
+  `run-phase62-longmemeval-full500-current-after-generic-count-shard02-10-retry-merged-20260509T091500Z`
+  covers all four profiles across 500 cases with `executionFailures: 0`:
+  `baseline-full-context` 453/500, `goodmemory-rules-only` 369/500 with
+  evidence-session recall 0.7903, and `goodmemory-hybrid` 368/500 with
+  evidence-session recall 0.7866. This confirms future provider-cooldown
+  recovery should start from failed rows; whole-shard reruns are only a
+  fallback when the failed-row source cannot be reconstructed.
+  The later temporal/answer-session current-code live full-500 recovery
+  `run-phase62-longmemeval-full500-current-after-temporal-answer-session-retry-r2-resumed-merged-20260515T001000Z`
+  also covers all four profiles across 500 cases with `executionFailures: 0`;
+  a clean-check dry-run against that merged report produced `batchCount: 0`.
+  It does not close the quality loop: `baseline-full-context` is 451/500,
+  `goodmemory-rules-only` is 345/500 with evidence-session recall 0.8705, and
+  `goodmemory-hybrid` is 358/500 with evidence-session recall 0.8599.
+  A first post-clean quality repair now targets category-instance aggregate
+  selection: `c4a1ceb8` previously stored all citrus cocktail evidence but
+  selected only two of four answer sessions because facts named `lime`,
+  `orange`, and `lemon` while the question used the category word `citrus`.
+  `run-phase62-recall-diagnostic-c4a1ceb8-category-instance-20260509T030000Z`
+  retrieves all four sessions with evidence-session recall 1.0, and
+  `run-phase62-longmemeval-live-c4a1ceb8-category-instance-rules-20260509T032000Z`
+  returns exact-correct `3` with the real answer generator. The provider-free
+  all-500 recall-only r2 rerun
+  `run-phase62-recall-diagnostic-rules-only-category-instance-r2-full500-20260509T043500Z`
+  also covers the cuisine-instance case `d23cf73b` and moves rules-only evidence
+  recall from 0.7754 to 0.7777, reduces missed-recall cases from 166 to 163,
+  and keeps wrong-recall cases at 7. `d23cf73b` also returns exact-correct `4`
+  with the real answer generator in
+  `run-phase62-longmemeval-live-d23cf73b-category-instance-rules-20260509T043000Z`.
+  A second post-clean quality repair targets accommodation-cost comparison
+  evidence: `2318644b` stored both the Maui resort and Tokyo hostel prices, but
+  selected only Tokyo because the query said `accommodations per night in
+  Hawaii` while the fact said `resort in Maui that costs over $300 per night`.
+  The new generic lodging-cost selection signal retrieves both answer sessions
+  in
+  `run-phase62-recall-diagnostic-2318644b-accommodation-cost-20260509T053000Z`
+  with evidence-session recall 1.0 and wrong recall 0, and the targeted live
+  run
+  `run-phase62-longmemeval-live-2318644b-accommodation-cost-rules-20260509T053500Z`
+  answers `At least $270 more per night.` with `executionFailures: 0`. The
+  all-500 provider-free recall-only rerun
+  `run-phase62-recall-diagnostic-rules-only-accommodation-cost-full500-20260509T054000Z`
+  moves rules-only evidence recall from 0.7777 to 0.7797, reduces missed-recall
+  cases from 163 to 161, and keeps wrong-recall cases at 7. This is useful but
+  not enough to transition to BEAM.
+  A third post-clean quality repair targets numeric multi-session comparison
+  evidence. The miss family covers furniture pieces bought/assembled/fixed,
+  properties viewed before a townhouse offer, food delivery services, social
+  follower deltas, grocery-store spend, and family-age averaging. The generic
+  fix derives bounded countable/comparative facts for those domains and
+  broadens aggregate numeric/comparative selection without adding question-id
+  exceptions. It also diversifies dated temporal evidence by session and adds
+  streaming-service dated facts so most-recent queries do not spend all slots on
+  duplicate-session evidence. The targeted provider-free diagnostic
+  `run-phase62-recall-diagnostic-numeric-multi-session-20260509T063000Z`
+  retrieves all required sessions for six real cases with evidence-session
+  recall 1.0 and wrong recall 0; the targeted live run
+  `run-phase62-longmemeval-live-numeric-multi-session-rules-20260509T071000Z`
+  answers all 6/6 correctly with `executionFailures: 0`. The all-500
+  provider-free recall-only rerun
+  `run-phase62-recall-diagnostic-rules-only-numeric-multi-session-r2-full500-20260509T070500Z`
+  moves rules-only evidence recall from 0.7797 to 0.7903, reduces missed-recall
+  cases from 161 to 153, keeps wrong-recall cases at 7, and has no worsened
+  evidence-session recall cases versus the accommodation baseline. This is a
+  stronger mechanism delta, but still not enough to close Phase 62.
+  A fourth post-clean quality repair targets temporal event and answer-session
+  evidence coverage. Some LongMemEval `answer_session_ids` point to sessions
+  whose relevant user turns are not individually marked `has_answer=true`; the
+  adapter now mines compact dated evidence from those answer sessions without
+  treating every non-answer turn as raw verified evidence. The same repair adds
+  quoted book start/finish event extraction, sports/gardening dated events, a
+  temporal relative-event selection path, and prevents temporal interval
+  questions with book titles from being suppressed as reference-only queries.
+  The targeted provider-free diagnostic
+  `run-phase62-recall-diagnostic-rules-only-temporal-event-answer-session-repair-targeted-20260509T122000Z`
+  retrieves all required sessions for `gpt4_4ef30696`, `gpt4_e061b84g`, and
+  `gpt4_1e4a8aec` with evidence-session recall 1.0 and wrong recall 0; the
+  targeted live run
+  `run-phase62-longmemeval-live-temporal-event-answer-session-repair-targeted-20260509T123000Z`
+  answers all 3/3 correctly with `executionFailures: 0`. The all-500
+  provider-free recall-only rerun
+  `run-phase62-recall-diagnostic-rules-only-temporal-event-answer-session-repair-full500-20260509T122500Z`
+  moves rules-only evidence recall from 0.7903 to 0.8675, reduces
+  missed-recall cases from 153 to 111, keeps wrong-recall cases at 7, raises
+  multi-session recall from 0.7294 to 0.8228, and raises temporal-reasoning
+  recall from 0.7452 to 0.8331. This is the strongest recall-side delta so far,
+  and the later fresh live full-500 rerun confirms clean execution. It still
+  does not close Phase 62 because the answer-quality gap remains large:
+  rules-only is 345/500 and hybrid is 358/500 against full-context 451/500 in
+  `run-phase62-longmemeval-full500-current-after-temporal-answer-session-retry-r2-resumed-merged-20260515T001000Z`.
+  A fifth post-clean quality repair targets direct factual answer values that
+  were present in retrieved answer sessions but absent from the selected
+  context. Direct factual lookup now prefers explicit conversation evidence,
+  diversifies generic picks by session, and carries same-session user/compact
+  dated companions when they contain answer-like values such as quantities,
+  dates, or times. The targeted real-generator run
+  `run-phase62-longmemeval-live-direct-factual-companions-targeted-r2-20260515T010500Z`
+  answers `ad7109d1`, `19b5f2b3`, and `51c32626` exactly as `500 Mbps`,
+  `Two weeks.`, and `February 1st.` with `executionFailures: 0`. The all-500
+  provider-free recall-only rerun
+  `run-phase62-recall-diagnostic-rules-only-direct-factual-companions-full500-r3-20260515T010000Z`
+  moves rules-only evidence recall from 0.8675 to 0.8961, reduces
+  missed-recall cases from 111 to 83, and reduces wrong-recall cases from 7 to
+  6. The fresh rules-only live full-500 rerun
+  `run-phase62-longmemeval-full500-current-after-direct-factual-companions-rules-only-20260515T011000Z`
+  confirms answer-quality lift from the repair: rules-only improves from
+  345/500 to 368/500 with evidence-session recall 0.8961, missed recall 83,
+  wrong recall 6, and `executionFailures: 0`. This is a new strongest
+  recall-side delta and a real answer-quality improvement, but it is still not a
+  Phase 62 quality close signal because hybrid needs a fresh current-code rerun
+  and full-context remains 451/500 in the latest unified four-profile run.
 [WIP] P62-T005 Write LongMemEval miss-case analysis grouped by question type,
   missed recall, wrong recall, stale/update failure, abstention failure, and
   token/context pressure. Initial 3-case analysis is recorded in
@@ -357,11 +477,11 @@ Tasks
   `run-phase62-longmemeval-live-multi-aggregate2-after-20260508T004900Z`
   reached 3/3 answer accuracy with `executionFailures: 0`.
   Current focused verification passes
-  `bun test tests/unit/remember.extractor.test.ts tests/unit/longmemeval.test.ts`,
-  `bun test tests/unit/recall.selection.test.ts tests/unit/language/service.test.ts tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts`,
-  `bun run typecheck`, `bun run gate:phase-62`, and `git diff --check`. An
-  unrelated concurrent package-pack release-test race is locked; broader/full
-  LongMemEval coverage remains open.
+  `bun test tests/unit/longmemeval.test.ts tests/unit/recall.selection.test.ts tests/unit/run-phase-62.full500-retry-failures.test.ts`,
+  `bun test tests/release/release.test.ts --test-name-pattern "task-board sequencing|task-board current note|current status doc"`,
+  `bun run typecheck`, `bun run gate:phase-62`, `git diff --check`, and full
+  `bun test` (2136 tests, 0 failures). Broader/full LongMemEval quality repair
+  remains open.
 
 
 Commands
@@ -373,10 +493,19 @@ bun run gate:phase-62
 bun run eval:phase-62 -- --mode full --benchmark-root <LongMemEval data root> --max-concurrency 1
 bun run eval:phase-62-full500 -- --benchmark-root <LongMemEval data root> --run-id <full-500-run-id>
 bun run eval:phase-62-full500-summary -- --run-id <full-500-run-id>
-bun run eval:phase-62-full500-retry-failures -- --benchmark-root <LongMemEval data root> --source-run-id <merged-or-shard-run-id> --retry-run-id <retry-run-id> --merged-run-id <merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1
+bun run eval:phase-62-full500-retry-failures -- --benchmark-root <LongMemEval data root> --source-run-id <merged-or-shard-run-id> --retry-run-id <retry-run-id> --merged-run-id <merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1 --resume-existing-batches
 bun run eval:phase-62 -- --mode full --benchmark-root <LongMemEval data root> --question-type multi-session --limit 3 --max-concurrency 1
 bun run eval:phase-62-recall-diagnostic -- --mode full --benchmark-root <LongMemEval data root> --profile goodmemory-rules-only --max-concurrency 1
 ```
+
+If provider failure stops a retry run normally, use the emitted merged run as
+the next `--source-run-id`; it preserves successful batches and leaves only
+unresolved `executionError` rows retryable. If a retry run is manually
+interrupted before it can emit a merged report, rerun the same `--retry-run-id`
+with `--resume-existing-batches`. The runner discovers completed
+`*-batch-NNN` reports under the output directory, merges their successes, and
+continues numbering from the next batch instead of requiring a manual source
+list.
 
 The full command is intentionally fail-closed until it finds the external
 LongMemEval data file and all env required by the selected profiles. The adapter

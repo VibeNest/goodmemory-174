@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { resolveCliFlagValue } from "./cli-options";
 import { runPhase62LongMemEval } from "./run-phase-62-eval";
@@ -51,6 +51,7 @@ export interface Phase62Full500RetryFailureOptions {
   mergedRunId?: string;
   outputDir?: string;
   profiles?: readonly string[];
+  resumeExistingBatches?: boolean;
   retryRunId?: string;
   sourceRunIds?: readonly string[];
 }
@@ -58,6 +59,7 @@ export interface Phase62Full500RetryFailureOptions {
 export interface Phase62Full500RetryFailureDependencies {
   now?: () => Date;
   readFile?: (path: string) => Promise<string>;
+  readDir?: (path: string) => Promise<string[]>;
   runBatch?: (
     options: Partial<Phase62CliOptions>,
     dependencies?: Phase62EvalDependencies,
@@ -73,6 +75,7 @@ export interface Phase62Full500RetryFailureResult {
   batches: Phase62FailureRetryBatch[];
   executedBatches: Phase62FailureRetryBatch[];
   mergedReport?: LongMemEvalReport;
+  resumedBatchRunIds: string[];
   sourceRunIds: string[];
   stoppedOnExecutionFailure?: {
     executionFailures: number;
@@ -177,6 +180,7 @@ function parsePhase62Full500RetryFailureOptions(
     mergedRunId: resolveCliFlagValue(argv, "--merged-run-id"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
+    resumeExistingBatches: parseBooleanFlag(argv, "--resume-existing-batches"),
     retryRunId: resolveCliFlagValue(argv, "--retry-run-id"),
     sourceRunIds: parseRepeatedFlag(argv, "--source-run-id"),
   };
@@ -196,6 +200,42 @@ function buildBatchRunId(input: {
   retryRunId: string;
 }): string {
   return `${input.retryRunId}-${input.profile}-batch-${String(input.batchIndex).padStart(3, "0")}`;
+}
+
+function parseRetryBatchIndex(input: {
+  retryRunId: string;
+  runId: string;
+}): number | null {
+  if (!input.runId.startsWith(`${input.retryRunId}-`)) {
+    return null;
+  }
+
+  const match = /-batch-(\d+)$/u.exec(input.runId);
+  if (!match) {
+    return null;
+  }
+
+  const batchIndex = Number(match[1]);
+  return Number.isInteger(batchIndex) && batchIndex > 0 ? batchIndex : null;
+}
+
+export function discoverExistingRetryBatchRunIds(input: {
+  entries: readonly string[];
+  retryRunId: string;
+}): string[] {
+  return input.entries
+    .map((entry) => ({
+      batchIndex: parseRetryBatchIndex({
+        retryRunId: input.retryRunId,
+        runId: entry,
+      }),
+      runId: entry,
+    }))
+    .filter((entry): entry is { batchIndex: number; runId: string } =>
+      entry.batchIndex !== null
+    )
+    .sort((left, right) => left.batchIndex - right.batchIndex)
+    .map((entry) => entry.runId);
 }
 
 function validateReport(value: unknown, path: string): LongMemEvalReport {
@@ -274,6 +314,7 @@ export function buildPhase62FailureRetryBatches(input: {
   profiles?: readonly string[];
   reports: readonly LongMemEvalReport[];
   retryRunId: string;
+  startingBatchIndex?: number;
 }): Phase62FailureRetryBatch[] {
   const profiles = normalizeLongMemEvalProfileList(input.profiles);
   const latestCasesByProfile = collectLatestCasesByProfile({
@@ -299,7 +340,7 @@ export function buildPhase62FailureRetryBatches(input: {
         caseIds: failedCaseIds.slice(offset, offset + input.chunkSize),
         profile,
         runId: buildBatchRunId({
-          batchIndex: batches.length + 1,
+          batchIndex: (input.startingBatchIndex ?? 1) + batches.length,
           profile,
           retryRunId: input.retryRunId,
         }),
@@ -355,6 +396,12 @@ export async function runPhase62Full500FailureRetries(
   const sourceRunIds = [...options.sourceRunIds];
   const readFileImpl =
     dependencies.readFile ?? ((path: string) => readFile(path, "utf8"));
+  const readDirImpl =
+    dependencies.readDir ??
+    (async (path: string) =>
+      (await readdir(path, { withFileTypes: true }))
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name));
   const runBatch = dependencies.runBatch ?? runPhase62LongMemEval;
   const summarize = dependencies.summarize ?? runPhase62Full500Summary;
   const sleep =
@@ -366,19 +413,39 @@ export async function runPhase62Full500FailureRetries(
     readFile: readFileImpl,
     sourceRunIds,
   });
+  const resumedBatchRunIds = options.resumeExistingBatches
+    ? discoverExistingRetryBatchRunIds({
+        entries: await readDirImpl(outputDir),
+        retryRunId,
+      })
+    : [];
+  const resumedBatchReports =
+    resumedBatchRunIds.length === 0
+      ? []
+      : await readSourceReports({
+          outputDir,
+          readFile: readFileImpl,
+          sourceRunIds: resumedBatchRunIds,
+        });
+  const latestBatchIndex = resumedBatchRunIds.reduce((max, runId) => {
+    const batchIndex = parseRetryBatchIndex({ retryRunId, runId }) ?? 0;
+    return Math.max(max, batchIndex);
+  }, 0);
   const batches = buildPhase62FailureRetryBatches({
     chunkSize: options.chunkSize ?? DEFAULT_CHUNK_SIZE,
     excludeCaseIds: options.excludeCaseIds,
     maxBatches: options.maxBatches,
     profiles: options.profiles,
-    reports,
+    reports: [...reports, ...resumedBatchReports],
     retryRunId,
+    startingBatchIndex: latestBatchIndex + 1,
   });
 
   if (options.dryRun) {
     return {
       batches,
       executedBatches: [],
+      resumedBatchRunIds,
       sourceRunIds,
     };
   }
@@ -462,13 +529,18 @@ export async function runPhase62Full500FailureRetries(
       options.expectedTotalCases ?? DEFAULT_EXPECTED_TOTAL_CASES,
     outputDir,
     runId: options.mergedRunId ?? `${retryRunId}-merged`,
-    shardRunIds: [...sourceRunIds, ...batchReports.map((report) => report.runId)],
+    shardRunIds: [
+      ...sourceRunIds,
+      ...resumedBatchRunIds,
+      ...batchReports.map((report) => report.runId),
+    ],
   });
 
   return {
     batches,
     executedBatches,
     mergedReport,
+    resumedBatchRunIds,
     sourceRunIds,
     stoppedOnExecutionFailure,
   };
@@ -486,6 +558,7 @@ if (import.meta.main) {
         mergedExecutionFailures: result.mergedReport?.summary.executionFailures,
         mergedRunDirectory: result.mergedReport?.runDirectory,
         mergedRunId: result.mergedReport?.runId,
+        resumedBatchRunIds: result.resumedBatchRunIds,
         sourceRunIds: result.sourceRunIds,
         stoppedOnExecutionFailure: result.stoppedOnExecutionFailure,
       },

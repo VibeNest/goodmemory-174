@@ -712,6 +712,333 @@ const LONGMEMEVAL_MULTI_COUNT_CASES = [
   },
 ];
 
+const LONGMEMEVAL_MULTI_NUMERIC_MISS_CASES = [
+  {
+    answer: "4",
+    answer_session_ids: [
+      "s-furniture-mattress",
+      "s-furniture-coffee-table",
+      "s-furniture-kitchen-table",
+      "s-furniture-bookshelf",
+    ],
+    haystack_dates: [
+      "2023/05/21",
+      "2023/05/26",
+      "2023/05/26",
+      "2023/05/29",
+    ],
+    haystack_session_ids: [
+      "s-furniture-mattress",
+      "s-furniture-coffee-table",
+      "s-furniture-kitchen-table",
+      "s-furniture-bookshelf",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm looking for some recommendations on throw pillows for my couch. I just got a new coffee table and rearranged my living room, and now the old pillows are looking a bit worn out. By the way, I've been meaning to get a new mattress for ages, and last week I finally took the plunge and ordered one from Casper.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I need some help finding new throw pillows for my couch. I just got a new coffee table from West Elm about three weeks ago, and it's really made my living room feel modern, but my old pillows are looking worn out.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "My living room has a modern feel, and the dominant color scheme is a mix of neutral tones. By the way, speaking of fixing things around the house, I finally got around to fixing the wobbly leg on my kitchen table last weekend.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm thinking of getting some new throw pillows for my couch. Oh, and speaking of organizing, I finally assembled that IKEA bookshelf for my home office about two months ago.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "How many pieces of furniture did I buy, assemble, sell, or fix in the past few months?",
+    question_date: "2023/05/30",
+    question_id: "q-furniture-activity-count",
+    question_type: "multi-session",
+  },
+  {
+    answer: "4",
+    answer_session_ids: [
+      "s-property-offer",
+      "s-property-bungalow",
+      "s-property-cedar-creek",
+      "s-property-noisy-condo",
+      "s-property-rejected-condo",
+    ],
+    haystack_dates: [
+      "2023/03/08",
+      "2023/03/08",
+      "2023/03/08",
+      "2023/03/08",
+      "2023/03/08",
+    ],
+    haystack_session_ids: [
+      "s-property-offer",
+      "s-property-bungalow",
+      "s-property-cedar-creek",
+      "s-property-noisy-condo",
+      "s-property-rejected-condo",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I recently put in an offer on a 3-bedroom townhouse in the Brookside neighborhood on February 25th, and after some negotiations, we agreed on a price of $340,000.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I recently saw a beautiful 3-bedroom bungalow in the Oakwood neighborhood on January 22nd that I really liked, but the kitchen needed some serious renovation work.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been searching for a home for a while now, and I've seen some properties that just didn't fit my budget, like that one in Cedar Creek on February 1st - it was way out of my league.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I viewed a 1-bedroom condo on February 10th, but the noise from the highway was a deal-breaker.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I actually fell in love with a 2-bedroom condo on February 15th, it had amazing modern appliances and a community pool, but unfortunately, my offer got rejected on the 17th due to a higher bid.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "How many properties did I view before making an offer on the townhouse in the Brookside neighborhood?",
+    question_date: "2023/03/09",
+    question_id: "q-property-viewing-count",
+    question_type: "multi-session",
+  },
+  {
+    answer: "3",
+    answer_session_ids: [
+      "s-delivery-dominos",
+      "s-delivery-uber-eats",
+      "s-delivery-fresh-fusion",
+    ],
+    haystack_dates: ["2023/05/22", "2023/05/27", "2023/05/30"],
+    haystack_session_ids: [
+      "s-delivery-dominos",
+      "s-delivery-uber-eats",
+      "s-delivery-fresh-fusion",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I've been relying on food delivery services a lot lately - I had Domino's Pizza three times last week!",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "By the way, my weekends have been all about Uber Eats lately, it's been a lifesaver.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been really busy lately and have been relying on food delivery services, like this new one I found called Fresh Fusion - they have some great pre-made meals.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "How many different types of food delivery services have I used recently?",
+    question_date: "2023/05/31",
+    question_id: "q-food-delivery-service-count",
+    question_type: "multi-session",
+  },
+  {
+    answer: "TikTok",
+    answer_session_ids: [
+      "s-followers-twitter",
+      "s-followers-tiktok",
+      "s-followers-facebook",
+    ],
+    haystack_dates: ["2023/05/29", "2023/05/29", "2023/05/30"],
+    haystack_session_ids: [
+      "s-followers-twitter",
+      "s-followers-tiktok",
+      "s-followers-facebook",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I just noticed that my Twitter follower count has jumped from 420 to 540 over the past month, which is really encouraging.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been seeing some growth on some of my platforms, like TikTok, where I've gained around 200 followers over the past three weeks, which is pretty cool!",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've noticed that my Facebook follower count has remained steady at around 800, but my posts have been getting more shares and comments than usual.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "Which social media platform did I gain the most followers on over the past month?",
+    question_date: "2023/05/31",
+    question_id: "q-social-follower-gain-max",
+    question_type: "multi-session",
+  },
+  {
+    answer: "Thrive Market",
+    answer_session_ids: [
+      "s-grocery-thrive",
+      "s-grocery-walmart",
+      "s-grocery-trader-joes",
+      "s-grocery-publix",
+    ],
+    haystack_dates: [
+      "2023/05/26",
+      "2023/05/26",
+      "2023/05/29",
+      "2023/05/30",
+    ],
+    haystack_session_ids: [
+      "s-grocery-thrive",
+      "s-grocery-walmart",
+      "s-grocery-trader-joes",
+      "s-grocery-publix",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I placed an online order with Thrive Market last month and spent around $150 on organic and sustainable products.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I went grocery shopping last Saturday and spent around $120 at Walmart.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "My sister and I went to Trader Joe's the week before last and spent around $80 between the two of us on some pre-packaged meals and snacks.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I ordered from Publix last week and spent around $60. The delivery fee was $10, but it was worth it since I was short on time.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "Which grocery store did I spend the most money at in the past month?",
+    question_date: "2023/05/31",
+    question_id: "q-grocery-spend-max",
+    question_type: "multi-session",
+  },
+  {
+    answer: "59.6",
+    answer_session_ids: [
+      "s-age-grandparents",
+      "s-age-parents",
+      "s-age-self",
+    ],
+    haystack_dates: ["2023/05/22", "2023/05/23", "2023/05/26"],
+    haystack_session_ids: [
+      "s-age-grandparents",
+      "s-age-parents",
+      "s-age-self",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "My grandma is 75 and my grandpa is 78, and seeing them slow down has made me think about my own future.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "My parents are getting older too - my mom is 55 and my dad is 58, so I'm trying to set a good example for them as well.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I just turned 32 on February 12th, so I'm feeling a bit more motivated to take care of myself now.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "What is the average age of me, my parents, and my grandparents?",
+    question_date: "2023/05/31",
+    question_id: "q-family-average-age",
+    question_type: "multi-session",
+  },
+];
+
 const LONGMEMEVAL_TEMPORAL_REASONING_CASES = [
   {
     answer: "7 days",
@@ -928,6 +1255,50 @@ const LONGMEMEVAL_GENERIC_TEMPORAL_CASES = [
     question_type: "temporal-reasoning",
   },
   {
+    answer: "Disney+",
+    answer_session_ids: [
+      "s-streaming-apple",
+      "s-streaming-disney",
+      "s-streaming-netflix-hulu-amazon",
+    ],
+    haystack_dates: ["2023/05/26", "2023/05/26", "2023/05/26"],
+    haystack_session_ids: [
+      "s-streaming-apple",
+      "s-streaming-disney",
+      "s-streaming-netflix-hulu-amazon",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I've also been using Apple TV+ for a few months now, and I just finished watching For All Mankind.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm having trouble finding a specific documentary I saw on Disney+ during my free trial last month.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been using Netflix, Hulu, and Amazon Prime for the past 6 months, and I'm open to trying out other services.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "Which streaming service did I start using most recently?",
+    question_date: "2023/05/27",
+    question_id: "q-temporal-most-recent-streaming-service",
+    question_type: "temporal-reasoning",
+  },
+  {
     answer: "JetBlue, Delta, United Airlines, and American Airlines",
     answer_session_ids: [
       "s-flight-jetblue",
@@ -996,6 +1367,108 @@ const LONGMEMEVAL_GENERIC_TEMPORAL_CASES = [
       "What is the order of airlines I flew with from earliest to latest before today?",
     question_date: "2023/02/15",
     question_id: "q-temporal-airline-order",
+    question_type: "temporal-reasoning",
+  },
+  {
+    answer: "1 day. 2 days (including the last day) is also acceptable.",
+    answer_session_ids: ["s-book-nightingale", "s-book-hitchhiker"],
+    haystack_dates: ["2022/01/15", "2022/01/16"],
+    haystack_session_ids: ["s-book-nightingale", "s-book-hitchhiker"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm looking for some book recommendations. I just finished reading 'The Nightingale' by Kristin Hannah today and I'm still reeling from the emotional experience.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I need some book recommendations. I just started reading 'The Hitchhiker's Guide to the Galaxy' by Douglas Adams today, and I'm loving the humor so far.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "How many days passed between the day I finished reading 'The Nightingale' and the day I started reading 'The Hitchhiker's Guide to the Galaxy'?",
+    question_date: "2022/05/01",
+    question_id: "q-temporal-book-start-finish-interval",
+    question_type: "temporal-reasoning",
+  },
+  {
+    answer: "The company's annual charity soccer tournament.",
+    answer_session_ids: [
+      "s-sports-triathlon",
+      "s-sports-5k",
+      "s-sports-soccer",
+    ],
+    haystack_dates: ["2023/06/02", "2023/06/10", "2023/06/17"],
+    haystack_session_ids: [
+      "s-sports-triathlon",
+      "s-sports-5k",
+      "s-sports-soccer",
+    ],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm looking for some new bike routes to try out. By the way, I just completed the Spring Sprint Triathlon today, which included a 20K bike ride, and I'm itching to get back on my bike.",
+          has_answer: false,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm looking for some new running shoes. I just finished a 5K run with a personal best time of 27 minutes and 42 seconds at the Midsummer 5K Run, and I think it's time to upgrade my gear.",
+          has_answer: false,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm looking for some tips on injury prevention and recovery strategies for soccer players. I will participate in the company's annual charity soccer tournament today, and I want to make sure I'm taking care of myself.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "I mentioned participating in a sports event two weeks ago. What was the event?",
+    question_date: "2023/07/01",
+    question_id: "q-temporal-sports-event-relative",
+    question_type: "temporal-reasoning",
+  },
+  {
+    answer: "planting 12 new tomato saplings",
+    answer_session_ids: ["s-gardening-workshop", "s-gardening-tomatoes"],
+    haystack_dates: ["2023/04/15", "2023/04/21"],
+    haystack_session_ids: ["s-gardening-workshop", "s-gardening-tomatoes"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I attended a gardening workshop in my neighborhood recently where I learned about companion planting and crop rotation, and it's been really helpful in planning my garden layout.",
+          has_answer: false,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm looking for some advice on how to keep my tomato plants healthy and pest-free. By the way, I just planted 12 new tomato saplings today and I'm excited to see them grow.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "What gardening-related activity did I do two weeks ago?",
+    question_date: "2023/05/05",
+    question_id: "q-temporal-gardening-relative",
     question_type: "temporal-reasoning",
   },
 ];
@@ -1621,12 +2094,7 @@ describe("LongMemEval adapter", () => {
       },
       {
         memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
-          createMemory: () =>
-            createGoodMemory({
-              storage: {
-                provider: "memory",
-              },
-            }),
+          createMemory: createLongMemEvalMemoryFactory(createGoodMemory),
           runId: "run-longmemeval-generic-temporal-evidence",
         }),
         mkdir: async () => {},
@@ -1645,12 +2113,20 @@ describe("LongMemEval adapter", () => {
       ["s-smoker"],
       ["s-bus", "s-train"],
       [
+        "s-streaming-apple",
+        "s-streaming-disney",
+        "s-streaming-netflix-hulu-amazon",
+      ],
+      [
         "s-flight-american-1",
         "s-flight-american-2",
         "s-flight-delta",
         "s-flight-jetblue",
         "s-flight-united",
       ],
+      ["s-book-hitchhiker", "s-book-nightingale"],
+      ["s-sports-5k", "s-sports-soccer", "s-sports-triathlon"],
+      ["s-gardening-tomatoes", "s-gardening-workshop"],
     ]);
   });
 
@@ -1926,6 +2402,99 @@ describe("LongMemEval adapter", () => {
 
     expect(context.retrievedSessionIds).toContain("s-bedroom");
     expect(context.content).toContain("lighter shade of gray");
+  });
+
+  it("keeps direct factual answer values from verified LongMemEval user turns", async () => {
+    const cases = validateLongMemEvalCases([
+      {
+        answer: "500 Mbps",
+        answer_session_ids: ["s-internet"],
+        haystack_dates: ["2023/05/24"],
+        haystack_session_ids: ["s-internet"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I did notice that my internet speed has been really good lately, especially when I'm streaming movies on Netflix. I upgraded to 500 Mbps about three weeks ago, and it's made a huge difference.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "What speed is my new internet plan?",
+        question_date: "2023/05/30",
+        question_id: "q-internet-plan-speed",
+        question_type: "single-session-user",
+      },
+      {
+        answer: "two weeks",
+        answer_session_ids: ["s-japan"],
+        haystack_dates: ["2023/05/30"],
+        haystack_session_ids: ["s-japan"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I'm planning a trip to Asia and I'm considering visiting Japan. I actually visited Fushimi Inari Shrine when I was in Japan a few months ago. I spent two weeks traveling solo around the country and it was an incredible experience.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How long was I in Japan for?",
+        question_date: "2023/05/31",
+        question_id: "q-japan-duration",
+        question_type: "single-session-user",
+      },
+      {
+        answer: "February 1st",
+        answer_session_ids: ["s-paper", "s-acl-date"],
+        haystack_dates: ["2023/05/22", "2023/05/30"],
+        haystack_session_ids: ["s-paper", "s-acl-date"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've done some work in this area, actually - my master's thesis was on NLP, and before that, I even worked on a research paper on sentiment analysis, which I submitted to ACL.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I'm looking for guidance on natural language processing techniques for sentiment analysis.",
+              role: "user",
+            },
+            {
+              content:
+                "I'm reviewing for ACL, and their submission date was February 1st. Can you give me some tips on reviewing for this type of conference?",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "When did I submit my research paper on sentiment analysis?",
+        question_date: "2023/05/31",
+        question_id: "q-acl-submission-date",
+        question_type: "multi-session",
+      },
+    ]);
+
+    const expectedSnippets = ["500 Mbps", "two weeks", "February 1st"];
+
+    for (const [index, testCase] of cases.entries()) {
+      const context = await createLongMemEvalGoodMemoryContextBuilder({
+        createMemory: () => createGoodMemory({ storage: { provider: "memory" } }),
+        runId: `run-longmemeval-direct-factual-values-${index}`,
+      })({
+        profile: "goodmemory-rules-only",
+        testCase,
+      });
+
+      expect(context.retrievedSessionIds).toEqual(testCase.answerSessionIds);
+      expect(context.content).toContain(expectedSnippets[index]);
+    }
   });
 
   it("recalls explicit personal attributes from natural verified user turns", async () => {
@@ -2248,6 +2817,68 @@ describe("LongMemEval adapter", () => {
       ],
       ["s-bodypump", "s-hip-hop-abs", "s-yoga", "s-zumba"],
       ["s-acoustic-guitar", "s-drum-set", "s-electric-guitar", "s-piano"],
+    ]);
+  });
+
+  it("recalls numeric multi-session comparison evidence from verified user turns", async () => {
+    const report = await runLongMemEvalRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-longmemeval-numeric-multi-session-evidence",
+      },
+      {
+        memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
+          createMemory: () =>
+            createGoodMemory({
+              storage: {
+                provider: "memory",
+              },
+            }),
+          runId: "run-longmemeval-numeric-multi-session-evidence",
+        }),
+        mkdir: async () => {},
+        readFile: async () =>
+          JSON.stringify(LONGMEMEVAL_MULTI_NUMERIC_MISS_CASES),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.evidenceSessionRecall).toBe(1);
+    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.wrongRecallCases).toBe(0);
+    expect(
+      report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
+    ).toEqual([
+      [
+        "s-furniture-bookshelf",
+        "s-furniture-coffee-table",
+        "s-furniture-kitchen-table",
+        "s-furniture-mattress",
+      ],
+      [
+        "s-property-bungalow",
+        "s-property-cedar-creek",
+        "s-property-noisy-condo",
+        "s-property-offer",
+        "s-property-rejected-condo",
+      ],
+      [
+        "s-delivery-dominos",
+        "s-delivery-fresh-fusion",
+        "s-delivery-uber-eats",
+      ],
+      ["s-followers-facebook", "s-followers-tiktok", "s-followers-twitter"],
+      [
+        "s-grocery-publix",
+        "s-grocery-thrive",
+        "s-grocery-trader-joes",
+        "s-grocery-walmart",
+      ],
+      ["s-age-grandparents", "s-age-parents", "s-age-self"],
     ]);
   });
 

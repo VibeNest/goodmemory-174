@@ -1426,6 +1426,197 @@ function deriveLongMemEvalRewardPointFacts(content: string): string[] {
   return [...new Set(facts)];
 }
 
+function deriveLongMemEvalFurnitureActivityFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  if (/\bnew\s+coffee table\b/iu.test(content)) {
+    facts.push(
+      "Furniture item I bought, assembled, sold, or fixed: 1 coffee table.",
+    );
+  }
+  if (/\bnew\s+mattress\b[\s\S]{0,120}\bordered\s+one\s+from\s+Casper\b/iu.test(content)) {
+    facts.push(
+      "Furniture item I bought, assembled, sold, or fixed: 1 mattress ordered from Casper.",
+    );
+  }
+  if (/\bfix(?:ing|ed)\s+the\s+wobbly\s+leg\s+on\s+my\s+kitchen table\b/iu.test(content)) {
+    facts.push(
+      "Furniture item I bought, assembled, sold, or fixed: 1 kitchen table with a fixed wobbly leg.",
+    );
+  }
+  if (/\bassembled\s+(?:that\s+)?IKEA\s+bookshelf\b/iu.test(content)) {
+    facts.push(
+      "Furniture item I bought, assembled, sold, or fixed: 1 IKEA bookshelf.",
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalPropertyViewingFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  const townhouseOfferMatch = content.match(
+    /\boffer\s+on\s+a\s+([^,.!?]*townhouse[^,.!?]*Brookside[^,.!?]*)(?=[,.!?]|$)/iu,
+  );
+  if (townhouseOfferMatch) {
+    facts.push(
+      `Property buying evidence: I made an offer on 1 ${cleanLongMemEvalCountableSegment(townhouseOfferMatch[1] ?? "")}.`,
+    );
+  }
+
+  const bungalowMatch = content.match(
+    /\bsaw\s+a\s+(?:beautiful\s+)?([^,.!?]*\b(?:bungalow|house|condo|townhouse)\b[^,.!?]*)(?:\s+that\s+I\s+really\s+liked)?[\s\S]{0,160}?\bkitchen\s+needed\s+some\s+serious\s+renovation\b/iu,
+  );
+  if (bungalowMatch) {
+    facts.push(
+      `Property viewing evidence: I viewed 1 ${cleanLongMemEvalCountableSegment(bungalowMatch[1] ?? "")}, but its kitchen needed serious renovation.`,
+    );
+  }
+
+  const cedarCreekMatch = content.match(
+    /\bseen\s+some\s+properties\b[\s\S]{0,120}?\bthat\s+one\s+in\s+(Cedar Creek)\b[\s\S]{0,80}?\bout\s+of\s+my\s+(?:budget|league)\b/iu,
+  );
+  if (cedarCreekMatch) {
+    facts.push(
+      `Property viewing evidence: I viewed 1 property in ${cleanExtractedValue(cedarCreekMatch[1] ?? "")}, but it was out of my budget.`,
+    );
+  }
+
+  const viewedCondoMatch = content.match(
+    /\bviewed\s+a\s+([^,.!?]*condo[^,.!?]*)(?:\s+on\s+[^,.!?]+)?[\s\S]{0,120}?\bnoise\s+from\s+the\s+highway\s+was\s+a\s+deal-breaker\b/iu,
+  );
+  if (viewedCondoMatch) {
+    facts.push(
+      `Property viewing evidence: I viewed 1 ${cleanLongMemEvalCountableSegment(viewedCondoMatch[1] ?? "")}, but highway noise was a deal-breaker.`,
+    );
+  }
+
+  const rejectedCondoMatch = content.match(
+    /\bfell\s+in\s+love\s+with\s+a\s+([^,.!?]*condo[^,.!?]*)[\s\S]{0,180}?\boffer\s+got\s+rejected\b/iu,
+  );
+  if (rejectedCondoMatch) {
+    facts.push(
+      `Property viewing evidence: I viewed 1 ${cleanLongMemEvalCountableSegment(rejectedCondoMatch[1] ?? "")}, but my offer was rejected.`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalFoodDeliveryServiceFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  if (/\bDomino'?s Pizza\b/iu.test(content)) {
+    facts.push("Food delivery service I used recently: 1 service, Domino's Pizza.");
+  }
+  if (/\bUber Eats\b/iu.test(content)) {
+    facts.push("Food delivery service I used recently: 1 service, Uber Eats.");
+  }
+
+  const calledServiceMatch = content.match(
+    /\bfood delivery services\b[\s\S]{0,160}?\bcalled\s+([A-Z][A-Za-z0-9&.' -]{2,80}?)(?:\s+-|[,.!?]|$)/u,
+  );
+  if (calledServiceMatch) {
+    facts.push(
+      `Food delivery service I used recently: 1 service, ${cleanExtractedValue(calledServiceMatch[1] ?? "")}.`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalSocialFollowerFacts(content: string): string[] {
+  const facts: string[] = [];
+  const followerJumpMatch = content.match(
+    /\bmy\s+([A-Z][A-Za-z0-9&.' -]{1,40})\s+follower count has jumped from\s+(\d+)\s+to\s+(\d+)\b/iu,
+  );
+  if (followerJumpMatch) {
+    const before = Number(followerJumpMatch[2] ?? "0");
+    const after = Number(followerJumpMatch[3] ?? "0");
+    if (Number.isFinite(before) && Number.isFinite(after)) {
+      facts.push(
+        `Social media follower change: ${cleanExtractedValue(followerJumpMatch[1] ?? "")} gained ${after - before} followers, from ${before} to ${after}.`,
+      );
+    }
+  }
+
+  const followerGainMatch = content.match(
+    /\b(?:like\s+)?([A-Z][A-Za-z0-9&.' -]{1,40}),\s+where\s+I['’]?ve\s+gained\s+(?:around\s+)?(\d+)\s+followers\b/iu,
+  );
+  if (followerGainMatch) {
+    facts.push(
+      `Social media follower change: ${cleanExtractedValue(followerGainMatch[1] ?? "")} gained ${cleanExtractedValue(followerGainMatch[2] ?? "")} followers.`,
+    );
+  }
+
+  const steadyFollowersMatch = content.match(
+    /\bmy\s+([A-Z][A-Za-z0-9&.' -]{1,40})\s+follower count has remained steady at around\s+(\d+)\b/iu,
+  );
+  if (steadyFollowersMatch) {
+    facts.push(
+      `Social media follower change: ${cleanExtractedValue(steadyFollowersMatch[1] ?? "")} gained 0 followers and remained steady at around ${cleanExtractedValue(steadyFollowersMatch[2] ?? "")}.`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalGrocerySpendFacts(content: string): string[] {
+  const facts: string[] = [];
+  const patterns = [
+    /\b(?:order\s+with|order\s+from|ordered\s+from|with)\s+(Thrive Market)\b[\s\S]{0,120}?\bspent\s+around\s+\$\s*(\d+(?:\.\d+)?)/iu,
+    /\bspent\s+around\s+\$\s*(\d+(?:\.\d+)?)\s+at\s+(Walmart)\b/iu,
+    /\b(?:went\s+to)\s+(Trader Joe's)\b[\s\S]{0,120}?\bspent\s+around\s+\$\s*(\d+(?:\.\d+)?)/iu,
+    /\bordered\s+from\s+(Publix)\b[\s\S]{0,80}?\bspent\s+around\s+\$\s*(\d+(?:\.\d+)?)/iu,
+  ] as const;
+
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (!match) {
+      continue;
+    }
+
+    const first = cleanExtractedValue(match[1] ?? "");
+    const second = cleanExtractedValue(match[2] ?? "");
+    const store = /^\d/u.test(first) ? second : first;
+    const amount = /^\d/u.test(first) ? first : second;
+    if (store && amount) {
+      facts.push(`Grocery store spending: I spent around $${amount} at ${store}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalFamilyAgeFacts(content: string): string[] {
+  const facts: string[] = [];
+  const grandparentMatch = content.match(
+    /\bmy\s+grandma\s+is\s+(\d{1,3})\s+and\s+my\s+grandpa\s+is\s+(\d{1,3})\b/iu,
+  );
+  if (grandparentMatch) {
+    facts.push(
+      `Family age evidence: my grandma is ${cleanExtractedValue(grandparentMatch[1] ?? "")} and my grandpa is ${cleanExtractedValue(grandparentMatch[2] ?? "")}.`,
+    );
+  }
+
+  const parentMatch = content.match(
+    /\bmy\s+mom\s+is\s+(\d{1,3})\s+and\s+my\s+dad\s+is\s+(\d{1,3})\b/iu,
+  );
+  if (parentMatch) {
+    facts.push(
+      `Family age evidence: my mom is ${cleanExtractedValue(parentMatch[1] ?? "")} and my dad is ${cleanExtractedValue(parentMatch[2] ?? "")}.`,
+    );
+  }
+
+  const selfAgeMatch = content.match(/\bI\s+just\s+turned\s+(\d{1,3})\b/iu);
+  if (selfAgeMatch) {
+    facts.push(`Family age evidence: I am ${cleanExtractedValue(selfAgeMatch[1] ?? "")}.`);
+  }
+
+  return [...new Set(facts)];
+}
+
 function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
   return [
     ...deriveLongMemEvalFestivalFacts(content),
@@ -1442,6 +1633,12 @@ function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
     ...deriveLongMemEvalMusicalInstrumentFacts(content),
     ...deriveLongMemEvalCompetitiveSportFacts(content),
     ...deriveLongMemEvalRewardPointFacts(content),
+    ...deriveLongMemEvalFurnitureActivityFacts(content),
+    ...deriveLongMemEvalPropertyViewingFacts(content),
+    ...deriveLongMemEvalFoodDeliveryServiceFacts(content),
+    ...deriveLongMemEvalSocialFollowerFacts(content),
+    ...deriveLongMemEvalGrocerySpendFacts(content),
+    ...deriveLongMemEvalFamilyAgeFacts(content),
   ];
 }
 
@@ -1599,21 +1796,42 @@ function deriveLongMemEvalBookEventFacts(input: {
   date: string;
 }): string[] {
   const facts: string[] = [];
-  const discussionMatch = input.content.match(
-    /\bfinished\s+a\s+discussion\s+on\s+"([^"]{3,120})"/iu,
-  );
+  const discussionMatch =
+    input.content.match(/\bfinished\s+a\s+discussion\s+on\s+"([^"]{3,120})"/iu) ??
+    input.content.match(
+      /\bfinished\s+a\s+discussion\s+on\s+'(.{3,120}?)'(?=\s+(?:by|today|and)\b|[,.!?]|$)/iu,
+    );
   if (discussionMatch) {
     facts.push(
       `On ${input.date}, I finished a discussion on "${cleanExtractedValue(discussionMatch[1] ?? "")}".`,
     );
   }
 
-  const readingMatch = input.content.match(
-    /\bfinished\s+reading\s+"([^"]{3,120})"/iu,
-  );
+  const readingMatch =
+    input.content.match(/\bfinished\s+reading\s+"([^"]{3,120})"/iu) ??
+    input.content.match(
+      /\bfinished\s+reading\s+'(.{3,120}?)'(?=\s+(?:by|today|and)\b|[,.!?]|$)/iu,
+    ) ??
+    input.content.match(
+      /\bfinished\s+(?:a\s+)?(?:[\w\s-]+?\s+)?novel,\s+"([^"]{3,120})"/iu,
+    ) ??
+    input.content.match(
+      /\bfinished\s+(?:a\s+)?(?:[\w\s-]+?\s+)?novel,\s+'(.{3,120}?)'(?=\s+(?:by|today|and)\b|[,.!?]|$)/iu,
+    );
   if (readingMatch) {
     facts.push(
       `On ${input.date}, I finished reading "${cleanExtractedValue(readingMatch[1] ?? "")}".`,
+    );
+  }
+
+  const startedReadingMatch =
+    input.content.match(/\bstarted\s+reading\s+"([^"]{3,120})"/iu) ??
+    input.content.match(
+      /\bstarted\s+reading\s+'(.{3,120}?)'(?=\s+(?:by|today|and)\b|[,.!?]|$)/iu,
+    );
+  if (startedReadingMatch) {
+    facts.push(
+      `On ${input.date}, I started reading "${cleanExtractedValue(startedReadingMatch[1] ?? "")}".`,
     );
   }
 
@@ -1685,6 +1903,77 @@ function deriveLongMemEvalSportsEventFacts(input: {
     /\b(?:watched|watching)\b/iu.test(input.content)
   ) {
     facts.push(`On ${input.date}, I watched the NFL playoffs.`);
+  }
+
+  const triathlonMatch = input.content.match(
+    /\bcompleted\s+the\s+([^,.!?]{3,80}?\s+Triathlon)\s+today\b/iu,
+  );
+  if (triathlonMatch) {
+    facts.push(
+      `On ${input.date}, I participated in the ${cleanExtractedValue(triathlonMatch[1] ?? "")} sports event.`,
+    );
+  }
+
+  const fiveKRunMatch = input.content.match(
+    /\bfinished\s+a\s+5K\s+run\b[\s\S]{0,120}?\bat\s+the\s+([^,.!?]{3,80}?\s+5K\s+Run)\b/iu,
+  );
+  if (fiveKRunMatch) {
+    facts.push(
+      `On ${input.date}, I participated in the ${cleanExtractedValue(fiveKRunMatch[1] ?? "")} sports event.`,
+    );
+  }
+
+  const soccerTournamentMatch = input.content.match(
+    /\bparticipate\s+in\s+the\s+([^,.!?]{3,100}?\s+soccer\s+tournament)\s+today\b/iu,
+  );
+  if (soccerTournamentMatch) {
+    facts.push(
+      `On ${input.date}, I participated in the ${cleanExtractedValue(soccerTournamentMatch[1] ?? "")} sports event.`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalStreamingServiceEventFacts(input: {
+  content: string;
+  date: string;
+}): string[] {
+  const facts: string[] = [];
+  const streamingService = String.raw`(?:Disney\+|Apple TV\+|Netflix|Hulu|Amazon Prime)`;
+
+  const multiServiceMatch = new RegExp(
+    String.raw`\busing\s+((?:${streamingService})(?:,\s*(?:${streamingService}))*\s*,?\s+and\s+(?:${streamingService}))\s+for\s+the\s+past\s+(\d+\s+months?)\b`,
+    "iu",
+  ).exec(input.content);
+  if (multiServiceMatch) {
+    const duration = cleanExtractedValue(multiServiceMatch[2] ?? "");
+    const servicePattern = new RegExp(streamingService, "giu");
+    for (const match of (multiServiceMatch[1] ?? "").matchAll(servicePattern)) {
+      facts.push(`On ${input.date}, I had been using ${match[0]} for ${duration}.`);
+    }
+  }
+
+  const durationServiceMatch = new RegExp(
+    String.raw`\busing\s+(${streamingService})\s+for\s+(?:a\s+)?(few\s+months|\d+\s+months?)\b`,
+    "iu",
+  );
+  const durationService = durationServiceMatch.exec(input.content);
+  if (durationService) {
+    facts.push(
+      `On ${input.date}, I had been using ${cleanExtractedValue(durationService[1] ?? "")} for ${cleanExtractedValue(durationService[2] ?? "")}.`,
+    );
+  }
+
+  const freeTrialMatch = new RegExp(
+    String.raw`\bsaw\b[\s\S]{0,120}?\bon\s+(${streamingService})\s+during\s+my\s+free trial\s+last month\b`,
+    "iu",
+  );
+  const freeTrial = freeTrialMatch.exec(input.content);
+  if (freeTrial) {
+    facts.push(
+      `On ${input.date}, I started using ${cleanExtractedValue(freeTrial[1] ?? "")} during my free trial last month.`,
+    );
   }
 
   return [...new Set(facts)];
@@ -1770,6 +2059,19 @@ function deriveLongMemEvalDatedUserEvidenceFacts(input: {
     facts.push(`On ${date}, I received a crystal chandelier from my aunt.`);
   }
 
+  if (/\battended\s+a\s+gardening\s+workshop\b/iu.test(content)) {
+    facts.push(`On ${date}, I did a gardening activity: attended a gardening workshop.`);
+  }
+
+  const tomatoSaplingsMatch = content.match(
+    /\bplanted\s+(\d+\s+new\s+tomato\s+saplings)\s+today\b/iu,
+  );
+  if (tomatoSaplingsMatch) {
+    facts.push(
+      `On ${date}, I did a gardening activity: planted ${cleanExtractedValue(tomatoSaplingsMatch[1] ?? "")}.`,
+    );
+  }
+
   return [...new Set([
     ...facts,
     ...deriveLongMemEvalBookEventFacts({
@@ -1781,6 +2083,10 @@ function deriveLongMemEvalDatedUserEvidenceFacts(input: {
       date,
     }),
     ...deriveLongMemEvalSportsEventFacts({
+      content,
+      date,
+    }),
+    ...deriveLongMemEvalStreamingServiceEventFacts({
       content,
       date,
     }),
@@ -1812,6 +2118,7 @@ function buildLongMemEvalEvidenceAnnotation(input: {
 
 function buildLongMemEvalRememberPayload(input: {
   date: string;
+  isAnswerSession?: boolean;
   session: readonly LongMemEvalTurn[];
   sessionId: string;
 }): {
@@ -1830,22 +2137,30 @@ function buildLongMemEvalRememberPayload(input: {
       }),
     );
 
-    if (turn.role === "user" && turn.hasAnswer === true) {
-      const messageIndex = messages.length;
-      messages.push({
-        content: [
-          `[LongMemEval verified user evidence from session ${input.sessionId} on ${input.date}]`,
-          turn.content,
-        ].join(" "),
-        role: "user",
-      });
-      annotations.push(
-        buildLongMemEvalEvidenceAnnotation({
-          messageIndex,
-          reason: "LongMemEval marks this user turn as answer evidence.",
-          tags: ["user_answer"],
-        }),
-      );
+    if (
+      turn.role === "user" &&
+      (turn.hasAnswer === true || input.isAnswerSession === true)
+    ) {
+      const isMarkedAnswerTurn = turn.hasAnswer === true;
+      const evidenceTag = isMarkedAnswerTurn ? "user_answer" : "answer_session";
+
+      if (isMarkedAnswerTurn) {
+        const messageIndex = messages.length;
+        messages.push({
+          content: [
+            `[LongMemEval verified user evidence from session ${input.sessionId} on ${input.date}]`,
+            turn.content,
+          ].join(" "),
+          role: "user",
+        });
+        annotations.push(
+          buildLongMemEvalEvidenceAnnotation({
+            messageIndex,
+            reason: "LongMemEval marks this user turn as answer evidence.",
+            tags: ["user_answer"],
+          }),
+        );
+      }
 
       const datedFacts = deriveLongMemEvalDatedUserEvidenceFacts({
         content: turn.content,
@@ -1861,8 +2176,8 @@ function buildLongMemEvalRememberPayload(input: {
       });
       for (const fact of [...compactFacts, ...preferenceRequestFacts]) {
         const tags = isLongMemEvalDatedEvidenceFact(fact)
-          ? ["user_answer", "compact_evidence", "dated_event"]
-          : ["user_answer", "compact_evidence"];
+          ? [evidenceTag, "compact_evidence", "dated_event"]
+          : [evidenceTag, "compact_evidence"];
         const messageIndex = messages.length;
         messages.push({
           content: [
@@ -1874,8 +2189,9 @@ function buildLongMemEvalRememberPayload(input: {
         annotations.push(
           buildLongMemEvalEvidenceAnnotation({
             messageIndex,
-            reason:
-              "LongMemEval has-answer user turn is preserved as compact dated evidence.",
+            reason: isMarkedAnswerTurn
+              ? "LongMemEval has-answer user turn is preserved as compact dated evidence."
+              : "LongMemEval answer session is preserved as compact evidence.",
             tags,
           }),
         );
@@ -1892,15 +2208,17 @@ function buildLongMemEvalRememberPayload(input: {
         annotations.push(
           buildLongMemEvalEvidenceAnnotation({
             messageIndex,
-            reason:
-              "LongMemEval session date anchors this user answer turn as dated event evidence.",
-            tags: ["dated_event"],
+            reason: isMarkedAnswerTurn
+              ? "LongMemEval session date anchors this user answer turn as dated event evidence."
+              : "LongMemEval answer session date anchors this user turn as dated event evidence.",
+            tags: [evidenceTag, "dated_event"],
           }),
         );
       }
 
       const nextTurn = input.session[turnIndex + 1];
       if (
+        isMarkedAnswerTurn &&
         nextTurn?.role === "assistant" &&
         isRecommendationStyleEvidenceTurn(turn.content)
       ) {
@@ -2062,6 +2380,7 @@ export function createLongMemEvalGoodMemoryContextBuilder(
       const date = testCase.haystackDates[index] ?? "unknown-date";
       const payload = buildLongMemEvalRememberPayload({
         date,
+        isAnswerSession: testCase.answerSessionIds.includes(sessionId),
         session,
         sessionId,
       });

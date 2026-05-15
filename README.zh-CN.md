@@ -109,6 +109,15 @@ goodmemory status
 npm install goodmemory@0.2.3
 ```
 
+如果你想直接输入 `goodmemory`，必须安装全局 CLI。
+项目内 `npm install goodmemory@0.2.3` 不会把 `goodmemory` 放进 shell 的 `PATH`。
+这种本地依赖安装只能从该项目里用 `npx goodmemory`、
+`npm exec -- goodmemory` 或 `./node_modules/.bin/goodmemory` 调用。
+
+```bash
+npx goodmemory -V
+```
+
 Bun 项目可以直接安装：
 
 ```bash
@@ -562,7 +571,11 @@ const result = await adapter.readArtifacts({
 
 ## CLI Reference
 
-公开 installed-package CLI contract 是 package bin `goodmemory`。在本地 dependency install 里，用 `./node_modules/.bin/goodmemory` 调用。repo-local `bun run goodmemory` 只用于开发。
+shell `PATH` 上的裸 `goodmemory` 命令来自
+`npm install -g goodmemory@0.2.3` 安装的全局 CLI。本地 dependency install
+里，用 `npx goodmemory`、`npm exec -- goodmemory` 或
+`./node_modules/.bin/goodmemory` 调用 package bin。repo-local
+`bun run goodmemory` 只用于开发。
 
 Memory-first commands：
 
@@ -579,34 +592,34 @@ Memory-first commands：
 Installed-host commands：
 
 ```bash
-./node_modules/.bin/goodmemory -V
-./node_modules/.bin/goodmemory --version
-./node_modules/.bin/goodmemory setup --host codex
-./node_modules/.bin/goodmemory status codex --workspace-root .
-./node_modules/.bin/goodmemory install codex --activation-mode global --writeback observe --user-id <user-id>
-./node_modules/.bin/goodmemory enable codex --workspace-root . --writeback selective
-./node_modules/.bin/goodmemory mcp serve --host codex
-./node_modules/.bin/goodmemory-mcp --host codex
-./node_modules/.bin/goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
-./node_modules/.bin/goodmemory claude bootstrap --user-id <user-id> --workspace-id <workspace-id>
+goodmemory -V
+goodmemory --version
+goodmemory setup --host codex
+goodmemory status codex --workspace-root .
+goodmemory install codex --activation-mode global --writeback observe --user-id <user-id>
+goodmemory enable codex --workspace-root . --writeback selective
+goodmemory mcp serve --host codex
+goodmemory-mcp --host codex
+goodmemory codex bootstrap --user-id <user-id> --workspace-id <workspace-id>
+goodmemory claude bootstrap --user-id <user-id> --workspace-id <workspace-id>
 ```
 
 Hook 与 writeback 示例：
 
 ```bash
 printf '%s' '{"cwd":".","session_id":"s-1","hook_event_name":"SessionStart","source":"startup"}' \
-  | ./node_modules/.bin/goodmemory codex hook session-start
+  | goodmemory codex hook session-start
 
 printf '%s' '{"cwd":".","session_id":"s-1","tool_name":"Bash","tool_input":{"command":"./tools/DeepAnalyzer --detailed"}}' \
-  | ./node_modules/.bin/goodmemory codex hook pre-tool-use
+  | goodmemory codex hook pre-tool-use
 
-./node_modules/.bin/goodmemory codex action -- ./tools/DeepAnalyzer --detailed
+goodmemory codex action -- ./tools/DeepAnalyzer --detailed
 
 printf '%s' '{"cwd":".","session_id":"s-1","messages":[{"role":"user","content":"Next step is to finish the release smoke."}]}' \
-  | ./node_modules/.bin/goodmemory codex writeback --json
+  | goodmemory codex writeback --json
 
 printf '%s' '{"cwd":".","session_id":"s-1","event_id":"stop-1","summary":"Keep coding summaries short."}' \
-  | ./node_modules/.bin/goodmemory codex hook session-stop
+  | goodmemory codex hook session-stop
 ```
 
 Eval artifact inspection：
