@@ -394,15 +394,138 @@ Answer-session detail and selection narrowing repair:
 - interpretation:
   this is useful targeted repair evidence, especially because it restores
   several rows that regressed in the 390/500 full-500 attempt while preserving
-  the new assistant detail cases. It does not close Phase 62. A new accepted
-  full-500 current-code comparison after selection narrowing is still missing;
-  the attempted single-process full-500
+  the new assistant detail cases. It does not close Phase 62. The sharded
+  full-500 current-code comparison after selection narrowing
+  `run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-smallshards-20260516T095000Z`
+  completed with `executionFailures: 0`, but reached only 399/500 despite
+  evidence-session recall 0.9102, missed recall 74, wrong recall 6, and wrong
+  answers 101. It is accepted execution evidence but not an accepted quality
+  improvement over the 401/500 entity-evidence checkpoint. Wrong answers in
+  the run are concentrated in multi-session (36), temporal-reasoning (27),
+  single-session-preference (14), single-session-assistant (11),
+  knowledge-update (10), and single-session-user (3). Of those wrong rows, 57
+  had full evidence recall, including many false `No answer` responses and
+  numeric/temporal/preference synthesis errors, so the next repair target is
+  grounded answer construction over selected evidence, not broad retrieval
+  expansion. The attempted single-process full-500
   `run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-20260515T121500Z`
   was manually terminated before writing a report and must not be cited as
   benchmark evidence. The next global check should use
   `eval:phase-62-full500` with `--resume-existing-shards` when resuming a
   partially written sharded run, or the failed-row recovery path rather than
   another opaque single-process serial run.
+
+Selected-evidence answer-grounding repair after the 399/500 run:
+
+- mechanism:
+  the LongMemEval context builder now records the verified evidence messages
+  produced during adapter ingestion, and when recall selects a session it adds
+  a small query-matching `Selected Session Evidence` block if buildContext
+  dropped the answer-bearing line. This targets full-evidence false
+  `No answer` rows where evidence-session recall was already 1.0 but the
+  answer text or computed value was not visible enough to the generator.
+- answer-generation guardrails:
+  the LongMemEval answer prompt now gives generic instructions for numeric
+  comparisons, numeric totals/page-count sums, who/from-whom questions, and
+  treating `Selected Session Evidence` as answer-bearing evidence. This is
+  grounding over visible context, not a case-id branch.
+- selected-evidence synthesis:
+  after the first supplement runs, the context builder now emits deterministic
+  `Selected Evidence Synthesis` lines for percentage comparisons, page-count
+  totals, descriptive entity answers, and elapsed-days intervals when the
+  required selected evidence is already present. The answer prompt treats those
+  synthesized lines as answer-bearing evidence instead of asking the model to
+  rediscover simple arithmetic or interval logic from scattered snippets.
+- extraction:
+  user evidence now derives kitchen-appliance purchase facts from `got`,
+  `bought`, `purchased`, `ordered`, and `picked up` phrasing, covering
+  examples such as `I just got a smoker today`.
+- targeted live evidence:
+  `run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-20260516T133000Z`
+  recovered 4/4 representative full-evidence false `No answer` rows:
+  `4100d0a0`, `2ebe6c92`, `0977f2af`, and `e9327a54`, with
+  `executionFailures: 0`.
+- broader slice:
+  `run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-r2-20260516T133500Z`
+  recovered 6/12 multi-session and temporal false `No answer` rows with
+  evidence-session recall 1.0 and `executionFailures: 0`.
+- follow-up retry after prompt/appliance repair:
+  `run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-r3-20260516T134500Z`
+  recovered 2/6 previously failing rows: `71017277` now answers `my aunt` and
+  `gpt4_8279ba03` now answers `smoker`; `executionFailures` stayed 0.
+- synthesis retry:
+  `run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-targeted-r4-20260516T145000Z`
+  recovered 3/4 hard selected-evidence synthesis rows. It fixed `7405e8b1`
+  percentage comparison, `gpt4_fa19884d` bluegrass artist/category
+  generalization, and `2c63a862` elapsed-days synthesis, but `37f165cf` still
+  failed the 416+440 page-count total.
+- page-count retry:
+  `run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-page-retry-r2-20260516T150000Z`
+  fixed `37f165cf` after the synthesis line included the explicit computed
+  answer: `856`.
+- accepted targeted synthesis evidence:
+  `run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-targeted-r5-20260516T150500Z`
+  recovered all four hard cases together: `7405e8b1`, `37f165cf`,
+  `gpt4_fa19884d`, and `2c63a862`. The run is 4/4 correct with
+  evidence-session recall 1.0, `missedRecallCases: 0`, `wrongRecallCases: 0`,
+  `wrongAnswerCases: 0`, and `executionFailures: 0`.
+- remaining boundary:
+  this closes the observed selected-evidence synthesis blockers at targeted
+  scope, but targeted scope alone did not supersede the 401/500 full-500
+  checkpoint.
+- full-500 follow-up:
+  `run-phase62-longmemeval-full500-current-after-selected-evidence-synthesis-hybrid-smallshards-20260516T151000Z`
+  ran `goodmemory-hybrid` over all 500 cases and reached 424/500 with
+  evidence-session recall 0.9102, missed recall 74, wrong recall 6, wrong
+  answers 76, and 4 answer-generation certificate verification execution
+  failures. The failures were all temporal-reasoning rows:
+  `b46e15ed`, `gpt4_fa19884c`, `0bc8ad92`, and `af082822`.
+- failed-row recovery:
+  `run-phase62-longmemeval-full500-current-after-selected-evidence-synthesis-hybrid-retry-r1-merged-20260516T190000Z`
+  retried those 4 rows and merged cleanly with `executionFailures: 0`. The
+  merged result is 428/500 with evidence-session recall 0.9102, missed recall
+  74, wrong recall 6, and wrong answers 72. This is now the strongest current
+  hybrid full-500 checkpoint, ahead of the previous 401/500 entity-evidence
+  result.
+- remaining quality gap after 428/500:
+  the clean merged run is still below the 451/500 full-context reference. The
+  remaining incorrect rows are concentrated in multi-session (34),
+  temporal-reasoning (16), single-session-assistant (9), knowledge-update (7),
+  single-session-preference (4), and single-session-user (2). Multi-session
+  still has the largest missed-recall share, while full-recall wrong answers
+  remain in multi-session, assistant, temporal, preference, and update rows.
+  Phase 62 therefore stays open for the next quality repair instead of opening
+  BEAM.
+
+Selected count-synthesis repair after the 428/500 run:
+
+- mechanism:
+  full-recall multi-session count rows can still fail when the selected evidence
+  contains every answer session but the generator undercounts or overcounts
+  scattered events. The context builder now derives `Selected Evidence
+  Synthesis` count hints from selected compact evidence prefixes instead of
+  answer-session ids. Covered categories include clothing pickup/return items,
+  furniture bought/assembled/sold/fixed, baking events, property viewings before
+  an offer, health devices with duplicate-device suppression, music albums/EPs,
+  and Marvel movie rewatches.
+- first targeted run:
+  `run-phase62-longmemeval-live-selected-count-synthesis-hybrid-targeted-20260516T210000Z`
+  fixed 5/7 full-recall multi-session wrong-value rows:
+  `0a995998`, `gpt4_15e38248`, `gpt4_7fce9456`, `gpt4_31ff4165`, and
+  `bf659f65`. The two remaining misses, `88432d0a` and `681a1674`, exposed
+  duplicate event variants in baking and Marvel rewatch synthesis.
+- duplicate normalization:
+  baking count synthesis now normalizes temporal suffix variants such as
+  `a batch of cookies last Thursday` and `a batch of cookies`; Marvel rewatch
+  synthesis normalizes temporal suffixes such as `Avengers: Endgame yesterday`.
+- accepted targeted count evidence:
+  `run-phase62-longmemeval-live-selected-count-synthesis-hybrid-targeted-r3-20260516T214500Z`
+  recovered all 7/7 rows with evidence-session recall 1.0, missed recall 0,
+  wrong recall 0, wrong answers 0, and `executionFailures: 0`.
+- remaining boundary:
+  this is targeted evidence for the count-synthesis mechanism. It does not
+  update the 428/500 full-500 checkpoint until a fresh sharded full-500 run or
+  an equivalent accepted global comparison confirms the overall delta.
 
 Initial 3-case slice:
 

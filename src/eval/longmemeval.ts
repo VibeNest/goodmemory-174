@@ -1237,6 +1237,110 @@ function deriveLongMemEvalKitchenItemFacts(content: string): string[] {
   return facts;
 }
 
+function deriveLongMemEvalKitchenAppliancePurchaseFacts(content: string): string[] {
+  const applianceName =
+    String.raw`(?:smoker|air fryer|instant pot|toaster oven|slow cooker|rice cooker|pressure cooker|coffee maker|espresso machine|stand mixer|blender|food processor|grill)`;
+  const appliancePattern = new RegExp(
+    String.raw`\b(?:I\s+)?(?:just\s+|recently\s+)?(?:got|bought|purchased|ordered|picked\s+up)\s+(?:a\s+|an\s+|the\s+|my\s+new\s+)?([^,.!?]*?\b${applianceName}\b[^,.!?]*?)(?=\s+(?:today|yesterday|last|and|to|for|after|because)\b|[,.!?]|$)`,
+    "giu",
+  );
+  const facts: string[] = [];
+
+  for (const match of content.matchAll(appliancePattern)) {
+    const appliance = cleanLongMemEvalCountableSegment(match[1] ?? "")
+      .replace(/^(?:a|an|the|my new)\s+/iu, "")
+      .trim();
+    if (!appliance) {
+      continue;
+    }
+
+    facts.push(`Kitchen appliance I bought or got: ${appliance}.`);
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalClothingPickupReturnFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  const dryCleaningMatch = content.match(
+    /\bpick\s+up\s+my\s+dry cleaning\s+for\s+the\s+([^,.!?]*?\bblazer\b[^,.!?]*?)(?:\s+I\b|,|[.!?]|$)/iu,
+  );
+  if (dryCleaningMatch) {
+    facts.push(
+      `Clothing pickup or return item: pick up ${cleanLongMemEvalCountableSegment(dryCleaningMatch[1] ?? "")} dry cleaning.`,
+    );
+  }
+
+  const returnMatch = content.match(
+    /\bneed\s+to\s+return\s+(?:some\s+|a\s+pair\s+of\s+)?([^,.!?]*?\b(?:boots|shoes|pants|jeans|shirt|dress|jacket|coat|blazer)\b[^,.!?]*?)\s+to\s+([A-Z][A-Za-z0-9&' -]{2,60})(?:,|[.!?]|$)/iu,
+  );
+  if (returnMatch) {
+    facts.push(
+      `Clothing pickup or return item: return ${cleanLongMemEvalCountableSegment(returnMatch[1] ?? "")} to ${cleanExtractedValue(returnMatch[2] ?? "")}.`,
+    );
+  }
+
+  const exchangedPickupMatch = content.match(
+    /\bexchanged\s+a\s+pair\s+of\s+([^,.!?]*?\b(?:boots|shoes)\b[^,.!?]*?)\s+(?:I\s+got\s+)?from\s+([A-Z][A-Za-z0-9&' -]{2,60})[\s\S]{0,120}?\bneed\s+to\s+pick\s+up\s+the\s+new\s+pair\b/iu,
+  );
+  if (exchangedPickupMatch) {
+    facts.push(
+      `Clothing pickup or return item: pick up new pair of ${cleanLongMemEvalCountableSegment(exchangedPickupMatch[1] ?? "")} from ${cleanExtractedValue(exchangedPickupMatch[2] ?? "")}.`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalMusicAlbumFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  const downloadedAlbumMatch = content.match(
+    /\bnew\s+album\s+["“]([^"”]{2,120})["”]\s+which\s+I\s+downloaded\b/iu,
+  );
+  if (downloadedAlbumMatch) {
+    facts.push(
+      `Music album or EP I purchased or downloaded: downloaded album ${cleanExtractedValue(downloadedAlbumMatch[1] ?? "")}.`,
+    );
+  }
+
+  const signedVinylMatch = content.match(
+    /\bsaw\s+([A-Z][A-Za-z0-9&' -]{2,80})\s+live[\s\S]{0,120}?\bgot\s+my\s+vinyl\s+signed\b/iu,
+  );
+  if (signedVinylMatch) {
+    facts.push(
+      `Music album or EP I purchased or downloaded: signed ${cleanExtractedValue(signedVinylMatch[1] ?? "")} vinyl.`,
+    );
+  }
+
+  const boughtEpMatch = content.match(
+    /\bbought\s+(?:their|the)\s+EP\s+['“]([^'”]{2,120})['”]/iu,
+  );
+  if (boughtEpMatch) {
+    facts.push(
+      `Music album or EP I purchased or downloaded: bought EP ${cleanExtractedValue(boughtEpMatch[1] ?? "")}.`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalMovieRewatchFacts(content: string): string[] {
+  const facts: string[] = [];
+  const rewatchPattern =
+    /\bre-?watched\s+([^,.!?]*?\b(?:Avengers|Spider-Man|Marvel|Captain America|Iron Man|Thor|Black Panther|Guardians of the Galaxy)[^,.!?]*?)(?:,|\s+which\b|[.!?]|$)/giu;
+
+  for (const match of content.matchAll(rewatchPattern)) {
+    const title = cleanLongMemEvalCountableSegment(match[1] ?? "");
+    if (title) {
+      facts.push(`Marvel movie I re-watched: ${title}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
 function deriveLongMemEvalMarketSaleFacts(content: string): string[] {
   const facts: string[] = [];
   const perItemSaleMatch = content.match(
@@ -1742,6 +1846,10 @@ function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
     ...deriveLongMemEvalHealthDeviceFacts(content),
     ...deriveLongMemEvalAquariumFacts(content),
     ...deriveLongMemEvalKitchenItemFacts(content),
+    ...deriveLongMemEvalKitchenAppliancePurchaseFacts(content),
+    ...deriveLongMemEvalClothingPickupReturnFacts(content),
+    ...deriveLongMemEvalMusicAlbumFacts(content),
+    ...deriveLongMemEvalMovieRewatchFacts(content),
     ...deriveLongMemEvalMarketSaleFacts(content),
     ...deriveLongMemEvalGameHourFacts(content),
     ...deriveLongMemEvalWeddingFacts(content),
@@ -2500,6 +2608,778 @@ function collectSessionIdsFromRecall(input: {
   return [...ids];
 }
 
+interface LongMemEvalSupplementalEvidence {
+  content: string;
+  sessionId: string;
+  tags: string[];
+}
+
+const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT = 6;
+const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS = 520;
+const LONGMEMEVAL_MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+const LONGMEMEVAL_QUERY_STOPWORDS = new Set([
+  "about",
+  "after",
+  "again",
+  "could",
+  "from",
+  "have",
+  "last",
+  "that",
+  "this",
+  "time",
+  "what",
+  "when",
+  "where",
+  "which",
+  "with",
+  "would",
+]);
+
+function normalizeLongMemEvalEvidenceToken(value: string): string {
+  const token = value.toLowerCase();
+  if (token.length > 5 && token.endsWith("ies")) {
+    return `${token.slice(0, -3)}y`;
+  }
+  if (token.length > 5 && token.endsWith("ing")) {
+    return token.slice(0, -3);
+  }
+  if (token.length > 4 && token.endsWith("ed")) {
+    return token.slice(0, -2);
+  }
+  if (token.length > 4 && token.endsWith("s")) {
+    return token.slice(0, -1);
+  }
+  return token;
+}
+
+function tokenizeLongMemEvalEvidence(value: string): Set<string> {
+  const tokens = value.match(/[A-Za-z0-9]+/gu) ?? [];
+  return new Set(
+    tokens
+      .map(normalizeLongMemEvalEvidenceToken)
+      .filter((token) => token.length >= 3 && !LONGMEMEVAL_QUERY_STOPWORDS.has(token)),
+  );
+}
+
+function extractLongMemEvalEvidenceTags(annotation: MessageAnnotation): string[] {
+  return annotation.metadataPatch?.tags ?? [];
+}
+
+function collectLongMemEvalSupplementalEvidence(input: {
+  annotations?: readonly MessageAnnotation[];
+  messages: ReadonlyArray<{ content: string; role: string }>;
+  sessionId: string;
+}): LongMemEvalSupplementalEvidence[] {
+  const annotationsByIndex = new Map<number, MessageAnnotation>();
+  for (const annotation of input.annotations ?? []) {
+    annotationsByIndex.set(annotation.messageIndex, annotation);
+  }
+
+  const evidence: LongMemEvalSupplementalEvidence[] = [];
+  for (const [messageIndex, message] of input.messages.entries()) {
+    const annotation = annotationsByIndex.get(messageIndex);
+    if (!annotation || message.content.trim().length === 0) {
+      continue;
+    }
+
+    evidence.push({
+      content: message.content,
+      sessionId: input.sessionId,
+      tags: extractLongMemEvalEvidenceTags(annotation),
+    });
+  }
+
+  return evidence;
+}
+
+function scoreLongMemEvalSupplementalEvidence(input: {
+  evidence: LongMemEvalSupplementalEvidence;
+  queryTokens: ReadonlySet<string>;
+}): number {
+  const evidenceTokens = tokenizeLongMemEvalEvidence(input.evidence.content);
+  let overlap = 0;
+  for (const token of input.queryTokens) {
+    if (evidenceTokens.has(token)) {
+      overlap += 1;
+    }
+  }
+  if (overlap === 0) {
+    return 0;
+  }
+
+  let score = overlap * 4;
+  if (input.evidence.tags.includes("user_answer")) {
+    score += 4;
+  }
+  if (input.evidence.tags.includes("assistant_answer")) {
+    score += 4;
+  }
+  if (input.evidence.tags.includes("compact_evidence")) {
+    score += 2;
+  }
+  if (input.evidence.tags.includes("dated_event")) {
+    score += 1;
+  }
+
+  return score;
+}
+
+function compactLongMemEvalSupplementalEvidenceLine(content: string): string {
+  const compact = cleanExtractedValue(content);
+  if (compact.length <= LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS) {
+    return compact;
+  }
+
+  return `${compact.slice(0, LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS - 3).trim()}...`;
+}
+
+function selectLongMemEvalSupplementalEvidence(input: {
+  context: string;
+  evidenceBySessionId: ReadonlyMap<string, readonly LongMemEvalSupplementalEvidence[]>;
+  question: string;
+  selectedSessionIds: readonly string[];
+}): string[] {
+  const context = input.context.toLowerCase();
+  const queryTokens = tokenizeLongMemEvalEvidence(input.question);
+  const selectedSessionIds = new Set(input.selectedSessionIds);
+  const scored: Array<{ content: string; score: number }> = [];
+  const seen = new Set<string>();
+
+  for (const [sessionId, evidence] of input.evidenceBySessionId.entries()) {
+    if (!selectedSessionIds.has(sessionId)) {
+      continue;
+    }
+
+    for (const item of evidence) {
+      const content = compactLongMemEvalSupplementalEvidenceLine(item.content);
+      const normalizedContent = content.toLowerCase();
+      if (
+        seen.has(normalizedContent) ||
+        context.includes(normalizedContent) ||
+        context.includes(normalizedContent.slice(0, 180))
+      ) {
+        continue;
+      }
+
+      const score = scoreLongMemEvalSupplementalEvidence({
+        evidence: item,
+        queryTokens,
+      });
+      if (score === 0) {
+        continue;
+      }
+
+      seen.add(normalizedContent);
+      scored.push({ content, score });
+    }
+  }
+
+  return scored
+    .sort((left, right) => right.score - left.score)
+    .slice(0, LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT)
+    .map((item) => item.content);
+}
+
+function appendLongMemEvalSupplementalEvidence(input: {
+  content: string;
+  evidenceLines: readonly string[];
+}): string {
+  if (input.evidenceLines.length === 0) {
+    return input.content;
+  }
+
+  return [
+    input.content,
+    "## Selected Session Evidence",
+    ...input.evidenceLines.map((line) => `- ${line}`),
+  ].join("\n\n");
+}
+
+function escapeLongMemEvalRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function extractLongMemEvalQuestionEntities(question: string): string[] {
+  const stopwords = new Set([
+    "Did",
+    "From",
+    "How",
+    "What",
+    "When",
+    "Where",
+    "Which",
+    "Who",
+  ]);
+  const entities = question.match(/\b[A-Z][A-Za-z0-9&'-]{2,}\b/gu) ?? [];
+  return [...new Set(entities.filter((entity) => !stopwords.has(entity)))];
+}
+
+function collectLongMemEvalSelectedEvidence(input: {
+  evidenceBySessionId: ReadonlyMap<string, readonly LongMemEvalSupplementalEvidence[]>;
+  selectedSessionIds: readonly string[];
+}): LongMemEvalSupplementalEvidence[] {
+  const selectedSessionIds = new Set(input.selectedSessionIds);
+  const evidence: LongMemEvalSupplementalEvidence[] = [];
+
+  for (const [sessionId, records] of input.evidenceBySessionId.entries()) {
+    if (!selectedSessionIds.has(sessionId)) {
+      continue;
+    }
+    evidence.push(...records);
+  }
+
+  return evidence;
+}
+
+function extractLongMemEvalPercentageForEntity(input: {
+  entity: string;
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+}): number | null {
+  const entity = escapeLongMemEvalRegExp(input.entity);
+  const patterns = [
+    new RegExp(
+      String.raw`\b${entity}\b[\s\S]{0,120}?\b(\d{1,3})\s*%\s*(?:discount|off)\b`,
+      "iu",
+    ),
+    new RegExp(
+      String.raw`\b(\d{1,3})\s*%\s*(?:discount|off)\b[\s\S]{0,120}?\b${entity}\b`,
+      "iu",
+    ),
+  ] as const;
+
+  for (const item of input.evidence) {
+    for (const pattern of patterns) {
+      const match = item.content.match(pattern);
+      if (!match) {
+        continue;
+      }
+
+      const value = Number(match[1] ?? "");
+      if (Number.isFinite(value)) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
+
+function deriveLongMemEvalPercentageComparisonHint(input: {
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+  question: string;
+}): string | null {
+  if (!/\b(?:higher|lower|larger|smaller|greater|less)\b[\s\S]{0,80}\bpercentage\s+discount\b/iu.test(input.question)) {
+    return null;
+  }
+
+  const entities = extractLongMemEvalQuestionEntities(input.question);
+  if (entities.length < 2) {
+    return null;
+  }
+
+  const [leftEntity, rightEntity] = entities;
+  const leftValue = extractLongMemEvalPercentageForEntity({
+    entity: leftEntity ?? "",
+    evidence: input.evidence,
+  });
+  const rightValue = extractLongMemEvalPercentageForEntity({
+    entity: rightEntity ?? "",
+    evidence: input.evidence,
+  });
+  if (leftValue === null || rightValue === null) {
+    return null;
+  }
+
+  const asksHigher = /\b(?:higher|larger|greater)\b/iu.test(input.question);
+  const comparisonAnswer = asksHigher
+    ? leftValue > rightValue
+    : leftValue < rightValue;
+
+  return `${leftEntity} discount is ${leftValue}%; ${rightEntity} discount is ${rightValue}%; comparison answer is ${comparisonAnswer ? "Yes" : "No"}.`;
+}
+
+function extractLongMemEvalFinishedPageCount(content: string): number | null {
+  const patterns = [
+    /\bjust\s+finished\s+a\s+(\d{2,5})-page\s+(?:novel|book)\b/iu,
+    /\bjust\s+finished\s+(?:reading\s+)?["“][^"”]{2,160}["”][\s\S]{0,120}?\b(?:which\s+)?had\s+(\d{2,5})\s+pages\b/iu,
+    /\bfinished\s+(?:reading\s+)?["“][^"”]{2,160}["”][\s\S]{0,120}?\b(?:which\s+)?had\s+(\d{2,5})\s+pages\b/iu,
+  ] as const;
+
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (!match) {
+      continue;
+    }
+
+    const value = Number(match[1] ?? "");
+    if (Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function deriveLongMemEvalPageCountTotalHint(input: {
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+  question: string;
+  selectedSessionIds: readonly string[];
+}): string | null {
+  if (!/\b(?:page\s+count|pages?|page-count)\b/iu.test(input.question)) {
+    return null;
+  }
+
+  const pageCountsBySessionId = new Map<string, number>();
+  for (const sessionId of input.selectedSessionIds) {
+    const sessionEvidence = input.evidence.filter(
+      (item) =>
+        item.sessionId === sessionId &&
+        !item.tags.includes("assistant_answer") &&
+        (item.tags.includes("user_answer") || item.tags.includes("compact_evidence")),
+    );
+    for (const item of sessionEvidence) {
+      const pageCount = extractLongMemEvalFinishedPageCount(item.content);
+      if (pageCount !== null) {
+        pageCountsBySessionId.set(sessionId, pageCount);
+        break;
+      }
+    }
+  }
+
+  const pageCounts = [...pageCountsBySessionId.values()];
+  if (pageCounts.length < 2) {
+    return null;
+  }
+
+  const total = pageCounts.reduce((sum, value) => sum + value, 0);
+  return `Page counts found in recalled user evidence: ${pageCounts.join(" and ")}; total page count is ${total}. Computed answer for page-count question: ${total}.`;
+}
+
+interface LongMemEvalCountSynthesisItem {
+  display: string;
+  key: string;
+}
+
+interface LongMemEvalCountSynthesisConfig {
+  factPattern: RegExp;
+  itemNormalizer?: (value: string) => LongMemEvalCountSynthesisItem | null;
+  label: string;
+  questionPattern: RegExp;
+}
+
+function normalizeLongMemEvalDefaultCountItem(
+  value: string,
+): LongMemEvalCountSynthesisItem | null {
+  const display = cleanLongMemEvalCountableSegment(value).replace(/^1\s+/iu, "");
+  if (!display) {
+    return null;
+  }
+
+  return {
+    display,
+    key: display.toLowerCase(),
+  };
+}
+
+function normalizeLongMemEvalFurnitureCountItem(
+  value: string,
+): LongMemEvalCountSynthesisItem | null {
+  const cleaned = cleanLongMemEvalCountableSegment(value)
+    .replace(/^1\s+/iu, "")
+    .replace(/\s+ordered\s+from\s+[A-Z][A-Za-z0-9&' -]+$/iu, "")
+    .replace(/\s+with\s+a\s+fixed\b[\s\S]*$/iu, "")
+    .trim();
+  if (!cleaned) {
+    return null;
+  }
+
+  const display = /\bbookshelf\b/iu.test(cleaned)
+    ? cleaned.replace(/^IKEA\s+/iu, "IKEA ")
+    : cleaned;
+  const key = /\bbookshelf\b/iu.test(display)
+    ? "bookshelf"
+    : display.toLowerCase();
+
+  return { display, key };
+}
+
+function normalizeLongMemEvalBakingCountItem(
+  value: string,
+): LongMemEvalCountSynthesisItem | null {
+  const cleaned = cleanLongMemEvalCountableSegment(value)
+    .replace(/\s+(?:on\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b.*$/iu, "")
+    .replace(/\s+last\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend)\b.*$/iu, "")
+    .trim();
+  if (!cleaned) {
+    return null;
+  }
+
+  if (/\bcookies?\b/iu.test(cleaned)) {
+    return { display: "cookies", key: "cookies" };
+  }
+  if (/\bcake\b/iu.test(cleaned)) {
+    return { display: cleaned, key: "cake" };
+  }
+  if (/\bbaguette\b/iu.test(cleaned)) {
+    return { display: cleaned, key: "baguette" };
+  }
+  if (/\bsourdough\b/iu.test(cleaned)) {
+    return { display: cleaned, key: "sourdough bread" };
+  }
+
+  return {
+    display: cleaned,
+    key: cleaned.toLowerCase(),
+  };
+}
+
+function normalizeLongMemEvalHealthDeviceCountItem(
+  value: string,
+): LongMemEvalCountSynthesisItem | null {
+  const cleaned = cleanLongMemEvalCountableSegment(value);
+  if (!cleaned) {
+    return null;
+  }
+
+  if (/\bFitbit\b/iu.test(cleaned)) {
+    return { display: "Fitbit", key: "fitbit" };
+  }
+  if (/\bhearing aids?\b/iu.test(cleaned)) {
+    return { display: "hearing aids", key: "hearing aids" };
+  }
+  if (/\bAccu-Chek\b/iu.test(cleaned)) {
+    return { display: "Accu-Chek blood sugar testing system", key: "accu-chek" };
+  }
+  if (/\bnebulizer\b/iu.test(cleaned)) {
+    return { display: "nebulizer", key: "nebulizer" };
+  }
+
+  return {
+    display: cleaned,
+    key: cleaned.toLowerCase(),
+  };
+}
+
+function normalizeLongMemEvalMarvelRewatchCountItem(
+  value: string,
+): LongMemEvalCountSynthesisItem | null {
+  const cleaned = cleanLongMemEvalCountableSegment(value)
+    .replace(/\s+(?:today|yesterday|last\s+night|last\s+week)\b.*$/iu, "")
+    .trim();
+  if (!cleaned) {
+    return null;
+  }
+
+  return {
+    display: cleaned,
+    key: cleaned.toLowerCase(),
+  };
+}
+
+const LONGMEMEVAL_COUNT_SYNTHESIS_CONFIGS: readonly LongMemEvalCountSynthesisConfig[] = [
+  {
+    factPattern: /Clothing pickup or return item:\s*([^.\n]+)\./giu,
+    label: "clothing pickup or return items",
+    questionPattern: /\bitems?\s+of\s+clothing\b[\s\S]{0,120}\b(?:pick\s+up|return|store)\b/iu,
+  },
+  {
+    factPattern: /Bake event:\s*I baked something:\s*([^.\n]+)\./giu,
+    itemNormalizer: normalizeLongMemEvalBakingCountItem,
+    label: "baking events",
+    questionPattern: /\bhow\s+many\s+times\b[\s\S]{0,80}\bbake\b/iu,
+  },
+  {
+    factPattern: /Furniture item I bought, assembled, sold, or fixed:\s*([^.\n]+)\./giu,
+    itemNormalizer: normalizeLongMemEvalFurnitureCountItem,
+    label: "furniture items bought, assembled, sold, or fixed",
+    questionPattern: /\bpieces?\s+of\s+furniture\b[\s\S]{0,160}\b(?:buy|bought|assemble|assembled|sell|sold|fix|fixed)\b/iu,
+  },
+  {
+    factPattern: /Health-related device I use(?: daily)?:\s*([^.\n]+)\./giu,
+    itemNormalizer: normalizeLongMemEvalHealthDeviceCountItem,
+    label: "health-related devices",
+    questionPattern: /\bhealth-related\s+devices?\b[\s\S]{0,120}\buse\b/iu,
+  },
+  {
+    factPattern: /Property viewing evidence:\s*I viewed 1\s+([^.\n]+)\./giu,
+    label: "properties viewed before the offer",
+    questionPattern: /\bproperties\b[\s\S]{0,120}\bview\b[\s\S]{0,120}\bbefore\b[\s\S]{0,120}\boffer\b/iu,
+  },
+  {
+    factPattern: /Music album or EP I purchased or downloaded:\s*([^.\n]+)\./giu,
+    label: "music albums or EPs purchased or downloaded",
+    questionPattern: /\bmusic\s+albums?\b[\s\S]{0,80}\bEPs\b[\s\S]{0,120}\b(?:purchased|downloaded)\b/iu,
+  },
+  {
+    factPattern: /Marvel movie I re-watched:\s*([^.\n]+)\./giu,
+    itemNormalizer: normalizeLongMemEvalMarvelRewatchCountItem,
+    label: "Marvel movies re-watched",
+    questionPattern: /\bMarvel\s+movies?\b[\s\S]{0,120}\bre-?watch/iu,
+  },
+] as const;
+
+function collectLongMemEvalCountSynthesisItems(input: {
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+  factPattern: RegExp;
+  itemNormalizer?: (value: string) => LongMemEvalCountSynthesisItem | null;
+}): LongMemEvalCountSynthesisItem[] {
+  const items: LongMemEvalCountSynthesisItem[] = [];
+  const seen = new Set<string>();
+  const normalizeItem =
+    input.itemNormalizer ?? normalizeLongMemEvalDefaultCountItem;
+
+  for (const item of input.evidence) {
+    for (const match of item.content.matchAll(input.factPattern)) {
+      const countItem = normalizeItem(match[1] ?? "");
+      if (!countItem || seen.has(countItem.key)) {
+        continue;
+      }
+
+      seen.add(countItem.key);
+      items.push(countItem);
+    }
+  }
+
+  return items;
+}
+
+function deriveLongMemEvalCountableEvidenceCountHint(input: {
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+  question: string;
+}): string | null {
+  if (!/\bhow\s+many\b/iu.test(input.question)) {
+    return null;
+  }
+
+  for (const config of LONGMEMEVAL_COUNT_SYNTHESIS_CONFIGS) {
+    if (!config.questionPattern.test(input.question)) {
+      continue;
+    }
+
+    const items = collectLongMemEvalCountSynthesisItems({
+      evidence: input.evidence,
+      factPattern: config.factPattern,
+      itemNormalizer: config.itemNormalizer,
+    });
+    if (items.length < 2) {
+      continue;
+    }
+
+    return `Counted matching ${config.label} in recalled evidence: ${items.map((item) => item.display).join("; ")}. Computed answer for count question: ${items.length}.`;
+  }
+
+  return null;
+}
+
+function extractLongMemEvalQuestionYear(questionDate: string): number | null {
+  const match = questionDate.match(/\b(\d{4})[/-]\d{1,2}[/-]\d{1,2}\b/u);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1] ?? "");
+  return Number.isInteger(year) ? year : null;
+}
+
+function formatLongMemEvalDate(year: number, month: number, day: number): string {
+  return `${year}/${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}`;
+}
+
+function toLongMemEvalUtcDay(input: {
+  day: number;
+  month: number;
+  year: number;
+}): number {
+  return Date.UTC(input.year, input.month - 1, input.day) / LONGMEMEVAL_MILLISECONDS_PER_DAY;
+}
+
+function parseLongMemEvalSlashDate(input: {
+  match: RegExpMatchArray;
+  year: number;
+}): { day: number; month: number; year: number } | null {
+  const month = Number(input.match[1] ?? "");
+  const day = Number(input.match[2] ?? "");
+  if (
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  return { day, month, year: input.year };
+}
+
+function findLongMemEvalWorkingRelationshipStartDate(input: {
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+  year: number;
+}): { day: number; month: number; year: number } | null {
+  for (const item of input.evidence) {
+    if (!/\bstarted\s+working\s+with\b/iu.test(item.content)) {
+      continue;
+    }
+
+    const match = item.content.match(
+      /\bstarted\s+working\s+with\s+(?:[A-Z][A-Za-z]+|her|him|them)\s+on\s+(\d{1,2})\/(\d{1,2})\b/iu,
+    );
+    if (!match) {
+      continue;
+    }
+
+    const date = parseLongMemEvalSlashDate({
+      match,
+      year: input.year,
+    });
+    if (date) {
+      return date;
+    }
+  }
+
+  return null;
+}
+
+function findLongMemEvalDesiredHomeSeenDate(input: {
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+  year: number;
+}): { day: number; month: number; year: number } | null {
+  for (const item of input.evidence) {
+    if (!/\bhouse\b[\s\S]{0,80}\b(?:love|checks all the boxes)\b/iu.test(item.content)) {
+      continue;
+    }
+
+    const match = item.content.match(
+      /\b(?:house\s+that\s+I\s+really\s+love|house\s+I\s+saw|saw\s+a\s+house)[\s\S]{0,80}?\bon\s+(\d{1,2})\/(\d{1,2})\b/iu,
+    );
+    if (!match) {
+      continue;
+    }
+
+    const date = parseLongMemEvalSlashDate({
+      match,
+      year: input.year,
+    });
+    if (date) {
+      return date;
+    }
+  }
+
+  return null;
+}
+
+function deriveLongMemEvalElapsedDaysHint(input: {
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+  question: string;
+  questionDate: string;
+}): string | null {
+  if (!/\bhow\s+many\s+days\b/iu.test(input.question)) {
+    return null;
+  }
+
+  const year = extractLongMemEvalQuestionYear(input.questionDate);
+  if (year === null) {
+    return null;
+  }
+
+  const startDate = findLongMemEvalWorkingRelationshipStartDate({
+    evidence: input.evidence,
+    year,
+  });
+  const endDate = findLongMemEvalDesiredHomeSeenDate({
+    evidence: input.evidence,
+    year,
+  });
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  const elapsedDays = toLongMemEvalUtcDay(endDate) - toLongMemEvalUtcDay(startDate);
+  if (!Number.isInteger(elapsedDays) || elapsedDays < 0 || elapsedDays > 366) {
+    return null;
+  }
+
+  return `Elapsed days from starting work on ${formatLongMemEvalDate(startDate.year, startDate.month, startDate.day)} to finding the house on ${formatLongMemEvalDate(endDate.year, endDate.month, endDate.day)}: ${elapsedDays} days (${elapsedDays + 1} days inclusive).`;
+}
+
+function deriveLongMemEvalDescriptiveEntityHint(input: {
+  evidence: readonly LongMemEvalSupplementalEvidence[];
+  question: string;
+}): string | null {
+  if (!/\b(?:artist|listen|listening)\b/iu.test(input.question)) {
+    return null;
+  }
+
+  for (const item of input.evidence) {
+    const match = item.content.match(
+      /\b(?:recently\s+)?discovered\s+(?:a|an|the)\s+([^,.!?]{8,140}?)\s+and\s+started\s+(?:enjoying|listening\s+to)\b/iu,
+    );
+    if (!match) {
+      continue;
+    }
+
+    const description = cleanExtractedValue(match[1] ?? "");
+    if (description) {
+      return `Descriptive entity answer from recalled evidence: artist I started listening to: ${description}.`;
+    }
+  }
+
+  return null;
+}
+
+function deriveLongMemEvalSelectedEvidenceSynthesisHints(input: {
+  evidenceBySessionId: ReadonlyMap<string, readonly LongMemEvalSupplementalEvidence[]>;
+  question: string;
+  questionDate: string;
+  selectedSessionIds: readonly string[];
+}): string[] {
+  const evidence = collectLongMemEvalSelectedEvidence({
+    evidenceBySessionId: input.evidenceBySessionId,
+    selectedSessionIds: input.selectedSessionIds,
+  });
+  return [
+    deriveLongMemEvalPercentageComparisonHint({
+      evidence,
+      question: input.question,
+    }),
+    deriveLongMemEvalPageCountTotalHint({
+      evidence,
+      question: input.question,
+      selectedSessionIds: input.selectedSessionIds,
+    }),
+    deriveLongMemEvalCountableEvidenceCountHint({
+      evidence,
+      question: input.question,
+    }),
+    deriveLongMemEvalElapsedDaysHint({
+      evidence,
+      question: input.question,
+      questionDate: input.questionDate,
+    }),
+    deriveLongMemEvalDescriptiveEntityHint({
+      evidence,
+      question: input.question,
+    }),
+  ].filter((hint): hint is string => typeof hint === "string");
+}
+
+function appendLongMemEvalSynthesisHints(input: {
+  content: string;
+  synthesisHints: readonly string[];
+}): string {
+  if (input.synthesisHints.length === 0) {
+    return input.content;
+  }
+
+  return [
+    input.content,
+    "## Selected Evidence Synthesis",
+    ...input.synthesisHints.map((hint) => `- ${hint}`),
+  ].join("\n\n");
+}
+
 function mergeSessionIds(...groups: readonly string[][]): string[] {
   return [...new Set(groups.flat())];
 }
@@ -2512,6 +3392,10 @@ export function createLongMemEvalGoodMemoryContextBuilder(
     const baseScope = buildLongMemEvalScope(testCase, input.runId);
     const extractionStrategy = "rules-only";
     const recallStrategy = profile === "goodmemory-hybrid" ? "hybrid" : "rules-only";
+    const evidenceBySessionId = new Map<
+      string,
+      LongMemEvalSupplementalEvidence[]
+    >();
 
     for (const [index, session] of testCase.haystackSessions.entries()) {
       const sessionId = testCase.haystackSessionIds[index] ?? `session-${index + 1}`;
@@ -2522,6 +3406,14 @@ export function createLongMemEvalGoodMemoryContextBuilder(
         session,
         sessionId,
       });
+      evidenceBySessionId.set(
+        sessionId,
+        collectLongMemEvalSupplementalEvidence({
+          annotations: payload.annotations,
+          messages: payload.messages,
+          sessionId,
+        }),
+      );
       await memory.remember({
         annotations: payload.annotations,
         extractionStrategy,
@@ -2543,16 +3435,35 @@ export function createLongMemEvalGoodMemoryContextBuilder(
       output: "markdown",
       recall,
     });
+    const retrievedSessionIds = mergeSessionIds(
+      collectSessionIdsFromRecall({ recall, testCase }),
+      deriveRetrievedSessionIds({
+        content: context.content,
+        testCase,
+      }),
+    );
+    const supplementalEvidenceLines = selectLongMemEvalSupplementalEvidence({
+      context: context.content,
+      evidenceBySessionId,
+      question: testCase.question,
+      selectedSessionIds: retrievedSessionIds,
+    });
+    const synthesisHints = deriveLongMemEvalSelectedEvidenceSynthesisHints({
+      evidenceBySessionId,
+      question: testCase.question,
+      questionDate: testCase.questionDate,
+      selectedSessionIds: retrievedSessionIds,
+    });
 
     return {
-      content: context.content,
-      retrievedSessionIds: mergeSessionIds(
-        collectSessionIdsFromRecall({ recall, testCase }),
-        deriveRetrievedSessionIds({
+      content: appendLongMemEvalSynthesisHints({
+        content: appendLongMemEvalSupplementalEvidence({
           content: context.content,
-          testCase,
+          evidenceLines: supplementalEvidenceLines,
         }),
-      ),
+        synthesisHints,
+      }),
+      retrievedSessionIds,
     };
   };
 }

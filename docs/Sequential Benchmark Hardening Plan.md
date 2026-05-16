@@ -45,10 +45,16 @@ failure set is known. The later temporal/answer-session current-code live
 full-500 recovery
 `run-phase62-longmemeval-full500-current-after-temporal-answer-session-retry-r2-resumed-merged-20260515T001000Z`
 also covers all four profiles across 500 cases with `executionFailures: 0`;
-its clean-check dry-run produced `batchCount: 0`. Quality still does not close:
-`baseline-full-context` is 451/500, `goodmemory-rules-only` is 345/500 with
-evidence-session recall 0.8705, and `goodmemory-hybrid` is 358/500 with
-evidence-session recall 0.8599.
+its clean-check dry-run produced `batchCount: 0`. Quality still did not close
+at that point: `baseline-full-context` is 451/500, `goodmemory-rules-only` is
+345/500 with evidence-session recall 0.8705, and `goodmemory-hybrid` is 358/500
+with evidence-session recall 0.8599. The current strongest clean hybrid
+checkpoint is now
+`run-phase62-longmemeval-full500-current-after-selected-evidence-synthesis-hybrid-retry-r1-merged-20260516T190000Z`,
+which reaches 428/500 with evidence-session recall 0.9102, missed recall 74,
+wrong recall 6, wrong answers 72, and `executionFailures: 0`. This is a clear
+improvement over the prior 401/500 hybrid checkpoint, but Phase 62 remains open
+because it is still below the 451/500 full-context reference.
 BEAM remains blocked until the remaining LongMemEval full-500 quality gap is
 repaired or explicitly deferred.
 
@@ -105,11 +111,11 @@ the strongest recall-side delta so far. The fresh rules-only live full-500 rerun
 `run-phase62-longmemeval-full500-current-after-direct-factual-companions-rules-only-20260515T011000Z`
 confirms answer-quality lift from that repair: rules-only rises from 345/500 to
 368/500, evidence-session recall reaches 0.8961, missed recall falls to 83,
-wrong recall falls to 6, and `executionFailures` stays at 0. The latest unified
-four-profile comparison is still
+wrong recall falls to 6, and `executionFailures` stays at 0. At that checkpoint,
+the latest unified four-profile comparison was still
 `run-phase62-longmemeval-full500-current-after-temporal-answer-session-retry-r2-resumed-merged-20260515T001000Z`,
 where full-context is 451/500 and hybrid is 358/500, so Phase 62 remains open
-because the latest same-surface GoodMemory reruns are stronger but still trail
+because the same-surface GoodMemory reruns were stronger but still trailed
 full-context by 66-83 answers. A sixth repair is now targeting enough-evidence
 assembly inside already-retrieved sessions rather than raw session recall. The
 targeted recall run
@@ -156,8 +162,64 @@ judge hit `unknown certificate verification error`); clean single-case retries
 and
 `run-phase62-longmemeval-live-dd2973ad-sleep-bridge-selection-r2-20260515T115500Z`
 both pass with `executionFailures: 0`. This targeted repair is not yet a
-Phase 62 quality close: a new full-500 current-code run after selection
-narrowing has not completed cleanly, and the attempted single-process full-500
+Phase 62 quality close. The sharded current-code full-500 after selection
+narrowing,
+`run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-smallshards-20260516T095000Z`,
+completed cleanly but landed at 399/500 with evidence-session recall 0.9102,
+missed recall 74, wrong recall 6, wrong answers 101, and
+`executionFailures: 0`. It does not supersede the 401/500 entity-evidence
+checkpoint; the main remaining gap is answer grounding over already selected
+evidence, especially false `No answer` responses and numeric/temporal
+synthesis errors. The current answer-grounding repair now keeps query-matching
+verified evidence from recalled sessions in a `Selected Session Evidence`
+block, adds a `Selected Evidence Synthesis` block for deterministic comparison,
+total, descriptive-entity, and elapsed-days synthesis, gives generic prompt
+guidance for using that synthesis as answer-bearing evidence, and derives
+kitchen-appliance purchase facts from `got` / `bought` phrasing such as
+`smoker`. Targeted live hybrid evidence is positive but still not global
+closure:
+`run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-20260516T133000Z`
+recovers 4/4 representative full-evidence false `No answer` rows with
+`executionFailures: 0`; the broader
+`run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-r2-20260516T133500Z`
+recovers 6/12 multi-session and temporal rows; and the post-prompt/appliance
+retry
+`run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-r3-20260516T134500Z`
+recovers 2/6 previously failing rows (`71017277` and `gpt4_8279ba03`) with
+`executionFailures: 0`. The follow-up synthesis retry first recovered 3/4 in
+`run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-targeted-r4-20260516T145000Z`,
+then the explicit page-count computed-answer retry fixed `37f165cf` in
+`run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-page-retry-r2-20260516T150000Z`.
+The accepted clean combined targeted evidence is
+`run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-targeted-r5-20260516T150500Z`:
+4/4 correct on `7405e8b1`, `37f165cf`, `gpt4_fa19884d`, and `2c63a862`, with
+evidence-session recall 1.0, `missedRecallCases: 0`, `wrongRecallCases: 0`,
+`wrongAnswerCases: 0`, and `executionFailures: 0`. This resolves the observed
+selected-evidence synthesis blockers in targeted evidence, but it is still a
+targeted mechanism improvement, not a full-500 quality close. The follow-up
+sharded full-500
+`run-phase62-longmemeval-full500-current-after-selected-evidence-synthesis-hybrid-smallshards-20260516T151000Z`
+first reached 424/500 with evidence-session recall 0.9102 and 4 certificate
+verification execution failures; the failed-row recovery
+`run-phase62-longmemeval-full500-current-after-selected-evidence-synthesis-hybrid-retry-r1-merged-20260516T190000Z`
+cleared those failures and reached 428/500, missed recall 74, wrong recall 6,
+wrong answers 72, and `executionFailures: 0`. This supersedes the earlier
+401/500 hybrid checkpoint as the strongest current GoodMemory hybrid result,
+but it still does not close Phase 62 because `baseline-full-context` remains
+451/500. A subsequent count-synthesis repair targets full-recall multi-session
+wrong-value rows by deriving computed count hints from selected compact evidence
+for clothing pickup/return items, furniture activity, baking events, property
+viewing before an offer, health devices with duplicate-device suppression,
+music albums/EPs, and Marvel movie rewatches. The first 7-case targeted hybrid
+run
+`run-phase62-longmemeval-live-selected-count-synthesis-hybrid-targeted-20260516T210000Z`
+fixed 5/7 and exposed duplicate counting for baking and Marvel rewatches; after
+normalizing those duplicate event variants,
+`run-phase62-longmemeval-live-selected-count-synthesis-hybrid-targeted-r3-20260516T214500Z`
+recovered all 7/7 with evidence-session recall 1.0, wrong recall 0, wrong
+answers 0, and `executionFailures: 0`. This is targeted repair evidence only;
+a fresh sharded full-500 is still required before updating the 428/500 global
+checkpoint. The attempted earlier single-process full-500
 `run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-20260515T121500Z`
 was manually terminated before writing a report because the serial run produced
 no intermediate artifact. Use the sharded/full-500 runner or failed-row

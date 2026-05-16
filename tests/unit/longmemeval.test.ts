@@ -2497,6 +2497,524 @@ describe("LongMemEval adapter", () => {
     expect(context.content).toContain("The Glass Menagerie");
   });
 
+  it("supplements query-matching verified user evidence from recalled LongMemEval sessions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "A mix of Irish and Italian",
+        answer_session_ids: ["s-heritage"],
+        haystack_dates: ["2023/05/30"],
+        haystack_session_ids: ["s-heritage"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've been thinking about my family tree, and my mixed ethnicity - Irish and Italian - shaped my upbringing.",
+              has_answer: true,
+              role: "user",
+            },
+            {
+              content:
+                "Italian citizenship can be useful for living and working in the EU.",
+              role: "assistant",
+            },
+          ],
+        ],
+        question: "What is my ethnicity?",
+        question_date: "2023/05/31",
+        question_id: "q-ethnicity-selected-session-context-gap",
+        question_type: "single-session-user",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        ({
+          buildContext: async () => ({
+            content:
+              "## Facts\n- Italian citizenship can be useful for living and working in the EU.",
+            estimatedTokens: 12,
+            omittedSections: [],
+            output: "markdown",
+          }),
+          recall: async () => ({
+            facts: [
+              {
+                content:
+                  "Italian citizenship can be useful for living and working in the EU.",
+                sessionId: "s-heritage",
+              },
+            ],
+          }),
+          remember: async () => ({
+            accepted: 0,
+            events: [],
+            rejected: 0,
+          }),
+        }) as unknown as GoodMemory,
+      runId: "run-longmemeval-selected-user-evidence-context-gap",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-heritage");
+    expect(context.content).toContain("mixed ethnicity - Irish and Italian");
+  });
+
+  it("supplements query-matching verified assistant list evidence from recalled LongMemEval sessions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "The Sugar Factory at Icon Park.",
+        answer_session_ids: ["s-orlando-dessert"],
+        haystack_dates: ["2023/05/21"],
+        haystack_session_ids: ["s-orlando-dessert"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "Can you recommend a fun dessert spot that my family can check out after dinner in Orlando?",
+              role: "user",
+            },
+            {
+              content: [
+                "Absolutely! Here are some fun dessert spots:",
+                "1. The Sugar Factory - A sweet shop located at Icon Park that offers specialty drinks and giant milkshakes.",
+                "2. Wondermade - A gourmet marshmallow shop located in Sanford.",
+              ].join("\n"),
+              role: "assistant",
+            },
+          ],
+        ],
+        question:
+          "Which unique dessert shop with giant milkshakes did we talk about in Orlando?",
+        question_date: "2023/05/22",
+        question_id: "q-assistant-list-selected-session-context-gap",
+        question_type: "single-session-assistant",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        ({
+          buildContext: async () => ({
+            content:
+              "## Facts\n- I was interested in recommendations for a fun dessert spot in Orlando.",
+            estimatedTokens: 12,
+            omittedSections: [],
+            output: "markdown",
+          }),
+          recall: async () => ({
+            facts: [
+              {
+                content:
+                  "I was interested in recommendations for a fun dessert spot in Orlando.",
+                sessionId: "s-orlando-dessert",
+              },
+            ],
+          }),
+          remember: async () => ({
+            accepted: 0,
+            events: [],
+            rejected: 0,
+          }),
+        }) as unknown as GoodMemory,
+      runId: "run-longmemeval-selected-assistant-evidence-context-gap",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.retrievedSessionIds).toContain("s-orlando-dessert");
+    expect(context.content).toContain("The Sugar Factory");
+    expect(context.content).toContain("giant milkshakes");
+  });
+
+  it("adds synthesis hints for percentage comparisons across recalled LongMemEval sessions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "Yes.",
+        answer_session_ids: ["s-hellofresh", "s-ubereats"],
+        haystack_dates: ["2023/05/23", "2023/05/28"],
+        haystack_session_ids: ["s-hellofresh", "s-ubereats"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I recently tried HelloFresh and got a 40% discount on my first order.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "Last week I got 20% off my UberEats order, which was awesome.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question:
+          "Did I receive a higher percentage discount on my first order from HelloFresh, compared to my first UberEats order?",
+        question_date: "2023/05/30",
+        question_id: "q-discount-comparison-synthesis",
+        question_type: "multi-session",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        ({
+          buildContext: async () => ({
+            content: "## Facts\n- Discounts were discussed.",
+            estimatedTokens: 8,
+            omittedSections: [],
+            output: "markdown",
+          }),
+          recall: async () => ({
+            facts: [
+              { content: "Discounts were discussed.", sessionId: "s-hellofresh" },
+              { content: "Discounts were discussed.", sessionId: "s-ubereats" },
+            ],
+          }),
+          remember: async () => ({
+            accepted: 0,
+            events: [],
+            rejected: 0,
+          }),
+        }) as unknown as GoodMemory,
+      runId: "run-longmemeval-discount-synthesis",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("Selected Evidence Synthesis");
+    expect(context.content).toContain("HelloFresh discount is 40%");
+    expect(context.content).toContain("UberEats discount is 20%");
+    expect(context.content).toContain("comparison answer is Yes");
+  });
+
+  it("adds synthesis hints for page-count totals across recalled LongMemEval sessions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "856",
+        answer_session_ids: ["s-novel-416", "s-novel-440"],
+        haystack_dates: ["2023/05/27", "2023/05/22"],
+        haystack_session_ids: ["s-novel-416", "s-novel-440"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I just finished a 416-page novel, but before that I read a different book with 341 pages.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I just finished reading \"The Nightingale\" by Kristin Hannah, which had 440 pages.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "What was the page count of the two novels I finished?",
+        question_date: "2023/05/30",
+        question_id: "q-page-count-synthesis",
+        question_type: "multi-session",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        ({
+          buildContext: async () => ({
+            content: "## Facts\n- Finished novels were discussed.",
+            estimatedTokens: 8,
+            omittedSections: [],
+            output: "markdown",
+          }),
+          recall: async () => ({
+            facts: [
+              { content: "Finished novels were discussed.", sessionId: "s-novel-416" },
+              { content: "Finished novels were discussed.", sessionId: "s-novel-440" },
+            ],
+          }),
+          remember: async () => ({
+            accepted: 0,
+            events: [],
+            rejected: 0,
+          }),
+        }) as unknown as GoodMemory,
+      runId: "run-longmemeval-page-count-synthesis",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("Page counts found in recalled user evidence: 416 and 440");
+    expect(context.content).toContain("total page count is 856");
+    expect(context.content).toContain("Computed answer for page-count question: 856");
+  });
+
+  it("adds synthesis hints for elapsed days between dated recalled events", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "14 days",
+        answer_session_ids: ["s-rachel-start", "s-house-loved"],
+        haystack_dates: ["2022/03/02", "2022/03/02"],
+        haystack_session_ids: ["s-rachel-start", "s-house-loved"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "Since I started working with Rachel on 2/15, I'm hoping she can give me a better sense of what's available.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I recently saw a house that I really love on 3/1, and I'm considering making an offer.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question:
+          "How many days did it take for me to find a house I loved after starting to work with Rachel?",
+        question_date: "2022/03/02",
+        question_id: "q-elapsed-days-synthesis",
+        question_type: "temporal-reasoning",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        ({
+          buildContext: async () => ({
+            content: "## Facts\n- Rachel and house hunting were discussed.",
+            estimatedTokens: 8,
+            omittedSections: [],
+            output: "markdown",
+          }),
+          recall: async () => ({
+            facts: [
+              { content: "Rachel was discussed.", sessionId: "s-rachel-start" },
+              { content: "The house was discussed.", sessionId: "s-house-loved" },
+            ],
+          }),
+          remember: async () => ({
+            accepted: 0,
+            events: [],
+            rejected: 0,
+          }),
+        }) as unknown as GoodMemory,
+      runId: "run-longmemeval-elapsed-days-synthesis",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("Elapsed days");
+    expect(context.content).toContain("2022/02/15");
+    expect(context.content).toContain("2022/03/01");
+    expect(context.content).toContain("14 days");
+    expect(context.content).toContain("15 days inclusive");
+  });
+
+  it("adds count synthesis hints for countable selected evidence", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "3",
+        answer_session_ids: [
+          "s-clothing-blazer",
+          "s-clothing-return-boots",
+          "s-clothing-pickup-boots",
+        ],
+        haystack_dates: ["2023/02/15", "2023/02/15", "2023/02/15"],
+        haystack_session_ids: [
+          "s-clothing-blazer",
+          "s-clothing-return-boots",
+          "s-clothing-pickup-boots",
+        ],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I still need to pick up my dry cleaning for the navy blue blazer I wore to a meeting a few weeks ago.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content: "I need to return some boots to Zara, actually.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "By the way, I just exchanged a pair of boots I got from Zara on 2/5, and I still need to pick up the new pair.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question:
+          "How many items of clothing do I need to pick up or return from a store?",
+        question_date: "2023/02/16",
+        question_id: "q-clothing-count-synthesis",
+        question_type: "multi-session",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        ({
+          buildContext: async () => ({
+            content: "## Facts\n- Clothing pickup and returns were discussed.",
+            estimatedTokens: 8,
+            omittedSections: [],
+            output: "markdown",
+          }),
+          recall: async () => ({
+            facts: [
+              { content: "Clothing was discussed.", sessionId: "s-clothing-blazer" },
+              { content: "Clothing was discussed.", sessionId: "s-clothing-return-boots" },
+              { content: "Clothing was discussed.", sessionId: "s-clothing-pickup-boots" },
+            ],
+          }),
+          remember: async () => ({
+            accepted: 0,
+            events: [],
+            rejected: 0,
+          }),
+        }) as unknown as GoodMemory,
+      runId: "run-longmemeval-clothing-count-synthesis",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("Selected Evidence Synthesis");
+    expect(context.content).toContain("clothing pickup or return items");
+    expect(context.content).toContain("navy blue blazer");
+    expect(context.content).toContain("return boots to Zara");
+    expect(context.content).toContain("pick up new pair of boots from Zara");
+    expect(context.content).toContain("Computed answer for count question: 3");
+  });
+
+  it("deduplicates count synthesis hints for selected evidence categories", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "4",
+        answer_session_ids: [
+          "s-device-fitbit",
+          "s-device-hearing-aids",
+          "s-device-fitbit-breathing",
+          "s-device-glucose",
+          "s-device-nebulizer",
+        ],
+        haystack_dates: [
+          "2023/05/21",
+          "2023/05/22",
+          "2023/05/27",
+          "2023/05/27",
+          "2023/05/30",
+        ],
+        haystack_session_ids: [
+          "s-device-fitbit",
+          "s-device-hearing-aids",
+          "s-device-fitbit-breathing",
+          "s-device-glucose",
+          "s-device-nebulizer",
+        ],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've been wearing my Fitbit Versa 3 smartwatch non-stop since I got it three weeks ago.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I have behind-the-ear (BTE) hearing aids from Phonak, and I'm currently using size 13 batteries.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "By the way, I've been trying to do at least one guided breathing session per day with my Fitbit, which has really been helping me relax.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I've been testing my blood sugar levels three times a day with my Accu-Chek Aviva Nano system.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "By the way, I've been doing inhalation treatments twice a day with my nebulizer machine.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How many health-related devices do I use in a day?",
+        question_date: "2023/05/31",
+        question_id: "q-health-device-count-synthesis",
+        question_type: "multi-session",
+      },
+    ]);
+    const context = await createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        ({
+          buildContext: async () => ({
+            content: "## Facts\n- Health devices were discussed.",
+            estimatedTokens: 8,
+            omittedSections: [],
+            output: "markdown",
+          }),
+          recall: async () => ({
+            facts: [
+              { content: "Health devices were discussed.", sessionId: "s-device-fitbit" },
+              { content: "Health devices were discussed.", sessionId: "s-device-hearing-aids" },
+              { content: "Health devices were discussed.", sessionId: "s-device-fitbit-breathing" },
+              { content: "Health devices were discussed.", sessionId: "s-device-glucose" },
+              { content: "Health devices were discussed.", sessionId: "s-device-nebulizer" },
+            ],
+          }),
+          remember: async () => ({
+            accepted: 0,
+            events: [],
+            rejected: 0,
+          }),
+        }) as unknown as GoodMemory,
+      runId: "run-longmemeval-health-device-count-synthesis",
+    })({
+      profile: "goodmemory-rules-only",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("health-related devices");
+    expect(context.content).toContain("Fitbit");
+    expect(context.content).toContain("hearing aids");
+    expect(context.content).toContain("Accu-Chek");
+    expect(context.content).toContain("nebulizer");
+    expect(context.content).toContain("Computed answer for count question: 4");
+  });
+
   it("recalls compact details from long verified LongMemEval user turns", async () => {
     const [testCase] = validateLongMemEvalCases([
       {
@@ -2680,6 +3198,16 @@ describe("LongMemEval adapter", () => {
     expect(facts).toContain(
       "My new kitchen utensil holder helps keep countertops clutter-free.",
     );
+  });
+
+  it("derives kitchen appliance purchase facts from got and bought phrasing", () => {
+    const facts = deriveLongMemEvalUserEvidenceFacts({
+      content:
+        "I'm looking for BBQ sauce recipes. By the way, I just got a smoker today and want to try different types of wood.",
+      date: "2023/03/15",
+    });
+
+    expect(facts).toContain("Kitchen appliance I bought or got: smoker.");
   });
 
   it("derives dated guided-tour evidence for Modern Art Museum wording", () => {

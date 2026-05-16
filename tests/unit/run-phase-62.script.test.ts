@@ -281,6 +281,23 @@ describe("run-phase-62 LongMemEval script", () => {
     );
   });
 
+  it("instructs numeric answers to compare and sum visible evidence", () => {
+    const prompt = buildLongMemEvalPrompt({
+      memoryContext:
+        "HelloFresh gave me a 40% discount.\nUberEats gave me a 20% discount.\nThe first novel had 416 pages and the second had 440 pages.",
+      prompt:
+        "Did I receive a higher percentage discount from HelloFresh, and what was the total page count?",
+      transcript: "",
+    });
+
+    expect(prompt).toContain(
+      "For numeric comparison questions, compare visible numbers, percentages, amounts, dates, or durations directly",
+    );
+    expect(prompt).toContain(
+      "For total, sum, or page-count questions, add the visible matching numeric values",
+    );
+  });
+
   it("instructs list answers to preserve grouped evidence items", () => {
     expect(
       buildLongMemEvalPrompt({
@@ -319,6 +336,48 @@ describe("run-phase-62 LongMemEval script", () => {
       }),
     ).toContain(
       "For temporal order questions, sort matching dated evidence chronologically",
+    );
+  });
+
+  it("instructs from-whom answers to use selected evidence sources", () => {
+    const prompt = buildLongMemEvalPrompt({
+      memoryContext:
+        "## Selected Session Evidence\n- On 2023/03/04, I got a crystal chandelier from my aunt.",
+      prompt: "I received a piece of jewelry last Saturday from whom?",
+      transcript: "",
+    });
+
+    expect(prompt).toContain(
+      "Treat Selected Session Evidence as answer-bearing evidence",
+    );
+    expect(prompt).toContain(
+      "For who/from-whom questions, return the visible person or source",
+    );
+  });
+
+  it("instructs descriptive entity answers when no proper noun is visible", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "On 2023/03/31, I recently discovered a bluegrass band that features a banjo player and started enjoying their music today.",
+        prompt: "What is the artist that I started to listen to last Friday?",
+        transcript: "",
+      }),
+    ).toContain(
+      "For artist, item, or entity questions, if the evidence gives a descriptive entity rather than a proper name, return that description",
+    );
+  });
+
+  it("instructs answer generation to use selected evidence synthesis", () => {
+    expect(
+      buildLongMemEvalPrompt({
+        memoryContext:
+          "## Selected Evidence Synthesis\n- Page counts found in recalled user evidence: 416 and 440; total page count is 856.",
+        prompt: "What was the page count of the two novels I finished?",
+        transcript: "",
+      }),
+    ).toContain(
+      "Treat Selected Evidence Synthesis as computed answer-bearing evidence",
     );
   });
 

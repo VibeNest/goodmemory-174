@@ -407,12 +407,61 @@ Workstreams
     `run-phase62-longmemeval-live-58ef2f1c-valentine-selection-r2-20260515T121000Z`
     and
     `run-phase62-longmemeval-live-dd2973ad-sleep-bridge-selection-r2-20260515T115500Z`
-    both pass with `executionFailures: 0`. A new full-500 after selection
-    narrowing is still pending; the attempted single-process full-500
+    both pass with `executionFailures: 0`. The sharded full-500 after selection
+    narrowing
+    `run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-smallshards-20260516T095000Z`
+    is clean but does not close quality: 399/500, evidence-session recall
+    0.9102, missed recall 74, wrong recall 6, wrong answers 101, and
+    `executionFailures: 0`. The 401/500 entity-evidence checkpoint remains the
+    strongest hybrid full-500 result. The attempted single-process full-500
     `run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-20260515T121500Z`
     was manually terminated before any report was written, so it is not
     accepted evidence. Use the sharded full-500 runner or failed-row recovery
-    path for the next global comparison before opening BEAM.
+    path for the next global comparison before opening BEAM. The
+    selected-evidence answer-grounding repair now lets recalled sessions
+    contribute query-matching verified lines through a `Selected Session
+    Evidence` block, adds deterministic `Selected Evidence Synthesis` lines for
+    comparison, total, descriptive-entity, and elapsed-days questions, updates
+    the answer prompt to treat that synthesis as answer-bearing evidence, and
+    derives kitchen-appliance purchase facts from `got` / `bought` phrasing.
+    Targeted live hybrid evidence:
+    `run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-20260516T133000Z`
+    recovers 4/4 representative full-evidence false `No answer` rows;
+    `run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-r2-20260516T133500Z`
+    recovers 6/12 broader multi-session and temporal rows; and
+    `run-phase62-longmemeval-live-selected-evidence-supplement-hybrid-targeted-r3-20260516T134500Z`
+    recovers 2/6 previously failing rows (`71017277`, `gpt4_8279ba03`). All
+    three runs have `executionFailures: 0`. The synthesis repair then recovered
+    3/4 in
+    `run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-targeted-r4-20260516T145000Z`,
+    fixed the remaining page-total case in
+    `run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-page-retry-r2-20260516T150000Z`,
+    and produced clean combined targeted evidence in
+    `run-phase62-longmemeval-live-selected-evidence-synthesis-hybrid-targeted-r5-20260516T150500Z`:
+    `7405e8b1`, `37f165cf`, `gpt4_fa19884d`, and `2c63a862` all pass with
+    evidence-session recall 1.0, zero missed/wrong recall, zero wrong answers,
+    and `executionFailures: 0`. The fresh sharded full-500
+    `run-phase62-longmemeval-full500-current-after-selected-evidence-synthesis-hybrid-smallshards-20260516T151000Z`
+    reached 424/500 with evidence-session recall 0.9102 and 4 certificate
+    verification execution failures. Failed-row recovery in
+    `run-phase62-longmemeval-full500-current-after-selected-evidence-synthesis-hybrid-retry-r1-merged-20260516T190000Z`
+    cleared those failures and reached 428/500 with missed recall 74, wrong
+    recall 6, wrong answers 72, and `executionFailures: 0`. This is now the
+    strongest current hybrid result, ahead of the previous 401/500 checkpoint,
+    but it still does not close Phase 62 because the full-context reference is
+    451/500. The next count-synthesis repair derives computed count hints from
+    selected compact evidence for clothing pickup/return items, furniture
+    activity, baking events, property viewing before an offer, health devices
+    with duplicate-device suppression, music albums/EPs, and Marvel movie
+    rewatches. Targeted hybrid evidence:
+    `run-phase62-longmemeval-live-selected-count-synthesis-hybrid-targeted-20260516T210000Z`
+    fixed 5/7 and exposed duplicate counting for baking and Marvel rewatches;
+    after normalizing those duplicate event variants,
+    `run-phase62-longmemeval-live-selected-count-synthesis-hybrid-targeted-r3-20260516T214500Z`
+    reached 7/7 with evidence-session recall 1.0, zero missed/wrong recall,
+    zero wrong answers, and `executionFailures: 0`. This is still targeted
+    evidence; a fresh sharded full-500 must confirm the global delta before the
+    428/500 checkpoint is updated.
 
 4. Transition to BEAM
    - open the BEAM phase only after LongMemEval has a clear before/after delta
