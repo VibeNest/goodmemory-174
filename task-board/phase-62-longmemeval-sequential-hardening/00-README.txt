@@ -382,6 +382,37 @@ Workstreams
     wrong recall 6, and `executionFailures: 0`, only one answer above the
     direct-factual hybrid run. That keeps the next repair target on
     answer-evidence assembly rather than raw session recall.
+    A seventh repair continues that answer-evidence assembly work. Entity
+    evidence assembly produced the strongest current hybrid full-500 checkpoint
+    so far:
+    `run-phase62-longmemeval-full500-current-after-entity-evidence-assembly-hybrid-retry-r1-merged-20260515T064500Z`
+    reaches 401/500 with evidence-session recall 0.8935, missed recall 85,
+    wrong recall 6, and `executionFailures: 0`; the corresponding rules-only
+    retry merge
+    `run-phase62-longmemeval-full500-current-after-entity-evidence-assembly-rules-only-retry-r1-merged-20260515T073500Z`
+    reaches 391/500. The first answer-session detail full-500 attempt improved
+    recall but regressed answer quality:
+    `run-phase62-longmemeval-full500-current-after-answer-session-detail-hybrid-r2-20260515T100500Z`
+    is clean but only 390/500 despite evidence-session recall 0.9112. The
+    current selection-narrowing pass keeps the new assistant-detail evidence
+    while reducing noise: user-grounded previous-chat questions prioritize
+    `user_answer` / `compact_evidence`, generic assistant answers no longer
+    enter preference advice, and sleep-before-appointment bridge evidence
+    keeps the answer time before the appointment context. Targeted hybrid
+    evidence is positive but not global closure:
+    `run-phase62-longmemeval-live-answer-session-detail-hybrid-targeted-r5-selection-narrowed-20260515T120000Z`
+    has 13/14 correct with evidence-session recall 1.0; its only failed row is
+    a judge infrastructure error for `58ef2f1c` after the model generated
+    `On Valentine's Day.`. Clean single-case retries
+    `run-phase62-longmemeval-live-58ef2f1c-valentine-selection-r2-20260515T121000Z`
+    and
+    `run-phase62-longmemeval-live-dd2973ad-sleep-bridge-selection-r2-20260515T115500Z`
+    both pass with `executionFailures: 0`. A new full-500 after selection
+    narrowing is still pending; the attempted single-process full-500
+    `run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-20260515T121500Z`
+    was manually terminated before any report was written, so it is not
+    accepted evidence. Use the sharded full-500 runner or failed-row recovery
+    path for the next global comparison before opening BEAM.
 
 4. Transition to BEAM
    - open the BEAM phase only after LongMemEval has a clear before/after delta

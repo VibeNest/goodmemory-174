@@ -140,11 +140,13 @@ Tasks
   leaving 128-142 execution failures per shard. Phase 62 now has a resumable
   full-500 runner, `eval:phase-62-full500`, which defaults to ten 50-case
   shards, shard concurrency 1, case concurrency 1, and refuses to continue
-  when any shard records execution failures. The failed-shard recovery path is
-  now `eval:phase-62-full500-retry-failures`: it reads a merged/shard report,
-  batches only profile/case rows with `executionError`, and writes a merged
-  report that preserves successful retry rows while leaving unresolved failures
-  retryable. Live recovery progressed from
+  when any shard records execution failures. It can also resume an interrupted
+  sharded run with the same `--run-id --resume-existing-shards`, reusing
+  completed `*-shard-NN/report.json` files before scheduling missing shards.
+  The failed-shard recovery path is now `eval:phase-62-full500-retry-failures`:
+  it reads a merged/shard report, batches only profile/case rows with
+  `executionError`, and writes a merged report that preserves successful retry
+  rows while leaving unresolved failures retryable. Live recovery progressed from
   `run-phase62-longmemeval-full500-live-four-profile-current-merged-20260506T082323Z`
   with 1215 execution failures to
   `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`
@@ -511,12 +513,30 @@ Tasks
   and the live rules-only rerun
   `run-phase62-longmemeval-live-multi-aggregate2-after-20260508T004900Z`
   reached 3/3 answer accuracy with `executionFailures: 0`.
+  The latest answer-session detail repair preserves assistant contact details,
+  quoted statements, count headings, model-kit facts, kitchen setup details,
+  and sleep-before-appointment bridge facts while narrowing selection so
+  user-grounded previous-chat and preference-advice questions are not polluted
+  by generic assistant summaries. Targeted hybrid evidence is positive:
+  `run-phase62-longmemeval-live-answer-session-detail-hybrid-targeted-r5-selection-narrowed-20260515T120000Z`
+  has evidence-session recall 1.0 and 13/14 correct, with the only failed row
+  caused by a judge certificate error after generating the correct
+  Valentine's Day hypothesis. Clean single-case retries
+  `run-phase62-longmemeval-live-58ef2f1c-valentine-selection-r2-20260515T121000Z`
+  and
+  `run-phase62-longmemeval-live-dd2973ad-sleep-bridge-selection-r2-20260515T115500Z`
+  both pass with `executionFailures: 0`. Full-500 quality still remains open:
+  the strongest current hybrid full-500 checkpoint is still
+  `run-phase62-longmemeval-full500-current-after-entity-evidence-assembly-hybrid-retry-r1-merged-20260515T064500Z`
+  at 401/500, while
+  `run-phase62-longmemeval-full500-current-after-answer-session-detail-hybrid-r2-20260515T100500Z`
+  improved recall but regressed to 390/500. The attempted single-process
+  current-code full-500 after selection narrowing was manually terminated
+  before report emission and is not evidence.
   Current focused verification passes
-  `bun test tests/unit/longmemeval.test.ts tests/unit/recall.selection.test.ts tests/unit/run-phase-62.full500-retry-failures.test.ts`,
-  `bun test tests/release/release.test.ts --test-name-pattern "task-board sequencing|task-board current note|current status doc"`,
-  `bun run typecheck`, `bun run gate:phase-62`, `git diff --check`, and full
-  `bun test` (2136 tests, 0 failures). Broader/full LongMemEval quality repair
-  remains open.
+  `bun test tests/unit/recall.selection.test.ts tests/unit/longmemeval.test.ts tests/unit/run-phase-62.full500.test.ts tests/unit/run-phase-62.full500-summary.test.ts tests/unit/run-phase-62.full500-retry-failures.test.ts`
+  (129 pass), `bun run typecheck`, and `git diff --check`. Broader/full
+  LongMemEval quality repair remains open.
 
 
 Commands
@@ -526,7 +546,7 @@ Commands
 bun run eval:phase-62
 bun run gate:phase-62
 bun run eval:phase-62 -- --mode full --benchmark-root <LongMemEval data root> --max-concurrency 1
-bun run eval:phase-62-full500 -- --benchmark-root <LongMemEval data root> --run-id <full-500-run-id>
+bun run eval:phase-62-full500 -- --benchmark-root <LongMemEval data root> --run-id <full-500-run-id> --resume-existing-shards
 bun run eval:phase-62-full500-summary -- --run-id <full-500-run-id>
 bun run eval:phase-62-full500-retry-failures -- --benchmark-root <LongMemEval data root> --source-run-id <merged-or-shard-run-id> --retry-run-id <retry-run-id> --merged-run-id <merged-run-id> --chunk-size 10 --batch-concurrency 1 --case-concurrency 1 --resume-existing-batches
 bun run eval:phase-62 -- --mode full --benchmark-root <LongMemEval data root> --question-type multi-session --limit 3 --max-concurrency 1
@@ -541,6 +561,10 @@ with `--resume-existing-batches`. The runner discovers completed
 `*-batch-NNN` reports under the output directory, merges their successes, and
 continues numbering from the next batch instead of requiring a manual source
 list.
+
+If a sharded full-500 run itself is interrupted after some shard reports are
+written, rerun the same `--run-id` with `--resume-existing-shards`; completed
+`*-shard-NN/report.json` files are reused before missing shards are scheduled.
 
 The full command is intentionally fail-closed until it finds the external
 LongMemEval data file and all env required by the selected profiles. The adapter

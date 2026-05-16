@@ -343,6 +343,67 @@ Aggregate value-priority repair after direct factual companions:
   recall, but preserving and assembling answer-bearing entities inside already
   retrieved sessions.
 
+Answer-session detail and selection narrowing repair:
+
+- target family:
+  retrieved answer sessions whose selected context has the right session ids
+  but either lacks compact answer-bearing assistant/user details or lets newly
+  derived assistant evidence crowd out the user fact that the question asks for.
+  Representative target cases include model-kit counts (`gpt4_59c863d7`),
+  kitchen preference evidence (`afdc33df`), temporal nursery order
+  (`gpt4_f49edff3`), assistant-list/contact/quote details (`dc439ea3`,
+  `18dcd5a5`, `58470ed2`, `71a3fd6b`), and regression guards for
+  user-grounded previous-chat answers (`58ef2f1c`, `f523d9fe`, `d6233ab6`) and
+  sleep-before-appointment bridging (`dd2973ad`).
+- mechanism:
+  the LongMemEval adapter now derives compact assistant contact details and
+  quoted statements, model-kit scale/name facts, kitchen utensil-holder
+  organization facts, and a sleep bridge such as `2 AM the night before
+  Thursday morning`. Recall selection now prioritizes compact model-kit facts
+  for model-kit count queries, keeps assistant count headings recallable for
+  previous-chat count questions, orders dated temporal facts chronologically
+  for external benchmark temporal-order questions, boosts compact kitchen
+  setup evidence over repair-topic advice, prefers user evidence for
+  user-grounded previous-chat questions, excludes generic assistant-answer
+  facts from preference-advice recall, and diversifies sleep-before-appointment
+  bridge facts by session so both the sleep time and appointment context are
+  retained.
+- full-500 evidence boundary:
+  entity evidence assembly produced the current strongest hybrid full-500
+  checkpoint,
+  `run-phase62-longmemeval-full500-current-after-entity-evidence-assembly-hybrid-retry-r1-merged-20260515T064500Z`,
+  at 401/500 with evidence-session recall 0.8935, missed recall 85, wrong
+  recall 6, and `executionFailures: 0`; the rules-only retry merge
+  `run-phase62-longmemeval-full500-current-after-entity-evidence-assembly-rules-only-retry-r1-merged-20260515T073500Z`
+  reached 391/500. The broader answer-session detail hybrid full-500
+  `run-phase62-longmemeval-full500-current-after-answer-session-detail-hybrid-r2-20260515T100500Z`
+  improved recall to 0.9112 and missed recall to 74, but regressed answer
+  accuracy to 390/500. That report is clean execution evidence, but it is not
+  an accepted quality improvement over the 401/500 checkpoint.
+- targeted evidence:
+  `run-phase62-longmemeval-live-answer-session-detail-hybrid-targeted-r5-selection-narrowed-20260515T120000Z`
+  has evidence-session recall 1.0 on 14 cases and 13/14 correct. The sole
+  failed row is an `answer_judge` infrastructure failure for `58ef2f1c`; the
+  generated hypothesis was `On Valentine's Day.`, and the clean single-case
+  retry
+  `run-phase62-longmemeval-live-58ef2f1c-valentine-selection-r2-20260515T121000Z`
+  marks it correct with `executionFailures: 0`. The sleep bridge single-case
+  retry
+  `run-phase62-longmemeval-live-dd2973ad-sleep-bridge-selection-r2-20260515T115500Z`
+  also passes with exact `2 AM` and `executionFailures: 0`.
+- interpretation:
+  this is useful targeted repair evidence, especially because it restores
+  several rows that regressed in the 390/500 full-500 attempt while preserving
+  the new assistant detail cases. It does not close Phase 62. A new accepted
+  full-500 current-code comparison after selection narrowing is still missing;
+  the attempted single-process full-500
+  `run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-20260515T121500Z`
+  was manually terminated before writing a report and must not be cited as
+  benchmark evidence. The next global check should use
+  `eval:phase-62-full500` with `--resume-existing-shards` when resuming a
+  partially written sharded run, or the failed-row recovery path rather than
+  another opaque single-process serial run.
+
 Initial 3-case slice:
 
 - run id:

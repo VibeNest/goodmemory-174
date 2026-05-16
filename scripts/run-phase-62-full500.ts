@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { resolveCliFlagValue } from "./cli-options";
 import {
   runPhase62LongMemEval,
@@ -31,6 +34,7 @@ export interface Phase62Full500Options {
   continueOnExecutionFailure?: boolean;
   outputDir?: string;
   profiles?: readonly string[];
+  resumeExistingShards?: boolean;
   runId?: string;
   shardConcurrency?: number;
   shardSize?: number;
@@ -42,6 +46,10 @@ export interface Phase62Full500Dependencies {
     options: Partial<Phase62CliOptions>,
     dependencies?: Phase62EvalDependencies,
   ) => Promise<LongMemEvalReport>;
+  readShardReport?: (
+    runId: string,
+    outputDir: string,
+  ) => Promise<LongMemEvalReport | null>;
   summarize?: (
     options?: Parameters<typeof runPhase62Full500Summary>[0],
     dependencies?: Phase62Full500SummaryDependencies,
@@ -99,6 +107,7 @@ function parsePhase62Full500Options(
     ),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
+    resumeExistingShards: parseBooleanFlag(argv, "--resume-existing-shards"),
     runId: resolveCliFlagValue(argv, "--run-id"),
     shardConcurrency: parsePositiveInteger(
       resolveCliFlagValue(argv, "--shard-concurrency"),
@@ -185,12 +194,34 @@ function assertNoShardExecutionFailures(report: LongMemEvalReport): void {
   );
 }
 
+async function readExistingShardReport(
+  runId: string,
+  outputDir: string,
+): Promise<LongMemEvalReport | null> {
+  try {
+    return JSON.parse(
+      await readFile(join(outputDir, runId, "report.json"), "utf8"),
+    ) as LongMemEvalReport;
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function runPhase62Full500LongMemEval(
   options: Phase62Full500Options = {},
   dependencies: Phase62Full500Dependencies = {},
 ): Promise<LongMemEvalReport> {
   const root = resolvePhase62RepoRoot();
   const runShard = dependencies.runShard ?? runPhase62LongMemEval;
+  const readShardReport = dependencies.readShardReport ?? readExistingShardReport;
   const summarize = dependencies.summarize ?? runPhase62Full500Summary;
   const runId = options.runId ?? PHASE62_FULL500_CANONICAL_RUN_ID;
   const shardSize = options.shardSize ?? DEFAULT_SHARD_SIZE;
@@ -215,6 +246,19 @@ export async function runPhase62Full500LongMemEval(
     items: shardOptions,
     limit: shardConcurrency,
     map: async (shardOption) => {
+      const shardRunId = String(shardOption.runId);
+      if (options.resumeExistingShards) {
+        const existingReport = await readShardReport(shardRunId, outputDir);
+        if (existingReport) {
+          console.error(
+            `Phase 62 full-500 shard reused: ${shardRunId}; executionFailures=${existingReport.summary.executionFailures}`,
+          );
+          if (!options.continueOnExecutionFailure) {
+            assertNoShardExecutionFailures(existingReport);
+          }
+          return existingReport;
+        }
+      }
       console.error(`Phase 62 full-500 shard started: ${shardOption.runId}`);
       const report = await runShard(shardOption);
       console.error(

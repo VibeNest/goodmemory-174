@@ -131,6 +131,41 @@ recall 6, and `executionFailures: 0`, only one answer above the direct-factual
 hybrid run. That keeps the next repair target on answer-evidence assembly rather
 than raw session recall.
 
+A seventh repair is now focused on answer-session detail evidence and
+selection narrowing. Entity/evidence assembly previously produced the strongest
+current hybrid full-500 checkpoint,
+`run-phase62-longmemeval-full500-current-after-entity-evidence-assembly-hybrid-retry-r1-merged-20260515T064500Z`,
+at 401/500 with evidence-session recall 0.8935, missed recall 85, wrong recall
+6, and `executionFailures: 0`; the matching rules-only retry merge
+`run-phase62-longmemeval-full500-current-after-entity-evidence-assembly-rules-only-retry-r1-merged-20260515T073500Z`
+reached 391/500. A broader answer-session detail pass then improved recall but
+regressed answer quality: the clean hybrid full-500
+`run-phase62-longmemeval-full500-current-after-answer-session-detail-hybrid-r2-20260515T100500Z`
+landed at 390/500 despite evidence-session recall 0.9112, missed recall 74,
+wrong recall 6, and `executionFailures: 0`. The current code narrows selection
+so user-grounded previous-chat questions prefer `user_answer` /
+`compact_evidence`, generic assistant answers do not pollute preference
+advice, and sleep-before-appointment bridge evidence surfaces the sleep time
+before appointment context. Targeted hybrid evidence is positive: the 14-case
+selection-narrowing run
+`run-phase62-longmemeval-live-answer-session-detail-hybrid-targeted-r5-selection-narrowed-20260515T120000Z`
+answers 13/14 with evidence-session recall 1.0 and only one judge
+infrastructure failure (`58ef2f1c` generated `On Valentine's Day.` but the
+judge hit `unknown certificate verification error`); clean single-case retries
+`run-phase62-longmemeval-live-58ef2f1c-valentine-selection-r2-20260515T121000Z`
+and
+`run-phase62-longmemeval-live-dd2973ad-sleep-bridge-selection-r2-20260515T115500Z`
+both pass with `executionFailures: 0`. This targeted repair is not yet a
+Phase 62 quality close: a new full-500 current-code run after selection
+narrowing has not completed cleanly, and the attempted single-process full-500
+`run-phase62-longmemeval-full500-current-after-selection-narrowing-hybrid-20260515T121500Z`
+was manually terminated before writing a report because the serial run produced
+no intermediate artifact. Use the sharded/full-500 runner or failed-row
+recovery path for the next accepted global comparison; if a sharded full-500
+run is interrupted after writing completed shard reports, rerun the same
+`--run-id` with `--resume-existing-shards` so completed `*-shard-NN` reports
+are reused instead of rerun.
+
 核心原则：
 
 - 不把 benchmark adapter 当成产品能力。

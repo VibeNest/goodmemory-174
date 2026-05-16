@@ -142,6 +142,43 @@ describe("run-phase-62 full-500 runner", () => {
     expect(summarizedProfiles).toEqual(["goodmemory-rules-only"]);
   });
 
+  it("reuses existing shard reports when resume-existing-shards is enabled", async () => {
+    const shardRunIds: string[] = [];
+    const reusedRunIds: string[] = [];
+
+    const report = await runPhase62Full500LongMemEval(
+      {
+        benchmarkRoot: "/tmp/LongMemEval",
+        outputDir: "/tmp/phase62-full500-test",
+        resumeExistingShards: true,
+        runId: "run-full500",
+        shardSize: 50,
+        shards: 2,
+      },
+      {
+        readShardReport: async (runId) => {
+          if (runId !== "run-full500-shard-01") {
+            return null;
+          }
+          reusedRunIds.push(runId);
+          return buildReport({ runId });
+        },
+        runShard: async (options) => {
+          shardRunIds.push(String(options.runId));
+          return buildReport({ runId: String(options.runId) });
+        },
+        summarize: async (options) =>
+          buildReport({
+            runId: String(options?.runId),
+          }),
+      },
+    );
+
+    expect(reusedRunIds).toEqual(["run-full500-shard-01"]);
+    expect(shardRunIds).toEqual(["run-full500-shard-02"]);
+    expect(report.runId).toBe("run-full500");
+  });
+
   it("stops the closure run when a shard has execution failures", async () => {
     const shardRunIds: string[] = [];
 
