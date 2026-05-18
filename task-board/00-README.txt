@@ -111,13 +111,16 @@ Active Phase
 - Current BEAM failure surface: the first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  contradiction/source-order-companion rerun
-  `run-phase63-beam-100k-recall-diagnostic-rules-full-contradiction-companions-v2-20260518T080000Z`
-  reaches recall 0.26990036176655896, missed recall 296/355, and
-  wrong-recall/noise 387/400. Same-three-case live evidence now tops out at
-  `run-phase63-beam-100k-live-slice-rules-contradiction-companions-prompt-guidance-initial3-escalated-20260518T081500Z`:
-  recall 0.7222222222222222, answer accuracy 1/3, `executionFailures: 0`.
-  Next: source-order noise reduction and ordered-answer synthesis.
+  current-code instruction-applicability rerun,
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-applicability-v3-current-20260518T220000`,
+  reaches recall 0.32561286913399595, missed 280/355, and wrong-recall/noise
+  389/400; instruction-following recall rises to 0.7583333333333333, but
+  temporal/timeline/preference regressions still block closure.
+  Same-three-case live evidence tops out at
+  `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
+  recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and
+  wrong-recall/noise 2/3. Next: broaden beyond the representative trio and
+  reduce full-run recall misses/noise before any BEAM claim.
 - Current provider sanity status: after provider recovery, Phase 62 one-case
   live probes passed for both `baseline-no-memory`
   (`run-phase62-provider-probe-baseline-20260518T-provider-restored`) and

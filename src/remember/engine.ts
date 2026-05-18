@@ -160,6 +160,33 @@ export function createRememberEngine(config: RememberEngineConfig) {
     };
   };
 
+  const mergeCandidateMetadata = (
+    base: MemoryCandidateMetadata | undefined,
+    patch: MemoryCandidateMetadata | undefined,
+  ): MemoryCandidateMetadata | undefined => {
+    if (!base) {
+      return patch;
+    }
+    if (!patch) {
+      return base;
+    }
+
+    return {
+      ...base,
+      ...patch,
+      attributes: {
+        ...(base.attributes ?? {}),
+        ...(patch.attributes ?? {}),
+      },
+      tags: [
+        ...new Set([
+          ...(base.tags ?? []),
+          ...(patch.tags ?? []),
+        ]),
+      ],
+    };
+  };
+
   const buildAnnotationTrace = (annotation: MessageAnnotation) => {
     if (
       annotation.remember === undefined &&
@@ -268,16 +295,20 @@ export function createRememberEngine(config: RememberEngineConfig) {
           (annotation.confirmed === true || annotation.verified === true)
             ? "explicit"
             : candidate.explicitness;
+        const preserveSource = shouldPreserveAnnotatedSourceMessage(annotation);
+        const annotationMetadata = preserveSource
+          ? buildPreservedSourceMetadata(annotation, input.messages[candidate.sourceMessageIndex] ?? {
+              content: candidate.content,
+              role: candidate.sourceRole,
+            })
+          : annotation.metadataPatch;
 
         return {
           ...candidate,
           annotation: annotationTrace ?? candidate.annotation,
           explicitness,
           kindHint: annotation.kindHint ?? candidate.kindHint,
-          metadata: {
-            ...candidate.metadata,
-            ...annotation.metadataPatch,
-          },
+          metadata: mergeCandidateMetadata(candidate.metadata, annotationMetadata),
         };
       });
 

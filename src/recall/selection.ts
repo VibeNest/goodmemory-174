@@ -61,9 +61,88 @@ const SOURCE_ORDER_GAP_FILL_LIMIT = 5;
 const SOURCE_ORDER_COMPANION_LIMIT = 6;
 const SOURCE_ORDER_COMPANION_MAX_DISTANCE = 2;
 const SOURCE_ORDER_MILESTONE_FILL_LIMIT = 6;
+const SOURCE_ORDER_SUMMARY_RECALL_LIMIT = 16;
+const SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT = 8;
+const SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE = 1;
+const SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT = 2;
+const SOURCE_ORDER_INSTRUCTION_PRIORITY_THRESHOLD = 160;
 const PREFERENCE_RECALL_LIMIT = 3;
 const RESEARCH_RECOMMENDATION_LIMIT = 2;
 const EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD = 0.08;
+const BROAD_SOURCE_INSTRUCTION_CONDITION_TOKENS = new Set([
+  "about",
+  "always",
+  "api",
+  "app",
+  "ask",
+  "condition",
+  "conditions",
+  "detail",
+  "details",
+  "feature",
+  "features",
+  "need",
+  "please",
+  "project",
+  "request",
+  "response",
+  "responses",
+  "software",
+  "use",
+  "used",
+  "using",
+  "weather",
+  "when",
+  "whenever",
+]);
+const SOURCE_INSTRUCTION_ALIAS_TOKENS = new Set([
+  "api_error",
+  "book_recommendation",
+  "compensation",
+  "date_format",
+  "digital_asset_management",
+  "draft_revision",
+  "financial_budget",
+  "html_structure",
+  "legal_requirements",
+  "list_format",
+  "movie_recommendation",
+  "patent_process",
+  "philosophy",
+  "progress_summary",
+  "privacy_security",
+  "probability",
+  "product_features",
+  "reference_format",
+  "resume_format",
+  "snack_recommendation",
+  "social_norms",
+  "software_dependency",
+  "software_implementation",
+  "triangle_geometry",
+  "writing_tool",
+]);
+const TEMPORAL_INTERVAL_ANCHOR_STOPWORDS = new Set([
+  "about",
+  "after",
+  "before",
+  "between",
+  "completed",
+  "complete",
+  "day",
+  "days",
+  "finished",
+  "finish",
+  "obtained",
+  "obtain",
+  "passed",
+  "planned",
+  "received",
+  "scheduled",
+  "started",
+  "using",
+  "when",
+]);
 const AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD = 0.05;
 const AGGREGATE_GENERIC_LEXICAL_FACT_THRESHOLD = 0.2;
 const AGGREGATE_TOPIC_STOPWORDS = new Set([
@@ -193,11 +272,11 @@ const MUSEUM_VISIT_ORDER_FACT_PATTERN =
 const HEALTH_ISSUE_EVENT_FACT_PATTERN =
   /\b(?:persistent cough|skin tag removed|had a skin tag removed)\b/iu;
 const CONTRADICTION_NEGATED_CLAIM_PATTERN =
-  /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,120}\b(?:written|wrote|worked\s+with|handled|implemented|built|created|used)\b|\bno\s+(?:prior\s+)?experience\s+with\b/iu;
+  /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,120}\b(?:written|wrote|worked\s+with|handled|implemented|built|created|used)\b|\bno\s+(?:prior\s+)?experience\s+with\b|(?:从来)?(?:没|没有|未)[\s\S]{0,120}(?:写过|做过|处理过|实现过|构建过|创建过|用过|使用过|接触过|经验)/iu;
 const CONTRADICTION_REALIZED_EVIDENCE_PATTERN =
-  /\b(?:implemented|built|created|completed|tested|configured|handled|worked\s+with|wrote|written|managed\s+to|current\s+code|@app\.route|return(?:ed)?\s+static)\b/iu;
+  /\b(?:implemented|built|created|completed|tested|configured|handled|worked\s+with|wrote|written|managed\s+to|current\s+code|@app\.route|return(?:ed)?\s+static)\b|(?:已经|成功|实际)?(?:实现了|写了|处理了|构建了|创建了|完成了|测试了|配置了|用过|使用过|返回静态)|@app\.route/iu;
 const CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN =
-  /\b(?:implemented|built|created|completed|tested|handled|worked\s+with|wrote|written|managed\s+to)\b|return(?:ed)?\s+static/iu;
+  /\b(?:implemented|built|created|completed|tested|handled|worked\s+with|wrote|written|managed\s+to)\b|return(?:ed)?\s+static|(?:实现了|写了|处理了|构建了|创建了|完成了|测试了|返回静态)/iu;
 const SOURCE_ORDER_ASPECT_CUE_PATTERN =
   /\b(?:analytics?|authorization|authentication|blueprints?|completed|configur(?:e|ed|ing|ation)|CRUD|database|deployment|error\s+handling|finalizing|hardening|implement(?:ed|ing)?|integration\s+tests?|local\s+dev|models?|port\s+\d+|response\s+handling|route|schema|security|SQL\s+injection|testing|transaction|validation|worker|XSS)\b/iu;
 const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
@@ -233,6 +312,43 @@ const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
   "worker",
   "xss",
 ]);
+const CHINESE_SOURCE_ORDER_ASPECT_ALIASES = [
+  {
+    pattern: /(用户认证|身份认证|登录|注册|鉴权|授权)/u,
+    topics: ["authentication", "authorization"],
+  },
+  {
+    pattern: /(数据库|数据表|schema|模型|表结构)/iu,
+    topics: ["database", "schema", "model"],
+  },
+  {
+    pattern: /(部署|上线|发布|生产环境|端口)/u,
+    topics: ["deployment"],
+  },
+  {
+    pattern: /(错误处理|异常处理|报错|错误|失败)/u,
+    topics: ["error", "handling"],
+  },
+  {
+    pattern: /(接口|路由|端点|请求|响应|HTTP|API)/iu,
+    topics: ["route", "http_endpoint", "response"],
+  },
+  {
+    pattern: /(安全|加固|SQL\s*注入|XSS)/iu,
+    topics: ["security"],
+  },
+  {
+    pattern: /(测试|回归|集成测试|验证|校验)/u,
+    topics: ["test", "testing", "validation"],
+  },
+  {
+    pattern: /(交易|事务|收入|支出|预算)/u,
+    topics: ["transaction"],
+  },
+] as const satisfies ReadonlyArray<{
+  pattern: RegExp;
+  topics: readonly string[];
+}>;
 const FAMILY_AGE_FACT_PATTERN =
   /\b(?:family age|age evidence|grandma|grandpa|grandparents?|parents?|mom|dad|mother|father|I am|turned)\b[\s\S]{0,120}\b\d{1,3}\b/iu;
 const COMPACT_MODEL_KIT_FACT_PATTERN =
@@ -358,14 +474,21 @@ function isAggregateOpenLoopQuery(
 ): boolean {
   return (
     language.isOpenLoopQuery(query, locale) &&
-    /\b(how many|what|which|list|all|remaining|pending|todo|to-do|open loops?)\b/i.test(
-      query,
+    (
+      /\b(how many|what|which|list|all|remaining|pending|todo|to-do|open loops?)\b/i.test(
+        query,
+      ) ||
+      /(哪些|多少|几个|几项|所有|全部|剩余|还有|当前|待办|开环|未完成|待处理|待跟进)/u.test(
+        query,
+      )
     )
   );
 }
 
 function hasAggregateOpenLoopSignal(entry: RankedFactCandidate): boolean {
-  return entry.lexicalScore >= 0.2 || entry.subjectScore >= 0.2;
+  return entry.factKind === "open_loop" ||
+    entry.lexicalScore >= 0.2 ||
+    entry.subjectScore >= 0.2;
 }
 
 function isAggregateFactCountQuery(
@@ -381,6 +504,43 @@ function isTemporalIntervalQuery(query: string): boolean {
     /\b(?:passed|between|ago)\b/i.test(query);
 }
 
+function temporalIntervalAnchorFragments(query: string): string[] {
+  const betweenWhenMatch = query.match(
+    /\bbetween\s+when\s+(?:I|we|you)?\s*(.+?)\s+and\s+when\s+(?:I|we|you)?\s*(.+?)(?:[?.!]|$)/iu,
+  );
+  if (betweenWhenMatch?.[1] && betweenWhenMatch[2]) {
+    return [betweenWhenMatch[1], betweenWhenMatch[2]];
+  }
+
+  const betweenMatch = query.match(/\bbetween\s+(.+?)\s+and\s+(.+?)(?:[?.!]|$)/iu);
+  if (betweenMatch?.[1] && betweenMatch[2]) {
+    return [betweenMatch[1], betweenMatch[2]];
+  }
+
+  return [];
+}
+
+function temporalIntervalActionPattern(fragment: string): RegExp | undefined {
+  const normalized = fragment.toLowerCase();
+  if (/\b(?:obtain(?:ed)?|got|received)\b/u.test(normalized)) {
+    return /\b(?:obtain(?:ed)?|got|received)\b/iu;
+  }
+  if (/\b(?:complet(?:e|ed)|finish(?:ed)?|finali[sz](?:e|ed))\b/u.test(normalized)) {
+    return /\b(?:complet(?:e|ed)|finish(?:ed)?|finali[sz](?:e|ed))\b/iu;
+  }
+  if (/\b(?:start(?:ed)?|began|begin)\b/u.test(normalized)) {
+    return /\b(?:start(?:ed)?|began|begin)\b/iu;
+  }
+  if (/\b(?:plan(?:ned)?|aim(?:ed)?|schedul(?:e|ed))\b/u.test(normalized)) {
+    return /\b(?:plan(?:ned)?|aim(?:ed)?|schedul(?:e|ed))\b/iu;
+  }
+  if (/\b(?:file(?:d)?|submit(?:ted)?|register(?:ed)?|attend(?:ed)?|met)\b/u.test(normalized)) {
+    return /\b(?:file(?:d)?|submit(?:ted)?|register(?:ed)?|attend(?:ed)?|met)\b/iu;
+  }
+
+  return undefined;
+}
+
 function isTemporalEventOrderQuery(query: string): boolean {
   return /\bwhat\s+is\s+the\s+order\b/i.test(query) ||
     /\border\s+of\b/i.test(query) ||
@@ -394,12 +554,14 @@ function isTemporalEventOrderQuery(query: string): boolean {
     /\border\s+from\s+first\s+to\s+last\b/i.test(query) ||
     /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bfirst\b[\s\S]{0,120}\blast\b/i.test(query) ||
     /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bhappened\s+first\b/i.test(query) ||
-    /\bwhich\b[\s\S]{0,120}\b(?:health\s+issues?|issues?|tasks?|activities?)\b[\s\S]{0,120}\bfirst\b/i.test(query);
+    /\bwhich\b[\s\S]{0,120}\b(?:health\s+issues?|issues?|tasks?|activities?)\b[\s\S]{0,120}\bfirst\b/i.test(query) ||
+    /(顺序|先后|先.*后|从早到晚|从最早到最后|时间线|按时间|最先|最后|第一个|一步步)/u.test(query);
 }
 
 function isTemporalMostRecentQuery(query: string): boolean {
   return /\b(?:which|what)\b/i.test(query) &&
-    /\b(?:most\s+recent(?:ly)?|latest|last)\b/i.test(query);
+    /\b(?:most\s+recent(?:ly)?|latest|last)\b/i.test(query) ||
+    /(最近|最新|最后一次|上一次|最晚)/u.test(query);
 }
 
 function isTemporalRelativeEventQuery(query: string): boolean {
@@ -478,14 +640,20 @@ function isAggregateNumericQuery(query: string): boolean {
     return true;
   }
 
-  return /\b(?:average|mean|total|combined|sum|older|younger|how\s+old|how\s+many\s+years)\b/i.test(query) &&
-    /\b(?:age|ages|old|older|younger|years?|hours?|followers?|points?|score|scores|money|amount|weight|pounds?|siblings?)\b/i.test(query);
+  return (
+    /\b(?:average|mean|total|combined|sum|older|younger|how\s+old|how\s+many\s+years)\b/i.test(query) &&
+    /\b(?:age|ages|old|older|younger|years?|hours?|followers?|points?|score|scores|money|amount|weight|pounds?|siblings?)\b/i.test(query)
+  ) ||
+    /(平均|总共|合计|一共|总数|年龄|几岁|多少年|几个小时|粉丝|积分|分数|重量|兄弟姐妹)/u.test(query);
 }
 
 function isComparativeMetricQuery(query: string): boolean {
-  return /\b(?:which|what)\b/i.test(query) &&
+  return (
+    /\b(?:which|what)\b/i.test(query) &&
     /\b(?:most|least|highest|lowest|largest|smallest|more|less|biggest)\b/i.test(query) &&
-    /\b(?:followers?|follower count|money|spent|spend|cost|costs|price|amount|store|platform)\b/i.test(query);
+    /\b(?:followers?|follower count|money|spent|spend|cost|costs|price|amount|store|platform)\b/i.test(query)
+  ) ||
+    /(哪个|哪一个|什么).*(最多|最少|最高|最低|最大|最小|更多|更少).*(粉丝|钱|花费|费用|价格|金额|商店|平台)/u.test(query);
 }
 
 function isSocialMetricTotalQuery(query: string): boolean {
@@ -1012,6 +1180,13 @@ function aggregateEvidencePriority(
     isDatedEventFact(entry)
   ) {
     priority += 30;
+    priority += temporalIntervalBoundaryPriority({
+      content: valueContent,
+      entry,
+      language,
+      query,
+      queryLocale,
+    });
   }
   if (
     isSocialMetricTotalQuery(query) &&
@@ -1097,6 +1272,62 @@ function aggregateEvidencePriority(
   }
 
   return priority;
+}
+
+function temporalIntervalBoundaryPriority(input: {
+  content: string;
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): number {
+  const anchors = temporalIntervalAnchorFragments(input.query);
+  if (anchors.length === 0) {
+    return 0;
+  }
+  if (!anchors.some((anchor) => /\b(?:obtain(?:ed)?|got|received)\b/iu.test(anchor))) {
+    return 0;
+  }
+
+  const content = stripEvidencePrefix(input.content);
+  const contentTopics = aggregateTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  let bestPriority = 0;
+  for (const anchor of anchors) {
+    const anchorTopics = aggregateTopicTokens(
+      anchor,
+      input.language,
+      input.queryLocale,
+    );
+    const importantAnchorTopics = [...anchorTopics].filter(
+      (token) => !TEMPORAL_INTERVAL_ANCHOR_STOPWORDS.has(token),
+    );
+    const overlap = aggregateTopicOverlapCount(anchorTopics, contentTopics);
+    const importantOverlap = importantAnchorTopics.filter((token) =>
+      contentTopics.has(token),
+    ).length;
+    const actionPattern = temporalIntervalActionPattern(anchor);
+    const actionBonus = actionPattern?.test(content) === true ? 120 : 0;
+    if (overlap < 2 && (importantOverlap === 0 || actionBonus === 0)) {
+      continue;
+    }
+
+    const boundaryObjectBonus = importantOverlap >= Math.min(
+      2,
+      Math.max(1, importantAnchorTopics.length),
+    )
+      ? 80
+      : importantOverlap * 45;
+    bestPriority = Math.max(
+      bestPriority,
+      overlap * 12 + boundaryObjectBonus + actionBonus,
+    );
+  }
+
+  return bestPriority;
 }
 
 function hasTemporalEventOrderSignal(
@@ -1227,6 +1458,13 @@ function sourceOrderAspectTopics(
   }
   if (/\bxss\b/iu.test(content)) {
     topics.add("xss");
+  }
+  for (const alias of CHINESE_SOURCE_ORDER_ASPECT_ALIASES) {
+    if (alias.pattern.test(content)) {
+      for (const topic of alias.topics) {
+        topics.add(topic);
+      }
+    }
   }
 
   return topics;
@@ -1586,6 +1824,470 @@ function fillSourceOrderedTemporalMilestones(input: {
   return [...input.selected, ...additions].sort(compareTemporalFactChronology);
 }
 
+function isSourceOrderedConversationSummaryQuery(query: string): boolean {
+  return (
+    /\b(?:summari[sz]e|summary|recap|overview)\b/iu.test(query) &&
+    /\b(?:across|approached|changed|developed|evolved|navigated|over\s+time|progress(?:ed)?|resolved|throughout|various)\b/iu.test(
+      query,
+    )
+  ) ||
+    /(总结|回顾|概述|梳理|汇总).*(随着时间|整个过程|一路|逐步|一步步|怎么|如何|变化|推进|解决)/u.test(query);
+}
+
+function hasSourceMessageTag(entry: RankedFactCandidate): boolean {
+  return entry.fact.tags?.includes(SOURCE_MESSAGE_TAG) === true;
+}
+
+function isSourceOrderedSummaryCandidate(entry: RankedFactCandidate): boolean {
+  return hasSourceMessageTag(entry) && sourceOrderSortKey(entry) !== undefined;
+}
+
+function sourceOrderedSummaryPriority(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  queryTopics: ReadonlySet<string>;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const factTopics = aggregateTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  let priority =
+    aggregateTopicOverlapCount(input.queryTopics, factTopics) * 120 +
+    input.entry.lexicalScore * 100 +
+    input.entry.subjectScore * 70 +
+    input.entry.intentScore * 50;
+
+  if (hasUserAnswerTag(input.entry) || hasAssistantAnswerTag(input.entry)) {
+    priority += 40;
+  }
+  if (
+    /\b(?:challenge|debug(?:ged|ging)?|decision|error|fix(?:ed|ing)?|issue|problem|progress|reflect(?:ed|ion|ions)?|resolv(?:e|ed|ing)|solution)\b/iu.test(
+      content,
+    )
+  ) {
+    priority += 35;
+  }
+  if (/(问题|挑战|错误|报错|修复|解决|推进|进展|决策|调试|实现|处理)/u.test(content)) {
+    priority += 35;
+  }
+
+  return priority;
+}
+
+function hasSourceOrderedSummarySignal(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+  queryTopics: ReadonlySet<string>;
+}): boolean {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const factTopics = aggregateTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  const topicOverlap = aggregateTopicOverlapCount(input.queryTopics, factTopics);
+
+  if (
+    input.entry.intentScore > 0 ||
+    input.entry.subjectScore > 0 ||
+    input.entry.lexicalScore >= EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD ||
+    topicOverlap > 0
+  ) {
+    return true;
+  }
+
+  if (
+    /\b(?:issue|problem|challenge|resolved|approached)\b/iu.test(input.query) &&
+    /\b(?:debug(?:ged|ging)?|error|fix(?:ed|ing)?|issue|problem|resolv(?:e|ed|ing)|solution)\b/iu.test(
+      content,
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    /(问题|挑战|解决|处理|推进|一步步|怎么|如何)/u.test(input.query) &&
+    /(问题|挑战|错误|报错|修复|解决|方案|调试|实现|处理|设计|数据库|schema|部署|上线|加固)/iu.test(content)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function selectSourceOrderedSummaryCoverage(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  if (!isSourceOrderedConversationSummaryQuery(input.query)) {
+    return [];
+  }
+
+  const queryTopics = aggregateTopicTokens(
+    input.query,
+    input.language,
+    input.queryLocale,
+  );
+  const sourceCandidates = input.entries
+    .filter(isSourceOrderedSummaryCandidate)
+    .sort(compareTemporalFactChronology);
+  const signaledCandidates = sourceCandidates.filter((entry) =>
+    hasSourceOrderedSummarySignal({
+      entry,
+      language: input.language,
+      query: input.query,
+      queryLocale: input.queryLocale,
+      queryTopics,
+    })
+  );
+  if (signaledCandidates.length === 0) {
+    return [];
+  }
+
+  const selected = new Map<string, RankedFactCandidate>();
+  const addCandidate = (entry: RankedFactCandidate): void => {
+    if (selected.size < SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+      selected.set(entry.fact.id, entry);
+    }
+  };
+  const priority = (entry: RankedFactCandidate): number =>
+    sourceOrderedSummaryPriority({
+      entry,
+      language: input.language,
+      queryTopics,
+    });
+  const anchorCount = Math.min(
+    SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
+    Math.ceil(SOURCE_ORDER_SUMMARY_RECALL_LIMIT / 2),
+    signaledCandidates.length,
+  );
+
+  for (let index = 0; index < anchorCount; index += 1) {
+    const start = Math.floor(index * signaledCandidates.length / anchorCount);
+    const end = Math.floor((index + 1) * signaledCandidates.length / anchorCount);
+    const bucket = signaledCandidates.slice(start, Math.max(start + 1, end));
+    const best = [...bucket].sort((left, right) => {
+      const priorityDelta = priority(right) - priority(left);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    })[0];
+    if (best) {
+      addCandidate(best);
+    }
+  }
+
+  for (const entry of [...signaledCandidates].sort((left, right) => {
+    const priorityDelta = priority(right) - priority(left);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return compareTemporalFactChronology(left, right);
+  })) {
+    if (selected.size >= anchorCount) {
+      break;
+    }
+    addCandidate(entry);
+  }
+
+  const anchors = [...selected.values()].sort(compareTemporalFactChronology);
+  for (const anchor of anchors) {
+    const anchorOrder = sourceOrderSortKey(anchor);
+    if (anchorOrder === undefined) {
+      continue;
+    }
+
+    const companions = sourceCandidates
+      .filter((entry) => !selected.has(entry.fact.id))
+      .filter((entry) => {
+        const order = sourceOrderSortKey(entry);
+        return order !== undefined &&
+          Math.abs(order - anchorOrder) <= SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE &&
+          (
+            (hasUserAnswerTag(anchor) && hasAssistantAnswerTag(entry)) ||
+            (hasAssistantAnswerTag(anchor) && hasUserAnswerTag(entry))
+          );
+      })
+      .sort((left, right) => {
+        const leftOrder = sourceOrderSortKey(left) ?? 0;
+        const rightOrder = sourceOrderSortKey(right) ?? 0;
+        const distanceDelta =
+          Math.abs(leftOrder - anchorOrder) - Math.abs(rightOrder - anchorOrder);
+        if (distanceDelta !== 0) {
+          return distanceDelta;
+        }
+        return compareTemporalFactChronology(left, right);
+      });
+
+    const companion = companions[0];
+    if (companion) {
+      addCandidate(companion);
+    }
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
+}
+
+function isSourceOrderedUserInstruction(entry: RankedFactCandidate): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  return (
+    hasSourceMessageTag(entry) &&
+    hasUserAnswerTag(entry) &&
+    /\b(?:always|please\s+(?:always\s+)?(?:include|use|format|provide|confirm|maintain|highlight)|make\s+sure\s+to|remember\s+to|whenever|when\s+I\s+ask|if\s+I\s+ask)\b/iu.test(
+      content,
+    ) &&
+    /\b(?:when|whenever|if)\s+I\s+(?:ask|am\s+asking|request|need)\b/iu.test(
+      content,
+    )
+  );
+}
+
+function addInstructionTopicAliases(tokens: Set<string>, text: string): void {
+  const normalized = text.toLowerCase();
+  const hasAny = (pattern: RegExp): boolean => pattern.test(normalized);
+  const hasApiSurface = hasAny(/\b(?:api|rest|responses?|status\s+codes?)\b/iu);
+  const hasApiErrorHandling = hasAny(/\b(?:errors?|handling|handle|status\s+codes?)\b/iu);
+
+  if (hasAny(/\b(?:implement(?:ation|ed|ing)?|code|snippets?|syntax|feature|login|software)\b/iu)) {
+    tokens.add("software_implementation");
+  }
+  if (hasAny(/\b(?:dependenc(?:y|ies)|librar(?:y|ies)|versions?)\b/iu)) {
+    tokens.add("software_dependency");
+  }
+  if (hasApiSurface && hasApiErrorHandling) {
+    tokens.add("api_error");
+  }
+  if (hasAny(/\b(?:html5?|markup|webpage|blog|layout|header|navigation|footer|semantic|sections?)\b/iu)) {
+    tokens.add("html_structure");
+  }
+  if (hasAny(/\b(?:triangle|geometry|medians?|altitudes?|area|sides?|angles?)\b/iu)) {
+    tokens.add("triangle_geometry");
+  }
+  if (hasAny(/\b(?:probability|chance|odds|cards?|deck|dependent\s+events?|draw(?:ing)?)\b/iu)) {
+    tokens.add("probability");
+  }
+  if (hasAny(/\b(?:resume|cv|jobs?|achievements?|headings?|minimalist|design)\b/iu)) {
+    tokens.add("resume_format");
+  }
+  if (hasAny(/\b(?:bullet\s+points?|lists?|multiple\s+points?|organize|formatting\s+options?)\b/iu)) {
+    tokens.add("list_format");
+  }
+  if (hasAny(/\b(?:apa|citations?|references?|sources?|paper)\b/iu)) {
+    tokens.add("reference_format");
+  }
+  if (hasAny(/\b(?:draft|revisions?|editing|editting|edit)\b/iu)) {
+    tokens.add("draft_revision");
+  }
+  if (hasAny(/\b(?:salary|compensation|offered|position|amount)\b/iu)) {
+    tokens.add("compensation");
+  }
+  if (hasAny(/\b(?:writing|aids?|tools?|software)\b/iu)) {
+    tokens.add("writing_tool");
+  }
+  if (hasAny(/\b(?:dates?|deadline|due|submission|timeline|schedul(?:e|ed|ing)?|meetings?|workshop)\b/iu)) {
+    tokens.add("date_format");
+  }
+  if (hasAny(/\b(?:privacy|private|safe|security|encryption|data|online\s+services?|account)\b/iu)) {
+    tokens.add("privacy_security");
+  }
+  if (hasAny(/\b(?:social\s+norms?|cultural|expectations?|meeting\s+someone)\b/iu)) {
+    tokens.add("social_norms");
+  }
+  if (hasAny(/\b(?:philosoph(?:y|ical)|existentialism)\b/iu)) {
+    tokens.add("philosophy");
+  }
+  if (hasAny(/\b(?:audiobooks?|narrators?|books?|genre)\b/iu)) {
+    tokens.add("book_recommendation");
+  }
+  if (hasAny(/\b(?:movies?|platform|watch)\b/iu)) {
+    tokens.add("movie_recommendation");
+  }
+  if (hasAny(/\b(?:snacks?|allerg(?:y|ies)|try)\b/iu)) {
+    tokens.add("snack_recommendation");
+  }
+  if (hasAny(/\b(?:sneakers?|materials?|health\s+benefits?|sustainability|features?)\b/iu)) {
+    tokens.add("product_features");
+  }
+  if (hasAny(/\b(?:budget|spending|holiday|financial\s+goals?|allocations?)\b/iu)) {
+    tokens.add("financial_budget");
+  }
+  if (hasAny(/\b(?:legal|will|requirements?|wishes)\b/iu)) {
+    tokens.add("legal_requirements");
+  }
+  if (hasAny(/\b(?:digital\s+files?|digital\s+assets?|organize|manage)\b/iu)) {
+    tokens.add("digital_asset_management");
+  }
+  if (hasAny(/\b(?:patent|application\s+process|filing)\b/iu)) {
+    tokens.add("patent_process");
+  }
+  if (hasAny(/\b(?:brief|concise|current\s+status|progress|updates?|summar(?:y|ies|ize))\b/iu)) {
+    tokens.add("progress_summary");
+  }
+}
+
+function sourceInstructionTopicTokens(input: {
+  language: LanguageService;
+  locale: string;
+  text: string;
+}): Set<string> {
+  const tokens = aggregateTopicTokens(input.text, input.language, input.locale);
+  addInstructionTopicAliases(tokens, input.text);
+  return tokens;
+}
+
+function countInstructionAliasOverlap(
+  left: ReadonlySet<string>,
+  right: ReadonlySet<string>,
+): number {
+  let overlap = 0;
+  for (const token of left) {
+    if (SOURCE_INSTRUCTION_ALIAS_TOKENS.has(token) && right.has(token)) {
+      overlap += 1;
+    }
+  }
+  return overlap;
+}
+
+function sourceInstructionConditionText(content: string): string | undefined {
+  const match = content.match(
+    /\b(?:when|whenever|if)\s+I\s+(?:ask|am\s+asking|request|need)\s+(?:about|for|to)?\s*([^.!?\n]+)/iu,
+  );
+  if (!match?.[1]) {
+    return undefined;
+  }
+  return match[1].replace(/\s*->->.*$/u, "").trim();
+}
+
+function isBroadInstructionConditionToken(token: string): boolean {
+  return BROAD_SOURCE_INSTRUCTION_CONDITION_TOKENS.has(token);
+}
+
+function hasApplicableSourceInstructionTopic(input: {
+  content: string;
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  queryTopics: ReadonlySet<string>;
+}): boolean {
+  const instructionTopics = sourceInstructionTopicTokens({
+    language: input.language,
+    locale: input.entry.locale,
+    text: input.content,
+  });
+  if (countInstructionAliasOverlap(input.queryTopics, instructionTopics) > 0) {
+    return true;
+  }
+
+  const condition = sourceInstructionConditionText(input.content);
+  if (!condition) {
+    return false;
+  }
+  const conditionTopics = sourceInstructionTopicTokens({
+    language: input.language,
+    locale: input.entry.locale,
+    text: condition,
+  });
+  const significantConditionTokens = [...conditionTopics].filter(
+    (token) =>
+      !token.includes("_") &&
+      token.length > 2 &&
+      !isBroadInstructionConditionToken(token),
+  );
+  if (significantConditionTokens.length === 0) {
+    return false;
+  }
+
+  const overlap = significantConditionTokens.filter((token) =>
+    input.queryTopics.has(token),
+  ).length;
+  return overlap >= Math.min(2, significantConditionTokens.length);
+}
+
+function sourceInstructionPriority(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+  queryTopics: ReadonlySet<string>;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const instructionTopics = sourceInstructionTopicTokens({
+    language: input.language,
+    locale: input.entry.locale,
+    text: content,
+  });
+  const overlap = aggregateTopicOverlapCount(input.queryTopics, instructionTopics);
+  let priority =
+    overlap * 180 +
+    input.entry.lexicalScore * 120 +
+    input.entry.subjectScore * 80 +
+    input.entry.intentScore * 60;
+
+  if (/\balways\b/iu.test(content)) {
+    priority += 35;
+  }
+  if (/\bwhen\s+I\s+ask\s+about\b/iu.test(content)) {
+    priority += 45;
+  }
+  if (sourceOrderSortKey(input.entry) !== undefined) {
+    priority += 15;
+  }
+
+  return priority;
+}
+
+function selectSourceOrderedInstructionEvidence(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  const queryTopics = sourceInstructionTopicTokens({
+    language: input.language,
+    locale: input.queryLocale,
+    text: input.query,
+  });
+  const candidates = input.entries
+    .filter(isSourceOrderedUserInstruction)
+    .map((entry) => ({
+      entry,
+      priority: sourceInstructionPriority({
+        entry,
+        language: input.language,
+        query: input.query,
+        queryLocale: input.queryLocale,
+        queryTopics,
+      }),
+    }))
+    .filter((candidate) => {
+      const content = stripEvidencePrefix(candidate.entry.fact.content);
+      return candidate.priority >= SOURCE_ORDER_INSTRUCTION_PRIORITY_THRESHOLD &&
+        hasApplicableSourceInstructionTopic({
+          content,
+          entry: candidate.entry,
+          language: input.language,
+          queryTopics,
+        });
+    })
+    .sort((left, right) => {
+      if (left.priority !== right.priority) {
+        return right.priority - left.priority;
+      }
+      return compareTemporalFactChronology(left.entry, right.entry);
+    });
+
+  return candidates
+    .slice(0, SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT)
+    .map((candidate) => candidate.entry);
+}
+
 function compareTemporalFactChronology(
   left: RankedFactCandidate,
   right: RankedFactCandidate,
@@ -1611,8 +2313,13 @@ function compareTemporalFactChronology(
 }
 
 function isPotentialContradictionConfirmationQuery(query: string): boolean {
-  return /\b(?:have|has|did|do|does|ever)\b/iu.test(query) &&
-    /\b(?:worked\s+with|written|wrote|handled|implemented|built|created|done|used)\b/iu.test(query);
+  return (
+    /\b(?:have|has|did|do|does|ever)\b/iu.test(query) &&
+    /\b(?:worked\s+with|written|wrote|handled|implemented|built|created|done|used)\b/iu.test(query)
+  ) ||
+    /(?:有没有|是否|是不是|有无|曾经|之前|到底).*(?:写过|做过|处理过|实现过|构建过|创建过|完成过|用过|使用过|接触过)/u.test(
+      query,
+    );
 }
 
 function isNegatedSourceClaim(entry: RankedFactCandidate): boolean {
@@ -1645,6 +2352,7 @@ function selectContradictionEvidencePair(input: {
     input.language,
     input.queryLocale,
   );
+  const minimumOverlap = /[\p{Script=Han}]/u.test(input.query) ? 1 : 2;
   const negatedClaims = input.entries.filter(isNegatedSourceClaim);
   const positiveClaims = input.entries.filter(isRealizedPositiveSourceClaim);
   const preferredNegatedClaims = negatedClaims.some(hasUserAnswerTag)
@@ -1704,7 +2412,7 @@ function selectContradictionEvidencePair(input: {
         ),
       );
       const pairOverlap = pairTopics.size;
-      if (queryOverlap < 2 || pairOverlap < 2) {
+      if (queryOverlap < minimumOverlap || pairOverlap < minimumOverlap) {
         continue;
       }
 
@@ -1783,6 +2491,10 @@ function extractOrdinalQueryNumber(query: string): string | undefined {
   if (numericMatch) {
     return numericMatch[1];
   }
+  const chineseNumericOrdinalMatch = query.match(/第\s*(\d{1,2})\s*(?:项|个|条|名|种|款|点)?/u);
+  if (chineseNumericOrdinalMatch) {
+    return chineseNumericOrdinalMatch[1];
+  }
 
   const wordOrdinals = new Map([
     ["first", "1"],
@@ -1800,31 +2512,58 @@ function extractOrdinalQueryNumber(query: string): string | undefined {
     /\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/u,
   );
 
-  return wordMatch ? wordOrdinals.get(wordMatch[1] ?? "") : undefined;
+  if (wordMatch) {
+    return wordOrdinals.get(wordMatch[1] ?? "");
+  }
+
+  const chineseOrdinals = new Map([
+    ["一", "1"],
+    ["二", "2"],
+    ["三", "3"],
+    ["四", "4"],
+    ["五", "5"],
+    ["六", "6"],
+    ["七", "7"],
+    ["八", "8"],
+    ["九", "9"],
+    ["十", "10"],
+  ]);
+  const chineseWordMatch = query.match(/第\s*([一二三四五六七八九十])\s*(?:项|个|条|名|种|款|点)?/u);
+
+  return chineseWordMatch ? chineseOrdinals.get(chineseWordMatch[1] ?? "") : undefined;
 }
 
 function isFinalAssistantListItemQuery(query: string): boolean {
   return /\b(?:last|final)\b[\s\S]{0,80}\b(?:item|venue|option|recommendation|entry|parameter|name|one|place|job)\b/iu.test(query) ||
-    /\b(?:item|venue|option|recommendation|entry|parameter|name|one|place|job)\b[\s\S]{0,80}\b(?:last|final)\b/iu.test(query);
+    /\b(?:item|venue|option|recommendation|entry|parameter|name|one|place|job)\b[\s\S]{0,80}\b(?:last|final)\b/iu.test(query) ||
+    /(最后|最终|末尾)[\s\S]{0,80}(项|个|条|推荐|选项|名字|地点|职位)/u.test(query) ||
+    /(项|个|条|推荐|选项|名字|地点|职位)[\s\S]{0,80}(最后|最终|末尾)/u.test(query);
 }
 
 function isAssistantProvidedDetailRecallQuery(query: string): boolean {
   return /\b(?:did|do)\s+you\s+(?:give|list|mention|provide|recommend|say|suggest|tell)\b/iu.test(query) ||
     /\byou\s+(?:gave|listed|mentioned|provided|recommended|said|suggested|told)\b/iu.test(query) ||
     /\b(?:previous chat|previous conversation|earlier|remind me|going back)\b[\s\S]{0,160}\b(?:how many|what|which|phone|number|quote)\b/iu.test(query) ||
-    /\b(?:what|which)\b[\s\S]{0,120}\b(?:did\s+you\s+recommend|recommended|recommendation|provided|suggested|told me|gave me)\b/iu.test(query);
+    /\b(?:what|which)\b[\s\S]{0,120}\b(?:did\s+you\s+recommend|recommended|recommendation|provided|suggested|told me|gave me)\b/iu.test(query) ||
+    /(你|助手)[\s\S]{0,80}(给|列|列出|提到|提供|推荐|建议|告诉|说)[\s\S]{0,120}(什么|哪个|哪一个|多少|第\s*[一二三四五六七八九十\d]+|最后)/u.test(query) ||
+    /(之前|上次|前面|刚才|早些时候)[\s\S]{0,120}(你|助手)[\s\S]{0,80}(推荐|建议|提供|告诉|说|列出)/u.test(query);
 }
 
 function explicitlyAsksForAssistantProvidedDetail(query: string): boolean {
   return /\b(?:did|do)\s+you\s+(?:give|list|mention|provide|recommend|say|suggest|tell)\b/iu.test(query) ||
     /\byou\s+(?:gave|listed|mentioned|provided|recommended|said|suggested|told)\b/iu.test(query) ||
-    /\b(?:list|details?|phone|number|quote)\s+you\s+(?:gave|listed|mentioned|provided|recommended|said|suggested|told)\b/iu.test(query);
+    /\b(?:list|details?|phone|number|quote)\s+you\s+(?:gave|listed|mentioned|provided|recommended|said|suggested|told)\b/iu.test(query) ||
+    /(你|助手)[\s\S]{0,80}(给|列|列出|提到|提供|推荐|建议|告诉|说)/u.test(query);
 }
 
 function isUserGroundedRecallQuery(query: string): boolean {
-  return /\b(?:I|I'm|I've|I'd|I'll|me|my|mine)\b/iu.test(query) &&
+  return (
+    /\b(?:I|I'm|I've|I'd|I'll|me|my|mine)\b/iu.test(query) ||
+    /(我|我的|我们|我们的)/u.test(query)
+  ) &&
     !explicitlyAsksForAssistantProvidedDetail(query) &&
-    !/\byou\b[\s\S]{0,100}\b(?:give|gave|list|listed|mention|mentioned|provide|provided|recommend|recommended|say|said|suggest|suggested|tell|told)\b/iu.test(query);
+    !/\byou\b[\s\S]{0,100}\b(?:give|gave|list|listed|mention|mentioned|provide|provided|recommend|recommended|say|said|suggest|suggested|tell|told)\b/iu.test(query) &&
+    !/(你|助手)[\s\S]{0,100}(给|列|列出|提到|提供|推荐|建议|告诉|说)/u.test(query);
 }
 
 function userGroundedEvidencePriority(entry: RankedFactCandidate): number {
@@ -1871,7 +2610,7 @@ function hasConversationEvidenceRecallSignal(
     const ordinal = extractOrdinalQueryNumber(query);
     if (
       ordinal &&
-      new RegExp(`\\b(?:item\\s+${ordinal}|${ordinal}\\.)\\b`, "iu").test(
+      new RegExp(`(?:\\b(?:item\\s+${ordinal}|${ordinal}\\.)\\b|第\\s*${ordinal}\\s*(?:项|个|条|名|种|款|点))`, "iu").test(
         entry.fact.content,
       )
     ) {
@@ -1944,7 +2683,7 @@ function conversationEvidencePriority(
 
   if (
     ordinal &&
-    new RegExp(`\\b(?:item\\s+${ordinal}|${ordinal}\\.)\\b`, "iu").test(content)
+    new RegExp(`(?:\\b(?:item\\s+${ordinal}|${ordinal}\\.)\\b|第\\s*${ordinal}\\s*(?:项|个|条|名|种|款|点))`, "iu").test(content)
   ) {
     priority += 30;
   }
@@ -3240,6 +3979,18 @@ export function selectFacts(
         directFactualEvidenceBridgePriority(left),
     )
     : [];
+  const sourceOrderedSummaryCandidates = selectSourceOrderedSummaryCoverage({
+    entries: compatible,
+    language,
+    query,
+    queryLocale,
+  });
+  const sourceOrderedInstructionCandidates = selectSourceOrderedInstructionEvidence({
+    entries: compatible,
+    language,
+    query,
+    queryLocale,
+  });
   const contradictionEvidencePair = selectContradictionEvidencePair({
     entries: compatible,
     language,
@@ -3306,6 +4057,25 @@ export function selectFacts(
       aggregateCandidates,
       AGGREGATE_FACT_COUNT_LIMIT,
     )) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (sourceOrderedSummaryCandidates.length > 0) {
+    for (const entry of sourceOrderedSummaryCandidates) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -3643,6 +4413,29 @@ export function selectFacts(
         "none",
       );
     }
+  }
+
+  for (const entry of sourceOrderedInstructionCandidates) {
+    if (selectedIds.has(entry.fact.id)) {
+      continue;
+    }
+
+    selected.push(entry);
+    selectedIds.add(entry.fact.id);
+    markSelectedTrace(
+      traces,
+      entry.fact.id,
+      "generic",
+      entry.intentScore,
+      entry.lexicalScore,
+      entry.freshnessScore,
+      entry.explicitnessScore,
+      entry.usageScore,
+      entry.evidenceScore,
+      entry.outcomeScore,
+      entry.verificationPenaltyScore,
+      "none",
+    );
   }
 
   if (

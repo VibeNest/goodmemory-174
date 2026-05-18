@@ -201,6 +201,200 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(memoryContext).toContain("Retrieved GoodMemory records");
   });
 
+  it("prunes noisy source-ordered retrieved turns to the requested ordered evidence count", () => {
+    const chat = [
+      [
+        {
+          content:
+            "I want to implement core app functionality with authentication, expense tracking, and visualization.",
+          id: 4,
+          index: "4",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I am setting up Jinja2 templates and Bootstrap for the tracker UI.",
+          id: 10,
+          index: "10",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I am working on transaction CRUD and analytics integration after finishing registration and login.",
+          id: 60,
+          index: "60",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I am finalizing deployment and need security hardening for authentication and authorization before launch.",
+          id: 116,
+          index: "116",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I am trying to achieve 90% coverage on auth.py and security.py with new tests for security features.",
+          id: 154,
+          index: "154",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I am documenting API endpoints and architecture decisions in Confluence for a remote collaborator.",
+          id: 176,
+          index: "176",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+      ],
+    ];
+
+    const memoryContext = buildPhase63BeamAnswerMemoryContext({
+      memoryContext:
+        "- chat_id=10: I am setting up Jinja2 templates and Bootstrap.\n- chat_id=154: coverage tests.\n- chat_id=176: I am documenting API endpoints in Confluence.",
+      retrievedChatIds: [4, 10, 60, 116, 154, 176],
+      testCase: {
+        answer: "Core functionality, transaction CRUD, then security hardening.",
+        answerable: true,
+        chat,
+        conversationId: "beam-live-ordering-pruned",
+        evidenceChatIds: [4, 60, 116],
+        question:
+          "Can you list the order in which I brought up different aspects of developing my app? Mention ONLY and ONLY three items.",
+        questionId: "beam-live-ordering-pruned-q1",
+        questionType: "event_ordering",
+        scale: "100K",
+      },
+    });
+
+    expect(memoryContext).toContain("chat_id=4");
+    expect(memoryContext).toContain("chat_id=60");
+    expect(memoryContext).toContain("chat_id=116");
+    expect(memoryContext).not.toContain("chat_id=10");
+    expect(memoryContext).not.toContain("chat_id=154");
+    expect(memoryContext).not.toContain("chat_id=176");
+    expect(memoryContext).toContain("represented in the source-ordered turns");
+  });
+
+  it("selects concrete setup, endpoint, deployment, and security-test turns for five-item ordering prompts", () => {
+    const chat = [
+      [
+        {
+          content:
+            "Sure, let's break it down for my budget tracker project. Components: authentication, transaction management, analytics. Milestones: setup Flask project, schema, auth, and analytics.",
+          id: 2,
+          index: "2",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I'm trying to initialize a Flask 2.3.1 project on Python 3.11 with SQLite 3.39 as my database, and I want it to run on local dev at port 5000.",
+          id: 6,
+          index: "6",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I'm trying to design a monolithic Flask app with the MVC pattern and create the initial database schema and models.",
+          id: 12,
+          index: "12",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I'm trying to implement the transaction CRUD in my Flask app, specifically the POST /transactions route, and I want to make sure it returns a 201 status code when a new transaction is created successfully.",
+          id: 62,
+          index: "62",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I'm trying to design a REST API for transactions with GET, POST, PUT, and DELETE endpoints plus validation and error handling.",
+          id: 82,
+          index: "82",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I'm having deployment issues on Render.com with Gunicorn using 3 workers on port 10000. I've also completed integration tests covering authentication, transaction CRUD, analytics endpoints, and 95% pass rate.",
+          id: 118,
+          index: "118",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I'll add tests to cover more edge cases and security vulnerabilities, specifically SQL injection and XSS.",
+          id: 120,
+          index: "120",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+        {
+          content:
+            "I'm having trouble with deployment preparation, specifically production environment variables like DATABASE_URL, SECRET_KEY, and FLASK_ENV.",
+          id: 134,
+          index: "134",
+          questionType: "event_ordering",
+          role: "user",
+          timeAnchor: "unknown",
+        },
+      ],
+    ];
+
+    const memoryContext = buildPhase63BeamAnswerMemoryContext({
+      memoryContext:
+        "- chat_id=2: broad plan.\n- chat_id=12: schema.\n- chat_id=82: broad REST API.\n- chat_id=134: environment variables.",
+      retrievedChatIds: [2, 6, 12, 62, 82, 118, 120, 134],
+      testCase: {
+        answer:
+          "Setup, POST transaction creation, Gunicorn deployment/tests, and security tests.",
+        answerable: true,
+        chat,
+        conversationId: "beam-live-ordering-five",
+        evidenceChatIds: [6, 62, 118, 120],
+        question:
+          "Can you walk me through the order in which I brought up different aspects of my app development and deployment across our conversations? Mention ONLY and ONLY five items.",
+        questionId: "beam-live-ordering-five-q1",
+        questionType: "event_ordering",
+        scale: "100K",
+      },
+    });
+
+    expect(memoryContext).toContain("chat_id=6");
+    expect(memoryContext).toContain("chat_id=62");
+    expect(memoryContext).toContain("chat_id=118");
+    expect(memoryContext).toContain("chat_id=120");
+    expect(memoryContext).not.toContain("chat_id=2 role");
+    expect(memoryContext).not.toContain("chat_id=12 role");
+    expect(memoryContext).not.toContain("chat_id=82 role");
+    expect(memoryContext).not.toContain("chat_id=134 role");
+  });
+
   it("runs answer generation and judging over selected real-recall misses", async () => {
     const writes = new Map<string, string>();
     const generatedPrompts: string[] = [];

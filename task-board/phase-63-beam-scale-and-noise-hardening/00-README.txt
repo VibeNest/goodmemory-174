@@ -109,8 +109,34 @@ Workstreams
     reaches evidence-chat recall 1.0, missed-recall cases 0/3, and
     `executionFailures: 0`, but answer accuracy remains 1/3 because the two
     event-ordering answers still over-select noisy early/setup evidence
-  - next active step: continue generic repair through source-order noise
-    pruning and ordered evidence selection
+  - source-order context pruning rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-context-pruning-current-20260518T155045`
+    keeps the current-code full rules-only recall surface recall-limited at
+    evidence-chat recall 0.2731205922403106 with `executionFailures: 0`,
+    missed-recall cases 295/355, and wrong-recall/noise cases 387/400
+  - latest same-three-case live rerun:
+    `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`
+    reaches answer accuracy 3/3, evidence-chat recall 1.0, missed-recall cases
+    0/3, wrong-recall/noise cases 2/3, and `executionFailures: 0`
+  - source-summary coverage rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-summary-coverage16-current-20260518T180000`
+    reaches full rules-only evidence-chat recall 0.2787997683068106 with
+    `executionFailures: 0`, missed-recall cases 295/355, wrong-recall/noise
+    cases 387/400, and summarization recall 0.08068883277216612
+  - source-provenance instruction rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-append2-current-20260518T194500`
+    reaches full rules-only evidence-chat recall 0.31746732922789267 with
+    `executionFailures: 0`, missed-recall cases 282/355, wrong-recall/noise
+    cases 390/400, and instruction-following recall 0.7333333333333333
+  - instruction-applicability rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-applicability-v3-current-20260518T220000`
+    reaches full rules-only evidence-chat recall 0.32561286913399595 with
+    `executionFailures: 0`, missed-recall cases 280/355, wrong-recall/noise
+    cases 389/400, and instruction-following recall 0.7583333333333333
+  - next active step: broaden the ordered-context repair beyond the
+    representative trio and continue full-slice recall/noise hardening,
+    especially temporal/timeline/preference regressions and the remaining noise
+    surface
 
 
 Current Boundary
@@ -134,11 +160,16 @@ Current Boundary
   diagnostic and first live answer-generation/judge slice are now implemented.
   The source-preservation pass and follow-up contradiction /
   source-order-companion pass are implemented and rerun, and the latest
-  milestone/compression/source-order-context pass now gives the representative
-  three-case live slice complete evidence recall. They remain only partial:
-  prompt guidance fixes the contradiction case, but event-ordering still misses
-  under noisy retrieved source turns. The next executable boundary is generic
-  source-order noise pruning plus ordered evidence selection on long imported
-  conversations.
+  milestone/compression/source-order-context pass gives the representative
+  three-case live slice complete evidence recall. The latest ordered-context
+  pruning pass now fixes the same representative live trio at 3/3 answer
+  accuracy, the source-summary coverage pass gives a narrow full-run recall
+  lift, and the source-provenance instruction pass gives a larger
+  instruction-following lift. The instruction-applicability pass now preserves
+  that lift while slightly improving full-run recall and noise. This is still
+  only partial Phase 63 progress: the full 100K provider-free recall diagnostic
+  remains recall-limited and noisy, with temporal/timeline/preference
+  regressions. The next executable boundary is reducing full-slice missed
+  recall plus wrong-recall/noise on long imported conversations.
 - Final/public reporting remains deferred until LongMemEval, BEAM,
   MemoryAgentBench, and LoCoMo are all complete.

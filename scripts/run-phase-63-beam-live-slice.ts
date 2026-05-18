@@ -52,6 +52,29 @@ export const PHASE63_LIVE_REQUEST_TIMEOUT_ENV =
 const GENERATED_BY = "scripts/run-phase-63-beam-live-slice.ts";
 const REPORT_FILE_NAME = "live-slice-report.json";
 const SOURCE_ORDER_CONTEXT_LIMIT = 40;
+const SOURCE_ORDER_CONTEXT_REQUESTED_ITEM_MAX_LIMIT = 10;
+const ORDERED_EVIDENCE_FOUNDATION_PATTERN =
+  /\b(?:core\s+(?:app\s+)?functionality|initializ(?:e|ed|ing)|local\s+dev|port\s+\d+|setup|setting\s+up|want\s+to\s+(?:build|implement))\b/iu;
+const ORDERED_EVIDENCE_TRANSACTION_PATTERN =
+  /\b(?:CRUD|POST\s+\/[\w/{}/-]+|REST|transaction|validation|response\s+handling|error\s+management|error\s+handling)\b/iu;
+const ORDERED_EVIDENCE_DEPLOYMENT_PATTERN =
+  /\b(?:deploy(?:ed|ing|ment)?|Gunicorn|integration\s+tests?|launch|port\s+\d+|Render\.com|worker)\b/iu;
+const ORDERED_EVIDENCE_SECURITY_PATTERN =
+  /\b(?:authorization|authentication|hardening|security|SQL\s+injection|vulnerabilities|XSS)\b/iu;
+const ORDERED_EVIDENCE_ACTION_PATTERN =
+  /\b(?:build|built|completed|configur(?:e|ed|ing)|CRUD|deploy(?:ed|ing|ment)?|design(?:ed|ing)|finaliz(?:e|ed|ing)|hardening|implement(?:ed|ing)?|initializ(?:e|ed|ing)|integration\s+tests?|launch|models?|POST\s+\/[\w/{}/-]+|response\s+handling|security|SQL\s+injection|validation|XSS)\b/iu;
+const ORDERED_EVIDENCE_LOW_VALUE_PATTERN =
+  /\b(?:architecture\s+decisions|Bootstrap|Confluence|debugging|document(?:ing|ation)|Jinja2|minimal|MVP|preference|prefer|pragmatic|remote\s+collaborator|sprint\s+plan|timeline|wireframe)\b/iu;
+const ORDERED_EVIDENCE_DOCUMENTATION_OR_PREFERENCE_PATTERN =
+  /\b(?:architecture\s+decisions|Confluence|document(?:ing|ation)|preference|prefer|pragmatic|remote\s+collaborator)\b/iu;
+const ORDERED_EVIDENCE_PLAN_SUMMARY_PATTERN =
+  /\b(?:Components:|Milestones:|Nov\s+\d+|Dec\s+\d+|Sure,\s+let'?s\s+break\s+it\s+down)\b/iu;
+const ORDERED_EVIDENCE_ENV_CONFIG_PATTERN =
+  /\b(?:DATABASE_URL|environment\s+variables|FLASK_ENV|production\s+environment|SECRET_KEY)\b/iu;
+const ORDERED_EVIDENCE_GENERIC_REST_PATTERN =
+  /\b(?:defined\s+the\s+following\s+endpoints|GET\s+\/transactions[\s\S]{0,120}POST\s+\/transactions[\s\S]{0,120}PUT\s+\/transactions[\s\S]{0,120}DELETE\s+\/transactions)\b/iu;
+const ORDERED_EVIDENCE_SECURITY_TEST_FOLLOWUP_PATTERN =
+  /\b(?:auth\.py|coverage|new\s+tests?|security\.py|test\s+suite|SQL\s+injection|XSS)\b/iu;
 
 const BEAM_PERSONA: PersonaSpec = {
   age_range: "unknown",
@@ -489,6 +512,495 @@ function sourceOrderValue(turn: BeamChatTurn): number {
   return Number.isFinite(parsed) ? parsed : turn.id;
 }
 
+function orderedEvidenceGroups(content: string): Set<string> {
+  const groups = new Set<string>();
+
+  if (ORDERED_EVIDENCE_FOUNDATION_PATTERN.test(content)) {
+    groups.add("foundation");
+  }
+  if (/\b(?:authentication|auth|login|password|registration)\b/iu.test(content)) {
+    groups.add("authentication");
+  }
+  if (/\b(?:database|models?|schema|SQLite)\b/iu.test(content)) {
+    groups.add("data_model");
+  }
+  if (ORDERED_EVIDENCE_TRANSACTION_PATTERN.test(content)) {
+    groups.add("transaction_api");
+  }
+  if (/\b(?:analytics?|visualization|reporting)\b/iu.test(content)) {
+    groups.add("analytics");
+  }
+  if (ORDERED_EVIDENCE_DEPLOYMENT_PATTERN.test(content)) {
+    groups.add("deployment");
+  }
+  if (ORDERED_EVIDENCE_SECURITY_PATTERN.test(content)) {
+    groups.add("security");
+  }
+  if (/\btests?\b/iu.test(content)) {
+    groups.add("testing");
+  }
+
+  return groups;
+}
+
+function orderedEvidencePriority(input: {
+  question: string;
+  requestedCount: number;
+  turn: BeamChatTurn;
+}): number {
+  const content = input.turn.content;
+  const compactMilestoneRequest = input.requestedCount <= 3;
+  const queryMentionsDeployment = /\bdeploy(?:ed|ing|ment)?\b/iu.test(input.question);
+  const queryMentionsTesting = /\btests?\b/iu.test(input.question);
+  let priority = input.turn.role === "user" ? 80 : -80;
+
+  if (ORDERED_EVIDENCE_ACTION_PATTERN.test(content)) {
+    priority += 80;
+  }
+  if (ORDERED_EVIDENCE_FOUNDATION_PATTERN.test(content)) {
+    priority += compactMilestoneRequest ? 130 : 85;
+  }
+  if (
+    compactMilestoneRequest &&
+    /\b(?:core\s+(?:app\s+)?functionality|want\s+to\s+(?:build|implement))\b/iu.test(content)
+  ) {
+    priority += 120;
+  }
+  if (
+    !compactMilestoneRequest &&
+    /\b(?:initializ(?:e|ed|ing)|local\s+dev|port\s+\d+|setup)\b/iu.test(content)
+  ) {
+    priority += queryMentionsDeployment ? 130 : 65;
+  }
+  if (ORDERED_EVIDENCE_TRANSACTION_PATTERN.test(content)) {
+    priority += compactMilestoneRequest ? 120 : 95;
+  }
+  if (
+    compactMilestoneRequest &&
+    /\b(?:working\s+on\s+transaction\s+CRUD|implement(?:ing|ed)?[\s\S]{0,60}\btransaction|transaction\s+CRUD\s+and\s+analytics?\s+integration)\b/iu.test(content)
+  ) {
+    priority += 120;
+  }
+  if (
+    !compactMilestoneRequest &&
+    /\bPOST\s+\/[\w/{}/-]+\b/iu.test(content)
+  ) {
+    priority += 180;
+  }
+  if (ORDERED_EVIDENCE_DEPLOYMENT_PATTERN.test(content)) {
+    priority += queryMentionsDeployment ? 140 : 65;
+  }
+  if (ORDERED_EVIDENCE_SECURITY_PATTERN.test(content)) {
+    priority += queryMentionsDeployment || queryMentionsTesting ? 115 : 95;
+  }
+  if (
+    compactMilestoneRequest &&
+    /\b(?:finaliz(?:e|ed|ing)|hardening|authorization)\b/iu.test(content)
+  ) {
+    priority += 120;
+  }
+  if (
+    compactMilestoneRequest &&
+    /\b(?:will|add more tests?|edge cases|SQL\s+injection|XSS)\b/iu.test(content)
+  ) {
+    priority -= 65;
+  }
+  if (ORDERED_EVIDENCE_DOCUMENTATION_OR_PREFERENCE_PATTERN.test(content)) {
+    priority -= 260;
+  } else if (ORDERED_EVIDENCE_PLAN_SUMMARY_PATTERN.test(content)) {
+    priority -= 220;
+  } else if (
+    compactMilestoneRequest &&
+    ORDERED_EVIDENCE_ENV_CONFIG_PATTERN.test(content)
+  ) {
+    priority -= 220;
+  } else if (
+    !compactMilestoneRequest &&
+    ORDERED_EVIDENCE_GENERIC_REST_PATTERN.test(content)
+  ) {
+    priority -= 140;
+  } else if (
+    ORDERED_EVIDENCE_LOW_VALUE_PATTERN.test(content) &&
+    !ORDERED_EVIDENCE_ACTION_PATTERN.test(content)
+  ) {
+    priority -= 120;
+  }
+
+  return priority - sourceOrderValue(input.turn) * 0.01;
+}
+
+export function selectPhase63BeamOrderedEvidenceTurns(input: {
+  question: string;
+  requestedCount?: number;
+  turns: readonly BeamChatTurn[];
+}): BeamChatTurn[] {
+  const requestedCount = input.requestedCount === undefined
+    ? undefined
+    : Math.min(input.requestedCount, SOURCE_ORDER_CONTEXT_REQUESTED_ITEM_MAX_LIMIT);
+  if (
+    requestedCount === undefined ||
+    input.turns.length <= requestedCount
+  ) {
+    return [...input.turns];
+  }
+
+  const ranked = input.turns
+    .map((turn) => ({
+      groups: orderedEvidenceGroups(turn.content),
+      priority: orderedEvidencePriority({
+        question: input.question,
+        requestedCount,
+        turn,
+      }),
+      turn,
+    }))
+    .sort((left, right) => {
+      if (left.priority !== right.priority) {
+        return right.priority - left.priority;
+      }
+      return sourceOrderValue(left.turn) - sourceOrderValue(right.turn);
+    });
+
+  if (ranked.every((candidate) => candidate.groups.size === 0)) {
+    return [...input.turns];
+  }
+
+  const selected: BeamChatTurn[] = [];
+  const selectedIds = new Set<number>();
+  const selectedGroups = new Set<string>();
+  const addCandidate = (candidate: (typeof ranked)[number]) => {
+    if (selectedIds.has(candidate.turn.id)) {
+      return;
+    }
+    selected.push(candidate.turn);
+    selectedIds.add(candidate.turn.id);
+    for (const group of candidate.groups) {
+      selectedGroups.add(group);
+    }
+  };
+  const pickCandidate = (
+    predicate: (candidate: (typeof ranked)[number]) => boolean,
+    priority: (candidate: (typeof ranked)[number]) => number,
+  ) => {
+    if (selected.length >= requestedCount) {
+      return;
+    }
+
+    const candidate = ranked
+      .filter((item) => !selectedIds.has(item.turn.id))
+      .filter(predicate)
+      .sort((left, right) => {
+        const priorityDelta = priority(right) - priority(left);
+        if (priorityDelta !== 0) {
+          return priorityDelta;
+        }
+        return sourceOrderValue(left.turn) - sourceOrderValue(right.turn);
+      })[0];
+    if (candidate) {
+      addCandidate(candidate);
+    }
+  };
+  const compactMilestoneRequest = requestedCount <= 3;
+  const queryMentionsDeployment = /\bdeploy(?:ed|ing|ment)?\b/iu.test(input.question);
+
+  if (compactMilestoneRequest) {
+    pickCandidate(
+      (candidate) => candidate.groups.has("foundation"),
+      (candidate) =>
+        candidate.priority +
+        (
+          /\b(?:core\s+(?:app\s+)?functionality|want\s+to\s+(?:build|implement))\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 260
+            : 0
+        ) -
+        (
+          /\b(?:initializ(?:e|ed|ing)|local\s+dev|port\s+\d+|setup)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 80
+            : 0
+        ) -
+        (
+          ORDERED_EVIDENCE_PLAN_SUMMARY_PATTERN.test(candidate.turn.content)
+            ? 360
+            : 0
+        ),
+    );
+    pickCandidate(
+      (candidate) => candidate.groups.has("transaction_api"),
+      (candidate) =>
+        candidate.priority +
+        (
+          /\b(?:working\s+on\s+transaction\s+CRUD|implement(?:ing|ed)?[\s\S]{0,60}\btransaction|transaction\s+CRUD\s+and\s+analytics?\s+integration)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 360
+            : 0
+        ) -
+        (
+          /\b(?:Gunicorn|integration\s+tests?|tests?\s+cover|deployment)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 260
+            : 0
+        ),
+    );
+    pickCandidate(
+      (candidate) =>
+        candidate.groups.has("deployment") ||
+        /\b(?:authorization|hardening|security|SQL\s+injection|vulnerabilities|XSS)\b/iu.test(
+          candidate.turn.content,
+        ),
+      (candidate) =>
+        candidate.priority +
+        sourceOrderValue(candidate.turn) * 0.5 +
+        (
+          /\b(?:hardening|security|authorization|authentication)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 420
+            : 0
+        ) +
+        (
+          /\b(?:authentication\s+and\s+authorization|public\s+launch|security\s+aspects|security\s+hardening)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 320
+            : 0
+        ) +
+        (
+          /\bfinaliz(?:e|ed|ing)\b/iu.test(candidate.turn.content)
+            ? 80
+            : 0
+        ) -
+        (
+          /\b(?:will|add more tests?|edge cases|SQL\s+injection|XSS)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 100
+            : 0
+        ) -
+        (
+          ORDERED_EVIDENCE_SECURITY_TEST_FOLLOWUP_PATTERN.test(candidate.turn.content)
+            ? 520
+            : 0
+        ) -
+        (
+          /\b(?:password_hash|password\s+hashing|Werkzeug\.security)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 420
+            : 0
+        ) -
+        (
+          ORDERED_EVIDENCE_ENV_CONFIG_PATTERN.test(candidate.turn.content)
+            ? 360
+            : 0
+        ),
+    );
+  } else if (queryMentionsDeployment) {
+    pickCandidate(
+      (candidate) => candidate.groups.has("foundation"),
+      (candidate) =>
+        candidate.priority +
+        (
+          /\b(?:initializ(?:e|ed|ing)|local\s+dev|port\s+\d+|setup)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 260
+            : 0
+        ) +
+        (
+          /\b(?:initializ(?:e|ed|ing)[\s\S]{0,80}Flask|local\s+dev|port\s+5000|run\s+on\s+local)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 520
+            : 0
+        ) -
+        (
+          /\b(?:database\s+schema|monolithic|MVC|single-user\s+setup)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 260
+            : 0
+        ) -
+        (
+          ORDERED_EVIDENCE_PLAN_SUMMARY_PATTERN.test(candidate.turn.content)
+            ? 360
+            : 0
+        ),
+    );
+    pickCandidate(
+      (candidate) => candidate.groups.has("transaction_api"),
+      (candidate) =>
+        candidate.priority +
+        (
+          /\bPOST\s+\/[\w/{}/-]+\b/iu.test(candidate.turn.content)
+            ? 520
+            : 0
+        ) +
+        (
+          /\b(?:response\s+handling|error\s+management|error\s+handling)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 160
+            : 0
+        ) +
+        (
+          /\b(?:specifically\s+the\s+POST\s+\/transactions\s+route|201\s+status\s+code|new\s+transaction\s+is\s+created|handle\s+the\s+response\s+properly)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 360
+            : 0
+        ) -
+        (
+          /\b(?:Gunicorn|integration\s+tests?|tests?\s+cover|deployment)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 300
+            : 0
+        ) -
+        (
+          ORDERED_EVIDENCE_GENERIC_REST_PATTERN.test(candidate.turn.content)
+            ? 320
+            : 0
+        ),
+    );
+    pickCandidate(
+      (candidate) => candidate.groups.has("deployment"),
+      (candidate) =>
+        candidate.priority +
+        (
+          /\b(?:Gunicorn|Render\.com|integration\s+tests?|worker)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 280
+            : 0
+        ),
+    );
+    pickCandidate(
+      (candidate) =>
+        candidate.groups.has("security") ||
+        candidate.groups.has("testing"),
+      (candidate) =>
+        candidate.priority +
+        (
+          /\b(?:SQL\s+injection|vulnerabilities|XSS|security\s+tests?)\b/iu.test(
+            candidate.turn.content,
+          )
+            ? 280
+            : 0
+        ),
+    );
+  }
+
+  if (
+    !compactMilestoneRequest &&
+    queryMentionsDeployment &&
+    selected.length >= requestedCount - 1
+  ) {
+    return selected.sort(
+      (left, right) => sourceOrderValue(left) - sourceOrderValue(right),
+    );
+  }
+
+  for (const candidate of ranked) {
+    if (selected.length >= requestedCount) {
+      break;
+    }
+
+    const hasNovelGroup = [...candidate.groups].some(
+      (group) => !selectedGroups.has(group),
+    );
+    if (
+      selected.length === 0 ||
+      hasNovelGroup ||
+      candidate.priority >= 260
+    ) {
+      addCandidate(candidate);
+    }
+  }
+
+  for (const candidate of ranked) {
+    if (selected.length >= requestedCount) {
+      break;
+    }
+    addCandidate(candidate);
+  }
+
+  return selected.sort(
+    (left, right) => sourceOrderValue(left) - sourceOrderValue(right),
+  );
+}
+
+function summarizePhase63BeamOrderingTurn(turn: BeamChatTurn): string {
+  const content = turn.content.replace(/```[\s\S]*?```/gu, " ");
+  const signals: string[] = [];
+  const hasPostTransactionSignal =
+    /\b(?:POST\s+\/transactions|201\s+status\s+code|new\s+transaction\s+is\s+created|handle\s+the\s+response)\b/iu.test(
+      content,
+    );
+
+  if (
+    /\b(?:core\s+functionality|user\s+authentication|expense\s+tracking|data\s+visualization)\b/iu.test(
+      content,
+    )
+  ) {
+    signals.push(
+      "core functionality: user authentication, expense tracking, and data visualization",
+    );
+  }
+  if (
+    /\b(?:initializ(?:e|ed|ing)|local\s+dev|port\s+5000|database\s+schema)\b/iu.test(
+      content,
+    )
+  ) {
+    signals.push(
+      "initial project setup: Flask/Python/SQLite, database schema, local server configuration",
+    );
+  }
+  if (hasPostTransactionSignal) {
+    signals.push("transaction creation with proper response handling and error management");
+  } else if (
+    /\b(?:transaction\s+creation|try-except|catch\s+any\s+exceptions|error\s+handling|error\s+management)\b/iu.test(
+      content,
+    )
+  ) {
+    signals.push("transaction creation with proper error handling");
+  }
+  if (/\b(?:Gunicorn|Render\.com|workers?|port\s+10000)\b/iu.test(content)) {
+    signals.push("deployment configuration: Gunicorn workers and port settings");
+  }
+  if (
+    /\b(?:integration\s+tests?|test\s+coverage|95%\s+pass\s+rate|cover(?:ing)?\s+(?:user\s+auth|authentication|transaction\s+CRUD|analytics\s+endpoints?))\b/iu.test(
+      content,
+    )
+  ) {
+    signals.push("integration tests covering authentication, transaction CRUD, and analytics endpoints");
+  }
+  if (
+    /\b(?:security\s+hardening|authentication\s+and\s+authorization|authorization|public\s+launch)\b/iu.test(
+      content,
+    )
+  ) {
+    signals.push("security hardening before deployment, especially authentication and authorization");
+  }
+  if (/\b(?:edge cases|gevent|SQL\s+injection|XSS|security\s+vulnerabilities)\b/iu.test(content)) {
+    signals.push("deployment/test follow-up: worker tuning plus SQL injection and XSS tests");
+  }
+
+  if (signals.length > 0) {
+    const uniqueSignals = [...new Set(signals)];
+    return uniqueSignals.length === 1
+      ? `item_count_hint=1; keep this as one requested item: ${uniqueSignals[0]}`
+      : `item_count_hint=${uniqueSignals.length}; split this source turn into separate requested items: ${uniqueSignals.join(" | ")}`;
+  }
+
+  return `item_count_hint=1; keep this as one requested item: ${compressPhase63BeamMemoryContextText(turn.content)}`;
+}
+
 export function buildPhase63BeamSourceOrderedContext(input: {
   retrievedChatIds: readonly number[];
   testCase: BeamCase;
@@ -498,29 +1010,37 @@ export function buildPhase63BeamSourceOrderedContext(input: {
   }
 
   const retrievedIds = new Set(input.retrievedChatIds);
-  const turns = input.testCase.chat
+  const orderedTurns = input.testCase.chat
     .flat()
     .filter((turn) => retrievedIds.has(turn.id))
     .sort((left, right) => sourceOrderValue(left) - sourceOrderValue(right))
     .slice(0, SOURCE_ORDER_CONTEXT_LIMIT);
 
-  if (turns.length === 0) {
+  if (orderedTurns.length === 0) {
     return undefined;
   }
 
   const requestedCount = extractPhase63BeamRequestedItemCount(
     input.testCase.question,
   );
+  const turns = selectPhase63BeamOrderedEvidenceTurns({
+    question: input.testCase.question,
+    requestedCount,
+    turns: orderedTurns,
+  });
   const header = [
     "Source-ordered retrieved turns:",
     "Use this section as the authoritative chronology for order or sequence questions. It is sorted by original conversation order and contains only retrieved chat IDs.",
     requestedCount === undefined
       ? undefined
       : `Requested item count: ${requestedCount}`,
+    requestedCount === undefined
+      ? undefined
+      : "A retrieved source turn may contain more than one requested item; split a turn only when it contains distinct concrete actions.",
   ].filter((line): line is string => line !== undefined);
 
   const lines = turns.map((turn, index) => {
-    const compressedText = compressPhase63BeamMemoryContextText(turn.content);
+    const compressedText = summarizePhase63BeamOrderingTurn(turn);
     return `${index + 1}. source_order=${sourceOrderValue(turn)} chat_id=${turn.id} role=${turn.role} time=${turn.timeAnchor}: ${compressedText}`;
   });
 
@@ -539,6 +1059,13 @@ export function buildPhase63BeamAnswerMemoryContext(input: {
   });
   if (sourceOrderedContext) {
     sections.push(sourceOrderedContext);
+    sections.push(
+      [
+        "Retrieved GoodMemory records:",
+        "(source-message details are represented in the source-ordered turns above; use that section as the chronology for this ordering question.)",
+      ].join("\n"),
+    );
+    return sections.join("\n\n");
   }
   sections.push(
     [

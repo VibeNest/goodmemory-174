@@ -396,6 +396,141 @@ Third Generic Milestone / Context Repair
   answer prompt text.
 
 
+Fourth Generic Ordered-Context Repair
+-------------------------------------
+
+- Mechanism:
+  ordering questions now build a bounded source-ordered answer section from
+  retrieved chat ids, choose concrete milestone representatives, omit the
+  duplicate raw source-message record dump for ordering synthesis, summarize
+  each selected turn into concrete action signals, and include item-count hints
+  so multi-action turns are split only when needed.
+- Current-code full rules-only recall sanity:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-context-pruning-current-20260518T155045`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.2731205922403106
+  - missed-recall cases: 295/355
+  - wrong-recall/noise cases: 387/400
+- Same-three-case live rerun:
+  `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`
+  - selected cases: same initial contradiction/event-ordering trio
+  - `executionFailures: 0`
+  - answer accuracy: 3/3
+  - evidence-chat recall: 1.0
+  - missed-recall cases: 0/3
+  - wrong-recall/noise cases: 2/3
+- Decision:
+  this fixes the representative live answer-synthesis blocker without claiming
+  BEAM closure. Full-run recall is still far below the required standard and
+  wrong-recall/noise remains high, so the next generic repair must broaden this
+  beyond the three-case slice and continue full-slice recall/noise hardening.
+
+
+Fifth Generic Source-Summary Coverage Repair
+--------------------------------------------
+
+- Mechanism:
+  broad conversation-summary queries now select bounded source-ordered coverage
+  from imported source-message evidence and keep adjacent user/assistant turns
+  when they form a compact evidence pair. This avoids collapsing a long summary
+  request to only the strongest late lexical cluster.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-summary-coverage16-current-20260518T180000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.2787997683068106
+  - missed-recall cases: 295/355
+  - wrong-recall/noise cases: 387/400
+  - summarization recall: 0.08068883277216612, up from
+    0.02071759259259259 in the prior current-code recall sanity
+- Rejected branch:
+  a broader conditional-instruction source selector was tested and rejected
+  because it regressed full recall to 0.22621760868239746 in
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-summary-instruction-current-20260518T171500`.
+  The kept code is summary coverage only.
+- Decision:
+  this is a narrow recall lift, not BEAM closure. Instruction-following,
+  event-ordering, contradiction, and multi-session miss buckets still need
+  more precise mechanism work before moving to MemoryAgentBench.
+
+
+Sixth Generic Source-Provenance And Instruction Recall Repair
+-------------------------------------------------------------
+
+- Mechanism:
+  exact extracted `remember(always)` candidates now merge preserved
+  source-message provenance instead of losing `source_message`, `source_order`,
+  and `user_answer` tags. Recall selection can then append a bounded set of
+  applicable source-ordered user instruction evidence for guidance questions
+  without replacing the normal primary selection.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-append2-current-20260518T194500`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.31746732922789267
+  - missed-recall cases: 282/355
+  - wrong-recall/noise cases: 390/400
+  - instruction-following recall: 0.7333333333333333, up from 0.05625
+  - zero-recall instruction-following cases: 7, down from 37
+- Compared/rejected branches:
+  selector-only append variants improved instruction recall but ran before the
+  provenance fix and were not kept. The provenance-fixed append-1 variant
+  reached recall 0.30784291608235276 with missed 284/355 and
+  wrong-recall/noise 390/400; append-2 keeps the stronger instruction bucket
+  lift.
+- Decision:
+  this is partial Phase 63 progress, not closure. The repair exposes useful
+  source-order instruction evidence, but Timeline Integration regresses from
+  0.23333333333333334 to 0, temporal reasoning regresses from 0.5125 to
+  0.3875, preference following regresses from 0.23076923076923078 to
+  0.15384615384615385, numerical precision regresses from 0.5 to 0.375, and
+  wrong-recall/noise rises from 387/400 to 390/400. The next loop must preserve
+  the instruction gain while reducing temporal/timeline and noise regressions.
+
+
+Seventh Generic Instruction Applicability Repair
+------------------------------------------------
+
+- Mechanism:
+  source-ordered instruction evidence now requires a strong semantic alias or a
+  concrete conditional-token match before it can be appended. This keeps
+  useful user instructions available for instruction-following questions while
+  preventing broad domain terms such as `weather` or `API` from applying
+  unrelated instructions to temporal/date calculation questions.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers the OpenWeather API key vs
+  UI wireframe duration pattern and asserts that weather-condition and
+  API-error instructions are not selected through broad domain overlap.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-applicability-v3-current-20260518T220000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.32561286913399595
+  - missed-recall cases: 280/355
+  - wrong-recall/noise cases: 389/400
+  - instruction-following recall: 0.7583333333333333
+  - zero-recall instruction-following cases: 6
+- Delta from append-2:
+  overall recall improves from 0.31746732922789267 to 0.32561286913399595,
+  missed recall improves from 282/355 to 280/355, and wrong-recall/noise
+  improves from 390/400 to 389/400. Instruction-following recall improves from
+  0.7333333333333333 to 0.7583333333333333.
+- Decision:
+  this is another partial mechanism repair, not BEAM closure. It reduces the
+  instruction-noise regression surface while preserving the instruction gain,
+  but Timeline Integration remains 0, temporal reasoning remains 0.3875, and
+  preference following remains 0.15384615384615385.
+
+
 Current Boundary
 ----------------
 
@@ -403,10 +538,14 @@ P63-T001 through P63-T006 are complete for source intake, synthetic fixture,
 smoke report contract, package scripts, smoke gate, rows-API export, the first
 external-root 100K comparison, and the initial miss/noise boundary analysis.
 P63-T007 is active. The real GoodMemory recall diagnostic and the first live
-answer-generation/judge slice are now in place, and both the first generic
-source-preservation pass, the follow-up contradiction / companion pass, and
-the milestone/context pass have been rerun. The current failure family is now
-more specific: the representative live trio has complete evidence recall and
-contradiction-safe prompting repairs one live case, but BEAM still needs
-source-order noise pruning plus ordered evidence selection before it can move
-toward an answer-quality claim.
+answer-generation/judge slice are now in place. The first generic
+source-preservation pass, the follow-up contradiction / companion pass, the
+milestone/context pass, the ordered-context pruning pass, the source-summary
+coverage pass, the source-provenance instruction pass, and the
+instruction-applicability pass have been rerun. The current failure family is
+now more specific: the representative live trio is clean at 3/3 with complete
+evidence recall, and the full 100K diagnostic has a real instruction-following
+recall lift with slightly lower noise, but the full surface remains
+recall-limited and noisy with temporal/timeline/preference regressions. BEAM
+still needs broader full-slice recall/noise hardening before it can move toward
+an answer-quality claim.

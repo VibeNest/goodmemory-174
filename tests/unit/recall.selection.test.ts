@@ -348,6 +348,52 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps Chinese aggregate open-loop queries out of slot suppression", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-signoff",
+        userId: "user-1",
+        category: "project",
+        factKind: "open_loop",
+        scopeKind: "project",
+        subject: "发布流程",
+        content: "当前开环是发布流程还需要法务签收。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-regression",
+        userId: "user-1",
+        category: "project",
+        factKind: "open_loop",
+        scopeKind: "project",
+        subject: "发布流程",
+        content: "当前开环是回归测试还没有跑完。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "当前还有哪些待办和开环？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({
+        requestedSlots: ["open_loop"],
+      }),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id).sort()).toEqual([
+      "fact-regression",
+      "fact-signoff",
+    ]);
+  });
+
   it("diversifies aggregate count facts across evidence sessions before taking duplicates", () => {
     const language = createLanguageService();
     const facts = [
@@ -1613,6 +1659,43 @@ describe("recall selection", () => {
     expect(result.facts.map((fact) => fact.id)).toContain("fact-hoop-dance");
   });
 
+  it("keeps Chinese assistant answer evidence eligible for previous recommendation questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-user-request-zh",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "我之前想找适合小团队的异步协作文档工具。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["compact_evidence"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-notion-zh",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "第1项：Notion，适合小团队做异步协作文档和知识库。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "你之前给我推荐的小团队异步协作文档工具是什么？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain("fact-notion-zh");
+  });
+
   it("keeps assistant count headings eligible for previous-chat count questions", () => {
     const language = createLanguageService();
     const facts = [
@@ -2267,6 +2350,63 @@ describe("recall selection", () => {
     ].sort());
   });
 
+  it("prioritizes temporal interval boundary events over later high-overlap dated noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer", "dated_event"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const noiseFacts = Array.from({ length: 8 }, (_, index) =>
+      makeSourceFact(
+        `fact-weather-noise-${index}`,
+        70 + index * 2,
+        `[BEAM chat_id=${70 + index * 2} role=user time=March-${20 + index}-2024] I am working on my weather app with OpenWeather API v2.5, API key environment variables, UI error display, and completed API error handling improvements.`,
+      )
+    );
+    const facts = [
+      makeSourceFact(
+        "fact-openweather-key",
+        32,
+        "[BEAM chat_id=32 role=user time=unknown] I am handling rate limits for my OpenWeather API key obtained on March 10, 2024.",
+      ),
+      makeSourceFact(
+        "fact-wireframe-complete",
+        42,
+        "[BEAM chat_id=42 role=user time=unknown] I completed the UI wireframe for my weather app on March 12, 2024.",
+      ),
+      ...noiseFacts,
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many days passed between when I obtained my OpenWeather API key and when I completed the UI wireframe for my weather app?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-openweather-key");
+    expect(selectedIds).toContain("fact-wireframe-complete");
+  });
+
   it("returns source-ordered imported evidence for event-order questions without dates", () => {
     const language = createLanguageService();
     const facts = [
@@ -2880,6 +3020,298 @@ describe("recall selection", () => {
     ).toBeLessThan(selectedIds.indexOf("fact-security-review"));
   });
 
+  it("returns source-ordered coverage for broad conversation summary questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-css-user",
+        14,
+        "user",
+        "I am debugging a CSS layout issue in my web project with Chrome DevTools and the box model.",
+      ),
+      makeSourceFact(
+        "fact-css-assistant",
+        15,
+        "assistant",
+        "The solution covered calculating element dimensions and using DevTools to inspect the layout issue.",
+      ),
+      makeSourceFact(
+        "fact-dom-user",
+        30,
+        "user",
+        "I am anticipating DOM manipulation errors such as classList of null in a Bootstrap navbar.",
+      ),
+      makeSourceFact(
+        "fact-dom-assistant",
+        31,
+        "assistant",
+        "The response added null checks, optional chaining, and try-catch blocks to prevent DOM runtime errors.",
+      ),
+      makeSourceFact(
+        "fact-gallery-user",
+        62,
+        "user",
+        "I am fixing project gallery images that return 404 errors in the web project.",
+      ),
+      makeSourceFact(
+        "fact-gallery-assistant",
+        63,
+        "assistant",
+        "The response checked image paths, build output, and static file serving to resolve the gallery 404 errors.",
+      ),
+      makeSourceFact(
+        "fact-form-user",
+        166,
+        "user",
+        "I am fixing an intermittent Formspree 500 Internal Server Error on my contact form submission.",
+      ),
+      makeSourceFact(
+        "fact-form-assistant",
+        167,
+        "assistant",
+        "The response recommended retry logic with exponential backoff and separate HTTP/network error handling.",
+      ),
+      createFactMemory({
+        id: "fact-late-fragment",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Project gallery layout issues and 404 errors were debugged in detail.",
+        source: SOURCE,
+        tags: ["beam", "chat_id:119"],
+        attributes: { chatId: 119 },
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you summarize how I approached and resolved the various issues with my web project over time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-css-user",
+      "fact-css-assistant",
+      "fact-gallery-user",
+      "fact-gallery-assistant",
+      "fact-form-user",
+      "fact-form-assistant",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds.indexOf("fact-css-user")).toBeLessThan(
+      selectedIds.indexOf("fact-gallery-user"),
+    );
+    expect(selectedIds.indexOf("fact-gallery-user")).toBeLessThan(
+      selectedIds.indexOf("fact-form-user"),
+    );
+  });
+
+  it("returns Chinese source-ordered coverage for broad conversation summary questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-auth-zh",
+        10,
+        "user",
+        "我先实现预算应用的用户认证和登录流程。",
+      ),
+      makeSourceFact(
+        "fact-db-zh",
+        30,
+        "user",
+        "接着我设计数据库 schema，保存收入、支出和分类。",
+      ),
+      makeSourceFact(
+        "fact-deploy-zh",
+        70,
+        "user",
+        "最后我处理部署和安全加固，准备上线。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "请总结我这个预算应用随着时间推进是怎么一步步解决问题的。",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-auth-zh");
+    expect(selectedIds).toContain("fact-db-zh");
+    expect(selectedIds).toContain("fact-deploy-zh");
+    expect(selectedIds.indexOf("fact-auth-zh")).toBeLessThan(
+      selectedIds.indexOf("fact-deploy-zh"),
+    );
+  });
+
+  it("adds applicable source-ordered user instruction evidence for guidance questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      createFactMemory({
+        id: "fact-login-plan",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Sprint plan for user registration and login feature implementation.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      makeSourceFact(
+        "fact-code-format-instruction",
+        54,
+        "Always format all code snippets with syntax highlighting when I ask about implementation details.",
+      ),
+      makeSourceFact(
+        "fact-apa-instruction",
+        112,
+        "Always use APA 7th edition citation style when I ask about formatting references.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Could you show me how to implement a login feature?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-login-plan");
+    expect(selectedIds).toContain("fact-code-format-instruction");
+    expect(selectedIds).not.toContain("fact-apa-instruction");
+  });
+
+  it("does not treat broad domain overlap as applicable source-ordered instruction evidence", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-api-key-date",
+        32,
+        "I obtained my OpenWeather API key on March 10, 2024 while building the weather app.",
+      ),
+      makeSourceFact(
+        "fact-wireframe-date",
+        42,
+        "I completed the UI wireframe for my weather app on March 12, 2024.",
+      ),
+      makeSourceFact(
+        "fact-weather-condition-instruction",
+        68,
+        "Always provide temperature readings in Celsius when I ask about weather conditions.",
+      ),
+      makeSourceFact(
+        "fact-api-error-instruction",
+        130,
+        "Always include error status codes in responses when I ask about API error handling.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many days passed between when I obtained my OpenWeather API key and when I completed the UI wireframe for my weather app?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-api-key-date");
+    expect(selectedIds).toContain("fact-wireframe-date");
+    expect(selectedIds).not.toContain("fact-weather-condition-instruction");
+    expect(selectedIds).not.toContain("fact-api-error-instruction");
+  });
+
   it("keeps adjacent source-ordered continuation evidence for event-order questions", () => {
     const language = createLanguageService();
     const makeFact = (id: string, sourceOrder: number, content: string) =>
@@ -3151,6 +3583,48 @@ describe("recall selection", () => {
     expect(result.facts.map((fact) => fact.id)).toEqual([
       "fact-homepage-route",
       "fact-never-routes",
+    ]);
+  });
+
+  it("returns Chinese contradiction evidence pairs for implementation confirmation queries", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-route-implemented-zh",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "我已经实现了 Flask 首页路由，并且能从 @app.route('/') 返回静态 HTML。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 24 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-route-never-zh",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "我从来没写过 Flask 路由，也没有处理过 HTTP 请求。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 58 },
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "我有没有实现过 Flask 路由并处理 HTTP 请求？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-route-implemented-zh",
+      "fact-route-never-zh",
     ]);
   });
 

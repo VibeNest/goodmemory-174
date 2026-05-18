@@ -185,6 +185,53 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     event-ordering answers still over-select noisy early/setup evidence. Phase
     63 therefore remains active; the next repair target is source-order noise
     pruning plus ordered evidence selection.
+  - fourth ordered-context rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-context-pruning-current-20260518T155045`
+    keeps the current-code full 100K rules-only recall surface recall-limited
+    at evidence-chat recall 0.2731205922403106 with `executionFailures: 0`,
+    missed-recall cases 295/355, and wrong-recall/noise cases 387/400. The
+    latest same-three-case live slice
+    `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`
+    reaches answer accuracy 3/3, evidence-chat recall 1.0, missed-recall cases
+    0/3, wrong-recall/noise cases 2/3, and `executionFailures: 0`. This fixes
+    the representative live answer-synthesis blocker but does not close Phase
+    63; the next repair target is broader full-slice recall/noise hardening.
+  - fifth source-ordered summary-coverage rerun:
+    broad conversation-summary queries now use bounded source-ordered coverage
+    over imported source-message evidence rather than only the top lexical
+    cluster. The current-code full recall diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-summary-coverage16-current-20260518T180000`
+    reaches evidence-chat recall 0.2787997683068106 with `executionFailures:
+    0`, missed-recall cases 295/355, and wrong-recall/noise cases 387/400.
+    The lift is concentrated in summarization recall
+    (0.02071759259259259 -> 0.08068883277216612) and is still far from BEAM
+    closure.
+  - sixth source-provenance and instruction-recall rerun:
+    exact `remember(always)` extractions now merge preserved source-message
+    provenance instead of dropping `source_message` / `source_order` /
+    `user_answer` tags, and recall selection can append bounded applicable
+    source-ordered user instruction evidence for guidance questions. The kept
+    current-code diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-append2-current-20260518T194500`
+    reaches evidence-chat recall 0.31746732922789267 with `executionFailures:
+    0`, missed-recall cases 282/355, and wrong-recall/noise cases 390/400.
+    The gain is concentrated in instruction-following recall
+    (0.05625 -> 0.7333333333333333; zero-recall instruction cases 37 -> 7),
+    but Timeline Integration, temporal reasoning, preference following,
+    numerical precision, and full-run noise regress. This is partial Phase 63
+    progress only.
+  - seventh instruction-applicability rerun:
+    source-ordered instruction selection now requires a strong semantic alias
+    or concrete conditional-token match, so broad domain overlap such as
+    `weather` or `API` no longer makes unrelated user instructions applicable
+    to temporal/date calculation questions. The kept current-code diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-applicability-v3-current-20260518T220000`
+    reaches evidence-chat recall 0.32561286913399595 with
+    `executionFailures: 0`, missed-recall cases 280/355, and
+    wrong-recall/noise cases 389/400. This preserves and improves the
+    instruction lift (0.7583333333333333 recall, zero-recall instruction cases
+    6) while reducing the append-2 noise count by one case, but temporal,
+    timeline, and preference regressions remain unresolved.
 - Current Phase 62 evidence:
   - the accepted clean current-code full-500 close checkpoint is
     `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:

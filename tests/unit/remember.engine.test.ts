@@ -491,6 +491,79 @@ describe("remember engine", () => {
     });
   });
 
+  it("merges source-message provenance into exact extracted remember-always candidates", async () => {
+    const scope = { userId: "u-annotation-source-exact", sessionId: "s-1" };
+    const sourceMessage =
+      "[chat_id=130 time=unknown] Always include error status codes in responses when I ask about API error handling.";
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "exact-source-1",
+                kindHint: "fact",
+                explicitness: "explicit",
+                content: sourceMessage,
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "external_benchmark",
+                  tags: ["imported_conversation"],
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: sourceMessage,
+        },
+      ],
+      annotations: [
+        {
+          confirmed: true,
+          messageIndex: 0,
+          metadataPatch: {
+            attributes: {
+              chatId: 130,
+              originalRole: "user",
+            },
+            category: "external_benchmark",
+            tags: ["beam", "chat_id:130"],
+          },
+          remember: "always",
+          verified: true,
+        },
+      ],
+    });
+    const facts = await repositories.facts.listByScope(scope);
+    const preserved = facts.find((fact) => fact.content === sourceMessage);
+
+    expect(result.accepted).toBe(1);
+    expect(preserved?.tags).toEqual([
+      "imported_conversation",
+      "beam",
+      "chat_id:130",
+      "source_message",
+      "source_order",
+      "user_answer",
+    ]);
+    expect(preserved?.attributes).toMatchObject({
+      chatId: 130,
+      originalRole: "user",
+      sourceMessageIndex: 0,
+      sourceOrder: 130,
+    });
+  });
+
   it("does not let remember-always annotations bypass write policy", async () => {
     const scope = { userId: "u-annotation-policy", sessionId: "s-1" };
     const { engine } = createEngine({

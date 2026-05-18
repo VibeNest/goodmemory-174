@@ -67,6 +67,55 @@ complete for the representative trio, but the event-ordering answers still
 over-select noisy early/setup turns. Phase 63 remains active; the next open
 boundary is generic source-order noise pruning and ordered evidence selection,
 not another broad prompt-only pass.
+A fourth pass moves that pruning to the BEAM answer-context layer rather than
+the core recall selector: ordering questions now get a bounded source-ordered
+turn section, concrete action summaries, item-count hints, and no duplicate raw
+source-message record dump. The current-code full recall sanity
+`run-phase63-beam-100k-recall-diagnostic-rules-full-context-pruning-current-20260518T155045`
+still shows the full 100K rules-only surface is recall-limited:
+evidence-chat recall 0.2731205922403106, missed-recall cases 295/355,
+wrong-recall/noise cases 387/400, and `executionFailures: 0`. The latest
+same-three-case live slice
+`run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`
+reaches answer accuracy 3/3, evidence-chat recall 1.0, missed-recall cases
+0/3, wrong-recall/noise cases 2/3, and `executionFailures: 0`. This is a
+representative live-synthesis repair, not BEAM closure; the next open boundary
+is broadening beyond the initial trio and reducing full-slice missed recall and
+wrong-recall/noise.
+A fifth pass adds bounded source-ordered coverage for broad conversation-summary
+questions over imported source-message evidence. The current-code full recall
+diagnostic
+`run-phase63-beam-100k-recall-diagnostic-rules-full-source-summary-coverage16-current-20260518T180000`
+raises overall evidence-chat recall to 0.2787997683068106 with
+`executionFailures: 0`, missed-recall cases 295/355, and wrong-recall/noise
+cases 387/400. The gain is narrow but real: summarization recall moves from
+0.02071759259259259 to 0.08068883277216612 and missing summarization evidence
+ids drop from 276 to 263. This is still partial Phase 63 repair; the full
+surface remains recall-limited and noisy.
+A sixth pass fixes exact `remember(always)` source-message provenance and adds a
+bounded source-ordered instruction append path for guidance questions. The kept
+current-code full recall diagnostic
+`run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-append2-current-20260518T194500`
+raises overall evidence-chat recall to 0.31746732922789267 with
+`executionFailures: 0`, missed-recall cases 282/355, and wrong-recall/noise
+cases 390/400. The improvement is real but narrow: instruction-following recall
+moves from 0.05625 to 0.7333333333333333 and zero-recall instruction cases drop
+from 37 to 7, while Timeline Integration, temporal reasoning, preference
+following, numerical precision, and full-run noise regress. Phase 63 remains
+active; the next boundary is reducing the new noise/regression surface while
+preserving the instruction gain.
+A seventh pass tightens the instruction append path so it no longer treats broad
+domain overlap, such as `weather` or `API`, as enough to apply an unrelated user
+instruction to temporal/date calculation questions. The kept current-code full
+recall diagnostic
+`run-phase63-beam-100k-recall-diagnostic-rules-full-source-provenance-instruction-applicability-v3-current-20260518T220000`
+raises overall evidence-chat recall to 0.32561286913399595 with
+`executionFailures: 0`, missed-recall cases 280/355, and wrong-recall/noise
+cases 389/400. Compared with append-2, instruction-following recall improves
+from 0.7333333333333333 to 0.7583333333333333, zero-recall instruction cases
+drop from 7 to 6, and wrong-recall/noise drops by one case. This is still not
+BEAM closure: temporal reasoning stays at 0.3875, Timeline Integration stays at
+0, and preference following stays at 0.15384615384615385.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
@@ -105,8 +154,10 @@ the initial live-slice half
 (`run-phase63-beam-100k-live-slice-rules-initial3-escalated-20260518T014500Z`)
 are now done; the source-preservation pass and the follow-up contradiction /
 source-order-companion pass are also done under current code, but neither is
-sufficient for closure. The open boundary remains generic BEAM repair for noise
-reduction and answer synthesis after the improved retrieval surface.
+sufficient for closure. The ordered-context pruning pass now fixes the initial
+representative live trio, but the open boundary remains broader generic BEAM
+repair for full-slice noise reduction and recall hardening after the improved
+retrieval surface.
 
 Historical context: the prior full-500 execution blocker was clean after
 failed-row recovery:
