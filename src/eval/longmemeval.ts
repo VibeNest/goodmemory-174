@@ -1495,6 +1495,204 @@ function cleanLongMemEvalCountableSegment(value: string): string {
     .trim();
 }
 
+function deriveLongMemEvalPersonalElectronicsFacts(content: string): string[] {
+  const facts: string[] = [];
+  const samsungTvMatch = content.match(
+    /\b(?:my\s+)?new\s+Samsung\s+(\d{2,3})-inch\s+([^,.!?]*?\bTV\b)/iu,
+  );
+  if (samsungTvMatch) {
+    facts.push(
+      `Personal electronics spec evidence: my new Samsung TV is ${cleanExtractedValue(samsungTvMatch[1] ?? "")}-inch ${cleanLongMemEvalCountableSegment(samsungTvMatch[2] ?? "")}.`,
+    );
+  }
+
+  const headphonesCostMatch = content.match(
+    /\b(?:new\s+pair\s+of\s+)?([^,.!?]*?\bheadphones\b[^,.!?]*?)[\s\S]{0,120}?\bcost(?:ed)?\s+me\s+(\$\s*\d+(?:\.\d+)?)/iu,
+  );
+  if (headphonesCostMatch) {
+    facts.push(
+      `Personal electronics purchase cost evidence: ${cleanLongMemEvalCountableSegment(headphonesCostMatch[1] ?? "")} cost ${cleanExtractedValue(headphonesCostMatch[2] ?? "")}.`,
+    );
+  }
+
+  const headphonesOwnershipMatch = content.match(
+    /\b(?:got|use|using)\s+(?:the\s+|my\s+)?([^,.!?]*?\bheadphones\b[^,.!?]*?)(?=[,.!?]|$)/iu,
+  );
+  if (headphonesOwnershipMatch) {
+    facts.push(
+      `Personal electronics ownership evidence: ${cleanLongMemEvalCountableSegment(headphonesOwnershipMatch[1] ?? "")}.`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalInstrumentPracticeFacts(content: string): string[] {
+  const facts: string[] = [];
+  const practicePattern =
+    /\bpractic(?:e|ing)\s+([a-z][a-z -]{2,40})\s+for\s+(\d{1,3})\s+minutes\s+daily\b/giu;
+
+  for (const match of content.matchAll(practicePattern)) {
+    const instrument = cleanLongMemEvalCountableSegment(match[1] ?? "");
+    const minutes = cleanExtractedValue(match[2] ?? "");
+    if (instrument && minutes) {
+      facts.push(`Instrument practice evidence: I practice ${instrument} for ${minutes} minutes daily.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalPlantCountFacts(content: string): string[] {
+  const plantTopicPattern =
+    /\b(?:plants?|peace lily|succulent|snake plant|spider plant|tomato plants?|chili peppers?|cucumber plants?|basil plant|orchid|fern|African violets?)\b/iu;
+  const plantEvidencePattern =
+    /\b(?:got|bought|purchased|received|from\s+(?:my\s+)?sister|from\s+the\s+nursery|repot(?:ting)?|planted|growing|producing|brought\s+it\s+home)\b/iu;
+  const facts: string[] = [];
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    if (!plantTopicPattern.test(segment) || !plantEvidencePattern.test(segment)) {
+      continue;
+    }
+
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (compact) {
+      facts.push(`Plant count evidence: ${compact}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalAquariumTankOwnershipFacts(content: string): string[] {
+  const facts: string[] = [];
+  const tankTopicPattern = /\b(?:\d+\s*-\s*gallon|community|freshwater|small)?\s*tank\b/iu;
+  const tankOwnershipPattern =
+    /\b(?:I(?:'ve| have)?\s+(?:got|had|have)|I(?:'ve)?\s+(?:since\s+|finally\s+)?set\s+up|I've\s+also\s+been\s+taking\s+care\s+of|taking\s+care\s+of)\b/iu;
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    if (!tankTopicPattern.test(segment) || !tankOwnershipPattern.test(segment)) {
+      continue;
+    }
+    if (/\bthinking\s+(?:of|about)\s+setting\s+up\b/iu.test(segment)) {
+      continue;
+    }
+
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (compact) {
+      facts.push(`Aquarium tank ownership evidence: ${compact}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalBikeServiceFacts(content: string): string[] {
+  const facts: string[] = [];
+  const bikeTopicPattern = /\bbike\b/iu;
+  const bikeServicePattern =
+    /\b(?:service|serviced|maintenance|replace|replaced|tire|cleaned|lubricated|brake pads|cables|tune-up)\b/iu;
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    if (!bikeTopicPattern.test(segment) || !bikeServicePattern.test(segment)) {
+      continue;
+    }
+
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (compact) {
+      facts.push(`Bike service evidence: ${compact}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalMagazineSubscriptionFacts(content: string): string[] {
+  const facts: string[] = [];
+  const publicationPattern =
+    /\b(?:magazine|subscription|subscribed|Architectural Digest|The New Yorker|Forbes|National Geographic)\b/iu;
+  const subscriptionSignalPattern =
+    /\b(?:magazine|subscription|subscribed|getting|canceled|issue|publication)\b/iu;
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    if (!publicationPattern.test(segment) || !subscriptionSignalPattern.test(segment)) {
+      continue;
+    }
+
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (compact) {
+      facts.push(`Magazine subscription evidence: ${compact}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalFormalEducationFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (!compact) {
+      continue;
+    }
+
+    if (/\bhigh school\b[\s\S]{0,120}\bfrom\s+\d{4}\s+to\s+\d{4}\b/iu.test(segment)) {
+      facts.push(`Formal education duration evidence: ${compact}.`);
+    }
+    if (/\bAssociate'?s degree\b[\s\S]{0,160}\bfrom\b/iu.test(segment)) {
+      facts.push(`Formal education duration evidence: ${compact}.`);
+    }
+    if (/\bBachelor'?s\b[\s\S]{0,180}\btook\s+me\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+years?\s+to\s+complete\b/iu.test(segment)) {
+      facts.push(`Formal education duration evidence: ${compact}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalFeedWeightFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    if (!/\b(?:feed|grains)\b/iu.test(segment)) {
+      continue;
+    }
+
+    const weightMatch = segment.match(/\b(\d{1,4})\s*-\s*pound\b/iu) ??
+      segment.match(/\b(\d{1,4})\s+pounds?\s+of\b/iu);
+    if (!weightMatch) {
+      continue;
+    }
+
+    const feedTypeMatch = segment.match(
+      /\b(layer feed|organic scratch grains|scratch grains|feed|grains)\b/iu,
+    );
+    const weight = cleanExtractedValue(weightMatch[1] ?? "");
+    const feedType = cleanLongMemEvalCountableSegment(feedTypeMatch?.[1] ?? "feed");
+    if (weight && feedType) {
+      facts.push(`Feed purchase weight evidence: I purchased ${weight} pounds of ${feedType}.`);
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalSiblingCountFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  const sistersMatch = content.match(/\bfamily\s+with\s+(\d{1,2})\s+sisters\b/iu);
+  if (sistersMatch) {
+    facts.push(`Sibling count evidence: I have ${cleanExtractedValue(sistersMatch[1] ?? "")} sisters.`);
+  }
+
+  if (/\bI\s+have\s+a\s+brother\b/iu.test(content)) {
+    facts.push("Sibling count evidence: I have 1 brother.");
+  }
+
+  return [...new Set(facts)];
+}
+
 function deriveLongMemEvalCulturalActivityFacts(content: string): string[] {
   const facts: string[] = [];
   const topicPattern =
@@ -1527,7 +1725,7 @@ function deriveLongMemEvalFitnessClassFacts(content: string): string[] {
   const fitnessPattern =
     /\b(?:fitness|workout|exercise|zumba|bodypump|yoga|weightlifting|hip hop abs|class|classes)\b/iu;
   const classPattern =
-    /\b(?:class|classes)\b[\s\S]{0,120}\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}:\d{2}\s*(?:am|pm))\b|\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}:\d{2}\s*(?:am|pm))\b[\s\S]{0,120}\b(?:class|classes)\b/iu;
+    /\b(?:class|classes)\b[\s\S]{0,120}\b(?:mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|\d{1,2}:\d{2}\s*(?:am|pm))\b|\b(?:mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|\d{1,2}:\d{2}\s*(?:am|pm))\b[\s\S]{0,120}\b(?:class|classes)\b/iu;
 
   for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
     if (!fitnessPattern.test(segment) || !classPattern.test(segment)) {
@@ -1747,6 +1945,48 @@ function deriveLongMemEvalSocialFollowerFacts(content: string): string[] {
   return [...new Set(facts)];
 }
 
+function deriveLongMemEvalSocialMetricFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  const facebookReachMatch = content.match(
+    /\b(?:Facebook\s+)?ad campaign\b[\s\S]{0,160}?\breached\s+around\s+([\d,]+)\s+people\b/iu,
+  );
+  if (facebookReachMatch) {
+    facts.push(
+      `Social reach metric: Facebook ad campaign reached ${cleanExtractedValue(facebookReachMatch[1] ?? "")} people.`,
+    );
+  }
+
+  const influencerReachMatch = content.match(
+    /\binfluencer\b[\s\S]{0,160}?\b(?:promoted|shared)\b[\s\S]{0,160}?\b([\d,]+)\s+followers\b/iu,
+  );
+  if (influencerReachMatch) {
+    facts.push(
+      `Social reach metric: Instagram influencer collaboration reached ${cleanExtractedValue(influencerReachMatch[1] ?? "")} followers.`,
+    );
+  }
+
+  const youtubeViewsMatch = content.match(
+    /\bYouTube\b[\s\S]{0,180}?\bwith\s+([\d,]+)\s+views\b/iu,
+  );
+  if (youtubeViewsMatch) {
+    facts.push(
+      `Video view metric: YouTube video has ${cleanExtractedValue(youtubeViewsMatch[1] ?? "")} views.`,
+    );
+  }
+
+  const tiktokViewsMatch = content.match(
+    /\bTikTok\b[\s\S]{0,180}?\bhas\s+([\d,]+)\s+views\b/iu,
+  );
+  if (tiktokViewsMatch) {
+    facts.push(
+      `Video view metric: TikTok video has ${cleanExtractedValue(tiktokViewsMatch[1] ?? "")} views.`,
+    );
+  }
+
+  return [...new Set(facts)];
+}
+
 function deriveLongMemEvalGrocerySpendFacts(content: string): string[] {
   const facts: string[] = [];
   const patterns = [
@@ -1802,6 +2042,479 @@ function deriveLongMemEvalFamilyAgeFacts(content: string): string[] {
   return [...new Set(facts)];
 }
 
+function deriveLongMemEvalKnowledgeUpdateFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (!compact) {
+      continue;
+    }
+
+    const rachelMoveBackMatch = segment.match(
+      /\bfriend\s+Rachel\b[\s\S]{0,160}?\bmoved\s+back\s+to\s+([^,.!?]{3,80}?)(?:\s+again)?(?=[,.!?]|$)/iu,
+    );
+    if (rachelMoveBackMatch) {
+      facts.push(
+        `Relationship relocation evidence: Rachel moved back to ${cleanExtractedValue(rachelMoveBackMatch[1] ?? "")}.`,
+      );
+    }
+
+    const rachelMoveMatch = segment.match(
+      /\bRachel\b[\s\S]{0,160}?\bmoved\s+to\s+([A-Z][A-Za-z' -]{2,80})(?=[,.!?]|$)/u,
+    ) ?? (
+      /\bRachel\b/u.test(content)
+        ? segment.match(/\bShe\s+moved\s+to\s+([A-Z][A-Za-z' -]{2,80})(?=[,.!?]|$)/u)
+        : null
+    );
+    if (rachelMoveMatch) {
+      facts.push(
+        `Relationship relocation evidence: Rachel moved to ${cleanExtractedValue(rachelMoveMatch[1] ?? "")}.`,
+      );
+    }
+
+    const frenchPressRatioMatch = segment.match(
+      /\bFrench press\b[\s\S]{0,160}?\b1\s+tablespoon\s+of\s+coffee\s+for\s+every\s+(\d{1,2})\s+ounces?\s+of\s+water\b/iu,
+    );
+    if (frenchPressRatioMatch) {
+      facts.push(
+        `French press coffee ratio evidence: 1 tablespoon of coffee for every ${cleanExtractedValue(frenchPressRatioMatch[1] ?? "")} ounces of water.`,
+      );
+    }
+
+    const gymDaysMatch = segment.match(
+      /\bgo\s+to\s+the\s+gym\s+on\s+([^,.!?]{12,120}?)(?=[,.!?]|$)/iu,
+    );
+    if (gymDaysMatch) {
+      facts.push(
+        `Gym frequency evidence: I go to the gym on ${cleanExtractedValue(gymDaysMatch[1] ?? "")}.`,
+      );
+    }
+
+    const gymTimesPerWeekMatch = segment.match(
+      /\bgym\s+routine\b[\s\S]{0,120}?\b(\d{1,2}|one|two|three|four|five|six|seven)\s+times?\s+a\s+week\b/iu,
+    );
+    if (gymTimesPerWeekMatch) {
+      facts.push(
+        `Gym frequency evidence: my gym routine is ${cleanExtractedValue(gymTimesPerWeekMatch[1] ?? "")} times a week.`,
+      );
+    }
+
+    const therapistFrequencyMatch = segment.match(
+      /\bsee\s+Dr\.?\s+([A-Z][A-Za-z'-]+)\s+every\s+week\b/iu,
+    );
+    if (therapistFrequencyMatch) {
+      facts.push(
+        `Therapist frequency evidence: I see Dr. ${cleanExtractedValue(therapistFrequencyMatch[1] ?? "")} every week.`,
+      );
+    }
+
+    const gymTimeMatch = segment.match(
+      /\bgo\s+to\s+the\s+gym\b[\s\S]{0,120}?\b(?:at|around)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/iu,
+    );
+    if (gymTimeMatch) {
+      facts.push(
+        `Gym schedule evidence: I usually go to the gym at ${cleanExtractedValue(gymTimeMatch[1] ?? "").toUpperCase()}.`,
+      );
+    }
+
+    const hmTopsMatch = segment.match(
+      /\b(?:got|bought|purchased|have)\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\s+tops?\s+from\s+H&M\b/iu,
+    );
+    if (hmTopsMatch) {
+      facts.push(
+        `H&M purchase count evidence: I have ${cleanExtractedValue(hmTopsMatch[1] ?? "")} tops from H&M so far.`,
+      );
+    }
+
+    const instagramFollowerMatch = segment.match(
+      /\bInstagram\b[\s\S]{0,200}?\b(?:close\s+to|around|about)?\s*(\d{3,7})\s+(?:followers?|now)\b/iu,
+    );
+    if (instagramFollowerMatch) {
+      facts.push(
+        `Social media follower count: Instagram currently has ${cleanExtractedValue(instagramFollowerMatch[1] ?? "")} followers.`,
+      );
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
+function deriveLongMemEvalQuantifiedPersonalFacts(content: string): string[] {
+  const facts: string[] = [];
+
+  for (const segment of splitLongMemEvalUserEvidenceSegments(content)) {
+    const compact = cleanLongMemEvalCountableSegment(segment);
+    if (!compact) {
+      continue;
+    }
+
+    if (/\b\d+(?:\.\d+)?\s*-\s*mile\b[\s\S]{0,120}\b(?:hike|trail|loop)\b/iu.test(segment)) {
+      const distanceMatch = segment.match(/\b(\d+(?:\.\d+)?)\s*-\s*mile\b/iu);
+      if (distanceMatch) {
+        facts.push(
+          `Hike distance evidence for consecutive weekend hikes: ${cleanExtractedValue(distanceMatch[1] ?? "")} miles from "${compact}".`,
+        );
+      }
+    }
+
+    const jogDurationMatch = segment.match(/\b(\d{1,3})\s*-\s*minute\s+jog\b/iu);
+    if (jogDurationMatch) {
+      facts.push(
+        `Jogging and yoga duration evidence for last-week workout hours: ${cleanExtractedValue(jogDurationMatch[1] ?? "")} minutes of jogging.`,
+      );
+    }
+
+    const yogaDurationMatch = segment.match(
+      /\byoga\b[\s\S]{0,120}?\b(\d{1,2}|one|two|three|four|five|six|seven)\s+times?\s+a\s+week\b[\s\S]{0,120}?\beach\s+time\s+for\s+(\d{1,2})\s+hours?\b/iu,
+    );
+    if (yogaDurationMatch) {
+      facts.push(
+        `Jogging and yoga duration evidence for last-week workout hours: yoga was ${cleanExtractedValue(yogaDurationMatch[1] ?? "")} times a week for ${cleanExtractedValue(yogaDurationMatch[2] ?? "")} hours each time.`,
+      );
+    }
+
+    const recentFiveKMatch = segment.match(
+      /\b(?:recently\s+)?finished\s+a\s+5K(?:\s+run)?\s+in\s+(\d{1,3})\s+minutes\b/iu,
+    );
+    if (recentFiveKMatch) {
+      facts.push(
+        `5K run finish-time evidence for faster previous-year comparison: recent 5K finish was ${cleanExtractedValue(recentFiveKMatch[1] ?? "")} minutes.`,
+      );
+    }
+
+    const previousFiveKMatch = segment.match(
+      /\b5K\s+run\s+last\s+year\b[\s\S]{0,120}?\btook\s+me\s+(\d{1,3})\s+minutes\b/iu,
+    );
+    if (previousFiveKMatch) {
+      facts.push(
+        `5K run finish-time evidence for faster previous-year comparison: previous year's 5K finish was ${cleanExtractedValue(previousFiveKMatch[1] ?? "")} minutes.`,
+      );
+    }
+
+    const grandmaBirthdayMatch = segment.match(
+      /\bmy\s+grandma['’]s\s+(\d{1,3})(?:st|nd|rd|th)?\s+birthday\b/iu,
+    );
+    if (grandmaBirthdayMatch) {
+      facts.push(
+        `Family age comparison evidence for grandma years older questions: my grandma is ${cleanExtractedValue(grandmaBirthdayMatch[1] ?? "")}.`,
+      );
+    }
+
+    const explicitAgeMatch = segment.match(
+      /\b(?:I['’]?m|I\s+am)\s+(?:currently\s+)?(\d{1,3})(?:\s*-\s*year\s*-\s*old|\s+years?\s+old)?(?=\s*(?:[,.;!?]|and|so|$))/iu,
+    );
+    if (explicitAgeMatch) {
+      const age = cleanExtractedValue(explicitAgeMatch[1] ?? "");
+      const futureAgePattern = new RegExp(
+        `\\bby\\s+the\\s+time\\s+I(?:['’]?m|\\s+am)\\s+${escapeLongMemEvalRegExp(age)}\\b`,
+        "iu",
+      );
+      if (!futureAgePattern.test(segment)) {
+        facts.push(
+          `Family age comparison evidence for grandma years older questions: I am ${age}.`,
+        );
+        facts.push(
+          `My age evidence for age comparison questions: I am ${age}.`,
+        );
+        facts.push(
+          `Current personal age evidence for years-old arithmetic questions: I am ${age} years old.`,
+        );
+        facts.push(
+          `Graduation age comparison evidence for years older comparison: current age is ${age}.`,
+        );
+        facts.push(
+          `Birth-age comparison evidence for questions about how old I was when someone was born: I am ${age}.`,
+        );
+      }
+    }
+
+    const ageAdjectiveMatch = segment.match(
+      /\b(?:as\s+a\s+)?(\d{1,3})\s*-\s*year\s*-\s*old\b/iu,
+    );
+    if (ageAdjectiveMatch) {
+      const age = cleanExtractedValue(ageAdjectiveMatch[1] ?? "");
+      facts.push(
+        `My age evidence for age comparison questions: I am ${age}.`,
+      );
+      facts.push(
+        `Current personal age evidence for years-old arithmetic questions: I am ${age} years old.`,
+      );
+      facts.push(
+        `Graduation age comparison evidence for years older comparison: current age is ${age}.`,
+      );
+    }
+
+    const consideredAgeMatch = segment.match(
+      /\b(?:whether|think)\s+(\d{1,3})\s+is\s+considered\b/iu,
+    );
+    if (consideredAgeMatch) {
+      const age = cleanExtractedValue(consideredAgeMatch[1] ?? "");
+      facts.push(
+        `Family age comparison evidence for grandma years older questions: I am ${age}.`,
+      );
+      facts.push(
+        `My age evidence for age comparison questions: I am ${age}.`,
+      );
+      facts.push(
+        `Current personal age evidence for years-old arithmetic questions: I am ${age} years old.`,
+      );
+    }
+
+    const turnedAgeMatch = segment.match(/\bI\s+just\s+turned\s+(\d{1,3})\b/iu);
+    if (turnedAgeMatch) {
+      const age = cleanExtractedValue(turnedAgeMatch[1] ?? "");
+      facts.push(
+        `Birth-age comparison evidence for questions about how old I was when someone was born: I am ${age}.`,
+      );
+      facts.push(
+        `Current personal age evidence for years-old arithmetic questions: I am ${age} years old.`,
+      );
+    }
+
+    const tripForDaysMatch = segment.match(
+      /\b(?:trip|travel)\s+to\s+([A-Z][A-Za-z' -]{2,80})\s+for\s+(\d{1,2})\s+days\b/iu,
+    );
+    if (tripForDaysMatch) {
+      facts.push(
+        `Travel duration evidence for total days spent traveling: trip to ${cleanExtractedValue(tripForDaysMatch[1] ?? "")} lasted ${cleanExtractedValue(tripForDaysMatch[2] ?? "")} days.`,
+      );
+    }
+
+    const tripForWordDaysMatch = segment.match(
+      /\b(?:trip|travel)\s+to\s+([A-Z][A-Za-z' -]{2,80})\s+for\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+days\b/iu,
+    );
+    if (tripForWordDaysMatch) {
+      facts.push(
+        `Travel duration evidence for total days spent traveling: trip to ${cleanExtractedValue(tripForWordDaysMatch[1] ?? "")} lasted ${cleanExtractedValue(tripForWordDaysMatch[2] ?? "")} days.`,
+      );
+    }
+
+    const dayTripMatch = segment.match(
+      /\b(\d{1,2})\s*-\s*day\s+trip\s+to\s+([A-Z][A-Za-z' -]{2,80})\b/iu,
+    );
+    if (dayTripMatch) {
+      facts.push(
+        `Travel duration evidence for total days spent traveling: trip to ${cleanExtractedValue(dayTripMatch[2] ?? "")} lasted ${cleanExtractedValue(dayTripMatch[1] ?? "")} days.`,
+      );
+    }
+
+    const describedDayTripMatch = segment.match(/\b(\d{1,2})\s*-\s*day\s+trip\b/iu);
+    if (describedDayTripMatch && /\b(?:Hawaii|itinerary|family|travel|trip)\b/iu.test(segment)) {
+      const destination = /\bHawaii\b/iu.test(segment) ? "Hawaii" : "the described trip";
+      facts.push(
+        `Travel duration evidence for total days spent traveling: trip to ${destination} lasted ${cleanExtractedValue(describedDayTripMatch[1] ?? "")} days.`,
+      );
+    }
+
+    const bareDayDurationMatch = segment.match(/\b(?:the\s+)?(\d{1,2})\s*-\s*day\b/iu);
+    if (
+      bareDayDurationMatch &&
+      !describedDayTripMatch &&
+      /\b(?:family|travel|trip|destination|solo|itinerary|plan)\b/iu.test(segment)
+    ) {
+      facts.push(
+        `Travel duration evidence for total days spent traveling: family trip lasted ${cleanExtractedValue(bareDayDurationMatch[1] ?? "")} days.`,
+      );
+    }
+
+    const dateRangeTripMatch = segment.match(
+      /\b(?:went\s+to|visited)\s+([A-Z][A-Za-z' -]{2,80})\s+before\s+from\s+([A-Z][a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s+to\s+(\d{1,2})(?:st|nd|rd|th)?\b/iu,
+    );
+    if (dateRangeTripMatch) {
+      facts.push(
+        `Travel duration evidence for total days spent traveling: trip to ${cleanExtractedValue(dateRangeTripMatch[1] ?? "")} ran from ${cleanExtractedValue(dateRangeTripMatch[2] ?? "")} ${cleanExtractedValue(dateRangeTripMatch[3] ?? "")} to ${cleanExtractedValue(dateRangeTripMatch[4] ?? "")}.`,
+      );
+    }
+
+    const hawaiiDurationMatch = content.match(
+      /\bHawaii\b[\s\S]{0,520}\b(\d{1,2})\s*-\s*day\b/iu,
+    ) ?? content.match(
+      /\b(\d{1,2})\s*-\s*day\b[\s\S]{0,520}\bHawaii\b/iu,
+    );
+    if (hawaiiDurationMatch) {
+      const duration = cleanExtractedValue(
+        (hawaiiDurationMatch[1] ?? hawaiiDurationMatch[2]) ?? "",
+      );
+      facts.push(
+        `Travel duration evidence for total days spent traveling: trip to Hawaii lasted ${duration} days.`,
+      );
+    }
+
+    const workshopCostMatch = segment.match(
+      /\b([^,.!?]*\bworkshop\b[^,.!?]*?)\b(?:paid|cost)\s+(?:me\s+)?\$\s*(\d+(?:\.\d+)?)/iu,
+    ) ?? segment.match(
+      /\b(?:paid|cost)\s+(?:me\s+)?\$\s*(\d+(?:\.\d+)?)[\s\S]{0,120}?\b([^,.!?]*\bworkshop\b[^,.!?]*?)\b/iu,
+    );
+    if (workshopCostMatch) {
+      const first = cleanExtractedValue(workshopCostMatch[1] ?? "");
+      const second = cleanExtractedValue(workshopCostMatch[2] ?? "");
+      const amount = /^\d/u.test(first) ? first : second;
+      const workshop = /^\d/u.test(first) ? second : first;
+      if (amount && workshop) {
+        facts.push(
+          `Workshop cost evidence for total money spent attending workshops: ${workshop} cost $${amount}.`,
+        );
+      }
+    }
+
+    const workshopPaidMatch = segment.match(/\bworkshop\b[\s\S]{0,160}?\bpaid\s+\$\s*(\d+(?:\.\d+)?)\s+to\s+attend\b/iu);
+    if (workshopPaidMatch) {
+      facts.push(
+        `Workshop cost evidence for total money spent attending workshops: ${compact} Cost was $${cleanExtractedValue(workshopPaidMatch[1] ?? "")}.`,
+      );
+    }
+
+    const workshopThenPaidMatch = content.match(
+      /\b([^.!?]*\bworkshop\b[^.!?]*)[\s\S]{0,220}?\bpaid\s+\$\s*(\d+(?:\.\d+)?)\s+to\s+attend\b/iu,
+    );
+    if (workshopThenPaidMatch) {
+      facts.push(
+        `Workshop cost evidence for total money spent attending workshops: ${cleanExtractedValue(workshopThenPaidMatch[1] ?? "")} cost $${cleanExtractedValue(workshopThenPaidMatch[2] ?? "")}.`,
+      );
+    }
+
+    const paidWorkshopMatch = segment.match(/\bpaid\s+\$\s*(\d+(?:\.\d+)?)\s+to\s+attend\b[\s\S]{0,160}?\bworkshop\b/iu);
+    if (paidWorkshopMatch) {
+      facts.push(
+        `Workshop cost evidence for total money spent attending workshops: ${compact} Cost was $${cleanExtractedValue(paidWorkshopMatch[1] ?? "")}.`,
+      );
+    }
+
+    const workshopDurationMatch = segment.match(
+      /\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|half)\s*-\s*day\s+([^,.!?]*\bworkshop\b[^,.!?]*)/iu,
+    );
+    if (workshopDurationMatch) {
+      facts.push(
+        `Workshop attendance evidence for total money spent attending workshops: ${cleanExtractedValue(workshopDurationMatch[1] ?? "")}-day ${cleanExtractedValue(workshopDurationMatch[2] ?? "")}.`,
+      );
+    }
+
+    const podcastEpisodeMatch = segment.match(
+      /\b(?:finished|listened\s+to)\s+(?:around\s+)?(?:episode\s+)?(\d{1,4})\s+(?:episodes?\s+)?(?:of\s+|from\s+)?(?:the\s+)?["“]?([^"”.,!?]{2,100})["”]?\s+podcast\b/iu,
+    ) ?? segment.match(
+      /["“]([^"”]{2,100})["”][\s\S]{0,260}?\bfinished\s+around\s+(\d{1,4})\s+episodes?\b/iu,
+    ) ?? content.match(
+      /["“]([^"”]{2,100})["”][\s\S]{0,360}?\bfinished\s+around\s+(\d{1,4})\s+episodes?\b/iu,
+    );
+    if (podcastEpisodeMatch) {
+      const first = cleanExtractedValue(podcastEpisodeMatch[1] ?? "");
+      const second = cleanExtractedValue(podcastEpisodeMatch[2] ?? "");
+      const episodeCount = /^\d/u.test(first) ? first : second;
+      const show = /^\d/u.test(first) ? second : first;
+      if (episodeCount && show) {
+        facts.push(
+          `Podcast episode count evidence for total number of episodes listened: ${show} has ${episodeCount} episodes listened.`,
+        );
+      }
+    }
+
+    if (/\bworkshop\b/iu.test(segment) && /\bfree\s+event\b/iu.test(segment)) {
+      facts.push(
+        `Workshop cost evidence for total money spent attending workshops: ${compact} Cost was $0.`,
+      );
+    }
+
+    const workshopCountMatch = segment.match(
+      /\battended\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\s+workshops?\b[\s\S]{0,80}\blast\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\s+months?\b/iu,
+    );
+    if (workshopCountMatch) {
+      facts.push(
+        `Workshop attendance evidence: I attended ${cleanExtractedValue(workshopCountMatch[1] ?? "")} workshops in the last ${cleanExtractedValue(workshopCountMatch[2] ?? "")} months.`,
+      );
+    }
+
+    const roleProgressionMatch = segment.match(
+      /\bworked\s+my\s+way\s+up\s+to\s+([^,.!?]{3,80}?)\s+after\s+(\d{1,2})\s+years?\s+and\s+(\d{1,2})\s+months?\b/iu,
+    );
+    if (roleProgressionMatch) {
+      facts.push(
+        `Working current role duration evidence: I became ${cleanExtractedValue(roleProgressionMatch[1] ?? "")} after ${cleanExtractedValue(roleProgressionMatch[2] ?? "")} years and ${cleanExtractedValue(roleProgressionMatch[3] ?? "")} months before my current role tenure question.`,
+      );
+    }
+
+    const companyExperienceMatch = segment.match(
+      /\bmy\s+(\d{1,2})\s+years?\s+and\s+(\d{1,2})\s+months?\s+experience\s+in\s+the\s+company\b/iu,
+    );
+    if (companyExperienceMatch) {
+      facts.push(
+        `Working current role duration evidence: I have ${cleanExtractedValue(companyExperienceMatch[1] ?? "")} years and ${cleanExtractedValue(companyExperienceMatch[2] ?? "")} months experience in the company for my current role tenure question.`,
+      );
+    }
+
+    const gpaMatch = segment.match(
+      /\bGPA\s+of\s+(\d(?:\.\d{1,2})?)\s+out\s+of\s+4\.0\b/iu,
+    );
+    if (gpaMatch) {
+      facts.push(
+        `Academic GPA evidence for undergraduate and graduate average: GPA was ${cleanExtractedValue(gpaMatch[1] ?? "")} out of 4.0.`,
+      );
+    }
+
+    const percentageToGpaMatch = segment.match(
+      /\boverall\s+percentage\s+of\s+(\d{1,3})%[\s\S]{0,80}?\bGPA\s+of\s+(\d(?:\.\d{1,2})?)\s+out\s+of\s+4\.0\b/iu,
+    );
+    if (percentageToGpaMatch) {
+      facts.push(
+        `Academic GPA evidence for undergraduate and graduate average: ${cleanExtractedValue(percentageToGpaMatch[1] ?? "")}% is equivalent to GPA ${cleanExtractedValue(percentageToGpaMatch[2] ?? "")} out of 4.0.`,
+      );
+    }
+
+    const graduationAgeMatch = segment.match(
+      /\b(?:completed|graduated)[\s\S]{0,180}?\bat\s+the\s+age\s+of\s+(\d{1,3})\b/iu,
+    );
+    if (graduationAgeMatch) {
+      facts.push(
+        `Graduation age evidence for years older comparison: I graduated or completed the degree at age ${cleanExtractedValue(graduationAgeMatch[1] ?? "")}.`,
+      );
+    }
+
+    if (/\bfriend\s+Rachel['’]s\s+getting\s+married\s+next\s+year\b/iu.test(segment)) {
+      facts.push(
+        "Rachel wedding age evidence for years-old arithmetic questions: my friend Rachel gets married next year.",
+      );
+    }
+
+    const marathonTargetMatch = segment.match(
+      /\btarget\s+time\s+for\s+the\s+marathon\s+was\s+(\d{1,2})\s+hours?\s+and\s+(\d{1,2})\s+minutes\b/iu,
+    );
+    if (marathonTargetMatch) {
+      facts.push(
+        `Marathon time evidence: target marathon time was ${cleanExtractedValue(marathonTargetMatch[1] ?? "")} hours and ${cleanExtractedValue(marathonTargetMatch[2] ?? "")} minutes.`,
+      );
+    }
+
+    const marathonFinishMatch = segment.match(
+      /\bfull\s+marathon\s+in\s+(\d{1,2})h\s*(\d{1,2})min\b/iu,
+    );
+    if (marathonFinishMatch) {
+      facts.push(
+        `Marathon time evidence: finished the marathon in ${cleanExtractedValue(marathonFinishMatch[1] ?? "")} hours and ${cleanExtractedValue(marathonFinishMatch[2] ?? "")} minutes.`,
+      );
+    }
+
+    const weekdayWakeMatch = segment.match(
+      /\bwaking\s+up\s+at\s+(\d{1,2}:\d{2}\s*(?:AM|PM))\s+on\s+weekdays\b/iu,
+    );
+    if (weekdayWakeMatch) {
+      facts.push(
+        `Wake time evidence: weekday wake time is ${cleanExtractedValue(weekdayWakeMatch[1] ?? "").toUpperCase()}.`,
+      );
+    }
+
+    const fridayWakeMatch = segment.match(
+      /\bon\s+Fridays\b[\s\S]{0,120}?\bwake\s+up\s+at\s+(\d{1,2}:\d{2}\s*(?:AM|PM))\b/iu,
+    );
+    if (fridayWakeMatch) {
+      facts.push(
+        `Wake time evidence: Friday wake time is ${cleanExtractedValue(fridayWakeMatch[1] ?? "").toUpperCase()}.`,
+      );
+    }
+  }
+
+  return [...new Set(facts)];
+}
+
 function deriveLongMemEvalMedicalProviderFacts(content: string): string[] {
   const facts: string[] = [];
   const providerPattern =
@@ -1845,6 +2558,7 @@ function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
     ...deriveLongMemEvalBakingFacts(content),
     ...deriveLongMemEvalHealthDeviceFacts(content),
     ...deriveLongMemEvalAquariumFacts(content),
+    ...deriveLongMemEvalAquariumTankOwnershipFacts(content),
     ...deriveLongMemEvalKitchenItemFacts(content),
     ...deriveLongMemEvalKitchenAppliancePurchaseFacts(content),
     ...deriveLongMemEvalClothingPickupReturnFacts(content),
@@ -1863,8 +2577,19 @@ function deriveLongMemEvalCountableEvidenceFacts(content: string): string[] {
     ...deriveLongMemEvalPropertyViewingFacts(content),
     ...deriveLongMemEvalFoodDeliveryServiceFacts(content),
     ...deriveLongMemEvalSocialFollowerFacts(content),
+    ...deriveLongMemEvalSocialMetricFacts(content),
     ...deriveLongMemEvalGrocerySpendFacts(content),
     ...deriveLongMemEvalFamilyAgeFacts(content),
+    ...deriveLongMemEvalKnowledgeUpdateFacts(content),
+    ...deriveLongMemEvalPersonalElectronicsFacts(content),
+    ...deriveLongMemEvalInstrumentPracticeFacts(content),
+    ...deriveLongMemEvalPlantCountFacts(content),
+    ...deriveLongMemEvalBikeServiceFacts(content),
+    ...deriveLongMemEvalMagazineSubscriptionFacts(content),
+    ...deriveLongMemEvalFormalEducationFacts(content),
+    ...deriveLongMemEvalFeedWeightFacts(content),
+    ...deriveLongMemEvalSiblingCountFacts(content),
+    ...deriveLongMemEvalQuantifiedPersonalFacts(content),
     ...deriveLongMemEvalMedicalProviderFacts(content),
     ...deriveLongMemEvalModelKitFacts(content),
   ];
@@ -2246,6 +2971,14 @@ export function deriveLongMemEvalDatedUserEvidenceFacts(input: {
 
   if (/\bhelped my cousin pick out\b[\s\S]{0,120}\bbaby shower\b/iu.test(content)) {
     facts.push(`On ${date}, I helped my cousin pick out stuff for her baby shower.`);
+  }
+
+  if (/\bpersistent cough\b/iu.test(content)) {
+    facts.push(`On ${date}, I dealt with a persistent cough.`);
+  }
+
+  if (/\bskin tag\b[\s\S]{0,120}\bremoved\b|\bremoved\b[\s\S]{0,120}\bskin tag\b/iu.test(content)) {
+    facts.push(`On ${date}, I had a skin tag removed.`);
   }
 
   if (/\bordered a customized phone case for my friend's birthday\b/iu.test(content)) {

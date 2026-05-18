@@ -96,11 +96,41 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Active Research Slice
 
-- Phase 62 is active as the LongMemEval Sequential Hardening slice, following
-  the external proof order LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo.
-  It is internal research hardening, not a public LongMemEval claim.
+- Phase 62 LongMemEval is accepted as the first Sequential Benchmark Hardening
+  slice, following the external proof order LongMemEval -> BEAM ->
+  MemoryAgentBench -> LoCoMo. Phase 63 BEAM is now active as the next internal
+  hardening step. This remains internal research hardening, not a public
+  LongMemEval claim.
+- Current Phase 63 evidence:
+  - source intake records BEAM paper and Hugging Face dataset source, visible
+    `cc-by-sa-4.0` dataset license, Parquet upstream format, and an initial
+    100K-first local strategy
+  - synthetic smoke fixture and attribution are in
+    `fixtures/external-benchmarks/beam/beam_100k_smoke.json` and
+    `fixtures/external-benchmarks/ATTRIBUTION.md`
+  - `eval:phase-63` and `gate:phase-63` are package scripts for the BEAM smoke
+    harness
+  - local smoke run `run-phase63-beam-smoke-current` covers three synthetic
+    BEAM-shaped questions across `baseline-no-memory`, `baseline-full-context`,
+    `goodmemory-rules-only`, and `goodmemory-hybrid` with
+    `executionFailures: 0`
+  - local gate `run-20260518003000` is accepted through `bun run gate:phase-63`
+  - these are harness-integrity results only, not BEAM benchmark scores; the
+    first external-root BEAM comparison remains open
 - Current Phase 62 evidence:
+  - the accepted clean current-code full-500 close checkpoint is
+    `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
+    `goodmemory-hybrid` reaches 454/500, evidence-session recall 0.9590,
+    missed recall 35, wrong recall 6, wrong answers 46, and
+    `executionFailures: 0`; this exceeds the latest accepted full-context
+    reference at 451/500
   - smoke adapter and gate pass through `eval:phase-62` and `gate:phase-62`
+  - after provider recovery, one-case live probes passed through the current
+    Phase 62 full-mode runner: `baseline-no-memory`
+    `run-phase62-provider-probe-baseline-20260518T-provider-restored` and
+    `goodmemory-hybrid`
+    `run-phase62-provider-probe-hybrid-20260518T-provider-restored` both have
+    `executionFailures: 0`; the hybrid probe answers `e47becba` correctly
   - the initial 3-case cleaned-data slice is clean after generic
     fact-recall/noise-suppression repairs
   - the fixed 18-case type-balanced slice is clean for both GoodMemory
@@ -119,7 +149,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `run-phase62-longmemeval-recall-only-rules60-final-repairs-20260506T103600Z`
     records evidence-session recall `0.9292`, missed recall `10/60`, wrong
     recall `2/60`, and zero execution failures
-  - the current-code clean full-500 failed-row recovery merge
+  - the historical first current-code clean full-500 failed-row recovery merge
     `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-hybrid-r1-merged-20260509T022500Z`
     covers all 500 cleaned cases across all four profiles with
     `executionFailures: 0`. This closes the current-code execution blocker but
@@ -184,11 +214,12 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     73/133 missed), knowledge-update (0.7179 recall, 31/78 missed), and
     broader temporal-reasoning (0.7209 recall, 59/133 missed). This is a
     recall-only diagnostic, not answer-accuracy evidence.
-- Current Phase 62 blocker is full-500 LongMemEval quality repair, especially
-  remaining multi-session and temporal-reasoning families outside the focused
-  repaired slices. Repairs must stay generic and not target LongMemEval case ids
-  or dataset labels; this remains internal research evidence, not a
-  README-level public benchmark claim.
+- Current external-benchmark status: LongMemEval no longer blocks the sequence.
+  The remaining 46 LongMemEval wrong cases are still useful research input,
+  especially temporal-reasoning, multi-session, and single-session-assistant
+  synthesis, but they do not keep Phase 62 open. BEAM is the next benchmark
+  hardening phase; final public reporting remains deferred until LongMemEval,
+  BEAM, MemoryAgentBench, and LoCoMo are all complete.
 
 ## Prior Accepted Research Slice
 

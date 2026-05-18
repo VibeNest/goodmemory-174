@@ -126,6 +126,378 @@ const LONGMEMEVAL_EVENT_RECALL_CASES = [
   },
 ];
 
+const LONGMEMEVAL_UPDATE_LINEAGE_RECALL_CASES = [
+  {
+    answer: "the suburbs",
+    answer_session_ids: ["s-rachel-city", "s-rachel-suburbs"],
+    haystack_dates: ["2023/05/24", "2023/05/27"],
+    haystack_session_ids: ["s-rachel-city", "s-rachel-suburbs"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I'm also thinking about visiting my friend Rachel who recently moved to a new apartment in the city. She moved to Chicago.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "My friend Rachel actually just moved back to the suburbs again, so I was thinking of somewhere not too far from a major city.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "Where did Rachel move to after her recent relocation?",
+    question_date: "2023/05/28",
+    question_id: "q-rachel-relocation-lineage",
+    question_type: "knowledge-update",
+  },
+  {
+    answer: "less water",
+    answer_session_ids: ["s-french-press-old", "s-french-press-new"],
+    haystack_dates: ["2023/02/11", "2023/06/30"],
+    haystack_session_ids: ["s-french-press-old", "s-french-press-new"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I've been experimenting with my French press and I've found that 1 tablespoon of coffee for every 6 ounces of water is the perfect ratio for me.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've got my French press ratio down to a science: 1 tablespoon of coffee for every 5 ounces of water.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "For the coffee-to-water ratio in my French press, did I switch to more water per tablespoon of coffee, or less?",
+    question_date: "2023/07/01",
+    question_id: "q-french-press-ratio-lineage",
+    question_type: "knowledge-update",
+  },
+  {
+    answer: "Yes",
+    answer_session_ids: ["s-gym-old", "s-gym-new"],
+    haystack_dates: ["2023/06/01", "2023/08/15"],
+    haystack_session_ids: ["s-gym-old", "s-gym-new"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I don't actually work out on Mondays, Wednesdays, and Fridays. I go to the gym on Tuesdays, Thursdays, and Saturdays.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm thinking of rewarding myself with a post-workout smoothie on Saturday, since I've been consistent with my gym routine - four times a week, actually.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "Do I go to the gym more frequently than I did previously?",
+    question_date: "2023/08/16",
+    question_id: "q-gym-frequency-lineage",
+    question_type: "knowledge-update",
+  },
+];
+
+const LONGMEMEVAL_QUANTIFIED_PERSONAL_RECALL_CASES = [
+  {
+    answer: "8 miles",
+    answer_session_ids: ["s-hike-valley", "s-hike-red-rock"],
+    haystack_dates: ["2023/05/20", "2023/05/27"],
+    haystack_session_ids: ["s-hike-valley", "s-hike-red-rock"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "By the way, I've been enjoying the outdoors a lot lately, just did a 3-mile loop trail at Valley of Fire State Park last weekend.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I just got back from an amazing 5-mile hike at Red Rock Canyon two weekends ago - the views from the top of the ridge were incredible!",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "What is the total distance of the hikes I did on two consecutive weekends?",
+    question_date: "2023/05/28",
+    question_id: "q-hike-distance-total",
+    question_type: "multi-session",
+  },
+  {
+    answer: "10 minutes",
+    answer_session_ids: ["s-5k-current", "s-5k-previous"],
+    haystack_dates: ["2023/05/20", "2023/05/27"],
+    haystack_session_ids: ["s-5k-current", "s-5k-previous"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I just got back into running and recently finished a 5K in 35 minutes.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've done a 5K run last year, but it took me 45 minutes to complete.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How much faster did I finish the 5K run compared to my previous year's time?",
+    question_date: "2023/05/28",
+    question_id: "q-5k-time-comparison",
+    question_type: "multi-session",
+  },
+  {
+    answer: "43",
+    answer_session_ids: ["s-grandma-age", "s-my-age"],
+    haystack_dates: ["2023/05/20", "2023/05/27"],
+    haystack_session_ids: ["s-grandma-age", "s-my-age"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "My grandma's 75th birthday celebration at my aunt's house was really inspiring.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I'm still getting used to being in my 30s, and I was wondering whether 32 is considered young or old.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many years older is my grandma than me?",
+    question_date: "2023/05/28",
+    question_id: "q-grandma-age-difference",
+    question_type: "multi-session",
+  },
+  {
+    answer: "1 year and 5 months",
+    answer_session_ids: ["s-role-promotion", "s-company-tenure"],
+    haystack_dates: ["2023/05/27", "2023/05/29"],
+    haystack_session_ids: ["s-role-promotion", "s-company-tenure"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I've been in marketing for a while now, started as a Marketing Coordinator and worked my way up to Senior Marketing Specialist after 2 years and 4 months.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I've been thinking about my 3 years and 9 months experience in the company and how it helps my current role.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How long have I been working in my current role?",
+    question_date: "2023/05/30",
+    question_id: "q-current-role-tenure",
+    question_type: "multi-session",
+  },
+  {
+    answer: "15 days",
+    answer_session_ids: ["s-nyc-trip", "s-hawaii-trip"],
+    haystack_dates: ["2023/05/21", "2023/05/24"],
+    haystack_session_ids: ["s-nyc-trip", "s-hawaii-trip"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I recently got back from a solo trip to New York City for five days and I was able to save a lot by staying at a hostel.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "With my family, we had to plan everything out for the 10-day trip so far in advance, and the Hawaii itinerary was hard to change.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many days did I spend in total traveling in Hawaii and in New York City?",
+    question_date: "2023/05/30",
+    question_id: "q-travel-days-total",
+    question_type: "multi-session",
+  },
+  {
+    answer: "3.83",
+    answer_session_ids: ["s-grad-gpa", "s-undergrad-gpa"],
+    haystack_dates: ["2023/05/24", "2023/05/30"],
+    haystack_session_ids: ["s-grad-gpa", "s-undergrad-gpa"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I recently completed my Master's degree in Data Science from the University of Illinois at Urbana-Champaign, where I maintained a GPA of 3.8 out of 4.0.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I graduated with a First-Class distinction in Computer Science from the University of Mumbai, with an overall percentage of 83%, equivalent to a GPA of 3.86 out of 4.0.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "What is the average GPA of my undergraduate and graduate studies?",
+    question_date: "2023/05/31",
+    question_id: "q-average-gpa",
+    question_type: "multi-session",
+  },
+  {
+    answer: "6.5 hours",
+    answer_session_ids: ["s-jog", "s-yoga-duration"],
+    haystack_dates: ["2023/05/20", "2023/05/22"],
+    haystack_session_ids: ["s-jog", "s-yoga-duration"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I went for a 30-minute jog around the neighborhood on Saturday, and I'd like to keep a record of that.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I used to practice yoga three times a week, each time for 2 hours, but I've been slacking off this month.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many hours of jogging and yoga did I do last week?",
+    question_date: "2023/05/24",
+    question_id: "q-jog-yoga-hours",
+    question_type: "multi-session",
+  },
+  {
+    answer: "$700",
+    answer_session_ids: ["s-digital-marketing-workshop", "s-writing-workshop"],
+    haystack_dates: ["2023/02/26", "2023/02/27"],
+    haystack_session_ids: ["s-digital-marketing-workshop", "s-writing-workshop"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I just attended a digital marketing workshop at the city convention center on March 15-16, and it was really helpful. I paid $500 to attend, and it was worth it!",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I attended a two-day writing workshop at a literary festival. I paid $200 to attend, and it was really worth it.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How much total money did I spend on attending workshops?",
+    question_date: "2023/03/01",
+    question_id: "q-workshop-cross-sentence-cost",
+    question_type: "multi-session",
+  },
+  {
+    answer: "27 episodes",
+    answer_session_ids: ["s-how-i-built-this", "s-my-favorite-murder"],
+    haystack_dates: ["2023/05/29", "2023/05/30"],
+    haystack_session_ids: ["s-how-i-built-this", "s-my-favorite-murder"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "I've been loving the \"How I Built This\" podcast lately. I've finished around 15 episodes so far and I really enjoy the founders' journeys.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I listened to episode 12 of the \"My Favorite Murder\" podcast, and it was memorable.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question:
+      "What is the total number of episodes I've listened to from 'How I Built This' and 'My Favorite Murder'?",
+    question_date: "2023/05/31",
+    question_id: "q-podcast-cross-sentence-episodes",
+    question_type: "multi-session",
+  },
+  {
+    answer: "7 years",
+    answer_session_ids: ["s-current-age", "s-graduation-age"],
+    haystack_dates: ["2023/05/25", "2023/05/26"],
+    haystack_session_ids: ["s-current-age", "s-graduation-age"],
+    haystack_sessions: [
+      [
+        {
+          content:
+            "As a 32-year-old Digital Marketing Specialist, I believe this certification will help prepare me for future career goals.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+      [
+        {
+          content:
+            "I have a Bachelor's degree in Business Administration, which I completed at the age of 25.",
+          has_answer: true,
+          role: "user",
+        },
+      ],
+    ],
+    question: "How many years older am I than when I graduated from college?",
+    question_date: "2023/05/27",
+    question_id: "q-graduation-current-age-difference",
+    question_type: "multi-session",
+  },
+];
+
 const LONGMEMEVAL_ASSISTANT_EVIDENCE_CASES = [
   {
     answer: "Admon was assigned to the 8 am - 4 pm Day Shift on Sundays.",
@@ -2046,6 +2418,81 @@ describe("LongMemEval adapter", () => {
     ]);
   });
 
+  it("retrieves update lineage evidence before and after a current-state change", async () => {
+    const report = await runLongMemEvalRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-longmemeval-update-lineage-recall",
+      },
+      {
+        memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
+          createMemory: createLongMemEvalMemoryFactory(createGoodMemory),
+          runId: "run-longmemeval-update-lineage-recall",
+        }),
+        mkdir: async () => {},
+        readFile: async () =>
+          JSON.stringify(LONGMEMEVAL_UPDATE_LINEAGE_RECALL_CASES),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(
+      report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
+    ).toEqual([
+      ["s-rachel-city", "s-rachel-suburbs"],
+      ["s-french-press-new", "s-french-press-old"],
+      ["s-gym-new", "s-gym-old"],
+    ]);
+    expect(report.summary.evidenceSessionRecall).toBe(1);
+    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.wrongRecallCases).toBe(0);
+  });
+
+  it("retrieves quantified personal evidence for multi-session arithmetic questions", async () => {
+    const report = await runLongMemEvalRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-longmemeval-quantified-personal-recall",
+      },
+      {
+        memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
+          createMemory: createLongMemEvalMemoryFactory(createGoodMemory),
+          runId: "run-longmemeval-quantified-personal-recall",
+        }),
+        mkdir: async () => {},
+        readFile: async () =>
+          JSON.stringify(LONGMEMEVAL_QUANTIFIED_PERSONAL_RECALL_CASES),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.evidenceSessionRecall).toBe(1);
+    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.wrongRecallCases).toBe(0);
+    expect(
+      report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
+    ).toEqual([
+      ["s-hike-red-rock", "s-hike-valley"],
+      ["s-5k-current", "s-5k-previous"],
+      ["s-grandma-age", "s-my-age"],
+      ["s-company-tenure", "s-role-promotion"],
+      ["s-hawaii-trip", "s-nyc-trip"],
+      ["s-grad-gpa", "s-undergrad-gpa"],
+      ["s-jog", "s-yoga-duration"],
+      ["s-digital-marketing-workshop", "s-writing-workshop"],
+      ["s-how-i-built-this", "s-my-favorite-murder"],
+      ["s-current-age", "s-graduation-age"],
+    ]);
+  });
+
   it("derives dated event evidence from LongMemEval temporal user turns", async () => {
     const report = await runLongMemEvalRecallDiagnostic(
       {
@@ -3210,6 +3657,59 @@ describe("LongMemEval adapter", () => {
     expect(facts).toContain("Kitchen appliance I bought or got: smoker.");
   });
 
+  it("derives compact remaining personal count evidence from verified user turns", () => {
+    const derive = (content: string) =>
+      deriveLongMemEvalUserEvidenceFacts({
+        content,
+        date: "2023/05/30",
+      });
+    const facts = [
+      ...derive(
+        "I actually just set up my new Samsung 55-inch 4K smart TV on Saturday.",
+      ),
+      ...derive(
+        "I've been practicing guitar for 30 minutes daily, and it's been helping me progress nicely.",
+      ),
+      ...derive(
+        "I'm also thinking of repotting my spider plant, as the potting mix is getting a bit old.",
+      ),
+      ...derive(
+        "I've also been taking care of a small 1-gallon tank that I set up for a friend's kid, which has a few guppies and some plants.",
+      ),
+      ...derive(
+        "My road bike has been running great since I cleaned and lubricated the chain on March 2nd.",
+      ),
+      ...derive(
+        "I'm also getting Architectural Digest, which I love for home decor inspiration.",
+      ),
+      ...derive(
+        "I graduated with a Bachelor's in Computer Science from UCLA in 2020, which took me four years to complete.",
+      ),
+      ...derive(
+        "I got a 50-pound batch of layer feed, and I'm trying to track my expenses for the farm.",
+      ),
+      ...derive(
+        "I come from a family with 3 sisters, so I've always had a strong female presence in my life.",
+      ),
+    ];
+
+    expect(facts).toContain(
+      "Personal electronics spec evidence: my new Samsung TV is 55-inch 4K smart TV.",
+    );
+    expect(facts).toContain(
+      "Instrument practice evidence: I practice guitar for 30 minutes daily.",
+    );
+    expect(facts).toContainEqual(expect.stringContaining("Plant count evidence:"));
+    expect(facts).toContainEqual(expect.stringContaining("Aquarium tank ownership evidence:"));
+    expect(facts).toContainEqual(expect.stringContaining("Bike service evidence:"));
+    expect(facts).toContainEqual(expect.stringContaining("Magazine subscription evidence:"));
+    expect(facts).toContainEqual(expect.stringContaining("Formal education duration evidence:"));
+    expect(facts).toContain(
+      "Feed purchase weight evidence: I purchased 50 pounds of layer feed.",
+    );
+    expect(facts).toContain("Sibling count evidence: I have 3 sisters.");
+  });
+
   it("derives dated guided-tour evidence for Modern Art Museum wording", () => {
     const facts = deriveLongMemEvalDatedUserEvidenceFacts({
       content:
@@ -3614,6 +4114,222 @@ describe("LongMemEval adapter", () => {
         "s-grocery-walmart",
       ],
       ["s-age-grandparents", "s-age-parents", "s-age-self"],
+    ]);
+  });
+
+  it("recalls remaining personal evidence families from answer sessions", async () => {
+    const cases = [
+      {
+        answer:
+          "You did not mention this information. You mentioned practicing guitar every day, but not violin.",
+        answer_session_ids: ["s-guitar-practice"],
+        haystack_dates: ["2023/05/22"],
+        haystack_session_ids: ["s-guitar-practice"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I'm looking to improve my guitar playing. By the way, I've been practicing guitar for 30 minutes daily, and it's been helping me progress nicely.",
+              has_answer: false,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How much time do I dedicate to practicing violin every day?",
+        question_date: "2023/05/31",
+        question_id: "q-violin-practice-abstention",
+        question_type: "single-session-user",
+      },
+      {
+        answer: "3",
+        answer_session_ids: ["s-community-tank", "s-betta-tank", "s-friend-kid-tank"],
+        haystack_dates: ["2023/05/21", "2023/05/23", "2023/05/27"],
+        haystack_session_ids: ["s-community-tank", "s-betta-tank", "s-friend-kid-tank"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've finally set up my 20-gallon freshwater community tank, which I've named Amazonia, and it's been doing well so far.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I have a 5-gallon tank with a solitary betta fish named Finley, which I got from my cousin.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I've also been taking care of a small 1-gallon tank that I set up for a friend's kid, which has a few guppies and some plants.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How many tanks do I currently have, including the one I set up for my friend's kid?",
+        question_date: "2023/05/31",
+        question_id: "q-current-tank-count",
+        question_type: "multi-session",
+      },
+      {
+        answer: "2",
+        answer_session_ids: [
+          "s-new-yorker-current",
+          "s-architectural-digest",
+          "s-forbes-canceled",
+          "s-national-geographic-issue",
+        ],
+        haystack_dates: ["2023/04/01", "2023/04/01", "2023/04/01", "2023/04/01"],
+        haystack_session_ids: [
+          "s-new-yorker-current",
+          "s-architectural-digest",
+          "s-forbes-canceled",
+          "s-national-geographic-issue",
+        ],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've been loving my subscription to The New Yorker magazine, which I subscribed to in early February.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I'm also getting Architectural Digest, which I love for home decor inspiration.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I just canceled my Forbes magazine subscription in early March because I wasn't finding the articles that interesting.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I remember buying my last National Geographic issue on my way back from the gym on March 15th.",
+              has_answer: false,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How many magazine subscriptions do I currently have?",
+        question_date: "2023/04/02",
+        question_id: "q-current-magazine-subscription-count",
+        question_type: "multi-session",
+      },
+      {
+        answer: "4 days",
+        answer_session_ids: ["s-yoga-wednesdays", "s-zumba-weightlifting"],
+        haystack_dates: ["2023/05/26", "2023/05/27"],
+        haystack_session_ids: ["s-yoga-wednesdays", "s-zumba-weightlifting"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I've been trying to mix up my routine and recently started a yoga class on Wednesdays, which has been really helpful.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I attend Zumba classes on Tuesdays and Thursdays at 6:30 pm, and a weightlifting class on Saturdays at 10 am.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+        ],
+        question: "How many days a week do I attend fitness classes?",
+        question_date: "2023/05/31",
+        question_id: "q-fitness-class-days",
+        question_type: "multi-session",
+      },
+      {
+        answer:
+          "The information provided is not enough. You mentioned purchasing headphones, but you did not mention the iPad.",
+        answer_session_ids: ["s-headphones-cost", "s-headphones-no-ipad"],
+        haystack_dates: ["2023/05/25", "2023/05/29"],
+        haystack_session_ids: ["s-headphones-cost", "s-headphones-no-ipad"],
+        haystack_sessions: [
+          [
+            {
+              content:
+                "I recently got a new pair of Sony WH-1000XM4 headphones that I use for my daily commute. The headphones costed me $378.",
+              has_answer: true,
+              role: "user",
+            },
+          ],
+          [
+            {
+              content:
+                "I got the Sony WH-1000XM4 wireless noise-cancelling headphones. They're amazing, and I've been using them during my daily commute.",
+              has_answer: false,
+              role: "user",
+            },
+          ],
+        ],
+        question: "What is the total cost of my recently purchased headphones and the iPad?",
+        question_date: "2023/05/31",
+        question_id: "q-headphones-ipad-cost-abstention",
+        question_type: "multi-session",
+      },
+    ];
+
+    const report = await runLongMemEvalRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-longmemeval-remaining-personal-evidence",
+      },
+      {
+        memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
+          createMemory: () =>
+            createGoodMemory({
+              storage: {
+                provider: "memory",
+              },
+            }),
+          runId: "run-longmemeval-remaining-personal-evidence",
+        }),
+        mkdir: async () => {},
+        readFile: async () => JSON.stringify(cases),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.summary.evidenceSessionRecall).toBe(1);
+    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.wrongRecallCases).toBe(0);
+    expect(
+      report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
+    ).toEqual([
+      ["s-guitar-practice"],
+      ["s-betta-tank", "s-community-tank", "s-friend-kid-tank"],
+      [
+        "s-architectural-digest",
+        "s-forbes-canceled",
+        "s-national-geographic-issue",
+        "s-new-yorker-current",
+      ],
+      ["s-yoga-wednesdays", "s-zumba-weightlifting"],
+      ["s-headphones-cost", "s-headphones-no-ipad"],
     ]);
   });
 

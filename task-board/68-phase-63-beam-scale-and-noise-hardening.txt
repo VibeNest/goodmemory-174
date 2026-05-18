@@ -1,0 +1,154 @@
+Phase 63: BEAM Scale And Noise Hardening
+========================================
+
+Status
+------
+
+[WIP] Phase 63 starts the BEAM leg of the sequential external benchmark
+hardening plan after Phase 62 LongMemEval closed with clean internal evidence.
+
+This phase is internal research hardening, not the final public benchmark
+report. It should carry forward the generic LongMemEval repairs while testing
+GoodMemory under BEAM's larger-scale context, noise, and retrieval-stability
+pressure.
+
+
+Driver
+------
+
+The selected external benchmark order remains:
+
+1. LongMemEval
+2. BEAM
+3. MemoryAgentBench
+4. LoCoMo
+
+BEAM goes second because LongMemEval has now proven the long-term QA and
+multi-session memory loop can beat the latest accepted full-context reference
+on the current internal harness. BEAM should stress the next failure mode:
+large context scale, distractor/noise filtering, token budget pressure, and
+recall stability under many irrelevant memories.
+
+
+Accepted Scope
+--------------
+
+- Identify and record the authoritative BEAM upstream source, license, data
+  access path, and benchmark task shape.
+- Add small synthetic smoke fixtures that match BEAM's shape without vendoring
+  full upstream data.
+- Add an external `--benchmark-root` full-run adapter, following the Phase 62
+  LongMemEval pattern.
+- Compare at least:
+  - `baseline-no-memory`
+  - `baseline-full-context`
+  - `goodmemory-rules-only`
+  - `goodmemory-hybrid`
+- Track answer correctness, evidence/session recall where applicable,
+  distractor/noise selection, token/context pressure, and execution failures.
+- Produce a BEAM miss-case analysis before changing GoodMemory behavior.
+
+
+Out Of Scope
+------------
+
+- final public benchmark report
+- MemoryAgentBench or LoCoMo adapters
+- README-level claim that GoodMemory is strong on BEAM
+- vendoring full BEAM data
+- benchmark-specific runtime hacks
+- public API or public config widening
+
+
+Tasks
+-----
+
+[DONE] P63-T001 Identify BEAM source, license, data format, and local full-run
+  requirements.
+[DONE] P63-T002 Add BEAM synthetic smoke fixtures and attribution.
+[DONE] P63-T003 Add BEAM adapter/report contract and smoke runner.
+[DONE] P63-T004 Add BEAM gate for smoke harness integrity.
+[WIP] P63-T005 Run an initial full BEAM comparison through external
+  `--benchmark-root`.
+[TODO] P63-T006 Write BEAM miss-case analysis grouped by scale/noise/token
+  pressure and recall/answer failures.
+[TODO] P63-T007 Implement only generic GoodMemory repairs from BEAM misses and
+  rerun BEAM before moving to MemoryAgentBench.
+
+
+Commands
+--------
+
+```text
+bun run eval:phase-63
+bun run gate:phase-63
+
+# Full/external root contract, currently for JSON exports of the BEAM 100K split.
+bun run eval:phase-63 -- --mode full --benchmark-root /path/to/BEAM-json-export --scale 100K
+```
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt`
+
+
+Source Intake
+-------------
+
+- Paper:
+  Tavakoli et al., "Beyond a Million Tokens: Benchmarking and Enhancing
+  Long-Term Memory in LLMs", arXiv:2510.27246. The paper introduces BEAM as
+  100 long coherent conversations with 2,000 validated probing questions and
+  conversations up to 10M tokens.
+- Dataset:
+  `https://huggingface.co/datasets/Mohammadta/BEAM`
+  - license: `cc-by-sa-4.0`
+  - format: Parquet
+  - splits visible on Hugging Face: `100K` (20 rows), `500K` (35 rows), and
+    `1M` (35 rows), 90 rows total
+  - useful columns include `conversation_id`, `conversation_seed`,
+    `narratives`, `user_profile`, `conversation_plan`, `user_questions`,
+    `chat`, and `probing_questions`
+- 10M dataset:
+  `https://huggingface.co/datasets/Mohammadta/BEAM-10M`
+- Initial adapter strategy:
+  start with the 100K split for smoke/full-run shape validation, then extend to
+  500K/1M and only then decide whether 10M is feasible for local research
+  runs. Keep all full upstream files external to the repo.
+
+
+Smoke Harness Evidence
+----------------------
+
+- Synthetic shape-compatible fixture:
+  `fixtures/external-benchmarks/beam/beam_100k_smoke.json`
+- Attribution:
+  `fixtures/external-benchmarks/ATTRIBUTION.md`
+- Adapter/report contract:
+  `src/eval/beam.ts`
+- Runner and gate:
+  `scripts/run-phase-63-eval.ts`, `scripts/run-phase-63-gate.ts`
+- Accepted local smoke run:
+  `run-phase63-beam-smoke-current`
+  - 3 synthetic questions across specific, preference, and abstention cases
+  - four profiles compared: `baseline-no-memory`, `baseline-full-context`,
+    `goodmemory-rules-only`, `goodmemory-hybrid`
+  - `executionFailures: 0`
+- Accepted local gate:
+  `run-20260518003000`, status `accepted`
+- Verification:
+  `bun test tests/unit/beam.test.ts tests/unit/run-phase-63.script.test.ts tests/unit/run-phase-63.gate.test.ts`
+  and `bun run gate:phase-63`
+
+
+Current Boundary
+----------------
+
+P63-T001 through P63-T004 are complete for source intake, synthetic fixture,
+smoke report contract, package scripts, and smoke gate. This proves the local
+BEAM harness shape only; it is not a BEAM score. P63-T005 now needs the first
+external-root comparison. The current runner can consume JSON exports named
+`beam_100k.json` or `100K.json`; direct Parquet ingestion or a conversion
+workflow remains part of the full-run setup.

@@ -54,6 +54,7 @@ Read and execute these current/recent phase files in order:
 1. 65-phase-60-implicitmembench-overall-priming-protocol.txt
 2. 66-phase-61-priming-abstraction-and-contamination-safe-output.txt
 3. 67-phase-62-longmemeval-sequential-hardening.txt
+4. 68-phase-63-beam-scale-and-noise-hardening.txt
 
 For older phases, open the specific numbered phase file only when a task names
 that phase or a current document points to a specific archived gate/report.
@@ -78,25 +79,37 @@ Recent Accepted Boundary
 
 Active Phase
 ------------
-- Phase 62 is active as the LongMemEval sequential hardening slice.
-- Entrypoint: `task-board/67-phase-62-longmemeval-sequential-hardening.txt`
-- Breakdown: `task-board/phase-62-longmemeval-sequential-hardening/00-README.txt`
+- Phase 62 LongMemEval is accepted as the first sequential external benchmark
+  hardening slice; Phase 63 BEAM is now active.
+- Current entrypoint: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`
+- Current breakdown:
+  `task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt`
+- Previous accepted entrypoint:
+  `task-board/67-phase-62-longmemeval-sequential-hardening.txt`
 - External benchmark order: LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo.
-- Current accepted tooling: `eval:phase-62`, `gate:phase-62`, and
-  `eval:phase-62-recall-diagnostic`.
-- Current live status: fixed 18-case and repaired 60-case slices are clean:
-  post-repair rules-only live rerun now reaches 60/60, and
-  post-household-issue hybrid live rerun now reaches 60/60.
-- Current blocker: Phase 62 remains WIP. The current-code full 500-case LongMemEval recovery
-  `run-phase62-longmemeval-full500-current-after-generic-count-gpt55-hybrid-r1-merged-20260509T022500Z`
-  has `executionFailures: 0` across all four profiles and 500 cases, but
-  quality remains below the full-context baseline: baseline-full-context
-  461/500, goodmemory-rules-only 363/500, goodmemory-hybrid 361/500. Do not
-  open BEAM until the remaining gap is repaired or explicitly deferred.
+- Current accepted tooling: `eval:phase-62`, `gate:phase-62`,
+  `eval:phase-62-recall-diagnostic`, `eval:phase-63`, and `gate:phase-63`.
+- Accepted LongMemEval close checkpoint:
+  `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`
+  has `goodmemory-hybrid` at 454/500, evidence-session recall 0.9590, missed
+  recall 35, wrong recall 6, wrong answers 46, and `executionFailures: 0`.
+  This exceeds the latest accepted full-context reference at 451/500 and
+  unblocks BEAM as the next internal hardening phase. It remains internal
+  research evidence, not a public benchmark claim.
 - Current recovery tooling status: Runtime AI SDK retry treats socket-closed,
   `model_cooldown`, and usage-limit errors as transient. Failed-row recovery is
   now the preferred path over shard reruns and supports `--batch-delay-ms`,
   `--exclude-case-id`, and `--skip-case-id`.
+- Current BEAM harness status: `run-phase63-beam-smoke-current` covers three
+  synthetic BEAM-shaped smoke questions across all four profiles with
+  `executionFailures: 0`, and `gate:phase-63` accepts local gate
+  `run-20260518003000`. This is harness evidence only, not a BEAM score.
+- Current provider sanity status: after provider recovery, Phase 62 one-case
+  live probes passed for both `baseline-no-memory`
+  (`run-phase62-provider-probe-baseline-20260518T-provider-restored`) and
+  `goodmemory-hybrid`
+  (`run-phase62-provider-probe-hybrid-20260518T-provider-restored`) with
+  `executionFailures: 0`; the hybrid probe answered `e47becba` correctly.
 
 Documentation Hygiene
 ---------------------

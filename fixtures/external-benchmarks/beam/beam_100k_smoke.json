@@ -1,0 +1,90 @@
+[
+  {
+    "conversation_id": "beam-smoke-100k-001",
+    "conversation_seed": {
+      "category": "Coding",
+      "id": 100001,
+      "subtopics": [
+        "Release planning",
+        "Bug triage",
+        "Frontend state management"
+      ],
+      "theme": "Engineering workflow memory",
+      "title": "Mira release planning with distractors"
+    },
+    "narratives": "LABEL CATEGORY: Technical Problem-Solving Labels\nLABEL DESCRIPTION: synthetic BEAM-shaped smoke fixture for memory, noise, and abstention adapter validation.",
+    "user_profile": {
+      "user_info": "USER PROFILE:\nName: Mira Chen\nRole: staff engineer\nStable preference: concise release notes.",
+      "user_relationships": "Mira collaborates with Theo on release verification and with Ana on design QA."
+    },
+    "conversation_plan": "BATCH 1 PLAN\nTime Anchor: 2026-01-05 09:00 UTC\nIntroduce the release checklist and a durable preference.\n\nBATCH 2 PLAN\nTime Anchor: 2026-01-06 10:00 UTC\nDiscuss an unrelated frontend migration as distractor noise.",
+    "user_questions": [
+      {
+        "time_anchor": "2026-01-05 09:00 UTC",
+        "messages": [
+          [
+            "I am planning the Orion release and want the notes to stay concise."
+          ],
+          [
+            "Please remember that Theo owns the final rollback checklist."
+          ]
+        ]
+      },
+      {
+        "time_anchor": "2026-01-06 10:00 UTC",
+        "messages": [
+          [
+            "The dashboard migration uses a reducer now, but that is separate from Orion."
+          ]
+        ]
+      }
+    ],
+    "chat": [
+      [
+        {
+          "content": "I am planning the Orion release and want the notes to stay concise.",
+          "id": 1,
+          "index": "1",
+          "question_type": "planning",
+          "role": "user",
+          "time_anchor": "2026-01-05 09:00 UTC"
+        },
+        {
+          "content": "Understood. I will keep Orion release notes concise.",
+          "id": 2,
+          "index": "2",
+          "question_type": "planning",
+          "role": "assistant",
+          "time_anchor": "2026-01-05 09:01 UTC"
+        },
+        {
+          "content": "Please remember that Theo owns the final rollback checklist.",
+          "id": 3,
+          "index": "3",
+          "question_type": "memory",
+          "role": "user",
+          "time_anchor": "2026-01-05 09:02 UTC"
+        }
+      ],
+      [
+        {
+          "content": "The dashboard migration uses a reducer now, but that is separate from Orion.",
+          "id": 4,
+          "index": "4",
+          "question_type": "distractor",
+          "role": "user",
+          "time_anchor": "2026-01-06 10:00 UTC"
+        },
+        {
+          "content": "I will keep the reducer migration separate from the Orion release facts.",
+          "id": 5,
+          "index": "5",
+          "question_type": "distractor",
+          "role": "assistant",
+          "time_anchor": "2026-01-06 10:01 UTC"
+        }
+      ]
+    ],
+    "probing_questions": "{\"memory\":[{\"question_id\":\"beam-smoke-q1\",\"question\":\"Who owns the final rollback checklist for Orion?\",\"answer\":\"Theo owns the final rollback checklist.\",\"question_type\":\"specific\",\"answerable\":true,\"evidence_chat_ids\":[3]}],\"preference\":[{\"question_id\":\"beam-smoke-q2\",\"question\":\"How should Orion release notes be written?\",\"answer\":\"They should stay concise.\",\"question_type\":\"preference\",\"answerable\":true,\"evidence_chat_ids\":[1,2]}],\"abstention\":[{\"question_id\":\"beam-smoke-q3\",\"question\":\"Which database did Mira choose for Orion?\",\"answer\":\"No answer.\",\"question_type\":\"abstention\",\"answerable\":false,\"evidence_chat_ids\":[]}]}"
+  }
+]

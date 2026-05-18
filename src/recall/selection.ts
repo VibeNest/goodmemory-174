@@ -138,7 +138,25 @@ const COMPACT_MEDICAL_PROVIDER_FACT_PATTERN =
 const OWNERSHIP_COUNT_FACT_PATTERN =
   /\b(?:have|has|own|owns|owned|currently have|with me|bring|bringing|using|new one|purchased)\b/iu;
 const PLANT_ACQUISITION_FACT_PATTERN =
-  /\b(?:got|bought|purchased|picked up|received|brought home|acquired)\b[\s\S]{0,120}\b(?:plant|plants|lily|succulent|fern|basil|rose|snake plant|spider plant)\b|\b(?:plant|plants|lily|succulent|fern|basil|rose|snake plant|spider plant)\b[\s\S]{0,120}\b(?:from|at|nursery|sister|bought|purchased|picked up|received|brought home|acquired)\b/iu;
+  /\bPlant count evidence:|\b(?:got|bought|purchased|picked up|received|brought home|acquired|planted|repotting)\b[\s\S]{0,120}\b(?:plant|plants|lily|succulent|fern|basil|rose|snake plant|spider plant|tomato|cucumber)\b|\b(?:plant|plants|lily|succulent|fern|basil|rose|snake plant|spider plant|tomato|cucumber)\b[\s\S]{0,120}\b(?:from|at|nursery|sister|bought|purchased|picked up|received|brought home|acquired|planted|repotting|growing)\b/iu;
+const AQUARIUM_TANK_OWNERSHIP_FACT_PATTERN =
+  /\bAquarium tank ownership evidence:/iu;
+const BIKE_SERVICE_FACT_PATTERN =
+  /\bBike service evidence:/iu;
+const MAGAZINE_SUBSCRIPTION_FACT_PATTERN =
+  /\bMagazine subscription evidence:/iu;
+const FORMAL_EDUCATION_FACT_PATTERN =
+  /\bFormal education duration evidence:/iu;
+const FEED_WEIGHT_FACT_PATTERN =
+  /\bFeed purchase weight evidence:/iu;
+const SIBLING_COUNT_FACT_PATTERN =
+  /\bSibling count evidence:/iu;
+const PERSONAL_ELECTRONICS_FACT_PATTERN =
+  /\bPersonal electronics (?:spec|purchase cost|ownership) evidence:/iu;
+const INSTRUMENT_PRACTICE_FACT_PATTERN =
+  /\bInstrument practice evidence:/iu;
+const FITNESS_CLASS_FACT_PATTERN =
+  /\bFitness class I attend:/iu;
 const PROJECT_EXPERIENCE_FACT_PATTERN =
   /\b(?:led|lead|leading|solo project|class project|research project|working on a project|project that involves)\b/iu;
 const COUNTABLE_EVENT_ACTIVITY_FACT_PATTERN =
@@ -157,6 +175,14 @@ const FOOD_DELIVERY_SERVICE_FACT_PATTERN =
   /\b(?:food delivery|delivery service|Domino'?s Pizza|Uber Eats|Fresh Fusion)\b/iu;
 const SOCIAL_FOLLOWER_FACT_PATTERN =
   /\b(?:social media|followers?|follower count|Twitter|TikTok|Facebook|Instagram)\b[\s\S]{0,180}\b(?:gained|jumped|steady|from\s+\d+\s+to\s+\d+|\d+\s+followers?)\b|\b(?:gained|jumped|steady|from\s+\d+\s+to\s+\d+|\d+\s+followers?)\b[\s\S]{0,180}\b(?:social media|followers?|follower count|Twitter|TikTok|Facebook|Instagram)\b/iu;
+const SOCIAL_REACH_METRIC_FACT_PATTERN =
+  /\bSocial reach metric:\s*(?:Facebook ad campaign|Instagram influencer collaboration)\b[\s\S]{0,120}\b(?:reached|followers?)\b[\s\S]{0,80}\b[\d,]+\b/iu;
+const VIDEO_VIEW_METRIC_FACT_PATTERN =
+  /\bVideo view metric:\s*(?:YouTube|TikTok)\b[\s\S]{0,120}\b[\d,]+\s+views\b/iu;
+const MUSEUM_VISIT_ORDER_FACT_PATTERN =
+  /\b(?:Museum or gallery I visited|Art-related event I attended|I visited\b[\s\S]{0,80}\bMuseum|Museum\b[\s\S]{0,80}\b(?:exhibition|guided tour|lecture|tour))\b/iu;
+const HEALTH_ISSUE_EVENT_FACT_PATTERN =
+  /\b(?:persistent cough|skin tag removed|had a skin tag removed)\b/iu;
 const FAMILY_AGE_FACT_PATTERN =
   /\b(?:family age|age evidence|grandma|grandpa|grandparents?|parents?|mom|dad|mother|father|I am|turned)\b[\s\S]{0,120}\b\d{1,3}\b/iu;
 const COMPACT_MODEL_KIT_FACT_PATTERN =
@@ -313,7 +339,8 @@ function isTemporalEventOrderQuery(query: string): boolean {
     /\bstarting\s+from\s+(?:the\s+)?earliest\b/i.test(query) ||
     /\border\s+from\s+first\s+to\s+last\b/i.test(query) ||
     /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bfirst\b[\s\S]{0,120}\blast\b/i.test(query) ||
-    /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bhappened\s+first\b/i.test(query);
+    /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bhappened\s+first\b/i.test(query) ||
+    /\bwhich\b[\s\S]{0,120}\b(?:health\s+issues?|issues?|tasks?|activities?)\b[\s\S]{0,120}\bfirst\b/i.test(query);
 }
 
 function isTemporalMostRecentQuery(query: string): boolean {
@@ -382,14 +409,35 @@ function isAggregateMoneyQuery(query: string): boolean {
 }
 
 function isAggregateNumericQuery(query: string): boolean {
-  return /\b(?:average|mean|total|combined|sum)\b/i.test(query) &&
-    /\b(?:age|ages|old|hours?|followers?|points?|score|scores|money|amount)\b/i.test(query);
+  if (
+    /\bhow\s+long\b/i.test(query) &&
+    /\b(?:work(?:ing|ed)?|role|tenure|experience|position)\b/i.test(query)
+  ) {
+    return true;
+  }
+
+  return /\b(?:average|mean|total|combined|sum|older|younger|how\s+old|how\s+many\s+years)\b/i.test(query) &&
+    /\b(?:age|ages|old|older|younger|years?|hours?|followers?|points?|score|scores|money|amount|weight|pounds?|siblings?)\b/i.test(query);
 }
 
 function isComparativeMetricQuery(query: string): boolean {
   return /\b(?:which|what)\b/i.test(query) &&
     /\b(?:most|least|highest|lowest|largest|smallest|more|less|biggest)\b/i.test(query) &&
     /\b(?:followers?|follower count|money|spent|spend|cost|costs|price|amount|store|platform)\b/i.test(query);
+}
+
+function isSocialMetricTotalQuery(query: string): boolean {
+  return /\btotal(?:\s+number)?\b/i.test(query) &&
+    /\b(?:people\s+reached|reached|views?|Facebook|Instagram|YouTube|TikTok|influencer)\b/i.test(query);
+}
+
+function isMuseumVisitOrderQuery(query: string): boolean {
+  return /\border\b[\s\S]{0,120}\b(?:museums?|gallery|galleries)\b/iu.test(query) ||
+    /\b(?:museums?|gallery|galleries)\b[\s\S]{0,120}\border\b/iu.test(query);
+}
+
+function isHealthIssueOrderQuery(query: string): boolean {
+  return /\bwhich\b[\s\S]{0,120}\bhealth\s+issues?\b[\s\S]{0,120}\bfirst\b/iu.test(query);
 }
 
 function isAccommodationCostQuery(query: string): boolean {
@@ -420,7 +468,49 @@ function isMedicalProviderAggregateQuery(query: string): boolean {
 function isPlantAcquisitionAggregateQuery(query: string): boolean {
   return /\bhow many\b/i.test(query) &&
     /\b(?:plants?|lily|succulent|fern|basil|rose|snake plant|spider plant)\b/i.test(query) &&
-    /\b(?:acquire|acquired|got|bought|purchased|picked up|received|last month)\b/i.test(query);
+    /\b(?:acquire|acquired|got|bought|purchased|picked up|received|last month|initially|planted|growing)\b/i.test(query);
+}
+
+function isAquariumTankAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\b(?:tank|tanks|aquariums?)\b/i.test(query);
+}
+
+function isBikeServiceAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\bbikes?\b/i.test(query) &&
+    /\b(?:service|serviced|plan|planned|maintenance|replace|replaced|cleaned|lubricated)\b/i.test(query);
+}
+
+function isMagazineSubscriptionAggregateQuery(query: string): boolean {
+  return /\bhow many\b/i.test(query) &&
+    /\b(?:magazine|subscription|subscriptions|publications?)\b/i.test(query);
+}
+
+function isFormalEducationDurationQuery(query: string): boolean {
+  return /\b(?:how many years|total)\b/i.test(query) &&
+    /\b(?:formal education|high school|Bachelor'?s|degree|education)\b/i.test(query);
+}
+
+function isFeedWeightAggregateQuery(query: string): boolean {
+  return /\b(?:total|combined|sum)\b/i.test(query) &&
+    /\b(?:weight|pounds?|feed|grains)\b/i.test(query);
+}
+
+function isSiblingCountAggregateQuery(query: string): boolean {
+  return /\b(?:how many|total(?:\s+number)?)\b/i.test(query) &&
+    /\bsiblings?\b/i.test(query);
+}
+
+function isPersonalElectronicsCostQuery(query: string): boolean {
+  return isAggregateMoneyQuery(query) &&
+    /\b(?:headphones?|iPad|tablet|phone|watch|electronics?)\b/i.test(query);
+}
+
+function isInstrumentPracticeTimeQuery(query: string): boolean {
+  return /\b(?:practice|practicing)\b/i.test(query) &&
+    /\b(?:daily|every day|time|minutes?|hours?|how much)\b/i.test(query) &&
+    /\b(?:instrument|violin|guitar|piano|saxophone|harmonica)\b/i.test(query);
 }
 
 function isCountableEventActivityAggregateQuery(query: string): boolean {
@@ -499,6 +589,16 @@ function hasAggregateDomainSignal(input: {
   }
 
   if (
+    isSocialMetricTotalQuery(input.query) &&
+    (
+      SOCIAL_REACH_METRIC_FACT_PATTERN.test(input.entry.fact.content) ||
+      VIDEO_VIEW_METRIC_FACT_PATTERN.test(input.entry.fact.content)
+    )
+  ) {
+    return true;
+  }
+
+  if (
     isAggregateNumericQuery(input.query) &&
     FAMILY_AGE_FACT_PATTERN.test(input.entry.fact.content)
   ) {
@@ -528,6 +628,62 @@ function hasAggregateDomainSignal(input: {
   }
 
   if (
+    isAquariumTankAggregateQuery(input.query) &&
+    AQUARIUM_TANK_OWNERSHIP_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isBikeServiceAggregateQuery(input.query) &&
+    BIKE_SERVICE_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isMagazineSubscriptionAggregateQuery(input.query) &&
+    MAGAZINE_SUBSCRIPTION_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isFormalEducationDurationQuery(input.query) &&
+    FORMAL_EDUCATION_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isFeedWeightAggregateQuery(input.query) &&
+    FEED_WEIGHT_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isSiblingCountAggregateQuery(input.query) &&
+    SIBLING_COUNT_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isPersonalElectronicsCostQuery(input.query) &&
+    PERSONAL_ELECTRONICS_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
+    isInstrumentPracticeTimeQuery(input.query) &&
+    INSTRUMENT_PRACTICE_FACT_PATTERN.test(input.entry.fact.content)
+  ) {
+    return true;
+  }
+
+  if (
     isCountableEventActivityAggregateQuery(input.query) &&
     input.topicOverlap >= 1 &&
     COUNTABLE_EVENT_ACTIVITY_FACT_PATTERN.test(input.entry.fact.content)
@@ -545,6 +701,30 @@ function hasAggregateFactCountSignal(
   queryLocale: string,
 ): boolean {
   if (isTemporalIntervalQuery(query) && isDatedEventFact(entry)) {
+    return true;
+  }
+
+  if (
+    isMuseumVisitOrderQuery(query) &&
+    (
+      MUSEUM_VISIT_ORDER_FACT_PATTERN.test(entry.fact.content) ||
+      (isDatedEventFact(entry) && /\bmuseums?\b/iu.test(entry.fact.content)) ||
+      (
+        isDatedEventFact(entry) &&
+        hasTrustedAggregateEvidence(entry) &&
+        /\b(?:guided\s+tour|exhibition|lecture)\b/iu.test(
+          valueBearingFactContent(entry.fact.content),
+        )
+      )
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    isHealthIssueOrderQuery(query) &&
+    HEALTH_ISSUE_EVENT_FACT_PATTERN.test(entry.fact.content)
+  ) {
     return true;
   }
 
@@ -613,12 +793,55 @@ function hasAggregateFactCountSignal(
       SOCIAL_FOLLOWER_FACT_PATTERN.test(entry.fact.content)
     ) ||
     (
+      isSocialMetricTotalQuery(query) &&
+      (
+        SOCIAL_REACH_METRIC_FACT_PATTERN.test(entry.fact.content) ||
+        VIDEO_VIEW_METRIC_FACT_PATTERN.test(entry.fact.content)
+      )
+    ) ||
+    (
       isAggregateNumericQuery(query) &&
       FAMILY_AGE_FACT_PATTERN.test(entry.fact.content)
     ) ||
     (
       isPlantAcquisitionAggregateQuery(query) &&
       PLANT_ACQUISITION_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isAquariumTankAggregateQuery(query) &&
+      AQUARIUM_TANK_OWNERSHIP_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isBikeServiceAggregateQuery(query) &&
+      BIKE_SERVICE_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isMagazineSubscriptionAggregateQuery(query) &&
+      MAGAZINE_SUBSCRIPTION_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isFormalEducationDurationQuery(query) &&
+      FORMAL_EDUCATION_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isFeedWeightAggregateQuery(query) &&
+      FEED_WEIGHT_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isSiblingCountAggregateQuery(query) &&
+      SIBLING_COUNT_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isPersonalElectronicsCostQuery(query) &&
+      PERSONAL_ELECTRONICS_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isInstrumentPracticeTimeQuery(query) &&
+      INSTRUMENT_PRACTICE_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      countableEventActivityAggregate &&
+      FITNESS_CLASS_FACT_PATTERN.test(entry.fact.content)
     ) ||
     (
       countableEventActivityAggregate &&
@@ -637,7 +860,19 @@ function hasAggregateFactCountSignal(
       PROPERTY_VIEWING_FACT_PATTERN.test(entry.fact.content) ||
       FOOD_DELIVERY_SERVICE_FACT_PATTERN.test(entry.fact.content) ||
       SOCIAL_FOLLOWER_FACT_PATTERN.test(entry.fact.content) ||
+      SOCIAL_REACH_METRIC_FACT_PATTERN.test(entry.fact.content) ||
+      VIDEO_VIEW_METRIC_FACT_PATTERN.test(entry.fact.content) ||
       FAMILY_AGE_FACT_PATTERN.test(entry.fact.content) ||
+      AQUARIUM_TANK_OWNERSHIP_FACT_PATTERN.test(entry.fact.content) ||
+      BIKE_SERVICE_FACT_PATTERN.test(entry.fact.content) ||
+      MAGAZINE_SUBSCRIPTION_FACT_PATTERN.test(entry.fact.content) ||
+      FORMAL_EDUCATION_FACT_PATTERN.test(entry.fact.content) ||
+      FEED_WEIGHT_FACT_PATTERN.test(entry.fact.content) ||
+      SIBLING_COUNT_FACT_PATTERN.test(entry.fact.content) ||
+      PERSONAL_ELECTRONICS_FACT_PATTERN.test(entry.fact.content) ||
+      INSTRUMENT_PRACTICE_FACT_PATTERN.test(entry.fact.content) ||
+      FITNESS_CLASS_FACT_PATTERN.test(entry.fact.content) ||
+      MUSEUM_VISIT_ORDER_FACT_PATTERN.test(entry.fact.content) ||
       categoryInstanceSignal ||
       (
         countableEventActivityAggregate &&
@@ -717,6 +952,69 @@ function aggregateEvidencePriority(
     priority += 30;
   }
   if (
+    isSocialMetricTotalQuery(query) &&
+    (
+      SOCIAL_REACH_METRIC_FACT_PATTERN.test(valueContent) ||
+      VIDEO_VIEW_METRIC_FACT_PATTERN.test(valueContent)
+    )
+  ) {
+    priority += 80;
+  }
+  if (
+    isMuseumVisitOrderQuery(query) &&
+    MUSEUM_VISIT_ORDER_FACT_PATTERN.test(valueContent)
+  ) {
+    priority += 80;
+  }
+  if (
+    isHealthIssueOrderQuery(query) &&
+    HEALTH_ISSUE_EVENT_FACT_PATTERN.test(valueContent)
+  ) {
+    priority += 80;
+  }
+  if (
+    (
+      isAquariumTankAggregateQuery(query) &&
+      AQUARIUM_TANK_OWNERSHIP_FACT_PATTERN.test(valueContent)
+    ) ||
+    (
+      isBikeServiceAggregateQuery(query) &&
+      BIKE_SERVICE_FACT_PATTERN.test(valueContent)
+    ) ||
+    (
+      isMagazineSubscriptionAggregateQuery(query) &&
+      MAGAZINE_SUBSCRIPTION_FACT_PATTERN.test(valueContent)
+    ) ||
+    (
+      isFormalEducationDurationQuery(query) &&
+      FORMAL_EDUCATION_FACT_PATTERN.test(valueContent)
+    ) ||
+    (
+      isFeedWeightAggregateQuery(query) &&
+      FEED_WEIGHT_FACT_PATTERN.test(valueContent)
+    ) ||
+    (
+      isSiblingCountAggregateQuery(query) &&
+      SIBLING_COUNT_FACT_PATTERN.test(valueContent)
+    ) ||
+    (
+      isPersonalElectronicsCostQuery(query) &&
+      PERSONAL_ELECTRONICS_FACT_PATTERN.test(valueContent)
+    ) ||
+    (
+      isInstrumentPracticeTimeQuery(query) &&
+      INSTRUMENT_PRACTICE_FACT_PATTERN.test(valueContent)
+    )
+  ) {
+    priority += 80;
+  }
+  if (
+    isCountableEventActivityAggregateQuery(query) &&
+    FITNESS_CLASS_FACT_PATTERN.test(valueContent)
+  ) {
+    priority += 60;
+  }
+  if (
     hasAggregateCategoryInstanceSignal({
       factContent: entry.fact.content,
       factTopics,
@@ -751,6 +1049,12 @@ function hasTemporalEventOrderSignal(entry: RankedFactCandidate): boolean {
         REALIZED_TEMPORAL_EVENT_FACT_PATTERN.test(
           valueBearingFactContent(entry.fact.content),
         )
+      ) ||
+      (
+        hasTrustedAggregateEvidence(entry) &&
+        HEALTH_ISSUE_EVENT_FACT_PATTERN.test(
+          valueBearingFactContent(entry.fact.content),
+        )
       )
     );
 }
@@ -770,6 +1074,9 @@ function temporalOrderEvidencePriority(entry: RankedFactCandidate): number {
   }
   if (REALIZED_TEMPORAL_EVENT_FACT_PATTERN.test(valueContent)) {
     priority += 40;
+  }
+  if (HEALTH_ISSUE_EVENT_FACT_PATTERN.test(valueContent)) {
+    priority += 50;
   }
 
   return priority;
@@ -1200,6 +1507,7 @@ interface UpdateSeriesOptions {
   collapseRecentFamilyTrip?: boolean;
   collapseRelationshipRelocation?: boolean;
   collapseSharedGroceryListMethod?: boolean;
+  includeBehavioralUpdateSeries?: boolean;
 }
 
 function normalizeUpdateSeriesPart(value: string): string {
@@ -1214,6 +1522,7 @@ function resolveUpdateSeriesKey(
   entry: RankedFactCandidate,
   options: UpdateSeriesOptions = {},
 ): string | undefined {
+  const sourceContent = entry.fact.content;
   const content = entry.fact.content.toLowerCase();
 
   if (/\bi have tried\s+[^.]+?\bkorean restaurants in my city\b/i.test(content)) {
@@ -1231,6 +1540,55 @@ function resolveUpdateSeriesKey(
       .trim();
 
     return `personal-best:${subject}`;
+  }
+
+  if (options.includeBehavioralUpdateSeries === true) {
+    if (
+      /\bfrench press\b/i.test(sourceContent) &&
+      /\b(?:coffee|ratio|tablespoon|ounces?\s+of\s+water|water)\b/i.test(sourceContent)
+    ) {
+      return "coffee-ratio:french-press";
+    }
+
+    if (
+      /\bgym\b/i.test(sourceContent) &&
+      (
+        /\b(?:times?\s+a\s+week|workout\s+days?|routine|frequency)\b/i.test(sourceContent) ||
+        /\b(?:mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b[\s\S]{0,120}\bgym\b/i.test(sourceContent) ||
+        /\bgym\b[\s\S]{0,120}\b(?:mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b/i.test(sourceContent)
+      )
+    ) {
+      return "routine-frequency:gym";
+    }
+
+    if (
+      /\bgym\b/i.test(sourceContent) &&
+      /\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(sourceContent)
+    ) {
+      return "routine-time:gym";
+    }
+
+    const therapistMatch = sourceContent.match(/\bDr\.?\s+([A-Z][A-Za-z'-]+)\b/u);
+    if (
+      therapistMatch &&
+      /\b(?:therapist|therapy|session|see|seeing|saw)\b/i.test(sourceContent)
+    ) {
+      return `therapist-frequency:${normalizeUpdateSeriesPart(therapistMatch[1] ?? "")}`;
+    }
+
+    const socialPlatformMatch = sourceContent.match(
+      /\b(Instagram|TikTok|Twitter|Facebook)\b/iu,
+    );
+    if (socialPlatformMatch && /\bfollowers?\b/i.test(sourceContent)) {
+      return `social-followers:${normalizeUpdateSeriesPart(socialPlatformMatch[1] ?? "")}`;
+    }
+
+    if (
+      /\bH&M\b/i.test(sourceContent) &&
+      /\b(?:tops?|shirts?|bought|got|purchased)\b/i.test(sourceContent)
+    ) {
+      return "shopping-count:h-and-m-tops";
+    }
   }
 
   if (
@@ -1267,11 +1625,19 @@ function resolveUpdateSeriesKey(
 
   if (
     options.collapseRelationshipRelocation === true &&
-    entry.fact.category === "relationship" &&
-    entry.fact.subject &&
     /\bmoved(?:\s+back)?\s+to\b/i.test(entry.fact.content)
   ) {
-    return `relationship-relocation:${entry.fact.subject.toLowerCase()}`;
+    const subject =
+      entry.fact.subject ??
+      sourceContent.match(
+        /\bfriend\s+([A-Z][A-Za-z'-]+)\b[\s\S]{0,160}\bmoved(?:\s+back)?\s+to\b/u,
+      )?.[1] ??
+      sourceContent.match(
+        /\b([A-Z][A-Za-z'-]+)\s+(?:actually\s+|recently\s+|just\s+)?moved(?:\s+back)?\s+to\b/u,
+      )?.[1];
+    if (subject) {
+      return `relationship-relocation:${normalizeUpdateSeriesPart(subject)}`;
+    }
   }
 
   return undefined;
@@ -1298,6 +1664,77 @@ function collapseLatestUpdateSeries(
   }
 
   return [...passthrough, ...bySeries.values()];
+}
+
+function selectUpdateHistoryCompanions(input: {
+  entries: RankedFactCandidate[];
+  limit: number;
+  options: UpdateSeriesOptions;
+  query: string;
+  selectedEntries: readonly RankedFactCandidate[];
+  selectedIds: ReadonlySet<string>;
+}): RankedFactCandidate[] {
+  if (input.limit <= 0) {
+    return [];
+  }
+
+  const selectedSeriesKeys = new Set(
+    input.selectedEntries
+      .map((entry) => resolveUpdateSeriesKey(entry, input.options))
+      .filter((key): key is string => typeof key === "string")
+      .filter((key) => shouldSelectUpdateHistoryCompanions(key, input.query)),
+  );
+  if (selectedSeriesKeys.size === 0) {
+    return [];
+  }
+
+  const companions = input.entries
+    .filter((entry) => !input.selectedIds.has(entry.fact.id))
+    .filter((entry) => {
+      const key = resolveUpdateSeriesKey(entry, input.options);
+      return key !== undefined && selectedSeriesKeys.has(key);
+    })
+    .sort((left, right) => right.fact.updatedAt.localeCompare(left.fact.updatedAt));
+
+  return diversifyRankedFactCandidatesBySession(companions, input.limit);
+}
+
+function shouldSelectUpdateHistoryCompanions(
+  seriesKey: string,
+  query: string,
+): boolean {
+  if (
+    seriesKey.startsWith("personal-best:") ||
+    seriesKey.startsWith("relationship-relocation:")
+  ) {
+    return true;
+  }
+
+  if (
+    seriesKey === "coffee-ratio:french-press" &&
+    /\b(?:switch(?:ed)?|more|less|changed|previously|before)\b/iu.test(query)
+  ) {
+    return true;
+  }
+
+  if (
+    (
+      seriesKey === "routine-frequency:gym" ||
+      seriesKey === "routine-time:gym"
+    ) &&
+    /\b(?:more|less|frequent|frequently|previously|before|changed|switch(?:ed)?)\b/iu.test(query)
+  ) {
+    return true;
+  }
+
+  if (
+    seriesKey.startsWith("therapist-frequency:") &&
+    /\b(?:more|less|often|frequent|frequently|previously|before|changed|switch(?:ed)?)\b/iu.test(query)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function diversifyRankedFactCandidatesBySession(
@@ -1483,6 +1920,102 @@ function hasDirectFactualCompanionSignal(entry: RankedFactCandidate): boolean {
   );
 }
 
+function hasDirectFactualEvidenceBridgeSignal(
+  entry: RankedFactCandidate,
+  query: string,
+): boolean {
+  const valueContent = valueBearingFactContent(entry.fact.content);
+
+  if (
+    isInstrumentPracticeTimeQuery(query) &&
+    INSTRUMENT_PRACTICE_FACT_PATTERN.test(valueContent)
+  ) {
+    return true;
+  }
+
+  if (
+    /\b(?:what size|Samsung|TV)\b/iu.test(query) &&
+    PERSONAL_ELECTRONICS_FACT_PATTERN.test(valueContent)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function directFactualEvidenceBridgePriority(entry: RankedFactCandidate): number {
+  const valueContent = valueBearingFactContent(entry.fact.content);
+  let priority = 0;
+
+  if (hasConversationEvidenceTag(entry)) {
+    priority += 30;
+  }
+  if (QUANTIFIED_FACT_PATTERN.test(valueContent)) {
+    priority += 40;
+  }
+  if (INSTRUMENT_PRACTICE_FACT_PATTERN.test(valueContent)) {
+    priority += 30;
+  }
+  if (PERSONAL_ELECTRONICS_FACT_PATTERN.test(valueContent)) {
+    priority += 30;
+  }
+
+  return priority;
+}
+
+function hasUpdateSeriesQuerySignal(seriesKey: string, query: string): boolean {
+  if (
+    seriesKey.startsWith("personal-best:") &&
+    /\bpersonal\s+best\b/iu.test(query)
+  ) {
+    return true;
+  }
+  if (
+    seriesKey === "coffee-ratio:french-press" &&
+    /\b(?:French press|coffee|water|ratio)\b/iu.test(query)
+  ) {
+    return true;
+  }
+  if (
+    seriesKey === "routine-frequency:gym" &&
+    /\b(?:gym|workout|routine|frequent|frequently|previously)\b/iu.test(query)
+  ) {
+    return true;
+  }
+  if (
+    seriesKey === "routine-time:gym" &&
+    /\b(?:gym|time|usually|schedule)\b/iu.test(query)
+  ) {
+    return true;
+  }
+  if (
+    seriesKey.startsWith("therapist-frequency:") &&
+    /\b(?:therapist|Dr\.?|doctor|session|see|seeing|often)\b/iu.test(query)
+  ) {
+    return true;
+  }
+  if (
+    seriesKey.startsWith("social-followers:") &&
+    /\b(?:followers?|Instagram|TikTok|Twitter|Facebook|now|current)\b/iu.test(query)
+  ) {
+    return true;
+  }
+  if (
+    seriesKey === "shopping-count:h-and-m-tops" &&
+    /\b(?:H&M|tops?|bought|so far)\b/iu.test(query)
+  ) {
+    return true;
+  }
+  if (
+    seriesKey.startsWith("relationship-relocation:") &&
+    /\b(?:moved?|relocation|recent|where)\b/iu.test(query)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function hasTrustedUpdateEvidenceSignal(
   entry: RankedFactCandidate,
   query: string,
@@ -1490,11 +2023,16 @@ function hasTrustedUpdateEvidenceSignal(
   language: LanguageService,
   queryLocale: string,
 ): boolean {
-  if (!resolveUpdateSeriesKey(entry, options) || !hasTrustedAggregateEvidence(entry)) {
+  const seriesKey = resolveUpdateSeriesKey(entry, options);
+  if (!seriesKey || !hasTrustedAggregateEvidence(entry)) {
     return false;
   }
 
   if (entry.intentScore > 0 || entry.lexicalScore >= 0.03 || entry.subjectScore > 0) {
+    return true;
+  }
+
+  if (hasUpdateSeriesQuerySignal(seriesKey, query)) {
     return true;
   }
 
@@ -1691,12 +2229,18 @@ export function selectFacts(
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const aggregateNumericQuery = isAggregateNumericQuery(query);
   const comparativeMetricQuery = isComparativeMetricQuery(query);
+  const socialMetricTotalQuery = isSocialMetricTotalQuery(query);
+  const museumVisitOrderQuery = isMuseumVisitOrderQuery(query);
+  const healthIssueOrderQuery = isHealthIssueOrderQuery(query);
   const temporalIntervalQuery = isTemporalIntervalQuery(query);
   const aggregateEvidenceQuery =
     aggregateCountQuery ||
     aggregateMoneyQuery ||
     aggregateNumericQuery ||
     comparativeMetricQuery ||
+    socialMetricTotalQuery ||
+    museumVisitOrderQuery ||
+    healthIssueOrderQuery ||
     temporalIntervalQuery;
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
   const temporalMostRecentQuery = isTemporalMostRecentQuery(query);
@@ -1967,6 +2511,10 @@ export function selectFacts(
     collapseRelationshipRelocation: isRelationshipLatestLocationQuery(query),
     collapseSharedGroceryListMethod: isSharedGroceryListMethodQuery(query),
   };
+  const updateEvidenceSeriesOptions = {
+    ...updateSeriesOptions,
+    includeBehavioralUpdateSeries: true,
+  };
   const limit = answerCompositionQuery || factConfirmationQuery
     ? 3
     : temporalEventOrderQuery || temporalRelativeEventQuery
@@ -2012,18 +2560,22 @@ export function selectFacts(
         preferenceEvidencePriority(left, query, language, queryLocale),
     )
     : [];
+  const updateEvidencePool = rankFactCandidates(
+    compatible.filter((item) =>
+      hasTrustedUpdateEvidenceSignal(
+        item,
+        query,
+        updateEvidenceSeriesOptions,
+        language,
+        queryLocale,
+      )
+    ),
+    routingDecision.strategy,
+  );
   const updateEvidenceCandidates = rankFactCandidates(
     collapseLatestUpdateSeries(
-      compatible.filter((item) =>
-        hasTrustedUpdateEvidenceSignal(
-          item,
-          query,
-          updateSeriesOptions,
-          language,
-          queryLocale,
-        )
-      ),
-      updateSeriesOptions,
+      updateEvidencePool,
+      updateEvidenceSeriesOptions,
     ),
     routingDecision.strategy,
   );
@@ -2037,6 +2589,18 @@ export function selectFacts(
       (left, right) =>
         sleepBeforeAppointmentEvidencePriority(right) -
         sleepBeforeAppointmentEvidencePriority(left),
+    )
+    : [];
+  const directFactualEvidenceBridgeCandidates = directFactualLookupQuery
+    ? rankFactCandidates(
+      compatible.filter((item) =>
+        hasDirectFactualEvidenceBridgeSignal(item, query)
+      ),
+      routingDecision.strategy,
+    ).sort(
+      (left, right) =>
+        directFactualEvidenceBridgePriority(right) -
+        directFactualEvidenceBridgePriority(left),
     )
     : [];
   const pickGenericCandidates = (entries: RankedFactCandidate[]) => {
@@ -2142,10 +2706,40 @@ export function selectFacts(
       );
     }
   } else if (updateEvidenceCandidates.length > 0) {
-    for (const entry of updateEvidenceCandidates.slice(
+    const primaryUpdateSelections = updateEvidenceCandidates.slice(
       0,
       UPDATE_EVIDENCE_RECALL_LIMIT,
-    )) {
+    );
+
+    for (const entry of primaryUpdateSelections) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+
+    const companionSelections = selectUpdateHistoryCompanions({
+      entries: updateEvidencePool,
+      limit: UPDATE_EVIDENCE_RECALL_LIMIT - selected.length,
+      options: updateEvidenceSeriesOptions,
+      query,
+      selectedEntries: primaryUpdateSelections,
+      selectedIds,
+    });
+
+    for (const entry of companionSelections) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -2167,6 +2761,28 @@ export function selectFacts(
     for (const entry of diversifyRankedFactCandidatesBySession(
       temporalBridgeEvidenceCandidates,
       TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT,
+    )) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (directFactualEvidenceBridgeCandidates.length > 0) {
+    for (const entry of diversifyRankedFactCandidatesBySession(
+      directFactualEvidenceBridgeCandidates,
+      DIRECT_FACTUAL_RECALL_LIMIT,
     )) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);

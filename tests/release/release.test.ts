@@ -965,6 +965,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-62-recall-diagnostic"]).toBe(
       "bun run scripts/run-phase-62-recall-diagnostic.ts",
     );
+    expect(pkg.scripts?.["prepare:phase-63-beam"]).toBe(
+      "bun run scripts/prepare-phase-63-beam-data.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-63"]).toBe(
+      "bun run scripts/run-phase-63-eval.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -1052,6 +1058,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-62"]).toBe(
       "bun run scripts/run-phase-62-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-63"]).toBe(
+      "bun run scripts/run-phase-63-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",
@@ -2879,15 +2888,18 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("65-phase-60-implicitmembench-overall-priming-protocol.txt");
     expect(taskBoard).toContain("66-phase-61-priming-abstraction-and-contamination-safe-output.txt");
     expect(taskBoard).toContain("67-phase-62-longmemeval-sequential-hardening.txt");
+    expect(taskBoard).toContain("68-phase-63-beam-scale-and-noise-hardening.txt");
     expect(taskBoard).toContain(PHASE60_CANONICAL_OVERALL_SUMMARY);
     expect(taskBoard).toContain("run-phase61-full300-20260505T170001Z/overall-summary.json");
     expect(taskBoard).toContain("213.26 / 300 = 71.09%");
     expect(taskBoard).toContain("128 / 300 = 42.67%");
     expect(taskBoard).toContain("internal research evidence, not a release");
     expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
-    expect(taskBoard).toContain("post-repair rules-only live rerun now reaches 60/60");
-    expect(taskBoard).toContain("post-household-issue hybrid live rerun now reaches 60/60");
-    expect(taskBoard).toContain("full 500-case LongMemEval");
+    expect(taskBoard).toContain("Phase 63 BEAM is now active");
+    expect(taskBoard).toContain("454/500");
+    expect(taskBoard).toContain("run-phase63-beam-smoke-current");
+    expect(taskBoard).toContain("run-20260518003000");
+    expect(taskBoard).toContain("run-phase62-provider-probe-hybrid-20260518T-provider-restored");
     expect(taskBoard).toContain("decision is recorded as executed evidence");
     expect(taskBoard).toContain("Superseded design drafts belong under `docs/archive/design-inputs/`");
     expect(taskBoard).not.toContain("Phase 35 is now WIP again");

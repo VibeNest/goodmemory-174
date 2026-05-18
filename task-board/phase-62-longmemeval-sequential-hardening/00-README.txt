@@ -30,8 +30,12 @@ Workstreams
    - an earlier full repository regression passed after the first repair; an
      unrelated concurrent `bun pm pack` release-test race is locked so package
      tarball noise does not mask LongMemEval regressions
-   - broader/full LongMemEval coverage remains required before BEAM unless it
-     is explicitly deferred with rationale
+   - broader/full LongMemEval coverage is now accepted. Clean current-code
+     hybrid run
+     `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`
+     reaches 454/500 with evidence-session recall 0.9590 and
+     `executionFailures: 0`, exceeding the latest accepted full-context
+     reference at 451/500. BEAM can open next as internal hardening work.
    - current Phase 62 focused verification passes
      `bun test tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts tests/unit/model-adapters.test.ts tests/unit/provider.layer.test.ts`,
      `bun run typecheck`, `bun run gate:phase-62`, and `git diff --check`.
@@ -446,10 +450,10 @@ Workstreams
     verification execution failures. Failed-row recovery in
     `run-phase62-longmemeval-full500-current-after-selected-evidence-synthesis-hybrid-retry-r1-merged-20260516T190000Z`
     cleared those failures and reached 428/500 with missed recall 74, wrong
-    recall 6, wrong answers 72, and `executionFailures: 0`. This is now the
-    strongest current hybrid result, ahead of the previous 401/500 checkpoint,
-    but it still does not close Phase 62 because the full-context reference is
-    451/500. The next count-synthesis repair derives computed count hints from
+    recall 6, wrong answers 72, and `executionFailures: 0`. At that checkpoint
+    it beat the previous 401/500 hybrid result, but it still did not close Phase
+    62 because the full-context reference was 451/500. The next count-synthesis
+    repair derives computed count hints from
     selected compact evidence for clothing pickup/return items, furniture
     activity, baking events, property viewing before an offer, health devices
     with duplicate-device suppression, music albums/EPs, and Marvel movie
@@ -459,12 +463,105 @@ Workstreams
     after normalizing those duplicate event variants,
     `run-phase62-longmemeval-live-selected-count-synthesis-hybrid-targeted-r3-20260516T214500Z`
     reached 7/7 with evidence-session recall 1.0, zero missed/wrong recall,
-    zero wrong answers, and `executionFailures: 0`. This is still targeted
-    evidence; a fresh sharded full-500 must confirm the global delta before the
-    428/500 checkpoint is updated.
+    zero wrong answers, and `executionFailures: 0`. The fresh sharded full-500
+    `run-phase62-longmemeval-full500-current-after-selected-count-synthesis-hybrid-smallshards-20260516T215000Z`
+    confirms a global answer-quality lift to 435/500 with evidence-session
+    recall 0.9102, missed recall 74, wrong recall 6, wrong answers 65, and
+    `executionFailures: 0`. This supersedes the 428/500 selected-evidence
+    checkpoint as the strongest current hybrid result, but it still does not
+    close Phase 62 because the full-context reference remains 451/500 and the
+    remaining gap is still dominated by missed recall plus residual full-recall
+    wrong answers.
+  - Quantified-personal multi-session repair:
+    provider-free diagnostic
+    `run-phase62-recall-diagnostic-rules-quantified-personal-r5-20260517T022000Z`
+    closes the 17-row `missedRecall|multi-session|noAnswer` target bucket
+    with evidence-session recall 1.0, missed recall 0, wrong recall 0, and
+    `executionFailures: 0`. The repair preserves bounded compact evidence for
+    workout duration, workshop spend, trip days, podcast episode counts,
+    current-role tenure, GPA, age arithmetic, marathon deltas, and wake-time
+    comparisons; recall selection now treats `how long ... current role` and
+    age-difference prompts as numeric evidence aggregation rather than
+    role-slot/profile-only recall.
+  - Current verification:
+    `bun test tests/unit/longmemeval.test.ts tests/unit/run-phase-62.script.test.ts tests/unit/recall.selection.test.ts tests/unit/run-phase-62.full500.test.ts tests/unit/run-phase-62.full500-summary.test.ts tests/unit/run-phase-62.full500-retry-failures.test.ts`
+    passes 167 tests, `bun run typecheck` passes, and canonical `bun test`
+    passes 2188 tests with 0 failures.
+  - Update-lineage and temporal/metric repair:
+    knowledge-update lineage now preserves bounded before/after evidence for
+    relationship relocation, French-press ratio changes, gym frequency changes,
+    therapist frequency, and selected shopping-count updates. The same pass
+    adds typed social reach/video-view metric facts plus tight museum-order and
+    health-issue temporal evidence. Product guardrails stay explicit: latest
+    mortgage preapproval, shared grocery-list method, and most-recent family
+    trip queries still collapse to the latest value instead of returning stale
+    companion evidence. Current-code verification passes
+    `bun test tests/unit/longmemeval.test.ts` (69 tests),
+    `bun test tests/unit/recall.selection.test.ts` (50 tests),
+    `bun run typecheck`, and canonical `bun test` (2188 tests).
+  - Remaining personal/count recall repair:
+    compact evidence and selection now cover Samsung TV size, instrument
+    practice abstention support, plant/tank counts, bike service, magazine
+    subscriptions, formal education duration, feed weights, plural weekday
+    fitness classes, sibling counts, and personal-electronics cost/ownership
+    evidence. A 2026-05-17T13:08Z provider recheck confirms the earlier HTTP
+    500 and r1 live execution failures are cleared on the current path: direct
+    `stream: true` `GOODMEMORY_EVAL_*` `gpt-5.4` chat/completions returned
+    HTTP 200, emitted `OK`, and reached `[DONE]`. The full-mode smoke-root live
+    run
+    `run-phase62-longmemeval-live-provider-smoke-rules-current-20260517T130830Z`
+    answers 3/3 with `executionFailures: 0`. After restoring the external
+    cleaned LongMemEval S data root at `/private/tmp/LongMemEval`, targeted
+    live eval is now accepted for this repaired slice:
+    `run-phase62-longmemeval-live-remaining-personal-rules-targeted-r2-20260517T131011Z`
+    answers 12/12 with evidence-session recall 1.0, missed recall 0, wrong
+    recall 0, wrong answers 0, and `executionFailures: 0`; hybrid
+    `run-phase62-longmemeval-live-provider-hybrid-76d63226-r2-20260517T131156Z`
+    passes the single-case Postgres/provider probe, and
+    `run-phase62-longmemeval-live-remaining-personal-hybrid-targeted-r2-20260517T131224Z`
+    answers 12/12 with evidence-session recall 1.0 and `executionFailures: 0`.
+    These live r2 runs supersede the r1 rules-only `answer_generation`
+    connection failures and hybrid `memory_context` `Connection closed`
+    blocker for this bounded slice.
+    Targeted
+    provider-free diagnostic
+    `run-phase62-recall-diagnostic-rules-only-remaining-personal-targeted-r4-20260517T040500Z`
+    retrieves all answer sessions for 12 real remaining miss cases with
+    evidence-session recall 1.0, missed recall 0, wrong recall 0, and
+    `executionFailures: 0`. The accepted all-500 provider-free recall
+    checkpoint
+    `run-phase62-recall-diagnostic-rules-only-all500-remaining-personal-r4-20260517T041000Z`
+    reaches evidence-session recall 0.9600, missed recall 34, wrong recall 6,
+    and `executionFailures: 0`, improving over the prior accepted
+    current-code guard checkpoint at 0.9455 / missed 47 / wrong 6 without
+    increasing wrong recall. Current-code verification passes
+    `bun test tests/unit/longmemeval.test.ts` (71 tests),
+    `bun test tests/unit/recall.selection.test.ts` (50 tests),
+    `bun run typecheck`, `git diff --check`, and canonical `bun test`
+    (2190 tests).
+  - Final full-500 close:
+    the broader/full LongMemEval comparison has now completed. Sharded
+    current-code hybrid
+    `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-smallshards-20260517T132240Z`
+    first reached 452/500 with 2 transient certificate execution failures.
+    Failed-row retry
+    `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`
+    cleared those rows and produced the accepted clean result: 454/500,
+    evidence-session recall 0.9590, missed recall 35, wrong recall 6, wrong
+    answers 46, and `executionFailures: 0`. This exceeds the latest accepted
+    full-context reference at 451/500.
+  - Boundary:
+    Phase 62 LongMemEval is accepted as internal research hardening evidence.
+    An intermediate all-500 rules-only recall diagnostic
+    from before the stale-value guard is not accepted as current-code evidence
+    because it returned stale latest-value companions. The latest accepted
+    all-500 checkpoint above is still recall-only evidence. BEAM is now
+    unblocked by the accepted clean hybrid full-500 result, but final/public
+    reporting remains deferred.
 
 4. Transition to BEAM
-   - open the BEAM phase only after LongMemEval has a clear before/after delta
+   - open the BEAM phase next; LongMemEval has a clean before/after delta and
+     no unresolved current-code execution blocker
    - defer any public report until all four external benchmarks are complete
 
 
