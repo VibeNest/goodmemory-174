@@ -530,6 +530,40 @@ Seventh Generic Instruction Applicability Repair
   but Timeline Integration remains 0, temporal reasoning remains 0.3875, and
   preference following remains 0.15384615384615385.
 
+P63-T007i temporal date-content boundary repair:
+
+- Mechanism:
+  temporal interval boundary ranking is now limited to credential-like
+  acquisition anchors, such as API keys, tokens, licenses, or access grants,
+  and temporal interval evidence can come from trusted source-message content
+  with an explicit date even when the BEAM time anchor is `unknown` and no
+  `dated_event` tag is present.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers the real OpenWeather API key
+  vs UI wireframe shape without a `dated_event` tag on the desired source
+  facts, and separately guards against treating ordinary "positive feedback I
+  received" anchors as acquisition events.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-temporal-date-content-boundary-rerun-current-20260519T001500`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.3364892384610695
+  - missed-recall cases: 278/355
+  - wrong-recall/noise cases: 389/400
+  - temporal-reasoning recall: 0.4875
+  - instruction-following recall: 0.7583333333333333
+- Delta from instruction-applicability v3:
+  overall recall improves from 0.32561286913399595 to 0.3364892384610695,
+  missed recall improves from 280/355 to 278/355, wrong-recall/noise stays
+  389/400, and temporal reasoning improves from 0.3875 to 0.4875.
+- Decision:
+  this is a kept partial repair, not BEAM closure. It recovers several
+  date-in-content temporal interval cases, including the OpenWeather API key
+  boundary, but Timeline Integration remains 0, preference following remains
+  0.15384615384615385, and the full run still has 278 missed-recall cases.
+
 
 Current Boundary
 ----------------

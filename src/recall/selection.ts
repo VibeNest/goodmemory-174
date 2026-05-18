@@ -143,6 +143,8 @@ const TEMPORAL_INTERVAL_ANCHOR_STOPWORDS = new Set([
   "using",
   "when",
 ]);
+const TEMPORAL_INTERVAL_ACQUISITION_OBJECT_PATTERN =
+  /\b(?:api\s+key|key|token|credential|access|license|permit|certificate|approval|confirmation|receipt|authorization|invite|invitation)\b/iu;
 const AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD = 0.05;
 const AGGREGATE_GENERIC_LEXICAL_FACT_THRESHOLD = 0.2;
 const AGGREGATE_TOPIC_STOPWORDS = new Set([
@@ -541,6 +543,12 @@ function temporalIntervalActionPattern(fragment: string): RegExp | undefined {
   return undefined;
 }
 
+function hasTemporalIntervalCredentialAcquisitionAnchor(fragment: string): boolean {
+  const normalized = fragment.toLowerCase();
+  return /\b(?:obtain(?:ed)?|got|received)\b/u.test(normalized) &&
+    TEMPORAL_INTERVAL_ACQUISITION_OBJECT_PATTERN.test(normalized);
+}
+
 function isTemporalEventOrderQuery(query: string): boolean {
   return /\bwhat\s+is\s+the\s+order\b/i.test(query) ||
     /\border\s+of\b/i.test(query) ||
@@ -598,6 +606,14 @@ function hasUserAnswerTag(entry: RankedFactCandidate): boolean {
 
 function isDatedEventFact(entry: RankedFactCandidate): boolean {
   return entry.fact.tags?.includes("dated_event") === true;
+}
+
+function isTemporalIntervalEvidenceFact(entry: RankedFactCandidate): boolean {
+  return isDatedEventFact(entry) ||
+    (
+      hasConversationEvidenceTag(entry) &&
+      DATE_OR_TIME_FACT_PATTERN.test(valueBearingFactContent(entry.fact.content))
+    );
 }
 
 function isSourceOrderedFact(entry: RankedFactCandidate): boolean {
@@ -930,7 +946,7 @@ function hasAggregateFactCountSignal(
   language: LanguageService,
   queryLocale: string,
 ): boolean {
-  if (isTemporalIntervalQuery(query) && isDatedEventFact(entry)) {
+  if (isTemporalIntervalQuery(query) && isTemporalIntervalEvidenceFact(entry)) {
     return true;
   }
 
@@ -1177,7 +1193,7 @@ function aggregateEvidencePriority(
   }
   if (
     isTemporalIntervalQuery(query) &&
-    isDatedEventFact(entry)
+    isTemporalIntervalEvidenceFact(entry)
   ) {
     priority += 30;
     priority += temporalIntervalBoundaryPriority({
@@ -1285,7 +1301,7 @@ function temporalIntervalBoundaryPriority(input: {
   if (anchors.length === 0) {
     return 0;
   }
-  if (!anchors.some((anchor) => /\b(?:obtain(?:ed)?|got|received)\b/iu.test(anchor))) {
+  if (!anchors.some(hasTemporalIntervalCredentialAcquisitionAnchor)) {
     return 0;
   }
 

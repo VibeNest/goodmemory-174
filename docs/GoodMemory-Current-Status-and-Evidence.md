@@ -232,6 +232,18 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     instruction lift (0.7583333333333333 recall, zero-recall instruction cases
     6) while reducing the append-2 noise count by one case, but temporal,
     timeline, and preference regressions remain unresolved.
+  - temporal date-content boundary rerun:
+    temporal interval ranking now gives extra weight only when the query
+    contains a credential-like acquisition anchor, such as an API key, and the
+    candidate is trusted conversation evidence with either a `dated_event` tag
+    or an explicit date in the source-message content. The repeated kept
+    current-code diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-temporal-date-content-boundary-rerun-current-20260519T001500`
+    reaches evidence-chat recall 0.3364892384610695 with
+    `executionFailures: 0`, missed-recall cases 278/355, and
+    wrong-recall/noise cases 389/400. Temporal reasoning improves to 0.4875,
+    including the OpenWeather API key vs UI wireframe duration case moving
+    from 0 to 1 recall, but this remains partial Phase 63 progress only.
 - Current Phase 62 evidence:
   - the accepted clean current-code full-500 close checkpoint is
     `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:

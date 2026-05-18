@@ -116,6 +116,18 @@ from 0.7333333333333333 to 0.7583333333333333, zero-recall instruction cases
 drop from 7 to 6, and wrong-recall/noise drops by one case. This is still not
 BEAM closure: temporal reasoning stays at 0.3875, Timeline Integration stays at
 0, and preference following stays at 0.15384615384615385.
+An eighth pass narrows temporal interval boundary ranking to explicit
+credential-like acquisition anchors and extends temporal interval evidence from
+`dated_event` tags to trusted source-message content that carries an explicit
+date. The repeated kept current-code full recall diagnostic
+`run-phase63-beam-100k-recall-diagnostic-rules-full-temporal-date-content-boundary-rerun-current-20260519T001500`
+raises overall evidence-chat recall to 0.3364892384610695 with
+`executionFailures: 0`, missed-recall cases 278/355, and wrong-recall/noise
+cases 389/400. Temporal reasoning improves from 0.3875 to 0.4875, including
+the OpenWeather API key vs UI wireframe duration case moving from 0 to 1
+evidence-chat recall. This is still not BEAM closure: Timeline Integration
+stays at 0, preference following stays at 0.15384615384615385, and 278/355
+evidence cases still miss at least one required chat.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

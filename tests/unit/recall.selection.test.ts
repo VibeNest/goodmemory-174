@@ -2356,6 +2356,7 @@ describe("recall selection", () => {
       id: string,
       sourceOrder: number,
       content: string,
+      tags: string[] = ["source_message", "source_order", "user_answer"],
     ) =>
       createFactMemory({
         id,
@@ -2363,7 +2364,7 @@ describe("recall selection", () => {
         category: "external_benchmark",
         content,
         source: SOURCE,
-        tags: ["source_message", "source_order", "user_answer", "dated_event"],
+        tags,
         attributes: {
           chatId: sourceOrder,
           sourceOrder,
@@ -2375,6 +2376,7 @@ describe("recall selection", () => {
         `fact-weather-noise-${index}`,
         70 + index * 2,
         `[BEAM chat_id=${70 + index * 2} role=user time=March-${20 + index}-2024] I am working on my weather app with OpenWeather API v2.5, API key environment variables, UI error display, and completed API error handling improvements.`,
+        ["source_message", "source_order", "user_answer", "dated_event"],
       )
     );
     const facts = [
@@ -2405,6 +2407,65 @@ describe("recall selection", () => {
     const selectedIds = result.facts.map((fact) => fact.id);
     expect(selectedIds).toContain("fact-openweather-key");
     expect(selectedIds).toContain("fact-wireframe-complete");
+  });
+
+  it("does not treat ordinary received-feedback anchors as acquisition boundary events", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      tags: string[] = ["source_message", "source_order", "user_answer", "dated_event"],
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags,
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const noiseFacts = Array.from({ length: 8 }, (_, index) =>
+      makeSourceFact(
+        `fact-feedback-noise-${index}`,
+        111 + index * 2,
+        `[BEAM chat_id=${111 + index * 2} role=assistant time=unknown] I received positive feedback from managers after the AI pilot and prepared follow-up guidance about transparency, audits, and candidate communication on April ${29 + index}, 2024.`,
+        ["source_message", "source_order", "dated_event"],
+      )
+    );
+    const facts = [
+      makeSourceFact(
+        "fact-wyatt-meeting",
+        56,
+        "[BEAM chat_id=56 role=user time=unknown] Wyatt expressed skepticism about AI fairness during our March 10 meeting at Media Hub.",
+      ),
+      makeSourceFact(
+        "fact-manager-feedback",
+        110,
+        "[BEAM chat_id=110 role=user time=unknown] I received positive feedback from 2 managers on April 28 after continuing the AI pilot.",
+      ),
+      ...noiseFacts,
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many days passed between my meeting with Wyatt expressing skepticism and the positive feedback I received from the managers?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-wyatt-meeting");
+    expect(selectedIds).toContain("fact-manager-feedback");
   });
 
   it("returns source-ordered imported evidence for event-order questions without dates", () => {

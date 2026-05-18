@@ -133,6 +133,11 @@ Workstreams
     reaches full rules-only evidence-chat recall 0.32561286913399595 with
     `executionFailures: 0`, missed-recall cases 280/355, wrong-recall/noise
     cases 389/400, and instruction-following recall 0.7583333333333333
+  - temporal date-content boundary rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-temporal-date-content-boundary-rerun-current-20260519T001500`
+    reaches full rules-only evidence-chat recall 0.3364892384610695 with
+    `executionFailures: 0`, missed-recall cases 278/355, wrong-recall/noise
+    cases 389/400, and temporal-reasoning recall 0.4875
   - next active step: broaden the ordered-context repair beyond the
     representative trio and continue full-slice recall/noise hardening,
     especially temporal/timeline/preference regressions and the remaining noise
