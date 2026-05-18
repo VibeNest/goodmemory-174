@@ -68,11 +68,11 @@ Tasks
 [DONE] P63-T002 Add BEAM synthetic smoke fixtures and attribution.
 [DONE] P63-T003 Add BEAM adapter/report contract and smoke runner.
 [DONE] P63-T004 Add BEAM gate for smoke harness integrity.
-[WIP] P63-T005 Run an initial full BEAM comparison through external
+[DONE] P63-T005 Run an initial full BEAM comparison through external
   `--benchmark-root`.
-[TODO] P63-T006 Write BEAM miss-case analysis grouped by scale/noise/token
+[DONE] P63-T006 Write BEAM miss-case analysis grouped by scale/noise/token
   pressure and recall/answer failures.
-[TODO] P63-T007 Implement only generic GoodMemory repairs from BEAM misses and
+[WIP] P63-T007 Implement only generic GoodMemory repairs from BEAM misses and
   rerun BEAM before moving to MemoryAgentBench.
 
 
@@ -80,11 +80,16 @@ Commands
 --------
 
 ```text
+mkdir -p /private/tmp/BEAM
+bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --offset 0 --length 20
 bun run eval:phase-63
 bun run gate:phase-63
+bun run analyze:phase-63-beam -- --run-id run-phase63-beam-100k-full-initial-20260518T000335Z
+bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile goodmemory-rules-only --run-id run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z
+bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report reports/eval/research/phase-63/beam/run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z/recall-diagnostic.json --profile goodmemory-rules-only --limit 3 --run-id run-phase63-beam-100k-live-slice-rules-initial3-escalated-20260518T014500Z
 
-# Full/external root contract, currently for JSON exports of the BEAM 100K split.
-bun run eval:phase-63 -- --mode full --benchmark-root /path/to/BEAM-json-export --scale 100K
+# Full/external root contract for the prepared BEAM 100K JSON export.
+bun run eval:phase-63 -- --mode full --benchmark-root /private/tmp/BEAM --scale 100K
 ```
 
 
@@ -117,6 +122,10 @@ Source Intake
   start with the 100K split for smoke/full-run shape validation, then extend to
   500K/1M and only then decide whether 10M is feasible for local research
   runs. Keep all full upstream files external to the repo.
+- Local data preparation:
+  `prepare:phase-63-beam` exports the Hugging Face datasets-server rows API
+  response to an external root such as `/private/tmp/BEAM/100K.json`, fails if
+  rows are partial or truncated, and keeps upstream data out of git.
 
 
 Smoke Harness Evidence
@@ -130,6 +139,14 @@ Smoke Harness Evidence
   `src/eval/beam.ts`
 - Runner and gate:
   `scripts/run-phase-63-eval.ts`, `scripts/run-phase-63-gate.ts`
+- Report analysis:
+  `scripts/analyze-phase-63-beam-report.ts`
+- Real recall diagnostic:
+  `scripts/run-phase-63-beam-recall-diagnostic.ts`
+- Live answer-generation/judge slice:
+  `scripts/run-phase-63-beam-live-slice.ts`
+- External-root preparation:
+  `scripts/prepare-phase-63-beam-data.ts`
 - Accepted local smoke run:
   `run-phase63-beam-smoke-current`
   - 3 synthetic questions across specific, preference, and abstention cases
@@ -139,16 +156,257 @@ Smoke Harness Evidence
 - Accepted local gate:
   `run-20260518003000`, status `accepted`
 - Verification:
-  `bun test tests/unit/beam.test.ts tests/unit/run-phase-63.script.test.ts tests/unit/run-phase-63.gate.test.ts`
+  `bun test tests/unit/analyze-phase-63-beam-report.test.ts tests/unit/beam.test.ts tests/unit/prepare-phase-63-beam-data.test.ts tests/unit/run-phase-63.script.test.ts tests/unit/run-phase-63.gate.test.ts`
   and `bun run gate:phase-63`
+
+
+Initial External-Root Evidence
+------------------------------
+
+- External root:
+  `/private/tmp/BEAM`
+- Prepared data:
+  `/private/tmp/BEAM/100K.json`
+  - dataset: `Mohammadta/BEAM`
+  - split: `100K`
+  - rows: 20/20
+  - generated metadata: `/private/tmp/BEAM/phase-63-beam-export-metadata.json`
+- Accepted initial full run:
+  `run-phase63-beam-100k-full-initial-20260518T000335Z`
+  - mode: `full`
+  - total cases: 400
+  - profiles compared: `baseline-no-memory`, `baseline-full-context`,
+    `goodmemory-rules-only`, `goodmemory-hybrid`
+  - `executionFailures: 0`
+  - `baseline-no-memory`: 40/400, evidence-chat recall 0.0 over 355 evidence
+    cases
+  - `baseline-full-context`: 400/400, evidence-chat recall 1.0, wrong-recall
+    cases 400 because it retrieves every chat turn
+  - `goodmemory-rules-only`: 400/400, evidence-chat recall 1.0, wrong-recall
+    cases 0
+  - `goodmemory-hybrid`: 400/400, evidence-chat recall 1.0, wrong-recall cases
+    0
+- Boundary:
+  this is external-root adapter and evidence-contract proof over real BEAM 100K
+  rows. It is not the final BEAM score because the current Phase 63 profile
+  hypotheses still use deterministic oracle answers/evidence ids rather than
+  live GoodMemory answer generation and live judging.
+
+
+Initial Miss/Boundary Analysis
+------------------------------
+
+- Analysis artifact:
+  `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
+- Status:
+  `needs-live-retrieval-analysis`
+- Dataset buckets:
+  - 400 total 100K cases across 10 BEAM categories, 40 each
+  - 360 answerable cases, 40 abstention cases
+  - 355 answerable cases with source/evidence chat ids
+  - 5 answerable cases without source chat ids, requiring a source-id-blind
+    answer-quality bucket in live analysis
+- Failure/noise buckets:
+  - `baseline-no-memory`: 360 answer failures and 355 missed-recall cases; this
+    is the expected lower-bound control
+  - `baseline-full-context`: 400/400 answer-correct but 400 wrong-recall/noise
+    cases, average 286.6 retrieved chat ids per case, average 283.865
+    distractor ids per case, and max 392 retrieved ids; this is the token/noise
+    pressure baseline
+  - `goodmemory-rules-only` and `goodmemory-hybrid`: 400/400 with no recall
+    misses in this report, but only because the current full profile uses
+    deterministic oracle answers/evidence ids
+- Decision:
+  do not implement GoodMemory behavior repairs from this oracle report. The next
+  P63-T007 step must add or run a real GoodMemory BEAM recall diagnostic that
+  seeds chat turns and measures retrieved chat ids without oracle retrieval,
+  then run a small live answer-generation/judge slice on representative misses.
+
+
+Real Recall Diagnostic Evidence
+-------------------------------
+
+- Full rules-only diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.11625896794910878
+  - missed-recall cases: 340/355
+  - wrong-recall/noise cases: 362/400
+  - average retrieved chat ids: 2.545
+  - average distractor chat ids: 2.32
+- Initial hybrid diagnostic slice:
+  `run-phase63-beam-100k-recall-diagnostic-hybrid-initial20-20260518T010000Z`
+  covers 20 cases with evidence-chat recall 0.12962962962962962, missed-recall
+  cases 17/18, wrong-recall/noise cases 20/20, and `executionFailures: 0`.
+- Decision:
+  the deterministic oracle GoodMemory rows from the initial full comparison are
+  not representative of real recall. P63-T007 now has a concrete failure
+  surface: low evidence retrieval plus high noise under real GoodMemory recall.
+  The next step is a small live answer-generation/judge slice over
+  representative diagnostic misses before any generic mechanism repair.
+
+
+Initial Live Slice Evidence
+---------------------------
+
+- Sandbox-network dry run:
+  `run-phase63-beam-100k-live-slice-rules-initial3-20260518T014000Z`
+  preserved the same three selected miss cases but all three failed at
+  `answer_generation` with provider connection errors. This is environment
+  evidence only.
+- Authorized live slice:
+  `run-phase63-beam-100k-live-slice-rules-initial3-escalated-20260518T014500Z`
+  - source recall report:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
+  - profile: `goodmemory-rules-only`
+  - selected cases: 3 representative diagnostic misses
+  - categories: 1 contradiction-resolution, 2 event-ordering
+  - `executionFailures: 0`
+  - answer accuracy: 0/3
+  - evidence-chat recall: 0.16666666666666666
+  - missed-recall cases: 3/3
+  - wrong-recall/noise cases: 3/3
+  - observed answers: one contradiction case collapsed to a false yes/no answer
+    (`No, you haven't.`), and both event-ordering cases answered `No answer.`
+- Decision:
+  P63-T007 has now crossed the live-slice boundary. The next work should be a
+  generic retrieval/evidence-preservation repair that improves exact evidence
+  recall for long imported conversations before rerunning the same recall
+  diagnostic and live slice.
+
+
+First Generic Source-Preservation Repair
+----------------------------------------
+
+- Mechanism:
+  metadata-patched `remember(always)` imports now preserve the original source
+  message as a retrievable fact with `source_message` / `source_order` metadata,
+  and undated event-order queries can use source-order evidence.
+- Full rules-only recall rerun:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-chatid-current-20260518T040000Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.2545638985427718
+  - missed-recall cases: 298/355
+  - wrong-recall/noise cases: 388/400
+- Paired live slice rerun:
+  `run-phase63-beam-100k-live-slice-rules-source-order-chatid-current-initial3-escalated-20260518T040500Z`
+  - selected cases: same initial contradiction/event-ordering trio
+  - `executionFailures: 0`
+  - answer accuracy: 0/3
+  - evidence-chat recall: 0.27777777777777773
+  - missed-recall cases: 3/3
+  - wrong-recall/noise cases: 3/3
+  - current failure shape: contradiction recall retrieves chat 58 but misses
+    chat 24 and the answer commits to one side; event-ordering still recalls
+    only 1/3 or 0/4 required source turns and answers from nearby distractors.
+- Decision:
+  this is useful partial mechanism progress, not Phase 63 closure. Exact
+  evidence recall roughly doubles versus the first diagnostic, but live answers
+  still fail and wrong-recall/noise increases. The next repair should target
+  source-order topic segmentation, contradiction-pair retrieval, and source
+  message compression/noise control.
+
+
+Second Generic Contradiction / Companion Repair
+-----------------------------------------------
+
+- Mechanism:
+  contradiction confirmation now prefers user-grounded source-message pairs
+  over repeated assistant context, and source-order event recall now adds
+  bounded topical gap fill plus adjacent user continuations for local source
+  turns that cannot win lexical ranking on their own.
+- Full rules-only recall rerun:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-contradiction-companions-v2-20260518T080000Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.26990036176655896
+  - missed-recall cases: 296/355
+  - wrong-recall/noise cases: 387/400
+- Paired live slice rerun:
+  `run-phase63-beam-100k-live-slice-rules-contradiction-companions-initial3-escalated-20260518T074500Z`
+  - selected cases: same initial contradiction/event-ordering trio
+  - `executionFailures: 0`
+  - answer accuracy: 0/3
+  - evidence-chat recall: 0.7222222222222222
+  - missed-recall cases: 2/3
+  - wrong-recall/noise cases: 2/3
+  - current failure shape: exact contradiction evidence is now present for the
+    first row, but the answer generator still commits to one side instead of
+    surfacing the conflict; event-ordering has materially better recall yet
+    still omits late deployment/test evidence or answers from noisy early turns.
+- Paired live prompt-guidance rerun:
+  `run-phase63-beam-100k-live-slice-rules-contradiction-companions-prompt-guidance-initial3-escalated-20260518T081500Z`
+  - selected cases: same initial contradiction/event-ordering trio
+  - `executionFailures: 0`
+  - answer accuracy: 1/3
+  - evidence-chat recall: 0.7222222222222222
+  - missed-recall cases: 2/3
+  - wrong-recall/noise cases: 2/3
+  - current failure shape: generic contradiction-safe prompting repairs the
+    contradiction case, while the two event-ordering cases still fail because
+    late milestones remain noisy or incomplete in retrieved context.
+- Decision:
+  this is another reusable retrieval improvement, but not a phase-close signal.
+  The next repair should target source-order noise reduction and ordered-answer
+  synthesis rather than more broad reruns.
+
+
+Third Generic Milestone / Context Repair
+----------------------------------------
+
+- Mechanism:
+  late source-ordered milestone fill now keeps more distant topical milestones,
+  live answer context compresses long source messages, and ordering questions
+  receive an explicit source-ordered retrieved-turn section before flat memory
+  bullets.
+- Full rules-only recall rerun:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-milestone-compression-current-20260518T061100Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.2759374936487613
+  - missed-recall cases: 294/355
+  - wrong-recall/noise cases: 387/400
+- Same-three-case live reruns:
+  `run-phase63-beam-100k-live-slice-rules-milestone-compression-prompt-v2-initial3-escalated-20260518T062000Z`
+  and
+  `run-phase63-beam-100k-live-slice-rules-structured-order-context-prompt-v2-initial3-escalated-20260518T064500Z`
+  - selected cases: same initial contradiction/event-ordering trio
+  - `executionFailures: 0`
+  - answer accuracy: 1/3
+  - evidence-chat recall: 1.0 on the structured-context rerun
+  - missed-recall cases: 0/3 on the structured-context rerun
+  - wrong-recall/noise cases: 2/3
+  - current failure shape: the representative trio now has complete evidence
+    recall, but the two event-ordering answers still over-select noisy
+    early/setup turns from the retrieved chronology.
+- Decision:
+  this narrows the live boundary from missing evidence to noisy ordered
+  evidence selection. The next generic repair should prune source-ordered
+  distractors and produce a tighter ordered evidence set before adding more
+  answer prompt text.
 
 
 Current Boundary
 ----------------
 
-P63-T001 through P63-T004 are complete for source intake, synthetic fixture,
-smoke report contract, package scripts, and smoke gate. This proves the local
-BEAM harness shape only; it is not a BEAM score. P63-T005 now needs the first
-external-root comparison. The current runner can consume JSON exports named
-`beam_100k.json` or `100K.json`; direct Parquet ingestion or a conversion
-workflow remains part of the full-run setup.
+P63-T001 through P63-T006 are complete for source intake, synthetic fixture,
+smoke report contract, package scripts, smoke gate, rows-API export, the first
+external-root 100K comparison, and the initial miss/noise boundary analysis.
+P63-T007 is active. The real GoodMemory recall diagnostic and the first live
+answer-generation/judge slice are now in place, and both the first generic
+source-preservation pass, the follow-up contradiction / companion pass, and
+the milestone/context pass have been rerun. The current failure family is now
+more specific: the representative live trio has complete evidence recall and
+contradiction-safe prompting repairs one live case, but BEAM still needs
+source-order noise pruning plus ordered evidence selection before it can move
+toward an answer-quality claim.

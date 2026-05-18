@@ -5,7 +5,18 @@ import {
   preparePhase63BeamData,
 } from "../../scripts/prepare-phase-63-beam-data";
 
-function buildRowsResponse(): unknown {
+interface TestRowsResponse {
+  num_rows_per_page: number;
+  num_rows_total: number;
+  partial: boolean;
+  rows: Array<{
+    row: Record<string, unknown>;
+    row_idx: number;
+    truncated_cells: string[];
+  }>;
+}
+
+function buildRowsResponse(): TestRowsResponse {
   return {
     num_rows_per_page: 100,
     num_rows_total: 1,
@@ -35,7 +46,7 @@ function buildRowsResponse(): unknown {
         truncated_cells: [],
       },
     ],
-  };
+  } satisfies TestRowsResponse;
 }
 
 describe("prepare-phase-63 BEAM data script", () => {

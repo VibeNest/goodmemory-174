@@ -88,7 +88,7 @@ export interface BeamCaseResult {
   evidenceChatRecall: number | null;
   executionError?: {
     message: string;
-    stage: "answer_generation" | "data_loading";
+    stage: "answer_generation" | "answer_judge" | "data_loading" | "memory_context";
   };
   hypothesis: string;
   questionId: string;
@@ -96,7 +96,11 @@ export interface BeamCaseResult {
   retrievedChatIds: number[];
 }
 
-export type BeamAnswerScoreMethod = "abstention" | "exact" | "mismatch";
+export type BeamAnswerScoreMethod =
+  | "abstention"
+  | "exact"
+  | "mismatch"
+  | "semantic_judge";
 
 export interface BeamAnswerScore {
   correct: boolean;

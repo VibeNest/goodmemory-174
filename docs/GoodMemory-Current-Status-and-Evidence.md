@@ -115,8 +115,76 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `goodmemory-rules-only`, and `goodmemory-hybrid` with
     `executionFailures: 0`
   - local gate `run-20260518003000` is accepted through `bun run gate:phase-63`
-  - these are harness-integrity results only, not BEAM benchmark scores; the
-    first external-root BEAM comparison remains open
+  - `prepare:phase-63-beam` exports real BEAM rows to an external root without
+    vendoring upstream data; the accepted 100K export currently lives at
+    `/private/tmp/BEAM/100K.json` with 20/20 rows and 400 probing questions
+  - initial external-root run
+    `run-phase63-beam-100k-full-initial-20260518T000335Z` covers all four
+    comparison profiles over the real 100K export with `executionFailures: 0`
+    (`baseline-no-memory` 40/400, `baseline-full-context` 400/400 with
+    wrong-recall cases 400, `goodmemory-rules-only` 400/400, and
+    `goodmemory-hybrid` 400/400)
+  - these Phase 63 results prove smoke/full adapter integrity and real-row
+    ingestion only, not a final BEAM benchmark score; current hypotheses still
+    use deterministic oracle answers/evidence ids rather than live GoodMemory
+    answer generation and live judging
+  - initial miss/noise analysis
+    `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
+    has status `needs-live-retrieval-analysis`: no-memory is the expected
+    lower-bound control, full-context is answer-complete but retrieves an
+    average 286.6 chat ids per case with 283.865 distractors, and GoodMemory
+    profiles cannot yet be treated as live evidence because they still use the
+    deterministic oracle path
+  - real GoodMemory recall diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
+    covers the same 400-case 100K slice through provider-free rules-only recall
+    with `executionFailures: 0`, evidence-chat recall 0.11625896794910878,
+    missed-recall cases 340/355, and wrong-recall/noise cases 362/400; this is
+    the first concrete P63-T007 failure surface, not a final answer-quality
+    score
+  - live answer-generation/judge slice
+    `run-phase63-beam-100k-live-slice-rules-initial3-escalated-20260518T014500Z`
+    covers 3 representative diagnostic misses with live answer generation and
+    semantic judging: `executionFailures: 0`, answer accuracy 0/3,
+    evidence-chat recall 0.16666666666666666, missed recall 3/3, and
+    wrong-recall/noise 3/3. The slice confirms that the next Phase 63 repair
+    should target generic evidence preservation/retrieval before answer
+    synthesis.
+  - first generic source-preservation repair:
+    metadata-patched `remember(always)` imports now keep retrievable source
+    messages, and undated event-order recall can use source-order evidence.
+    The current-code rerun
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-chatid-current-20260518T040000Z`
+    improves full 100K rules-only evidence-chat recall to 0.2545638985427718
+    with `executionFailures: 0`, missed-recall cases 298/355, and
+    wrong-recall/noise cases 388/400. The paired current-code live slice
+    `run-phase63-beam-100k-live-slice-rules-source-order-chatid-current-initial3-escalated-20260518T040500Z`
+    still answers 0/3 correctly with evidence-chat recall 0.27777777777777773.
+  - follow-up contradiction/source-order-companion repair:
+    contradiction confirmation now prefers user-grounded source-message pairs,
+    and source-order event recall keeps bounded topical gaps plus adjacent local
+    continuations. The current-code rerun
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-contradiction-companions-v2-20260518T080000Z`
+    reaches evidence-chat recall 0.26990036176655896 with
+    `executionFailures: 0`, missed-recall cases 296/355, and
+    wrong-recall/noise cases 387/400. The paired same-three-case live slice
+    `run-phase63-beam-100k-live-slice-rules-contradiction-companions-initial3-escalated-20260518T074500Z`
+    improves evidence-chat recall to 0.7222222222222222, but still answers 0/3
+    correctly. A follow-up generic prompt-guidance rerun
+    `run-phase63-beam-100k-live-slice-rules-contradiction-companions-prompt-guidance-initial3-escalated-20260518T081500Z`
+    keeps recall at 0.7222222222222222 and raises answer accuracy to 1/3 by
+    fixing the contradiction case.
+  - third milestone/compression/source-order-context rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-milestone-compression-current-20260518T061100Z`
+    reaches evidence-chat recall 0.2759374936487613 with
+    `executionFailures: 0`, missed-recall cases 294/355, and
+    wrong-recall/noise cases 387/400. The latest same-three-case live slice
+    `run-phase63-beam-100k-live-slice-rules-structured-order-context-prompt-v2-initial3-escalated-20260518T064500Z`
+    reaches evidence-chat recall 1.0, missed-recall cases 0/3, and
+    `executionFailures: 0`, but answer accuracy remains 1/3 because the two
+    event-ordering answers still over-select noisy early/setup evidence. Phase
+    63 therefore remains active; the next repair target is source-order noise
+    pruning plus ordered evidence selection.
 - Current Phase 62 evidence:
   - the accepted clean current-code full-500 close checkpoint is
     `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:

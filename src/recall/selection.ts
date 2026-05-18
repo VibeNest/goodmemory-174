@@ -56,6 +56,11 @@ const DIRECT_FACTUAL_COMPANION_LIMIT = 3;
 const PREFERENCE_EVIDENCE_RECALL_LIMIT = 4;
 const TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT = 4;
 const UPDATE_EVIDENCE_RECALL_LIMIT = 3;
+const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
+const SOURCE_ORDER_GAP_FILL_LIMIT = 5;
+const SOURCE_ORDER_COMPANION_LIMIT = 6;
+const SOURCE_ORDER_COMPANION_MAX_DISTANCE = 2;
+const SOURCE_ORDER_MILESTONE_FILL_LIMIT = 6;
 const PREFERENCE_RECALL_LIMIT = 3;
 const RESEARCH_RECOMMENDATION_LIMIT = 2;
 const EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD = 0.08;
@@ -110,15 +115,19 @@ const AGGREGATE_TRUSTED_EVIDENCE_TAGS = new Set([
   "user_answer",
 ]);
 const ASSISTANT_EVIDENCE_TAG = "assistant_answer";
+const SOURCE_MESSAGE_TAG = "source_message";
+const SOURCE_ORDER_TAG = "source_order";
 const CONVERSATION_EVIDENCE_TAGS = new Set([
   ASSISTANT_EVIDENCE_TAG,
   "compact_evidence",
   "dated_event",
+  SOURCE_MESSAGE_TAG,
   "user_answer",
 ]);
 const DIRECT_FACTUAL_COMPANION_TAGS = new Set([
   "compact_evidence",
   "dated_event",
+  SOURCE_MESSAGE_TAG,
   "user_answer",
 ]);
 const QUANTIFIED_FACT_PATTERN =
@@ -183,6 +192,47 @@ const MUSEUM_VISIT_ORDER_FACT_PATTERN =
   /\b(?:Museum or gallery I visited|Art-related event I attended|I visited\b[\s\S]{0,80}\bMuseum|Museum\b[\s\S]{0,80}\b(?:exhibition|guided tour|lecture|tour))\b/iu;
 const HEALTH_ISSUE_EVENT_FACT_PATTERN =
   /\b(?:persistent cough|skin tag removed|had a skin tag removed)\b/iu;
+const CONTRADICTION_NEGATED_CLAIM_PATTERN =
+  /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,120}\b(?:written|wrote|worked\s+with|handled|implemented|built|created|used)\b|\bno\s+(?:prior\s+)?experience\s+with\b/iu;
+const CONTRADICTION_REALIZED_EVIDENCE_PATTERN =
+  /\b(?:implemented|built|created|completed|tested|configured|handled|worked\s+with|wrote|written|managed\s+to|current\s+code|@app\.route|return(?:ed)?\s+static)\b/iu;
+const CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN =
+  /\b(?:implemented|built|created|completed|tested|handled|worked\s+with|wrote|written|managed\s+to)\b|return(?:ed)?\s+static/iu;
+const SOURCE_ORDER_ASPECT_CUE_PATTERN =
+  /\b(?:analytics?|authorization|authentication|blueprints?|completed|configur(?:e|ed|ing|ation)|CRUD|database|deployment|error\s+handling|finalizing|hardening|implement(?:ed|ing)?|integration\s+tests?|local\s+dev|models?|port\s+\d+|response\s+handling|route|schema|security|SQL\s+injection|testing|transaction|validation|worker|XSS)\b/iu;
+const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
+  "analytics",
+  "authentication",
+  "authorization",
+  "blueprint",
+  "completed",
+  "configuration",
+  "crud",
+  "database",
+  "deployment",
+  "error",
+  "gunicorn",
+  "handling",
+  "hardening",
+  "http_endpoint",
+  "implementation",
+  "integration",
+  "local",
+  "model",
+  "port",
+  "render",
+  "response",
+  "route",
+  "schema",
+  "security",
+  "sql_injection",
+  "test",
+  "testing",
+  "transaction",
+  "validation",
+  "worker",
+  "xss",
+]);
 const FAMILY_AGE_FACT_PATTERN =
   /\b(?:family age|age evidence|grandma|grandpa|grandparents?|parents?|mom|dad|mother|father|I am|turned)\b[\s\S]{0,120}\b\d{1,3}\b/iu;
 const COMPACT_MODEL_KIT_FACT_PATTERN =
@@ -334,6 +384,10 @@ function isTemporalIntervalQuery(query: string): boolean {
 function isTemporalEventOrderQuery(query: string): boolean {
   return /\bwhat\s+is\s+the\s+order\b/i.test(query) ||
     /\border\s+of\b/i.test(query) ||
+    /\border\s+in\s+which\b/i.test(query) ||
+    /\bin\s+which\s+order\b/i.test(query) ||
+    /\bin\s+order\b/i.test(query) && /\b(?:brought\s+up|discussed|mentioned|talked\s+about|listed)\b/i.test(query) ||
+    /\bchronological(?:ly)?\b/i.test(query) ||
     /\border\b[\s\S]{0,120}\b(?:earliest|latest|first|last)\b/i.test(query) ||
     /\b(?:earliest|first)\s+to\s+(?:latest|last)\b/i.test(query) ||
     /\bstarting\s+from\s+(?:the\s+)?earliest\b/i.test(query) ||
@@ -382,6 +436,14 @@ function hasUserAnswerTag(entry: RankedFactCandidate): boolean {
 
 function isDatedEventFact(entry: RankedFactCandidate): boolean {
   return entry.fact.tags?.includes("dated_event") === true;
+}
+
+function isSourceOrderedFact(entry: RankedFactCandidate): boolean {
+  return entry.fact.tags?.includes(SOURCE_ORDER_TAG) === true;
+}
+
+function isTemporalOrderFact(entry: RankedFactCandidate): boolean {
+  return isDatedEventFact(entry) || isSourceOrderedFact(entry);
 }
 
 function hasTrustedAggregateEvidence(entry: RankedFactCandidate): boolean {
@@ -1037,8 +1099,23 @@ function aggregateEvidencePriority(
   return priority;
 }
 
-function hasTemporalEventOrderSignal(entry: RankedFactCandidate): boolean {
-  return isDatedEventFact(entry) &&
+function hasTemporalEventOrderSignal(
+  entry: RankedFactCandidate,
+  query: string,
+): boolean {
+  if (!isTemporalOrderFact(entry)) {
+    return false;
+  }
+
+  if (
+    isSourceOrderedFact(entry) &&
+    isUserGroundedRecallQuery(query) &&
+    !hasUserAnswerTag(entry)
+  ) {
+    return false;
+  }
+
+  return (
     (
       entry.fact.category === "external_benchmark" ||
       entry.intentScore > 0 ||
@@ -1056,7 +1133,8 @@ function hasTemporalEventOrderSignal(entry: RankedFactCandidate): boolean {
           valueBearingFactContent(entry.fact.content),
         )
       )
-    );
+    )
+  );
 }
 
 function temporalOrderEvidencePriority(entry: RankedFactCandidate): number {
@@ -1088,7 +1166,427 @@ function datedFactSortKey(entry: RankedFactCandidate): string {
   )?.[1] ?? "";
 }
 
-function compareDatedFactChronology(
+function sourceOrderSortKey(entry: RankedFactCandidate): number | undefined {
+  for (const key of ["sourceOrder", "chatId", "chat_id", "sourceMessageIndex"]) {
+    const value = entry.fact.attributes?.[key];
+    const parsed = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function sourceOrderGapCandidatePriority(
+  entry: RankedFactCandidate,
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): number {
+  const content = stripEvidencePrefix(entry.fact.content);
+  const queryTopics = aggregateTopicTokens(query, language, queryLocale);
+  const factTopics = aggregateTopicTokens(content, language, entry.locale);
+  let priority =
+    aggregateTopicOverlapCount(queryTopics, factTopics) * 12 +
+    entry.lexicalScore * 100 +
+    temporalOrderEvidencePriority(entry);
+
+  if (SOURCE_ORDER_ASPECT_CUE_PATTERN.test(content)) {
+    priority += 45;
+  }
+  if (hasUserAnswerTag(entry)) {
+    priority += 20;
+  }
+  if (hasAssistantAnswerTag(entry)) {
+    priority -= 30;
+  }
+
+  return priority;
+}
+
+function sourceOrderAspectTopics(
+  entry: RankedFactCandidate,
+  language: LanguageService,
+): Set<string> {
+  const content = stripEvidencePrefix(entry.fact.content);
+  const factTopics = aggregateTopicTokens(
+    content,
+    language,
+    entry.locale,
+  );
+  const topics = new Set(
+    [...factTopics].filter((topic) => SOURCE_ORDER_ASPECT_TOPIC_TOKENS.has(topic)),
+  );
+
+  if (/\bsql\s+injection\b/iu.test(content)) {
+    topics.add("sql_injection");
+  }
+  if (/\b(?:GET|POST|PUT|DELETE)\s+\/[\w/{}/-]+\b/u.test(content)) {
+    topics.add("http_endpoint");
+  }
+  if (/\bxss\b/iu.test(content)) {
+    topics.add("xss");
+  }
+
+  return topics;
+}
+
+function fillSourceOrderedTemporalGaps(input: {
+  language: LanguageService;
+  pool: RankedFactCandidate[];
+  query: string;
+  queryLocale: string;
+  selected: RankedFactCandidate[];
+}): RankedFactCandidate[] {
+  const selectedIds = new Set(input.selected.map((entry) => entry.fact.id));
+  const selectedWithOrder = input.selected
+    .filter(isSourceOrderedFact)
+    .filter((entry) => sourceOrderSortKey(entry) !== undefined)
+    .sort(compareTemporalFactChronology);
+  const gapCandidates = new Map<string, RankedFactCandidate>();
+  const selectedAspectTopics = new Set(
+    input.selected.flatMap((entry) => [
+      ...sourceOrderAspectTopics(entry, input.language),
+    ]),
+  );
+  const earliestAspectSourceOrder = new Map<string, number>();
+  for (const entry of input.pool) {
+    const order = sourceOrderSortKey(entry);
+    if (order === undefined) {
+      continue;
+    }
+    for (const topic of sourceOrderAspectTopics(entry, input.language)) {
+      const current = earliestAspectSourceOrder.get(topic);
+      if (current === undefined || order < current) {
+        earliestAspectSourceOrder.set(topic, order);
+      }
+    }
+  }
+
+  for (let index = 0; index < selectedWithOrder.length - 1; index += 1) {
+    const leftOrder = sourceOrderSortKey(selectedWithOrder[index]!);
+    const rightOrder = sourceOrderSortKey(selectedWithOrder[index + 1]!);
+    if (leftOrder === undefined || rightOrder === undefined) {
+      continue;
+    }
+
+    const candidatesInGap = input.pool
+      .filter((entry) => !selectedIds.has(entry.fact.id))
+      .filter((entry) => {
+        const order = sourceOrderSortKey(entry);
+        return order !== undefined && order > leftOrder && order < rightOrder;
+      })
+      .sort((left, right) => {
+        const priorityDelta =
+          sourceOrderGapCandidatePriority(
+            right,
+            input.query,
+            input.language,
+            input.queryLocale,
+          ) -
+          sourceOrderGapCandidatePriority(
+            left,
+            input.query,
+            input.language,
+            input.queryLocale,
+          );
+        if (priorityDelta !== 0) {
+          return priorityDelta;
+        }
+        return compareTemporalFactChronology(left, right);
+      });
+
+    for (const candidate of candidatesInGap) {
+      gapCandidates.set(candidate.fact.id, candidate);
+    }
+  }
+
+  const candidatePool = [...gapCandidates.values()];
+  const additions: RankedFactCandidate[] = [];
+  while (
+    additions.length < SOURCE_ORDER_GAP_FILL_LIMIT &&
+    candidatePool.length > 0
+  ) {
+    candidatePool.sort((left, right) => {
+      const leftNovelAspectCount = [...sourceOrderAspectTopics(left, input.language)]
+        .filter((topic) => !selectedAspectTopics.has(topic)).length;
+      const rightNovelAspectCount = [...sourceOrderAspectTopics(right, input.language)]
+        .filter((topic) => !selectedAspectTopics.has(topic)).length;
+      const leftOrder = sourceOrderSortKey(left);
+      const rightOrder = sourceOrderSortKey(right);
+      const leftAspectIntroductionCount = [
+        ...sourceOrderAspectTopics(left, input.language),
+      ].filter(
+        (topic) =>
+          leftOrder !== undefined &&
+          earliestAspectSourceOrder.get(topic) === leftOrder,
+      ).length;
+      const rightAspectIntroductionCount = [
+        ...sourceOrderAspectTopics(right, input.language),
+      ].filter(
+        (topic) =>
+          rightOrder !== undefined &&
+          earliestAspectSourceOrder.get(topic) === rightOrder,
+      ).length;
+      const priorityDelta =
+        (
+          sourceOrderGapCandidatePriority(
+            right,
+            input.query,
+            input.language,
+            input.queryLocale,
+          ) +
+          rightNovelAspectCount * 60 +
+          rightAspectIntroductionCount * 160
+        ) -
+        (
+          sourceOrderGapCandidatePriority(
+            left,
+            input.query,
+            input.language,
+            input.queryLocale,
+          ) +
+          leftNovelAspectCount * 60 +
+          leftAspectIntroductionCount * 160
+        );
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    });
+
+    const next = candidatePool.shift();
+    if (!next) {
+      break;
+    }
+    additions.push(next);
+    for (const topic of sourceOrderAspectTopics(next, input.language)) {
+      selectedAspectTopics.add(topic);
+    }
+  }
+
+  if (additions.length === 0) {
+    return input.selected;
+  }
+
+  return [...input.selected, ...additions].sort(compareTemporalFactChronology);
+}
+
+function fillSourceOrderedTemporalCompanions(input: {
+  pool: RankedFactCandidate[];
+  selected: RankedFactCandidate[];
+}): RankedFactCandidate[] {
+  const selectedIds = new Set(input.selected.map((entry) => entry.fact.id));
+  const selectedOrders = input.selected
+    .map(sourceOrderSortKey)
+    .filter((order): order is number => order !== undefined);
+  if (selectedOrders.length === 0) {
+    return input.selected;
+  }
+
+  const additions = input.pool
+    .filter((entry) => !selectedIds.has(entry.fact.id))
+    .filter(hasUserAnswerTag)
+    .map((entry) => {
+      const order = sourceOrderSortKey(entry);
+      if (order === undefined) {
+        return null;
+      }
+      const nearestDistance = Math.min(
+        ...selectedOrders.map((selectedOrder) => Math.abs(selectedOrder - order)),
+      );
+      if (nearestDistance > SOURCE_ORDER_COMPANION_MAX_DISTANCE) {
+        return null;
+      }
+      const previousSelectedOrder = selectedOrders
+        .filter((selectedOrder) => selectedOrder < order)
+        .sort((left, right) => right - left)[0];
+      const nextSelectedOrder = selectedOrders
+        .filter((selectedOrder) => selectedOrder > order)
+        .sort((left, right) => left - right)[0];
+      const surroundingGap =
+        previousSelectedOrder !== undefined && nextSelectedOrder !== undefined
+          ? nextSelectedOrder - previousSelectedOrder
+          : SOURCE_ORDER_COMPANION_MAX_DISTANCE;
+      const priority =
+        (SOURCE_ORDER_COMPANION_MAX_DISTANCE - nearestDistance + 1) * 100 +
+        surroundingGap * 10 +
+        temporalOrderEvidencePriority(entry) +
+        (SOURCE_ORDER_ASPECT_CUE_PATTERN.test(stripEvidencePrefix(entry.fact.content))
+          ? 100
+          : 0);
+      return {
+        entry,
+        nearestDistance,
+        priority,
+      };
+    })
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        entry: RankedFactCandidate;
+        nearestDistance: number;
+        priority: number;
+      } => candidate !== null,
+    )
+    .sort((left, right) => {
+      if (left.priority !== right.priority) {
+        return right.priority - left.priority;
+      }
+      if (left.nearestDistance !== right.nearestDistance) {
+        return left.nearestDistance - right.nearestDistance;
+      }
+      return compareTemporalFactChronology(left.entry, right.entry);
+    })
+    .slice(0, SOURCE_ORDER_COMPANION_LIMIT)
+    .map((candidate) => candidate.entry);
+
+  if (additions.length === 0) {
+    return input.selected;
+  }
+
+  return [...input.selected, ...additions].sort(compareTemporalFactChronology);
+}
+
+function fillSourceOrderedTemporalMilestones(input: {
+  language: LanguageService;
+  pool: RankedFactCandidate[];
+  query: string;
+  queryLocale: string;
+  selected: RankedFactCandidate[];
+}): RankedFactCandidate[] {
+  const selectedIds = new Set(input.selected.map((entry) => entry.fact.id));
+  const selectedOrders = input.selected
+    .map(sourceOrderSortKey)
+    .filter((order): order is number => order !== undefined);
+  if (selectedOrders.length === 0) {
+    return input.selected;
+  }
+
+  const maxSelectedOrder = Math.max(...selectedOrders);
+  const selectedAspectTopics = new Set(
+    input.selected.flatMap((entry) => [
+      ...sourceOrderAspectTopics(entry, input.language),
+    ]),
+  );
+  const earliestAspectSourceOrder = new Map<string, number>();
+  for (const entry of input.pool) {
+    const order = sourceOrderSortKey(entry);
+    if (order === undefined) {
+      continue;
+    }
+    for (const topic of sourceOrderAspectTopics(entry, input.language)) {
+      const current = earliestAspectSourceOrder.get(topic);
+      if (current === undefined || order < current) {
+        earliestAspectSourceOrder.set(topic, order);
+      }
+    }
+  }
+
+  const candidatePool = input.pool
+    .filter((entry) => !selectedIds.has(entry.fact.id))
+    .filter(hasUserAnswerTag)
+    .map((entry) => {
+      const order = sourceOrderSortKey(entry);
+      if (order === undefined) {
+        return null;
+      }
+      const content = stripEvidencePrefix(entry.fact.content);
+      const aspectTopics = sourceOrderAspectTopics(entry, input.language);
+      if (
+        aspectTopics.size === 0 &&
+        !SOURCE_ORDER_ASPECT_CUE_PATTERN.test(content)
+      ) {
+        return null;
+      }
+      const novelAspectCount = [...aspectTopics].filter(
+        (topic) => !selectedAspectTopics.has(topic),
+      ).length;
+      const aspectIntroductionCount = [...aspectTopics].filter(
+        (topic) => earliestAspectSourceOrder.get(topic) === order,
+      ).length;
+      const nearestDistance = Math.min(
+        ...selectedOrders.map((selectedOrder) => Math.abs(selectedOrder - order)),
+      );
+      const tailMilestoneBonus = order > maxSelectedOrder ? 120 : 0;
+      const isolatedMilestoneBonus =
+        nearestDistance > SOURCE_ORDER_COMPANION_MAX_DISTANCE ? 45 : 0;
+      const priority =
+        sourceOrderGapCandidatePriority(
+          entry,
+          input.query,
+          input.language,
+          input.queryLocale,
+        ) +
+        novelAspectCount * 140 +
+        aspectIntroductionCount * 90 +
+        tailMilestoneBonus +
+        isolatedMilestoneBonus;
+
+      return {
+        aspectTopics,
+        entry,
+        novelAspectCount,
+        order,
+        priority,
+      };
+    })
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        aspectTopics: Set<string>;
+        entry: RankedFactCandidate;
+        novelAspectCount: number;
+        order: number;
+        priority: number;
+      } => candidate !== null,
+    );
+
+  const additions: RankedFactCandidate[] = [];
+  while (
+    additions.length < SOURCE_ORDER_MILESTONE_FILL_LIMIT &&
+    candidatePool.length > 0
+  ) {
+    candidatePool.sort((left, right) => {
+      const priorityDelta = right.priority - left.priority;
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return left.order - right.order;
+    });
+
+    const next = candidatePool.shift();
+    if (!next) {
+      break;
+    }
+    const stillNovelAspectCount = [...next.aspectTopics].filter(
+      (topic) => !selectedAspectTopics.has(topic),
+    ).length;
+    if (
+      stillNovelAspectCount === 0 &&
+      next.order <= maxSelectedOrder &&
+      additions.length > 0
+    ) {
+      continue;
+    }
+
+    additions.push(next.entry);
+    for (const topic of next.aspectTopics) {
+      selectedAspectTopics.add(topic);
+    }
+  }
+
+  if (additions.length === 0) {
+    return input.selected;
+  }
+
+  return [...input.selected, ...additions].sort(compareTemporalFactChronology);
+}
+
+function compareTemporalFactChronology(
   left: RankedFactCandidate,
   right: RankedFactCandidate,
 ): number {
@@ -1096,10 +1594,149 @@ function compareDatedFactChronology(
   const rightDate = datedFactSortKey(right);
 
   if (!leftDate || !rightDate || leftDate === rightDate) {
+    const leftSourceOrder = sourceOrderSortKey(left);
+    const rightSourceOrder = sourceOrderSortKey(right);
+    if (
+      leftSourceOrder !== undefined &&
+      rightSourceOrder !== undefined &&
+      leftSourceOrder !== rightSourceOrder
+    ) {
+      return leftSourceOrder - rightSourceOrder;
+    }
+
     return temporalOrderEvidencePriority(right) - temporalOrderEvidencePriority(left);
   }
 
   return leftDate.localeCompare(rightDate);
+}
+
+function isPotentialContradictionConfirmationQuery(query: string): boolean {
+  return /\b(?:have|has|did|do|does|ever)\b/iu.test(query) &&
+    /\b(?:worked\s+with|written|wrote|handled|implemented|built|created|done|used)\b/iu.test(query);
+}
+
+function isNegatedSourceClaim(entry: RankedFactCandidate): boolean {
+  return hasConversationEvidenceTag(entry) &&
+    CONTRADICTION_NEGATED_CLAIM_PATTERN.test(
+      stripEvidencePrefix(entry.fact.content),
+    );
+}
+
+function isRealizedPositiveSourceClaim(entry: RankedFactCandidate): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  return hasConversationEvidenceTag(entry) &&
+    !CONTRADICTION_NEGATED_CLAIM_PATTERN.test(content) &&
+    CONTRADICTION_REALIZED_EVIDENCE_PATTERN.test(content);
+}
+
+function selectContradictionEvidencePair(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  if (!isPotentialContradictionConfirmationQuery(input.query)) {
+    return [];
+  }
+
+  const queryTopics = aggregateTopicTokens(
+    input.query,
+    input.language,
+    input.queryLocale,
+  );
+  const negatedClaims = input.entries.filter(isNegatedSourceClaim);
+  const positiveClaims = input.entries.filter(isRealizedPositiveSourceClaim);
+  const preferredNegatedClaims = negatedClaims.some(hasUserAnswerTag)
+    ? negatedClaims.filter(hasUserAnswerTag)
+    : negatedClaims;
+  const preferredPositiveClaims = positiveClaims.some(hasUserAnswerTag)
+    ? positiveClaims.filter(hasUserAnswerTag)
+    : positiveClaims;
+  const hasEarlierPositiveContradiction = preferredNegatedClaims.some((negated) => {
+    const negatedOrder = sourceOrderSortKey(negated);
+    return negatedOrder !== undefined &&
+      preferredPositiveClaims.some((positive) => {
+        const positiveOrder = sourceOrderSortKey(positive);
+        return positiveOrder !== undefined && positiveOrder < negatedOrder;
+      });
+  });
+  let best:
+    | {
+        negated: RankedFactCandidate;
+        positive: RankedFactCandidate;
+        score: number;
+      }
+    | undefined;
+
+  for (const negated of preferredNegatedClaims) {
+    const negatedTopics = aggregateTopicTokens(
+      negated.fact.content,
+      input.language,
+      negated.locale,
+    );
+
+    for (const positive of preferredPositiveClaims) {
+      if (positive.fact.id === negated.fact.id) {
+        continue;
+      }
+      if (hasEarlierPositiveContradiction) {
+        const negatedOrder = sourceOrderSortKey(negated);
+        const positiveOrder = sourceOrderSortKey(positive);
+        if (
+          negatedOrder === undefined ||
+          positiveOrder === undefined ||
+          positiveOrder >= negatedOrder
+        ) {
+          continue;
+        }
+      }
+
+      const positiveTopics = aggregateTopicTokens(
+        positive.fact.content,
+        input.language,
+        positive.locale,
+      );
+      const queryOverlap = aggregateTopicOverlapCount(queryTopics, positiveTopics);
+      const pairTopics = new Set(
+        [...positiveTopics].filter(
+          (topic) => negatedTopics.has(topic) && queryTopics.has(topic),
+        ),
+      );
+      const pairOverlap = pairTopics.size;
+      if (queryOverlap < 2 || pairOverlap < 2) {
+        continue;
+      }
+
+      const score =
+        Math.min(queryOverlap, 4) * 10 +
+        Math.min(pairOverlap, 4) * 8 +
+        positive.lexicalScore * 20 +
+        negated.lexicalScore * 20 +
+        (
+          CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN.test(
+            stripEvidencePrefix(positive.fact.content),
+          )
+            ? 40
+            : 0
+        ) +
+        (hasUserAnswerTag(positive) ? 20 : 0) +
+        (hasAssistantAnswerTag(positive) ? -40 : 0);
+      if (!best || score > best.score) {
+        best = {
+          negated,
+          positive,
+          score,
+        };
+      }
+    }
+  }
+
+  if (!best) {
+    return [];
+  }
+
+  return [best.positive, best.negated].sort(compareTemporalFactChronology);
 }
 
 function hasSleepBeforeAppointmentEvidenceSignal(
@@ -1628,13 +2265,13 @@ function resolveUpdateSeriesKey(
     /\bmoved(?:\s+back)?\s+to\b/i.test(entry.fact.content)
   ) {
     const subject =
-      entry.fact.subject ??
       sourceContent.match(
         /\bfriend\s+([A-Z][A-Za-z'-]+)\b[\s\S]{0,160}\bmoved(?:\s+back)?\s+to\b/u,
       )?.[1] ??
       sourceContent.match(
         /\b([A-Z][A-Za-z'-]+)\s+(?:actually\s+|recently\s+|just\s+)?moved(?:\s+back)?\s+to\b/u,
-      )?.[1];
+      )?.[1] ??
+      entry.fact.subject;
     if (subject) {
       return `relationship-relocation:${normalizeUpdateSeriesPart(subject)}`;
     }
@@ -2603,6 +3240,12 @@ export function selectFacts(
         directFactualEvidenceBridgePriority(left),
     )
     : [];
+  const contradictionEvidencePair = selectContradictionEvidencePair({
+    entries: compatible,
+    language,
+    query,
+    queryLocale,
+  });
   const pickGenericCandidates = (entries: RankedFactCandidate[]) => {
     if (!directFactualLookupQuery) {
       return entries.slice(0, limit);
@@ -2625,7 +3268,26 @@ export function selectFacts(
     );
   };
 
-  if (aggregateEvidenceQuery) {
+  if (contradictionEvidencePair.length > 0) {
+    for (const entry of contradictionEvidencePair) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (aggregateEvidenceQuery) {
     const aggregateCandidates = rankFactCandidates(
       collapseLatestUpdateSeries(
         compatible.filter((item) =>
@@ -2806,21 +3468,49 @@ export function selectFacts(
     temporalMostRecentQuery ||
     temporalRelativeEventQuery
   ) {
-    const temporalCandidates = diversifyRankedFactCandidatesBySession(
-      rankFactCandidates(
-        compatible.filter(hasTemporalEventOrderSignal),
-        routingDecision.strategy,
-      ).sort(
-        (left, right) =>
-          temporalOrderEvidencePriority(right) -
-          temporalOrderEvidencePriority(left),
-      ),
-      limit,
+    const rankedTemporalCandidates = rankFactCandidates(
+      compatible.filter((entry) => hasTemporalEventOrderSignal(entry, query)),
+      routingDecision.strategy,
+    ).sort(
+      (left, right) =>
+        temporalOrderEvidencePriority(right) -
+        temporalOrderEvidencePriority(left),
     );
-    const orderedTemporalCandidates = temporalEventOrderQuery &&
-      temporalCandidates.every((entry) => entry.fact.category === "external_benchmark")
-      ? [...temporalCandidates].sort(compareDatedFactChronology)
+    const temporalCandidates = diversifyRankedFactCandidatesBySession(
+      rankedTemporalCandidates,
+      compatible.some(isSourceOrderedFact) ? SOURCE_ORDER_EVENT_RECALL_LIMIT : limit,
+    );
+    const gapFilledTemporalCandidates = temporalEventOrderQuery &&
+      temporalCandidates.some(isSourceOrderedFact)
+      ? fillSourceOrderedTemporalGaps({
+        language,
+        pool: rankedTemporalCandidates.filter(isSourceOrderedFact),
+        query,
+        queryLocale,
+        selected: temporalCandidates,
+      })
       : temporalCandidates;
+    const companionFilledTemporalCandidates = temporalEventOrderQuery &&
+      gapFilledTemporalCandidates.some(isSourceOrderedFact)
+      ? fillSourceOrderedTemporalCompanions({
+        pool: rankedTemporalCandidates.filter(isSourceOrderedFact),
+        selected: gapFilledTemporalCandidates,
+      })
+      : gapFilledTemporalCandidates;
+    const milestoneFilledTemporalCandidates = temporalEventOrderQuery &&
+      companionFilledTemporalCandidates.some(isSourceOrderedFact)
+      ? fillSourceOrderedTemporalMilestones({
+        language,
+        pool: rankedTemporalCandidates.filter(isSourceOrderedFact),
+        query,
+        queryLocale,
+        selected: companionFilledTemporalCandidates,
+      })
+      : companionFilledTemporalCandidates;
+    const orderedTemporalCandidates = temporalEventOrderQuery &&
+      milestoneFilledTemporalCandidates.every((entry) => entry.fact.category === "external_benchmark")
+      ? [...milestoneFilledTemporalCandidates].sort(compareTemporalFactChronology)
+      : milestoneFilledTemporalCandidates;
 
     for (const entry of orderedTemporalCandidates) {
       selected.push(entry);

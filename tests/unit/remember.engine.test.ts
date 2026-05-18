@@ -420,6 +420,77 @@ describe("remember engine", () => {
     expect(facts[0]?.source.method).toBe("explicit");
   });
 
+  it("preserves metadata-patched remember-always source messages as retrievable evidence", async () => {
+    const scope = { userId: "u-annotation-source", sessionId: "s-1" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "summary-1",
+                kindHint: "fact",
+                explicitness: "inferred",
+                content: "The user is working on a budget tracker.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: {
+                  category: "project",
+                },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const sourceMessage =
+      "[chat_id=42 time=unknown] I need to implement transaction creation with proper error handling in my personal budget tracker.";
+    const result = await engine.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: sourceMessage,
+        },
+      ],
+      annotations: [
+        {
+          confirmed: true,
+          messageIndex: 0,
+          metadataPatch: {
+            attributes: {
+              originalRole: "user",
+              sourceOrder: 42,
+            },
+            category: "external_benchmark",
+            tags: ["imported_conversation"],
+          },
+          remember: "always",
+          verified: true,
+        },
+      ],
+    });
+    const facts = await repositories.facts.listByScope(scope);
+    const preserved = facts.find((fact) => fact.content === sourceMessage);
+
+    expect(result.accepted).toBe(2);
+    expect(preserved?.category).toBe("external_benchmark");
+    expect(preserved?.source.method).toBe("explicit");
+    expect(preserved?.tags).toEqual([
+      "imported_conversation",
+      "source_message",
+      "source_order",
+      "user_answer",
+    ]);
+    expect(preserved?.attributes).toMatchObject({
+      originalRole: "user",
+      sourceMessageIndex: 0,
+      sourceOrder: 42,
+    });
+  });
+
   it("does not let remember-always annotations bypass write policy", async () => {
     const scope = { userId: "u-annotation-policy", sessionId: "s-1" };
     const { engine } = createEngine({

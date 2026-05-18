@@ -7,7 +7,66 @@
 Current execution status: Phase 62 LongMemEval has an accepted clean internal
 closure checkpoint, and Phase 63 BEAM is active. Phase 63 source intake,
 synthetic fixture, smoke adapter/report contract, package scripts, and smoke
-gate are now in place through `eval:phase-63` and `gate:phase-63`.
+gate are now in place through `eval:phase-63` and `gate:phase-63`. The first
+real 100K external-root BEAM ingestion/comparison is also complete through
+`prepare:phase-63-beam` plus
+`run-phase63-beam-100k-full-initial-20260518T000335Z`. The initial P63-T006
+miss/noise analysis is complete with status `needs-live-retrieval-analysis`.
+The first real P63-T007 recall diagnostic is also complete for rules-only:
+`run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z` covers
+the full 400-case 100K slice with provider-free GoodMemory recall,
+`executionFailures: 0`, evidence-chat recall 0.11625896794910878,
+missed-recall cases 340/355, and wrong-recall/noise cases 362/400. The next
+open Phase 63 boundary is a small live answer-generation/judge slice over
+representative diagnostic misses before any generic GoodMemory mechanism
+repair.
+That live-slice boundary is now also crossed:
+`run-phase63-beam-100k-live-slice-rules-initial3-escalated-20260518T014500Z`
+covers three representative rules-only diagnostic misses with live answer
+generation and semantic judging, `executionFailures: 0`, answer accuracy 0/3,
+evidence-chat recall 0.16666666666666666, missed recall 3/3, and
+wrong-recall/noise 3/3. The next open Phase 63 boundary is a generic
+retrieval/evidence-preservation repair for long imported conversations, then a
+rerun of the same recall diagnostic and live slice.
+The first generic repair is now implemented as source-message preservation for
+metadata-patched `remember(always)` imports plus source-order selection for
+undated event-order questions. That first current-code rerun improves full
+rules-only BEAM recall from 0.11625896794910878 to 0.2545638985427718 on
+`run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-chatid-current-20260518T040000Z`.
+A second generic pass adds source-order topic-gap fill, bounded adjacent
+companions for local continuations, and contradiction-pair retrieval that
+prefers user-grounded evidence over repeated assistant context. The latest
+current-code full rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-contradiction-companions-v2-20260518T080000Z`
+reaches evidence-chat recall 0.26990036176655896 with `executionFailures: 0`,
+missed-recall cases 296/355, and wrong-recall/noise cases 387/400. The paired
+same-three-case live slice
+`run-phase63-beam-100k-live-slice-rules-contradiction-companions-initial3-escalated-20260518T074500Z`
+raises evidence-chat recall to 0.7222222222222222, but answer accuracy still
+remains 0/3. A follow-up generic answer-synthesis prompt now tells the live
+runner to surface materially conflicting user statements instead of silently
+choosing one side; the same-three-case rerun
+`run-phase63-beam-100k-live-slice-rules-contradiction-companions-prompt-guidance-initial3-escalated-20260518T081500Z`
+keeps evidence-chat recall at 0.7222222222222222 and raises answer accuracy to
+1/3 by fixing the contradiction case. This is partial mechanism progress, not
+BEAM closure. The next open Phase 63 boundary is source-order noise reduction
+and ordered-answer synthesis over long imported conversations before moving to
+MemoryAgentBench.
+A third generic pass adds late source-ordered milestone fill, source-message
+compression for live answer context, and an explicit source-ordered retrieved
+turn section for ordering questions. The latest provider-free full recall
+diagnostic
+`run-phase63-beam-100k-recall-diagnostic-rules-full-milestone-compression-current-20260518T061100Z`
+reaches evidence-chat recall 0.2759374936487613 with `executionFailures: 0`,
+missed-recall cases 294/355, and wrong-recall/noise cases 387/400. The latest
+same-three-case live slice
+`run-phase63-beam-100k-live-slice-rules-structured-order-context-prompt-v2-initial3-escalated-20260518T064500Z`
+has `executionFailures: 0`, evidence-chat recall 1.0, missed-recall cases 0/3,
+wrong-recall/noise cases 2/3, and answer accuracy 1/3. Retrieval is now
+complete for the representative trio, but the event-ordering answers still
+over-select noisy early/setup turns. Phase 63 remains active; the next open
+boundary is generic source-order noise pruning and ordered evidence selection,
+not another broad prompt-only pass.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
@@ -24,9 +83,30 @@ The accepted Phase 63 smoke harness evidence is
 `run-phase63-beam-smoke-current` plus gate `run-20260518003000`: three
 synthetic BEAM-shaped questions, all four comparison profiles, and
 `executionFailures: 0`. This is harness-integrity evidence only, not a BEAM
-score. The next open requirement is P63-T005, the first external-root BEAM
-comparison over real upstream data or a documented JSON export/conversion of
-the upstream Parquet split.
+score. The accepted initial external-root evidence is
+`run-phase63-beam-100k-full-initial-20260518T000335Z`: `/private/tmp/BEAM`
+contains the prepared Hugging Face rows API export for the 100K split
+(`100K.json`, 20 rows, 400 probing questions), the full runner compares
+`baseline-no-memory`, `baseline-full-context`, `goodmemory-rules-only`, and
+`goodmemory-hybrid`, and `executionFailures` is 0. This proves real-row
+adapter/full-run ingestion only; it is not a final BEAM score because the
+current Phase 63 full profiles still use deterministic oracle answers/evidence
+ids rather than live GoodMemory answer generation and live judging. The
+accepted initial miss/noise analysis
+`reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
+separates the expected no-memory lower bound, full-context token/noise pressure
+(average 286.6 retrieved chat ids per case, 283.865 distractors), and the
+oracle GoodMemory boundary. The next open requirement is P63-T007: add or run
+a real GoodMemory BEAM recall diagnostic without oracle retrieval and then run
+a small live answer-generation/judge slice before any generic GoodMemory
+repair. Both the recall-diagnostic half
+(`run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`) and
+the initial live-slice half
+(`run-phase63-beam-100k-live-slice-rules-initial3-escalated-20260518T014500Z`)
+are now done; the source-preservation pass and the follow-up contradiction /
+source-order-companion pass are also done under current code, but neither is
+sufficient for closure. The open boundary remains generic BEAM repair for noise
+reduction and answer synthesis after the improved retrieval surface.
 
 Historical context: the prior full-500 execution blocker was clean after
 failed-row recovery:
@@ -77,10 +157,11 @@ checkpoint is now
 `run-phase62-longmemeval-full500-current-after-selected-count-synthesis-hybrid-smallshards-20260516T215000Z`,
 which reaches 435/500 with evidence-session recall 0.9102, missed recall 74,
 wrong recall 6, wrong answers 65, and `executionFailures: 0`. This is a clear
-improvement over the prior 428/500 selected-evidence checkpoint, but Phase 62
-remains open because it is still below the 451/500 full-context reference.
-BEAM remains blocked until the remaining LongMemEval full-500 quality gap is
-repaired or explicitly deferred.
+improvement over the prior 428/500 selected-evidence checkpoint. At that
+historical checkpoint, Phase 62 still remained open because it was below the
+451/500 full-context reference, and BEAM was therefore blocked until the
+remaining LongMemEval quality gap was repaired or explicitly deferred. The
+current accepted Phase 62 close checkpoint has since superseded this boundary.
 
 Latest targeted repair after that 435/500 full run: the dominant
 `missedRecall|multi-session|noAnswer` bucket now has a quantified-personal
@@ -426,9 +507,9 @@ correctly.
   - smoke report：可进仓库、用于 gate。
   - full-run report：本地 research evidence，可引用摘要但不作为 release hard gate。
   - miss-case analysis：记录失败族、根因、补强项、回测 delta。
-- Phase 63 当前 runner 先覆盖 BEAM smoke fixture 和 JSON export contract；
-  upstream Parquet 直读或转换脚本属于 P63-T005 的 full-run setup，不作为已完成
-  BEAM 成绩宣称。
+- Phase 63 当前 runner 已覆盖 BEAM smoke fixture、JSON export contract、rows
+  API 外部 root 准备脚本，以及 100K split 初始 full-run ingestion；这些是
+  adapter/full-run 证据，不作为最终 BEAM 成绩宣称。
 - GoodMemory 补强优先顺序：
   - 先修召回质量、stale suppression、conflict/update handling。
   - 再修大规模噪声和 token budget。

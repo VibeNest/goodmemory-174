@@ -2267,6 +2267,893 @@ describe("recall selection", () => {
     ].sort());
   });
 
+  it("returns source-ordered imported evidence for event-order questions without dates", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-budget-core",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I want to build a personal budget tracker with user authentication, expense tracking, and data visualization.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          sourceOrder: 4,
+        },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-transactions",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I am implementing transaction creation with proper response handling and error management.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          sourceOrder: 60,
+        },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-security",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I need security hardening before deployment, especially authentication and authorization.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          sourceOrder: 116,
+        },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-generic-distractor",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "A generic Flask checklist mentioned deployment and auth terms without being a source turn.",
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you list the order in which I brought up different aspects of developing my personal budget tracker throughout our conversations, in order?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-budget-core",
+      "fact-transactions",
+      "fact-security",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-generic-distractor")?.returned).toBe(false);
+  });
+
+  it("fills source-ordered topical gaps for broad event-order questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-breakdown",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Sure, let's break it down for my budget tracker project: user authentication, transaction management, and basic analytics.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 2 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-budget-core",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I want to build a personal budget tracker with user authentication, expense tracking, and data visualization.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 4 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-password",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I am implementing basic password hashing for my personal budget tracker using Werkzeug.security.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 16 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-minimal",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I want my Flask app to stay minimal while meeting the MVP deadline for income tracking, login, and analytics.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 34 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-transactions",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I am currently working on transaction CRUD and analytics integration for my personal budget tracker, with completed registration and login modules.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 60 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-rest-api",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I am designing a REST API for transactions with validation and error handling.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 82 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-logging",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I am configuring Flask logging to output to budget_tracker.log and capture stack traces.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 96 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-security",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I am finalizing deployment and need UI/UX improvements plus security hardening for authentication and authorization before public launch.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 116 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-docs",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I am documenting API endpoints and architecture decisions in Confluence for a remote collaborator.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 176 },
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you list the order in which I brought up different aspects of developing my personal budget tracker throughout our conversations, in order? Mention ONLY and ONLY three items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-budget-core");
+    expect(selectedIds).toContain("fact-transactions");
+    expect(selectedIds).toContain("fact-security");
+    expect(
+      selectedIds.indexOf("fact-budget-core"),
+    ).toBeLessThan(selectedIds.indexOf("fact-transactions"));
+    expect(
+      selectedIds.indexOf("fact-transactions"),
+    ).toBeLessThan(selectedIds.indexOf("fact-security"));
+  });
+
+  it("fills late source-ordered deployment and test evidence for broad app event-order questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-breakdown",
+        2,
+        "Budget tracker project breakdown: user authentication, transaction management, and analytics milestones.",
+      ),
+      makeFact(
+        "fact-core",
+        4,
+        "I want to implement core budget tracker functionality with user authentication and expense tracking.",
+      ),
+      makeFact(
+        "fact-local-setup",
+        6,
+        "I am initializing a Flask 2.3.1 project on Python 3.11 with SQLite 3.39 for local dev on port 5000.",
+      ),
+      makeFact(
+        "fact-schema",
+        12,
+        "I am designing the database schema and models for income, expenses, and analytics.",
+      ),
+      makeFact(
+        "fact-minimal",
+        34,
+        "I want the Flask app to stay minimal while still implementing tracking, login, and analytics.",
+      ),
+      makeFact(
+        "fact-blueprints",
+        48,
+        "I am modularizing the app into auth, transactions, and analytics blueprints.",
+      ),
+      makeFact(
+        "fact-sprint",
+        52,
+        "I am updating the project timeline and sprint plan for the budget tracker.",
+      ),
+      makeFact(
+        "fact-transaction-post",
+        62,
+        "I am implementing the POST /transactions route and need the response handling and error management to be correct.",
+      ),
+      makeFact(
+        "fact-rest-api",
+        82,
+        "I am designing a REST API for transactions with validation and error handling.",
+      ),
+      makeFact(
+        "fact-analytics",
+        86,
+        "I am working on sprint 2 for analytics after completing auth and basic transaction CRUD.",
+      ),
+      makeFact(
+        "fact-security-review",
+        116,
+        "I am finalizing deployment and need security hardening for authentication and authorization.",
+      ),
+      makeFact(
+        "fact-gunicorn-tests",
+        118,
+        "I am having deployment issues with Gunicorn on Render.com, using 3 workers on port 10000, and my integration tests cover user auth, transaction CRUD, and analytics endpoints with a 95% pass rate.",
+      ),
+      makeFact(
+        "fact-security-tests",
+        120,
+        "I will add more tests to cover edge cases and security vulnerabilities, specifically SQL injection and XSS.",
+      ),
+      makeFact(
+        "fact-docs",
+        176,
+        "I am documenting API endpoints and architecture decisions in Confluence.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you walk me through the order in which I brought up different aspects of my app development and deployment across our conversations? Mention ONLY and ONLY five items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-local-setup",
+      "fact-transaction-post",
+      "fact-gunicorn-tests",
+      "fact-security-tests",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(
+      selectedIds.indexOf("fact-local-setup"),
+    ).toBeLessThan(selectedIds.indexOf("fact-transaction-post"));
+    expect(
+      selectedIds.indexOf("fact-transaction-post"),
+    ).toBeLessThan(selectedIds.indexOf("fact-gunicorn-tests"));
+    expect(
+      selectedIds.indexOf("fact-gunicorn-tests"),
+    ).toBeLessThan(selectedIds.indexOf("fact-security-tests"));
+  });
+
+  it("fills late source-ordered deployment gaps after dense early development chatter", () => {
+    const language = createLanguageService();
+    const makeFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      role: "assistant" | "user" = "user",
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-breakdown-answer",
+        2,
+        "Budget tracker app development implementation details: user authentication, expense tracking, and analytics.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-core",
+        4,
+        "I want to implement the core functionality of my personal budget tracker app with authentication, expense tracking, and data visualization.",
+      ),
+      makeFact(
+        "fact-local-setup",
+        6,
+        "I am initializing a Flask 2.3.1 project on Python 3.11 with SQLite 3.39 for local dev on port 5000.",
+      ),
+      makeFact(
+        "fact-schema",
+        12,
+        "I am designing the database schema and models for income, expenses, and analytics.",
+      ),
+      makeFact(
+        "fact-sqlite",
+        14,
+        "I am implementing SQLite transaction helpers with validation and error handling.",
+      ),
+      makeFact(
+        "fact-password",
+        16,
+        "I am implementing password hashing for the personal budget tracker.",
+      ),
+      makeFact(
+        "fact-wireframe",
+        18,
+        "I am creating the initial Bootstrap wireframe for the app.",
+      ),
+      makeFact(
+        "fact-template-debug",
+        20,
+        "I am debugging TemplateNotFound and database table setup errors.",
+      ),
+      makeFact(
+        "fact-minimal",
+        34,
+        "I want the Flask app to stay minimal while still implementing tracking, login, and analytics.",
+      ),
+      makeFact(
+        "fact-async",
+        36,
+        "I am testing async Flask routing and request handling in Python 3.11.",
+      ),
+      makeFact(
+        "fact-registration-estimate",
+        42,
+        "I am estimating secure registration work and validation tasks.",
+      ),
+      makeFact(
+        "fact-blueprints",
+        48,
+        "I am modularizing the app into auth, transactions, and analytics blueprints.",
+      ),
+      makeFact(
+        "fact-estimate-answer",
+        50,
+        "App development planning answer: estimate registration work, validation, and implementation time.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-sprint",
+        52,
+        "I am planning the sprint sequence for registration, login, and later app development work.",
+      ),
+      makeFact(
+        "fact-transaction-crud",
+        60,
+        "I am currently working on the transaction CRUD and analytics integration for my personal budget tracker, and I have completed the registration and login modules during app development.",
+      ),
+      makeFact(
+        "fact-transaction-post",
+        62,
+        "I am implementing the POST /transactions route and need response handling and error management.",
+      ),
+      makeFact(
+        "fact-rest-api",
+        82,
+        "I am designing a REST API for transactions with validation and error handling.",
+      ),
+      makeFact(
+        "fact-analytics-sprint",
+        86,
+        "I am working on the analytics sprint after completing authentication and transaction CRUD.",
+      ),
+      makeFact(
+        "fact-logging",
+        96,
+        "I am configuring Flask logging to capture stack traces.",
+      ),
+      makeFact(
+        "fact-security-review",
+        116,
+        "I am finalizing deployment and need security hardening for authentication and authorization.",
+      ),
+      makeFact(
+        "fact-gunicorn-tests",
+        118,
+        "I am having deployment issues with Gunicorn on Render.com, and my integration tests cover user auth, transaction CRUD, and analytics endpoints.",
+      ),
+      makeFact(
+        "fact-security-tests",
+        120,
+        "I will add more tests to cover edge cases and security vulnerabilities, specifically SQL injection and XSS.",
+      ),
+      makeFact(
+        "fact-docs",
+        176,
+        "I am documenting API endpoints and architecture decisions in Confluence.",
+      ),
+      makeFact(
+        "fact-pragmatic-security",
+        178,
+        "I prefer pragmatic security enhancements that do not compromise responsiveness.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you walk me through the order in which I brought up different aspects of my app development and deployment across our conversations? Mention ONLY and ONLY five items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-local-setup",
+      "fact-transaction-post",
+      "fact-gunicorn-tests",
+      "fact-security-tests",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+  });
+
+  it("fills late source-ordered milestones even when early chatter has recent recall usage", () => {
+    const language = createLanguageService();
+    const makeFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      usageBoost = false,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        accessCount: usageBoost ? 5 : 0,
+        lastAccessedAt: usageBoost ? TIMESTAMP : undefined,
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-core",
+        4,
+        "I want to implement core personal budget tracker functionality with authentication, expense tracking, and visualization.",
+        true,
+      ),
+      makeFact(
+        "fact-local-setup",
+        6,
+        "I am initializing the Flask budget tracker locally with SQLite and port 5000.",
+        true,
+      ),
+      makeFact(
+        "fact-jinja",
+        10,
+        "I am setting up Jinja2 templates and Bootstrap for the budget tracker UI.",
+        true,
+      ),
+      makeFact(
+        "fact-schema",
+        12,
+        "I am designing the budget tracker schema and models for income, expenses, and analytics.",
+        true,
+      ),
+      makeFact(
+        "fact-sqlite",
+        14,
+        "I am implementing SQLite transaction helpers with validation and error handling.",
+        true,
+      ),
+      makeFact(
+        "fact-password",
+        16,
+        "I am adding password hashing and login validation.",
+        true,
+      ),
+      makeFact(
+        "fact-homepage",
+        24,
+        "I implemented the homepage route and returned static HTML from Flask.",
+        true,
+      ),
+      makeFact(
+        "fact-minimal",
+        34,
+        "I want the budget tracker app to stay minimal while shipping the MVP.",
+        true,
+      ),
+      makeFact(
+        "fact-blueprints",
+        48,
+        "I am splitting the app into auth, transactions, and analytics blueprints.",
+        true,
+      ),
+      makeFact(
+        "fact-transaction-crud",
+        60,
+        "I am working on transaction CRUD and analytics integration after finishing registration and login.",
+      ),
+      makeFact(
+        "fact-transaction-post",
+        62,
+        "I am implementing POST /transactions with proper response handling and error management.",
+      ),
+      makeFact(
+        "fact-rest-api",
+        82,
+        "I am designing REST transaction endpoints with validation and error handling.",
+        true,
+      ),
+      makeFact(
+        "fact-security-review",
+        116,
+        "I am finalizing deployment and need security hardening for authentication and authorization before launch.",
+      ),
+      makeFact(
+        "fact-gunicorn-tests",
+        118,
+        "I am reviewing Gunicorn deployment on Render.com and integration tests for auth, transaction CRUD, and analytics.",
+      ),
+      makeFact(
+        "fact-security-tests",
+        120,
+        "I will add security tests for SQL injection and XSS before deployment.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you list the order in which I brought up different aspects of developing my personal budget tracker throughout our conversations, in order? Mention ONLY and ONLY three items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-core");
+    expect(selectedIds).toContain("fact-transaction-crud");
+    expect(selectedIds).toContain("fact-security-review");
+    expect(
+      selectedIds.indexOf("fact-transaction-crud"),
+    ).toBeLessThan(selectedIds.indexOf("fact-security-review"));
+  });
+
+  it("keeps adjacent source-ordered continuation evidence for event-order questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-breakdown",
+        2,
+        "Budget tracker development breakdown: authentication, expenses, analytics, and reporting.",
+      ),
+      makeFact(
+        "fact-core",
+        4,
+        "I want to build the core budget tracker app with authentication and expense tracking.",
+      ),
+      makeFact(
+        "fact-local-setup",
+        6,
+        "I am setting up Flask locally on port 5000 for app development.",
+      ),
+      makeFact(
+        "fact-schema",
+        12,
+        "I am defining the schema, validation, and transaction models.",
+      ),
+      makeFact(
+        "fact-password",
+        16,
+        "I am adding password hashing and authentication validation.",
+      ),
+      makeFact(
+        "fact-wireframe",
+        18,
+        "I am building the first wireframe for the Flask app.",
+      ),
+      makeFact(
+        "fact-minimal",
+        34,
+        "I want the app to stay minimal while shipping the MVP.",
+      ),
+      makeFact(
+        "fact-blueprints",
+        48,
+        "I am splitting the app into auth, transactions, and analytics blueprints.",
+      ),
+      makeFact(
+        "fact-sprint",
+        52,
+        "I am planning the next app-development sprint.",
+      ),
+      makeFact(
+        "fact-transaction-crud",
+        60,
+        "I am working on transaction CRUD and analytics integration.",
+      ),
+      makeFact(
+        "fact-transaction-post",
+        62,
+        "I am implementing the POST /transactions route and response handling.",
+      ),
+      makeFact(
+        "fact-rest-api",
+        82,
+        "I am designing a REST API with validation and error handling.",
+      ),
+      makeFact(
+        "fact-logging",
+        96,
+        "I am configuring Flask logging for deployment diagnostics.",
+      ),
+      makeFact(
+        "fact-security-preface",
+        108,
+        "I am reviewing security improvements before deployment.",
+      ),
+      makeFact(
+        "fact-security-review",
+        116,
+        "I am finalizing deployment and reviewing authentication hardening.",
+      ),
+      makeFact(
+        "fact-gunicorn-tests",
+        118,
+        "I am reviewing Gunicorn deployment and integration tests for auth and transaction CRUD.",
+      ),
+      makeFact(
+        "fact-security-tests",
+        120,
+        "Let's do it!",
+      ),
+      makeFact(
+        "fact-docs",
+        176,
+        "I am documenting architecture decisions and API endpoints.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you walk me through the order in which I brought up different aspects of my app development and deployment across our conversations?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain("fact-security-tests");
+  });
+
+  it("returns contradictory source-message pairs for factual confirmation questions", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-routing-tutorial",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I'm trying to review Flask routing, request handling, and session management tutorials before deciding how to implement my app.\n@app.route('/login')\ndef login():\n  return 'ok'",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 22 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-homepage-route",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I implemented the basic homepage route with Flask and returned static HTML from @app.route('/').",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 24 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-regular-routes-question",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Can I still use regular Flask routes alongside API endpoints?",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 38 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-never-routes",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I've never written any Flask routes or handled HTTP requests in this project, so I'm starting from scratch.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 58 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-refactor",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I am refactoring legacy Flask code for maintainability and better function naming.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 160 },
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I worked with Flask routes and handled HTTP requests in this project?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-homepage-route",
+      "fact-never-routes",
+    ]);
+  });
+
+  it("prefers user-grounded contradiction pairs over repeated assistant context", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-homepage-route",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I'm trying to implement the basic homepage route with Flask, and I've managed to return static HTML from @app.route('/').",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 24 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-never-routes",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I've never written any Flask routes or handled HTTP requests in this project, so I'm starting from scratch.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 58 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-flask-login-context",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "I'm trying to integrate Flask-Login for session management. I've already implemented a basic homepage route, and I've never written any Flask routes or handled HTTP requests in this project before.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 66 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-flask-login-answer",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Assistant answer: here is a complete Flask-Login example with registration, login, session management, and transaction CRUD integration.",
+        source: SOURCE,
+        tags: ["assistant_answer", "source_message", "source_order"],
+        attributes: { sourceOrder: 67 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-render-answer",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Assistant answer: update your Gunicorn configuration and Render.com deployment scripts for HTTPS.",
+        source: SOURCE,
+        tags: ["assistant_answer", "source_message", "source_order"],
+        attributes: { sourceOrder: 125 },
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I worked with Flask routes and handled HTTP requests in this project?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-homepage-route",
+      "fact-never-routes",
+    ]);
+  });
+
   it("prioritizes compact dated nursery facts for temporal event-order questions", () => {
     const language = createLanguageService();
     const facts = [

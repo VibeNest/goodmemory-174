@@ -87,8 +87,11 @@ Active Phase
 - Previous accepted entrypoint:
   `task-board/67-phase-62-longmemeval-sequential-hardening.txt`
 - External benchmark order: LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo.
-- Current accepted tooling: `eval:phase-62`, `gate:phase-62`,
-  `eval:phase-62-recall-diagnostic`, `eval:phase-63`, and `gate:phase-63`.
+- Current accepted tooling includes `eval:phase-62`, `gate:phase-62`,
+  `eval:phase-62-recall-diagnostic`, `prepare:phase-63-beam`,
+  `analyze:phase-63-beam`, `eval:phase-63`,
+  `eval:phase-63-recall-diagnostic`, `eval:phase-63-live-slice`, and
+  `gate:phase-63`.
 - Accepted LongMemEval close checkpoint:
   `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`
   has `goodmemory-hybrid` at 454/500, evidence-session recall 0.9590, missed
@@ -100,10 +103,21 @@ Active Phase
   `model_cooldown`, and usage-limit errors as transient. Failed-row recovery is
   now the preferred path over shard reruns and supports `--batch-delay-ms`,
   `--exclude-case-id`, and `--skip-case-id`.
-- Current BEAM harness status: `run-phase63-beam-smoke-current` covers three
-  synthetic BEAM-shaped smoke questions across all four profiles with
-  `executionFailures: 0`, and `gate:phase-63` accepts local gate
-  `run-20260518003000`. This is harness evidence only, not a BEAM score.
+- Current BEAM status: smoke run `run-phase63-beam-smoke-current` and smoke
+  gate `run-20260518003000` are accepted; the real 100K adapter run
+  `run-phase63-beam-100k-full-initial-20260518T000335Z` covers 400 cases with
+  `executionFailures: 0` but is oracle/evidence-contract proof, not a BEAM
+  score.
+- Current BEAM failure surface: the first real rules-only diagnostic
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
+  starts at recall 0.11625896794910878 with missed recall 340/355. The latest
+  contradiction/source-order-companion rerun
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-contradiction-companions-v2-20260518T080000Z`
+  reaches recall 0.26990036176655896, missed recall 296/355, and
+  wrong-recall/noise 387/400. Same-three-case live evidence now tops out at
+  `run-phase63-beam-100k-live-slice-rules-contradiction-companions-prompt-guidance-initial3-escalated-20260518T081500Z`:
+  recall 0.7222222222222222, answer accuracy 1/3, `executionFailures: 0`.
+  Next: source-order noise reduction and ordered-answer synthesis.
 - Current provider sanity status: after provider recovery, Phase 62 one-case
   live probes passed for both `baseline-no-memory`
   (`run-phase62-provider-probe-baseline-20260518T-provider-restored`) and

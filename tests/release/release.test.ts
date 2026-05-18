@@ -965,11 +965,20 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-62-recall-diagnostic"]).toBe(
       "bun run scripts/run-phase-62-recall-diagnostic.ts",
     );
+    expect(pkg.scripts?.["analyze:phase-63-beam"]).toBe(
+      "bun run scripts/analyze-phase-63-beam-report.ts",
+    );
     expect(pkg.scripts?.["prepare:phase-63-beam"]).toBe(
       "bun run scripts/prepare-phase-63-beam-data.ts",
     );
     expect(pkg.scripts?.["eval:phase-63"]).toBe(
       "bun run scripts/run-phase-63-eval.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-63-live-slice"]).toBe(
+      "bun run scripts/run-phase-63-beam-live-slice.ts",
+    );
+    expect(pkg.scripts?.["eval:phase-63-recall-diagnostic"]).toBe(
+      "bun run scripts/run-phase-63-beam-recall-diagnostic.ts",
     );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",

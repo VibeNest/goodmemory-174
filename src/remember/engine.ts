@@ -20,6 +20,7 @@ import {
 import type {
   MessageAnnotation,
   MemoryCandidate,
+  MemoryCandidateMetadata,
   MemoryExtractionInput,
   MemoryExtractionResult,
   MemoryExtractionStrategy,
@@ -49,6 +50,13 @@ export type {
 } from "./contracts";
 
 export function createRememberEngine(config: RememberEngineConfig) {
+  const SOURCE_MESSAGE_TAG = "source_message";
+  const SOURCE_ORDER_TAG = "source_order";
+  const USER_ANSWER_TAG = "user_answer";
+  const ASSISTANT_ANSWER_TAG = "assistant_answer";
+  const DATED_EVENT_TAG = "dated_event";
+  const SOURCE_TEMPORAL_MARKER_PATTERN =
+    /\b(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[-/ ]\d{1,2}[-/ ]\d{2,4}|time\s*=\s*(?!unknown\b)[^\]\s]+)\b/iu;
   const AUTO_EXTRACTION_COMPLEXITY_CHAR_THRESHOLD = 220;
   const AUTO_EXTRACTION_COMPLEX_BATCH_THRESHOLD = 4;
   const AUTO_EXTRACTION_DURABLE_CUE_PATTERN =
@@ -72,6 +80,85 @@ export function createRememberEngine(config: RememberEngineConfig) {
     messageIndex: number,
   ): MessageAnnotation | undefined =>
     input.annotations?.find((annotation) => annotation.messageIndex === messageIndex);
+
+  const appendTag = (tags: string[], tag: string): void => {
+    if (!tags.includes(tag)) {
+      tags.push(tag);
+    }
+  };
+
+  const shouldPreserveAnnotatedSourceMessage = (
+    annotation: MessageAnnotation,
+  ): boolean =>
+    annotation.remember === "always" &&
+    annotation.metadataPatch !== undefined &&
+    (annotation.confirmed === true || annotation.verified === true);
+
+  const resolveOriginalRole = (
+    annotation: MessageAnnotation,
+    message: { role: string },
+  ): string => {
+    const attributeRole =
+      annotation.metadataPatch?.attributes?.originalRole ??
+      annotation.metadataPatch?.attributes?.sourceRole;
+
+    return String(attributeRole ?? message.role).trim().toLowerCase();
+  };
+
+  const sourceOrderAttribute = (
+    metadataPatch: MemoryCandidateMetadata,
+  ) =>
+    metadataPatch.attributes?.sourceOrder ??
+    metadataPatch.attributes?.chatId ??
+    metadataPatch.attributes?.chat_id ??
+    metadataPatch.attributes?.sourceMessageIndex;
+
+  const hasSourceOrderCue = (
+    metadataPatch: MemoryCandidateMetadata,
+  ): boolean =>
+    sourceOrderAttribute(metadataPatch) !== undefined ||
+    (metadataPatch.tags ?? []).some((tag) =>
+      tag === SOURCE_MESSAGE_TAG ||
+      tag === SOURCE_ORDER_TAG ||
+      /^chat_id:\d+$/u.test(tag)
+    );
+
+  const buildPreservedSourceMetadata = (
+    annotation: MessageAnnotation,
+    message: { content: string; role: string },
+  ): MemoryCandidateMetadata => {
+    const metadataPatch = annotation.metadataPatch ?? {};
+    const tags = [...(metadataPatch.tags ?? [])];
+    const orderAttribute = sourceOrderAttribute(metadataPatch);
+    const shouldTrackSourceOrder = hasSourceOrderCue(metadataPatch);
+    const attributes = shouldTrackSourceOrder
+      ? {
+          ...(metadataPatch.attributes ?? {}),
+          sourceMessageIndex: annotation.messageIndex,
+          sourceOrder: orderAttribute ?? annotation.messageIndex,
+        }
+      : metadataPatch.attributes;
+    const originalRole = resolveOriginalRole(annotation, message);
+
+    appendTag(tags, SOURCE_MESSAGE_TAG);
+    if (shouldTrackSourceOrder) {
+      appendTag(tags, SOURCE_ORDER_TAG);
+    }
+    if (originalRole === "user") {
+      appendTag(tags, USER_ANSWER_TAG);
+    } else if (originalRole === "assistant") {
+      appendTag(tags, ASSISTANT_ANSWER_TAG);
+    }
+    if (SOURCE_TEMPORAL_MARKER_PATTERN.test(message.content)) {
+      appendTag(tags, DATED_EVENT_TAG);
+    }
+
+    return {
+      ...metadataPatch,
+      attributes,
+      tags,
+    };
+  };
 
   const buildAnnotationTrace = (annotation: MessageAnnotation) => {
     if (
@@ -208,16 +295,30 @@ export function createRememberEngine(config: RememberEngineConfig) {
         continue;
       }
 
+      const hasCandidateForMessage = candidates.some(
+        (candidate) => candidate.sourceMessageIndex === annotation.messageIndex,
+      );
+      const hasExactSourceCandidate = candidates.some(
+        (candidate) =>
+          candidate.sourceMessageIndex === annotation.messageIndex &&
+          candidate.content.trim() === message.content.trim(),
+      );
+      const preserveSource = shouldPreserveAnnotatedSourceMessage(annotation);
+
       if (
-        candidates.some(
-          (candidate) => candidate.sourceMessageIndex === annotation.messageIndex,
+        hasCandidateForMessage &&
+        (
+          !preserveSource ||
+          hasExactSourceCandidate
         )
       ) {
         continue;
       }
 
       candidates.push({
-        id: `annotation-${annotation.messageIndex + 1}`,
+        id: preserveSource
+          ? `annotation-source-${annotation.messageIndex + 1}`
+          : `annotation-${annotation.messageIndex + 1}`,
         kindHint: annotation.kindHint ?? "fact",
         explicitness: "explicit",
         annotation: buildAnnotationTrace(annotation),
@@ -227,7 +328,9 @@ export function createRememberEngine(config: RememberEngineConfig) {
         content: message.content,
         sourceMessageIndex: annotation.messageIndex,
         sourceRole: message.role,
-        metadata: annotation.metadataPatch,
+        metadata: preserveSource
+          ? buildPreservedSourceMetadata(annotation, message)
+          : annotation.metadataPatch,
       });
     }
 
