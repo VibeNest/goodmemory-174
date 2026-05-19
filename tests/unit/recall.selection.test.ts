@@ -2015,6 +2015,68 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-lightweight-preference")?.returned).toBe(true);
   });
 
+  it("returns Chinese source-ordered preference evidence for implementation help questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      tags: string[] = ["source_message", "source_order", "user_answer"],
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags,
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-assistant-caching-zh",
+        47,
+        "[BEAM chat_id=47 role=assistant time=unknown] 用 localStorage 缓存 API 响应是一个可行方案。",
+        ["source_message", "source_order", "assistant_answer"],
+      ),
+      makeSourceFact(
+        "fact-cache-implementation-noise-zh",
+        52,
+        "[BEAM chat_id=52 role=user time=unknown] 我实现了带 TTL 和失效检查的 API 响应缓存。",
+      ),
+      makeSourceFact(
+        "fact-lightweight-preference-zh",
+        54,
+        "[BEAM chat_id=54 role=user time=unknown] 我想让天气应用保持在 2.5MB 以下，所以我更喜欢轻量、无外部依赖的方案，不想用很重的框架。",
+      ),
+      makeSourceFact(
+        "fact-later-cache-implementation-zh",
+        64,
+        "[BEAM chat_id=64 role=user time=unknown] 我用内存缓存和 TTL 实现了 OpenWeather API 响应缓存。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "帮我做一个 API 响应缓存系统，我希望方案简单直接，尽量不要外部依赖。",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain(
+      "fact-lightweight-preference-zh",
+    );
+    expect(result.traces.find((trace) => trace.memoryId === "fact-lightweight-preference-zh")?.returned).toBe(true);
+  });
+
   it("prioritizes compact kitchen setup evidence over same-session repair topics", () => {
     const language = createLanguageService();
     const facts = [
@@ -3542,6 +3604,229 @@ describe("recall selection", () => {
     }
   });
 
+  it("prioritizes source-ordered implementation milestones over weak summary follow-ups", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-palette-user",
+        4,
+        "user",
+        "[BEAM chat_id=4 role=user time=unknown] I'm building my first portfolio website using HTML5, CSS3, and Bootstrap v5.3.0, and I want to implement a color palette generator for my skills section.",
+      ),
+      makeSourceFact(
+        "fact-palette-assistant",
+        5,
+        "assistant",
+        "[BEAM chat_id=5 role=assistant time=unknown] We implemented the color palette generator functions and Bootstrap styling.",
+      ),
+      makeSourceFact(
+        "fact-structure-user",
+        6,
+        "user",
+        "[BEAM chat_id=6 role=user time=unknown] I'm trying to set up a single-page portfolio with About, Skills, Projects, and Contact sections.",
+      ),
+      makeSourceFact(
+        "fact-structure-assistant",
+        7,
+        "assistant",
+        "[BEAM chat_id=7 role=assistant time=unknown] We built the HTML structure and responsive Bootstrap layout for the portfolio sections.",
+      ),
+      makeSourceFact(
+        "fact-bootstrap-user",
+        10,
+        "user",
+        "[BEAM chat_id=10 role=user time=unknown] I'm trying to integrate the Bootstrap 5.3.0 CDN into my portfolio website for a responsive navbar and cards.",
+      ),
+      makeSourceFact(
+        "fact-bootstrap-assistant",
+        11,
+        "assistant",
+        "[BEAM chat_id=11 role=assistant time=unknown] We refined the navbar and card component setup with Bootstrap.",
+      ),
+      makeSourceFact(
+        "fact-contact-user",
+        16,
+        "user",
+        "[BEAM chat_id=16 role=user time=unknown] I'm trying to implement the contact form with validation as part of my MVP features.",
+      ),
+      makeSourceFact(
+        "fact-contact-assistant",
+        17,
+        "assistant",
+        "[BEAM chat_id=17 role=assistant time=unknown] We built the contact form validation and submission handling.",
+      ),
+      makeSourceFact(
+        "fact-sass-user",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] hmm, can I use Sass to create a similar component for the project gallery?",
+      ),
+      makeSourceFact(
+        "fact-sass-assistant",
+        29,
+        "assistant",
+        "[BEAM chat_id=29 role=assistant time=unknown] We discussed a Sass component for the project gallery.",
+      ),
+      makeSourceFact(
+        "fact-lighthouse-user",
+        40,
+        "user",
+        "[BEAM chat_id=40 role=user time=unknown] I'm trying to identify SEO and performance issues in my portfolio website using Lighthouse v10 audit.",
+      ),
+      makeSourceFact(
+        "fact-lighthouse-assistant",
+        41,
+        "assistant",
+        "[BEAM chat_id=41 role=assistant time=unknown] We reviewed Lighthouse performance, accessibility, and SEO findings.",
+      ),
+      makeSourceFact(
+        "fact-gallery-layout-user",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I'm integrating the project gallery and contact form, and I'm having layout responsiveness issues.",
+      ),
+      makeSourceFact(
+        "fact-gallery-layout-assistant",
+        59,
+        "assistant",
+        "[BEAM chat_id=59 role=assistant time=unknown] We fixed responsive gallery image sizing and layout issues.",
+      ),
+      makeSourceFact(
+        "fact-gallery-404-user",
+        62,
+        "user",
+        "[BEAM chat_id=62 role=user time=unknown] I'm encountering an issue where some project gallery images are not loading with 404 errors.",
+      ),
+      makeSourceFact(
+        "fact-gallery-404-assistant",
+        63,
+        "assistant",
+        "[BEAM chat_id=63 role=assistant time=unknown] We checked image paths and static file serving for gallery 404 errors.",
+      ),
+      makeSourceFact(
+        "fact-form-validation-user",
+        66,
+        "user",
+        "[BEAM chat_id=66 role=user time=unknown] I'm trying to implement the contact form with HTML5 validation and custom JS validation fallback.",
+      ),
+      makeSourceFact(
+        "fact-form-validation-assistant",
+        67,
+        "assistant",
+        "[BEAM chat_id=67 role=assistant time=unknown] We improved required fields, email validation, and custom validation fallback.",
+      ),
+      makeSourceFact(
+        "fact-sprint-user",
+        82,
+        "user",
+        "[BEAM chat_id=82 role=user time=unknown] I'm working on Sprint 2 with a deadline and need to focus on SEO basics and contact form backend integration.",
+      ),
+      makeSourceFact(
+        "fact-sprint-assistant",
+        83,
+        "assistant",
+        "[BEAM chat_id=83 role=assistant time=unknown] We planned Sprint 2 tasks for SEO, backend integration, validation, and performance.",
+      ),
+      makeSourceFact(
+        "fact-meta-user",
+        88,
+        "user",
+        "[BEAM chat_id=88 role=user time=unknown] I'm trying to improve SEO by adding meta descriptions, keywords, and Open Graph tags.",
+      ),
+      makeSourceFact(
+        "fact-meta-assistant",
+        89,
+        "assistant",
+        "[BEAM chat_id=89 role=assistant time=unknown] We added meta descriptions, keywords, and Open Graph examples.",
+      ),
+      makeSourceFact(
+        "fact-late-gallery-user",
+        116,
+        "user",
+        "[BEAM chat_id=116 role=user time=unknown] I'm trying to update my project gallery to include two new projects for a total of 10 cards, but the layout has issues.",
+      ),
+      makeSourceFact(
+        "fact-late-gallery-assistant",
+        117,
+        "assistant",
+        "[BEAM chat_id=117 role=assistant time=unknown] We resolved the 10-card gallery layout issues and image 404 errors.",
+      ),
+      makeSourceFact(
+        "fact-css-refactor-user",
+        146,
+        "user",
+        "[BEAM chat_id=146 role=user time=unknown] I'm trying to refactor my CSS from 450 lines to 320 lines by removing redundant selectors.",
+      ),
+      makeSourceFact(
+        "fact-css-refactor-assistant",
+        147,
+        "assistant",
+        "[BEAM chat_id=147 role=assistant time=unknown] We consolidated CSS selectors and media queries.",
+      ),
+      makeSourceFact(
+        "fact-hosting-user",
+        182,
+        "user",
+        "[BEAM chat_id=182 role=user time=unknown] hmm, which one has better support for automated backups and version control?",
+      ),
+      makeSourceFact(
+        "fact-hosting-assistant",
+        183,
+        "assistant",
+        "[BEAM chat_id=183 role=assistant time=unknown] We compared GitHub Pages and Netlify for backups and version control.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a comprehensive summary of how my portfolio website project has developed, including the key features and challenges I have worked through so far?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-palette-user",
+      "fact-structure-user",
+      "fact-contact-user",
+      "fact-gallery-layout-user",
+      "fact-form-validation-user",
+      "fact-sprint-user",
+      "fact-late-gallery-user",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-sass-user");
+    expect(selectedIds).not.toContain("fact-hosting-user");
+  });
+
   it("returns source-ordered planning pairs for timeline integration questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -3608,6 +3893,69 @@ describe("recall selection", () => {
     expect(result.facts.map((fact) => fact.id)).toEqual([
       "fact-sprint-plan-request",
       "fact-sprint-plan-answer",
+    ]);
+  });
+
+  it("returns Chinese source-ordered planning pairs for timeline integration questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-sprint-plan-request-zh",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] 我正在做一个两周冲刺的项目，第一轮冲刺在3月29日截止，重点是用户注册和登录。我需要仔细计划冲刺，确保按时完成。",
+      ),
+      makeSourceFact(
+        "fact-sprint-plan-answer-zh",
+        29,
+        "assistant",
+        "[BEAM chat_id=29 role=assistant time=unknown] 我们可以制定详细的冲刺计划：后端搭建、数据库 schema、注册、登录、表单、API 集成、验证、单元测试和最终 QA 都排进时间线。",
+      ),
+      makeSourceFact(
+        "fact-later-sprint-noise-zh",
+        86,
+        "user",
+        "[BEAM chat_id=86 role=user time=unknown] 第二轮冲刺会做分析功能，我已经在3月29日完成第一轮的用户认证和基础交易 CRUD。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "我是怎么安排这个冲刺的任务，确保后端和前端功能都能按时完成？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-sprint-plan-request-zh",
+      "fact-sprint-plan-answer-zh",
     ]);
   });
 
@@ -3839,6 +4187,108 @@ describe("recall selection", () => {
     );
   });
 
+  it("prioritizes Chinese source-ordered summary milestones over weak follow-ups", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-palette-zh",
+        4,
+        "user",
+        "[BEAM chat_id=4 role=user time=unknown] 我开始搭建作品集网站，重点实现技能区的配色生成器功能。",
+      ),
+      makeSourceFact(
+        "fact-structure-zh",
+        6,
+        "user",
+        "[BEAM chat_id=6 role=user time=unknown] 我搭建了 About、Skills、Projects、Contact 这些作品集栏目。",
+      ),
+      makeSourceFact(
+        "fact-sass-followup-zh",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] 嗯，可以用 Sass 做一个类似的画廊组件吗？",
+      ),
+      makeSourceFact(
+        "fact-contact-zh",
+        66,
+        "user",
+        "[BEAM chat_id=66 role=user time=unknown] 我实现联系表单验证，作为 MVP 功能的一部分。",
+      ),
+      makeSourceFact(
+        "fact-gallery-layout-zh",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] 我集成项目画廊和联系表单时遇到响应式布局问题。",
+      ),
+      makeSourceFact(
+        "fact-gallery-404-zh",
+        62,
+        "user",
+        "[BEAM chat_id=62 role=user time=unknown] 我修复项目画廊图片 404 和静态资源路径问题。",
+      ),
+      makeSourceFact(
+        "fact-sprint-zh",
+        82,
+        "user",
+        "[BEAM chat_id=82 role=user time=unknown] 我推进第二阶段冲刺，处理 SEO 基础和联系表单后端集成。",
+      ),
+      makeSourceFact(
+        "fact-hosting-followup-zh",
+        182,
+        "user",
+        "[BEAM chat_id=182 role=user time=unknown] 哪个平台更适合备份和版本控制？",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "请全面总结我的作品集网站项目一路是怎么推进的，包括关键功能和解决过的挑战。",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-palette-zh",
+      "fact-structure-zh",
+      "fact-contact-zh",
+      "fact-gallery-layout-zh",
+      "fact-gallery-404-zh",
+      "fact-sprint-zh",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-sass-followup-zh");
+    expect(selectedIds).not.toContain("fact-hosting-followup-zh");
+  });
+
   it("adds applicable source-ordered user instruction evidence for guidance questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -3894,6 +4344,62 @@ describe("recall selection", () => {
     expect(selectedIds).toContain("fact-login-plan");
     expect(selectedIds).toContain("fact-code-format-instruction");
     expect(selectedIds).not.toContain("fact-apa-instruction");
+  });
+
+  it("adds applicable Chinese source-ordered user instruction evidence for guidance questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      createFactMemory({
+        id: "fact-login-plan-zh",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "登录功能实现计划：注册、登录、session 和错误处理。",
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      makeSourceFact(
+        "fact-code-format-instruction-zh",
+        54,
+        "以后我问实现细节时，请总是用带语言标记的代码块展示代码。",
+      ),
+      makeSourceFact(
+        "fact-reference-instruction-zh",
+        112,
+        "以后我问参考文献格式时，请总是使用 APA 第七版。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "请展示怎么实现登录功能。",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-login-plan-zh");
+    expect(selectedIds).toContain("fact-code-format-instruction-zh");
+    expect(selectedIds).not.toContain("fact-reference-instruction-zh");
   });
 
   it("does not treat broad domain overlap as applicable source-ordered instruction evidence", () => {

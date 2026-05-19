@@ -64,6 +64,7 @@ const SOURCE_ORDER_MILESTONE_FILL_LIMIT = 6;
 const SOURCE_ORDER_SUMMARY_RECALL_LIMIT = 16;
 const SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT = 8;
 const SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE = 1;
+const SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS = 4;
 const SOURCE_ORDER_TIMELINE_RECALL_LIMIT = 6;
 const SOURCE_ORDER_TIMELINE_CLUSTER_RADIUS = 5;
 const SOURCE_ORDER_TIMELINE_CHRONOLOGY_PENALTY = 2;
@@ -156,15 +157,15 @@ const TEMPORAL_INTERVAL_ANCHOR_STOPWORDS = new Set([
 const TEMPORAL_INTERVAL_ACQUISITION_OBJECT_PATTERN =
   /\b(?:api\s+key|key|token|credential|access|license|permit|certificate|approval|confirmation|receipt|authorization|invite|invitation)\b/iu;
 const SOURCE_PREFERENCE_DECLARATION_PATTERN =
-  /\b(?:prefer|preference|i['’]d\s+like|i\s+would\s+like|looking\s+for|interested\s+in|enjoy|love|rather\s+than|over\s+(?:heavy|manual|generic|external|third-party)|without\s+compromising|avoid(?:ing)?)\b/iu;
+  /\b(?:prefer|preference|i['’]d\s+like|i\s+would\s+like|looking\s+for|interested\s+in|enjoy|love|rather\s+than|over\s+(?:heavy|manual|generic|external|third-party)|without\s+compromising|avoid(?:ing)?)\b|(?:偏好|更喜欢|喜欢|想要|希望|不想|不希望|尽量不要|避免|轻量|无外部依赖|不用很重|不要很重)/iu;
 const SIMPLE_SOLUTION_QUERY_PATTERN =
-  /\b(?:simple|straightforward|minimal|lightweight|built-?in|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party))\b/iu;
+  /\b(?:simple|straightforward|minimal|lightweight|built-?in|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party))\b|(?:简单|直接|轻量|内置|无依赖|无外部依赖|不要外部依赖|不想用外部依赖|尽量不要外部依赖)/iu;
 const LIGHTWEIGHT_PREFERENCE_PATTERN =
-  /\b(?:lightweight|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party)|minimal|simple|straightforward|built-?in|avoid(?:ing)?\s+(?:heavy|external|third-party)|under\s+\d+(?:\.\d+)?\s*(?:mb|kb))\b/iu;
+  /\b(?:lightweight|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party)|minimal|simple|straightforward|built-?in|avoid(?:ing)?\s+(?:heavy|external|third-party)|under\s+\d+(?:\.\d+)?\s*(?:mb|kb))\b|(?:轻量|无依赖|无外部依赖|不要外部依赖|不想用外部依赖|避免.*(?:重|外部|第三方)|简单|直接|内置|(?:低于|小于|保持在)\s*\d+(?:\.\d+)?\s*(?:MB|KB|mb|kb)\s*(?:以下)?)/iu;
 const TIMELINE_INTEGRATION_CONTENT_CUE_PATTERN =
-  /\b(?:attorneys?|bar\s+association|college|completed\s+on\s+time|cutoff|deadline|draft|follow\s+up|meeting|mentor|milestones?|organis(?:e|ed|ing|ation)|organiz(?:e|ed|ing|ation)|patents?|plan(?:ned|ning)?|prepar(?:e|ed|ing|ation)|resources?|revision|schedule(?:d)?|sprint|structur(?:e|ed|ing)|submission|timeline)\b/iu;
+  /\b(?:attorneys?|bar\s+association|college|completed\s+on\s+time|cutoff|deadline|draft|follow\s+up|meeting|mentor|milestones?|organis(?:e|ed|ing|ation)|organiz(?:e|ed|ing|ation)|patents?|plan(?:ned|ning)?|prepar(?:e|ed|ing|ation)|resources?|revision|schedule(?:d)?|sprint|structur(?:e|ed|ing)|submission|timeline)\b|(?:律师|协会|大学|学院|按时完成|截止|最后期限|草稿|跟进|会议|导师|里程碑|组织|安排|计划|准备|资源|修订|冲刺|结构化|提交|时间线|后端|前端|注册|登录|验证|测试|QA)/iu;
 const TIMELINE_INTEGRATION_STRONG_CONTENT_CUE_PATTERN =
-  /\b(?:completed\s+on\s+time|cutoff|deadline|final\s+cutoff|milestones?|schedule(?:d)?|sprint|timeline|weeks?\s+leading\s+up)\b/iu;
+  /\b(?:completed\s+on\s+time|cutoff|deadline|final\s+cutoff|milestones?|schedule(?:d)?|sprint|timeline|weeks?\s+leading\s+up)\b|(?:按时完成|截止|最后期限|里程碑|安排|冲刺|时间线|前几周|后端|前端)/iu;
 const TIMELINE_INTEGRATION_SPECIFIC_TOPIC_TOKENS = new Set([
   "analytics",
   "attorney",
@@ -2124,6 +2125,53 @@ function isSourceOrderedConversationSummaryQuery(query: string): boolean {
     /(总结|回顾|概述|梳理|汇总).*(随着时间|整个过程|一路|逐步|一步步|怎么|如何|变化|推进|解决)/u.test(query);
 }
 
+const SOURCE_ORDER_SUMMARY_LOW_INFORMATION_FOLLOWUP_PATTERN =
+  /^(?:hmm|hm|okay|ok|also|and\s+what|what\s+about|which\s+one|can\s+i\s+use|could\s+i\s+use|should\s+i\s+use|do\s+i\s+need)\b/iu;
+
+const SOURCE_ORDER_SUMMARY_LOW_INFORMATION_FOLLOWUP_ZH_PATTERN =
+  /^(?:嗯|呃|那|还有|另外|顺便|哪个|哪一个|我能不能|可以用|能用|该不该|要不要|需要不需要)/u;
+
+const SOURCE_ORDER_SUMMARY_MILESTONE_ACTION_PATTERN =
+  /\b(?:add(?:ed|ing)?|build(?:ing)?|built|configur(?:e|ed|ing)|creat(?:e|ed|ing)|debug(?:ged|ging)?|develop(?:ed|ing)?|fix(?:ed|ing)?|implement(?:ed|ing)?|improv(?:e|ed|ing)|integrat(?:e|ed|ing)|launch(?:ed|ing)?|migrat(?:e|ed|ing)|optimi[sz](?:e|ed|ing)|plan(?:ned|ning)?|prepar(?:e|ed|ing)|refactor(?:ed|ing)?|resolv(?:e|ed|ing)|set\s+up|setting\s+up|switch(?:ed|ing)?|test(?:ed|ing)?|troubleshoot(?:ed|ing)?|updat(?:e|ed|ing)|work(?:ed|ing)\s+on)\b/iu;
+
+const SOURCE_ORDER_SUMMARY_MILESTONE_ACTION_ZH_PATTERN =
+  /(添加|新增|构建|搭建|创建|调试|开发|修复|实现|改进|改善|集成|上线|迁移|优化|计划|准备|重构|解决|设置|切换|测试|排查|更新|推进|处理|完成|设计)/u;
+
+const SOURCE_ORDER_SUMMARY_MILESTONE_SCOPE_PATTERN =
+  /\b(?:api|app|application|backend|budget|challenge|component|contact\s+form|dashboard|database|deadline|feature|form|gallery|issue|layout|milestone|mvp|performance|preparation|project|section|seo|sprint|strategy|validation|website|workflow)\b/iu;
+
+const SOURCE_ORDER_SUMMARY_MILESTONE_SCOPE_ZH_PATTERN =
+  /(项目|应用|网站|功能|组件|表单|画廊|图库|布局|问题|挑战|数据库|后端|前端|性能|准备|策略|验证|工作流|流程|冲刺|阶段|截止|预算|API|接口|安全|部署|上线)/u;
+
+const SOURCE_ORDER_SUMMARY_CORE_FEATURE_PATTERN =
+  /\b(?:backend\s+integration|color\s+palette|contact\s+form|feature|gallery|mvp|sections?|sprint|validation)\b/iu;
+
+const SOURCE_ORDER_SUMMARY_CORE_FEATURE_ZH_PATTERN =
+  /(核心功能|联系表单|表单验证|画廊|图库|布局|功能|后端集成|前端|后端|阶段|冲刺|栏目|章节|预算|数据库|部署|安全)/u;
+
+function hasSourceOrderedSummaryMilestoneAction(content: string): boolean {
+  return SOURCE_ORDER_SUMMARY_MILESTONE_ACTION_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_MILESTONE_ACTION_ZH_PATTERN.test(content);
+}
+
+function hasSourceOrderedSummaryMilestoneScope(content: string): boolean {
+  return SOURCE_ORDER_SUMMARY_MILESTONE_SCOPE_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_MILESTONE_SCOPE_ZH_PATTERN.test(content);
+}
+
+function hasSourceOrderedSummaryCoreFeature(content: string): boolean {
+  return SOURCE_ORDER_SUMMARY_CORE_FEATURE_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_CORE_FEATURE_ZH_PATTERN.test(content);
+}
+
+function isLowInformationSourceSummaryFollowUp(content: string): boolean {
+  return SOURCE_ORDER_SUMMARY_LOW_INFORMATION_FOLLOWUP_PATTERN.test(
+    content.trim(),
+  ) || SOURCE_ORDER_SUMMARY_LOW_INFORMATION_FOLLOWUP_ZH_PATTERN.test(
+    content.trim(),
+  );
+}
+
 function hasSourceMessageTag(entry: RankedFactCandidate): boolean {
   return entry.fact.tags?.includes(SOURCE_MESSAGE_TAG) === true;
 }
@@ -2161,6 +2209,23 @@ function sourceOrderedSummaryPriority(input: {
   }
   if (/(问题|挑战|错误|报错|修复|解决|推进|进展|决策|调试|实现|处理)/u.test(content)) {
     priority += 35;
+  }
+  if (
+    hasUserAnswerTag(input.entry) &&
+    hasSourceOrderedSummaryMilestoneAction(content) &&
+    hasSourceOrderedSummaryMilestoneScope(content)
+  ) {
+    priority += 90;
+  }
+  if (
+    hasUserAnswerTag(input.entry) &&
+    hasSourceOrderedSummaryMilestoneAction(content) &&
+    hasSourceOrderedSummaryCoreFeature(content)
+  ) {
+    priority += 45;
+  }
+  if (isLowInformationSourceSummaryFollowUp(content)) {
+    priority -= 180;
   }
 
   return priority;
@@ -2209,6 +2274,107 @@ function hasSourceOrderedSummarySignal(input: {
   return false;
 }
 
+function isSourceOrderedSummaryMilestoneCandidate(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  queryTopics: ReadonlySet<string>;
+}): boolean {
+  if (!hasUserAnswerTag(input.entry)) {
+    return false;
+  }
+
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  if (isLowInformationSourceSummaryFollowUp(content)) {
+    return false;
+  }
+
+  const factTopics = aggregateTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  const topicOverlap = aggregateTopicOverlapCount(input.queryTopics, factTopics);
+  if (
+    hasSourceOrderedSummaryMilestoneAction(content) &&
+    hasSourceOrderedSummaryCoreFeature(content)
+  ) {
+    return true;
+  }
+  if (
+    hasSourceOrderedSummaryMilestoneAction(content) &&
+    hasSourceOrderedSummaryMilestoneScope(content) &&
+    topicOverlap >= 1
+  ) {
+    return true;
+  }
+  if (
+    topicOverlap === 0 &&
+    input.entry.intentScore === 0 &&
+    input.entry.subjectScore === 0 &&
+    input.entry.lexicalScore < EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD
+  ) {
+    return false;
+  }
+
+  if (
+    hasSourceOrderedSummaryMilestoneAction(content) &&
+    (
+      hasSourceOrderedSummaryMilestoneScope(content) ||
+      topicOverlap >= 2
+    )
+  ) {
+    return true;
+  }
+
+  return /(开始|实现|搭建|集成|修复|调试|解决|推进|计划|准备|更新|优化|重构|迁移).*(项目|功能|问题|挑战|表单|画廊|网站|应用|策略|计划|截止)/u.test(
+    content,
+  );
+}
+
+function isSourceOrderedSummaryCoreMilestoneCandidate(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  queryTopics: ReadonlySet<string>;
+}): boolean {
+  if (!hasUserAnswerTag(input.entry)) {
+    return false;
+  }
+
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  if (isLowInformationSourceSummaryFollowUp(content)) {
+    return false;
+  }
+
+  const factTopics = aggregateTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  const topicOverlap = aggregateTopicOverlapCount(input.queryTopics, factTopics);
+  if (
+    hasSourceOrderedSummaryMilestoneAction(content) &&
+    hasSourceOrderedSummaryCoreFeature(content)
+  ) {
+    return true;
+  }
+  if (
+    topicOverlap === 0 &&
+    input.entry.intentScore === 0 &&
+    input.entry.subjectScore === 0 &&
+    input.entry.lexicalScore < EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD
+  ) {
+    return false;
+  }
+
+  return (
+    hasSourceOrderedSummaryMilestoneAction(content) &&
+    hasSourceOrderedSummaryCoreFeature(content)
+  ) ||
+    /(实现|搭建|集成|修复|调试|解决|推进|计划|准备|更新|优化|部署|完成).*(功能|表单|画廊|图库|布局|后端|前端|数据库|冲刺|阶段|部署|安全)/u.test(
+      content,
+    );
+}
+
 function selectSourceOrderedSummaryCoverage(input: {
   entries: RankedFactCandidate[];
   language: LanguageService;
@@ -2240,6 +2406,29 @@ function selectSourceOrderedSummaryCoverage(input: {
     return [];
   }
 
+  const milestoneCandidates = sourceCandidates.filter((entry) =>
+    isSourceOrderedSummaryMilestoneCandidate({
+      entry,
+      language: input.language,
+      queryTopics,
+    })
+  );
+  const coreMilestoneCandidates = milestoneCandidates.filter((entry) =>
+    isSourceOrderedSummaryCoreMilestoneCandidate({
+      entry,
+      language: input.language,
+      queryTopics,
+    })
+  );
+  let primaryCandidates = signaledCandidates;
+  if (milestoneCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS) {
+    primaryCandidates = milestoneCandidates;
+  }
+  if (
+    coreMilestoneCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
+  ) {
+    primaryCandidates = coreMilestoneCandidates;
+  }
   const selected = new Map<string, RankedFactCandidate>();
   const addCandidate = (entry: RankedFactCandidate): void => {
     if (selected.size < SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
@@ -2255,13 +2444,13 @@ function selectSourceOrderedSummaryCoverage(input: {
   const anchorCount = Math.min(
     SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
     Math.ceil(SOURCE_ORDER_SUMMARY_RECALL_LIMIT / 2),
-    signaledCandidates.length,
+    primaryCandidates.length,
   );
 
   for (let index = 0; index < anchorCount; index += 1) {
-    const start = Math.floor(index * signaledCandidates.length / anchorCount);
-    const end = Math.floor((index + 1) * signaledCandidates.length / anchorCount);
-    const bucket = signaledCandidates.slice(start, Math.max(start + 1, end));
+    const start = Math.floor(index * primaryCandidates.length / anchorCount);
+    const end = Math.floor((index + 1) * primaryCandidates.length / anchorCount);
+    const bucket = primaryCandidates.slice(start, Math.max(start + 1, end));
     const best = [...bucket].sort((left, right) => {
       const priorityDelta = priority(right) - priority(left);
       if (priorityDelta !== 0) {
@@ -2274,7 +2463,7 @@ function selectSourceOrderedSummaryCoverage(input: {
     }
   }
 
-  for (const entry of [...signaledCandidates].sort((left, right) => {
+  for (const entry of [...primaryCandidates].sort((left, right) => {
     const priorityDelta = priority(right) - priority(left);
     if (priorityDelta !== 0) {
       return priorityDelta;
@@ -2397,28 +2586,44 @@ function sourceOrderedTimelinePriority(input: {
   }
   if (
     hasAssistantAnswerTag(input.entry) &&
-    /\b(?:steps?|plan|timeline|schedule|recommend(?:ed|ation)?|summary)\b/iu.test(
-      content,
+    (
+      /\b(?:steps?|plan|timeline|schedule|recommend(?:ed|ation)?|summary)\b/iu.test(
+        content,
+      ) ||
+      /(?:步骤|计划|时间线|安排|推荐|建议|总结|冲刺)/u.test(content)
     )
   ) {
     priority += 35;
   }
   if (
     hasUserAnswerTag(input.entry) &&
-    /\b(?:can\s+you\s+help|how\s+can|what\s+(?:can|should)|i\s+need\s+to|i['’]ll|i\s+will)\b/iu.test(
-      content,
+    (
+      /\b(?:can\s+you\s+help|how\s+can|what\s+(?:can|should)|i\s+need\s+to|i['’]ll|i\s+will)\b/iu.test(
+        content,
+      ) ||
+      /(?:帮我|怎么|如何|我需要|我会|我要|我打算)/u.test(content)
     )
   ) {
     priority += 25;
   }
-  if (/\bbackend\b/iu.test(input.query) && /\bfrontend\b/iu.test(input.query)) {
-    if (/\bbackend\b/iu.test(content)) {
+  if (
+    (
+      /\bbackend\b/iu.test(input.query) &&
+      /\bfrontend\b/iu.test(input.query)
+    ) ||
+    (/后端/u.test(input.query) && /前端/u.test(input.query))
+  ) {
+    if (/\bbackend\b/iu.test(content) || /后端/u.test(content)) {
       priority += 120;
     }
-    if (/\bfrontend\b/iu.test(content)) {
+    if (/\bfrontend\b/iu.test(content) || /前端|表单|页面/u.test(content)) {
       priority += 120;
     }
-    if (!/\bbackend\b/iu.test(content) && !/\bfrontend\b/iu.test(content)) {
+    if (
+      !/\bbackend\b/iu.test(content) &&
+      !/\bfrontend\b/iu.test(content) &&
+      !/后端|前端|表单|页面/u.test(content)
+    ) {
       priority -= 80;
     }
   }
@@ -2686,11 +2891,17 @@ function isSourceOrderedUserInstruction(entry: RankedFactCandidate): boolean {
   return (
     hasSourceMessageTag(entry) &&
     hasUserAnswerTag(entry) &&
-    /\b(?:always|please\s+(?:always\s+)?(?:include|use|format|provide|confirm|maintain|highlight)|make\s+sure\s+to|remember\s+to|whenever|when\s+I\s+ask|if\s+I\s+ask)\b/iu.test(
-      content,
+    (
+      /\b(?:always|please\s+(?:always\s+)?(?:include|use|format|provide|confirm|maintain|highlight)|make\s+sure\s+to|remember\s+to|whenever|when\s+I\s+ask|if\s+I\s+ask)\b/iu.test(
+        content,
+      ) ||
+      /(?:请|总是|务必|记得|以后|每次|当我|如果我).*(?:使用|包含|提供|确认|保持|突出|展示|回答|格式|代码块)/u.test(content)
     ) &&
-    /\b(?:when|whenever|if)\s+I\s+(?:ask|am\s+asking|request|need)\b/iu.test(
-      content,
+    (
+      /\b(?:when|whenever|if)\s+I\s+(?:ask|am\s+asking|request|need)\b/iu.test(
+        content,
+      ) ||
+      /(?:当我|如果我|我.*(?:问|需要|请求)|以后我问|每次我问)/u.test(content)
     )
   );
 }
@@ -2704,10 +2915,19 @@ function addInstructionTopicAliases(tokens: Set<string>, text: string): void {
   if (hasAny(/\b(?:implement(?:ation|ed|ing)?|code|snippets?|syntax|feature|login|software)\b/iu)) {
     tokens.add("software_implementation");
   }
+  if (hasAny(/(?:实现|代码|代码块|语法|功能|登录|软件)/u)) {
+    tokens.add("software_implementation");
+  }
   if (hasAny(/\b(?:dependenc(?:y|ies)|librar(?:y|ies)|versions?)\b/iu)) {
     tokens.add("software_dependency");
   }
+  if (hasAny(/(?:依赖|库|版本|外部依赖|第三方)/u)) {
+    tokens.add("software_dependency");
+  }
   if (hasApiSurface && hasApiErrorHandling) {
+    tokens.add("api_error");
+  }
+  if (hasAny(/(?:API|接口|响应|状态码)/iu) && hasAny(/(?:错误处理|报错|异常处理|错误|异常)/u)) {
     tokens.add("api_error");
   }
   if (hasAny(/\b(?:html5?|markup|webpage|blog|layout|header|navigation|footer|semantic|sections?)\b/iu)) {
@@ -2725,7 +2945,13 @@ function addInstructionTopicAliases(tokens: Set<string>, text: string): void {
   if (hasAny(/\b(?:bullet\s+points?|lists?|multiple\s+points?|organize|formatting\s+options?)\b/iu)) {
     tokens.add("list_format");
   }
+  if (hasAny(/(?:要点|列表|多点|条目|组织|格式选项)/u)) {
+    tokens.add("list_format");
+  }
   if (hasAny(/\b(?:apa|citations?|references?|sources?|paper)\b/iu)) {
+    tokens.add("reference_format");
+  }
+  if (hasAny(/(?:APA|引用|参考文献|来源|论文|文献格式)/iu)) {
     tokens.add("reference_format");
   }
   if (hasAny(/\b(?:draft|revisions?|editing|editting|edit)\b/iu)) {
@@ -2776,6 +3002,9 @@ function addInstructionTopicAliases(tokens: Set<string>, text: string): void {
   if (hasAny(/\b(?:brief|concise|current\s+status|progress|updates?|summar(?:y|ies|ize))\b/iu)) {
     tokens.add("progress_summary");
   }
+  if (hasAny(/(?:简短|简洁|当前状态|进展|更新|总结|摘要|概述)/u)) {
+    tokens.add("progress_summary");
+  }
 }
 
 function sourceInstructionTopicTokens(input: {
@@ -2802,9 +3031,13 @@ function countInstructionAliasOverlap(
 }
 
 function sourceInstructionConditionText(content: string): string | undefined {
-  const match = content.match(
+  const match =
+    content.match(
     /\b(?:when|whenever|if)\s+I\s+(?:ask|am\s+asking|request|need)\s+(?:about|for|to)?\s*([^.!?\n]+)/iu,
-  );
+    ) ??
+    content.match(
+      /(?:当我|如果我|以后我|每次我)(?:问|需要|请求|询问)\s*([^。！？\n]+)/u,
+    );
   if (!match?.[1]) {
     return undefined;
   }
@@ -2942,7 +3175,8 @@ function isPreferenceGuidanceQuery(
     language.isGuidanceSeekingQuery(query, queryLocale) ||
     /\b(?:can\s+you\s+help|help\s+me|how\s+should|how\s+can|walk\s+me\s+through|show\s+me|explain|i['’]d\s+like|i\s+would\s+like|i\s+want)\b/iu.test(
       query,
-    );
+    ) ||
+    /(?:帮我|怎么|如何|请展示|请说明|解释|我想|我希望|我需要|能不能|可以帮)/u.test(query);
 }
 
 function isSourceOrderedUserPreferenceEvidence(input: {
