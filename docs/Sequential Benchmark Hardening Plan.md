@@ -152,6 +152,21 @@ cases 388/400. Timeline Integration recall improves from 0 to
 and Timeline Integration wrong/noise drops from 4 to 2. This is still not BEAM
 closure: 267 evidence cases still miss, temporal reasoning remains at 0.4875,
 and preference following remains at 0.3803418803418803.
+Eleventh, contradiction confirmation now uses a bounded evidence set rather
+than a single positive/negated pair. It recognizes concrete confirmation verbs
+such as obtained, stored, used, enrolled, attended, submitted, practiced, and
+fixed; keeps short technical anchors such as `api`, `api_key`, `ats`, and
+`seo` in contradiction topic matching; and excludes process/timeline questions
+from the yes/no contradiction path. The kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-contradiction-support-v2-current-20260519T070000`
+raises overall evidence-chat recall to 0.4026215881145459 with
+`executionFailures: 0`, missed-recall cases 257/355, and wrong-recall/noise
+cases 388/400. Contradiction-resolution recall improves from
+0.2654166666666667 to 0.4841666666666667, zero-recall contradiction cases
+drop from 20 to 11, and Timeline Integration remains at 0.5333333333333333.
+This is still not BEAM closure: 257 evidence cases still miss, event-ordering
+and summarization remain the largest full-slice gaps, and the full run remains
+too noisy for an answer-quality claim.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

@@ -148,9 +148,14 @@ Workstreams
     reaches full rules-only evidence-chat recall 0.37368575086884953 with
     `executionFailures: 0`, missed-recall cases 267/355, wrong-recall/noise
     cases 388/400, and Timeline Integration recall 0.5333333333333333
+  - contradiction support evidence rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-contradiction-support-v2-current-20260519T070000`
+    reaches full rules-only evidence-chat recall 0.4026215881145459 with
+    `executionFailures: 0`, missed-recall cases 257/355, wrong-recall/noise
+    cases 388/400, and contradiction-resolution recall 0.4841666666666667
   - next active step: continue full-slice recall/noise hardening beyond
-    Timeline Integration, especially the remaining missed recall and persistent
-    noise surface
+    contradiction support, especially event-ordering, summarization, and the
+    remaining persistent noise surface
 
 
 Current Boundary
@@ -183,9 +188,11 @@ Current Boundary
   that lift while slightly improving full-run recall and noise. The temporal
   date-content pass recovers date-in-content interval cases, the source
   preference pass gives a larger preference-following lift, and the timeline
-  planning pass recovers most Timeline Integration cases. This is still only
+  planning pass recovers most Timeline Integration cases. The contradiction
+  support pass recovers a large share of contradiction-resolution evidence
+  without keeping the intermediate Timeline regression. This is still only
   partial Phase 63 progress: the full 100K provider-free recall diagnostic
-  remains recall-limited and noisy with 267 missed-recall cases. The next
+  remains recall-limited and noisy with 257 missed-recall cases. The next
   executable boundary is reducing full-slice missed recall plus
   wrong-recall/noise on long imported conversations.
 - Final/public reporting remains deferred until LongMemEval, BEAM,

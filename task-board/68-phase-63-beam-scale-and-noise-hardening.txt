@@ -635,6 +635,42 @@ P63-T007k timeline planning evidence repair:
   Recall buckets at the source-preference baseline, but the full run still has
   267 missed-recall cases and a high noise surface.
 
+P63-T007l contradiction support evidence repair:
+
+- Mechanism:
+  contradiction confirmation now returns a bounded source evidence set instead
+  of only the best positive/negated pair. The selector recognizes concrete
+  confirmation verbs such as obtained, stored, used, enrolled, attended,
+  submitted, practiced, and fixed; keeps short technical anchors such as
+  `api`, `api_key`, `ats`, and `seo`; and excludes process/timeline questions
+  from the yes/no contradiction path.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers API-key contradiction
+  support where obtained, stored, used, and never-obtained source turns must
+  all stay recallable. Existing contradiction pair and Timeline Integration
+  regressions still pass.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-contradiction-support-v2-current-20260519T070000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.4026215881145459
+  - missed-recall cases: 257/355
+  - wrong-recall/noise cases: 388/400
+  - contradiction-resolution recall: 0.4841666666666667
+  - zero-recall contradiction cases: 11
+- Delta from the current-code audit baseline:
+  overall recall improves from 0.37255899030546924 to 0.4026215881145459,
+  missed recall improves from 267/355 to 257/355, wrong-recall/noise stays
+  388/400, contradiction-resolution recall improves from 0.2654166666666667
+  to 0.4841666666666667, zero-recall contradiction cases drop from 20 to 11,
+  and Timeline Integration remains 0.5333333333333333.
+- Decision:
+  this is a kept partial repair, not BEAM closure. It materially recovers
+  contradiction evidence without keeping the v1 Timeline regression, but the
+  full run still has 257 missed-recall cases plus persistent noise.
+
 
 Current Boundary
 ----------------
@@ -648,10 +684,10 @@ source-preservation pass, the follow-up contradiction / companion pass, the
 milestone/context pass, the ordered-context pruning pass, the source-summary
 coverage pass, the source-provenance instruction pass, and the
 instruction-applicability, temporal date-content, source preference, and
-timeline planning passes have been rerun. The current failure family is now
-more specific: the
+timeline planning, and contradiction-support passes have been rerun. The
+current failure family is now more specific: the
 representative live trio is clean at 3/3 with complete evidence recall, and the
 full 100K diagnostic has real instruction, temporal, preference, and Timeline
-Integration lifts, but the full surface remains recall-limited and noisy with
-267 missed-recall cases. BEAM still needs broader full-slice recall/noise
+Integration plus contradiction-resolution lifts, but the full surface remains
+recall-limited and noisy with 257 missed-recall cases. BEAM still needs broader full-slice recall/noise
 hardening before it can move toward an answer-quality claim.

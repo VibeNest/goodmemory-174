@@ -3015,6 +3015,96 @@ describe("recall selection", () => {
     }
   });
 
+  it("keeps source-ordered error and promise-rejection milestones for broad event-order questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-weather-structure",
+        6,
+        "I'm building a weather app using JavaScript and OpenWeather API v2.5, and I need help structuring the code.",
+      ),
+      makeFact(
+        "fact-city-autocomplete",
+        20,
+        "I'm implementing city autocomplete with a debounce delay in my weather app.",
+      ),
+      makeFact(
+        "fact-invalid-city-errors",
+        28,
+        "I'm trying to handle errors for invalid city names in my weather app, and I want to display user-friendly messages for HTTP 404 and 400 status codes while using asynchronous fetch calls.",
+      ),
+      makeFact(
+        "fact-vanilla-js",
+        44,
+        "I'm deciding between pure JavaScript and React for the weather app frontend and chose vanilla JavaScript for simplicity.",
+      ),
+      makeFact(
+        "fact-robust-api-errors",
+        72,
+        "I'm integrating city autocomplete into my weather app and want to make sure I'm handling API errors more robustly with try-catch blocks.",
+      ),
+      makeFact(
+        "fact-network-retry",
+        102,
+        "I'm having trouble with the Failed to fetch network error on slow connections and added retry logic after three failed attempts.",
+      ),
+      makeFact(
+        "fact-test-coverage",
+        114,
+        "I'm trying to reach full test coverage for API integration, including network errors, invalid responses, and authentication issues.",
+      ),
+      makeFact(
+        "fact-api-error-boundary",
+        136,
+        "I'm trying to implement an error boundary component in vanilla JavaScript to catch runtime errors and show a fallback UI.",
+      ),
+      makeFact(
+        "fact-unhandled-promise",
+        162,
+        "I'm having trouble with the fetchWeatherData function, specifically the Unhandled Promise Rejection warning that I've been trying to fix by adding try/catch blocks around async calls.",
+      ),
+      makeFact(
+        "fact-cache-race",
+        166,
+        "I'm optimizing weather app caching for the last three searched cities in localStorage and handling possible race conditions.",
+      ),
+      makeFact(
+        "fact-e2e-error-display",
+        172,
+        "I'm adding Cypress end-to-end tests for search, autocomplete, error display, and the retry mechanism.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you list the order in which I brought up different aspects of handling errors and promise rejections in my weather app code throughout our conversations in order? Mention ONLY and ONLY five items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-invalid-city-errors");
+    expect(selectedIds).toContain("fact-unhandled-promise");
+    expect(
+      selectedIds.indexOf("fact-invalid-city-errors"),
+    ).toBeLessThan(selectedIds.indexOf("fact-unhandled-promise"));
+  });
+
   it("fills late source-ordered milestones even when early chatter has recent recall usage", () => {
     const language = createLanguageService();
     const makeFact = (
@@ -3940,6 +4030,66 @@ describe("recall selection", () => {
     expect(result.facts.map((fact) => fact.id)).toEqual([
       "fact-homepage-route",
       "fact-never-routes",
+    ]);
+  });
+
+  it("returns bounded positive support with the negated claim for source-ordered contradiction questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-api-key-created",
+        32,
+        "I obtained an API key for the weather project and added it to my local .env file.",
+      ),
+      makeFact(
+        "fact-api-key-stored",
+        34,
+        "I stored the API key in the .env file and configured the request helper to read it.",
+      ),
+      makeFact(
+        "fact-api-key-used",
+        36,
+        "I used the API key in my OpenWeather request helper while testing city lookup.",
+      ),
+      makeFact(
+        "fact-no-api-key",
+        70,
+        "I have never obtained an API key for this project, so I cannot call the API yet.",
+      ),
+      makeFact(
+        "fact-autocomplete-noise",
+        72,
+        "I configured city autocomplete and error display for the weather project.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I obtained an API key for this project?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-api-key-created",
+      "fact-api-key-stored",
+      "fact-api-key-used",
+      "fact-no-api-key",
     ]);
   });
 

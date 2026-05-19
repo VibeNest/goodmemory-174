@@ -72,6 +72,7 @@ const SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT = 2;
 const SOURCE_ORDER_INSTRUCTION_PRIORITY_THRESHOLD = 160;
 const SOURCE_ORDER_PREFERENCE_RECALL_LIMIT = 2;
 const SOURCE_ORDER_PREFERENCE_PRIORITY_THRESHOLD = 130;
+const CONTRADICTION_POSITIVE_RECALL_LIMIT = 3;
 const PREFERENCE_RECALL_LIMIT = 3;
 const RESEARCH_RECOMMENDATION_LIMIT = 2;
 const EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD = 0.08;
@@ -317,11 +318,13 @@ const MUSEUM_VISIT_ORDER_FACT_PATTERN =
 const HEALTH_ISSUE_EVENT_FACT_PATTERN =
   /\b(?:persistent cough|skin tag removed|had a skin tag removed)\b/iu;
 const CONTRADICTION_NEGATED_CLAIM_PATTERN =
-  /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,120}\b(?:written|wrote|worked\s+with|handled|implemented|built|created|used)\b|\bno\s+(?:prior\s+)?experience\s+with\b|(?:从来)?(?:没|没有|未)[\s\S]{0,120}(?:写过|做过|处理过|实现过|构建过|创建过|用过|使用过|接触过|经验)/iu;
+  /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,120}\b(?:attended|built|collaborated|completed|created|downloaded|enrolled|fixed|handled|implemented|missed|obtained|practi[cs]ed|received|submitted|tested|used|worked(?:\s+with|\s+on)?|written|wrote)\b|\bno\s+(?:prior\s+)?experience\s+with\b|(?:从来)?(?:没|没有|未)[\s\S]{0,120}(?:写过|做过|处理过|实现过|构建过|创建过|完成过|修复过|测试过|获得过|提交过|参加过|练习过|用过|使用过|接触过|经验)/iu;
 const CONTRADICTION_REALIZED_EVIDENCE_PATTERN =
-  /\b(?:implemented|built|created|completed|tested|configured|handled|worked\s+with|wrote|written|managed\s+to|current\s+code|@app\.route|return(?:ed)?\s+static)\b|(?:已经|成功|实际)?(?:实现了|写了|处理了|构建了|创建了|完成了|测试了|配置了|用过|使用过|返回静态)|@app\.route/iu;
+  /\b(?:attended|built|collaborated|completed|configured|created|downloaded|enrolled|fixed|got|handled|implemented|managed\s+to|missed|obtained|practi[cs]ed|received|stored|submitted|tested|used|worked(?:\s+with|\s+on)?|wrote|written|current\s+code|@app\.route|return(?:ed)?\s+static)\b|(?:已经|成功|实际)?(?:实现了|写了|处理了|构建了|创建了|完成了|修复了|测试了|配置了|获得了|提交了|参加了|练习了|用过|使用过|返回静态)|@app\.route/iu;
 const CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN =
-  /\b(?:implemented|built|created|completed|tested|handled|worked\s+with|wrote|written|managed\s+to)\b|return(?:ed)?\s+static|(?:实现了|写了|处理了|构建了|创建了|完成了|测试了|返回静态)/iu;
+  /\b(?:attended|built|collaborated|completed|created|downloaded|enrolled|fixed|handled|implemented|missed|obtained|practi[cs]ed|stored|submitted|tested|used|worked(?:\s+with|\s+on)?|wrote|written|managed\s+to)\b|return(?:ed)?\s+static|(?:实现了|写了|处理了|构建了|创建了|完成了|修复了|测试了|获得了|提交了|参加了|练习了|返回静态)/iu;
+const CONTRADICTION_EXPLORATORY_NON_REALIZED_PATTERN =
+  /\b(?:before\s+deciding|review(?:ing)?\s+(?:a\s+)?(?:tutorial|guide|docs?|documentation)|trying\s+to\s+review|tutorials?)\b/iu;
 const SOURCE_ORDER_ASPECT_CUE_PATTERN =
   /\b(?:analytics?|authorization|authentication|blueprints?|completed|configur(?:e|ed|ing|ation)|CRUD|database|deployment|error\s+handling|finalizing|hardening|implement(?:ed|ing)?|integration\s+tests?|local\s+dev|models?|port\s+\d+|response\s+handling|route|schema|security|SQL\s+injection|testing|transaction|validation|worker|XSS)\b/iu;
 const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
@@ -1988,7 +1991,7 @@ function selectSourceOrderedSummaryCoverage(input: {
     return [];
   }
 
-  const queryTopics = aggregateTopicTokens(
+  const queryTopics = contradictionTopicTokens(
     input.query,
     input.language,
     input.queryLocale,
@@ -2235,7 +2238,7 @@ function selectSourceOrderedTimelineIntegrationEvidence(input: {
     return [];
   }
 
-  const queryTopics = aggregateTopicTokens(
+  const queryTopics = contradictionTopicTokens(
     input.query,
     input.language,
     input.queryLocale,
@@ -2888,13 +2891,37 @@ function compareTemporalFactChronology(
 }
 
 function isPotentialContradictionConfirmationQuery(query: string): boolean {
+  if (
+    /\b(?:how\s+(?:did|have|can|should)|what\s+steps|walk\s+me\s+through)\b/iu.test(
+      query,
+    )
+  ) {
+    return false;
+  }
+
   return (
     /\b(?:have|has|did|do|does|ever)\b/iu.test(query) &&
-    /\b(?:worked\s+with|written|wrote|handled|implemented|built|created|done|used)\b/iu.test(query)
+    /\b(?:attended|built|collaborat(?:ed|e)|completed|created|done|download(?:ed)?|enroll(?:ed)?|fix(?:ed)?|handled|implemented|miss(?:ed)?|obtain(?:ed)?|practi[cs](?:ed|e)|received|submitted|tested|used|worked(?:\s+with|\s+on)?|written|wrote)\b/iu.test(query)
   ) ||
     /(?:有没有|是否|是不是|有无|曾经|之前|到底).*(?:写过|做过|处理过|实现过|构建过|创建过|完成过|用过|使用过|接触过)/u.test(
       query,
     );
+}
+
+function contradictionTopicTokens(
+  text: string,
+  language: LanguageService,
+  locale: string,
+): Set<string> {
+  const tokens = aggregateTopicTokens(text, language, locale);
+  for (const match of text.toLowerCase().matchAll(/\b(?:api|ats|ci|css|gpa|qa|seo|ui|uk)\b/gu)) {
+    tokens.add(match[0]);
+  }
+  if (/\bapi\s+key\b/iu.test(text)) {
+    tokens.add("api_key");
+  }
+
+  return tokens;
 }
 
 function isNegatedSourceClaim(entry: RankedFactCandidate): boolean {
@@ -2906,6 +2933,12 @@ function isNegatedSourceClaim(entry: RankedFactCandidate): boolean {
 
 function isRealizedPositiveSourceClaim(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
+  if (
+    CONTRADICTION_EXPLORATORY_NON_REALIZED_PATTERN.test(content) &&
+    !CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN.test(content)
+  ) {
+    return false;
+  }
 
   return hasConversationEvidenceTag(entry) &&
     !CONTRADICTION_NEGATED_CLAIM_PATTERN.test(content) &&
@@ -2922,7 +2955,7 @@ function selectContradictionEvidencePair(input: {
     return [];
   }
 
-  const queryTopics = aggregateTopicTokens(
+  const queryTopics = contradictionTopicTokens(
     input.query,
     input.language,
     input.queryLocale,
@@ -2953,7 +2986,7 @@ function selectContradictionEvidencePair(input: {
     | undefined;
 
   for (const negated of preferredNegatedClaims) {
-    const negatedTopics = aggregateTopicTokens(
+    const negatedTopics = contradictionTopicTokens(
       negated.fact.content,
       input.language,
       negated.locale,
@@ -2975,7 +3008,7 @@ function selectContradictionEvidencePair(input: {
         }
       }
 
-      const positiveTopics = aggregateTopicTokens(
+      const positiveTopics = contradictionTopicTokens(
         positive.fact.content,
         input.language,
         positive.locale,
@@ -3019,7 +3052,72 @@ function selectContradictionEvidencePair(input: {
     return [];
   }
 
-  return [best.positive, best.negated].sort(compareTemporalFactChronology);
+  const bestNegatedTopics = contradictionTopicTokens(
+    best.negated.fact.content,
+    input.language,
+    best.negated.locale,
+  );
+  const positiveSupport = preferredPositiveClaims
+    .filter((positive) => positive.fact.id !== best.negated.fact.id)
+    .map((positive) => {
+      const positiveTopics = contradictionTopicTokens(
+        positive.fact.content,
+        input.language,
+        positive.locale,
+      );
+      const queryOverlap = aggregateTopicOverlapCount(queryTopics, positiveTopics);
+      const pairOverlap = [...positiveTopics].filter(
+        (topic) => bestNegatedTopics.has(topic) && queryTopics.has(topic),
+      ).length;
+      if (queryOverlap < minimumOverlap || pairOverlap < minimumOverlap) {
+        return null;
+      }
+
+      const score =
+        Math.min(queryOverlap, 4) * 10 +
+        Math.min(pairOverlap, 4) * 8 +
+        positive.lexicalScore * 20 +
+        (
+          CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN.test(
+            stripEvidencePrefix(positive.fact.content),
+          )
+            ? 40
+            : 0
+        ) +
+        (positive.fact.id === best.positive.fact.id ? 100 : 0) +
+        (hasUserAnswerTag(positive) ? 20 : 0) +
+        (hasAssistantAnswerTag(positive) ? -40 : 0);
+
+      return {
+        entry: positive,
+        score,
+      };
+    })
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        entry: RankedFactCandidate;
+        score: number;
+      } => candidate !== null,
+    )
+    .sort((left, right) => {
+      if (left.score !== right.score) {
+        return right.score - left.score;
+      }
+      return compareTemporalFactChronology(left.entry, right.entry);
+    })
+    .slice(0, CONTRADICTION_POSITIVE_RECALL_LIMIT)
+    .map((candidate) => candidate.entry);
+
+  const selected = new Map<string, RankedFactCandidate>();
+  for (const entry of positiveSupport) {
+    selected.set(entry.fact.id, entry);
+  }
+  selected.set(best.positive.fact.id, best.positive);
+  selected.set(best.negated.fact.id, best.negated);
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
 function hasSleepBeforeAppointmentEvidenceSignal(
