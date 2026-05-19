@@ -207,6 +207,32 @@ drift without moving domain rules back into `src/recall/selection.ts`. It is
 still not BEAM closure: the full diagnostic remains recall-limited and noisy,
 so the next BEAM loop remains full-slice miss/noise hardening before moving on
 to MemoryAgentBench.
+Fifteenth, source-ordered issue-resolution summaries now prefer the earliest
+explicit bug/error/fix/debug evidence chain for queries about resolving issues
+over time, again with English and Chinese selector coverage and without moving
+the rules back into `src/recall/selection.ts`. Two broader variants were
+rejected because they regressed full 100K recall to 0.41126557323740437 and
+0.41023270938763906. The kept earliest-source-order rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-summary-issue-resolution-earliest-current-20260519T180000`
+raises overall evidence-chat recall only slightly to 0.4117931833424793 with
+`executionFailures: 0`, missed-recall cases still 255/355, and
+wrong-recall/noise cases still 387/400. This is useful as a narrow selector
+guardrail, but it is not a material BEAM closure signal; the next loop still
+needs broader recall and persistent-noise hardening.
+Sixteenth, aggregate money evidence now recognizes declined financial
+opportunity comparisons so raise/freelance/bonus amounts can be retrieved
+together while accepted-offer noise is rejected. The rules live in
+`src/recall/selectors/aggregate.ts` with English and Chinese selector coverage.
+The kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-declined-financial-aggregate-current-20260519T193000`
+raises overall evidence-chat recall to 0.41554905188708025 with
+`executionFailures: 0`, missed-recall cases still 255/355, and
+wrong-recall/noise cases still 387/400. The largest category lifts are
+event-ordering +0.01333333333333328, temporal reasoning +0.012500000000000067,
+and multi-session reasoning +0.007500000000000062; the target
+`12:multi_session_reasoning:1` moves from 0 to 0.3 recall. This is another
+kept partial repair, not BEAM closure, because the full diagnostic is still
+miss-limited and noisy.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
@@ -247,10 +273,10 @@ are now done; the source-preservation pass and the follow-up contradiction /
 source-order-companion pass are also done under current code, but neither is
 sufficient for closure. The ordered-context pruning pass now fixes the initial
 representative live trio, and the later summary/contradiction,
-event-ordering, and summary learning/evolution passes give small full-run
-recall lifts, but the open boundary remains broader generic BEAM repair for
-full-slice noise reduction and recall hardening after the improved retrieval
-surface.
+event-ordering, summary learning/evolution, issue-resolution, and declined
+financial aggregate passes give small full-run recall lifts, but the open
+boundary remains broader generic BEAM repair for full-slice noise reduction and
+recall hardening after the improved retrieval surface.
 
 Historical context: the prior full-500 execution blocker was clean after
 failed-row recovery:

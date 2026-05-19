@@ -61,6 +61,7 @@ import {
   fillSourceOrderedTemporalCompanions,
   fillSourceOrderedTemporalGaps,
   fillSourceOrderedTemporalMilestones,
+  selectSourceOrderedBroadAspectEvidence as selectBroadAspectEventOrderEvidence,
   selectSourceOrderedPersonalWorkChallengeEvidence as selectPersonalWorkChallengeEvidence,
 } from "./selectors/sourceOrderTemporal";
 import { selectSourceOrderedTimelineIntegrationEvidence as selectTimelineIntegrationEvidence } from "./selectors/sourceOrderTimeline";
@@ -591,6 +592,12 @@ export function selectFacts(
       entries: compatible,
       query,
     });
+  const broadAspectEventOrderCandidates = selectBroadAspectEventOrderEvidence({
+    entries: compatible,
+    language,
+    query,
+    queryLocale,
+  });
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({
     entries: compatible,
     language,
@@ -799,6 +806,13 @@ export function selectFacts(
           !temporalRelativeEventQuery
         ) {
           return false;
+        }
+
+        if (broadAspectEventOrderCandidates.length > 0) {
+          for (const entry of broadAspectEventOrderCandidates) {
+            selectAndTrace(entry);
+          }
+          return true;
         }
 
         const rankedTemporalCandidates = rankFactCandidates(

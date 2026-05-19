@@ -111,11 +111,11 @@ Active Phase
 - Current BEAM failure surface: the first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  current-code summary learning/evolution rerun,
-  `run-phase63-beam-100k-recall-diagnostic-rules-full-summary-learning-evolution-narrow-current-20260519T160000`,
-  reaches recall 0.4116411600918644, missed 255/355, and wrong-recall/noise
-  387/400; it restores source-ordered summary drift after the selection
-  refactor, but full-run misses and noise still block closure.
+  kept current-code declined-financial aggregate rerun,
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-declined-financial-aggregate-current-20260519T193000`,
+  reaches recall 0.41554905188708025, missed 255/355, and wrong-recall/noise
+  387/400; it is still a narrow recall lift, so full-run misses and noise
+  still block closure.
   Same-three-case live evidence tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and

@@ -13,6 +13,7 @@ import {
   hasPersonalWorkChallengeEventSignal,
   isPersonalWorkChallengeEventOrderQuery,
   isSourceOrderedFact,
+  isUserBroughtUpEventOrderQuery,
   PERSONAL_LIFE_CONTEXT_PATTERN,
   PERSONAL_WORK_CHALLENGE_RESPONSE_PATTERN,
   PERSONAL_WORK_CHALLENGE_STATE_PATTERN,
@@ -26,6 +27,8 @@ export const SOURCE_ORDER_GAP_FILL_LIMIT = 5;
 export const SOURCE_ORDER_COMPANION_LIMIT = 6;
 export const SOURCE_ORDER_COMPANION_MAX_DISTANCE = 2;
 export const SOURCE_ORDER_MILESTONE_FILL_LIMIT = 6;
+export const SOURCE_ORDER_BROAD_ASPECT_DEFAULT_LIMIT = 10;
+export const SOURCE_ORDER_BROAD_ASPECT_PRIORITY_THRESHOLD = 180;
 
 export const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_RECALL_LIMIT = 14;
 export const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_ANCHOR_LIMIT = 8;
@@ -104,6 +107,100 @@ export const CHINESE_SOURCE_ORDER_ASPECT_ALIASES = [
   topics: readonly string[];
 }>;
 
+const SOURCE_ORDER_REQUESTED_COUNT_WORDS = new Map<string, number>([
+  ["one", 1],
+  ["two", 2],
+  ["three", 3],
+  ["four", 4],
+  ["five", 5],
+  ["six", 6],
+  ["seven", 7],
+  ["eight", 8],
+  ["nine", 9],
+  ["ten", 10],
+]);
+
+export function isSourceOrderedBroadAspectEventOrderQuery(query: string): boolean {
+  if (/\b(?:app|application|code|coding|deploy(?:ment)?|develop(?:ing|ment)?|implementation|project|software)\b/iu.test(query)) {
+    return false;
+  }
+
+  return isUserBroughtUpEventOrderQuery(query) &&
+    (
+      /\b(?:different|various|several)?\s*aspects?\b/iu.test(query) ||
+      /\b(?:topics?|items?|parts?)\b[\s\S]{0,120}\bthroughout\b/iu.test(query) ||
+      /(不同|多个|几个|各个).{0,20}(方面|主题|事项|内容)/u.test(query)
+    );
+}
+
+export function requestedSourceOrderItemCount(query: string): number | undefined {
+  const numeric = query.match(/\b(?:mention\s+only(?:\s+and\s+only)?|only)\s+(\d{1,2})\s+items?\b/iu)?.[1] ??
+    query.match(/\b(\d{1,2})\s+items?\b/iu)?.[1];
+  if (numeric) {
+    const count = Number(numeric);
+    return Number.isFinite(count) && count > 0 ? count : undefined;
+  }
+
+  const word = query.match(
+    /\b(?:mention\s+only(?:\s+and\s+only)?|only)\s+(one|two|three|four|five|six|seven|eight|nine|ten)\s+items?\b/iu,
+  )?.[1]?.toLowerCase();
+  return word ? SOURCE_ORDER_REQUESTED_COUNT_WORDS.get(word) : undefined;
+}
+
+function hasCollaborativeMilestoneSignal(content: string): boolean {
+  return /\b(?:collaborat(?:ed|ing)?|conversation\s+with|discuss(?:ed|ing)?\s+with|recommended|shared|suggested|advised)\b[\s\S]{0,120}\b[A-Z][\p{L}'-]+\b/u.test(content) ||
+    /\b(?:with|from|by)\s+[A-Z][\p{L}'-]+\b[\s\S]{0,120}\b(?:advice|feedback|insights?|recommend(?:ed|ation)?|suggest(?:ed|ion)?|strategy|update)\b/u.test(content) ||
+    /\b(?:feedback|insights?|job descriptions?|keywords?|sections?|strategy)\b[\s\S]{0,120}\bwith\s+[A-Z][\p{L}'-]+\b/u.test(content) ||
+    /\bwith\s+[A-Z][\p{L}'-]+\b[\s\S]{0,120}\b(?:add|feedback|keywords?|refin(?:e|ing)|share|sections?)\b/u.test(content) ||
+    /(?:建议|推荐|反馈|合作|讨论|分享).{0,80}[\p{Script=Han}A-Z][\p{Script=Han}\p{L}'-]+/u.test(content);
+}
+
+function hasNegatedAbsenceSignal(content: string): boolean {
+  return /\b(?:never|not|no|without)\b[\s\S]{0,80}\b(?:attended|completed|done|enrolled|finished|had|obtained|used)\b/iu.test(content) ||
+    /(从未|没有|没).{0,80}(参加|完成|注册|使用|获得)/u.test(content);
+}
+
+export function sourceOrderedBroadAspectPriority(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const queryTopics = selectorTopicTokens(
+    input.query,
+    input.language,
+    input.queryLocale,
+  );
+  const factTopics = selectorTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  let priority =
+    selectorTopicOverlapCount(queryTopics, factTopics) * 25 +
+    input.entry.lexicalScore * 30 +
+    temporalOrderEvidencePriority(input.entry, input.query);
+
+  if (SOURCE_ORDER_ASPECT_CUE_PATTERN.test(content)) {
+    priority += 80;
+  }
+  if (hasCollaborativeMilestoneSignal(content)) {
+    priority += 150;
+  }
+  if (/^(?:\[[^\]]+\]\s*)?I(?:'m| am| have| had| was| will| just)?\b/iu.test(content)) {
+    priority += 25;
+  }
+  if (hasNegatedAbsenceSignal(content)) {
+    priority -= 120;
+  }
+  if (hasAssistantAnswerTag(input.entry)) {
+    priority -= 200;
+  }
+
+  return priority;
+}
+
 export function sourceOrderGapCandidatePriority(
   entry: RankedFactCandidate,
   query: string,
@@ -163,6 +260,101 @@ export function sourceOrderAspectTopics(
   }
 
   return topics;
+}
+
+export function selectSourceOrderedBroadAspectEvidence(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  if (!isSourceOrderedBroadAspectEventOrderQuery(input.query)) {
+    return [];
+  }
+
+  const queryTopics = selectorTopicTokens(
+    input.query,
+    input.language,
+    input.queryLocale,
+  );
+  const candidates = input.entries
+    .filter(isSourceOrderedSummaryCandidate)
+    .filter(hasUserAnswerTag)
+    .map((entry) => {
+      const order = sourceOrderSortKey(entry);
+      if (order === undefined) {
+        return null;
+      }
+
+      const content = stripEvidencePrefix(entry.fact.content);
+      const factTopics = selectorTopicTokens(content, input.language, entry.locale);
+      const topicOverlap = selectorTopicOverlapCount(queryTopics, factTopics);
+      const priority = sourceOrderedBroadAspectPriority({
+        entry,
+        language: input.language,
+        query: input.query,
+        queryLocale: input.queryLocale,
+      });
+      if (
+        topicOverlap === 0 &&
+        !SOURCE_ORDER_ASPECT_CUE_PATTERN.test(content) &&
+        !hasCollaborativeMilestoneSignal(content)
+      ) {
+        return null;
+      }
+
+      return {
+        entry,
+        order,
+        priority,
+      };
+    })
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        entry: RankedFactCandidate;
+        order: number;
+        priority: number;
+      } => candidate !== null,
+    )
+    .sort((left, right) => left.order - right.order);
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  const requestedCount = requestedSourceOrderItemCount(input.query) ??
+    SOURCE_ORDER_BROAD_ASPECT_DEFAULT_LIMIT;
+  const candidatePool =
+    candidates.filter(
+      (candidate) =>
+        candidate.priority >= SOURCE_ORDER_BROAD_ASPECT_PRIORITY_THRESHOLD,
+    ).length >= Math.min(requestedCount, candidates.length)
+      ? candidates.filter(
+        (candidate) =>
+          candidate.priority >= SOURCE_ORDER_BROAD_ASPECT_PRIORITY_THRESHOLD,
+      )
+      : candidates;
+  const selectionCount = Math.min(requestedCount, candidatePool.length);
+  const selected = new Map<number, RankedFactCandidate>();
+
+  for (let index = 0; index < selectionCount; index += 1) {
+    const start = Math.floor(index * candidatePool.length / selectionCount);
+    const end = Math.floor((index + 1) * candidatePool.length / selectionCount);
+    const bucket = candidatePool.slice(start, Math.max(start + 1, end));
+    const best = [...bucket].sort((left, right) => {
+      const priorityDelta = right.priority - left.priority;
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return left.order - right.order;
+    })[0];
+    if (best) {
+      selected.set(best.order, best.entry);
+    }
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
 export function fillSourceOrderedTemporalGaps(input: {

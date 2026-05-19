@@ -127,6 +127,15 @@ export function isPersonalWorkChallengeEventOrderQuery(query: string): boolean {
     );
 }
 
+export function isUserBroughtUpEventOrderQuery(query: string): boolean {
+  return isTemporalEventOrderQuery(query) &&
+    (
+      /\bI\b[\s\S]{0,80}\b(?:brought\s+up|discussed|mentioned|talked\s+about)\b/iu.test(query) ||
+      /\b(?:brought\s+up|discussed|mentioned|talked\s+about)\b[\s\S]{0,80}\b(?:by|from)\s+me\b/iu.test(query) ||
+      /我[\s\S]{0,80}(提到|讨论|聊到|说过)/u.test(query)
+    );
+}
+
 export function hasPersonalWorkChallengeEventSignal(entry: RankedFactCandidate): boolean {
   const content = valueBearingFactContent(entry.fact.content);
   const hasChallengeState = PERSONAL_WORK_CHALLENGE_STATE_PATTERN.test(content);
@@ -245,6 +254,14 @@ export function hasTemporalEventOrderSignal(
   if (
     isSourceOrderedFact(entry) &&
     isUserGroundedRecallQuery(query) &&
+    !hasUserAnswerTag(entry)
+  ) {
+    return false;
+  }
+
+  if (
+    isSourceOrderedFact(entry) &&
+    isUserBroughtUpEventOrderQuery(query) &&
     !hasUserAnswerTag(entry)
   ) {
     return false;

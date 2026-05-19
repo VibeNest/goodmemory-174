@@ -791,6 +791,78 @@ P63-T007o source-ordered summary learning/evolution repair:
   improves full-run recall without adding wrong-recall/noise, but the full
   diagnostic still has 255 missed-recall cases and 387 noisy cases.
 
+P63-T007p source-ordered summary issue-resolution repair:
+
+- Mechanism:
+  source-ordered summary selection now has a narrow issue-resolution subtype
+  for queries about resolving bugs, errors, fixes, debugging, issues, or
+  troubleshooting over time. The kept rule prefers the earliest explicit
+  source-order issue chain instead of a broad cross-conversation sample, and
+  the English/Chinese rules remain in
+  `src/recall/selectors/sourceOrderSummary.ts`.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers English and Chinese
+  BEAM-shaped issue-resolution summaries. The tests require CSS/debug,
+  DOM-error, gallery 404, server-log, validateForm, file-structure, and
+  Formspree 500 evidence while rejecting ordinary project timeline, contact
+  feature, Lighthouse, layout-integration, and sprint distractors.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-summary-issue-resolution-earliest-current-20260519T180000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.4117931833424793
+  - missed-recall cases: 255/355
+  - wrong-recall/noise cases: 387/400
+- Delta from summary learning/evolution:
+  overall recall improves from 0.4116411600918644 to 0.4117931833424793,
+  while missed recall and wrong-recall/noise remain flat. The kept case-level
+  gain is narrow: `3:summarization:2` moves from 0 to 0.14285714285714285.
+  Broader variants were rejected because they regressed full recall to
+  0.41126557323740437 and 0.41023270938763906.
+- Decision:
+  this is a kept but tiny summary guardrail, not BEAM closure. It proves the
+  selector boundary for issue-resolution summaries, but the full diagnostic
+  remains recall-limited and noisy.
+
+P63-T007q current-code declined financial aggregate repair:
+
+- Mechanism:
+  `src/recall/selectors/aggregate.ts` now treats declined financial
+  opportunity comparisons as aggregate money queries. The selector recognizes
+  declined/rejected/turned-down raise, freelance project, and bonus amounts,
+  includes matching direct non-inferred evidence, and keeps accepted-offer
+  amount noise out of this narrow path. Chinese declined-opportunity patterns
+  live in the same selector module.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers English and Chinese
+  BEAM-shaped declined financial opportunity comparisons. The tests require
+  raise/freelance/bonus amount evidence and reject accepted-offer plus
+  unrelated reflection noise.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-declined-financial-aggregate-current-20260519T193000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.41554905188708025
+  - missed-recall cases: 255/355
+  - wrong-recall/noise cases: 387/400
+- Delta from summary issue-resolution earliest:
+  overall recall improves from 0.4117931833424793 to 0.41554905188708025,
+  while missed recall and wrong-recall/noise remain flat. Category deltas:
+  event-ordering +0.01333333333333328, temporal reasoning
+  +0.012500000000000067, and multi-session reasoning +0.007500000000000062.
+  Target case `12:multi_session_reasoning:1` moves from 0 to 0.3 recall; the
+  adjacent grocery/freelance/medical-bill case `16:multi_session_reasoning:2`
+  remains at 0.
+- Decision:
+  this is a kept partial aggregate repair, not BEAM closure. It improves the
+  full run without changing missed/noise counts, so the next loop must keep
+  targeting broad miss/noise families instead of treating the benchmark as
+  closed.
+
 
 Current Boundary
 ----------------
@@ -805,11 +877,12 @@ milestone/context pass, the ordered-context pruning pass, the source-summary
 coverage pass, the source-provenance instruction pass, and the
 instruction-applicability, temporal date-content, source preference, timeline
 planning, contradiction-support, summary contradiction-route guard, and
-event-ordering challenge plus summary learning/evolution passes have been
-rerun. The current failure family is now more specific: the
-representative live trio is clean at 3/3 with complete evidence recall, and the
-full 100K diagnostic has real instruction, temporal, preference, and Timeline
-Integration plus contradiction-resolution and source-ordered summary lifts,
-but the full surface remains recall-limited and noisy with 255 missed-recall
+event-ordering challenge plus summary learning/evolution, issue-resolution,
+and declined-financial aggregate passes have been rerun. The current failure
+family is now more specific: the representative live trio is clean at 3/3 with
+complete evidence recall, and the full 100K diagnostic has real instruction,
+temporal, preference, Timeline Integration, contradiction-resolution,
+source-ordered summary, and aggregate-money lifts, but the full surface remains
+recall-limited and noisy at recall 0.41554905188708025 with 255 missed-recall
 cases and wrong-recall/noise 387/400. BEAM still needs broader recall and
 persistent-noise hardening before it can move toward an answer-quality claim.

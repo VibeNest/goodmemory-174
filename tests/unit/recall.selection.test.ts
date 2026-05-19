@@ -1156,6 +1156,89 @@ describe("recall selection", () => {
     );
   });
 
+  it("returns declined financial opportunity amounts for cross-session comparisons", () => {
+    const language = createLanguageService();
+    const makeFact = (
+      id: string,
+      content: string,
+      role: "assistant" | "user" = "user",
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-rejected-raise-user",
+        "I'm kinda torn about rejecting that $10,000 raise on March 12, was that a smart move considering my current situation?",
+      ),
+      makeFact(
+        "fact-rejected-raise-assistant",
+        "Deciding whether to reject a $10,000 raise is a significant decision with financial and career tradeoffs.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-declined-freelance-user",
+        "I'm worried that declining the $5,000 freelance project on April 1 might have been a mistake.",
+      ),
+      makeFact(
+        "fact-declined-freelance-assistant",
+        "Declining the $5,000 freelance project can make sense if onboarding for the new job is the higher priority.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-declined-bonus-user",
+        "I'm struggling with the idea of free will after declining a $12,000 bonus on May 15 due to ethical concerns.",
+      ),
+      makeFact(
+        "fact-declined-bonus-assistant",
+        "Declining a $12,000 bonus because of ethical concerns shows a clear values-based financial tradeoff.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-accepted-offer-noise",
+        "I accepted a $95,000 job offer because the startup growth opportunity was exciting.",
+      ),
+      makeFact(
+        "fact-free-will-noise",
+        "I journaled about free will and fiction writing during a walk with Tanya.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Considering the financial opportunities I declined—a raise, a freelance project, and a bonus—how do the total amounts I turned down compare?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id))).toEqual(
+      new Set([
+        "fact-rejected-raise-user",
+        "fact-rejected-raise-assistant",
+        "fact-declined-freelance-user",
+        "fact-declined-freelance-assistant",
+        "fact-declined-bonus-user",
+        "fact-declined-bonus-assistant",
+      ]),
+    );
+    expect(result.traces.find((trace) => trace.memoryId === "fact-accepted-offer-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-free-will-noise")?.returned).toBe(false);
+  });
+
   it("returns Chinese money facts for aggregate spending queries", () => {
     const language = createLanguageService();
     const facts = [
@@ -1203,6 +1286,89 @@ describe("recall selection", () => {
       new Set(["fact-chain-zh", "fact-light-zh"]),
     );
     expect(result.traces.find((trace) => trace.memoryId === "fact-hotel-zh")?.returned).toBe(false);
+  });
+
+  it("returns Chinese declined financial opportunity amounts for cross-session comparisons", () => {
+    const language = createLanguageService();
+    const makeFact = (
+      id: string,
+      content: string,
+      role: "assistant" | "user" = "user",
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-rejected-raise-zh",
+        "我在3月12日拒绝了一次10000元加薪，因为我担心它和当前职业方向不一致。",
+      ),
+      makeFact(
+        "fact-rejected-raise-answer-zh",
+        "拒绝10000元加薪意味着你在薪资和长期职业取舍之间做了选择。",
+        "assistant",
+      ),
+      makeFact(
+        "fact-declined-freelance-zh",
+        "我在4月1日放弃了5000元自由职业项目，想把精力留给新工作的入职任务。",
+      ),
+      makeFact(
+        "fact-declined-freelance-answer-zh",
+        "放弃5000元自由职业项目可以理解为优先保证新工作过渡。",
+        "assistant",
+      ),
+      makeFact(
+        "fact-declined-bonus-zh",
+        "我在5月15日因为伦理顾虑拒绝了12000元奖金。",
+      ),
+      makeFact(
+        "fact-declined-bonus-answer-zh",
+        "拒绝12000元奖金说明你把价值观和伦理考虑放在直接收益之前。",
+        "assistant",
+      ),
+      makeFact(
+        "fact-accepted-offer-zh",
+        "我接受了95000元的工作机会，因为创业公司的成长空间很大。",
+      ),
+      makeFact(
+        "fact-reflection-zh",
+        "我写日记反思自由意志和小说创作。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "对比我拒绝过的财务机会，包括加薪、自由职业项目和奖金，这些放弃的金额分别是多少？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(new Set(result.facts.map((fact) => fact.id))).toEqual(
+      new Set([
+        "fact-rejected-raise-zh",
+        "fact-rejected-raise-answer-zh",
+        "fact-declined-freelance-zh",
+        "fact-declined-freelance-answer-zh",
+        "fact-declined-bonus-zh",
+        "fact-declined-bonus-answer-zh",
+      ]),
+    );
+    expect(result.traces.find((trace) => trace.memoryId === "fact-accepted-offer-zh")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-reflection-zh")?.returned).toBe(false);
   });
 
   it("returns medical provider facts for aggregate doctor count queries", () => {
@@ -3167,6 +3333,159 @@ describe("recall selection", () => {
     ).toBeLessThan(selectedIds.indexOf("fact-unhandled-promise"));
   });
 
+  it("keeps non-code professional-profile milestones for broad source-ordered aspect questions", () => {
+    const language = createLanguageService();
+    const makeFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      role: "assistant" | "user" = "user",
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-joshua-ats-budget",
+        4,
+        "I'm worried my resume will not pass applicant tracking systems, and Joshua advised me on project budgeting and networking strategy.",
+      ),
+      makeFact(
+        "fact-joshua-keywords",
+        6,
+        "I'll share job descriptions and feedback with Joshua so we can add keywords and refine the budget management sections.",
+      ),
+      makeFact(
+        "fact-april-deadline-distractor",
+        14,
+        "I'm worried my resume will not be ready by April 10 for film, television, and digital media jobs.",
+      ),
+      makeFact(
+        "fact-ats-course-distractor",
+        22,
+        "I completed 40% of a LinkedIn Learning ATS optimization course and I am unsure whether I can optimize the resume by the time I finish.",
+      ),
+      makeFact(
+        "fact-industry-expansion-answer",
+        33,
+        "Expanding your resume to include both film and digital media can broaden your professional profile across several industries.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-work-life-answer",
+        35,
+        "Balancing work and personal life is important while you keep improving your resume and career profile.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-ats-simulator-answer",
+        47,
+        "Use ATS simulators and structured bullet points with quantified achievements to test your resume.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-streaming-answer",
+        55,
+        "For Netflix and Hulu roles, highlight streaming platform skills and digital media experience in your resume.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-linkedin-views",
+        60,
+        "I collaborated with Bryan on a LinkedIn profile update on April 20 and increased profile views by 60%.",
+      ),
+      makeFact(
+        "fact-portfolio-distractor",
+        66,
+        "I finished a Squarespace portfolio redesign on May 1 for digital media roles and declined a $75,000 assistant producer offer.",
+      ),
+      makeFact(
+        "fact-workshop-distractor",
+        82,
+        "I attended a workshop on international resume standards on May 3 and asked how to adapt my resume for the UK and Canadian markets.",
+      ),
+      makeFact(
+        "fact-no-training-distractor",
+        96,
+        "I have never attended workshops or training sessions related to resume standards or ATS optimization.",
+      ),
+      makeFact(
+        "fact-transferable-skills",
+        110,
+        "Kevin suggested I add transferable skills like remote team leadership to help my resume pass ATS screening.",
+      ),
+      makeFact(
+        "fact-raise-negotiation",
+        156,
+        "I got a $12,000 raise in August 2024, and Joshua recommended adding it to my resume while I learn salary negotiation.",
+      ),
+      makeFact(
+        "fact-european-markets",
+        206,
+        "David shared insights about adapting resumes for European markets and connecting that with portfolio performance metrics.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you list the order in which I brought up different aspects of improving my professional profile and resume throughout our conversations in order? Mention ONLY and ONLY six items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-joshua-ats-budget",
+      "fact-joshua-keywords",
+      "fact-linkedin-views",
+      "fact-transferable-skills",
+      "fact-raise-negotiation",
+      "fact-european-markets",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(
+      selectedIds.indexOf("fact-joshua-ats-budget"),
+    ).toBeLessThan(selectedIds.indexOf("fact-linkedin-views"));
+    expect(
+      selectedIds.indexOf("fact-linkedin-views"),
+    ).toBeLessThan(selectedIds.indexOf("fact-transferable-skills"));
+    expect(
+      selectedIds.indexOf("fact-transferable-skills"),
+    ).toBeLessThan(selectedIds.indexOf("fact-raise-negotiation"));
+    expect(
+      selectedIds.indexOf("fact-raise-negotiation"),
+    ).toBeLessThan(selectedIds.indexOf("fact-european-markets"));
+    for (const distractorId of [
+      "fact-april-deadline-distractor",
+      "fact-ats-course-distractor",
+      "fact-industry-expansion-answer",
+      "fact-work-life-answer",
+      "fact-ats-simulator-answer",
+      "fact-streaming-answer",
+      "fact-portfolio-distractor",
+      "fact-workshop-distractor",
+      "fact-no-training-distractor",
+    ]) {
+      expect(result.traces.find((trace) => trace.memoryId === distractorId)?.returned).toBe(false);
+    }
+  });
+
   it("fills late source-ordered milestones even when early chatter has recent recall usage", () => {
     const language = createLanguageService();
     const makeFact = (
@@ -3825,6 +4144,185 @@ describe("recall selection", () => {
     }
     expect(selectedIds).not.toContain("fact-sass-user");
     expect(selectedIds).not.toContain("fact-hosting-user");
+  });
+
+  it("prioritizes issue-resolution summary evidence over feature milestone distractors", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-project-timeline",
+        12,
+        "user",
+        "[BEAM chat_id=12 role=user time=unknown] I'm planning the web project timeline and first sprint for the basic layout and navbar.",
+      ),
+      makeSourceFact(
+        "fact-css-debug-user",
+        14,
+        "user",
+        "[BEAM chat_id=14 role=user time=unknown] I'm trying to debug a CSS layout issue in Chrome DevTools v112 and understand the box model.",
+      ),
+      makeSourceFact(
+        "fact-css-debug-assistant",
+        15,
+        "assistant",
+        "[BEAM chat_id=15 role=assistant time=unknown] We debugged the CSS box model by calculating element dimensions and inspecting padding, borders, and margins.",
+      ),
+      makeSourceFact(
+        "fact-contact-feature",
+        16,
+        "user",
+        "[BEAM chat_id=16 role=user time=unknown] I'm trying to implement the contact form with HTML5 validation as an MVP feature.",
+      ),
+      makeSourceFact(
+        "fact-dom-error-user",
+        30,
+        "user",
+        "[BEAM chat_id=30 role=user time=unknown] I'm trying to anticipate Uncaught TypeError: Cannot read property 'classList' of null during DOM manipulation.",
+      ),
+      makeSourceFact(
+        "fact-dom-error-assistant",
+        31,
+        "assistant",
+        "[BEAM chat_id=31 role=assistant time=unknown] We added null checks, optional chaining, and try-catch handling for the DOM manipulation error.",
+      ),
+      makeSourceFact(
+        "fact-lighthouse-distractor",
+        40,
+        "user",
+        "[BEAM chat_id=40 role=user time=unknown] I'm identifying SEO and performance issues in the portfolio website using Lighthouse v10 audit.",
+      ),
+      makeSourceFact(
+        "fact-gallery-layout-distractor",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I'm integrating the project gallery and contact form and dealing with layout responsiveness.",
+      ),
+      makeSourceFact(
+        "fact-gallery-404-user",
+        62,
+        "user",
+        "[BEAM chat_id=62 role=user time=unknown] I'm encountering an issue where project gallery images are not loading and returning 404 errors.",
+      ),
+      makeSourceFact(
+        "fact-gallery-404-assistant",
+        63,
+        "assistant",
+        "[BEAM chat_id=63 role=assistant time=unknown] We checked image paths, static file serving, and build output to resolve the gallery 404 errors.",
+      ),
+      makeSourceFact(
+        "fact-server-logs-user",
+        64,
+        "user",
+        "[BEAM chat_id=64 role=user time=unknown] Ok cool, do I need to check anything specific in the server logs to find the issue?",
+      ),
+      makeSourceFact(
+        "fact-server-logs-assistant",
+        65,
+        "assistant",
+        "[BEAM chat_id=65 role=assistant time=unknown] We checked server logs for 404 errors, missing files, path mismatches, and deployment problems.",
+      ),
+      makeSourceFact(
+        "fact-validate-error-user",
+        68,
+        "user",
+        "[BEAM chat_id=68 role=user time=unknown] I'm trying to fix Uncaught ReferenceError: validateForm is not defined because the script src path is wrong.",
+      ),
+      makeSourceFact(
+        "fact-validate-error-assistant",
+        69,
+        "assistant",
+        "[BEAM chat_id=69 role=assistant time=unknown] We fixed the validateForm ReferenceError by correcting the script path and ensuring the function was defined.",
+      ),
+      makeSourceFact(
+        "fact-file-structure-user",
+        70,
+        "user",
+        "[BEAM chat_id=70 role=user time=unknown] ok cool, do I need to check anything specific in the file structure to make sure everything links correctly?",
+      ),
+      makeSourceFact(
+        "fact-file-structure-assistant",
+        71,
+        "assistant",
+        "[BEAM chat_id=71 role=assistant time=unknown] We checked the file structure, relative paths, folders, and script links so every resource linked correctly.",
+      ),
+      makeSourceFact(
+        "fact-sprint-distractor",
+        82,
+        "user",
+        "[BEAM chat_id=82 role=user time=unknown] I'm working on Sprint 2 tasks for SEO basics and contact form backend integration.",
+      ),
+      makeSourceFact(
+        "fact-formspree-user",
+        166,
+        "user",
+        "[BEAM chat_id=166 role=user time=unknown] I'm trying to fix an intermittent Formspree 500 Internal Server Error on my contact form submission.",
+      ),
+      makeSourceFact(
+        "fact-formspree-assistant",
+        167,
+        "assistant",
+        "[BEAM chat_id=167 role=assistant time=unknown] We improved the Formspree 500 handling with retry logic, exponential backoff, and separate network error handling.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you summarize how I approached and resolved the various issues with my web project over time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-css-debug-user",
+      "fact-css-debug-assistant",
+      "fact-dom-error-user",
+      "fact-dom-error-assistant",
+      "fact-gallery-404-user",
+      "fact-gallery-404-assistant",
+      "fact-server-logs-user",
+      "fact-server-logs-assistant",
+      "fact-validate-error-user",
+      "fact-validate-error-assistant",
+      "fact-file-structure-user",
+      "fact-file-structure-assistant",
+      "fact-formspree-user",
+      "fact-formspree-assistant",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-project-timeline");
+    expect(selectedIds).not.toContain("fact-contact-feature");
+    expect(selectedIds).not.toContain("fact-lighthouse-distractor");
+    expect(selectedIds).not.toContain("fact-gallery-layout-distractor");
+    expect(selectedIds).not.toContain("fact-sprint-distractor");
   });
 
   it("prioritizes creative project timeline milestones over generic time-management summary turns", () => {
@@ -4629,6 +5127,185 @@ describe("recall selection", () => {
     }
     expect(selectedIds).not.toContain("fact-sass-followup-zh");
     expect(selectedIds).not.toContain("fact-hosting-followup-zh");
+  });
+
+  it("prioritizes Chinese issue-resolution summary evidence over feature milestone distractors", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-project-timeline-zh",
+        12,
+        "user",
+        "[BEAM chat_id=12 role=user time=unknown] 我在规划网站项目时间线和第一阶段的基础布局。",
+      ),
+      makeSourceFact(
+        "fact-css-debug-user-zh",
+        14,
+        "user",
+        "[BEAM chat_id=14 role=user time=unknown] 我正在用 Chrome DevTools 调试 CSS 布局问题，并理解盒模型。",
+      ),
+      makeSourceFact(
+        "fact-css-debug-assistant-zh",
+        15,
+        "assistant",
+        "[BEAM chat_id=15 role=assistant time=unknown] 我们通过检查 padding、border、margin 和元素尺寸来排查 CSS 盒模型问题。",
+      ),
+      makeSourceFact(
+        "fact-contact-feature-zh",
+        16,
+        "user",
+        "[BEAM chat_id=16 role=user time=unknown] 我在实现联系表单和 HTML5 校验作为 MVP 功能。",
+      ),
+      makeSourceFact(
+        "fact-dom-error-user-zh",
+        30,
+        "user",
+        "[BEAM chat_id=30 role=user time=unknown] 我遇到 DOM 操作里的 classList of null TypeError 报错。",
+      ),
+      makeSourceFact(
+        "fact-dom-error-assistant-zh",
+        31,
+        "assistant",
+        "[BEAM chat_id=31 role=assistant time=unknown] 我们加了 null 检查、可选链和 try-catch 来处理 DOM 报错。",
+      ),
+      makeSourceFact(
+        "fact-lighthouse-distractor-zh",
+        40,
+        "user",
+        "[BEAM chat_id=40 role=user time=unknown] 我用 Lighthouse v10 识别 SEO 和性能问题。",
+      ),
+      makeSourceFact(
+        "fact-gallery-layout-distractor-zh",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] 我在集成项目画廊和联系表单，并处理响应式布局。",
+      ),
+      makeSourceFact(
+        "fact-gallery-404-user-zh",
+        62,
+        "user",
+        "[BEAM chat_id=62 role=user time=unknown] 我遇到项目画廊图片无法加载并返回 404 错误。",
+      ),
+      makeSourceFact(
+        "fact-gallery-404-assistant-zh",
+        63,
+        "assistant",
+        "[BEAM chat_id=63 role=assistant time=unknown] 我们检查图片路径、静态文件服务和构建输出来修复画廊 404 错误。",
+      ),
+      makeSourceFact(
+        "fact-server-logs-user-zh",
+        64,
+        "user",
+        "[BEAM chat_id=64 role=user time=unknown] 那我需要检查服务端日志里的哪些内容来找到问题？",
+      ),
+      makeSourceFact(
+        "fact-server-logs-assistant-zh",
+        65,
+        "assistant",
+        "[BEAM chat_id=65 role=assistant time=unknown] 我们检查服务端日志里的 404、缺失文件、路径不匹配和部署问题。",
+      ),
+      makeSourceFact(
+        "fact-validate-error-user-zh",
+        68,
+        "user",
+        "[BEAM chat_id=68 role=user time=unknown] 我在修复 validateForm is not defined 的 ReferenceError，原因可能是 script src 路径错了。",
+      ),
+      makeSourceFact(
+        "fact-validate-error-assistant-zh",
+        69,
+        "assistant",
+        "[BEAM chat_id=69 role=assistant time=unknown] 我们通过修正脚本路径并确认函数定义来修复 validateForm 报错。",
+      ),
+      makeSourceFact(
+        "fact-file-structure-user-zh",
+        70,
+        "user",
+        "[BEAM chat_id=70 role=user time=unknown] 我需要检查文件结构里的哪些内容，才能确认链接都正确？",
+      ),
+      makeSourceFact(
+        "fact-file-structure-assistant-zh",
+        71,
+        "assistant",
+        "[BEAM chat_id=71 role=assistant time=unknown] 我们检查文件结构、相对路径、文件夹和脚本链接，确认资源都能正确引用。",
+      ),
+      makeSourceFact(
+        "fact-sprint-distractor-zh",
+        82,
+        "user",
+        "[BEAM chat_id=82 role=user time=unknown] 我在推进第二阶段冲刺，处理 SEO 基础和联系表单后端集成。",
+      ),
+      makeSourceFact(
+        "fact-formspree-user-zh",
+        166,
+        "user",
+        "[BEAM chat_id=166 role=user time=unknown] 我在修复联系表单提交时偶发的 Formspree 500 Internal Server Error。",
+      ),
+      makeSourceFact(
+        "fact-formspree-assistant-zh",
+        167,
+        "assistant",
+        "[BEAM chat_id=167 role=assistant time=unknown] 我们用重试逻辑、指数退避和网络错误分支改进了 Formspree 500 处理。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "请总结我是如何一步步处理和解决网站项目里的各种报错和故障的。",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-css-debug-user-zh",
+      "fact-css-debug-assistant-zh",
+      "fact-dom-error-user-zh",
+      "fact-dom-error-assistant-zh",
+      "fact-gallery-404-user-zh",
+      "fact-gallery-404-assistant-zh",
+      "fact-server-logs-user-zh",
+      "fact-server-logs-assistant-zh",
+      "fact-validate-error-user-zh",
+      "fact-validate-error-assistant-zh",
+      "fact-file-structure-user-zh",
+      "fact-file-structure-assistant-zh",
+      "fact-formspree-user-zh",
+      "fact-formspree-assistant-zh",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-project-timeline-zh");
+    expect(selectedIds).not.toContain("fact-contact-feature-zh");
+    expect(selectedIds).not.toContain("fact-lighthouse-distractor-zh");
+    expect(selectedIds).not.toContain("fact-gallery-layout-distractor-zh");
+    expect(selectedIds).not.toContain("fact-sprint-distractor-zh");
   });
 
   it("prioritizes Chinese creative project timeline milestones over generic time-management summary turns", () => {

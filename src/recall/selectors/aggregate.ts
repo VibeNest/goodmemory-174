@@ -26,6 +26,14 @@ export const AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD = 0.05;
 export const AGGREGATE_GENERIC_LEXICAL_FACT_THRESHOLD = 0.2;
 export const MONEY_FACT_PATTERN =
   /\$\s*\d|\d+(?:[.,]\d+)?\s*(?:元|块|人民币)|\b(?:cost|costs|costing|paid|price|prices|spent|spend|dollars?)\b|(?:花了|花费|费用|价格)/iu;
+export const DECLINED_FINANCIAL_OPPORTUNITY_QUERY_PATTERN =
+  /\b(?:declin(?:e|ed|ing)|passed\s+on|reject(?:ed|ing)?|turn(?:ed|ing)?\s+down)\b[\s\S]{0,180}\b(?:amounts?|bonus|financial|freelance|money|opportunit(?:y|ies)|project|raise)\b|\b(?:amounts?|bonus|financial|freelance|money|opportunit(?:y|ies)|project|raise)\b[\s\S]{0,180}\b(?:declin(?:e|ed|ing)|passed\s+on|reject(?:ed|ing)?|turn(?:ed|ing)?\s+down)\b/iu;
+export const DECLINED_FINANCIAL_OPPORTUNITY_QUERY_ZH_PATTERN =
+  /(拒绝|放弃|推掉).{0,120}(财务|机会|加薪|奖金|自由职业|项目|金额|钱)|(财务|机会|加薪|奖金|自由职业|项目|金额|钱).{0,120}(拒绝|放弃|推掉)/u;
+export const DECLINED_FINANCIAL_OPPORTUNITY_FACT_PATTERN =
+  /\b(?:declin(?:e|ed|ing)|passed\s+on|reject(?:ed|ing)?|turn(?:ed|ing)?\s+down)\b[\s\S]{0,180}\b(?:\$\s*\d|bonus|dollars?|freelance|opportunit(?:y|ies)|project|raise)\b|\b(?:\$\s*\d|bonus|dollars?|freelance|opportunit(?:y|ies)|project|raise)\b[\s\S]{0,180}\b(?:declin(?:e|ed|ing)|passed\s+on|reject(?:ed|ing)?|turn(?:ed|ing)?\s+down)\b/iu;
+export const DECLINED_FINANCIAL_OPPORTUNITY_FACT_ZH_PATTERN =
+  /(拒绝|放弃|推掉).{0,160}(加薪|奖金|自由职业|项目|合同|机会|金额|元|钱)|(加薪|奖金|自由职业|项目|合同|机会|金额|元|钱).{0,160}(拒绝|放弃|推掉)/u;
 export const ACCOMMODATION_COST_FACT_PATTERN =
   /\b(?:accommodations?|lodging|hotel|hostel|resort|motel|airbnb|room|stay|stayed|booked)\b[\s\S]{0,160}\b(?:cost|costs|costing|paid|price|prices|spent|spend|per\s+night|\$\s*\d)\b|\b(?:cost|costs|costing|paid|price|prices|spent|spend|per\s+night|\$\s*\d)\b[\s\S]{0,160}\b(?:accommodations?|lodging|hotel|hostel|resort|motel|airbnb|room)\b/iu;
 export const MEDICAL_PROVIDER_FACT_PATTERN =
@@ -173,8 +181,19 @@ export function isAggregateMoneyQuery(query: string): boolean {
 
   return /\bhow much\b/i.test(query) ||
     asksForEarnedMoney ||
+    isDeclinedFinancialOpportunityQuery(query) ||
     /\b(?:total(?:\s+amount\s+of)?\s+money|amount\s+of\s+money|spent|spend|cost|costs|paid|price|dollars?)\b/i.test(query) ||
     /(多少钱|总共.*(?:花|费用|花费)|一共.*(?:花|费用|花费)|合计.*(?:花|费用|花费)|花了多少钱|花费多少|费用|价格)/u.test(query);
+}
+
+export function isDeclinedFinancialOpportunityQuery(query: string): boolean {
+  return DECLINED_FINANCIAL_OPPORTUNITY_QUERY_PATTERN.test(query) ||
+    DECLINED_FINANCIAL_OPPORTUNITY_QUERY_ZH_PATTERN.test(query);
+}
+
+export function isDeclinedFinancialOpportunityFact(content: string): boolean {
+  return DECLINED_FINANCIAL_OPPORTUNITY_FACT_PATTERN.test(content) ||
+    DECLINED_FINANCIAL_OPPORTUNITY_FACT_ZH_PATTERN.test(content);
 }
 
 export function isAggregateNumericQuery(query: string): boolean {
@@ -306,6 +325,10 @@ export function hasAggregateDomainSignal(input: {
   queryTopics: ReadonlySet<string>;
   topicOverlap: number;
 }): boolean {
+  if (isDeclinedFinancialOpportunityQuery(input.query)) {
+    return isDeclinedFinancialOpportunityFact(input.entry.fact.content);
+  }
+
   if (input.topicOverlap >= 2) {
     return true;
   }
@@ -469,6 +492,14 @@ export function hasAggregateFactCountSignal(
   language: LanguageService,
   queryLocale: string,
 ): boolean {
+  if (
+    isDeclinedFinancialOpportunityQuery(query) &&
+    entry.fact.source.method !== "inferred" &&
+    isDeclinedFinancialOpportunityFact(entry.fact.content)
+  ) {
+    return true;
+  }
+
   if (isTemporalIntervalQuery(query) && isTemporalIntervalEvidenceFact(entry)) {
     return true;
   }
@@ -544,6 +575,10 @@ export function hasAggregateFactCountSignal(
     (
       isAccommodationCostQuery(query) &&
       ACCOMMODATION_COST_FACT_PATTERN.test(entry.fact.content)
+    ) ||
+    (
+      isDeclinedFinancialOpportunityQuery(query) &&
+      isDeclinedFinancialOpportunityFact(entry.fact.content)
     ) ||
     (
       isFurnitureActivityAggregateQuery(query) &&
@@ -631,6 +666,7 @@ export function hasAggregateFactCountSignal(
       SOCIAL_FOLLOWER_FACT_PATTERN.test(entry.fact.content) ||
       SOCIAL_REACH_METRIC_FACT_PATTERN.test(entry.fact.content) ||
       VIDEO_VIEW_METRIC_FACT_PATTERN.test(entry.fact.content) ||
+      isDeclinedFinancialOpportunityFact(entry.fact.content) ||
       FAMILY_AGE_FACT_PATTERN.test(entry.fact.content) ||
       AQUARIUM_TANK_OWNERSHIP_FACT_PATTERN.test(entry.fact.content) ||
       BIKE_SERVICE_FACT_PATTERN.test(entry.fact.content) ||
@@ -695,6 +731,12 @@ export function aggregateEvidencePriority(
     MONEY_FACT_PATTERN.test(valueContent)
   ) {
     priority += 30;
+  }
+  if (
+    isDeclinedFinancialOpportunityQuery(query) &&
+    isDeclinedFinancialOpportunityFact(valueContent)
+  ) {
+    priority += 90;
   }
   if (
     isAccommodationCostQuery(query) &&

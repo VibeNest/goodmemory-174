@@ -84,6 +84,18 @@ export const SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_MILESTONE_PATTERN =
 export const SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_MILESTONE_ZH_PATTERN =
   /(B-\s*提升到\s*A|大纲.{0,40}82%|82%.{0,80}90%.{0,80}评分标准|接受发表|被接受发表|研讨会反馈.{0,80}(40%|反驳)|反驳技巧.{0,120}会议论文编辑)/u;
 
+export const SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_QUERY_PATTERN =
+  /\b(?:bugs?|debug(?:ged|ging)?|errors?|fix(?:ed|ing)?|issues?|problems?|resolved?|troubleshoot(?:ed|ing)?)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_QUERY_ZH_PATTERN =
+  /(报错|错误|故障|调试|排查|修复|解决|处理|问题|挑战)/u;
+
+export const SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_MILESTONE_PATTERN =
+  /\b(?:404|500|bug|classlist|null|debug(?:ged|ging)?|error|exception|fail(?:ed|ing)?|file\s+structure|fix(?:ed|ing)?|layout\s+issue|not\s+loading|path\s+mismatch|referenceerror|retry\s+logic|script\s+(?:path|src)|server\s+logs?|static\s+file|troubleshoot(?:ed|ing)?|typeerror|validateform)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_MILESTONE_ZH_PATTERN =
+  /(404|500|ReferenceError|TypeError|classList|null|报错|错误|故障|无法加载|调试|排查|修复|服务端日志|文件结构|脚本路径|静态文件|路径不匹配|重试|指数退避|链接)/iu;
+
 export const SOURCE_ORDER_SUMMARY_CREATIVE_PROJECT_MILESTONE_PATTERN =
   /\b(?:casting|color\s+grading|creative\s+control|deliver(?:y|ed)|editing|episode|filmed|filming|final\s+sound\s+mix|launch\s+week|location\s+scouting|marketing\s+prep|pilot|post[-\s]?production|scene|script\s+finali[sz]ation|sound\s+mix)\b/iu;
 
@@ -138,6 +150,20 @@ export function hasSourceOrderedSummaryPerformanceGoalMilestone(
 ): boolean {
   return SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_MILESTONE_PATTERN.test(content) ||
     SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_MILESTONE_ZH_PATTERN.test(content);
+}
+
+export function isSourceOrderedIssueResolutionSummaryQuery(
+  query: string,
+): boolean {
+  return SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_QUERY_PATTERN.test(query) ||
+    SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_QUERY_ZH_PATTERN.test(query);
+}
+
+export function hasSourceOrderedSummaryIssueResolutionMilestone(
+  content: string,
+): boolean {
+  return SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_MILESTONE_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_MILESTONE_ZH_PATTERN.test(content);
 }
 
 export function hasSourceOrderedSummaryCreativeProjectMilestone(
@@ -470,6 +496,14 @@ export function selectSourceOrderedSummaryCoverage(input: {
         )
       )
       : [];
+  const issueResolutionCandidates =
+    isSourceOrderedIssueResolutionSummaryQuery(input.query)
+      ? sourceCandidates.filter((entry) => {
+        const content = stripEvidencePrefix(entry.fact.content);
+        return !isSourceOrderedSummaryInstructionLike(content) &&
+          hasSourceOrderedSummaryIssueResolutionMilestone(content);
+      })
+      : [];
   let primaryCandidates = signaledCandidates;
   let preferEarliestPrimaryCandidates = false;
   let skipCompanionSelection = false;
@@ -501,6 +535,13 @@ export function selectSourceOrderedSummaryCoverage(input: {
     primaryCandidates = performanceGoalEvolutionCandidates;
     preferEarliestPrimaryCandidates = true;
     skipCompanionSelection = true;
+  }
+  if (
+    issueResolutionCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
+  ) {
+    primaryCandidates = issueResolutionCandidates;
+    preferEarliestPrimaryCandidates = true;
+    skipCompanionSelection = false;
   }
   const selected = new Map<string, RankedFactCandidate>();
   const addCandidate = (entry: RankedFactCandidate): void => {

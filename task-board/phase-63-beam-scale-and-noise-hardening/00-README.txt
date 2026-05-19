@@ -172,8 +172,23 @@ Workstreams
     source-ordered summary drift and adds English/Chinese selector coverage
     for creative project timelines, concept-learning progression, and
     essay-performance goal/feedback evolution.
+  - summary issue-resolution earliest rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-summary-issue-resolution-earliest-current-20260519T180000`
+    reaches full rules-only evidence-chat recall 0.4117931833424793 with
+    `executionFailures: 0`, missed-recall cases 255/355, and
+    wrong-recall/noise cases 387/400. Broader issue-resolution variants were
+    rejected after regressing full recall to 0.41126557323740437 and
+    0.41023270938763906; the kept variant only preserves earliest explicit
+    bug/error/fix/debug source-order chains for issue-summary queries.
+  - declined financial opportunity aggregate rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-declined-financial-aggregate-current-20260519T193000`
+    reaches full rules-only evidence-chat recall 0.41554905188708025 with
+    `executionFailures: 0`, missed-recall cases 255/355, and
+    wrong-recall/noise cases 387/400. The kept selector repair is narrow:
+    declined raise/freelance/bonus amount comparisons now retrieve matching
+    direct evidence while rejecting accepted-offer noise.
   - next active step: continue full-slice recall/noise hardening beyond
-    the summary learning/evolution repair, especially the remaining
+    the declined-financial aggregate repair, especially the remaining
     missed-recall and persistent noise surface on long imported conversations
 
 
@@ -211,9 +226,11 @@ Current Boundary
   support pass recovers a large share of contradiction-resolution evidence
   without keeping the intermediate Timeline regression, the summary
   contradiction-guard pass gives a small full-run lift, and the event-ordering
-  challenge pass lifts full recall. The latest summary learning/evolution
-  pass raises full recall to 0.4116411600918644 with wrong-recall/noise
-  387/400. This is still only partial Phase 63 progress: the
+  challenge pass lifts full recall. The summary learning/evolution pass raises
+  full recall to 0.4116411600918644, the summary issue-resolution earliest pass
+  nudges it to 0.4117931833424793, and the latest declined-financial aggregate
+  pass raises it to 0.41554905188708025 with wrong-recall/noise 387/400. This is
+  still only partial Phase 63 progress: the
   full 100K provider-free recall diagnostic remains recall-limited and noisy
   with 255 missed-recall cases. The next executable boundary is reducing
   remaining full-slice misses plus wrong-recall/noise on long imported
