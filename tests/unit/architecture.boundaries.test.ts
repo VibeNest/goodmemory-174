@@ -445,6 +445,44 @@ describe("architecture boundaries", () => {
     expect(source).not.toContain("input.memory.remember");
   });
 
+  it("keeps recall selection split into orchestration plus bounded selector modules", async () => {
+    const selectionSource = await readFile(
+      join(SRC_ROOT, "recall", "selection.ts"),
+      "utf8",
+    );
+    const selectorFiles = await collectTypeScriptFiles(
+      join(SRC_ROOT, "recall", "selectors"),
+    );
+    const oversizedSelectorFiles: Array<{ file: string; lines: number }> = [];
+    const wildcardBarrels: string[] = [];
+
+    expect(selectionSource.split("\n").length).toBeLessThanOrEqual(1200);
+    expect(
+      await fileExists(join(SRC_ROOT, "recall", "selectors", "factSelection.ts")),
+    ).toBe(false);
+    expect(
+      await fileExists(join(SRC_ROOT, "recall", "selectors", "sourceOrder.ts")),
+    ).toBe(false);
+
+    for (const file of selectorFiles) {
+      const source = await readFile(file, "utf8");
+      const lines = source.split("\n").length;
+
+      if (lines > 1200) {
+        oversizedSelectorFiles.push({
+          file: toSourceRelativePath(file),
+          lines,
+        });
+      }
+      if (/export\s+\*\s+from/u.test(source)) {
+        wildcardBarrels.push(toSourceRelativePath(file));
+      }
+    }
+
+    expect(oversizedSelectorFiles).toEqual([]);
+    expect(wildcardBarrels).toEqual([]);
+  });
+
   it("keeps eval reporting limited to function exports", async () => {
     expect(Object.keys(reporting).sort()).toEqual([
       "aggregateJudgedCases",

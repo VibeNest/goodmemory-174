@@ -11,6 +11,8 @@ bulk-load. Start here, then open only the file that matches the question.
 - `GoodMemory-First-Principles-and-Reference-Architecture.md` - stable design
   principles and reference architecture.
 - `GoodMemory-OSS-Architecture-v1.md` - current package/module architecture.
+- `GoodMemory-Recall-Selection-Architecture.md` - recall selection
+  orchestration, selector module boundaries, and regression guardrails.
 - `GoodMemory-TDD-and-Evaluation-Strategy.md` - test and eval strategy.
 - `GoodMemory-v1-Release-Checklist.md` - release checklist.
 
