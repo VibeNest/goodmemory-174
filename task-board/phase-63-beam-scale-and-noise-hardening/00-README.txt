@@ -138,10 +138,19 @@ Workstreams
     reaches full rules-only evidence-chat recall 0.3364892384610695 with
     `executionFailures: 0`, missed-recall cases 278/355, wrong-recall/noise
     cases 389/400, and temporal-reasoning recall 0.4875
-  - next active step: broaden the ordered-context repair beyond the
-    representative trio and continue full-slice recall/noise hardening,
-    especially temporal/timeline/preference regressions and the remaining noise
-    surface
+  - source preference evidence rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-preference-v2-rerun-current-20260519T020000`
+    reaches full rules-only evidence-chat recall 0.3629658760644676 with
+    `executionFailures: 0`, missed-recall cases 270/355, wrong-recall/noise
+    cases 390/400, and preference-following recall 0.3803418803418803
+  - timeline planning evidence rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-timeline-planning-v3-current-20260519T041500`
+    reaches full rules-only evidence-chat recall 0.37368575086884953 with
+    `executionFailures: 0`, missed-recall cases 267/355, wrong-recall/noise
+    cases 388/400, and Timeline Integration recall 0.5333333333333333
+  - next active step: continue full-slice recall/noise hardening beyond
+    Timeline Integration, especially the remaining missed recall and persistent
+    noise surface
 
 
 Current Boundary
@@ -171,10 +180,13 @@ Current Boundary
   accuracy, the source-summary coverage pass gives a narrow full-run recall
   lift, and the source-provenance instruction pass gives a larger
   instruction-following lift. The instruction-applicability pass now preserves
-  that lift while slightly improving full-run recall and noise. This is still
-  only partial Phase 63 progress: the full 100K provider-free recall diagnostic
-  remains recall-limited and noisy, with temporal/timeline/preference
-  regressions. The next executable boundary is reducing full-slice missed
-  recall plus wrong-recall/noise on long imported conversations.
+  that lift while slightly improving full-run recall and noise. The temporal
+  date-content pass recovers date-in-content interval cases, the source
+  preference pass gives a larger preference-following lift, and the timeline
+  planning pass recovers most Timeline Integration cases. This is still only
+  partial Phase 63 progress: the full 100K provider-free recall diagnostic
+  remains recall-limited and noisy with 267 missed-recall cases. The next
+  executable boundary is reducing full-slice missed recall plus
+  wrong-recall/noise on long imported conversations.
 - Final/public reporting remains deferred until LongMemEval, BEAM,
   MemoryAgentBench, and LoCoMo are all complete.

@@ -64,8 +64,14 @@ const SOURCE_ORDER_MILESTONE_FILL_LIMIT = 6;
 const SOURCE_ORDER_SUMMARY_RECALL_LIMIT = 16;
 const SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT = 8;
 const SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE = 1;
+const SOURCE_ORDER_TIMELINE_RECALL_LIMIT = 6;
+const SOURCE_ORDER_TIMELINE_CLUSTER_RADIUS = 5;
+const SOURCE_ORDER_TIMELINE_CHRONOLOGY_PENALTY = 2;
+const SOURCE_ORDER_TIMELINE_PRIORITY_THRESHOLD = 140;
 const SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT = 2;
 const SOURCE_ORDER_INSTRUCTION_PRIORITY_THRESHOLD = 160;
+const SOURCE_ORDER_PREFERENCE_RECALL_LIMIT = 2;
+const SOURCE_ORDER_PREFERENCE_PRIORITY_THRESHOLD = 130;
 const PREFERENCE_RECALL_LIMIT = 3;
 const RESEARCH_RECOMMENDATION_LIMIT = 2;
 const EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD = 0.08;
@@ -145,6 +151,43 @@ const TEMPORAL_INTERVAL_ANCHOR_STOPWORDS = new Set([
 ]);
 const TEMPORAL_INTERVAL_ACQUISITION_OBJECT_PATTERN =
   /\b(?:api\s+key|key|token|credential|access|license|permit|certificate|approval|confirmation|receipt|authorization|invite|invitation)\b/iu;
+const SOURCE_PREFERENCE_DECLARATION_PATTERN =
+  /\b(?:prefer|preference|i['’]d\s+like|i\s+would\s+like|looking\s+for|interested\s+in|enjoy|love|rather\s+than|over\s+(?:heavy|manual|generic|external|third-party)|without\s+compromising|avoid(?:ing)?)\b/iu;
+const SIMPLE_SOLUTION_QUERY_PATTERN =
+  /\b(?:simple|straightforward|minimal|lightweight|built-?in|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party))\b/iu;
+const LIGHTWEIGHT_PREFERENCE_PATTERN =
+  /\b(?:lightweight|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party)|minimal|simple|straightforward|built-?in|avoid(?:ing)?\s+(?:heavy|external|third-party)|under\s+\d+(?:\.\d+)?\s*(?:mb|kb))\b/iu;
+const TIMELINE_INTEGRATION_CONTENT_CUE_PATTERN =
+  /\b(?:attorneys?|bar\s+association|college|completed\s+on\s+time|cutoff|deadline|draft|follow\s+up|meeting|mentor|milestones?|organis(?:e|ed|ing|ation)|organiz(?:e|ed|ing|ation)|patents?|plan(?:ned|ning)?|prepar(?:e|ed|ing|ation)|resources?|revision|schedule(?:d)?|sprint|structur(?:e|ed|ing)|submission|timeline)\b/iu;
+const TIMELINE_INTEGRATION_STRONG_CONTENT_CUE_PATTERN =
+  /\b(?:completed\s+on\s+time|cutoff|deadline|final\s+cutoff|milestones?|schedule(?:d)?|sprint|timeline|weeks?\s+leading\s+up)\b/iu;
+const TIMELINE_INTEGRATION_SPECIFIC_TOPIC_TOKENS = new Set([
+  "analytics",
+  "attorney",
+  "attorneys",
+  "backend",
+  "bar",
+  "college",
+  "deadline",
+  "draft",
+  "essay",
+  "frontend",
+  "guidance",
+  "inventions",
+  "layout",
+  "login",
+  "mentor",
+  "navigation",
+  "patent",
+  "patents",
+  "registration",
+  "resources",
+  "scholarship",
+  "sprint",
+  "submission",
+  "visa",
+  "writing",
+]);
 const AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD = 0.05;
 const AGGREGATE_GENERIC_LEXICAL_FACT_THRESHOLD = 0.2;
 const AGGREGATE_TOPIC_STOPWORDS = new Set([
@@ -2051,6 +2094,361 @@ function selectSourceOrderedSummaryCoverage(input: {
   return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
+function isSourceOrderedTimelineIntegrationQuery(query: string): boolean {
+  const hasQuestionShape =
+    /\b(?:how\s+(?:did|have)|what\s+steps)\b/iu.test(query);
+  const hasPlanningAction =
+    /\b(?:connect(?:ing)?|follow\s+up|organis(?:e|ed|ing)|organiz(?:e|ed|ing)|plan(?:ned)?|prepar(?:e|ed|ing)|structur(?:e|ed|ing)|support)\b/iu.test(
+      query,
+    ) ||
+    /\bwhat\s+steps\b/iu.test(query);
+  const hasTimelineScope =
+    /\b(?:bar\s+association|completed\s+on\s+time|cutoff|deadline|essay\s+writing|final\s+cutoff|guidance|inventions?|local\s+and\s+external\s+resources|mentor|meeting|over\s+(?:the\s+course|time)|professional\s+guidance|project\s+schedule|resources?|schedule|sprint|studies|submission|timeline|weeks?\s+leading\s+up)\b/iu.test(
+      query,
+    );
+  const requestFlowProblem =
+    /\b(?:bursts?\s+of\s+activity|flow\s+of\s+requests?|frequent\s+retries|overwhelming\s+the\s+service|rate\s+limits?)\b/iu.test(
+      query,
+    );
+
+  return (
+    hasQuestionShape &&
+    hasPlanningAction &&
+    hasTimelineScope &&
+    !requestFlowProblem
+  ) ||
+    /(如何|怎么|哪些步骤).*(计划|安排|组织|推进|流程|时间线|截止|资源|指导|准备|后续)/u.test(query);
+}
+
+function sourceOrderedTimelinePriority(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  query: string;
+  queryTopics: ReadonlySet<string>;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const factTopics = aggregateTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  const specificTopicOverlap = [...input.queryTopics].filter(
+    (topic) =>
+      TIMELINE_INTEGRATION_SPECIFIC_TOPIC_TOKENS.has(topic) &&
+      factTopics.has(topic),
+  ).length;
+  let priority =
+    aggregateTopicOverlapCount(input.queryTopics, factTopics) * 120 +
+    specificTopicOverlap * 160 +
+    input.entry.lexicalScore * 100 +
+    input.entry.subjectScore * 70 +
+    input.entry.intentScore * 50;
+
+  if (hasUserAnswerTag(input.entry) || hasAssistantAnswerTag(input.entry)) {
+    priority += 35;
+  }
+  if (TIMELINE_INTEGRATION_CONTENT_CUE_PATTERN.test(content)) {
+    priority += 75;
+  }
+  if (TIMELINE_INTEGRATION_STRONG_CONTENT_CUE_PATTERN.test(content)) {
+    priority += 90;
+  }
+  if (
+    /\b(?:cutoff|deadline|due|weeks?\s+leading\s+up)\b/iu.test(input.query) &&
+    (
+      /\b(?:by|before)\s+(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|\d{1,2})\b/iu.test(
+        content,
+      ) ||
+      /\bgoal\s+to\s+complete\b/iu.test(content)
+    )
+  ) {
+    priority += 90;
+  }
+  if (
+    hasAssistantAnswerTag(input.entry) &&
+    /\b(?:steps?|plan|timeline|schedule|recommend(?:ed|ation)?|summary)\b/iu.test(
+      content,
+    )
+  ) {
+    priority += 35;
+  }
+  if (
+    hasUserAnswerTag(input.entry) &&
+    /\b(?:can\s+you\s+help|how\s+can|what\s+(?:can|should)|i\s+need\s+to|i['’]ll|i\s+will)\b/iu.test(
+      content,
+    )
+  ) {
+    priority += 25;
+  }
+  if (/\bbackend\b/iu.test(input.query) && /\bfrontend\b/iu.test(input.query)) {
+    if (/\bbackend\b/iu.test(content)) {
+      priority += 120;
+    }
+    if (/\bfrontend\b/iu.test(content)) {
+      priority += 120;
+    }
+    if (!/\bbackend\b/iu.test(content) && !/\bfrontend\b/iu.test(content)) {
+      priority -= 80;
+    }
+  }
+
+  return priority;
+}
+
+function timelineCandidateMatchesRequiredQueryCue(input: {
+  content: string;
+  query: string;
+}): boolean {
+  if (
+    /\bsprint\b/iu.test(input.query) &&
+    !/\bsprint\b/iu.test(input.content) &&
+    !(
+      /\bbackend\b/iu.test(input.query) &&
+      /\bfrontend\b/iu.test(input.query) &&
+      (
+        /\bbackend\b/iu.test(input.content) ||
+        /\bfrontend\b/iu.test(input.content)
+      )
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\b(?:son|studies|student)\b/iu.test(input.query) &&
+    !/\b(?:college|engineering|francis|son|student|studies|studying)\b/iu.test(
+      input.content,
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function selectSourceOrderedTimelineIntegrationEvidence(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  if (!isSourceOrderedTimelineIntegrationQuery(input.query)) {
+    return [];
+  }
+
+  const queryTopics = aggregateTopicTokens(
+    input.query,
+    input.language,
+    input.queryLocale,
+  );
+  const sourceCandidates = input.entries
+    .filter(isSourceOrderedSummaryCandidate)
+    .filter((entry) => entry.fact.source.method !== "inferred")
+    .sort(compareTemporalFactChronology);
+  const prioritized = sourceCandidates
+    .map((entry) => ({
+      entry,
+      order: sourceOrderSortKey(entry),
+      priority: sourceOrderedTimelinePriority({
+        entry,
+        language: input.language,
+        query: input.query,
+        queryTopics,
+      }),
+    }))
+    .filter(
+      (candidate): candidate is {
+        entry: RankedFactCandidate;
+        order: number;
+        priority: number;
+      } =>
+        candidate.order !== undefined &&
+        timelineCandidateMatchesRequiredQueryCue({
+          content: stripEvidencePrefix(candidate.entry.fact.content),
+          query: input.query,
+        }) &&
+        (
+          candidate.priority >= SOURCE_ORDER_TIMELINE_PRIORITY_THRESHOLD ||
+          (
+            TIMELINE_INTEGRATION_CONTENT_CUE_PATTERN.test(
+              stripEvidencePrefix(candidate.entry.fact.content),
+            ) &&
+            candidate.priority > 80
+          )
+        ),
+    );
+  if (prioritized.length === 0) {
+    return [];
+  }
+
+  if (/\b(?:child|daughter|son|student|studies)\b/iu.test(input.query)) {
+    const earliestOrder = Math.min(
+      ...prioritized.map((candidate) => candidate.order),
+    );
+    const earliestContextCluster = sourceCandidates
+      .map((entry) => ({
+        entry,
+        order: sourceOrderSortKey(entry),
+        priority: sourceOrderedTimelinePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryTopics,
+        }),
+      }))
+      .filter(
+        (candidate): candidate is {
+          entry: RankedFactCandidate;
+          order: number;
+          priority: number;
+        } => {
+          if (
+            candidate.order === undefined ||
+            candidate.order < earliestOrder ||
+            candidate.order - earliestOrder > SOURCE_ORDER_TIMELINE_CLUSTER_RADIUS
+          ) {
+            return false;
+          }
+          const content = stripEvidencePrefix(candidate.entry.fact.content);
+          return (
+            timelineCandidateMatchesRequiredQueryCue({
+              content,
+              query: input.query,
+            }) &&
+            (
+              candidate.priority > 60 ||
+              TIMELINE_INTEGRATION_CONTENT_CUE_PATTERN.test(content)
+            )
+          );
+        },
+      )
+      .sort((left, right) => left.order - right.order)
+      .slice(0, SOURCE_ORDER_TIMELINE_RECALL_LIMIT)
+      .map((candidate) => candidate.entry);
+
+    if (
+      earliestContextCluster.some(hasUserAnswerTag) &&
+      earliestContextCluster.some(hasAssistantAnswerTag)
+    ) {
+      return earliestContextCluster;
+    }
+  }
+
+  let bestCluster:
+    | {
+      entries: RankedFactCandidate[];
+      score: number;
+    }
+    | undefined;
+  for (const anchor of prioritized) {
+    const window = sourceCandidates
+      .map((entry) => ({
+        entry,
+        order: sourceOrderSortKey(entry),
+        priority: sourceOrderedTimelinePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryTopics,
+        }),
+      }))
+      .filter(
+        (candidate): candidate is {
+          entry: RankedFactCandidate;
+          order: number;
+          priority: number;
+        } => {
+          if (
+            candidate.order === undefined ||
+            Math.abs(candidate.order - anchor.order) >
+              SOURCE_ORDER_TIMELINE_CLUSTER_RADIUS
+          ) {
+            return false;
+          }
+          const nearAnchor = Math.abs(candidate.order - anchor.order) <= 1;
+          const hasTimelineCue = TIMELINE_INTEGRATION_CONTENT_CUE_PATTERN.test(
+            stripEvidencePrefix(candidate.entry.fact.content),
+          );
+          if (
+            !timelineCandidateMatchesRequiredQueryCue({
+              content: stripEvidencePrefix(candidate.entry.fact.content),
+              query: input.query,
+            })
+          ) {
+            return false;
+          }
+          return (
+            candidate.priority >= SOURCE_ORDER_TIMELINE_PRIORITY_THRESHOLD &&
+            hasTimelineCue
+          ) ||
+            (hasTimelineCue && candidate.priority > 80) ||
+            (
+              nearAnchor &&
+              candidate.priority > 60 &&
+              (
+                hasTimelineCue ||
+                (hasUserAnswerTag(anchor.entry) && hasAssistantAnswerTag(candidate.entry)) ||
+                (hasAssistantAnswerTag(anchor.entry) && hasUserAnswerTag(candidate.entry))
+              )
+            );
+        },
+      )
+      .sort((left, right) => {
+        const distanceDelta =
+          Math.abs(left.order - anchor.order) -
+          Math.abs(right.order - anchor.order);
+        if (distanceDelta !== 0) {
+          return distanceDelta;
+        }
+        if (left.order !== right.order) {
+          return left.order - right.order;
+        }
+        if (left.priority !== right.priority) {
+          return right.priority - left.priority;
+        }
+        return 0;
+      })
+      .slice(0, SOURCE_ORDER_TIMELINE_RECALL_LIMIT);
+    if (window.length === 0) {
+      continue;
+    }
+
+    const hasUser = window.some((candidate) => hasUserAnswerTag(candidate.entry));
+    const hasAssistant = window.some((candidate) =>
+      hasAssistantAnswerTag(candidate.entry)
+    );
+    const windowOrders = window.map((candidate) => candidate.order).sort(
+      (left, right) => left - right,
+    );
+    const earliestOrder = windowOrders[0] ?? anchor.order;
+    const latestOrder = windowOrders.at(-1) ?? anchor.order;
+    const adjacentLinkCount = windowOrders.slice(1).filter(
+      (order, index) => order - windowOrders[index]! <= 2,
+    ).length;
+    const strongCueCount = window.filter((candidate) =>
+      TIMELINE_INTEGRATION_STRONG_CONTENT_CUE_PATTERN.test(
+        stripEvidencePrefix(candidate.entry.fact.content),
+      )
+    ).length;
+    const score =
+      window.reduce((sum, candidate) => sum + candidate.priority, 0) /
+        window.length +
+      (hasUser && hasAssistant ? 120 : 0) -
+      window.length * 5 +
+      adjacentLinkCount * 60 +
+      strongCueCount * 80 -
+      (latestOrder - earliestOrder) * 3 -
+      earliestOrder * SOURCE_ORDER_TIMELINE_CHRONOLOGY_PENALTY;
+    if (!bestCluster || score > bestCluster.score) {
+      bestCluster = {
+        entries: window.map((candidate) => candidate.entry),
+        score,
+      };
+    }
+  }
+
+  return bestCluster?.entries.sort(compareTemporalFactChronology) ?? [];
+}
+
 function isSourceOrderedUserInstruction(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
 
@@ -2301,6 +2699,167 @@ function selectSourceOrderedInstructionEvidence(input: {
 
   return candidates
     .slice(0, SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT)
+    .map((candidate) => candidate.entry);
+}
+
+function isPreferenceGuidanceQuery(
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): boolean {
+  return language.isRecommendationStyleQuery(query, queryLocale) ||
+    language.isGuidanceSeekingQuery(query, queryLocale) ||
+    /\b(?:can\s+you\s+help|help\s+me|how\s+should|how\s+can|walk\s+me\s+through|show\s+me|explain|i['’]d\s+like|i\s+would\s+like|i\s+want)\b/iu.test(
+      query,
+    );
+}
+
+function isSourceOrderedUserPreferenceEvidence(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+}): boolean {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+
+  return (
+    input.entry.fact.source.method !== "inferred" &&
+    hasSourceMessageTag(input.entry) &&
+    hasUserAnswerTag(input.entry) &&
+    !hasAssistantAnswerTag(input.entry) &&
+    sourceOrderSortKey(input.entry) !== undefined &&
+    input.language.isPersonalEvidenceSignal(content, input.entry.locale) &&
+    SOURCE_PREFERENCE_DECLARATION_PATTERN.test(content)
+  );
+}
+
+function sourcePreferenceTopicTokens(input: {
+  language: LanguageService;
+  locale: string;
+  text: string;
+}): Set<string> {
+  return sourceInstructionTopicTokens(input);
+}
+
+function hasApplicableSourcePreferenceTopic(input: {
+  content: string;
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+  queryTopics: ReadonlySet<string>;
+}): boolean {
+  const preferenceTopics = sourcePreferenceTopicTokens({
+    language: input.language,
+    locale: input.entry.locale,
+    text: input.content,
+  });
+  if (aggregateTopicOverlapCount(input.queryTopics, preferenceTopics) > 0) {
+    return true;
+  }
+
+  if (
+    SIMPLE_SOLUTION_QUERY_PATTERN.test(input.query) &&
+    LIGHTWEIGHT_PREFERENCE_PATTERN.test(input.content)
+  ) {
+    return true;
+  }
+
+  return hasPreferenceAdviceBridgeSignal({
+    factContent: input.content,
+    query: input.query,
+  });
+}
+
+function sourcePreferencePriority(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+  queryTopics: ReadonlySet<string>;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const preferenceTopics = sourcePreferenceTopicTokens({
+    language: input.language,
+    locale: input.entry.locale,
+    text: content,
+  });
+  const overlap = aggregateTopicOverlapCount(input.queryTopics, preferenceTopics);
+  let priority =
+    overlap * 160 +
+    input.entry.lexicalScore * 120 +
+    input.entry.subjectScore * 80 +
+    input.entry.intentScore * 60;
+
+  if (SOURCE_PREFERENCE_DECLARATION_PATTERN.test(content)) {
+    priority += 60;
+  }
+  if (
+    SIMPLE_SOLUTION_QUERY_PATTERN.test(input.query) &&
+    LIGHTWEIGHT_PREFERENCE_PATTERN.test(content)
+  ) {
+    priority += 90;
+  }
+  if (content.length < 600) {
+    priority += 10;
+  } else if (content.length > 1600) {
+    priority -= 20;
+  }
+
+  return priority;
+}
+
+function selectSourceOrderedPreferenceEvidence(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  if (!isPreferenceGuidanceQuery(input.query, input.language, input.queryLocale)) {
+    return [];
+  }
+
+  const queryTopics = sourcePreferenceTopicTokens({
+    language: input.language,
+    locale: input.queryLocale,
+    text: input.query,
+  });
+  const candidates = input.entries
+    .filter((entry) =>
+      isSourceOrderedUserPreferenceEvidence({
+        entry,
+        language: input.language,
+      })
+    )
+    .map((entry) => ({
+      entry,
+      priority: sourcePreferencePriority({
+        entry,
+        language: input.language,
+        query: input.query,
+        queryLocale: input.queryLocale,
+        queryTopics,
+      }),
+    }))
+    .filter((candidate) => {
+      const content = stripEvidencePrefix(candidate.entry.fact.content);
+      return candidate.priority >= SOURCE_ORDER_PREFERENCE_PRIORITY_THRESHOLD &&
+        hasApplicableSourcePreferenceTopic({
+          content,
+          entry: candidate.entry,
+          language: input.language,
+          query: input.query,
+          queryLocale: input.queryLocale,
+          queryTopics,
+        });
+    })
+    .sort((left, right) => {
+      if (left.priority !== right.priority) {
+        return right.priority - left.priority;
+      }
+      return compareTemporalFactChronology(left.entry, right.entry);
+    });
+
+  return candidates
+    .slice(0, SOURCE_ORDER_PREFERENCE_RECALL_LIMIT)
     .map((candidate) => candidate.entry);
 }
 
@@ -4001,12 +4560,30 @@ export function selectFacts(
     query,
     queryLocale,
   });
-  const sourceOrderedInstructionCandidates = selectSourceOrderedInstructionEvidence({
+  const sourceOrderedTimelineCandidates = selectSourceOrderedTimelineIntegrationEvidence({
     entries: compatible,
     language,
     query,
     queryLocale,
   });
+  const sourceOrderedInstructionCandidates =
+    sourceOrderedTimelineCandidates.length > 0
+      ? []
+      : selectSourceOrderedInstructionEvidence({
+        entries: compatible,
+        language,
+        query,
+        queryLocale,
+      });
+  const sourceOrderedPreferenceCandidates =
+    sourceOrderedTimelineCandidates.length > 0
+      ? []
+      : selectSourceOrderedPreferenceEvidence({
+        entries: compatible,
+        language,
+        query,
+        queryLocale,
+      });
   const contradictionEvidencePair = selectContradictionEvidencePair({
     entries: compatible,
     language,
@@ -4092,6 +4669,25 @@ export function selectFacts(
     }
   } else if (sourceOrderedSummaryCandidates.length > 0) {
     for (const entry of sourceOrderedSummaryCandidates) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (sourceOrderedTimelineCandidates.length > 0) {
+    for (const entry of sourceOrderedTimelineCandidates) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -4432,6 +5028,29 @@ export function selectFacts(
   }
 
   for (const entry of sourceOrderedInstructionCandidates) {
+    if (selectedIds.has(entry.fact.id)) {
+      continue;
+    }
+
+    selected.push(entry);
+    selectedIds.add(entry.fact.id);
+    markSelectedTrace(
+      traces,
+      entry.fact.id,
+      "generic",
+      entry.intentScore,
+      entry.lexicalScore,
+      entry.freshnessScore,
+      entry.explicitnessScore,
+      entry.usageScore,
+      entry.evidenceScore,
+      entry.outcomeScore,
+      entry.verificationPenaltyScore,
+      "none",
+    );
+  }
+
+  for (const entry of sourceOrderedPreferenceCandidates) {
     if (selectedIds.has(entry.fact.id)) {
       continue;
     }

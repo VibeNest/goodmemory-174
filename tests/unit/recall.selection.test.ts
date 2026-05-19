@@ -1953,6 +1953,68 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-kitchen-leak")?.returned).toBe(false);
   });
 
+  it("returns source-ordered preference evidence for implementation help questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      tags: string[] = ["source_message", "source_order", "user_answer"],
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags,
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-assistant-caching",
+        47,
+        "[BEAM chat_id=47 role=assistant time=unknown] Using localStorage is a great approach for caching API responses in the app.",
+        ["source_message", "source_order", "assistant_answer"],
+      ),
+      makeSourceFact(
+        "fact-cache-implementation-noise",
+        52,
+        "[BEAM chat_id=52 role=user time=unknown] I implemented a straightforward caching system for app API responses with TTL checks and cache invalidation.",
+      ),
+      makeSourceFact(
+        "fact-lightweight-preference",
+        54,
+        "[BEAM chat_id=54 role=user time=unknown] I'm trying to keep my weather app under 2.5MB, so I prefer using lightweight, dependency-free solutions over heavy frameworks.",
+      ),
+      makeSourceFact(
+        "fact-later-cache-implementation",
+        64,
+        "[BEAM chat_id=64 role=user time=unknown] I implemented a simple caching mechanism for OpenWeather API responses using an in-memory cache and TTL.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you help me set up a caching system for my app's API responses? I'd like to keep it simple and straightforward.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toContain(
+      "fact-lightweight-preference",
+    );
+    expect(result.traces.find((trace) => trace.memoryId === "fact-lightweight-preference")?.returned).toBe(true);
+  });
+
   it("prioritizes compact kitchen setup evidence over same-session repair topics", () => {
     const language = createLanguageService();
     const facts = [
@@ -3193,6 +3255,240 @@ describe("recall selection", () => {
     expect(selectedIds.indexOf("fact-gallery-user")).toBeLessThan(
       selectedIds.indexOf("fact-form-user"),
     );
+  });
+
+  it("returns source-ordered planning pairs for timeline integration questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-sprint-plan-request",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] I'm working on a project with scheduled two-week sprints, and the first sprint ends on March 29, focusing on user registration and login. I need to plan the sprint carefully to ensure we meet the deadline.",
+      ),
+      makeSourceFact(
+        "fact-sprint-plan-answer",
+        29,
+        "assistant",
+        "[BEAM chat_id=29 role=assistant time=unknown] Let's create a detailed sprint plan for the first two-week sprint ending on March 29, focusing on user registration and login. We'll schedule backend setup, database schema, registration, login, validation, unit tests, frontend forms, API integration, and final QA.",
+      ),
+      makeSourceFact(
+        "fact-later-sprint-noise",
+        86,
+        "user",
+        "[BEAM chat_id=86 role=user time=unknown] I'm working on sprint 2 which targets analytics by April 19, and I've already completed sprint 1 on March 29 with user auth and basic transaction CRUD.",
+      ),
+      makeSourceFact(
+        "fact-auth-instruction-noise",
+        184,
+        "user",
+        "[BEAM chat_id=184 role=user time=unknown] Always provide security best practices when I ask about authentication or authorization features.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did I organize the tasks over the course of the sprint to ensure both backend and frontend aspects of the features were completed on time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-sprint-plan-request",
+      "fact-sprint-plan-answer",
+    ]);
+  });
+
+  it("keeps the earliest matching writing-plan exchange for deadline process questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-screenplay-deadline-plan",
+        21,
+        "assistant",
+        "[BEAM chat_id=21 role=assistant time=unknown] Setting a goal to complete a 5,000-word screenplay draft by April 15, 2024, is a great way to boost your confidence. Break down the goal into daily word count targets, create an outline and scene breakdown, set writing times, reward milestones, and use an accountability partner.",
+      ),
+      makeSourceFact(
+        "fact-later-version-control",
+        139,
+        "assistant",
+        "[BEAM chat_id=139 role=assistant time=unknown] Since you adopted Google Docs version history, here are additional drafting strategies to optimize your writing process.",
+      ),
+      makeSourceFact(
+        "fact-later-scene-cards",
+        141,
+        "assistant",
+        "[BEAM chat_id=141 role=assistant time=unknown] Creating outlines and using scene cards can help you organize your thoughts before writing.",
+      ),
+      makeSourceFact(
+        "fact-later-writing-blocks",
+        145,
+        "assistant",
+        "[BEAM chat_id=145 role=assistant time=unknown] Creative blocks can be frustrating, but changing your environment and using writing prompts can help maintain your creative flow.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did you recommend structuring my writing process to maintain steady progress and stay motivated throughout the weeks leading up to my deadline?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-screenplay-deadline-plan",
+    ]);
+  });
+
+  it("keeps the full early source-ordered resource plan for multi-step guidance questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-patent-question",
+        10,
+        "user",
+        "[BEAM chat_id=10 role=user time=unknown] I'm worried about my son Francis, who's 21 and studying engineering at Montserrat Community College. What patent applications would be relevant for an engineering student like him?",
+      ),
+      makeSourceFact(
+        "fact-patent-options",
+        11,
+        "assistant",
+        "[BEAM chat_id=11 role=assistant time=unknown] There are several types of patent applications that could be relevant for an engineering student, including utility patents and provisional patents.",
+      ),
+      makeSourceFact(
+        "fact-provisional-plan",
+        12,
+        "user",
+        "[BEAM chat_id=12 role=user time=unknown] Utility patents sound most relevant for Francis. I'll encourage him to document everything thoroughly and maybe look into a provisional patent if his ideas are early stage.",
+      ),
+      makeSourceFact(
+        "fact-attorney-resources",
+        13,
+        "assistant",
+        "[BEAM chat_id=13 role=assistant time=unknown] That's a great plan. Finding a reliable patent attorney is crucial; start with college resources, bar association referrals, and online directories.",
+      ),
+      makeSourceFact(
+        "fact-college-bar-plan",
+        14,
+        "user",
+        "[BEAM chat_id=14 role=user time=unknown] I'll start by checking with Montserrat Community College for resources or connections with patent attorneys, reach out to the Montserrat Bar Association for referrals, and use online directories.",
+      ),
+      makeSourceFact(
+        "fact-college-bar-summary",
+        15,
+        "assistant",
+        "[BEAM chat_id=15 role=assistant time=unknown] That's a solid plan: check with the college, contact the local bar association, use online directories, attend networking events, interview potential attorneys, and decide based on fit and budget.",
+      ),
+      makeSourceFact(
+        "fact-later-local-attorney-noise",
+        19,
+        "assistant",
+        "[BEAM chat_id=19 role=assistant time=unknown] Finding a local patent attorney who understands the UK system can be helpful.",
+      ),
+      makeSourceFact(
+        "fact-later-business-association-noise",
+        21,
+        "assistant",
+        "[BEAM chat_id=21 role=assistant time=unknown] Contact local business associations and online directories to find a reliable patent attorney.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did I plan to support my son's progress in his studies by connecting with local and external resources, and what steps did you recommend I take to find professional guidance for his inventions?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-patent-question",
+      "fact-patent-options",
+      "fact-provisional-plan",
+      "fact-attorney-resources",
+      "fact-college-bar-plan",
+      "fact-college-bar-summary",
+    ]);
   });
 
   it("returns Chinese source-ordered coverage for broad conversation summary questions", () => {

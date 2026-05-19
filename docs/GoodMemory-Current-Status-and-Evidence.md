@@ -244,6 +244,30 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     wrong-recall/noise cases 389/400. Temporal reasoning improves to 0.4875,
     including the OpenWeather API key vs UI wireframe duration case moving
     from 0 to 1 recall, but this remains partial Phase 63 progress only.
+  - source preference evidence rerun:
+    source-ordered original user preference statements are now appended for
+    guidance or implementation-help queries when they carry a clear preference
+    declaration and a topic bridge. The kept current-code rerun
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-preference-v2-rerun-current-20260519T020000`
+    reaches evidence-chat recall 0.3629658760644676 with
+    `executionFailures: 0`, missed-recall cases 270/355, and
+    wrong-recall/noise cases 390/400. Preference-following recall improves to
+    0.3803418803418803 and zero-recall preference cases drop from 33 to 23,
+    but this remains partial Phase 63 progress only.
+  - timeline planning evidence rerun:
+    Timeline Integration questions now use a bounded source-ordered planning
+    cluster that favors explicit timeline/date cues, required query anchors,
+    and contiguous early source context for student/family resource plans. The
+    kept current-code rerun
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-timeline-planning-v3-current-20260519T041500`
+    reaches evidence-chat recall 0.37368575086884953 with
+    `executionFailures: 0`, missed-recall cases 267/355, and
+    wrong-recall/noise cases 388/400. Timeline Integration recall improves
+    from 0 to 0.5333333333333333, zero-recall Timeline Integration cases drop
+    from 5 to 2, and Timeline Integration wrong/noise drops from 4 to 2. This
+    is still partial Phase 63 progress only: 267 evidence cases still miss,
+    temporal reasoning remains at 0.4875, and preference-following remains at
+    0.3803418803418803.
 - Current Phase 62 evidence:
   - the accepted clean current-code full-500 close checkpoint is
     `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:

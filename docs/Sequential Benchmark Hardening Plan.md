@@ -128,6 +128,30 @@ the OpenWeather API key vs UI wireframe duration case moving from 0 to 1
 evidence-chat recall. This is still not BEAM closure: Timeline Integration
 stays at 0, preference following stays at 0.15384615384615385, and 278/355
 evidence cases still miss at least one required chat.
+Ninth, source-ordered preference evidence now appends bounded original user
+preference statements for guidance or implementation-help queries when the
+source turn carries a clear preference declaration and topic bridge. The kept
+rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-source-preference-v2-rerun-current-20260519T020000`
+raises overall evidence-chat recall to 0.3629658760644676 with
+`executionFailures: 0`, missed-recall cases 270/355, and wrong-recall/noise
+cases 390/400. Preference-following recall improves from 0.15384615384615385
+to 0.3803418803418803, with zero-recall preference cases dropping from 33 to
+23. This is still not BEAM closure: Timeline Integration remains 0, the full
+run still misses 270 evidence cases, and the noise count is one case higher
+than the temporal date-content checkpoint.
+Tenth, Timeline Integration now uses a bounded source-ordered planning cluster
+that favors explicit timeline/date cues, required query anchors such as sprint
+or student-study context, and contiguous early source context for resource
+plans. The kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-timeline-planning-v3-current-20260519T041500`
+raises overall evidence-chat recall to 0.37368575086884953 with
+`executionFailures: 0`, missed-recall cases 267/355, and wrong-recall/noise
+cases 388/400. Timeline Integration recall improves from 0 to
+0.5333333333333333, zero-recall Timeline Integration cases drop from 5 to 2,
+and Timeline Integration wrong/noise drops from 4 to 2. This is still not BEAM
+closure: 267 evidence cases still miss, temporal reasoning remains at 0.4875,
+and preference following remains at 0.3803418803418803.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

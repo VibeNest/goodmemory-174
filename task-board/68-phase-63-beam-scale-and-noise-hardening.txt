@@ -564,6 +564,77 @@ P63-T007i temporal date-content boundary repair:
   boundary, but Timeline Integration remains 0, preference following remains
   0.15384615384615385, and the full run still has 278 missed-recall cases.
 
+P63-T007j source preference evidence repair:
+
+- Mechanism:
+  source-ordered original user preference evidence is now appended for guidance
+  or implementation-help queries when the source turn is user-authored,
+  source-message/source-order tagged, contains a clear preference declaration,
+  and has either topic overlap or a narrow simple/lightweight solution bridge.
+  Plain action intents such as "I want to solve..." are not enough.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers the BEAM caching/API-response
+  shape where high-overlap implementation details previously crowded out the
+  original lightweight/dependency-free preference source turn.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-preference-v2-rerun-current-20260519T020000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.3629658760644676
+  - missed-recall cases: 270/355
+  - wrong-recall/noise cases: 390/400
+  - preference-following recall: 0.3803418803418803
+  - zero-recall preference-following cases: 23
+- Delta from temporal date-content boundary:
+  overall recall improves from 0.3364892384610695 to 0.3629658760644676,
+  missed recall improves from 278/355 to 270/355, preference-following recall
+  improves from 0.15384615384615385 to 0.3803418803418803, and zero-recall
+  preference cases drop from 33 to 23. Wrong-recall/noise rises by one case,
+  from 389/400 to 390/400.
+- Decision:
+  this is a kept partial repair, not BEAM closure. It materially recovers
+  original preference evidence for implementation-help questions, but
+  Timeline Integration remains 0, wrong-recall/noise is still high, and the
+  full run still has 270 missed-recall cases.
+
+P63-T007k timeline planning evidence repair:
+
+- Mechanism:
+  Timeline Integration questions now use a bounded source-ordered planning
+  cluster that favors explicit timeline/date cues, required query anchors such
+  as sprint or student-study context, and contiguous early source context for
+  multi-step resource plans. Broad request-flow/retry questions are excluded
+  from this path.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers source-ordered sprint
+  planning, earliest writing-plan exchanges, and multi-step patent/student
+  resource guidance so late high-overlap clusters do not crowd out the original
+  planning context.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-timeline-planning-v3-current-20260519T041500`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.37368575086884953
+  - missed-recall cases: 267/355
+  - wrong-recall/noise cases: 388/400
+  - Timeline Integration recall: 0.5333333333333333
+  - zero-recall Timeline Integration cases: 2
+- Delta from source preference evidence:
+  overall recall improves from 0.3629658760644676 to 0.37368575086884953,
+  missed recall improves from 270/355 to 267/355, wrong-recall/noise improves
+  from 390/400 to 388/400, Timeline Integration recall improves from 0 to
+  0.5333333333333333, and zero-recall Timeline Integration cases drop from 5
+  to 2.
+- Decision:
+  this is a kept partial repair, not BEAM closure. It materially recovers
+  Timeline Integration while keeping the Problem-Solution and Context-Based
+  Recall buckets at the source-preference baseline, but the full run still has
+  267 missed-recall cases and a high noise surface.
+
 
 Current Boundary
 ----------------
@@ -576,10 +647,11 @@ answer-generation/judge slice are now in place. The first generic
 source-preservation pass, the follow-up contradiction / companion pass, the
 milestone/context pass, the ordered-context pruning pass, the source-summary
 coverage pass, the source-provenance instruction pass, and the
-instruction-applicability pass have been rerun. The current failure family is
-now more specific: the representative live trio is clean at 3/3 with complete
-evidence recall, and the full 100K diagnostic has a real instruction-following
-recall lift with slightly lower noise, but the full surface remains
-recall-limited and noisy with temporal/timeline/preference regressions. BEAM
-still needs broader full-slice recall/noise hardening before it can move toward
-an answer-quality claim.
+instruction-applicability, temporal date-content, source preference, and
+timeline planning passes have been rerun. The current failure family is now
+more specific: the
+representative live trio is clean at 3/3 with complete evidence recall, and the
+full 100K diagnostic has real instruction, temporal, preference, and Timeline
+Integration lifts, but the full surface remains recall-limited and noisy with
+267 missed-recall cases. BEAM still needs broader full-slice recall/noise
+hardening before it can move toward an answer-quality claim.

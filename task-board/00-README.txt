@@ -111,11 +111,11 @@ Active Phase
 - Current BEAM failure surface: the first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  current-code temporal date-content boundary rerun,
-  `run-phase63-beam-100k-recall-diagnostic-rules-full-temporal-date-content-boundary-rerun-current-20260519T001500`,
-  reaches recall 0.3364892384610695, missed 278/355, and wrong-recall/noise
-  389/400; temporal reasoning rises to 0.4875 and instruction-following stays
-  at 0.7583333333333333, but timeline/preference misses still block closure.
+  current-code timeline planning rerun,
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-timeline-planning-v3-current-20260519T041500`,
+  reaches recall 0.37368575086884953, missed 267/355, and wrong-recall/noise
+  388/400; Timeline Integration rises to 0.5333333333333333, but full-run
+  misses and noise still block closure.
   Same-three-case live evidence tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and
